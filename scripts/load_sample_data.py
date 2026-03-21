@@ -13,6 +13,11 @@ from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import Session
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from alethical.db.session import normalize_database_url
+
 SCHEMA_PATH = ROOT / "prototypes" / "alethical_schema_sqlalchemy.py"
 
 def load_schema_module():
@@ -615,8 +620,10 @@ def refresh_legislator_stats(session: Session, refs: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    database_url = os.environ.get(
-        "DATABASE_URL", "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+    database_url = normalize_database_url(
+        os.environ.get(
+            "DATABASE_URL", "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+        )
     )
     engine = create_engine(database_url, echo=False)
     with Session(engine) as session:

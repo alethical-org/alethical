@@ -17,7 +17,10 @@ UserAccount = schema.UserAccount
 
 
 def get_auth_service():
-    return get_supabase_auth_service()
+    try:
+        return get_supabase_auth_service()
+    except RuntimeError:
+        return None
 
 
 def get_optional_current_user(
@@ -30,6 +33,13 @@ def get_optional_current_user(
     if not authorization.startswith("Bearer "):
         raise problem_exception(401, "Unauthorized", "Bearer token required")
     token = authorization.removeprefix("Bearer ").strip()
+    if auth_service is None:
+        raise problem_exception(
+            503,
+            "Service Unavailable",
+            "SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY are required unless ALETHICAL_DEV_AUTH_TOKEN is set for local development",
+            type_slug="service-unavailable",
+        )
     try:
         principal = auth_service.authenticate(token)
     except RuntimeError as exc:
