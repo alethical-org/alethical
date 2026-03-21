@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/((?!_expo/|favicon.ico|manifest.json|sw.js|icon-192.png|icon-512.png|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

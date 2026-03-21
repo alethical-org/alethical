@@ -12,6 +12,7 @@ __pycache__/
 .vscode/
 
 node_modules/
+.vercel/
 frontend/node_modules/
 frontend/.expo/
 frontend/dist/
@@ -25,3 +26,4 @@ htmlcov/
 
 *.log
 *.tmp
+.vercel
