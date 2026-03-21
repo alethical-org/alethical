@@ -1,0 +1,90 @@
+{
+  "house_count": 134,
+  "house_sample": [
+    {
+      "alt_text": "Rep. Patty Acomb",
+      "chamber": "house",
+      "display_name": "Rep. Patty Acomb",
+      "district": "45B",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/45BAcomb.jpg",
+      "profile_url": "https://www.house.leg.state.mn.us/members/members.asp?id=15513"
+    },
+    {
+      "alt_text": "Rep. Esther Agbaje",
+      "chamber": "house",
+      "display_name": "Rep. Esther Agbaje",
+      "district": "59B",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/59BAgbaje.jpg",
+      "profile_url": "https://www.house.leg.state.mn.us/members/members.asp?id=15551"
+    },
+    {
+      "alt_text": "Rep. Keith Allen",
+      "chamber": "house",
+      "display_name": "Rep. Keith Allen",
+      "district": "19A",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/19AAllen.jpg",
+      "profile_url": "https://www.house.leg.state.mn.us/members/members.asp?id=15627"
+    },
+    {
+      "alt_text": "Rep. Pam Altendorf",
+      "chamber": "house",
+      "display_name": "Rep. Pam Altendorf",
+      "district": "20A",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/20AAltendorf.jpg",
+      "profile_url": "https://www.house.leg.state.mn.us/members/members.asp?id=15602"
+    },
+    {
+      "alt_text": "Rep. Patricia Anderson",
+      "chamber": "house",
+      "display_name": "Rep. Patricia Anderson",
+      "district": "33A",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/33AAnderson,P.jpg",
+      "profile_url": "https://www.house.leg.state.mn.us/members/members.asp?id=15610"
+    }
+  ],
+  "prototype": "legislator_roster",
+  "senate_count": 67,
+  "senate_sample": [
+    {
+      "alt_text": "Sen. Jim Abeler",
+      "chamber": "senate",
+      "display_name": "Sen. Jim Abeler",
+      "district": "35",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/35Abeler.jpg",
+      "profile_url": "http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=10002"
+    },
+    {
+      "alt_text": "Sen. Calvin Bahr",
+      "chamber": "senate",
+      "display_name": "Sen. Calvin Bahr",
+      "district": "31",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/31Bahr.jpg",
+      "profile_url": "http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=15455"
+    },
+    {
+      "alt_text": "Sen. Liz Boldon",
+      "chamber": "senate",
+      "display_name": "Sen. Liz Boldon",
+      "district": "25",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/25Boldon.jpg",
+      "profile_url": "http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=15545"
+    },
+    {
+      "alt_text": "Sen. Jim Carlson",
+      "chamber": "senate",
+      "display_name": "Sen. Jim Carlson",
+      "district": "52",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/52Carlson.jpg",
+      "profile_url": "http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=15245"
+    },
+    {
+      "alt_text": "Sen. Bobby Joe Champion",
+      "chamber": "senate",
+      "display_name": "Sen. Bobby Joe Champion",
+      "district": "59",
+      "image_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/59Champion.jpg",
+      "profile_url": "http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=15317"
+    }
+  ],
+  "source_url": "https://www.leg.mn.gov/leg/legislators"
+}

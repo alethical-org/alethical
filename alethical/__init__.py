@@ -1,0 +1,1 @@
+"""Alethical application package."""

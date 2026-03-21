@@ -1,0 +1,144 @@
+{
+  "bill_text": {
+    "bill_title_text": "A bill for an act relating to children, youth, and families; appropriating money for grants for forensic interview training scholarships.",
+    "page_title": "HF 2136 Introduction - 94th Legislature (2025 - 2026)",
+    "sections": [
+      {
+        "heading": "Section 1. APPROPRIATIONS; FORENSIC INTERVIEW TRAINING SCHOLARSHIPS.",
+        "section_id": "laws.0.1.0",
+        "text": "$250,000 in fiscal year 2026 and $250,000 in fiscal year 2027 are appropriated from the general fund to the commissioner of children, youth, and families for grants to nationally recognized forensic interview protocol organizations to award scholarships for basic forensic interview training, advanced forensic interview training, and training on specialized interview topics. Scholarship recipients may include individuals in law enforcement, child protection, and prosecution; health professionals investigating, treating, and managing child maltreatment cases in Minnesota; and forensic interviewers at children's advocacy centers."
+      }
+    ],
+    "source_url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/"
+  },
+  "canonical_bill": {
+    "actions": {
+      "house": [
+        {
+          "action_date": "2025-03-10 00:00:00",
+          "action_description": "",
+          "action_group": "Action",
+          "action_number": "1",
+          "action_text": "Introduction and first reading, referred to",
+          "committee_id": "94003",
+          "committee_name": "Children and Families Finance and Policy",
+          "journal_page": "641",
+          "roll_call": ""
+        },
+        {
+          "action_date": "2025-03-11 00:00:00",
+          "action_description": "Virnig",
+          "action_group": "Action",
+          "action_number": "2",
+          "action_text": "Author added",
+          "committee_id": "",
+          "committee_name": "",
+          "journal_page": "658",
+          "roll_call": ""
+        },
+        {
+          "action_date": "2025-03-17 00:00:00",
+          "action_description": "Duran",
+          "action_group": "Action",
+          "action_number": "3",
+          "action_text": "Author added",
+          "committee_id": "",
+          "committee_name": "",
+          "journal_page": "833",
+          "roll_call": ""
+        },
+        {
+          "action_date": "2025-03-20 00:00:00",
+          "action_description": "Zeleznikar",
+          "action_group": "Action",
+          "action_number": "4",
+          "action_text": "Author added",
+          "committee_id": "",
+          "committee_name": "",
+          "journal_page": "882",
+          "roll_call": ""
+        },
+        {
+          "action_date": "2025-03-24 00:00:00",
+          "action_description": "",
+          "action_group": "Action",
+          "action_number": "5",
+          "action_text": "Committee report, to adopt and re-refer to",
+          "committee_id": "94018",
+          "committee_name": "Public Safety Finance and Policy",
+          "journal_page": "904",
+          "roll_call": ""
+        },
+        {
+          "action_date": "2026-03-09 00:00:00",
+          "action_description": "",
+          "action_group": "Action",
+          "action_number": "6",
+          "action_text": "Motion to recall and re-refer, motion prevailed",
+          "committee_id": "94003",
+          "committee_name": "Children and Families Finance and Policy",
+          "journal_page": "4835",
+          "roll_call": ""
+        }
+      ]
+    },
+    "authors": {
+      "house": [
+        {
+          "committee_id": "",
+          "committee_name": "",
+          "legislator_key": "15636",
+          "member_name": "Johnson, P."
+        },
+        {
+          "committee_id": "",
+          "committee_name": "",
+          "legislator_key": "15625",
+          "member_name": "Virnig"
+        },
+        {
+          "committee_id": "",
+          "committee_name": "",
+          "legislator_key": "15629",
+          "member_name": "Duran"
+        },
+        {
+          "committee_id": "",
+          "committee_name": "",
+          "legislator_key": "15624",
+          "member_name": "Zeleznikar"
+        }
+      ]
+    },
+    "bill_key": "94-2025-HF2136",
+    "companion_number": "2551",
+    "companion_type": "SF",
+    "description": "Grant funding provided for forensic interview training scholarships, and money appropriated.",
+    "file_number": "2136",
+    "file_type": "HF",
+    "revisor_number": "25-04304",
+    "session_number": "94",
+    "session_text": "2025 Regular Session",
+    "session_type": "0",
+    "session_year": "2025",
+    "session_year_close": "2026",
+    "session_year_start": "2025",
+    "text_versions": [
+      {
+        "date_insert": "2025-03-10 09:08:06",
+        "document_engrossment": "0",
+        "document_name": "2025.0-HF2136-0",
+        "document_type": "official",
+        "html_uri": "https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/"
+      }
+    ]
+  },
+  "prototype": "bill_ingest",
+  "source_discovery": {
+    "description": "Grant funding provided for forensic interview training scholarships, and money appropriated.",
+    "file_number": "2136",
+    "file_type": "HF",
+    "latest_text_html_uri": "https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/latest/",
+    "status_xml_uri": "https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/"
+  }
+}

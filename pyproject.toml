@@ -1,0 +1,26 @@
+[project]
+name = "alethical"
+version = "0.1.0"
+description = "Alethical schema and ingestion prototypes"
+requires-python = ">=3.11"
+dependencies = [
+  "alembic>=1.16.5",
+  "sqlalchemy>=2.0.39",
+  "psycopg[binary]>=3.2.6",
+  "pgvector>=0.4.1",
+  "requests>=2.32.3",
+  "fastapi>=0.135.1",
+  "uvicorn>=0.42.0",
+  "pydantic>=2.12.5",
+  "pytest>=9.0.2",
+  "httpx>=0.28.1",
+  "pytest-asyncio>=1.3.0",
+  "supabase>=2.28.3",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

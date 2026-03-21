@@ -1,0 +1,185 @@
+{
+  "bill_results": [
+    {
+      "action_count": 6,
+      "article_count": 0,
+      "author_count": 4,
+      "bill_key": "94-2025-HF2136",
+      "description_present": true,
+      "label": "HF2136",
+      "ok": true,
+      "roll_call_count": 0,
+      "section_count": 1,
+      "text_version_count": 1,
+      "title_present": true
+    },
+    {
+      "action_count": 17,
+      "article_count": 0,
+      "author_count": 31,
+      "bill_key": "94-2025-HF4",
+      "description_present": true,
+      "label": "HF4",
+      "ok": true,
+      "roll_call_count": 1,
+      "section_count": 2,
+      "text_version_count": 4,
+      "title_present": true
+    },
+    {
+      "action_count": 11,
+      "article_count": 2,
+      "author_count": 31,
+      "bill_key": "94-2025-HF1",
+      "description_present": true,
+      "label": "HF1",
+      "ok": true,
+      "roll_call_count": 0,
+      "section_count": 33,
+      "text_version_count": 5,
+      "title_present": true
+    },
+    {
+      "action_count": 29,
+      "article_count": 4,
+      "author_count": 2,
+      "bill_key": "94-2025-SF1832",
+      "description_present": true,
+      "label": "SF1832",
+      "ok": true,
+      "roll_call_count": 2,
+      "section_count": 53,
+      "text_version_count": 7,
+      "title_present": true
+    },
+    {
+      "action_count": 8,
+      "article_count": 2,
+      "author_count": 1,
+      "bill_key": "94-2025-SF2483",
+      "description_present": true,
+      "label": "SF2483",
+      "ok": true,
+      "roll_call_count": 0,
+      "section_count": 72,
+      "text_version_count": 3,
+      "title_present": true
+    },
+    {
+      "action_count": 2,
+      "article_count": 0,
+      "author_count": 1,
+      "bill_key": "94-2025-SF3095",
+      "description_present": true,
+      "label": "SF3095",
+      "ok": true,
+      "roll_call_count": 0,
+      "section_count": 1,
+      "text_version_count": 1,
+      "title_present": true
+    },
+    {
+      "action_count": 4,
+      "article_count": 0,
+      "author_count": 5,
+      "bill_key": "94-2025-SF1047",
+      "description_present": true,
+      "label": "SF1047",
+      "ok": true,
+      "roll_call_count": 0,
+      "section_count": 2,
+      "text_version_count": 1,
+      "title_present": true
+    },
+    {
+      "action_count": 3,
+      "article_count": 0,
+      "author_count": 2,
+      "bill_key": "94-2025-SF1097",
+      "description_present": true,
+      "label": "SF1097",
+      "ok": true,
+      "roll_call_count": 0,
+      "section_count": 3,
+      "text_version_count": 1,
+      "title_present": true
+    }
+  ],
+  "member_results": [
+    {
+      "chamber": "house",
+      "committee_count": 3,
+      "district_present": true,
+      "label": "house_15518",
+      "name_present": true,
+      "ok": true,
+      "party_present": true,
+      "phone_present": true
+    },
+    {
+      "chamber": "house",
+      "committee_count": 4,
+      "district_present": true,
+      "label": "house_15602",
+      "name_present": true,
+      "ok": true,
+      "party_present": true,
+      "phone_present": true
+    },
+    {
+      "chamber": "house",
+      "committee_count": 3,
+      "district_present": true,
+      "label": "house_15551",
+      "name_present": true,
+      "ok": true,
+      "party_present": true,
+      "phone_present": true
+    },
+    {
+      "chamber": "senate",
+      "committee_count": 4,
+      "district_present": true,
+      "label": "senate_10002",
+      "name_present": true,
+      "ok": true,
+      "party_present": true,
+      "phone_present": true
+    },
+    {
+      "chamber": "senate",
+      "committee_count": 4,
+      "district_present": true,
+      "label": "senate_15545",
+      "name_present": true,
+      "ok": true,
+      "party_present": true,
+      "phone_present": true
+    },
+    {
+      "chamber": "senate",
+      "committee_count": 3,
+      "district_present": true,
+      "label": "senate_15317",
+      "name_present": true,
+      "ok": true,
+      "party_present": true,
+      "phone_present": true
+    }
+  ],
+  "prototype": "batch_validation",
+  "roster_result": {
+    "house_count": 134,
+    "house_sample_count": 5,
+    "ok": true,
+    "senate_count": 67,
+    "senate_sample_count": 5
+  },
+  "summary": {
+    "bill_failures": 0,
+    "bill_successes": 8,
+    "member_failures": 0,
+    "member_successes": 6,
+    "roster_ok": true
+  }
+}

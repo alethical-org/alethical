@@ -1,0 +1,20 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: alethical-db
+    environment:
+      POSTGRES_DB: alethical
+      POSTGRES_USER: alethical
+      POSTGRES_PASSWORD: alethical
+    ports:
+      - "54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alethical -d alethical"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - alethical-postgres:/var/lib/postgresql/data
+
+volumes:
+  alethical-postgres:

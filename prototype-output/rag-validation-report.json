@@ -1,0 +1,81 @@
+{
+  "builds": [
+    {
+      "bill_key": "94-2025-SF1832",
+      "chunk_count": 156,
+      "input_path": "prototype-output/bill-sf1832.json",
+      "section_count": 53,
+      "validation": {
+        "banned_marker_counts": {
+          "deleted text begin": 0,
+          "deleted text end": 0,
+          "new text begin": 0,
+          "new text end": 0
+        },
+        "bill_key": "94-2025-SF1832",
+        "chunk_count": 156,
+        "chunk_word_stats": {
+          "avg": 173.5,
+          "max": 266,
+          "min": 23
+        },
+        "duplicate_chunk_count": 0,
+        "html_tag_count": 0,
+        "low_info_chunk_count": 0,
+        "newline_reduction": 2599,
+        "ok": true,
+        "orphan_currency_chunk_count": 0,
+        "oversize_chunk_count": 0,
+        "section_count": 53,
+        "section_coverage_ok": true,
+        "total_clean_newlines": 1158,
+        "total_raw_newlines": 3757,
+        "uncovered_sections": []
+      }
+    },
+    {
+      "bill_key": "94-2025-SF2483",
+      "chunk_count": 156,
+      "input_path": "prototype-output/bill-sf2483.json",
+      "section_count": 72,
+      "validation": {
+        "banned_marker_counts": {
+          "deleted text begin": 0,
+          "deleted text end": 0,
+          "new text begin": 0,
+          "new text end": 0
+        },
+        "bill_key": "94-2025-SF2483",
+        "chunk_count": 156,
+        "chunk_word_stats": {
+          "avg": 162.1,
+          "max": 262,
+          "min": 16
+        },
+        "duplicate_chunk_count": 0,
+        "html_tag_count": 0,
+        "low_info_chunk_count": 0,
+        "newline_reduction": 4107,
+        "ok": true,
+        "orphan_currency_chunk_count": 0,
+        "oversize_chunk_count": 0,
+        "section_count": 72,
+        "section_coverage_ok": true,
+        "total_clean_newlines": 1304,
+        "total_raw_newlines": 5411,
+        "uncovered_sections": []
+      }
+    }
+  ],
+  "prototype": "bill_rag_ingestion_validation",
+  "summary": {
+    "all_ok": true,
+    "bills": 2,
+    "ok_count": 2,
+    "total_chunks": 312,
+    "total_low_info_chunks": 0,
+    "total_newline_reduction": 6706,
+    "total_oversize_chunks": 0,
+    "total_sections": 125
+  }
+}
