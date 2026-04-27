@@ -21,7 +21,6 @@ schema = load_schema()
 AIEnrichment = schema.AIEnrichment
 Bill = schema.Bill
 BillAction = schema.BillAction
-BillTopic = schema.BillTopic
 BillVersion = schema.BillVersion
 BillVersionSection = schema.BillVersionSection
 ChamberType = schema.ChamberType
@@ -30,7 +29,6 @@ Jurisdiction = schema.Jurisdiction
 LegislativeSession = schema.LegislativeSession
 Legislator = schema.Legislator
 Sponsorship = schema.Sponsorship
-Topic = schema.Topic
 bill_detail_stmt = schema.bill_detail_stmt
 bill_list_stmt = schema.bill_list_stmt
 find_my_legislator_stmt = schema.find_my_legislator_stmt
@@ -173,11 +171,6 @@ def bill_detail(
                 "is_current": version.is_current,
             }
             for version in row.versions
-        ]
-    if "topics" in include_set:
-        payload["topics"] = [
-            {"slug": topic.topic.slug, "name": topic.topic.name}
-            for topic in row.topics
         ]
     return DetailResponse(data={key: value for key, value in payload.items() if value is not None})
 

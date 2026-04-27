@@ -12,8 +12,6 @@ from alethical.db.session import get_db
 
 schema = load_schema()
 IngestionRun = schema.IngestionRun
-ManualOverride = schema.ManualOverride
-ParserFailure = schema.ParserFailure
 
 router = APIRouter()
 
@@ -41,35 +39,3 @@ def ingestion_runs(_=Depends(require_internal_token), db: Session = Depends(get_
     ]
     return {"data": data, "page": {"limit": len(data), "next_cursor": None, "has_more": False}}
 
-
-@router.get("/parser-failures")
-def parser_failures(_=Depends(require_internal_token), db: Session = Depends(get_db)):
-    rows = db.scalars(select(ParserFailure).order_by(ParserFailure.created_at.desc())).all()
-    data = [
-        {
-            "id": str(row.id),
-            "adapter": row.adapter,
-            "entity_type": row.entity_type,
-            "entity_key": row.entity_key,
-            "error_message": row.error_message,
-            "resolved_at": row.resolved_at,
-        }
-        for row in rows
-    ]
-    return {"data": data, "page": {"limit": len(data), "next_cursor": None, "has_more": False}}
-
-
-@router.get("/manual-overrides")
-def manual_overrides(_=Depends(require_internal_token), db: Session = Depends(get_db)):
-    rows = db.scalars(select(ManualOverride).order_by(ManualOverride.created_at.desc())).all()
-    data = [
-        {
-            "id": str(row.id),
-            "entity_type": row.entity_type,
-            "entity_id": str(row.entity_id),
-            "field_name": row.field_name,
-            "reason": row.reason,
-        }
-        for row in rows
-    ]
-    return {"data": data, "page": {"limit": len(data), "next_cursor": None, "has_more": False}}

@@ -205,23 +205,6 @@ def put_notification_preference(
     )
 
 
-@router.get("/me/notification-events", response_model=CollectionResponse)
-def notification_events(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    rows = db.scalars(
-        select(schema.NotificationEvent).where(schema.NotificationEvent.user_id == current_user.id)
-    ).all()
-    data = [
-        {
-            "id": str(row.id),
-            "event_type": row.event_type,
-            "scheduled_at": row.scheduled_at,
-            "sent_at": row.sent_at,
-        }
-        for row in rows
-    ]
-    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
-
-
 @router.get("/me/saved-places", response_model=CollectionResponse)
 def saved_places(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     rows = db.scalars(select(SavedPlace).where(SavedPlace.user_id == current_user.id)).all()

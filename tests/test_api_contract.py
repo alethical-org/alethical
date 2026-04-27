@@ -35,7 +35,7 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
 
     detail_response = client.get(
         "/api/v1/bills/94-2025-SF1832",
-        params={"include": "all_sponsors,actions,versions,topics,tracking,ai_summary"},
+        params={"include": "all_sponsors,actions,versions,tracking,ai_summary"},
         headers=auth_headers,
     )
     assert detail_response.status_code == 200
@@ -254,11 +254,3 @@ def test_problem_details_and_internal_operations_routes(client, internal_headers
     ingestion_runs_response = client.get("/internal/v1/ingestion-runs", headers=internal_headers)
     assert ingestion_runs_response.status_code == 200
     assert isinstance(ingestion_runs_response.json()["data"], list)
-
-    parser_failures_response = client.get("/internal/v1/parser-failures", headers=internal_headers)
-    assert parser_failures_response.status_code == 200
-    assert isinstance(parser_failures_response.json()["data"], list)
-
-    manual_overrides_response = client.get("/internal/v1/manual-overrides", headers=internal_headers)
-    assert manual_overrides_response.status_code == 200
-    assert isinstance(manual_overrides_response.json()["data"], list)
