@@ -75,14 +75,6 @@ class SessionType(enum.Enum):
     special = "special"
 
 
-class BillDocumentType(enum.Enum):
-    html = "html"
-    pdf = "pdf"
-    xml = "xml"
-    summary = "summary"
-    other = "other"
-
-
 class SponsorshipRole(enum.Enum):
     chief_author = "chief_author"
     co_author = "co_author"
@@ -272,7 +264,7 @@ class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     legislator: Mapped["Legislator"] = relationship(back_populates="service_periods")
     session: Mapped["LegislativeSession"] = relationship(back_populates="service_periods")
     chamber: Mapped["Chamber"] = relationship(back_populates="service_periods")
-    district: Mapped["District"] = relationship(back_populates="service_periods")
+    district: Mapped["District"] = relationship(back_populates="district")
 
     __table_args__ = (
         UniqueConstraint("legislator_id", "session_id", "period_sequence"),
@@ -337,7 +329,6 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chamber: Mapped["Chamber"] = relationship(back_populates="bills")
     companion_bill: Mapped[Optional["Bill"]] = relationship(remote_side="Bill.id")
     versions: Mapped[list["BillVersion"]] = relationship(back_populates="bill")
-    documents: Mapped[list["BillDocument"]] = relationship(back_populates="bill")
     actions: Mapped[list["BillAction"]] = relationship(back_populates="bill")
     sponsorships: Mapped[list["Sponsorship"]] = relationship(back_populates="bill")
     chief_sponsorships: Mapped[list["Sponsorship"]] = relationship(
@@ -349,7 +340,6 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         viewonly=True,
     )
     vote_events: Mapped[list["VoteEvent"]] = relationship(back_populates="bill")
-    topics: Mapped[list["BillTopic"]] = relationship(back_populates="bill")
     stats: Mapped[Optional["BillStats"]] = relationship(back_populates="bill", uselist=False)
     tracked_by: Mapped[list["TrackedBill"]] = relationship(back_populates="bill")
     enrichments: Mapped[list["AIEnrichment"]] = relationship(back_populates="bill")
@@ -376,7 +366,6 @@ class BillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     bill: Mapped["Bill"] = relationship(back_populates="versions")
     sections: Mapped[list["BillVersionSection"]] = relationship(back_populates="bill_version")
-    documents: Mapped[list["BillDocument"]] = relationship(back_populates="bill_version")
     rag_sections: Mapped[list["RagSectionDocument"]] = relationship(back_populates="bill_version")
 
     __table_args__ = (
@@ -408,24 +397,6 @@ class BillVersionSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UniqueConstraint("bill_version_id", "section_id_text"),
         Index("ix_bill_version_section_order", "bill_version_id", "source_order"),
     )
-
-
-class BillDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "bill_document"
-
-    bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False)
-    bill_version_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("bill_version.id"))
-    document_type: Mapped[BillDocumentType] = mapped_column(
-        SQLEnum(BillDocumentType, name="bill_document_type"), nullable=False
-    )
-    title: Mapped[Optional[str]] = mapped_column(String(255))
-    source_url: Mapped[Optional[str]] = mapped_column(Text)
-    storage_path: Mapped[Optional[str]] = mapped_column(Text)
-    source_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("source_artifact.id"))
-    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-
-    bill: Mapped["Bill"] = relationship(back_populates="documents")
-    bill_version: Mapped[Optional["BillVersion"]] = relationship(back_populates="documents")
 
 
 class Sponsorship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -474,29 +445,6 @@ class BillAction(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
 
-class Topic(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "topic"
-
-    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-
-    bills: Mapped[list["BillTopic"]] = relationship(back_populates="topic")
-
-
-class BillTopic(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "bill_topic"
-
-    bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False)
-    topic_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("topic.id"), nullable=False)
-    confidence: Mapped[Optional[int]] = mapped_column(Integer)
-    source: Mapped[Optional[str]] = mapped_column(String(50))
-
-    bill: Mapped["Bill"] = relationship(back_populates="topics")
-    topic: Mapped["Topic"] = relationship(back_populates="bills")
-
-    __table_args__ = (UniqueConstraint("bill_id", "topic_id"),)
-
-
 class VoteEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "vote_event"
 
@@ -534,25 +482,9 @@ class VoteRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("vote_event_id", "legislator_id"),)
 
 
-class IngestionJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "ingestion_job"
-
-    adapter: Mapped[str] = mapped_column(String(100), nullable=False)
-    target_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    target_key: Mapped[Optional[str]] = mapped_column(String(200))
-    dedupe_key: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
-    status: Mapped[IngestionStatus] = mapped_column(SQLEnum(IngestionStatus, name="ingestion_status"), nullable=False)
-    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    run_after: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-
-    runs: Mapped[list["IngestionRun"]] = relationship(back_populates="job")
-
-
 class IngestionRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "ingestion_run"
 
-    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("ingestion_job.id"))
     adapter: Mapped[str] = mapped_column(String(100), nullable=False)
     target_type: Mapped[str] = mapped_column(String(100), nullable=False)
     target_key: Mapped[Optional[str]] = mapped_column(String(200))
@@ -562,9 +494,7 @@ class IngestionRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     stats: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     error_text: Mapped[Optional[str]] = mapped_column(Text)
 
-    job: Mapped[Optional["IngestionJob"]] = relationship(back_populates="runs")
     artifacts: Mapped[list["SourceArtifact"]] = relationship(back_populates="run")
-    parser_failures: Mapped[list["ParserFailure"]] = relationship(back_populates="run")
 
 
 class SourceArtifact(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -591,24 +521,6 @@ class SourceArtifact(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
 
-class ParserFailure(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "parser_failure"
-
-    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ingestion_run.id"), nullable=False)
-    source_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("source_artifact.id"))
-    adapter: Mapped[str] = mapped_column(String(100), nullable=False)
-    entity_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    entity_key: Mapped[Optional[str]] = mapped_column(String(200))
-    error_class: Mapped[Optional[str]] = mapped_column(String(200))
-    error_message: Mapped[str] = mapped_column(Text, nullable=False)
-    details_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-
-    run: Mapped["IngestionRun"] = relationship(back_populates="parser_failures")
-
-
 class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "user_account"
 
@@ -621,9 +533,7 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     tracked_bills: Mapped[list["TrackedBill"]] = relationship(back_populates="user")
     saved_places: Mapped[list["SavedPlace"]] = relationship(back_populates="user")
     notification_preferences: Mapped[list["NotificationPreference"]] = relationship(back_populates="user")
-    notification_endpoints: Mapped[list["NotificationEndpoint"]] = relationship(back_populates="user")
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")
-    notifications: Mapped[list["NotificationEvent"]] = relationship(back_populates="user")
 
 
 class AuthIdentity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -679,35 +589,6 @@ class NotificationPreference(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("user_id", "channel"),)
 
 
-class NotificationEndpoint(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "notification_endpoint"
-
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), nullable=False)
-    channel: Mapped[NotificationChannel] = mapped_column(
-        SQLEnum(NotificationChannel, name="notification_endpoint_channel"), nullable=False
-    )
-    endpoint_value: Mapped[str] = mapped_column(Text, nullable=False)
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-
-    user: Mapped["UserAccount"] = relationship(back_populates="notification_endpoints")
-
-    __table_args__ = (UniqueConstraint("channel", "endpoint_value"),)
-
-
-class ManualOverride(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "manual_override"
-
-    entity_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    field_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    old_value: Mapped[Optional[dict]] = mapped_column(JSONB)
-    new_value: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    reason: Mapped[str] = mapped_column(Text, nullable=False)
-    created_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("user_account.id"))
-
-
 class TrackedBill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "tracked_bill"
 
@@ -720,19 +601,6 @@ class TrackedBill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     bill: Mapped["Bill"] = relationship(back_populates="tracked_by")
 
     __table_args__ = (UniqueConstraint("user_id", "bill_id"),)
-
-
-class NotificationEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "notification_event"
-
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), nullable=False)
-    bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("bill.id"))
-    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-
-    user: Mapped["UserAccount"] = relationship(back_populates="notifications")
 
 
 class ChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -866,11 +734,10 @@ class LegislatorStats(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 def bill_detail_stmt(bill_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
     """Load one bill detail page without per-row lazy loads."""
     options = [
-        selectinload(Bill.versions).selectinload(BillVersion.documents),
+        selectinload(Bill.versions),
         selectinload(Bill.sponsorships).selectinload(Sponsorship.legislator),
         selectinload(Bill.actions),
         selectinload(Bill.vote_events).selectinload(VoteEvent.records).selectinload(VoteRecord.legislator),
-        selectinload(Bill.topics).selectinload(BillTopic.topic),
         selectinload(Bill.enrichments),
     ]
     if user_id is not None:

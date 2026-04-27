@@ -51,8 +51,6 @@ Legislator = schema.Legislator
 LegislatorServicePeriod = schema.LegislatorServicePeriod
 LegislatorStats = schema.LegislatorStats
 NotificationChannel = schema.NotificationChannel
-NotificationEndpoint = schema.NotificationEndpoint
-NotificationEvent = schema.NotificationEvent
 NotificationFrequency = schema.NotificationFrequency
 NotificationPreference = schema.NotificationPreference
 RagChunk = schema.RagChunk
@@ -544,16 +542,6 @@ def seed_user_features(session: Session, bills: list[Any], refs: dict[str, Any])
                 channel=NotificationChannel.email,
                 frequency=NotificationFrequency.daily_digest,
                 is_enabled=True,
-            )
-        )
-
-    if session.scalar(select(NotificationEndpoint).where(NotificationEndpoint.user_id == user.id, NotificationEndpoint.channel == NotificationChannel.email)) is None:
-        session.add(
-            NotificationEndpoint(
-                user_id=user.id,
-                channel=NotificationChannel.email,
-                endpoint_value="ada@example.com",
-                is_verified=True,
             )
         )
 
