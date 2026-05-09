@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 from typing import Any
-import importlib.util
 import sys
 
 from sqlalchemy import create_engine, delete, select
@@ -16,20 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from alethical.db.session import normalize_database_url
+from alethical.db import models as schema  # noqa: E402
+from alethical.db.session import normalize_database_url  # noqa: E402
 
-SCHEMA_PATH = ROOT / "prototypes" / "alethical_schema_sqlalchemy.py"
-
-def load_schema_module():
-    spec = importlib.util.spec_from_file_location("alethical_schema_sqlalchemy", SCHEMA_PATH)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-schema = load_schema_module()
+FIXTURE_ROOT = ROOT / "alethical" / "tests" / "fixtures"
 ArtifactType = schema.ArtifactType
 AuthIdentity = schema.AuthIdentity
 Bill = schema.Bill
@@ -235,8 +224,8 @@ def upsert_service_period(
 
 def ingest_member_profiles(session: Session, refs: dict[str, Any]) -> list[Any]:
     outputs = [
-        read_json(ROOT / "prototype-output" / "house-member-15518.json"),
-        read_json(ROOT / "prototype-output" / "senate-member-10002.json"),
+        read_json(FIXTURE_ROOT / "house-member-15518.json"),
+        read_json(FIXTURE_ROOT / "senate-member-10002.json"),
     ]
     created: list[Any] = []
     for payload in outputs:
@@ -285,7 +274,7 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
         target_type="bill",
         target_key=canonical["bill_key"],
         status=IngestionStatus.succeeded,
-        stats={"source": "prototype-output"},
+        stats={"source": "test-fixtures"},
     )
     session.add(run)
     session.flush()
@@ -305,7 +294,7 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
             artifact_type=ArtifactType.json,
             source_key=canonical["bill_key"],
             source_url=bill_text["source_url"],
-            storage_path=f"prototype-output/{canonical['bill_key']}.json",
+            storage_path=f"alethical/tests/fixtures/{canonical['bill_key']}.json",
             content_hash=content_hash,
             is_current=True,
             metadata_json={"page_title": bill_text["page_title"]},
@@ -315,7 +304,7 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
     else:
         artifact.run_id = run.id
         artifact.source_key = canonical["bill_key"]
-        artifact.storage_path = f"prototype-output/{canonical['bill_key']}.json"
+        artifact.storage_path = f"alethical/tests/fixtures/{canonical['bill_key']}.json"
         artifact.is_current = True
         artifact.metadata_json = {"page_title": bill_text["page_title"]}
 
@@ -619,8 +608,8 @@ def main() -> None:
         ingest_member_profiles(session, refs)
 
         bill_files = [
-            (ROOT / "prototype-output" / "bill-sf1832.json", ROOT / "prototype-output" / "rag-bill-sf1832.json"),
-            (ROOT / "prototype-output" / "bill-sf2483.json", ROOT / "prototype-output" / "rag-bill-sf2483.json"),
+            (FIXTURE_ROOT / "bill-sf1832.json", FIXTURE_ROOT / "rag-bill-sf1832.json"),
+            (FIXTURE_ROOT / "bill-sf2483.json", FIXTURE_ROOT / "rag-bill-sf2483.json"),
         ]
         bills = []
         for bill_path, rag_path in bill_files:

@@ -3,7 +3,7 @@
     {
       "bill_key": "94-2025-SF1832",
       "chunk_count": 156,
-      "input_path": "prototype-output/bill-sf1832.json",
+      "input_path": "alethical/tests/fixtures/bill-sf1832.json",
       "section_count": 53,
       "validation": {
         "banned_marker_counts": {
@@ -36,7 +36,7 @@
     {
       "bill_key": "94-2025-SF2483",
       "chunk_count": 156,
-      "input_path": "prototype-output/bill-sf2483.json",
+      "input_path": "alethical/tests/fixtures/bill-sf2483.json",
       "section_count": 72,
       "validation": {
         "banned_marker_counts": {

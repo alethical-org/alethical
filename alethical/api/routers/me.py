@@ -4,7 +4,7 @@ import hashlib
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_current_user
 from alethical.api.schemas import (

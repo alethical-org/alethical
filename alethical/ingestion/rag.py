@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
-"""Rough Minnesota bill RAG-ingestion prototype.
+"""Minnesota bill RAG cleaning, chunking, and validation helpers.
 
-This script consumes canonical-ish bill JSON produced by the source ingestion
-prototype and derives retrieval-safe section documents and chunks.
+This module consumes canonical bill JSON and derives retrieval-safe section
+documents and chunks.
 """
 
 from __future__ import annotations

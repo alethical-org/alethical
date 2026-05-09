@@ -360,19 +360,17 @@ Responsibility:
 
 - fast product reads and retrieval
 
-## Rough Prototype Findings
+## Prototype Findings
 
-To validate the design, I built rough prototype ingestors against the live official sources:
-
-- [mn_ingestion_prototype.py](/Users/ada/fun/alethical/prototypes/mn_ingestion_prototype.py)
+The original source-ingestion prototype has been retired. Its validated parsing behavior was promoted into [`alethical/ingestion/minnesota.py`](../alethical/ingestion/minnesota.py).
 
 Generated sample outputs:
 
-- [bill-hf2136.json](/Users/ada/fun/alethical/prototype-output/bill-hf2136.json)
-- [legislator-roster.json](/Users/ada/fun/alethical/prototype-output/legislator-roster.json)
-- [house-member-15518.json](/Users/ada/fun/alethical/prototype-output/house-member-15518.json)
-- [senate-member-10002.json](/Users/ada/fun/alethical/prototype-output/senate-member-10002.json)
-- [validation-report.json](/Users/ada/fun/alethical/prototype-output/validation-report.json)
+- [bill-hf2136.json](../alethical/tests/fixtures/bill-hf2136.json)
+- [legislator-roster.json](../alethical/tests/fixtures/legislator-roster.json)
+- [house-member-15518.json](../alethical/tests/fixtures/house-member-15518.json)
+- [senate-member-10002.json](../alethical/tests/fixtures/senate-member-10002.json)
+- [validation-report.json](../alethical/tests/fixtures/validation-report.json)
 
 ### Prototype Result 1. Revisor Bill XML Is Strong Enough To Be The Canonical Bill Spine
 
@@ -450,21 +448,9 @@ Observed results from the generated report:
 - examples covered both House and Senate bills
 - examples covered a bill with a roll call reference and bills with multiple text versions
 
-## Prototype Commands
-
-Generate the sample artifacts:
-
-```bash
-python3 prototypes/mn_ingestion_prototype.py bill --out prototype-output/bill-hf2136.json
-python3 prototypes/mn_ingestion_prototype.py roster --out prototype-output/legislator-roster.json
-python3 prototypes/mn_ingestion_prototype.py member --url https://www.house.mn.gov/members/profile/15518 --out prototype-output/house-member-15518.json
-python3 prototypes/mn_ingestion_prototype.py member --url 'http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=10002' --out prototype-output/senate-member-10002.json
-python3 prototypes/mn_ingestion_prototype.py validate --out prototype-output/validation-report.json
-```
-
 ## Design Implications
 
-### What the prototypes de-risk
+### What the prototype findings de-risked
 
 - official bill ingestion is feasible without brittle browser automation
 - legislator discovery can begin from a stable official roster page
@@ -518,7 +504,7 @@ Proceed with a source-adapter architecture around:
 - Senate member pages
 - chamber vote and journal sources
 
-The prototypes show that the design is sound enough to move into a formal schema and implementation plan.
+The prototype findings showed that the design was sound enough to move into a formal schema and implementation plan.
 # Live Minnesota Loader
 
 The v0 canonical loader now has a runnable live-data entrypoint:
@@ -545,7 +531,7 @@ uv run python scripts/load_minnesota_data.py --roster-only --skip-bills
 Run after migrations/bootstrap in a fresh environment:
 
 ```bash
-uv run python scripts/bootstrap_db.py
+uv run python -m alembic -c alembic.ini upgrade head
 uv run python scripts/load_minnesota_data.py --legislator-limit 10 --bill HF2136 --bill SF1832
 ```
 
