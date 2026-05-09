@@ -10,7 +10,9 @@ from alethical.api.auth import get_optional_current_user
 from alethical.api.problems import problem_exception
 from alethical.api.schemas import CollectionResponse, DetailResponse, MetaPayload, RepresentativeLookupRequest
 from alethical.api.serializers import (
+    ai_analysis_payload_for_enrichment,
     bill_list_item,
+    current_bill_summary_enrichment,
     current_service_payload,
     district_payload,
     legislator_list_item,
@@ -21,7 +23,6 @@ from alethical.db.schema import load_schema
 from alethical.db.session import get_db
 
 schema = load_schema()
-AIEnrichment = schema.AIEnrichment
 Bill = schema.Bill
 BillAction = schema.BillAction
 BillVersion = schema.BillVersion
@@ -145,10 +146,11 @@ def bill_detail(
             user_id=tracking_user_id(include_set, current_user),
         )
     )
-    ai_summary = None
-    if "ai_summary" in include_set:
-        enrichment = next((item for item in row.enrichments if item.enrichment_type.value == "bill_summary"), None)
-        ai_summary = enrichment.content_json if enrichment else None
+    ai_enrichment = None
+    if {"ai_summary", "ai_analysis"} & include_set:
+        ai_enrichment = current_bill_summary_enrichment(row.enrichments)
+    if "ai_analysis" in include_set and ai_enrichment is None:
+        raise HTTPException(status_code=404, detail="bill enrichment not found")
     payload = {
         "id": row.bill_key,
         "title": row.title,
@@ -158,7 +160,8 @@ def bill_detail(
         "official_url": row.official_url,
         "chief_sponsors": [item.model_dump() for item in sponsor_payloads(row.chief_sponsorships)],
         "tracking": tracking_payload(row.tracked_by).model_dump() if "tracking" in include_set and current_user else None,
-        "ai_summary": ai_summary,
+        "ai_analysis": ai_analysis_payload_for_enrichment(ai_enrichment),
+        "ai_summary": ai_enrichment.content_json if ai_enrichment else None,
     }
     if "all_sponsors" in include_set:
         payload["all_sponsors"] = [item.model_dump() for item in sponsor_payloads(row.sponsorships)]

@@ -126,6 +126,7 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                   bill={bill}
                   tracked={trackedIds.has(bill.id)}
                   onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                  onSponsorPress={(legislatorId) => navigation.navigate('LegislatorProfile', { legislatorId })}
                   onToggleTrack={() => {
                     if (!isSignedIn) {
                       void signInWithGoogle();

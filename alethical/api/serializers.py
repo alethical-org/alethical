@@ -40,6 +40,49 @@ def bill_stats_payload(stats) -> api_schemas.BillStatsPayload | None:
     )
 
 
+def current_bill_summary_enrichment(enrichments):
+    current_enrichments = [
+        item
+        for item in enrichments
+        if (
+            item.enrichment_type.value == "bill_summary"
+            and item.is_current
+            and isinstance((item.content_json or {}).get("summary"), str)
+            and item.content_json["summary"].strip()
+        )
+    ]
+    enrichment = max(current_enrichments, key=lambda item: item.created_at, default=None)
+    if enrichment is None:
+        return None
+    return enrichment
+
+
+def ai_analysis_payload_for_enrichment(enrichment) -> api_schemas.AIAnalysisPayload | None:
+    if enrichment is None:
+        return None
+    content = enrichment.content_json or {}
+    summary = content.get("summary")
+    key_points = content.get("key_points")
+    policy_areas = content.get("policy_areas")
+    return api_schemas.AIAnalysisPayload(
+        summary=summary.strip() if isinstance(summary, str) and summary.strip() else None,
+        key_points=(
+            [item.strip() for item in key_points if isinstance(item, str) and item.strip()]
+            if isinstance(key_points, list)
+            else []
+        ),
+        policy_areas=(
+            [item.strip() for item in policy_areas if isinstance(item, str) and item.strip()]
+            if isinstance(policy_areas, list)
+            else []
+        ),
+    )
+
+
+def ai_analysis_payload(enrichments) -> api_schemas.AIAnalysisPayload | None:
+    return ai_analysis_payload_for_enrichment(current_bill_summary_enrichment(enrichments))
+
+
 def bill_list_item(bill, *, include_tracking: bool = False) -> api_schemas.BillListItem:
     return api_schemas.BillListItem(
         id=bill.bill_key,
@@ -52,6 +95,7 @@ def bill_list_item(bill, *, include_tracking: bool = False) -> api_schemas.BillL
         chief_sponsors=sponsor_payloads(bill.chief_sponsorships),
         stats=bill_stats_payload(bill.stats),
         tracked=tracking_payload(bill.tracked_by) if include_tracking else None,
+        ai_analysis=ai_analysis_payload(bill.enrichments),
     )
 
 

@@ -51,6 +51,7 @@ export function TrackedScreen({ navigation }: Props) {
               bill={bill}
               tracked
               onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+              onSponsorPress={(legislatorId) => navigation.navigate('LegislatorProfile', { legislatorId })}
               onToggleTrack={() => toggleTrackedBill.mutate(bill.id)}
             />
           ))}

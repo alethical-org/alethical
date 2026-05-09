@@ -74,6 +74,7 @@ class BillListItem(BaseModel):
     chief_sponsors: list[SponsorSummary]
     stats: BillStatsPayload | None = None
     tracked: TrackingState | None = None
+    ai_analysis: AIAnalysisPayload | None = None
 
 
 class BillActionPayload(BaseModel):
@@ -99,6 +100,12 @@ class TopicPayload(BaseModel):
     name: str
 
 
+class AIAnalysisPayload(BaseModel):
+    summary: str | None = None
+    key_points: list[str]
+    policy_areas: list[str]
+
+
 class BillDetailPayload(BaseModel):
     id: str
     title: str
@@ -113,6 +120,7 @@ class BillDetailPayload(BaseModel):
     topics: list[TopicPayload] | None = None
     tracking: TrackingState | None = None
     ai_summary: dict[str, Any] | None = None
+    ai_analysis: AIAnalysisPayload | None = None
 
 
 class DistrictPayload(BaseModel):

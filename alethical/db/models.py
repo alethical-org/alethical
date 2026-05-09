@@ -748,17 +748,29 @@ def bill_detail_stmt(bill_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
     )
 
 
+def current_bill_summary_enrichment_bill_ids():
+    return select(AIEnrichment.bill_id).where(
+        AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+        AIEnrichment.is_current.is_(True),
+        func.nullif(func.btrim(AIEnrichment.content_json["summary"].astext), "").is_not(None),
+    )
+
+
 def bill_list_stmt(session_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
     """Load a bill list page with stats, chief-sponsor preview, and optional tracked state."""
     options = [
         selectinload(Bill.stats),
         selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
+        selectinload(Bill.enrichments),
     ]
     if user_id is not None:
         options.append(selectinload(Bill.tracked_by.and_(TrackedBill.user_id == user_id)))
     return (
         select(Bill)
-        .where(Bill.session_id == session_id)
+        .where(
+            Bill.session_id == session_id,
+            Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
+        )
         .options(*options)
         .order_by(Bill.latest_action_at.desc().nullslast(), Bill.file_number.asc())
     )
@@ -814,10 +826,12 @@ def legislator_sponsored_bills_stmt(legislator_id: uuid.UUID, session_id: uuid.U
         .where(
             Sponsorship.legislator_id == legislator_id,
             Bill.session_id == session_id,
+            Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
         )
         .options(
             selectinload(Bill.stats),
             selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
+            selectinload(Bill.enrichments),
         )
         .order_by(Bill.file_number.asc())
     )
@@ -857,9 +871,13 @@ def tracked_bills_stmt(user_id: uuid.UUID):
     """Load tracked bills with bill cards and chief sponsors in bounded queries."""
     return (
         select(TrackedBill)
-        .where(TrackedBill.user_id == user_id)
+        .where(
+            TrackedBill.user_id == user_id,
+            TrackedBill.bill_id.in_(current_bill_summary_enrichment_bill_ids()),
+        )
         .options(
             selectinload(TrackedBill.bill).selectinload(Bill.stats),
+            selectinload(TrackedBill.bill).selectinload(Bill.enrichments),
             selectinload(TrackedBill.bill)
             .selectinload(Bill.chief_sponsorships)
             .selectinload(Sponsorship.legislator),
