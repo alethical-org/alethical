@@ -1,8 +1,10 @@
 import { PropsWithChildren, ReactNode } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MotionIn } from './MotionIn';
 import { useResponsive } from '../hooks/useResponsive';
+import { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme/tokens';
 
 interface ScreenViewProps extends PropsWithChildren {
@@ -13,6 +15,7 @@ interface ScreenViewProps extends PropsWithChildren {
 
 export function ScreenView({ title, subtitle, actions, children }: ScreenViewProps) {
   const { isDesktop } = useResponsive();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const webBackground = Platform.OS === 'web'
     ? ({
         backgroundColor: theme.colors.paper,
@@ -27,8 +30,14 @@ export function ScreenView({ title, subtitle, actions, children }: ScreenViewPro
         <View style={[styles.container, isDesktop && styles.desktopContainer]}>
           <MotionIn delay={0}>
             <View style={styles.masthead}>
-              <Text style={styles.mastheadLabel}>Alethical</Text>
-              <Text style={styles.mastheadMeta}>Vol. 1 | March 21, 2026 | Civic Record</Text>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Alethical home"
+                onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
+                style={({ pressed }) => pressed && styles.mastheadPressed}
+              >
+                <Text style={styles.mastheadLabel}>Alethical</Text>
+              </Pressable>
             </View>
           </MotionIn>
           <MotionIn delay={60}>
@@ -72,9 +81,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xl,
   },
   masthead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     paddingBottom: theme.spacing.sm,
@@ -87,11 +93,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
-  mastheadMeta: {
-    color: theme.colors.mutedInk,
-    fontFamily: theme.typography.mono,
-    fontSize: 11,
-    textTransform: 'uppercase',
+  mastheadPressed: {
+    opacity: 0.72,
   },
   header: {
     gap: theme.spacing.md,

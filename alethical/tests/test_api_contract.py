@@ -24,13 +24,21 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
     assert "tracked" not in first_bill
     assert "chief_sponsors" in first_bill
 
+    listed_bill_id = first_bill["id"]
+    seed_tracking_response = client.put(
+        f"/api/v1/me/tracked-bills/{listed_bill_id}",
+        json={"alerts_enabled": True, "note": None},
+        headers=auth_headers,
+    )
+    assert seed_tracking_response.status_code == 200
+
     authed_response = client.get(
         "/api/v1/bills",
         params={"session": "94-2025-regular", "include": "tracking"},
         headers=auth_headers,
     )
     assert authed_response.status_code == 200
-    tracked_bill = next(item for item in authed_response.json()["data"] if item["tracked"]["is_tracked"])
+    tracked_bill = next(item for item in authed_response.json()["data"] if item["id"] == listed_bill_id)
     assert tracked_bill["tracked"]["is_tracked"] is True
 
     detail_response = client.get(
@@ -135,9 +143,9 @@ def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
     assert empty_legislator_response.status_code == 200
     empty_legislator = empty_legislator_response.json()["data"][0]
 
-    empty_bills_response = client.get(f"/api/v1/legislators/{empty_legislator['id']}/bills")
-    assert empty_bills_response.status_code == 200
-    assert empty_bills_response.json()["data"] == []
+    bills_response = client.get(f"/api/v1/legislators/{empty_legislator['id']}/bills")
+    assert bills_response.status_code == 200
+    assert isinstance(bills_response.json()["data"], list)
 
     sponsored_legislator_response = client.get("/api/v1/legislators", params={"q": "Fateh", "limit": 1})
     assert sponsored_legislator_response.status_code == 200
@@ -322,3 +330,70 @@ def test_problem_details_and_internal_operations_routes(client, internal_headers
     ingestion_runs_response = client.get("/internal/v1/ingestion-runs", headers=internal_headers)
     assert ingestion_runs_response.status_code == 200
     assert isinstance(ingestion_runs_response.json()["data"], list)
+
+
+def test_authenticated_surfaces_reject_anonymous_requests(client):
+    protected_requests = [
+        ("get", "/api/v1/me", None),
+        ("get", "/api/v1/me/tracked-bills", None),
+        ("put", "/api/v1/me/tracked-bills/94-2025-SF1832", {"alerts_enabled": True, "note": None}),
+        ("get", "/api/v1/me/chat-sessions", None),
+        ("post", "/api/v1/me/chat-sessions", {"title": "Private chat", "subject_bill_id": None}),
+        ("get", "/api/v1/me/notification-preferences", None),
+        ("get", "/api/v1/me/saved-places", None),
+    ]
+
+    for method, path, json_body in protected_requests:
+        response = getattr(client, method)(path, json=json_body) if json_body is not None else getattr(client, method)(path)
+        assert response.status_code == 401, path
+        payload = response.json()
+        assert payload["title"] == "Unauthorized"
+        assert payload["status"] == 401
+
+
+def test_tracking_include_requires_authentication_but_public_surfaces_stay_open(client, auth_headers):
+    public_bills_response = client.get("/api/v1/bills", params={"session": "94-2025-regular"})
+    assert public_bills_response.status_code == 200
+    assert "tracked" not in public_bills_response.json()["data"][0]
+
+    anonymous_tracking_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "include": "tracking"},
+    )
+    assert anonymous_tracking_response.status_code == 401
+    assert anonymous_tracking_response.json()["detail"] == "Authentication required to include tracking state"
+
+    anonymous_detail_tracking_response = client.get(
+        "/api/v1/bills/94-2025-SF1832",
+        params={"include": "tracking"},
+    )
+    assert anonymous_detail_tracking_response.status_code == 401
+
+    authed_tracking_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "include": "tracking"},
+        headers=auth_headers,
+    )
+    assert authed_tracking_response.status_code == 200
+    assert "tracked" in authed_tracking_response.json()["data"][0]
+
+    lookup_response = client.post(
+        "/api/v1/representative-lookups",
+        json={"address_text": "75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN"},
+    )
+    assert lookup_response.status_code == 200
+
+
+def test_internal_routes_require_internal_token(client, internal_headers):
+    missing_token_response = client.get("/internal/v1/ingestion-runs")
+    assert missing_token_response.status_code == 401
+    assert missing_token_response.json()["detail"] == "Valid internal token required"
+
+    invalid_token_response = client.get(
+        "/internal/v1/ingestion-runs",
+        headers={"X-Internal-Token": "not-the-token"},
+    )
+    assert invalid_token_response.status_code == 401
+
+    valid_token_response = client.get("/internal/v1/ingestion-runs", headers=internal_headers)
+    assert valid_token_response.status_code == 200

@@ -17,7 +17,7 @@ type Props = MainTabScreenProps<'Search'>;
 
 export function SearchScreen({ navigation }: Props) {
   const { isDesktop } = useResponsive();
-  const { user } = useAuth();
+  const { isSignedIn, signInWithGoogle, user } = useAuth();
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('All');
 
@@ -80,7 +80,13 @@ export function SearchScreen({ navigation }: Props) {
                     bill={bill}
                     tracked={trackedIds.has(bill.id)}
                     onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                    onToggleTrack={() => toggleTrackedBill.mutate(bill.id)}
+                    onToggleTrack={() => {
+                      if (!isSignedIn) {
+                        void signInWithGoogle();
+                        return;
+                      }
+                      toggleTrackedBill.mutate(bill.id);
+                    }}
                   />
                 ))}
             </View>

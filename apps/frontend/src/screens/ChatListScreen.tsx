@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { AuthRequiredCard } from '../components/AuthRequiredCard';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -12,16 +13,13 @@ import { theme } from '../theme/tokens';
 type Props = MainTabScreenProps<'Chat'>;
 
 export function ChatListScreen({ navigation }: Props) {
-  const { isSignedIn, user, signInDemo } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const sessionsQuery = useChatSessions(user?.id);
 
   if (!isSignedIn) {
     return (
       <ScreenView title="Grounded Chat" subtitle="Chat is signed-in only so your conversations, tracked bills, and saved context stay connected.">
-        <Card>
-          <Text style={styles.bodyText}>Sign in to ask follow-up questions with citations tied to bills and legislators.</Text>
-          <PrimaryButton label="Use Demo Sign-In" onPress={signInDemo} />
-        </Card>
+        <AuthRequiredCard message="Sign in to ask follow-up questions with citations tied to bills and legislators." />
       </ScreenView>
     );
   }

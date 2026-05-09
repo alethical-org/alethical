@@ -20,7 +20,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BillDetail'>;
 export function BillDetailScreen({ route, navigation }: Props) {
     const { billId } = route.params;
     const { isDesktop } = useResponsive();
-    const { user } = useAuth();
+    const { isSignedIn, signInWithGoogle, user } = useAuth();
     const [tab, setTab] = useState<DetailTab>('Summary');
     const billQuery = useBill(billId);
     const trackedQuery = useTrackedBills(user?.id);
@@ -61,7 +61,16 @@ export function BillDetailScreen({ route, navigation }: Props) {
             subtitle={`${bill.title}\n${bill.chamber} | ${bill.status} | Updated ${bill.updatedAt}`}
             actions={
                 <>
-                    <PrimaryButton label={tracked ? 'Tracked' : 'Track'} onPress={() => toggleTrackedBill.mutate(bill.id)} />
+                    <PrimaryButton
+                        label={tracked ? 'Tracked' : 'Track'}
+                        onPress={() => {
+                            if (!isSignedIn) {
+                                void signInWithGoogle();
+                                return;
+                            }
+                            toggleTrackedBill.mutate(bill.id);
+                        }}
+                    />
                     <PrimaryButton
                         label="Open Chat"
                         tone="secondary"
