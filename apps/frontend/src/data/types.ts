@@ -58,6 +58,12 @@ export interface BillBriefing {
   concernsMayRaise: string[];
 }
 
+export interface BillAIAnalysis {
+  summary: string;
+  keyPoints: string[];
+  policyAreas: string[];
+}
+
 export interface Bill {
   id: string;
   identifier: string;
@@ -72,6 +78,7 @@ export interface Bill {
   versionCount: number;
   rollCallCount: number;
   briefing: BillBriefing;
+  aiAnalysis: BillAIAnalysis | null;
   questionPrompts: string[];
   actions: BillAction[];
   versions: BillVersion[];

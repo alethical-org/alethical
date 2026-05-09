@@ -23,6 +23,9 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
     assert first_bill["id"].startswith("94-2025-")
     assert "tracked" not in first_bill
     assert "chief_sponsors" in first_bill
+    assert first_bill["ai_analysis"]["summary"]
+    assert first_bill["ai_analysis"]["key_points"]
+    assert first_bill["ai_analysis"]["policy_areas"]
 
     listed_bill_id = first_bill["id"]
     seed_tracking_response = client.put(
@@ -58,7 +61,7 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
 def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     detail_response = client.get(
         "/api/v1/bills/94-2025-SF1832",
-        params={"include": "actions,versions,topics,ai_summary"},
+        params={"include": "actions,versions,topics,ai_analysis"},
     )
     assert detail_response.status_code == 200
     detail_payload = detail_response.json()["data"]
@@ -70,6 +73,34 @@ def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     action_payload = actions_response.json()["data"]
     assert action_payload
     assert "action_at" in action_payload[0]
+
+
+def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
+    detail_response = client.get(
+        "/api/v1/bills/94-2025-SF1832",
+        params={"include": "ai_analysis,ai_summary"},
+    )
+    assert detail_response.status_code == 200
+    detail_payload = detail_response.json()["data"]
+
+    assert detail_payload["ai_analysis"] == {
+        "summary": (
+            "SF 1832 is an omnibus jobs, labor, and economic development package. "
+            "It combines agency appropriations with policy changes for workforce programs, "
+            "business development, labor standards, tourism, and worker safety."
+        ),
+        "key_points": [
+            "Funds workforce, labor, tourism, and economic development agencies for the biennium.",
+            "Updates grant and loan programs for small businesses, redevelopment, child care capacity, and job training.",
+            "Changes labor and worker safety rules, including underground telecommunications installer certification.",
+            "Requires reports and makes technical corrections across jobs and economic development statutes.",
+        ],
+        "policy_areas": ["workforce development", "economic development", "labor policy"],
+    }
+    assert "confidence" not in detail_payload["ai_analysis"]
+    assert "truncated_source" not in detail_payload["ai_analysis"]
+    assert detail_payload["ai_summary"]["confidence"] == "high"
+    assert detail_payload["ai_summary"]["truncated_source"] is False
 
 
 def test_legislator_directory_profile_search_and_lookup_cover_user_story(client):
@@ -103,6 +134,7 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     search_payload = search_response.json()["data"]
     assert "bills" in search_payload
     assert "legislators" in search_payload
+    assert {bill["id"] for bill in search_payload["bills"]} <= {"94-2025-SF1832", "94-2025-SF2483"}
 
     lookup_response = client.post(
         "/api/v1/representative-lookups",

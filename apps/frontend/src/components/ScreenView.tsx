@@ -8,12 +8,14 @@ import { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme/tokens';
 
 interface ScreenViewProps extends PropsWithChildren {
-  title: string;
+  title?: string;
   subtitle?: string;
   actions?: ReactNode;
+  hideHeader?: boolean;
+  hideMasthead?: boolean;
 }
 
-export function ScreenView({ title, subtitle, actions, children }: ScreenViewProps) {
+export function ScreenView({ title, subtitle, actions, hideHeader = false, hideMasthead = false, children }: ScreenViewProps) {
   const { isDesktop } = useResponsive();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const webBackground = Platform.OS === 'web'
@@ -28,27 +30,31 @@ export function ScreenView({ title, subtitle, actions, children }: ScreenViewPro
     <View style={[styles.background, webBackground]}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={[styles.container, isDesktop && styles.desktopContainer]}>
-          <MotionIn delay={0}>
-            <View style={styles.masthead}>
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="Alethical home"
-                onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
-                style={({ pressed }) => pressed && styles.mastheadPressed}
-              >
-                <Text style={styles.mastheadLabel}>Alethical</Text>
-              </Pressable>
-            </View>
-          </MotionIn>
-          <MotionIn delay={60}>
-            <View style={styles.header}>
-              <View style={styles.headerText}>
-                <Text style={styles.title}>{title}</Text>
-                {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          {!hideMasthead ? (
+            <MotionIn delay={0}>
+              <View style={styles.masthead}>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel="Alethical home"
+                  onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
+                  style={({ pressed }) => pressed && styles.mastheadPressed}
+                >
+                  <Text style={styles.mastheadLabel}>Alethical</Text>
+                </Pressable>
               </View>
-              {actions ? <View style={styles.actions}>{actions}</View> : null}
-            </View>
-          </MotionIn>
+            </MotionIn>
+          ) : null}
+          {!hideHeader ? (
+            <MotionIn delay={60}>
+              <View style={styles.header}>
+                <View style={styles.headerText}>
+                  {title ? <Text style={styles.title}>{title}</Text> : null}
+                  {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                </View>
+                {actions ? <View style={styles.actions}>{actions}</View> : null}
+              </View>
+            </MotionIn>
+          ) : null}
           <MotionIn delay={120}>
             <View style={styles.content}>{children}</View>
           </MotionIn>

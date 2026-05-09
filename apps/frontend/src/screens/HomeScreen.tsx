@@ -5,47 +5,27 @@ import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
-import { TickerStrip } from '../components/TickerStrip';
-import { useBills, useLegislators, useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
+import { useBills, useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
 import { useAuth } from '../providers/AuthProvider';
 import { MainTabScreenProps } from '../navigation/types';
 import { theme } from '../theme/tokens';
-import { useResponsive } from '../hooks/useResponsive';
 
 type Props = MainTabScreenProps<'Home'>;
 
 export function HomeScreen({ navigation }: Props) {
-  const { isDesktop } = useResponsive();
   const { isSignedIn, signInWithGoogle, user } = useAuth();
   const billsQuery = useBills();
-  const legislatorsQuery = useLegislators();
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
 
   const trackedIds = new Set((trackedQuery.data ?? []).map((bill) => bill.id));
   const recentBills = (billsQuery.data ?? []).slice(0, 3);
-  const tickerItems = (billsQuery.data ?? []).slice(0, 4).flatMap((bill) => [
-    { label: bill.identifier, value: bill.status },
-    { label: 'Updated', value: bill.updatedAt },
-  ]);
 
   return (
     <ScreenView
-      title="Alethical"
-      subtitle="Plain-language legislative intelligence for people who care about what Minnesota government is doing."
-      actions={
-        <>
-          <PrimaryButton label="Find My Legislator" onPress={() => navigation.navigate('FindMyLegislator')} />
-          <PrimaryButton
-            label="Tracked Bills"
-            tone="secondary"
-            onPress={() => navigation.navigate('Tabs', { screen: 'Tracked' })}
-          />
-        </>
-      }
+      hideMasthead
+      hideHeader
     >
-      <TickerStrip title="Session Watch" items={tickerItems} />
-
       <Card style={styles.heroCard}>
         <Text style={styles.heroEyebrow}>Start here</Text>
         <TextInput
@@ -71,24 +51,8 @@ export function HomeScreen({ navigation }: Props) {
         </View>
       </Card>
 
-      <View style={[styles.snapshotRow, isDesktop && styles.snapshotRowDesktop]}>
-        <Card style={styles.snapshotCard}>
-          <Text style={styles.snapshotValue}>{billsQuery.data?.length ?? 0}</Text>
-          <Text style={styles.snapshotLabel}>Recent bills in this demo session</Text>
-        </Card>
-        <Card style={styles.snapshotCard}>
-          <Text style={styles.snapshotValue}>{legislatorsQuery.data?.length ?? 0}</Text>
-          <Text style={styles.snapshotLabel}>Legislators with profile summaries</Text>
-        </Card>
-        <Card style={styles.snapshotCard}>
-          <Text style={styles.snapshotValue}>{trackedQuery.data?.length ?? 0}</Text>
-          <Text style={styles.snapshotLabel}>Bills you are tracking</Text>
-        </Card>
-      </View>
-
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Recent Bills</Text>
-        <Text style={styles.sectionSubtitle}>A calm briefing, not a wall of legislative text.</Text>
       </View>
       <View style={styles.stack}>
         {recentBills.map((bill) => (
@@ -97,6 +61,7 @@ export function HomeScreen({ navigation }: Props) {
             bill={bill}
             tracked={trackedIds.has(bill.id)}
             onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+            onSponsorPress={(legislatorId) => navigation.navigate('LegislatorProfile', { legislatorId })}
             onToggleTrack={() => {
               if (!isSignedIn) {
                 void signInWithGoogle();
@@ -153,34 +118,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
   },
-  snapshotRow: {
-    gap: 0,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  snapshotRowDesktop: {
-    flexDirection: 'row',
-  },
-  snapshotCard: {
-    flex: 1,
-    minHeight: 120,
-    justifyContent: 'center',
-    borderWidth: 0,
-    borderRightWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  snapshotValue: {
-    color: theme.colors.ink,
-    fontFamily: theme.typography.title,
-    fontSize: 38,
-  },
-  snapshotLabel: {
-    color: theme.colors.mutedInk,
-    fontFamily: theme.typography.ui,
-    fontSize: 15,
-    lineHeight: 22,
-    textTransform: 'uppercase',
-  },
   sectionHeader: {
     gap: theme.spacing.xs,
   },
@@ -188,11 +125,6 @@ const styles = StyleSheet.create({
     color: theme.colors.ink,
     fontFamily: theme.typography.title,
     fontSize: 28,
-  },
-  sectionSubtitle: {
-    color: theme.colors.mutedInk,
-    fontFamily: theme.typography.body,
-    fontSize: 15,
   },
   stack: {
     gap: theme.spacing.md,
