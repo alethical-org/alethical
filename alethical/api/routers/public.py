@@ -144,6 +144,7 @@ def bill_detail(
         "title": row.title,
         "description": row.description,
         "current_status": row.current_status,
+        "latest_action_at": row.latest_action_at,
         "official_url": row.official_url,
         "chief_sponsors": [item.model_dump() for item in sponsor_payloads(row.chief_sponsorships)],
         "tracking": tracking_payload(row.tracked_by).model_dump() if "tracking" in include_set and current_user else None,
@@ -158,6 +159,7 @@ def bill_detail(
                 "action_text": action.action_text,
                 "action_group": action.action_group,
                 "action_description": action.action_description,
+                "action_at": action.action_at,
                 "journal_page": action.journal_page,
                 "roll_call_text": action.roll_call_text,
             }
@@ -192,6 +194,7 @@ def bill_actions(bill_id: str, db: Session = Depends(get_db)):
             "action_text": action.action_text,
             "action_group": action.action_group,
             "action_description": action.action_description,
+            "action_at": action.action_at,
             "journal_page": action.journal_page,
             "roll_call_text": action.roll_call_text,
         }

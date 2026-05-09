@@ -2,22 +2,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   createChatSessionFromApi,
+  getBillFromApi,
   getChatSessionFromApi,
+  getLegislatorBillsFromApi,
+  getLegislatorFromApi,
   listChatSessionsFromApi,
+  listBillsFromApi,
+  listLegislatorsFromApi,
+  listTrackedBillsFromApi,
   sendChatMessageToApi,
+  toggleTrackedBillFromApi,
 } from '../data/api';
 import {
-  getBill,
   getCurrentUser,
-  getLegislator,
-  getLegislatorBills,
   getNotificationPreference,
   getRepresentativeLookup,
-  listBills,
-  listLegislators,
   listSavedPlaces,
-  listTrackedBills,
-  toggleTrackedBill,
   updateNotificationPreference,
 } from '../data/mockData';
 import { NotificationPreference } from '../data/types';
@@ -30,54 +30,62 @@ export function useCurrentUser() {
   });
 }
 
-export function useBills(query?: string) {
+export function useBills(query?: string, session?: string) {
   return useQuery({
-    queryKey: ['bills', query ?? ''],
-    queryFn: () => listBills(query),
+    queryKey: ['bills', session ?? 'current', query ?? ''],
+    queryFn: () => listBillsFromApi(query, session),
   });
 }
 
 export function useBill(billId: string) {
   return useQuery({
     queryKey: ['bill', billId],
-    queryFn: () => getBill(billId),
+    queryFn: () => getBillFromApi(billId),
+    retry: false,
   });
 }
 
 export function useLegislators(query?: string) {
   return useQuery({
     queryKey: ['legislators', query ?? ''],
-    queryFn: () => listLegislators(query),
+    queryFn: () => listLegislatorsFromApi(query),
+    retry: false,
   });
 }
 
 export function useLegislator(legislatorId: string) {
   return useQuery({
     queryKey: ['legislator', legislatorId],
-    queryFn: () => getLegislator(legislatorId),
+    queryFn: () => getLegislatorFromApi(legislatorId),
+    retry: false,
   });
 }
 
 export function useLegislatorBills(legislatorId: string) {
   return useQuery({
     queryKey: ['legislator-bills', legislatorId],
-    queryFn: () => getLegislatorBills(legislatorId),
+    queryFn: () => getLegislatorBillsFromApi(legislatorId),
+    retry: false,
   });
 }
 
 export function useTrackedBills(userId?: string) {
+  const { accessToken } = useAuth();
+
   return useQuery({
     queryKey: ['tracked-bills', userId ?? 'anon'],
-    queryFn: () => listTrackedBills(userId ?? ''),
-    enabled: Boolean(userId),
+    queryFn: () => listTrackedBillsFromApi(accessToken ?? ''),
+    enabled: Boolean(userId && accessToken),
+    retry: false,
   });
 }
 
 export function useToggleTrackedBill(userId?: string) {
   const queryClient = useQueryClient();
+  const { accessToken } = useAuth();
 
   return useMutation({
-    mutationFn: (billId: string) => toggleTrackedBill(userId ?? '', billId),
+    mutationFn: (billId: string) => toggleTrackedBillFromApi(accessToken ?? '', billId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tracked-bills', userId ?? 'anon'] });
       void queryClient.invalidateQueries({ queryKey: ['bills'] });

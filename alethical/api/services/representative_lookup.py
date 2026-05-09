@@ -1,0 +1,216 @@
+from __future__ import annotations
+
+import os
+import re
+from dataclasses import dataclass
+
+import requests
+
+
+class RepresentativeLookupError(Exception):
+    pass
+
+
+class RepresentativeLookupNotFound(RepresentativeLookupError):
+    pass
+
+
+class RepresentativeLookupUpstreamError(RepresentativeLookupError):
+    pass
+
+
+@dataclass(frozen=True)
+class GeocodedAddress:
+    requested_address: str
+    matched_address: str
+    latitude: float
+    longitude: float
+    state_code: str | None = None
+
+
+@dataclass(frozen=True)
+class DistrictMatch:
+    chamber: str
+    district_code: str
+    member_name: str | None = None
+    party: str | None = None
+
+
+@dataclass(frozen=True)
+class RepresentativeLookupResult:
+    geocoded_address: GeocodedAddress
+    house_district: DistrictMatch | None = None
+    senate_district: DistrictMatch | None = None
+
+
+class CensusGeocoder:
+    def __init__(
+        self,
+        *,
+        base_url: str | None = None,
+        benchmark: str | None = None,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        self.base_url = (
+            base_url
+            or os.environ.get(
+                "ALETHICAL_CENSUS_GEOCODER_URL",
+                "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress",
+            )
+        )
+        self.benchmark = benchmark or os.environ.get("ALETHICAL_CENSUS_BENCHMARK", "Public_AR_Current")
+        self.timeout_seconds = timeout_seconds or float(os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10"))
+
+    def geocode(self, address_text: str) -> GeocodedAddress:
+        response = requests.get(
+            self.base_url,
+            params={
+                "address": address_text,
+                "benchmark": self.benchmark,
+                "format": "json",
+            },
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        matches = payload.get("result", {}).get("addressMatches", [])
+        if not matches:
+            raise RepresentativeLookupNotFound("address could not be geocoded")
+
+        match = matches[0]
+        coordinates = match.get("coordinates") or {}
+        address_components = match.get("addressComponents") or {}
+        matched_address = match.get("matchedAddress")
+        latitude = coordinates.get("y")
+        longitude = coordinates.get("x")
+        if matched_address is None or latitude is None or longitude is None:
+            raise RepresentativeLookupUpstreamError("geocoder response missing coordinates")
+
+        return GeocodedAddress(
+            requested_address=address_text,
+            matched_address=matched_address,
+            latitude=float(latitude),
+            longitude=float(longitude),
+            state_code=address_components.get("state"),
+        )
+
+
+class MinnesotaGisLookupClient:
+    def __init__(
+        self,
+        *,
+        base_url: str | None = None,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        self.base_url = base_url or os.environ.get(
+            "ALETHICAL_MN_GIS_LOOKUP_URL",
+            "https://gis.lcc.mn.gov/api/",
+        )
+        self.timeout_seconds = timeout_seconds or float(os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10"))
+
+    def lookup(self, *, latitude: float, longitude: float) -> tuple[DistrictMatch | None, DistrictMatch | None]:
+        response = requests.get(
+            self.base_url,
+            params={"lat": latitude, "lng": longitude},
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        features = payload.get("features", [])
+        if not isinstance(features, list):
+            raise RepresentativeLookupUpstreamError("GIS response missing features")
+
+        house_match: DistrictMatch | None = None
+        senate_match: DistrictMatch | None = None
+        for feature in features:
+            properties = feature.get("properties") or {}
+            district_code = self._extract_district_code(properties)
+            chamber = self._infer_chamber(properties, district_code)
+            if not district_code or chamber not in {"house", "senate"}:
+                continue
+            match = DistrictMatch(
+                chamber=chamber,
+                district_code=district_code,
+                member_name=self._string_or_none(properties.get("name")),
+                party=self._string_or_none(properties.get("party")),
+            )
+            if chamber == "house" and house_match is None:
+                house_match = match
+            if chamber == "senate" and senate_match is None:
+                senate_match = match
+
+        return house_match, senate_match
+
+    def _extract_district_code(self, properties: dict) -> str | None:
+        for key in ("district", "district_code", "districtCode", "code", "name"):
+            value = properties.get(key)
+            if not isinstance(value, str):
+                continue
+            cleaned = value.strip().upper()
+            if re.fullmatch(r"\d{1,2}[A-Z]?", cleaned):
+                return cleaned
+            match = re.search(r"\b(\d{1,2}[A-Z]?)\b", cleaned)
+            if match:
+                return match.group(1)
+        return None
+
+    def _infer_chamber(self, properties: dict, district_code: str | None) -> str | None:
+        chamber_text = " ".join(
+            str(properties.get(key, ""))
+            for key in ("chamber", "district_type", "districtType", "office", "layer", "source")
+        ).lower()
+        if "senate" in chamber_text:
+            return "senate"
+        if "house" in chamber_text or "state house" in chamber_text:
+            return "house"
+        if "congress" in chamber_text or "congressional" in chamber_text:
+            return "congress"
+
+        member_name = self._string_or_none(properties.get("name")) or ""
+        lowered_name = member_name.lower()
+        if district_code and re.fullmatch(r"\d{1,2}[A-Z]", district_code):
+            return "house"
+        if lowered_name.startswith("sen."):
+            return "senate"
+        if lowered_name.startswith("rep.") and district_code and re.fullmatch(r"\d{1,2}[A-Z]", district_code):
+            return "house"
+        return None
+
+    def _string_or_none(self, value) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+
+class RepresentativeLookupService:
+    def __init__(
+        self,
+        *,
+        geocoder: CensusGeocoder | None = None,
+        gis_client: MinnesotaGisLookupClient | None = None,
+    ) -> None:
+        self.geocoder = geocoder or CensusGeocoder()
+        self.gis_client = gis_client or MinnesotaGisLookupClient()
+
+    def lookup(self, address_text: str) -> RepresentativeLookupResult:
+        geocoded = self.geocoder.geocode(address_text)
+        if geocoded.state_code and geocoded.state_code.upper() != "MN":
+            raise RepresentativeLookupNotFound("address resolved outside Minnesota")
+
+        house_match, senate_match = self.gis_client.lookup(
+            latitude=geocoded.latitude,
+            longitude=geocoded.longitude,
+        )
+        if house_match is None and senate_match is None:
+            raise RepresentativeLookupNotFound("no Minnesota legislative districts found")
+
+        return RepresentativeLookupResult(
+            geocoded_address=geocoded,
+            house_district=house_match,
+            senate_district=senate_match,
+        )
+
+
+def get_representative_lookup_service() -> RepresentativeLookupService:
+    return RepresentativeLookupService()

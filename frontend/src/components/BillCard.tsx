@@ -6,7 +6,10 @@ import { Card } from './Card';
 import { Chip } from './Chip';
 
 interface BillCardProps {
-  bill: Bill & { sponsorNames?: string[] };
+  bill: Pick<Bill, 'id' | 'identifier' | 'title' | 'chamber' | 'status' | 'updatedAt'> & {
+    topics?: string[];
+    sponsorNames?: string[];
+  };
   tracked?: boolean;
   onPress?: () => void;
   onToggleTrack?: () => void;
@@ -34,7 +37,7 @@ export function BillCard({ bill, tracked = false, onPress, onToggleTrack }: Bill
             Chief sponsors: {(bill.sponsorNames ?? []).join(', ') || 'Unavailable'}
           </Text>
           <View style={styles.topicRow}>
-            {bill.topics.map((topic) => (
+            {(bill.topics ?? []).map((topic) => (
               <View key={topic} style={styles.topicPill}>
                 <Text style={styles.topicLabel}>{topic}</Text>
               </View>

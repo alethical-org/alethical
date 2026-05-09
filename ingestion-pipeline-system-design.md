@@ -519,3 +519,34 @@ Proceed with a source-adapter architecture around:
 - chamber vote and journal sources
 
 The prototypes show that the design is sound enough to move into a formal schema and implementation plan.
+# Live Minnesota Loader
+
+The v0 canonical loader now has a runnable live-data entrypoint:
+
+```bash
+uv run python scripts/load_minnesota_data.py
+```
+
+That command fetches the current Minnesota legislator roster, member profile pages, and a default smoke set of 94th Legislature bills from authoritative Minnesota Legislature/Revisor sources, then upserts the canonical tables used by the public API. It is safe to rerun: bills, versions, actions, sponsors, legislators, service periods, committees, stats, ingestion runs, and source artifacts are updated without duplicating canonical records.
+
+Useful variants:
+
+```bash
+# Fast smoke run: two legislators plus one bill.
+uv run python scripts/load_minnesota_data.py --legislator-limit 2 --bill HF2136
+
+# Bills only.
+uv run python scripts/load_minnesota_data.py --skip-legislators --bill SF1832 --bill SF2483
+
+# Roster identity/service rows only, without fetching every profile page.
+uv run python scripts/load_minnesota_data.py --roster-only --skip-bills
+```
+
+Run after migrations/bootstrap in a fresh environment:
+
+```bash
+uv run python scripts/bootstrap_db.py
+uv run python scripts/load_minnesota_data.py --legislator-limit 10 --bill HF2136 --bill SF1832
+```
+
+The implementation lives in `alethical/ingestion/minnesota.py`; `scripts/load_sample_data.py` remains a deterministic local fixture loader for tests and offline demos.

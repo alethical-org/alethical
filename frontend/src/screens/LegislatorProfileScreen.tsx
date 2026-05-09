@@ -26,11 +26,23 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
   const legislator = legislatorQuery.data;
   const trackedIds = new Set((trackedQuery.data ?? []).map((item) => item.id));
 
+  if (legislatorQuery.isLoading) {
+    return (
+      <ScreenView title="Loading legislator" subtitle="Fetching the latest profile from the backend.">
+        <Card>
+          <Text style={styles.bodyText}>Loading current service, committees, stats, and sponsored bills.</Text>
+        </Card>
+      </ScreenView>
+    );
+  }
+
   if (!legislator) {
     return (
-      <ScreenView title="Legislator not found" subtitle="This profile is not available in the current demo dataset.">
+      <ScreenView title="Legislator not found" subtitle="This profile could not be loaded from the backend.">
         <Card>
-          <Text style={styles.bodyText}>Try returning to search.</Text>
+          <Text style={styles.bodyText}>
+            {legislatorQuery.error instanceof Error ? legislatorQuery.error.message : 'Try returning to search.'}
+          </Text>
         </Card>
       </ScreenView>
     );
@@ -79,14 +91,35 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
             <Text style={styles.bodyText}>{legislator.bio}</Text>
           </SectionCard>
           <SectionCard title="Committees">
-            {legislator.committees.map((committee) => (
-              <Text key={committee} style={styles.listItem}>
-                • {committee}
-              </Text>
-            ))}
+            {legislator.committees.length > 0 ? (
+              legislator.committees.map((committee) => (
+                <Text key={committee} style={styles.listItem}>
+                  • {committee}
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.bodyText}>No committee memberships are available yet.</Text>
+            )}
           </SectionCard>
           <SectionCard title="Sponsored Bills">
             <View style={styles.stack}>
+              {billsQuery.isLoading ? (
+                <Card>
+                  <Text style={styles.bodyText}>Loading sponsored bills.</Text>
+                </Card>
+              ) : null}
+              {billsQuery.error ? (
+                <Card>
+                  <Text style={styles.bodyText}>
+                    {billsQuery.error instanceof Error ? billsQuery.error.message : 'Sponsored bills could not be loaded.'}
+                  </Text>
+                </Card>
+              ) : null}
+              {!billsQuery.isLoading && !billsQuery.error && (billsQuery.data ?? []).length === 0 ? (
+                <Card>
+                  <Text style={styles.bodyText}>No sponsored bills are available yet.</Text>
+                </Card>
+              ) : null}
               {(billsQuery.data ?? []).map((bill) => (
                 <BillCard
                   key={bill.id}
@@ -104,7 +137,7 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
           <Card>
             <Text style={styles.cardTitle}>Current Service</Text>
             <Text style={styles.bodyText}>{legislator.role}</Text>
-            <Text style={styles.bodyText}>Focus areas: {legislator.focusAreas.join(', ')}</Text>
+            <Text style={styles.bodyText}>Focus areas: {legislator.focusAreas.join(', ') || 'Unavailable'}</Text>
           </Card>
           <Card>
             <Text style={styles.cardTitle}>Service History</Text>
@@ -113,6 +146,9 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                 • {service.startYear}-{service.endYear ?? 'present'} {service.chamber} District {service.district} ({service.party})
               </Text>
             ))}
+            {legislator.serviceHistory.length === 0 ? (
+              <Text style={styles.bodyText}>No service history is available yet.</Text>
+            ) : null}
           </Card>
           <Card>
             <Text style={styles.cardTitle}>Suggested Questions</Text>
