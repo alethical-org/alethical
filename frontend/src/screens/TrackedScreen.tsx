@@ -29,11 +29,24 @@ export function TrackedScreen({ navigation }: Props) {
 
   return (
     <ScreenView title="Tracked Bills" subtitle="Keep a smaller, more manageable watchlist instead of checking everything all the time.">
-      {(trackedQuery.data ?? []).length === 0 ? (
+      {trackedQuery.isLoading ? (
+        <Card>
+          <Text style={styles.bodyText}>Loading tracked bills from the backend.</Text>
+        </Card>
+      ) : null}
+      {trackedQuery.error ? (
+        <Card>
+          <Text style={styles.bodyText}>
+            {trackedQuery.error instanceof Error ? trackedQuery.error.message : 'Tracked bills could not be loaded.'}
+          </Text>
+        </Card>
+      ) : null}
+      {!trackedQuery.isLoading && !trackedQuery.error && (trackedQuery.data ?? []).length === 0 ? (
         <Card>
           <Text style={styles.bodyText}>You are not tracking any bills yet.</Text>
         </Card>
-      ) : (
+      ) : null}
+      {!trackedQuery.isLoading && !trackedQuery.error && (trackedQuery.data ?? []).length > 0 ? (
         <View style={styles.stack}>
           {(trackedQuery.data ?? []).map((bill) => (
             <BillCard
@@ -45,7 +58,7 @@ export function TrackedScreen({ navigation }: Props) {
             />
           ))}
         </View>
-      )}
+      ) : null}
     </ScreenView>
   );
 }

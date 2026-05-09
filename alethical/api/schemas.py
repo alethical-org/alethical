@@ -81,6 +81,7 @@ class BillActionPayload(BaseModel):
     action_text: str
     action_group: str | None = None
     action_description: str | None = None
+    action_at: datetime | None = None
     journal_page: str | None = None
     roll_call_text: str | None = None
 
@@ -103,6 +104,7 @@ class BillDetailPayload(BaseModel):
     title: str
     description: str | None = None
     current_status: str | None = None
+    latest_action_at: datetime | None = None
     official_url: str | None = None
     chief_sponsors: list[SponsorSummary]
     all_sponsors: list[SponsorSummary] | None = None

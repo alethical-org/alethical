@@ -1,6 +1,9 @@
 .DS_Store
 .pytest_cache/
+pytest-cache-files-*/
 .venv/
+.tools/
+.tmp/
 __pycache__/
 *.py[cod]
 

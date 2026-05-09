@@ -57,15 +57,32 @@ export function SearchScreen({ navigation }: Props) {
           <View style={styles.column}>
             <Text style={styles.columnTitle}>Bills</Text>
             <View style={styles.stack}>
+              {billsQuery.isLoading ? (
+                <Card>
+                  <Text style={styles.bodyText}>Loading bills from the backend.</Text>
+                </Card>
+              ) : null}
+              {billsQuery.error ? (
+                <Card>
+                  <Text style={styles.bodyText}>
+                    {billsQuery.error instanceof Error ? billsQuery.error.message : 'Bills could not be loaded.'}
+                  </Text>
+                </Card>
+              ) : null}
+              {!billsQuery.isLoading && !billsQuery.error && (billsQuery.data ?? []).length === 0 ? (
+                <Card>
+                  <Text style={styles.bodyText}>No bills match this search.</Text>
+                </Card>
+              ) : null}
               {(billsQuery.data ?? []).map((bill) => (
-                <BillCard
-                  key={bill.id}
-                  bill={bill}
-                  tracked={trackedIds.has(bill.id)}
-                  onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                  onToggleTrack={() => toggleTrackedBill.mutate(bill.id)}
-                />
-              ))}
+                  <BillCard
+                    key={bill.id}
+                    bill={bill}
+                    tracked={trackedIds.has(bill.id)}
+                    onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                    onToggleTrack={() => toggleTrackedBill.mutate(bill.id)}
+                  />
+                ))}
             </View>
           </View>
         ) : null}
@@ -74,6 +91,23 @@ export function SearchScreen({ navigation }: Props) {
           <View style={[styles.column, isDesktop && styles.rightColumn]}>
             <Text style={styles.columnTitle}>Legislators</Text>
             <View style={styles.stack}>
+              {legislatorsQuery.isLoading ? (
+                <Card>
+                  <Text style={styles.bodyText}>Loading legislators from the backend.</Text>
+                </Card>
+              ) : null}
+              {legislatorsQuery.error ? (
+                <Card>
+                  <Text style={styles.bodyText}>
+                    {legislatorsQuery.error instanceof Error ? legislatorsQuery.error.message : 'Legislators could not be loaded.'}
+                  </Text>
+                </Card>
+              ) : null}
+              {!legislatorsQuery.isLoading && !legislatorsQuery.error && (legislatorsQuery.data ?? []).length === 0 ? (
+                <Card>
+                  <Text style={styles.bodyText}>No legislators match this search.</Text>
+                </Card>
+              ) : null}
               {(legislatorsQuery.data ?? []).map((legislator) => (
                 <LegislatorCard
                   key={legislator.id}
@@ -139,5 +173,11 @@ const styles = StyleSheet.create({
   },
   stack: {
     gap: theme.spacing.md,
+  },
+  bodyText: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.body,
+    fontSize: 15,
+    lineHeight: 23,
   },
 });

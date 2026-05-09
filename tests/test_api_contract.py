@@ -30,7 +30,7 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
         headers=auth_headers,
     )
     assert authed_response.status_code == 200
-    tracked_bill = authed_response.json()["data"][0]
+    tracked_bill = next(item for item in authed_response.json()["data"] if item["tracked"]["is_tracked"])
     assert tracked_bill["tracked"]["is_tracked"] is True
 
     detail_response = client.get(
@@ -45,6 +45,23 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
     assert isinstance(detail_payload["actions"], list)
     assert isinstance(detail_payload["versions"], list)
     assert isinstance(detail_payload["all_sponsors"], list)
+
+
+def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
+    detail_response = client.get(
+        "/api/v1/bills/94-2025-SF1832",
+        params={"include": "actions,versions,topics,ai_summary"},
+    )
+    assert detail_response.status_code == 200
+    detail_payload = detail_response.json()["data"]
+    assert detail_payload["actions"]
+    assert "action_at" in detail_payload["actions"][0]
+
+    actions_response = client.get("/api/v1/bills/94-2025-SF1832/actions")
+    assert actions_response.status_code == 200
+    action_payload = actions_response.json()["data"]
+    assert action_payload
+    assert "action_at" in action_payload[0]
 
 
 def test_legislator_directory_profile_search_and_lookup_cover_user_story(client):
@@ -90,6 +107,52 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     assert lookup_payload["senate_legislator"] is not None
 
 
+def test_legislator_directory_limit_search_no_results_and_missing_profile(client):
+    limited_response = client.get("/api/v1/legislators", params={"session": "94-2025-regular", "limit": 1})
+    assert limited_response.status_code == 200
+    limited_payload = limited_response.json()
+    assert len(limited_payload["data"]) == 1
+    assert limited_payload["page"]["limit"] == 1
+
+    matching_response = client.get("/api/v1/legislators", params={"q": "Howard", "limit": 10})
+    assert matching_response.status_code == 200
+    matching_names = [item["full_name"] for item in matching_response.json()["data"]]
+    assert any("Howard" in name for name in matching_names)
+
+    no_results_response = client.get("/api/v1/legislators", params={"q": "definitely-not-a-real-legislator"})
+    assert no_results_response.status_code == 200
+    assert no_results_response.json()["data"] == []
+
+    missing_response = client.get("/api/v1/legislators/not-a-real-id")
+    assert missing_response.status_code == 404
+    missing_problem = missing_response.json()
+    assert missing_problem["title"] == "Not Found"
+    assert missing_problem["status"] == 404
+
+
+def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
+    empty_legislator_response = client.get("/api/v1/legislators", params={"q": "Howard", "limit": 1})
+    assert empty_legislator_response.status_code == 200
+    empty_legislator = empty_legislator_response.json()["data"][0]
+
+    empty_bills_response = client.get(f"/api/v1/legislators/{empty_legislator['id']}/bills")
+    assert empty_bills_response.status_code == 200
+    assert empty_bills_response.json()["data"] == []
+
+    sponsored_legislator_response = client.get("/api/v1/legislators", params={"q": "Fateh", "limit": 1})
+    assert sponsored_legislator_response.status_code == 200
+    sponsored_legislator = sponsored_legislator_response.json()["data"][0]
+
+    sponsored_bills_response = client.get(f"/api/v1/legislators/{sponsored_legislator['id']}/bills")
+    assert sponsored_bills_response.status_code == 200
+    sponsored_bills = sponsored_bills_response.json()["data"]
+    assert sponsored_bills
+    first_bill = sponsored_bills[0]
+    assert first_bill["id"].startswith("94-2025-")
+    assert "chief_sponsors" in first_bill
+    assert "stats" in first_bill
+
+
 def test_signed_in_bill_tracking_and_notification_preferences(client, auth_headers):
     me_response = client.get("/api/v1/me", headers=auth_headers)
     assert me_response.status_code == 200
@@ -99,6 +162,11 @@ def test_signed_in_bill_tracking_and_notification_preferences(client, auth_heade
     assert tracked_response.status_code == 200
     tracked_payload = tracked_response.json()["data"]
     assert len(tracked_payload) >= 2
+    first_tracked = tracked_payload[0]
+    assert first_tracked["bill_id"].startswith("94-2025-")
+    assert first_tracked["bill"]["id"] == first_tracked["bill_id"]
+    assert "chief_sponsors" in first_tracked["bill"]
+    assert "stats" in first_tracked["bill"]
 
     delete_response = client.delete("/api/v1/me/tracked-bills/94-2025-SF2483", headers=auth_headers)
     assert delete_response.status_code == 204
