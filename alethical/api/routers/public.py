@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
 from alethical.api.schemas import CollectionResponse, DetailResponse, MetaPayload, RepresentativeLookupRequest
@@ -57,7 +59,11 @@ def get_bill_by_key(db: Session, bill_key: str):
 
 
 def get_legislator_by_id(db: Session, legislator_id: str):
-    legislator = db.scalar(select(Legislator).where(Legislator.id == legislator_id))
+    try:
+        parsed_id = UUID(legislator_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="legislator not found") from None
+    legislator = db.scalar(select(Legislator).where(Legislator.id == parsed_id))
     if legislator is None:
         raise HTTPException(status_code=404, detail="legislator not found")
     return legislator

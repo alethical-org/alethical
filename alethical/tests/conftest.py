@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
 )
@@ -17,7 +17,7 @@ DATABASE_URL = os.environ.get(
 @pytest.fixture(scope="session", autouse=True)
 def seed_database() -> None:
     subprocess.run(
-        [sys.executable, "scripts/bootstrap_db.py"],
+        [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
         cwd=ROOT,
         check=True,
         env={**os.environ, "DATABASE_URL": DATABASE_URL},

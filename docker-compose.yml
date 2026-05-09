@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: alethical
       POSTGRES_PASSWORD: alethical
     ports:
-      - "54329:5432"
+      - "${DB_PORT:-54329}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U alethical -d alethical"]
       interval: 5s
@@ -16,5 +16,61 @@ services:
     volumes:
       - alethical-postgres:/var/lib/postgresql/data
 
+  backend:
+    image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+    container_name: alethical-backend
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql+psycopg://alethical:alethical@db:5432/alethical
+      ALETHICAL_DEV_AUTH_TOKEN: local-dev-token
+      ALETHICAL_CORS_ORIGINS: ${ALETHICAL_CORS_ORIGINS:-http://localhost:19006,http://127.0.0.1:19006}
+      UV_PROJECT_ENVIRONMENT: /tmp/alethical-venv
+    command: >
+      sh -c "uv sync --frozen &&
+             uv run python -m alembic -c alembic.ini upgrade head &&
+             uv run uvicorn alethical.api.main:create_app --factory --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - .:/app
+      - backend-venv:/tmp/alethical-venv
+      - uv-cache:/root/.cache/uv
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  frontend:
+    image: node:22-bookworm-slim
+    container_name: alethical-frontend
+    working_dir: /app/apps/frontend
+    environment:
+      EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-http://localhost:8000}
+      EXPO_PUBLIC_DEV_AUTH_TOKEN: local-dev-token
+      BROWSER: none
+      CI: "1"
+    command: >
+      sh -c "npm ci &&
+             npx expo start --web --port 19006 --non-interactive"
+    ports:
+      - "${FRONTEND_PORT:-19006}:19006"
+    volumes:
+      - .:/app
+      - frontend-node-modules:/app/apps/frontend/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   alethical-postgres:
+  backend-venv:
+  uv-cache:
+  frontend-node-modules:

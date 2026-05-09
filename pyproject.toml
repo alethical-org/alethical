@@ -1,7 +1,7 @@
 [project]
 name = "alethical"
 version = "0.1.0"
-description = "Alethical schema and ingestion prototypes"
+description = "Alethical backend and ingestion system"
 requires-python = ">=3.11"
 dependencies = [
   "alembic>=1.16.5",
@@ -22,5 +22,5 @@ dependencies = [
 package = false
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["alethical/tests"]
 pythonpath = ["."]

@@ -1,33 +1,21 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
-
-from sqlalchemy import event, func, select, text
-from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import create_engine
+from sqlalchemy import event, func, select, text
+from sqlalchemy.orm import Session
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_PATH = ROOT / "prototypes" / "alethical_schema_sqlalchemy.py"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-
-def load_schema_module():
-    spec = importlib.util.spec_from_file_location("alethical_schema_sqlalchemy", SCHEMA_PATH)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-schema = load_schema_module()
+from alethical.db import models as schema  # noqa: E402
 
 Bill = schema.Bill
 BillStats = schema.BillStats

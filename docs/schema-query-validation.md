@@ -4,8 +4,8 @@ Date: 2026-03-21
 
 Validation sources:
 
-- runtime validator: `scripts/validate_query_rubric.py`
-- machine-readable output: `prototype-output/schema-query-validation.json`
+- runtime validator: [`scripts/validate_query_rubric.py`](../scripts/validate_query_rubric.py)
+- machine-readable output: [`alethical/tests/fixtures/schema-query-validation.json`](../alethical/tests/fixtures/schema-query-validation.json)
 
 ## Outcome
 
@@ -104,7 +104,7 @@ Status: pass
 
 ### Ingestion Repeatability
 
-- fixed sample-data reloads to be idempotent for source artifacts
+- fixed fixture-data reloads to be idempotent for source artifacts
 - fixed delete ordering between canonical sections and derived RAG rows
 - fixed repeat loads so embeddings and chunk rows can be rebuilt safely
 

@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Postgres + SQLAlchemy schema draft for Alethical v1."""
+"""SQLAlchemy models and query helpers for Alethical."""
 
 from __future__ import annotations
 
@@ -264,7 +263,7 @@ class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     legislator: Mapped["Legislator"] = relationship(back_populates="service_periods")
     session: Mapped["LegislativeSession"] = relationship(back_populates="service_periods")
     chamber: Mapped["Chamber"] = relationship(back_populates="service_periods")
-    district: Mapped["District"] = relationship(back_populates="district")
+    district: Mapped["District"] = relationship(back_populates="service_periods")
 
     __table_args__ = (
         UniqueConstraint("legislator_id", "session_id", "period_sequence"),

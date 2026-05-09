@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from alethical.db.session import normalize_database_url
-from alethical.ingestion.minnesota import BillTarget, MinnesotaIngestionPipeline
+from alethical.db.session import normalize_database_url  # noqa: E402
+from alethical.ingestion.minnesota import BillTarget, MinnesotaIngestionPipeline  # noqa: E402
 
 DEFAULT_BILLS = [
     BillTarget(chamber="House", bill_number="2136"),
