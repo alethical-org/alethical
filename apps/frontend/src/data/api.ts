@@ -26,6 +26,12 @@ interface ApiChatSessionPayload {
     last_message_at?: string | null;
 }
 
+interface ApiCurrentUserPayload {
+    id: string;
+    display_name?: string | null;
+    primary_email?: string | null;
+}
+
 interface ApiSponsorPayload {
     name: string;
     role: string;
@@ -502,6 +508,21 @@ function mapChatSessionPayload(session: ApiChatSessionPayload, messages: ApiChat
             createdAt: message.created_at,
             citations: (message.citations ?? []).map(mapCitation),
         })),
+    };
+}
+
+export async function getCurrentUserFromApi(accessToken: string): Promise<{ id: string; name: string; email: string }> {
+    const response = await apiRequest<DetailResponse<ApiCurrentUserPayload>>(
+        '/me',
+        { method: 'GET' },
+        accessToken
+    );
+
+    const email = response.data.primary_email ?? '';
+    return {
+        id: response.data.id,
+        name: (response.data.display_name ?? email.split('@')[0]) || 'Signed-in user',
+        email,
     };
 }
 

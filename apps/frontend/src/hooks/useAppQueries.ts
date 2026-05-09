@@ -4,6 +4,7 @@ import {
   createChatSessionFromApi,
   getBillFromApi,
   getChatSessionFromApi,
+  getCurrentUserFromApi,
   getLegislatorBillsFromApi,
   getLegislatorFromApi,
   listChatSessionsFromApi,
@@ -14,7 +15,6 @@ import {
   toggleTrackedBillFromApi,
 } from '../data/api';
 import {
-  getCurrentUser,
   getNotificationPreference,
   getRepresentativeLookup,
   listSavedPlaces,
@@ -24,9 +24,13 @@ import { NotificationPreference } from '../data/types';
 import { useAuth } from '../providers/AuthProvider';
 
 export function useCurrentUser() {
+  const { accessToken, user } = useAuth();
+
   return useQuery({
-    queryKey: ['current-user'],
-    queryFn: getCurrentUser,
+    queryKey: ['current-user', user?.id ?? 'anon'],
+    queryFn: () => getCurrentUserFromApi(accessToken ?? ''),
+    enabled: Boolean(accessToken),
+    retry: false,
   });
 }
 

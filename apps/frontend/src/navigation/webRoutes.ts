@@ -8,15 +8,21 @@ type WebRouteTarget =
   | { kind: 'legislator'; legislatorId: string }
   | { kind: 'findMyLegislator' }
   | { kind: 'vote'; billId: string; voteEventId: string }
-  | { kind: 'chatSession'; sessionId: string };
+  | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] };
 
 function normalizePathname(pathname: string) {
-  const trimmed = pathname.replace(/\/+$/, '');
+  const trimmed = pathname.split('?')[0].replace(/\/+$/, '');
   return trimmed.length > 0 ? trimmed : '/';
+}
+
+function searchParamsFromPathname(pathname: string) {
+  const queryIndex = pathname.indexOf('?');
+  return new URLSearchParams(queryIndex >= 0 ? pathname.slice(queryIndex + 1) : '');
 }
 
 export function targetFromPathname(pathname: string): WebRouteTarget {
   const normalized = normalizePathname(pathname);
+  const searchParams = searchParamsFromPathname(pathname);
   const segments = normalized.split('/').filter(Boolean);
 
   if (segments.length === 0) {
@@ -50,7 +56,21 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments.length === 3 && segments[0] === 'chat' && segments[1] === 'sessions') {
-    return { kind: 'chatSession', sessionId: decodeURIComponent(segments[2]) };
+    return { kind: 'chatSession', params: { sessionId: decodeURIComponent(segments[2]) } };
+  }
+
+  if (segments.length === 2 && segments[0] === 'chat' && segments[1] === 'new') {
+    const subjectType = searchParams.get('subjectType');
+    return {
+      kind: 'chatSession',
+      params: {
+        title: searchParams.get('title') ?? undefined,
+        seedPrompt: searchParams.get('prompt') ?? undefined,
+        subjectType: subjectType === 'bill' || subjectType === 'legislator' ? subjectType : 'general',
+        subjectId: searchParams.get('subjectId') ?? undefined,
+        subjectLabel: searchParams.get('subjectLabel') ?? undefined,
+      },
+    };
   }
 
   if (segments.length === 4 && segments[0] === 'bills' && segments[2] === 'votes') {
@@ -122,6 +142,21 @@ export function pathnameFromNavigationState(
     case 'VoteDetail':
       return `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}/votes/${encodeURIComponent(String(activeRoute.params?.voteEventId ?? ''))}`;
     case 'ChatSession':
+      if (!activeRoute.params?.sessionId && activeRoute.params?.seedPrompt) {
+        const params = new URLSearchParams();
+        if (activeRoute.params.title) {
+          params.set('title', String(activeRoute.params.title));
+        }
+        params.set('prompt', String(activeRoute.params.seedPrompt));
+        params.set('subjectType', String(activeRoute.params.subjectType ?? 'general'));
+        if (activeRoute.params.subjectId) {
+          params.set('subjectId', String(activeRoute.params.subjectId));
+        }
+        if (activeRoute.params.subjectLabel) {
+          params.set('subjectLabel', String(activeRoute.params.subjectLabel));
+        }
+        return `/chat/new?${params.toString()}`;
+      }
       return activeRoute.params?.sessionId
         ? `/chat/sessions/${encodeURIComponent(String(activeRoute.params.sessionId))}`
         : '/chat';
@@ -201,7 +236,7 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
           },
           {
             name: 'ChatSession',
-            params: { sessionId: target.sessionId },
+            params: target.params,
           },
         ],
         index: 1,

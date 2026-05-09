@@ -22,6 +22,7 @@ import { SearchScreen } from '../screens/SearchScreen';
 import { TrackedScreen } from '../screens/TrackedScreen';
 import { VoteDetailScreen } from '../screens/VoteDetailScreen';
 import { useResponsive } from '../hooks/useResponsive';
+import { useAuth } from '../providers/AuthProvider';
 import { MainTabParamList, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { theme } from '../theme/tokens';
@@ -65,6 +66,11 @@ function RailLogo() {
 }
 
 function DesktopTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { isSignedIn } = useAuth();
+  const visibleRoutes = state.routes
+    .map((route, index) => ({ route, index }))
+    .filter(({ route }) => isSignedIn || route.name !== 'Account');
+
   return (
     <View style={styles.desktopRail}>
       <Pressable
@@ -80,7 +86,7 @@ function DesktopTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
       <View style={styles.railSection}>
         <Text style={styles.railSectionLabel}>Desk</Text>
-        {state.routes.map((route, index) => {
+        {visibleRoutes.map(({ route, index }, visibleIndex) => {
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label =
@@ -103,7 +109,9 @@ function DesktopTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               ]}
             >
               <View style={styles.railItemTop}>
-                <Text style={[styles.railIndex, focused && styles.railIndexActive]}>{String(index + 1).padStart(2, '0')}</Text>
+                <Text style={[styles.railIndex, focused && styles.railIndexActive]}>
+                  {String(visibleIndex + 1).padStart(2, '0')}
+                </Text>
               </View>
               <Text style={[styles.railItemLabel, focused && styles.railItemLabelActive]}>
                 {label}
@@ -118,6 +126,7 @@ function DesktopTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
 function MainTabs() {
   const { isDesktop } = useResponsive();
+  const { isSignedIn } = useAuth();
 
   return (
     <Tab.Navigator
@@ -181,7 +190,12 @@ function MainTabs() {
       <Tab.Screen
         name="Account"
         component={AccountScreen}
-        options={{ title: 'Account', tabBarLabel: () => <TabLabel label="Account" />, tabBarIcon: () => null }}
+        options={{
+          title: 'Account',
+          tabBarLabel: () => <TabLabel label="Account" />,
+          tabBarIcon: () => null,
+          tabBarButton: isSignedIn ? undefined : () => null,
+        }}
       />
     </Tab.Navigator>
   );

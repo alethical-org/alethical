@@ -7,6 +7,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
+from alethical.api.problems import problem_exception
 from alethical.api.schemas import CollectionResponse, DetailResponse, MetaPayload, RepresentativeLookupRequest
 from alethical.api.serializers import (
     bill_list_item,
@@ -69,6 +70,14 @@ def get_legislator_by_id(db: Session, legislator_id: str):
     return legislator
 
 
+def tracking_user_id(include_set: set[str], current_user):
+    if "tracking" not in include_set:
+        return None
+    if current_user is None:
+        raise problem_exception(401, "Unauthorized", "Authentication required to include tracking state")
+    return current_user.id
+
+
 @router.get("/meta", response_model=DetailResponse)
 def meta(db: Session = Depends(get_db)):
     jurisdiction = db.scalar(select(Jurisdiction).where(Jurisdiction.slug == "minnesota"))
@@ -109,10 +118,7 @@ def bills(
 ):
     session_row = get_session_by_slug(db, session)
     include_set = {item.strip() for item in include.split(",")} if include else set()
-    stmt = bill_list_stmt(
-        session_row.id,
-        user_id=current_user.id if current_user and "tracking" in include_set else None,
-    )
+    stmt = bill_list_stmt(session_row.id, user_id=tracking_user_id(include_set, current_user))
     if q:
         stmt = stmt.where(or_(Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%")))
     rows = db.scalars(stmt.limit(limit)).all()
@@ -136,7 +142,7 @@ def bill_detail(
     row = db.scalar(
         bill_detail_stmt(
             bill_row.id,
-            user_id=current_user.id if current_user and "tracking" in include_set else None,
+            user_id=tracking_user_id(include_set, current_user),
         )
     )
     ai_summary = None

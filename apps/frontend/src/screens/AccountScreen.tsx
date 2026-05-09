@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { AuthRequiredCard } from '../components/AuthRequiredCard';
 import { Card } from '../components/Card';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
@@ -16,27 +17,28 @@ import { theme } from '../theme/tokens';
 type Props = MainTabScreenProps<'Account'>;
 
 export function AccountScreen(_: Props) {
-  const { isSignedIn, mode, user, signInDemo, signOut } = useAuth();
+  const { isSignedIn, user, signOut } = useAuth();
   const currentUserQuery = useCurrentUser();
   const notificationPreferenceQuery = useNotificationPreference(user?.id);
   const savedPlacesQuery = useSavedPlaces(user?.id);
   const updateNotificationPreference = useUpdateNotificationPreference(user?.id);
 
+  if (!isSignedIn) {
+    return (
+      <ScreenView title="Account" subtitle="Account settings are available after sign-in.">
+        <AuthRequiredCard message="Sign in with Google to manage your Alethical account." />
+      </ScreenView>
+    );
+  }
+
   return (
-    <ScreenView title="Account" subtitle="Signed-in users get persistence, personalization, and notifications. Public users still get the core legislative product.">
+    <ScreenView title="Account" subtitle="Manage your profile, saved places, and notification preferences.">
       <Card>
         <Text style={styles.cardTitle}>Authentication</Text>
-        <Text style={styles.bodyText}>Mode: {mode === 'demo' ? 'Demo session' : mode}</Text>
-        <Text style={styles.bodyText}>
-          {isSignedIn ? `Signed in as ${currentUserQuery.data?.name ?? user?.name}` : 'Not signed in'}
-        </Text>
+        <Text style={styles.bodyText}>{`Signed in as ${currentUserQuery.data?.name ?? user?.name}`}</Text>
         <Text style={styles.bodyText}>{currentUserQuery.data?.email ?? user?.email ?? ''}</Text>
         <View style={styles.actionRow}>
-          {isSignedIn ? (
-            <PrimaryButton label="Sign Out" tone="secondary" onPress={signOut} />
-          ) : (
-            <PrimaryButton label="Use Demo Sign-In" onPress={signInDemo} />
-          )}
+          <PrimaryButton label="Sign Out" tone="secondary" onPress={() => void signOut()} />
         </View>
       </Card>
 

@@ -17,7 +17,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'LegislatorProfile'>;
 
 export function LegislatorProfileScreen({ route, navigation }: Props) {
   const { isDesktop } = useResponsive();
-  const { user } = useAuth();
+  const { isSignedIn, signInWithGoogle, user } = useAuth();
   const legislatorQuery = useLegislator(route.params.legislatorId);
   const billsQuery = useLegislatorBills(route.params.legislatorId);
   const trackedQuery = useTrackedBills(user?.id);
@@ -126,7 +126,13 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                   bill={bill}
                   tracked={trackedIds.has(bill.id)}
                   onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                  onToggleTrack={() => toggleTrackedBill.mutate(bill.id)}
+                  onToggleTrack={() => {
+                    if (!isSignedIn) {
+                      void signInWithGoogle();
+                      return;
+                    }
+                    toggleTrackedBill.mutate(bill.id);
+                  }}
                 />
               ))}
             </View>

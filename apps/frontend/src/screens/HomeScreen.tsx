@@ -16,7 +16,7 @@ type Props = MainTabScreenProps<'Home'>;
 
 export function HomeScreen({ navigation }: Props) {
   const { isDesktop } = useResponsive();
-  const { user } = useAuth();
+  const { isSignedIn, signInWithGoogle, user } = useAuth();
   const billsQuery = useBills();
   const legislatorsQuery = useLegislators();
   const trackedQuery = useTrackedBills(user?.id);
@@ -97,7 +97,13 @@ export function HomeScreen({ navigation }: Props) {
             bill={bill}
             tracked={trackedIds.has(bill.id)}
             onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-            onToggleTrack={() => toggleTrackedBill.mutate(bill.id)}
+            onToggleTrack={() => {
+              if (!isSignedIn) {
+                void signInWithGoogle();
+                return;
+              }
+              toggleTrackedBill.mutate(bill.id);
+            }}
           />
         ))}
       </View>

@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AuthRequiredCard } from '../components/AuthRequiredCard';
 import { Card } from '../components/Card';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
@@ -17,7 +18,7 @@ import { theme } from '../theme/tokens';
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatSession'>;
 
 export function ChatSessionScreen({ route }: Props) {
-  const { isSignedIn, user, signInDemo } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const params = route.params ?? {};
   const [draft, setDraft] = useState('');
   const [sessionId, setSessionId] = useState(params.sessionId);
@@ -91,10 +92,7 @@ export function ChatSessionScreen({ route }: Props) {
   if (!isSignedIn) {
     return (
       <ScreenView title="Grounded Chat" subtitle="Chat is available once you sign in.">
-        <Card>
-          <Text style={styles.bodyText}>Sign in to save conversations and ask follow-up questions grounded in legislative data.</Text>
-          <PrimaryButton label="Use Demo Sign-In" onPress={signInDemo} />
-        </Card>
+        <AuthRequiredCard message="Sign in to save conversations and ask follow-up questions grounded in legislative data." />
       </ScreenView>
     );
   }
