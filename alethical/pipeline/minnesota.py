@@ -11,7 +11,7 @@ from typing import Any
 from urllib.parse import urljoin
 
 import requests
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
@@ -20,6 +20,9 @@ USER_AGENT = "Alethical Minnesota Ingest/0.1"
 TIMEOUT = 30
 MAX_RETRIES = 3
 DIV_TAG_RE = re.compile(r"</?div\b[^>]*>", re.I)
+REFERENCE_DATA_LOCK_KEY = 610312263001
+DISTRICT_LOCK_KEY = 610312263002
+LEGISLATOR_LOCK_KEY = 610312263003
 
 schema = load_schema()
 ArtifactType = schema.ArtifactType
@@ -55,6 +58,24 @@ class BillTarget:
     chamber: str
     bill_number: str
     session_code: str = "0942025"
+
+
+@dataclass(frozen=True)
+class BillSearchResult:
+    chamber: str
+    file_type: str
+    file_number: int
+    description: str
+    status_xml_uri: str
+    latest_text_html_uri: str
+
+    @property
+    def bill_key(self) -> str:
+        return f"94-2025-{self.file_type}{self.file_number}"
+
+    @property
+    def target(self) -> BillTarget:
+        return BillTarget(chamber=self.chamber, bill_number=str(self.file_number))
 
 
 def http_session() -> requests.Session:
@@ -196,6 +217,61 @@ def discover_bill(sess: requests.Session, target: BillTarget) -> dict[str, str]:
         "status_xml_uri": status_xml_uri if status_xml_uri.startswith("http") else f"https://{status_xml_uri}",
         "latest_text_html_uri": latest_text_html_uri if latest_text_html_uri.startswith("http") else f"https://{latest_text_html_uri}",
     }
+
+
+def discover_bill_range(sess: requests.Session, *, chamber: str, bill_range: str, session_code: str = "0942025") -> list[BillSearchResult]:
+    params = {
+        "body": chamber,
+        "search": "basic",
+        "session": session_code,
+        "location": chamber,
+        "bill": bill_range,
+        "bill_type": "bill",
+        "rev_number": "",
+        "submit_bill": "GO",
+        "keyword_type": "all",
+        "keyword": "",
+        "keyword_field_text": "1",
+        "titleword": "",
+        "format": "xml",
+    }
+    request = requests.Request("GET", "https://www.revisor.mn.gov/bills/status_result.php", params=params).prepare()
+    xml_text = fetch_text(sess, request.url or "")
+    root = ET.fromstring(xml_text)
+    results = []
+    for result in root.findall(".//BILL_RESULT"):
+        status_xml_uri = result.findtext("STATUS_XML_URI", "").strip()
+        latest_text_html_uri = result.findtext("LATEST_TEXT_HTML_URI", "").strip()
+        file_number = (result.findtext("FILE_NUMBER") or "").strip()
+        if not file_number.isdigit():
+            continue
+        results.append(
+            BillSearchResult(
+                chamber=chamber,
+                file_type=(result.findtext("FILE_TYPE") or "").strip(),
+                file_number=int(file_number),
+                description=(result.findtext("DESCRIPTION") or "").strip(),
+                status_xml_uri=status_xml_uri if status_xml_uri.startswith("http") else f"https://{status_xml_uri}",
+                latest_text_html_uri=latest_text_html_uri if latest_text_html_uri.startswith("http") else f"https://{latest_text_html_uri}",
+            )
+        )
+    return results
+
+
+def discover_session_bills(
+    sess: requests.Session,
+    *,
+    session_code: str = "0942025",
+    max_bill_number: int = 6000,
+    chunk_size: int = 500,
+) -> list[BillSearchResult]:
+    seen: dict[tuple[str, int], BillSearchResult] = {}
+    for chamber in ("House", "Senate"):
+        for start in range(1, max_bill_number + 1, chunk_size):
+            end = min(start + chunk_size - 1, max_bill_number)
+            for result in discover_bill_range(sess, chamber=chamber, bill_range=f"{start}-{end}", session_code=session_code):
+                seen[(result.file_type, result.file_number)] = result
+    return sorted(seen.values(), key=lambda item: (item.file_type, item.file_number))
 
 
 def parse_bill_xml(xml_text: str) -> dict[str, object]:
@@ -419,7 +495,11 @@ class MinnesotaIngestionPipeline:
         self.db = db
         self.http = sess or http_session()
 
+    def advisory_xact_lock(self, key: int) -> None:
+        self.db.execute(text("select pg_advisory_xact_lock(:key)"), {"key": key})
+
     def seed_reference_data(self) -> dict[str, Any]:
+        self.advisory_xact_lock(REFERENCE_DATA_LOCK_KEY)
         minnesota = self.db.scalar(select(Jurisdiction).where(Jurisdiction.slug == "minnesota"))
         if minnesota is None:
             minnesota = Jurisdiction(slug="minnesota", name="Minnesota", country_code="US", subdivision_code="MN")
@@ -515,6 +595,7 @@ class MinnesotaIngestionPipeline:
         return artifact
 
     def upsert_district(self, refs: dict[str, Any], chamber: Any, code: str) -> Any:
+        self.advisory_xact_lock(DISTRICT_LOCK_KEY)
         district = self.db.scalar(
             select(District).where(
                 District.jurisdiction_id == refs["jurisdiction"].id,
@@ -534,6 +615,7 @@ class MinnesotaIngestionPipeline:
         return district
 
     def upsert_legislator(self, refs: dict[str, Any], name: str, *, external_key: str | None = None) -> Any:
+        self.advisory_xact_lock(LEGISLATOR_LOCK_KEY)
         key = external_key or name
         legislator = self.db.scalar(
             select(Legislator).where(Legislator.jurisdiction_id == refs["jurisdiction"].id, Legislator.external_key == key)
@@ -767,24 +849,30 @@ class MinnesotaIngestionPipeline:
             section_row.source_hash = content_hash(str(section["text"]))
 
     def replace_actions(self, refs: dict[str, Any], bill: Any, canonical: dict[str, Any], xml_artifact: Any) -> None:
-        self.db.execute(delete(BillAction).where(BillAction.bill_id == bill.id))
         for chamber_name, actions in canonical.get("actions", {}).items():
             chamber = refs["chambers"].get(chamber_name)
             for action in actions:
-                self.db.add(
-                    BillAction(
-                        bill_id=bill.id,
-                        chamber_id=chamber.id if chamber else None,
-                        source_artifact_id=xml_artifact.id,
-                        action_number=int(action["action_number"]),
-                        action_group=action.get("action_group") or None,
-                        action_text=action["action_text"],
-                        action_description=action.get("action_description") or None,
-                        action_at=parse_datetime(action.get("action_date")),
-                        journal_page=action.get("journal_page") or None,
-                        roll_call_text=action.get("roll_call") or None,
+                action_row = self.db.scalar(
+                    select(BillAction).where(
+                        BillAction.bill_id == bill.id,
+                        BillAction.action_number == int(action["action_number"]),
+                        BillAction.chamber_id == (chamber.id if chamber else None),
                     )
                 )
+                if action_row is None:
+                    action_row = BillAction(
+                        bill_id=bill.id,
+                        chamber_id=chamber.id if chamber else None,
+                        action_number=int(action["action_number"]),
+                    )
+                    self.db.add(action_row)
+                action_row.source_artifact_id = xml_artifact.id
+                action_row.action_group = action.get("action_group") or None
+                action_row.action_text = action["action_text"]
+                action_row.action_description = action.get("action_description") or None
+                action_row.action_at = parse_datetime(action.get("action_date"))
+                action_row.journal_page = action.get("journal_page") or None
+                action_row.roll_call_text = action.get("roll_call") or None
 
     def replace_sponsorships(self, refs: dict[str, Any], bill: Any, canonical: dict[str, Any]) -> None:
         self.db.execute(delete(Sponsorship).where(Sponsorship.bill_id == bill.id))
@@ -818,13 +906,26 @@ class MinnesotaIngestionPipeline:
         stats.sponsor_count = sum(len(authors) for authors in canonical.get("authors", {}).values())
         stats.action_count = sum(len(actions) for actions in canonical.get("actions", {}).values())
         stats.version_count = max(1, len(canonical.get("text_versions", [])))
-        stats.vote_event_count = 0
+        stats.vote_event_count = len(bill.vote_events)
 
     def ingest_bills(self, targets: list[BillTarget]) -> dict[str, Any]:
         refs = self.seed_reference_data()
         bills = [self.ingest_bill_target(refs, target) for target in targets]
         self.refresh_legislator_stats(refs)
         return {"bills_ingested": len(bills), "bill_keys": [bill.bill_key for bill in bills]}
+
+    def discover_bill_targets(
+        self,
+        *,
+        session_code: str = "0942025",
+        max_bill_number: int = 6000,
+        only_missing: bool = True,
+    ) -> list[BillTarget]:
+        results = discover_session_bills(self.http, session_code=session_code, max_bill_number=max_bill_number)
+        if not only_missing:
+            return [result.target for result in results]
+        existing_keys = set(self.db.scalars(select(Bill.bill_key)).all())
+        return [result.target for result in results if result.bill_key not in existing_keys]
 
     def refresh_legislator_stats(self, refs: dict[str, Any]) -> None:
         legislators = self.db.scalars(select(Legislator)).all()

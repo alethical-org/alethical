@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alethical Data Model Relationships</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #171717;
+      --muted: #64615b;
+      --line: #d8d4cb;
+      --surface: #ffffff;
+      --panel: #f6f3ed;
+      --accent: #0b6bcb;
+      --accent-soft: #dcecfb;
+      --green: #1c7c54;
+      --yellow: #8a6200;
+      --red: #a7362e;
+      --shadow: 0 12px 34px rgba(25, 20, 15, 0.12);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--panel);
+      color: var(--ink);
+    }
+
+    header {
+      padding: 24px 28px 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(28px, 4vw, 46px);
+      letter-spacing: 0;
+    }
+
+    .subhead {
+      margin: 0;
+      max-width: 980px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+      gap: 18px;
+      padding: 18px;
+      min-height: calc(100vh - 104px);
+    }
+
+    aside,
+    main {
+      min-width: 0;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .search {
+      width: 100%;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 12px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      min-height: 34px;
+      padding: 0 10px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover,
+    button.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      border: 1px solid rgba(0, 0, 0, 0.18);
+    }
+
+    .map {
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .group {
+      border: 1px solid var(--line);
+      background: #fbfaf7;
+      padding: 12px;
+    }
+
+    .group h2 {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .tables {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+    }
+
+    .table-card {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-left: 5px solid var(--accent);
+      padding: 10px;
+      min-height: 92px;
+      cursor: pointer;
+      transition: transform 120ms ease, opacity 120ms ease, border-color 120ms ease;
+    }
+
+    .table-card:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+    }
+
+    .table-card.dim {
+      opacity: 0.34;
+    }
+
+    .table-card.connected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .table-card.selected {
+      outline: 3px solid rgba(11, 107, 203, 0.28);
+      background: #eef6ff;
+    }
+
+    .table-name {
+      margin: 0 0 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 15px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .table-summary {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .detail {
+      position: sticky;
+      top: 14px;
+      padding: 16px;
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+    }
+
+    .detail h2 {
+      margin: 0 0 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 22px;
+      overflow-wrap: anywhere;
+    }
+
+    .detail p {
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 0 0 14px;
+    }
+
+    .section-title {
+      margin: 18px 0 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    li {
+      margin: 5px 0;
+      line-height: 1.45;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.95em;
+    }
+
+    .relationship-list {
+      display: grid;
+      gap: 8px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .rel {
+      border: 1px solid var(--line);
+      padding: 9px;
+      background: #fff;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .rel strong {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .flow {
+      display: grid;
+      gap: 8px;
+    }
+
+    .flow-step {
+      border-left: 4px solid var(--accent);
+      padding: 8px 10px;
+      background: #fff;
+      color: var(--muted);
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .detail {
+        position: static;
+        max-height: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Alethical Data Model Relationships</h1>
+    <p class="subhead">
+      Click a table to inspect fields, foreign keys, and product meaning. Connected tables are highlighted. Bills do not all have votes: only bill actions with deterministic roll-call source matches become vote events, and vote records are the per-legislator rows under each event.
+    </p>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <section class="panel controls">
+        <input id="search" class="search" type="search" placeholder="Search tables, fields, relationships">
+        <div class="chips" id="groupFilters"></div>
+        <div class="legend">
+          <span><i class="dot" style="background:#dcecfb"></i>Selected path</span>
+          <span><i class="dot" style="background:#f6f3ed"></i>Available table</span>
+          <span><i class="dot" style="background:#1c7c54"></i>User data</span>
+          <span><i class="dot" style="background:#8a6200"></i>Derived data</span>
+        </div>
+      </section>
+
+      <section class="panel detail" id="detail"></section>
+    </aside>
+
+    <main class="panel map" id="map"></main>
+  </div>
+
+  <script>
+    const groups = [
+      { id: 'reference', label: 'Reference', color: '#6b7280' },
+      { id: 'people', label: 'People and Committees', color: '#0b6bcb' },
+      { id: 'bills', label: 'Bills and Source Text', color: '#7c3aed' },
+      { id: 'votes', label: 'Votes', color: '#a7362e' },
+      { id: 'ingestion', label: 'Ingestion and Provenance', color: '#8a6200' },
+      { id: 'ai', label: 'AI and Retrieval', color: '#8a6200' },
+      { id: 'users', label: 'Users and Product State', color: '#1c7c54' }
+    ];
+
+    const tables = {
+      jurisdiction: {
+        group: 'reference',
+        summary: 'Top-level civic scope, currently Minnesota.',
+        fields: ['id', 'slug', 'name', 'country_code', 'subdivision_code', 'is_active', 'created_at', 'updated_at'],
+        notes: ['One jurisdiction owns chambers, sessions, districts, and legislators.'],
+        relations: [
+          ['jurisdiction.id', 'chamber.jurisdiction_id', '1 to many'],
+          ['jurisdiction.id', 'legislative_session.jurisdiction_id', '1 to many'],
+          ['jurisdiction.id', 'district.jurisdiction_id', '1 to many'],
+          ['jurisdiction.id', 'legislator.jurisdiction_id', '1 to many']
+        ]
+      },
+      chamber: {
+        group: 'reference',
+        summary: 'House, Senate, or Joint chamber metadata.',
+        fields: ['id', 'jurisdiction_id', 'chamber_type', 'slug', 'name', 'short_name', 'display_order'],
+        notes: ['Used by districts, service periods, committees, bills, actions, and vote events.'],
+        relations: [
+          ['chamber.jurisdiction_id', 'jurisdiction.id', 'many to 1'],
+          ['chamber.id', 'district.chamber_id', '1 to many'],
+          ['chamber.id', 'bill.chamber_id', '1 to many'],
+          ['chamber.id', 'vote_event.chamber_id', '1 to many'],
+          ['chamber.id', 'committee.chamber_id', '1 to many'],
+          ['chamber.id', 'legislator_service_period.chamber_id', '1 to many']
+        ]
+      },
+      legislative_session: {
+        group: 'reference',
+        summary: 'A legislative biennium or session.',
+        fields: ['id', 'jurisdiction_id', 'slug', 'session_number', 'session_type', 'year_start', 'year_end', 'name', 'is_current'],
+        notes: ['Current data is loaded under 94-2025-regular.'],
+        relations: [
+          ['legislative_session.jurisdiction_id', 'jurisdiction.id', 'many to 1'],
+          ['legislative_session.id', 'bill.session_id', '1 to many'],
+          ['legislative_session.id', 'committee.session_id', '1 to many'],
+          ['legislative_session.id', 'legislator_service_period.session_id', '1 to many'],
+          ['legislative_session.id', 'legislator_stats.session_id', '1 to many']
+        ]
+      },
+      district: {
+        group: 'reference',
+        summary: 'House or Senate legislative district.',
+        fields: ['id', 'jurisdiction_id', 'chamber_id', 'code', 'label', 'gis_identifier', 'valid_from', 'valid_to'],
+        notes: ['Find-my-legislator resolves a place to district ids, then loads current service periods.'],
+        relations: [
+          ['district.jurisdiction_id', 'jurisdiction.id', 'many to 1'],
+          ['district.chamber_id', 'chamber.id', 'many to 1'],
+          ['district.id', 'legislator_service_period.district_id', '1 to many'],
+          ['district.id', 'saved_place.house_district_id', '1 to many optional'],
+          ['district.id', 'saved_place.senate_district_id', '1 to many optional']
+        ]
+      },
+      legislator: {
+        group: 'people',
+        summary: 'Person serving or sponsoring in the legislature.',
+        fields: ['id', 'jurisdiction_id', 'slug', 'external_key', 'full_name', 'sort_name', 'first_name', 'last_name', 'preferred_name', 'biography', 'is_active'],
+        notes: ['Votes and sponsorships attach to legislators. Current district/party/contact live on service periods.'],
+        relations: [
+          ['legislator.jurisdiction_id', 'jurisdiction.id', 'many to 1'],
+          ['legislator.id', 'legislator_service_period.legislator_id', '1 to many'],
+          ['legislator.id', 'committee_membership.legislator_id', '1 to many'],
+          ['legislator.id', 'sponsorship.legislator_id', '1 to many'],
+          ['legislator.id', 'vote_record.legislator_id', '1 to many'],
+          ['legislator.id', 'legislator_stats.legislator_id', '1 to many'],
+          ['legislator.id', 'ai_enrichment.legislator_id', '1 to many optional']
+        ]
+      },
+      legislator_service_period: {
+        group: 'people',
+        summary: 'A legislator serving in a chamber/district/session with party and contact info.',
+        fields: ['id', 'legislator_id', 'session_id', 'chamber_id', 'district_id', 'period_sequence', 'party', 'title', 'email', 'phone', 'photo_url', 'profile_url', 'office_address', 'is_current'],
+        notes: ['This is the current profile spine for legislator directory and find-my-legislator.'],
+        relations: [
+          ['legislator_service_period.legislator_id', 'legislator.id', 'many to 1'],
+          ['legislator_service_period.session_id', 'legislative_session.id', 'many to 1'],
+          ['legislator_service_period.chamber_id', 'chamber.id', 'many to 1'],
+          ['legislator_service_period.district_id', 'district.id', 'many to 1']
+        ]
+      },
+      committee: {
+        group: 'people',
+        summary: 'Session-scoped committee in a chamber.',
+        fields: ['id', 'chamber_id', 'session_id', 'external_key', 'name', 'code', 'profile_url'],
+        notes: ['Committee rows exist; memberships require profile ingestion to populate.'],
+        relations: [
+          ['committee.chamber_id', 'chamber.id', 'many to 1'],
+          ['committee.session_id', 'legislative_session.id', 'many to 1'],
+          ['committee.id', 'committee_membership.committee_id', '1 to many'],
+          ['committee.id', 'sponsorship.committee_id', '1 to many optional'],
+          ['committee.id', 'bill_action.committee_id', '1 to many optional']
+        ]
+      },
+      committee_membership: {
+        group: 'people',
+        summary: 'Join table between legislators and committees.',
+        fields: ['id', 'committee_id', 'legislator_id', 'role', 'start_date', 'end_date', 'is_current'],
+        notes: ['Used by legislator profile committee lists and committee_count stats.'],
+        relations: [
+          ['committee_membership.committee_id', 'committee.id', 'many to 1'],
+          ['committee_membership.legislator_id', 'legislator.id', 'many to 1']
+        ]
+      },
+      bill: {
+        group: 'bills',
+        summary: 'Canonical bill spine. Votes are optional recorded actions, not guaranteed bill properties.',
+        fields: ['id', 'session_id', 'chamber_id', 'bill_key', 'file_type', 'file_number', 'revisor_number', 'title', 'description', 'current_status', 'latest_action_at', 'official_url', 'is_omnibus', 'companion_bill_id', 'ingestion_run_id'],
+        notes: ['A bill has actions, versions, sections, sponsors, optional votes, optional AI enrichments, optional tracking, and RAG documents.', 'Many bills never receive a recorded roll-call vote: they can die in committee, be withdrawn, be handled through voice vote/consent, or have only non-vote procedural actions.'],
+        relations: [
+          ['bill.session_id', 'legislative_session.id', 'many to 1'],
+          ['bill.chamber_id', 'chamber.id', 'many to 1'],
+          ['bill.companion_bill_id', 'bill.id', 'self reference optional'],
+          ['bill.ingestion_run_id', 'ingestion_run.id', 'many to 1 optional'],
+          ['bill.id', 'bill_version.bill_id', '1 to many'],
+          ['bill.id', 'bill_action.bill_id', '1 to many'],
+          ['bill.id', 'sponsorship.bill_id', '1 to many'],
+          ['bill.id', 'vote_event.bill_id', '1 to many optional'],
+          ['bill.id', 'bill_stats.bill_id', '1 to 1'],
+          ['bill.id', 'tracked_bill.bill_id', '1 to many'],
+          ['bill.id', 'ai_enrichment.bill_id', '1 to many optional'],
+          ['bill.id', 'rag_section_document.bill_id', '1 to many'],
+          ['bill.id', 'chat_session.subject_bill_id', '1 to many optional']
+        ],
+        flow: [
+          'Bill appears in Revisor status data.',
+          'The bill timeline is the parent record for what happened to the bill.',
+          'Only timeline actions with a recorded roll-call count can become vote_event rows.',
+          'Each vote_event may have vote_record rows for individual legislators parsed from House vote pages or Senate journal PDFs.',
+          'Bills without roll-call actions have no vote_event rows.'
+        ]
+      },
+      bill_version: {
+        group: 'bills',
+        summary: 'A bill text version, usually with HTML/PDF URLs.',
+        fields: ['id', 'bill_id', 'version_code', 'version_name', 'sequence_number', 'document_date', 'html_url', 'pdf_url', 'source_artifact_id', 'is_current'],
+        notes: ['Current versions own parsed text sections and RAG section documents.'],
+        relations: [
+          ['bill_version.bill_id', 'bill.id', 'many to 1'],
+          ['bill_version.source_artifact_id', 'source_artifact.id', 'many to 1 optional'],
+          ['bill_version.id', 'bill_version_section.bill_version_id', '1 to many'],
+          ['bill_version.id', 'rag_section_document.bill_version_id', '1 to many'],
+          ['bill_version.id', 'ai_enrichment.bill_version_id', '1 to many optional']
+        ]
+      },
+      bill_version_section: {
+        group: 'bills',
+        summary: 'Parsed raw section text from a bill version.',
+        fields: ['id', 'bill_version_id', 'section_id_text', 'source_order', 'article_number', 'article_heading', 'section_heading', 'statute_heading', 'cite_heading', 'effective_date_heading', 'raw_text', 'source_hash'],
+        notes: ['This is the official text basis for plain/structured bill text and RAG derivation.'],
+        relations: [
+          ['bill_version_section.bill_version_id', 'bill_version.id', 'many to 1'],
+          ['bill_version_section.id', 'rag_section_document.bill_version_section_id', '1 to many optional']
+        ]
+      },
+      bill_action: {
+        group: 'bills',
+        summary: 'Action timeline row from bill status data. Only some actions are recorded votes.',
+        fields: ['id', 'bill_id', 'chamber_id', 'committee_id', 'source_artifact_id', 'action_number', 'action_group', 'action_text', 'action_description', 'action_at', 'journal_page', 'roll_call_text'],
+        notes: ['If roll_call_text is a count like 35-30 and a deterministic source is found, this action gets a vote_event.', 'Most actions are not votes: examples include introductions, committee referrals, amendments, engrossments, messages between chambers, and governor delivery.'],
+        relations: [
+          ['bill_action.bill_id', 'bill.id', 'many to 1'],
+          ['bill_action.chamber_id', 'chamber.id', 'many to 1 optional'],
+          ['bill_action.committee_id', 'committee.id', 'many to 1 optional'],
+          ['bill_action.source_artifact_id', 'source_artifact.id', 'many to 1 optional'],
+          ['bill_action.id', 'vote_event.bill_action_id', '1 to 1 optional']
+        ],
+        flow: [
+          'Revisor action contains journal_page and roll_call_text.',
+          'Backfill checks chamber, bill number, journal page, and yea/nay totals.',
+          'Only exact matches create vote_event rows.',
+          'No roll_call_text means no deterministic individual-vote backfill for that action.'
+        ]
+      },
+      sponsorship: {
+        group: 'bills',
+        summary: 'Bill author/sponsor join row.',
+        fields: ['id', 'bill_id', 'legislator_id', 'committee_id', 'role', 'source_order', 'source_chamber'],
+        notes: ['Chief author rows power sponsor previews; co-author rows power full sponsor lists and legislator bill history.'],
+        relations: [
+          ['sponsorship.bill_id', 'bill.id', 'many to 1'],
+          ['sponsorship.legislator_id', 'legislator.id', 'many to 1 optional'],
+          ['sponsorship.committee_id', 'committee.id', 'many to 1 optional']
+        ]
+      },
+      vote_event: {
+        group: 'votes',
+        summary: 'One recorded roll-call vote on a bill action.',
+        fields: ['id', 'bill_id', 'bill_action_id', 'chamber_id', 'motion_text', 'result_text', 'occurred_at', 'official_url', 'source_artifact_id', 'yes_count', 'no_count', 'absent_count', 'excused_count', 'present_count'],
+        notes: ['A bill can have zero, one, or many vote events. Current backfill created events only for deterministic source matches.', 'A vote belongs to the chamber action that recorded the decision, such as final passage, concurrence, or another roll-call motion.'],
+        relations: [
+          ['vote_event.bill_id', 'bill.id', 'many to 1'],
+          ['vote_event.bill_action_id', 'bill_action.id', 'many to 1 optional'],
+          ['vote_event.chamber_id', 'chamber.id', 'many to 1'],
+          ['vote_event.source_artifact_id', 'source_artifact.id', 'many to 1 optional'],
+          ['vote_event.id', 'vote_record.vote_event_id', '1 to many']
+        ],
+        flow: [
+          'Vote event stores the motion/result and count totals.',
+          'It points back to the bill and the action that produced the vote.',
+          'Its official_url is a House vote detail page or Senate journal PDF page.'
+        ]
+      },
+      vote_record: {
+        group: 'votes',
+        summary: 'One legislator vote within one vote event.',
+        fields: ['id', 'vote_event_id', 'legislator_id', 'vote_value', 'sort_order'],
+        notes: ['Rows are created only when the parsed vote-list name maps unambiguously to a current legislator.'],
+        relations: [
+          ['vote_record.vote_event_id', 'vote_event.id', 'many to 1'],
+          ['vote_record.legislator_id', 'legislator.id', 'many to 1']
+        ],
+        flow: [
+          'House: parsed from affirmative/negative tables.',
+          'Senate: parsed from journal PDF text.',
+          'Ambiguous or missing names are skipped, leaving counts authoritative on vote_event.'
+        ]
+      },
+      ingestion_run: {
+        group: 'ingestion',
+        summary: 'One ingestion or enrichment run.',
+        fields: ['id', 'adapter', 'target_type', 'target_key', 'status', 'started_at', 'finished_at', 'stats', 'error_text'],
+        notes: ['Provides operational history for bill syncs and AI enrichment batches.'],
+        relations: [
+          ['ingestion_run.id', 'source_artifact.run_id', '1 to many'],
+          ['ingestion_run.id', 'bill.ingestion_run_id', '1 to many optional']
+        ]
+      },
+      source_artifact: {
+        group: 'ingestion',
+        summary: 'Captured source document metadata.',
+        fields: ['id', 'run_id', 'adapter', 'artifact_type', 'source_key', 'source_url', 'storage_path', 'content_hash', 'http_status', 'content_type', 'fetched_at', 'is_current', 'metadata_json'],
+        notes: ['Used for provenance and reprocessing.'],
+        relations: [
+          ['source_artifact.run_id', 'ingestion_run.id', 'many to 1'],
+          ['source_artifact.id', 'bill_version.source_artifact_id', '1 to many optional'],
+          ['source_artifact.id', 'bill_action.source_artifact_id', '1 to many optional'],
+          ['source_artifact.id', 'vote_event.source_artifact_id', '1 to many optional']
+        ]
+      },
+      ai_enrichment: {
+        group: 'ai',
+        summary: 'AI-generated structured content for bills, legislators, or versions.',
+        fields: ['id', 'bill_id', 'legislator_id', 'bill_version_id', 'enrichment_type', 'model_name', 'content_json', 'source_version_hash', 'is_current'],
+        notes: ['Currently stores bill_summary-style JSON. Richer product analysis can fit here or move to a typed table.'],
+        relations: [
+          ['ai_enrichment.bill_id', 'bill.id', 'many to 1 optional'],
+          ['ai_enrichment.legislator_id', 'legislator.id', 'many to 1 optional'],
+          ['ai_enrichment.bill_version_id', 'bill_version.id', 'many to 1 optional']
+        ]
+      },
+      rag_section_document: {
+        group: 'ai',
+        summary: 'Cleaned citation-safe section document for retrieval.',
+        fields: ['id', 'bill_id', 'bill_version_id', 'bill_version_section_id', 'citation_label', 'clean_text', 'search_text', 'cleaning_version', 'source_hash', 'word_count'],
+        notes: ['Derived from bill_version_section. Chunks and embeddings are built from this.'],
+        relations: [
+          ['rag_section_document.bill_id', 'bill.id', 'many to 1'],
+          ['rag_section_document.bill_version_id', 'bill_version.id', 'many to 1'],
+          ['rag_section_document.bill_version_section_id', 'bill_version_section.id', 'many to 1 optional'],
+          ['rag_section_document.id', 'rag_chunk.rag_section_document_id', '1 to many']
+        ]
+      },
+      rag_chunk: {
+        group: 'ai',
+        summary: 'Retrieval chunk with citation label and searchable text.',
+        fields: ['id', 'rag_section_document_id', 'chunk_index', 'citation_label', 'chunk_text', 'search_text', 'chunking_version', 'word_count', 'token_estimate'],
+        notes: ['Chat retrieval returns chunks and joins back to section provenance.'],
+        relations: [
+          ['rag_chunk.rag_section_document_id', 'rag_section_document.id', 'many to 1'],
+          ['rag_chunk.id', 'rag_chunk_embedding.rag_chunk_id', '1 to 1 optional']
+        ]
+      },
+      rag_chunk_embedding: {
+        group: 'ai',
+        summary: 'Vector embedding for semantic retrieval.',
+        fields: ['id', 'rag_chunk_id', 'embedding_model', 'embedding'],
+        notes: ['Indexed with pgvector HNSW for nearest-neighbor search.'],
+        relations: [
+          ['rag_chunk_embedding.rag_chunk_id', 'rag_chunk.id', '1 to 1']
+        ]
+      },
+      bill_stats: {
+        group: 'ai',
+        summary: 'Derived bill counts for list/detail surfaces.',
+        fields: ['id', 'bill_id', 'sponsor_count', 'action_count', 'version_count', 'vote_event_count', 'tracked_user_count'],
+        notes: ['Avoids recomputing hot counts for bill cards.'],
+        relations: [
+          ['bill_stats.bill_id', 'bill.id', '1 to 1']
+        ]
+      },
+      legislator_stats: {
+        group: 'ai',
+        summary: 'Derived legislator activity counts for a session.',
+        fields: ['id', 'legislator_id', 'session_id', 'chief_bill_count', 'total_bill_count', 'vote_record_count', 'committee_count'],
+        notes: ['Used by directory/profile summaries.'],
+        relations: [
+          ['legislator_stats.legislator_id', 'legislator.id', 'many to 1'],
+          ['legislator_stats.session_id', 'legislative_session.id', 'many to 1']
+        ]
+      },
+      user_account: {
+        group: 'users',
+        summary: 'Alethical application user.',
+        fields: ['id', 'display_name', 'primary_email', 'is_active', 'last_signed_in_at'],
+        notes: ['Auth identities, tracked bills, saved places, notification prefs, and chats attach here.'],
+        relations: [
+          ['user_account.id', 'auth_identity.user_id', '1 to many'],
+          ['user_account.id', 'tracked_bill.user_id', '1 to many'],
+          ['user_account.id', 'saved_place.user_id', '1 to many'],
+          ['user_account.id', 'notification_preference.user_id', '1 to many'],
+          ['user_account.id', 'chat_session.user_id', '1 to many']
+        ]
+      },
+      auth_identity: {
+        group: 'users',
+        summary: 'External auth provider identity mapped to a user.',
+        fields: ['id', 'user_id', 'provider', 'provider_subject', 'email', 'email_verified_at', 'last_used_at'],
+        notes: ['Created or updated from Supabase auth principal.'],
+        relations: [
+          ['auth_identity.user_id', 'user_account.id', 'many to 1']
+        ]
+      },
+      tracked_bill: {
+        group: 'users',
+        summary: 'User follows a bill.',
+        fields: ['id', 'user_id', 'bill_id', 'note', 'alerts_enabled'],
+        notes: ['Powers Track Policy / tracked bills.'],
+        relations: [
+          ['tracked_bill.user_id', 'user_account.id', 'many to 1'],
+          ['tracked_bill.bill_id', 'bill.id', 'many to 1']
+        ]
+      },
+      saved_place: {
+        group: 'users',
+        summary: 'Optional persisted address/place for a user.',
+        fields: ['id', 'user_id', 'label', 'address_text', 'city', 'state_code', 'postal_code', 'latitude', 'longitude', 'house_district_id', 'senate_district_id', 'is_default'],
+        notes: ['Can cache find-my-legislator results if we keep saved home places.'],
+        relations: [
+          ['saved_place.user_id', 'user_account.id', 'many to 1'],
+          ['saved_place.house_district_id', 'district.id', 'many to 1 optional'],
+          ['saved_place.senate_district_id', 'district.id', 'many to 1 optional']
+        ]
+      },
+      notification_preference: {
+        group: 'users',
+        summary: 'User notification channel/frequency setting.',
+        fields: ['id', 'user_id', 'channel', 'frequency', 'is_enabled'],
+        notes: ['Currently lightweight product state; delivery system is not modeled here.'],
+        relations: [
+          ['notification_preference.user_id', 'user_account.id', 'many to 1']
+        ]
+      },
+      chat_session: {
+        group: 'users',
+        summary: 'A user chat, optionally scoped to a bill.',
+        fields: ['id', 'user_id', 'title', 'subject_bill_id', 'retrieval_profile', 'last_message_at'],
+        notes: ['Backend currently supports bill-scoped or general chat; legislator-scoped chat would require another subject field.'],
+        relations: [
+          ['chat_session.user_id', 'user_account.id', 'many to 1'],
+          ['chat_session.subject_bill_id', 'bill.id', 'many to 1 optional'],
+          ['chat_session.id', 'chat_message.session_id', '1 to many']
+        ]
+      },
+      chat_message: {
+        group: 'users',
+        summary: 'One chat message with optional citation payload.',
+        fields: ['id', 'session_id', 'role', 'content', 'model_name', 'input_tokens', 'output_tokens', 'citation_payload'],
+        notes: ['Assistant messages can include citations sourced from RAG chunks.'],
+        relations: [
+          ['chat_message.session_id', 'chat_session.id', 'many to 1']
+        ]
+      }
+    };
+
+    let selected = 'bill';
+    let activeGroup = 'all';
+
+    const groupById = Object.fromEntries(groups.map(group => [group.id, group]));
+
+    function connectedNames(name) {
+      const set = new Set([name]);
+      for (const rel of tables[name].relations || []) {
+        const left = rel[0].split('.')[0];
+        const right = rel[1].split('.')[0];
+        set.add(left);
+        set.add(right);
+      }
+      for (const [otherName, table] of Object.entries(tables)) {
+        for (const rel of table.relations || []) {
+          const left = rel[0].split('.')[0];
+          const right = rel[1].split('.')[0];
+          if (left === name || right === name) {
+            set.add(otherName);
+            set.add(left);
+            set.add(right);
+          }
+        }
+      }
+      return set;
+    }
+
+    function textForTable(name, table) {
+      return [
+        name,
+        table.summary,
+        table.group,
+        ...(table.fields || []),
+        ...(table.notes || []),
+        ...(table.relations || []).flat()
+      ].join(' ').toLowerCase();
+    }
+
+    function renderFilters() {
+      const container = document.getElementById('groupFilters');
+      container.innerHTML = '';
+      const allButton = document.createElement('button');
+      allButton.textContent = 'All';
+      allButton.className = activeGroup === 'all' ? 'active' : '';
+      allButton.onclick = () => { activeGroup = 'all'; render(); };
+      container.appendChild(allButton);
+      for (const group of groups) {
+        const button = document.createElement('button');
+        button.textContent = group.label;
+        button.className = activeGroup === group.id ? 'active' : '';
+        button.onclick = () => { activeGroup = group.id; render(); };
+        container.appendChild(button);
+      }
+    }
+
+    function renderMap() {
+      const query = document.getElementById('search').value.trim().toLowerCase();
+      const map = document.getElementById('map');
+      const connected = connectedNames(selected);
+      map.innerHTML = '';
+
+      for (const group of groups) {
+        if (activeGroup !== 'all' && activeGroup !== group.id) continue;
+        const names = Object.keys(tables)
+          .filter(name => tables[name].group === group.id)
+          .filter(name => !query || textForTable(name, tables[name]).includes(query));
+        if (!names.length) continue;
+
+        const section = document.createElement('section');
+        section.className = 'group';
+        const heading = document.createElement('h2');
+        heading.textContent = group.label;
+        section.appendChild(heading);
+
+        const grid = document.createElement('div');
+        grid.className = 'tables';
+        for (const name of names) {
+          const table = tables[name];
+          const card = document.createElement('article');
+          card.className = 'table-card';
+          if (name === selected) card.classList.add('selected');
+          else if (connected.has(name)) card.classList.add('connected');
+          else if (selected) card.classList.add('dim');
+          card.style.borderLeftColor = group.color;
+          card.onclick = () => { selected = name; render(); };
+
+          const title = document.createElement('p');
+          title.className = 'table-name';
+          title.textContent = name;
+          const summary = document.createElement('p');
+          summary.className = 'table-summary';
+          summary.textContent = table.summary;
+          card.appendChild(title);
+          card.appendChild(summary);
+          grid.appendChild(card);
+        }
+
+        section.appendChild(grid);
+        map.appendChild(section);
+      }
+    }
+
+    function renderDetail() {
+      const detail = document.getElementById('detail');
+      const table = tables[selected];
+      const group = groupById[table.group];
+      detail.innerHTML = `
+        <h2>${selected}</h2>
+        <p>${table.summary}</p>
+        <div class="section-title">Group</div>
+        <p><span class="dot" style="background:${group.color}"></span> ${group.label}</p>
+        <div class="section-title">Fields</div>
+        <ul>${table.fields.map(field => `<li><code>${field}</code></li>`).join('')}</ul>
+        <div class="section-title">Relationships</div>
+        <ul class="relationship-list">${(table.relations || []).map(rel => `
+          <li class="rel"><strong>${rel[0]}</strong> -> <strong>${rel[1]}</strong><br>${rel[2]}</li>
+        `).join('')}</ul>
+        <div class="section-title">Product Notes</div>
+        <ul>${(table.notes || []).map(note => `<li>${note}</li>`).join('')}</ul>
+        ${(table.flow || []).length ? `
+          <div class="section-title">Flow</div>
+          <div class="flow">${table.flow.map(step => `<div class="flow-step">${step}</div>`).join('')}</div>
+        ` : ''}
+      `;
+    }
+
+    function render() {
+      renderFilters();
+      renderMap();
+      renderDetail();
+    }
+
+    document.getElementById('search').addEventListener('input', renderMap);
+    render();
+  </script>
+</body>
+</html>

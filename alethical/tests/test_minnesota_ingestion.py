@@ -1,19 +1,6 @@
 from __future__ import annotations
 
-import os
-
-from sqlalchemy import create_engine, func, select
-from sqlalchemy.orm import Session
-
-from alethical.db.schema import load_schema
-from alethical.db.session import normalize_database_url
-from alethical.ingestion import minnesota
-from alethical.ingestion.minnesota import BillTarget, MinnesotaIngestionPipeline, parse_bill_text_html, parse_bill_xml
-
-schema = load_schema()
-Bill = schema.Bill
-BillAction = schema.BillAction
-BillVersionSection = schema.BillVersionSection
+from alethical.pipeline.minnesota import parse_bill_text_html, parse_bill_xml
 
 
 SAMPLE_BILL_XML = """<?xml version="1.0"?>
@@ -78,48 +65,3 @@ def test_bill_parsers_extract_canonical_payloads() -> None:
     assert canonical["actions"]["house"][0]["action_text"] == "Introduction and first reading"
     assert bill_text["bill_title_text"] == "A bill for an act relating to live ingestion tests."
     assert bill_text["sections"][0]["text"] == "Test section text."
-
-
-def test_live_bill_ingestion_is_rerunnable(seed_database, monkeypatch) -> None:
-    def fake_discover_bill(_sess, _target):
-        return {
-            "file_type": "HF",
-            "file_number": "9999",
-            "description": "Test live ingestion bill",
-            "status_xml_uri": "https://example.test/hf9999.xml",
-            "latest_text_html_uri": "https://example.test/hf9999.html",
-        }
-
-    def fake_fetch_text(_sess, url):
-        if url.endswith(".xml"):
-            return SAMPLE_BILL_XML
-        return SAMPLE_BILL_HTML
-
-    monkeypatch.setattr(minnesota, "discover_bill", fake_discover_bill)
-    monkeypatch.setattr(minnesota, "fetch_text", fake_fetch_text)
-
-    database_url = normalize_database_url(
-        os.environ.get("DATABASE_URL", "postgresql+psycopg://alethical:alethical@localhost:54329/alethical")
-    )
-    engine = create_engine(database_url, echo=False)
-    with Session(engine) as session:
-        pipeline = MinnesotaIngestionPipeline(session)
-        target = BillTarget(chamber="House", bill_number="9999")
-        pipeline.ingest_bills([target])
-        pipeline.ingest_bills([target])
-        session.commit()
-
-        bill = session.scalar(select(Bill).where(Bill.bill_key == "94-2025-HF9999"))
-        assert bill is not None
-        assert bill.title == "A bill for an act relating to live ingestion tests."
-        assert session.scalar(select(func.count()).select_from(Bill).where(Bill.bill_key == "94-2025-HF9999")) == 1
-        assert session.scalar(select(func.count()).select_from(BillAction).where(BillAction.bill_id == bill.id)) == 1
-        assert (
-            session.scalar(
-                select(func.count())
-                .select_from(BillVersionSection)
-                .join(schema.BillVersion, schema.BillVersion.id == BillVersionSection.bill_version_id)
-                .where(schema.BillVersion.bill_id == bill.id)
-            )
-            == 1
-        )

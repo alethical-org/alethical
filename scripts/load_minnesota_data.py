@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from alethical.db.session import normalize_database_url  # noqa: E402
-from alethical.ingestion.minnesota import BillTarget, MinnesotaIngestionPipeline  # noqa: E402
+from alethical.pipeline.minnesota import BillTarget, MinnesotaIngestionPipeline  # noqa: E402
 
 DEFAULT_BILLS = [
     BillTarget(chamber="House", bill_number="2136"),
@@ -48,6 +48,22 @@ def main() -> None:
         help="Bill identifier to ingest, e.g. HF2136 or SF1832. May be passed multiple times.",
     )
     parser.add_argument("--skip-bills", action="store_true", help="Do not ingest bills.")
+    parser.add_argument(
+        "--all-bills",
+        action="store_true",
+        help="Discover all House/Senate bills for the session and ingest matching targets.",
+    )
+    parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="With --all-bills, refresh existing bill records too. By default only missing bills are ingested.",
+    )
+    parser.add_argument(
+        "--max-bill-number",
+        type=int,
+        default=6000,
+        help="Upper bill number bound for --all-bills range discovery.",
+    )
     parser.add_argument("--skip-legislators", action="store_true", help="Do not ingest the legislator roster.")
     parser.add_argument(
         "--legislator-limit",
@@ -76,6 +92,20 @@ def main() -> None:
             stats = pipeline.ingest_roster(limit=args.legislator_limit, fetch_profiles=not args.roster_only)
             print("legislators", stats)
         if not args.skip_bills:
+            if args.all_bills:
+                targets = pipeline.discover_bill_targets(
+                    session_code=args.session_code,
+                    max_bill_number=args.max_bill_number,
+                    only_missing=not args.refresh_existing,
+                )
+                print(
+                    "discovered",
+                    {
+                        "targets": len(targets),
+                        "only_missing": not args.refresh_existing,
+                        "max_bill_number": args.max_bill_number,
+                    },
+                )
             stats = pipeline.ingest_bills(targets)
             print("bills", stats)
         session.commit()

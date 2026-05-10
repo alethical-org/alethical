@@ -1,2 +1,0 @@
-"""Canonical data ingestion pipelines."""
-
