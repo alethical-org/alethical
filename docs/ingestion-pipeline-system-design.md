@@ -362,7 +362,7 @@ Responsibility:
 
 ## Prototype Findings
 
-The original source-ingestion prototype has been retired. Its validated parsing behavior was promoted into [`alethical/ingestion/minnesota.py`](../alethical/ingestion/minnesota.py).
+The original source-ingestion prototype has been retired. Its validated parsing behavior was promoted into [`alethical/pipeline/minnesota.py`](../alethical/pipeline/minnesota.py).
 
 Generated sample outputs:
 
@@ -535,4 +535,202 @@ uv run python -m alembic -c alembic.ini upgrade head
 uv run python scripts/load_minnesota_data.py --legislator-limit 10 --bill HF2136 --bill SF1832
 ```
 
-The implementation lives in `alethical/ingestion/minnesota.py`; `scripts/load_sample_data.py` remains a deterministic local fixture loader for tests and offline demos.
+The implementation lives in `alethical/pipeline/minnesota.py`; `scripts/load_sample_data.py` remains a deterministic local fixture loader for tests and offline demos.
+
+The full-session bill discovery path is exposed through Oban as `full-bill-sync`. By default it discovers all Revisor House/Senate bills for the session and enqueues no downstream work directly; it ingests only missing bills unless `--refresh-existing` is passed.
+
+```bash
+# Single read-only pipeline entry point.
+just pipeline local --dry-run
+just pipeline-work local
+
+# Write missing bills after reviewing the dry-run result.
+just pipeline local --write --allow-writes
+just pipeline-work local
+```
+
+The coordinator job records its child jobs in Oban metadata, then each stage runs as its own queued job. This keeps source sync, committee refresh, vote refresh, and AI batch preparation independently observable. AI enrichment remains split into prepare/submit/apply steps so token usage, provider batch IDs, output files, and eventual `ai_enrichment` writes can be tracked separately from canonical ingestion.
+
+# One-Time Backfills Promoted From Source Checks
+
+Two data sets were backfilled during schema validation and should be treated as normal ingestion stages going forward.
+
+## Committee Memberships
+
+Committee memberships come from the same member profile pages used by the live Minnesota roster loader:
+
+- House member profile pages expose committee assignment links under "Committee Assignments."
+- Senate member profile pages expose committee assignment links under "Committee Assignments."
+- A legislator can validly have zero committee assignments; that should remain `committee_count = 0`, not a synthetic membership row.
+
+The reusable implementation lives in `alethical.pipeline.committee_memberships`; for focused debugging use:
+
+```bash
+uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans
+```
+
+This should be folded into regular roster ingestion. The intended steady-state flow is:
+
+1. ingest the joint roster
+2. fetch each member profile
+3. upsert `legislator`, `legislator_service_period`, `committee`, and `committee_membership`
+4. refresh `legislator_stats.committee_count`
+
+The current standalone script exists because we needed an idempotent repair/backfill against an already-populated Supabase database.
+
+## Roll-Call Vote Motions
+
+Bill actions from Revisor can include a roll-call total such as `34-33`, but Revisor is not enough by itself to reconstruct individual legislator votes. The current deterministic backfill uses chamber-specific official sources:
+
+- House: House vote detail pages, parsed into affirmative and negative member lists
+- Senate: Senate journal pages, resolved through the Senate journal page API and parsed from PDF text
+
+The reusable implementation lives in `alethical.pipeline.votes`; for focused debugging use:
+
+```bash
+uv run python -m alethical.pipeline.votes
+```
+
+This should be folded into regular bill ingestion as a post-action stage:
+
+1. ingest bills and `bill_action` rows from Revisor
+2. find actions with deterministic roll-call totals
+3. resolve the chamber-specific official vote source
+4. create one `vote_event` for the action
+5. create `vote_record` rows for each unambiguously matched legislator
+6. refresh `bill_stats.vote_event_count` and `legislator_stats.vote_record_count`
+
+Votes remain optional. A bill can have zero vote events if it never receives a recorded roll call, if the action was not a roll call, or if the official source cannot be matched deterministically.
+
+# AI Enrichment Status
+
+The database and API are ready to serve AI enrichment. Enrichment is intentionally separate from canonical source ingestion: bill text, actions, votes, and committees are synced first; AI summaries are generated later from the canonical bill corpus.
+
+What exists today:
+
+- `ai_enrichment` table and `EnrichmentType` enum in `alethical/db/models.py`
+- bill detail API support for `include=ai_summary` in `alethical/api/routers/public.py`
+- frontend mapping for `ai_summary` in `apps/frontend/src/data/api.ts`
+- RAG section/chunk construction in `alethical/pipeline/rag.py`
+- OpenAI Batch API preparation, submission, status, and apply code in `alethical.pipeline.ai_enrichment`
+- local Codex headless execution support in `alethical.pipeline.codex_enrichment` and the Oban `ai_codex` queue
+
+What does not exist yet:
+
+- no scheduled enrichment stage runs after canonical ingestion
+- no deployed worker process around the full enrichment lifecycle
+
+The intended production shape is a separate enrichment stage after canonical ingestion and RAG preparation. It should read canonical bill text/RAG rows, call the selected model or runner, write `ai_enrichment` rows with `model_name`, `content_json`, `source_version_hash`, and `is_current`, and leave official bill/action/vote data as the source of truth.
+
+There are two supported enrichment backends:
+
+1. OpenAI Batch API.
+   Use this when the organization has enough batch token capacity and wants provider-managed asynchronous execution.
+
+2. Codex headless local runner.
+   Use this when the Batch API limit is constrained or when local control/parallelism is preferred. This uses local Oban for the work queue and local files for prompts/outputs. Production is only touched at the final `ai-apply` step.
+
+Both backends use the same prompt/schema and the same final apply path.
+
+## OpenAI Batch API Backend
+
+The Batch API implementation lives in [`alethical.pipeline.ai_enrichment`](../alethical/pipeline/ai_enrichment.py). It uses the Responses endpoint with structured JSON output and keeps the 24-hour asynchronous boundary explicit.
+
+Prepare a batch JSONL file and manifest:
+
+```bash
+uv run python -m alethical.pipeline.oban --target production enqueue ai-prepare \
+  --model gpt-4o-mini \
+  --session 94-2025-regular \
+  --output-dir .tmp/openai-batches-production \
+  --only-missing-current-ai
+
+uv run python -m alethical.pipeline.oban --target production drain ai_batch
+```
+
+Useful smaller run:
+
+```bash
+uv run python -m alethical.pipeline.oban --target production enqueue ai-prepare \
+  --model gpt-4o-mini \
+  --bill-key 94-2025-SF1832 \
+  --output-dir .tmp/openai-batches-production \
+  --force-enrichment
+```
+
+Submit the generated JSONL file:
+
+```bash
+uv run python -m alethical.pipeline.ai_enrichment submit .tmp/openai-batches/ai-enrichment-YYYYMMDDTHHMMSSZ.jsonl
+```
+
+Check status:
+
+```bash
+uv run python -m alethical.pipeline.ai_enrichment status batch_...
+```
+
+Apply completed output back into `ai_enrichment`:
+
+```bash
+uv run python -m alethical.pipeline.oban --target production enqueue ai-apply \
+  --manifest-path .tmp/openai-batches/ai-enrichment-YYYYMMDDTHHMMSSZ.manifest.json \
+  --batch-id batch_... \
+  --write \
+  --allow-writes
+
+uv run python -m alethical.pipeline.oban --target production drain ai_apply
+```
+
+The script skips current enrichments when `model_name` and `source_version_hash` already match unless `--force` is passed. Applying output marks older current `bill_summary` rows for the bill non-current, then upserts the completed enrichment for the exact bill version and source hash.
+
+## Codex Headless Backend
+
+The Codex backend starts from the same prepared JSONL/manifest files but executes requests through the local Codex CLI. Use local Oban for this queue; do not use production Oban for local Codex execution.
+
+Prepare the same request file first, usually against production so missing/current detection is based on production data:
+
+```bash
+uv run python -m alethical.pipeline.oban --target production enqueue ai-prepare \
+  --model gpt-4o-mini \
+  --session 94-2025-regular \
+  --output-dir .tmp/openai-batches-production \
+  --only-missing-current-ai
+
+uv run python -m alethical.pipeline.oban --target production drain ai_batch
+```
+
+Then enqueue and run Codex locally:
+
+```bash
+uv run python -m alethical.pipeline.oban --target local enqueue codex-ai-enqueue \
+  --manifest-path .tmp/openai-batches-production/ai-enrichment-YYYYMMDDTHHMMSSZ.manifest.json \
+  --jsonl-path .tmp/openai-batches-production/ai-enrichment-YYYYMMDDTHHMMSSZ.jsonl \
+  --run-dir .tmp/codex-ai-runs/production-missing-current-mini \
+  --codex-model gpt-5.4-mini \
+  --codex-model-name codex:gpt-5.4-mini
+
+uv run python -m alethical.pipeline.oban --target local drain ai_batch
+uv run python -m alethical.pipeline.oban --target local drain ai_codex --concurrency 18
+```
+
+Combine and validate local outputs:
+
+```bash
+uv run python -m alethical.pipeline.oban --target local enqueue codex-ai-combine \
+  --run-dir .tmp/codex-ai-runs/production-missing-current-mini
+
+uv run python -m alethical.pipeline.oban --target local drain ai_codex
+```
+
+Apply the combined output to production:
+
+```bash
+uv run python -m alethical.pipeline.oban --target production enqueue ai-apply \
+  --manifest-path .tmp/codex-ai-runs/production-missing-current-mini/ai-enrichment-YYYYMMDDTHHMMSSZ.manifest.codex.manifest.json \
+  --output-path .tmp/codex-ai-runs/production-missing-current-mini/combined.output.jsonl \
+  --write \
+  --allow-writes
+
+uv run python -m alethical.pipeline.oban --target production drain ai_apply
+```

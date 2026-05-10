@@ -1,0 +1,3 @@
+queues = { maintenance = 1, source_sync = 1, bill_sync = 8, committee_sync = 1, vote_sync = 1, rag_sync = 1, ai_batch = 1, ai_apply = 1 }
+pool_min_size = 1
+pool_max_size = 5

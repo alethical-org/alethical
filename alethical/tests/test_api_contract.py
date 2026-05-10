@@ -183,6 +183,10 @@ def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
     assert sponsored_legislator_response.status_code == 200
     sponsored_legislator = sponsored_legislator_response.json()["data"][0]
 
+    empty_bills_response = client.get(f"/api/v1/legislators/{sponsored_legislator['id']}/bills", params={"limit": 0})
+    assert empty_bills_response.status_code == 200
+    assert empty_bills_response.json()["data"] == []
+
     sponsored_bills_response = client.get(f"/api/v1/legislators/{sponsored_legislator['id']}/bills")
     assert sponsored_bills_response.status_code == 200
     sponsored_bills = sponsored_bills_response.json()["data"]
@@ -362,6 +366,14 @@ def test_problem_details_and_internal_operations_routes(client, internal_headers
     ingestion_runs_response = client.get("/internal/v1/ingestion-runs", headers=internal_headers)
     assert ingestion_runs_response.status_code == 200
     assert isinstance(ingestion_runs_response.json()["data"], list)
+
+    oban_jobs_response = client.get("/internal/v1/oban/jobs", headers=internal_headers)
+    assert oban_jobs_response.status_code == 200
+    assert "installed" in oban_jobs_response.json()["data"]
+
+    oban_dashboard_response = client.get("/internal/v1/oban", headers=internal_headers)
+    assert oban_dashboard_response.status_code == 200
+    assert "Oban Jobs" in oban_dashboard_response.text
 
 
 def test_authenticated_surfaces_reject_anonymous_requests(client):
