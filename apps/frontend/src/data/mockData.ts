@@ -177,6 +177,7 @@ const bills: Bill[] = [
         'The spending mix may not match every region’s priorities.',
       ],
     },
+    aiAnalysis: null,
     questionPrompts: [
       'What are the main arguments for and against this bill?',
       'Who would be most affected by this bill?',
@@ -265,6 +266,7 @@ const bills: Bill[] = [
         'Large omnibus structures can hide tradeoffs across unrelated education issues.',
       ],
     },
+    aiAnalysis: null,
     questionPrompts: [
       'Who benefits most from this bill?',
       'What are the largest spending changes in this bill?',
@@ -334,6 +336,7 @@ const bills: Bill[] = [
         'Training quality may vary across providers.',
       ],
     },
+    aiAnalysis: null,
     questionPrompts: [
       'What does this bill spend, and where does the money go?',
       'What concerns might opponents raise?',
@@ -399,6 +402,7 @@ const bills: Bill[] = [
       supportersMaySay: ['It helps housing projects move faster by funding basic infrastructure needs.'],
       concernsMayRaise: ['Local grant distribution criteria may become contentious.'],
     },
+    aiAnalysis: null,
     questionPrompts: [
       'How would this bill affect housing supply?',
       'Which communities might benefit most?',

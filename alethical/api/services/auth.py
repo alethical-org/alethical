@@ -23,7 +23,9 @@ class SupabaseAuthService:
         claims_response = self._client.auth.get_claims(bearer_token)
         if claims_response is None:
             raise ValueError("Unable to verify Supabase JWT")
-        claims = claims_response.claims
+        claims = claims_response.get("claims") if isinstance(claims_response, dict) else claims_response.claims
+        if not isinstance(claims, dict):
+            raise ValueError("Unable to read Supabase JWT claims")
         subject = claims.get("sub")
         if not subject:
             raise ValueError("Supabase JWT missing subject")

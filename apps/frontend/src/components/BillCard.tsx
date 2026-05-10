@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Bill } from '../data/types';
 import { theme } from '../theme/tokens';
@@ -6,16 +6,28 @@ import { Card } from './Card';
 import { Chip } from './Chip';
 
 interface BillCardProps {
-  bill: Pick<Bill, 'id' | 'identifier' | 'title' | 'chamber' | 'status' | 'updatedAt'> & {
+  bill: Pick<Bill, 'id' | 'identifier' | 'chamber' | 'status' | 'updatedAt' | 'aiAnalysis' | 'chiefSponsorIds'> & {
     topics?: string[];
     sponsorNames?: string[];
   };
   tracked?: boolean;
   onPress?: () => void;
   onToggleTrack?: () => void;
+  onSponsorPress?: (legislatorId: string) => void;
 }
 
-export function BillCard({ bill, tracked = false, onPress, onToggleTrack }: BillCardProps) {
+export function BillCard({ bill, tracked = false, onPress, onToggleTrack, onSponsorPress }: BillCardProps) {
+  const summary = bill.aiAnalysis?.summary;
+  const policyAreas = bill.aiAnalysis?.policyAreas ?? [];
+  const sponsors = (bill.sponsorNames ?? []).map((name, index) => ({
+    name,
+    legislatorId: bill.chiefSponsorIds[index],
+  }));
+
+  if (!summary) {
+    return null;
+  }
+
   return (
     <Pressable onPress={onPress} style={styles.pressable}>
       {() => (
@@ -23,21 +35,46 @@ export function BillCard({ bill, tracked = false, onPress, onToggleTrack }: Bill
           <View style={styles.header}>
             <View style={styles.titleWrap}>
               <Text style={styles.identifier}>{bill.identifier}</Text>
-              <Text style={styles.title}>{bill.title}</Text>
             </View>
             <Chip label={tracked ? 'Tracked' : 'Track'} selected={tracked} onPress={onToggleTrack} />
           </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>
-              {bill.chamber} | {bill.status}
-            </Text>
-            <Text style={styles.metaText}>Updated {bill.updatedAt}</Text>
+          <View style={styles.summaryBlock}>
+            <Text style={styles.summaryText}>{summary}</Text>
           </View>
-          <Text style={styles.supporters}>
-            Chief sponsors: {(bill.sponsorNames ?? []).join(', ') || 'Unavailable'}
-          </Text>
+          <View style={styles.metaBlock}>
+            <Text style={styles.metaText}>
+              {bill.chamber} | {bill.status} | Updated {bill.updatedAt}
+            </Text>
+            <View style={styles.authorRow}>
+              <Text style={styles.authorText}>Author: </Text>
+              {sponsors.length > 0 ? (
+                sponsors.map((sponsor, index) => {
+                  const clickable = Boolean(sponsor.legislatorId && onSponsorPress);
+                  return (
+                    <Pressable
+                      key={`${sponsor.legislatorId ?? sponsor.name}-${index}`}
+                      accessibilityRole={clickable ? 'link' : undefined}
+                      disabled={!clickable}
+                      onPress={(event: GestureResponderEvent) => {
+                        event.stopPropagation();
+                        if (sponsor.legislatorId) {
+                          onSponsorPress?.(sponsor.legislatorId);
+                        }
+                      }}
+                    >
+                      <Text style={[styles.authorText, clickable && styles.authorLink]}>
+                        {sponsor.name}{index < sponsors.length - 1 ? ', ' : ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })
+              ) : (
+                <Text style={styles.authorText}>Unavailable</Text>
+              )}
+            </View>
+          </View>
           <View style={styles.topicRow}>
-            {(bill.topics ?? []).map((topic) => (
+            {(policyAreas.length > 0 ? policyAreas : (bill.topics ?? [])).map((topic) => (
               <View key={topic} style={styles.topicPill}>
                 <Text style={styles.topicLabel}>{topic}</Text>
               </View>
@@ -71,16 +108,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
-  title: {
-    color: theme.colors.ink,
-    fontFamily: theme.typography.title,
-    fontSize: 24,
-    lineHeight: 30,
+  summaryBlock: {
+    gap: theme.spacing.xs,
   },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
+  summaryText: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.body,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  metaBlock: {
+    gap: theme.spacing.xs,
   },
   metaText: {
     color: theme.colors.mutedInk,
@@ -89,11 +127,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
   },
-  supporters: {
+  authorText: {
     color: theme.colors.ink,
     fontFamily: theme.typography.body,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  authorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+  },
+  authorLink: {
+    color: theme.colors.accent,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   topicRow: {
     flexDirection: 'row',

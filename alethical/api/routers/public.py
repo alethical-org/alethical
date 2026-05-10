@@ -7,9 +7,12 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
+from alethical.api.problems import problem_exception
 from alethical.api.schemas import CollectionResponse, DetailResponse, MetaPayload, RepresentativeLookupRequest
 from alethical.api.serializers import (
+    ai_analysis_payload_for_enrichment,
     bill_list_item,
+    current_bill_summary_enrichment,
     current_service_payload,
     district_payload,
     legislator_list_item,
@@ -20,7 +23,6 @@ from alethical.db.schema import load_schema
 from alethical.db.session import get_db
 
 schema = load_schema()
-AIEnrichment = schema.AIEnrichment
 Bill = schema.Bill
 BillAction = schema.BillAction
 BillVersion = schema.BillVersion
@@ -69,6 +71,14 @@ def get_legislator_by_id(db: Session, legislator_id: str):
     return legislator
 
 
+def tracking_user_id(include_set: set[str], current_user):
+    if "tracking" not in include_set:
+        return None
+    if current_user is None:
+        raise problem_exception(401, "Unauthorized", "Authentication required to include tracking state")
+    return current_user.id
+
+
 @router.get("/meta", response_model=DetailResponse)
 def meta(db: Session = Depends(get_db)):
     jurisdiction = db.scalar(select(Jurisdiction).where(Jurisdiction.slug == "minnesota"))
@@ -109,10 +119,7 @@ def bills(
 ):
     session_row = get_session_by_slug(db, session)
     include_set = {item.strip() for item in include.split(",")} if include else set()
-    stmt = bill_list_stmt(
-        session_row.id,
-        user_id=current_user.id if current_user and "tracking" in include_set else None,
-    )
+    stmt = bill_list_stmt(session_row.id, user_id=tracking_user_id(include_set, current_user))
     if q:
         stmt = stmt.where(or_(Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%")))
     rows = db.scalars(stmt.limit(limit)).all()
@@ -136,13 +143,14 @@ def bill_detail(
     row = db.scalar(
         bill_detail_stmt(
             bill_row.id,
-            user_id=current_user.id if current_user and "tracking" in include_set else None,
+            user_id=tracking_user_id(include_set, current_user),
         )
     )
-    ai_summary = None
-    if "ai_summary" in include_set:
-        enrichment = next((item for item in row.enrichments if item.enrichment_type.value == "bill_summary"), None)
-        ai_summary = enrichment.content_json if enrichment else None
+    ai_enrichment = None
+    if {"ai_summary", "ai_analysis"} & include_set:
+        ai_enrichment = current_bill_summary_enrichment(row.enrichments)
+    if "ai_analysis" in include_set and ai_enrichment is None:
+        raise HTTPException(status_code=404, detail="bill enrichment not found")
     payload = {
         "id": row.bill_key,
         "title": row.title,
@@ -152,7 +160,8 @@ def bill_detail(
         "official_url": row.official_url,
         "chief_sponsors": [item.model_dump() for item in sponsor_payloads(row.chief_sponsorships)],
         "tracking": tracking_payload(row.tracked_by).model_dump() if "tracking" in include_set and current_user else None,
-        "ai_summary": ai_summary,
+        "ai_analysis": ai_analysis_payload_for_enrichment(ai_enrichment),
+        "ai_summary": ai_enrichment.content_json if ai_enrichment else None,
     }
     if "all_sponsors" in include_set:
         payload["all_sponsors"] = [item.model_dump() for item in sponsor_payloads(row.sponsorships)]

@@ -2,6 +2,7 @@
   "expo": {
     "name": "Alethical",
     "slug": "alethical",
+    "scheme": "alethical",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -31,6 +32,14 @@
       "themeColor": "#111111",
       "backgroundColor": "#f5f1e8",
       "display": "standalone"
-    }
+    },
+    "plugins": [
+      [
+        "expo-web-browser",
+        {
+          "experimentalLauncherActivity": false
+        }
+      ]
+    ]
   }
 }

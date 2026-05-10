@@ -23,6 +23,17 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
     assert first_bill["id"].startswith("94-2025-")
     assert "tracked" not in first_bill
     assert "chief_sponsors" in first_bill
+    assert first_bill["ai_analysis"]["summary"]
+    assert first_bill["ai_analysis"]["key_points"]
+    assert first_bill["ai_analysis"]["policy_areas"]
+
+    listed_bill_id = first_bill["id"]
+    seed_tracking_response = client.put(
+        f"/api/v1/me/tracked-bills/{listed_bill_id}",
+        json={"alerts_enabled": True, "note": None},
+        headers=auth_headers,
+    )
+    assert seed_tracking_response.status_code == 200
 
     authed_response = client.get(
         "/api/v1/bills",
@@ -30,7 +41,7 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
         headers=auth_headers,
     )
     assert authed_response.status_code == 200
-    tracked_bill = next(item for item in authed_response.json()["data"] if item["tracked"]["is_tracked"])
+    tracked_bill = next(item for item in authed_response.json()["data"] if item["id"] == listed_bill_id)
     assert tracked_bill["tracked"]["is_tracked"] is True
 
     detail_response = client.get(
@@ -50,7 +61,7 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
 def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     detail_response = client.get(
         "/api/v1/bills/94-2025-SF1832",
-        params={"include": "actions,versions,topics,ai_summary"},
+        params={"include": "actions,versions,topics,ai_analysis"},
     )
     assert detail_response.status_code == 200
     detail_payload = detail_response.json()["data"]
@@ -62,6 +73,34 @@ def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     action_payload = actions_response.json()["data"]
     assert action_payload
     assert "action_at" in action_payload[0]
+
+
+def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
+    detail_response = client.get(
+        "/api/v1/bills/94-2025-SF1832",
+        params={"include": "ai_analysis,ai_summary"},
+    )
+    assert detail_response.status_code == 200
+    detail_payload = detail_response.json()["data"]
+
+    assert detail_payload["ai_analysis"] == {
+        "summary": (
+            "SF 1832 is an omnibus jobs, labor, and economic development package. "
+            "It combines agency appropriations with policy changes for workforce programs, "
+            "business development, labor standards, tourism, and worker safety."
+        ),
+        "key_points": [
+            "Funds workforce, labor, tourism, and economic development agencies for the biennium.",
+            "Updates grant and loan programs for small businesses, redevelopment, child care capacity, and job training.",
+            "Changes labor and worker safety rules, including underground telecommunications installer certification.",
+            "Requires reports and makes technical corrections across jobs and economic development statutes.",
+        ],
+        "policy_areas": ["workforce development", "economic development", "labor policy"],
+    }
+    assert "confidence" not in detail_payload["ai_analysis"]
+    assert "truncated_source" not in detail_payload["ai_analysis"]
+    assert detail_payload["ai_summary"]["confidence"] == "high"
+    assert detail_payload["ai_summary"]["truncated_source"] is False
 
 
 def test_legislator_directory_profile_search_and_lookup_cover_user_story(client):
@@ -95,6 +134,7 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     search_payload = search_response.json()["data"]
     assert "bills" in search_payload
     assert "legislators" in search_payload
+    assert {bill["id"] for bill in search_payload["bills"]} <= {"94-2025-SF1832", "94-2025-SF2483"}
 
     lookup_response = client.post(
         "/api/v1/representative-lookups",
@@ -131,6 +171,14 @@ def test_legislator_directory_limit_search_no_results_and_missing_profile(client
 
 
 def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
+    empty_legislator_response = client.get("/api/v1/legislators", params={"q": "Howard", "limit": 1})
+    assert empty_legislator_response.status_code == 200
+    empty_legislator = empty_legislator_response.json()["data"][0]
+
+    bills_response = client.get(f"/api/v1/legislators/{empty_legislator['id']}/bills")
+    assert bills_response.status_code == 200
+    assert isinstance(bills_response.json()["data"], list)
+
     sponsored_legislator_response = client.get("/api/v1/legislators", params={"q": "Fateh", "limit": 1})
     assert sponsored_legislator_response.status_code == 200
     sponsored_legislator = sponsored_legislator_response.json()["data"][0]
@@ -326,3 +374,70 @@ def test_problem_details_and_internal_operations_routes(client, internal_headers
     oban_dashboard_response = client.get("/internal/v1/oban", headers=internal_headers)
     assert oban_dashboard_response.status_code == 200
     assert "Oban Jobs" in oban_dashboard_response.text
+
+
+def test_authenticated_surfaces_reject_anonymous_requests(client):
+    protected_requests = [
+        ("get", "/api/v1/me", None),
+        ("get", "/api/v1/me/tracked-bills", None),
+        ("put", "/api/v1/me/tracked-bills/94-2025-SF1832", {"alerts_enabled": True, "note": None}),
+        ("get", "/api/v1/me/chat-sessions", None),
+        ("post", "/api/v1/me/chat-sessions", {"title": "Private chat", "subject_bill_id": None}),
+        ("get", "/api/v1/me/notification-preferences", None),
+        ("get", "/api/v1/me/saved-places", None),
+    ]
+
+    for method, path, json_body in protected_requests:
+        response = getattr(client, method)(path, json=json_body) if json_body is not None else getattr(client, method)(path)
+        assert response.status_code == 401, path
+        payload = response.json()
+        assert payload["title"] == "Unauthorized"
+        assert payload["status"] == 401
+
+
+def test_tracking_include_requires_authentication_but_public_surfaces_stay_open(client, auth_headers):
+    public_bills_response = client.get("/api/v1/bills", params={"session": "94-2025-regular"})
+    assert public_bills_response.status_code == 200
+    assert "tracked" not in public_bills_response.json()["data"][0]
+
+    anonymous_tracking_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "include": "tracking"},
+    )
+    assert anonymous_tracking_response.status_code == 401
+    assert anonymous_tracking_response.json()["detail"] == "Authentication required to include tracking state"
+
+    anonymous_detail_tracking_response = client.get(
+        "/api/v1/bills/94-2025-SF1832",
+        params={"include": "tracking"},
+    )
+    assert anonymous_detail_tracking_response.status_code == 401
+
+    authed_tracking_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "include": "tracking"},
+        headers=auth_headers,
+    )
+    assert authed_tracking_response.status_code == 200
+    assert "tracked" in authed_tracking_response.json()["data"][0]
+
+    lookup_response = client.post(
+        "/api/v1/representative-lookups",
+        json={"address_text": "75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN"},
+    )
+    assert lookup_response.status_code == 200
+
+
+def test_internal_routes_require_internal_token(client, internal_headers):
+    missing_token_response = client.get("/internal/v1/ingestion-runs")
+    assert missing_token_response.status_code == 401
+    assert missing_token_response.json()["detail"] == "Valid internal token required"
+
+    invalid_token_response = client.get(
+        "/internal/v1/ingestion-runs",
+        headers={"X-Internal-Token": "not-the-token"},
+    )
+    assert invalid_token_response.status_code == 401
+
+    valid_token_response = client.get("/internal/v1/ingestion-runs", headers=internal_headers)
+    assert valid_token_response.status_code == 200

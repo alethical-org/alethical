@@ -26,6 +26,12 @@ interface ApiChatSessionPayload {
     last_message_at?: string | null;
 }
 
+interface ApiCurrentUserPayload {
+    id: string;
+    display_name?: string | null;
+    primary_email?: string | null;
+}
+
 interface ApiSponsorPayload {
     name: string;
     role: string;
@@ -49,6 +55,7 @@ interface ApiBillListItemPayload {
     official_url?: string | null;
     chief_sponsors: ApiSponsorPayload[];
     stats?: ApiBillStatsPayload | null;
+    ai_analysis?: ApiAiAnalysisPayload | null;
 }
 
 interface ApiTrackedBillPayload {
@@ -131,10 +138,14 @@ interface ApiBillDetailPayload {
     actions?: ApiBillActionPayload[] | null;
     versions?: ApiBillVersionPayload[] | null;
     topics?: ApiTopicPayload[] | null;
-    ai_summary?: ApiAiSummaryPayload | null;
+    ai_analysis?: ApiAiAnalysisPayload | null;
 }
 
-type ApiAiSummaryPayload = Record<string, unknown>;
+interface ApiAiAnalysisPayload {
+    summary?: string | null;
+    key_points?: string[] | null;
+    policy_areas?: string[] | null;
+}
 
 interface ApiBillVotePayload {
     id: string;
@@ -239,6 +250,20 @@ function formatUpdatedAt(date?: string | null) {
     return date ? date.slice(0, 10) : 'Unknown';
 }
 
+function formatOptionalDate(date?: string | null) {
+    return date ? date.slice(0, 10) : '';
+}
+
+function usefulActionDescription(action: ApiBillActionPayload) {
+    const description = action.action_description?.trim();
+    const text = action.action_text?.trim();
+    const value = description || text;
+    if (!value || value.toLowerCase() === 'updated unknown') {
+        return '';
+    }
+    return value;
+}
+
 function normalizeBillIdForApi(billId: string) {
     const canonical = billId.match(/^\d{2,3}-\d{4}-(SF|HF)\d+$/i);
     if (canonical) {
@@ -265,48 +290,26 @@ function emptyBriefing(): Bill['briefing'] {
     };
 }
 
-function firstSummaryString(summary: ApiAiSummaryPayload | null | undefined, keys: string[], fallback: string) {
-    for (const key of keys) {
-        const value = summary?.[key];
-        if (typeof value === 'string' && value.trim()) {
-            return value.trim();
-        }
+function aiAnalysisFromPayload(analysis: ApiAiAnalysisPayload | null | undefined): Bill['aiAnalysis'] | null {
+    if (!analysis) {
+        return null;
     }
-    return fallback;
-}
-
-function firstSummaryList(summary: ApiAiSummaryPayload | null | undefined, keys: string[]) {
-    for (const key of keys) {
-        const value = summary?.[key];
-        if (Array.isArray(value)) {
-            return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
-        }
-        if (typeof value === 'string' && value.trim()) {
-            return [value.trim()];
-        }
+    const summary = typeof analysis.summary === 'string' && analysis.summary.trim()
+        ? analysis.summary.trim()
+        : null;
+    const keyPoints = Array.isArray(analysis.key_points)
+        ? analysis.key_points.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        : [];
+    const policyAreas = Array.isArray(analysis.policy_areas)
+        ? analysis.policy_areas.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        : [];
+    if (!summary) {
+        return null;
     }
-    return [];
-}
-
-function briefingFromSummary(
-    summary: ApiAiSummaryPayload | null | undefined,
-    description?: string | null
-): Bill['briefing'] {
     return {
-        what: firstSummaryString(
-            summary,
-            ['what', 'plain_language_summary', 'summary'],
-            description ?? 'Live bill detail loaded from the backend.'
-        ),
-        why: firstSummaryString(
-            summary,
-            ['why', 'why_it_matters'],
-            'Official bill status, sponsors, actions, and versions are loaded from the backend.'
-        ),
-        keyChanges: firstSummaryList(summary, ['key_changes', 'keyChanges']),
-        whoAffected: firstSummaryList(summary, ['who_affected', 'whoAffected']),
-        supportersMaySay: firstSummaryList(summary, ['supporters_may_say', 'supportersMaySay']),
-        concernsMayRaise: firstSummaryList(summary, ['concerns_may_raise', 'concernsMayRaise']),
+        summary,
+        keyPoints: keyPoints.map((item) => item.trim()),
+        policyAreas: policyAreas.map((item) => item.trim()),
     };
 }
 
@@ -390,6 +393,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
         versionCount: payload.stats?.version_count ?? 0,
         rollCallCount: payload.stats?.vote_event_count ?? 0,
         briefing: emptyBriefing(),
+        aiAnalysis: aiAnalysisFromPayload(payload.ai_analysis),
         questionPrompts: [],
         actions: [],
         versions: [],
@@ -423,13 +427,16 @@ function mapBillDetail(
         actionCount: payload.actions?.length ?? 0,
         versionCount: payload.versions?.length ?? 0,
         rollCallCount: votes.length,
-        briefing: briefingFromSummary(payload.ai_summary, payload.description),
+        briefing: emptyBriefing(),
+        aiAnalysis: aiAnalysisFromPayload(payload.ai_analysis),
         questionPrompts: [],
-        actions: (payload.actions ?? []).map((action) => ({
-            id: `${payload.id}-action-${action.action_number}`,
-            date: formatUpdatedAt(action.action_at),
-            description: action.action_description ?? action.action_text,
-        })),
+        actions: (payload.actions ?? [])
+            .map((action) => ({
+                id: `${payload.id}-action-${action.action_number}`,
+                date: formatOptionalDate(action.action_at),
+                description: usefulActionDescription(action),
+            }))
+            .filter((action) => action.date || action.description.length > 12),
         versions: (payload.versions ?? []).map((version) => ({
             id: `${payload.id}-version-${version.version_code}`,
             label: version.version_name ?? version.version_code,
@@ -502,6 +509,21 @@ function mapChatSessionPayload(session: ApiChatSessionPayload, messages: ApiChat
             createdAt: message.created_at,
             citations: (message.citations ?? []).map(mapCitation),
         })),
+    };
+}
+
+export async function getCurrentUserFromApi(accessToken: string): Promise<{ id: string; name: string; email: string }> {
+    const response = await apiRequest<DetailResponse<ApiCurrentUserPayload>>(
+        '/me',
+        { method: 'GET' },
+        accessToken
+    );
+
+    const email = response.data.primary_email ?? '';
+    return {
+        id: response.data.id,
+        name: (response.data.display_name ?? email.split('@')[0]) || 'Signed-in user',
+        email,
     };
 }
 
@@ -628,19 +650,20 @@ export async function listBillsFromApi(
         `/bills?${params.toString()}`
     );
 
-    return response.data.map(mapBillSummary);
+    return response.data.map(mapBillSummary).filter((bill) => bill.aiAnalysis?.summary);
 }
 
 export async function getBillFromApi(billId: string): Promise<(Bill & { sponsorNames: string[] }) | null> {
     const apiBillId = normalizeBillIdForApi(billId);
     const [detailResponse, votesResponse] = await Promise.all([
         publicApiRequest<DetailResponse<ApiBillDetailPayload>>(
-            `/bills/${encodeURIComponent(apiBillId)}?include=actions,versions,topics,ai_summary`
+            `/bills/${encodeURIComponent(apiBillId)}?include=actions,versions,topics,ai_analysis`
         ),
         publicApiRequest<PageResponse<ApiBillVotePayload>>(`/bills/${encodeURIComponent(apiBillId)}/votes`),
     ]);
 
-    return mapBillDetail(detailResponse.data, votesResponse.data);
+    const bill = mapBillDetail(detailResponse.data, votesResponse.data);
+    return bill.aiAnalysis ? bill : null;
 }
 
 export async function listLegislatorsFromApi(query?: string): Promise<Legislator[]> {
@@ -672,7 +695,7 @@ export async function getLegislatorBillsFromApi(
         `/legislators/${encodeURIComponent(legislatorId)}/bills?limit=20`
     );
 
-    return response.data.map(mapBillSummary);
+    return response.data.map(mapBillSummary).filter((bill) => bill.aiAnalysis?.summary);
 }
 
 export async function listTrackedBillsFromApi(accessToken: string): Promise<Array<Bill & { sponsorNames: string[] }>> {
@@ -684,7 +707,8 @@ export async function listTrackedBillsFromApi(accessToken: string): Promise<Arra
 
     return response.data
         .filter((tracked) => tracked.bill)
-        .map((tracked) => mapBillSummary(tracked.bill as ApiBillListItemPayload));
+        .map((tracked) => mapBillSummary(tracked.bill as ApiBillListItemPayload))
+        .filter((bill) => bill.aiAnalysis?.summary);
 }
 
 export async function toggleTrackedBillFromApi(accessToken: string, billId: string): Promise<void> {

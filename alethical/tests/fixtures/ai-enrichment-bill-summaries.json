@@ -1,0 +1,35 @@
+{
+  "94-2025-SF1832": {
+    "summary": "SF 1832 is an omnibus jobs, labor, and economic development package. It combines agency appropriations with policy changes for workforce programs, business development, labor standards, tourism, and worker safety.",
+    "key_points": [
+      "Funds workforce, labor, tourism, and economic development agencies for the biennium.",
+      "Updates grant and loan programs for small businesses, redevelopment, child care capacity, and job training.",
+      "Changes labor and worker safety rules, including underground telecommunications installer certification.",
+      "Requires reports and makes technical corrections across jobs and economic development statutes."
+    ],
+    "policy_areas": [
+      "workforce development",
+      "economic development",
+      "labor policy"
+    ],
+    "confidence": "high",
+    "truncated_source": false
+  },
+  "94-2025-SF2483": {
+    "summary": "SF 2483 is an omnibus higher education package. It funds and updates policy for the Office of Higher Education, Minnesota State, the University of Minnesota, student aid, campus safety processes, and institutional oversight.",
+    "key_points": [
+      "Appropriates money for public higher education systems and state student aid programs.",
+      "Creates or modifies scholarships, grants, financial aid processes, and reporting requirements.",
+      "Updates sexual misconduct grievance process rules for postsecondary institutions.",
+      "Requires a standardized financial aid offer form and changes oversight of nonpublic institutions."
+    ],
+    "policy_areas": [
+      "higher education",
+      "funding",
+      "student aid",
+      "appropriations"
+    ],
+    "confidence": "high",
+    "truncated_source": false
+  }
+}

@@ -14,12 +14,16 @@ import { useResponsive } from '../hooks/useResponsive';
 
 type SearchMode = 'All' | 'Bills' | 'Legislators';
 type Props = MainTabScreenProps<'Search'>;
+const BILLS_PAGE_SIZE = 5;
+const LEGISLATORS_PAGE_SIZE = 8;
 
 export function SearchScreen({ navigation }: Props) {
   const { isDesktop } = useResponsive();
-  const { user } = useAuth();
+  const { isSignedIn, signInWithGoogle, user } = useAuth();
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('All');
+  const [billPage, setBillPage] = useState(0);
+  const [legislatorPage, setLegislatorPage] = useState(0);
 
   const billsQuery = useBills(query);
   const legislatorsQuery = useLegislators(query);
@@ -29,25 +33,50 @@ export function SearchScreen({ navigation }: Props) {
 
   const showBills = mode === 'All' || mode === 'Bills';
   const showLegislators = mode === 'All' || mode === 'Legislators';
+  const bills = billsQuery.data ?? [];
+  const billPageCount = Math.max(1, Math.ceil(bills.length / BILLS_PAGE_SIZE));
+  const safeBillPage = Math.min(billPage, billPageCount - 1);
+  const pagedBills = bills.slice(
+    safeBillPage * BILLS_PAGE_SIZE,
+    safeBillPage * BILLS_PAGE_SIZE + BILLS_PAGE_SIZE
+  );
+  const legislators = legislatorsQuery.data ?? [];
+  const legislatorPageCount = Math.max(1, Math.ceil(legislators.length / LEGISLATORS_PAGE_SIZE));
+  const safeLegislatorPage = Math.min(legislatorPage, legislatorPageCount - 1);
+  const pagedLegislators = legislators.slice(
+    safeLegislatorPage * LEGISLATORS_PAGE_SIZE,
+    safeLegislatorPage * LEGISLATORS_PAGE_SIZE + LEGISLATORS_PAGE_SIZE
+  );
 
   return (
     <ScreenView
-      title="Search"
-      subtitle="Find bills, legislators, and issue areas without having to know the legislature’s internal jargon."
+      hideHeader
     >
       <Card>
-        <Text style={styles.formLabel}>Reporter&apos;s Desk</Text>
         <TextInput
           accessibilityLabel="Search bills and legislators"
-          placeholder="Jobs omnibus, Omar Fateh, child welfare, housing..."
+          placeholder="Jobs omnibus, child welfare, housing, tax credits..."
           placeholderTextColor={theme.colors.mutedInk}
           style={styles.searchInput}
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(value) => {
+            setQuery(value);
+            setBillPage(0);
+            setLegislatorPage(0);
+          }}
         />
         <View style={styles.modeRow}>
           {(['All', 'Bills', 'Legislators'] as SearchMode[]).map((value) => (
-            <Chip key={value} label={value} selected={mode === value} onPress={() => setMode(value)} />
+            <Chip
+              key={value}
+              label={value}
+              selected={mode === value}
+              onPress={() => {
+                setMode(value);
+                setBillPage(0);
+                setLegislatorPage(0);
+              }}
+            />
           ))}
         </View>
       </Card>
@@ -74,15 +103,39 @@ export function SearchScreen({ navigation }: Props) {
                   <Text style={styles.bodyText}>No bills match this search.</Text>
                 </Card>
               ) : null}
-              {(billsQuery.data ?? []).map((bill) => (
+              {pagedBills.map((bill) => (
                   <BillCard
                     key={bill.id}
                     bill={bill}
                     tracked={trackedIds.has(bill.id)}
                     onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                    onToggleTrack={() => toggleTrackedBill.mutate(bill.id)}
+                    onSponsorPress={(legislatorId) => navigation.navigate('LegislatorProfile', { legislatorId })}
+                    onToggleTrack={() => {
+                      if (!isSignedIn) {
+                        void signInWithGoogle();
+                        return;
+                      }
+                      toggleTrackedBill.mutate(bill.id);
+                    }}
                   />
                 ))}
+              {!billsQuery.isLoading && !billsQuery.error && bills.length > BILLS_PAGE_SIZE ? (
+                <View style={styles.paginationRow}>
+                  <Chip
+                    label="Previous"
+                    selected={false}
+                    onPress={() => setBillPage((page) => Math.max(0, page - 1))}
+                  />
+                  <Text style={styles.pageText}>
+                    {safeBillPage + 1} / {billPageCount}
+                  </Text>
+                  <Chip
+                    label="Next"
+                    selected={false}
+                    onPress={() => setBillPage((page) => Math.min(billPageCount - 1, page + 1))}
+                  />
+                </View>
+              ) : null}
             </View>
           </View>
         ) : null}
@@ -108,7 +161,7 @@ export function SearchScreen({ navigation }: Props) {
                   <Text style={styles.bodyText}>No legislators match this search.</Text>
                 </Card>
               ) : null}
-              {(legislatorsQuery.data ?? []).map((legislator) => (
+              {pagedLegislators.map((legislator) => (
                 <LegislatorCard
                   key={legislator.id}
                   legislator={legislator}
@@ -117,6 +170,23 @@ export function SearchScreen({ navigation }: Props) {
                   }
                 />
               ))}
+              {!legislatorsQuery.isLoading && !legislatorsQuery.error && legislators.length > LEGISLATORS_PAGE_SIZE ? (
+                <View style={styles.paginationRow}>
+                  <Chip
+                    label="Previous"
+                    selected={false}
+                    onPress={() => setLegislatorPage((page) => Math.max(0, page - 1))}
+                  />
+                  <Text style={styles.pageText}>
+                    {safeLegislatorPage + 1} / {legislatorPageCount}
+                  </Text>
+                  <Chip
+                    label="Next"
+                    selected={false}
+                    onPress={() => setLegislatorPage((page) => Math.min(legislatorPageCount - 1, page + 1))}
+                  />
+                </View>
+              ) : null}
             </View>
           </View>
         ) : null}
@@ -141,14 +211,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
-  },
-  formLabel: {
-    color: theme.colors.accent,
-    fontFamily: theme.typography.ui,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.4,
   },
   resultsGrid: {
     gap: theme.spacing.lg,
@@ -179,5 +241,16 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.body,
     fontSize: 15,
     lineHeight: 23,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  pageText: {
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.mono,
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

@@ -1,4 +1,10 @@
-import { createContext, PropsWithChildren, useContext, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import { Session } from '@supabase/supabase-js';
+
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface AuthUser {
   id: string;
@@ -7,36 +13,136 @@ interface AuthUser {
 }
 
 interface AuthContextValue {
+  isLoading: boolean;
   isSignedIn: boolean;
-  mode: 'demo';
+  mode: 'supabase';
   user: AuthUser | null;
   accessToken: string | null;
-  signInDemo: () => void;
-  signOut: () => void;
+  authError: string | null;
+  signInWithGoogle: (returnTo?: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
-
-const demoUser: AuthUser = {
-  id: 'user-demo-1',
-  name: 'Ada Demo',
-  email: 'ada@example.com',
-};
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function userFromSession(session: Session | null): AuthUser | null {
+  const user = session?.user;
+  if (!user) {
+    return null;
+  }
+
+  const metadataName = user.user_metadata?.full_name ?? user.user_metadata?.name;
+  const email = user.email ?? '';
+
+  return {
+    id: user.id,
+    name: typeof metadataName === 'string' && metadataName.trim() ? metadataName : email.split('@')[0] || 'Signed-in user',
+    email,
+  };
+}
+
+function getRedirectTo(returnTo?: string) {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return new URL(returnTo ?? `${window.location.pathname}${window.location.search}`, window.location.origin).toString();
+  }
+
+  return AuthSession.makeRedirectUri({
+    scheme: 'alethical',
+    path: 'auth/callback',
+  });
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<AuthUser | null>(demoUser);
-  const accessToken = user ? process.env.EXPO_PUBLIC_DEV_AUTH_TOKEN ?? 'local-dev-token' : null;
+  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) {
+        return;
+      }
+      if (error) {
+        setAuthError(error.message);
+      }
+      setSession(data.session);
+      setIsLoading(false);
+    });
+
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setIsLoading(false);
+      setAuthError(null);
+    });
+
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      isSignedIn: Boolean(user),
-      mode: 'demo',
-      user,
-      accessToken,
-      signInDemo: () => setUser(demoUser),
-      signOut: () => setUser(null),
+      isLoading,
+      isSignedIn: Boolean(session?.access_token),
+      mode: 'supabase',
+      user: userFromSession(session),
+      accessToken: session?.access_token ?? null,
+      authError,
+      signInWithGoogle: async (returnTo?: string) => {
+        setAuthError(null);
+
+        if (!isSupabaseConfigured) {
+          setAuthError('Supabase is not configured for this app environment.');
+          return;
+        }
+
+        const redirectTo = getRedirectTo(returnTo);
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo,
+            skipBrowserRedirect: Platform.OS !== 'web',
+          },
+        });
+
+        if (error) {
+          setAuthError(error.message);
+          return;
+        }
+
+        if (Platform.OS === 'web') {
+          return;
+        }
+
+        if (!data.url) {
+          setAuthError('Supabase did not return a Google sign-in URL.');
+          return;
+        }
+
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+        if (result.type !== 'success') {
+          return;
+        }
+
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(result.url);
+        if (exchangeError) {
+          setAuthError(exchangeError.message);
+        }
+      },
+      signOut: async () => {
+        setAuthError(null);
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          setAuthError(error.message);
+          return;
+        }
+        setSession(null);
+      },
     }),
-    [accessToken, user]
+    [authError, isLoading, session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

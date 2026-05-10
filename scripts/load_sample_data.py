@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import Any
 import sys
+from datetime import datetime
 
 from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import Session
@@ -21,6 +22,7 @@ from alethical.db.session import normalize_database_url  # noqa: E402
 FIXTURE_ROOT = ROOT / "alethical" / "tests" / "fixtures"
 ArtifactType = schema.ArtifactType
 AuthIdentity = schema.AuthIdentity
+AIEnrichment = schema.AIEnrichment
 Bill = schema.Bill
 BillAction = schema.BillAction
 BillStats = schema.BillStats
@@ -31,6 +33,7 @@ ChamberType = schema.ChamberType
 ChatMessage = schema.ChatMessage
 ChatRole = schema.ChatRole
 ChatSession = schema.ChatSession
+EnrichmentType = schema.EnrichmentType
 District = schema.District
 IngestionRun = schema.IngestionRun
 IngestionStatus = schema.IngestionStatus
@@ -60,6 +63,15 @@ def read_json(path: Path) -> dict[str, Any]:
 
 def slugify(value: str) -> str:
     return "-".join("".join(ch.lower() if ch.isalnum() else " " for ch in value).split())
+
+
+def parse_fixture_datetime(value: str | None):
+    if not value:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    return datetime.fromisoformat(value)
 
 
 def deterministic_embedding(text: str, dimensions: int = 1536) -> list[float]:
@@ -424,6 +436,7 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
                     action_group=action.get("action_group"),
                     action_text=action["action_text"],
                     action_description=action.get("action_description"),
+                    action_at=parse_fixture_datetime(action.get("action_date")),
                     journal_page=action.get("journal_page"),
                     roll_call_text=action.get("roll_call"),
                 )
@@ -504,6 +517,31 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
     stats.version_count = version_count
     stats.vote_event_count = 0
     return bill
+
+
+def seed_ai_enrichment(session: Session, bill: Any, enrichment_fixtures: dict[str, Any]) -> None:
+    content = enrichment_fixtures.get(bill.bill_key)
+    if content is None:
+        return
+
+    enrichment = session.scalar(
+        select(AIEnrichment).where(
+            AIEnrichment.bill_id == bill.id,
+            AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+            AIEnrichment.is_current.is_(True),
+        )
+    )
+    if enrichment is None:
+        enrichment = AIEnrichment(
+            bill_id=bill.id,
+            enrichment_type=EnrichmentType.bill_summary,
+            model_name="demo-ai-enrichment",
+            is_current=True,
+        )
+        session.add(enrichment)
+
+    enrichment.content_json = content
+    enrichment.source_version_hash = f"sample-{bill.bill_key}"
 
 
 def seed_user_features(session: Session, bills: list[Any], refs: dict[str, Any]) -> Any:
@@ -612,8 +650,10 @@ def main() -> None:
             (FIXTURE_ROOT / "bill-sf2483.json", FIXTURE_ROOT / "rag-bill-sf2483.json"),
         ]
         bills = []
+        enrichment_fixtures = read_json(FIXTURE_ROOT / "ai-enrichment-bill-summaries.json")
         for bill_path, rag_path in bill_files:
             bill = ingest_bill_payload(session, refs, read_json(bill_path), read_json(rag_path))
+            seed_ai_enrichment(session, bill, enrichment_fixtures)
             bills.append(bill)
 
         user = seed_user_features(session, bills, refs)

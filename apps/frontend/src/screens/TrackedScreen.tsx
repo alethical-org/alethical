@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { BillCard } from '../components/BillCard';
+import { AuthRequiredCard } from '../components/AuthRequiredCard';
 import { Card } from '../components/Card';
-import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
 import { useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
 import { MainTabScreenProps } from '../navigation/types';
@@ -12,17 +12,14 @@ import { theme } from '../theme/tokens';
 type Props = MainTabScreenProps<'Tracked'>;
 
 export function TrackedScreen({ navigation }: Props) {
-  const { isSignedIn, user, signInDemo } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
 
   if (!isSignedIn) {
     return (
       <ScreenView title="Tracked Bills" subtitle="Tracking is a signed-in feature so your alerts and context persist across devices.">
-        <Card>
-          <Text style={styles.bodyText}>Sign in to track bills, save places, and receive updates that matter to you.</Text>
-          <PrimaryButton label="Use Demo Sign-In" onPress={signInDemo} />
-        </Card>
+        <AuthRequiredCard message="Sign in to track bills, save places, and receive updates that matter to you." />
       </ScreenView>
     );
   }
@@ -54,6 +51,7 @@ export function TrackedScreen({ navigation }: Props) {
               bill={bill}
               tracked
               onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+              onSponsorPress={(legislatorId) => navigation.navigate('LegislatorProfile', { legislatorId })}
               onToggleTrack={() => toggleTrackedBill.mutate(bill.id)}
             />
           ))}
