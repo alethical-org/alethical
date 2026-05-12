@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from hashlib import sha256
 from typing import Any
 
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 
 from alethical.db import models as schema
