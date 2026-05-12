@@ -570,16 +570,16 @@ export async function createChatSessionFromApi(
     accessToken: string,
     input: {
         title: string;
-        subjectType: 'bill' | 'legislator' | 'general';
+        subjectType: 'bill';
         subjectId?: string;
         seedPrompt?: string;
         subjectLabel?: string;
     }
 ): Promise<ChatSession> {
-    const subjectBillId =
-        input.subjectType === 'bill'
-            ? normalizeBillSubjectId(input.subjectId, input.subjectLabel)
-            : undefined;
+    const subjectBillId = normalizeBillSubjectId(input.subjectId, input.subjectLabel);
+    if (!subjectBillId) {
+        throw new Error('A bill is required to start chat.');
+    }
 
     const sessionResponse = await apiRequest<DetailResponse<ApiChatSessionPayload>>(
         '/me/chat-sessions',

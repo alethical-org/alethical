@@ -133,7 +133,7 @@ export function useCreateChatSession(userId?: string) {
   return useMutation({
     mutationFn: (input: {
       title: string;
-      subjectType: 'bill' | 'legislator' | 'general';
+      subjectType: 'bill';
       subjectId?: string;
       seedPrompt?: string;
       subjectLabel?: string;
