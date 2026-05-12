@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+import requests
+
+from alethical.api.services.representative_lookup import (
+    DistrictMatch,
+    GeocodedAddress,
+    RepresentativeLookupNotFound,
+    RepresentativeLookupResult,
+    get_representative_lookup_service,
+)
+
 
 def test_health_and_meta_endpoints(client):
     health_response = client.get("/healthz")
@@ -238,8 +248,79 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     assert lookup_response.status_code == 200
     lookup_payload = lookup_response.json()["data"]
     assert lookup_payload["resolved_place"]["state_code"] == "MN"
+    assert lookup_payload["resolved_place"]["matched_address"]
+    assert lookup_payload["resolved_place"]["house_district"] == "51A"
+    assert lookup_payload["resolved_place"]["senate_district"] == "35"
     assert lookup_payload["house_legislator"] is not None
     assert lookup_payload["senate_legislator"] is not None
+
+
+def test_representative_lookup_maps_service_district_codes_to_legislators(client):
+    response = client.post(
+        "/api/v1/representative-lookups",
+        json={"address_text": "75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["resolved_place"]["house_district"] == "51A"
+    assert payload["resolved_place"]["senate_district"] == "35"
+    assert payload["house_legislator"]["current_service"]["district"]["code"] == "51A"
+    assert payload["senate_legislator"]["current_service"]["district"]["code"] == "35"
+
+
+def test_representative_lookup_returns_not_found_for_unresolved_addresses(client):
+    class NotFoundLookupService:
+        def lookup(self, _address_text: str):
+            raise RepresentativeLookupNotFound("address could not be geocoded")
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: NotFoundLookupService()
+
+    response = client.post("/api/v1/representative-lookups", json={"address_text": "Nowhere"})
+
+    assert response.status_code == 404
+    problem = response.json()
+    assert problem["title"] == "Not Found"
+    assert problem["detail"] == "address could not be geocoded"
+
+
+def test_representative_lookup_returns_not_found_for_unknown_database_districts(client):
+    class UnknownDistrictLookupService:
+        def lookup(self, address_text: str):
+            return RepresentativeLookupResult(
+                geocoded_address=GeocodedAddress(
+                    requested_address=address_text,
+                    matched_address="1 TEST ST, SAINT PAUL, MN",
+                    latitude=44.0,
+                    longitude=-93.0,
+                    state_code="MN",
+                ),
+                house_district=DistrictMatch(chamber="house", district_code="99Z"),
+                senate_district=DistrictMatch(chamber="senate", district_code="99"),
+            )
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: UnknownDistrictLookupService()
+
+    response = client.post("/api/v1/representative-lookups", json={"address_text": "1 Test St, Saint Paul, MN"})
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "resolved districts are not available in the database"
+
+
+def test_representative_lookup_returns_bad_gateway_for_upstream_failure(client):
+    class UpstreamFailureLookupService:
+        def lookup(self, _address_text: str):
+            raise requests.Timeout("GIS request timed out")
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: UpstreamFailureLookupService()
+
+    response = client.post(
+        "/api/v1/representative-lookups",
+        json={"address_text": "75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN"},
+    )
+
+    assert response.status_code == 502
+    assert response.json()["title"] == "Bad Gateway"
 
 
 def test_legislator_directory_limit_search_no_results_and_missing_profile(client):

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import requests
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session, selectinload
@@ -9,6 +11,13 @@ from sqlalchemy.orm import Session, selectinload
 from alethical.api.auth import get_optional_current_user
 from alethical.api.problems import problem_exception
 from alethical.api.schemas import CollectionResponse, DetailResponse, MetaPayload, RepresentativeLookupRequest
+from alethical.api.services.representative_lookup import (
+    DistrictMatch,
+    RepresentativeLookupNotFound,
+    RepresentativeLookupService,
+    RepresentativeLookupUpstreamError,
+    get_representative_lookup_service,
+)
 from alethical.api.serializers import (
     ai_analysis_payload_for_enrichment,
     bill_list_item,
@@ -124,6 +133,25 @@ def tracking_user_id(include_set: set[str], current_user):
     if current_user is None:
         raise problem_exception(401, "Unauthorized", "Authentication required to include tracking state")
     return current_user.id
+
+
+def district_for_match(db: Session, match: DistrictMatch | None):
+    if match is None:
+        return None
+    if match.chamber == "house":
+        chamber_type = ChamberType.house
+    elif match.chamber == "senate":
+        chamber_type = ChamberType.senate
+    else:
+        return None
+    return db.scalar(
+        select(District)
+        .join(Chamber, Chamber.id == District.chamber_id)
+        .where(
+            District.code == match.district_code.upper(),
+            Chamber.chamber_type == chamber_type,
+        )
+    )
 
 
 def status_filter_clause(status: str):
@@ -551,27 +579,60 @@ def district_legislators(
 
 
 @router.post("/representative-lookups", response_model=DetailResponse)
-def representative_lookup(request: RepresentativeLookupRequest, db: Session = Depends(get_db)):
+def representative_lookup(
+    request: RepresentativeLookupRequest,
+    db: Session = Depends(get_db),
+    lookup_service: RepresentativeLookupService = Depends(get_representative_lookup_service),
+):
     current_session = get_session_by_slug(db, None)
-    normalized = request.address_text.lower()
-    house_district = db.scalar(select(District).where(District.code == "64B"))
-    senate_district = db.scalar(select(District).where(District.code == "64"))
+    try:
+        lookup_result = lookup_service.lookup(request.address_text)
+    except RepresentativeLookupNotFound as exc:
+        raise problem_exception(404, "Not Found", str(exc), type_slug="representative-lookup-not-found") from None
+    except (RepresentativeLookupUpstreamError, requests.RequestException) as exc:
+        raise problem_exception(
+            502,
+            "Bad Gateway",
+            f"Representative lookup upstream failed: {exc}",
+            type_slug="representative-lookup-upstream-error",
+        ) from None
+
+    house_district = district_for_match(db, lookup_result.house_district)
+    senate_district = district_for_match(db, lookup_result.senate_district)
     district_ids = [
         district.id
         for district in [house_district, senate_district]
         if district is not None
     ]
-    if "saint paul" not in normalized or not district_ids:
-        district_ids = db.scalars(
-            select(District.id).limit(2)
-        ).all()
+    if not district_ids:
+        raise problem_exception(
+            404,
+            "Not Found",
+            "resolved districts are not available in the database",
+            type_slug="representative-districts-not-found",
+        )
+
     periods = db.scalars(find_my_legislator_stmt(current_session.id, district_ids)).all()
     house_period = next((period for period in periods if period.chamber.chamber_type == ChamberType.house), None)
     senate_period = next((period for period in periods if period.chamber.chamber_type == ChamberType.senate), None)
+    if house_period is None and senate_period is None:
+        raise problem_exception(
+            404,
+            "Not Found",
+            "no current legislators found for resolved districts",
+            type_slug="representative-legislators-not-found",
+        )
+
+    geocoded = lookup_result.geocoded_address
     payload = {
         "resolved_place": {
             "address_text": request.address_text,
-            "state_code": "MN",
+            "matched_address": geocoded.matched_address,
+            "latitude": geocoded.latitude,
+            "longitude": geocoded.longitude,
+            "state_code": geocoded.state_code,
+            "house_district": house_district.code if house_district else None,
+            "senate_district": senate_district.code if senate_district else None,
         },
         "house_legislator": legislator_list_item(house_period.legislator).model_dump(exclude_none=True) if house_period else None,
         "senate_legislator": legislator_list_item(senate_period.legislator).model_dump(exclude_none=True) if senate_period else None,
