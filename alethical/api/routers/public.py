@@ -3,8 +3,8 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.auth import get_optional_current_user
 from alethical.api.problems import problem_exception
@@ -12,6 +12,8 @@ from alethical.api.schemas import CollectionResponse, DetailResponse, MetaPayloa
 from alethical.api.serializers import (
     ai_analysis_payload_for_enrichment,
     bill_list_item,
+    bill_progress_payload,
+    bill_status_key,
     current_bill_summary_enrichment,
     current_service_payload,
     district_payload,
@@ -25,13 +27,17 @@ from alethical.db.session import get_db
 schema = load_schema()
 Bill = schema.Bill
 BillAction = schema.BillAction
+AIEnrichment = schema.AIEnrichment
 BillVersion = schema.BillVersion
 BillVersionSection = schema.BillVersionSection
+Chamber = schema.Chamber
 ChamberType = schema.ChamberType
 District = schema.District
+EnrichmentType = schema.EnrichmentType
 Jurisdiction = schema.Jurisdiction
 LegislativeSession = schema.LegislativeSession
 Legislator = schema.Legislator
+LegislatorServicePeriod = schema.LegislatorServicePeriod
 Sponsorship = schema.Sponsorship
 bill_detail_stmt = schema.bill_detail_stmt
 bill_list_stmt = schema.bill_list_stmt
@@ -71,12 +77,76 @@ def get_legislator_by_id(db: Session, legislator_id: str):
     return legislator
 
 
+def canonical_legislator_for_placeholder(db: Session, legislator, session_id):
+    current_service = next(iter(legislator.service_periods), None)
+    if (
+        current_service is None
+        or not current_service.district.code.endswith("-unknown")
+        or not legislator.external_key
+    ):
+        return legislator
+    return db.scalar(
+        select(Legislator)
+        .join(LegislatorServicePeriod, LegislatorServicePeriod.legislator_id == Legislator.id)
+        .join(District, District.id == LegislatorServicePeriod.district_id)
+        .where(
+            Legislator.id != legislator.id,
+            Legislator.jurisdiction_id == legislator.jurisdiction_id,
+            Legislator.external_key.ilike(f"%{legislator.external_key}"),
+            LegislatorServicePeriod.session_id == session_id,
+            LegislatorServicePeriod.is_current.is_(True),
+            District.code.not_like("%-unknown"),
+        )
+        .options(
+            selectinload(
+                Legislator.service_periods.and_(
+                    LegislatorServicePeriod.session_id == session_id,
+                    LegislatorServicePeriod.is_current.is_(True),
+                )
+            ).selectinload(LegislatorServicePeriod.chamber),
+            selectinload(
+                Legislator.service_periods.and_(
+                    LegislatorServicePeriod.session_id == session_id,
+                    LegislatorServicePeriod.is_current.is_(True),
+                )
+            ).selectinload(LegislatorServicePeriod.district),
+            selectinload(Legislator.committee_memberships.and_(schema.CommitteeMembership.is_current.is_(True))).selectinload(
+                schema.CommitteeMembership.committee
+            ),
+            selectinload(Legislator.stats.and_(schema.LegislatorStats.session_id == session_id)),
+        )
+    ) or legislator
+
+
 def tracking_user_id(include_set: set[str], current_user):
     if "tracking" not in include_set:
         return None
     if current_user is None:
         raise problem_exception(401, "Unauthorized", "Authentication required to include tracking state")
     return current_user.id
+
+
+def status_filter_clause(status: str):
+    status_value = status.strip()
+    normalized = status_value.lower().replace(" ", "_")
+    status_patterns = {
+        "proposed": ["introduction", "author added", "authors added", "chief author added"],
+        "in_committee": ["referred", "committee", "second reading"],
+        "passed_house": ["passed house", "house passed", "bill was passed", "third reading passed"],
+        "passed_senate": ["passed senate", "senate passed", "repassed"],
+        "signed_into_law": ["governor", "chapter number", "secretary of state", "effective date"],
+        "vetoed": ["veto"],
+    }
+    patterns = status_patterns.get(normalized)
+    if patterns:
+        return or_(
+            Bill.current_status_code == normalized,
+            *[Bill.current_status.ilike(f"%{pattern}%") for pattern in patterns],
+        )
+    return or_(
+        Bill.current_status_code == status_value,
+        Bill.current_status.ilike(f"%{status_value}%"),
+    )
 
 
 @router.get("/meta", response_model=DetailResponse)
@@ -108,10 +178,46 @@ def current_session(db: Session = Depends(get_db)):
     return DetailResponse(data={"slug": row.slug, "name": row.name, "is_current": row.is_current})
 
 
+@router.get("/policy-areas", response_model=CollectionResponse)
+def policy_areas(
+    session: str | None = None,
+    limit: int = Query(default=50, le=100),
+    db: Session = Depends(get_db),
+):
+    session_row = get_session_by_slug(db, session)
+    area_rows = (
+        select(func.jsonb_array_elements_text(AIEnrichment.content_json["policy_areas"]).label("name"))
+        .join(Bill, Bill.id == AIEnrichment.bill_id)
+        .where(
+            Bill.session_id == session_row.id,
+            AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+            AIEnrichment.is_current.is_(True),
+        )
+        .subquery()
+    )
+    rows = db.execute(
+        select(area_rows.c.name, func.count().label("bill_count"))
+        .where(func.btrim(area_rows.c.name) != "")
+        .group_by(area_rows.c.name)
+        .order_by(func.count().desc(), area_rows.c.name.asc())
+        .limit(limit)
+    ).all()
+    data = [{"name": name, "bill_count": bill_count} for name, bill_count in rows]
+    return CollectionResponse(
+        data=data,
+        page={"limit": limit, "next_cursor": None, "has_more": False},
+        links={"self": "/api/v1/policy-areas"},
+    )
+
+
 @router.get("/bills", response_model=CollectionResponse)
 def bills(
     session: str | None = None,
     q: str | None = None,
+    chamber: str | None = None,
+    status: str | None = None,
+    policy_area: str | None = None,
+    omnibus: bool | None = None,
     include: str | None = None,
     limit: int = Query(default=20, le=100),
     db: Session = Depends(get_db),
@@ -122,6 +228,20 @@ def bills(
     stmt = bill_list_stmt(session_row.id, user_id=tracking_user_id(include_set, current_user))
     if q:
         stmt = stmt.where(or_(Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%")))
+    if chamber:
+        stmt = stmt.where(Bill.chamber.has(Chamber.slug == chamber.strip().lower()))
+    if status:
+        stmt = stmt.where(status_filter_clause(status))
+    if policy_area:
+        policy_area_value = policy_area.strip()
+        matching_policy_area_bills = select(AIEnrichment.bill_id).where(
+            AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+            AIEnrichment.is_current.is_(True),
+            cast(AIEnrichment.content_json["policy_areas"], String).ilike(f"%{policy_area_value}%"),
+        )
+        stmt = stmt.where(Bill.id.in_(matching_policy_area_bills))
+    if omnibus is not None:
+        stmt = stmt.where(Bill.is_omnibus.is_(omnibus))
     rows = db.scalars(stmt.limit(limit)).all()
     data = [bill_list_item(row, include_tracking="tracking" in include_set and current_user is not None) for row in rows]
     return CollectionResponse(
@@ -156,15 +276,18 @@ def bill_detail(
         "title": row.title,
         "description": row.description,
         "current_status": row.current_status,
+        "status_key": bill_status_key(row),
         "latest_action_at": row.latest_action_at,
         "official_url": row.official_url,
-        "chief_sponsors": [item.model_dump() for item in sponsor_payloads(row.chief_sponsorships)],
+        "chief_sponsors": [item.model_dump() for item in sponsor_payloads(row.chief_sponsorships, session_id=row.session_id)],
         "tracking": tracking_payload(row.tracked_by).model_dump() if "tracking" in include_set and current_user else None,
         "ai_analysis": ai_analysis_payload_for_enrichment(ai_enrichment),
         "ai_summary": ai_enrichment.content_json if ai_enrichment else None,
     }
     if "all_sponsors" in include_set:
-        payload["all_sponsors"] = [item.model_dump() for item in sponsor_payloads(row.sponsorships)]
+        payload["all_sponsors"] = [item.model_dump() for item in sponsor_payloads(row.sponsorships, session_id=row.session_id)]
+    if "progress" in include_set:
+        payload["progress"] = [item.model_dump() for item in bill_progress_payload(row)]
     if "actions" in include_set:
         payload["actions"] = [
             {
@@ -309,6 +432,7 @@ def bill_votes(bill_id: str, db: Session = Depends(get_db)):
 def legislators(
     session: str | None = None,
     q: str | None = None,
+    chamber: str | None = None,
     limit: int = Query(default=20, le=100),
     db: Session = Depends(get_db),
 ):
@@ -316,6 +440,8 @@ def legislators(
     stmt = legislator_directory_stmt(session_row.id)
     if q:
         stmt = stmt.where(Legislator.full_name.ilike(f"%{q}%"))
+    if chamber:
+        stmt = stmt.where(LegislatorServicePeriod.chamber.has(Chamber.slug == chamber.strip().lower()))
     rows = db.scalars(stmt.limit(limit)).all()
     data = [legislator_list_item(row).model_dump(exclude_none=True) for row in rows]
     return CollectionResponse(
@@ -336,6 +462,7 @@ def legislator_detail(
     session_row = get_session_by_slug(db, session)
     legislator = get_legislator_by_id(db, legislator_id)
     row = db.scalar(legislator_profile_stmt(legislator.id, session_row.id))
+    row = canonical_legislator_for_placeholder(db, row, session_row.id)
     current_service = next(iter(row.service_periods), None)
     payload = {
         "id": str(row.id),

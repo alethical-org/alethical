@@ -15,6 +15,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatSession'>;
+type ChatParams = RootStackParamList['ChatSession'];
 type DisplayMessage = {
   id: string;
   role: 'user' | 'assistant';
@@ -25,6 +26,64 @@ type DisplayMessage = {
 };
 
 const webInputFocusReset = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null;
+const pendingBillChatStorageKey = 'alethical.pendingBillChat';
+
+function hasBillChatSubject(params: Partial<ChatParams>) {
+  return params.subjectType === 'bill' && Boolean(params.subjectId);
+}
+
+function storePendingBillChat(params: ChatParams) {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || !hasBillChatSubject(params)) {
+    return;
+  }
+
+  window.sessionStorage.setItem(pendingBillChatStorageKey, JSON.stringify(params));
+}
+
+function readPendingBillChat(): ChatParams | null {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(pendingBillChatStorageKey);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as ChatParams;
+    return hasBillChatSubject(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingBillChat() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.sessionStorage.removeItem(pendingBillChatStorageKey);
+  }
+}
+
+function pendingBillChatPath(params: RootStackParamList['ChatSession']) {
+  if (params.sessionId || params.subjectType !== 'bill' || !params.subjectId) {
+    return undefined;
+  }
+
+  const searchParams = new URLSearchParams();
+  searchParams.set('subjectType', 'bill');
+  searchParams.set('subjectId', params.subjectId);
+  if (params.title) {
+    searchParams.set('title', params.title);
+  }
+  if (params.seedPrompt) {
+    searchParams.set('prompt', params.seedPrompt);
+  }
+  if (params.subjectLabel) {
+    searchParams.set('subjectLabel', params.subjectLabel);
+  }
+
+  return `/chat/new?${searchParams.toString()}`;
+}
 
 function messageRoleRank(role: DisplayMessage['role']) {
   return role === 'user' ? 0 : 1;
@@ -32,7 +91,13 @@ function messageRoleRank(role: DisplayMessage['role']) {
 
 export function ChatSessionScreen({ route }: Props) {
   const { isSignedIn, user } = useAuth();
-  const params = route.params ?? {};
+  const routeParams = route.params ?? {};
+  const params = useMemo<Partial<ChatParams>>(() => {
+    if (routeParams.sessionId || hasBillChatSubject(routeParams)) {
+      return routeParams;
+    }
+    return readPendingBillChat() ?? routeParams;
+  }, [routeParams]);
   const [draft, setDraft] = useState('');
   const [sessionId, setSessionId] = useState(params.sessionId);
   const [expandedCitationMessages, setExpandedCitationMessages] = useState<Record<string, boolean>>({});
@@ -43,6 +108,12 @@ export function ChatSessionScreen({ route }: Props) {
   const sendMessage = useSendChatMessage(user?.id);
   const sessionQuery = useChatSession(user?.id, sessionId);
   const createChatSession = createSession.mutateAsync;
+
+  useEffect(() => {
+    if (hasBillChatSubject(params)) {
+      storePendingBillChat(params as ChatParams);
+    }
+  }, [params]);
 
   useEffect(() => {
     setSessionId(params.sessionId);
@@ -78,6 +149,7 @@ export function ChatSessionScreen({ route }: Props) {
     })
       .then((session) => {
         if (!cancelled) {
+          clearPendingBillChat();
           setSessionId(session.id);
         }
       })
@@ -97,6 +169,7 @@ export function ChatSessionScreen({ route }: Props) {
   const sendError = sendMessage.error instanceof Error ? sendMessage.error.message : null;
   const loadError = sessionQuery.error instanceof Error ? sessionQuery.error.message : null;
   const canStartBillChat = Boolean(sessionId || (params.subjectType === 'bill' && params.subjectId && params.title));
+  const signInReturnTo = pendingBillChatPath(params);
   const title = useMemo(() => {
     if (session?.title) {
       return session.title;
@@ -165,7 +238,10 @@ export function ChatSessionScreen({ route }: Props) {
   if (!isSignedIn) {
     return (
       <ScreenView title="Grounded Chat" subtitle="Chat is available once you sign in.">
-        <AuthRequiredCard message="Sign in to save conversations and ask follow-up questions grounded in legislative data." />
+        <AuthRequiredCard
+          message="Sign in to save conversations and ask follow-up questions grounded in legislative data."
+          returnTo={signInReturnTo}
+        />
       </ScreenView>
     );
   }

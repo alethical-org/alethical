@@ -23,16 +23,22 @@ services:
     container_name: alethical-backend
     working_dir: /app
     environment:
-      DATABASE_URL: ${BACKEND_DATABASE_URL:-postgresql+psycopg://alethical:alethical@db:5432/alethical}
+      DATABASE_URL: ${BACKEND_DATABASE_URL:-${DATABASE_URL:-postgresql+psycopg://alethical:alethical@db:5432/alethical}}
+      ALETHICAL_DATABASE_TARGET: ${ALETHICAL_DATABASE_TARGET:-local}
       ALETHICAL_DEV_AUTH_TOKEN: local-dev-token
       SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_PROJECT_REF: ${SUPABASE_PROJECT_REF:-}
+      SUPABASE_DB_PASSWORD: ${SUPABASE_DB_PASSWORD:-}
+      SUPABASE_POOLER_HOST: ${SUPABASE_POOLER_HOST:-aws-1-us-east-2.pooler.supabase.com}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
       ALETHICAL_CORS_ORIGINS: ${ALETHICAL_CORS_ORIGINS:-http://localhost:19006,http://127.0.0.1:19006}
+      ALETHICAL_SKIP_MIGRATIONS: ${ALETHICAL_SKIP_MIGRATIONS:-}
       UV_PROJECT_ENVIRONMENT: /tmp/alethical-venv
       UV_PYTHON: /usr/local/bin/python3.12
     command: >
       sh -c "uv sync --frozen &&
-             uv run python -m alembic -c alembic.ini upgrade head &&
+             if [ \"$${ALETHICAL_DATABASE_TARGET}\" = \"production\" ]; then export DATABASE_URL=\"postgresql+psycopg://postgres.$${SUPABASE_PROJECT_REF}:$${SUPABASE_DB_PASSWORD}@$${SUPABASE_POOLER_HOST}:6543/postgres?sslmode=require\"; fi &&
+             if [ \"$${ALETHICAL_SKIP_MIGRATIONS}\" != \"1\" ]; then uv run python -m alembic -c alembic.ini upgrade head; fi &&
              uv run uvicorn alethical.api.main:create_app --factory --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -66,7 +72,7 @@ services:
       sh -c "corepack enable &&
              corepack prepare pnpm@10.33.0 --activate &&
              pnpm install --frozen-lockfile &&
-             pnpm --dir apps/frontend exec expo start --web --port 19006"
+             pnpm --dir apps/frontend exec expo start --web --port 19006 --clear"
     ports:
       - "${FRONTEND_PORT:-19006}:19006"
     volumes:

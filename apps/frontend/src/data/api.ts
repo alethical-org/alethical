@@ -1,4 +1,4 @@
-import { Bill, ChatSession, Citation, Legislator } from './types';
+import { Bill, BillSponsor, Chamber, ChatSession, Citation, Legislator } from './types';
 
 const configuredApiOrigin = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 const API_BASE_URL = configuredApiOrigin ? `${configuredApiOrigin}/api/v1` : null;
@@ -36,6 +36,11 @@ interface ApiSponsorPayload {
     name: string;
     role: string;
     legislator_id?: string | null;
+    source_order?: number | null;
+    source_chamber?: string | null;
+    chamber?: string | null;
+    party?: string | null;
+    district?: string | null;
 }
 
 interface ApiBillStatsPayload {
@@ -51,11 +56,45 @@ interface ApiBillListItemPayload {
     file_number: number;
     title: string;
     current_status?: string | null;
+    status_key?: string | null;
     latest_action_at?: string | null;
     official_url?: string | null;
     chief_sponsors: ApiSponsorPayload[];
     stats?: ApiBillStatsPayload | null;
     ai_analysis?: ApiAiAnalysisPayload | null;
+}
+
+interface ApiPolicyAreaPayload {
+    name: string;
+    bill_count: number;
+}
+
+export interface PolicyArea {
+    name: string;
+    billCount: number;
+}
+
+interface ApiSessionPayload {
+    slug: string;
+    name: string;
+    is_current: boolean;
+}
+
+export interface LegislativeSession {
+    slug: string;
+    name: string;
+    isCurrent: boolean;
+}
+
+export interface BillListFilters {
+    chamber?: Chamber;
+    status?: string;
+    policyArea?: string;
+    omnibus?: boolean;
+}
+
+export interface LegislatorListFilters {
+    chamber?: Chamber;
 }
 
 interface ApiTrackedBillPayload {
@@ -132,13 +171,23 @@ interface ApiBillDetailPayload {
     title: string;
     description?: string | null;
     current_status?: string | null;
+    status_key?: string | null;
     latest_action_at?: string | null;
     official_url?: string | null;
     chief_sponsors: ApiSponsorPayload[];
+    all_sponsors?: ApiSponsorPayload[] | null;
+    progress?: ApiBillProgressStepPayload[] | null;
     actions?: ApiBillActionPayload[] | null;
     versions?: ApiBillVersionPayload[] | null;
     topics?: ApiTopicPayload[] | null;
     ai_analysis?: ApiAiAnalysisPayload | null;
+}
+
+interface ApiBillProgressStepPayload {
+    key: string;
+    label: string;
+    reached: boolean;
+    current?: boolean;
 }
 
 interface ApiAiAnalysisPayload {
@@ -231,6 +280,13 @@ function toLegislatorChamber(chamber?: string | null): Legislator['chamber'] {
     return chamber?.toLowerCase() === 'house' ? 'House' : 'Senate';
 }
 
+function toOptionalChamber(chamber?: string | null): Bill['chamber'] | undefined {
+    if (!chamber) {
+        return undefined;
+    }
+    return chamber.toLowerCase() === 'house' ? 'House' : 'Senate';
+}
+
 function toParty(party?: string | null): Legislator['party'] {
     const normalized = party?.trim().toUpperCase();
     if (normalized === 'R' || normalized === 'REPUBLICAN') {
@@ -240,6 +296,39 @@ function toParty(party?: string | null): Legislator['party'] {
         return 'I';
     }
     return 'D';
+}
+
+function mapSponsor(payload: ApiSponsorPayload): BillSponsor {
+    return {
+        name: payload.name,
+        role: payload.role,
+        legislatorId: payload.legislator_id ?? undefined,
+        chamber: toOptionalChamber(payload.chamber ?? payload.source_chamber),
+        party: payload.party ?? undefined,
+        district: payload.district ?? undefined,
+    };
+}
+
+function defaultProgress(): Bill['progress'] {
+    return [
+        { key: 'proposed', label: 'Proposed', reached: true, current: true },
+        { key: 'in_committee', label: 'In Committee', reached: false, current: false },
+        { key: 'passed_house', label: 'Passed House', reached: false, current: false },
+        { key: 'passed_senate', label: 'Passed Senate', reached: false, current: false },
+        { key: 'signed_into_law', label: 'Signed Into Law', reached: false, current: false },
+    ];
+}
+
+function statusLabel(statusKey?: string | null, fallback?: string | null) {
+    const labels: Record<string, string> = {
+        proposed: 'Proposed',
+        in_committee: 'In Committee',
+        passed_house: 'Passed House',
+        passed_senate: 'Passed Senate',
+        signed_into_law: 'Signed Into Law',
+        vetoed: 'Vetoed',
+    };
+    return (statusKey && labels[statusKey]) || fallback || 'Status unavailable';
 }
 
 function formatBillIdentifier(fileType: string, fileNumber: number) {
@@ -328,6 +417,18 @@ function legislatorRole(payload: ApiLegislatorListItemPayload) {
     return `${chamber} District ${service.district.code}`;
 }
 
+function cleanOfficeAddress(value?: string | null) {
+    if (!value) {
+        return undefined;
+    }
+    const lines = value
+        .split(/\r?\n/)
+        .map((line) => line.replace(/\s+/g, ' ').trim())
+        .filter((line) => line && line !== '*' && !/^e-?mail:/i.test(line) && !/^email updates:/i.test(line) && !/^click to subscribe/i.test(line));
+    const unique = lines.filter((line, index) => lines.indexOf(line) === index);
+    return unique.join('\n') || undefined;
+}
+
 function mapLegislator(
     payload: ApiLegislatorListItemPayload | ApiLegislatorDetailPayload
 ): Legislator {
@@ -356,6 +457,10 @@ function mapLegislator(
         party,
         role: legislatorRole(payload),
         bio: ('biography' in payload ? payload.biography : null) ?? 'Live legislator profile loaded from the backend.',
+        email: service?.email ?? undefined,
+        phone: service?.phone ?? undefined,
+        officeAddress: cleanOfficeAddress(service?.office_address),
+        profileUrl: service?.profile_url ?? undefined,
         committees,
         focusAreas,
         serviceHistory: service
@@ -384,11 +489,13 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
         identifier: formatBillIdentifier(payload.file_type, payload.file_number),
         title: payload.title,
         chamber: toChamber(payload.file_type),
-        status: payload.current_status ?? 'Status unavailable',
+        status: statusLabel(payload.status_key, payload.current_status),
         updatedAt: formatUpdatedAt(payload.latest_action_at),
         sessionLabel: 'Current session',
         topics: [],
         chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
+        sponsors: payload.chief_sponsors.map(mapSponsor),
+        progress: defaultProgress(),
         actionCount: payload.stats?.action_count ?? 0,
         versionCount: payload.stats?.version_count ?? 0,
         rollCallCount: payload.stats?.vote_event_count ?? 0,
@@ -413,17 +520,25 @@ function mapBillDetail(
     const fileMatch = payload.id.match(/-(SF|HF)(\d+)$/i);
     const fileType = fileMatch?.[1]?.toUpperCase() ?? 'SF';
     const fileNumber = fileMatch?.[2] ? Number(fileMatch[2]) : 0;
+    const allSponsors = payload.all_sponsors ?? payload.chief_sponsors;
 
     return {
         id: payload.id,
         identifier: fileNumber ? formatBillIdentifier(fileType, fileNumber) : payload.id,
         title: payload.title,
         chamber: toChamber(fileType),
-        status: payload.current_status ?? 'Status unavailable',
+        status: statusLabel(payload.status_key, payload.current_status),
         updatedAt: formatUpdatedAt(payload.latest_action_at),
         sessionLabel: 'Current session',
         topics: (payload.topics ?? []).map((topic) => topic.name),
         chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
+        sponsors: allSponsors.map(mapSponsor),
+        progress: payload.progress?.map((step) => ({
+            key: step.key,
+            label: step.label,
+            reached: step.reached,
+            current: Boolean(step.current),
+        })) ?? defaultProgress(),
         actionCount: payload.actions?.length ?? 0,
         versionCount: payload.versions?.length ?? 0,
         rollCallCount: votes.length,
@@ -635,7 +750,8 @@ export async function sendChatMessageToApi(
 
 export async function listBillsFromApi(
     query?: string,
-    session?: string
+    session?: string,
+    filters: BillListFilters = {}
 ): Promise<Array<Bill & { sponsorNames: string[] }>> {
     const params = new URLSearchParams();
     params.set('limit', '20');
@@ -645,6 +761,18 @@ export async function listBillsFromApi(
     if (session?.trim()) {
         params.set('session', session.trim());
     }
+    if (filters.chamber) {
+        params.set('chamber', filters.chamber.toLowerCase());
+    }
+    if (filters.status?.trim()) {
+        params.set('status', filters.status.trim());
+    }
+    if (filters.policyArea?.trim()) {
+        params.set('policy_area', filters.policyArea.trim());
+    }
+    if (filters.omnibus !== undefined) {
+        params.set('omnibus', String(filters.omnibus));
+    }
 
     const response = await publicApiRequest<PageResponse<ApiBillListItemPayload>>(
         `/bills?${params.toString()}`
@@ -653,11 +781,37 @@ export async function listBillsFromApi(
     return response.data.map(mapBillSummary).filter((bill) => bill.aiAnalysis?.summary);
 }
 
+export async function listPolicyAreasFromApi(session?: string): Promise<PolicyArea[]> {
+    const params = new URLSearchParams();
+    params.set('limit', '50');
+    if (session?.trim()) {
+        params.set('session', session.trim());
+    }
+
+    const response = await publicApiRequest<PageResponse<ApiPolicyAreaPayload>>(
+        `/policy-areas?${params.toString()}`
+    );
+
+    return response.data
+        .filter((item) => item.name.trim().length > 0)
+        .map((item) => ({ name: item.name.trim(), billCount: item.bill_count }));
+}
+
+export async function listSessionsFromApi(): Promise<LegislativeSession[]> {
+    const response = await publicApiRequest<PageResponse<ApiSessionPayload>>('/sessions');
+
+    return response.data.map((session) => ({
+        slug: session.slug,
+        name: session.name,
+        isCurrent: session.is_current,
+    }));
+}
+
 export async function getBillFromApi(billId: string): Promise<(Bill & { sponsorNames: string[] }) | null> {
     const apiBillId = normalizeBillIdForApi(billId);
     const [detailResponse, votesResponse] = await Promise.all([
         publicApiRequest<DetailResponse<ApiBillDetailPayload>>(
-            `/bills/${encodeURIComponent(apiBillId)}?include=actions,versions,topics,ai_analysis`
+            `/bills/${encodeURIComponent(apiBillId)}?include=all_sponsors,actions,versions,topics,ai_analysis,progress`
         ),
         publicApiRequest<PageResponse<ApiBillVotePayload>>(`/bills/${encodeURIComponent(apiBillId)}/votes`),
     ]);
@@ -666,11 +820,21 @@ export async function getBillFromApi(billId: string): Promise<(Bill & { sponsorN
     return bill.aiAnalysis ? bill : null;
 }
 
-export async function listLegislatorsFromApi(query?: string): Promise<Legislator[]> {
+export async function listLegislatorsFromApi(
+    query?: string,
+    session?: string,
+    filters: LegislatorListFilters = {}
+): Promise<Legislator[]> {
     const params = new URLSearchParams();
     params.set('limit', '50');
     if (query?.trim()) {
         params.set('q', query.trim());
+    }
+    if (session?.trim()) {
+        params.set('session', session.trim());
+    }
+    if (filters.chamber) {
+        params.set('chamber', filters.chamber.toLowerCase());
     }
 
     const response = await publicApiRequest<PageResponse<ApiLegislatorListItemPayload>>(

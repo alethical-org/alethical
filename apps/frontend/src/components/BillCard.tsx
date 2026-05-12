@@ -19,6 +19,11 @@ interface BillCardProps {
 export function BillCard({ bill, tracked = false, onPress, onToggleTrack, onSponsorPress }: BillCardProps) {
   const summary = bill.aiAnalysis?.summary;
   const policyAreas = bill.aiAnalysis?.policyAreas ?? [];
+  const meta = [
+    bill.chamber,
+    bill.status,
+    bill.updatedAt !== 'Unknown' ? `Updated ${bill.updatedAt}` : null,
+  ].filter(Boolean).join(' | ');
   const sponsors = (bill.sponsorNames ?? []).map((name, index) => ({
     name,
     legislatorId: bill.chiefSponsorIds[index],
@@ -43,7 +48,7 @@ export function BillCard({ bill, tracked = false, onPress, onToggleTrack, onSpon
           </View>
           <View style={styles.metaBlock}>
             <Text style={styles.metaText}>
-              {bill.chamber} | {bill.status} | Updated {bill.updatedAt}
+              {meta}
             </Text>
             <View style={styles.authorRow}>
               <Text style={styles.authorText}>Author: </Text>

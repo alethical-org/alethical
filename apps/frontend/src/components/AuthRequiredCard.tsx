@@ -8,9 +8,10 @@ import { PrimaryButton } from './PrimaryButton';
 interface AuthRequiredCardProps {
   title?: string;
   message: string;
+  returnTo?: string;
 }
 
-export function AuthRequiredCard({ title = 'Sign in required', message }: AuthRequiredCardProps) {
+export function AuthRequiredCard({ title = 'Sign in required', message, returnTo }: AuthRequiredCardProps) {
   const { authError, isLoading, signInWithGoogle } = useAuth();
 
   return (
@@ -18,7 +19,7 @@ export function AuthRequiredCard({ title = 'Sign in required', message }: AuthRe
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.bodyText}>{isLoading ? 'Checking your session...' : message}</Text>
       {authError ? <Text style={styles.errorText}>{authError}</Text> : null}
-      <PrimaryButton label="Continue With Google" onPress={() => void signInWithGoogle()} />
+      <PrimaryButton label="Continue With Google" onPress={() => void signInWithGoogle(returnTo)} />
     </Card>
   );
 }

@@ -734,7 +734,22 @@ def bill_detail_stmt(bill_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
     """Load one bill detail page without per-row lazy loads."""
     options = [
         selectinload(Bill.versions),
-        selectinload(Bill.sponsorships).selectinload(Sponsorship.legislator),
+        selectinload(Bill.sponsorships)
+        .selectinload(Sponsorship.legislator)
+        .selectinload(Legislator.service_periods)
+        .selectinload(LegislatorServicePeriod.chamber),
+        selectinload(Bill.sponsorships)
+        .selectinload(Sponsorship.legislator)
+        .selectinload(Legislator.service_periods)
+        .selectinload(LegislatorServicePeriod.district),
+        selectinload(Bill.chief_sponsorships)
+        .selectinload(Sponsorship.legislator)
+        .selectinload(Legislator.service_periods)
+        .selectinload(LegislatorServicePeriod.chamber),
+        selectinload(Bill.chief_sponsorships)
+        .selectinload(Sponsorship.legislator)
+        .selectinload(Legislator.service_periods)
+        .selectinload(LegislatorServicePeriod.district),
         selectinload(Bill.actions),
         selectinload(Bill.vote_events).selectinload(VoteEvent.records).selectinload(VoteRecord.legislator),
         selectinload(Bill.enrichments),
@@ -781,11 +796,19 @@ def legislator_directory_stmt(session_id: uuid.UUID):
     return (
         select(Legislator)
         .join(LegislatorServicePeriod, LegislatorServicePeriod.legislator_id == Legislator.id)
+        .join(District, District.id == LegislatorServicePeriod.district_id)
         .where(
             LegislatorServicePeriod.session_id == session_id,
             LegislatorServicePeriod.is_current.is_(True),
+            District.code.not_like("%-unknown"),
         )
         .options(
+            selectinload(
+                Legislator.service_periods.and_(
+                    LegislatorServicePeriod.session_id == session_id,
+                    LegislatorServicePeriod.is_current.is_(True),
+                )
+            ).selectinload(LegislatorServicePeriod.chamber),
             selectinload(
                 Legislator.service_periods.and_(
                     LegislatorServicePeriod.session_id == session_id,

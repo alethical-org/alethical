@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from alethical.api import schemas as api_schemas
 
 
@@ -14,19 +16,169 @@ def tracking_payload(tracked_rows) -> api_schemas.TrackingState | None:
     )
 
 
-def sponsor_payloads(sponsorships) -> list[api_schemas.SponsorSummary]:
+def sponsor_payloads(sponsorships, *, session_id=None) -> list[api_schemas.SponsorSummary]:
     payloads: list[api_schemas.SponsorSummary] = []
     for sponsorship in sponsorships:
         name = sponsorship.legislator.full_name if sponsorship.legislator else "Unknown"
         legislator_id = str(sponsorship.legislator.id) if sponsorship.legislator else None
+        service_period = None
+        if sponsorship.legislator and session_id is not None:
+            service_period = next(
+                (
+                    period
+                    for period in sponsorship.legislator.service_periods
+                    if period.session_id == session_id and period.is_current
+                ),
+                None,
+            )
         payloads.append(
             api_schemas.SponsorSummary(
                 name=name,
                 role=sponsorship.role.value if hasattr(sponsorship.role, "value") else str(sponsorship.role),
                 legislator_id=legislator_id,
+                source_order=sponsorship.source_order,
+                source_chamber=sponsorship.source_chamber,
+                chamber=service_period.chamber.slug if service_period else sponsorship.source_chamber,
+                party=service_period.party if service_period else None,
+                district=service_period.district.code if service_period else None,
             )
         )
     return payloads
+
+
+def _roll_call_chamber(roll_call_text: str | None) -> str | None:
+    if not roll_call_text:
+        return None
+    match = re.search(r"(\d+)\s*-\s*(\d+)", roll_call_text)
+    if match is None:
+        return None
+    total = int(match.group(1)) + int(match.group(2))
+    if total > 100:
+        return "house"
+    if total > 0:
+        return "senate"
+    return None
+
+
+def bill_status_key(bill) -> str:
+    actions = list(bill.actions or [])
+    text_values = [
+        " ".join(
+            item
+            for item in [action.action_text, action.action_description, action.roll_call_text]
+            if item
+        ).lower()
+        for action in actions
+    ]
+    status_text = (bill.current_status or "").lower()
+    all_text = [status_text, *text_values]
+    if any("veto" in text for text in all_text):
+        return "vetoed"
+    if any(
+        "governor approval" in text
+        or "governor's action approval" in text
+        or "chapter number" in text
+        or "secretary of state" in text
+        or "effective date" in text
+        for text in all_text
+    ):
+        return "signed_into_law"
+    passed_chambers: set[str] = set()
+    for action in actions:
+        action_text = (action.action_text or "").lower()
+        combined = " ".join(
+            item
+            for item in [action.action_text, action.action_description, action.roll_call_text]
+            if item
+        ).lower()
+        if "not passed" in combined:
+            continue
+        if not (
+            "bill was passed" in action_text
+            or "third reading passed" in action_text
+            or "repassed" in action_text
+        ):
+            continue
+        explicit_chamber = None
+        if "senate" in combined:
+            explicit_chamber = "senate"
+        elif "house" in combined:
+            explicit_chamber = "house"
+        passed_chambers.add(explicit_chamber or _roll_call_chamber(action.roll_call_text) or "")
+    passed_chambers.discard("")
+    if "senate" in passed_chambers:
+        return "passed_senate"
+    if "house" in passed_chambers:
+        return "passed_house"
+    if any("passed senate" in text or "senate passed" in text for text in all_text):
+        return "passed_senate"
+    if any(
+        "passed house" in text
+        or "house passed" in text
+        or "bill was passed" in text
+        or "third reading passed" in text
+        for text in all_text
+    ):
+        return "passed_house"
+    if any(
+        "referred" in text
+        or "committee report" in text
+        or "comm report" in text
+        or "second reading" in text
+        for text in all_text
+    ):
+        return "in_committee"
+    return "proposed"
+
+
+def bill_progress_payload(bill) -> list[api_schemas.BillProgressStep]:
+    status_key = bill_status_key(bill)
+    if status_key == "vetoed":
+        status_key = "proposed"
+    status_steps = {
+        "proposed": 1,
+        "in_committee": 2,
+        "passed_house": 3,
+        "passed_senate": 4,
+        "signed_into_law": 5,
+    }
+    current_step = status_steps.get(status_key, 1)
+    steps = [
+        ("proposed", "Proposed"),
+        ("in_committee", "In Committee"),
+        ("passed_house", "Passed House"),
+        ("passed_senate", "Passed Senate"),
+        ("signed_into_law", "Signed Into Law"),
+    ]
+    return [
+        api_schemas.BillProgressStep(
+            key=key,
+            label=label,
+            reached=status_steps[key] <= current_step,
+            current=key == status_key,
+        )
+        for key, label in steps
+    ]
+
+
+def bill_status_key_from_summary(bill) -> str:
+    status_text = (bill.current_status or "").lower()
+    if "veto" in status_text:
+        return "vetoed"
+    if (
+        "governor" in status_text
+        or "chapter number" in status_text
+        or "secretary of state" in status_text
+        or "effective date" in status_text
+    ):
+        return "signed_into_law"
+    if "senate" in status_text and "pass" in status_text:
+        return "passed_senate"
+    if "pass" in status_text:
+        return "passed_house"
+    if "referred" in status_text or "committee" in status_text or "second reading" in status_text:
+        return "in_committee"
+    return "proposed"
 
 
 def bill_stats_payload(stats) -> api_schemas.BillStatsPayload | None:
@@ -90,6 +242,7 @@ def bill_list_item(bill, *, include_tracking: bool = False) -> api_schemas.BillL
         file_number=bill.file_number,
         title=bill.title,
         current_status=bill.current_status,
+        status_key=bill_status_key_from_summary(bill),
         latest_action_at=bill.latest_action_at,
         official_url=bill.official_url,
         chief_sponsors=sponsor_payloads(bill.chief_sponsorships),

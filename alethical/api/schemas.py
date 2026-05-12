@@ -54,6 +54,18 @@ class SponsorSummary(BaseModel):
     name: str
     role: str
     legislator_id: str | None = None
+    source_order: int | None = None
+    source_chamber: str | None = None
+    chamber: str | None = None
+    party: str | None = None
+    district: str | None = None
+
+
+class BillProgressStep(BaseModel):
+    key: str
+    label: str
+    reached: bool
+    current: bool = False
 
 
 class BillStatsPayload(BaseModel):
@@ -69,6 +81,7 @@ class BillListItem(BaseModel):
     file_number: int
     title: str
     current_status: str | None = None
+    status_key: str | None = None
     latest_action_at: datetime | None = None
     official_url: str | None = None
     chief_sponsors: list[SponsorSummary]
@@ -111,10 +124,12 @@ class BillDetailPayload(BaseModel):
     title: str
     description: str | None = None
     current_status: str | None = None
+    status_key: str | None = None
     latest_action_at: datetime | None = None
     official_url: str | None = None
     chief_sponsors: list[SponsorSummary]
     all_sponsors: list[SponsorSummary] | None = None
+    progress: list[BillProgressStep] | None = None
     actions: list[BillActionPayload] | None = None
     versions: list[BillVersionPayload] | None = None
     topics: list[TopicPayload] | None = None
