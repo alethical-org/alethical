@@ -148,7 +148,7 @@ async def test_bill_sync_chunk_worker_reports_rag_counts_for_production_target(m
     monkeypatch.setattr("alethical.pipeline.rag_ingest.build_rag_rows_for_bill_keys", fake_build)
     monkeypatch.setattr("alethical.pipeline.oban_workers._database_url", lambda args: get_database_url())
 
-    result = await BillSyncChunkWorker().process(
+    record = await BillSyncChunkWorker().process(
         SimpleNamespace(
             args={
                 "targets": [{"chamber": "house", "bill_number": "SF1832", "session_code": "0942025"}],
@@ -162,6 +162,7 @@ async def test_bill_sync_chunk_worker_reports_rag_counts_for_production_target(m
             }
         )
     )
+    result = record.value
     assert result["rag_built"] == 1
     assert result["rag_skipped"] == 0
     assert result["rag_already_exists"] == 0
