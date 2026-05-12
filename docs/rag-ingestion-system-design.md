@@ -111,6 +111,30 @@ Acceptance criteria:
 4. `rag_chunk`
 5. embeddings and retrieval index
 
+## Retrieval Index
+
+Production uses `pgvector` with an IVFFlat cosine index on `rag_chunk_embedding.embedding`:
+
+- index name: `ix_rag_chunk_embedding_embedding_ivfflat`
+- index type: `ivfflat`
+- operator class: `vector_cosine_ops`
+- build option: `lists = 50`
+
+This replaced the original HNSW plan because Supabase production could backfill and maintain the IVFFlat index within available maintenance memory, while HNSW index rebuilds were too slow for the current hosted database shape. RAG retrieval still uses the same vector ordering semantics:
+
+```sql
+ORDER BY embedding <=> :query_embedding
+LIMIT :k
+```
+
+IVFFlat recall depends on probes. Retrieval sessions should set a non-default probe count before semantic search:
+
+```sql
+SET ivfflat.probes = 10;
+```
+
+Use `ivfflat.probes = 5` for lower latency, `10` as the default balanced setting, and `20` when recall matters more than latency.
+
 ## Proposed RAG Entities
 
 ### `rag_section_document`

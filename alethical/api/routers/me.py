@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_current_user
@@ -379,6 +379,7 @@ def create_chat_message(
 
     embedding = deterministic_embedding(request.content)
     probe_embedding = db.scalar(select(RagChunkEmbedding.embedding_model).limit(1))
+    db.execute(text("SET LOCAL ivfflat.probes = 10"))
     chunks = db.scalars(
         semantic_rag_chunk_stmt(
             embedding,
