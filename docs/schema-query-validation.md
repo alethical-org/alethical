@@ -83,7 +83,7 @@ Status: pass
 
 - semantic retrieval helper exists
 - `rag_chunk_embedding` rows are populated in sample data
-- vector index `ix_rag_chunk_embedding_embedding_hnsw` exists
+- vector index `ix_rag_chunk_embedding_embedding_ivfflat` exists
 - sample execution used `2` SQL statements
 
 ## What Changed To Get To Pass

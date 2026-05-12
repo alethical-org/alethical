@@ -226,7 +226,7 @@ def validate_chat_retrieval(session: Session, engine, bill_id) -> SurfaceResult:
                 SELECT 1
                 FROM pg_indexes
                 WHERE schemaname = current_schema()
-                  AND indexname = 'ix_rag_chunk_embedding_embedding_hnsw'
+                  AND indexname = 'ix_rag_chunk_embedding_embedding_ivfflat'
             )
             """
         )

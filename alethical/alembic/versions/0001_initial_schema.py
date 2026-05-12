@@ -33,17 +33,17 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE INDEX ix_rag_chunk_embedding_embedding_hnsw
+        CREATE INDEX ix_rag_chunk_embedding_embedding_ivfflat
         ON rag_chunk_embedding
-        USING hnsw (embedding vector_cosine_ops)
-        WITH (m = 16, ef_construction = 64)
+        USING ivfflat (embedding vector_cosine_ops)
+        WITH (lists = 50)
         """
     )
 
 
 def downgrade() -> None:
     bind = op.get_bind()
-    op.execute("DROP INDEX IF EXISTS ix_rag_chunk_embedding_embedding_hnsw")
+    op.execute("DROP INDEX IF EXISTS ix_rag_chunk_embedding_embedding_ivfflat")
     op.drop_index("ix_rag_chunk_embedding_embedding_model", table_name="rag_chunk_embedding")
     op.drop_index("ix_sponsorship_bill_role_source_order", table_name="sponsorship")
     op.drop_index(

@@ -202,6 +202,10 @@ class FullBillSyncWorker:
                             "dry_run": False,
                             "allow_writes": True,
                             "targets": chunk,
+                            "include_rag": _bool_arg(job.args, "include_rag", True),
+                            "rag_target": str(job.args.get("rag_target") or "production"),
+                            "rag_model": str(job.args.get("rag_model") or "demo-minilm-1536"),
+                            "rag_embedding_batch_size": int(job.args.get("rag_embedding_batch_size") or 32),
                         },
                         force=_bool_arg(job.args, "force_chunks", False),
                     )
@@ -242,6 +246,23 @@ class BillSyncChunkWorker:
             with Session(engine) as db:
                 pipeline = MinnesotaIngestionPipeline(db)
                 stats = pipeline.ingest_bills(targets)
+                if _bool_arg(job.args, "include_rag", True):
+                    from alethical.pipeline.rag_ingest import build_rag_rows_for_bill_keys
+                    rag_target = str(job.args.get("rag_target") or job.args.get("database_target") or "local")
+                    if rag_target != "production":
+                        raise ValueError("Bill sync chunk rag stage requires rag_target=production when allow_writes=true")
+                    rag_db = _database_url({"database_target": rag_target})
+                    rag_engine = create_engine(rag_db, pool_pre_ping=True)
+                    with Session(rag_engine) as rag_db_session:
+                        rag_stats = build_rag_rows_for_bill_keys(
+                            rag_db_session,
+                            bill_keys=stats.get("bill_keys", []),
+                            dry_run=False,
+                            rag_model=str(job.args.get("rag_model") or "demo-minilm-1536"),
+                            rag_embedding_batch_size=int(job.args.get("rag_embedding_batch_size") or 32),
+                        )
+                        rag_db_session.commit()
+                        stats.update(rag_stats)
                 db.commit()
                 return {"dry_run": False, **stats}
 

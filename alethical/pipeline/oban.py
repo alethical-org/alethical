@@ -145,6 +145,7 @@ async def enqueue(args: argparse.Namespace) -> None:
                     "include_committees": not args.skip_committees,
                     "include_votes": not args.skip_votes,
                     "include_ai_prepare": not args.skip_ai_prepare,
+                    "include_rag": not args.skip_rag,
                     "model": args.model,
                     "ai_limit": args.ai_limit,
                     "vote_limit": args.vote_limit,
@@ -152,6 +153,9 @@ async def enqueue(args: argparse.Namespace) -> None:
                     "force_enrichment": args.force_enrichment,
                     "only_missing_current_ai": args.only_missing_current_ai,
                     "force_child_jobs": args.force_child_jobs,
+                    "rag_model": args.rag_model,
+                    "rag_embedding_batch_size": args.rag_embedding_batch_size,
+                    "rag_target": args.rag_target,
                     "output_dir": args.output_dir,
                     "cleanup_orphans": args.cleanup_orphans,
                 }
@@ -318,6 +322,10 @@ def build_parser() -> argparse.ArgumentParser:
     enqueue_parser.add_argument("--skip-committees", action="store_true")
     enqueue_parser.add_argument("--skip-votes", action="store_true")
     enqueue_parser.add_argument("--skip-ai-prepare", action="store_true")
+    enqueue_parser.add_argument("--skip-rag", action="store_true")
+    enqueue_parser.add_argument("--rag-model", default="demo-minilm-1536")
+    enqueue_parser.add_argument("--rag-embedding-batch-size", type=int, default=32)
+    enqueue_parser.add_argument("--rag-target", default="production")
     enqueue_parser.add_argument("--force-child-jobs", action="store_true")
     enqueue_parser.set_defaults(func=enqueue)
 
