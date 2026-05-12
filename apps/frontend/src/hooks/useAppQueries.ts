@@ -11,12 +11,12 @@ import {
   listBillsFromApi,
   listLegislatorsFromApi,
   listTrackedBillsFromApi,
+  lookupRepresentativeFromApi,
   sendChatMessageToApi,
   toggleTrackedBillFromApi,
 } from '../data/api';
 import {
   getNotificationPreference,
-  getRepresentativeLookup,
   listSavedPlaces,
   updateNotificationPreference,
 } from '../data/mockData';
@@ -100,7 +100,7 @@ export function useToggleTrackedBill(userId?: string) {
 
 export function useRepresentativeLookup() {
   return useMutation({
-    mutationFn: (address: string) => getRepresentativeLookup(address),
+    mutationFn: (address: string) => lookupRepresentativeFromApi(address),
   });
 }
 

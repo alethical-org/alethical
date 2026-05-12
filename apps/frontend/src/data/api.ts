@@ -1,4 +1,4 @@
-import { Bill, ChatSession, Citation, Legislator } from './types';
+import { Bill, ChatSession, Citation, Legislator, RepresentativeLookupResult } from './types';
 
 const configuredApiOrigin = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 const API_BASE_URL = configuredApiOrigin ? `${configuredApiOrigin}/api/v1` : null;
@@ -114,6 +114,17 @@ interface ApiLegislatorDetailPayload extends ApiLegislatorListItemPayload {
     committees?: ApiCommitteePayload[] | null;
 }
 
+interface ApiRepresentativeLookupPayload {
+    resolved_place: {
+        address_text: string;
+        matched_address?: string | null;
+        house_district?: string | null;
+        senate_district?: string | null;
+    };
+    house_legislator?: ApiLegislatorListItemPayload | null;
+    senate_legislator?: ApiLegislatorListItemPayload | null;
+}
+
 interface ApiBillVersionPayload {
     version_code: string;
     version_name?: string | null;
@@ -213,6 +224,24 @@ async function publicApiRequest<T>(path: string): Promise<T> {
         headers: {
             Accept: 'application/json',
         },
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `API request failed with ${response.status}`);
+    }
+
+    return (await response.json()) as T;
+}
+
+async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
+    const response = await fetch(publicApiUrl(path), {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -375,6 +404,22 @@ function mapLegislator(
         ],
         sponsoredBillIds: [],
         voteEventRefs: [],
+    };
+}
+
+function mapRepresentativeLookup(payload: ApiRepresentativeLookupPayload): RepresentativeLookupResult {
+    const legislators = [payload.house_legislator, payload.senate_legislator]
+        .filter((item): item is ApiLegislatorListItemPayload => Boolean(item))
+        .map(mapLegislator);
+    const districts = [
+        payload.resolved_place.senate_district ? `Senate ${payload.resolved_place.senate_district}` : null,
+        payload.resolved_place.house_district ? `House ${payload.resolved_place.house_district}` : null,
+    ].filter((item): item is string => Boolean(item));
+
+    return {
+        address: payload.resolved_place.matched_address ?? payload.resolved_place.address_text,
+        districtSummary: districts.join(', ') || 'No districts returned',
+        legislators,
     };
 }
 
@@ -678,6 +723,20 @@ export async function listLegislatorsFromApi(query?: string): Promise<Legislator
     );
 
     return response.data.map(mapLegislator);
+}
+
+export async function lookupRepresentativeFromApi(address: string): Promise<RepresentativeLookupResult | null> {
+    const trimmed = address.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    const response = await publicApiPost<DetailResponse<ApiRepresentativeLookupPayload>>(
+        '/representative-lookups',
+        { address_text: trimmed }
+    );
+
+    return mapRepresentativeLookup(response.data);
 }
 
 export async function getLegislatorFromApi(legislatorId: string): Promise<Legislator | null> {
