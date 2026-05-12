@@ -36,9 +36,6 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'tracked') {
       return { kind: 'tab', screen: 'Tracked' };
     }
-    if (segments[0] === 'chat') {
-      return { kind: 'tab', screen: 'Chat' };
-    }
     if (segments[0] === 'account') {
       return { kind: 'tab', screen: 'Account' };
     }
@@ -66,7 +63,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       params: {
         title: searchParams.get('title') ?? undefined,
         seedPrompt: searchParams.get('prompt') ?? undefined,
-        subjectType: subjectType === 'bill' || subjectType === 'legislator' ? subjectType : 'general',
+        subjectType: subjectType === 'bill' ? 'bill' : undefined,
         subjectId: searchParams.get('subjectId') ?? undefined,
         subjectLabel: searchParams.get('subjectLabel') ?? undefined,
       },
@@ -129,8 +126,6 @@ export function pathnameFromNavigationState(
       return '/search';
     case 'Tracked':
       return '/tracked';
-    case 'Chat':
-      return '/chat';
     case 'Account':
       return '/account';
     case 'BillDetail':
@@ -142,16 +137,16 @@ export function pathnameFromNavigationState(
     case 'VoteDetail':
       return `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}/votes/${encodeURIComponent(String(activeRoute.params?.voteEventId ?? ''))}`;
     case 'ChatSession':
-      if (!activeRoute.params?.sessionId && activeRoute.params?.seedPrompt) {
+      if (!activeRoute.params?.sessionId && activeRoute.params?.subjectType === 'bill' && activeRoute.params?.subjectId) {
         const params = new URLSearchParams();
         if (activeRoute.params.title) {
           params.set('title', String(activeRoute.params.title));
         }
-        params.set('prompt', String(activeRoute.params.seedPrompt));
-        params.set('subjectType', String(activeRoute.params.subjectType ?? 'general'));
-        if (activeRoute.params.subjectId) {
-          params.set('subjectId', String(activeRoute.params.subjectId));
+        if (activeRoute.params.seedPrompt) {
+          params.set('prompt', String(activeRoute.params.seedPrompt));
         }
+        params.set('subjectType', String(activeRoute.params.subjectType));
+        params.set('subjectId', String(activeRoute.params.subjectId));
         if (activeRoute.params.subjectLabel) {
           params.set('subjectLabel', String(activeRoute.params.subjectLabel));
         }
@@ -159,13 +154,13 @@ export function pathnameFromNavigationState(
       }
       return activeRoute.params?.sessionId
         ? `/chat/sessions/${encodeURIComponent(String(activeRoute.params.sessionId))}`
-        : '/chat';
+        : '/';
     default:
       return '/';
   }
 }
 
-const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Search', 'Tracked', 'Chat', 'Account'];
+const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Search', 'Tracked', 'Account'];
 
 function tabState(screen: keyof MainTabParamList): PartialState<NavigationState> {
   return {
@@ -232,7 +227,7 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
         routes: [
           {
             name: 'Tabs',
-            state: tabState('Chat'),
+            state: tabState('Home'),
           },
           {
             name: 'ChatSession',

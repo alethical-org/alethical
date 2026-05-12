@@ -22,6 +22,17 @@ just down
 
 `just up` starts Postgres, the FastAPI backend, and the Expo web frontend. By default, the API is available at `http://localhost:8000` and the frontend at `http://localhost:19006`.
 
+Frontend dependencies are managed with pnpm 10.33.0 from the repository root:
+
+```bash
+corepack enable
+corepack prepare pnpm@10.33.0 --activate
+pnpm install --frozen-lockfile
+pnpm --dir apps/frontend run build
+```
+
+`pnpm-workspace.yaml` enforces a seven-day minimum release age for all resolved packages.
+
 Authenticated frontend features use Supabase Auth. For local web or native sign-in, set these environment variables before starting the frontend:
 
 ```bash

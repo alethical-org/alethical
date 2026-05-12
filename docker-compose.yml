@@ -17,16 +17,19 @@ services:
       - alethical-postgres:/var/lib/postgresql/data
 
   backend:
-    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     container_name: alethical-backend
     working_dir: /app
     environment:
-      DATABASE_URL: postgresql+psycopg://alethical:alethical@db:5432/alethical
+      DATABASE_URL: ${BACKEND_DATABASE_URL:-postgresql+psycopg://alethical:alethical@db:5432/alethical}
       ALETHICAL_DEV_AUTH_TOKEN: local-dev-token
       SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
       ALETHICAL_CORS_ORIGINS: ${ALETHICAL_CORS_ORIGINS:-http://localhost:19006,http://127.0.0.1:19006}
       UV_PROJECT_ENVIRONMENT: /tmp/alethical-venv
+      UV_PYTHON: /usr/local/bin/python3.12
     command: >
       sh -c "uv sync --frozen &&
              uv run python -m alembic -c alembic.ini upgrade head &&
@@ -53,20 +56,22 @@ services:
   frontend:
     image: node:22-bookworm-slim
     container_name: alethical-frontend
-    working_dir: /app/apps/frontend
+    working_dir: /app
     environment:
       EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-http://localhost:8000}
       EXPO_PUBLIC_SUPABASE_URL: ${EXPO_PUBLIC_SUPABASE_URL:-}
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
       BROWSER: none
     command: >
-      sh -c "npm ci &&
-             npx expo start --web --port 19006"
+      sh -c "corepack enable &&
+             corepack prepare pnpm@10.33.0 --activate &&
+             pnpm install --frozen-lockfile &&
+             pnpm --dir apps/frontend exec expo start --web --port 19006"
     ports:
       - "${FRONTEND_PORT:-19006}:19006"
     volumes:
       - .:/app
-      - frontend-node-modules:/app/apps/frontend/node_modules
+      - frontend-node-modules:/app/node_modules
     depends_on:
       backend:
         condition: service_healthy

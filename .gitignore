@@ -16,6 +16,7 @@ __pycache__/
 .codex/
 
 node_modules/
+.pnpm-store/
 .vercel/
 apps/frontend/node_modules/
 apps/frontend/.expo/
@@ -23,6 +24,8 @@ apps/frontend/dist/
 apps/frontend/web-build/
 apps/frontend/.vercel/
 apps/frontend/expo-env.d.ts
+
+supabase/.temp/
 
 alethical.db
 coverage/

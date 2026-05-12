@@ -244,7 +244,22 @@ def test_signed_in_bill_tracking_and_notification_preferences(client, auth_heade
     assert update_pref_response.json()["data"]["channel"] == "email"
 
 
-def test_signed_in_chat_session_and_message_flow(client, auth_headers):
+def test_signed_in_chat_session_and_message_flow(client, auth_headers, monkeypatch):
+    openai_calls = []
+
+    class FakeOpenAIResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"output_text": "OpenAI synthesized answer from bill-scoped chunks."}
+
+    def fake_openai_post(*args, **kwargs):
+        openai_calls.append({"args": args, "kwargs": kwargs})
+        return FakeOpenAIResponse()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setattr("alethical.api.routers.me.requests.post", fake_openai_post)
     sessions_response = client.get("/api/v1/me/chat-sessions", headers=auth_headers)
     assert sessions_response.status_code == 200
     assert len(sessions_response.json()["data"]) >= 1
@@ -259,6 +274,13 @@ def test_signed_in_chat_session_and_message_flow(client, auth_headers):
     session_id = session_payload["id"]
     assert session_payload["subject_bill_id"] == "94-2025-SF2483"
 
+    missing_subject_response = client.post(
+        "/api/v1/me/chat-sessions",
+        json={"title": "General chat"},
+        headers=auth_headers,
+    )
+    assert missing_subject_response.status_code == 400
+
     send_message_response = client.post(
         f"/api/v1/me/chat-sessions/{session_id}/messages",
         json={"content": "What does this bill do?", "stream": False},
@@ -267,7 +289,14 @@ def test_signed_in_chat_session_and_message_flow(client, auth_headers):
     assert send_message_response.status_code == 201
     message_payload = send_message_response.json()["data"]
     assert message_payload["assistant_message"]["role"] == "assistant"
+    assert message_payload["assistant_message"]["content"] == "OpenAI synthesized answer from bill-scoped chunks."
     assert len(message_payload["assistant_message"]["citations"]) >= 1
+    assert {
+        citation["bill_id"]
+        for citation in message_payload["assistant_message"]["citations"]
+    } == {"94-2025-SF2483"}
+    assert len(openai_calls) == 1
+    assert "94-2025-SF2483" in openai_calls[0]["kwargs"]["json"]["input"][1]["content"]
 
     transcript_response = client.get(
         f"/api/v1/me/chat-sessions/{session_id}/messages",
@@ -276,6 +305,81 @@ def test_signed_in_chat_session_and_message_flow(client, auth_headers):
     assert transcript_response.status_code == 200
     transcript_payload = transcript_response.json()["data"]
     assert len(transcript_payload) >= 2
+
+
+def test_openai_responses_payload_text_extraction():
+    from alethical.api.routers.me import extract_openai_response_text
+
+    assert extract_openai_response_text({"output_text": "Direct text"}) == "Direct text"
+    assert extract_openai_response_text(
+        {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "Nested Responses API text",
+                        }
+                    ],
+                }
+            ]
+        }
+    ) == "Nested Responses API text"
+
+
+def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(client, auth_headers, monkeypatch):
+    from sqlalchemy import select
+
+    from alethical.db.schema import load_schema
+    from alethical.db.session import get_session_factory
+
+    schema = load_schema()
+    missing_chunks_bill_key = "94-2025-HF9901"
+    with get_session_factory()() as db:
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(schema.LegislativeSession.slug == "94-2025-regular")
+        )
+        chamber = db.scalar(select(schema.Chamber).where(schema.Chamber.slug == "house"))
+        assert session_row is not None
+        assert chamber is not None
+        bill = db.scalar(select(schema.Bill).where(schema.Bill.bill_key == missing_chunks_bill_key))
+        if bill is None:
+            db.add(
+                schema.Bill(
+                    session_id=session_row.id,
+                    chamber_id=chamber.id,
+                    bill_key=missing_chunks_bill_key,
+                    file_type="HF",
+                    file_number=9901,
+                    title="No chunks test bill",
+                    description="Fixture bill with no RAG chunks",
+                    official_url="https://example.test/hf9901",
+                    is_omnibus=False,
+                )
+            )
+            db.commit()
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    create_session_response = client.post(
+        "/api/v1/me/chat-sessions",
+        json={"title": "No chunks bill", "subject_bill_id": missing_chunks_bill_key},
+        headers=auth_headers,
+    )
+    assert create_session_response.status_code == 201
+    session_id = create_session_response.json()["data"]["id"]
+
+    send_message_response = client.post(
+        f"/api/v1/me/chat-sessions/{session_id}/messages",
+        json={"content": "What does this bill do?", "stream": False},
+        headers=auth_headers,
+    )
+    assert send_message_response.status_code == 201
+    assistant_message = send_message_response.json()["data"]["assistant_message"]
+    assert assistant_message["content"] == (
+        "I could not find retrieval-ready bill text for this bill yet, so I cannot give a grounded answer."
+    )
+    assert assistant_message["citations"] == []
 
 
 def test_supporting_public_resources_and_saved_places(client, auth_headers):

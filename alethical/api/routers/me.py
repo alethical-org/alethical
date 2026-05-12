@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import hashlib
+import os
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, text
+import requests
+from sqlalchemy import case, select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_current_user
@@ -21,6 +22,7 @@ from alethical.api.schemas import (
 from alethical.api.serializers import bill_list_item, chat_message_payload, chat_session_payload
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
+from alethical.pipeline.rag_ingest import _deterministic_embedding
 
 schema = load_schema()
 Bill = schema.Bill
@@ -38,6 +40,7 @@ semantic_rag_chunk_stmt = schema.semantic_rag_chunk_stmt
 tracked_bills_stmt = schema.tracked_bills_stmt
 
 router = APIRouter()
+RAG_CHAT_FALLBACK = "I could not find retrieval-ready bill text for this bill yet, so I cannot give a grounded answer."
 
 
 def get_bill_by_key(db: Session, bill_key: str):
@@ -47,21 +50,81 @@ def get_bill_by_key(db: Session, bill_key: str):
     return bill
 
 
-def deterministic_embedding(text: str, dimensions: int = 1536) -> list[float]:
-    values: list[float] = []
-    seed = text.encode("utf-8")
-    counter = 0
-    while len(values) < dimensions:
-        digest = hashlib.sha256(seed + counter.to_bytes(4, "big")).digest()
-        for offset in range(0, len(digest), 4):
-            chunk = digest[offset : offset + 4]
-            scaled = (int.from_bytes(chunk, "big") / 0xFFFFFFFF) * 2.0 - 1.0
-            values.append(scaled)
-            if len(values) == dimensions:
-                break
-        counter += 1
-    norm = sum(value * value for value in values) ** 0.5 or 1.0
-    return [value / norm for value in values]
+def build_query_embedding(text: str) -> list[float]:
+    """Use the same local embedding implementation as RAG ingestion."""
+    return _deterministic_embedding(text)
+
+
+def extract_openai_response_text(payload: dict) -> str | None:
+    text_value = payload.get("output_text")
+    if isinstance(text_value, str) and text_value.strip():
+        return text_value.strip()
+
+    output = payload.get("output")
+    if not isinstance(output, list):
+        return None
+    parts: list[str] = []
+    for item in output:
+        if not isinstance(item, dict):
+            continue
+        content = item.get("content")
+        if not isinstance(content, list):
+            continue
+        for content_item in content:
+            if not isinstance(content_item, dict):
+                continue
+            text = content_item.get("text")
+            if isinstance(text, str) and text.strip():
+                parts.append(text.strip())
+    return "\n".join(parts) if parts else None
+
+
+def synthesize_grounded_answer(question: str, chunks: list, *, bill_key: str) -> str:
+    if not chunks:
+        return RAG_CHAT_FALLBACK
+
+    context = "\n\n".join(
+        f"[{index}] {chunk.citation_label}\n{chunk.chunk_text.strip()}"
+        for index, chunk in enumerate(chunks, start=1)
+    )
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is required for RAG chat synthesis")
+
+    model = os.environ.get("OPENAI_RAG_CHAT_MODEL", "gpt-4o-mini")
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/responses",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "model": model,
+                "input": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Answer only from the provided bill text, but do answer when the text supports a "
+                            "plain-language conclusion even if the wording is indirect. If the context partially "
+                            "answers the question, answer the supported part and say what is not covered. Only say "
+                            "the bill text does not answer the question when none of the provided context is relevant."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Bill: {bill_key}\nQuestion: {question}\n\nContext:\n{context}",
+                    },
+                ],
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        text_value = extract_openai_response_text(payload)
+        if text_value:
+            return text_value
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail="OpenAI RAG chat synthesis failed") from exc
+
+    raise HTTPException(status_code=502, detail="OpenAI RAG chat synthesis returned no answer")
 
 
 @router.get("/me", response_model=DetailResponse)
@@ -320,16 +383,18 @@ def create_chat_session(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    bill = get_bill_by_key(db, request.subject_bill_id) if request.subject_bill_id else None
+    if not request.subject_bill_id:
+        raise HTTPException(status_code=400, detail="subject_bill_id is required")
+    bill = get_bill_by_key(db, request.subject_bill_id)
     row = ChatSession(
         user_id=current_user.id,
         title=request.title,
-        subject_bill_id=bill.id if bill else None,
+        subject_bill_id=bill.id,
     )
     db.add(row)
     db.commit()
     db.refresh(row)
-    return DetailResponse(data=chat_session_payload(row, subject_bill_id=bill.bill_key if bill else None).model_dump())
+    return DetailResponse(data=chat_session_payload(row, subject_bill_id=bill.bill_key).model_dump())
 
 
 @router.get("/me/chat-sessions/{chat_session_id}", response_model=DetailResponse)
@@ -357,7 +422,15 @@ def get_chat_messages(
     rows = db.scalars(
         select(ChatMessage)
         .where(ChatMessage.session_id == session_row.id)
-        .order_by(ChatMessage.created_at.asc())
+        .order_by(
+            ChatMessage.created_at.asc(),
+            case(
+                (ChatMessage.role == ChatRole.user, 0),
+                (ChatMessage.role == ChatRole.assistant, 1),
+                else_=2,
+            ),
+            ChatMessage.id.asc(),
+        )
     ).all()
     data = [chat_message_payload(row).model_dump() for row in rows]
     return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
@@ -373,11 +446,17 @@ def create_chat_message(
     session_row = db.scalar(select(ChatSession).where(ChatSession.id == chat_session_id, ChatSession.user_id == current_user.id))
     if session_row is None:
         raise HTTPException(status_code=404, detail="chat session not found")
+    if session_row.subject_bill_id is None:
+        raise HTTPException(status_code=400, detail="chat session is not associated with a bill")
     user_message = ChatMessage(session_id=session_row.id, role=ChatRole.user, content=request.content)
     db.add(user_message)
     db.flush()
 
-    embedding = deterministic_embedding(request.content)
+    bill = db.scalar(select(Bill).where(Bill.id == session_row.subject_bill_id))
+    if bill is None:
+        raise HTTPException(status_code=404, detail="bill not found")
+
+    embedding = build_query_embedding(request.content)
     probe_embedding = db.scalar(select(RagChunkEmbedding.embedding_model).limit(1))
     db.execute(text("SET LOCAL ivfflat.probes = 10"))
     chunks = db.scalars(
@@ -388,26 +467,17 @@ def create_chat_message(
             limit=3,
         )
     ).all()
-    citation_bill_ids = list({chunk.rag_section_document.bill_id for chunk in chunks})
-    bill_url_map = (
-        {
-            row.id: row.official_url
-            for row in db.scalars(select(Bill).where(Bill.id.in_(citation_bill_ids))).all()
-        }
-        if citation_bill_ids
-        else {}
-    )
     citations = [
         {
             "citation_label": chunk.citation_label,
-            "bill_id": str(chunk.rag_section_document.bill_id),
+            "bill_id": bill.bill_key,
             "excerpt": chunk.chunk_text.strip().replace("\n", " ")[:220],
-            "url": bill_url_map.get(chunk.rag_section_document.bill_id),
+            "url": bill.official_url,
         }
         for chunk in chunks
+        if chunk.rag_section_document.bill_id == session_row.subject_bill_id
     ]
-    answer_parts = [chunk.chunk_text.strip().replace("\n", " ")[:220] for chunk in chunks]
-    assistant_text = " ".join(answer_parts) if answer_parts else "I could not find grounded legislative text for that question."
+    assistant_text = synthesize_grounded_answer(request.content, chunks, bill_key=bill.bill_key)
     assistant_message = ChatMessage(
         session_id=session_row.id,
         role=ChatRole.assistant,

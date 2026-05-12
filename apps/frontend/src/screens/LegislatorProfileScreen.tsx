@@ -4,7 +4,6 @@ import { StyleSheet, Text, View } from 'react-native';
 import { BillCard } from '../components/BillCard';
 import { Card } from '../components/Card';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { PromptLink } from '../components/PromptLink';
 import { ScreenView } from '../components/ScreenView';
 import { SectionCard } from '../components/SectionCard';
 import { useLegislator, useLegislatorBills, useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
@@ -52,20 +51,6 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
     <ScreenView
       title={legislator.name}
       subtitle={`${legislator.chamber} | District ${legislator.district} | ${legislator.party}`}
-      actions={
-        <PrimaryButton
-          label="Ask About This Legislator"
-          onPress={() =>
-            navigation.navigate('ChatSession', {
-              title: `${legislator.shortName} profile`,
-              seedPrompt: `Summarize ${legislator.name}'s current session work.`,
-              subjectType: 'legislator',
-              subjectId: legislator.id,
-              subjectLabel: legislator.name,
-            })
-          }
-        />
-      }
     >
       <Card style={styles.metaCard}>
         <View style={styles.metaCell}>
@@ -157,26 +142,6 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
               <Text style={styles.bodyText}>No service history is available yet.</Text>
             ) : null}
           </Card>
-          <Card>
-            <Text style={styles.cardTitle}>Suggested Questions</Text>
-            <View style={styles.promptStack}>
-              {legislator.questionPrompts.map((prompt) => (
-                <PromptLink
-                  key={prompt}
-                  prompt={prompt}
-                  onPress={() =>
-                    navigation.navigate('ChatSession', {
-                      title: `${legislator.shortName} question`,
-                      seedPrompt: prompt,
-                      subjectType: 'legislator',
-                      subjectId: legislator.id,
-                      subjectLabel: legislator.name,
-                    })
-                  }
-                />
-              ))}
-            </View>
-          </Card>
         </View>
       </View>
     </ScreenView>
@@ -251,8 +216,5 @@ const styles = StyleSheet.create({
     color: theme.colors.ink,
     fontFamily: theme.typography.title,
     fontSize: 22,
-  },
-  promptStack: {
-    gap: 0,
   },
 });

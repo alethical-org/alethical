@@ -11,7 +11,6 @@ import {
 import {
   BookmarkCheck,
   Home,
-  MessageSquare,
   Search,
   UserCircle,
   type LucideIcon,
@@ -22,7 +21,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountScreen } from '../screens/AccountScreen';
 import { BillDetailScreen } from '../screens/BillDetailScreen';
-import { ChatListScreen } from '../screens/ChatListScreen';
 import { ChatSessionScreen } from '../screens/ChatSessionScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -44,7 +42,6 @@ const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> 
   Home: { label: 'Home', Icon: Home },
   Search: { label: 'Search', Icon: Search },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
-  Chat: { label: 'Chat', Icon: MessageSquare },
   Account: { label: 'Account', Icon: UserCircle },
 };
 
@@ -80,7 +77,6 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: keyof MainTabParam
     { name: 'Home', ...tabMeta.Home },
     { name: 'Search', ...tabMeta.Search },
     { name: 'Tracked', ...tabMeta.Tracked },
-    { name: 'Chat', ...tabMeta.Chat },
     { name: 'Account', ...tabMeta.Account },
   ];
   const routes = allRoutes.filter((route) => isSignedIn || route.name !== 'Account');
@@ -207,11 +203,6 @@ function MainTabs() {
         name="Tracked"
         component={TrackedScreen}
         options={{ title: 'Tracked' }}
-      />
-      <Tab.Screen
-        name="Chat"
-        component={ChatListScreen}
-        options={{ title: 'Chat' }}
       />
       <Tab.Screen
         name="Account"

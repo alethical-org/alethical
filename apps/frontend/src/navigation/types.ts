@@ -11,7 +11,7 @@ export type RootStackParamList = {
   ChatSession: {
     sessionId?: string;
     seedPrompt?: string;
-    subjectType?: 'bill' | 'legislator' | 'general';
+    subjectType?: 'bill';
     subjectId?: string;
     subjectLabel?: string;
     title?: string;
@@ -22,7 +22,6 @@ export type MainTabParamList = {
   Home: undefined;
   Search: undefined;
   Tracked: undefined;
-  Chat: undefined;
   Account: undefined;
 };
 

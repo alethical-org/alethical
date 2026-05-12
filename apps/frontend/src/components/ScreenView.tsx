@@ -1,4 +1,4 @@
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useEffect, useRef } from 'react';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -13,11 +13,13 @@ interface ScreenViewProps extends PropsWithChildren {
   actions?: ReactNode;
   hideHeader?: boolean;
   hideMasthead?: boolean;
+  scrollToEndKey?: unknown;
 }
 
-export function ScreenView({ title, subtitle, actions, hideHeader = false, hideMasthead = false, children }: ScreenViewProps) {
+export function ScreenView({ title, subtitle, actions, hideHeader = false, hideMasthead = false, scrollToEndKey, children }: ScreenViewProps) {
   const { isDesktop } = useResponsive();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const scrollRef = useRef<ScrollView | null>(null);
   const webBackground = Platform.OS === 'web'
     ? ({
         backgroundColor: theme.colors.paper,
@@ -26,9 +28,30 @@ export function ScreenView({ title, subtitle, actions, hideHeader = false, hideM
       } as const)
     : { backgroundColor: theme.colors.paper };
 
+  useEffect(() => {
+    if (scrollToEndKey === undefined) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [scrollToEndKey]);
+
   return (
     <View style={[styles.background, webBackground]}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        onContentSizeChange={() => {
+          if (scrollToEndKey !== undefined) {
+            scrollRef.current?.scrollToEnd({ animated: true });
+          }
+        }}
+      >
         <View style={[styles.container, isDesktop && styles.desktopContainer]}>
           {!hideMasthead ? (
             <MotionIn delay={0}>

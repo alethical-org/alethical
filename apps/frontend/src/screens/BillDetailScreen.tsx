@@ -126,7 +126,6 @@ export function BillDetailScreen({ route, navigation }: Props) {
                             onPress={() =>
                                 navigation.navigate('ChatSession', {
                                     title: `${bill.identifier} analysis`,
-                                    seedPrompt: `Use the official bill record to explain ${bill.identifier} in plain language.`,
                                     subjectType: 'bill',
                                     subjectId: bill.id,
                                     subjectLabel: bill.identifier,
