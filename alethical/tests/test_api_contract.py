@@ -23,6 +23,14 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
     assert first_bill["id"].startswith("94-2025-")
     assert "tracked" not in first_bill
     assert "chief_sponsors" in first_bill
+    assert first_bill["status_key"] in {
+        "proposed",
+        "in_committee",
+        "passed_house",
+        "passed_senate",
+        "signed_into_law",
+        "vetoed",
+    }
     assert first_bill["ai_analysis"]["summary"]
     assert first_bill["ai_analysis"]["key_points"]
     assert first_bill["ai_analysis"]["policy_areas"]
@@ -45,17 +53,102 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
     assert tracked_bill["tracked"]["is_tracked"] is True
 
     detail_response = client.get(
-        "/api/v1/bills/94-2025-SF1832",
+        f"/api/v1/bills/{listed_bill_id}",
         params={"include": "all_sponsors,actions,versions,tracking,ai_summary"},
         headers=auth_headers,
     )
     assert detail_response.status_code == 200
     detail_payload = detail_response.json()["data"]
-    assert detail_payload["id"] == "94-2025-SF1832"
+    assert detail_payload["id"] == listed_bill_id
     assert detail_payload["tracking"]["is_tracked"] is True
     assert isinstance(detail_payload["actions"], list)
     assert isinstance(detail_payload["versions"], list)
     assert isinstance(detail_payload["all_sponsors"], list)
+    assert detail_payload["status_key"] in {
+        "proposed",
+        "in_committee",
+        "passed_house",
+        "passed_senate",
+        "signed_into_law",
+        "vetoed",
+    }
+    assert detail_payload["all_sponsors"][0]["role"]
+    assert "party" in detail_payload["all_sponsors"][0]
+
+    progress_response = client.get(
+        "/api/v1/bills/94-2025-SF1832",
+        params={"include": "progress,actions"},
+    )
+    assert progress_response.status_code == 200
+    progress_payload = progress_response.json()["data"]["progress"]
+    assert [step["key"] for step in progress_payload] == [
+        "proposed",
+        "in_committee",
+        "passed_house",
+        "passed_senate",
+        "signed_into_law",
+    ]
+
+
+def test_bill_and_legislator_lists_support_search_filter_contract(client):
+    policy_areas_response = client.get(
+        "/api/v1/policy-areas",
+        params={"session": "94-2025-regular", "limit": 20},
+    )
+    assert policy_areas_response.status_code == 200
+    policy_areas = policy_areas_response.json()["data"]
+    assert policy_areas
+    assert all(item["name"] and item["bill_count"] >= 1 for item in policy_areas)
+
+    sessions_response = client.get("/api/v1/sessions")
+    assert sessions_response.status_code == 200
+    sessions = sessions_response.json()["data"]
+    assert sessions
+    assert all(item["slug"] and item["name"] for item in sessions)
+
+    senate_bills_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "chamber": "senate", "limit": 20},
+    )
+    assert senate_bills_response.status_code == 200
+    senate_bills = senate_bills_response.json()["data"]
+    assert senate_bills
+    assert all(bill["file_type"] == "SF" for bill in senate_bills)
+
+    omnibus_bills_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "omnibus": True, "limit": 20},
+    )
+    assert omnibus_bills_response.status_code == 200
+    assert omnibus_bills_response.json()["data"]
+
+    committee_bills_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "status": "in_committee", "limit": 20},
+    )
+    assert committee_bills_response.status_code == 200
+    assert isinstance(committee_bills_response.json()["data"], list)
+
+    economy_bills_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "policy_area": "economic", "limit": 20},
+    )
+    assert economy_bills_response.status_code == 200
+    economy_bills = economy_bills_response.json()["data"]
+    assert economy_bills
+    assert all(
+        any("economic" in area for area in bill["ai_analysis"]["policy_areas"])
+        for bill in economy_bills
+    )
+
+    senate_legislators_response = client.get(
+        "/api/v1/legislators",
+        params={"session": "94-2025-regular", "chamber": "senate", "limit": 20},
+    )
+    assert senate_legislators_response.status_code == 200
+    senate_legislators = senate_legislators_response.json()["data"]
+    assert senate_legislators
+    assert all(item["current_service"]["chamber"] == "senate" for item in senate_legislators)
 
 
 def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
@@ -111,6 +204,7 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     first_legislator = directory_payload["data"][0]
     assert first_legislator["id"]
     assert first_legislator["current_service"]["district"]["code"]
+    assert not first_legislator["current_service"]["district"]["code"].endswith("-unknown")
 
     legislator_id = first_legislator["id"]
     profile_response = client.get(
@@ -134,7 +228,8 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     search_payload = search_response.json()["data"]
     assert "bills" in search_payload
     assert "legislators" in search_payload
-    assert {bill["id"] for bill in search_payload["bills"]} <= {"94-2025-SF1832", "94-2025-SF2483"}
+    assert search_payload["bills"]
+    assert all(bill["id"].startswith("94-2025-") for bill in search_payload["bills"])
 
     lookup_response = client.post(
         "/api/v1/representative-lookups",

@@ -49,6 +49,22 @@ export interface VoteEvent {
   votes: IndividualVote[];
 }
 
+export interface BillSponsor {
+  name: string;
+  role: 'chief_author' | 'co_author' | 'sponsor' | string;
+  legislatorId?: string;
+  chamber?: Chamber;
+  party?: string;
+  district?: string;
+}
+
+export interface BillProgressStep {
+  key: string;
+  label: string;
+  reached: boolean;
+  current: boolean;
+}
+
 export interface BillBriefing {
   what: string;
   why: string;
@@ -74,6 +90,8 @@ export interface Bill {
   sessionLabel: string;
   topics: string[];
   chiefSponsorIds: string[];
+  sponsors?: BillSponsor[];
+  progress?: BillProgressStep[];
   actionCount: number;
   versionCount: number;
   rollCallCount: number;
@@ -106,6 +124,10 @@ export interface Legislator {
   party: Party;
   role: string;
   bio: string;
+  email?: string;
+  phone?: string;
+  officeAddress?: string;
+  profileUrl?: string;
   committees: string[];
   focusAreas: string[];
   serviceHistory: ServicePeriod[];

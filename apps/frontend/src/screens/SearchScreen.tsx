@@ -1,38 +1,56 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { BillCard } from '../components/BillCard';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { LegislatorCard } from '../components/LegislatorCard';
 import { ScreenView } from '../components/ScreenView';
+import { allPoliciesLabel, ChamberFilter, SearchFilterPanel } from '../components/SearchFilterPanel';
 import { useBills, useLegislators, useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
 import { MainTabScreenProps } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
 import { useResponsive } from '../hooks/useResponsive';
 
-type SearchMode = 'All' | 'Bills' | 'Legislators';
-type Props = MainTabScreenProps<'Search'>;
+type PolicyCategory = string;
+type Props = MainTabScreenProps<'Home'>;
 const BILLS_PAGE_SIZE = 5;
 const LEGISLATORS_PAGE_SIZE = 8;
+const ALL_POLICIES = allPoliciesLabel();
 
 export function SearchScreen({ navigation }: Props) {
   const { isDesktop } = useResponsive();
   const { isSignedIn, signInWithGoogle, user } = useAuth();
   const [query, setQuery] = useState('');
-  const [mode, setMode] = useState<SearchMode>('All');
+  const [chamber, setChamber] = useState<ChamberFilter>('All');
+  const [policyCategory, setPolicyCategory] = useState<PolicyCategory>(ALL_POLICIES);
+  const [omnibusOnly, setOmnibusOnly] = useState(false);
+  const [status, setStatus] = useState('');
+  const [session, setSession] = useState('');
   const [billPage, setBillPage] = useState(0);
   const [legislatorPage, setLegislatorPage] = useState(0);
 
-  const billsQuery = useBills(query);
-  const legislatorsQuery = useLegislators(query);
+  const billFilters = useMemo(
+    () => ({
+      chamber: chamber === 'All' ? undefined : chamber,
+      policyArea: policyCategory === ALL_POLICIES ? undefined : policyCategory,
+      omnibus: omnibusOnly ? true : undefined,
+      status: status || undefined,
+    }),
+    [chamber, omnibusOnly, policyCategory, status]
+  );
+  const legislatorFilters = useMemo(
+    () => ({ chamber: chamber === 'All' ? undefined : chamber }),
+    [chamber]
+  );
+  const billsQuery = useBills(query, session || undefined, billFilters);
+  const legislatorsQuery = useLegislators(query, session || undefined, legislatorFilters);
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
   const trackedIds = useMemo(() => new Set((trackedQuery.data ?? []).map((bill) => bill.id)), [trackedQuery.data]);
 
-  const showBills = mode === 'All' || mode === 'Bills';
-  const showLegislators = mode === 'All' || mode === 'Legislators';
+  const categoryNeedle = policyCategory === ALL_POLICIES ? null : policyCategory.toLowerCase();
   const bills = billsQuery.data ?? [];
   const billPageCount = Math.max(1, Math.ceil(bills.length / BILLS_PAGE_SIZE));
   const safeBillPage = Math.min(billPage, billPageCount - 1);
@@ -40,7 +58,15 @@ export function SearchScreen({ navigation }: Props) {
     safeBillPage * BILLS_PAGE_SIZE,
     safeBillPage * BILLS_PAGE_SIZE + BILLS_PAGE_SIZE
   );
-  const legislators = legislatorsQuery.data ?? [];
+  const legislators = (legislatorsQuery.data ?? []).filter((legislator) => {
+    const matchesChamber = chamber === 'All' || legislator.chamber === chamber;
+    const matchesCategory =
+      categoryNeedle === null ||
+      legislator.focusAreas.some((area) => area.toLowerCase().includes(categoryNeedle)) ||
+      legislator.committees.some((committee) => committee.toLowerCase().includes(categoryNeedle));
+
+    return matchesChamber && matchesCategory;
+  });
   const legislatorPageCount = Math.max(1, Math.ceil(legislators.length / LEGISLATORS_PAGE_SIZE));
   const safeLegislatorPage = Math.min(legislatorPage, legislatorPageCount - 1);
   const pagedLegislators = legislators.slice(
@@ -52,37 +78,45 @@ export function SearchScreen({ navigation }: Props) {
     <ScreenView
       hideHeader
     >
-      <Card>
-        <TextInput
-          accessibilityLabel="Search bills and legislators"
-          placeholder="Jobs omnibus, child welfare, housing, tax credits..."
-          placeholderTextColor={theme.colors.mutedInk}
-          style={styles.searchInput}
-          value={query}
-          onChangeText={(value) => {
-            setQuery(value);
-            setBillPage(0);
-            setLegislatorPage(0);
-          }}
-        />
-        <View style={styles.modeRow}>
-          {(['All', 'Bills', 'Legislators'] as SearchMode[]).map((value) => (
-            <Chip
-              key={value}
-              label={value}
-              selected={mode === value}
-              onPress={() => {
-                setMode(value);
-                setBillPage(0);
-                setLegislatorPage(0);
-              }}
-            />
-          ))}
-        </View>
-      </Card>
+      <SearchFilterPanel
+        query={query}
+        chamber={chamber}
+        policyArea={policyCategory}
+        omnibusOnly={omnibusOnly}
+        status={status}
+        session={session}
+        onQueryChange={(value) => {
+          setQuery(value);
+          setBillPage(0);
+          setLegislatorPage(0);
+        }}
+        onChamberChange={(nextChamber) => {
+          setChamber(nextChamber);
+          setBillPage(0);
+          setLegislatorPage(0);
+        }}
+        onPolicyAreaChange={(nextPolicyArea) => {
+          setPolicyCategory(nextPolicyArea);
+          setBillPage(0);
+          setLegislatorPage(0);
+        }}
+        onOmnibusOnlyChange={(selected) => {
+          setOmnibusOnly(selected);
+          setBillPage(0);
+        }}
+        onStatusChange={(value) => {
+          setStatus(value);
+          setBillPage(0);
+        }}
+        onSessionChange={(value) => {
+          setSession(value);
+          setBillPage(0);
+          setLegislatorPage(0);
+        }}
+      />
 
       <View style={[styles.resultsGrid, isDesktop && styles.resultsGridDesktop]}>
-        {showBills ? (
+        {(
           <View style={styles.column}>
             <Text style={styles.columnTitle}>Bills</Text>
             <View style={styles.stack}>
@@ -98,7 +132,7 @@ export function SearchScreen({ navigation }: Props) {
                   </Text>
                 </Card>
               ) : null}
-              {!billsQuery.isLoading && !billsQuery.error && (billsQuery.data ?? []).length === 0 ? (
+              {!billsQuery.isLoading && !billsQuery.error && bills.length === 0 ? (
                 <Card>
                   <Text style={styles.bodyText}>No bills match this search.</Text>
                 </Card>
@@ -138,9 +172,9 @@ export function SearchScreen({ navigation }: Props) {
               ) : null}
             </View>
           </View>
-        ) : null}
+        )}
 
-        {showLegislators ? (
+        {(
           <View style={[styles.column, isDesktop && styles.rightColumn]}>
             <Text style={styles.columnTitle}>Legislators</Text>
             <View style={styles.stack}>
@@ -156,7 +190,7 @@ export function SearchScreen({ navigation }: Props) {
                   </Text>
                 </Card>
               ) : null}
-              {!legislatorsQuery.isLoading && !legislatorsQuery.error && (legislatorsQuery.data ?? []).length === 0 ? (
+              {!legislatorsQuery.isLoading && !legislatorsQuery.error && legislators.length === 0 ? (
                 <Card>
                   <Text style={styles.bodyText}>No legislators match this search.</Text>
                 </Card>
@@ -189,29 +223,13 @@ export function SearchScreen({ navigation }: Props) {
               ) : null}
             </View>
           </View>
-        ) : null}
+        )}
       </View>
     </ScreenView>
   );
 }
 
 const styles = StyleSheet.create({
-  searchInput: {
-    minHeight: 52,
-    borderRadius: theme.radii.md,
-    borderBottomWidth: 2,
-    borderColor: theme.colors.border,
-    backgroundColor: 'transparent',
-    paddingHorizontal: 0,
-    color: theme.colors.ink,
-    fontFamily: theme.typography.mono,
-    fontSize: 15,
-  },
-  modeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
   resultsGrid: {
     gap: theme.spacing.lg,
   },

@@ -2,14 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   createChatSessionFromApi,
+  BillListFilters,
   getBillFromApi,
   getChatSessionFromApi,
   getCurrentUserFromApi,
   getLegislatorBillsFromApi,
   getLegislatorFromApi,
+  LegislatorListFilters,
   listChatSessionsFromApi,
   listBillsFromApi,
   listLegislatorsFromApi,
+  listPolicyAreasFromApi,
+  listSessionsFromApi,
   listTrackedBillsFromApi,
   sendChatMessageToApi,
   toggleTrackedBillFromApi,
@@ -34,10 +38,24 @@ export function useCurrentUser() {
   });
 }
 
-export function useBills(query?: string, session?: string) {
+export function useBills(query?: string, session?: string, filters: BillListFilters = {}) {
   return useQuery({
-    queryKey: ['bills', session ?? 'current', query ?? ''],
-    queryFn: () => listBillsFromApi(query, session),
+    queryKey: ['bills', session ?? 'current', query ?? '', filters],
+    queryFn: () => listBillsFromApi(query, session, filters),
+  });
+}
+
+export function usePolicyAreas(session?: string) {
+  return useQuery({
+    queryKey: ['policy-areas', session ?? 'current'],
+    queryFn: () => listPolicyAreasFromApi(session),
+  });
+}
+
+export function useSessions() {
+  return useQuery({
+    queryKey: ['sessions'],
+    queryFn: listSessionsFromApi,
   });
 }
 
@@ -49,10 +67,10 @@ export function useBill(billId: string) {
   });
 }
 
-export function useLegislators(query?: string) {
+export function useLegislators(query?: string, session?: string, filters: LegislatorListFilters = {}) {
   return useQuery({
-    queryKey: ['legislators', query ?? ''],
-    queryFn: () => listLegislatorsFromApi(query),
+    queryKey: ['legislators', session ?? 'current', query ?? '', filters],
+    queryFn: () => listLegislatorsFromApi(query, session, filters),
     retry: false,
   });
 }

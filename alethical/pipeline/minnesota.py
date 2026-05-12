@@ -886,8 +886,6 @@ class MinnesotaIngestionPipeline:
                     continue
                 legislator_key = author.get("legislator_key") or member_name
                 legislator = self.upsert_legislator(refs, member_name, external_key=legislator_key)
-                district = self.upsert_district(refs, chamber, f"{chamber_name[:1].upper()}-unknown")
-                self.upsert_service_period(refs, legislator, chamber, district, {"party": None})
                 self.db.add(
                     Sponsorship(
                         bill_id=bill.id,

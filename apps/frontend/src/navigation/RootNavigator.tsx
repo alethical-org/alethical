@@ -11,7 +11,6 @@ import {
 import {
   BookmarkCheck,
   Home,
-  Search,
   UserCircle,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -23,13 +22,11 @@ import { AccountScreen } from '../screens/AccountScreen';
 import { BillDetailScreen } from '../screens/BillDetailScreen';
 import { ChatSessionScreen } from '../screens/ChatSessionScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
-import { HomeScreen } from '../screens/HomeScreen';
 import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { TrackedScreen } from '../screens/TrackedScreen';
 import { VoteDetailScreen } from '../screens/VoteDetailScreen';
 import { useResponsive } from '../hooks/useResponsive';
-import { useAuth } from '../providers/AuthProvider';
 import { MainTabParamList, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { theme } from '../theme/tokens';
@@ -40,7 +37,6 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 type NavIcon = LucideIcon;
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
-  Search: { label: 'Search', Icon: Search },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
   Account: { label: 'Account', Icon: UserCircle },
 };
@@ -72,14 +68,11 @@ function RailLogo() {
 }
 
 function DesktopRail({ activeRouteName }: { activeRouteName?: keyof MainTabParamList }) {
-  const { isSignedIn } = useAuth();
-  const allRoutes: Array<{ name: keyof MainTabParamList; label: string; Icon: NavIcon }> = [
+  const routes: Array<{ name: keyof MainTabParamList; label: string; Icon: NavIcon }> = [
     { name: 'Home', ...tabMeta.Home },
-    { name: 'Search', ...tabMeta.Search },
     { name: 'Tracked', ...tabMeta.Tracked },
     { name: 'Account', ...tabMeta.Account },
   ];
-  const routes = allRoutes.filter((route) => isSignedIn || route.name !== 'Account');
 
   return (
     <View style={styles.desktopRail}>
@@ -129,9 +122,8 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: keyof MainTabParam
 }
 
 function MobileTabBar({ state, navigation }: BottomTabBarProps) {
-  const { isSignedIn } = useAuth();
   const insets = useSafeAreaInsets();
-  const routes = state.routes.filter((route) => isSignedIn || route.name !== 'Account');
+  const routes = state.routes;
 
   return (
     <View style={[styles.mobileTabBar, { paddingBottom: Math.max(theme.spacing.xs, insets.bottom) }]}>
@@ -177,7 +169,6 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
 
 function MainTabs() {
   const { isDesktop } = useResponsive();
-  const { isSignedIn } = useAuth();
 
   return (
     <Tab.Navigator
@@ -191,13 +182,8 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
-        options={{ title: 'Home' }}
-      />
-      <Tab.Screen
-        name="Search"
         component={SearchScreen}
-        options={{ title: 'Search' }}
+        options={{ title: 'Home' }}
       />
       <Tab.Screen
         name="Tracked"
@@ -207,10 +193,7 @@ function MainTabs() {
       <Tab.Screen
         name="Account"
         component={AccountScreen}
-        options={{
-          title: 'Account',
-          tabBarButton: isSignedIn ? undefined : () => null,
-        }}
+        options={{ title: 'Account' }}
       />
     </Tab.Navigator>
   );

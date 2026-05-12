@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { ArrowLeft, Check } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
@@ -11,9 +12,11 @@ import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
 import { useResponsive } from '../hooks/useResponsive';
+import type { BillSponsor } from '../data/types';
 
 type DetailTab = 'Summary' | 'Actions' | 'Versions' | 'Votes';
 type Props = NativeStackScreenProps<RootStackParamList, 'BillDetail'>;
+const pendingBillChatStorageKey = 'alethical.pendingBillChat';
 
 function EmptyState({ message }: { message: string }) {
     return (
@@ -61,26 +64,57 @@ export function BillDetailScreen({ route, navigation }: Props) {
 
     const tracked = trackedIds.has(bill.id);
     const analysis = bill.aiAnalysis;
-    const sponsors = bill.sponsorNames.map((name, index) => ({
+    const sponsors: BillSponsor[] = bill.sponsors ?? bill.sponsorNames.map((name, index) => ({
         name,
+        role: 'chief_author',
         legislatorId: bill.chiefSponsorIds[index],
     }));
+    const chiefAuthors = sponsors.filter((sponsor) => sponsor.role === 'chief_author');
+    const coAuthors = sponsors.filter((sponsor) => sponsor.role !== 'chief_author');
+    const progressSteps = bill.progress ?? [];
+    const headerMeta = [
+        bill.chamber,
+        bill.status,
+        bill.updatedAt !== 'Unknown' ? `Updated ${bill.updatedAt}` : null,
+    ].filter(Boolean).join(' | ');
+    const chatParams = {
+        title: `${bill.identifier} analysis`,
+        subjectType: 'bill' as const,
+        subjectId: bill.id,
+        subjectLabel: bill.identifier,
+    };
+    const goBack = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+            return;
+        }
+        navigation.navigate('Tabs', { screen: 'Home' });
+    };
 
     return (
         <ScreenView
             hideHeader
         >
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Back to results"
+                onPress={goBack}
+                style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+            >
+                <ArrowLeft color={theme.colors.ink} size={18} strokeWidth={2.2} />
+                <Text style={styles.backButtonText}>Back</Text>
+            </Pressable>
             <Card style={styles.analysisCard}>
                 <View style={styles.compactHeader}>
                     <View style={styles.compactTitleWrap}>
                         <Text style={styles.identifier}>{bill.identifier}</Text>
                         <Text style={styles.compactMeta}>
-                            {bill.chamber} | {bill.status} | Updated {bill.updatedAt}
+                            {headerMeta}
                         </Text>
                         <View style={styles.sponsorRow}>
                             <Text style={styles.sponsorText}>Author: </Text>
-                            {sponsors.length > 0 ? (
-                                sponsors.map((sponsor, index) => {
+                            {chiefAuthors.length > 0 ? (
+                                chiefAuthors.map((sponsor, index) => {
                                     const clickable = Boolean(sponsor.legislatorId);
                                     return (
                                         <Pressable
@@ -94,7 +128,7 @@ export function BillDetailScreen({ route, navigation }: Props) {
                                             }}
                                         >
                                             <Text style={[styles.sponsorText, clickable && styles.sponsorLink]}>
-                                                {sponsor.name}{index < sponsors.length - 1 ? ', ' : ''}
+                                                {sponsor.name}{index < chiefAuthors.length - 1 ? ', ' : ''}
                                             </Text>
                                         </Pressable>
                                     );
@@ -123,14 +157,23 @@ export function BillDetailScreen({ route, navigation }: Props) {
                         <PrimaryButton
                             label="Ask AI"
                             tone="secondary"
-                            onPress={() =>
+                            onPress={() => {
+                                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                                    const params = new URLSearchParams();
+                                    params.set('title', chatParams.title);
+                                    params.set('subjectType', chatParams.subjectType);
+                                    params.set('subjectId', chatParams.subjectId);
+                                    params.set('subjectLabel', chatParams.subjectLabel);
+                                    window.sessionStorage.setItem(pendingBillChatStorageKey, JSON.stringify(chatParams));
+                                    window.history.pushState({}, '', `/chat/new?${params.toString()}`);
+                                }
                                 navigation.navigate('ChatSession', {
-                                    title: `${bill.identifier} analysis`,
-                                    subjectType: 'bill',
-                                    subjectId: bill.id,
-                                    subjectLabel: bill.identifier,
-                                })
-                            }
+                                    title: chatParams.title,
+                                    subjectType: chatParams.subjectType,
+                                    subjectId: chatParams.subjectId,
+                                    subjectLabel: chatParams.subjectLabel,
+                                });
+                            }}
                         />
                     </View>
                 </View>
@@ -157,6 +200,98 @@ export function BillDetailScreen({ route, navigation }: Props) {
                         <Text style={styles.bodyText}>No key points are available yet.</Text>
                     )}
                 </View>
+            </Card>
+
+            <Card style={styles.progressCard}>
+                <Text style={styles.sectionTitle}>Legislative Progress</Text>
+                <View style={styles.progressRow}>
+                    {progressSteps.map((step, index) => (
+                        <View key={step.key} style={styles.progressStep}>
+                            <View style={styles.progressMarkerRow}>
+                                <View style={[
+                                    styles.progressLine,
+                                    index === 0 && styles.progressLineHidden,
+                                    progressSteps[index - 1]?.reached && step.reached && styles.progressLineReached,
+                                ]} />
+                                <View style={[
+                                    styles.progressDot,
+                                    step.reached && styles.progressDotReached,
+                                    step.current && styles.progressDotCurrent,
+                                ]}>
+                                    {step.reached ? (
+                                        <Check color={theme.colors.white} size={14} strokeWidth={3} />
+                                    ) : (
+                                        <Text style={styles.progressDotText}>{index + 1}</Text>
+                                    )}
+                                </View>
+                                <View style={[
+                                    styles.progressLine,
+                                    index === progressSteps.length - 1 && styles.progressLineHidden,
+                                    step.reached && progressSteps[index + 1]?.reached && styles.progressLineReached,
+                                ]} />
+                            </View>
+                            <Text style={[styles.progressLabel, !step.reached && styles.progressLabelMuted]}>{step.label}</Text>
+                        </View>
+                    ))}
+                </View>
+            </Card>
+
+            <Card style={styles.authorsCard}>
+                <Text style={styles.sectionTitle}>Legislative Authors</Text>
+                {chiefAuthors.length > 0 ? (
+                    <View style={styles.chiefAuthorPanel}>
+                        <Text style={styles.authorRoleLabel}>Chief Author</Text>
+                        {chiefAuthors.map((author) => (
+                            <Pressable
+                                key={author.legislatorId ?? author.name}
+                                disabled={!author.legislatorId}
+                                onPress={() => {
+                                    if (author.legislatorId) {
+                                        navigation.navigate('LegislatorProfile', { legislatorId: author.legislatorId });
+                                    }
+                                }}
+                                style={styles.authorLine}
+                            >
+                                <View style={styles.authorTextBlock}>
+                                    <Text style={styles.authorName}>{author.name}</Text>
+                                    <Text style={styles.authorMeta}>
+                                        {[author.chamber, author.district].filter(Boolean).join(' | ')}
+                                    </Text>
+                                </View>
+                                {author.party ? <Text style={styles.partyBadge}>{author.party}</Text> : null}
+                            </Pressable>
+                        ))}
+                    </View>
+                ) : (
+                    <Text style={styles.bodyText}>No chief author is available yet.</Text>
+                )}
+                {coAuthors.length > 0 ? (
+                    <>
+                        <Text style={styles.authorGroupTitle}>Co-authors & Co-sponsors</Text>
+                        <View style={[styles.coAuthorGrid, isDesktop && styles.coAuthorGridDesktop]}>
+                            {coAuthors.map((author) => (
+                                <Pressable
+                                    key={`${author.legislatorId ?? author.name}-${author.role}`}
+                                    disabled={!author.legislatorId}
+                                    onPress={() => {
+                                        if (author.legislatorId) {
+                                            navigation.navigate('LegislatorProfile', { legislatorId: author.legislatorId });
+                                        }
+                                    }}
+                                    style={[styles.coAuthorItem, isDesktop && styles.coAuthorItemDesktop]}
+                                >
+                                    <View style={styles.authorTextBlock}>
+                                        <Text style={styles.coAuthorName}>{author.name}</Text>
+                                        <Text style={styles.authorMeta}>
+                                            {[author.chamber, author.district].filter(Boolean).join(' | ')}
+                                        </Text>
+                                    </View>
+                                    {author.party ? <Text style={styles.partyBadge}>{author.party}</Text> : null}
+                                </Pressable>
+                            ))}
+                        </View>
+                    </>
+                ) : null}
             </Card>
 
             <View style={styles.tabRow}>
@@ -260,6 +395,27 @@ const styles = StyleSheet.create({
         borderBottomColor: theme.colors.border,
         paddingBottom: theme.spacing.md,
     },
+    backButton: {
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 8,
+        backgroundColor: theme.colors.surface,
+    },
+    backButtonText: {
+        color: theme.colors.ink,
+        fontFamily: theme.typography.ui,
+        fontSize: 13,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    pressed: {
+        opacity: 0.72,
+    },
     compactTitleWrap: {
         gap: theme.spacing.xs,
     },
@@ -301,6 +457,153 @@ const styles = StyleSheet.create({
     },
     analysisCard: {
         gap: theme.spacing.md,
+    },
+    progressCard: {
+        gap: theme.spacing.md,
+    },
+    progressRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    progressStep: {
+        flex: 1,
+        minWidth: 0,
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+    },
+    progressMarkerRow: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    progressLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: theme.colors.surfaceAlt,
+    },
+    progressLineReached: {
+        backgroundColor: theme.colors.ink,
+    },
+    progressLineHidden: {
+        backgroundColor: 'transparent',
+    },
+    progressDot: {
+        width: 28,
+        height: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.surface,
+    },
+    progressDotReached: {
+        backgroundColor: theme.colors.ink,
+    },
+    progressDotCurrent: {
+        borderWidth: 2,
+        borderColor: theme.colors.accent,
+    },
+    progressDotText: {
+        color: theme.colors.ink,
+        fontFamily: theme.typography.ui,
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    progressDotTextReached: {
+        color: theme.colors.white,
+    },
+    progressLabel: {
+        color: theme.colors.ink,
+        fontFamily: theme.typography.ui,
+        fontSize: 10,
+        fontWeight: '700',
+        textAlign: 'center',
+        lineHeight: 13,
+        paddingHorizontal: 2,
+    },
+    progressLabelMuted: {
+        color: theme.colors.mutedInk,
+    },
+    authorsCard: {
+        gap: theme.spacing.md,
+    },
+    chiefAuthorPanel: {
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        backgroundColor: theme.colors.primarySoft,
+        padding: theme.spacing.md,
+        gap: theme.spacing.xs,
+    },
+    authorRoleLabel: {
+        color: theme.colors.accent,
+        fontFamily: theme.typography.ui,
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    authorLine: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing.sm,
+    },
+    authorTextBlock: {
+        flex: 1,
+        minWidth: 0,
+    },
+    authorName: {
+        color: theme.colors.ink,
+        fontFamily: theme.typography.ui,
+        fontSize: 17,
+        fontWeight: '700',
+    },
+    authorMeta: {
+        color: theme.colors.mutedInk,
+        fontFamily: theme.typography.ui,
+        fontSize: 13,
+        marginTop: 2,
+    },
+    partyBadge: {
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        color: theme.colors.ink,
+        fontFamily: theme.typography.ui,
+        fontSize: 12,
+        fontWeight: '700',
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 4,
+    },
+    authorGroupTitle: {
+        color: theme.colors.mutedInk,
+        fontFamily: theme.typography.ui,
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    coAuthorGrid: {
+        gap: theme.spacing.sm,
+    },
+    coAuthorGridDesktop: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    coAuthorItem: {
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing.sm,
+        padding: theme.spacing.sm,
+    },
+    coAuthorItemDesktop: {
+        flexBasis: '48%',
+    },
+    coAuthorName: {
+        color: theme.colors.ink,
+        fontFamily: theme.typography.ui,
+        fontSize: 15,
+        fontWeight: '700',
     },
     tabRow: {
         flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { BillCard } from '../components/BillCard';
 import { Card } from '../components/Card';
@@ -24,6 +24,7 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
 
   const legislator = legislatorQuery.data;
   const trackedIds = new Set((trackedQuery.data ?? []).map((item) => item.id));
+  const hasBiography = Boolean(legislator?.bio && legislator.bio !== 'Live legislator profile loaded from the backend.');
 
   if (legislatorQuery.isLoading) {
     return (
@@ -72,8 +73,39 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
       </Card>
       <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
         <View style={styles.mainColumn}>
-          <SectionCard title="Profile">
-            <Text style={styles.bodyText}>{legislator.bio}</Text>
+          {hasBiography ? (
+            <SectionCard title="Profile">
+              <Text style={styles.bodyText}>{legislator.bio}</Text>
+            </SectionCard>
+          ) : null}
+          <SectionCard title="Contact">
+            <View style={styles.contactStack}>
+              {legislator.email ? (
+                <PrimaryButton
+                  label={legislator.email}
+                  tone="secondary"
+                  onPress={() => void Linking.openURL(`mailto:${legislator.email}`)}
+                />
+              ) : null}
+              {legislator.phone ? (
+                <PrimaryButton
+                  label={legislator.phone}
+                  tone="secondary"
+                  onPress={() => void Linking.openURL(`tel:${legislator.phone}`)}
+                />
+              ) : null}
+              {legislator.officeAddress ? <Text style={styles.bodyText}>{legislator.officeAddress}</Text> : null}
+              {legislator.profileUrl ? (
+                <PrimaryButton
+                  label="Official Profile"
+                  tone="secondary"
+                  onPress={() => void Linking.openURL(legislator.profileUrl!)}
+                />
+              ) : null}
+              {!legislator.email && !legislator.phone && !legislator.officeAddress && !legislator.profileUrl ? (
+                <Text style={styles.bodyText}>No contact details are available yet.</Text>
+              ) : null}
+            </View>
           </SectionCard>
           <SectionCard title="Committees">
             {legislator.committees.length > 0 ? (
@@ -199,6 +231,10 @@ const styles = StyleSheet.create({
   },
   stack: {
     gap: theme.spacing.md,
+  },
+  contactStack: {
+    gap: theme.spacing.sm,
+    alignItems: 'flex-start',
   },
   bodyText: {
     color: theme.colors.ink,

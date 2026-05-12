@@ -31,7 +31,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   if (segments.length === 1) {
     if (segments[0] === 'search') {
-      return { kind: 'tab', screen: 'Search' };
+      return { kind: 'tab', screen: 'Home' };
     }
     if (segments[0] === 'tracked') {
       return { kind: 'tab', screen: 'Tracked' };
@@ -122,8 +122,6 @@ export function pathnameFromNavigationState(
   switch (activeRoute.name) {
     case 'Home':
       return '/';
-    case 'Search':
-      return '/search';
     case 'Tracked':
       return '/tracked';
     case 'Account':
@@ -160,7 +158,7 @@ export function pathnameFromNavigationState(
   }
 }
 
-const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Search', 'Tracked', 'Account'];
+const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Tracked', 'Account'];
 
 function tabState(screen: keyof MainTabParamList): PartialState<NavigationState> {
   return {
