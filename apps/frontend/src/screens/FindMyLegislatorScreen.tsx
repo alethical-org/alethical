@@ -4,8 +4,10 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Card } from '../components/Card';
 import { LegislatorCard } from '../components/LegislatorCard';
+import { MapPinPicker } from '../components/MapPinPicker';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
+import { RepresentativeLookupCoordinates } from '../data/types';
 import { useRepresentativeLookup } from '../hooks/useAppQueries';
 import { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme/tokens';
@@ -14,8 +16,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'FindMyLegislator'>;
 
 export function FindMyLegislatorScreen({ navigation }: Props) {
   const [address, setAddress] = useState('350 S 5th St, Minneapolis, MN 55415');
+  const [pinCoordinate, setPinCoordinate] = useState<RepresentativeLookupCoordinates>({
+    latitude: 44.97683,
+    longitude: -93.26579,
+  });
   const representativeLookup = useRepresentativeLookup();
   const canRunLookup = address.trim().length > 0 && !representativeLookup.isPending;
+  const canRunPinLookup = !representativeLookup.isPending;
 
   return (
     <ScreenView
@@ -43,9 +50,21 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
         </View>
       </Card>
 
+      <Card>
+        <Text style={styles.sectionTitle}>Map Pin</Text>
+        <MapPinPicker coordinate={pinCoordinate} onCoordinateChange={setPinCoordinate} />
+        <View style={styles.quickRow}>
+          <PrimaryButton
+            label={representativeLookup.isPending ? 'Looking Up' : 'Lookup Pin'}
+            tone="secondary"
+            onPress={canRunPinLookup ? () => representativeLookup.mutate(pinCoordinate) : undefined}
+          />
+        </View>
+      </Card>
+
       {representativeLookup.isPending ? (
         <Card>
-          <Text style={styles.bodyText}>Looking up the matched address and legislative districts.</Text>
+          <Text style={styles.bodyText}>Looking up the location and legislative districts.</Text>
         </Card>
       ) : null}
 
@@ -109,6 +128,13 @@ const styles = StyleSheet.create({
     color: theme.colors.ink,
     fontFamily: theme.typography.title,
     fontSize: 24,
+  },
+  sectionTitle: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.ui,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   bodyText: {
     color: theme.colors.ink,

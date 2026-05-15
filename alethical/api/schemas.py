@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class PageInfo(BaseModel):
@@ -190,7 +190,24 @@ class SearchResultsPayload(BaseModel):
 
 
 class RepresentativeLookupRequest(BaseModel):
-    address_text: str
+    address_text: str | None = None
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+
+    @model_validator(mode="after")
+    def validate_lookup_input(self):
+        has_address = bool(self.address_text and self.address_text.strip())
+        has_latitude = self.latitude is not None
+        has_longitude = self.longitude is not None
+        if has_address and (has_latitude or has_longitude):
+            raise ValueError("provide either address_text or latitude/longitude, not both")
+        if has_latitude != has_longitude:
+            raise ValueError("latitude and longitude must be provided together")
+        if not has_address and not (has_latitude and has_longitude):
+            raise ValueError("address_text or latitude/longitude is required")
+        if self.address_text is not None:
+            self.address_text = self.address_text.strip()
+        return self
 
 
 class RepresentativeLookupPayload(BaseModel):

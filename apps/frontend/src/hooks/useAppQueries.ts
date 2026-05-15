@@ -24,7 +24,7 @@ import {
   listSavedPlaces,
   updateNotificationPreference,
 } from '../data/mockData';
-import { NotificationPreference } from '../data/types';
+import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
 import { useAuth } from '../providers/AuthProvider';
 
 export function useCurrentUser() {
@@ -118,7 +118,7 @@ export function useToggleTrackedBill(userId?: string) {
 
 export function useRepresentativeLookup() {
   return useMutation({
-    mutationFn: (address: string) => lookupRepresentativeFromApi(address),
+    mutationFn: (input: RepresentativeLookupInput) => lookupRepresentativeFromApi(input),
   });
 }
 

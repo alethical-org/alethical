@@ -159,6 +159,7 @@ UI needs:
 
 - district result from GIS lookup
 - current house and senate members for those districts
+- optional pinned map latitude and longitude input, using the same GIS district resolution path as address lookup after geocoding
 
 Target query plan:
 
@@ -401,6 +402,7 @@ Pass.
 Reason:
 
 - GIS returns district codes
+- pinned map lookup can resolve districts directly from coordinates without a geocoder step
 - `district -> legislator_service_period -> legislator` is direct
 
 ### Tracked Bills

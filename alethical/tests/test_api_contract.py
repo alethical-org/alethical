@@ -269,6 +269,50 @@ def test_representative_lookup_maps_service_district_codes_to_legislators(client
     assert payload["senate_legislator"]["current_service"]["district"]["code"] == "35"
 
 
+def test_representative_lookup_accepts_coordinate_pin_input(client):
+    response = client.post(
+        "/api/v1/representative-lookups",
+        json={"latitude": 44.9551, "longitude": -93.1022},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["resolved_place"]["input_mode"] == "coordinates"
+    assert payload["resolved_place"]["latitude"] == 44.9551
+    assert payload["resolved_place"]["longitude"] == -93.1022
+    assert payload["resolved_place"]["house_district"] == "51A"
+    assert payload["resolved_place"]["senate_district"] == "35"
+    assert payload["house_legislator"] is not None
+    assert payload["senate_legislator"] is not None
+
+
+def test_representative_lookup_rejects_invalid_input_modes(client):
+    missing_response = client.post("/api/v1/representative-lookups", json={})
+    assert missing_response.status_code == 422
+
+    partial_coordinate_response = client.post(
+        "/api/v1/representative-lookups",
+        json={"latitude": 44.9551},
+    )
+    assert partial_coordinate_response.status_code == 422
+
+    mixed_response = client.post(
+        "/api/v1/representative-lookups",
+        json={
+            "address_text": "75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN",
+            "latitude": 44.9551,
+            "longitude": -93.1022,
+        },
+    )
+    assert mixed_response.status_code == 422
+
+    out_of_range_response = client.post(
+        "/api/v1/representative-lookups",
+        json={"latitude": 144.9551, "longitude": -93.1022},
+    )
+    assert out_of_range_response.status_code == 422
+
+
 def test_representative_lookup_returns_not_found_for_unresolved_addresses(client):
     class NotFoundLookupService:
         def lookup(self, _address_text: str):

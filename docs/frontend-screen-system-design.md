@@ -571,6 +571,10 @@ Recommended seeded bill prompts:
 +--------------------------------------------------+
 | Find My Legislator                               |
 | [ Enter address or city                      ]   |
+| [ Use Current Location ] [ Drop Pin On Map ]     |
+| +----------------------------------------------+ |
+| | map preview with draggable pin               | |
+| +----------------------------------------------+ |
 | [ Use Saved Place ]                              |
 |                                                  |
 | Result                                           |
@@ -590,7 +594,11 @@ Recommended seeded bill prompts:
 +------------------+-----------------------------------------------------------+
 | Saved Places     | Find My Legislator                                         |
 | Home             | [ Enter address or city                              ]     |
-| Work             | [ Lookup ]                                                |
+| Work             | [ Lookup ] [ Use Map Pin ]                                |
+|                  |                                                           |
+|                  | +-----------------------------------------------------+   |
+|                  | | map surface with pinned location                    |   |
+|                  | +-----------------------------------------------------+   |
 |                  |                                                           |
 |                  | +---------------------------+ +------------------------+  |
 |                  | | House                     | | Senate                 |  |
@@ -598,6 +606,17 @@ Recommended seeded bill prompts:
 |                  | +---------------------------+ +------------------------+  |
 +------------------+-----------------------------------------------------------+
 ```
+
+Requirements:
+
+- support direct address or city entry
+- support a pinned map location as an alternate lookup input
+- allow users to move the pin before running lookup
+- send latitude and longitude from the pinned location to the lookup API
+- return the same district and legislator result shape for address and map-pin lookup
+- do not require sign-in for either lookup mode
+- keep the map renderer behind a component boundary so web, iOS, and Android can share the same lookup flow
+- make the map tile provider configurable; production should use an approved tile provider rather than depending on public demo tile infrastructure
 
 ## 10. Tracked Bills
 

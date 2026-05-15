@@ -586,7 +586,17 @@ def representative_lookup(
 ):
     current_session = get_session_by_slug(db, None)
     try:
-        lookup_result = lookup_service.lookup(request.address_text)
+        if request.address_text:
+            lookup_result = lookup_service.lookup(request.address_text)
+            input_mode = "address"
+        else:
+            assert request.latitude is not None
+            assert request.longitude is not None
+            lookup_result = lookup_service.lookup_coordinates(
+                latitude=request.latitude,
+                longitude=request.longitude,
+            )
+            input_mode = "coordinates"
     except RepresentativeLookupNotFound as exc:
         raise problem_exception(404, "Not Found", str(exc), type_slug="representative-lookup-not-found") from None
     except (RepresentativeLookupUpstreamError, requests.RequestException) as exc:
@@ -626,6 +636,7 @@ def representative_lookup(
     geocoded = lookup_result.geocoded_address
     payload = {
         "resolved_place": {
+            "input_mode": input_mode,
             "address_text": request.address_text,
             "matched_address": geocoded.matched_address,
             "latitude": geocoded.latitude,

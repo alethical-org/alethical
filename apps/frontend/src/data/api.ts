@@ -1,4 +1,13 @@
-import { Bill, BillSponsor, Chamber, ChatSession, Citation, Legislator, RepresentativeLookupResult } from './types';
+import {
+    Bill,
+    BillSponsor,
+    Chamber,
+    ChatSession,
+    Citation,
+    Legislator,
+    RepresentativeLookupInput,
+    RepresentativeLookupResult,
+} from './types';
 
 const configuredApiOrigin = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 const API_BASE_URL = configuredApiOrigin ? `${configuredApiOrigin}/api/v1` : null;
@@ -155,8 +164,11 @@ interface ApiLegislatorDetailPayload extends ApiLegislatorListItemPayload {
 
 interface ApiRepresentativeLookupPayload {
     resolved_place: {
-        address_text: string;
+        input_mode?: string | null;
+        address_text?: string | null;
         matched_address?: string | null;
+        latitude?: number | null;
+        longitude?: number | null;
         house_district?: string | null;
         senate_district?: string | null;
     };
@@ -521,8 +533,13 @@ function mapRepresentativeLookup(payload: ApiRepresentativeLookupPayload): Repre
         payload.resolved_place.house_district ? `House ${payload.resolved_place.house_district}` : null,
     ].filter((item): item is string => Boolean(item));
 
+    const coordinateLabel =
+        payload.resolved_place.latitude != null && payload.resolved_place.longitude != null
+            ? `${payload.resolved_place.latitude.toFixed(5)}, ${payload.resolved_place.longitude.toFixed(5)}`
+            : 'Selected location';
+
     return {
-        address: payload.resolved_place.matched_address ?? payload.resolved_place.address_text,
+        address: payload.resolved_place.matched_address ?? payload.resolved_place.address_text ?? coordinateLabel,
         districtSummary: districts.join(', ') || 'No districts returned',
         legislators,
     };
@@ -889,15 +906,18 @@ export async function listLegislatorsFromApi(
     return response.data.map(mapLegislator);
 }
 
-export async function lookupRepresentativeFromApi(address: string): Promise<RepresentativeLookupResult | null> {
-    const trimmed = address.trim();
-    if (!trimmed) {
+export async function lookupRepresentativeFromApi(input: RepresentativeLookupInput): Promise<RepresentativeLookupResult | null> {
+    const body = typeof input === 'string'
+        ? { address_text: input.trim() }
+        : { latitude: input.latitude, longitude: input.longitude };
+
+    if ('address_text' in body && !body.address_text) {
         return null;
     }
 
     const response = await publicApiPost<DetailResponse<ApiRepresentativeLookupPayload>>(
         '/representative-lookups',
-        { address_text: trimmed }
+        body
     );
 
     return mapRepresentativeLookup(response.data);

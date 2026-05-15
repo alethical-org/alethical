@@ -207,6 +207,30 @@ class RepresentativeLookupService:
         if geocoded.state_code and geocoded.state_code.upper() != "MN":
             raise RepresentativeLookupNotFound("address resolved outside Minnesota")
 
+        return self.lookup_coordinates(
+            latitude=geocoded.latitude,
+            longitude=geocoded.longitude,
+            requested_address=address_text,
+            matched_address=geocoded.matched_address,
+            state_code=geocoded.state_code,
+        )
+
+    def lookup_coordinates(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        requested_address: str | None = None,
+        matched_address: str | None = None,
+        state_code: str | None = "MN",
+    ) -> RepresentativeLookupResult:
+        geocoded = GeocodedAddress(
+            requested_address=requested_address or f"{latitude}, {longitude}",
+            matched_address=matched_address or f"{latitude}, {longitude}",
+            latitude=latitude,
+            longitude=longitude,
+            state_code=state_code,
+        )
         house_match, senate_match = self.gis_client.lookup(
             latitude=geocoded.latitude,
             longitude=geocoded.longitude,
