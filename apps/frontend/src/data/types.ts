@@ -179,3 +179,10 @@ export interface RepresentativeLookupResult {
   districtSummary: string;
   legislators: Legislator[];
 }
+
+export interface RepresentativeLookupCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
+export type RepresentativeLookupInput = string | RepresentativeLookupCoordinates;

@@ -266,6 +266,38 @@ def ingest_member_profiles(session: Session, refs: dict[str, Any]) -> list[Any]:
     return created
 
 
+def ingest_roster_demo_matches(session: Session, refs: dict[str, Any]) -> list[Any]:
+    roster = read_json(FIXTURE_ROOT / "legislator-roster.json")
+    demo_members = [
+        member
+        for key in ("house_sample", "senate_sample")
+        for member in roster.get(key, [])
+        if (member.get("chamber"), member.get("district")) in {("house", "59B"), ("senate", "59")}
+    ]
+
+    created: list[Any] = []
+    for member in demo_members:
+        chamber = refs["chambers"][member["chamber"]]
+        district = upsert_district(session, refs["jurisdiction"].id, chamber.id, member["district"])
+        legislator = upsert_legislator(
+            session,
+            refs["jurisdiction"].id,
+            member["display_name"],
+            profile_url=member.get("profile_url"),
+        )
+        upsert_service_period(
+            session,
+            legislator,
+            refs["session"],
+            chamber,
+            district,
+            profile_url=member.get("profile_url"),
+            photo_url=member.get("image_url"),
+        )
+        created.append(legislator)
+    return created
+
+
 def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: dict[str, Any], rag_payload: dict[str, Any]) -> Any:
     canonical = bill_payload["canonical_bill"]
     bill_text = bill_payload["bill_text"]
@@ -644,6 +676,7 @@ def main() -> None:
     with Session(engine) as session:
         refs = seed_reference_data(session)
         ingest_member_profiles(session, refs)
+        ingest_roster_demo_matches(session, refs)
 
         bill_files = [
             (FIXTURE_ROOT / "bill-sf1832.json", FIXTURE_ROOT / "rag-bill-sf1832.json"),

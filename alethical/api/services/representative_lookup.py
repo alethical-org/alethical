@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass
+import argparse
+import json
+import sys
+from dataclasses import asdict, dataclass
 
 import requests
 
@@ -166,6 +169,12 @@ class MinnesotaGisLookupClient:
         if "congress" in chamber_text or "congressional" in chamber_text:
             return "congress"
 
+        memid = self._string_or_none(properties.get("memid"))
+        if district_code and re.fullmatch(r"\d{1,2}", district_code) and memid and memid.lower() != "none":
+            return "senate"
+        if district_code and re.fullmatch(r"\d{1,2}", district_code) and memid and memid.lower() == "none":
+            return "congress"
+
         member_name = self._string_or_none(properties.get("name")) or ""
         lowered_name = member_name.lower()
         if district_code and re.fullmatch(r"\d{1,2}[A-Z]", district_code):
@@ -198,6 +207,30 @@ class RepresentativeLookupService:
         if geocoded.state_code and geocoded.state_code.upper() != "MN":
             raise RepresentativeLookupNotFound("address resolved outside Minnesota")
 
+        return self.lookup_coordinates(
+            latitude=geocoded.latitude,
+            longitude=geocoded.longitude,
+            requested_address=address_text,
+            matched_address=geocoded.matched_address,
+            state_code=geocoded.state_code,
+        )
+
+    def lookup_coordinates(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        requested_address: str | None = None,
+        matched_address: str | None = None,
+        state_code: str | None = "MN",
+    ) -> RepresentativeLookupResult:
+        geocoded = GeocodedAddress(
+            requested_address=requested_address or f"{latitude}, {longitude}",
+            matched_address=matched_address or f"{latitude}, {longitude}",
+            latitude=latitude,
+            longitude=longitude,
+            state_code=state_code,
+        )
         house_match, senate_match = self.gis_client.lookup(
             latitude=geocoded.latitude,
             longitude=geocoded.longitude,
@@ -214,3 +247,53 @@ class RepresentativeLookupService:
 
 def get_representative_lookup_service() -> RepresentativeLookupService:
     return RepresentativeLookupService()
+
+
+def result_to_dict(result: RepresentativeLookupResult) -> dict:
+    return {
+        "geocoded_address": asdict(result.geocoded_address),
+        "house_district": asdict(result.house_district) if result.house_district else None,
+        "senate_district": asdict(result.senate_district) if result.senate_district else None,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Look up Minnesota legislative districts for an address.")
+    parser.add_argument("address", help="Address to geocode, e.g. '75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN'")
+    parser.add_argument("--json", action="store_true", help="Print the result as JSON.")
+    args = parser.parse_args(argv)
+
+    try:
+        result = get_representative_lookup_service().lookup(args.address)
+    except RepresentativeLookupNotFound as exc:
+        print(f"not found: {exc}", file=sys.stderr)
+        return 2
+    except requests.RequestException as exc:
+        print(f"upstream request failed: {exc}", file=sys.stderr)
+        return 3
+    except RepresentativeLookupError as exc:
+        print(f"lookup failed: {exc}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(json.dumps(result_to_dict(result), indent=2, sort_keys=True))
+        return 0
+
+    geocoded = result.geocoded_address
+    print(f"Requested address: {geocoded.requested_address}")
+    print(f"Matched address: {geocoded.matched_address}")
+    print(f"Coordinates: {geocoded.latitude}, {geocoded.longitude}")
+    print(f"State: {geocoded.state_code or 'unknown'}")
+    if result.house_district:
+        print(f"House district: {result.house_district.district_code}")
+    else:
+        print("House district: not found")
+    if result.senate_district:
+        print(f"Senate district: {result.senate_district.district_code}")
+    else:
+        print("Senate district: not found")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

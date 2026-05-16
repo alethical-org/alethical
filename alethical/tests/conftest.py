@@ -35,6 +35,12 @@ def client(seed_database: None) -> TestClient:
     from alethical.api.main import create_app
     from alethical.api.auth import get_auth_service
     from alethical.api.services.auth import AuthenticatedPrincipal
+    from alethical.api.services.representative_lookup import (
+        DistrictMatch,
+        GeocodedAddress,
+        RepresentativeLookupResult,
+        get_representative_lookup_service,
+    )
 
     app = create_app()
 
@@ -49,7 +55,38 @@ def client(seed_database: None) -> TestClient:
                 email_verified=True,
             )
 
+    class FakeRepresentativeLookupService:
+        def lookup(self, address_text: str) -> RepresentativeLookupResult:
+            return self.lookup_coordinates(
+                latitude=44.9551,
+                longitude=-93.1022,
+                requested_address=address_text,
+                matched_address="75 REV DR MARTIN LUTHER KING JR BLVD, SAINT PAUL, MN, 55155",
+            )
+
+        def lookup_coordinates(
+            self,
+            *,
+            latitude: float,
+            longitude: float,
+            requested_address: str | None = None,
+            matched_address: str | None = None,
+            state_code: str | None = "MN",
+        ) -> RepresentativeLookupResult:
+            return RepresentativeLookupResult(
+                geocoded_address=GeocodedAddress(
+                    requested_address=requested_address or f"{latitude}, {longitude}",
+                    matched_address=matched_address or f"{latitude}, {longitude}",
+                    latitude=latitude,
+                    longitude=longitude,
+                    state_code=state_code,
+                ),
+                house_district=DistrictMatch(chamber="house", district_code="51A"),
+                senate_district=DistrictMatch(chamber="senate", district_code="35"),
+            )
+
     app.dependency_overrides[get_auth_service] = lambda: FakeSupabaseAuthService()
+    app.dependency_overrides[get_representative_lookup_service] = lambda: FakeRepresentativeLookupService()
     return TestClient(app)
 
 

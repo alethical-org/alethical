@@ -506,7 +506,7 @@ Filters:
 
 Purpose:
 
-- find my legislator by address or city
+- find my legislator by address, city, or pinned map location
 
 Request body:
 
@@ -516,9 +516,19 @@ Request body:
 }
 ```
 
+Pinned location request body:
+
+```json
+{
+  "latitude": 44.9537,
+  "longitude": -93.0900
+}
+```
+
 Response:
 
 - normalized place
+- input mode used for lookup
 - resolved districts
 - current house and senate legislators
 
@@ -526,6 +536,7 @@ Rationale:
 
 - this is a noun resource, not an RPC verb endpoint
 - POST is appropriate because the lookup payload can be structured and may exceed simple query-string ergonomics
+- map-pin lookup should bypass address geocoding and resolve districts directly from latitude and longitude
 
 ### Cross-Entity Search
 
@@ -772,6 +783,7 @@ Status: pass
 Frontend access path:
 
 - `POST /api/v1/representative-lookups`
+- request may include `address_text` or `latitude` plus `longitude`
 
 Economic access:
 
