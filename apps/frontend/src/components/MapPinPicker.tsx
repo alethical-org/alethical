@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GestureResponderEvent, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { RepresentativeLookupCoordinates } from '../data/types';
@@ -19,14 +19,40 @@ const ZOOM = 14;
 const TILE_RADIUS = 1;
 const DEFAULT_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const tileTemplate = process.env.EXPO_PUBLIC_MAP_TILE_URL || DEFAULT_TILE_URL;
+const DEFAULT_COORDINATE = {
+  latitude: 44.97683,
+  longitude: -93.26579,
+};
 
 export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerProps) {
-  const [size, setSize] = useState<Size>({ width: 1, height: 1 });
-  const tileGrid = useMemo(() => buildTileGrid(coordinate, size), [coordinate, size]);
+  const [size, setSize] = useState<Size>({ width: 0, height: 0 });
+  const safeCoordinate = isValidCoordinate(coordinate) ? coordinate : DEFAULT_COORDINATE;
+  const tileGrid = useMemo(() => buildTileGrid(safeCoordinate, size), [safeCoordinate, size]);
+
+  useEffect(() => {
+    if (!isValidCoordinate(coordinate)) {
+      onCoordinateChange(DEFAULT_COORDINATE);
+    }
+  }, [coordinate, onCoordinateChange]);
 
   function handlePress(event: GestureResponderEvent) {
-    const { locationX, locationY } = event.nativeEvent;
-    onCoordinateChange(screenPointToCoordinate(locationX, locationY, coordinate, size));
+    const pressLocation = pressLocationFromEvent(event);
+    if (!isValidSize(size)) {
+      return;
+    }
+    if (!pressLocation) {
+      return;
+    }
+
+    const nextCoordinate = screenPointToCoordinate(
+      pressLocation.x,
+      pressLocation.y,
+      safeCoordinate,
+      size
+    );
+    if (isValidCoordinate(nextCoordinate)) {
+      onCoordinateChange(nextCoordinate);
+    }
   }
 
   return (
@@ -34,13 +60,22 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
       <Pressable
         accessibilityLabel="Map pin location"
         accessibilityRole="button"
-        onLayout={(event) => setSize(event.nativeEvent.layout)}
+        testID="representative-map-pin-picker"
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setSize({ width, height });
+        }}
         onPress={handlePress}
         style={styles.mapSurface}
       >
-        {tileGrid.map((tile) => (
+        {tileGrid.length === 0 ? (
+          <View style={styles.loadingState}>
+            <Text style={styles.loadingText}>Loading map</Text>
+          </View>
+        ) : null}
+        {tileGrid.map((tile, index) => (
           <Image
-            key={`${tile.z}-${tile.x}-${tile.y}`}
+            key={`${tile.z}-${tile.x}-${tile.y}-${index}`}
             source={{ uri: tileUrl(tile.x, tile.y, tile.z) }}
             style={[
               styles.tile,
@@ -51,20 +86,65 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
             ]}
           />
         ))}
-        <View pointerEvents="none" style={styles.crosshairHorizontal} />
-        <View pointerEvents="none" style={styles.crosshairVertical} />
-        <View pointerEvents="none" style={styles.pin} />
+        <View style={styles.crosshairHorizontal} />
+        <View style={styles.crosshairVertical} />
+        <View style={styles.pin} />
       </Pressable>
       <View style={styles.coordinateRow}>
-        <Text style={styles.coordinateText}>{coordinate.latitude.toFixed(5)}</Text>
-        <Text style={styles.coordinateText}>{coordinate.longitude.toFixed(5)}</Text>
+        <Text testID="representative-map-pin-latitude" style={styles.coordinateText}>
+          {safeCoordinate.latitude.toFixed(5)}
+        </Text>
+        <Text testID="representative-map-pin-longitude" style={styles.coordinateText}>
+          {safeCoordinate.longitude.toFixed(5)}
+        </Text>
       </View>
     </View>
   );
 }
 
+function pressLocationFromEvent(event: GestureResponderEvent): { x: number; y: number } | null {
+  const nativeEvent = event.nativeEvent as GestureResponderEvent['nativeEvent'] & {
+    clientX?: number;
+    clientY?: number;
+    offsetX?: number;
+    offsetY?: number;
+  };
+  if (Number.isFinite(nativeEvent.locationX) && Number.isFinite(nativeEvent.locationY)) {
+    return { x: nativeEvent.locationX, y: nativeEvent.locationY };
+  }
+  const offsetX = nativeEvent.offsetX;
+  const offsetY = nativeEvent.offsetY;
+  if (Number.isFinite(offsetX) && Number.isFinite(offsetY)) {
+    return { x: offsetX as number, y: offsetY as number };
+  }
+
+  const clientX = nativeEvent.clientX;
+  const clientY = nativeEvent.clientY;
+  const target = event.currentTarget as unknown as { getBoundingClientRect?: () => DOMRect };
+  if (
+    target?.getBoundingClientRect &&
+    Number.isFinite(clientX) &&
+    Number.isFinite(clientY)
+  ) {
+    const rect = target.getBoundingClientRect();
+    return {
+      x: (clientX as number) - rect.left,
+      y: (clientY as number) - rect.top,
+    };
+  }
+  return null;
+}
+
 function buildTileGrid(coordinate: RepresentativeLookupCoordinates, size: Size) {
+  if (!isValidCoordinate(coordinate) || !isValidSize(size)) {
+    return [];
+  }
+
   const center = coordinateToWorldPixel(coordinate, ZOOM);
+  if (!Number.isFinite(center.x) || !Number.isFinite(center.y)) {
+    return [];
+  }
+
   const topLeft = {
     x: center.x - size.width / 2,
     y: center.y - size.height / 2,
@@ -134,6 +214,14 @@ function tileUrl(x: number, y: number, z: number) {
     .replace('{y}', String(y));
 }
 
+function isValidCoordinate(coordinate: RepresentativeLookupCoordinates) {
+  return Number.isFinite(coordinate.latitude) && Number.isFinite(coordinate.longitude);
+}
+
+function isValidSize(size: Size) {
+  return Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0;
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -155,6 +243,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: TILE_SIZE,
     height: TILE_SIZE,
+    pointerEvents: 'none',
+  },
+  loadingState: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+  },
+  loadingText: {
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.ui,
+    fontSize: 13,
   },
   crosshairHorizontal: {
     position: 'absolute',
@@ -163,6 +267,7 @@ const styles = StyleSheet.create({
     top: '50%',
     height: 1,
     backgroundColor: 'rgba(17, 17, 17, 0.22)',
+    pointerEvents: 'none',
   },
   crosshairVertical: {
     position: 'absolute',
@@ -171,6 +276,7 @@ const styles = StyleSheet.create({
     left: '50%',
     width: 1,
     backgroundColor: 'rgba(17, 17, 17, 0.22)',
+    pointerEvents: 'none',
   },
   pin: {
     position: 'absolute',
@@ -184,6 +290,7 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: theme.colors.surface,
     backgroundColor: theme.colors.accent,
+    pointerEvents: 'none',
   },
   coordinateRow: {
     flexDirection: 'row',

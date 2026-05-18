@@ -26,20 +26,23 @@ services:
       DATABASE_URL: ${BACKEND_DATABASE_URL:-${DATABASE_URL:-postgresql+psycopg://alethical:alethical@db:5432/alethical}}
       ALETHICAL_DATABASE_TARGET: ${ALETHICAL_DATABASE_TARGET:-local}
       ALETHICAL_DEV_AUTH_TOKEN: local-dev-token
-      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_PROJECT_URL: ${SUPABASE_PROJECT_URL:-}
+      SUPABASE_URL: ${SUPABASE_URL:-${SUPABASE_PROJECT_URL:-}}
       SUPABASE_PROJECT_REF: ${SUPABASE_PROJECT_REF:-}
       SUPABASE_DB_PASSWORD: ${SUPABASE_DB_PASSWORD:-}
       SUPABASE_POOLER_HOST: ${SUPABASE_POOLER_HOST:-aws-1-us-east-2.pooler.supabase.com}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
       ALETHICAL_CORS_ORIGINS: ${ALETHICAL_CORS_ORIGINS:-http://localhost:19006,http://127.0.0.1:19006}
+      ALETHICAL_LOG_DIR: ${ALETHICAL_LOG_DIR:-/app/logs}
+      ALETHICAL_LOG_LEVEL: ${ALETHICAL_LOG_LEVEL:-INFO}
       ALETHICAL_SKIP_MIGRATIONS: ${ALETHICAL_SKIP_MIGRATIONS:-}
       UV_PROJECT_ENVIRONMENT: /tmp/alethical-venv
       UV_PYTHON: /usr/local/bin/python3.12
     command: >
       sh -c "uv sync --frozen &&
-             if [ \"$${ALETHICAL_DATABASE_TARGET}\" = \"production\" ]; then export DATABASE_URL=\"postgresql+psycopg://postgres.$${SUPABASE_PROJECT_REF}:$${SUPABASE_DB_PASSWORD}@$${SUPABASE_POOLER_HOST}:6543/postgres?sslmode=require\"; fi &&
+             if [ \"$${ALETHICAL_DATABASE_TARGET}\" = \"production\" ]; then PROJECT_REF=\"$${SUPABASE_PROJECT_REF}\"; if [ -z \"$${PROJECT_REF}\" ]; then PROJECT_REF=\"$$(printf '%s' \"$${SUPABASE_PROJECT_URL}\" | sed -E 's#^https?://([^.]+).*#\\1#')\"; fi; export DATABASE_URL=\"postgresql+psycopg://postgres.$${PROJECT_REF}:$${SUPABASE_DB_PASSWORD}@$${SUPABASE_POOLER_HOST}:6543/postgres?sslmode=require\"; fi &&
              if [ \"$${ALETHICAL_SKIP_MIGRATIONS}\" != \"1\" ]; then uv run python -m alembic -c alembic.ini upgrade head; fi &&
-             uv run uvicorn alethical.api.main:create_app --factory --host 0.0.0.0 --port 8000 --reload"
+             uv run uvicorn alethical.api.main:create_app --factory --host 0.0.0.0 --port 8000 --reload --no-access-log --log-level warning"
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -65,8 +68,8 @@ services:
     working_dir: /app
     environment:
       EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-http://localhost:8000}
-      EXPO_PUBLIC_SUPABASE_URL: ${EXPO_PUBLIC_SUPABASE_URL:-}
-      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
+      EXPO_PUBLIC_SUPABASE_URL: ${EXPO_PUBLIC_SUPABASE_URL:-${SUPABASE_URL:-${SUPABASE_PROJECT_URL:-}}}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_PUBLISHABLE_KEY:-}}
       BROWSER: none
     command: >
       sh -c "corepack enable &&

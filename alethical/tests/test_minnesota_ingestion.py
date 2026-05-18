@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from alethical.pipeline.minnesota import parse_bill_text_html, parse_bill_xml
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from alethical.db.models import Legislator, LegislatorServicePeriod
+from alethical.db.session import get_engine
+from alethical.pipeline.minnesota import MinnesotaIngestionPipeline, parse_bill_text_html, parse_bill_xml
 
 
 SAMPLE_BILL_XML = """<?xml version="1.0"?>
@@ -65,3 +70,29 @@ def test_bill_parsers_extract_canonical_payloads() -> None:
     assert canonical["actions"]["house"][0]["action_text"] == "Introduction and first reading"
     assert bill_text["bill_title_text"] == "A bill for an act relating to live ingestion tests."
     assert bill_text["sections"][0]["text"] == "Test section text."
+
+
+def test_roster_only_member_can_be_ingested(seed_database: None) -> None:
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+
+        legislator = pipeline.ingest_member_profile(
+            refs,
+            {
+                "chamber": "house",
+                "display_name": "Rep. Example Roster",
+                "district": "60B",
+                "profile_url": "https://example.test/representatives/60b",
+                "image_url": "https://example.test/representatives/60b.jpg",
+            },
+        )
+
+        service_period = session.scalar(
+            select(LegislatorServicePeriod).where(LegislatorServicePeriod.legislator_id == legislator.id)
+        )
+
+        assert session.scalar(select(Legislator.full_name).where(Legislator.id == legislator.id)) == "Rep. Example Roster"
+        assert service_period is not None
+        assert service_period.profile_url == "https://example.test/representatives/60b"
+        assert service_period.photo_url == "https://example.test/representatives/60b.jpg"

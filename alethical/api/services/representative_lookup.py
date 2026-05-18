@@ -4,10 +4,14 @@ import os
 import re
 import argparse
 import json
-import sys
+import logging
 from dataclasses import asdict, dataclass
 
 import requests
+
+from alethical.logging import configure_logging
+
+logger = logging.getLogger(__name__)
 
 
 class RepresentativeLookupError(Exception):
@@ -258,6 +262,7 @@ def result_to_dict(result: RepresentativeLookupResult) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_logging()
     parser = argparse.ArgumentParser(description="Look up Minnesota legislative districts for an address.")
     parser.add_argument("address", help="Address to geocode, e.g. '75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN'")
     parser.add_argument("--json", action="store_true", help="Print the result as JSON.")
@@ -266,13 +271,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = get_representative_lookup_service().lookup(args.address)
     except RepresentativeLookupNotFound as exc:
-        print(f"not found: {exc}", file=sys.stderr)
+        logger.warning("Representative lookup not found: %s", exc)
         return 2
-    except requests.RequestException as exc:
-        print(f"upstream request failed: {exc}", file=sys.stderr)
+    except requests.RequestException:
+        logger.exception("Representative lookup upstream request failed")
         return 3
-    except RepresentativeLookupError as exc:
-        print(f"lookup failed: {exc}", file=sys.stderr)
+    except RepresentativeLookupError:
+        logger.exception("Representative lookup failed")
         return 1
 
     if args.json:

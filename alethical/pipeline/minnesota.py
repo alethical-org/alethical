@@ -665,7 +665,7 @@ class MinnesotaIngestionPipeline:
         service_period.party = str(profile.get("party") or "") or None
         service_period.email = str(profile.get("email") or "") or None
         service_period.phone = str(profile.get("office_phone") or "") or None
-        service_period.profile_url = str(profile.get("source_url") or "") or None
+        service_period.profile_url = str(profile.get("source_url") or profile.get("profile_url") or "") or None
         service_period.photo_url = str(profile.get("image_url") or "") or None
         service_period.office_address = str(profile.get("office_block") or "") or None
         return service_period
@@ -701,7 +701,11 @@ class MinnesotaIngestionPipeline:
     def ingest_member_profile(self, refs: dict[str, Any], profile: dict[str, Any]) -> Any:
         chamber = refs["chambers"][str(profile["chamber"])]
         district = self.upsert_district(refs, chamber, str(profile["district"]))
-        legislator = self.upsert_legislator(refs, str(profile["name"]), external_key=str(profile.get("source_url") or profile["name"]))
+        name = str(profile.get("name") or profile.get("display_name") or "").strip()
+        if not name:
+            raise ValueError("Legislator profile is missing a name")
+        external_key = str(profile.get("source_url") or profile.get("profile_url") or name)
+        legislator = self.upsert_legislator(refs, name, external_key=external_key)
         self.upsert_service_period(refs, legislator, chamber, district, profile)
         self.upsert_committees(refs, legislator, chamber, profile)
         return legislator
