@@ -234,6 +234,8 @@ interface ApiChatMessagePayload {
     citations?: Array<{
         citation_label?: string;
         excerpt?: string;
+        full_text?: string;
+        highlight_text?: string;
         url?: string | null;
         bill_id?: string;
     }>;
@@ -661,11 +663,14 @@ function normalizeBillSubjectId(subjectId?: string, subjectLabel?: string) {
     return undefined;
 }
 
-function mapCitation(citation: NonNullable<ApiChatMessagePayload['citations']>[number], index: number): Citation {
+function mapCitation(citation: NonNullable<ApiChatMessagePayload['citations']>[number], index: number, messageId?: string): Citation {
+    const excerpt = citation.excerpt ?? (citation.bill_id ? `Grounded in ${citation.bill_id}` : 'Grounded legislative text');
     return {
-        id: `${citation.bill_id ?? 'citation'}-${index}`,
+        id: `${messageId ?? citation.bill_id ?? 'citation'}-${index}`,
         label: citation.citation_label ?? 'Grounding citation',
-        excerpt: citation.excerpt ?? (citation.bill_id ? `Grounded in ${citation.bill_id}` : 'Grounded legislative text'),
+        excerpt,
+        fullText: citation.full_text ?? citation.excerpt,
+        highlightText: citation.highlight_text ?? citation.excerpt ?? excerpt,
         url: citation.url ?? '',
     };
 }
@@ -684,7 +689,7 @@ function mapChatSessionPayload(session: ApiChatSessionPayload, messages: ApiChat
             role: message.role,
             text: message.content,
             createdAt: message.created_at,
-            citations: (message.citations ?? []).map(mapCitation),
+            citations: (message.citations ?? []).map((citation, index) => mapCitation(citation, index, message.id)),
         })),
     };
 }

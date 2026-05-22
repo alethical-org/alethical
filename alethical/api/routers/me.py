@@ -472,6 +472,8 @@ def create_chat_message(
             "citation_label": chunk.citation_label,
             "bill_id": bill.bill_key,
             "excerpt": chunk.chunk_text.strip().replace("\n", " ")[:220],
+            "full_text": chunk.rag_section_document.clean_text.strip(),
+            "highlight_text": chunk.chunk_text.strip(),
             "url": bill.official_url,
         }
         for chunk in chunks

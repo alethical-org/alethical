@@ -18,6 +18,7 @@ export function PrimaryButton({
   style,
 }: PrimaryButtonProps) {
   const primary = tone === 'primary';
+  const disabled = !onPress;
   const reducedMotion = useReducedMotion();
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -36,17 +37,24 @@ export function PrimaryButton({
   return (
     <Animated.View style={[style, !reducedMotion ? { transform: [{ scale }] } : undefined]}>
       <Pressable
+        accessibilityState={{ disabled }}
         accessibilityRole="button"
+        disabled={disabled}
         onPress={onPress}
-        onPressIn={() => animateScale(0.985)}
+        onPressIn={() => {
+          if (!disabled) {
+            animateScale(0.985);
+          }
+        }}
         onPressOut={() => animateScale(1)}
         style={({ pressed }) => [
           styles.base,
           primary ? styles.primary : styles.secondary,
-          pressed && styles.pressed,
+          pressed && !disabled ? styles.pressed : null,
+          disabled ? styles.disabled : null,
         ]}
       >
-        <Text style={[styles.label, primary ? styles.primaryLabel : styles.secondaryLabel]}>
+        <Text style={[styles.label, primary ? styles.primaryLabel : styles.secondaryLabel, disabled ? styles.disabledLabel : null]}>
           {label}
         </Text>
       </Pressable>
@@ -74,6 +82,9 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.85,
   },
+  disabled: {
+    opacity: 0.48,
+  },
   label: {
     fontFamily: theme.typography.ui,
     fontSize: 12,
@@ -86,5 +97,8 @@ const styles = StyleSheet.create({
   },
   secondaryLabel: {
     color: theme.colors.ink,
+  },
+  disabledLabel: {
+    color: theme.colors.mutedInk,
   },
 });
