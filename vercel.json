@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --dir apps/frontend run build",
+  "outputDirectory": "apps/frontend/dist",
+  "rewrites": [
+    {
+      "source": "/((?!_expo/|favicon.ico|manifest.json|sw.js|icon-192.png|icon-512.png|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

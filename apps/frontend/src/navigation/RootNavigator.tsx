@@ -11,6 +11,7 @@ import {
 import {
   BookmarkCheck,
   Home,
+  MapPin,
   UserCircle,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -35,11 +36,40 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 type NavIcon = LucideIcon;
+type RailRouteName = keyof MainTabParamList | 'FindMyLegislator';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
   Account: { label: 'Account', Icon: UserCircle },
 };
+const railRoutes: Array<{
+  name: RailRouteName;
+  label: string;
+  Icon: NavIcon;
+  navigate: () => void;
+}> = [
+  {
+    name: 'Home',
+    ...tabMeta.Home,
+    navigate: () => navigationRef.navigate('Tabs', { screen: 'Home' }),
+  },
+  {
+    name: 'FindMyLegislator',
+    label: 'Find My Rep',
+    Icon: MapPin,
+    navigate: () => navigationRef.navigate('FindMyLegislator'),
+  },
+  {
+    name: 'Tracked',
+    ...tabMeta.Tracked,
+    navigate: () => navigationRef.navigate('Tabs', { screen: 'Tracked' }),
+  },
+  {
+    name: 'Account',
+    ...tabMeta.Account,
+    navigate: () => navigationRef.navigate('Tabs', { screen: 'Account' }),
+  },
+];
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -67,13 +97,7 @@ function RailLogo() {
   );
 }
 
-function DesktopRail({ activeRouteName }: { activeRouteName?: keyof MainTabParamList }) {
-  const routes: Array<{ name: keyof MainTabParamList; label: string; Icon: NavIcon }> = [
-    { name: 'Home', ...tabMeta.Home },
-    { name: 'Tracked', ...tabMeta.Tracked },
-    { name: 'Account', ...tabMeta.Account },
-  ];
-
+function DesktopRail({ activeRouteName }: { activeRouteName?: RailRouteName }) {
   return (
     <View style={styles.desktopRail}>
       <Pressable
@@ -88,7 +112,7 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: keyof MainTabParam
       <View style={styles.railDivider} />
 
       <View style={styles.railSection}>
-        {routes.map((route) => {
+        {railRoutes.map((route) => {
           const focused = activeRouteName === route.name;
           const iconColor = focused ? theme.colors.accent : theme.colors.ink;
           return (
@@ -96,7 +120,7 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: keyof MainTabParam
               key={route.name}
               accessibilityRole="tab"
               accessibilityState={focused ? { selected: true } : {}}
-              onPress={() => navigationRef.navigate('Tabs', { screen: route.name })}
+              onPress={route.navigate}
               style={({ pressed }) => [
                 styles.railItem,
                 focused && styles.railItemActive,
@@ -109,7 +133,10 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: keyof MainTabParam
                   size={22}
                   strokeWidth={focused ? 2.7 : 2.1}
                 />
-                <Text style={[styles.railItemLabel, focused && styles.railItemLabelActive]}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.railItemLabel, focused && styles.railItemLabelActive]}
+                >
                   {route.label}
                 </Text>
               </View>
@@ -199,14 +226,17 @@ function MainTabs() {
   );
 }
 
-function activeTabFromRootState(state: any) {
+function activeRailRouteFromRootState(state: any): RailRouteName | undefined {
   const rootRoute = state?.routes[state.index ?? 0];
-  if (rootRoute?.name !== 'Tabs') {
-    return undefined;
+  if (rootRoute?.name === 'FindMyLegislator') {
+    return 'FindMyLegislator';
   }
-  const tabState = rootRoute.state;
-  const tabRoute = tabState?.routes?.[tabState.index ?? 0];
-  return tabRoute?.name as keyof MainTabParamList | undefined;
+  if (rootRoute?.name === 'Tabs') {
+    const tabState = rootRoute.state;
+    const tabRoute = tabState?.routes?.[tabState.index ?? 0];
+    return tabRoute?.name as keyof MainTabParamList | undefined;
+  }
+  return undefined;
 }
 
 const styles = StyleSheet.create({
@@ -355,12 +385,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
+    minWidth: 0,
   },
   railItemLabel: {
+    flexShrink: 1,
     color: theme.colors.ink,
     fontFamily: theme.typography.title,
-    fontSize: 24,
-    lineHeight: 28,
+    fontSize: 21,
+    lineHeight: 25,
   },
   railItemLabelActive: {
     color: theme.colors.ink,
@@ -371,7 +403,7 @@ export function RootNavigator() {
   const isWeb = Platform.OS === 'web';
   const { isDesktop } = useResponsive();
   const lastPathRef = useRef('/');
-  const [activeTab, setActiveTab] = useState<keyof MainTabParamList | undefined>('Home');
+  const [activeRailRoute, setActiveRailRoute] = useState<RailRouteName | undefined>('Home');
 
   useEffect(() => {
     if (!isWeb) {
@@ -417,16 +449,16 @@ export function RootNavigator() {
         if (navigationRef.isReady()) {
           const rootState = navigationRef.getRootState();
           lastPathRef.current = pathnameFromNavigationState(rootState);
-          const nextActiveTab = activeTabFromRootState(rootState);
-          if (nextActiveTab) {
-            setActiveTab(nextActiveTab);
+          const nextActiveRailRoute = activeRailRouteFromRootState(rootState);
+          if (nextActiveRailRoute) {
+            setActiveRailRoute(nextActiveRailRoute);
           }
         }
       }}
       onStateChange={(state) => {
-        const nextActiveTab = activeTabFromRootState(state);
-        if (nextActiveTab) {
-          setActiveTab(nextActiveTab);
+        const nextActiveRailRoute = activeRailRouteFromRootState(state);
+        if (nextActiveRailRoute) {
+          setActiveRailRoute(nextActiveRailRoute);
         }
         if (!isWeb || !state) {
           return;
@@ -441,7 +473,7 @@ export function RootNavigator() {
       }}
     >
       <View style={isDesktop ? styles.globalShell : styles.globalShellMobile}>
-        {isDesktop ? <DesktopRail activeRouteName={activeTab} /> : null}
+        {isDesktop ? <DesktopRail activeRouteName={activeRailRoute} /> : null}
         <View style={styles.globalContent}>
           <Stack.Navigator
             screenOptions={{

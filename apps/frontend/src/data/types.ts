@@ -6,6 +6,8 @@ export interface Citation {
   id: string;
   label: string;
   excerpt: string;
+  fullText?: string;
+  highlightText?: string;
   url: string;
 }
 

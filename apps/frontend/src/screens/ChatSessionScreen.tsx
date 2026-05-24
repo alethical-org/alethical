@@ -1,15 +1,17 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Easing, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { AuthRequiredCard } from '../components/AuthRequiredCard';
 import { Card } from '../components/Card';
 import { ScreenView } from '../components/ScreenView';
+import { Citation } from '../data/types';
 import {
   useChatSession,
   useCreateChatSession,
   useSendChatMessage,
 } from '../hooks/useAppQueries';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
@@ -21,7 +23,7 @@ type DisplayMessage = {
   role: 'user' | 'assistant';
   text: string;
   createdAt?: string;
-  citations?: Array<{ id: string; label: string; excerpt: string; url: string }>;
+  citations?: Citation[];
   isTyping?: boolean;
 };
 
@@ -91,6 +93,7 @@ function messageRoleRank(role: DisplayMessage['role']) {
 
 export function ChatSessionScreen({ route }: Props) {
   const { isSignedIn, user } = useAuth();
+  const { width, height } = useWindowDimensions();
   const routeParams = route.params ?? {};
   const params = useMemo<Partial<ChatParams>>(() => {
     if (routeParams.sessionId || hasBillChatSubject(routeParams)) {
@@ -100,7 +103,7 @@ export function ChatSessionScreen({ route }: Props) {
   }, [routeParams]);
   const [draft, setDraft] = useState('');
   const [sessionId, setSessionId] = useState(params.sessionId);
-  const [expandedCitationMessages, setExpandedCitationMessages] = useState<Record<string, boolean>>({});
+  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
   const [pendingUserMessage, setPendingUserMessage] = useState<DisplayMessage | null>(null);
   const pendingSessionKeyRef = useRef<string | null>(null);
 
@@ -198,19 +201,25 @@ export function ChatSessionScreen({ route }: Props) {
       {
         id: 'typing-assistant',
         role: 'assistant',
-        text: 'Thinking...',
+        text: '',
         createdAt: new Date().toISOString(),
         isTyping: true,
       },
     ];
   }, [pendingUserMessage, session?.messages]);
 
-  function toggleMessageCitations(messageId: string) {
-    setExpandedCitationMessages((current) => ({
-      ...current,
-      [messageId]: !current[messageId],
-    }));
-  }
+  const citationIds = useMemo(
+    () => new Set(displayMessages.flatMap((message) => (message.citations ?? []).map((citation) => citation.id))),
+    [displayMessages]
+  );
+  const showCitationRail = width >= 980;
+  const chatShellMinHeight = Math.max(height - 300, 460);
+
+  useEffect(() => {
+    if (selectedCitation && !citationIds.has(selectedCitation.id)) {
+      setSelectedCitation(null);
+    }
+  }, [citationIds, selectedCitation]);
 
   function submitDraft() {
     const text = draft.trim();
@@ -264,90 +273,97 @@ export function ChatSessionScreen({ route }: Props) {
         </Card>
       ) : (
         <>
-          <View style={styles.stack}>
-            {displayMessages.map((message) => {
-              const isAssistant = message.role === 'assistant';
-              const citations = message.citations ?? [];
-              const citationsExpanded = Boolean(expandedCitationMessages[message.id]);
+          <View style={[styles.chatShell, { minHeight: chatShellMinHeight }]}>
+            <View style={[styles.chatLayout, !showCitationRail ? styles.chatLayoutStacked : null]}>
+              <View style={styles.chatColumn}>
+                <View style={[styles.stack, styles.messageStack]}>
+                  {displayMessages.map((message) => {
+                    const isAssistant = message.role === 'assistant';
+                    const citations = message.citations ?? [];
 
-              return (
-                <View
-                  key={message.id}
-                  style={[styles.messageRow, isAssistant ? styles.assistantRow : styles.userRow]}
-                >
-                  <View style={[styles.bubble, isAssistant ? styles.assistantBubble : styles.userBubble]}>
-                    <Text style={[styles.messageRole, isAssistant ? styles.assistantRole : styles.userRole]}>
-                      {isAssistant ? 'Alethical' : 'You'}
-                    </Text>
-                    <Text style={[styles.bodyText, isAssistant ? styles.assistantText : styles.userText]}>
-                      {message.text}
-                    </Text>
-                    {message.isTyping ? (
-                      <View style={styles.typingDots} accessibilityLabel="Alethical is typing">
-                        <View style={styles.typingDot} />
-                        <View style={styles.typingDot} />
-                        <View style={styles.typingDot} />
-                      </View>
-                    ) : null}
-                    {citations.length > 0 ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={citationsExpanded ? 'Hide citations' : 'Show citations'}
-                        onPress={() => toggleMessageCitations(message.id)}
-                        style={({ pressed }) => [
-                          styles.citationToggle,
-                          citationsExpanded ? styles.citationToggleOpen : null,
-                          pressed ? styles.citationTogglePressed : null,
-                        ]}
+                    return (
+                      <View
+                        key={message.id}
+                        style={[styles.messageRow, isAssistant ? styles.assistantRow : styles.userRow]}
                       >
-                        <Text style={styles.citationToggleText}>
-                          {citationsExpanded ? 'Hide citations' : `Citations (${citations.length})`}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                    {citationsExpanded ? (
-                      <View style={styles.citationStack}>
-                        {citations.map((citation) => (
-                          <View key={citation.id} style={styles.citationBlock}>
-                            <Text style={styles.citationLabel}>{citation.label}</Text>
-                            <Text style={styles.citationText}>{citation.excerpt}</Text>
-                          </View>
-                        ))}
+                        <View style={[styles.bubble, isAssistant ? styles.assistantBubble : styles.userBubble]}>
+                          <Text style={[styles.messageRole, isAssistant ? styles.assistantRole : styles.userRole]}>
+                            {isAssistant ? 'Alethical' : 'You'}
+                          </Text>
+                          {message.isTyping ? (
+                            <ThinkingIndicator />
+                          ) : (
+                            <Text style={[styles.bodyText, isAssistant ? styles.assistantText : styles.userText]}>
+                              {message.text}
+                            </Text>
+                          )}
+                          {citations.length > 0 ? (
+                            <View style={styles.citationPillRow}>
+                              {citations.map((citation, index) => {
+                                const selected = selectedCitation?.id === citation.id;
+                                return (
+                                  <Pressable
+                                    key={citation.id}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Show citation ${index + 1}`}
+                                    onPress={() => setSelectedCitation(citation)}
+                                    style={({ pressed }) => [
+                                      styles.citationToggle,
+                                      selected ? styles.citationToggleOpen : null,
+                                      pressed ? styles.citationTogglePressed : null,
+                                    ]}
+                                  >
+                                    <Text style={styles.citationToggleText}>
+                                      [{index + 1}] {citation.label}
+                                    </Text>
+                                  </Pressable>
+                                );
+                              })}
+                            </View>
+                          ) : null}
+                        </View>
                       </View>
-                    ) : null}
+                    );
+                  })}
+                </View>
+                <View style={styles.composer}>
+                  {sendError ? <Text style={styles.errorText}>{sendError}</Text> : null}
+                  <View style={styles.inputBar}>
+                    <TextInput
+                      accessibilityLabel="Chat message"
+                      placeholder="Ask a question about this bill"
+                      placeholderTextColor={theme.colors.mutedInk}
+                      style={[styles.input, webInputFocusReset]}
+                      value={draft}
+                      onChangeText={setDraft}
+                      onKeyPress={(event) => {
+                        const nativeEvent = event.nativeEvent as { key?: string; shiftKey?: boolean };
+                        if (Platform.OS === 'web' && nativeEvent.key === 'Enter' && !nativeEvent.shiftKey) {
+                          (event as any).preventDefault?.();
+                          submitDraft();
+                        }
+                      }}
+                      blurOnSubmit={false}
+                      multiline
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Send message"
+                      style={styles.sendButton}
+                      onPress={submitDraft}
+                    >
+                      <Text style={styles.sendButtonText}>{sendMessage.isPending ? 'Sending' : 'Send'}</Text>
+                    </Pressable>
                   </View>
                 </View>
-              );
-            })}
-          </View>
-          <View style={styles.composer}>
-            {sendError ? <Text style={styles.errorText}>{sendError}</Text> : null}
-            <View style={styles.inputBar}>
-              <TextInput
-                accessibilityLabel="Chat message"
-                placeholder="Ask a question about this bill"
-                placeholderTextColor={theme.colors.mutedInk}
-                style={[styles.input, webInputFocusReset]}
-                value={draft}
-                onChangeText={setDraft}
-                onKeyPress={(event) => {
-                  const nativeEvent = event.nativeEvent as { key?: string; shiftKey?: boolean };
-                  if (Platform.OS === 'web' && nativeEvent.key === 'Enter' && !nativeEvent.shiftKey) {
-                    (event as any).preventDefault?.();
-                    submitDraft();
-                  }
-                }}
-                blurOnSubmit={false}
-                multiline
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Send message"
-                style={styles.sendButton}
-                onPress={submitDraft}
-              >
-                <Text style={styles.sendButtonText}>{sendMessage.isPending ? 'Sending' : 'Send'}</Text>
-              </Pressable>
+              </View>
+              {selectedCitation ? (
+                <CitationSidebar
+                  citation={selectedCitation}
+                  compact={!showCitationRail}
+                  onClose={() => setSelectedCitation(null)}
+                />
+              ) : null}
             </View>
           </View>
         </>
@@ -356,9 +372,178 @@ export function ChatSessionScreen({ route }: Props) {
   );
 }
 
+function ThinkingIndicator() {
+  const reducedMotion = useReducedMotion();
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reducedMotion) {
+      progress.setValue(1);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 950,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: Platform.OS !== 'web',
+      })
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [progress, reducedMotion]);
+
+  const dots = [0, 1, 2].map((index) => {
+    const opacity = reducedMotion
+      ? 1
+      : progress.interpolate({
+          inputRange: [0, 0.25 + index * 0.12, 0.55 + index * 0.12, 1],
+          outputRange: [0.28, 1, 0.28, 0.28],
+        });
+    const translateY = reducedMotion
+      ? 0
+      : progress.interpolate({
+          inputRange: [0, 0.25 + index * 0.12, 0.55 + index * 0.12, 1],
+          outputRange: [0, -3, 0, 0],
+        });
+    return (
+      <Animated.View
+        key={index}
+        style={[styles.typingDot, { opacity, transform: [{ translateY }] }]}
+      />
+    );
+  });
+
+  return (
+    <View style={styles.thinkingRow} accessibilityLabel="Alethical is thinking">
+      <Text style={[styles.bodyText, styles.assistantText]}>Working through sources</Text>
+      <View style={styles.typingDots}>{dots}</View>
+    </View>
+  );
+}
+
+function CitationSidebar({
+  citation,
+  compact,
+  onClose,
+}: {
+  citation: Citation;
+  compact: boolean;
+  onClose: () => void;
+}) {
+  const fullText = citation.fullText?.trim() || citation.excerpt;
+
+  return (
+    <View style={[styles.citationSidebar, compact ? styles.citationSidebarCompact : null]}>
+      <View style={styles.citationSidebarHeader}>
+        <View style={styles.citationSidebarTitleGroup}>
+          <Text style={styles.citationKicker}>Citation</Text>
+          <Text style={styles.citationSidebarTitle}>{citation.label}</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close citation"
+          onPress={onClose}
+          style={({ pressed }) => [styles.closeButton, pressed ? styles.citationTogglePressed : null]}
+        >
+          <Text style={styles.closeButtonText}>Close</Text>
+        </Pressable>
+      </View>
+      <ScrollView style={styles.citationTextPanel} contentContainerStyle={styles.citationTextPanelContent}>
+        <HighlightedCitationText text={fullText} highlight={citation.highlightText || citation.excerpt} />
+      </ScrollView>
+      {citation.url ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Open official source"
+          onPress={() => void Linking.openURL(citation.url)}
+          style={({ pressed }) => [styles.sourceLink, pressed ? styles.citationTogglePressed : null]}
+        >
+          <Text style={styles.sourceLinkText}>Open official source</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function HighlightedCitationText({ text, highlight }: { text: string; highlight: string }) {
+  const range = highlightedRange(text, highlight);
+  if (!range) {
+    return (
+      <Text style={styles.citationText}>
+        <Text style={styles.citationHighlight}>{highlight}</Text>
+        {'\n\n'}
+        {text}
+      </Text>
+    );
+  }
+
+  return (
+    <Text style={styles.citationText}>
+      {text.slice(0, range.start)}
+      <Text style={styles.citationHighlight}>{text.slice(range.start, range.end)}</Text>
+      {text.slice(range.end)}
+    </Text>
+  );
+}
+
+function highlightedRange(text: string, highlight: string) {
+  const target = normalizeSearchText(highlight);
+  if (target.length < 8) {
+    return null;
+  }
+
+  const indexMap: number[] = [];
+  let normalized = '';
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (/\s/.test(char)) {
+      continue;
+    }
+    normalized += char.toLowerCase();
+    indexMap.push(index);
+  }
+
+  const start = normalized.indexOf(target);
+  if (start < 0) {
+    return null;
+  }
+
+  return {
+    start: indexMap[start],
+    end: indexMap[start + target.length - 1] + 1,
+  };
+}
+
+function normalizeSearchText(value: string) {
+  return value.replace(/\s+/g, '').toLowerCase();
+}
+
 const styles = StyleSheet.create({
+  chatShell: {
+    width: '100%',
+  },
+  chatLayout: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: theme.spacing.lg,
+  },
+  chatLayoutStacked: {
+    flexDirection: 'column',
+  },
+  chatColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
   stack: {
     gap: theme.spacing.lg,
+  },
+  messageStack: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    paddingBottom: theme.spacing.md,
   },
   messageRow: {
     width: '100%',
@@ -371,15 +556,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   bubble: {
-    width: '100%',
     maxWidth: 820,
     gap: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
   },
   assistantBubble: {
+    width: '100%',
     backgroundColor: theme.colors.surfaceAlt,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 18,
@@ -387,6 +572,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 18,
   },
   userBubble: {
+    minWidth: 180,
     maxWidth: 700,
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
@@ -436,6 +622,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
     marginTop: theme.spacing.xs,
+    maxWidth: '100%',
   },
   citationToggleOpen: {
     backgroundColor: theme.colors.accentSoft,
@@ -451,16 +638,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.1,
   },
-  citationStack: {
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.xs,
-  },
-  citationBlock: {
+  citationPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.spacing.xs,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    marginTop: theme.spacing.xs,
   },
   citationText: {
     color: theme.colors.ink,
@@ -468,10 +650,99 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
+  citationHighlight: {
+    backgroundColor: theme.colors.accentSoft,
+    color: theme.colors.ink,
+  },
+  citationSidebar: {
+    width: 360,
+    maxWidth: '100%',
+    alignSelf: 'stretch',
+    gap: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.md,
+  },
+  citationSidebarCompact: {
+    width: '100%',
+  },
+  citationSidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
+  },
+  citationSidebarTitleGroup: {
+    flex: 1,
+    minWidth: 0,
+    gap: theme.spacing.xs,
+  },
+  citationKicker: {
+    color: theme.colors.accent,
+    fontFamily: theme.typography.ui,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  citationSidebarTitle: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.ui,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  citationTextPanel: {
+    maxHeight: 520,
+    backgroundColor: theme.colors.primarySoft,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  citationTextPanelContent: {
+    padding: theme.spacing.sm,
+  },
+  closeButton: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    backgroundColor: theme.colors.surfaceAlt,
+  },
+  closeButtonText: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.ui,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  sourceLink: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  sourceLinkText: {
+    color: theme.colors.white,
+    fontFamily: theme.typography.ui,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  thinkingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
   typingDots: {
     flexDirection: 'row',
     gap: theme.spacing.xs,
-    paddingTop: theme.spacing.xs,
+    alignItems: 'center',
   },
   typingDot: {
     width: 7,

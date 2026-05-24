@@ -7,6 +7,7 @@ import { LegislatorCard } from '../components/LegislatorCard';
 import { MapPinPicker } from '../components/MapPinPicker';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
+import { isCoordinateInMinnesota } from '../data/minnesotaBoundary';
 import { RepresentativeLookupCoordinates } from '../data/types';
 import { useRepresentativeLookup } from '../hooks/useAppQueries';
 import { RootStackParamList } from '../navigation/types';
@@ -21,8 +22,9 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
     longitude: -93.26579,
   });
   const representativeLookup = useRepresentativeLookup();
+  const isPinInMinnesota = isCoordinateInMinnesota(pinCoordinate);
   const canRunLookup = address.trim().length > 0 && !representativeLookup.isPending;
-  const canRunPinLookup = !representativeLookup.isPending;
+  const canRunPinLookup = isPinInMinnesota && !representativeLookup.isPending;
 
   return (
     <ScreenView
