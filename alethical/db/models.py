@@ -133,6 +133,13 @@ class NotificationFrequency(enum.Enum):
     disabled = "disabled"
 
 
+class NotificationEventStatus(enum.Enum):
+    pending = "pending"
+    sent = "sent"
+    failed = "failed"
+    skipped = "skipped"
+
+
 class Jurisdiction(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "jurisdiction"
 
@@ -532,6 +539,7 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     tracked_bills: Mapped[list["TrackedBill"]] = relationship(back_populates="user")
     saved_places: Mapped[list["SavedPlace"]] = relationship(back_populates="user")
     notification_preferences: Mapped[list["NotificationPreference"]] = relationship(back_populates="user")
+    notification_events: Mapped[list["NotificationEvent"]] = relationship(back_populates="user")
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")
 
 
@@ -586,6 +594,36 @@ class NotificationPreference(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     user: Mapped["UserAccount"] = relationship(back_populates="notification_preferences")
 
     __table_args__ = (UniqueConstraint("user_id", "channel"),)
+
+
+class NotificationEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "notification_event"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), nullable=False)
+    bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("bill.id"))
+    channel: Mapped[NotificationChannel] = mapped_column(
+        SQLEnum(NotificationChannel, name="notification_channel"), nullable=False
+    )
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    source_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    payload_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[NotificationEventStatus] = mapped_column(
+        SQLEnum(NotificationEventStatus, name="notification_event_status"), nullable=False
+    )
+    scheduled_for: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    failure_reason: Mapped[Optional[str]] = mapped_column(Text)
+
+    user: Mapped["UserAccount"] = relationship(back_populates="notification_events")
+    bill: Mapped[Optional["Bill"]] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "bill_id", "event_type", "source_hash"),
+        Index("ix_notification_event_user_created", "user_id", "created_at"),
+        Index("ix_notification_event_status_channel", "status", "channel"),
+    )
 
 
 class TrackedBill(UUIDPrimaryKeyMixin, TimestampMixin, Base):

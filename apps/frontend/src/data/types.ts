@@ -163,6 +163,18 @@ export interface NotificationPreference {
   hearingAlerts: boolean;
 }
 
+export interface NotificationEvent {
+  id: string;
+  channel: string;
+  eventType: string;
+  subject: string;
+  body: string;
+  status: string;
+  scheduledFor?: string | null;
+  sentAt?: string | null;
+  createdAt: string;
+}
+
 export interface SavedPlace {
   id: string;
   label: string;

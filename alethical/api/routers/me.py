@@ -30,9 +30,11 @@ ChatMessage = schema.ChatMessage
 ChatRole = schema.ChatRole
 ChatSession = schema.ChatSession
 NotificationChannel = schema.NotificationChannel
+NotificationEvent = schema.NotificationEvent
 NotificationPreference = schema.NotificationPreference
 RagChunkEmbedding = schema.RagChunkEmbedding
 SavedPlace = schema.SavedPlace
+District = schema.District
 TrackedBill = schema.TrackedBill
 TrackedBillModel = schema.TrackedBill
 bill_list_stmt = schema.bill_list_stmt
@@ -268,9 +270,54 @@ def put_notification_preference(
     )
 
 
+@router.get("/me/notification-events", response_model=CollectionResponse)
+def notification_events(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    rows = db.scalars(
+        select(NotificationEvent)
+        .where(NotificationEvent.user_id == current_user.id)
+        .order_by(NotificationEvent.created_at.desc())
+        .limit(min(limit, 100))
+    ).all()
+    data = [
+        {
+            "id": str(row.id),
+            "channel": row.channel.value,
+            "event_type": row.event_type,
+            "subject": row.subject,
+            "body": row.body,
+            "payload": row.payload_json,
+            "status": row.status.value,
+            "scheduled_for": row.scheduled_for,
+            "sent_at": row.sent_at,
+            "failure_reason": row.failure_reason,
+            "created_at": row.created_at,
+        }
+        for row in rows
+    ]
+    return CollectionResponse(data=data, page={"limit": min(limit, 100), "next_cursor": None, "has_more": False})
+
+
 @router.get("/me/saved-places", response_model=CollectionResponse)
 def saved_places(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     rows = db.scalars(select(SavedPlace).where(SavedPlace.user_id == current_user.id)).all()
+    district_ids = {
+        district_id
+        for row in rows
+        for district_id in (row.house_district_id, row.senate_district_id)
+        if district_id is not None
+    }
+    districts_by_id = (
+        {
+            row.id: row.code
+            for row in db.scalars(select(District).where(District.id.in_(district_ids))).all()
+        }
+        if district_ids
+        else {}
+    )
     data = [
         {
             "id": str(row.id),
@@ -278,6 +325,8 @@ def saved_places(db: Session = Depends(get_db), current_user=Depends(get_current
             "address_text": row.address_text,
             "city": row.city,
             "state_code": row.state_code,
+            "house_district": districts_by_id.get(row.house_district_id),
+            "senate_district": districts_by_id.get(row.senate_district_id),
             "is_default": row.is_default,
         }
         for row in rows

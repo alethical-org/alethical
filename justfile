@@ -1,31 +1,25 @@
+python := if os_family() == "windows" { ".venv/Scripts/python.exe" } else { ".venv/bin/python" }
+
 format:
-  uvx ruff format alethical scripts
+  {{python}} scripts/dev.py format
 
 lint:
-  uvx ruff check alethical scripts
-  uvx ty check alethical/db
-  pnpm install --frozen-lockfile
-  pnpm --dir apps/frontend exec tsc --noEmit
+  {{python}} scripts/dev.py lint
 
 migrate:
-  docker compose up -d db
-  uv run python -m alembic -c alembic.ini upgrade head
+  {{python}} scripts/dev.py migrate
 
 up:
-  docker compose up
+  {{python}} scripts/dev.py up
 
 down:
-  docker compose down
+  {{python}} scripts/dev.py down
 
 pipeline-install target:
-  uv run python -m alethical.pipeline.oban --target {{target}} install
+  {{python}} scripts/dev.py pipeline-install {{target}}
 
 pipeline target *ARGS:
-  uv run python -m alethical.pipeline.oban --target {{target}} enqueue pipeline-run {{ARGS}}
+  {{python}} scripts/dev.py pipeline {{target}} {{ARGS}}
 
 pipeline-work target:
-  uv run python -m alethical.pipeline.oban --target {{target}} drain source_sync
-  uv run python -m alethical.pipeline.oban --target {{target}} drain bill_sync --concurrency 8
-  uv run python -m alethical.pipeline.oban --target {{target}} drain committee_sync
-  uv run python -m alethical.pipeline.oban --target {{target}} drain vote_sync
-  uv run python -m alethical.pipeline.oban --target {{target}} drain ai_batch
+  {{python}} scripts/dev.py pipeline-work {{target}}

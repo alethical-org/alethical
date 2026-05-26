@@ -6,6 +6,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
 import {
   useCurrentUser,
+  useNotificationEvents,
   useNotificationPreference,
   useSavedPlaces,
   useUpdateNotificationPreference,
@@ -20,6 +21,7 @@ export function AccountScreen(_: Props) {
   const { isSignedIn, user, signOut } = useAuth();
   const currentUserQuery = useCurrentUser();
   const notificationPreferenceQuery = useNotificationPreference(user?.id);
+  const notificationEventsQuery = useNotificationEvents(user?.id);
   const savedPlacesQuery = useSavedPlaces(user?.id);
   const updateNotificationPreference = useUpdateNotificationPreference(user?.id);
 
@@ -109,6 +111,15 @@ export function AccountScreen(_: Props) {
         ) : (
           <Text style={styles.bodyText}>Sign in to manage notification preferences.</Text>
         )}
+        {(notificationEventsQuery.data ?? []).slice(0, 3).map((event) => (
+          <View key={event.id} style={styles.eventBlock}>
+            <Text style={styles.placeLabel}>{event.status}</Text>
+            <Text style={styles.bodyText}>{event.subject}</Text>
+            <Text style={styles.captionText}>
+              {event.sentAt ? `Sent ${event.sentAt.slice(0, 10)}` : `Scheduled ${event.scheduledFor?.slice(0, 10) ?? event.createdAt.slice(0, 10)}`}
+            </Text>
+          </View>
+        ))}
       </Card>
     </ScreenView>
   );
@@ -157,5 +168,17 @@ const styles = StyleSheet.create({
   preferenceText: {
     flex: 1,
     gap: theme.spacing.xs,
+  },
+  eventBlock: {
+    gap: theme.spacing.xs,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  captionText: {
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.body,
+    fontSize: 13,
+    lineHeight: 19,
   },
 });

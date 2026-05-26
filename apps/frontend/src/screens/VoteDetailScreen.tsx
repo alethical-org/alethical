@@ -23,7 +23,7 @@ export function VoteDetailScreen({ route }: Props) {
     >
       {!vote ? (
         <Card>
-          <Text style={styles.bodyText}>This vote event is not available in the current demo dataset.</Text>
+          <Text style={styles.bodyText}>This vote event is not available from the live data source yet.</Text>
         </Card>
       ) : (
         <>

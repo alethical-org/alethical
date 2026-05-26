@@ -5,8 +5,11 @@ import {
     ChatSession,
     Citation,
     Legislator,
+    NotificationEvent,
+    NotificationPreference,
     RepresentativeLookupInput,
     RepresentativeLookupResult,
+    SavedPlace,
 } from './types';
 
 const configuredApiOrigin = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -39,6 +42,35 @@ interface ApiCurrentUserPayload {
     id: string;
     display_name?: string | null;
     primary_email?: string | null;
+}
+
+interface ApiNotificationPreferencePayload {
+    channel: string;
+    frequency: string;
+    is_enabled: boolean;
+}
+
+interface ApiNotificationEventPayload {
+    id: string;
+    channel: string;
+    event_type: string;
+    subject: string;
+    body: string;
+    status: string;
+    scheduled_for?: string | null;
+    sent_at?: string | null;
+    created_at: string;
+}
+
+interface ApiSavedPlacePayload {
+    id: string;
+    label: string;
+    address_text?: string | null;
+    city?: string | null;
+    state_code?: string | null;
+    is_default?: boolean | null;
+    house_district?: string | null;
+    senate_district?: string | null;
 }
 
 interface ApiSponsorPayload {
@@ -414,7 +446,7 @@ function normalizeBillIdForApi(billId: string) {
 function emptyBriefing(): Bill['briefing'] {
     return {
         what: 'Live bill details are loading from the backend.',
-        why: 'This bill is now coming from the real API instead of the demo dataset.',
+        why: 'This bill is coming from the live API.',
         keyChanges: [],
         whoAffected: [],
         supportersMaySay: [],
@@ -675,11 +707,15 @@ function mapCitation(citation: NonNullable<ApiChatMessagePayload['citations']>[n
     };
 }
 
-function mapChatSessionPayload(session: ApiChatSessionPayload, messages: ApiChatMessagePayload[]): ChatSession {
+function mapChatSessionPayload(
+    session: ApiChatSessionPayload,
+    messages: ApiChatMessagePayload[],
+    userId: string
+): ChatSession {
     return {
         id: session.id,
         title: session.title ?? 'Conversation',
-        userId: 'user-demo-1',
+        userId,
         subjectType: session.subject_bill_id ? 'bill' : 'general',
         subjectId: session.subject_bill_id ?? undefined,
         subjectLabel: session.subject_bill_id ?? undefined,
@@ -691,6 +727,81 @@ function mapChatSessionPayload(session: ApiChatSessionPayload, messages: ApiChat
             createdAt: message.created_at,
             citations: (message.citations ?? []).map((citation, index) => mapCitation(citation, index, message.id)),
         })),
+    };
+}
+
+function mapNotificationPreferences(payloads: ApiNotificationPreferencePayload[]): NotificationPreference {
+    const email = payloads.find((item) => item.channel === 'email');
+    const push = payloads.find((item) => item.channel === 'push');
+    return {
+        billUpdates: Boolean(email?.is_enabled && email.frequency !== 'disabled'),
+        weeklyDigest: Boolean(email?.is_enabled && email.frequency === 'weekly_digest'),
+        hearingAlerts: Boolean(push?.is_enabled && push.frequency !== 'disabled'),
+    };
+}
+
+function notificationWriteForKey(key: keyof NotificationPreference, value: boolean) {
+    if (key === 'hearingAlerts') {
+        return {
+            channel: 'push',
+            body: {
+                frequency: value ? 'realtime' : 'disabled',
+                is_enabled: value,
+            },
+        };
+    }
+
+    if (key === 'weeklyDigest') {
+        return {
+            channel: 'email',
+            body: {
+                frequency: value ? 'weekly_digest' : 'realtime',
+                is_enabled: true,
+            },
+        };
+    }
+
+    return {
+        channel: 'email',
+        body: {
+            frequency: value ? 'realtime' : 'disabled',
+            is_enabled: value,
+        },
+    };
+}
+
+function formatSavedPlaceAddress(payload: ApiSavedPlacePayload) {
+    return [payload.address_text, payload.city, payload.state_code]
+        .map((item) => item?.trim())
+        .filter((item): item is string => Boolean(item))
+        .join(', ') || 'Address unavailable';
+}
+
+function mapSavedPlace(payload: ApiSavedPlacePayload): SavedPlace {
+    const districts = [
+        payload.senate_district ? `Senate ${payload.senate_district}` : null,
+        payload.house_district ? `House ${payload.house_district}` : null,
+    ].filter((item): item is string => Boolean(item));
+
+    return {
+        id: payload.id,
+        label: payload.label,
+        address: formatSavedPlaceAddress(payload),
+        districtSummary: districts.join(', ') || (payload.is_default ? 'Default saved place' : 'Saved place'),
+    };
+}
+
+function mapNotificationEvent(payload: ApiNotificationEventPayload): NotificationEvent {
+    return {
+        id: payload.id,
+        channel: payload.channel,
+        eventType: payload.event_type,
+        subject: payload.subject,
+        body: payload.body,
+        status: payload.status,
+        scheduledFor: payload.scheduled_for ?? null,
+        sentAt: payload.sent_at ?? null,
+        createdAt: payload.created_at,
     };
 }
 
@@ -709,7 +820,7 @@ export async function getCurrentUserFromApi(accessToken: string): Promise<{ id: 
     };
 }
 
-export async function listChatSessionsFromApi(accessToken: string): Promise<ChatSession[]> {
+export async function listChatSessionsFromApi(accessToken: string, userId: string): Promise<ChatSession[]> {
     const response = await apiRequest<CollectionResponse<ApiChatSessionPayload>>(
         '/me/chat-sessions',
         { method: 'GET' },
@@ -719,7 +830,7 @@ export async function listChatSessionsFromApi(accessToken: string): Promise<Chat
     return response.data.map((session) => ({
         id: session.id,
         title: session.title ?? 'Conversation',
-        userId: 'user-demo-1',
+        userId,
         subjectType: session.subject_bill_id ? 'bill' : 'general',
         subjectId: session.subject_bill_id ?? undefined,
         subjectLabel: session.subject_bill_id ?? undefined,
@@ -730,7 +841,8 @@ export async function listChatSessionsFromApi(accessToken: string): Promise<Chat
 
 export async function getChatSessionFromApi(
     accessToken: string,
-    sessionId: string
+    sessionId: string,
+    userId: string
 ): Promise<ChatSession | null> {
     const [sessionResponse, messagesResponse] = await Promise.all([
         apiRequest<DetailResponse<ApiChatSessionPayload>>(
@@ -745,11 +857,12 @@ export async function getChatSessionFromApi(
         ),
     ]);
 
-    return mapChatSessionPayload(sessionResponse.data, messagesResponse.data);
+    return mapChatSessionPayload(sessionResponse.data, messagesResponse.data, userId);
 }
 
 export async function createChatSessionFromApi(
     accessToken: string,
+    userId: string,
     input: {
         title: string;
         subjectType: 'bill';
@@ -789,7 +902,7 @@ export async function createChatSessionFromApi(
         );
     }
 
-    const hydrated = await getChatSessionFromApi(accessToken, sessionResponse.data.id);
+    const hydrated = await getChatSessionFromApi(accessToken, sessionResponse.data.id, userId);
     if (!hydrated) {
         throw new Error('Chat session was created but could not be loaded');
     }
@@ -798,6 +911,7 @@ export async function createChatSessionFromApi(
 
 export async function sendChatMessageToApi(
     accessToken: string,
+    userId: string,
     input: { sessionId: string; text: string }
 ): Promise<ChatSession | null> {
     await apiRequest<DetailResponse<{ assistant_message: ApiChatMessagePayload }>>(
@@ -812,7 +926,55 @@ export async function sendChatMessageToApi(
         accessToken
     );
 
-    return getChatSessionFromApi(accessToken, input.sessionId);
+    return getChatSessionFromApi(accessToken, input.sessionId, userId);
+}
+
+export async function getNotificationPreferenceFromApi(accessToken: string): Promise<NotificationPreference> {
+    const response = await apiRequest<CollectionResponse<ApiNotificationPreferencePayload>>(
+        '/me/notification-preferences',
+        { method: 'GET' },
+        accessToken
+    );
+
+    return mapNotificationPreferences(response.data);
+}
+
+export async function listNotificationEventsFromApi(accessToken: string): Promise<NotificationEvent[]> {
+    const response = await apiRequest<CollectionResponse<ApiNotificationEventPayload>>(
+        '/me/notification-events',
+        { method: 'GET' },
+        accessToken
+    );
+
+    return response.data.map(mapNotificationEvent);
+}
+
+export async function updateNotificationPreferenceFromApi(
+    accessToken: string,
+    key: keyof NotificationPreference,
+    value: boolean
+): Promise<NotificationPreference> {
+    const request = notificationWriteForKey(key, value);
+    await apiRequest<DetailResponse<ApiNotificationPreferencePayload>>(
+        `/me/notification-preferences/${encodeURIComponent(request.channel)}`,
+        {
+            method: 'PUT',
+            body: JSON.stringify(request.body),
+        },
+        accessToken
+    );
+
+    return getNotificationPreferenceFromApi(accessToken);
+}
+
+export async function listSavedPlacesFromApi(accessToken: string): Promise<SavedPlace[]> {
+    const response = await apiRequest<CollectionResponse<ApiSavedPlacePayload>>(
+        '/me/saved-places',
+        { method: 'GET' },
+        accessToken
+    );
+
+    return response.data.map(mapSavedPlace);
 }
 
 export async function listBillsFromApi(

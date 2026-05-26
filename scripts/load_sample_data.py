@@ -312,6 +312,13 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
         key=lambda action: int(action.get("action_number") or 0),
         default=None,
     )
+    dated_actions = [action for action in all_actions if parse_fixture_datetime(action.get("action_date"))]
+    latest_dated_action = max(
+        dated_actions,
+        key=lambda action: int(action.get("action_number") or 0),
+        default=None,
+    )
+    latest_action_at = parse_fixture_datetime(latest_dated_action.get("action_date")) if latest_dated_action else None
 
     run = IngestionRun(
         adapter="prototype_bill_ingest",
@@ -364,6 +371,8 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
             title=bill_text["bill_title_text"],
             description=canonical.get("description"),
             current_status=latest_action["action_text"] if latest_action else None,
+            current_status_code=latest_action.get("action_group") if latest_action else None,
+            latest_action_at=latest_action_at,
             official_url=bill_text["source_url"],
             is_omnibus=len(bill_text.get("articles", [])) > 1,
             ingestion_run_id=run.id,
@@ -373,6 +382,9 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
     else:
         bill.title = bill_text["bill_title_text"]
         bill.description = canonical.get("description")
+        bill.current_status = latest_action["action_text"] if latest_action else None
+        bill.current_status_code = latest_action.get("action_group") if latest_action else None
+        bill.latest_action_at = latest_action_at
         bill.official_url = bill_text["source_url"]
 
     latest_version = session.scalar(

@@ -8,22 +8,21 @@ import {
   getCurrentUserFromApi,
   getLegislatorBillsFromApi,
   getLegislatorFromApi,
+  getNotificationPreferenceFromApi,
   LegislatorListFilters,
   listChatSessionsFromApi,
   listBillsFromApi,
   listLegislatorsFromApi,
+  listNotificationEventsFromApi,
   listPolicyAreasFromApi,
+  listSavedPlacesFromApi,
   listSessionsFromApi,
   listTrackedBillsFromApi,
   lookupRepresentativeFromApi,
   sendChatMessageToApi,
   toggleTrackedBillFromApi,
+  updateNotificationPreferenceFromApi,
 } from '../data/api';
-import {
-  getNotificationPreference,
-  listSavedPlaces,
-  updateNotificationPreference,
-} from '../data/mockData';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
 import { useAuth } from '../providers/AuthProvider';
 
@@ -127,7 +126,7 @@ export function useChatSessions(userId?: string) {
 
   return useQuery({
     queryKey: ['chat-sessions', userId ?? 'anon'],
-    queryFn: () => listChatSessionsFromApi(accessToken ?? ''),
+    queryFn: () => listChatSessionsFromApi(accessToken ?? '', userId ?? ''),
     enabled: Boolean(userId && accessToken),
     retry: false,
   });
@@ -138,7 +137,7 @@ export function useChatSession(userId: string | undefined, sessionId: string | u
 
   return useQuery({
     queryKey: ['chat-session', userId ?? 'anon', sessionId ?? 'new'],
-    queryFn: () => getChatSessionFromApi(accessToken ?? '', sessionId ?? ''),
+    queryFn: () => getChatSessionFromApi(accessToken ?? '', sessionId ?? '', userId ?? ''),
     enabled: Boolean(userId && sessionId && accessToken),
     retry: false,
   });
@@ -156,7 +155,7 @@ export function useCreateChatSession(userId?: string) {
       seedPrompt?: string;
       subjectLabel?: string;
     }) =>
-      createChatSessionFromApi(accessToken ?? '', input),
+      createChatSessionFromApi(accessToken ?? '', userId ?? '', input),
     onSuccess: (session) => {
       void queryClient.invalidateQueries({ queryKey: ['chat-sessions', userId ?? 'anon'] });
       queryClient.setQueryData(['chat-session', userId ?? 'anon', session.id], session);
@@ -170,7 +169,7 @@ export function useSendChatMessage(userId?: string) {
 
   return useMutation({
     mutationFn: (input: { sessionId: string; text: string }) =>
-      sendChatMessageToApi(accessToken ?? '', input),
+      sendChatMessageToApi(accessToken ?? '', userId ?? '', input),
     onSuccess: (session) => {
       if (!session) {
         return;
@@ -183,21 +182,36 @@ export function useSendChatMessage(userId?: string) {
 }
 
 export function useNotificationPreference(userId?: string) {
+  const { accessToken } = useAuth();
+
   return useQuery({
     queryKey: ['notification-preference', userId ?? 'anon'],
-    queryFn: () => getNotificationPreference(userId ?? ''),
-    enabled: Boolean(userId),
+    queryFn: () => getNotificationPreferenceFromApi(accessToken ?? ''),
+    enabled: Boolean(userId && accessToken),
+    retry: false,
+  });
+}
+
+export function useNotificationEvents(userId?: string) {
+  const { accessToken } = useAuth();
+
+  return useQuery({
+    queryKey: ['notification-events', userId ?? 'anon'],
+    queryFn: () => listNotificationEventsFromApi(accessToken ?? ''),
+    enabled: Boolean(userId && accessToken),
+    retry: false,
   });
 }
 
 export function useUpdateNotificationPreference(userId?: string) {
   const queryClient = useQueryClient();
+  const { accessToken } = useAuth();
 
   return useMutation({
     mutationFn: (input: {
       key: keyof NotificationPreference;
       value: boolean;
-    }) => updateNotificationPreference(userId ?? '', input.key, input.value),
+    }) => updateNotificationPreferenceFromApi(accessToken ?? '', input.key, input.value),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: ['notification-preference', userId ?? 'anon'],
@@ -207,9 +221,12 @@ export function useUpdateNotificationPreference(userId?: string) {
 }
 
 export function useSavedPlaces(userId?: string) {
+  const { accessToken } = useAuth();
+
   return useQuery({
     queryKey: ['saved-places', userId ?? 'anon'],
-    queryFn: () => listSavedPlaces(userId ?? ''),
-    enabled: Boolean(userId),
+    queryFn: () => listSavedPlacesFromApi(accessToken ?? ''),
+    enabled: Boolean(userId && accessToken),
+    retry: false,
   });
 }

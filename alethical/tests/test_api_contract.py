@@ -463,6 +463,10 @@ def test_signed_in_bill_tracking_and_notification_preferences(client, auth_heade
     assert update_pref_response.status_code == 200
     assert update_pref_response.json()["data"]["channel"] == "email"
 
+    events_response = client.get("/api/v1/me/notification-events", headers=auth_headers)
+    assert events_response.status_code == 200
+    assert "data" in events_response.json()
+
 
 def test_signed_in_chat_session_and_message_flow(client, auth_headers, monkeypatch):
     openai_calls = []
