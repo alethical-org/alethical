@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+    paths:
+      - ".github/workflows/vercel-deploy.yml"
+      - "apps/frontend/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "vercel.json"
   workflow_dispatch:
 
 concurrency:
@@ -46,4 +52,4 @@ jobs:
           git commit --amend --no-edit --no-gpg-sign --author="$VERCEL_GIT_AUTHOR_NAME <$VERCEL_GIT_AUTHOR_EMAIL>"
 
       - name: Deploy production to Vercel
-        run: npx --yes vercel@54.4.1 deploy --prod --yes --token="$VERCEL_TOKEN"
+        run: npx --yes vercel@54.4.1 deploy --prod --yes --archive=tgz --token="$VERCEL_TOKEN"
