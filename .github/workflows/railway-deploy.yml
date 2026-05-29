@@ -1,0 +1,44 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/railway-deploy.yml"
+      - ".railwayignore"
+      - ".python-version"
+      - "alembic.ini"
+      - "alethical/**"
+      - "pyproject.toml"
+      - "railway.json"
+      - "scripts/**"
+      - "uv.lock"
+  workflow_dispatch:
+
+concurrency:
+  group: railway-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check Railway token
+        run: ': "${RAILWAY_TOKEN:?Missing RAILWAY_TOKEN secret}"'
+
+      - name: Deploy production to Railway
+        run: npx --yes @railway/cli up --ci --service alethical-api --environment production

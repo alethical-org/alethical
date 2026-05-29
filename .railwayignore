@@ -1,0 +1,7 @@
+apps/frontend
+docs
+*.md
+.env
+.vercel
+.venv
+node_modules
