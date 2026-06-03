@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "set -a; [ -f ../../.env ] && . ../../.env; set +a; expo start",
-    "android": "set -a; [ -f ../../.env ] && . ../../.env; set +a; expo start --android",
-    "ios": "set -a; [ -f ../../.env ] && . ../../.env; set +a; expo start --ios",
-    "web": "set -a; [ -f ../../.env ] && . ../../.env; set +a; expo start --web",
-    "build": "set -a; [ -f ../../.env ] && . ../../.env; set +a; expo export --platform web",
-    "export:web": "set -a; [ -f ../../.env ] && . ../../.env; set +a; expo export --platform web"
+    "start": "node ./scripts/start-expo.mjs",
+    "android": "node ./scripts/start-expo.mjs --android",
+    "android:release": "node ./scripts/build-android-release.mjs",
+    "android:sync-network": "node ./scripts/sync-android-dev-network-security.mjs",
+    "ios": "node ./scripts/start-expo.mjs --ios",
+    "web": "node ./scripts/start-expo.mjs --web",
+    "build": "node ./scripts/start-expo.mjs export --platform web",
+    "export:web": "node ./scripts/start-expo.mjs export --platform web"
   },
   "dependencies": {
     "@expo/metro-runtime": "55.0.10",

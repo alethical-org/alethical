@@ -10,8 +10,10 @@ import {
 } from '@react-navigation/bottom-tabs';
 import {
   BookmarkCheck,
+  MessageSquareText,
   Home,
   MapPin,
+  Search,
   UserCircle,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -22,7 +24,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AccountScreen } from '../screens/AccountScreen';
 import { BillDetailScreen } from '../screens/BillDetailScreen';
 import { ChatSessionScreen } from '../screens/ChatSessionScreen';
+import { ChatScreen } from '../screens/ChatScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
+import { HomeScreen } from '../screens/HomeScreen';
 import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { TrackedScreen } from '../screens/TrackedScreen';
@@ -39,7 +43,9 @@ type NavIcon = LucideIcon;
 type RailRouteName = keyof MainTabParamList | 'FindMyLegislator';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
+  Search: { label: 'Search', Icon: Search },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
+  Chat: { label: 'Chat', Icon: MessageSquareText },
   Account: { label: 'Account', Icon: UserCircle },
 };
 const railRoutes: Array<{
@@ -54,6 +60,11 @@ const railRoutes: Array<{
     navigate: () => navigationRef.navigate('Tabs', { screen: 'Home' }),
   },
   {
+    name: 'Search',
+    ...tabMeta.Search,
+    navigate: () => navigationRef.navigate('Tabs', { screen: 'Search' }),
+  },
+  {
     name: 'FindMyLegislator',
     label: 'Find My Rep',
     Icon: MapPin,
@@ -63,6 +74,11 @@ const railRoutes: Array<{
     name: 'Tracked',
     ...tabMeta.Tracked,
     navigate: () => navigationRef.navigate('Tabs', { screen: 'Tracked' }),
+  },
+  {
+    name: 'Chat',
+    ...tabMeta.Chat,
+    navigate: () => navigationRef.navigate('Tabs', { screen: 'Chat' }),
   },
   {
     name: 'Account',
@@ -209,13 +225,23 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={SearchScreen}
+        component={HomeScreen}
         options={{ title: 'Home' }}
+      />
+      <Tab.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{ title: 'Search' }}
       />
       <Tab.Screen
         name="Tracked"
         component={TrackedScreen}
         options={{ title: 'Tracked' }}
+      />
+      <Tab.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ title: 'Chat' }}
       />
       <Tab.Screen
         name="Account"

@@ -6,7 +6,7 @@ import { Card } from './Card';
 import { Chip } from './Chip';
 
 interface BillCardProps {
-  bill: Pick<Bill, 'id' | 'identifier' | 'chamber' | 'status' | 'updatedAt' | 'aiAnalysis' | 'chiefSponsorIds'> & {
+  bill: Pick<Bill, 'id' | 'identifier' | 'title' | 'chamber' | 'status' | 'updatedAt' | 'aiAnalysis' | 'chiefSponsorIds'> & {
     topics?: string[];
     sponsorNames?: string[];
   };
@@ -17,7 +17,7 @@ interface BillCardProps {
 }
 
 export function BillCard({ bill, tracked = false, onPress, onToggleTrack, onSponsorPress }: BillCardProps) {
-  const summary = bill.aiAnalysis?.summary;
+  const summary = bill.aiAnalysis?.summary ?? bill.title;
   const policyAreas = bill.aiAnalysis?.policyAreas ?? [];
   const meta = [
     bill.chamber,
@@ -28,10 +28,6 @@ export function BillCard({ bill, tracked = false, onPress, onToggleTrack, onSpon
     name,
     legislatorId: bill.chiefSponsorIds[index],
   }));
-
-  if (!summary) {
-    return null;
-  }
 
   return (
     <Pressable onPress={onPress} style={styles.pressable}>

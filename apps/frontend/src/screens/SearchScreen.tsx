@@ -14,7 +14,7 @@ import { theme } from '../theme/tokens';
 import { useResponsive } from '../hooks/useResponsive';
 
 type PolicyCategory = string;
-type Props = MainTabScreenProps<'Home'>;
+type Props = MainTabScreenProps<'Search'>;
 const BILLS_PAGE_SIZE = 5;
 const LEGISLATORS_PAGE_SIZE = 8;
 const ALL_POLICIES = allPoliciesLabel();

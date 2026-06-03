@@ -1,6 +1,7 @@
 import { PropsWithChildren, ReactNode, useEffect, useRef } from 'react';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MotionIn } from './MotionIn';
 import { useResponsive } from '../hooks/useResponsive';
@@ -18,8 +19,11 @@ interface ScreenViewProps extends PropsWithChildren {
 
 export function ScreenView({ title, subtitle, actions, hideHeader = false, hideMasthead = false, scrollToEndKey, children }: ScreenViewProps) {
   const { isDesktop } = useResponsive();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const scrollRef = useRef<ScrollView | null>(null);
+  const mobileTabBarHeight = 68 + Math.max(theme.spacing.xs, insets.bottom);
+  const safeAreaPadding = Platform.OS === 'web' ? undefined : { paddingTop: insets.top, paddingBottom: mobileTabBarHeight };
   const webBackground = Platform.OS === 'web'
     ? ({
         backgroundColor: theme.colors.paper,
@@ -41,7 +45,7 @@ export function ScreenView({ title, subtitle, actions, hideHeader = false, hideM
   }, [scrollToEndKey]);
 
   return (
-    <View style={[styles.background, webBackground]}>
+    <View style={[styles.background, webBackground, safeAreaPadding]}>
       <ScrollView
         ref={scrollRef}
         style={styles.scrollView}
