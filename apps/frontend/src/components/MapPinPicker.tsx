@@ -24,6 +24,8 @@ const TILE_RADIUS = 2;
 const DRAG_THRESHOLD = 4;
 const OPENSTREETMAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OPENSTREETMAP_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
+const MAP_TILE_USER_AGENT = process.env.EXPO_PUBLIC_MAP_TILE_USER_AGENT
+  || 'Alethical/0.1 (+https://alethical-web.vercel.app)';
 const tileTemplate = process.env.EXPO_PUBLIC_OPENSTREETMAP_TILE_URL
   || process.env.EXPO_PUBLIC_MAP_TILE_URL
   || OPENSTREETMAP_TILE_URL;
@@ -241,7 +243,7 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
         {tileGrid.map((tile, index) => (
           <Image
             key={`${tile.z}-${tile.x}-${tile.y}-${index}`}
-            source={{ uri: tileUrl(tile.x, tile.y, tile.z) }}
+            source={tileImageSource(tile.x, tile.y, tile.z)}
             style={[
               styles.tile,
               {
@@ -470,6 +472,20 @@ function tileUrl(x: number, y: number, z: number) {
     .replace('{z}', String(z))
     .replace('{x}', String(wrappedX))
     .replace('{y}', String(clampedY));
+}
+
+function tileImageSource(x: number, y: number, z: number) {
+  const uri = tileUrl(x, y, z);
+  if (Platform.OS === 'web') {
+    return { uri };
+  }
+
+  return {
+    uri,
+    headers: {
+      'User-Agent': MAP_TILE_USER_AGENT,
+    },
+  };
 }
 
 function dragOffsetToCoordinate(

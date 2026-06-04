@@ -95,15 +95,17 @@ export function BillDetailScreen({ route, navigation }: Props) {
         <ScreenView
             hideHeader
         >
-            <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Back to results"
-                onPress={goBack}
-                style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-            >
-                <ArrowLeft color={theme.colors.ink} size={18} strokeWidth={2.2} />
-                <Text style={styles.backButtonText}>Back</Text>
-            </Pressable>
+            {isDesktop ? (
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Back to results"
+                    onPress={goBack}
+                    style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+                >
+                    <ArrowLeft color={theme.colors.ink} size={18} strokeWidth={2.2} />
+                    <Text style={styles.backButtonText}>Back</Text>
+                </Pressable>
+            ) : null}
             <Card style={styles.analysisCard}>
                 <View style={styles.compactHeader}>
                     <View style={styles.compactTitleWrap}>

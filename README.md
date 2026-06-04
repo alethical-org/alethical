@@ -44,6 +44,13 @@ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 
 The local `.env` in this workspace already maps the existing Supabase project URL and publishable key into those names. Keep the `EXPO_PUBLIC_*` values publishable-only; never put service-role keys in frontend environment variables.
 
+The Find My Legislator map uses raster map tiles. For Android/native builds, set a stable tile request identity and use an approved tile URL:
+
+```bash
+EXPO_PUBLIC_MAP_TILE_URL=https://tile.openstreetmap.org/{z}/{x}/{y}.png
+EXPO_PUBLIC_MAP_TILE_USER_AGENT="Alethical/0.1 (+https://alethical-web.vercel.app)"
+```
+
 Manual Supabase setup:
 
 1. In Supabase, go to Authentication > Providers > Google and enable Google.

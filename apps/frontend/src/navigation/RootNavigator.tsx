@@ -9,6 +9,7 @@ import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
 import {
+  ArrowLeft,
   BookmarkCheck,
   MessageSquareText,
   Home,
@@ -279,8 +280,25 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  headerLeftContainer: {
+    paddingLeft: theme.spacing.lg,
+    paddingRight: theme.spacing.md,
+  },
+  headerTitleContainer: {
+    marginLeft: 0,
+    marginRight: theme.spacing.md,
+  },
+  headerBackButton: {
+    width: 40,
+    height: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerBackButtonPressed: {
+    opacity: 0.72,
+  },
   mobileTabBar: {
-    minHeight: 68,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'stretch',
     borderTopWidth: 1,
@@ -310,10 +328,10 @@ const styles = StyleSheet.create({
   mobileTabLabel: {
     color: theme.colors.ink,
     fontFamily: theme.typography.ui,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0,
-    lineHeight: 13,
+    lineHeight: 12,
   },
   mobileTabLabelActive: {
     color: theme.colors.ink,
@@ -502,13 +520,30 @@ export function RootNavigator() {
         {isDesktop ? <DesktopRail activeRouteName={activeRailRoute} /> : null}
         <View style={styles.globalContent}>
           <Stack.Navigator
-            screenOptions={{
+            screenOptions={({ navigation }) => ({
               headerShown: !isDesktop,
+              headerBackVisible: false,
+              headerTitleAlign: 'left',
               headerShadowVisible: false,
               headerStyle: {
                 backgroundColor: theme.colors.surface,
               },
               headerTintColor: theme.colors.ink,
+              headerLeft: () => (
+                navigation.canGoBack() ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Go back"
+                    hitSlop={10}
+                    onPress={() => navigation.goBack()}
+                    style={({ pressed }) => [styles.headerBackButton, pressed && styles.headerBackButtonPressed]}
+                  >
+                    <ArrowLeft color={theme.colors.ink} size={32} strokeWidth={2.4} />
+                  </Pressable>
+                ) : null
+              ),
+              headerLeftContainerStyle: styles.headerLeftContainer,
+              headerTitleContainerStyle: styles.headerTitleContainer,
               headerTitleStyle: {
                 color: theme.colors.ink,
                 fontFamily: theme.typography.title,
@@ -517,7 +552,7 @@ export function RootNavigator() {
               contentStyle: {
                 backgroundColor: theme.colors.paper,
               },
-            }}
+            })}
           >
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen name="BillDetail" component={BillDetailScreen} options={{ title: 'Bill' }} />

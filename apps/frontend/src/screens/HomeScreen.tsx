@@ -145,18 +145,18 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   quickAction: {
-    minHeight: 76,
+    minHeight: 70,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
-    padding: theme.spacing.md,
+    padding: theme.spacing.sm,
   },
   quickIcon: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   quickTitle: {
     color: theme.colors.ink,
     fontFamily: theme.typography.ui,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -179,19 +179,19 @@ const styles = StyleSheet.create({
   quickCaption: {
     color: theme.colors.mutedInk,
     fontFamily: theme.typography.body,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   cardTitle: {
     color: theme.colors.ink,
     fontFamily: theme.typography.title,
-    fontSize: 24,
+    fontSize: 22,
   },
   bodyText: {
     color: theme.colors.ink,
     fontFamily: theme.typography.body,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 14,
+    lineHeight: 21,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: theme.colors.ink,
     fontFamily: theme.typography.title,
-    fontSize: 30,
+    fontSize: 26,
   },
   linkButton: {
     minHeight: 44,
