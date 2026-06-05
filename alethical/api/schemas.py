@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class PageInfo(BaseModel):
     limit: int
+    offset: int | None = None
     next_cursor: str | None = None
     has_more: bool = False
 

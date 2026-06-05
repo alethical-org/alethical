@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   createChatSessionFromApi,
@@ -8,6 +8,7 @@ import {
   getCurrentUserFromApi,
   getLegislatorBillsFromApi,
   getLegislatorFromApi,
+  ListPagination,
   LegislatorListFilters,
   listChatSessionsFromApi,
   listBillsFromApi,
@@ -38,10 +39,16 @@ export function useCurrentUser() {
   });
 }
 
-export function useBills(query?: string, session?: string, filters: BillListFilters = {}) {
+export function useBills(
+  query?: string,
+  session?: string,
+  filters: BillListFilters = {},
+  pagination: ListPagination = {}
+) {
   return useQuery({
-    queryKey: ['bills', session ?? 'current', query ?? '', filters],
-    queryFn: () => listBillsFromApi(query, session, filters),
+    queryKey: ['bills', session ?? 'current', query ?? '', filters, pagination.limit ?? 20, pagination.offset ?? 0],
+    queryFn: () => listBillsFromApi(query, session, filters, pagination),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -83,11 +90,12 @@ export function useLegislator(legislatorId: string) {
   });
 }
 
-export function useLegislatorBills(legislatorId: string) {
+export function useLegislatorBills(legislatorId: string, pagination: ListPagination = {}) {
   return useQuery({
-    queryKey: ['legislator-bills', legislatorId],
-    queryFn: () => getLegislatorBillsFromApi(legislatorId),
+    queryKey: ['legislator-bills', legislatorId, pagination.limit ?? 20, pagination.offset ?? 0],
+    queryFn: () => getLegislatorBillsFromApi(legislatorId, pagination),
     retry: false,
+    placeholderData: keepPreviousData,
   });
 }
 

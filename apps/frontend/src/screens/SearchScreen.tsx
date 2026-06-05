@@ -44,20 +44,18 @@ export function SearchScreen({ navigation }: Props) {
     () => ({ chamber: chamber === 'All' ? undefined : chamber }),
     [chamber]
   );
-  const billsQuery = useBills(query, session || undefined, billFilters);
+  const billsQuery = useBills(query, session || undefined, billFilters, {
+    limit: BILLS_PAGE_SIZE,
+    offset: billPage * BILLS_PAGE_SIZE,
+  });
   const legislatorsQuery = useLegislators(query, session || undefined, legislatorFilters);
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
   const trackedIds = useMemo(() => new Set((trackedQuery.data ?? []).map((bill) => bill.id)), [trackedQuery.data]);
 
   const categoryNeedle = policyCategory === ALL_POLICIES ? null : policyCategory.toLowerCase();
-  const bills = billsQuery.data ?? [];
-  const billPageCount = Math.max(1, Math.ceil(bills.length / BILLS_PAGE_SIZE));
-  const safeBillPage = Math.min(billPage, billPageCount - 1);
-  const pagedBills = bills.slice(
-    safeBillPage * BILLS_PAGE_SIZE,
-    safeBillPage * BILLS_PAGE_SIZE + BILLS_PAGE_SIZE
-  );
+  const bills = billsQuery.data?.data ?? [];
+  const hasMoreBills = billsQuery.data?.page.hasMore ?? false;
   const legislators = (legislatorsQuery.data ?? []).filter((legislator) => {
     const matchesChamber = chamber === 'All' || legislator.chamber === chamber;
     const matchesCategory =
@@ -137,7 +135,7 @@ export function SearchScreen({ navigation }: Props) {
                   <Text style={styles.bodyText}>No bills match this search.</Text>
                 </Card>
               ) : null}
-              {pagedBills.map((bill) => (
+              {bills.map((bill) => (
                   <BillCard
                     key={bill.id}
                     bill={bill}
@@ -153,20 +151,22 @@ export function SearchScreen({ navigation }: Props) {
                     }}
                   />
                 ))}
-              {!billsQuery.isLoading && !billsQuery.error && bills.length > BILLS_PAGE_SIZE ? (
+              {!billsQuery.isLoading && !billsQuery.error && (billPage > 0 || hasMoreBills) ? (
                 <View style={styles.paginationRow}>
                   <Chip
                     label="Previous"
                     selected={false}
+                    disabled={billPage === 0}
                     onPress={() => setBillPage((page) => Math.max(0, page - 1))}
                   />
                   <Text style={styles.pageText}>
-                    {safeBillPage + 1} / {billPageCount}
+                    Page {billPage + 1}
                   </Text>
                   <Chip
                     label="Next"
                     selected={false}
-                    onPress={() => setBillPage((page) => Math.min(billPageCount - 1, page + 1))}
+                    disabled={!hasMoreBills}
+                    onPress={() => setBillPage((page) => page + 1)}
                   />
                 </View>
               ) : null}

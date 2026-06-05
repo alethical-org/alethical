@@ -19,7 +19,7 @@ export function HomeScreen({ navigation }: Props) {
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
   const trackedIds = useMemo(() => new Set((trackedQuery.data ?? []).map((bill) => bill.id)), [trackedQuery.data]);
-  const recentBills = (billsQuery.data ?? []).slice(0, 4);
+  const recentBills = (billsQuery.data?.data ?? []).slice(0, 4);
 
   return (
     <ScreenView title="Alethical" subtitle="Minnesota legislative intelligence for search, tracking, and grounded bill questions.">
