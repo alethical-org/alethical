@@ -65,3 +65,9 @@ http://localhost:19006/**
 http://127.0.0.1:19006/**
 alethical://auth/callback
 ```
+
+## iOS Builds
+
+The iOS workflow uses Expo EAS from `apps/frontend`. Local QA without an iPhone uses an iOS Simulator build; sharing with testers uses TestFlight after Apple Developer Program access is available.
+
+See `docs/ios-release.md` for the full simulator, TestFlight, and ad hoc distribution workflow.
