@@ -14,7 +14,11 @@
       "backgroundColor": "#f5f1e8"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alethical.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -41,6 +45,11 @@
           "experimentalLauncherActivity": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e9bfa83e-58af-44d9-8587-8207217bb836"
+      }
+    }
   }
 }

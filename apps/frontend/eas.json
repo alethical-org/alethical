@@ -1,0 +1,45 @@
+{
+  "cli": {
+    "version": ">= 20.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "simulator": {
+      "env": {
+        "EXPO_PUBLIC_FRONTEND_URL": "https://alethical-web.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://alethical-api-production.up.railway.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://naakzorbkqqgbsreulqi.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hYWt6b3Jia3FxZ2JzcmV1bHFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTI2MjYsImV4cCI6MjA5MDM2ODYyNn0.XQ04JY4EVbHk00EWTRNIephiKduIFx_BYI1ZvgpLmRU"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_FRONTEND_URL": "https://alethical-web.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://alethical-api-production.up.railway.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://naakzorbkqqgbsreulqi.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hYWt6b3Jia3FxZ2JzcmV1bHFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTI2MjYsImV4cCI6MjA5MDM2ODYyNn0.XQ04JY4EVbHk00EWTRNIephiKduIFx_BYI1ZvgpLmRU"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_FRONTEND_URL": "https://alethical-web.vercel.app",
+        "EXPO_PUBLIC_API_URL": "https://alethical-api-production.up.railway.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://naakzorbkqqgbsreulqi.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hYWt6b3Jia3FxZ2JzcmV1bHFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTI2MjYsImV4cCI6MjA5MDM2ODYyNn0.XQ04JY4EVbHk00EWTRNIephiKduIFx_BYI1ZvgpLmRU"
+      },
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {}
+    }
+  }
+}

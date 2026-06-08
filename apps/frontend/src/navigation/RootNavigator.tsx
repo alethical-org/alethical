@@ -555,7 +555,7 @@ export function RootNavigator() {
             })}
           >
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
-            <Stack.Screen name="BillDetail" component={BillDetailScreen} options={{ title: 'Bill' }} />
+            <Stack.Screen name="BillDetail" component={BillDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="LegislatorProfile" component={LegislatorProfileScreen} options={{ title: 'Legislator' }} />
             <Stack.Screen name="FindMyLegislator" component={FindMyLegislatorScreen} options={{ title: 'Find My Legislator' }} />
             <Stack.Screen name="VoteDetail" component={VoteDetailScreen} options={{ title: 'Vote Detail' }} />
