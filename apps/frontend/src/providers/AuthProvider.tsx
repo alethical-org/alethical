@@ -52,6 +52,15 @@ function getRedirectTo(returnTo?: string) {
   });
 }
 
+function getCallbackParam(callbackUrl: string, paramName: string) {
+  try {
+    return new URL(callbackUrl).searchParams.get(paramName);
+  } catch {
+    const match = callbackUrl.match(new RegExp(`[?&]${paramName}=([^&]+)`));
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
@@ -127,7 +136,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(result.url);
+        const callbackError = getCallbackParam(result.url, 'error_description') ?? getCallbackParam(result.url, 'error');
+        if (callbackError) {
+          setAuthError(callbackError);
+          return;
+        }
+
+        const authCode = getCallbackParam(result.url, 'code');
+        if (!authCode) {
+          setAuthError('Supabase did not return an auth code.');
+          return;
+        }
+
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
         if (exchangeError) {
           setAuthError(exchangeError.message);
         }

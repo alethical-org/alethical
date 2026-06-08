@@ -1,6 +1,7 @@
 import { PropsWithChildren, ReactNode, useEffect, useRef } from 'react';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MotionIn } from './MotionIn';
 import { useResponsive } from '../hooks/useResponsive';
@@ -18,8 +19,10 @@ interface ScreenViewProps extends PropsWithChildren {
 
 export function ScreenView({ title, subtitle, actions, hideHeader = false, hideMasthead = false, scrollToEndKey, children }: ScreenViewProps) {
   const { isDesktop } = useResponsive();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const scrollRef = useRef<ScrollView | null>(null);
+  const safeAreaPadding = Platform.OS === 'web' ? undefined : { paddingTop: insets.top };
   const webBackground = Platform.OS === 'web'
     ? ({
         backgroundColor: theme.colors.paper,
@@ -41,7 +44,7 @@ export function ScreenView({ title, subtitle, actions, hideHeader = false, hideM
   }, [scrollToEndKey]);
 
   return (
-    <View style={[styles.background, webBackground]}>
+    <View style={[styles.background, webBackground, safeAreaPadding]}>
       <ScrollView
         ref={scrollRef}
         style={styles.scrollView}
@@ -71,8 +74,8 @@ export function ScreenView({ title, subtitle, actions, hideHeader = false, hideM
             <MotionIn delay={60}>
               <View style={styles.header}>
                 <View style={styles.headerText}>
-                  {title ? <Text style={styles.title}>{title}</Text> : null}
-                  {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+                  {title ? <Text style={[styles.title, !isDesktop && styles.mobileTitle]}>{title}</Text> : null}
+                  {subtitle ? <Text style={[styles.subtitle, !isDesktop && styles.mobileSubtitle]}>{subtitle}</Text> : null}
                 </View>
                 {actions ? <View style={styles.actions}>{actions}</View> : null}
               </View>
@@ -96,7 +99,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: theme.spacing.xxl,
+    paddingBottom: theme.spacing.xl,
   },
   container: {
     width: '100%',
@@ -140,12 +143,20 @@ const styles = StyleSheet.create({
     fontSize: 52,
     lineHeight: 56,
   },
+  mobileTitle: {
+    fontSize: 44,
+    lineHeight: 48,
+  },
   subtitle: {
     color: theme.colors.mutedInk,
     fontFamily: theme.typography.body,
     fontSize: 18,
     lineHeight: 28,
     maxWidth: 720,
+  },
+  mobileSubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
   },
   actions: {
     flexDirection: 'row',

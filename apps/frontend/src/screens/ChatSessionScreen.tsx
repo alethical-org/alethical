@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { AuthRequiredCard } from '../components/AuthRequiredCard';
 import { Card } from '../components/Card';
@@ -102,6 +102,8 @@ export function ChatSessionScreen({ route }: Props) {
     return readPendingBillChat() ?? routeParams;
   }, [routeParams]);
   const [draft, setDraft] = useState('');
+  const [composerFocused, setComposerFocused] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sessionId, setSessionId] = useState(params.sessionId);
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
   const [pendingUserMessage, setPendingUserMessage] = useState<DisplayMessage | null>(null);
@@ -213,7 +215,26 @@ export function ChatSessionScreen({ route }: Props) {
     [displayMessages]
   );
   const showCitationRail = width >= 980;
-  const chatShellMinHeight = Math.max(height - 300, 460);
+  const androidKeyboardOffset = Platform.OS === 'android' ? keyboardHeight : 0;
+  const chatShellMinHeight = Math.max(height - 300 - androidKeyboardOffset, 260);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    const showSubscription = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedCitation && !citationIds.has(selectedCitation.id)) {
@@ -328,14 +349,19 @@ export function ChatSessionScreen({ route }: Props) {
                 </View>
                 <View style={styles.composer}>
                   {sendError ? <Text style={styles.errorText}>{sendError}</Text> : null}
-                  <View style={styles.inputBar}>
+                  <View style={[styles.inputBar, composerFocused ? styles.inputBarFocused : null]}>
                     <TextInput
                       accessibilityLabel="Chat message"
                       placeholder="Ask a question about this bill"
                       placeholderTextColor={theme.colors.mutedInk}
+                      caretHidden={false}
+                      cursorColor={theme.colors.ink}
+                      selectionColor={theme.colors.ink}
                       style={[styles.input, webInputFocusReset]}
                       value={draft}
                       onChangeText={setDraft}
+                      onFocus={() => setComposerFocused(true)}
+                      onBlur={() => setComposerFocused(false)}
                       onKeyPress={(event) => {
                         const nativeEvent = event.nativeEvent as { key?: string; shiftKey?: boolean };
                         if (Platform.OS === 'web' && nativeEvent.key === 'Enter' && !nativeEvent.shiftKey) {
@@ -765,6 +791,13 @@ const styles = StyleSheet.create({
     paddingLeft: theme.spacing.md,
     paddingRight: theme.spacing.xs,
     paddingVertical: 4,
+  },
+  inputBarFocused: {
+    borderColor: theme.colors.ink,
+    borderWidth: 2,
+    paddingLeft: theme.spacing.md - 1,
+    paddingRight: theme.spacing.xs - 1,
+    paddingVertical: 3,
   },
   sendButton: {
     minWidth: 104,

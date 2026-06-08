@@ -1,8 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { BillCard } from '../components/BillCard';
 import { Card } from '../components/Card';
+import { Chip } from '../components/Chip';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
 import { SectionCard } from '../components/SectionCard';
@@ -13,18 +15,25 @@ import { theme } from '../theme/tokens';
 import { useResponsive } from '../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LegislatorProfile'>;
+const SPONSORED_BILLS_PAGE_SIZE = 20;
 
 export function LegislatorProfileScreen({ route, navigation }: Props) {
   const { isDesktop } = useResponsive();
   const { isSignedIn, signInWithGoogle, user } = useAuth();
+  const [billPage, setBillPage] = useState(0);
   const legislatorQuery = useLegislator(route.params.legislatorId);
-  const billsQuery = useLegislatorBills(route.params.legislatorId);
+  const billsQuery = useLegislatorBills(route.params.legislatorId, {
+    limit: SPONSORED_BILLS_PAGE_SIZE,
+    offset: billPage * SPONSORED_BILLS_PAGE_SIZE,
+  });
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
 
   const legislator = legislatorQuery.data;
   const trackedIds = new Set((trackedQuery.data ?? []).map((item) => item.id));
   const hasBiography = Boolean(legislator?.bio && legislator.bio !== 'Live legislator profile loaded from the backend.');
+  const sponsoredBills = billsQuery.data?.data ?? [];
+  const hasMoreSponsoredBills = billsQuery.data?.page.hasMore ?? false;
 
   if (legislatorQuery.isLoading) {
     return (
@@ -132,12 +141,12 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                   </Text>
                 </Card>
               ) : null}
-              {!billsQuery.isLoading && !billsQuery.error && (billsQuery.data ?? []).length === 0 ? (
+              {!billsQuery.isLoading && !billsQuery.error && sponsoredBills.length === 0 ? (
                 <Card>
                   <Text style={styles.bodyText}>No sponsored bills are available yet.</Text>
                 </Card>
               ) : null}
-              {(billsQuery.data ?? []).map((bill) => (
+              {sponsoredBills.map((bill) => (
                 <BillCard
                   key={bill.id}
                   bill={bill}
@@ -153,6 +162,23 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                   }}
                 />
               ))}
+              {!billsQuery.isLoading && !billsQuery.error && (billPage > 0 || hasMoreSponsoredBills) ? (
+                <View style={styles.paginationRow}>
+                  <Chip
+                    label="Previous"
+                    selected={false}
+                    disabled={billPage === 0}
+                    onPress={() => setBillPage((page) => Math.max(0, page - 1))}
+                  />
+                  <Text style={styles.pageText}>Page {billPage + 1}</Text>
+                  <Chip
+                    label="Next"
+                    selected={false}
+                    disabled={!hasMoreSponsoredBills}
+                    onPress={() => setBillPage((page) => page + 1)}
+                  />
+                </View>
+              ) : null}
             </View>
           </SectionCard>
         </View>
@@ -231,6 +257,19 @@ const styles = StyleSheet.create({
   },
   stack: {
     gap: theme.spacing.md,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  pageText: {
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.ui,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
   },
   contactStack: {
     gap: theme.spacing.sm,

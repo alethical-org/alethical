@@ -787,7 +787,7 @@ def bill_list_stmt(session_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
             Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
         )
         .options(*options)
-        .order_by(Bill.latest_action_at.desc().nullslast(), Bill.file_number.asc())
+        .order_by(Bill.latest_action_at.desc().nullslast(), Bill.file_number.asc(), Bill.id.asc())
     )
 
 
@@ -856,7 +856,7 @@ def legislator_sponsored_bills_stmt(legislator_id: uuid.UUID, session_id: uuid.U
             selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
             selectinload(Bill.enrichments),
         )
-        .order_by(Bill.file_number.asc())
+        .order_by(Bill.file_number.asc(), Bill.id.asc())
     )
 
 

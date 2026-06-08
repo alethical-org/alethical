@@ -9,9 +9,12 @@ import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
 import {
+  ArrowLeft,
   BookmarkCheck,
+  MessageSquareText,
   Home,
   MapPin,
+  Search,
   UserCircle,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -22,7 +25,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AccountScreen } from '../screens/AccountScreen';
 import { BillDetailScreen } from '../screens/BillDetailScreen';
 import { ChatSessionScreen } from '../screens/ChatSessionScreen';
+import { ChatScreen } from '../screens/ChatScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
+import { HomeScreen } from '../screens/HomeScreen';
 import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { TrackedScreen } from '../screens/TrackedScreen';
@@ -39,7 +44,9 @@ type NavIcon = LucideIcon;
 type RailRouteName = keyof MainTabParamList | 'FindMyLegislator';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
+  Search: { label: 'Search', Icon: Search },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
+  Chat: { label: 'Chat', Icon: MessageSquareText },
   Account: { label: 'Account', Icon: UserCircle },
 };
 const railRoutes: Array<{
@@ -54,6 +61,11 @@ const railRoutes: Array<{
     navigate: () => navigationRef.navigate('Tabs', { screen: 'Home' }),
   },
   {
+    name: 'Search',
+    ...tabMeta.Search,
+    navigate: () => navigationRef.navigate('Tabs', { screen: 'Search' }),
+  },
+  {
     name: 'FindMyLegislator',
     label: 'Find My Rep',
     Icon: MapPin,
@@ -63,6 +75,11 @@ const railRoutes: Array<{
     name: 'Tracked',
     ...tabMeta.Tracked,
     navigate: () => navigationRef.navigate('Tabs', { screen: 'Tracked' }),
+  },
+  {
+    name: 'Chat',
+    ...tabMeta.Chat,
+    navigate: () => navigationRef.navigate('Tabs', { screen: 'Chat' }),
   },
   {
     name: 'Account',
@@ -209,13 +226,23 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={SearchScreen}
+        component={HomeScreen}
         options={{ title: 'Home' }}
+      />
+      <Tab.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{ title: 'Search' }}
       />
       <Tab.Screen
         name="Tracked"
         component={TrackedScreen}
         options={{ title: 'Tracked' }}
+      />
+      <Tab.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ title: 'Chat' }}
       />
       <Tab.Screen
         name="Account"
@@ -253,8 +280,25 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  headerLeftContainer: {
+    paddingLeft: theme.spacing.lg,
+    paddingRight: theme.spacing.md,
+  },
+  headerTitleContainer: {
+    marginLeft: 0,
+    marginRight: theme.spacing.md,
+  },
+  headerBackButton: {
+    width: 40,
+    height: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  headerBackButtonPressed: {
+    opacity: 0.72,
+  },
   mobileTabBar: {
-    minHeight: 68,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'stretch',
     borderTopWidth: 1,
@@ -284,10 +328,10 @@ const styles = StyleSheet.create({
   mobileTabLabel: {
     color: theme.colors.ink,
     fontFamily: theme.typography.ui,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0,
-    lineHeight: 13,
+    lineHeight: 12,
   },
   mobileTabLabelActive: {
     color: theme.colors.ink,
@@ -476,13 +520,30 @@ export function RootNavigator() {
         {isDesktop ? <DesktopRail activeRouteName={activeRailRoute} /> : null}
         <View style={styles.globalContent}>
           <Stack.Navigator
-            screenOptions={{
+            screenOptions={({ navigation }) => ({
               headerShown: !isDesktop,
+              headerBackVisible: false,
+              headerTitleAlign: 'left',
               headerShadowVisible: false,
               headerStyle: {
                 backgroundColor: theme.colors.surface,
               },
               headerTintColor: theme.colors.ink,
+              headerLeft: () => (
+                navigation.canGoBack() ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Go back"
+                    hitSlop={10}
+                    onPress={() => navigation.goBack()}
+                    style={({ pressed }) => [styles.headerBackButton, pressed && styles.headerBackButtonPressed]}
+                  >
+                    <ArrowLeft color={theme.colors.ink} size={32} strokeWidth={2.4} />
+                  </Pressable>
+                ) : null
+              ),
+              headerLeftContainerStyle: styles.headerLeftContainer,
+              headerTitleContainerStyle: styles.headerTitleContainer,
               headerTitleStyle: {
                 color: theme.colors.ink,
                 fontFamily: theme.typography.title,
@@ -491,7 +552,7 @@ export function RootNavigator() {
               contentStyle: {
                 backgroundColor: theme.colors.paper,
               },
-            }}
+            })}
           >
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen name="BillDetail" component={BillDetailScreen} options={{ title: 'Bill' }} />

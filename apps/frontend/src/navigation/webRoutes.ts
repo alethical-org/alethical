@@ -31,10 +31,13 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   if (segments.length === 1) {
     if (segments[0] === 'search') {
-      return { kind: 'tab', screen: 'Home' };
+      return { kind: 'tab', screen: 'Search' };
     }
     if (segments[0] === 'tracked') {
       return { kind: 'tab', screen: 'Tracked' };
+    }
+    if (segments[0] === 'chat') {
+      return { kind: 'tab', screen: 'Chat' };
     }
     if (segments[0] === 'account') {
       return { kind: 'tab', screen: 'Account' };
@@ -122,8 +125,12 @@ export function pathnameFromNavigationState(
   switch (activeRoute.name) {
     case 'Home':
       return '/';
+    case 'Search':
+      return '/search';
     case 'Tracked':
       return '/tracked';
+    case 'Chat':
+      return '/chat';
     case 'Account':
       return '/account';
     case 'BillDetail':
@@ -158,7 +165,7 @@ export function pathnameFromNavigationState(
   }
 }
 
-const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Tracked', 'Account'];
+const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Search', 'Tracked', 'Chat', 'Account'];
 
 function tabState(screen: keyof MainTabParamList): PartialState<NavigationState> {
   return {
@@ -225,7 +232,7 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
         routes: [
           {
             name: 'Tabs',
-            state: tabState('Home'),
+            state: tabState('Chat'),
           },
           {
             name: 'ChatSession',

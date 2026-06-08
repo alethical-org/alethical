@@ -250,6 +250,10 @@ Tabs:
 
 ## 3. Global Search
 
+### Pagination Behavior
+
+The Bills column uses server-backed pagination. Each page request sends the active filters plus `limit` and `offset`; the UI advances only when the API returns `page.has_more=true`. The screen must not fetch a single bounded bill list and slice it locally, because that caps search results at the first response window.
+
 ### Mobile
 
 ```text
@@ -510,6 +514,10 @@ Recommended seeded bill prompts:
 ```
 
 ## 8. Legislator Profile
+
+### Sponsored Bills Pagination Behavior
+
+Sponsored Bills uses the same server-backed `limit` and `offset` contract as the bill search list. The legislator stats card may show more bills than the current page contains, so the profile must keep Previous/Next controls available while the endpoint reports `page.has_more=true`.
 
 ### Mobile
 

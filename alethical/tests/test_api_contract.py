@@ -161,6 +161,29 @@ def test_bill_and_legislator_lists_support_search_filter_contract(client):
     assert all(item["current_service"]["chamber"] == "senate" for item in senate_legislators)
 
 
+def test_bill_list_supports_offset_pagination(client):
+    first_page_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "limit": 1, "offset": 0},
+    )
+    assert first_page_response.status_code == 200
+    first_page_payload = first_page_response.json()
+    assert len(first_page_payload["data"]) == 1
+    assert first_page_payload["page"]["limit"] == 1
+    assert first_page_payload["page"]["offset"] == 0
+    assert first_page_payload["page"]["has_more"] is True
+
+    second_page_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "limit": 1, "offset": 1},
+    )
+    assert second_page_response.status_code == 200
+    second_page_payload = second_page_response.json()
+    assert len(second_page_payload["data"]) == 1
+    assert second_page_payload["page"]["offset"] == 1
+    assert second_page_payload["data"][0]["id"] != first_page_payload["data"][0]["id"]
+
+
 def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     detail_response = client.get(
         "/api/v1/bills/94-2025-SF1832",
@@ -415,6 +438,25 @@ def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
     assert first_bill["id"].startswith("94-2025-")
     assert "chief_sponsors" in first_bill
     assert "stats" in first_bill
+
+    first_page_response = client.get(
+        f"/api/v1/legislators/{sponsored_legislator['id']}/bills",
+        params={"limit": 1, "offset": 0},
+    )
+    assert first_page_response.status_code == 200
+    first_page_payload = first_page_response.json()
+    assert first_page_payload["page"]["offset"] == 0
+
+    second_page_response = client.get(
+        f"/api/v1/legislators/{sponsored_legislator['id']}/bills",
+        params={"limit": 1, "offset": 1},
+    )
+    assert second_page_response.status_code == 200
+    second_page_payload = second_page_response.json()
+    assert second_page_payload["page"]["offset"] == 1
+    if first_page_payload["page"]["has_more"]:
+        assert second_page_payload["data"]
+        assert second_page_payload["data"][0]["id"] != first_page_payload["data"][0]["id"]
 
 
 def test_signed_in_bill_tracking_and_notification_preferences(client, auth_headers):

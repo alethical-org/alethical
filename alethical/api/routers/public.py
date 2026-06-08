@@ -58,6 +58,13 @@ legislator_sponsored_bills_stmt = schema.legislator_sponsored_bills_stmt
 router = APIRouter()
 
 
+def paginated_scalars(db: Session, stmt, *, limit: int, offset: int):
+    if limit == 0:
+        return [], False
+    rows = db.scalars(stmt.offset(offset).limit(limit + 1)).all()
+    return rows[:limit], len(rows) > limit
+
+
 def get_session_by_slug(db: Session, slug: str | None):
     if slug:
         session_row = db.scalar(select(LegislativeSession).where(LegislativeSession.slug == slug))
@@ -247,7 +254,8 @@ def bills(
     policy_area: str | None = None,
     omnibus: bool | None = None,
     include: str | None = None,
-    limit: int = Query(default=20, le=100),
+    limit: int = Query(default=20, ge=0, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user=Depends(get_optional_current_user),
 ):
@@ -270,11 +278,11 @@ def bills(
         stmt = stmt.where(Bill.id.in_(matching_policy_area_bills))
     if omnibus is not None:
         stmt = stmt.where(Bill.is_omnibus.is_(omnibus))
-    rows = db.scalars(stmt.limit(limit)).all()
+    rows, has_more = paginated_scalars(db, stmt, limit=limit, offset=offset)
     data = [bill_list_item(row, include_tracking="tracking" in include_set and current_user is not None) for row in rows]
     return CollectionResponse(
         data=[item.model_dump(exclude_none=True) for item in data],
-        page={"limit": limit, "next_cursor": None, "has_more": False},
+        page={"limit": limit, "offset": offset, "next_cursor": None, "has_more": has_more},
         links={"self": "/api/v1/bills"},
     )
 
@@ -521,14 +529,20 @@ def legislator_detail(
 def legislator_bills(
     legislator_id: str,
     session: str | None = None,
-    limit: int = Query(default=20, le=100),
+    limit: int = Query(default=20, ge=0, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
     session_row = get_session_by_slug(db, session)
     legislator = get_legislator_by_id(db, legislator_id)
-    rows = db.scalars(legislator_sponsored_bills_stmt(legislator.id, session_row.id).limit(limit)).all()
+    rows, has_more = paginated_scalars(
+        db,
+        legislator_sponsored_bills_stmt(legislator.id, session_row.id),
+        limit=limit,
+        offset=offset,
+    )
     data = [bill_list_item(row).model_dump(exclude_none=True) for row in rows]
-    return CollectionResponse(data=data, page={"limit": limit, "next_cursor": None, "has_more": False})
+    return CollectionResponse(data=data, page={"limit": limit, "offset": offset, "next_cursor": None, "has_more": has_more})
 
 
 @router.get("/legislators/{legislator_id}/votes", response_model=CollectionResponse)

@@ -1,4 +1,7 @@
 import {
+    Platform,
+} from 'react-native';
+import {
     Bill,
     BillSponsor,
     Chamber,
@@ -9,7 +12,18 @@ import {
     RepresentativeLookupResult,
 } from './types';
 
-const configuredApiOrigin = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+function androidHostOrigin(origin: string) {
+    if (Platform.OS !== 'android') {
+        return origin;
+    }
+    return origin
+        .replace('://localhost:', '://10.0.2.2:')
+        .replace('://127.0.0.1:', '://10.0.2.2:');
+}
+
+const configuredApiOrigin = process.env.EXPO_PUBLIC_API_URL
+    ? androidHostOrigin(process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, ''))
+    : null;
 const API_BASE_URL = configuredApiOrigin ? `${configuredApiOrigin}/api/v1` : null;
 
 interface DetailResponse<T> {
@@ -23,9 +37,20 @@ interface CollectionResponse<T> {
 interface PageResponse<T> extends CollectionResponse<T> {
     page?: {
         limit: number;
+        offset?: number | null;
         next_cursor?: string | null;
         has_more: boolean;
     } | null;
+}
+
+export interface PaginatedResult<T> {
+    data: T[];
+    page: {
+        limit: number;
+        offset: number;
+        nextCursor?: string | null;
+        hasMore: boolean;
+    };
 }
 
 interface ApiChatSessionPayload {
@@ -104,6 +129,11 @@ export interface BillListFilters {
 
 export interface LegislatorListFilters {
     chamber?: Chamber;
+}
+
+export interface ListPagination {
+    limit?: number;
+    offset?: number;
 }
 
 interface ApiTrackedBillPayload {
@@ -818,10 +848,14 @@ export async function sendChatMessageToApi(
 export async function listBillsFromApi(
     query?: string,
     session?: string,
-    filters: BillListFilters = {}
-): Promise<Array<Bill & { sponsorNames: string[] }>> {
+    filters: BillListFilters = {},
+    pagination: ListPagination = {}
+): Promise<PaginatedResult<Bill & { sponsorNames: string[] }>> {
+    const limit = pagination.limit ?? 20;
+    const offset = pagination.offset ?? 0;
     const params = new URLSearchParams();
-    params.set('limit', '20');
+    params.set('limit', String(limit));
+    params.set('offset', String(offset));
     if (query?.trim()) {
         params.set('q', query.trim());
     }
@@ -845,7 +879,15 @@ export async function listBillsFromApi(
         `/bills?${params.toString()}`
     );
 
-    return response.data.map(mapBillSummary).filter((bill) => bill.aiAnalysis?.summary);
+    return {
+        data: response.data.map(mapBillSummary),
+        page: {
+            limit: response.page?.limit ?? limit,
+            offset: response.page?.offset ?? offset,
+            nextCursor: response.page?.next_cursor,
+            hasMore: response.page?.has_more ?? false,
+        },
+    };
 }
 
 export async function listPolicyAreasFromApi(session?: string): Promise<PolicyArea[]> {
@@ -883,8 +925,7 @@ export async function getBillFromApi(billId: string): Promise<(Bill & { sponsorN
         publicApiRequest<PageResponse<ApiBillVotePayload>>(`/bills/${encodeURIComponent(apiBillId)}/votes`),
     ]);
 
-    const bill = mapBillDetail(detailResponse.data, votesResponse.data);
-    return bill.aiAnalysis ? bill : null;
+    return mapBillDetail(detailResponse.data, votesResponse.data);
 }
 
 export async function listLegislatorsFromApi(
@@ -937,13 +978,28 @@ export async function getLegislatorFromApi(legislatorId: string): Promise<Legisl
 }
 
 export async function getLegislatorBillsFromApi(
-    legislatorId: string
-): Promise<Array<Bill & { sponsorNames: string[] }>> {
+    legislatorId: string,
+    pagination: ListPagination = {}
+): Promise<PaginatedResult<Bill & { sponsorNames: string[] }>> {
+    const limit = pagination.limit ?? 20;
+    const offset = pagination.offset ?? 0;
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    params.set('offset', String(offset));
+
     const response = await publicApiRequest<PageResponse<ApiBillListItemPayload>>(
-        `/legislators/${encodeURIComponent(legislatorId)}/bills?limit=20`
+        `/legislators/${encodeURIComponent(legislatorId)}/bills?${params.toString()}`
     );
 
-    return response.data.map(mapBillSummary).filter((bill) => bill.aiAnalysis?.summary);
+    return {
+        data: response.data.map(mapBillSummary),
+        page: {
+            limit: response.page?.limit ?? limit,
+            offset: response.page?.offset ?? offset,
+            nextCursor: response.page?.next_cursor,
+            hasMore: response.page?.has_more ?? false,
+        },
+    };
 }
 
 export async function listTrackedBillsFromApi(accessToken: string): Promise<Array<Bill & { sponsorNames: string[] }>> {
@@ -955,8 +1011,7 @@ export async function listTrackedBillsFromApi(accessToken: string): Promise<Arra
 
     return response.data
         .filter((tracked) => tracked.bill)
-        .map((tracked) => mapBillSummary(tracked.bill as ApiBillListItemPayload))
-        .filter((bill) => bill.aiAnalysis?.summary);
+        .map((tracked) => mapBillSummary(tracked.bill as ApiBillListItemPayload));
 }
 
 export async function toggleTrackedBillFromApi(accessToken: string, billId: string): Promise<void> {

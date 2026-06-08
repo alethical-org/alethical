@@ -241,6 +241,26 @@ Use cursor pagination for growing collections:
 - chat sessions
 - chat messages
 
+#### V1 bill-list pagination
+
+The first production implementation for bill-card lists uses offset pagination instead of opaque cursors. This is intentional for the current V1 surfaces because the affected lists are read-only, have stable sort orders, and need a minimal fix for users who could only see the first 20 bills.
+
+Applies to:
+
+- `GET /api/v1/bills`
+- `GET /api/v1/legislators/{legislator_id}/bills`
+
+Contract:
+
+- clients send `limit` and `offset`
+- the backend fetches `limit + 1` rows
+- responses return only `limit` rows
+- `page.has_more` is true when the extra row exists
+- `page.offset` echoes the requested offset
+- sorting must include a deterministic tie-breaker so moving between offsets does not repeat or skip rows under stable data
+
+Cursor pagination remains the preferred long-term shape for high-churn collections, but clients must not implement local pagination over a single bounded response.
+
 ### Filtering and Sorting
 
 Use query parameters only.
@@ -329,7 +349,8 @@ Filters:
 - `sort`
 - `order`
 - `limit`
-- `cursor`
+- `offset`
+- `cursor` reserved for a later cursor-backed implementation
 
 Optional includes:
 
@@ -426,7 +447,8 @@ Filters:
 - `sort`
 - `order`
 - `limit`
-- `cursor`
+- `offset`
+- `cursor` reserved for a later cursor-backed implementation
 
 Response fields:
 

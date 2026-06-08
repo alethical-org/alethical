@@ -5,21 +5,25 @@ import { theme } from '../theme/tokens';
 interface ChipProps {
   label: string;
   selected?: boolean;
+  disabled?: boolean;
   onPress?: () => void;
 }
 
-export function Chip({ label, selected = false, onPress }: ChipProps) {
+export function Chip({ label, selected = false, disabled = false, onPress }: ChipProps) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled, selected }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
         selected ? styles.selected : styles.idle,
+        disabled && styles.disabled,
         pressed && styles.pressed,
       ]}
     >
-      <Text style={[styles.label, selected && styles.selectedLabel]}>{label}</Text>
+      <Text style={[styles.label, selected && styles.selectedLabel, disabled && styles.disabledLabel]}>{label}</Text>
     </Pressable>
   );
 }
@@ -45,6 +49,9 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.9,
   },
+  disabled: {
+    opacity: 0.45,
+  },
   label: {
     color: theme.colors.ink,
     fontFamily: theme.typography.ui,
@@ -55,5 +62,8 @@ const styles = StyleSheet.create({
   },
   selectedLabel: {
     color: theme.colors.white,
+  },
+  disabledLabel: {
+    color: theme.colors.mutedInk,
   },
 });
