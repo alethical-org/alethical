@@ -7,6 +7,8 @@ export type RootStackParamList = {
   BillDetail: { billId: string };
   LegislatorProfile: { legislatorId: string };
   FindMyLegislator: undefined;
+  Privacy: undefined;
+  Terms: undefined;
   VoteDetail: { billId: string; voteEventId: string };
   ChatSession: {
     sessionId?: string;

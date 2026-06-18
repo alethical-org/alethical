@@ -7,6 +7,8 @@ type WebRouteTarget =
   | { kind: 'bill'; billId: string }
   | { kind: 'legislator'; legislatorId: string }
   | { kind: 'findMyLegislator' }
+  | { kind: 'privacy' }
+  | { kind: 'terms' }
   | { kind: 'vote'; billId: string; voteEventId: string }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] };
 
@@ -44,6 +46,12 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     }
     if (segments[0] === 'find-my-legislator') {
       return { kind: 'findMyLegislator' };
+    }
+    if (segments[0] === 'privacy') {
+      return { kind: 'privacy' };
+    }
+    if (segments[0] === 'terms') {
+      return { kind: 'terms' };
     }
   }
 
@@ -139,6 +147,10 @@ export function pathnameFromNavigationState(
       return `/legislators/${encodeURIComponent(String(activeRoute.params?.legislatorId ?? ''))}`;
     case 'FindMyLegislator':
       return '/find-my-legislator';
+    case 'Privacy':
+      return '/privacy';
+    case 'Terms':
+      return '/terms';
     case 'VoteDetail':
       return `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}/votes/${encodeURIComponent(String(activeRoute.params?.voteEventId ?? ''))}`;
     case 'ChatSession':
@@ -211,6 +223,16 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
     case 'findMyLegislator':
       return {
         routes: [homeTabs, { name: 'FindMyLegislator' }],
+        index: 1,
+      };
+    case 'privacy':
+      return {
+        routes: [homeTabs, { name: 'Privacy' }],
+        index: 1,
+      };
+    case 'terms':
+      return {
+        routes: [homeTabs, { name: 'Terms' }],
         index: 1,
       };
     case 'vote':
