@@ -28,6 +28,7 @@ import { ChatSessionScreen } from '../screens/ChatSessionScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
 import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { TrackedScreen } from '../screens/TrackedScreen';
@@ -558,6 +559,8 @@ export function RootNavigator() {
             <Stack.Screen name="BillDetail" component={BillDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="LegislatorProfile" component={LegislatorProfileScreen} options={{ title: 'Legislator' }} />
             <Stack.Screen name="FindMyLegislator" component={FindMyLegislatorScreen} options={{ title: 'Find My Legislator' }} />
+            <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy' }} />
+            <Stack.Screen name="Terms" component={TermsScreen} options={{ title: 'Terms of Service' }} />
             <Stack.Screen name="VoteDetail" component={VoteDetailScreen} options={{ title: 'Vote Detail' }} />
             <Stack.Screen name="ChatSession" component={ChatSessionScreen} options={{ title: 'Chat' }} />
           </Stack.Navigator>

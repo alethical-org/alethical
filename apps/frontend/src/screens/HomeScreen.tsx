@@ -107,6 +107,25 @@ export function HomeScreen({ navigation }: Props) {
           />
         ))}
       </View>
+
+      <View style={styles.legalLinks}>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Open Privacy Policy"
+          onPress={() => navigation.navigate('Privacy')}
+          style={({ pressed }) => [styles.legalLink, pressed && styles.pressed]}
+        >
+          <Text style={styles.legalLinkText}>Privacy Policy</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Open Terms of Service"
+          onPress={() => navigation.navigate('Terms')}
+          style={({ pressed }) => [styles.legalLink, pressed && styles.pressed]}
+        >
+          <Text style={styles.legalLinkText}>Terms of Service</Text>
+        </Pressable>
+      </View>
     </ScreenView>
   );
 }
@@ -224,6 +243,29 @@ const styles = StyleSheet.create({
   },
   stack: {
     gap: theme.spacing.md,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    paddingTop: theme.spacing.md,
+  },
+  legalLink: {
+    minHeight: 44,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+  },
+  legalLinkText: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.ui,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
   },
   pressed: {
     opacity: 0.78,
