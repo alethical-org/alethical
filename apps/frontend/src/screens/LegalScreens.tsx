@@ -3,224 +3,484 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ScreenView } from '../components/ScreenView';
 import { theme } from '../theme/tokens';
 
-const effectiveDate = 'June 18, 2026';
+type LegalBlock =
+  | { kind: 'paragraph'; text: string }
+  | { kind: 'callout'; text: string; linkText?: string; trailingText?: string }
+  | { kind: 'list'; items: string[] };
 
 type LegalSection = {
-  title: string;
-  paragraphs: string[];
+  number?: string;
+  title?: string;
+  blocks: LegalBlock[];
 };
 
-const privacySections: LegalSection[] = [
-  {
-    title: 'Overview',
-    paragraphs: [
-      'Alethical helps people search, understand, track, and ask questions about public legislative information. This Privacy Policy explains what we collect, how we use it, and the choices you have when using Alethical.',
-      'This draft is intended to make our current practices clear while our legal review is in progress. We will update it as the product and legal guidance evolve.',
-    ],
-  },
-  {
-    title: 'Information we collect',
-    paragraphs: [
-      'If you use Alethical without signing in, you can browse public content such as bills, legislators, votes, and related summaries. We may collect basic technical information such as browser type, device information, pages visited, and approximate usage activity to keep the service reliable.',
-      'If you sign in with Google, we receive the account information needed to create and maintain your Alethical account, such as your name, email address, and Google account identifier. If you choose to track bills, save places, or use chat, we store the content and settings needed to provide those features.',
-    ],
-  },
-  {
-    title: 'How we use information',
-    paragraphs: [
-      'We use information to operate Alethical, provide account features, maintain your tracked bills and chat history, improve product reliability, prevent abuse, and communicate service-related updates.',
-      'We do not sell personal information. We do not use Google sign-in data for advertising. We use Google sign-in only to authenticate you and connect your account to Alethical features.',
-    ],
-  },
-  {
-    title: 'Service providers',
-    paragraphs: [
-      'Alethical relies on service providers for hosting, authentication, database storage, analytics, and related infrastructure. These providers process information only as needed to help us operate the service.',
-      'Public legislative source material may come from government or public data sources. Those sources are separate from Alethical and have their own practices.',
-    ],
-  },
-  {
-    title: 'Data retention and deletion',
-    paragraphs: [
-      'We keep account information and saved product data for as long as needed to provide the service, comply with legal obligations, resolve disputes, and maintain security.',
-      'You may request deletion of your Alethical account or associated personal information by contacting us. Some records may be retained where required for security, legal, or operational reasons.',
-    ],
-  },
-  {
-    title: 'Your choices',
-    paragraphs: [
-      'You can use public search and representative lookup without signing in. You can choose whether to sign in with Google for account-backed features such as tracking, saved history, and chat.',
-      'You can stop using Alethical at any time. If you no longer want Alethical to access your Google account for sign-in, you can remove access from your Google account settings.',
-    ],
-  },
-  {
-    title: 'Contact',
-    paragraphs: [
-      'For privacy questions, account deletion requests, or other privacy-related requests, contact the Alethical team at the support channel listed on our website or product communications.',
-    ],
-  },
-];
-
-const termsSections: LegalSection[] = [
-  {
-    title: 'Agreement to these terms',
-    paragraphs: [
-      'These Terms of Service govern your use of Alethical. By accessing or using Alethical, you agree to these terms. If you do not agree, do not use the service.',
-      'These draft terms are provided while legal review is in progress and may be updated as the product develops.',
-    ],
-  },
-  {
-    title: 'What Alethical provides',
-    paragraphs: [
-      'Alethical provides tools for searching, tracking, and asking questions about public legislative information. The service may include summaries, classifications, links, saved activity, and generated responses grounded in available source material.',
-      'Alethical is not a law firm, lobbying service, government agency, or source of legal advice. Information in the service is for general informational and civic research purposes only.',
-    ],
-  },
-  {
-    title: 'Accounts and sign-in',
-    paragraphs: [
-      'Some features require signing in with Google. You are responsible for keeping your Google account secure and for activity that occurs through your Alethical account.',
-      'You agree to provide accurate account information and to use Alethical only in compliance with applicable laws and these terms.',
-    ],
-  },
-  {
-    title: 'Acceptable use',
-    paragraphs: [
-      'You may not misuse Alethical, interfere with the service, attempt unauthorized access, scrape the service in a way that harms reliability, upload malicious content, or use the service to harass, deceive, or violate the rights of others.',
-      'We may suspend or restrict access if we believe use of the service creates risk, violates these terms, or may harm Alethical, other users, or third parties.',
-    ],
-  },
-  {
-    title: 'Public information and generated output',
-    paragraphs: [
-      'Alethical works with public legislative information and related source material. We aim for accuracy, but legislative data, summaries, generated responses, and third-party source material may be incomplete, delayed, or incorrect.',
-      'You should verify important information against official government records or other authoritative sources before relying on it.',
-    ],
-  },
-  {
-    title: 'Ownership',
-    paragraphs: [
-      'Alethical and its software, design, branding, and product experience are owned by Alethical or its licensors. These terms do not grant you ownership of Alethical or its underlying technology.',
-      'Public legislative records remain subject to the rights and terms that apply to their original sources.',
-    ],
-  },
-  {
-    title: 'Disclaimers and limitation of liability',
-    paragraphs: [
-      'Alethical is provided on an as-is and as-available basis. We do not promise that the service will be uninterrupted, error-free, or always current.',
-      'To the fullest extent allowed by law, Alethical will not be liable for indirect, incidental, special, consequential, or punitive damages arising from your use of the service.',
-    ],
-  },
-  {
-    title: 'Changes',
-    paragraphs: [
-      'We may update these terms from time to time. Updated terms will be posted on this page with a new effective date. Continued use of Alethical after updates means you accept the updated terms.',
-    ],
-  },
-  {
-    title: 'Contact',
-    paragraphs: [
-      'For questions about these terms, contact the Alethical team through the support channel listed on our website or product communications.',
-    ],
-  },
-];
-
-function LegalDocument({
-  title,
-  subtitle,
-  sections,
-}: {
+type LegalDocumentContent = {
   title: string;
-  subtitle: string;
+  meta: string;
   sections: LegalSection[];
-}) {
-  return (
-    <ScreenView title={title} subtitle={subtitle}>
-      <View style={styles.document}>
-        <View style={styles.notice}>
-          <Text style={styles.noticeText}>
-            Draft policy text. This page is intended to satisfy product launch and OAuth review requirements while formal legal review is pending.
-          </Text>
-          <Text style={styles.effectiveDate}>Effective date: {effectiveDate}</Text>
-        </View>
+};
 
-        {sections.map((section) => (
-          <View key={section.title} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            {section.paragraphs.map((paragraph) => (
-              <Text key={paragraph} style={styles.paragraph}>
-                {paragraph}
-              </Text>
+const privacyContent: LegalDocumentContent = {
+  title: 'Privacy Policy',
+  meta: 'Effective date: June 16, 2026 · Last updated: June 16, 2026',
+  sections: [
+    {
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'This Privacy Policy explains how Alethical, LLC (“Alethical,” “we,” “us,” or “our”) collects, uses, and protects information when you use our website and application (the “Service”). By using the Service, you agree to the practices described here.',
+        },
+      ],
+    },
+    {
+      number: '01',
+      title: 'Information We Collect',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'When you sign in with Google, we receive basic profile information from your Google Account, limited to what you authorize:',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Account information — your name, email address, and profile picture.',
+            'Authentication data — identifiers used to create and maintain your secure session.',
+            'Usage data — information about how you interact with the Service, such as features used and general device and log information.',
+          ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'We do not request access to your Gmail, Google Drive, contacts, or any other sensitive or restricted Google data.',
+        },
+      ],
+    },
+    {
+      number: '02',
+      title: 'How We Use Information',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We use the information we collect to:',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Authenticate you and provide secure access to your account.',
+            'Operate, maintain, and improve the Service.',
+            'Communicate with you about your account, security, and updates.',
+            'Protect against fraud, abuse, and unauthorized access.',
+          ],
+        },
+      ],
+    },
+    {
+      number: '03',
+      title: 'Google API Services — Limited Use',
+      blocks: [
+        {
+          kind: 'callout',
+          text: 'Alethical’s use and transfer to any other app of information received from Google APIs will adhere to the ',
+          linkText: 'Google API Services User Data Policy',
+          trailingText: ', including the Limited Use requirements.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'We only request the minimum scopes needed to sign you in and identify your account. We do not sell Google user data, and we do not use it for advertising or any purpose unrelated to providing the Service.',
+        },
+      ],
+    },
+    {
+      number: '04',
+      title: 'How We Share Information',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We do not sell your personal information. We share it only with:',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Service providers who help us operate the Service under contractual confidentiality obligations — including Supabase (authentication and database) and Google (sign-in).',
+            'Legal authorities when required by law, regulation, or valid legal process.',
+            'A successor entity in connection with a merger, acquisition, or sale of assets, subject to this Policy.',
+          ],
+        },
+      ],
+    },
+    {
+      number: '05',
+      title: 'Data Retention',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We retain your information for as long as your account is active or as needed to provide the Service. We delete or anonymize it when it is no longer required, unless a longer retention period is required by law.',
+        },
+      ],
+    },
+    {
+      number: '06',
+      title: 'Security',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We use industry-standard safeguards to protect your information, including encryption in transit and access controls. No method of transmission or storage is fully secure, so we cannot guarantee absolute security.',
+        },
+      ],
+    },
+    {
+      number: '07',
+      title: 'Your Rights',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'Depending on your location, you may have the right to access, correct, export, or delete your personal information, and to withdraw consent. To exercise these rights, contact us at the address below. You can also revoke Alethical’s access at any time from your Google Account permissions page.',
+        },
+      ],
+    },
+    {
+      number: '08',
+      title: 'Cookies',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. You can control cookies through your browser settings, though some features may not function without them.',
+        },
+      ],
+    },
+    {
+      number: '09',
+      title: 'Children’s Privacy',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'The Service is not directed to children under 13 (or the minimum age required in your jurisdiction). We do not knowingly collect information from children. If you believe a child has provided us information, contact us and we will delete it.',
+        },
+      ],
+    },
+    {
+      number: '10',
+      title: 'Changes to This Policy',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We may update this Policy from time to time. Material changes will be posted on this page with a revised effective date. Your continued use of the Service after changes take effect constitutes acceptance.',
+        },
+      ],
+    },
+    {
+      number: '11',
+      title: 'Contact Us',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'Questions about this Policy or your data? Contact us at alethicaldev@gmail.com.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'Alethical, LLC — a Minnesota limited liability company. 29308 Crow Cir, Breezy Point, MN 56472, USA.',
+        },
+      ],
+    },
+  ],
+};
+
+const termsContent: LegalDocumentContent = {
+  title: 'Terms of Service',
+  meta: 'Effective date: June 16, 2026 · Last updated: June 16, 2026',
+  sections: [
+    {
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'These Terms of Service (“Terms”) govern your access to and use of the website and application provided by Alethical, LLC (“Alethical,” “we,” “us,” or “our”) (the “Service”). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.',
+        },
+      ],
+    },
+    {
+      number: '01',
+      title: 'Eligibility',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'You must be at least 13 years old (or the minimum age of digital consent in your jurisdiction) and able to form a binding contract to use the Service. By using it, you represent that you meet these requirements.',
+        },
+      ],
+    },
+    {
+      number: '02',
+      title: 'Accounts',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'You access the Service by signing in with your Google Account. You are responsible for the activity that occurs under your account and for maintaining the security of the credentials you use to sign in. Notify us promptly of any unauthorized use.',
+        },
+      ],
+    },
+    {
+      number: '03',
+      title: 'Acceptable Use',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'You agree not to:',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Use the Service for any unlawful, harmful, or fraudulent purpose.',
+            'Attempt to gain unauthorized access to the Service, other accounts, or our systems.',
+            'Interfere with or disrupt the integrity or performance of the Service.',
+            'Reverse engineer, copy, or resell any part of the Service except as permitted by law.',
+          ],
+        },
+      ],
+    },
+    {
+      number: '04',
+      title: 'Intellectual Property',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'The Service, including its software, design, and content, is owned by Alethical and protected by intellectual property laws. We grant you a limited, non-exclusive, non-transferable license to use the Service for its intended purpose. All rights not expressly granted are reserved.',
+        },
+      ],
+    },
+    {
+      number: '05',
+      title: 'Third-Party Services',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'The Service relies on third-party providers, including Google and Supabase. Your use of those services is also subject to their respective terms and privacy policies. We are not responsible for third-party services.',
+        },
+      ],
+    },
+    {
+      number: '06',
+      title: 'Disclaimer of Warranties',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'The Service is provided “as is” and “as available” without warranties of any kind, express or implied, including merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that the Service will be uninterrupted, secure, or error-free.',
+        },
+      ],
+    },
+    {
+      number: '07',
+      title: 'Limitation of Liability',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'To the maximum extent permitted by law, Alethical will not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of data, use, or profits, arising from your use of the Service. Our total liability for any claim will not exceed the amount you paid us, if any, in the twelve months preceding the claim.',
+        },
+      ],
+    },
+    {
+      number: '08',
+      title: 'Indemnification',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'You agree to indemnify and hold Alethical harmless from any claims, losses, or expenses arising from your use of the Service or your violation of these Terms.',
+        },
+      ],
+    },
+    {
+      number: '09',
+      title: 'Termination',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We may suspend or terminate your access to the Service at any time if you violate these Terms or for any other reason at our discretion. You may stop using the Service at any time. Provisions that by their nature should survive termination will survive.',
+        },
+      ],
+    },
+    {
+      number: '10',
+      title: 'Governing Law',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'These Terms are governed by the laws of the State of Minnesota, without regard to its conflict-of-laws rules. Any disputes will be resolved exclusively in the state or federal courts located in Minnesota.',
+        },
+      ],
+    },
+    {
+      number: '11',
+      title: 'Changes to These Terms',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We may update these Terms from time to time. Material changes will be posted on this page with a revised effective date. Your continued use of the Service after changes take effect constitutes acceptance.',
+        },
+      ],
+    },
+    {
+      number: '12',
+      title: 'Contact Us',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'Questions about these Terms? Contact us at alethicaldev@gmail.com.',
+        },
+      ],
+    },
+  ],
+};
+
+function LegalDocument({ content }: { content: LegalDocumentContent }) {
+  return (
+    <ScreenView hideHeader>
+      <View style={styles.document}>
+        <Text style={styles.eyebrow}>Legal</Text>
+        <Text style={styles.title}>{content.title}</Text>
+        <Text style={styles.meta}>{content.meta}</Text>
+
+        {content.sections.map((section, sectionIndex) => (
+          <View key={`${section.title ?? 'intro'}-${sectionIndex}`} style={styles.section}>
+            {section.title ? (
+              <View style={styles.sectionHeading}>
+                {section.number ? <Text style={styles.sectionNumber}>{section.number}</Text> : null}
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+              </View>
+            ) : null}
+            {section.blocks.map((block, blockIndex) => (
+              <LegalBlockView key={`${block.kind}-${blockIndex}`} block={block} />
             ))}
           </View>
         ))}
+
+        <Text style={styles.footer}>© Alethical. All rights reserved.</Text>
       </View>
     </ScreenView>
   );
 }
 
+function LegalBlockView({ block }: { block: LegalBlock }) {
+  if (block.kind === 'list') {
+    return (
+      <View style={styles.list}>
+        {block.items.map((item) => (
+          <View key={item} style={styles.listItem}>
+            <Text style={styles.bullet}>{'\u2022'}</Text>
+            <Text style={styles.paragraph}>{item}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  if (block.kind === 'callout') {
+    return (
+      <Text style={[styles.paragraph, styles.callout]}>
+        {block.text}
+        {block.linkText ? <Text style={styles.inlineLink}>{block.linkText}</Text> : null}
+        {block.trailingText}
+      </Text>
+    );
+  }
+
+  return <Text style={styles.paragraph}>{block.text}</Text>;
+}
+
 export function PrivacyScreen() {
-  return (
-    <LegalDocument
-      title="Privacy Policy"
-      subtitle="How Alethical handles account, product, and usage information."
-      sections={privacySections}
-    />
-  );
+  return <LegalDocument content={privacyContent} />;
 }
 
 export function TermsScreen() {
-  return (
-    <LegalDocument
-      title="Terms of Service"
-      subtitle="The basic terms for using Alethical."
-      sections={termsSections}
-    />
-  );
+  return <LegalDocument content={termsContent} />;
 }
 
 const styles = StyleSheet.create({
   document: {
     maxWidth: 860,
-    gap: theme.spacing.lg,
+    gap: theme.spacing.md,
   },
-  notice: {
-    gap: theme.spacing.xs,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
-    padding: theme.spacing.md,
-  },
-  noticeText: {
-    color: theme.colors.ink,
-    fontFamily: theme.typography.body,
-    fontSize: 15,
-    lineHeight: 23,
-  },
-  effectiveDate: {
+  eyebrow: {
     color: theme.colors.mutedInk,
     fontFamily: theme.typography.ui,
     fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 2.4,
     textTransform: 'uppercase',
+  },
+  title: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.title,
+    fontSize: 52,
+    lineHeight: 58,
+  },
+  meta: {
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.body,
+    fontSize: 15,
+    lineHeight: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    paddingBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   section: {
     gap: theme.spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    paddingTop: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  sectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: theme.spacing.sm,
+  },
+  sectionNumber: {
+    minWidth: 26,
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.ui,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   sectionTitle: {
+    flex: 1,
     color: theme.colors.ink,
     fontFamily: theme.typography.title,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 26,
+    lineHeight: 32,
   },
   paragraph: {
     color: theme.colors.ink,
     fontFamily: theme.typography.body,
     fontSize: 16,
     lineHeight: 26,
+  },
+  callout: {
+    borderLeftWidth: 2,
+    borderLeftColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceAlt,
+    padding: theme.spacing.md,
+  },
+  inlineLink: {
+    color: theme.colors.ink,
+    textDecorationLine: 'underline',
+  },
+  list: {
+    gap: theme.spacing.xs,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+  },
+  bullet: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.body,
+    fontSize: 16,
+    lineHeight: 26,
+  },
+  footer: {
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    paddingTop: theme.spacing.lg,
   },
 });
