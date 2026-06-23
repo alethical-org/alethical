@@ -66,3 +66,5 @@ If a port is already in use, override it when starting Compose:
 ```bash
 BACKEND_PORT=18000 EXPO_PUBLIC_API_URL=http://localhost:18000 just up
 ```
+
+<!-- deploy test: 2026-06-23 -->
