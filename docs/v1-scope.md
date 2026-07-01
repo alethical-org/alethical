@@ -256,7 +256,11 @@ The v1 domain model should cover these core entities:
 
 ### In Scope
 
-- Signed-in-only grounded question answering over Minnesota legislative data
+- Grounded question answering over Minnesota legislative data. Persistent chat
+  sessions (history, follow-ups, saved context) are signed-in only. Anonymous
+  visitors may receive a single stateless, rate-limited, cited answer as a
+  conversion teaser — no session is persisted, and follow-ups, history, and
+  tracking require sign-in.
 - A separate RAG ingestion pipeline layered on canonical legislative ingestion
 - Retrieval over:
   - bill metadata
