@@ -131,13 +131,16 @@ export const ROUTES = {
 } as const;
 
 /**
- * Old paths that must 301/redirect to their new homes after the migration, so
- * existing links and bookmarks keep working.
+ * Old paths that must redirect to their new homes after the migration, so
+ * existing links and bookmarks keep working. `match: 'prefix'` rewrites the
+ * matched prefix and preserves the tail + query string — e.g. `/chat/new` and
+ * `/chat/sessions/:id` map to `/ask/new` and `/ask/sessions/:id`. The default
+ * is an exact-path match.
  */
-export const REDIRECTS: { from: string; to: string }[] = [
+export const REDIRECTS: { from: string; to: string; match?: 'exact' | 'prefix' }[] = [
   { from: '/search', to: '/bills' },
   { from: '/tracked', to: '/track/bills' },
-  { from: '/chat', to: '/ask' },
+  { from: '/chat', to: '/ask', match: 'prefix' },
 ];
 
 /**

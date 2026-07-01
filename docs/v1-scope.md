@@ -23,7 +23,7 @@ V1 is successful if a user can:
 - Search legislators and inspect their profiles and sponsored bills
 - Find their representatives by address or city
 - Sign in to track bills and receive basic updates
-- Sign in to ask grounded questions about Minnesota legislation and get answers with citations back to official or ingested sources
+- Ask grounded questions about Minnesota legislation and get answers with citations back to official or ingested sources; persistent chat sessions (history, follow-ups) require sign-in
 
 V1 is not trying to be a full political accountability platform yet. It is a reliable legislative data and analysis product.
 
