@@ -134,17 +134,20 @@ Frontend track (after Phase 0; parallel with backend track)
   social are explicitly out of scope there) — a conscious future mission expansion;
   keep out of the MVP data model so it doesn't leak scope.
 
-## Proposed v1-scope amendment (pushback — awaiting sign-off)
+## Applied v1-scope amendment (rationale)
 
-`docs/v1-scope.md` § "AI and RAG Chat → In Scope" currently reads
+`docs/v1-scope.md` § "AI and RAG Chat → In Scope" previously read
 **"Signed-in-only grounded question answering."** The locked hero funnel deviates
-from this. Recommended amendment:
+from that, so this PR amended it to:
 
-> Grounded question answering is signed-in for persistent chat sessions (history,
-> follow-ups, saved context). **Anonymous visitors may receive a single stateless,
-> rate-limited, cited answer** as a conversion teaser — no session is persisted, and
-> follow-ups/history/tracking require sign-in.
+> Grounded question answering over Minnesota legislative data. Persistent chat
+> sessions (history, follow-ups, saved context) are signed-in only. Anonymous
+> visitors may receive a single stateless, rate-limited, cited answer as a
+> conversion teaser — no session is persisted, and follow-ups, history, and
+> tracking require sign-in.
 
 Rationale: the cited-answer moment is the product's core proof ("Truth, Unconcealed");
 gating it before the visitor experiences it suppresses adoption. The stateless one-shot
-preserves the doc's real intent (sessions belong to signed-in users). Apply on sign-off.
+preserves the doc's real intent (sessions belong to signed-in users). Applied in this PR
+alongside the plan-doc introduction (the Product Definition summary at `v1-scope.md:26`
+was updated to match).

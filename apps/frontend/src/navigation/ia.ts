@@ -119,6 +119,7 @@ export const IA: IaItem[] = [
 export const ROUTES = {
   home: '/',
   billDetail: '/bills/:billId',
+  voteDetail: '/bills/:billId/votes/:voteEventId',
   legislatorProfile: '/legislators/:legislatorId',
   findMyLegislator: '/find-my-legislator',
   askNew: '/ask/new',
