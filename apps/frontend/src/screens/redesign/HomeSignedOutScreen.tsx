@@ -3,19 +3,69 @@ import { Search } from 'lucide-react-native';
 
 import { theme } from '../../theme/tokens';
 import {
+  AddressField,
   Badge,
+  Bill,
+  BillCard,
   Card,
+  CityChip,
   Container,
   Eyebrow,
-  LabelMono,
+  Footer,
+  GoogleButton,
+  InfoCard,
   MetaStripe,
+  MNMap,
   PageBackground,
   PrimaryButton,
+  SectionHeading,
+  SectionLabel,
   TopNav,
 } from '../../theme/primitives';
 import { useResponsive } from '../../hooks/useResponsive';
 
 const t = theme;
+
+const RECENT_BILLS: Bill[] = [
+  {
+    billId: 'HF 1',
+    description:
+      'The bill establishes an Office of Inspector General to enhance oversight of state-funded services, prevent fraud, and protect whistleblowers.',
+    chamber: 'HOUSE',
+    status: 'PROPOSED',
+    author: 'Patti Anderson',
+    tags: ['FRAUD PREVENTION', 'GOVERNMENT ACCOUNTABILITY', 'GRANT OVERSIGHT'],
+  },
+  {
+    billId: 'SF 1',
+    description:
+      'The bill appropriates $2,500,000 from the bond proceeds fund for the development of a campground and recreational area in Brookston. It authorizes the sale and issuance of state bonds to fund this project and outlines the uses of the appropriated funds.',
+    chamber: 'SENATE',
+    status: 'IN COMMITTEE',
+    author: 'Senator Jason Rarick',
+    tags: ['CAPITAL INVESTMENT', 'RECREATION', 'LOCAL DEVELOPMENT'],
+  },
+  {
+    billId: 'HF 2',
+    description:
+      'The bill mandates that state employees report suspected fraud immediately to their supervisors or relevant authorities and strengthens the requirements for grants management. It amends several sections of Minnesota Statutes to enhance accountability, transparency, and oversight in grant processes.',
+    chamber: 'HOUSE',
+    status: 'PROPOSED',
+    author: 'Ben Davis',
+    tags: ['STATE GOVERNMENT', 'GRANTS MANAGEMENT', 'FRAUD PREVENTION'],
+  },
+  {
+    billId: 'SF 2',
+    description:
+      'The bill appropriates $7,000,000 from the bond proceeds fund to support the renovation of the wastewater treatment pond system in Pine City. It also authorizes the state to sell and issue bonds to fund this appropriation, following relevant Minnesota statutory and constitutional provisions.',
+    chamber: 'SENATE',
+    status: 'IN COMMITTEE',
+    author: 'Senator Jason Rarick',
+    tags: ['INFRASTRUCTURE', 'ENVIRONMENT', 'PUBLIC FINANCE'],
+  },
+];
+
+const CITIES = ['MINNEAPOLIS', 'SAINT PAUL', 'ROCHESTER', 'DULUTH', 'BLOOMINGTON', 'EDINA', 'ST. CLOUD', 'MANKATO'];
 
 function CitationRow({ label, page }: { label: string; page: string }) {
   return (
@@ -29,15 +79,6 @@ function CitationRow({ label, page }: { label: string; page: string }) {
   );
 }
 
-function Stat({ value, valueColor, label }: { value: string; valueColor: string; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={[styles.statValue, { color: valueColor }]}>{value}</Text>
-      <LabelMono style={styles.statLabel}>{label}</LabelMono>
-    </View>
-  );
-}
-
 export function HomeSignedOutScreen() {
   const { isDesktop, isMobile } = useResponsive();
 
@@ -46,7 +87,6 @@ export function HomeSignedOutScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <MetaStripe left="ALETHICAL · CIVIC RECORD" right="VOL. 1 · 89TH SESSION · MARCH 21, 2026" />
 
-        {/* Top nav */}
         <TopNav
           items={[
             { label: 'Ask AI' },
@@ -65,11 +105,10 @@ export function HomeSignedOutScreen() {
               <Text style={{ color: t.colors.brand.deep }}>on Minnesota law</Text>
             </Text>
             <Text style={styles.subhead}>
-              Plain-language legislative intelligence for search, tracking, and grounded bill questions — every
-              answer traceable to the bill text it came from.
+              Minnesota legislative intelligence for search, tracking, and grounded bill questions — every answer
+              traceable to the bill text it came from.
             </Text>
 
-            {/* Ask bar */}
             <View style={[styles.askBar, isMobile && styles.askBarMobile]}>
               <View style={styles.askField}>
                 <Search size={20} color={t.colors.text.muted} strokeWidth={2.2} />
@@ -82,9 +121,9 @@ export function HomeSignedOutScreen() {
               </View>
               <PrimaryButton label="Ask" size="lg" />
             </View>
+            <Text style={styles.noAccount}>NO ACCOUNT NEEDED TO SEARCH OR LOOK UP YOUR REP</Text>
           </View>
 
-          {/* Answer card */}
           <View style={[styles.heroRight, isDesktop && styles.heroRightDesktop]}>
             <Card>
               <View style={styles.cardHead}>
@@ -104,15 +143,66 @@ export function HomeSignedOutScreen() {
           </View>
         </Container>
 
-        {/* Stat band */}
-        <Container style={[styles.statBand, isDesktop && styles.statBandDesktop]}>
-          <Stat value="201" valueColor={t.colors.text.primary} label="LEGISLATORS TRACKED" />
-          <View style={styles.livePill}>
-            <View style={styles.liveDot} />
-            <LabelMono style={styles.liveText}>LIVE IN MINNESOTA</LabelMono>
+        {/* What you can do */}
+        <Container style={styles.section}>
+          <SectionLabel>WHAT YOU CAN DO</SectionLabel>
+          <View style={styles.infoRow}>
+            <InfoCard icon="search" title="Search Bills" subtitle="Browse bills and legislators" />
+            <InfoCard icon="map" title="Find My Legislator" subtitle="Address or map lookup" />
+            <InfoCard icon="bookmark" title="Tracked Bills" subtitle="Signed-in watchlist" />
+            <InfoCard icon="chat" title="Chat" subtitle="Ask cited questions" />
           </View>
-          <Stat value="100%" valueColor={t.colors.brand.deep} label="OF ANSWERS CITED TO SOURCE" />
         </Container>
+
+        {/* Prototype account flow */}
+        <Container style={styles.section}>
+          <View style={[styles.protoPanel, isMobile && styles.protoPanelMobile]}>
+            <View style={styles.protoText}>
+              <Text style={styles.protoTitle}>Prototype account flow</Text>
+              <Text style={styles.protoBody}>
+                Public search and representative lookup work without an account. Sign in when you want tracking, saved
+                history, and bill chat.
+              </Text>
+            </View>
+            <GoogleButton />
+          </View>
+        </Container>
+
+        {/* Recent bills */}
+        <Container style={styles.section}>
+          <SectionHeading title="Recent Bills" actionLabel="VIEW ALL" />
+          <View style={styles.billList}>
+            {RECENT_BILLS.map((bill) => (
+              <BillCard key={bill.billId} bill={bill} />
+            ))}
+          </View>
+        </Container>
+
+        {/* Find my legislator band */}
+        <View style={styles.findBand}>
+          <Container style={[styles.findInner, isDesktop && styles.findInnerDesktop]}>
+            <View style={[styles.findLeft, isDesktop && styles.findLeftDesktop]}>
+              <Text style={styles.findHeading}>Find My Legislator</Text>
+              <Text style={styles.findSubhead}>
+                Find your legislative representative to see their profile, committees, and authored bills — then ask
+                anything about their record.
+              </Text>
+              <AddressField />
+              <View style={styles.cityRow}>
+                {CITIES.map((city) => (
+                  <CityChip key={city} label={city} />
+                ))}
+              </View>
+            </View>
+            {isDesktop ? (
+              <View style={styles.findMap}>
+                <MNMap size={300} />
+              </View>
+            ) : null}
+          </Container>
+        </View>
+
+        <Footer />
       </ScrollView>
     </PageBackground>
   );
@@ -120,25 +210,13 @@ export function HomeSignedOutScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 64 },
+  scrollContent: { paddingBottom: 0 },
   hero: { paddingTop: 40, gap: 40 },
   heroDesktop: { flexDirection: 'row', alignItems: 'flex-start', gap: 56, paddingTop: 64 },
   heroLeft: { gap: 22 },
   heroLeftDesktop: { flex: 1.05 },
-  display: {
-    fontFamily: t.typography.title,
-    fontWeight: t.fontWeights.heavy,
-    color: t.colors.text.primary,
-    lineHeight: undefined,
-    letterSpacing: -1,
-  },
-  subhead: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.subheadLg,
-    lineHeight: 28,
-    color: t.colors.text.secondary,
-    maxWidth: 520,
-  },
+  display: { fontFamily: t.typography.title, fontWeight: t.fontWeights.heavy, color: t.colors.text.primary, letterSpacing: -1 },
+  subhead: { fontFamily: t.typography.body, fontSize: t.fontSizes.subheadLg, lineHeight: 28, color: t.colors.text.secondary, maxWidth: 520 },
   askBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -156,29 +234,13 @@ const styles = StyleSheet.create({
   },
   askBarMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 10, paddingRight: 8, paddingBottom: 8 },
   askField: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  askInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    color: t.colors.text.primary,
-    paddingVertical: 12,
-  },
+  askInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12 },
+  noAccount: { fontFamily: t.typography.mono, fontSize: t.fontSizes.meta, letterSpacing: 0.8, color: t.colors.text.muted },
   heroRight: {},
   heroRightDesktop: { width: 440 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
-  sourcesCited: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.darkest,
-  },
-  answerBody: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    lineHeight: 25,
-    color: t.colors.text.primary,
-  },
+  sourcesCited: { fontFamily: t.typography.ui, fontSize: t.fontSizes.small, fontWeight: t.fontWeights.bold, color: t.colors.brand.darkest },
+  answerBody: { fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, lineHeight: 25, color: t.colors.text.primary },
   answerStrong: { fontWeight: t.fontWeights.bold },
   citationList: { marginTop: 18, gap: 8 },
   citation: {
@@ -191,49 +253,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   citationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.colors.brand.base },
-  citationLabel: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    color: t.colors.ink,
-  },
-  citationPage: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.meta,
-    color: t.colors.text.muted,
-  },
-  statBand: {
-    marginTop: 72,
-    gap: 28,
-    alignItems: 'center',
-  },
-  statBandDesktop: {
+  citationLabel: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.body, color: t.colors.ink },
+  citationPage: { fontFamily: t.typography.mono, fontSize: t.fontSizes.meta, color: t.colors.text.muted },
+  section: { marginTop: 72, gap: 22 },
+  infoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  protoPanel: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 96,
-  },
-  stat: { gap: 8, alignItems: 'flex-start' },
-  statValue: {
-    fontFamily: t.typography.title,
-    fontSize: 64,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -2,
-    lineHeight: 66,
-  },
-  statLabel: {},
-  livePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    gap: 28,
+    backgroundColor: t.colors.tint.t50,
     borderWidth: 1,
     borderColor: t.colors.tint.border,
-    backgroundColor: t.colors.tint.t50,
-    borderRadius: t.radii.pill,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    borderRadius: t.radii.lg,
+    paddingVertical: 30,
+    paddingHorizontal: 32,
   },
-  liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: t.colors.brand.base },
-  liveText: { color: t.colors.brand.deep, fontSize: t.fontSizes.meta },
+  protoPanelMobile: { flexDirection: 'column', alignItems: 'stretch' },
+  protoText: { flex: 1, minWidth: 0, gap: 12 },
+  protoTitle: { fontFamily: t.typography.title, fontSize: t.fontSizes.h1, fontWeight: t.fontWeights.heavy, letterSpacing: -0.6, color: t.colors.text.primary },
+  protoBody: { fontFamily: t.typography.body, fontSize: t.fontSizes.subhead, lineHeight: 27, color: t.colors.text.secondary, maxWidth: 520 },
+  billList: { gap: 20 },
+  findBand: { backgroundColor: t.colors.tint.t100, marginTop: 80, paddingVertical: 72 },
+  findInner: { gap: 32 },
+  findInnerDesktop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 48 },
+  findLeft: { gap: 22 },
+  findLeftDesktop: { flex: 1, maxWidth: 620 },
+  findHeading: { fontFamily: t.typography.title, fontSize: t.fontSizes.hero, fontWeight: t.fontWeights.heavy, letterSpacing: -1.4, color: t.colors.text.primary },
+  findSubhead: { fontFamily: t.typography.body, fontSize: t.fontSizes.subheadLg, lineHeight: 28, color: t.colors.text.secondary, maxWidth: 540 },
+  cityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, maxWidth: 640 },
+  findMap: { alignItems: 'center', justifyContent: 'center' },
 });
