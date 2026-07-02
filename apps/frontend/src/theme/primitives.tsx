@@ -342,7 +342,7 @@ export function AddressField() {
 export function MNMap({ size = 300 }: { size?: number }) {
   return (
     <Svg width={size} height={size * 1.25} viewBox="0 0 120 150">
-      <Circle cx={72} cy={78} r={54} fill={t.colors.tint.t100} />
+      <Circle cx={74} cy={74} r={52} fill={t.colors.brand.base} fillOpacity={0.12} />
       <Path
         d="M31 20 L31 6 L44 6 L44 20 L78 20 L104 9 L74 58 L70 76 L76 94 L70 112 L77 130 L78 134 L12 134 L12 20 Z"
         fill={t.colors.tint.t50}
@@ -350,8 +350,8 @@ export function MNMap({ size = 300 }: { size?: number }) {
         strokeWidth={2.4}
         strokeLinejoin="round"
       />
-      <Path d="M65 84 c-6 0 -11 5 -11 11 c0 8 11 19 11 19 c0 0 11 -11 11 -19 c0 -6 -5 -11 -11 -11 Z" fill={t.colors.ink} />
-      <Circle cx={65} cy={95} r={3.6} fill={t.colors.white} />
+      <Path d="M72 84 c-6 0 -11 5 -11 11 c0 8 11 19 11 19 c0 0 11 -11 11 -19 c0 -6 -5 -11 -11 -11 Z" fill={t.colors.ink} />
+      <Circle cx={72} cy={95} r={3.6} fill={t.colors.white} />
     </Svg>
   );
 }

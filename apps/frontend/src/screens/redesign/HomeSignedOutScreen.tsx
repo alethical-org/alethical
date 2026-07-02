@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   protoPanelMobile: { flexDirection: 'column', alignItems: 'stretch' },
   protoText: { flex: 1, minWidth: 0, gap: 12 },
   protoTitle: { fontFamily: t.typography.title, fontSize: t.fontSizes.h1, fontWeight: t.fontWeights.heavy, letterSpacing: -0.6, color: t.colors.text.primary },
-  protoBody: { fontFamily: t.typography.body, fontSize: t.fontSizes.subhead, lineHeight: 27, color: t.colors.text.secondary, maxWidth: 520 },
+  protoBody: { fontFamily: t.typography.body, fontSize: t.fontSizes.subhead, lineHeight: 27, color: t.colors.text.secondary, maxWidth: 660 },
   billList: { gap: 20 },
   findBand: { backgroundColor: t.colors.tint.t100, marginTop: 80, paddingVertical: 72 },
   findInner: { gap: 32 },
