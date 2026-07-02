@@ -8,11 +8,10 @@ import {
   Container,
   Eyebrow,
   LabelMono,
-  Logo,
   MetaStripe,
-  NavLink,
   PageBackground,
   PrimaryButton,
+  TopNav,
 } from '../../theme/primitives';
 import { useResponsive } from '../../hooks/useResponsive';
 
@@ -40,7 +39,7 @@ function Stat({ value, valueColor, label }: { value: string; valueColor: string;
 }
 
 export function HomeSignedOutScreen() {
-  const { isDesktop } = useResponsive();
+  const { isDesktop, isMobile } = useResponsive();
 
   return (
     <PageBackground>
@@ -48,20 +47,14 @@ export function HomeSignedOutScreen() {
         <MetaStripe left="ALETHICAL · CIVIC RECORD" right="VOL. 1 · 89TH SESSION · MARCH 21, 2026" />
 
         {/* Top nav */}
-        <Container style={styles.navRow}>
-          <Logo />
-          {isDesktop ? (
-            <View style={styles.navLinks}>
-              <NavLink label="Ask AI" />
-              <NavLink label="Search" caret />
-              <NavLink label="Track" caret />
-              <NavLink label="About" caret />
-              <PrimaryButton label="Sign in" />
-            </View>
-          ) : (
-            <PrimaryButton label="Sign in" />
-          )}
-        </Container>
+        <TopNav
+          items={[
+            { label: 'Ask AI' },
+            { label: 'Search', caret: true },
+            { label: 'Track', caret: true },
+            { label: 'About', caret: true },
+          ]}
+        />
 
         {/* Hero */}
         <Container style={[styles.hero, isDesktop && styles.heroDesktop]}>
@@ -77,14 +70,16 @@ export function HomeSignedOutScreen() {
             </Text>
 
             {/* Ask bar */}
-            <View style={styles.askBar}>
-              <Search size={20} color={t.colors.text.muted} strokeWidth={2.2} />
-              <TextInput
-                style={styles.askInput}
-                placeholder="Ask about any bill, statute, or legislator…"
-                placeholderTextColor={t.colors.text.muted}
-                editable={false}
-              />
+            <View style={[styles.askBar, isMobile && styles.askBarMobile]}>
+              <View style={styles.askField}>
+                <Search size={20} color={t.colors.text.muted} strokeWidth={2.2} />
+                <TextInput
+                  style={styles.askInput}
+                  placeholder="Ask about any bill, statute, or legislator…"
+                  placeholderTextColor={t.colors.text.muted}
+                  editable={false}
+                />
+              </View>
               <PrimaryButton label="Ask" size="lg" />
             </View>
           </View>
@@ -126,16 +121,8 @@ export function HomeSignedOutScreen() {
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 64 },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 22,
-    paddingBottom: 8,
-  },
-  navLinks: { flexDirection: 'row', alignItems: 'center', gap: 26 },
   hero: { paddingTop: 40, gap: 40 },
-  heroDesktop: { flexDirection: 'row', alignItems: 'center', gap: 56, paddingTop: 64 },
+  heroDesktop: { flexDirection: 'row', alignItems: 'flex-start', gap: 56, paddingTop: 64 },
   heroLeft: { gap: 22 },
   heroLeftDesktop: { flex: 1.05 },
   display: {
@@ -167,6 +154,8 @@ const styles = StyleSheet.create({
     maxWidth: 620,
     ...(t.shadows.card as object),
   },
+  askBarMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 10, paddingRight: 8, paddingBottom: 8 },
+  askField: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
   askInput: {
     flex: 1,
     minWidth: 0,
