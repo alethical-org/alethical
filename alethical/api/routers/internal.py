@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import secrets
 
 from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import HTMLResponse
@@ -21,7 +22,8 @@ router = APIRouter()
 
 def require_internal_token(x_internal_token: str | None = Header(default=None)):
     expected = os.environ.get("INTERNAL_API_TOKEN", "dev-internal-token")
-    if x_internal_token != expected:
+    # Use secrets.compare_digest to prevent timing attacks
+    if not x_internal_token or not secrets.compare_digest(x_internal_token, expected):
         raise problem_exception(401, "Unauthorized", "Valid internal token required")
 
 
@@ -30,7 +32,12 @@ def require_internal_dashboard_token(
     token: str | None = Query(default=None),
 ):
     expected = os.environ.get("INTERNAL_API_TOKEN", "dev-internal-token")
-    if x_internal_token != expected and token != expected:
+    # Use secrets.compare_digest to prevent timing attacks
+    # Note: Using tokens in query parameters is generally discouraged as they may leak in logs
+    is_valid_header = x_internal_token and secrets.compare_digest(x_internal_token, expected)
+    is_valid_query = token and secrets.compare_digest(token, expected)
+
+    if not is_valid_header and not is_valid_query:
         raise problem_exception(401, "Unauthorized", "Valid internal token required")
 
 
