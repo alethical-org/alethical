@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   askBarMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 10, paddingRight: 8, paddingBottom: 8 },
   askField: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
   askInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12 },
-  noAccount: { fontFamily: t.typography.mono, fontSize: t.fontSizes.meta, letterSpacing: 0.8, color: t.colors.text.muted },
+  noAccount: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.medium, letterSpacing: 0.8, color: t.colors.text.muted },
   heroRight: {},
   heroRightDesktop: { width: 440 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
