@@ -1,8 +1,16 @@
 # Alethical
 
-Alethical is organized as a small monorepo with separate application, backend, and documentation areas.
+From Aletheia (Greek: truth/unconcealedness) + ethical — sits at the intersection of truth and technology, committed to transparent governance and moral clarity. Born of an era of misinformation and political opacity, it redefines civic intelligence by grounding every insight in verifiable data, and answers the independent movement's call for accountability amid a broader moment of democratic renewal. Built in Minnesota — chosen for its civic engagement and political balance — Alethical serves as the pilot for a new era of legislative transparency.
+
+# Mission 
+To make legislative truth visible, actionable, and accessible — enabling citizens, journalists, and legislators to engage with verified, transparent data.
+
+# Vision
+A world where legislative processes are open, comprehensible, and accountable — starting with Minnesota as the pilot for a national transparency movement.
 
 ## Repository Layout
+
+Organized as a small monorepo with separate application, backend, and documentation areas.
 
 - `alethical/`: Python backend package for the API, database, ingestion runtime, migrations, and backend tests.
 - `alethical/tests/fixtures/`: JSON fixtures used only by tests and deterministic local demo seeding.
