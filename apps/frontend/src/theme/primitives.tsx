@@ -9,9 +9,10 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { ChevronDown } from 'lucide-react-native';
+import { ChevronDown, Menu, X } from 'lucide-react-native';
 
 import { theme } from './tokens';
+import { useResponsive } from '../hooks/useResponsive';
 
 // Reusable primitives for the redesign, built on the green token system
 // (see theme/tokens.ts, extracted from docs/mockups/*.html). Web-first;
@@ -50,11 +51,54 @@ export function Container({ children, style }: { children: ReactNode; style?: St
 
 // --- Meta stripe (thin top bar) ---
 export function MetaStripe({ left, right }: { left: string; right: string }) {
+  const { isMobile } = useResponsive();
   return (
     <View style={styles.metaStripe}>
       <Text style={styles.metaText}>{left}</Text>
-      <Text style={styles.metaText}>{right}</Text>
+      {!isMobile ? <Text style={styles.metaText}>{right}</Text> : null}
     </View>
+  );
+}
+
+// --- Top navigation (desktop links / mobile hamburger menu) ---
+export function TopNav({ items }: { items: { label: string; caret?: boolean }[] }) {
+  const { isDesktop } = useResponsive();
+  const [open, setOpen] = useState(false);
+  return (
+    <Container style={styles.navRow}>
+      <View style={styles.navBar}>
+        <Logo />
+        {isDesktop ? (
+          <View style={styles.navLinks}>
+            {items.map((item) => (
+              <NavLink key={item.label} label={item.label} caret={item.caret} />
+            ))}
+            <PrimaryButton label="Sign in" />
+          </View>
+        ) : (
+          <View style={styles.navMobileRight}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={open ? 'Close menu' : 'Open menu'}
+              onPress={() => setOpen((v) => !v)}
+              style={styles.hamburger}
+            >
+              {open ? <X size={22} color={t.colors.ink} /> : <Menu size={22} color={t.colors.ink} />}
+            </Pressable>
+            <PrimaryButton label="Sign in" />
+          </View>
+        )}
+      </View>
+      {!isDesktop && open ? (
+        <View style={styles.menuPanel}>
+          {items.map((item) => (
+            <View key={item.label} style={styles.menuItem}>
+              <NavLink label={item.label} caret={item.caret} />
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </Container>
   );
 }
 
@@ -171,6 +215,25 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 2.4,
     color: t.colors.text.primary,
+  },
+  navRow: { paddingTop: 22, paddingBottom: 8 },
+  navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navLinks: { flexDirection: 'row', alignItems: 'center', gap: 26 },
+  navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  hamburger: { padding: 8, borderRadius: t.radii.sm },
+  menuPanel: {
+    marginTop: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.borders.base,
+    borderRadius: t.radii.md,
+    paddingHorizontal: 14,
+    ...(t.shadows.card as object),
+  },
+  menuItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: t.colors.borders.base,
+    paddingVertical: 4,
   },
   navLink: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 6, paddingHorizontal: 4 },
   navLinkText: {
