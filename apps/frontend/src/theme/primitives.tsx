@@ -36,18 +36,31 @@ export function PageBackground({ children, variant = 'page' }: { children: React
         backgroundImage: variant === 'pageGreen' ? t.gradients.pageGreen : t.gradients.page,
       } as unknown as ViewStyle)
     : { backgroundColor: t.colors.surfaces.s200 };
-  const dotsWeb = {
+  // Dots are drawn page-relative inside the scroll content (see PageDots), not here,
+  // so they scroll with the page and fade near the top and bottom like the mockup.
+  return <View style={[styles.pageBg, baseWeb]}>{children}</View>;
+}
+
+// Page-relative dot grid: place as the first child of the scroll content (which
+// must be position: relative). Scrolls with the page and fades near the top and
+// just above the footer, so the white cards below sit on plainer background.
+export function PageDots() {
+  if (!isWeb) {
+    return null;
+  }
+  const mask = 'linear-gradient(to bottom, transparent 0px, transparent 150px, #000 280px, #000 calc(100% - 180px), transparent 100%)';
+  const dots: any = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundImage: 'radial-gradient(rgba(17,21,15,0.05) 1.3px, transparent 1.5px)',
-    backgroundSize: '24px 24px',
-    maskImage: 'linear-gradient(to bottom, transparent 0, #000 220px, #000 68%, transparent 100%)',
-    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 220px, #000 68%, transparent 100%)',
-  } as unknown as ViewStyle;
-  return (
-    <View style={[styles.pageBg, baseWeb]}>
-      {isWeb ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, dotsWeb]} /> : null}
-      {children}
-    </View>
-  );
+    backgroundSize: '22px 22px',
+    maskImage: mask,
+    WebkitMaskImage: mask,
+  };
+  return <View pointerEvents="none" style={dots} />;
 }
 
 export function Container({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {

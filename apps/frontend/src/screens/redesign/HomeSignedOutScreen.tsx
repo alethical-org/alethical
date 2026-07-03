@@ -17,6 +17,7 @@ import {
   MetaStripe,
   MNMap,
   PageBackground,
+  PageDots,
   PrimaryButton,
   SectionHeading,
   SectionLabel,
@@ -108,6 +109,7 @@ export function HomeSignedOutScreen() {
   return (
     <PageBackground>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <PageDots />
         <MetaStripe left="ALETHICAL · CIVIC RECORD" right="VOL. 1 · 89TH SESSION · MARCH 21, 2026" />
 
         <TopNav
@@ -236,7 +238,7 @@ export function HomeSignedOutScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 0 },
+  scrollContent: { paddingBottom: 0, position: 'relative' },
   heroWrap: { paddingTop: 56, position: 'relative' },
   heroRow: { marginTop: 36, gap: 40 },
   heroRowDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
