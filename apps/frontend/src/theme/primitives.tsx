@@ -1,5 +1,6 @@
 import { ReactNode, useState } from 'react';
 import {
+  Modal,
   Platform,
   Pressable,
   StyleProp,
@@ -21,18 +22,6 @@ import { useResponsive } from '../hooks/useResponsive';
 
 const isWeb = Platform.OS === 'web';
 const t = theme;
-
-// Mobile menu overlay: fixed scrim over the viewport; a top strip shows the dimmed page.
-const menuScrimWeb: any = {
-  position: isWeb ? 'fixed' : 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: 'rgba(6,35,26,0.45)',
-  paddingTop: 52,
-  zIndex: 1000,
-};
 
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
   const [hovered, setHovered] = useState(false);
@@ -165,8 +154,13 @@ export function TopNav({ items }: { items: { label: string; caret?: boolean }[] 
           </View>
         )}
       </View>
-      {!isDesktop && open ? (
-        <View style={menuScrimWeb}>
+      <Modal
+        visible={!isDesktop && open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <View style={styles.menuScrim}>
           <View style={styles.menuSheet}>
             <View style={styles.menuSheetHeader}>
               <Logo />
@@ -192,7 +186,7 @@ export function TopNav({ items }: { items: { label: string; caret?: boolean }[] 
             </View>
           </View>
         </View>
-      ) : null}
+      </Modal>
     </Container>
   );
 }
@@ -472,6 +466,7 @@ const styles = StyleSheet.create({
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 26 },
   navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   hamburger: { padding: 9, borderRadius: 10, backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.borders.base },
+  menuScrim: { flex: 1, backgroundColor: 'rgba(6,35,26,0.45)', paddingTop: 52 },
   menuSheet: {
     flex: 1,
     backgroundColor: t.colors.surfaces.base,
