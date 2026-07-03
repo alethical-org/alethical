@@ -163,7 +163,6 @@ export function HomeSignedOutScreen() {
                     style={styles.askInput}
                     placeholder="Ask about any bill, statute, or legislator…"
                     placeholderTextColor={t.colors.text.muted}
-                    editable={false}
                   />
                 </View>
                 <PrimaryButton label="Ask" size="lg" />
@@ -308,7 +307,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 2,
   },
-  askInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12 },
+  askInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12, ...(isWeb ? ({ outlineStyle: 'none' } as any) : null) },
   noAccount: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.medium, letterSpacing: 0.8, color: t.colors.text.muted, marginTop: 18, marginLeft: 18 },
   heroRight: {},
   heroRightDesktop: { flex: 1, alignItems: 'flex-end' },

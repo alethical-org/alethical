@@ -387,7 +387,6 @@ export function AddressField() {
           style={styles.addressInput}
           placeholder="Enter an address, city, or area"
           placeholderTextColor={t.colors.text.muted}
-          editable={false}
         />
       </View>
       <PrimaryButton label="Find" />
@@ -584,7 +583,7 @@ const styles = StyleSheet.create({
     ...(t.shadows.sm as object),
   },
   addressField: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  addressInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12 },
+  addressInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12, ...(isWeb ? ({ outlineStyle: 'none' } as any) : null) },
   footer: { backgroundColor: t.colors.ink, paddingVertical: 44, marginTop: 8 },
   footerTop: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 },
   footerBrand: { gap: 14, maxWidth: 420 },
