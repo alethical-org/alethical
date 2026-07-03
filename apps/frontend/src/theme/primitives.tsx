@@ -10,8 +10,8 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
-import { Bookmark, ChevronDown, MapPin, Menu, MessageSquare, Plus, Search, X } from 'lucide-react-native';
+import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
+import { ChevronDown, MapPin, Menu, Plus, X } from 'lucide-react-native';
 
 import { theme } from './tokens';
 import { useResponsive } from '../hooks/useResponsive';
@@ -199,20 +199,34 @@ export function SectionHeading({ title, actionLabel, onAction }: { title: string
   );
 }
 
-// --- Info card ("What you can do") ---
+// --- Info card ("What you can do") — icon SVGs lifted from the mockup ---
 type IconName = 'search' | 'map' | 'bookmark' | 'chat';
-const iconFor = (name: IconName, color: string) => {
-  const p = { size: 20, color, strokeWidth: 2.2 };
-  if (name === 'map') return <MapPin {...p} />;
-  if (name === 'bookmark') return <Bookmark {...p} />;
-  if (name === 'chat') return <MessageSquare {...p} />;
-  return <Search {...p} />;
-};
+function CardIcon({ name }: { name: IconName }) {
+  const c = t.colors.brand.deep;
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      {name === 'search' ? (
+        <>
+          <Circle cx={11} cy={11} r={7} stroke={c} strokeWidth={2} />
+          <Path d="M16.5 16.5 L21 21" stroke={c} strokeWidth={2} strokeLinecap="round" />
+        </>
+      ) : null}
+      {name === 'map' ? (
+        <>
+          <Path d="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+          <Circle cx={12} cy={9.5} r={2.6} stroke={c} strokeWidth={2} />
+        </>
+      ) : null}
+      {name === 'bookmark' ? <Path d="M7 4 h10 v16 l-5 -4 l-5 4 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" /> : null}
+      {name === 'chat' ? <Path d="M4 5 h16 v11 h-9 l-5 4 v-4 h-2 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" /> : null}
+    </Svg>
+  );
+}
 
 export function InfoCard({ icon, title, subtitle }: { icon: IconName; title: string; subtitle: string }) {
   return (
     <View style={styles.infoCard}>
-      <View style={styles.infoIcon}>{iconFor(icon, t.colors.brand.deep)}</View>
+      <View style={styles.infoIcon}><CardIcon name={icon} /></View>
       <View style={styles.infoText}>
         <Text style={styles.infoTitle}>{title}</Text>
         <Text style={styles.infoSubtitle}>{subtitle}</Text>
@@ -342,16 +356,17 @@ export function AddressField() {
 export function MNMap({ size = 300 }: { size?: number }) {
   return (
     <Svg width={size} height={size * 1.25} viewBox="0 0 120 150">
-      <Circle cx={74} cy={74} r={52} fill={t.colors.brand.base} fillOpacity={0.12} />
+      <Ellipse cx={58} cy={76} rx={54} ry={64} fill={t.colors.alpha.green10} />
       <Path
         d="M31 20 L31 6 L44 6 L44 20 L78 20 L104 9 L74 58 L70 76 L76 94 L70 112 L77 130 L78 134 L12 134 L12 20 Z"
-        fill={t.colors.tint.t50}
+        fill={t.colors.tint.t200}
         stroke={t.colors.brand.deep}
-        strokeWidth={2.4}
+        strokeWidth={2}
         strokeLinejoin="round"
+        strokeLinecap="round"
       />
-      <Path d="M72 84 c-6 0 -11 5 -11 11 c0 8 11 19 11 19 c0 0 11 -11 11 -19 c0 -6 -5 -11 -11 -11 Z" fill={t.colors.ink} />
-      <Circle cx={72} cy={95} r={3.6} fill={t.colors.white} />
+      <Path d="M65 84 c-6 0 -11 5 -11 11 c0 8 11 19 11 19 c0 0 11 -11 11 -19 c0 -6 -5 -11 -11 -11 Z" fill={t.colors.ink} />
+      <Circle cx={65} cy={95} r={4} fill={t.colors.white} />
     </Svg>
   );
 }
@@ -440,7 +455,7 @@ const styles = StyleSheet.create({
   labelMono: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.medium, letterSpacing: 1.2, color: t.colors.text.muted },
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
   sectionHeading: { fontFamily: t.typography.title, fontSize: t.fontSizes.hero, fontWeight: t.fontWeights.heavy, letterSpacing: -1.4, color: t.colors.text.primary },
-  viewAll: { borderWidth: 1, borderColor: t.colors.borders.base, borderRadius: t.radii.sm, paddingVertical: 10, paddingHorizontal: 16 },
+  viewAll: { backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.alpha.ink20, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
   viewAllText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.bold, letterSpacing: 1.6, color: t.colors.text.primary },
   infoCard: {
     flex: 1,

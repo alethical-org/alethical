@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 
 import { theme } from '../../theme/tokens';
@@ -25,6 +25,17 @@ import {
 import { useResponsive } from '../../hooks/useResponsive';
 
 const t = theme;
+const isWeb = Platform.OS === 'web';
+
+// Web-only section backgrounds (green→white gradients; find band adds the dot grid)
+const protoBgWeb: any = isWeb ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' } : {};
+const findBgWeb: any = isWeb
+  ? {
+      backgroundImage:
+        'radial-gradient(rgba(20,157,91,0.09) 1.3px, transparent 1.4px), linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)',
+      backgroundSize: '30px 30px, 100% 100%',
+    }
+  : {};
 
 const RECENT_BILLS: Bill[] = [
   {
@@ -158,7 +169,7 @@ export function HomeSignedOutScreen() {
 
         {/* Prototype account flow */}
         <Container style={styles.section}>
-          <View style={[styles.protoPanel, isMobile && styles.protoPanelMobile]}>
+          <View style={[styles.protoPanel, isMobile && styles.protoPanelMobile, protoBgWeb]}>
             <View style={styles.protoText}>
               <Text style={styles.protoTitle}>Prototype account flow</Text>
               <Text style={styles.protoBody}>
@@ -181,7 +192,7 @@ export function HomeSignedOutScreen() {
         </Container>
 
         {/* Find my legislator band */}
-        <View style={styles.findBand}>
+        <View style={[styles.findBand, findBgWeb]}>
           <Container style={[styles.findInner, isDesktop && styles.findInnerDesktop]}>
             <View style={[styles.findLeft, isDesktop && styles.findLeftDesktop]}>
               <Text style={styles.findHeading}>Find My Legislator</Text>
@@ -269,7 +280,7 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.tint.t50,
     borderWidth: 1,
     borderColor: t.colors.tint.border,
-    borderRadius: t.radii.lg,
+    borderRadius: 20,
     paddingVertical: 30,
     paddingHorizontal: 32,
   },
