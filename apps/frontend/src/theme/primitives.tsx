@@ -69,9 +69,9 @@ export function Logo({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
   return (
     <View style={styles.logo}>
       <View style={styles.logoMark}>
-        <View style={[styles.logoBar, { height: 10, backgroundColor: t.colors.brand.deep }]} />
+        <View style={[styles.logoBar, { height: 10, backgroundColor: tone === 'light' ? t.colors.brand.deep : t.colors.ink }]} />
         <View style={[styles.logoBar, { height: 16, backgroundColor: tone === 'light' ? t.colors.white : t.colors.ink }]} />
-        <View style={[styles.logoBar, { height: 22, backgroundColor: t.colors.brand.base }]} />
+        <View style={[styles.logoBar, { height: 22, backgroundColor: tone === 'light' ? t.colors.brand.base : t.colors.ink }]} />
       </View>
       <Text style={[styles.wordmark, tone === 'light' && { color: t.colors.white }]}>ALETHICAL</Text>
     </View>

@@ -97,54 +97,56 @@ export function HomeSignedOutScreen() {
         />
 
         {/* Hero */}
-        <Container style={[styles.hero, isDesktop && styles.heroDesktop]}>
-          <View style={[styles.heroLeft, isDesktop && styles.heroLeftDesktop]}>
-            <Eyebrow>TRUTH, UNCONCEALED</Eyebrow>
-            <Text style={[styles.display, { fontSize: isDesktop ? t.fontSizes.heroXl : 44 }]}>
-              Grounded answers{'\n'}
-              <Text style={{ color: t.colors.brand.deep }}>on Minnesota law</Text>
-            </Text>
-            <Text style={styles.subhead}>
-              Minnesota legislative intelligence for search, tracking, and grounded bill questions — every answer
-              traceable to the bill text it came from.
-            </Text>
-
-            <View style={[styles.askBar, isMobile && styles.askBarMobile]}>
-              <View style={styles.askField}>
-                <Search size={20} color={t.colors.text.muted} strokeWidth={2.2} />
-                <TextInput
-                  style={styles.askInput}
-                  placeholder="Ask about any bill, statute, or legislator…"
-                  placeholderTextColor={t.colors.text.muted}
-                  editable={false}
-                />
-              </View>
-              <PrimaryButton label="Ask" size="lg" />
-            </View>
-            <Text style={styles.noAccount}>NO ACCOUNT NEEDED TO SEARCH OR LOOK UP YOUR REP</Text>
-          </View>
-
-          <View style={[styles.heroRight, isDesktop && styles.heroRightDesktop]}>
-            <Card>
-              <View style={styles.cardHead}>
-                <Badge>SF 2310</Badge>
-                <Text style={styles.sourcesCited}>3 sources cited</Text>
-              </View>
-              <Text style={styles.answerBody}>
-                Adult-use cannabis sales begin under a state license framework, with a{' '}
-                <Text style={styles.answerStrong}>10% gross-receipts tax</Text> and local opt-out provisions for
-                municipalities.
+        <Container style={styles.heroWrap}>
+          <Eyebrow>TRUTH, UNCONCEALED</Eyebrow>
+          <View style={[styles.heroRow, isDesktop && styles.heroRowDesktop]}>
+            <View style={[styles.heroLeft, isDesktop && styles.heroLeftDesktop]}>
+              <Text style={[styles.display, { fontSize: isDesktop ? t.fontSizes.heroXl : 44 }]}>
+                Grounded answers{'\n'}
+                <Text style={{ color: t.colors.brand.deep }}>on Minnesota law</Text>
               </Text>
-              <View style={styles.citationList}>
-                <CitationRow label="Sec. 342.10 — License classes" page="p.14" />
-                <CitationRow label="Sec. 295.81 — Gross-receipts tax" page="p.31" />
+              <Text style={styles.subhead}>
+                Minnesota legislative intelligence for search, tracking, and grounded bill questions — every answer
+                traceable to the bill text it came from.
+              </Text>
+
+              <View style={[styles.askBar, isMobile && styles.askBarMobile]}>
+                <View style={styles.askField}>
+                  <Search size={20} color={t.colors.text.muted} strokeWidth={2.2} />
+                  <TextInput
+                    style={styles.askInput}
+                    placeholder="Ask about any bill, statute, or legislator…"
+                    placeholderTextColor={t.colors.text.muted}
+                    editable={false}
+                  />
+                </View>
+                <PrimaryButton label="Ask" size="lg" />
               </View>
-            </Card>
+              <Text style={styles.noAccount}>NO ACCOUNT NEEDED TO SEARCH OR LOOK UP YOUR REP</Text>
+            </View>
+
+            <View style={[styles.heroRight, isDesktop && styles.heroRightDesktop]}>
+              <Card>
+                <View style={styles.cardHead}>
+                  <Badge>SF 2310</Badge>
+                  <Text style={styles.sourcesCited}>3 sources cited</Text>
+                </View>
+                <Text style={styles.answerBody}>
+                  Adult-use cannabis sales begin under a state license framework, with a{' '}
+                  <Text style={styles.answerStrong}>10% gross-receipts tax</Text> and local opt-out provisions for
+                  municipalities.
+                </Text>
+                <View style={styles.citationList}>
+                  <CitationRow label="Sec. 342.10 — License classes" page="p.14" />
+                  <CitationRow label="Sec. 295.81 — Gross-receipts tax" page="p.31" />
+                </View>
+              </Card>
+            </View>
           </View>
         </Container>
 
         {/* What you can do */}
-        <Container style={styles.section}>
+        <Container style={[styles.section, styles.sectionFirst]}>
           <SectionLabel>WHAT YOU CAN DO</SectionLabel>
           <View style={styles.infoRow}>
             <InfoCard icon="search" title="Search Bills" subtitle="Browse bills and legislators" />
@@ -211,11 +213,12 @@ export function HomeSignedOutScreen() {
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 0 },
-  hero: { paddingTop: 40, gap: 40 },
-  heroDesktop: { flexDirection: 'row', alignItems: 'flex-start', gap: 56, paddingTop: 64 },
+  heroWrap: { paddingTop: 56 },
+  heroRow: { marginTop: 36, gap: 40 },
+  heroRowDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
   heroLeft: {},
-  heroLeftDesktop: { flex: 1.05 },
-  display: { fontFamily: t.typography.title, fontWeight: t.fontWeights.heavy, color: t.colors.text.primary, letterSpacing: -1, marginTop: 36 },
+  heroLeftDesktop: { flex: 1 },
+  display: { fontFamily: t.typography.title, fontWeight: t.fontWeights.heavy, color: t.colors.text.primary, letterSpacing: -1 },
   subhead: { fontFamily: t.typography.body, fontSize: 23, lineHeight: 34, color: t.colors.text.muted, maxWidth: 580, marginTop: 36 },
   askBar: {
     flexDirection: 'row',
@@ -237,7 +240,7 @@ const styles = StyleSheet.create({
   askInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12 },
   noAccount: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.medium, letterSpacing: 0.8, color: t.colors.text.muted, marginTop: 18, marginLeft: 18 },
   heroRight: {},
-  heroRightDesktop: { width: 440 },
+  heroRightDesktop: { flex: 1 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   sourcesCited: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.bold, color: t.colors.brand.darkest },
   answerBody: { fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, lineHeight: 25, color: t.colors.text.primary },
@@ -256,6 +259,7 @@ const styles = StyleSheet.create({
   citationLabel: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.body, color: t.colors.ink },
   citationPage: { fontFamily: t.typography.mono, fontSize: t.fontSizes.meta, color: t.colors.text.muted },
   section: { marginTop: 72, gap: 22 },
+  sectionFirst: { marginTop: 96 },
   infoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   protoPanel: {
     flexDirection: 'row',
