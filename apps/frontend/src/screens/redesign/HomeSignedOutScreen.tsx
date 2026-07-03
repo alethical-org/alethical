@@ -41,7 +41,7 @@ const heroGlowWeb: any = isWeb
   ? {
       position: 'absolute',
       left: -120,
-      bottom: 60,
+      top: 130,
       width: 560,
       height: 420,
       backgroundImage: 'radial-gradient(50% 50% at 50% 50%, rgba(45,212,126,0.12) 0%, rgba(45,212,126,0) 70%)',
