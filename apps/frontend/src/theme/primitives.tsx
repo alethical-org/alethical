@@ -22,6 +22,18 @@ import { useResponsive } from '../hooks/useResponsive';
 const isWeb = Platform.OS === 'web';
 const t = theme;
 
+// Mobile menu overlay: fixed scrim over the viewport; a top strip shows the dimmed page.
+const menuScrimWeb: any = {
+  position: isWeb ? 'fixed' : 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(6,35,26,0.45)',
+  paddingTop: 52,
+  zIndex: 1000,
+};
+
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
   const [hovered, setHovered] = useState(false);
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
@@ -154,12 +166,31 @@ export function TopNav({ items }: { items: { label: string; caret?: boolean }[] 
         )}
       </View>
       {!isDesktop && open ? (
-        <View style={styles.menuPanel}>
-          {items.map((item) => (
-            <View key={item.label} style={styles.menuItem}>
-              <NavLink label={item.label} caret={item.caret} />
+        <View style={menuScrimWeb}>
+          <View style={styles.menuSheet}>
+            <View style={styles.menuSheetHeader}>
+              <Logo />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close menu"
+                onPress={() => setOpen(false)}
+                style={styles.hamburger}
+              >
+                <X size={22} color={t.colors.ink} />
+              </Pressable>
             </View>
-          ))}
+            <View style={styles.menuList}>
+              {items.map((item) => (
+                <Pressable key={item.label} accessibilityRole="link" style={styles.menuRow}>
+                  <Text style={styles.menuRowText}>{item.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.menuFooter}>
+              <PrimaryButton label="Sign in" size="lg" />
+              <Text style={styles.menuTagline}>TRUTH, UNCONCEALED</Text>
+            </View>
+          </View>
         </View>
       ) : null}
     </Container>
@@ -441,16 +472,21 @@ const styles = StyleSheet.create({
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 26 },
   navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   hamburger: { padding: 9, borderRadius: 10, backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.borders.base },
-  menuPanel: {
-    marginTop: 12,
+  menuSheet: {
+    flex: 1,
     backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.borders.base,
-    borderRadius: t.radii.md,
-    paddingHorizontal: 14,
-    ...(t.shadows.card as object),
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 28,
   },
-  menuItem: { borderBottomWidth: 1, borderBottomColor: t.colors.borders.base, paddingVertical: 4 },
+  menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  menuList: { flex: 1, marginTop: 14 },
+  menuRow: { paddingVertical: 22, borderBottomWidth: 1, borderBottomColor: t.colors.borders.base },
+  menuRowText: { fontFamily: t.typography.title, fontSize: 27, fontWeight: t.fontWeights.semibold, letterSpacing: -0.3, color: t.colors.text.primary },
+  menuFooter: { gap: 18 },
+  menuTagline: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.semibold, letterSpacing: 2, color: t.colors.brand.deep },
   navLink: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 6, paddingHorizontal: 4 },
   navLinkText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.medium, color: t.colors.text.secondary },
   primaryBtn: { borderRadius: t.radii.md, paddingVertical: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },

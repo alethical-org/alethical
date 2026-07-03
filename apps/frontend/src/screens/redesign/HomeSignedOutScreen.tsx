@@ -28,15 +28,27 @@ import { useResponsive } from '../../hooks/useResponsive';
 const t = theme;
 const isWeb = Platform.OS === 'web';
 
-// Web-only section backgrounds (green→white gradients; find band adds the dot grid)
+// Web-only section backgrounds (green→white gradients)
 const protoBgWeb: any = isWeb ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' } : {};
-const findBgWeb: any = isWeb
+// Find band: plain green gradient base; the dot grid is a separate masked overlay so it
+// fades IN from plain green at the top into dots lower down (per the mockup).
+const findBgWeb: any = isWeb ? { backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)' } : {};
+const findDotsWeb: any = isWeb
   ? {
-      backgroundImage:
-        'radial-gradient(rgba(20,157,91,0.09) 1.3px, transparent 1.4px), linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)',
-      backgroundSize: '30px 30px, 100% 100%',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundImage: 'radial-gradient(rgba(20,157,91,0.09) 1.3px, transparent 1.4px)',
+      backgroundSize: '30px 30px',
+      maskImage: 'linear-gradient(to bottom, transparent 0%, #000 36%, transparent 88%)',
+      WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 36%, transparent 88%)',
+      pointerEvents: 'none',
     }
   : {};
+// Kill the hero ask-bar's card shadow on mobile (the card treatment is dropped there).
+const askBarMobileWeb: any = isWeb ? { boxShadow: 'none' } : {};
 // Green radial glow behind the hero (lower-left), per the mockup
 const heroGlowWeb: any = isWeb
   ? {
@@ -129,12 +141,14 @@ export function HomeSignedOutScreen() {
 
         {/* Hero */}
         <Container style={styles.heroWrap}>
-          {isWeb ? <View pointerEvents="none" style={heroGlowWeb} /> : null}
+          {isWeb && !isMobile ? <View pointerEvents="none" style={heroGlowWeb} /> : null}
           <Eyebrow>TRUTH, UNCONCEALED</Eyebrow>
           <View style={[styles.heroRow, isDesktop && styles.heroRowDesktop]}>
             <View style={[styles.heroLeft, isDesktop && styles.heroLeftDesktop]}>
               <Text style={[styles.display, { fontSize: isDesktop ? t.fontSizes.heroXl : 44, lineHeight: isDesktop ? t.fontSizes.heroXl : 44 }]}>
-                Grounded answers{isDesktop ? '\n' : ' '}
+                {/* Forced break after "answers" on both desktop and mobile (mobile is an
+                    intentional exception to the mockup, which wraps after "on"). */}
+                Grounded answers{'\n'}
                 <Text style={{ color: t.colors.brand.deep }}>on Minnesota law</Text>
               </Text>
               <Text style={styles.subhead}>
@@ -142,8 +156,8 @@ export function HomeSignedOutScreen() {
                 traceable to the bill text it came from.
               </Text>
 
-              <View style={[styles.askBar, isMobile && styles.askBarMobile]}>
-                <View style={styles.askField}>
+              <View style={[styles.askBar, isMobile && styles.askBarMobile, isMobile && askBarMobileWeb]}>
+                <View style={[styles.askField, isMobile && styles.askFieldMobile]}>
                   <Search size={20} color={t.colors.text.muted} strokeWidth={2.2} />
                   <TextInput
                     style={styles.askInput}
@@ -215,6 +229,7 @@ export function HomeSignedOutScreen() {
 
         {/* Find my legislator band */}
         <View style={[styles.findBand, findBgWeb]}>
+          {isWeb ? <View pointerEvents="none" style={findDotsWeb} /> : null}
           <Container style={[styles.findInner, isDesktop && styles.findInnerDesktop]}>
             {!isDesktop ? (
               <View style={styles.findMapMobile}>
@@ -273,8 +288,26 @@ const styles = StyleSheet.create({
     marginTop: 40,
     ...(t.shadows.card as object),
   },
-  askBarMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 10, paddingRight: 8, paddingBottom: 8 },
+  // Mobile: drop the wrapping card — input becomes its own bordered field, Ask sits separately below.
+  askBarMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 14,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    paddingVertical: 0,
+  },
   askField: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  askFieldMobile: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.borders.base,
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 2,
+  },
   askInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12 },
   noAccount: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.medium, letterSpacing: 0.8, color: t.colors.text.muted, marginTop: 18, marginLeft: 18 },
   heroRight: {},
@@ -317,7 +350,7 @@ const styles = StyleSheet.create({
   protoTitle: { fontFamily: t.typography.title, fontSize: t.fontSizes.h1, fontWeight: t.fontWeights.heavy, letterSpacing: -0.6, color: t.colors.text.primary },
   protoBody: { fontFamily: t.typography.body, fontSize: t.fontSizes.subhead, lineHeight: 27, color: t.colors.text.secondary, maxWidth: 660 },
   billList: { gap: 20 },
-  findBand: { backgroundColor: t.colors.tint.t100, marginTop: 80, paddingVertical: 72 },
+  findBand: { position: 'relative', backgroundColor: t.colors.tint.t100, marginTop: 80, paddingVertical: 72 },
   findInner: { gap: 32 },
   findInnerDesktop: { flexDirection: 'row', alignItems: 'center', gap: 44 },
   findLeft: { gap: 22 },
