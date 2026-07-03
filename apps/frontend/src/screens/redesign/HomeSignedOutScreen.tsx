@@ -32,7 +32,7 @@ const isWeb = Platform.OS === 'web';
 const protoBgWeb: any = isWeb ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' } : {};
 // Find band: plain green gradient base; the dot grid is a separate masked overlay so it
 // fades IN from plain green at the top into dots lower down (per the mockup).
-const findBgWeb: any = isWeb ? { backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)' } : {};
+const findBgWeb: any = isWeb ? { backgroundImage: 'linear-gradient(180deg,#d6ecdf 0%,#e8f5ee 55%,#ffffff 100%)' } : {};
 const findDotsWeb: any = isWeb
   ? {
       position: 'absolute',

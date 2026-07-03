@@ -465,12 +465,14 @@ const styles = StyleSheet.create({
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 26 },
   navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   hamburger: { padding: 9, borderRadius: 10, backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.borders.base },
-  menuScrim: { flex: 1, backgroundColor: 'rgba(6,35,26,0.45)', paddingTop: 52 },
+  // Right-side drawer: page stays dimmed on the left, sheet covers ~84% of the width.
+  menuScrim: { flex: 1, backgroundColor: 'rgba(6,35,26,0.45)', flexDirection: 'row', justifyContent: 'flex-end' },
   menuSheet: {
-    flex: 1,
+    width: '84%',
+    maxWidth: 420,
     backgroundColor: t.colors.surfaces.base,
     borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderBottomLeftRadius: 24,
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 28,
