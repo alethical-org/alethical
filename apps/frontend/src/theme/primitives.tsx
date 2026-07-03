@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   badgeText: { fontFamily: t.typography.mono, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.bold, letterSpacing: 0.4, color: t.colors.brand.deep },
-  card: { backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.borders.base, borderRadius: t.radii.lg, padding: 24 },
+  card: { backgroundColor: t.colors.surfaces.base, borderRadius: 20, paddingVertical: 32, paddingHorizontal: 34 },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eyebrowSquare: { width: 13, height: 13, borderRadius: 0, backgroundColor: t.colors.brand.base },
   eyebrowText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.small, fontWeight: t.fontWeights.semibold, letterSpacing: 2.4, color: t.colors.brand.deep },

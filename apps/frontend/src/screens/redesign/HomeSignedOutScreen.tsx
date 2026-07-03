@@ -150,7 +150,7 @@ export function HomeSignedOutScreen() {
             </View>
 
             <View style={[styles.heroRight, isDesktop && styles.heroRightDesktop]}>
-              <Card>
+              <Card style={isDesktop ? styles.answerCard : undefined}>
                 <View style={styles.cardHead}>
                   <Badge>SF 2310</Badge>
                   <Text style={styles.sourcesCited}>3 sources cited</Text>
@@ -263,7 +263,8 @@ const styles = StyleSheet.create({
   askInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12 },
   noAccount: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.medium, letterSpacing: 0.8, color: t.colors.text.muted, marginTop: 18, marginLeft: 18 },
   heroRight: {},
-  heroRightDesktop: { flex: 1 },
+  heroRightDesktop: { flex: 1, alignItems: 'flex-end' },
+  answerCard: { width: 600, maxWidth: '100%' },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   sourcesCited: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.bold, color: t.colors.brand.darkest },
   answerBody: { fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, lineHeight: 25, color: t.colors.text.primary },
