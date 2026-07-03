@@ -55,8 +55,8 @@ export function PageDots() {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundImage: 'radial-gradient(rgba(17,21,15,0.05) 1.3px, transparent 1.5px)',
-    backgroundSize: '22px 22px',
+    backgroundImage: 'radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px)',
+    backgroundSize: '30px 30px',
     maskImage: mask,
     WebkitMaskImage: mask,
   };

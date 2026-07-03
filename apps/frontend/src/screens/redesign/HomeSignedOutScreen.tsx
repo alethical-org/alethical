@@ -109,6 +109,7 @@ export function HomeSignedOutScreen() {
   return (
     <PageBackground>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.topZone}>
         <PageDots />
         <MetaStripe left="ALETHICAL · CIVIC RECORD" right="VOL. 1 · 89TH SESSION · MARCH 21, 2026" />
 
@@ -195,6 +196,7 @@ export function HomeSignedOutScreen() {
             <GoogleButton />
           </View>
         </Container>
+        </View>
 
         {/* Recent bills */}
         <Container style={styles.section}>
@@ -238,7 +240,8 @@ export function HomeSignedOutScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 0, position: 'relative' },
+  scrollContent: { paddingBottom: 0 },
+  topZone: { position: 'relative' },
   heroWrap: { paddingTop: 56, position: 'relative' },
   heroRow: { marginTop: 36, gap: 40 },
   heroRowDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
