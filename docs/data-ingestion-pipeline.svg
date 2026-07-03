@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 600" width="680" height="600" role="img" aria-labelledby="ttl dsc">
+  <title id="ttl">Alethical data ingestion pipeline</title>
+  <desc id="dsc">Public Minnesota sources feed a batch pipeline (acquire, parse, canonical DB, derive RAG and AI) that serves the FastAPI backend and clients; district lookup, chat, and map tiles are query-time external calls.</desc>
+  <style>
+    text { font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .th { font-size: 14px; font-weight: 700; fill: #2b2b2b; }
+    .t  { font-size: 13px; font-weight: 600; fill: #1f2937; }
+    .ts { font-size: 11px; fill: #4b5563; }
+    .node  { fill: #f4f1ea; stroke: #cfc8b8; stroke-width: 1.2; }
+    .blue  { fill: #dbeafe; stroke: #3b82f6; stroke-width: 1.2; }
+    .green { fill: #dcfce7; stroke: #22c55e; stroke-width: 1.2; }
+    .amber { fill: #fef3c7; stroke: #f59e0b; stroke-width: 1.2; }
+    .arrow { stroke: #6b7280; stroke-width: 1.5; fill: none; }
+    .dash  { stroke: #9ca3af; stroke-width: 1.2; stroke-dasharray: 3 3; fill: none; }
+  </style>
+  <defs>
+    <marker id="ah" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto">
+      <path d="M0,0 L6.5,3 L0,6 Z" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="680" height="600" fill="#ffffff"/>
+
+  <!-- ================= central spine ================= -->
+  <rect class="node" x="230" y="60" width="220" height="54" rx="8"/>
+  <text class="t"  x="340" y="84"  text-anchor="middle">Acquire</text>
+  <text class="ts" x="340" y="101" text-anchor="middle">fetch raw &#8594; source_artifact</text>
+
+  <rect class="node" x="230" y="150" width="220" height="54" rx="8"/>
+  <text class="t"  x="340" y="174" text-anchor="middle">Parse</text>
+  <text class="ts" x="340" y="191" text-anchor="middle">XML &#183; HTML &#183; PDF</text>
+
+  <rect class="blue" x="230" y="240" width="220" height="54" rx="8"/>
+  <text class="t"  x="340" y="264" text-anchor="middle">Canonical DB</text>
+  <text class="ts" x="340" y="281" text-anchor="middle">bill &#183; legislator &#183; vote</text>
+
+  <rect class="node" x="230" y="330" width="220" height="54" rx="8"/>
+  <text class="t"  x="340" y="354" text-anchor="middle">Derive</text>
+  <text class="ts" x="340" y="371" text-anchor="middle">RAG chunks &#183; AI summaries</text>
+
+  <rect class="green" x="230" y="420" width="220" height="54" rx="8"/>
+  <text class="t"  x="340" y="444" text-anchor="middle">FastAPI</text>
+  <text class="ts" x="340" y="461" text-anchor="middle">/api/v1 + /me</text>
+
+  <rect class="node" x="230" y="510" width="220" height="54" rx="8"/>
+  <text class="t"  x="340" y="534" text-anchor="middle">Clients</text>
+  <text class="ts" x="340" y="551" text-anchor="middle">web &#183; iOS &#183; Android</text>
+
+  <!-- spine arrows -->
+  <line class="arrow" x1="340" y1="114" x2="340" y2="147" marker-end="url(#ah)"/>
+  <line class="arrow" x1="340" y1="204" x2="340" y2="237" marker-end="url(#ah)"/>
+  <line class="arrow" x1="340" y1="294" x2="340" y2="327" marker-end="url(#ah)"/>
+  <line class="arrow" x1="340" y1="384" x2="340" y2="417" marker-end="url(#ah)"/>
+  <line class="arrow" x1="340" y1="474" x2="340" y2="507" marker-end="url(#ah)"/>
+
+  <!-- ================= left: sources ================= -->
+  <text class="th" x="16" y="44">Public sources</text>
+  <rect class="node" x="16" y="54"  width="190" height="30" rx="6"/>
+  <text class="ts" x="26" y="73">MN Revisor &#8212; bills</text>
+  <rect class="node" x="16" y="92"  width="190" height="30" rx="6"/>
+  <text class="ts" x="26" y="111">Legislature &#8212; roster + profiles</text>
+  <rect class="node" x="16" y="130" width="190" height="30" rx="6"/>
+  <text class="ts" x="26" y="149">House / Senate &#8212; votes</text>
+  <text class="ts" x="16" y="178">no API key required</text>
+  <line class="arrow" x1="206" y1="69"  x2="228" y2="82" marker-end="url(#ah)"/>
+  <line class="arrow" x1="206" y1="107" x2="228" y2="88" marker-end="url(#ah)"/>
+  <line class="arrow" x1="206" y1="145" x2="228" y2="96" marker-end="url(#ah)"/>
+
+  <!-- ================= right: legend ================= -->
+  <text class="th" x="470" y="44">Legend</text>
+  <rect class="blue"  x="470" y="55" width="13" height="13" rx="3"/>
+  <text class="ts" x="490" y="65">datastore</text>
+  <rect class="green" x="470" y="76" width="13" height="13" rx="3"/>
+  <text class="ts" x="490" y="86">API</text>
+  <rect class="amber" x="470" y="97" width="13" height="13" rx="3"/>
+  <text class="ts" x="490" y="107">external / at-risk</text>
+
+  <!-- ================= right: caution + query-time ================= -->
+  <line class="dash" x1="450" y1="357" x2="470" y2="351"/>
+  <rect class="amber" x="470" y="336" width="196" height="34" rx="6"/>
+  <text class="t"  x="480" y="351">embeddings: placeholder</text>
+  <text class="ts" x="480" y="365">SHA-256, not semantic yet</text>
+
+  <text class="th" x="470" y="404">Query-time calls</text>
+  <rect class="amber" x="470" y="414" width="196" height="30" rx="6"/>
+  <text class="ts" x="480" y="433">District: US Census + LCC-GIS</text>
+  <rect class="amber" x="470" y="452" width="196" height="30" rx="6"/>
+  <text class="ts" x="480" y="471">Chat: OpenAI Responses</text>
+  <line class="arrow" x1="450" y1="438" x2="468" y2="430" marker-end="url(#ah)"/>
+  <line class="arrow" x1="450" y1="452" x2="468" y2="466" marker-end="url(#ah)"/>
+
+  <rect class="amber" x="470" y="520" width="196" height="30" rx="6"/>
+  <text class="ts" x="480" y="539">Map tiles: OpenStreetMap</text>
+  <line class="arrow" x1="450" y1="537" x2="468" y2="535" marker-end="url(#ah)"/>
+</svg>
