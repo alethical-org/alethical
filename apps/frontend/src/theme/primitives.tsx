@@ -457,8 +457,8 @@ const styles = StyleSheet.create({
   sectionLabel: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.bold, letterSpacing: 2, color: t.colors.brand.deep },
   labelMono: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.medium, letterSpacing: 1.2, color: t.colors.text.muted },
   sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
-  sectionHeading: { fontFamily: t.typography.title, fontSize: t.fontSizes.hero, fontWeight: t.fontWeights.heavy, letterSpacing: -1.4, color: t.colors.text.primary },
-  viewAll: { backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.alpha.ink20, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
+  sectionHeading: { fontFamily: t.typography.title, fontSize: t.fontSizes.displayLg, fontWeight: t.fontWeights.heavy, letterSpacing: -1.2, color: t.colors.text.primary },
+  viewAll: { backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.alpha.ink20, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginRight: 18 },
   viewAllText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.bold, letterSpacing: 1.6, color: t.colors.text.primary },
   infoCard: {
     flex: 1,
