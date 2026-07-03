@@ -50,7 +50,7 @@ EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-The local `.env` in this workspace already maps the existing Supabase project URL and publishable key into those names. Keep the `EXPO_PUBLIC_*` values publishable-only; never put service-role keys in frontend environment variables.
+Copy `.env.example` to `.env` at the repo root and fill in your values. That template documents every variable the backend, ingestion pipeline, and frontend read, with safe defaults for everything except the secrets you must supply (Supabase keys, `OPENAI_API_KEY`). The backend loads `.env` from the repo root automatically, and the Expo frontend reads the same file for its `EXPO_PUBLIC_*` values. Keep the `EXPO_PUBLIC_*` values publishable-only; never put service-role keys in frontend environment variables.
 
 The Find My Legislator map uses raster map tiles. For Android/native builds, set a stable tile request identity and use an approved tile URL:
 
