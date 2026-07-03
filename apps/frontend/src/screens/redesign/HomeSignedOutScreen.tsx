@@ -125,7 +125,7 @@ export function HomeSignedOutScreen() {
           <Eyebrow>TRUTH, UNCONCEALED</Eyebrow>
           <View style={[styles.heroRow, isDesktop && styles.heroRowDesktop]}>
             <View style={[styles.heroLeft, isDesktop && styles.heroLeftDesktop]}>
-              <Text style={[styles.display, { fontSize: isDesktop ? t.fontSizes.heroXl : 44 }]}>
+              <Text style={[styles.display, { fontSize: isDesktop ? t.fontSizes.heroXl : 44, lineHeight: isDesktop ? t.fontSizes.heroXl : 44 }]}>
                 Grounded answers{'\n'}
                 <Text style={{ color: t.colors.brand.deep }}>on Minnesota law</Text>
               </Text>
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   heroRow: { marginTop: 36, gap: 40 },
   heroRowDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
   heroLeft: {},
-  heroLeftDesktop: { flex: 1.5 },
+  heroLeftDesktop: { flex: 1 },
   display: { fontFamily: t.typography.title, fontWeight: t.fontWeights.heavy, color: t.colors.text.primary, letterSpacing: -1 },
   subhead: { fontFamily: t.typography.body, fontSize: 23, lineHeight: 34, color: t.colors.text.muted, maxWidth: 580, marginTop: 36 },
   askBar: {
@@ -256,7 +256,6 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     paddingVertical: 8,
     marginTop: 40,
-    maxWidth: 620,
     ...(t.shadows.card as object),
   },
   askBarMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 10, paddingRight: 8, paddingBottom: 8 },
