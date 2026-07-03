@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  menuList: { flex: 1, marginTop: 14 },
+  menuList: { flex: 1, marginTop: 40 },
   menuRow: { paddingVertical: 22, borderBottomWidth: 1, borderBottomColor: t.colors.borders.base },
   menuRowText: { fontFamily: t.typography.title, fontSize: 27, fontWeight: t.fontWeights.semibold, letterSpacing: -0.3, color: t.colors.text.primary },
   menuFooter: { gap: 18 },
