@@ -404,13 +404,13 @@ export function Footer() {
 
 const styles = StyleSheet.create({
   pageBg: { flex: 1 },
-  container: { width: '100%', maxWidth: t.layout.maxWidth, marginHorizontal: 'auto', paddingHorizontal: 32 },
+  container: { width: '100%', paddingHorizontal: 56 },
   metaStripe: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 10,
+    paddingHorizontal: 56,
+    paddingVertical: 11,
     borderBottomWidth: 1,
     borderBottomColor: t.colors.borders.base,
   },
