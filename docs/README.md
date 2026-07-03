@@ -15,6 +15,7 @@ Project documentation lives here so the repository root stays focused on runnabl
 - [Database schema system design](db-schema-system-design.md)
 - [Ingestion pipeline system design](ingestion-pipeline-system-design.md)
 - [RAG ingestion system design](rag-ingestion-system-design.md)
+- [Data ingestion onboarding guide](data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
 - [Schema query validation](schema-query-validation.md)
 
 ## Local Development
