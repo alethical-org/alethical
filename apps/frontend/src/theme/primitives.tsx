@@ -10,7 +10,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
+import Svg, { Circle, Ellipse, Path, Rect } from 'react-native-svg';
 import { ChevronDown, MapPin, Menu, Plus, X } from 'lucide-react-native';
 
 import { theme } from './tokens';
@@ -66,14 +66,17 @@ export function MetaStripe({ left, right }: { left: string; right: string }) {
 
 // --- Brand logo (bar mark + wordmark). tone controls text color for dark surfaces. ---
 export function Logo({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
+  const light = tone === 'light';
+  const fill = light ? t.colors.white : t.colors.ink;
+  const dim = light ? 30 : 40;
   return (
-    <View style={styles.logo}>
-      <View style={styles.logoMark}>
-        <View style={[styles.logoBar, { height: 10, backgroundColor: tone === 'light' ? t.colors.brand.deep : t.colors.ink }]} />
-        <View style={[styles.logoBar, { height: 16, backgroundColor: tone === 'light' ? t.colors.white : t.colors.ink }]} />
-        <View style={[styles.logoBar, { height: 22, backgroundColor: tone === 'light' ? t.colors.brand.base : t.colors.ink }]} />
-      </View>
-      <Text style={[styles.wordmark, tone === 'light' && { color: t.colors.white }]}>ALETHICAL</Text>
+    <View style={[styles.logo, light && styles.logoLight]}>
+      <Svg width={dim} height={dim} viewBox="0 0 64 64" fill="none">
+        <Rect x={15} y={29} width={7.5} height={21} rx={3.75} fill={fill} />
+        <Rect x={28.25} y={15} width={7.5} height={35} rx={3.75} fill={fill} />
+        <Rect x={41.5} y={35} width={7.5} height={15} rx={3.75} fill={fill} />
+      </Svg>
+      <Text style={[styles.wordmark, light && styles.wordmarkLight]}>ALETHICAL</Text>
     </View>
   );
 }
@@ -359,7 +362,7 @@ export function MNMap({ size = 300 }: { size?: number }) {
       <Ellipse cx={58} cy={76} rx={54} ry={64} fill={t.colors.alpha.green10} />
       <Path
         d="M31 20 L31 6 L44 6 L44 20 L78 20 L104 9 L74 58 L70 76 L76 94 L70 112 L77 130 L78 134 L12 134 L12 20 Z"
-        fill={t.colors.tint.t200}
+        fill={t.colors.white}
         stroke={t.colors.brand.deep}
         strokeWidth={2}
         strokeLinejoin="round"
@@ -412,10 +415,10 @@ const styles = StyleSheet.create({
     borderBottomColor: t.colors.borders.base,
   },
   metaText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.medium, letterSpacing: 1.9, color: t.colors.text.faint },
-  logo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logoMark: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 24 },
-  logoBar: { width: 6, borderRadius: 2 },
-  wordmark: { fontFamily: t.typography.title, fontSize: 20, fontWeight: t.fontWeights.bold, letterSpacing: 2.4, color: t.colors.text.primary },
+  logo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  logoLight: { gap: 12 },
+  wordmark: { fontFamily: t.typography.title, fontSize: 25, fontWeight: t.fontWeights.semibold, letterSpacing: 4, color: t.colors.text.primary },
+  wordmarkLight: { fontSize: 20, color: t.colors.white },
   navRow: { paddingTop: 22, paddingBottom: 8 },
   navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 26 },

@@ -36,6 +36,18 @@ const findBgWeb: any = isWeb
       backgroundSize: '30px 30px, 100% 100%',
     }
   : {};
+// Green radial glow behind the hero (lower-left), per the mockup
+const heroGlowWeb: any = isWeb
+  ? {
+      position: 'absolute',
+      left: -120,
+      bottom: 60,
+      width: 560,
+      height: 420,
+      backgroundImage: 'radial-gradient(50% 50% at 50% 50%, rgba(45,212,126,0.12) 0%, rgba(45,212,126,0) 70%)',
+      pointerEvents: 'none',
+    }
+  : {};
 
 const RECENT_BILLS: Bill[] = [
   {
@@ -109,6 +121,7 @@ export function HomeSignedOutScreen() {
 
         {/* Hero */}
         <Container style={styles.heroWrap}>
+          {isWeb ? <View pointerEvents="none" style={heroGlowWeb} /> : null}
           <Eyebrow>TRUTH, UNCONCEALED</Eyebrow>
           <View style={[styles.heroRow, isDesktop && styles.heroRowDesktop]}>
             <View style={[styles.heroLeft, isDesktop && styles.heroLeftDesktop]}>
@@ -224,11 +237,11 @@ export function HomeSignedOutScreen() {
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 0 },
-  heroWrap: { paddingTop: 56 },
+  heroWrap: { paddingTop: 56, position: 'relative' },
   heroRow: { marginTop: 36, gap: 40 },
   heroRowDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
   heroLeft: {},
-  heroLeftDesktop: { flex: 1 },
+  heroLeftDesktop: { flex: 1.5 },
   display: { fontFamily: t.typography.title, fontWeight: t.fontWeights.heavy, color: t.colors.text.primary, letterSpacing: -1 },
   subhead: { fontFamily: t.typography.body, fontSize: 23, lineHeight: 34, color: t.colors.text.muted, maxWidth: 580, marginTop: 36 },
   askBar: {
