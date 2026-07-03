@@ -64,15 +64,16 @@ export function PageDots() {
 }
 
 export function Container({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.container, style]}>{children}</View>;
+  const { isMobile } = useResponsive();
+  return <View style={[styles.container, isMobile && styles.containerMobile, style]}>{children}</View>;
 }
 
-export function MetaStripe({ left, right }: { left: string; right: string }) {
+export function MetaStripe({ left, right, rightMobile }: { left: string; right: string; rightMobile?: string }) {
   const { isMobile } = useResponsive();
   return (
-    <View style={styles.metaStripe}>
+    <View style={[styles.metaStripe, isMobile && styles.metaStripeMobile]}>
       <Text style={styles.metaText}>{left}</Text>
-      {!isMobile ? <Text style={styles.metaText}>{right}</Text> : null}
+      <Text style={styles.metaText}>{isMobile ? (rightMobile ?? right) : right}</Text>
     </View>
   );
 }
@@ -140,6 +141,7 @@ export function TopNav({ items }: { items: { label: string; caret?: boolean }[] 
           </View>
         ) : (
           <View style={styles.navMobileRight}>
+            <PrimaryButton label="Sign in" />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={open ? 'Close menu' : 'Open menu'}
@@ -148,7 +150,6 @@ export function TopNav({ items }: { items: { label: string; caret?: boolean }[] 
             >
               {open ? <X size={22} color={t.colors.ink} /> : <Menu size={22} color={t.colors.ink} />}
             </Pressable>
-            <PrimaryButton label="Sign in" />
           </View>
         )}
       </View>
@@ -240,8 +241,9 @@ function CardIcon({ name }: { name: IconName }) {
 }
 
 export function InfoCard({ icon, title, subtitle }: { icon: IconName; title: string; subtitle: string }) {
+  const { isMobile } = useResponsive();
   return (
-    <View style={styles.infoCard}>
+    <View style={[styles.infoCard, isMobile && styles.infoCardMobile]}>
       <View style={styles.infoIcon}><CardIcon name={icon} /></View>
       <View style={styles.infoText}>
         <Text style={styles.infoTitle}>{title}</Text>
@@ -418,6 +420,7 @@ export function Footer() {
 const styles = StyleSheet.create({
   pageBg: { flex: 1 },
   container: { width: '100%', paddingHorizontal: 56 },
+  containerMobile: { paddingHorizontal: 24 },
   metaStripe: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -427,6 +430,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: t.colors.borders.base,
   },
+  metaStripeMobile: { paddingHorizontal: 24 },
   metaText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.medium, letterSpacing: 1.9, color: t.colors.text.faint },
   logo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   logoLight: { gap: 12 },
@@ -436,7 +440,7 @@ const styles = StyleSheet.create({
   navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 26 },
   navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  hamburger: { padding: 8, borderRadius: t.radii.sm },
+  hamburger: { padding: 9, borderRadius: 10, backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.borders.base },
   menuPanel: {
     marginTop: 12,
     backgroundColor: t.colors.surfaces.base,
@@ -475,7 +479,7 @@ const styles = StyleSheet.create({
   viewAllText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.bold, letterSpacing: 1.6, color: t.colors.text.primary },
   infoCard: {
     flex: 1,
-    minWidth: 200,
+    minWidth: 140,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
@@ -486,6 +490,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 18,
   },
+  infoCardMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 18, paddingVertical: 20 },
   infoIcon: { width: 40, height: 40, borderRadius: t.radii.sm, backgroundColor: t.colors.tint.t150, alignItems: 'center', justifyContent: 'center' },
   infoText: { flex: 1, minWidth: 0, gap: 3 },
   infoTitle: { fontFamily: t.typography.title, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
@@ -543,6 +548,7 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     paddingRight: 8,
     paddingVertical: 8,
+    width: '100%',
     maxWidth: 560,
     ...(t.shadows.sm as object),
   },

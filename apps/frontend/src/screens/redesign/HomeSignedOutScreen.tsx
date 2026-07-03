@@ -91,6 +91,13 @@ const RECENT_BILLS: Bill[] = [
 
 const CITIES = ['MINNEAPOLIS', 'SAINT PAUL', 'ROCHESTER', 'DULUTH', 'BLOOMINGTON', 'EDINA', 'ST. CLOUD', 'MANKATO'];
 
+const NAV_ITEMS = [
+  { label: 'Ask AI' },
+  { label: 'Search', caret: true },
+  { label: 'Track', caret: true },
+  { label: 'About', caret: true },
+];
+
 function CitationRow({ label, page }: { label: string; page: string }) {
   return (
     <View style={styles.citation}>
@@ -111,16 +118,14 @@ export function HomeSignedOutScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.topZone}>
         <PageDots />
-        <MetaStripe left="ALETHICAL · CIVIC RECORD" right="VOL. 1 · 89TH SESSION · MARCH 21, 2026" />
-
-        <TopNav
-          items={[
-            { label: 'Ask AI' },
-            { label: 'Search', caret: true },
-            { label: 'Track', caret: true },
-            { label: 'About', caret: true },
-          ]}
+        {/* Mobile: sticky-style app header sits above the editorial meta stripe; desktop keeps the masthead-first order. */}
+        {isMobile ? <TopNav items={NAV_ITEMS} /> : null}
+        <MetaStripe
+          left="ALETHICAL · CIVIC RECORD"
+          right="VOL. 1 · 89TH SESSION · MARCH 21, 2026"
+          rightMobile="89TH SESSION"
         />
+        {!isMobile ? <TopNav items={NAV_ITEMS} /> : null}
 
         {/* Hero */}
         <Container style={styles.heroWrap}>
@@ -129,7 +134,7 @@ export function HomeSignedOutScreen() {
           <View style={[styles.heroRow, isDesktop && styles.heroRowDesktop]}>
             <View style={[styles.heroLeft, isDesktop && styles.heroLeftDesktop]}>
               <Text style={[styles.display, { fontSize: isDesktop ? t.fontSizes.heroXl : 44, lineHeight: isDesktop ? t.fontSizes.heroXl : 44 }]}>
-                Grounded answers{'\n'}
+                Grounded answers{isDesktop ? '\n' : ' '}
                 <Text style={{ color: t.colors.brand.deep }}>on Minnesota law</Text>
               </Text>
               <Text style={styles.subhead}>
@@ -211,14 +216,19 @@ export function HomeSignedOutScreen() {
         {/* Find my legislator band */}
         <View style={[styles.findBand, findBgWeb]}>
           <Container style={[styles.findInner, isDesktop && styles.findInnerDesktop]}>
-            <View style={[styles.findLeft, isDesktop && styles.findLeftDesktop]}>
-              <Text style={styles.findHeading}>Find My Legislator</Text>
-              <Text style={styles.findSubhead}>
+            {!isDesktop ? (
+              <View style={styles.findMapMobile}>
+                <MNMap size={220} />
+              </View>
+            ) : null}
+            <View style={[styles.findLeft, isDesktop ? styles.findLeftDesktop : styles.findLeftMobile]}>
+              <Text style={[styles.findHeading, !isDesktop && styles.findHeadingMobile]}>Find My Legislator</Text>
+              <Text style={[styles.findSubhead, !isDesktop && styles.centerText]}>
                 Find your legislative representative to see their profile, committees, and authored bills — then ask
                 anything about their record.
               </Text>
               <AddressField />
-              <View style={styles.cityRow}>
+              <View style={[styles.cityRow, !isDesktop && styles.cityRowMobile]}>
                 {CITIES.map((city) => (
                   <CityChip key={city} label={city} />
                 ))}
@@ -312,8 +322,13 @@ const styles = StyleSheet.create({
   findInnerDesktop: { flexDirection: 'row', alignItems: 'center', gap: 44 },
   findLeft: { gap: 22 },
   findLeftDesktop: { flex: 1.35 },
+  findLeftMobile: { alignItems: 'center' },
   findHeading: { fontFamily: t.typography.title, fontSize: t.fontSizes.hero, fontWeight: t.fontWeights.heavy, letterSpacing: -1.4, color: t.colors.text.primary },
+  findHeadingMobile: { fontSize: 40, textAlign: 'center', letterSpacing: -1 },
   findSubhead: { fontFamily: t.typography.body, fontSize: 22, lineHeight: 33, color: t.colors.text.secondary, maxWidth: 820 },
+  centerText: { textAlign: 'center' },
   cityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, maxWidth: 640 },
+  cityRowMobile: { justifyContent: 'center', width: '100%' },
   findMap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  findMapMobile: { alignItems: 'center', marginBottom: 4 },
 });
