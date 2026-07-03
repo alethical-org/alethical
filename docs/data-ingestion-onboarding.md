@@ -74,6 +74,9 @@ flowchart LR
 `PLACEHOLDER` = RAG embeddings are currently deterministic SHA-256 hashes, not a
 real semantic model (see the **E & F — OpenAI** section). All other flows are functional.
 
+> Downloadable version of this diagram (for slides / offline):
+> [SVG](data-ingestion-pipeline.svg) · [PNG](data-ingestion-pipeline.png).
+
 ## The source map
 
 | # | Domain | Source | Protocol / Format | Auth | Code |
