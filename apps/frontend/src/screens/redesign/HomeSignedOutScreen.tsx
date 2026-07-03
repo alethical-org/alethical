@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   heroLeft: { gap: 22 },
   heroLeftDesktop: { flex: 1.05 },
   display: { fontFamily: t.typography.title, fontWeight: t.fontWeights.heavy, color: t.colors.text.primary, letterSpacing: -1 },
-  subhead: { fontFamily: t.typography.body, fontSize: t.fontSizes.subheadLg, lineHeight: 28, color: t.colors.text.secondary, maxWidth: 520 },
+  subhead: { fontFamily: t.typography.body, fontSize: 23, lineHeight: 34, color: t.colors.text.muted, maxWidth: 580 },
   askBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   heroRight: {},
   heroRightDesktop: { width: 440 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
-  sourcesCited: { fontFamily: t.typography.ui, fontSize: t.fontSizes.small, fontWeight: t.fontWeights.bold, color: t.colors.brand.darkest },
+  sourcesCited: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.bold, color: t.colors.brand.darkest },
   answerBody: { fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, lineHeight: 25, color: t.colors.text.primary },
   answerStrong: { fontWeight: t.fontWeights.bold },
   citationList: { marginTop: 18, gap: 8 },
