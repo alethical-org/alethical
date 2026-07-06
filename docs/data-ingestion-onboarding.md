@@ -72,7 +72,10 @@ flowchart LR
 ```
 
 `PLACEHOLDER` = RAG embeddings are currently deterministic SHA-256 hashes, not a
-real semantic model (see §6). All other flows are functional.
+real semantic model (see the **E & F — OpenAI** section). All other flows are functional.
+
+> Downloadable version of this diagram (for slides / offline):
+> [SVG](data-ingestion-pipeline.svg) · [PNG](data-ingestion-pipeline.png).
 
 ## The source map
 
@@ -247,7 +250,7 @@ just pipeline local --write --allow-writes     # commit after review
 ## Gotchas
 
 1. **RAG embeddings are a placeholder** (SHA-256) — semantic search/chat is
-   non-functional until a real model is wired in (§6).
+   non-functional until a real model is wired in (see **E & F — OpenAI**).
 2. **HTML parsing is regex-based, no schema validation** — an upstream template
    change yields *silently empty* results, not a loud failure. Watch
    `IngestionRun` counts (roster should be 134/67; a bill shouldn't lose all
