@@ -4,9 +4,9 @@ Status: draft for engineering review
 Owner: Eugene
 Related surfaces: signed-out home (hero), chat
 
-![Signed-out hero with Ask box and sample question chips](assets/grounded-ask-hero.png)
+![Signed-out hero with Ask box and the v1 sample question chips](assets/grounded-ask-hero.png)
 
-*Note: the mock above shows the full chip set including the vote chip — that chip and the word "votes" in the placeholder are **v1.1**; see Phasing in §2.*
+*The mock reflects the **v1** surface: placeholder is "Ask about bills or legislators…" (no votes), and the three chips map 1:1 to the v1 answer paths (bill text · topic → bills · topic → legislators). The vote chip and "votes" in the placeholder are **v1.1** — see Phasing in §2.*
 
 ## 1. Goal and the promise this build protects
 
@@ -21,13 +21,13 @@ The subhead is a contract, not marketing: **no answer ships without a resolvable
 
 A signed-out visitor types a natural-language question into the hero Ask box. The system classifies the question, answers from ingested Minnesota data with citations, or honestly declines.
 
-The v1 hero placeholder reads **"Ask about any Minnesota bill or legislator…"** — deliberately *not* "votes," which is a v1.1 capability (see Phasing below). The placeholder must never advertise an intent the router can't answer.
+The v1 hero placeholder reads **"Ask about bills or legislators…"** — deliberately *not* "votes," which is a v1.1 capability (see Phasing below). ("Minnesota" is omitted since the headline already says it.) The placeholder must never advertise an intent the router can't answer.
 
 ### Acceptance scenarios (the hero's sample chips — these are the tests)
 
 | # | Question | Expected behavior |
 |---|----------|-------------------|
-| 1 | **What does SF 2310 do?** *(any resolvable HF/SF number or recognizable bill title)* | Bill-text RAG answer using the existing pipeline, with citations to the retrieved passages and the bill's official page. |
+| 1 | **What's in the cannabis legalization bill?** *(also handles an HF/SF number, e.g. SF 2310, or a recognizable bill title)* | Resolve to the bill via v1 fuzzy title match, then a bill-text RAG answer using the existing pipeline, with citations to the retrieved passages and the bill's official page. Deliberately phrased without a bill number to prove you don't need one; if the phrase is ambiguous, fall back to the topic → bills list (scenario 2). |
 | 2 | **What bills affect healthcare?** | List of current-session bills matching the topic (policy-area tag and/or keyword match), each with its AI summary line and a citation link to the bill's official page. |
 | 3 | **Which legislators support affordable housing?** | Legislators who **authored or co-authored** bills matching the topic, with per-legislator bill counts and links to each legislator profile and the underlying bills. See framing rule in §4.3 — "support" must be reported as sponsorship/votes, never as inferred opinion. |
 | 4 | *Vote question (e.g., "How did my legislator vote on cannabis?")* | **v1: honest deflection** — the router recognizes the intent and answers: vote-by-vote answers are coming soon, and every roll call is already on the bill's page (link the bill's Votes tab when the bill resolves). Never a partial or unverified vote answer. **v1.1: the full cited answer** — vote position, tally, date, citation to the roll call's official record; if no roll call exists, say so and offer the chamber tally or bill status. |
@@ -96,7 +96,7 @@ Half-day task against the live DB. Runs in parallel with the v1 build; its findi
 ## 6. Definition of done
 
 ### v1 (launch)
-- [ ] The three v1 hero chips (SF 2310 / healthcare / affordable housing) return correct, cited answers against production data.
+- [ ] The three v1 hero chips (cannabis bill / healthcare / affordable housing) return correct, cited answers against production data.
 - [ ] Cite-or-refuse enforced on every answer path — no citation, no answer.
 - [ ] Vote questions get the deflection response with a working bill-page pointer — never a partial vote answer.
 - [ ] Citation URLs resolve per source type (bill / legislator), never defaulting to an unrelated bill page.
