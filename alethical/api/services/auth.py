@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 import os
+import secrets
 
 from supabase import create_client
 
@@ -54,7 +55,8 @@ class LocalDevAuthService:
         self._email = email
 
     def authenticate(self, bearer_token: str) -> AuthenticatedPrincipal:
-        if bearer_token != self._token:
+        # Use secrets.compare_digest to prevent timing attacks
+        if not bearer_token or not secrets.compare_digest(bearer_token, self._token):
             raise ValueError("Invalid development bearer token")
         return AuthenticatedPrincipal(
             provider=self._provider,
