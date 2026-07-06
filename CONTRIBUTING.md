@@ -67,9 +67,12 @@ deploy (see below), so all changes go through pull requests.
 3. **Push and open a PR into `main`:**
    ```bash
    git push -u origin <branch>
-   gh pr create --base main --fill
+   gh pr create --base main
    ```
-   CI runs automatically on the PR.
+   CI runs automatically on the PR. The PR description is pre-filled from
+   `.github/PULL_REQUEST_TEMPLATE.md` — fill in the **`Closes #<issue>`** line so
+   the issue closes automatically on merge. If there's no issue, delete that line
+   and say why in the "What" section.
 
 4. **Merge** once CI is green (squash-merge keeps `main` to one commit per topic),
    then delete the branch.
@@ -89,3 +92,18 @@ On every PR (`.github/workflows/ci.yml`), path-filtered to what changed:
 Pushes to `main` auto-deploy: the backend (Railway) and web frontend (Vercel),
 and database migrations can run against production. Treat `main` as production
 and land everything through reviewed PRs.
+
+## Issue tracker hygiene
+
+An open issue should mean "still needs doing." Two habits keep that true:
+
+- **Link every PR to its issue** with `Closes #<n>` (see the PR workflow above).
+  Merging then closes the issue for you, and the closed issue keeps a link back
+  to the PR that did the work.
+- **Triage monthly.** Once a month, skim the open issues and ask of each: is this
+  still true? Close anything already shipped (add a one-line note pointing at the
+  PR), and re-scope anything half-done to just the remaining work. A scheduled
+  agent posts a "candidates to close" report to help — but a human decides.
+
+We group work with **milestones** (e.g. `v0 hardening`, `v1`) rather than title
+prefixes, so the Milestones tab shows real progress bars.
