@@ -6,7 +6,7 @@ Related surfaces: signed-out home (hero), chat
 
 ![Signed-out hero with Ask box and the v1 sample question chips](assets/grounded-ask-hero.png)
 
-*The mock reflects the **v1** surface: the three chips map 1:1 to the v1 answer paths (bill text · topic → bills · topic → legislators). The vote chip is **v1.1** — see Phasing in §2. The image predates the placeholder update — current copy is "Ask about bills or legislators by issue or name…" (§2).*
+*The mock reflects the **v1** surface: the three chips map 1:1 to the v1 answer paths (bill text · topic → bills · topic → legislators), and the Ask box shows the v1 placeholder copy (§2). The vote chip is **v1.1** — see Phasing in §2.*
 
 ## 1. Goal and the promise this build protects
 
