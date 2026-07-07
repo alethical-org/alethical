@@ -126,3 +126,12 @@ An open issue should mean "still needs doing." Three habits keep that true:
 
 We group work with **milestones** (e.g. `v0 hardening`, `v1`) rather than title
 prefixes, so the Milestones tab shows real progress bars.
+
+## Keeping docs current
+
+Docs carry screenshots and diagrams, and those go stale silently — `grep`
+can't see inside an image, so a review won't catch it. When you change
+something a doc's visual depicts (UI copy, layout, the states a mock shows),
+refresh that image in the **same PR**, so the doc's picture and its words never
+disagree. This covers any doc with embedded visuals — build specs, onboarding
+guides, READMEs — not just files named `*-spec.md`.
