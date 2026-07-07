@@ -6,7 +6,7 @@ Related surfaces: signed-out home (hero), chat
 
 ![Signed-out hero with Ask box and the v1 sample question chips](assets/grounded-ask-hero.png)
 
-*The mock reflects the **v1** surface: the three chips map 1:1 to the v1 answer paths (bill text · topic → bills · topic → legislators). The vote chip is **v1.1** — see Phasing in §2. The image predates the placeholder update — current copy is "Ask about bills or legislators — by name or by issue…" (§2).*
+*The mock reflects the **v1** surface: the three chips map 1:1 to the v1 answer paths (bill text · topic → bills · topic → legislators), and the Ask box shows the v1 placeholder copy (§2). The vote chip is **v1.1** — see Phasing in §2.*
 
 ## 1. Goal and the promise this build protects
 
@@ -21,7 +21,7 @@ The subhead is a contract, not marketing: **no answer ships without a resolvable
 
 A signed-out visitor types a natural-language question into the hero Ask box. The system classifies the question, answers from ingested Minnesota data with citations, or honestly declines.
 
-The v1 hero placeholder reads **"Ask about bills or legislators — by name or by issue…"**. The grammar is deliberate: bills and legislators are the only *destinations* the sentence promises; "by issue" is an entry point (the two topic paths), not a third entity type — v1 has no issue-level answers (no issue pages, no cross-corpus issue summaries). Deliberately no "votes," a v1.1 capability (see Phasing below). The placeholder must never advertise an intent the router can't answer. Because this copy actively steers users toward arbitrary topics, the retrieval-relevance threshold and NO MATCHES state (§4.5) must ship before it does.
+The v1 hero placeholder reads **"Ask about bills or legislators by issue or name…"**. The grammar is deliberate: bills and legislators are the only *destinations* the sentence promises; "by issue or name" are *entry points* (issue → the two topic paths; name → a legislator), never a third entity type — v1 has no issue-level answers (no issue pages, no cross-corpus issue summaries). Entry points are ordered by what a layperson actually arrives with: most think in issues or keywords, some know a legislator's name, almost none know a bill's name or number — so bill names are deliberately *not* advertised as an entry point (and "issue" doubles as the keyword case). Deliberately no "votes," a v1.1 capability (see Phasing below). The placeholder must never advertise an intent the router can't answer. Because this copy actively steers users toward arbitrary topics, the retrieval-relevance threshold and NO MATCHES state (§4.5) must ship before it does.
 
 ### Acceptance scenarios (the hero's sample chips — these are the tests)
 
@@ -114,7 +114,7 @@ Half-day task against the live DB. Runs in parallel with the v1 build; its findi
 - [ ] "Support" questions use authorship/vote framing per §4.3, rendered as fixed UI copy.
 - [ ] Provenance strip (answer scope · status where applicable · "data as of" from `IngestionRun`) renders on every answer state (§9.2).
 - [ ] Follow-up chips obey §4.7: live-path-only, self-contained submit text, cannot refuse.
-- [ ] Placeholder copy matches capability: "Ask about bills or legislators — by name or by issue…" (no "votes").
+- [ ] Placeholder copy matches capability: "Ask about bills or legislators by issue or name…" (no "votes").
 - [ ] Existing bill-scoped chat is unchanged (regression: its citations still render and link).
 - [ ] Topic-tag half of the coverage spike (§5.2) done for the launch chips' topics; retrieval-relevance threshold tuned before the issue-inviting placeholder ships.
 
