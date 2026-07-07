@@ -6,7 +6,7 @@ Machine-facing counterparts of the human conventions in `CONTRIBUTING.md`. Follo
 
 2. **Commit and push at milestones, not at session end.** Uncommitted work is invisible — not in the PR, not reviewable, not recoverable by anyone outside the conversation. When a coherent chunk lands, commit it.
 
-3. **Share branches, not file copies.** If the user hands you a loose copy of a repo file (Downloads, attachment), diff it against the branches before building on it — it may duplicate or trail a branch. Land durable content on a branch promptly, and point people at branches/PRs rather than exporting files.
+3. **Share branches, not file copies.** If the user hands you a loose copy of a repo file (Downloads, attachment), diff it against the branches before building on it — it may duplicate or trail a branch. Land durable content on a branch promptly, and point people at branches/PRs rather than exporting files. The moment a loose copy's content lands on a branch, delete the loose copy in the same session — a kept copy immediately starts trailing the branch and resurfaces later as a stale shadow of main.
 
 4. **Route knowledge at birth.** Decisions → the relevant spec in `docs/`. Tasks and deferred work → GitHub issues, filed at the moment of discovery with: what it is · what exists today · why deferred · what unblocks it (then cross-link the issue number back into the doc that spawned it). Product invariants → `.claude/rules/`. Team workflow norms → `CONTRIBUTING.md`. Chat is a scratchpad, never a system of record.
 
