@@ -10,4 +10,6 @@ Machine-facing counterparts of the human conventions in `CONTRIBUTING.md`. Follo
 
 4. **Route knowledge at birth.** Decisions → the relevant spec in `docs/`. Tasks and deferred work → GitHub issues, filed at the moment of discovery with: what it is · what exists today · why deferred · what unblocks it (then cross-link the issue number back into the doc that spawned it). Product invariants → `.claude/rules/`. Team workflow norms → `CONTRIBUTING.md`. Chat is a scratchpad, never a system of record.
 
+   The same applies to *existing* issues: when work you ship or a decision you record changes one — done, half-done, re-scoped, obsolete — update or close it in the same session. Monthly triage is the backstop, not the mechanism.
+
 5. **Verify cheap repo facts before deciding on them.** If a claim is one `diff`, `git log`, or `grep` away from certain (which version is newer, does the model have that field, is the file gitignored), check it before building work or advice on top of it.
