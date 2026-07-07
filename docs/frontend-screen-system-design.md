@@ -2,15 +2,20 @@
 
 Status: v1 design draft
 
+> **MVP scope:** V1 ships a **responsive web app only**. Native iOS and Android are
+> post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91); see
+> `docs/v1-scope.md` § Frontend Scope). The iOS/Android and native "Mobile" guidance in
+> this doc describes those post-MVP client targets — for the MVP it informs the web app's
+> mobile-web (small-viewport) layout, not a separate native app.
+
 ## Goal
 
-Define the v1 screen system for a shared React Native application targeting:
+Define the v1 screen system for the shared React Native codebase. The MVP target is:
 
-- Web
-- iOS
-- Android
+- Web (responsive: desktop + mobile-web breakpoints)
 
-The goal is one coherent product across platforms, not three unrelated apps.
+with iOS and Android as post-MVP targets on the same codebase. The goal is one coherent
+product across platforms, not three unrelated apps.
 
 ## What Good Means
 

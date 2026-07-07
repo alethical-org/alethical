@@ -6,6 +6,11 @@ roadmap noted for direction.
 
 ## Locked decisions
 
+- **MVP client = web only.** The MVP ships a responsive web app (desktop + mobile
+  web). Native iOS and Android apps are deferred to post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91));
+  see `docs/v1-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
+  codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
+  sequence below targets iOS/Android.
 - **IA:** top nav `Ask AI · Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
   subsections. Search and Track share one entity taxonomy.
 - **MVP surface:** Ask AI; Search → Bills, Legislators ("Find My Legislator");
@@ -15,7 +20,8 @@ roadmap noted for direction.
   until firmed; final visual mockups handled separately in Claude design.
 - **Re-skin mechanics:** styling is fully centralized in `theme/tokens.ts` with zero
   hardcoded hex across the 24 screen/component files, so the green flip is a token-set
-  swap, not a code migration — and it re-skins web + iOS + Android at once.
+  swap, not a code migration. The MVP flip targets web; because the codebase is shared
+  Expo/React Native, the same swap will re-skin the post-MVP iOS/Android clients for free.
 - **Menu = typed registry:** codified in `apps/frontend/src/navigation/ia.ts`. Each
   item → `{ label, path, menu, availability: mvp|roadmap, authGated }`. MVP rendered;
   roadmap declared-but-hidden.
@@ -104,7 +110,7 @@ Backend track (start now — long pole, no design dependency)
 - [ ] Ingestion data-quality + machine-readable validation reports (per v1-scope rubrics)
 
 Frontend track (after Phase 0; parallel with backend track)
-- [ ] Top-nav shell driven by the registry (desktop + mobile)
+- [ ] Top-nav shell driven by the registry (desktop + mobile web)
 - [ ] Migrate `webRoutes.ts` onto the registry + redirects
 - [ ] Option 1 marketing hero: green primitives, placeholder copy, example-question chips, interim Ask → sign-in
 - [ ] Find My Legislator Option C band + MN map (mockup in progress)
@@ -112,7 +118,7 @@ Frontend track (after Phase 0; parallel with backend track)
 - [ ] About static pages (About Us / Trust & Integrity / Contact Us); Trust page as real brand copy
 - [ ] Account menu + nav-after-sign-in; move Privacy/Terms into footer
 - [ ] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect
-- [ ] Green token flip (web + iOS + Android at once)
+- [ ] Green token flip (web; re-skins the post-MVP iOS/Android clients for free via shared tokens)
 - [ ] Upgrade Ask hero to the one-free-answer funnel when the backend un-stub is live
 
 ## Open items (still undecided)

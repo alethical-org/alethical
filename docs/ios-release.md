@@ -1,5 +1,8 @@
 # iOS Release Workflow
 
+> **Post-MVP.** The MVP ships the web app only (see `docs/v1-scope.md` § Frontend Scope).
+> This workflow covers the post-MVP iOS client ([#91](https://github.com/alethical-org/alethical/issues/91)) and current simulator/TestFlight QA — it is not an MVP deliverable.
+
 The frontend is an Expo React Native app in `apps/frontend`. iOS builds should stay Expo-managed unless a future native customization requires committing an `ios/` directory.
 
 Android can be shared as APKs, but iOS does not have an equivalent general-purpose sideloading path. The normal sharing path is TestFlight through App Store Connect. Until Apple Developer Program access is available, use an iOS Simulator build for local QA.
