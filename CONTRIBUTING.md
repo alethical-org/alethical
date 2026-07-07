@@ -80,6 +80,12 @@ deploy (see below), so all changes go through pull requests.
 Keeping one topic per branch makes PRs small and reviewable, keeps `main`'s
 history readable, and lets any single change be reverted cleanly.
 
+**Share branches, not file copies.** When handing work between tools, sessions,
+or people, push the branch and point at it (or at the PR) rather than exporting
+a file to Downloads or a desktop. A copy outside git has no history, so nobody
+can cheaply tell whether it matches the branch or has silently drifted — and
+reconciling that later costs more than the export ever saved.
+
 ## What CI checks
 
 On every PR (`.github/workflows/ci.yml`), path-filtered to what changed:
@@ -95,11 +101,17 @@ and land everything through reviewed PRs.
 
 ## Issue tracker hygiene
 
-An open issue should mean "still needs doing." Two habits keep that true:
+An open issue should mean "still needs doing." Three habits keep that true:
 
 - **Link every PR to its issue** with `Closes #<n>` (see the PR workflow above).
   Merging then closes the issue for you, and the closed issue keeps a link back
   to the PR that did the work.
+- **File issues at the moment of discovery.** When work surfaces something worth
+  doing later — a deferred upgrade, a scope cut, a follow-up — file the issue in
+  the same session, with enough context to act on without the original
+  conversation: what it is, what exists today instead, why it's deferred, and
+  what unblocks it. A title alone isn't an issue; it's a mystery for whoever
+  opens it next.
 - **Triage monthly.** Once a month, skim the open issues and ask of each: is this
   still true? Close anything already shipped (add a one-line note pointing at the
   PR), and re-scope anything half-done to just the remaining work. A scheduled
