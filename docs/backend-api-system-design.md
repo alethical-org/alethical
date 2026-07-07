@@ -6,7 +6,7 @@ Status: v1 design draft
 
 Design a REST API for Alethical v1 that:
 
-- serves web, iOS, and Android from one backend
+- serves the MVP web client from one backend, and stays client-agnostic so post-MVP iOS and Android ([#91](https://github.com/alethical-org/alethical/issues/91)) can consume the same API
 - follows resource-oriented REST conventions
 - maps cleanly to the current domain and database model
 - gives the frontend economical access to every core user story
