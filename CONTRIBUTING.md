@@ -59,7 +59,11 @@ deploy (see below), so all changes go through pull requests.
    ```
    Branch off `main` — not off another feature branch — so your PR contains only
    your change. Use a prefix that describes the topic: `feat/`, `fix/`, `docs/`,
-   `chore/`, `refactor/`. Example: `docs/env-onboarding`.
+   `chore/`, `refactor/`. Example: `docs/env-onboarding`. Name the rest
+   literally, in words a newcomer could guess the meaning of
+   (`docs/update-issues-on-scope-change`, not `docs/ripple-sweep-habit`) — and
+   the same for PR titles, filenames, and headings. Metaphors and coined names
+   make the repo harder to learn.
 
 2. **Commit** small, focused changes with a clear imperative subject line
    (e.g. `Add .env.example and fix README env setup`).
