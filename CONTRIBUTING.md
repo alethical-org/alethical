@@ -59,7 +59,11 @@ deploy (see below), so all changes go through pull requests.
    ```
    Branch off `main` — not off another feature branch — so your PR contains only
    your change. Use a prefix that describes the topic: `feat/`, `fix/`, `docs/`,
-   `chore/`, `refactor/`. Example: `docs/env-onboarding`.
+   `chore/`, `refactor/`. Example: `docs/env-onboarding`. Name the rest
+   literally, in words a newcomer could guess the meaning of
+   (`docs/update-issues-on-scope-change`, not `docs/ripple-sweep-habit`) — and
+   the same for PR titles, filenames, and headings. Metaphors and coined names
+   make the repo harder to learn.
 
 2. **Commit** small, focused changes with a clear imperative subject line
    (e.g. `Add .env.example and fix README env setup`).
@@ -111,7 +115,10 @@ An open issue should mean "still needs doing." Three habits keep that true:
   the same session, with enough context to act on without the original
   conversation: what it is, what exists today instead, why it's deferred, and
   what unblocks it. A title alone isn't an issue; it's a mystery for whoever
-  opens it next.
+  opens it next. The same discipline runs in reverse: when a change re-scopes or
+  re-phases work, *search* the open issues for ones still describing the old
+  scope and update them in the same change — don't let the tracker promise a
+  plan that no longer exists.
 - **Triage monthly.** Once a month, skim the open issues and ask of each: is this
   still true? Close anything already shipped (add a one-line note pointing at the
   PR), and re-scope anything half-done to just the remaining work. A scheduled
