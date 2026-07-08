@@ -2,7 +2,7 @@
 
 Machine-facing counterparts of the human conventions in `CONTRIBUTING.md`. Follow both; when they seem to conflict, CONTRIBUTING.md wins.
 
-1. **Target branch first.** Establish at the start which branch or PR the work belongs to; switch the worktree there and edit in place. Don't build on a session branch and port the files later.
+1. **Target branch first.** Establish at the start which branch or PR the work belongs to; switch the worktree there and edit in place. Don't build on a session branch and port the files later. Before starting new work, scan the open PRs (`gh pr list`) for the same files or topic — with parallel sessions, duplicating in-flight work means the same change merges twice and conflicts once (#121/#122). If an open PR already covers it, build on that branch or wait for it.
 
 2. **Commit and push at milestones, not at session end.** Uncommitted work is invisible — not in the PR, not reviewable, not recoverable by anyone outside the conversation. When a coherent chunk lands, commit it.
 

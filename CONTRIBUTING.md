@@ -65,6 +65,11 @@ deploy (see below), so all changes go through pull requests.
    the same for PR titles, filenames, and headings. Metaphors and coined names
    make the repo harder to learn.
 
+   Before you branch, skim the open PRs (`gh pr list`) for overlapping work —
+   especially with parallel Claude sessions, the same idea can be in flight
+   twice. If a PR already touches your files or topic, build on that branch
+   (or wait for it) instead of duplicating it.
+
 2. **Commit** small, focused changes with a clear imperative subject line
    (e.g. `Add .env.example and fix README env setup`).
 
