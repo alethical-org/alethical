@@ -178,7 +178,7 @@ The deflection CTA and the hero's "how everyone voted" both land here:
 
 ## 10. Roadmap notes — deferred upgrades (non-blocking)
 
-Upgrades identified during design that v1 deliberately ships without. Each is **filed as a GitHub issue** (per CONTRIBUTING.md: an open issue means "still needs doing"; monthly triage closes what shipped) — the issue is the durable home; this table records the reasoning at the time of deferral. #81–83 sit on the `v1.1` milestone; #84–85 are unmilestoned backlog.
+Upgrades identified during design that v1 deliberately ships without. Each is **filed as a GitHub issue** (per CONTRIBUTING.md: an open issue means "still needs doing"; monthly triage closes what shipped) — the issue is the durable home; this table records the reasoning at the time of deferral. #81–84 and #137 are on the `v1.1` milestone; #85 has shipped. (#87's phasing needs reconciling — its issue is milestoned `v1.1`, but §7 and its row below frame it as post-v1.1.)
 
 | Upgrade | Issue | Today (v1) | Why deferred / what unblocks it |
 |---|---|---|---|
