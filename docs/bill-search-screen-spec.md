@@ -85,7 +85,20 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   Puts "how everyone voted" one click from search.
 - **Omnibus badge** — only when `is_omnibus`.
 
-**Actions** — Track button (unchanged behavior); whole card → bill detail.
+**Actions**
+- **Track button — auth-gated**, mirroring the answer/bill rail cards (`docs/mvp-redesign-plan.md`
+  "Track stays auth-gated"; states owned by grounded-ask §9.2). Not a plain toggle:
+  - Signed out: shows only "+ Track". Clicking triggers **intent-preserving sign-in**
+    ("Sign in to track HF 2904"); after auth the user returns to this search with that
+    bill's button affirmed. The affirmed state **never renders signed-out**.
+  - Signed in: toggles "+ Track" ↔ "✓ Tracking".
+  - Return-from-sign-in should land back on this search (its filter/scroll state
+    preserved — `frontend-screen-system-design.md` line ~107; full URL restore is #135),
+    not a generic dashboard.
+- **Card link → bill Overview** (`/bills/:billId`), the detail screen (not yet redesigned;
+  a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
+  distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a
+  deep link to the tab, the card link is to the bill's top-level detail.
 
 **Deliberately excluded:** key points (too heavy to scan), version count (low value),
 per-card official-source links (provenance lives one click away on detail). Keep it a
