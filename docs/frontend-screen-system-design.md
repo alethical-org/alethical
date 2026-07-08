@@ -255,6 +255,12 @@ Tabs:
 
 ## 3. Global Search
 
+> **Superseded for v1:** the combined Bills + Legislators search below is being split
+> into two dedicated screens (`docs/mvp-redesign-plan.md` § Search page split). The bill
+> search screen is specified in `docs/bill-search-screen-spec.md`, which is authoritative
+> for v1; the legislator screen follows separately. The layout here is retained as
+> historical context.
+
 ### Pagination Behavior
 
 The Bills column uses server-backed pagination. Each page request sends the active filters plus `limit` and `offset`; the UI advances only when the API returns `page.has_more=true`. The screen must not fetch a single bounded bill list and slice it locally, because that caps search results at the first response window.
@@ -295,6 +301,10 @@ The Bills column uses server-backed pagination. Each page request sends the acti
 ```
 
 ## 4. Bill List
+
+> **See `docs/bill-search-screen-spec.md`** for the authoritative v1 bill search screen.
+> The Sort control and Export button sketched below are not in v1 scope (order is fixed
+> to latest legislative action); this section predates the current build.
 
 ### Mobile
 

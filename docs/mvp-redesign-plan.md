@@ -27,7 +27,8 @@ roadmap noted for direction.
   roadmap declared-but-hidden.
 - **Track stays auth-gated.**
 - **Search page split:** the current combined Bills+Legislators search becomes two
-  dedicated pages. No backend dependency (queries already independent).
+  dedicated pages. Bill search screen specified in `docs/bill-search-screen-spec.md`
+  (three small backend deltas tracked in [#134](https://github.com/alethical-org/alethical/issues/134); browse rail deferred to [#130](https://github.com/alethical-org/alethical/issues/130)).
 - **Sign-out UX / account menu:** "Sign in" button is *replaced* by an account menu
   (avatar ▾) when signed in — not a Sign-in→Sign-out toggle. Menu = Account, Tracked,
   Notification preferences, Sign out (see `ACCOUNT_MENU` in `ia.ts`). Resolves O9.
