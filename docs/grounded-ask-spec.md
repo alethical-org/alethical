@@ -128,7 +128,7 @@ Half-day task against the live DB. Runs in parallel with the v1 build; its findi
 
 ## 7. Out of scope
 
-Federal legislation · Minnesota Statutes corpus · opinion, prediction, or "is this bill good?" analysis · open-web retrieval · multi-model consensus · **cross-bill synthesis** (one prose answer woven from multiple bills' text — [#87](https://github.com/alethical-org/alethical/issues/87); such questions get the cited `topic_bills` list instead). The refusal path names these as not-yet-covered rather than pretending.
+Federal legislation · Minnesota Statutes corpus · opinion, prediction, or "is this bill good?" analysis · open-web retrieval · multi-model consensus. **Cross-bill synthesis** (one prose answer woven from multiple bills' text) is out of scope for v1 but **planned for `v1.1`** ([#87](https://github.com/alethical-org/alethical/issues/87)) — unlike the permanent exclusions above; until it ships, such questions get the cited `topic_bills` list. The refusal path names all of these as not-yet-covered rather than pretending.
 
 ## 8. Open questions
 
@@ -178,7 +178,7 @@ The deflection CTA and the hero's "how everyone voted" both land here:
 
 ## 10. Roadmap notes — deferred upgrades (non-blocking)
 
-Upgrades identified during design that v1 deliberately ships without. Each is **filed as a GitHub issue** (per CONTRIBUTING.md: an open issue means "still needs doing"; monthly triage closes what shipped) — the issue is the durable home; this table records the reasoning at the time of deferral. #81–84 and #137 are on the `v1.1` milestone; #85 has shipped. (#87's phasing needs reconciling — its issue is milestoned `v1.1`, but §7 and its row below frame it as post-v1.1.)
+Upgrades identified during design that v1 deliberately ships without. Each is **filed as a GitHub issue** (per CONTRIBUTING.md: an open issue means "still needs doing"; monthly triage closes what shipped) — the issue is the durable home; this table records the reasoning at the time of deferral. #81–84, #87, and #137 are on the `v1.1` milestone; #85 has shipped.
 
 | Upgrade | Issue | Today (v1) | Why deferred / what unblocks it |
 |---|---|---|---|
@@ -188,4 +188,4 @@ Upgrades identified during design that v1 deliberately ships without. Each is **
 | **Follow-up threading on topic answers** — signed-in composer continues a general Ask thread | [#84](https://github.com/alethical-org/alethical/issues/84) | Composer submits a new routed Ask; only `bill_text` answers thread (into existing bill-scoped chat, §9.2) | Needs a chat-session model not scoped to `subject_bill_id`. Revisit when Ask usage shows multi-turn topic exploration. |
 | **Follow-up thread rendered on the answer page** — the `bill_text` answer morphs into the thread in place | [#137](https://github.com/alethical-org/alethical/issues/137) | Submitting navigates to the existing chat screen, seeded with the question + answer (§9.2) | New hybrid view + Design frame, and an unresolved question: the shareable `?q=` URL vs. a private stateful thread — spike that first. Revisit on `bill_text` follow-up usage. Sibling: #84. |
 | ~~**Matched-topic pill on `legislators`**~~ — **landed** (Jul 8, 2026) | [#85](https://github.com/alethical-org/alethical/issues/85) (closed) | Design placed it as a fixed intro line ("Legislators on the record for {topic}, grouped by chamber:"), avoiding the header-stacking concern; ships with the v1 build (#79, §9.1) | Was: pure design pass with the next visual iteration — which is exactly how it resolved. |
-| **Cross-bill synthesis** — one prose answer woven from multiple bills, per-bill citation pills, "From bills X and Y" provenance | [#87](https://github.com/alethical-org/alethical/issues/87) | `bill_text` is single-bill; broad cross-bill questions route to `topic_bills` (§2 scenario 1) | Cross-bill retrieval unbuilt; synthesis across bills raises hallucination + per-claim citation-coverage risk; §4.5 thresholds are per-bill. Design already mocked (Claude Design `bill-text` → "Multiple bills" variant) — reuse when built. Post-v1.1. |
+| **Cross-bill synthesis** — one prose answer woven from multiple bills, per-bill citation pills, "From bills X and Y" provenance | [#87](https://github.com/alethical-org/alethical/issues/87) | `bill_text` is single-bill; broad cross-bill questions route to `topic_bills` (§2 scenario 1) | Cross-bill retrieval unbuilt; synthesis across bills raises hallucination + per-claim citation-coverage risk; §4.5 thresholds are per-bill. Design already mocked (Claude Design `bill-text` → "Multiple bills" variant) — reuse when built. Milestoned `v1.1`. |
