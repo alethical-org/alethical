@@ -18,6 +18,29 @@ roadmap noted for direction.
   Everything else in the menus is roadmap.
 - **Aesthetic:** green / rounded / bold-sans / soft-shadow. Loose and non-binding
   until firmed; final visual mockups handled separately in Claude design.
+- **Mockups → frontend handoff (no HTML conversion step):** when the Claude-design
+  mockups finalize, they hand off to implementation as three artifacts, in value order:
+  1. **Final screenshots per screen and state** — shared via Drive for human review.
+     (Anything embedded in this public repo instead must be vetted first — mock
+     screenshots pair real legislator names with fabricated records.)
+  2. **Design tokens** — exact colors, type scale, spacing, radii per component —
+     landing as code in `apps/frontend/src/theme/tokens.ts` on the design-system
+     branch ([#67](https://github.com/alethical-org/alethical/pull/67), which also
+     keeps the raw HTML comps under `docs/mockups/` as the versioned visual
+     reference). `tokens.ts` is itself the token sheet; don't hand-maintain a
+     parallel human-readable one — generate it from the file if ever needed.
+  3. **Final copy strings verbatim** — for the Ask surface these live in
+     `docs/grounded-ask-spec.md` §9.4 (layout-owned fixed copy), kept in sync as
+     mocks refine. When mock copy and the spec diverge, reconcile the spec
+     deliberately — the spec is the source of truth, not the mock.
+
+  There is deliberately **no HTML-to-frontend conversion step**: the frontend is a
+  shared Expo/React Native codebase, and RN doesn't render HTML/CSS — converted
+  markup can't be lifted into components, and web-specific CSS can actively mislead.
+  Engineers implement in the RN codebase from tokens + spec; the spec is the
+  contract, the mock is the visual. Screenshot sets should cover every spec'd state
+  (e.g. the §9.1 answer states), not just the happy path — the states are the
+  contract, and mocks tend to show only the golden screen.
 - **Re-skin mechanics:** styling is fully centralized in `theme/tokens.ts` with zero
   hardcoded hex across the 24 screen/component files, so the green flip is a token-set
   swap, not a code migration. The MVP flip targets web; because the codebase is shared
