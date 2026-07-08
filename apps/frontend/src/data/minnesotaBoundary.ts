@@ -177,10 +177,10 @@ export function isCoordinateInMinnesota(coordinate: RepresentativeLookupCoordina
     return false;
   }
   if (
-    coordinate.latitude < MINNESOTA_BOUNDS.minLatitude
-    || coordinate.latitude > MINNESOTA_BOUNDS.maxLatitude
-    || coordinate.longitude < MINNESOTA_BOUNDS.minLongitude
-    || coordinate.longitude > MINNESOTA_BOUNDS.maxLongitude
+    coordinate.latitude < MINNESOTA_BOUNDS.minLatitude ||
+    coordinate.latitude > MINNESOTA_BOUNDS.maxLatitude ||
+    coordinate.longitude < MINNESOTA_BOUNDS.minLongitude ||
+    coordinate.longitude > MINNESOTA_BOUNDS.maxLongitude
   ) {
     return false;
   }
@@ -193,8 +193,11 @@ export function isCoordinateInMinnesota(coordinate: RepresentativeLookupCoordina
     const [currentLatitude, currentLongitude] = MINNESOTA_BOUNDARY[i];
     const [previousLatitude, previousLongitude] = MINNESOTA_BOUNDARY[j];
     const intersects =
-      currentLatitude > y !== previousLatitude > y
-      && x < ((previousLongitude - currentLongitude) * (y - currentLatitude)) / (previousLatitude - currentLatitude) + currentLongitude;
+      currentLatitude > y !== previousLatitude > y &&
+      x <
+        ((previousLongitude - currentLongitude) * (y - currentLatitude)) /
+          (previousLatitude - currentLatitude) +
+          currentLongitude;
     if (intersects) {
       isInside = !isInside;
     }

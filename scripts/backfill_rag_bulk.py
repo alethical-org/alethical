@@ -96,16 +96,23 @@ def params() -> dict[str, str]:
     }
 
 
-def load_local_payloads(local_engine: Any, bill_keys: list[str]) -> dict[str, tuple[Any, list[dict[str, Any]]]]:
+def load_local_payloads(
+    local_engine: Any, bill_keys: list[str]
+) -> dict[str, tuple[Any, list[dict[str, Any]]]]:
     loaded: dict[str, tuple[Any, list[dict[str, Any]]]] = {}
     with Session(local_engine) as db:
         for bill_key in bill_keys:
-            bill = db.scalar(select(schema.Bill).where(schema.Bill.bill_key == bill_key))
+            bill = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == bill_key)
+            )
             if bill is None:
                 continue
             version = db.scalar(
                 select(schema.BillVersion)
-                .where(schema.BillVersion.bill_id == bill.id, schema.BillVersion.is_current.is_(True))
+                .where(
+                    schema.BillVersion.bill_id == bill.id,
+                    schema.BillVersion.is_current.is_(True),
+                )
                 .order_by(schema.BillVersion.sequence_number.desc())
                 .limit(1)
             )
@@ -118,17 +125,28 @@ def load_local_payloads(local_engine: Any, bill_keys: list[str]) -> dict[str, tu
             ).all()
             loaded[bill_key] = (
                 bill,
-                [_chunk_payloads(str(bill.file_type), bill.file_number, bill, section) for section in sections],
+                [
+                    _chunk_payloads(
+                        str(bill.file_type), bill.file_number, bill, section
+                    )
+                    for section in sections
+                ],
             )
     return loaded
 
 
-def load_prod_section_map(prod_db: Session, bill_keys: list[str]) -> dict[str, dict[str, Any]]:
+def load_prod_section_map(
+    prod_db: Session, bill_keys: list[str]
+) -> dict[str, dict[str, Any]]:
     mapped: dict[str, dict[str, Any]] = {}
     for row in prod_db.execute(PROD_SECTION_MAP_SQL, {"keys": bill_keys}):
         entry = mapped.setdefault(
             row.bill_key,
-            {"bill_id": row.bill_id, "bill_version_id": row.bill_version_id, "sections": {}},
+            {
+                "bill_id": row.bill_id,
+                "bill_version_id": row.bill_version_id,
+                "sections": {},
+            },
         )
         entry["sections"][row.section_id_text] = row.section_id
     return mapped
@@ -182,7 +200,13 @@ def upsert_batch(
 
         if not section_rows:
             db.commit()
-            return {"bills": len(bill_keys), "skipped": skipped, "sections": 0, "chunks": 0, "embeddings": 0}
+            return {
+                "bills": len(bill_keys),
+                "skipped": skipped,
+                "sections": 0,
+                "chunks": 0,
+                "embeddings": 0,
+            }
 
         excluded_section = insert(schema.RagSectionDocument).excluded
         section_stmt = (
@@ -209,17 +233,24 @@ def upsert_batch(
 
         prod_section_ids = [row["bill_version_section_id"] for row in section_rows]
         section_id_rows = db.execute(
-            select(schema.RagSectionDocument.id, schema.RagSectionDocument.bill_version_section_id).where(
+            select(
+                schema.RagSectionDocument.id,
+                schema.RagSectionDocument.bill_version_section_id,
+            ).where(
                 schema.RagSectionDocument.bill_version_section_id.in_(prod_section_ids),
                 schema.RagSectionDocument.cleaning_version == rag_text.CLEANING_VERSION,
             )
         ).all()
-        rag_section_id_by_prod_section = {row.bill_version_section_id: row.id for row in section_id_rows}
+        rag_section_id_by_prod_section = {
+            row.bill_version_section_id: row.id for row in section_id_rows
+        }
 
         chunk_rows: list[dict[str, Any]] = []
         chunk_texts: list[tuple[uuid.UUID, str]] = []
         for section in prepared_sections:
-            rag_section_id = rag_section_id_by_prod_section[section["bill_version_section_id"]]
+            rag_section_id = rag_section_id_by_prod_section[
+                section["bill_version_section_id"]
+            ]
             for chunk in section["chunks"]:
                 temp_chunk_id = uuid.uuid4()
                 chunk_texts.append((temp_chunk_id, chunk["chunk_text"]))
@@ -270,15 +301,29 @@ def upsert_batch(
         db.flush()
 
         chunk_id_rows = db.execute(
-            select(schema.RagChunk.id, schema.RagChunk.rag_section_document_id, schema.RagChunk.chunk_index).where(
-                schema.RagChunk.rag_section_document_id.in_(list(rag_section_id_by_prod_section.values())),
+            select(
+                schema.RagChunk.id,
+                schema.RagChunk.rag_section_document_id,
+                schema.RagChunk.chunk_index,
+            ).where(
+                schema.RagChunk.rag_section_document_id.in_(
+                    list(rag_section_id_by_prod_section.values())
+                ),
                 schema.RagChunk.chunking_version == rag_text.CHUNKING_VERSION,
             )
         ).all()
-        real_chunk_id_by_key = {(row.rag_section_document_id, row.chunk_index): row.id for row in chunk_id_rows}
-        temp_chunk_key = {row["id"]: (row["rag_section_document_id"], row["chunk_index"]) for row in chunk_rows}
+        real_chunk_id_by_key = {
+            (row.rag_section_document_id, row.chunk_index): row.id
+            for row in chunk_id_rows
+        }
+        temp_chunk_key = {
+            row["id"]: (row["rag_section_document_id"], row["chunk_index"])
+            for row in chunk_rows
+        }
 
-        embeddings = _build_embeddings([text for _temp_id, text in chunk_texts], model=MODEL, batch_size=64)
+        embeddings = _build_embeddings(
+            [text for _temp_id, text in chunk_texts], model=MODEL, batch_size=64
+        )
         embedding_rows: list[dict[str, Any]] = []
         for (temp_chunk_id, _chunk_text), embedding in zip(chunk_texts, embeddings):
             real_chunk_id = real_chunk_id_by_key[temp_chunk_key[temp_chunk_id]]
@@ -322,12 +367,20 @@ def main() -> None:
     parser.add_argument("--embedding-insert-size", type=int, default=100)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--heartbeat-seconds", type=int, default=60)
-    parser.add_argument("--source-target", choices=["local", "production"], default="local")
+    parser.add_argument(
+        "--source-target", choices=["local", "production"], default="local"
+    )
     args = parser.parse_args()
 
-    source_url = get_database_url() if args.source_target == "local" else database_url_for_target("production", None)
+    source_url = (
+        get_database_url()
+        if args.source_target == "local"
+        else database_url_for_target("production", None)
+    )
     local_engine = create_engine(source_url, pool_pre_ping=True)
-    prod_engine = create_engine(database_url_for_target("production", None), pool_pre_ping=True)
+    prod_engine = create_engine(
+        database_url_for_target("production", None), pool_pre_ping=True
+    )
 
     with Session(prod_engine) as db:
         bill_keys = list(db.scalars(MISSING_SQL, params()).all())
@@ -349,7 +402,9 @@ def main() -> None:
     def snapshot(label: str) -> None:
         with Session(prod_engine) as db:
             totals = db.execute(TOTALS_SQL, params()).one()._mapping
-            remaining = db.scalar(text(f"select count(*) from ({MISSING_SQL.text}) missing"), params())
+            remaining = db.scalar(
+                text(f"select count(*) from ({MISSING_SQL.text}) missing"), params()
+            )
         with lock:
             current = dict(state)
         print(

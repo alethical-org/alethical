@@ -23,7 +23,9 @@ export function VoteDetailScreen({ route }: Props) {
     >
       {!vote ? (
         <Card>
-          <Text style={styles.bodyText}>This vote event is not available in the current demo dataset.</Text>
+          <Text style={styles.bodyText}>
+            This vote event is not available in the current demo dataset.
+          </Text>
         </Card>
       ) : (
         <>
@@ -38,11 +40,13 @@ export function VoteDetailScreen({ route }: Props) {
           <View style={styles.stack}>
             {vote.votes.map((individualVote) => {
               const legislator = legislatorsQuery.data?.find(
-                (item) => item.id === individualVote.legislatorId
+                (item) => item.id === individualVote.legislatorId,
               );
               return (
                 <Card key={individualVote.legislatorId}>
-                  <Text style={styles.title}>{legislator?.name ?? individualVote.legislatorId}</Text>
+                  <Text style={styles.title}>
+                    {legislator?.name ?? individualVote.legislatorId}
+                  </Text>
                   <Text style={styles.bodyText}>
                     {legislator?.party ?? ''} | District {legislator?.district ?? ''}
                   </Text>

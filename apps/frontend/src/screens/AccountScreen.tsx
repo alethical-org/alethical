@@ -32,10 +32,15 @@ export function AccountScreen(_: Props) {
   }
 
   return (
-    <ScreenView title="Account" subtitle="Manage your profile, saved places, and notification preferences.">
+    <ScreenView
+      title="Account"
+      subtitle="Manage your profile, saved places, and notification preferences."
+    >
       <Card>
         <Text style={styles.cardTitle}>Authentication</Text>
-        <Text style={styles.bodyText}>{`Signed in as ${currentUserQuery.data?.name ?? user?.name}`}</Text>
+        <Text
+          style={styles.bodyText}
+        >{`Signed in as ${currentUserQuery.data?.name ?? user?.name}`}</Text>
         <Text style={styles.bodyText}>{currentUserQuery.data?.email ?? user?.email ?? ''}</Text>
         <View style={styles.actionRow}>
           <PrimaryButton label="Sign Out" tone="secondary" onPress={() => void signOut()} />
@@ -76,7 +81,9 @@ export function AccountScreen(_: Props) {
             <View style={styles.preferenceRow}>
               <View style={styles.preferenceText}>
                 <Text style={styles.placeLabel}>Weekly digest</Text>
-                <Text style={styles.bodyText}>A smaller roundup of tracked bills and new activity.</Text>
+                <Text style={styles.bodyText}>
+                  A smaller roundup of tracked bills and new activity.
+                </Text>
               </View>
               <PrimaryButton
                 label={notificationPreferenceQuery.data.weeklyDigest ? 'On' : 'Off'}

@@ -31,23 +31,41 @@ DEFAULT_BILLS = [
 def parse_bill(value: str, session_code: str) -> BillTarget:
     normalized = value.strip().upper().replace(" ", "")
     if normalized.startswith("HF"):
-        return BillTarget(chamber="House", bill_number=normalized.removeprefix("HF"), session_code=session_code)
+        return BillTarget(
+            chamber="House",
+            bill_number=normalized.removeprefix("HF"),
+            session_code=session_code,
+        )
     if normalized.startswith("SF"):
-        return BillTarget(chamber="Senate", bill_number=normalized.removeprefix("SF"), session_code=session_code)
-    raise argparse.ArgumentTypeError(f"Bill must look like HF2136 or SF1832, got {value!r}")
+        return BillTarget(
+            chamber="Senate",
+            bill_number=normalized.removeprefix("SF"),
+            session_code=session_code,
+        )
+    raise argparse.ArgumentTypeError(
+        f"Bill must look like HF2136 or SF1832, got {value!r}"
+    )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Load live Minnesota legislative data into the canonical database.")
+    parser = argparse.ArgumentParser(
+        description="Load live Minnesota legislative data into the canonical database."
+    )
     parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
-    parser.add_argument("--session-code", default="0942025", help="Minnesota search session code, e.g. 0942025.")
+    parser.add_argument(
+        "--session-code",
+        default="0942025",
+        help="Minnesota search session code, e.g. 0942025.",
+    )
     parser.add_argument(
         "--bill",
         action="append",
         default=[],
         help="Bill identifier to ingest, e.g. HF2136 or SF1832. May be passed multiple times.",
     )
-    parser.add_argument("--skip-bills", action="store_true", help="Do not ingest bills.")
+    parser.add_argument(
+        "--skip-bills", action="store_true", help="Do not ingest bills."
+    )
     parser.add_argument(
         "--all-bills",
         action="store_true",
@@ -64,7 +82,11 @@ def main() -> None:
         default=6000,
         help="Upper bill number bound for --all-bills range discovery.",
     )
-    parser.add_argument("--skip-legislators", action="store_true", help="Do not ingest the legislator roster.")
+    parser.add_argument(
+        "--skip-legislators",
+        action="store_true",
+        help="Do not ingest the legislator roster.",
+    )
     parser.add_argument(
         "--legislator-limit",
         type=int,
@@ -79,17 +101,23 @@ def main() -> None:
     args = parser.parse_args()
 
     database_url = normalize_database_url(
-        args.database_url or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+        args.database_url
+        or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
     )
     targets = [parse_bill(value, args.session_code) for value in args.bill]
     if not targets and not args.skip_bills:
-        targets = [BillTarget(item.chamber, item.bill_number, args.session_code) for item in DEFAULT_BILLS]
+        targets = [
+            BillTarget(item.chamber, item.bill_number, args.session_code)
+            for item in DEFAULT_BILLS
+        ]
 
     engine = create_engine(database_url, echo=False)
     with Session(engine) as session:
         pipeline = MinnesotaIngestionPipeline(session)
         if not args.skip_legislators:
-            stats = pipeline.ingest_roster(limit=args.legislator_limit, fetch_profiles=not args.roster_only)
+            stats = pipeline.ingest_roster(
+                limit=args.legislator_limit, fetch_profiles=not args.roster_only
+            )
             print("legislators", stats)
         if not args.skip_bills:
             if args.all_bills:

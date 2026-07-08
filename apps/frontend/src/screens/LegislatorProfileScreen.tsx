@@ -8,7 +8,12 @@ import { Chip } from '../components/Chip';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
 import { SectionCard } from '../components/SectionCard';
-import { useLegislator, useLegislatorBills, useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
+import {
+  useLegislator,
+  useLegislatorBills,
+  useToggleTrackedBill,
+  useTrackedBills,
+} from '../hooks/useAppQueries';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
@@ -31,15 +36,22 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
 
   const legislator = legislatorQuery.data;
   const trackedIds = new Set((trackedQuery.data ?? []).map((item) => item.id));
-  const hasBiography = Boolean(legislator?.bio && legislator.bio !== 'Live legislator profile loaded from the backend.');
+  const hasBiography = Boolean(
+    legislator?.bio && legislator.bio !== 'Live legislator profile loaded from the backend.',
+  );
   const sponsoredBills = billsQuery.data?.data ?? [];
   const hasMoreSponsoredBills = billsQuery.data?.page.hasMore ?? false;
 
   if (legislatorQuery.isLoading) {
     return (
-      <ScreenView title="Loading legislator" subtitle="Fetching the latest profile from the backend.">
+      <ScreenView
+        title="Loading legislator"
+        subtitle="Fetching the latest profile from the backend."
+      >
         <Card>
-          <Text style={styles.bodyText}>Loading current service, committees, stats, and sponsored bills.</Text>
+          <Text style={styles.bodyText}>
+            Loading current service, committees, stats, and sponsored bills.
+          </Text>
         </Card>
       </ScreenView>
     );
@@ -47,10 +59,15 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
 
   if (!legislator) {
     return (
-      <ScreenView title="Legislator not found" subtitle="This profile could not be loaded from the backend.">
+      <ScreenView
+        title="Legislator not found"
+        subtitle="This profile could not be loaded from the backend."
+      >
         <Card>
           <Text style={styles.bodyText}>
-            {legislatorQuery.error instanceof Error ? legislatorQuery.error.message : 'Try returning to search.'}
+            {legislatorQuery.error instanceof Error
+              ? legislatorQuery.error.message
+              : 'Try returning to search.'}
           </Text>
         </Card>
       </ScreenView>
@@ -103,7 +120,9 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                   onPress={() => void Linking.openURL(`tel:${legislator.phone}`)}
                 />
               ) : null}
-              {legislator.officeAddress ? <Text style={styles.bodyText}>{legislator.officeAddress}</Text> : null}
+              {legislator.officeAddress ? (
+                <Text style={styles.bodyText}>{legislator.officeAddress}</Text>
+              ) : null}
               {legislator.profileUrl ? (
                 <PrimaryButton
                   label="Official Profile"
@@ -111,7 +130,10 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                   onPress={() => void Linking.openURL(legislator.profileUrl!)}
                 />
               ) : null}
-              {!legislator.email && !legislator.phone && !legislator.officeAddress && !legislator.profileUrl ? (
+              {!legislator.email &&
+              !legislator.phone &&
+              !legislator.officeAddress &&
+              !legislator.profileUrl ? (
                 <Text style={styles.bodyText}>No contact details are available yet.</Text>
               ) : null}
             </View>
@@ -137,7 +159,9 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
               {billsQuery.error ? (
                 <Card>
                   <Text style={styles.bodyText}>
-                    {billsQuery.error instanceof Error ? billsQuery.error.message : 'Sponsored bills could not be loaded.'}
+                    {billsQuery.error instanceof Error
+                      ? billsQuery.error.message
+                      : 'Sponsored bills could not be loaded.'}
                   </Text>
                 </Card>
               ) : null}
@@ -152,7 +176,9 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                   bill={bill}
                   tracked={trackedIds.has(bill.id)}
                   onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                  onSponsorPress={(legislatorId) => navigation.navigate('LegislatorProfile', { legislatorId })}
+                  onSponsorPress={(legislatorId) =>
+                    navigation.navigate('LegislatorProfile', { legislatorId })
+                  }
                   onToggleTrack={() => {
                     if (!isSignedIn) {
                       void signInWithGoogle();
@@ -162,7 +188,9 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                   }}
                 />
               ))}
-              {!billsQuery.isLoading && !billsQuery.error && (billPage > 0 || hasMoreSponsoredBills) ? (
+              {!billsQuery.isLoading &&
+              !billsQuery.error &&
+              (billPage > 0 || hasMoreSponsoredBills) ? (
                 <View style={styles.paginationRow}>
                   <Chip
                     label="Previous"
@@ -187,13 +215,16 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
           <Card>
             <Text style={styles.cardTitle}>Current Service</Text>
             <Text style={styles.bodyText}>{legislator.role}</Text>
-            <Text style={styles.bodyText}>Focus areas: {legislator.focusAreas.join(', ') || 'Unavailable'}</Text>
+            <Text style={styles.bodyText}>
+              Focus areas: {legislator.focusAreas.join(', ') || 'Unavailable'}
+            </Text>
           </Card>
           <Card>
             <Text style={styles.cardTitle}>Service History</Text>
             {legislator.serviceHistory.map((service) => (
               <Text key={service.id} style={styles.listItem}>
-                • {service.startYear}-{service.endYear ?? 'present'} {service.chamber} District {service.district} ({service.party})
+                • {service.startYear}-{service.endYear ?? 'present'} {service.chamber} District{' '}
+                {service.district} ({service.party})
               </Text>
             ))}
             {legislator.serviceHistory.length === 0 ? (

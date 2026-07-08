@@ -43,10 +43,17 @@ export function useBills(
   query?: string,
   session?: string,
   filters: BillListFilters = {},
-  pagination: ListPagination = {}
+  pagination: ListPagination = {},
 ) {
   return useQuery({
-    queryKey: ['bills', session ?? 'current', query ?? '', filters, pagination.limit ?? 20, pagination.offset ?? 0],
+    queryKey: [
+      'bills',
+      session ?? 'current',
+      query ?? '',
+      filters,
+      pagination.limit ?? 20,
+      pagination.offset ?? 0,
+    ],
     queryFn: () => listBillsFromApi(query, session, filters, pagination),
     placeholderData: keepPreviousData,
   });
@@ -74,7 +81,11 @@ export function useBill(billId: string) {
   });
 }
 
-export function useLegislators(query?: string, session?: string, filters: LegislatorListFilters = {}) {
+export function useLegislators(
+  query?: string,
+  session?: string,
+  filters: LegislatorListFilters = {},
+) {
   return useQuery({
     queryKey: ['legislators', session ?? 'current', query ?? '', filters],
     queryFn: () => listLegislatorsFromApi(query, session, filters),
@@ -163,8 +174,7 @@ export function useCreateChatSession(userId?: string) {
       subjectId?: string;
       seedPrompt?: string;
       subjectLabel?: string;
-    }) =>
-      createChatSessionFromApi(accessToken ?? '', input),
+    }) => createChatSessionFromApi(accessToken ?? '', input),
     onSuccess: (session) => {
       void queryClient.invalidateQueries({ queryKey: ['chat-sessions', userId ?? 'anon'] });
       queryClient.setQueryData(['chat-session', userId ?? 'anon', session.id], session);
@@ -202,10 +212,8 @@ export function useUpdateNotificationPreference(userId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: {
-      key: keyof NotificationPreference;
-      value: boolean;
-    }) => updateNotificationPreference(userId ?? '', input.key, input.value),
+    mutationFn: (input: { key: keyof NotificationPreference; value: boolean }) =>
+      updateNotificationPreference(userId ?? '', input.key, input.value),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: ['notification-preference', userId ?? 'anon'],

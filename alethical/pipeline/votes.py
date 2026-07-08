@@ -106,9 +106,17 @@ def compact_bill_number(value: str) -> str:
 
 
 def extract_td_names(table_html: str) -> list[str]:
-    names = [strip_tags(item) for item in re.findall(r"<td[^>]*>(.*?)<td", table_html, flags=re.I | re.S)]
+    names = [
+        strip_tags(item)
+        for item in re.findall(r"<td[^>]*>(.*?)<td", table_html, flags=re.I | re.S)
+    ]
     if not names:
-        names = [strip_tags(item) for item in re.findall(r"<td[^>]*>(.*?)</td>", table_html, flags=re.I | re.S)]
+        names = [
+            strip_tags(item)
+            for item in re.findall(
+                r"<td[^>]*>(.*?)</td>", table_html, flags=re.I | re.S
+            )
+        ]
     return [name for name in names if name]
 
 
@@ -116,36 +124,61 @@ def table_after_label(block: str, label: str) -> list[str]:
     label_index = block.lower().find(label.lower())
     if label_index < 0:
         return []
-    table_match = re.search(r"<table[^>]*>(.*?)</table>", block[label_index:], flags=re.I | re.S)
+    table_match = re.search(
+        r"<table[^>]*>(.*?)</table>", block[label_index:], flags=re.I | re.S
+    )
     if not table_match:
         return []
     return extract_td_names(table_match.group(1))
 
 
-def parse_house_votes(html_text: str, bill_number: str, official_url: str) -> list[ParsedVote]:
+def parse_house_votes(
+    html_text: str, bill_number: str, official_url: str
+) -> list[ParsedVote]:
     votes: list[ParsedVote] = []
     compact_expected = compact_bill_number(bill_number)
-    blocks = re.findall(r"<div class=\"panel-content\">(.*?)(?=<div class=\"panel-content\">|</main>|</body>)", html_text, flags=re.I | re.S)
+    blocks = re.findall(
+        r"<div class=\"panel-content\">(.*?)(?=<div class=\"panel-content\">|</main>|</body>)",
+        html_text,
+        flags=re.I | re.S,
+    )
     for block in blocks:
-        heading = strip_tags(re.search(r"<H3>(.*?)</H3>", block, flags=re.I | re.S).group(1)) if re.search(r"<H3>.*?</H3>", block, flags=re.I | re.S) else ""
+        heading = (
+            strip_tags(re.search(r"<H3>(.*?)</H3>", block, flags=re.I | re.S).group(1))
+            if re.search(r"<H3>.*?</H3>", block, flags=re.I | re.S)
+            else ""
+        )
         if compact_bill_number(heading) != compact_expected:
             continue
-        count_match = re.search(r"<H3>\s*(\d+)\s+YEA\s+and\s+(\d+)\s+Nay\s*</H3>", block, flags=re.I)
-        journal_match = re.search(r"Journal Page</b>\s*<a[^>]*>([^<]+)</a>", block, flags=re.I)
+        count_match = re.search(
+            r"<H3>\s*(\d+)\s+YEA\s+and\s+(\d+)\s+Nay\s*</H3>", block, flags=re.I
+        )
+        journal_match = re.search(
+            r"Journal Page</b>\s*<a[^>]*>([^<]+)</a>", block, flags=re.I
+        )
         date_match = re.search(r"<b>Date:</b>\s*([^<]+)</div>", block, flags=re.I)
         if not count_match:
             continue
-        header_divs = [strip_tags(item) for item in re.findall(r"<div><b>(.*?)</b></div>", block, flags=re.I | re.S)]
+        header_divs = [
+            strip_tags(item)
+            for item in re.findall(r"<div><b>(.*?)</b></div>", block, flags=re.I | re.S)
+        ]
         motion_text = " - ".join(item for item in header_divs if item)
         votes.append(
             ParsedVote(
                 motion_text=motion_text or None,
                 occurred_at=parse_date(date_match.group(1) if date_match else None),
-                journal_page=normalize_space(journal_match.group(1)) if journal_match else None,
+                journal_page=normalize_space(journal_match.group(1))
+                if journal_match
+                else None,
                 yes_count=int(count_match.group(1)),
                 no_count=int(count_match.group(2)),
-                affirmative_names=table_after_label(block, "Those who voted in the affirmative were:"),
-                negative_names=table_after_label(block, "Those who voted in the negative were:"),
+                affirmative_names=table_after_label(
+                    block, "Those who voted in the affirmative were:"
+                ),
+                negative_names=table_after_label(
+                    block, "Those who voted in the negative were:"
+                ),
                 official_url=official_url,
             )
         )
@@ -153,7 +186,9 @@ def parse_house_votes(html_text: str, bill_number: str, official_url: str) -> li
 
 
 def get_text(url: str) -> str:
-    response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS)
+    response = requests.get(
+        url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS
+    )
     response.raise_for_status()
     return response.text
 
@@ -177,11 +212,21 @@ def senate_pdf_for_page(journal_page: str) -> tuple[str, int]:
 def pdf_pages_text(pdf_url: str, first_page: int, last_page: int) -> str:
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = Path(temp_dir) / "journal.pdf"
-        response = requests.get(pdf_url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS)
+        response = requests.get(
+            pdf_url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS
+        )
         response.raise_for_status()
         pdf_path.write_bytes(response.content)
         result = subprocess.run(
-            ["pdftotext", "-f", str(first_page), "-l", str(last_page), str(pdf_path), "-"],
+            [
+                "pdftotext",
+                "-f",
+                str(first_page),
+                "-l",
+                str(last_page),
+                str(pdf_path),
+                "-",
+            ],
             check=True,
             capture_output=True,
             text=True,
@@ -193,13 +238,22 @@ def names_between(text: str, start: int, end_pattern: str) -> tuple[list[str], i
     end_match = re.search(end_pattern, text[start:], flags=re.I)
     end = start + end_match.start() if end_match else len(text)
     segment = text[start:end]
-    segment = re.sub(r"Pursuant to Rule 40,.*?(?=Those who|The motion|So the|$)", " ", segment, flags=re.I | re.S)
+    segment = re.sub(
+        r"Pursuant to Rule 40,.*?(?=Those who|The motion|So the|$)",
+        " ",
+        segment,
+        flags=re.I | re.S,
+    )
     names: list[str] = []
     for line in segment.splitlines():
         cleaned = normalize_space(line).strip(".,;")
         if not cleaned or len(cleaned) > 60:
             continue
-        if re.search(r"\d|^\[|DAY|Journal|Rule|Senator|affirmative|negative|question|motion|bill|passed|title", cleaned, flags=re.I):
+        if re.search(
+            r"\d|^\[|DAY|Journal|Rule|Senator|affirmative|negative|question|motion|bill|passed|title",
+            cleaned,
+            flags=re.I,
+        ):
             continue
         cleaned = re.sub(r"\band\b", ",", cleaned)
         for piece in [part.strip(" .,;") for part in cleaned.split(",")]:
@@ -208,27 +262,52 @@ def names_between(text: str, start: int, end_pattern: str) -> tuple[list[str], i
     return names, end
 
 
-def parse_senate_vote_from_pdf(text: str, yes_count: int, no_count: int, journal_page: str, official_url: str) -> ParsedVote | None:
+def parse_senate_vote_from_pdf(
+    text: str, yes_count: int, no_count: int, journal_page: str, official_url: str
+) -> ParsedVote | None:
     count_pattern = rf"The roll was called, and there were yeas\s+{yes_count}\s+and nays\s+{no_count}"
     count_match = re.search(count_pattern, text, flags=re.I)
     if not count_match:
         return None
-    prefix = text[:count_match.start()]
-    motion_lines = [normalize_space(line) for line in prefix.splitlines()[-8:] if normalize_space(line)]
-    motion_text = next((line for line in reversed(motion_lines) if "question was taken" not in line.lower()), None)
+    prefix = text[: count_match.start()]
+    motion_lines = [
+        normalize_space(line)
+        for line in prefix.splitlines()[-8:]
+        if normalize_space(line)
+    ]
+    motion_text = next(
+        (
+            line
+            for line in reversed(motion_lines)
+            if "question was taken" not in line.lower()
+        ),
+        None,
+    )
 
-    affirmative_marker = re.search(r"Those who voted in the affirmative were:", text[count_match.end():], flags=re.I)
+    affirmative_marker = re.search(
+        r"Those who voted in the affirmative were:",
+        text[count_match.end() :],
+        flags=re.I,
+    )
     if not affirmative_marker:
         return None
     affirmative_start = count_match.end() + affirmative_marker.end()
-    affirmative_names, affirmative_end = names_between(text, affirmative_start, r"Those who voted in the negative were:")
+    affirmative_names, affirmative_end = names_between(
+        text, affirmative_start, r"Those who voted in the negative were:"
+    )
 
-    negative_marker = re.search(r"Those who voted in the negative were:", text[affirmative_end:], flags=re.I)
+    negative_marker = re.search(
+        r"Those who voted in the negative were:", text[affirmative_end:], flags=re.I
+    )
     if not negative_marker:
         negative_names = []
     else:
         negative_start = affirmative_end + negative_marker.end()
-        negative_names, _ = names_between(text, negative_start, r"(So the|The motion|President|SPECIAL ORDER|S\.F\. No\.|H\.F\. No\.)")
+        negative_names, _ = names_between(
+            text,
+            negative_start,
+            r"(So the|The motion|President|SPECIAL ORDER|S\.F\. No\.|H\.F\. No\.)",
+        )
 
     return ParsedVote(
         motion_text=motion_text,
@@ -251,7 +330,9 @@ def vote_name_key(name: str) -> tuple[str, tuple[str, ...]]:
 
 
 def legislator_keys(full_name: str, sort_name: str) -> set[tuple[str, tuple[str, ...]]]:
-    clean_full = re.sub(r"^(Rep\.|Representative|Sen\.|Senator)\s+", "", full_name).strip()
+    clean_full = re.sub(
+        r"^(Rep\.|Representative|Sen\.|Senator)\s+", "", full_name
+    ).strip()
     parts = clean_full.split()
     last = parts[-1].lower()
     first = parts[0].lower() if parts else ""
@@ -268,10 +349,15 @@ def legislator_keys(full_name: str, sort_name: str) -> set[tuple[str, tuple[str,
     return keys
 
 
-def build_legislator_index(db: Session, chamber_id: Any) -> dict[tuple[str, tuple[str, ...]], list[Any]]:
+def build_legislator_index(
+    db: Session, chamber_id: Any
+) -> dict[tuple[str, tuple[str, ...]], list[Any]]:
     rows = db.scalars(
         select(Legislator)
-        .join(LegislatorServicePeriod, LegislatorServicePeriod.legislator_id == Legislator.id)
+        .join(
+            LegislatorServicePeriod,
+            LegislatorServicePeriod.legislator_id == Legislator.id,
+        )
         .where(
             LegislatorServicePeriod.chamber_id == chamber_id,
             LegislatorServicePeriod.is_current.is_(True),
@@ -284,7 +370,9 @@ def build_legislator_index(db: Session, chamber_id: Any) -> dict[tuple[str, tupl
     return index
 
 
-def resolve_name(name: str, index: dict[tuple[str, tuple[str, ...]], list[Any]]) -> Any | None:
+def resolve_name(
+    name: str, index: dict[tuple[str, tuple[str, ...]], list[Any]]
+) -> Any | None:
     last, initials = vote_name_key(name)
     candidates = index.get((last, initials), [])
     if len(candidates) == 1:
@@ -295,9 +383,12 @@ def resolve_name(name: str, index: dict[tuple[str, tuple[str, ...]], list[Any]])
     return candidates[0] if len(candidates) == 1 else None
 
 
-def find_matching_vote(votes: list[ParsedVote], action: Any, yes_count: int, no_count: int) -> ParsedVote | None:
+def find_matching_vote(
+    votes: list[ParsedVote], action: Any, yes_count: int, no_count: int
+) -> ParsedVote | None:
     matches = [
-        vote for vote in votes
+        vote
+        for vote in votes
         if vote.yes_count == yes_count
         and vote.no_count == no_count
         and (not action.journal_page or vote.journal_page == action.journal_page)
@@ -312,7 +403,9 @@ def backfill_votes(db: Session, *, limit: int | None, dry_run: bool) -> Backfill
         select(BillAction)
         .join(Bill, Bill.id == BillAction.bill_id)
         .where(BillAction.roll_call_text.op("~")(r"^\s*\d+\s*-\s*\d+\s*$"))
-        .order_by(Bill.file_type.asc(), Bill.file_number.asc(), BillAction.action_number.asc())
+        .order_by(
+            Bill.file_type.asc(), Bill.file_number.asc(), BillAction.action_number.asc()
+        )
         .limit(limit)
     ).all()
     stats = {
@@ -342,13 +435,19 @@ def backfill_votes(db: Session, *, limit: int | None, dry_run: bool) -> Backfill
                 bill_number = house_bill_number(bill.file_type, bill.file_number)
                 url = f"https://www.house.mn.gov/votes/Details?{urlencode({'BillNumber': bill_number, 'SessionKey': '302'})}"
                 if url not in house_cache:
-                    house_cache[url] = parse_house_votes(get_text(url), bill_number, url)
-                parsed_vote = find_matching_vote(house_cache[url], action, yes_count, no_count)
+                    house_cache[url] = parse_house_votes(
+                        get_text(url), bill_number, url
+                    )
+                parsed_vote = find_matching_vote(
+                    house_cache[url], action, yes_count, no_count
+                )
             elif chamber.slug == "senate" and action.journal_page:
                 pdf_url, internal_page = senate_pdf_for_page(action.journal_page)
                 text_key = f"{pdf_url}#{internal_page}"
                 if text_key not in senate_cache:
-                    senate_cache[text_key] = pdf_pages_text(pdf_url, internal_page, internal_page + 1)
+                    senate_cache[text_key] = pdf_pages_text(
+                        pdf_url, internal_page, internal_page + 1
+                    )
                 parsed_vote = parse_senate_vote_from_pdf(
                     senate_cache[text_key],
                     yes_count,
@@ -358,29 +457,47 @@ def backfill_votes(db: Session, *, limit: int | None, dry_run: bool) -> Backfill
                 )
         except Exception as exc:  # noqa: BLE001
             stats["no_source_match"] += 1
-            bill_key = getattr(db.get(Bill, action.bill_id), "bill_key", str(action.bill_id))
-            print(f"source error: {bill_key} action {action.action_number}: {type(exc).__name__}: {exc}")
+            bill_key = getattr(
+                db.get(Bill, action.bill_id), "bill_key", str(action.bill_id)
+            )
+            print(
+                f"source error: {bill_key} action {action.action_number}: {type(exc).__name__}: {exc}"
+            )
             continue
 
         if parsed_vote is None:
             stats["no_source_match"] += 1
-            print(f"no match: {bill.bill_key} action {action.action_number} {chamber.slug} {action.roll_call_text} pg {action.journal_page}")
+            print(
+                f"no match: {bill.bill_key} action {action.action_number} {chamber.slug} {action.roll_call_text} pg {action.journal_page}"
+            )
             continue
 
         if dry_run:
             stats["events_created"] += 1
-            stats["records_created"] += len(parsed_vote.affirmative_names) + len(parsed_vote.negative_names)
+            stats["records_created"] += len(parsed_vote.affirmative_names) + len(
+                parsed_vote.negative_names
+            )
             continue
 
         action_exists = db.scalar(
-            select(func.count()).select_from(BillAction).where(BillAction.id == action.id)
+            select(func.count())
+            .select_from(BillAction)
+            .where(BillAction.id == action.id)
         )
         if not action_exists:
             stats["no_source_match"] += 1
-            print(f"stale action: {bill.bill_key} action {action.action_number} {chamber.slug} {action.id}")
+            print(
+                f"stale action: {bill.bill_key} action {action.action_number} {chamber.slug} {action.id}"
+            )
             continue
 
-        db.execute(delete(VoteRecord).where(VoteRecord.vote_event_id.in_(select(VoteEvent.id).where(VoteEvent.bill_action_id == action.id))))
+        db.execute(
+            delete(VoteRecord).where(
+                VoteRecord.vote_event_id.in_(
+                    select(VoteEvent.id).where(VoteEvent.bill_action_id == action.id)
+                )
+            )
+        )
         db.execute(delete(VoteEvent).where(VoteEvent.bill_action_id == action.id))
         event = VoteEvent(
             bill_id=bill.id,
@@ -402,7 +519,10 @@ def backfill_votes(db: Session, *, limit: int | None, dry_run: bool) -> Backfill
         index = legislator_indexes[chamber.id]
         sort_order = 0
         seen_legislator_ids: set[Any] = set()
-        for vote_value, names in [(VoteValue.yes, parsed_vote.affirmative_names), (VoteValue.no, parsed_vote.negative_names)]:
+        for vote_value, names in [
+            (VoteValue.yes, parsed_vote.affirmative_names),
+            (VoteValue.no, parsed_vote.negative_names),
+        ]:
             for name in names:
                 legislator = resolve_name(name, index)
                 if legislator is None:
@@ -425,7 +545,14 @@ def backfill_votes(db: Session, *, limit: int | None, dry_run: bool) -> Backfill
 
         bill_stats = db.scalar(select(BillStats).where(BillStats.bill_id == bill.id))
         if bill_stats is not None:
-            bill_stats.vote_event_count = db.scalar(select(func.count()).select_from(VoteEvent).where(VoteEvent.bill_id == bill.id)) or 0
+            bill_stats.vote_event_count = (
+                db.scalar(
+                    select(func.count())
+                    .select_from(VoteEvent)
+                    .where(VoteEvent.bill_id == bill.id)
+                )
+                or 0
+            )
 
     if not dry_run:
         db.commit()
@@ -433,14 +560,23 @@ def backfill_votes(db: Session, *, limit: int | None, dry_run: bool) -> Backfill
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Backfill structured vote events and vote records from official roll-call sources.")
-    parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL") or supabase_database_url() or get_database_url())
+    parser = argparse.ArgumentParser(
+        description="Backfill structured vote events and vote records from official roll-call sources."
+    )
+    parser.add_argument(
+        "--database-url",
+        default=os.environ.get("DATABASE_URL")
+        or supabase_database_url()
+        or get_database_url(),
+    )
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if not args.database_url:
         raise SystemExit("DATABASE_URL or Supabase env vars are required")
-    engine = create_engine(normalize_database_url(args.database_url), pool_pre_ping=True)
+    engine = create_engine(
+        normalize_database_url(args.database_url), pool_pre_ping=True
+    )
     with Session(engine) as db:
         stats = backfill_votes(db, limit=args.limit, dry_run=args.dry_run)
         print(stats)

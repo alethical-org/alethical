@@ -19,7 +19,11 @@ from alethical.api.schemas import (
     TrackedBillPatchRequest,
     TrackedBillWriteRequest,
 )
-from alethical.api.serializers import bill_list_item, chat_message_payload, chat_session_payload
+from alethical.api.serializers import (
+    bill_list_item,
+    chat_message_payload,
+    chat_session_payload,
+)
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
 from alethical.pipeline.rag_ingest import _deterministic_embedding
@@ -89,13 +93,18 @@ def synthesize_grounded_answer(question: str, chunks: list, *, bill_key: str) ->
     )
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is required for RAG chat synthesis")
+        raise HTTPException(
+            status_code=503, detail="OPENAI_API_KEY is required for RAG chat synthesis"
+        )
 
     model = os.environ.get("OPENAI_RAG_CHAT_MODEL", "gpt-4o-mini")
     try:
         response = requests.post(
             "https://api.openai.com/v1/responses",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
             json={
                 "model": model,
                 "input": [
@@ -122,9 +131,13 @@ def synthesize_grounded_answer(question: str, chunks: list, *, bill_key: str) ->
         if text_value:
             return text_value
     except requests.RequestException as exc:
-        raise HTTPException(status_code=502, detail="OpenAI RAG chat synthesis failed") from exc
+        raise HTTPException(
+            status_code=502, detail="OpenAI RAG chat synthesis failed"
+        ) from exc
 
-    raise HTTPException(status_code=502, detail="OpenAI RAG chat synthesis returned no answer")
+    raise HTTPException(
+        status_code=502, detail="OpenAI RAG chat synthesis returned no answer"
+    )
 
 
 @router.get("/me", response_model=DetailResponse)
@@ -140,7 +153,9 @@ def me(current_user=Depends(get_current_user)):
 
 
 @router.get("/me/tracked-bills", response_model=CollectionResponse)
-def tracked_bills(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def tracked_bills(
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
     rows = db.scalars(tracked_bills_stmt(current_user.id)).all()
     data = []
     for row in rows:
@@ -152,7 +167,9 @@ def tracked_bills(db: Session = Depends(get_db), current_user=Depends(get_curren
                 "bill": bill_list_item(row.bill).model_dump(exclude_none=True),
             }
         )
-    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
+    return CollectionResponse(
+        data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
 
 
 @router.put("/me/tracked-bills/{bill_id}", response_model=DetailResponse)
@@ -177,7 +194,11 @@ def put_tracked_bill(
     db.commit()
     db.refresh(tracked)
     return DetailResponse(
-        data={"bill_id": bill.bill_key, "alerts_enabled": tracked.alerts_enabled, "note": tracked.note}
+        data={
+            "bill_id": bill.bill_key,
+            "alerts_enabled": tracked.alerts_enabled,
+            "note": tracked.note,
+        }
     )
 
 
@@ -204,7 +225,11 @@ def patch_tracked_bill(
     db.commit()
     db.refresh(tracked)
     return DetailResponse(
-        data={"bill_id": bill.bill_key, "alerts_enabled": tracked.alerts_enabled, "note": tracked.note}
+        data={
+            "bill_id": bill.bill_key,
+            "alerts_enabled": tracked.alerts_enabled,
+            "note": tracked.note,
+        }
     )
 
 
@@ -227,9 +252,13 @@ def delete_tracked_bill(
 
 
 @router.get("/me/notification-preferences", response_model=CollectionResponse)
-def notification_preferences(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def notification_preferences(
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
     rows = db.scalars(
-        select(NotificationPreference).where(NotificationPreference.user_id == current_user.id)
+        select(NotificationPreference).where(
+            NotificationPreference.user_id == current_user.id
+        )
     ).all()
     data = [
         {
@@ -239,7 +268,9 @@ def notification_preferences(db: Session = Depends(get_db), current_user=Depends
         }
         for row in rows
     ]
-    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
+    return CollectionResponse(
+        data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
 
 
 @router.put("/me/notification-preferences/{channel}", response_model=DetailResponse)
@@ -264,13 +295,19 @@ def put_notification_preference(
     db.commit()
     db.refresh(row)
     return DetailResponse(
-        data={"channel": row.channel.value, "frequency": row.frequency.value, "is_enabled": row.is_enabled}
+        data={
+            "channel": row.channel.value,
+            "frequency": row.frequency.value,
+            "is_enabled": row.is_enabled,
+        }
     )
 
 
 @router.get("/me/saved-places", response_model=CollectionResponse)
 def saved_places(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    rows = db.scalars(select(SavedPlace).where(SavedPlace.user_id == current_user.id)).all()
+    rows = db.scalars(
+        select(SavedPlace).where(SavedPlace.user_id == current_user.id)
+    ).all()
     data = [
         {
             "id": str(row.id),
@@ -282,7 +319,9 @@ def saved_places(db: Session = Depends(get_db), current_user=Depends(get_current
         }
         for row in rows
     ]
-    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
+    return CollectionResponse(
+        data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
 
 
 @router.post("/me/saved-places", response_model=DetailResponse, status_code=201)
@@ -321,7 +360,11 @@ def patch_saved_place(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    row = db.scalar(select(SavedPlace).where(SavedPlace.id == place_id, SavedPlace.user_id == current_user.id))
+    row = db.scalar(
+        select(SavedPlace).where(
+            SavedPlace.id == place_id, SavedPlace.user_id == current_user.id
+        )
+    )
     if row is None:
         raise HTTPException(status_code=404, detail="saved place not found")
     if request.label is not None:
@@ -354,27 +397,43 @@ def delete_saved_place(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    row = db.scalar(select(SavedPlace).where(SavedPlace.id == place_id, SavedPlace.user_id == current_user.id))
+    row = db.scalar(
+        select(SavedPlace).where(
+            SavedPlace.id == place_id, SavedPlace.user_id == current_user.id
+        )
+    )
     if row is not None:
         db.delete(row)
         db.commit()
 
 
 @router.get("/me/chat-sessions", response_model=CollectionResponse)
-def chat_sessions(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def chat_sessions(
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
     rows = db.scalars(
-        select(ChatSession).where(ChatSession.user_id == current_user.id).order_by(ChatSession.created_at.desc())
+        select(ChatSession)
+        .where(ChatSession.user_id == current_user.id)
+        .order_by(ChatSession.created_at.desc())
     ).all()
     bill_ids = [row.subject_bill_id for row in rows if row.subject_bill_id]
-    bill_map = {
-        row.id: row.bill_key
-        for row in db.scalars(select(Bill).where(Bill.id.in_(bill_ids))).all()
-    } if bill_ids else {}
+    bill_map = (
+        {
+            row.id: row.bill_key
+            for row in db.scalars(select(Bill).where(Bill.id.in_(bill_ids))).all()
+        }
+        if bill_ids
+        else {}
+    )
     data = [
-        chat_session_payload(row, subject_bill_id=bill_map.get(row.subject_bill_id)).model_dump(exclude_none=True)
+        chat_session_payload(
+            row, subject_bill_id=bill_map.get(row.subject_bill_id)
+        ).model_dump(exclude_none=True)
         for row in rows
     ]
-    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
+    return CollectionResponse(
+        data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
 
 
 @router.post("/me/chat-sessions", response_model=DetailResponse, status_code=201)
@@ -394,7 +453,9 @@ def create_chat_session(
     db.add(row)
     db.commit()
     db.refresh(row)
-    return DetailResponse(data=chat_session_payload(row, subject_bill_id=bill.bill_key).model_dump())
+    return DetailResponse(
+        data=chat_session_payload(row, subject_bill_id=bill.bill_key).model_dump()
+    )
 
 
 @router.get("/me/chat-sessions/{chat_session_id}", response_model=DetailResponse)
@@ -403,20 +464,38 @@ def get_chat_session(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    row = db.scalar(select(ChatSession).where(ChatSession.id == chat_session_id, ChatSession.user_id == current_user.id))
+    row = db.scalar(
+        select(ChatSession).where(
+            ChatSession.id == chat_session_id, ChatSession.user_id == current_user.id
+        )
+    )
     if row is None:
         raise HTTPException(status_code=404, detail="chat session not found")
-    bill = db.scalar(select(Bill).where(Bill.id == row.subject_bill_id)) if row.subject_bill_id else None
-    return DetailResponse(data=chat_session_payload(row, subject_bill_id=bill.bill_key if bill else None).model_dump())
+    bill = (
+        db.scalar(select(Bill).where(Bill.id == row.subject_bill_id))
+        if row.subject_bill_id
+        else None
+    )
+    return DetailResponse(
+        data=chat_session_payload(
+            row, subject_bill_id=bill.bill_key if bill else None
+        ).model_dump()
+    )
 
 
-@router.get("/me/chat-sessions/{chat_session_id}/messages", response_model=CollectionResponse)
+@router.get(
+    "/me/chat-sessions/{chat_session_id}/messages", response_model=CollectionResponse
+)
 def get_chat_messages(
     chat_session_id: str,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    session_row = db.scalar(select(ChatSession).where(ChatSession.id == chat_session_id, ChatSession.user_id == current_user.id))
+    session_row = db.scalar(
+        select(ChatSession).where(
+            ChatSession.id == chat_session_id, ChatSession.user_id == current_user.id
+        )
+    )
     if session_row is None:
         raise HTTPException(status_code=404, detail="chat session not found")
     rows = db.scalars(
@@ -433,22 +512,36 @@ def get_chat_messages(
         )
     ).all()
     data = [chat_message_payload(row).model_dump() for row in rows]
-    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
+    return CollectionResponse(
+        data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
 
 
-@router.post("/me/chat-sessions/{chat_session_id}/messages", response_model=DetailResponse, status_code=201)
+@router.post(
+    "/me/chat-sessions/{chat_session_id}/messages",
+    response_model=DetailResponse,
+    status_code=201,
+)
 def create_chat_message(
     chat_session_id: str,
     request: ChatMessageCreateRequest,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    session_row = db.scalar(select(ChatSession).where(ChatSession.id == chat_session_id, ChatSession.user_id == current_user.id))
+    session_row = db.scalar(
+        select(ChatSession).where(
+            ChatSession.id == chat_session_id, ChatSession.user_id == current_user.id
+        )
+    )
     if session_row is None:
         raise HTTPException(status_code=404, detail="chat session not found")
     if session_row.subject_bill_id is None:
-        raise HTTPException(status_code=400, detail="chat session is not associated with a bill")
-    user_message = ChatMessage(session_id=session_row.id, role=ChatRole.user, content=request.content)
+        raise HTTPException(
+            status_code=400, detail="chat session is not associated with a bill"
+        )
+    user_message = ChatMessage(
+        session_id=session_row.id, role=ChatRole.user, content=request.content
+    )
     db.add(user_message)
     db.flush()
 
@@ -479,7 +572,9 @@ def create_chat_message(
         for chunk in chunks
         if chunk.rag_section_document.bill_id == session_row.subject_bill_id
     ]
-    assistant_text = synthesize_grounded_answer(request.content, chunks, bill_key=bill.bill_key)
+    assistant_text = synthesize_grounded_answer(
+        request.content, chunks, bill_key=bill.bill_key
+    )
     assistant_message = ChatMessage(
         session_id=session_row.id,
         role=ChatRole.assistant,
@@ -490,4 +585,6 @@ def create_chat_message(
     session_row.last_message_at = assistant_message.created_at
     db.commit()
     db.refresh(assistant_message)
-    return DetailResponse(data={"assistant_message": chat_message_payload(assistant_message).model_dump()})
+    return DetailResponse(
+        data={"assistant_message": chat_message_payload(assistant_message).model_dump()}
+    )

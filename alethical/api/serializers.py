@@ -16,11 +16,15 @@ def tracking_payload(tracked_rows) -> api_schemas.TrackingState | None:
     )
 
 
-def sponsor_payloads(sponsorships, *, session_id=None) -> list[api_schemas.SponsorSummary]:
+def sponsor_payloads(
+    sponsorships, *, session_id=None
+) -> list[api_schemas.SponsorSummary]:
     payloads: list[api_schemas.SponsorSummary] = []
     for sponsorship in sponsorships:
         name = sponsorship.legislator.full_name if sponsorship.legislator else "Unknown"
-        legislator_id = str(sponsorship.legislator.id) if sponsorship.legislator else None
+        legislator_id = (
+            str(sponsorship.legislator.id) if sponsorship.legislator else None
+        )
         service_period = None
         if sponsorship.legislator and session_id is not None:
             service_period = next(
@@ -34,11 +38,15 @@ def sponsor_payloads(sponsorships, *, session_id=None) -> list[api_schemas.Spons
         payloads.append(
             api_schemas.SponsorSummary(
                 name=name,
-                role=sponsorship.role.value if hasattr(sponsorship.role, "value") else str(sponsorship.role),
+                role=sponsorship.role.value
+                if hasattr(sponsorship.role, "value")
+                else str(sponsorship.role),
                 legislator_id=legislator_id,
                 source_order=sponsorship.source_order,
                 source_chamber=sponsorship.source_chamber,
-                chamber=service_period.chamber.slug if service_period else sponsorship.source_chamber,
+                chamber=service_period.chamber.slug
+                if service_period
+                else sponsorship.source_chamber,
                 party=service_period.party if service_period else None,
                 district=service_period.district.code if service_period else None,
             )
@@ -65,7 +73,11 @@ def bill_status_key(bill) -> str:
     text_values = [
         " ".join(
             item
-            for item in [action.action_text, action.action_description, action.roll_call_text]
+            for item in [
+                action.action_text,
+                action.action_description,
+                action.roll_call_text,
+            ]
             if item
         ).lower()
         for action in actions
@@ -88,7 +100,11 @@ def bill_status_key(bill) -> str:
         action_text = (action.action_text or "").lower()
         combined = " ".join(
             item
-            for item in [action.action_text, action.action_description, action.roll_call_text]
+            for item in [
+                action.action_text,
+                action.action_description,
+                action.roll_call_text,
+            ]
             if item
         ).lower()
         if "not passed" in combined:
@@ -104,7 +120,9 @@ def bill_status_key(bill) -> str:
             explicit_chamber = "senate"
         elif "house" in combined:
             explicit_chamber = "house"
-        passed_chambers.add(explicit_chamber or _roll_call_chamber(action.roll_call_text) or "")
+        passed_chambers.add(
+            explicit_chamber or _roll_call_chamber(action.roll_call_text) or ""
+        )
     passed_chambers.discard("")
     if "senate" in passed_chambers:
         return "passed_senate"
@@ -176,7 +194,11 @@ def bill_status_key_from_summary(bill) -> str:
         return "passed_senate"
     if "pass" in status_text:
         return "passed_house"
-    if "referred" in status_text or "committee" in status_text or "second reading" in status_text:
+    if (
+        "referred" in status_text
+        or "committee" in status_text
+        or "second reading" in status_text
+    ):
         return "in_committee"
     return "proposed"
 
@@ -203,13 +225,17 @@ def current_bill_summary_enrichment(enrichments):
             and item.content_json["summary"].strip()
         )
     ]
-    enrichment = max(current_enrichments, key=lambda item: item.created_at, default=None)
+    enrichment = max(
+        current_enrichments, key=lambda item: item.created_at, default=None
+    )
     if enrichment is None:
         return None
     return enrichment
 
 
-def ai_analysis_payload_for_enrichment(enrichment) -> api_schemas.AIAnalysisPayload | None:
+def ai_analysis_payload_for_enrichment(
+    enrichment,
+) -> api_schemas.AIAnalysisPayload | None:
     if enrichment is None:
         return None
     content = enrichment.content_json or {}
@@ -217,14 +243,24 @@ def ai_analysis_payload_for_enrichment(enrichment) -> api_schemas.AIAnalysisPayl
     key_points = content.get("key_points")
     policy_areas = content.get("policy_areas")
     return api_schemas.AIAnalysisPayload(
-        summary=summary.strip() if isinstance(summary, str) and summary.strip() else None,
+        summary=summary.strip()
+        if isinstance(summary, str) and summary.strip()
+        else None,
         key_points=(
-            [item.strip() for item in key_points if isinstance(item, str) and item.strip()]
+            [
+                item.strip()
+                for item in key_points
+                if isinstance(item, str) and item.strip()
+            ]
             if isinstance(key_points, list)
             else []
         ),
         policy_areas=(
-            [item.strip() for item in policy_areas if isinstance(item, str) and item.strip()]
+            [
+                item.strip()
+                for item in policy_areas
+                if isinstance(item, str) and item.strip()
+            ]
             if isinstance(policy_areas, list)
             else []
         ),
@@ -232,7 +268,9 @@ def ai_analysis_payload_for_enrichment(enrichment) -> api_schemas.AIAnalysisPayl
 
 
 def ai_analysis_payload(enrichments) -> api_schemas.AIAnalysisPayload | None:
-    return ai_analysis_payload_for_enrichment(current_bill_summary_enrichment(enrichments))
+    return ai_analysis_payload_for_enrichment(
+        current_bill_summary_enrichment(enrichments)
+    )
 
 
 def bill_list_item(bill, *, include_tracking: bool = False) -> api_schemas.BillListItem:
@@ -253,7 +291,9 @@ def bill_list_item(bill, *, include_tracking: bool = False) -> api_schemas.BillL
 
 
 def district_payload(district) -> api_schemas.DistrictPayload:
-    return api_schemas.DistrictPayload(id=str(district.id), code=district.code, label=district.label)
+    return api_schemas.DistrictPayload(
+        id=str(district.id), code=district.code, label=district.label
+    )
 
 
 def current_service_payload(service_period) -> api_schemas.CurrentServicePayload | None:
@@ -294,17 +334,25 @@ def legislator_list_item(legislator) -> api_schemas.LegislatorListItem:
 
 
 def chat_message_payload(message) -> api_schemas.ChatMessagePayload:
-    citations = message.citation_payload.get("citations", []) if message.citation_payload else []
+    citations = (
+        message.citation_payload.get("citations", [])
+        if message.citation_payload
+        else []
+    )
     return api_schemas.ChatMessagePayload(
         id=str(message.id),
-        role=message.role.value if hasattr(message.role, "value") else str(message.role),
+        role=message.role.value
+        if hasattr(message.role, "value")
+        else str(message.role),
         content=message.content,
         citations=citations,
         created_at=message.created_at,
     )
 
 
-def chat_session_payload(session_row, *, subject_bill_id: str | None = None) -> api_schemas.ChatSessionPayload:
+def chat_session_payload(
+    session_row, *, subject_bill_id: str | None = None
+) -> api_schemas.ChatSessionPayload:
     return api_schemas.ChatSessionPayload(
         id=str(session_row.id),
         title=session_row.title,

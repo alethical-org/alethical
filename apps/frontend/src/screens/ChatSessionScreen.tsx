@@ -1,16 +1,25 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Keyboard,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { AuthRequiredCard } from '../components/AuthRequiredCard';
 import { Card } from '../components/Card';
 import { ScreenView } from '../components/ScreenView';
 import { Citation } from '../data/types';
-import {
-  useChatSession,
-  useCreateChatSession,
-  useSendChatMessage,
-} from '../hooks/useAppQueries';
+import { useChatSession, useCreateChatSession, useSendChatMessage } from '../hooks/useAppQueries';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
@@ -128,15 +137,17 @@ export function ChatSessionScreen({ route }: Props) {
   }, [params.sessionId]);
 
   useEffect(() => {
-    if (!isSignedIn || sessionId || params.subjectType !== 'bill' || !params.subjectId || !params.title) {
+    if (
+      !isSignedIn ||
+      sessionId ||
+      params.subjectType !== 'bill' ||
+      !params.subjectId ||
+      !params.title
+    ) {
       return;
     }
 
-    const pendingSessionKey = [
-      params.title,
-      params.subjectType,
-      params.subjectId ?? '',
-    ].join('::');
+    const pendingSessionKey = [params.title, params.subjectType, params.subjectId ?? ''].join('::');
 
     if (pendingSessionKeyRef.current === pendingSessionKey) {
       return;
@@ -167,13 +178,24 @@ export function ChatSessionScreen({ route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [createChatSession, isSignedIn, params.seedPrompt, params.subjectId, params.subjectLabel, params.subjectType, params.title, sessionId]);
+  }, [
+    createChatSession,
+    isSignedIn,
+    params.seedPrompt,
+    params.subjectId,
+    params.subjectLabel,
+    params.subjectType,
+    params.title,
+    sessionId,
+  ]);
 
   const session = sessionQuery.data;
   const startupError = createSession.error instanceof Error ? createSession.error.message : null;
   const sendError = sendMessage.error instanceof Error ? sendMessage.error.message : null;
   const loadError = sessionQuery.error instanceof Error ? sessionQuery.error.message : null;
-  const canStartBillChat = Boolean(sessionId || (params.subjectType === 'bill' && params.subjectId && params.title));
+  const canStartBillChat = Boolean(
+    sessionId || (params.subjectType === 'bill' && params.subjectId && params.title),
+  );
   const signInReturnTo = pendingBillChatPath(params);
   const title = useMemo(() => {
     if (session?.title) {
@@ -211,8 +233,13 @@ export function ChatSessionScreen({ route }: Props) {
   }, [pendingUserMessage, session?.messages]);
 
   const citationIds = useMemo(
-    () => new Set(displayMessages.flatMap((message) => (message.citations ?? []).map((citation) => citation.id))),
-    [displayMessages]
+    () =>
+      new Set(
+        displayMessages.flatMap((message) =>
+          (message.citations ?? []).map((citation) => citation.id),
+        ),
+      ),
+    [displayMessages],
   );
   const showCitationRail = width >= 980;
   const androidKeyboardOffset = Platform.OS === 'android' ? keyboardHeight : 0;
@@ -261,7 +288,7 @@ export function ChatSessionScreen({ route }: Props) {
         onSettled: () => {
           setPendingUserMessage(null);
         },
-      }
+      },
     );
   }
 
@@ -279,12 +306,18 @@ export function ChatSessionScreen({ route }: Props) {
   return (
     <ScreenView
       title={title}
-      subtitle={session?.subjectLabel ?? params.subjectLabel ?? 'Grounded answers with citations when available.'}
+      subtitle={
+        session?.subjectLabel ??
+        params.subjectLabel ??
+        'Grounded answers with citations when available.'
+      }
       scrollToEndKey={displayMessages.map((message) => message.id).join(':')}
     >
       {!canStartBillChat ? (
         <Card>
-          <Text style={styles.bodyText}>Start a chat from a bill page so retrieval stays scoped to that bill.</Text>
+          <Text style={styles.bodyText}>
+            Start a chat from a bill page so retrieval stays scoped to that bill.
+          </Text>
         </Card>
       ) : !session ? (
         <Card>
@@ -305,16 +338,34 @@ export function ChatSessionScreen({ route }: Props) {
                     return (
                       <View
                         key={message.id}
-                        style={[styles.messageRow, isAssistant ? styles.assistantRow : styles.userRow]}
+                        style={[
+                          styles.messageRow,
+                          isAssistant ? styles.assistantRow : styles.userRow,
+                        ]}
                       >
-                        <View style={[styles.bubble, isAssistant ? styles.assistantBubble : styles.userBubble]}>
-                          <Text style={[styles.messageRole, isAssistant ? styles.assistantRole : styles.userRole]}>
+                        <View
+                          style={[
+                            styles.bubble,
+                            isAssistant ? styles.assistantBubble : styles.userBubble,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.messageRole,
+                              isAssistant ? styles.assistantRole : styles.userRole,
+                            ]}
+                          >
                             {isAssistant ? 'Alethical' : 'You'}
                           </Text>
                           {message.isTyping ? (
                             <ThinkingIndicator />
                           ) : (
-                            <Text style={[styles.bodyText, isAssistant ? styles.assistantText : styles.userText]}>
+                            <Text
+                              style={[
+                                styles.bodyText,
+                                isAssistant ? styles.assistantText : styles.userText,
+                              ]}
+                            >
                               {message.text}
                             </Text>
                           )}
@@ -363,8 +414,15 @@ export function ChatSessionScreen({ route }: Props) {
                       onFocus={() => setComposerFocused(true)}
                       onBlur={() => setComposerFocused(false)}
                       onKeyPress={(event) => {
-                        const nativeEvent = event.nativeEvent as { key?: string; shiftKey?: boolean };
-                        if (Platform.OS === 'web' && nativeEvent.key === 'Enter' && !nativeEvent.shiftKey) {
+                        const nativeEvent = event.nativeEvent as {
+                          key?: string;
+                          shiftKey?: boolean;
+                        };
+                        if (
+                          Platform.OS === 'web' &&
+                          nativeEvent.key === 'Enter' &&
+                          !nativeEvent.shiftKey
+                        ) {
                           (event as any).preventDefault?.();
                           submitDraft();
                         }
@@ -378,7 +436,9 @@ export function ChatSessionScreen({ route }: Props) {
                       style={styles.sendButton}
                       onPress={submitDraft}
                     >
-                      <Text style={styles.sendButtonText}>{sendMessage.isPending ? 'Sending' : 'Send'}</Text>
+                      <Text style={styles.sendButtonText}>
+                        {sendMessage.isPending ? 'Sending' : 'Send'}
+                      </Text>
                     </Pressable>
                   </View>
                 </View>
@@ -414,7 +474,7 @@ function ThinkingIndicator() {
         duration: 950,
         easing: Easing.inOut(Easing.ease),
         useNativeDriver: Platform.OS !== 'web',
-      })
+      }),
     );
     animation.start();
     return () => animation.stop();
@@ -471,20 +531,32 @@ function CitationSidebar({
           accessibilityRole="button"
           accessibilityLabel="Close citation"
           onPress={onClose}
-          style={({ pressed }) => [styles.closeButton, pressed ? styles.citationTogglePressed : null]}
+          style={({ pressed }) => [
+            styles.closeButton,
+            pressed ? styles.citationTogglePressed : null,
+          ]}
         >
           <Text style={styles.closeButtonText}>Close</Text>
         </Pressable>
       </View>
-      <ScrollView style={styles.citationTextPanel} contentContainerStyle={styles.citationTextPanelContent}>
-        <HighlightedCitationText text={fullText} highlight={citation.highlightText || citation.excerpt} />
+      <ScrollView
+        style={styles.citationTextPanel}
+        contentContainerStyle={styles.citationTextPanelContent}
+      >
+        <HighlightedCitationText
+          text={fullText}
+          highlight={citation.highlightText || citation.excerpt}
+        />
       </ScrollView>
       {citation.url ? (
         <Pressable
           accessibilityRole="link"
           accessibilityLabel="Open official source"
           onPress={() => void Linking.openURL(citation.url)}
-          style={({ pressed }) => [styles.sourceLink, pressed ? styles.citationTogglePressed : null]}
+          style={({ pressed }) => [
+            styles.sourceLink,
+            pressed ? styles.citationTogglePressed : null,
+          ]}
         >
           <Text style={styles.sourceLinkText}>Open official source</Text>
         </Pressable>

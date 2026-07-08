@@ -72,7 +72,10 @@ def fetch_text(sess: requests.Session, url: str) -> str:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = sess.get(url, timeout=TIMEOUT_SECONDS)
-            if response.status_code in {429, 500, 502, 503, 504} and attempt < MAX_RETRIES:
+            if (
+                response.status_code in {429, 500, 502, 503, 504}
+                and attempt < MAX_RETRIES
+            ):
                 time.sleep(0.5 * attempt)
                 continue
             response.raise_for_status()
@@ -86,11 +89,17 @@ def fetch_text(sess: requests.Session, url: str) -> str:
 
 
 def assignment_block(html_text: str) -> str:
-    match = re.search(r"<h4>\s*Committee Assignments:\s*</h4>\s*<ul\b[^>]*>(.*?)</ul>", html_text, flags=re.I | re.S)
+    match = re.search(
+        r"<h4>\s*Committee Assignments:\s*</h4>\s*<ul\b[^>]*>(.*?)</ul>",
+        html_text,
+        flags=re.I | re.S,
+    )
     return match.group(1) if match else ""
 
 
-def parse_committee_assignments(html_text: str, source_url: str, chamber_slug: str) -> list[CommitteeAssignment]:
+def parse_committee_assignments(
+    html_text: str, source_url: str, chamber_slug: str
+) -> list[CommitteeAssignment]:
     block = assignment_block(html_text)
     if not block:
         return []
@@ -99,8 +108,20 @@ def parse_committee_assignments(html_text: str, source_url: str, chamber_slug: s
     seen: set[tuple[str, str | None]] = set()
     for li_match in re.finditer(r"<li\b[^>]*>(.*?)</li>", block, flags=re.I | re.S):
         li_html = li_match.group(1)
-        role = normalize_space(role_match.group(1)) if (role_match := re.search(r"<strong[^>]*>(.*?)</strong>", li_html, flags=re.I | re.S)) else None
-        link_match = re.search(r"<a\b[^>]*href=['\"]([^'\"]+)['\"][^>]*>(.*?)</a>", li_html, flags=re.I | re.S)
+        role = (
+            normalize_space(role_match.group(1))
+            if (
+                role_match := re.search(
+                    r"<strong[^>]*>(.*?)</strong>", li_html, flags=re.I | re.S
+                )
+            )
+            else None
+        )
+        link_match = re.search(
+            r"<a\b[^>]*href=['\"]([^'\"]+)['\"][^>]*>(.*?)</a>",
+            li_html,
+            flags=re.I | re.S,
+        )
         if not link_match:
             continue
 
@@ -122,14 +143,21 @@ def parse_committee_assignments(html_text: str, source_url: str, chamber_slug: s
         if key in seen:
             continue
         seen.add(key)
-        assignments.append(CommitteeAssignment(name=name, role=role, code=code, profile_url=profile_url))
+        assignments.append(
+            CommitteeAssignment(
+                name=name, role=role, code=code, profile_url=profile_url
+            )
+        )
     return assignments
 
 
 def current_legislator_rows(db: Session, session_id: Any) -> list[tuple[Any, Any, str]]:
     rows = db.execute(
         select(Legislator, Chamber, LegislatorServicePeriod.profile_url)
-        .join(LegislatorServicePeriod, LegislatorServicePeriod.legislator_id == Legislator.id)
+        .join(
+            LegislatorServicePeriod,
+            LegislatorServicePeriod.legislator_id == Legislator.id,
+        )
         .join(Chamber, Chamber.id == LegislatorServicePeriod.chamber_id)
         .where(
             LegislatorServicePeriod.session_id == session_id,
@@ -148,28 +176,52 @@ def current_legislator_rows(db: Session, session_id: Any) -> list[tuple[Any, Any
 
 
 def clear_current_memberships(db: Session, session_id: Any) -> None:
-    committee_ids = db.scalars(select(Committee.id).where(Committee.session_id == session_id)).all()
+    committee_ids = db.scalars(
+        select(Committee.id).where(Committee.session_id == session_id)
+    ).all()
     if committee_ids:
-        db.execute(delete(CommitteeMembership).where(CommitteeMembership.committee_id.in_(committee_ids)))
+        db.execute(
+            delete(CommitteeMembership).where(
+                CommitteeMembership.committee_id.in_(committee_ids)
+            )
+        )
 
 
 def cleanup_orphan_legislators(db: Session) -> int:
     orphan_ids = db.scalars(
         select(Legislator.id).where(
-            ~select(Sponsorship.id).where(Sponsorship.legislator_id == Legislator.id).exists(),
-            ~select(VoteRecord.id).where(VoteRecord.legislator_id == Legislator.id).exists(),
-            ~select(CommitteeMembership.id).where(CommitteeMembership.legislator_id == Legislator.id).exists(),
+            ~select(Sponsorship.id)
+            .where(Sponsorship.legislator_id == Legislator.id)
+            .exists(),
+            ~select(VoteRecord.id)
+            .where(VoteRecord.legislator_id == Legislator.id)
+            .exists(),
+            ~select(CommitteeMembership.id)
+            .where(CommitteeMembership.legislator_id == Legislator.id)
+            .exists(),
         )
     ).all()
     if not orphan_ids:
         return 0
-    db.execute(delete(LegislatorStats).where(LegislatorStats.legislator_id.in_(orphan_ids)))
-    db.execute(delete(LegislatorServicePeriod).where(LegislatorServicePeriod.legislator_id.in_(orphan_ids)))
+    db.execute(
+        delete(LegislatorStats).where(LegislatorStats.legislator_id.in_(orphan_ids))
+    )
+    db.execute(
+        delete(LegislatorServicePeriod).where(
+            LegislatorServicePeriod.legislator_id.in_(orphan_ids)
+        )
+    )
     db.execute(delete(Legislator).where(Legislator.id.in_(orphan_ids)))
     return len(orphan_ids)
 
 
-def upsert_assignment(db: Session, session_id: Any, chamber: Any, legislator: Any, assignment: CommitteeAssignment) -> bool:
+def upsert_assignment(
+    db: Session,
+    session_id: Any,
+    chamber: Any,
+    legislator: Any,
+    assignment: CommitteeAssignment,
+) -> bool:
     committee = db.scalar(
         select(Committee).where(
             Committee.session_id == session_id,
@@ -197,7 +249,9 @@ def upsert_assignment(db: Session, session_id: Any, chamber: Any, legislator: An
         select(CommitteeMembership).where(
             CommitteeMembership.committee_id == committee.id,
             CommitteeMembership.legislator_id == legislator.id,
-            CommitteeMembership.role == assignment.role if assignment.role is not None else CommitteeMembership.role.is_(None),
+            CommitteeMembership.role == assignment.role
+            if assignment.role is not None
+            else CommitteeMembership.role.is_(None),
         )
     )
     if membership is None:
@@ -225,16 +279,21 @@ def refresh_committee_stats(db: Session, session_id: Any) -> None:
         if stats is None:
             stats = LegislatorStats(legislator_id=legislator.id, session_id=session_id)
             db.add(stats)
-        stats.committee_count = db.scalar(
-            select(func.count(CommitteeMembership.id)).where(
-                CommitteeMembership.legislator_id == legislator.id,
-                CommitteeMembership.is_current.is_(True),
+        stats.committee_count = (
+            db.scalar(
+                select(func.count(CommitteeMembership.id)).where(
+                    CommitteeMembership.legislator_id == legislator.id,
+                    CommitteeMembership.is_current.is_(True),
+                )
             )
-        ) or 0
+            or 0
+        )
 
 
 def backfill(db: Session, *, dry_run: bool, cleanup_orphans: bool) -> BackfillStats:
-    current_session = db.scalar(select(LegislativeSession).where(LegislativeSession.is_current.is_(True)))
+    current_session = db.scalar(
+        select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
+    )
     if current_session is None:
         raise RuntimeError("No current legislative session found")
 
@@ -246,7 +305,9 @@ def backfill(db: Session, *, dry_run: bool, cleanup_orphans: bool) -> BackfillSt
 
     sess = requests.Session()
     sess.headers.update({"User-Agent": USER_AGENT})
-    for legislator, chamber, profile_url in current_legislator_rows(db, current_session.id):
+    for legislator, chamber, profile_url in current_legislator_rows(
+        db, current_session.id
+    ):
         if chamber.slug not in {"house", "senate"}:
             continue
         stats.legislators_seen += 1
@@ -257,7 +318,9 @@ def backfill(db: Session, *, dry_run: bool, cleanup_orphans: bool) -> BackfillSt
             stats.profiles_without_assignments += 1
             continue
         for assignment in assignments:
-            if upsert_assignment(db, current_session.id, chamber, legislator, assignment):
+            if upsert_assignment(
+                db, current_session.id, chamber, legislator, assignment
+            ):
                 stats.committees_upserted += 1
             stats.memberships_upserted += 1
 
@@ -271,16 +334,29 @@ def backfill(db: Session, *, dry_run: bool, cleanup_orphans: bool) -> BackfillSt
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Backfill current Minnesota committee memberships from member profile pages.")
-    parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL") or supabase_database_url() or get_database_url())
+    parser = argparse.ArgumentParser(
+        description="Backfill current Minnesota committee memberships from member profile pages."
+    )
+    parser.add_argument(
+        "--database-url",
+        default=os.environ.get("DATABASE_URL")
+        or supabase_database_url()
+        or get_database_url(),
+    )
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--cleanup-orphans", action="store_true", help="Delete duplicate legislators with no sponsorship, vote, or committee references.")
+    parser.add_argument(
+        "--cleanup-orphans",
+        action="store_true",
+        help="Delete duplicate legislators with no sponsorship, vote, or committee references.",
+    )
     args = parser.parse_args()
 
     if not args.database_url:
         raise SystemExit("DATABASE_URL or Supabase env vars are required")
 
-    engine = create_engine(normalize_database_url(args.database_url), pool_pre_ping=True)
+    engine = create_engine(
+        normalize_database_url(args.database_url), pool_pre_ping=True
+    )
     with Session(engine) as db:
         stats = backfill(db, dry_run=args.dry_run, cleanup_orphans=args.cleanup_orphans)
     print(stats)

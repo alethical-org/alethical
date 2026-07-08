@@ -4,10 +4,7 @@ import {
   createNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import {
-  BottomTabBarProps,
-  createBottomTabNavigator,
-} from '@react-navigation/bottom-tabs';
+import { BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   ArrowLeft,
   BookmarkCheck,
@@ -146,11 +143,7 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: RailRouteName }) {
               ]}
             >
               <View style={styles.railItemMain}>
-                <route.Icon
-                  color={iconColor}
-                  size={22}
-                  strokeWidth={focused ? 2.7 : 2.1}
-                />
+                <route.Icon color={iconColor} size={22} strokeWidth={focused ? 2.7 : 2.1} />
                 <Text
                   numberOfLines={1}
                   style={[styles.railItemLabel, focused && styles.railItemLabelActive]}
@@ -171,7 +164,9 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
   const routes = state.routes;
 
   return (
-    <View style={[styles.mobileTabBar, { paddingBottom: Math.max(theme.spacing.xs, insets.bottom) }]}>
+    <View
+      style={[styles.mobileTabBar, { paddingBottom: Math.max(theme.spacing.xs, insets.bottom) }]}
+    >
       {routes.map((route) => {
         const routeName = route.name as keyof MainTabParamList;
         const focused = state.routes[state.index]?.key === route.key;
@@ -225,31 +220,11 @@ function MainTabs() {
         },
       }}
     >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{ title: 'Home' }}
-      />
-      <Tab.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{ title: 'Search' }}
-      />
-      <Tab.Screen
-        name="Tracked"
-        component={TrackedScreen}
-        options={{ title: 'Tracked' }}
-      />
-      <Tab.Screen
-        name="Chat"
-        component={ChatScreen}
-        options={{ title: 'Chat' }}
-      />
-      <Tab.Screen
-        name="Account"
-        component={AccountScreen}
-        options={{ title: 'Account' }}
-      />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
+      <Tab.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
+      <Tab.Screen name="Tracked" component={TrackedScreen} options={{ title: 'Tracked' }} />
+      <Tab.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+      <Tab.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
     </Tab.Navigator>
   );
 }
@@ -530,19 +505,21 @@ export function RootNavigator() {
                 backgroundColor: theme.colors.surface,
               },
               headerTintColor: theme.colors.ink,
-              headerLeft: () => (
+              headerLeft: () =>
                 navigation.canGoBack() ? (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Go back"
                     hitSlop={10}
                     onPress={() => navigation.goBack()}
-                    style={({ pressed }) => [styles.headerBackButton, pressed && styles.headerBackButtonPressed]}
+                    style={({ pressed }) => [
+                      styles.headerBackButton,
+                      pressed && styles.headerBackButtonPressed,
+                    ]}
                   >
                     <ArrowLeft color={theme.colors.ink} size={32} strokeWidth={2.4} />
                   </Pressable>
-                ) : null
-              ),
+                ) : null,
               headerLeftContainerStyle: styles.headerLeftContainer,
               headerTitleContainerStyle: styles.headerTitleContainer,
               headerTitleStyle: {
@@ -556,13 +533,41 @@ export function RootNavigator() {
             })}
           >
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
-            <Stack.Screen name="BillDetail" component={BillDetailScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="LegislatorProfile" component={LegislatorProfileScreen} options={{ title: 'Legislator' }} />
-            <Stack.Screen name="FindMyLegislator" component={FindMyLegislatorScreen} options={{ title: 'Find My Legislator' }} />
-            <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy Policy' }} />
-            <Stack.Screen name="Terms" component={TermsScreen} options={{ title: 'Terms of Service' }} />
-            <Stack.Screen name="VoteDetail" component={VoteDetailScreen} options={{ title: 'Vote Detail' }} />
-            <Stack.Screen name="ChatSession" component={ChatSessionScreen} options={{ title: 'Chat' }} />
+            <Stack.Screen
+              name="BillDetail"
+              component={BillDetailScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LegislatorProfile"
+              component={LegislatorProfileScreen}
+              options={{ title: 'Legislator' }}
+            />
+            <Stack.Screen
+              name="FindMyLegislator"
+              component={FindMyLegislatorScreen}
+              options={{ title: 'Find My Legislator' }}
+            />
+            <Stack.Screen
+              name="Privacy"
+              component={PrivacyScreen}
+              options={{ title: 'Privacy Policy' }}
+            />
+            <Stack.Screen
+              name="Terms"
+              component={TermsScreen}
+              options={{ title: 'Terms of Service' }}
+            />
+            <Stack.Screen
+              name="VoteDetail"
+              component={VoteDetailScreen}
+              options={{ title: 'Vote Detail' }}
+            />
+            <Stack.Screen
+              name="ChatSession"
+              component={ChatSessionScreen}
+              options={{ title: 'Chat' }}
+            />
           </Stack.Navigator>
         </View>
       </View>

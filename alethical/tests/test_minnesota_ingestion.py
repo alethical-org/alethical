@@ -5,7 +5,11 @@ from sqlalchemy.orm import Session
 
 from alethical.db.models import Legislator, LegislatorServicePeriod
 from alethical.db.session import get_engine
-from alethical.pipeline.minnesota import MinnesotaIngestionPipeline, parse_bill_text_html, parse_bill_xml
+from alethical.pipeline.minnesota import (
+    MinnesotaIngestionPipeline,
+    parse_bill_text_html,
+    parse_bill_xml,
+)
 
 
 SAMPLE_BILL_XML = """<?xml version="1.0"?>
@@ -63,12 +67,20 @@ SAMPLE_BILL_HTML = """
 
 def test_bill_parsers_extract_canonical_payloads() -> None:
     canonical = parse_bill_xml(SAMPLE_BILL_XML)
-    bill_text = parse_bill_text_html(SAMPLE_BILL_HTML, "https://example.test/hf9999.html")
+    bill_text = parse_bill_text_html(
+        SAMPLE_BILL_HTML, "https://example.test/hf9999.html"
+    )
 
     assert canonical["bill_key"] == "94-2025-HF9999"
     assert canonical["authors"]["house"][0]["member_name"] == "Example Author"
-    assert canonical["actions"]["house"][0]["action_text"] == "Introduction and first reading"
-    assert bill_text["bill_title_text"] == "A bill for an act relating to live ingestion tests."
+    assert (
+        canonical["actions"]["house"][0]["action_text"]
+        == "Introduction and first reading"
+    )
+    assert (
+        bill_text["bill_title_text"]
+        == "A bill for an act relating to live ingestion tests."
+    )
     assert bill_text["sections"][0]["text"] == "Test section text."
 
 
@@ -89,10 +101,19 @@ def test_roster_only_member_can_be_ingested(seed_database: None) -> None:
         )
 
         service_period = session.scalar(
-            select(LegislatorServicePeriod).where(LegislatorServicePeriod.legislator_id == legislator.id)
+            select(LegislatorServicePeriod).where(
+                LegislatorServicePeriod.legislator_id == legislator.id
+            )
         )
 
-        assert session.scalar(select(Legislator.full_name).where(Legislator.id == legislator.id)) == "Rep. Example Roster"
+        assert (
+            session.scalar(
+                select(Legislator.full_name).where(Legislator.id == legislator.id)
+            )
+            == "Rep. Example Roster"
+        )
         assert service_period is not None
         assert service_period.profile_url == "https://example.test/representatives/60b"
-        assert service_period.photo_url == "https://example.test/representatives/60b.jpg"
+        assert (
+            service_period.photo_url == "https://example.test/representatives/60b.jpg"
+        )

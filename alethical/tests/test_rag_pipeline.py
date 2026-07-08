@@ -18,12 +18,16 @@ def _session():
 
 def _counts_for_bill(db: Session, bill_id):
     section_count = db.scalar(
-        select(func.count(schema.RagSectionDocument.id)).where(schema.RagSectionDocument.bill_id == bill_id)
+        select(func.count(schema.RagSectionDocument.id)).where(
+            schema.RagSectionDocument.bill_id == bill_id
+        )
     )
     chunk_count = db.scalar(
         select(func.count(schema.RagChunk.id)).where(
             schema.RagChunk.rag_section_document_id.in_(
-                select(schema.RagSectionDocument.id).where(schema.RagSectionDocument.bill_id == bill_id)
+                select(schema.RagSectionDocument.id).where(
+                    schema.RagSectionDocument.bill_id == bill_id
+                )
             )
         )
     )
@@ -32,7 +36,9 @@ def _counts_for_bill(db: Session, bill_id):
             schema.RagChunkEmbedding.rag_chunk_id.in_(
                 select(schema.RagChunk.id).where(
                     schema.RagChunk.rag_section_document_id.in_(
-                        select(schema.RagSectionDocument.id).where(schema.RagSectionDocument.bill_id == bill_id)
+                        select(schema.RagSectionDocument.id).where(
+                            schema.RagSectionDocument.bill_id == bill_id
+                        )
                     )
                 )
             )
@@ -47,16 +53,32 @@ def _reset_bill_rag_rows(db: Session, bill_key: str) -> int:
         raise AssertionError(f"Missing seeded bill {bill_key}")
 
     section_rows = db.scalars(
-        select(schema.RagSectionDocument.id).where(schema.RagSectionDocument.bill_id == bill_id)
+        select(schema.RagSectionDocument.id).where(
+            schema.RagSectionDocument.bill_id == bill_id
+        )
     ).all()
     if section_rows:
         chunk_rows = db.scalars(
-            select(schema.RagChunk.id).where(schema.RagChunk.rag_section_document_id.in_(section_rows))
+            select(schema.RagChunk.id).where(
+                schema.RagChunk.rag_section_document_id.in_(section_rows)
+            )
         ).all()
         if chunk_rows:
-            db.execute(delete(schema.RagChunkEmbedding).where(schema.RagChunkEmbedding.rag_chunk_id.in_(chunk_rows)))
-        db.execute(delete(schema.RagChunk).where(schema.RagChunk.rag_section_document_id.in_(section_rows)))
-        db.execute(delete(schema.RagSectionDocument).where(schema.RagSectionDocument.id.in_(section_rows)))
+            db.execute(
+                delete(schema.RagChunkEmbedding).where(
+                    schema.RagChunkEmbedding.rag_chunk_id.in_(chunk_rows)
+                )
+            )
+        db.execute(
+            delete(schema.RagChunk).where(
+                schema.RagChunk.rag_section_document_id.in_(section_rows)
+            )
+        )
+        db.execute(
+            delete(schema.RagSectionDocument).where(
+                schema.RagSectionDocument.id.in_(section_rows)
+            )
+        )
     db.commit()
     return bill_id
 
@@ -109,14 +131,25 @@ class _FakeMinnesotaIngestionPipeline:
 
 
 @pytest.mark.asyncio
-async def test_bill_sync_chunk_worker_rejects_non_production_rag_target(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("alethical.pipeline.minnesota.MinnesotaIngestionPipeline", _FakeMinnesotaIngestionPipeline)
+async def test_bill_sync_chunk_worker_rejects_non_production_rag_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.MinnesotaIngestionPipeline",
+        _FakeMinnesotaIngestionPipeline,
+    )
 
     with pytest.raises(ValueError, match="rag_target=production"):
         await BillSyncChunkWorker().process(
             SimpleNamespace(
                 args={
-                    "targets": [{"chamber": "house", "bill_number": "SF1832", "session_code": "0942025"}],
+                    "targets": [
+                        {
+                            "chamber": "house",
+                            "bill_number": "SF1832",
+                            "session_code": "0942025",
+                        }
+                    ],
                     "dry_run": False,
                     "allow_writes": True,
                     "include_rag": True,
@@ -130,8 +163,13 @@ async def test_bill_sync_chunk_worker_rejects_non_production_rag_target(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_bill_sync_chunk_worker_reports_rag_counts_for_production_target(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("alethical.pipeline.minnesota.MinnesotaIngestionPipeline", _FakeMinnesotaIngestionPipeline)
+async def test_bill_sync_chunk_worker_reports_rag_counts_for_production_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.MinnesotaIngestionPipeline",
+        _FakeMinnesotaIngestionPipeline,
+    )
     calls: list[tuple[list[str], dict[str, object]]] = []
 
     def fake_build(db, bill_keys, **kwargs):
@@ -141,17 +179,32 @@ async def test_bill_sync_chunk_worker_reports_rag_counts_for_production_target(m
             "rag_skipped": 0,
             "rag_already_exists": 0,
             "rag_results": [
-                {"bill_key": "94-2025-SF1832", "status": "built", "rag_section_count": 4, "rag_chunk_count": 31}
+                {
+                    "bill_key": "94-2025-SF1832",
+                    "status": "built",
+                    "rag_section_count": 4,
+                    "rag_chunk_count": 31,
+                }
             ],
         }
 
-    monkeypatch.setattr("alethical.pipeline.rag_ingest.build_rag_rows_for_bill_keys", fake_build)
-    monkeypatch.setattr("alethical.pipeline.oban_workers._database_url", lambda args: get_database_url())
+    monkeypatch.setattr(
+        "alethical.pipeline.rag_ingest.build_rag_rows_for_bill_keys", fake_build
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.oban_workers._database_url", lambda args: get_database_url()
+    )
 
     record = await BillSyncChunkWorker().process(
         SimpleNamespace(
             args={
-                "targets": [{"chamber": "house", "bill_number": "SF1832", "session_code": "0942025"}],
+                "targets": [
+                    {
+                        "chamber": "house",
+                        "bill_number": "SF1832",
+                        "session_code": "0942025",
+                    }
+                ],
                 "dry_run": False,
                 "allow_writes": True,
                 "include_rag": True,
@@ -166,4 +219,13 @@ async def test_bill_sync_chunk_worker_reports_rag_counts_for_production_target(m
     assert result["rag_built"] == 1
     assert result["rag_skipped"] == 0
     assert result["rag_already_exists"] == 0
-    assert calls == [(["94-2025-SF1832"], {"dry_run": False, "rag_model": "demo-minilm-1536", "rag_embedding_batch_size": 8})]
+    assert calls == [
+        (
+            ["94-2025-SF1832"],
+            {
+                "dry_run": False,
+                "rag_model": "demo-minilm-1536",
+                "rag_embedding_batch_size": 8,
+            },
+        )
+    ]

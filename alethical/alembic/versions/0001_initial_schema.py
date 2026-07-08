@@ -44,7 +44,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     bind = op.get_bind()
     op.execute("DROP INDEX IF EXISTS ix_rag_chunk_embedding_embedding_ivfflat")
-    op.drop_index("ix_rag_chunk_embedding_embedding_model", table_name="rag_chunk_embedding")
+    op.drop_index(
+        "ix_rag_chunk_embedding_embedding_model", table_name="rag_chunk_embedding"
+    )
     op.drop_index("ix_sponsorship_bill_role_source_order", table_name="sponsorship")
     op.drop_index(
         "ix_legislator_service_period_legislator_session_current",

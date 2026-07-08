@@ -10,6 +10,7 @@
     "ios": "node ./scripts/start-expo.mjs --ios",
     "web": "node ./scripts/start-expo.mjs --web",
     "build": "node ./scripts/start-expo.mjs export --platform web",
+    "format": "prettier --write .",
     "export:web": "node ./scripts/start-expo.mjs export --platform web",
     "ios:simulator": "node ./scripts/with-root-env.mjs eas build:run --platform ios --profile simulator",
     "build:ios:simulator": "node ./scripts/with-root-env.mjs eas build --platform ios --profile simulator",
@@ -44,6 +45,7 @@
   "devDependencies": {
     "@types/react": "19.2.14",
     "eas-cli": "20.0.0",
+    "prettier": "3.4.2",
     "typescript": "5.9.3"
   },
   "private": true,

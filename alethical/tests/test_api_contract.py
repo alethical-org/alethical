@@ -24,7 +24,9 @@ def test_health_and_meta_endpoints(client):
     assert payload["data"]["current_session"]["slug"] == "94-2025-regular"
 
 
-def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, auth_headers):
+def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
+    client, auth_headers
+):
     public_response = client.get("/api/v1/bills", params={"session": "94-2025-regular"})
     assert public_response.status_code == 200
     public_payload = public_response.json()
@@ -59,7 +61,9 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(client, au
         headers=auth_headers,
     )
     assert authed_response.status_code == 200
-    tracked_bill = next(item for item in authed_response.json()["data"] if item["id"] == listed_bill_id)
+    tracked_bill = next(
+        item for item in authed_response.json()["data"] if item["id"] == listed_bill_id
+    )
     assert tracked_bill["tracked"]["is_tracked"] is True
 
     detail_response = client.get(
@@ -158,7 +162,9 @@ def test_bill_and_legislator_lists_support_search_filter_contract(client):
     assert senate_legislators_response.status_code == 200
     senate_legislators = senate_legislators_response.json()["data"]
     assert senate_legislators
-    assert all(item["current_service"]["chamber"] == "senate" for item in senate_legislators)
+    assert all(
+        item["current_service"]["chamber"] == "senate" for item in senate_legislators
+    )
 
 
 def test_bill_list_supports_offset_pagination(client):
@@ -221,7 +227,11 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
             "Changes labor and worker safety rules, including underground telecommunications installer certification.",
             "Requires reports and makes technical corrections across jobs and economic development statutes.",
         ],
-        "policy_areas": ["workforce development", "economic development", "labor policy"],
+        "policy_areas": [
+            "workforce development",
+            "economic development",
+            "labor policy",
+        ],
     }
     assert "confidence" not in detail_payload["ai_analysis"]
     assert "truncated_source" not in detail_payload["ai_analysis"]
@@ -230,19 +240,26 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
 
 
 def test_legislator_directory_profile_search_and_lookup_cover_user_story(client):
-    directory_response = client.get("/api/v1/legislators", params={"session": "94-2025-regular"})
+    directory_response = client.get(
+        "/api/v1/legislators", params={"session": "94-2025-regular"}
+    )
     assert directory_response.status_code == 200
     directory_payload = directory_response.json()
     assert len(directory_payload["data"]) >= 2
     first_legislator = directory_payload["data"][0]
     assert first_legislator["id"]
     assert first_legislator["current_service"]["district"]["code"]
-    assert not first_legislator["current_service"]["district"]["code"].endswith("-unknown")
+    assert not first_legislator["current_service"]["district"]["code"].endswith(
+        "-unknown"
+    )
 
     legislator_id = first_legislator["id"]
     profile_response = client.get(
         f"/api/v1/legislators/{legislator_id}",
-        params={"session": "94-2025-regular", "include": "current_service,committees,stats"},
+        params={
+            "session": "94-2025-regular",
+            "include": "current_service,committees,stats",
+        },
     )
     assert profile_response.status_code == 200
     profile_payload = profile_response.json()["data"]
@@ -256,7 +273,9 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     assert bills_response.status_code == 200
     assert isinstance(bills_response.json()["data"], list)
 
-    search_response = client.get("/api/v1/search", params={"q": "jobs", "types": "bills,legislators"})
+    search_response = client.get(
+        "/api/v1/search", params={"q": "jobs", "types": "bills,legislators"}
+    )
     assert search_response.status_code == 200
     search_payload = search_response.json()["data"]
     assert "bills" in search_payload
@@ -341,9 +360,13 @@ def test_representative_lookup_returns_not_found_for_unresolved_addresses(client
         def lookup(self, _address_text: str):
             raise RepresentativeLookupNotFound("address could not be geocoded")
 
-    client.app.dependency_overrides[get_representative_lookup_service] = lambda: NotFoundLookupService()
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        NotFoundLookupService()
+    )
 
-    response = client.post("/api/v1/representative-lookups", json={"address_text": "Nowhere"})
+    response = client.post(
+        "/api/v1/representative-lookups", json={"address_text": "Nowhere"}
+    )
 
     assert response.status_code == 404
     problem = response.json()
@@ -366,12 +389,20 @@ def test_representative_lookup_returns_not_found_for_unknown_database_districts(
                 senate_district=DistrictMatch(chamber="senate", district_code="99"),
             )
 
-    client.app.dependency_overrides[get_representative_lookup_service] = lambda: UnknownDistrictLookupService()
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        UnknownDistrictLookupService()
+    )
 
-    response = client.post("/api/v1/representative-lookups", json={"address_text": "1 Test St, Saint Paul, MN"})
+    response = client.post(
+        "/api/v1/representative-lookups",
+        json={"address_text": "1 Test St, Saint Paul, MN"},
+    )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "resolved districts are not available in the database"
+    assert (
+        response.json()["detail"]
+        == "resolved districts are not available in the database"
+    )
 
 
 def test_representative_lookup_returns_bad_gateway_for_upstream_failure(client):
@@ -379,7 +410,9 @@ def test_representative_lookup_returns_bad_gateway_for_upstream_failure(client):
         def lookup(self, _address_text: str):
             raise requests.Timeout("GIS request timed out")
 
-    client.app.dependency_overrides[get_representative_lookup_service] = lambda: UpstreamFailureLookupService()
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        UpstreamFailureLookupService()
+    )
 
     response = client.post(
         "/api/v1/representative-lookups",
@@ -391,18 +424,24 @@ def test_representative_lookup_returns_bad_gateway_for_upstream_failure(client):
 
 
 def test_legislator_directory_limit_search_no_results_and_missing_profile(client):
-    limited_response = client.get("/api/v1/legislators", params={"session": "94-2025-regular", "limit": 1})
+    limited_response = client.get(
+        "/api/v1/legislators", params={"session": "94-2025-regular", "limit": 1}
+    )
     assert limited_response.status_code == 200
     limited_payload = limited_response.json()
     assert len(limited_payload["data"]) == 1
     assert limited_payload["page"]["limit"] == 1
 
-    matching_response = client.get("/api/v1/legislators", params={"q": "Howard", "limit": 10})
+    matching_response = client.get(
+        "/api/v1/legislators", params={"q": "Howard", "limit": 10}
+    )
     assert matching_response.status_code == 200
     matching_names = [item["full_name"] for item in matching_response.json()["data"]]
     assert any("Howard" in name for name in matching_names)
 
-    no_results_response = client.get("/api/v1/legislators", params={"q": "definitely-not-a-real-legislator"})
+    no_results_response = client.get(
+        "/api/v1/legislators", params={"q": "definitely-not-a-real-legislator"}
+    )
     assert no_results_response.status_code == 200
     assert no_results_response.json()["data"] == []
 
@@ -414,7 +453,9 @@ def test_legislator_directory_limit_search_no_results_and_missing_profile(client
 
 
 def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
-    empty_legislator_response = client.get("/api/v1/legislators", params={"q": "Howard", "limit": 1})
+    empty_legislator_response = client.get(
+        "/api/v1/legislators", params={"q": "Howard", "limit": 1}
+    )
     assert empty_legislator_response.status_code == 200
     empty_legislator = empty_legislator_response.json()["data"][0]
 
@@ -422,15 +463,21 @@ def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
     assert bills_response.status_code == 200
     assert isinstance(bills_response.json()["data"], list)
 
-    sponsored_legislator_response = client.get("/api/v1/legislators", params={"q": "Fateh", "limit": 1})
+    sponsored_legislator_response = client.get(
+        "/api/v1/legislators", params={"q": "Fateh", "limit": 1}
+    )
     assert sponsored_legislator_response.status_code == 200
     sponsored_legislator = sponsored_legislator_response.json()["data"][0]
 
-    empty_bills_response = client.get(f"/api/v1/legislators/{sponsored_legislator['id']}/bills", params={"limit": 0})
+    empty_bills_response = client.get(
+        f"/api/v1/legislators/{sponsored_legislator['id']}/bills", params={"limit": 0}
+    )
     assert empty_bills_response.status_code == 200
     assert empty_bills_response.json()["data"] == []
 
-    sponsored_bills_response = client.get(f"/api/v1/legislators/{sponsored_legislator['id']}/bills")
+    sponsored_bills_response = client.get(
+        f"/api/v1/legislators/{sponsored_legislator['id']}/bills"
+    )
     assert sponsored_bills_response.status_code == 200
     sponsored_bills = sponsored_bills_response.json()["data"]
     assert sponsored_bills
@@ -456,7 +503,9 @@ def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
     assert second_page_payload["page"]["offset"] == 1
     if first_page_payload["page"]["has_more"]:
         assert second_page_payload["data"]
-        assert second_page_payload["data"][0]["id"] != first_page_payload["data"][0]["id"]
+        assert (
+            second_page_payload["data"][0]["id"] != first_page_payload["data"][0]["id"]
+        )
 
 
 def test_signed_in_bill_tracking_and_notification_preferences(client, auth_headers):
@@ -474,7 +523,9 @@ def test_signed_in_bill_tracking_and_notification_preferences(client, auth_heade
     assert "chief_sponsors" in first_tracked["bill"]
     assert "stats" in first_tracked["bill"]
 
-    delete_response = client.delete("/api/v1/me/tracked-bills/94-2025-SF2483", headers=auth_headers)
+    delete_response = client.delete(
+        "/api/v1/me/tracked-bills/94-2025-SF2483", headers=auth_headers
+    )
     assert delete_response.status_code == 204
 
     recreate_response = client.put(
@@ -493,7 +544,9 @@ def test_signed_in_bill_tracking_and_notification_preferences(client, auth_heade
     assert patch_response.status_code == 200
     assert patch_response.json()["data"]["note"] == "watch closely"
 
-    prefs_response = client.get("/api/v1/me/notification-preferences", headers=auth_headers)
+    prefs_response = client.get(
+        "/api/v1/me/notification-preferences", headers=auth_headers
+    )
     assert prefs_response.status_code == 200
     assert len(prefs_response.json()["data"]) >= 1
 
@@ -551,7 +604,10 @@ def test_signed_in_chat_session_and_message_flow(client, auth_headers, monkeypat
     assert send_message_response.status_code == 201
     message_payload = send_message_response.json()["data"]
     assert message_payload["assistant_message"]["role"] == "assistant"
-    assert message_payload["assistant_message"]["content"] == "OpenAI synthesized answer from bill-scoped chunks."
+    assert (
+        message_payload["assistant_message"]["content"]
+        == "OpenAI synthesized answer from bill-scoped chunks."
+    )
     assert len(message_payload["assistant_message"]["citations"]) >= 1
     assert {
         citation["bill_id"]
@@ -573,24 +629,29 @@ def test_openai_responses_payload_text_extraction():
     from alethical.api.routers.me import extract_openai_response_text
 
     assert extract_openai_response_text({"output_text": "Direct text"}) == "Direct text"
-    assert extract_openai_response_text(
-        {
-            "output": [
-                {
-                    "type": "message",
-                    "content": [
-                        {
-                            "type": "output_text",
-                            "text": "Nested Responses API text",
-                        }
-                    ],
-                }
-            ]
-        }
-    ) == "Nested Responses API text"
+    assert (
+        extract_openai_response_text(
+            {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": "Nested Responses API text",
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+        == "Nested Responses API text"
+    )
 
 
-def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(client, auth_headers, monkeypatch):
+def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(
+    client, auth_headers, monkeypatch
+):
     from sqlalchemy import select
 
     from alethical.db.schema import load_schema
@@ -600,12 +661,18 @@ def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(client, auth_
     missing_chunks_bill_key = "94-2025-HF9901"
     with get_session_factory()() as db:
         session_row = db.scalar(
-            select(schema.LegislativeSession).where(schema.LegislativeSession.slug == "94-2025-regular")
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
         )
-        chamber = db.scalar(select(schema.Chamber).where(schema.Chamber.slug == "house"))
+        chamber = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "house")
+        )
         assert session_row is not None
         assert chamber is not None
-        bill = db.scalar(select(schema.Bill).where(schema.Bill.bill_key == missing_chunks_bill_key))
+        bill = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == missing_chunks_bill_key)
+        )
         if bill is None:
             db.add(
                 schema.Bill(
@@ -692,7 +759,11 @@ def test_supporting_public_resources_and_saved_places(client, auth_headers):
 
     create_place_response = client.post(
         "/api/v1/me/saved-places",
-        json={"label": "Capitol", "address_text": "Saint Paul, MN", "is_default": False},
+        json={
+            "label": "Capitol",
+            "address_text": "Saint Paul, MN",
+            "is_default": False,
+        },
         headers=auth_headers,
     )
     assert create_place_response.status_code == 201
@@ -708,7 +779,9 @@ def test_supporting_public_resources_and_saved_places(client, auth_headers):
     assert patch_place_response.status_code == 200
     assert patch_place_response.json()["data"]["label"] == "State Capitol"
 
-    delete_place_response = client.delete(f"/api/v1/me/saved-places/{place_id}", headers=auth_headers)
+    delete_place_response = client.delete(
+        f"/api/v1/me/saved-places/{place_id}", headers=auth_headers
+    )
     assert delete_place_response.status_code == 204
 
     final_places_response = client.get("/api/v1/me/saved-places", headers=auth_headers)
@@ -729,7 +802,9 @@ def test_problem_details_and_internal_operations_routes(client, internal_headers
     assert missing_bill_problem["title"] == "Not Found"
     assert missing_bill_problem["status"] == 404
 
-    ingestion_runs_response = client.get("/internal/v1/ingestion-runs", headers=internal_headers)
+    ingestion_runs_response = client.get(
+        "/internal/v1/ingestion-runs", headers=internal_headers
+    )
     assert ingestion_runs_response.status_code == 200
     assert isinstance(ingestion_runs_response.json()["data"], list)
 
@@ -746,23 +821,39 @@ def test_authenticated_surfaces_reject_anonymous_requests(client):
     protected_requests = [
         ("get", "/api/v1/me", None),
         ("get", "/api/v1/me/tracked-bills", None),
-        ("put", "/api/v1/me/tracked-bills/94-2025-SF1832", {"alerts_enabled": True, "note": None}),
+        (
+            "put",
+            "/api/v1/me/tracked-bills/94-2025-SF1832",
+            {"alerts_enabled": True, "note": None},
+        ),
         ("get", "/api/v1/me/chat-sessions", None),
-        ("post", "/api/v1/me/chat-sessions", {"title": "Private chat", "subject_bill_id": None}),
+        (
+            "post",
+            "/api/v1/me/chat-sessions",
+            {"title": "Private chat", "subject_bill_id": None},
+        ),
         ("get", "/api/v1/me/notification-preferences", None),
         ("get", "/api/v1/me/saved-places", None),
     ]
 
     for method, path, json_body in protected_requests:
-        response = getattr(client, method)(path, json=json_body) if json_body is not None else getattr(client, method)(path)
+        response = (
+            getattr(client, method)(path, json=json_body)
+            if json_body is not None
+            else getattr(client, method)(path)
+        )
         assert response.status_code == 401, path
         payload = response.json()
         assert payload["title"] == "Unauthorized"
         assert payload["status"] == 401
 
 
-def test_tracking_include_requires_authentication_but_public_surfaces_stay_open(client, auth_headers):
-    public_bills_response = client.get("/api/v1/bills", params={"session": "94-2025-regular"})
+def test_tracking_include_requires_authentication_but_public_surfaces_stay_open(
+    client, auth_headers
+):
+    public_bills_response = client.get(
+        "/api/v1/bills", params={"session": "94-2025-regular"}
+    )
     assert public_bills_response.status_code == 200
     assert "tracked" not in public_bills_response.json()["data"][0]
 
@@ -771,7 +862,10 @@ def test_tracking_include_requires_authentication_but_public_surfaces_stay_open(
         params={"session": "94-2025-regular", "include": "tracking"},
     )
     assert anonymous_tracking_response.status_code == 401
-    assert anonymous_tracking_response.json()["detail"] == "Authentication required to include tracking state"
+    assert (
+        anonymous_tracking_response.json()["detail"]
+        == "Authentication required to include tracking state"
+    )
 
     anonymous_detail_tracking_response = client.get(
         "/api/v1/bills/94-2025-SF1832",
@@ -805,5 +899,7 @@ def test_internal_routes_require_internal_token(client, internal_headers):
     )
     assert invalid_token_response.status_code == 401
 
-    valid_token_response = client.get("/internal/v1/ingestion-runs", headers=internal_headers)
+    valid_token_response = client.get(
+        "/internal/v1/ingestion-runs", headers=internal_headers
+    )
     assert valid_token_response.status_code == 200

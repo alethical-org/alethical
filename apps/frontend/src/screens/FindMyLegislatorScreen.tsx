@@ -47,8 +47,16 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
           onChangeText={setAddress}
         />
         <View style={styles.quickRow}>
-          <PrimaryButton label="Minneapolis" tone="secondary" onPress={() => setAddress('350 S 5th St, Minneapolis, MN 55415')} />
-          <PrimaryButton label="Saint Paul" tone="secondary" onPress={() => setAddress('175 Kellogg Blvd W, Saint Paul, MN 55102')} />
+          <PrimaryButton
+            label="Minneapolis"
+            tone="secondary"
+            onPress={() => setAddress('350 S 5th St, Minneapolis, MN 55415')}
+          />
+          <PrimaryButton
+            label="Saint Paul"
+            tone="secondary"
+            onPress={() => setAddress('175 Kellogg Blvd W, Saint Paul, MN 55102')}
+          />
         </View>
       </Card>
 
@@ -73,12 +81,16 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
       {representativeLookup.error ? (
         <Card>
           <Text style={styles.bodyText}>
-            {representativeLookup.error instanceof Error ? representativeLookup.error.message : 'Representative lookup failed.'}
+            {representativeLookup.error instanceof Error
+              ? representativeLookup.error.message
+              : 'Representative lookup failed.'}
           </Text>
         </Card>
       ) : null}
 
-      {!representativeLookup.isPending && !representativeLookup.error && representativeLookup.data ? (
+      {!representativeLookup.isPending &&
+      !representativeLookup.error &&
+      representativeLookup.data ? (
         <>
           <Card>
             <Text style={styles.title}>{representativeLookup.data.address}</Text>
@@ -98,10 +110,13 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
         </>
       ) : null}
 
-      {!representativeLookup.isPending && !representativeLookup.error && !representativeLookup.data ? (
+      {!representativeLookup.isPending &&
+      !representativeLookup.error &&
+      !representativeLookup.data ? (
         <Card>
           <Text style={styles.bodyText}>
-            Start with an address to see likely matches for your Minnesota Senate and House districts.
+            Start with an address to see likely matches for your Minnesota Senate and House
+            districts.
           </Text>
         </Card>
       ) : null}

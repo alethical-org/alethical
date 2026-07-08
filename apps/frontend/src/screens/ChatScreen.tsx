@@ -26,7 +26,10 @@ export function ChatScreen({ navigation }: Props) {
   const sessions = chatSessionsQuery.data ?? [];
 
   return (
-    <ScreenView title="Chat" subtitle="Saved conversations scoped to bills and grounded source material.">
+    <ScreenView
+      title="Chat"
+      subtitle="Saved conversations scoped to bills and grounded source material."
+    >
       <Card>
         <View style={styles.promptHeader}>
           <View style={styles.promptIcon}>
@@ -35,7 +38,8 @@ export function ChatScreen({ navigation }: Props) {
           <View style={styles.promptCopy}>
             <Text style={styles.cardTitle}>Start from a bill</Text>
             <Text style={styles.bodyText}>
-              Open any bill and use its suggested questions so retrieval stays tied to the official record.
+              Open any bill and use its suggested questions so retrieval stays tied to the official
+              record.
             </Text>
           </View>
         </View>
@@ -49,13 +53,17 @@ export function ChatScreen({ navigation }: Props) {
       {chatSessionsQuery.error ? (
         <Card>
           <Text style={styles.bodyText}>
-            {chatSessionsQuery.error instanceof Error ? chatSessionsQuery.error.message : 'Chat sessions could not be loaded.'}
+            {chatSessionsQuery.error instanceof Error
+              ? chatSessionsQuery.error.message
+              : 'Chat sessions could not be loaded.'}
           </Text>
         </Card>
       ) : null}
       {!chatSessionsQuery.isLoading && !chatSessionsQuery.error && sessions.length === 0 ? (
         <Card>
-          <Text style={styles.bodyText}>No conversations yet. Search for a bill and start with a suggested question.</Text>
+          <Text style={styles.bodyText}>
+            No conversations yet. Search for a bill and start with a suggested question.
+          </Text>
         </Card>
       ) : null}
       {!chatSessionsQuery.isLoading && !chatSessionsQuery.error && sessions.length > 0 ? (
@@ -70,7 +78,8 @@ export function ChatScreen({ navigation }: Props) {
             >
               <Text style={styles.sessionTitle}>{session.title}</Text>
               <Text style={styles.sessionMeta}>
-                {session.subjectLabel ?? session.subjectId ?? 'General'} | {session.updatedAt.slice(0, 10)}
+                {session.subjectLabel ?? session.subjectId ?? 'General'} |{' '}
+                {session.updatedAt.slice(0, 10)}
               </Text>
             </Pressable>
           ))}

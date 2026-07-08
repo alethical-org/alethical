@@ -56,7 +56,9 @@ class QueryCounter:
         self.engine = engine
         self.statements: list[str] = []
 
-    def before_cursor_execute(self, conn, cursor, statement, parameters, context, executemany):
+    def before_cursor_execute(
+        self, conn, cursor, statement, parameters, context, executemany
+    ):
         self.statements.append(" ".join(statement.split()))
 
     @contextmanager
@@ -66,11 +68,17 @@ class QueryCounter:
         try:
             yield self
         finally:
-            event.remove(self.engine, "before_cursor_execute", self.before_cursor_execute)
+            event.remove(
+                self.engine, "before_cursor_execute", self.before_cursor_execute
+            )
 
 
 def compile_sql(statement, engine) -> str:
-    return str(statement.compile(dialect=engine.dialect, compile_kwargs={"literal_binds": True}))
+    return str(
+        statement.compile(
+            dialect=engine.dialect, compile_kwargs={"literal_binds": True}
+        )
+    )
 
 
 def explain_preview(statement, engine) -> str:
@@ -90,7 +98,11 @@ def validate_bill_list(session: Session, engine, session_id, user_id) -> Surface
         bills = session.scalars(stmt).all()
         for bill in bills:
             _ = bill.stats.sponsor_count if bill.stats else 0
-            _ = [s.legislator.full_name for s in bill.chief_sponsorships[:3] if s.legislator]
+            _ = [
+                s.legislator.full_name
+                for s in bill.chief_sponsorships[:3]
+                if s.legislator
+            ]
             _ = bool(bill.tracked_by)
     notes = [
         "Direct path exists for bill cards, stats, sponsor preview, and tracked state.",
@@ -99,7 +111,13 @@ def validate_bill_list(session: Session, engine, session_id, user_id) -> Surface
         "Sponsor preview is limited to chief sponsorships.",
     ]
     status = "pass"
-    return SurfaceResult("bill_list", status, len(counter.statements), notes, explain_preview(stmt, engine))
+    return SurfaceResult(
+        "bill_list",
+        status,
+        len(counter.statements),
+        notes,
+        explain_preview(stmt, engine),
+    )
 
 
 def validate_bill_detail(session: Session, engine, bill_id) -> SurfaceResult:
@@ -120,10 +138,18 @@ def validate_bill_detail(session: Session, engine, bill_id) -> SurfaceResult:
         f"Executed as {len(counter.statements)} SQL statements on the sample dataset.",
         "Tracked state and AI enrichments are part of the detail helper.",
     ]
-    return SurfaceResult("bill_detail", "pass", len(counter.statements), notes, explain_preview(stmt, engine))
+    return SurfaceResult(
+        "bill_detail",
+        "pass",
+        len(counter.statements),
+        notes,
+        explain_preview(stmt, engine),
+    )
 
 
-def validate_legislator_directory(session: Session, engine, session_id) -> SurfaceResult:
+def validate_legislator_directory(
+    session: Session, engine, session_id
+) -> SurfaceResult:
     stmt = legislator_directory_stmt(session_id)
     with QueryCounter(engine).capture() as counter:
         legislators = session.scalars(stmt).all()
@@ -136,10 +162,18 @@ def validate_legislator_directory(session: Session, engine, session_id) -> Surfa
         f"Executed as {len(counter.statements)} SQL statements on the sample dataset.",
         "The eager load is constrained to the current service period for the current session.",
     ]
-    return SurfaceResult("legislator_directory", "pass", len(counter.statements), notes, explain_preview(stmt, engine))
+    return SurfaceResult(
+        "legislator_directory",
+        "pass",
+        len(counter.statements),
+        notes,
+        explain_preview(stmt, engine),
+    )
 
 
-def validate_legislator_profile(session: Session, engine, legislator_id) -> SurfaceResult:
+def validate_legislator_profile(
+    session: Session, engine, legislator_id
+) -> SurfaceResult:
     session_id = session.scalar(select(LegislatorServicePeriod.session_id).limit(1))
     stmt = legislator_profile_stmt(legislator_id, session_id)
     sponsored_bills_stmt = legislator_sponsored_bills_stmt(legislator_id, session_id)
@@ -151,19 +185,32 @@ def validate_legislator_profile(session: Session, engine, legislator_id) -> Surf
         _ = [period.party for period in legislator.service_periods]
         sponsored_bills = session.scalars(sponsored_bills_stmt).all()
         _ = [bill.stats.sponsor_count if bill.stats else 0 for bill in sponsored_bills]
-        _ = [[s.legislator.full_name for s in bill.chief_sponsorships if s.legislator] for bill in sponsored_bills]
+        _ = [
+            [s.legislator.full_name for s in bill.chief_sponsorships if s.legislator]
+            for bill in sponsored_bills
+        ]
         _ = session.scalars(vote_history_stmt.limit(25)).all()
     notes = [
         "Profile root, sponsored bills, and vote history all have dedicated query helpers.",
         f"Executed as {len(counter.statements)} SQL statements on the sample dataset.",
         "Current-state service data is filtered to the requested session.",
     ]
-    return SurfaceResult("legislator_profile", "pass", len(counter.statements), notes, explain_preview(stmt, engine))
+    return SurfaceResult(
+        "legislator_profile",
+        "pass",
+        len(counter.statements),
+        notes,
+        explain_preview(stmt, engine),
+    )
 
 
-def validate_find_my_legislator(session: Session, engine, session_id, user_id) -> SurfaceResult:
+def validate_find_my_legislator(
+    session: Session, engine, session_id, user_id
+) -> SurfaceResult:
     saved_place = session.scalar(
-        select(SavedPlace).where(SavedPlace.user_id == user_id, SavedPlace.is_default.is_(True))
+        select(SavedPlace).where(
+            SavedPlace.user_id == user_id, SavedPlace.is_default.is_(True)
+        )
     )
     district_ids = []
     if saved_place is not None:
@@ -177,7 +224,9 @@ def validate_find_my_legislator(session: Session, engine, session_id, user_id) -
             )
             .limit(2)
         ).all()
-    stmt = find_my_legislator_stmt(session_id, [district_id for district_id in district_ids if district_id])
+    stmt = find_my_legislator_stmt(
+        session_id, [district_id for district_id in district_ids if district_id]
+    )
     with QueryCounter(engine).capture() as counter:
         periods = session.scalars(stmt).all()
         _ = [(period.legislator.full_name, period.district.code) for period in periods]
@@ -186,7 +235,13 @@ def validate_find_my_legislator(session: Session, engine, session_id, user_id) -
         f"Executed as {len(counter.statements)} SQL statements on the sample dataset.",
         "This depends on external GIS lookup to provide district identifiers, which is the intended boundary.",
     ]
-    return SurfaceResult("find_my_legislator", "pass", len(counter.statements), notes, explain_preview(stmt, engine))
+    return SurfaceResult(
+        "find_my_legislator",
+        "pass",
+        len(counter.statements),
+        notes,
+        explain_preview(stmt, engine),
+    )
 
 
 def validate_tracked_bills(session: Session, engine, user_id) -> SurfaceResult:
@@ -196,13 +251,23 @@ def validate_tracked_bills(session: Session, engine, user_id) -> SurfaceResult:
         for row in tracked:
             _ = row.bill.title
             _ = row.bill.stats.action_count if row.bill.stats else 0
-            _ = [s.legislator.full_name for s in row.bill.chief_sponsorships[:3] if s.legislator]
+            _ = [
+                s.legislator.full_name
+                for s in row.bill.chief_sponsorships[:3]
+                if s.legislator
+            ]
     notes = [
         "Tracked bills are a first-class join and are directly queryable for signed-in users.",
         f"Executed as {len(counter.statements)} SQL statements on the sample dataset.",
         "Tracked bill cards use the same chief-sponsor preview path as the main bill list.",
     ]
-    return SurfaceResult("tracked_bills", "pass", len(counter.statements), notes, explain_preview(stmt, engine))
+    return SurfaceResult(
+        "tracked_bills",
+        "pass",
+        len(counter.statements),
+        notes,
+        explain_preview(stmt, engine),
+    )
 
 
 def validate_chat_retrieval(session: Session, engine, bill_id) -> SurfaceResult:
@@ -217,8 +282,13 @@ def validate_chat_retrieval(session: Session, engine, bill_id) -> SurfaceResult:
     )
     with QueryCounter(engine).capture() as counter:
         chunks = session.scalars(stmt).all()
-        _ = [(chunk.citation_label, chunk.rag_section_document.bill_id) for chunk in chunks]
-    embedding_count = session.scalar(select(func.count()).select_from(RagChunkEmbedding))
+        _ = [
+            (chunk.citation_label, chunk.rag_section_document.bill_id)
+            for chunk in chunks
+        ]
+    embedding_count = session.scalar(
+        select(func.count()).select_from(RagChunkEmbedding)
+    )
     vector_index_exists = session.execute(
         text(
             """
@@ -238,20 +308,31 @@ def validate_chat_retrieval(session: Session, engine, bill_id) -> SurfaceResult:
         f"Current sample embedding row count: {embedding_count}.",
     ]
     status = "pass" if vector_index_exists and embedding_count > 0 else "fail"
-    return SurfaceResult("chat_retrieval", status, len(counter.statements), notes, explain_preview(stmt, engine))
+    return SurfaceResult(
+        "chat_retrieval",
+        status,
+        len(counter.statements),
+        notes,
+        explain_preview(stmt, engine),
+    )
 
 
 def main() -> None:
     database_url = os.environ.get(
-        "DATABASE_URL", "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+        "DATABASE_URL",
+        "postgresql+psycopg://alethical:alethical@localhost:54329/alethical",
     )
     engine = create_engine(database_url, echo=False)
 
     with Session(engine) as session:
         session_id = session.scalar(select(LegislatorServicePeriod.session_id).limit(1))
         user_id = session.scalar(select(TrackedBill.user_id).limit(1))
-        bill_id = session.scalar(select(Bill.id).order_by(Bill.file_number.asc()).limit(1))
-        legislator_id = session.scalar(select(Legislator.id).order_by(Legislator.sort_name.asc()).limit(1))
+        bill_id = session.scalar(
+            select(Bill.id).order_by(Bill.file_number.asc()).limit(1)
+        )
+        legislator_id = session.scalar(
+            select(Legislator.id).order_by(Legislator.sort_name.asc()).limit(1)
+        )
 
         results = [
             validate_bill_list(session, engine, session_id, user_id),

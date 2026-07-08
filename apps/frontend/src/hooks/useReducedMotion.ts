@@ -15,7 +15,7 @@ export function useReducedMotion() {
 
     const subscription = AccessibilityInfo.addEventListener(
       'reduceMotionChanged',
-      setReducedMotion
+      setReducedMotion,
     );
 
     return () => {

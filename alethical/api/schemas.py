@@ -201,7 +201,9 @@ class RepresentativeLookupRequest(BaseModel):
         has_latitude = self.latitude is not None
         has_longitude = self.longitude is not None
         if has_address and (has_latitude or has_longitude):
-            raise ValueError("provide either address_text or latitude/longitude, not both")
+            raise ValueError(
+                "provide either address_text or latitude/longitude, not both"
+            )
         if has_latitude != has_longitude:
             raise ValueError("latitude and longitude must be provided together")
         if not has_address and not (has_latitude and has_longitude):
