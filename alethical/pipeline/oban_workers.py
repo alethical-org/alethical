@@ -13,14 +13,20 @@ from oban import Record, worker
 from alethical.db.session import database_url_for_target, get_database_url
 
 
-async def _enqueue_child(worker_cls: Any, args: dict[str, Any], *, force: bool = False) -> dict[str, Any]:
-    from alethical.pipeline.oban import enqueue_unique, open_pool, oban_dsn, task_key
+async def _enqueue_child(
+    worker_cls: Any, args: dict[str, Any], *, force: bool = False
+) -> dict[str, Any]:
+    from alethical.pipeline.oban import enqueue_unique, oban_dsn, open_pool, task_key
 
     child_args = dict(args)
-    child_args["task_key"] = child_args.get("task_key") or task_key(child_args.pop("_kind"), child_args)
+    child_args["task_key"] = child_args.get("task_key") or task_key(
+        child_args.pop("_kind"), child_args
+    )
     oban_value = child_args.get("oban_dsn")
     if oban_value is None:
-        oban_value = database_url_for_target(str(child_args.get("oban_target") or "local"))
+        oban_value = database_url_for_target(
+            str(child_args.get("oban_target") or "local")
+        )
     pool = await open_pool(oban_dsn(str(oban_value)))
     try:
         return await enqueue_unique(pool, worker_cls, child_args, force=force)
@@ -43,14 +49,28 @@ def _bool_arg(args: dict[str, Any], name: str, default: bool = False) -> bool:
     return bool(value)
 
 
+def _resolve_rag_write_url(args: dict[str, Any]) -> str:
+    """Resolve the DB URL for RAG writes, enforcing the production-only convention.
+
+    The canonical RAG store lives in production, so RAG writes must target it
+    explicitly. Falls back to database_target, then "local" (which is rejected).
+    """
+    rag_target = str(args.get("rag_target") or args.get("database_target") or "local")
+    if rag_target != "production":
+        raise ValueError("RAG writes require rag_target=production")
+    return _database_url({"database_target": rag_target})
+
+
 @worker(queue="maintenance", max_attempts=1, tags=["smoke"])
 class ObanSmokeWorker:
     async def process(self, job):
-        return Record({
-            "ok": True,
-            "message": str(job.args.get("message") or "oban smoke ok"),
-            "task_key": job.args.get("task_key"),
-        })
+        return Record(
+            {
+                "ok": True,
+                "message": str(job.args.get("message") or "oban smoke ok"),
+                "task_key": job.args.get("task_key"),
+            }
+        )
 
 
 @worker(queue="source_sync", max_attempts=1, tags=["pipeline", "coordinator"])
@@ -81,7 +101,9 @@ class PipelineRunWorker:
                         "session_code": str(job.args.get("session_code") or "0942025"),
                         "max_bill_number": int(job.args.get("max_bill_number") or 6000),
                         "chunk_size": int(job.args.get("chunk_size") or 25),
-                        "refresh_existing": _bool_arg(job.args, "refresh_existing", False),
+                        "refresh_existing": _bool_arg(
+                            job.args, "refresh_existing", False
+                        ),
                         "dry_run": dry_run,
                         "allow_writes": allow_writes,
                     },
@@ -97,7 +119,9 @@ class PipelineRunWorker:
                         "_kind": "committee-backfill",
                         "task_key": f"{run_id}:committee-backfill",
                         "dry_run": dry_run,
-                        "cleanup_orphans": _bool_arg(job.args, "cleanup_orphans", False),
+                        "cleanup_orphans": _bool_arg(
+                            job.args, "cleanup_orphans", False
+                        ),
                     },
                     force=force_job,
                 )
@@ -128,10 +152,16 @@ class PipelineRunWorker:
                         "session": str(job.args.get("session") or "94-2025-regular"),
                         "bill_key": job.args.get("bill_key"),
                         "limit": job.args.get("ai_limit"),
-                        "max_input_chars": int(job.args.get("max_input_chars") or 60_000),
+                        "max_input_chars": int(
+                            job.args.get("max_input_chars") or 60_000
+                        ),
                         "force": _bool_arg(job.args, "force_enrichment", False),
-                        "only_missing_current": _bool_arg(job.args, "only_missing_current_ai", False),
-                        "output_dir": str(job.args.get("output_dir") or ".tmp/openai-batches"),
+                        "only_missing_current": _bool_arg(
+                            job.args, "only_missing_current_ai", False
+                        ),
+                        "output_dir": str(
+                            job.args.get("output_dir") or ".tmp/openai-batches"
+                        ),
                     },
                     force=force_job,
                 )
@@ -143,9 +173,11 @@ class PipelineRunWorker:
 @worker(queue="source_sync", max_attempts=2, tags=["ingestion", "bills"])
 class FullBillSyncWorker:
     async def process(self, job):
-        from alethical.pipeline.minnesota import MinnesotaIngestionPipeline
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session
+
+        from alethical.pipeline.minnesota import MinnesotaIngestionPipeline
+        from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL
 
         def run() -> dict[str, Any]:
             engine = create_engine(_database_url(job.args), pool_pre_ping=True)
@@ -163,17 +195,25 @@ class FullBillSyncWorker:
                         "targets_discovered": len(targets),
                         "chunk_size": chunk_size,
                         "chunks_discovered": math.ceil(len(targets) / chunk_size),
-                        "sample": [f"{target.chamber} {target.bill_number}" for target in targets[:10]],
+                        "sample": [
+                            f"{target.chamber} {target.bill_number}"
+                            for target in targets[:10]
+                        ],
                     }
                 if not _bool_arg(job.args, "allow_writes", False):
-                    raise ValueError("Full bill sync requires allow_writes=true when dry_run=false")
+                    raise ValueError(
+                        "Full bill sync requires allow_writes=true when dry_run=false"
+                    )
 
                 return {
                     "dry_run": False,
                     "targets_discovered": len(targets),
                     "chunk_size": chunk_size,
                     "chunks_discovered": math.ceil(len(targets) / chunk_size),
-                    "sample": [f"{target.chamber} {target.bill_number}" for target in targets[:10]],
+                    "sample": [
+                        f"{target.chamber} {target.bill_number}"
+                        for target in targets[:10]
+                    ],
                     "_targets": [target.__dict__ for target in targets],
                 }
 
@@ -203,9 +243,15 @@ class FullBillSyncWorker:
                             "allow_writes": True,
                             "targets": chunk,
                             "include_rag": _bool_arg(job.args, "include_rag", True),
-                            "rag_target": str(job.args.get("rag_target") or "production"),
-                            "rag_model": str(job.args.get("rag_model") or "demo-minilm-1536"),
-                            "rag_embedding_batch_size": int(job.args.get("rag_embedding_batch_size") or 32),
+                            "rag_target": str(
+                                job.args.get("rag_target") or "production"
+                            ),
+                            "rag_model": str(
+                                job.args.get("rag_model") or DEFAULT_RAG_MODEL
+                            ),
+                            "rag_embedding_batch_size": int(
+                                job.args.get("rag_embedding_batch_size") or 32
+                            ),
                         },
                         force=_bool_arg(job.args, "force_chunks", False),
                     )
@@ -218,9 +264,10 @@ class FullBillSyncWorker:
 @worker(queue="bill_sync", max_attempts=3, tags=["ingestion", "bills", "chunk"])
 class BillSyncChunkWorker:
     async def process(self, job):
-        from alethical.pipeline.minnesota import BillTarget, MinnesotaIngestionPipeline
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session
+
+        from alethical.pipeline.minnesota import BillTarget, MinnesotaIngestionPipeline
 
         def run() -> dict[str, Any]:
             targets = [
@@ -232,34 +279,48 @@ class BillSyncChunkWorker:
                 for item in job.args.get("targets", [])
             ]
             if not targets:
-                return {"dry_run": _bool_arg(job.args, "dry_run", True), "bills_ingested": 0, "bill_keys": []}
+                return {
+                    "dry_run": _bool_arg(job.args, "dry_run", True),
+                    "bills_ingested": 0,
+                    "bill_keys": [],
+                }
             if _bool_arg(job.args, "dry_run", True):
                 return {
                     "dry_run": True,
                     "bills_discovered": len(targets),
-                    "sample": [f"{target.chamber} {target.bill_number}" for target in targets[:10]],
+                    "sample": [
+                        f"{target.chamber} {target.bill_number}"
+                        for target in targets[:10]
+                    ],
                 }
             if not _bool_arg(job.args, "allow_writes", False):
-                raise ValueError("Bill sync chunk requires allow_writes=true when dry_run=false")
+                raise ValueError(
+                    "Bill sync chunk requires allow_writes=true when dry_run=false"
+                )
 
             engine = create_engine(_database_url(job.args), pool_pre_ping=True)
             with Session(engine) as db:
                 pipeline = MinnesotaIngestionPipeline(db)
                 stats = pipeline.ingest_bills(targets)
                 if _bool_arg(job.args, "include_rag", True):
-                    from alethical.pipeline.rag_ingest import build_rag_rows_for_bill_keys
-                    rag_target = str(job.args.get("rag_target") or job.args.get("database_target") or "local")
-                    if rag_target != "production":
-                        raise ValueError("Bill sync chunk rag stage requires rag_target=production when allow_writes=true")
-                    rag_db = _database_url({"database_target": rag_target})
+                    from alethical.pipeline.rag_ingest import (
+                        DEFAULT_RAG_MODEL,
+                        build_rag_rows_for_bill_keys,
+                    )
+
+                    rag_db = _resolve_rag_write_url(job.args)
                     rag_engine = create_engine(rag_db, pool_pre_ping=True)
                     with Session(rag_engine) as rag_db_session:
                         rag_stats = build_rag_rows_for_bill_keys(
                             rag_db_session,
                             bill_keys=stats.get("bill_keys", []),
                             dry_run=False,
-                            rag_model=str(job.args.get("rag_model") or "demo-minilm-1536"),
-                            rag_embedding_batch_size=int(job.args.get("rag_embedding_batch_size") or 32),
+                            rag_model=str(
+                                job.args.get("rag_model") or DEFAULT_RAG_MODEL
+                            ),
+                            rag_embedding_batch_size=int(
+                                job.args.get("rag_embedding_batch_size") or 32
+                            ),
                         )
                         rag_db_session.commit()
                         stats.update(rag_stats)
@@ -269,12 +330,137 @@ class BillSyncChunkWorker:
         return Record(await asyncio.to_thread(run))
 
 
+@worker(queue="rag_sync", max_attempts=3, tags=["rag", "backfill"])
+class RagBackfillWorker:
+    """Discover bills with stale/missing embeddings and enqueue chunk jobs.
+
+    Parent worker. Mirrors FullBillSyncWorker's pattern: discover candidates,
+    split into chunks, enqueue RagBackfillChunkWorker children on rag_sync.
+    Each child calls build_rag_rows_for_bill_keys, which is idempotent and
+    re-embeds only when embedding_model differs from the stored value.
+    """
+
+    async def process(self, job):
+        from sqlalchemy import create_engine, text
+        from sqlalchemy.orm import Session
+
+        from alethical.pipeline import rag as rag_text
+        from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL
+
+        def run() -> dict[str, Any]:
+            rag_model = str(job.args.get("rag_model") or DEFAULT_RAG_MODEL)
+            engine = create_engine(_database_url(job.args), pool_pre_ping=True)
+            with Session(engine) as db:
+                rows = db.execute(
+                    text(rag_text.STALE_RAG_BILL_KEYS_SQL),
+                    {
+                        "cleaning_version": rag_text.CLEANING_VERSION,
+                        "chunking_version": rag_text.CHUNKING_VERSION,
+                        "model": rag_model,
+                    },
+                ).all()
+                bill_keys = [row[0] for row in rows]
+            chunk_size = max(1, int(job.args.get("chunk_size") or 25))
+            summary = {
+                "rag_model": rag_model,
+                "candidates": len(bill_keys),
+                "chunk_size": chunk_size,
+                "chunks": math.ceil(len(bill_keys) / chunk_size),
+            }
+            if _bool_arg(job.args, "dry_run", True):
+                return {**summary, "dry_run": True, "sample": bill_keys[:10]}
+            if not _bool_arg(job.args, "allow_writes", False):
+                raise ValueError(
+                    "RAG backfill requires allow_writes=true when dry_run=false"
+                )
+            return {**summary, "dry_run": False, "_bill_keys": bill_keys}
+
+        result = await asyncio.to_thread(run)
+        if not _bool_arg(job.args, "dry_run", True) and result.get("_bill_keys"):
+            bill_keys = list(result.pop("_bill_keys"))
+            chunk_size = int(result["chunk_size"])
+            run_id = str(job.args.get("task_key") or "rag-backfill")
+            common = {
+                "database_target": job.args.get("database_target"),
+                "oban_target": job.args.get("oban_target"),
+                "oban_dsn": job.args.get("oban_dsn"),
+                "rag_model": result["rag_model"],
+                "rag_target": str(job.args.get("rag_target") or "production"),
+                "rag_embedding_batch_size": int(
+                    job.args.get("rag_embedding_batch_size") or 32
+                ),
+            }
+            if job.args.get("database_url"):
+                common["database_url"] = _database_url(job.args)
+            children = []
+            for chunk_index in range(0, len(bill_keys), chunk_size):
+                chunk = bill_keys[chunk_index : chunk_index + chunk_size]
+                children.append(
+                    await _enqueue_child(
+                        RagBackfillChunkWorker,
+                        {
+                            **common,
+                            "_kind": "rag-backfill-chunk",
+                            "task_key": f"{run_id}:chunk-{chunk_index // chunk_size + 1:04d}",
+                            "bill_keys": chunk,
+                        },
+                        force=_bool_arg(job.args, "force_chunks", False),
+                    )
+                )
+            result["children"] = children
+        return Record(result)
+
+
+@worker(queue="rag_sync", max_attempts=3, tags=["rag", "backfill"])
+class RagBackfillChunkWorker:
+    """Re-embed a batch of bill_keys via build_rag_rows_for_bill_keys.
+
+    Child worker. Idempotent: re-embeds only when the stored embedding_model
+    differs from the target, so retries and re-runs are safe.
+    """
+
+    async def process(self, job):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session
+
+        from alethical.pipeline.rag_ingest import (
+            DEFAULT_RAG_MODEL,
+            build_rag_rows_for_bill_keys,
+        )
+
+        def run() -> dict[str, Any]:
+            bill_keys = list(job.args.get("bill_keys", []))
+            if not bill_keys:
+                return {"rag_built": 0, "rag_skipped": 0, "rag_already_exists": 0}
+            engine = create_engine(_resolve_rag_write_url(job.args), pool_pre_ping=True)
+            with Session(engine) as db:
+                stats = build_rag_rows_for_bill_keys(
+                    db,
+                    bill_keys=bill_keys,
+                    dry_run=False,
+                    rag_model=str(job.args.get("rag_model") or DEFAULT_RAG_MODEL),
+                    rag_embedding_batch_size=int(
+                        job.args.get("rag_embedding_batch_size") or 32
+                    ),
+                )
+                db.commit()
+            return {
+                "rag_built": stats.get("rag_built", 0),
+                "rag_skipped": stats.get("rag_skipped", 0),
+                "rag_already_exists": stats.get("rag_already_exists", 0),
+                "bill_keys": bill_keys,
+            }
+
+        return Record(await asyncio.to_thread(run))
+
+
 @worker(queue="committee_sync", max_attempts=3, tags=["ingestion", "committee"])
 class CommitteeMembershipBackfillWorker:
     async def process(self, job):
-        from alethical.pipeline.committee_memberships import backfill
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session
+
+        from alethical.pipeline.committee_memberships import backfill
 
         def run() -> dict[str, Any]:
             engine = create_engine(_database_url(job.args), pool_pre_ping=True)
@@ -292,9 +478,10 @@ class CommitteeMembershipBackfillWorker:
 @worker(queue="vote_sync", max_attempts=3, tags=["ingestion", "votes"])
 class VoteBackfillWorker:
     async def process(self, job):
-        from alethical.pipeline.votes import backfill_votes
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session
+
+        from alethical.pipeline.votes import backfill_votes
 
         def run() -> dict[str, Any]:
             engine = create_engine(_database_url(job.args), pool_pre_ping=True)
@@ -316,7 +503,10 @@ class AiBatchPrepareWorker:
 
         def run() -> dict[str, Any]:
             output_dir = str(job.args.get("output_dir") or ".tmp/openai-batches")
-            before = {path.name for path in Path(output_dir).glob("ai-enrichment-*.manifest.json")}
+            before = {
+                path.name
+                for path in Path(output_dir).glob("ai-enrichment-*.manifest.json")
+            }
             prepare_batch(
                 Namespace(
                     database_url=_database_url(job.args),
@@ -327,10 +517,16 @@ class AiBatchPrepareWorker:
                     limit=job.args.get("limit"),
                     max_input_chars=int(job.args.get("max_input_chars") or 60_000),
                     force=_bool_arg(job.args, "force", False),
-                    only_missing_current=_bool_arg(job.args, "only_missing_current", False),
+                    only_missing_current=_bool_arg(
+                        job.args, "only_missing_current", False
+                    ),
                 )
             )
-            after = sorted(path for path in Path(output_dir).glob("ai-enrichment-*.manifest.json") if path.name not in before)
+            after = sorted(
+                path
+                for path in Path(output_dir).glob("ai-enrichment-*.manifest.json")
+                if path.name not in before
+            )
             return {
                 "output_dir": output_dir,
                 "manifest_path": str(after[-1]) if after else None,
@@ -344,8 +540,12 @@ class AiBatchApplyWorker:
     async def process(self, job):
         from alethical.pipeline.ai_enrichment import apply_output
 
-        if not _bool_arg(job.args, "dry_run", True) and not _bool_arg(job.args, "allow_writes", False):
-            raise ValueError("AI batch apply requires allow_writes=true when dry_run=false")
+        if not _bool_arg(job.args, "dry_run", True) and not _bool_arg(
+            job.args, "allow_writes", False
+        ):
+            raise ValueError(
+                "AI batch apply requires allow_writes=true when dry_run=false"
+            )
 
         def run() -> dict[str, Any]:
             apply_output(
@@ -378,7 +578,12 @@ class CodexAiEnqueueWorker:
 
         manifest_path = Path(str(job.args["manifest_path"]))
         jsonl_path = Path(str(job.args["jsonl_path"]))
-        run_dir = Path(str(job.args.get("run_dir") or ".tmp/codex-ai-runs/production-missing-current"))
+        run_dir = Path(
+            str(
+                job.args.get("run_dir")
+                or ".tmp/codex-ai-runs/production-missing-current"
+            )
+        )
         prompts_dir = run_dir / "prompts"
         outputs_dir = run_dir / "outputs"
         schema_path = write_schema(run_dir / "summary-schema.json")
@@ -429,7 +634,13 @@ class CodexAiEnqueueWorker:
         child_args, skipped_done = await asyncio.to_thread(prepare_files)
         children = []
         for args in child_args:
-            children.append(await _enqueue_child(CodexAiRequestWorker, {"_kind": "codex-ai-request", **args}, force=False))
+            children.append(
+                await _enqueue_child(
+                    CodexAiRequestWorker,
+                    {"_kind": "codex-ai-request", **args},
+                    force=False,
+                )
+            )
         return Record(
             {
                 "run_dir": str(run_dir),
@@ -455,7 +666,11 @@ class CodexAiRequestWorker:
             response_path = output_path.with_suffix(".response.json")
             codex_model = str(job.args.get("codex_model") or "gpt-5.5")
             if output_path.exists():
-                return {"custom_id": custom_id, "output_path": str(output_path), "skipped": True}
+                return {
+                    "custom_id": custom_id,
+                    "output_path": str(output_path),
+                    "skipped": True,
+                }
 
             with prompt_path.open("r", encoding="utf-8") as handle:
                 completed = subprocess.run(
@@ -484,7 +699,10 @@ class CodexAiRequestWorker:
                 raise RuntimeError(completed.stderr[-2000:] or completed.stdout[-2000:])
 
             content = json.loads(response_path.read_text(encoding="utf-8"))
-            output_path.write_text(json.dumps(output_row(custom_id, content), ensure_ascii=False) + "\n", encoding="utf-8")
+            output_path.write_text(
+                json.dumps(output_row(custom_id, content), ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
             return {
                 "custom_id": custom_id,
                 "output_path": str(output_path),
@@ -503,8 +721,12 @@ class CodexAiCombineWorker:
         def run() -> dict[str, Any]:
             return combine_output_files(
                 run_dir=Path(str(job.args["run_dir"])),
-                manifest_path=Path(str(job.args["manifest_path"])) if job.args.get("manifest_path") else None,
-                output_path=Path(str(job.args["output_path"])) if job.args.get("output_path") else None,
+                manifest_path=Path(str(job.args["manifest_path"]))
+                if job.args.get("manifest_path")
+                else None,
+                output_path=Path(str(job.args["output_path"]))
+                if job.args.get("output_path")
+                else None,
             )
 
         return Record(await asyncio.to_thread(run))

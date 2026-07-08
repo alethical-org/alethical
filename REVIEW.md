@@ -215,3 +215,12 @@ So the batch path defaults to `gpt-5.2`, the codex path to `gpt-5.5`, and the li
 5. **Parameterize the Minnesota/session constants** before any second jurisdiction is attempted (item 3).
 6. **Expand `ty check` to the whole backend** so the routers/workers type-unsafe areas get coverage (item 13).
 7. **Deduplicate `supabase_database_url()`** and clean up the compose command (items 2, 15).
+
+
+--------
+
+Notable gaps
+- **Embeddings are deterministic hashes, not semantic.** `_build_embeddings` forces `DEFAULT_RAG_MODEL` and ignores any real model — retrieval currently ranks by hash proximity, not meaning. This is the biggest gap for actual RAG quality.
+- Retrieval is **bill-scoped only** (the chat session must have `subject_bill_id`); there's no cross-bill semantic search.
+- Top-k is hardcoded to `limit=3` with no reranking, MMR, or hybrid keyword fallback.
+- `OPENAI_API_KEY` is required at synthesis time; without it the endpoint returns 503 rather than degrading to a retrieved-text-only answer.

@@ -24,14 +24,20 @@ class SupabaseAuthService:
         claims_response = self._client.auth.get_claims(bearer_token)
         if claims_response is None:
             raise ValueError("Unable to verify Supabase JWT")
-        claims = claims_response.get("claims") if isinstance(claims_response, dict) else claims_response.claims
+        claims = (
+            claims_response.get("claims")
+            if isinstance(claims_response, dict)
+            else claims_response.claims
+        )
         if not isinstance(claims, dict):
             raise ValueError("Unable to read Supabase JWT claims")
         subject = claims.get("sub")
         if not subject:
             raise ValueError("Supabase JWT missing subject")
         email = claims.get("email")
-        email_verified = bool(claims.get("email_confirmed_at") or claims.get("phone_confirmed_at"))
+        email_verified = bool(
+            claims.get("email_confirmed_at") or claims.get("phone_confirmed_at")
+        )
         return AuthenticatedPrincipal(
             provider="supabase",
             provider_subject=subject,
@@ -92,7 +98,9 @@ def get_supabase_auth_service():
         services.append(LocalDevAuthService(token=dev_auth_token))
 
     supabase_url = os.environ.get("SUPABASE_URL")
-    publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY") or os.environ.get("SUPABASE_ANON_KEY")
+    publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY") or os.environ.get(
+        "SUPABASE_ANON_KEY"
+    )
     if supabase_url and publishable_key:
         services.append(
             SupabaseAuthService(

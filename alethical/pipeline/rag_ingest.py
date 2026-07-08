@@ -1,22 +1,32 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
 from hashlib import sha256
 from typing import Any
 
+import requests
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 
 from alethical.db import models as schema
 from alethical.pipeline import rag as rag_text
 
-
-DEFAULT_RAG_MODEL = "demo-minilm-1536"
+DEFAULT_RAG_MODEL = "text-embedding-3-small"
 DEFAULT_RAG_BATCH_SIZE = 32
 VECTOR_DIMENSIONS = 1536
+OPENAI_EMBEDDING_TIMEOUT_SECONDS = 60
 
 
-def _deterministic_embedding(text: str, dimensions: int = VECTOR_DIMENSIONS) -> list[float]:
+def _deterministic_embedding(
+    text: str, dimensions: int = VECTOR_DIMENSIONS
+) -> list[float]:
+    """Deterministic hash-based embedding used as a test/offline fallback.
+
+    Not semantically meaningful. Production code path uses _build_embeddings, which
+    calls the OpenAI embeddings API. This fallback exists so tests and local dev
+    can run without OPENAI_API_KEY set.
+    """
     values: list[float] = []
     seed = text.encode("utf-8")
     counter = 0
@@ -33,7 +43,9 @@ def _deterministic_embedding(text: str, dimensions: int = VECTOR_DIMENSIONS) -> 
     return [value / norm for value in values]
 
 
-def _chunk_payloads(file_type: str, file_number: int, bill: Any, section: Any) -> dict[str, Any]:
+def _chunk_payloads(
+    file_type: str, file_number: int, bill: Any, section: Any
+) -> dict[str, Any]:
     article_meta = {
         "article_id": section.article_id_text or "",
         "article_number": section.article_number or "",
@@ -53,10 +65,14 @@ def _chunk_payloads(file_type: str, file_number: int, bill: Any, section: Any) -
     if section_payload["heading"]:
         citation_parts.append(section_payload["heading"])
     section_source_hash = rag_text.source_hash(section.raw_text or "")
-    chunk_prefix = rag_text.compact_chunk_prefix(file_type, file_number, article_meta, section_payload)
+    chunk_prefix = rag_text.compact_chunk_prefix(
+        file_type, file_number, article_meta, section_payload
+    )
     chunk_texts = rag_text.chunk_paragraphs(paragraphs, chunk_prefix)
 
-    section_prefix = rag_text.full_section_prefix(file_type, file_number, bill.title or "", article_meta, section_payload)
+    section_prefix = rag_text.full_section_prefix(
+        file_type, file_number, bill.title or "", article_meta, section_payload
+    )
     return {
         "bill_version_section_id": section.id,
         "section_id_text": section.section_id_text,
@@ -94,6 +110,8 @@ def _bill_rag_sections_complete(
     db: Any,
     version_id: Any,
     expected_sections: list[dict[str, Any]],
+    *,
+    embedding_model: str | None = None,
 ) -> bool:
     section_docs = db.scalars(
         select(schema.RagSectionDocument).where(
@@ -117,15 +135,33 @@ def _bill_rag_sections_complete(
         if doc is None or doc.source_hash != expected["source_hash"]:
             return False
         existing_chunks = db.scalars(
-            select(schema.RagChunk).where(
+            select(schema.RagChunk)
+            .where(
                 schema.RagChunk.rag_section_document_id == doc.id,
                 schema.RagChunk.chunking_version == rag_text.CHUNKING_VERSION,
-            ).order_by(schema.RagChunk.chunk_index.asc())
+            )
+            .order_by(schema.RagChunk.chunk_index.asc())
         ).all()
         expected_chunks = expected["chunks"]
         if len(existing_chunks) != len(expected_chunks):
             return False
-        for chunk_index, (expected_chunk, existing_chunk) in enumerate(zip(expected_chunks, existing_chunks)):
+        # Fetch embedding models for all chunks in one query to avoid N+1.
+        chunk_embedding_models: dict[Any, str | None] = {}
+        if embedding_model is not None and existing_chunks:
+            rows = db.execute(
+                select(
+                    schema.RagChunkEmbedding.rag_chunk_id,
+                    schema.RagChunkEmbedding.embedding_model,
+                ).where(
+                    schema.RagChunkEmbedding.rag_chunk_id.in_(
+                        [c.id for c in existing_chunks]
+                    )
+                )
+            ).all()
+            chunk_embedding_models = {row[0]: row[1] for row in rows}
+        for chunk_index, (expected_chunk, existing_chunk) in enumerate(
+            zip(expected_chunks, existing_chunks)
+        ):
             if (
                 existing_chunk.chunk_index != expected_chunk["chunk_index"]
                 or existing_chunk.chunk_text != expected_chunk["chunk_text"]
@@ -139,6 +175,11 @@ def _bill_rag_sections_complete(
                 return False
             if chunk_index != expected_chunk["chunk_index"]:
                 return False
+            # Re-embed when the target embedding model differs from what's stored.
+            # This lets a model bump trigger re-embedding without re-chunking.
+            if embedding_model is not None:
+                if chunk_embedding_models.get(existing_chunk.id) != embedding_model:
+                    return False
         if doc.citation_label != expected["citation_label"]:
             return False
         if doc.word_count != expected["word_count"]:
@@ -161,7 +202,9 @@ def _delete_bill_rag_rows(db: Any, bill_id: Any, version_id: Any) -> dict[str, i
 
     chunk_ids = list(
         db.scalars(
-            select(schema.RagChunk.id).where(schema.RagChunk.rag_section_document_id.in_(section_ids))
+            select(schema.RagChunk.id).where(
+                schema.RagChunk.rag_section_document_id.in_(section_ids)
+            )
         ).all()
     )
     deleted_embeddings = 0
@@ -174,10 +217,18 @@ def _delete_bill_rag_rows(db: Any, bill_id: Any, version_id: Any) -> dict[str, i
         )
         deleted_embeddings = len(chunk_ids)
     if section_ids:
-        db.execute(delete(schema.RagChunk).where(schema.RagChunk.rag_section_document_id.in_(section_ids)))
+        db.execute(
+            delete(schema.RagChunk).where(
+                schema.RagChunk.rag_section_document_id.in_(section_ids)
+            )
+        )
         deleted_chunks = len(chunk_ids)
 
-    db.execute(delete(schema.RagSectionDocument).where(schema.RagSectionDocument.id.in_(section_ids)))
+    db.execute(
+        delete(schema.RagSectionDocument).where(
+            schema.RagSectionDocument.id.in_(section_ids)
+        )
+    )
     return {
         "deleted_sections": len(section_ids),
         "deleted_chunks": deleted_chunks,
@@ -185,15 +236,66 @@ def _delete_bill_rag_rows(db: Any, bill_id: Any, version_id: Any) -> dict[str, i
     }
 
 
-def _build_embeddings(texts: list[str], *, model: str, batch_size: int) -> list[list[float]]:
-    _ = batch_size
+def _openai_embeddings(
+    texts: list[str], *, model: str, batch_size: int
+) -> list[list[float]]:
+    """Call OpenAI embeddings API in batches.
+
+    Mirrors the requests-based pattern used in api/routers/me.py for synthesis.
+    Returns a flat list aligned with `texts`. Raises RuntimeError if
+    OPENAI_API_KEY is unset; raises requests.HTTPError on non-2xx responses
+    (e.g. rate limits) — callers running in Oban should rely on Oban's retry.
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "OPENAI_API_KEY is required to generate RAG embeddings via "
+            f"model={model}. Set the key or fall back to local fixtures."
+        )
+
+    out: list[list[float]] = []
+    for start in range(0, len(texts), max(1, batch_size)):
+        batch = texts[start : start + batch_size]
+        response = requests.post(
+            "https://api.openai.com/v1/embeddings",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "input": batch,
+                "dimensions": VECTOR_DIMENSIONS,
+                "encoding_format": "float",
+            },
+            timeout=OPENAI_EMBEDDING_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        data = sorted(payload.get("data", []), key=lambda d: d.get("index", 0))
+        if len(data) != len(batch):
+            raise RuntimeError(
+                f"OpenAI embeddings returned {len(data)} vectors for a batch of "
+                f"{len(batch)} inputs"
+            )
+        out.extend(item["embedding"] for item in data)
+    return out
+
+
+def _build_embeddings(
+    texts: list[str], *, model: str, batch_size: int
+) -> list[list[float]]:
     if not texts:
         return []
-    if str(model) != DEFAULT_RAG_MODEL:
-        # Force local deterministic embeddings to remain stable and uniform.
-        # Keeping a different model here would violate the pipeline-wide embedding policy.
-        model = DEFAULT_RAG_MODEL
-    return [_deterministic_embedding(text, dimensions=VECTOR_DIMENSIONS) for text in texts]
+    if not os.environ.get("OPENAI_API_KEY"):
+        # Offline fallback for tests / local dev without an API key. The stored
+        # embedding_model column distinguishes these from real OpenAI embeddings,
+        # so a backfill will replace them when a key is present.
+        return [
+            _deterministic_embedding(text, dimensions=VECTOR_DIMENSIONS)
+            for text in texts
+        ]
+    return _openai_embeddings(texts, model=model, batch_size=batch_size)
 
 
 def _upsert_rag_section_with_chunks(
@@ -240,11 +342,17 @@ def _upsert_rag_section_with_chunks(
     # Remove stale chunks + embeddings before writing replacements for this section.
     old_chunk_ids = list(
         db.scalars(
-            select(schema.RagChunk.id).where(schema.RagChunk.rag_section_document_id == section_db_id)
+            select(schema.RagChunk.id).where(
+                schema.RagChunk.rag_section_document_id == section_db_id
+            )
         ).all()
     )
     if old_chunk_ids:
-        db.execute(delete(schema.RagChunkEmbedding).where(schema.RagChunkEmbedding.rag_chunk_id.in_(old_chunk_ids)))
+        db.execute(
+            delete(schema.RagChunkEmbedding).where(
+                schema.RagChunkEmbedding.rag_chunk_id.in_(old_chunk_ids)
+            )
+        )
         db.execute(delete(schema.RagChunk).where(schema.RagChunk.id.in_(old_chunk_ids)))
 
     for chunk in section_payload["chunks"]:
@@ -273,7 +381,6 @@ def build_rag_rows_for_bill_keys(
     rag_model: str = DEFAULT_RAG_MODEL,
     rag_embedding_batch_size: int = DEFAULT_RAG_BATCH_SIZE,
 ) -> dict[str, Any]:
-    rag_model = DEFAULT_RAG_MODEL
     bill_keys = _bill_keys(bill_keys)
     summary: dict[str, Any] = {
         "bill_keys": bill_keys,
@@ -301,7 +408,10 @@ def build_rag_rows_for_bill_keys(
         bill_version = db.scalar(
             select(schema.BillVersion)
             .where(schema.BillVersion.bill_id == bill.id)
-            .order_by(schema.BillVersion.is_current.desc(), schema.BillVersion.sequence_number.desc())
+            .order_by(
+                schema.BillVersion.is_current.desc(),
+                schema.BillVersion.sequence_number.desc(),
+            )
             .limit(1)
         )
         if bill_version is None:
@@ -339,14 +449,21 @@ def build_rag_rows_for_bill_keys(
         ]
         summary["bills_processed"] += 1
 
-        if _bill_rag_sections_complete(db, bill_version.id, prepared_sections):
+        if _bill_rag_sections_complete(
+            db,
+            bill_version.id,
+            prepared_sections,
+            embedding_model=rag_model,
+        ):
             summary["rag_already_exists"] += 1
             summary["rag_results"].append(
                 {
                     "bill_key": bill_key,
                     "status": "already_exists",
                     "rag_section_count": len(prepared_sections),
-                    "rag_chunk_count": sum(len(section["chunks"]) for section in prepared_sections),
+                    "rag_chunk_count": sum(
+                        len(section["chunks"]) for section in prepared_sections
+                    ),
                 }
             )
             continue
@@ -358,7 +475,9 @@ def build_rag_rows_for_bill_keys(
                     "bill_key": bill_key,
                     "status": "would_build",
                     "rag_section_count": len(prepared_sections),
-                    "rag_chunk_count": sum(len(section["chunks"]) for section in prepared_sections),
+                    "rag_chunk_count": sum(
+                        len(section["chunks"]) for section in prepared_sections
+                    ),
                 }
             )
             continue
@@ -380,8 +499,16 @@ def build_rag_rows_for_bill_keys(
             batch_size=max(1, rag_embedding_batch_size),
         )
         embedding_flush_size = max(1, rag_embedding_batch_size)
-        for index, ((rag_chunk, _chunk_text), embedding) in enumerate(zip(chunk_rows, embeddings), start=1):
-            db.add(schema.RagChunkEmbedding(rag_chunk_id=rag_chunk.id, embedding_model=rag_model, embedding=embedding))
+        for index, ((rag_chunk, _chunk_text), embedding) in enumerate(
+            zip(chunk_rows, embeddings), start=1
+        ):
+            db.add(
+                schema.RagChunkEmbedding(
+                    rag_chunk_id=rag_chunk.id,
+                    embedding_model=rag_model,
+                    embedding=embedding,
+                )
+            )
             if index % embedding_flush_size == 0:
                 db.flush()
         if embeddings:
@@ -393,12 +520,18 @@ def build_rag_rows_for_bill_keys(
                 "bill_key": bill_key,
                 "status": "built",
                 "rag_section_count": len(prepared_sections),
-                "rag_chunk_count": sum(len(section["chunks"]) for section in prepared_sections),
+                "rag_chunk_count": sum(
+                    len(section["chunks"]) for section in prepared_sections
+                ),
                 "deleted": True,
-                "sections": [section["section_id_text"] for section in prepared_sections],
+                "sections": [
+                    section["section_id_text"] for section in prepared_sections
+                ],
             }
         )
-        summary["rag_section_count"] = summary.get("rag_section_count", 0) + len(prepared_sections)
+        summary["rag_section_count"] = summary.get("rag_section_count", 0) + len(
+            prepared_sections
+        )
         summary["rag_chunk_count"] = summary.get("rag_chunk_count", 0) + sum(
             len(section["chunks"]) for section in prepared_sections
         )

@@ -14,7 +14,6 @@ import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-
 CLEANING_VERSION = "v0.1"
 CHUNKING_VERSION = "v0.1"
 TARGET_CHUNK_WORDS = 220
@@ -29,6 +28,50 @@ BANNED_MARKERS = [
     "deleted text begin",
     "deleted text end",
 ]
+
+
+# SQL to find bill_keys whose current version has source sections but is missing
+# RAG sections, chunks, or embeddings for the target model. Shared by the Oban
+# RagBackfillWorker and scripts/backfill_rag_bulk.py so the discovery logic stays
+# in one place. Bind params: :cleaning_version, :chunking_version, :model.
+STALE_RAG_BILL_KEYS_SQL = """
+with current_versions as (
+  select distinct on (b.id) b.id as bill_id, b.bill_key, bv.id as bill_version_id
+  from bill b
+  join bill_version bv on bv.bill_id = b.id
+  where bv.is_current = true
+  order by b.id, bv.sequence_number desc
+),
+section_counts as (
+  select cv.bill_key, cv.bill_version_id, count(bvs.id) as source_sections
+  from current_versions cv
+  left join bill_version_section bvs on bvs.bill_version_id = cv.bill_version_id
+  group by cv.bill_key, cv.bill_version_id
+),
+rag_counts as (
+  select rsd.bill_version_id,
+         count(distinct rsd.id) as rag_sections,
+         count(rc.id) as rag_chunks,
+         count(rce.id) as rag_embeddings
+  from rag_section_document rsd
+  left join rag_chunk rc on rc.rag_section_document_id = rsd.id
+       and rc.chunking_version = :chunking_version
+  left join rag_chunk_embedding rce on rce.rag_chunk_id = rc.id
+       and rce.embedding_model = :model
+  where rsd.cleaning_version = :cleaning_version
+  group by rsd.bill_version_id
+)
+select sc.bill_key
+from section_counts sc
+left join rag_counts rc on rc.bill_version_id = sc.bill_version_id
+where sc.source_sections > 0
+  and (
+    coalesce(rc.rag_sections, 0) <> sc.source_sections
+    or coalesce(rc.rag_chunks, 0) = 0
+    or coalesce(rc.rag_chunks, 0) <> coalesce(rc.rag_embeddings, 0)
+  )
+order by sc.bill_key
+"""
 
 
 def read_json(path: Path) -> Dict[str, object]:
@@ -164,15 +207,23 @@ def clean_section_text(raw_text: str) -> Tuple[str, Dict[str, int]]:
             paragraphs.append(block)
 
     clean_text = "\n\n".join(paragraphs).strip()
-    clean_text = re.sub(r":\s+((?:or\s+)?\([0-9ivx]+\))", r":\n\n\1", clean_text, flags=re.I)
-    clean_text = re.sub(r";\s+((?:or\s+)?\([0-9ivx]+\))", r";\n\n\1", clean_text, flags=re.I)
+    clean_text = re.sub(
+        r":\s+((?:or\s+)?\([0-9ivx]+\))", r":\n\n\1", clean_text, flags=re.I
+    )
+    clean_text = re.sub(
+        r";\s+((?:or\s+)?\([0-9ivx]+\))", r";\n\n\1", clean_text, flags=re.I
+    )
     clean_text = re.sub(r"\n{3,}", "\n\n", clean_text)
 
     metrics = {
         "raw_newline_count": raw_text.count("\n"),
         "clean_newline_count": clean_text.count("\n"),
-        "raw_deleted_marker_count": len(re.findall(r"deleted text begin", raw_text, flags=re.I)),
-        "clean_deleted_marker_count": len(re.findall(r"\[deleted:", clean_text, flags=re.I)),
+        "raw_deleted_marker_count": len(
+            re.findall(r"deleted text begin", raw_text, flags=re.I)
+        ),
+        "clean_deleted_marker_count": len(
+            re.findall(r"\[deleted:", clean_text, flags=re.I)
+        ),
         "block_count": len(blocks),
         "paragraph_count": len(paragraphs),
     }
@@ -259,9 +310,15 @@ def chunk_paragraphs(paragraphs: List[str], prefix: str) -> List[str]:
 
     for index, paragraph in enumerate(normalized_blocks):
         paragraph_words = word_count(paragraph)
-        if current and current_words + paragraph_words > TARGET_CHUNK_WORDS and current_words >= MIN_CHUNK_WORDS:
+        if (
+            current
+            and current_words + paragraph_words > TARGET_CHUNK_WORDS
+            and current_words >= MIN_CHUNK_WORDS
+        ):
             finalize_chunk()
-            overlap = current[-OVERLAP_BLOCKS:] if OVERLAP_BLOCKS and len(current) > 1 else []
+            overlap = (
+                current[-OVERLAP_BLOCKS:] if OVERLAP_BLOCKS and len(current) > 1 else []
+            )
             current = overlap.copy()
             current_words = sum(word_count(block) for block in current)
 
@@ -280,7 +337,9 @@ def chunk_paragraphs(paragraphs: List[str], prefix: str) -> List[str]:
             and index < len(normalized_blocks) - 1
         ):
             finalize_chunk()
-            overlap = current[-OVERLAP_BLOCKS:] if OVERLAP_BLOCKS and len(current) > 1 else []
+            overlap = (
+                current[-OVERLAP_BLOCKS:] if OVERLAP_BLOCKS and len(current) > 1 else []
+            )
             current = overlap.copy()
             current_words = sum(word_count(block) for block in current)
 
@@ -294,11 +353,21 @@ def chunk_paragraphs(paragraphs: List[str], prefix: str) -> List[str]:
     return chunks
 
 
-def compact_chunk_prefix(file_type: str, file_number: str, article_meta: Dict[str, str], section: Dict[str, str]) -> str:
+def compact_chunk_prefix(
+    file_type: str,
+    file_number: str,
+    article_meta: Dict[str, str],
+    section: Dict[str, str],
+) -> str:
     lines = [f"Bill: {file_type} {file_number}"]
     if article_meta.get("article_number") or article_meta.get("article_heading"):
         article_label = " ".join(
-            part for part in [article_meta.get("article_number", ""), article_meta.get("article_heading", "")] if part
+            part
+            for part in [
+                article_meta.get("article_number", ""),
+                article_meta.get("article_heading", ""),
+            ]
+            if part
         )
         lines.append(f"Article: {article_label}")
     if section.get("heading"):
@@ -374,8 +443,12 @@ def build_rag_payload(bill_payload: Dict[str, object]) -> Dict[str, object]:
             citation_parts.append(section["heading"])
         citation_label = ", ".join(citation_parts)
 
-        section_prefix = full_section_prefix(file_type, file_number, bill_title, article_meta, section)
-        chunk_prefix = compact_chunk_prefix(file_type, file_number, article_meta, section)
+        section_prefix = full_section_prefix(
+            file_type, file_number, bill_title, article_meta, section
+        )
+        chunk_prefix = compact_chunk_prefix(
+            file_type, file_number, article_meta, section
+        )
 
         section_document = {
             "bill_key": bill_key,
@@ -437,35 +510,55 @@ def validate_rag_payload(payload: Dict[str, object]) -> Dict[str, object]:
 
     section_ids = {section["section_id"] for section in rag_sections}
     chunk_section_ids = {chunk["section_id"] for chunk in rag_chunks}
-    section_word_counts = {section["section_id"]: word_count(section["clean_text"]) for section in rag_sections}
+    section_word_counts = {
+        section["section_id"]: word_count(section["clean_text"])
+        for section in rag_sections
+    }
 
     banned_counts = {
-        marker: sum(section["clean_text"].lower().count(marker) for section in rag_sections)
+        marker: sum(
+            section["clean_text"].lower().count(marker) for section in rag_sections
+        )
         + sum(chunk["chunk_text"].lower().count(marker) for chunk in rag_chunks)
         for marker in BANNED_MARKERS
     }
 
-    html_tag_count = sum(len(re.findall(r"<[^>]+>", section["clean_text"])) for section in rag_sections)
-    html_tag_count += sum(len(re.findall(r"<[^>]+>", chunk["chunk_text"])) for chunk in rag_chunks)
+    html_tag_count = sum(
+        len(re.findall(r"<[^>]+>", section["clean_text"])) for section in rag_sections
+    )
+    html_tag_count += sum(
+        len(re.findall(r"<[^>]+>", chunk["chunk_text"])) for chunk in rag_chunks
+    )
 
-    total_raw_newlines = sum(section["raw_text"].count("\n") for section in rag_sections)
-    total_clean_newlines = sum(section["clean_text"].count("\n") for section in rag_sections)
+    total_raw_newlines = sum(
+        section["raw_text"].count("\n") for section in rag_sections
+    )
+    total_clean_newlines = sum(
+        section["clean_text"].count("\n") for section in rag_sections
+    )
     low_info_chunks = [
         chunk
         for chunk in rag_chunks
-        if chunk["word_count"] < LOW_INFO_WORDS and section_word_counts.get(chunk["section_id"], 0) >= LOW_INFO_WORDS
+        if chunk["word_count"] < LOW_INFO_WORDS
+        and section_word_counts.get(chunk["section_id"], 0) >= LOW_INFO_WORDS
     ]
-    oversize_chunks = [chunk for chunk in rag_chunks if chunk["word_count"] > MAX_CHUNK_WORDS]
+    oversize_chunks = [
+        chunk for chunk in rag_chunks if chunk["word_count"] > MAX_CHUNK_WORDS
+    ]
     orphan_currency_chunks = [
         chunk
         for chunk in rag_chunks
         if re.search(r"(^|\s)\$(\s|$)", chunk["chunk_text"])
     ]
-    duplicate_chunk_count = len(rag_chunks) - len({chunk["chunk_text"] for chunk in rag_chunks})
+    duplicate_chunk_count = len(rag_chunks) - len(
+        {chunk["chunk_text"] for chunk in rag_chunks}
+    )
 
     return {
         "bill_key": payload["bill_key"],
-        "ok": not any(banned_counts.values()) and html_tag_count == 0 and not oversize_chunks,
+        "ok": not any(banned_counts.values())
+        and html_tag_count == 0
+        and not oversize_chunks,
         "section_count": len(rag_sections),
         "chunk_count": len(rag_chunks),
         "section_coverage_ok": section_ids == chunk_section_ids,
@@ -480,9 +573,17 @@ def validate_rag_payload(payload: Dict[str, object]) -> Dict[str, object]:
         "orphan_currency_chunk_count": len(orphan_currency_chunks),
         "duplicate_chunk_count": duplicate_chunk_count,
         "chunk_word_stats": {
-            "min": min(chunk["word_count"] for chunk in rag_chunks) if rag_chunks else 0,
-            "max": max(chunk["word_count"] for chunk in rag_chunks) if rag_chunks else 0,
-            "avg": round(sum(chunk["word_count"] for chunk in rag_chunks) / len(rag_chunks), 1) if rag_chunks else 0,
+            "min": min(chunk["word_count"] for chunk in rag_chunks)
+            if rag_chunks
+            else 0,
+            "max": max(chunk["word_count"] for chunk in rag_chunks)
+            if rag_chunks
+            else 0,
+            "avg": round(
+                sum(chunk["word_count"] for chunk in rag_chunks) / len(rag_chunks), 1
+            )
+            if rag_chunks
+            else 0,
         },
     }
 
@@ -513,9 +614,15 @@ def build_many(input_paths: List[Path]) -> Dict[str, object]:
             "all_ok": all(item["ok"] for item in validations),
             "total_sections": sum(item["section_count"] for item in validations),
             "total_chunks": sum(item["chunk_count"] for item in validations),
-            "total_newline_reduction": sum(item["newline_reduction"] for item in validations),
-            "total_low_info_chunks": sum(item["low_info_chunk_count"] for item in validations),
-            "total_oversize_chunks": sum(item["oversize_chunk_count"] for item in validations),
+            "total_newline_reduction": sum(
+                item["newline_reduction"] for item in validations
+            ),
+            "total_low_info_chunks": sum(
+                item["low_info_chunk_count"] for item in validations
+            ),
+            "total_oversize_chunks": sum(
+                item["oversize_chunk_count"] for item in validations
+            ),
         },
     }
 
@@ -529,7 +636,9 @@ def main() -> None:
     build_parser.add_argument("--out", type=Path, required=True)
 
     validate_parser = subparsers.add_parser("validate")
-    validate_parser.add_argument("--in", dest="input_paths", type=Path, nargs="+", required=True)
+    validate_parser.add_argument(
+        "--in", dest="input_paths", type=Path, nargs="+", required=True
+    )
     validate_parser.add_argument("--out", type=Path, required=True)
 
     args = parser.parse_args()

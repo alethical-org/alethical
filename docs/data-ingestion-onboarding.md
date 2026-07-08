@@ -180,11 +180,14 @@ chunks. Query-time, via `POST /api/v1/me/chat-sessions/{id}/messages`.
 > CLI/env values `gpt-4o-mini`** (`OPENAI_AI_ENRICHMENT_MODEL`,
 > `OPENAI_RAG_CHAT_MODEL`). Set these explicitly.
 >
-> ⚠️ **RAG retrieval is not real yet.** Embeddings are deterministic SHA-256
-> hashes (`_deterministic_embedding`, model `demo-minilm-1536`, 1536-dim) on both
-> ingest and query paths, so vector search returns effectively arbitrary chunks
-> and grounded-chat citations are unreliable until a real embedding model is
-> wired in. Chunking itself is sound (section-based, ~220-word target).
+> ⚠️ **RAG embeddings use OpenAI `text-embedding-3-small`** (1536-dim, matches
+> the `Vector(1536)` column). Both ingest (`pipeline/rag_ingest.py`) and query
+> (`api/routers/me.py::build_query_embedding`) call the OpenAI embeddings API.
+> When `OPENAI_API_KEY` is not set (tests, local dev), both paths fall back to
+> the deterministic hash embedding `_deterministic_embedding` so the pipeline
+> remains exercisable offline; the stored `embedding_model` column distinguishes
+> the two so a backfill will replace fallback rows when a key is present.
+> Chunking is section-based (~220-word target).
 
 ## Orchestration — Oban job queue + CLI
 

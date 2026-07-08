@@ -13,7 +13,11 @@ from oban.schema import install as install_oban_schema
 from oban.testing import drain_queue
 from psycopg_pool import AsyncConnectionPool
 
-from alethical.db.session import database_url_for_target, get_database_url, normalize_database_url
+from alethical.db.session import (
+    database_url_for_target,
+    get_database_url,
+    normalize_database_url,
+)
 from alethical.pipeline.oban_workers import (
     AiBatchApplyWorker,
     AiBatchPrepareWorker,
@@ -25,9 +29,10 @@ from alethical.pipeline.oban_workers import (
     FullBillSyncWorker,
     ObanSmokeWorker,
     PipelineRunWorker,
+    RagBackfillChunkWorker,
+    RagBackfillWorker,
     VoteBackfillWorker,
 )
-
 
 ACTIVE_STATES = ("available", "scheduled", "retryable", "executing", "completed")
 
@@ -37,6 +42,8 @@ WORKERS = {
     "pipeline-run": PipelineRunWorker,
     "full-bill-sync": FullBillSyncWorker,
     "bill-sync-chunk": BillSyncChunkWorker,
+    "rag-backfill": RagBackfillWorker,
+    "rag-backfill-chunk": RagBackfillChunkWorker,
     "ai-prepare": AiBatchPrepareWorker,
     "ai-apply": AiBatchApplyWorker,
     "codex-ai-enqueue": CodexAiEnqueueWorker,
@@ -48,7 +55,9 @@ WORKERS = {
 
 
 def oban_dsn(value: str | None = None) -> str:
-    url = normalize_database_url(value or os.environ.get("OBAN_DSN") or get_database_url())
+    url = normalize_database_url(
+        value or os.environ.get("OBAN_DSN") or get_database_url()
+    )
     if url.startswith("postgresql+psycopg://"):
         return "postgresql://" + url.removeprefix("postgresql+psycopg://")
     if url.startswith("postgresql+"):
@@ -69,7 +78,9 @@ async def open_pool(dsn: str) -> AsyncConnectionPool:
     return pool
 
 
-async def existing_job_id(pool: AsyncConnectionPool, *, worker: str, queue: str, task_key: str) -> int | None:
+async def existing_job_id(
+    pool: AsyncConnectionPool, *, worker: str, queue: str, task_key: str
+) -> int | None:
     async with pool.connection() as conn:
         row = await conn.execute(
             """
@@ -88,20 +99,42 @@ async def existing_job_id(pool: AsyncConnectionPool, *, worker: str, queue: str,
         return int(result[0]) if result else None
 
 
-async def enqueue_unique(pool: AsyncConnectionPool, worker_cls: Any, args: dict[str, Any], *, force: bool = False):
+async def enqueue_unique(
+    pool: AsyncConnectionPool,
+    worker_cls: Any,
+    args: dict[str, Any],
+    *,
+    force: bool = False,
+):
     oban = Oban(pool=pool, queues={})
     job = worker_cls.new(args)
     task_key = str(args.get("task_key") or "")
     if task_key and not force:
-        existing = await existing_job_id(pool, worker=job.worker, queue=job.queue, task_key=task_key)
+        existing = await existing_job_id(
+            pool, worker=job.worker, queue=job.queue, task_key=task_key
+        )
         if existing is not None:
-            return {"inserted": False, "existing_job_id": existing, "worker": job.worker, "queue": job.queue}
+            return {
+                "inserted": False,
+                "existing_job_id": existing,
+                "worker": job.worker,
+                "queue": job.queue,
+            }
     inserted = await oban.enqueue(job)
-    return {"inserted": True, "job_id": inserted.id, "worker": inserted.worker, "queue": inserted.queue}
+    return {
+        "inserted": True,
+        "job_id": inserted.id,
+        "worker": inserted.worker,
+        "queue": inserted.queue,
+    }
 
 
 def task_key(prefix: str, args: dict[str, Any]) -> str:
-    stable_args = {key: args.get(key) for key in sorted(args) if key not in {"database_url", "oban_dsn", "api_key"}}
+    stable_args = {
+        key: args.get(key)
+        for key in sorted(args)
+        if key not in {"database_url", "oban_dsn", "api_key"}
+    }
     return f"{prefix}:{json.dumps(stable_args, sort_keys=True, separators=(',', ':'))}"
 
 
@@ -179,6 +212,27 @@ async def enqueue(args: argparse.Namespace) -> None:
                     "allow_writes": args.allow_writes,
                 }
             )
+        elif args.kind == "rag-backfill":
+            job_args.update(
+                {
+                    "rag_model": args.rag_model,
+                    "rag_embedding_batch_size": args.rag_embedding_batch_size,
+                    "rag_target": args.rag_target,
+                    "chunk_size": args.chunk_size,
+                    "dry_run": args.dry_run,
+                    "allow_writes": args.allow_writes,
+                    "force_chunks": args.force_child_jobs,
+                }
+            )
+        elif args.kind == "rag-backfill-chunk":
+            job_args.update(
+                {
+                    "bill_keys": json.loads(args.bill_keys_json),
+                    "rag_model": args.rag_model,
+                    "rag_embedding_batch_size": args.rag_embedding_batch_size,
+                    "rag_target": args.rag_target,
+                }
+            )
         elif args.kind == "ai-prepare":
             job_args.update(
                 {
@@ -234,12 +288,16 @@ async def enqueue(args: argparse.Namespace) -> None:
                 }
             )
         elif args.kind == "committee-backfill":
-            job_args.update({"dry_run": args.dry_run, "cleanup_orphans": args.cleanup_orphans})
+            job_args.update(
+                {"dry_run": args.dry_run, "cleanup_orphans": args.cleanup_orphans}
+            )
         elif args.kind == "vote-backfill":
             job_args.update({"dry_run": args.dry_run, "limit": args.limit})
 
         job_args["task_key"] = args.task_key or task_key(args.kind, job_args)
-        result = await enqueue_unique(pool, WORKERS[args.kind], job_args, force=args.force_job)
+        result = await enqueue_unique(
+            pool, WORKERS[args.kind], job_args, force=args.force_job
+        )
     finally:
         await pool.close()
     print(json.dumps(result, indent=2))
@@ -260,7 +318,13 @@ async def drain(args: argparse.Namespace) -> None:
             )
             result = {
                 key: sum(item.get(key, 0) for item in results)
-                for key in ("cancelled", "completed", "discarded", "retryable", "scheduled")
+                for key in (
+                    "cancelled",
+                    "completed",
+                    "discarded",
+                    "retryable",
+                    "scheduled",
+                )
             }
     finally:
         await pool.close()
@@ -278,18 +342,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    install_parser = subparsers.add_parser("install", help="Install Oban database schema.")
+    install_parser = subparsers.add_parser(
+        "install", help="Install Oban database schema."
+    )
     install_parser.add_argument("--prefix", default="public")
     install_parser.set_defaults(func=install)
 
-    enqueue_parser = subparsers.add_parser("enqueue", help="Enqueue one pipeline job with task-key dedupe.")
+    enqueue_parser = subparsers.add_parser(
+        "enqueue", help="Enqueue one pipeline job with task-key dedupe."
+    )
     enqueue_parser.add_argument("kind", choices=sorted(WORKERS))
     enqueue_parser.add_argument("--database-url", default=None)
     enqueue_parser.add_argument("--task-key", default=None)
     enqueue_parser.add_argument("--force-job", action="store_true")
     enqueue_parser.add_argument("--message", default="oban smoke ok")
     enqueue_parser.add_argument("--run-id", default=None)
-    enqueue_parser.add_argument("--model", default=os.environ.get("OPENAI_AI_ENRICHMENT_MODEL", "gpt-4o-mini"))
+    enqueue_parser.add_argument(
+        "--model", default=os.environ.get("OPENAI_AI_ENRICHMENT_MODEL", "gpt-4o-mini")
+    )
     enqueue_parser.add_argument("--session", default="94-2025-regular")
     enqueue_parser.add_argument("--session-code", default="0942025")
     enqueue_parser.add_argument("--bill-key", default=None)
@@ -299,6 +369,7 @@ def build_parser() -> argparse.ArgumentParser:
     enqueue_parser.add_argument("--max-bill-number", type=int, default=6000)
     enqueue_parser.add_argument("--chunk-size", type=int, default=25)
     enqueue_parser.add_argument("--targets-json", default="[]")
+    enqueue_parser.add_argument("--bill-keys-json", default="[]")
     enqueue_parser.add_argument("--refresh-existing", action="store_true")
     enqueue_parser.add_argument("--max-input-chars", type=int, default=60_000)
     enqueue_parser.add_argument("--force-enrichment", action="store_true")
@@ -308,7 +379,9 @@ def build_parser() -> argparse.ArgumentParser:
     enqueue_parser.add_argument("--jsonl-path", default=None)
     enqueue_parser.add_argument("--batch-id", default=None)
     enqueue_parser.add_argument("--output-path", default=None)
-    enqueue_parser.add_argument("--run-dir", default=".tmp/codex-ai-runs/production-missing-current")
+    enqueue_parser.add_argument(
+        "--run-dir", default=".tmp/codex-ai-runs/production-missing-current"
+    )
     enqueue_parser.add_argument("--custom-id", default=None)
     enqueue_parser.add_argument("--prompt-path", default=None)
     enqueue_parser.add_argument("--schema-path", default=None)
@@ -323,13 +396,19 @@ def build_parser() -> argparse.ArgumentParser:
     enqueue_parser.add_argument("--skip-votes", action="store_true")
     enqueue_parser.add_argument("--skip-ai-prepare", action="store_true")
     enqueue_parser.add_argument("--skip-rag", action="store_true")
-    enqueue_parser.add_argument("--rag-model", default="demo-minilm-1536")
+    enqueue_parser.add_argument(
+        "--rag-model",
+        default=os.environ.get("OPENAI_RAG_EMBEDDING_MODEL", "text-embedding-3-small"),
+    )
     enqueue_parser.add_argument("--rag-embedding-batch-size", type=int, default=32)
     enqueue_parser.add_argument("--rag-target", default="production")
     enqueue_parser.add_argument("--force-child-jobs", action="store_true")
     enqueue_parser.set_defaults(func=enqueue)
 
-    drain_parser = subparsers.add_parser("drain", help="Run all currently available jobs in one queue inside this process.")
+    drain_parser = subparsers.add_parser(
+        "drain",
+        help="Run all currently available jobs in one queue inside this process.",
+    )
     drain_parser.add_argument("queue")
     drain_parser.add_argument("--concurrency", type=int, default=1)
     drain_parser.set_defaults(func=drain)

@@ -4,10 +4,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from pathlib import Path
-from typing import Any
 import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import Session
@@ -62,7 +62,9 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def slugify(value: str) -> str:
-    return "-".join("".join(ch.lower() if ch.isalnum() else " " for ch in value).split())
+    return "-".join(
+        "".join(ch.lower() if ch.isalnum() else " " for ch in value).split()
+    )
 
 
 def parse_fixture_datetime(value: str | None):
@@ -92,7 +94,9 @@ def deterministic_embedding(text: str, dimensions: int = 1536) -> list[float]:
 
 
 def seed_reference_data(session: Session) -> dict[str, Any]:
-    minnesota = session.scalar(select(Jurisdiction).where(Jurisdiction.slug == "minnesota"))
+    minnesota = session.scalar(
+        select(Jurisdiction).where(Jurisdiction.slug == "minnesota")
+    )
     if minnesota is None:
         minnesota = Jurisdiction(
             slug="minnesota",
@@ -110,7 +114,9 @@ def seed_reference_data(session: Session) -> dict[str, Any]:
         (ChamberType.joint, "joint", "Joint", "Joint", 3),
     ]:
         chamber = session.scalar(
-            select(Chamber).where(Chamber.jurisdiction_id == minnesota.id, Chamber.slug == slug)
+            select(Chamber).where(
+                Chamber.jurisdiction_id == minnesota.id, Chamber.slug == slug
+            )
         )
         if chamber is None:
             chamber = Chamber(
@@ -126,7 +132,10 @@ def seed_reference_data(session: Session) -> dict[str, Any]:
         chambers[slug] = chamber
 
     current_session = session.scalar(
-        select(LegislativeSession).where(LegislativeSession.jurisdiction_id == minnesota.id, LegislativeSession.slug == "94-2025-regular")
+        select(LegislativeSession).where(
+            LegislativeSession.jurisdiction_id == minnesota.id,
+            LegislativeSession.slug == "94-2025-regular",
+        )
     )
     if current_session is None:
         current_session = LegislativeSession(
@@ -145,7 +154,9 @@ def seed_reference_data(session: Session) -> dict[str, Any]:
     return {"jurisdiction": minnesota, "chambers": chambers, "session": current_session}
 
 
-def upsert_district(session: Session, jurisdiction_id: Any, chamber_id: Any, code: str) -> Any:
+def upsert_district(
+    session: Session, jurisdiction_id: Any, chamber_id: Any, code: str
+) -> Any:
     district = session.scalar(
         select(District).where(
             District.jurisdiction_id == jurisdiction_id,
@@ -242,7 +253,9 @@ def ingest_member_profiles(session: Session, refs: dict[str, Any]) -> list[Any]:
     created: list[Any] = []
     for payload in outputs:
         chamber = refs["chambers"][payload["chamber"]]
-        district = upsert_district(session, refs["jurisdiction"].id, chamber.id, payload["district"])
+        district = upsert_district(
+            session, refs["jurisdiction"].id, chamber.id, payload["district"]
+        )
         legislator = upsert_legislator(
             session,
             refs["jurisdiction"].id,
@@ -272,13 +285,16 @@ def ingest_roster_demo_matches(session: Session, refs: dict[str, Any]) -> list[A
         member
         for key in ("house_sample", "senate_sample")
         for member in roster.get(key, [])
-        if (member.get("chamber"), member.get("district")) in {("house", "59B"), ("senate", "59")}
+        if (member.get("chamber"), member.get("district"))
+        in {("house", "59B"), ("senate", "59")}
     ]
 
     created: list[Any] = []
     for member in demo_members:
         chamber = refs["chambers"][member["chamber"]]
-        district = upsert_district(session, refs["jurisdiction"].id, chamber.id, member["district"])
+        district = upsert_district(
+            session, refs["jurisdiction"].id, chamber.id, member["district"]
+        )
         legislator = upsert_legislator(
             session,
             refs["jurisdiction"].id,
@@ -298,7 +314,12 @@ def ingest_roster_demo_matches(session: Session, refs: dict[str, Any]) -> list[A
     return created
 
 
-def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: dict[str, Any], rag_payload: dict[str, Any]) -> Any:
+def ingest_bill_payload(
+    session: Session,
+    refs: dict[str, Any],
+    bill_payload: dict[str, Any],
+    rag_payload: dict[str, Any],
+) -> Any:
     canonical = bill_payload["canonical_bill"]
     bill_text = bill_payload["bill_text"]
     chamber = refs["chambers"]["house" if canonical["file_type"] == "HF" else "senate"]
@@ -323,7 +344,11 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
     session.add(run)
     session.flush()
 
-    content_hash = rag_payload["rag_sections"][0]["source_hash"] if rag_payload["rag_sections"] else canonical["bill_key"]
+    content_hash = (
+        rag_payload["rag_sections"][0]["source_hash"]
+        if rag_payload["rag_sections"]
+        else canonical["bill_key"]
+    )
     artifact = session.scalar(
         select(SourceArtifact).where(
             SourceArtifact.adapter == "prototype_bill_ingest",
@@ -376,7 +401,9 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
         bill.official_url = bill_text["source_url"]
 
     latest_version = session.scalar(
-        select(BillVersion).where(BillVersion.bill_id == bill.id, BillVersion.is_current.is_(True))
+        select(BillVersion).where(
+            BillVersion.bill_id == bill.id, BillVersion.is_current.is_(True)
+        )
     )
     if latest_version is None:
         latest_version = BillVersion(
@@ -396,18 +423,32 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
     session.execute(
         delete(RagChunkEmbedding).where(
             RagChunkEmbedding.rag_chunk_id.in_(
-                select(RagChunk.id).join(
+                select(RagChunk.id)
+                .join(
                     RagSectionDocument,
                     RagSectionDocument.id == RagChunk.rag_section_document_id,
-                ).where(RagSectionDocument.bill_id == bill.id)
+                )
+                .where(RagSectionDocument.bill_id == bill.id)
             )
         )
     )
-    session.execute(delete(RagChunk).where(RagChunk.rag_section_document_id.in_(
-        select(RagSectionDocument.id).where(RagSectionDocument.bill_id == bill.id)
-    )))
-    session.execute(delete(RagSectionDocument).where(RagSectionDocument.bill_id == bill.id))
-    session.execute(delete(BillVersionSection).where(BillVersionSection.bill_version_id == latest_version.id))
+    session.execute(
+        delete(RagChunk).where(
+            RagChunk.rag_section_document_id.in_(
+                select(RagSectionDocument.id).where(
+                    RagSectionDocument.bill_id == bill.id
+                )
+            )
+        )
+    )
+    session.execute(
+        delete(RagSectionDocument).where(RagSectionDocument.bill_id == bill.id)
+    )
+    session.execute(
+        delete(BillVersionSection).where(
+            BillVersionSection.bill_version_id == latest_version.id
+        )
+    )
 
     section_lookup: dict[str, Any] = {}
     for source_order, section in enumerate(bill_text["sections"], start=1):
@@ -419,7 +460,10 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
                 (
                     article["article_id"]
                     for article in bill_text.get("articles", [])
-                    if any(sec["section_id"] == section["section_id"] for sec in article.get("sections", []))
+                    if any(
+                        sec["section_id"] == section["section_id"]
+                        for sec in article.get("sections", [])
+                    )
                 ),
                 None,
             ),
@@ -427,7 +471,10 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
                 (
                     article["article_number"]
                     for article in bill_text.get("articles", [])
-                    if any(sec["section_id"] == section["section_id"] for sec in article.get("sections", []))
+                    if any(
+                        sec["section_id"] == section["section_id"]
+                        for sec in article.get("sections", [])
+                    )
                 ),
                 None,
             ),
@@ -435,7 +482,10 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
                 (
                     article["article_heading"]
                     for article in bill_text.get("articles", [])
-                    if any(sec["section_id"] == section["section_id"] for sec in article.get("sections", []))
+                    if any(
+                        sec["section_id"] == section["section_id"]
+                        for sec in article.get("sections", [])
+                    )
                 ),
                 None,
             ),
@@ -484,7 +534,12 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
                 refs["jurisdiction"].id,
                 author["member_name"],
             )
-            district = upsert_district(session, refs["jurisdiction"].id, author_chamber.id, f"{chamber_name[:1].upper()}{index}")
+            district = upsert_district(
+                session,
+                refs["jurisdiction"].id,
+                author_chamber.id,
+                f"{chamber_name[:1].upper()}{index}",
+            )
             upsert_service_period(
                 session,
                 legislator,
@@ -496,7 +551,9 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
                 Sponsorship(
                     bill_id=bill.id,
                     legislator_id=legislator.id,
-                    role=SponsorshipRole.chief_author if index == 1 else SponsorshipRole.co_author,
+                    role=SponsorshipRole.chief_author
+                    if index == 1
+                    else SponsorshipRole.co_author,
                     source_order=index,
                     source_chamber=chamber_name,
                 )
@@ -517,7 +574,11 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
         session.add(rag_section)
         session.flush()
 
-        for chunk in [chunk for chunk in rag_payload["rag_chunks"] if chunk["section_id"] == section_doc["section_id"]]:
+        for chunk in [
+            chunk
+            for chunk in rag_payload["rag_chunks"]
+            if chunk["section_id"] == section_doc["section_id"]
+        ]:
             chunk_row = RagChunk(
                 rag_section_document_id=rag_section.id,
                 chunk_index=chunk["chunk_index"],
@@ -532,13 +593,17 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
             session.add(
                 RagChunkEmbedding(
                     rag_chunk_id=chunk_row.id,
-                    embedding_model="demo-minilm-1536",
+                    embedding_model="text-embedding-3-small",
                     embedding=deterministic_embedding(chunk["chunk_text"]),
                 )
             )
 
-    sponsor_count = sum(len(authors) for authors in canonical.get("authors", {}).values())
-    action_count = sum(len(actions) for actions in canonical.get("actions", {}).values())
+    sponsor_count = sum(
+        len(authors) for authors in canonical.get("authors", {}).values()
+    )
+    action_count = sum(
+        len(actions) for actions in canonical.get("actions", {}).values()
+    )
     version_count = max(1, len(canonical["text_versions"]))
     stats = session.scalar(select(BillStats).where(BillStats.bill_id == bill.id))
     if stats is None:
@@ -551,7 +616,9 @@ def ingest_bill_payload(session: Session, refs: dict[str, Any], bill_payload: di
     return bill
 
 
-def seed_ai_enrichment(session: Session, bill: Any, enrichment_fixtures: dict[str, Any]) -> None:
+def seed_ai_enrichment(
+    session: Session, bill: Any, enrichment_fixtures: dict[str, Any]
+) -> None:
     content = enrichment_fixtures.get(bill.bill_key)
     if content is None:
         return
@@ -577,13 +644,21 @@ def seed_ai_enrichment(session: Session, bill: Any, enrichment_fixtures: dict[st
 
 
 def seed_user_features(session: Session, bills: list[Any], refs: dict[str, Any]) -> Any:
-    user = session.scalar(select(UserAccount).where(UserAccount.primary_email == "ada@example.com"))
+    user = session.scalar(
+        select(UserAccount).where(UserAccount.primary_email == "ada@example.com")
+    )
     if user is None:
-        user = UserAccount(display_name="Ada", primary_email="ada@example.com", is_active=True)
+        user = UserAccount(
+            display_name="Ada", primary_email="ada@example.com", is_active=True
+        )
         session.add(user)
         session.flush()
 
-    identity = session.scalar(select(AuthIdentity).where(AuthIdentity.provider == "demo", AuthIdentity.provider_subject == "ada-demo"))
+    identity = session.scalar(
+        select(AuthIdentity).where(
+            AuthIdentity.provider == "demo", AuthIdentity.provider_subject == "ada-demo"
+        )
+    )
     if identity is None:
         session.add(
             AuthIdentity(
@@ -594,7 +669,15 @@ def seed_user_features(session: Session, bills: list[Any], refs: dict[str, Any])
             )
         )
 
-    if session.scalar(select(NotificationPreference).where(NotificationPreference.user_id == user.id, NotificationPreference.channel == NotificationChannel.email)) is None:
+    if (
+        session.scalar(
+            select(NotificationPreference).where(
+                NotificationPreference.user_id == user.id,
+                NotificationPreference.channel == NotificationChannel.email,
+            )
+        )
+        is None
+    ):
         session.add(
             NotificationPreference(
                 user_id=user.id,
@@ -605,12 +688,23 @@ def seed_user_features(session: Session, bills: list[Any], refs: dict[str, Any])
         )
 
     house_district = session.scalar(
-        select(District).where(District.jurisdiction_id == refs["jurisdiction"].id, District.code == "64B")
+        select(District).where(
+            District.jurisdiction_id == refs["jurisdiction"].id, District.code == "64B"
+        )
     )
     senate_district = session.scalar(
-        select(District).where(District.jurisdiction_id == refs["jurisdiction"].id, District.code == "64")
+        select(District).where(
+            District.jurisdiction_id == refs["jurisdiction"].id, District.code == "64"
+        )
     )
-    if session.scalar(select(SavedPlace).where(SavedPlace.user_id == user.id, SavedPlace.label == "Home")) is None:
+    if (
+        session.scalar(
+            select(SavedPlace).where(
+                SavedPlace.user_id == user.id, SavedPlace.label == "Home"
+            )
+        )
+        is None
+    ):
         session.add(
             SavedPlace(
                 user_id=user.id,
@@ -625,17 +719,36 @@ def seed_user_features(session: Session, bills: list[Any], refs: dict[str, Any])
         )
 
     for bill in bills:
-        if session.scalar(select(TrackedBill).where(TrackedBill.user_id == user.id, TrackedBill.bill_id == bill.id)) is None:
-            session.add(TrackedBill(user_id=user.id, bill_id=bill.id, alerts_enabled=True))
+        if (
+            session.scalar(
+                select(TrackedBill).where(
+                    TrackedBill.user_id == user.id, TrackedBill.bill_id == bill.id
+                )
+            )
+            is None
+        ):
+            session.add(
+                TrackedBill(user_id=user.id, bill_id=bill.id, alerts_enabled=True)
+            )
 
-    chat_session = session.scalar(select(ChatSession).where(ChatSession.user_id == user.id, ChatSession.title == "Demo Session"))
+    chat_session = session.scalar(
+        select(ChatSession).where(
+            ChatSession.user_id == user.id, ChatSession.title == "Demo Session"
+        )
+    )
     if chat_session is None:
-        chat_session = ChatSession(user_id=user.id, title="Demo Session", subject_bill_id=bills[0].id)
+        chat_session = ChatSession(
+            user_id=user.id, title="Demo Session", subject_bill_id=bills[0].id
+        )
         session.add(chat_session)
         session.flush()
         session.add_all(
             [
-                ChatMessage(session_id=chat_session.id, role=ChatRole.user, content="What does this bill do?"),
+                ChatMessage(
+                    session_id=chat_session.id,
+                    role=ChatRole.user,
+                    content="What does this bill do?",
+                ),
                 ChatMessage(
                     session_id=chat_session.id,
                     role=ChatRole.assistant,
@@ -657,11 +770,17 @@ def refresh_legislator_stats(session: Session, refs: dict[str, Any]) -> None:
             )
         )
         if stats is None:
-            stats = LegislatorStats(legislator_id=legislator.id, session_id=refs["session"].id)
+            stats = LegislatorStats(
+                legislator_id=legislator.id, session_id=refs["session"].id
+            )
             session.add(stats)
-        sponsorships = session.scalars(select(Sponsorship).where(Sponsorship.legislator_id == legislator.id)).all()
+        sponsorships = session.scalars(
+            select(Sponsorship).where(Sponsorship.legislator_id == legislator.id)
+        ).all()
         stats.total_bill_count = len(sponsorships)
-        stats.chief_bill_count = len([s for s in sponsorships if s.role == SponsorshipRole.chief_author])
+        stats.chief_bill_count = len(
+            [s for s in sponsorships if s.role == SponsorshipRole.chief_author]
+        )
         stats.vote_record_count = 0
         stats.committee_count = 0
 
@@ -669,7 +788,8 @@ def refresh_legislator_stats(session: Session, refs: dict[str, Any]) -> None:
 def main() -> None:
     database_url = normalize_database_url(
         os.environ.get(
-            "DATABASE_URL", "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+            "DATABASE_URL",
+            "postgresql+psycopg://alethical:alethical@localhost:54329/alethical",
         )
     )
     engine = create_engine(database_url, echo=False)
@@ -683,9 +803,13 @@ def main() -> None:
             (FIXTURE_ROOT / "bill-sf2483.json", FIXTURE_ROOT / "rag-bill-sf2483.json"),
         ]
         bills = []
-        enrichment_fixtures = read_json(FIXTURE_ROOT / "ai-enrichment-bill-summaries.json")
+        enrichment_fixtures = read_json(
+            FIXTURE_ROOT / "ai-enrichment-bill-summaries.json"
+        )
         for bill_path, rag_path in bill_files:
-            bill = ingest_bill_payload(session, refs, read_json(bill_path), read_json(rag_path))
+            bill = ingest_bill_payload(
+                session, refs, read_json(bill_path), read_json(rag_path)
+            )
             seed_ai_enrichment(session, bill, enrichment_fixtures)
             bills.append(bill)
 

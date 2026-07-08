@@ -39,7 +39,13 @@ def configure_logging() -> None:
     root_logger.addHandler(file_handler)
     root_logger.setLevel(log_level)
 
-    for logger_name in ("alethical", "uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"):
+    for logger_name in (
+        "alethical",
+        "uvicorn",
+        "uvicorn.error",
+        "uvicorn.access",
+        "fastapi",
+    ):
         logger = logging.getLogger(logger_name)
         logger.handlers.clear()
         logger.propagate = True

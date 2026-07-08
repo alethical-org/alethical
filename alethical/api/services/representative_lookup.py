@@ -58,15 +58,16 @@ class CensusGeocoder:
         benchmark: str | None = None,
         timeout_seconds: float | None = None,
     ) -> None:
-        self.base_url = (
-            base_url
-            or os.environ.get(
-                "ALETHICAL_CENSUS_GEOCODER_URL",
-                "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress",
-            )
+        self.base_url = base_url or os.environ.get(
+            "ALETHICAL_CENSUS_GEOCODER_URL",
+            "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress",
         )
-        self.benchmark = benchmark or os.environ.get("ALETHICAL_CENSUS_BENCHMARK", "Public_AR_Current")
-        self.timeout_seconds = timeout_seconds or float(os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10"))
+        self.benchmark = benchmark or os.environ.get(
+            "ALETHICAL_CENSUS_BENCHMARK", "Public_AR_Current"
+        )
+        self.timeout_seconds = timeout_seconds or float(
+            os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10")
+        )
 
     def geocode(self, address_text: str) -> GeocodedAddress:
         response = requests.get(
@@ -91,7 +92,9 @@ class CensusGeocoder:
         latitude = coordinates.get("y")
         longitude = coordinates.get("x")
         if matched_address is None or latitude is None or longitude is None:
-            raise RepresentativeLookupUpstreamError("geocoder response missing coordinates")
+            raise RepresentativeLookupUpstreamError(
+                "geocoder response missing coordinates"
+            )
 
         return GeocodedAddress(
             requested_address=address_text,
@@ -113,9 +116,13 @@ class MinnesotaGisLookupClient:
             "ALETHICAL_MN_GIS_LOOKUP_URL",
             "https://gis.lcc.mn.gov/api/",
         )
-        self.timeout_seconds = timeout_seconds or float(os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10"))
+        self.timeout_seconds = timeout_seconds or float(
+            os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10")
+        )
 
-    def lookup(self, *, latitude: float, longitude: float) -> tuple[DistrictMatch | None, DistrictMatch | None]:
+    def lookup(
+        self, *, latitude: float, longitude: float
+    ) -> tuple[DistrictMatch | None, DistrictMatch | None]:
         response = requests.get(
             self.base_url,
             params={"lat": latitude, "lng": longitude},
@@ -164,7 +171,14 @@ class MinnesotaGisLookupClient:
     def _infer_chamber(self, properties: dict, district_code: str | None) -> str | None:
         chamber_text = " ".join(
             str(properties.get(key, ""))
-            for key in ("chamber", "district_type", "districtType", "office", "layer", "source")
+            for key in (
+                "chamber",
+                "district_type",
+                "districtType",
+                "office",
+                "layer",
+                "source",
+            )
         ).lower()
         if "senate" in chamber_text:
             return "senate"
@@ -174,9 +188,19 @@ class MinnesotaGisLookupClient:
             return "congress"
 
         memid = self._string_or_none(properties.get("memid"))
-        if district_code and re.fullmatch(r"\d{1,2}", district_code) and memid and memid.lower() != "none":
+        if (
+            district_code
+            and re.fullmatch(r"\d{1,2}", district_code)
+            and memid
+            and memid.lower() != "none"
+        ):
             return "senate"
-        if district_code and re.fullmatch(r"\d{1,2}", district_code) and memid and memid.lower() == "none":
+        if (
+            district_code
+            and re.fullmatch(r"\d{1,2}", district_code)
+            and memid
+            and memid.lower() == "none"
+        ):
             return "congress"
 
         member_name = self._string_or_none(properties.get("name")) or ""
@@ -185,7 +209,11 @@ class MinnesotaGisLookupClient:
             return "house"
         if lowered_name.startswith("sen."):
             return "senate"
-        if lowered_name.startswith("rep.") and district_code and re.fullmatch(r"\d{1,2}[A-Z]", district_code):
+        if (
+            lowered_name.startswith("rep.")
+            and district_code
+            and re.fullmatch(r"\d{1,2}[A-Z]", district_code)
+        ):
             return "house"
         return None
 
@@ -240,7 +268,9 @@ class RepresentativeLookupService:
             longitude=geocoded.longitude,
         )
         if house_match is None and senate_match is None:
-            raise RepresentativeLookupNotFound("no Minnesota legislative districts found")
+            raise RepresentativeLookupNotFound(
+                "no Minnesota legislative districts found"
+            )
 
         return RepresentativeLookupResult(
             geocoded_address=geocoded,
@@ -256,15 +286,24 @@ def get_representative_lookup_service() -> RepresentativeLookupService:
 def result_to_dict(result: RepresentativeLookupResult) -> dict:
     return {
         "geocoded_address": asdict(result.geocoded_address),
-        "house_district": asdict(result.house_district) if result.house_district else None,
-        "senate_district": asdict(result.senate_district) if result.senate_district else None,
+        "house_district": asdict(result.house_district)
+        if result.house_district
+        else None,
+        "senate_district": asdict(result.senate_district)
+        if result.senate_district
+        else None,
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     configure_logging()
-    parser = argparse.ArgumentParser(description="Look up Minnesota legislative districts for an address.")
-    parser.add_argument("address", help="Address to geocode, e.g. '75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN'")
+    parser = argparse.ArgumentParser(
+        description="Look up Minnesota legislative districts for an address."
+    )
+    parser.add_argument(
+        "address",
+        help="Address to geocode, e.g. '75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN'",
+    )
     parser.add_argument("--json", action="store_true", help="Print the result as JSON.")
     args = parser.parse_args(argv)
 

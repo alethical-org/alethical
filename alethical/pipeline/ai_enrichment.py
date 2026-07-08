@@ -176,12 +176,21 @@ def current_bill_version(db: Session, bill_id: Any) -> Any | None:
 def bill_text_sections(db: Session, version: Any) -> list[tuple[str, str, str]]:
     rag_rows = db.execute(
         select(RagSectionDocument, BillVersionSection)
-        .outerjoin(BillVersionSection, BillVersionSection.id == RagSectionDocument.bill_version_section_id)
+        .outerjoin(
+            BillVersionSection,
+            BillVersionSection.id == RagSectionDocument.bill_version_section_id,
+        )
         .where(RagSectionDocument.bill_version_id == version.id)
-        .order_by(BillVersionSection.source_order.asc().nulls_last(), RagSectionDocument.citation_label.asc())
+        .order_by(
+            BillVersionSection.source_order.asc().nulls_last(),
+            RagSectionDocument.citation_label.asc(),
+        )
     ).all()
     if rag_rows:
-        return [(row.citation_label, row.clean_text, row.source_hash) for row, _section in rag_rows]
+        return [
+            (row.citation_label, row.clean_text, row.source_hash)
+            for row, _section in rag_rows
+        ]
 
     section_rows = db.scalars(
         select(BillVersionSection)
@@ -200,7 +209,8 @@ def bill_text_sections(db: Session, version: Any) -> list[tuple[str, str, str]]:
                 if item
             ),
             section.raw_text,
-            section.source_hash or hashlib.sha256(section.raw_text.encode("utf-8")).hexdigest(),
+            section.source_hash
+            or hashlib.sha256(section.raw_text.encode("utf-8")).hexdigest(),
         )
         for section in section_rows
     ]
@@ -209,20 +219,29 @@ def bill_text_sections(db: Session, version: Any) -> list[tuple[str, str, str]]:
 def chief_sponsor_names(bill: Any) -> list[str]:
     names: list[str] = []
     for sponsorship in sorted(bill.sponsorships, key=lambda item: item.source_order):
-        if sponsorship.role == schema.SponsorshipRole.chief_author and sponsorship.legislator is not None:
+        if (
+            sponsorship.role == schema.SponsorshipRole.chief_author
+            and sponsorship.legislator is not None
+        ):
             names.append(sponsorship.legislator.full_name)
     return names
 
 
-def bill_prompt(db: Session, bill: Any, version: Any, *, max_input_chars: int) -> tuple[str, str, bool]:
+def bill_prompt(
+    db: Session, bill: Any, version: Any, *, max_input_chars: int
+) -> tuple[str, str, bool]:
     sections = bill_text_sections(db, version)
-    version_hash = source_hash([bill.bill_key, str(version.id), *[item[2] for item in sections]])
+    version_hash = source_hash(
+        [bill.bill_key, str(version.id), *[item[2] for item in sections]]
+    )
     metadata = {
         "bill_key": bill.bill_key,
         "title": bill.title,
         "description": bill.description,
         "current_status": bill.current_status,
-        "latest_action_at": bill.latest_action_at.isoformat() if bill.latest_action_at else None,
+        "latest_action_at": bill.latest_action_at.isoformat()
+        if bill.latest_action_at
+        else None,
         "chief_sponsors": chief_sponsor_names(bill),
         "official_url": bill.official_url,
         "version_code": version.version_code,
@@ -247,21 +266,22 @@ def bill_prompt(db: Session, bill: Any, version: Any, *, max_input_chars: int) -
     prompt = (
         "Analyze this Minnesota bill for a public-facing product. Produce neutral JSON only.\n\n"
         f"Bill metadata:\n{json.dumps(metadata, ensure_ascii=False, indent=2)}\n\n"
-        "Bill text excerpts:\n"
-        + "\n\n---\n\n".join(text_blocks)
+        "Bill text excerpts:\n" + "\n\n---\n\n".join(text_blocks)
     )
     return prompt, version_hash, truncated
 
 
-def bills_for_batch(db: Session, *, session_slug: str | None, bill_key: str | None, limit: int | None) -> list[Any]:
+def bills_for_batch(
+    db: Session, *, session_slug: str | None, bill_key: str | None, limit: int | None
+) -> list[Any]:
     stmt = select(Bill).options(
         selectinload(Bill.sponsorships).selectinload(Sponsorship.legislator),
         selectinload(Bill.enrichments),
     )
     if session_slug:
-        stmt = stmt.join(LegislativeSession, LegislativeSession.id == Bill.session_id).where(
-            LegislativeSession.slug == session_slug
-        )
+        stmt = stmt.join(
+            LegislativeSession, LegislativeSession.id == Bill.session_id
+        ).where(LegislativeSession.slug == session_slug)
     if bill_key:
         stmt = stmt.where(Bill.bill_key == bill_key)
     stmt = stmt.order_by(Bill.bill_key.asc())
@@ -323,7 +343,10 @@ def batch_request(custom_id: str, model: str, prompt: str) -> dict[str, Any]:
 def prepare_batch(args: argparse.Namespace) -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    database_url = normalize_database_url(args.database_url or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical")
+    database_url = normalize_database_url(
+        args.database_url
+        or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+    )
     engine = create_engine(database_url, pool_pre_ping=True)
 
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -332,18 +355,28 @@ def prepare_batch(args: argparse.Namespace) -> None:
 
     manifest: list[ManifestItem] = []
     bytes_written = 0
-    pending_custom_ids = pending_manifest_custom_ids(output_dir, model=args.model) if not args.force else set()
+    pending_custom_ids = (
+        pending_manifest_custom_ids(output_dir, model=args.model)
+        if not args.force
+        else set()
+    )
     skipped_pending = 0
     skipped_existing_current = 0
     with Session(engine) as db, jsonl_path.open("w", encoding="utf-8") as handle:
-        for bill in bills_for_batch(db, session_slug=args.session, bill_key=args.bill_key, limit=args.limit):
-            if getattr(args, "only_missing_current", False) and has_current_summary(bill, args.model):
+        for bill in bills_for_batch(
+            db, session_slug=args.session, bill_key=args.bill_key, limit=args.limit
+        ):
+            if getattr(args, "only_missing_current", False) and has_current_summary(
+                bill, args.model
+            ):
                 skipped_existing_current += 1
                 continue
             version = current_bill_version(db, bill.id)
             if version is None:
                 continue
-            prompt, version_hash, truncated = bill_prompt(db, bill, version, max_input_chars=args.max_input_chars)
+            prompt, version_hash, truncated = bill_prompt(
+                db, bill, version, max_input_chars=args.max_input_chars
+            )
             if not should_enqueue(bill, args.model, version_hash, force=args.force):
                 continue
             custom_id = f"bill_summary:{bill.bill_key}:{version_hash[:16]}"
@@ -355,7 +388,9 @@ def prepare_batch(args: argparse.Namespace) -> None:
             if len(manifest) + 1 > MAX_BATCH_REQUESTS:
                 raise SystemExit(f"Batch request limit exceeded: {MAX_BATCH_REQUESTS}")
             if bytes_written > MAX_BATCH_FILE_BYTES:
-                raise SystemExit(f"Batch file size limit exceeded: {MAX_BATCH_FILE_BYTES} bytes")
+                raise SystemExit(
+                    f"Batch file size limit exceeded: {MAX_BATCH_FILE_BYTES} bytes"
+                )
             handle.write(line)
             manifest.append(
                 ManifestItem(
@@ -434,21 +469,35 @@ def batch_status(args: argparse.Namespace) -> None:
     api_key = args.api_key or os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise SystemExit("OPENAI_API_KEY is required")
-    response = requests.get(f"{OPENAI_API_BASE}/batches/{args.batch_id}", headers=openai_headers(api_key), timeout=60)
+    response = requests.get(
+        f"{OPENAI_API_BASE}/batches/{args.batch_id}",
+        headers=openai_headers(api_key),
+        timeout=60,
+    )
     response.raise_for_status()
     print(json.dumps(response.json(), indent=2))
 
 
 def download_batch_output(api_key: str, batch_id: str, output_path: Path) -> None:
-    batch_response = requests.get(f"{OPENAI_API_BASE}/batches/{batch_id}", headers=openai_headers(api_key), timeout=60)
+    batch_response = requests.get(
+        f"{OPENAI_API_BASE}/batches/{batch_id}",
+        headers=openai_headers(api_key),
+        timeout=60,
+    )
     batch_response.raise_for_status()
     batch = batch_response.json()
     if batch.get("status") != "completed":
-        raise SystemExit(f"Batch is {batch.get('status')}; output is available only after completion")
+        raise SystemExit(
+            f"Batch is {batch.get('status')}; output is available only after completion"
+        )
     output_file_id = batch.get("output_file_id")
     if not output_file_id:
         raise SystemExit("Completed batch has no output_file_id")
-    file_response = requests.get(f"{OPENAI_API_BASE}/files/{output_file_id}/content", headers=openai_headers(api_key), timeout=120)
+    file_response = requests.get(
+        f"{OPENAI_API_BASE}/files/{output_file_id}/content",
+        headers=openai_headers(api_key),
+        timeout=120,
+    )
     file_response.raise_for_status()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(file_response.text, encoding="utf-8")
@@ -470,7 +519,9 @@ def load_manifest(path: Path) -> dict[str, ManifestItem]:
     return {item["custom_id"]: ManifestItem(**item) for item in payload["items"]}
 
 
-def pending_manifest_custom_ids(output_dir: Path, *, model: str | None = None) -> set[str]:
+def pending_manifest_custom_ids(
+    output_dir: Path, *, model: str | None = None
+) -> set[str]:
     custom_ids: set[str] = set()
     for path in output_dir.glob("ai-enrichment-*.manifest.json"):
         try:
@@ -491,14 +542,21 @@ def apply_output(args: argparse.Namespace) -> None:
     output_path = Path(args.output_path) if args.output_path else None
     if args.batch_id:
         if not api_key:
-            raise SystemExit("OPENAI_API_KEY is required when downloading output by batch id")
-        output_path = output_path or Path(args.output_dir) / f"{args.batch_id}.output.jsonl"
+            raise SystemExit(
+                "OPENAI_API_KEY is required when downloading output by batch id"
+            )
+        output_path = (
+            output_path or Path(args.output_dir) / f"{args.batch_id}.output.jsonl"
+        )
         download_batch_output(api_key, args.batch_id, output_path)
     if output_path is None:
         raise SystemExit("--output-path or --batch-id is required")
 
     manifest = load_manifest(Path(args.manifest_path))
-    database_url = normalize_database_url(args.database_url or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical")
+    database_url = normalize_database_url(
+        args.database_url
+        or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+    )
     engine = create_engine(database_url, pool_pre_ping=True)
     applied = 0
     failed = 0
@@ -567,18 +625,33 @@ def apply_output(args: argparse.Namespace) -> None:
             db.rollback()
         else:
             db.commit()
-    print(json.dumps({"applied": applied, "failed": failed, "dry_run": args.dry_run}, indent=2))
+    print(
+        json.dumps(
+            {"applied": applied, "failed": failed, "dry_run": args.dry_run}, indent=2
+        )
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Prepare, submit, and apply OpenAI Batch API bill AI enrichments.")
-    parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL") or supabase_database_url() or get_database_url())
+    parser = argparse.ArgumentParser(
+        description="Prepare, submit, and apply OpenAI Batch API bill AI enrichments."
+    )
+    parser.add_argument(
+        "--database-url",
+        default=os.environ.get("DATABASE_URL")
+        or supabase_database_url()
+        or get_database_url(),
+    )
     parser.add_argument("--api-key", default=None)
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    prepare = subparsers.add_parser("prepare", help="Build a Batch API JSONL file and local manifest.")
-    prepare.add_argument("--model", default=os.environ.get("OPENAI_AI_ENRICHMENT_MODEL", DEFAULT_MODEL))
+    prepare = subparsers.add_parser(
+        "prepare", help="Build a Batch API JSONL file and local manifest."
+    )
+    prepare.add_argument(
+        "--model", default=os.environ.get("OPENAI_AI_ENRICHMENT_MODEL", DEFAULT_MODEL)
+    )
     prepare.add_argument("--session", default="94-2025-regular")
     prepare.add_argument("--bill-key", default=None)
     prepare.add_argument("--limit", type=int, default=None)
@@ -587,7 +660,9 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--only-missing-current", action="store_true")
     prepare.set_defaults(func=prepare_batch)
 
-    submit = subparsers.add_parser("submit", help="Upload a JSONL file and create an OpenAI batch.")
+    submit = subparsers.add_parser(
+        "submit", help="Upload a JSONL file and create an OpenAI batch."
+    )
     submit.add_argument("jsonl_path")
     submit.set_defaults(func=submit_batch)
 
@@ -595,7 +670,9 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("batch_id")
     status.set_defaults(func=batch_status)
 
-    apply = subparsers.add_parser("apply", help="Download or read batch output and upsert ai_enrichment rows.")
+    apply = subparsers.add_parser(
+        "apply", help="Download or read batch output and upsert ai_enrichment rows."
+    )
     apply.add_argument("--manifest-path", required=True)
     apply.add_argument("--batch-id", default=None)
     apply.add_argument("--output-path", default=None)

@@ -26,12 +26,19 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, selectinload
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+    selectinload,
+)
 from sqlalchemy.types import TypeDecorator
 
 try:
     from pgvector.sqlalchemy import Vector
 except Exception:  # noqa: BLE001
+
     class Vector(TypeDecorator):  # type: ignore[no-redef]
         impl = JSONB
         cache_ok = True
@@ -55,12 +62,17 @@ class TimestampMixin:
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
 
 class UUIDPrimaryKeyMixin:
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
 
 
 class ChamberType(enum.Enum):
@@ -143,16 +155,24 @@ class Jurisdiction(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     chambers: Mapped[list["Chamber"]] = relationship(back_populates="jurisdiction")
-    sessions: Mapped[list["LegislativeSession"]] = relationship(back_populates="jurisdiction")
+    sessions: Mapped[list["LegislativeSession"]] = relationship(
+        back_populates="jurisdiction"
+    )
     districts: Mapped[list["District"]] = relationship(back_populates="jurisdiction")
-    legislators: Mapped[list["Legislator"]] = relationship(back_populates="jurisdiction")
+    legislators: Mapped[list["Legislator"]] = relationship(
+        back_populates="jurisdiction"
+    )
 
 
 class Chamber(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "chamber"
 
-    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jurisdiction.id"), nullable=False)
-    chamber_type: Mapped[ChamberType] = mapped_column(SQLEnum(ChamberType, name="chamber_type"), nullable=False)
+    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("jurisdiction.id"), nullable=False
+    )
+    chamber_type: Mapped[ChamberType] = mapped_column(
+        SQLEnum(ChamberType, name="chamber_type"), nullable=False
+    )
     slug: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     short_name: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -160,7 +180,9 @@ class Chamber(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     jurisdiction: Mapped["Jurisdiction"] = relationship(back_populates="chambers")
     districts: Mapped[list["District"]] = relationship(back_populates="chamber")
-    service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(back_populates="chamber")
+    service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(
+        back_populates="chamber"
+    )
     committees: Mapped[list["Committee"]] = relationship(back_populates="chamber")
     bills: Mapped[list["Bill"]] = relationship(back_populates="chamber")
 
@@ -173,10 +195,14 @@ class Chamber(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class LegislativeSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "legislative_session"
 
-    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jurisdiction.id"), nullable=False)
+    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("jurisdiction.id"), nullable=False
+    )
     slug: Mapped[str] = mapped_column(String(50), nullable=False)
     session_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    session_type: Mapped[SessionType] = mapped_column(SQLEnum(SessionType, name="session_type"), nullable=False)
+    session_type: Mapped[SessionType] = mapped_column(
+        SQLEnum(SessionType, name="session_type"), nullable=False
+    )
     year_start: Mapped[int] = mapped_column(Integer, nullable=False)
     year_end: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -185,21 +211,29 @@ class LegislativeSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     jurisdiction: Mapped["Jurisdiction"] = relationship(back_populates="sessions")
-    service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(back_populates="session")
+    service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(
+        back_populates="session"
+    )
     committees: Mapped[list["Committee"]] = relationship(back_populates="session")
     bills: Mapped[list["Bill"]] = relationship(back_populates="session")
 
     __table_args__ = (
         UniqueConstraint("jurisdiction_id", "slug"),
-        UniqueConstraint("jurisdiction_id", "session_number", "year_start", "session_type"),
+        UniqueConstraint(
+            "jurisdiction_id", "session_number", "year_start", "session_type"
+        ),
     )
 
 
 class District(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "district"
 
-    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jurisdiction.id"), nullable=False)
-    chamber_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chamber.id"), nullable=False)
+    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("jurisdiction.id"), nullable=False
+    )
+    chamber_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("chamber.id"), nullable=False
+    )
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     label: Mapped[str] = mapped_column(String(100), nullable=False)
     gis_identifier: Mapped[Optional[str]] = mapped_column(String(100))
@@ -208,7 +242,9 @@ class District(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     jurisdiction: Mapped["Jurisdiction"] = relationship(back_populates="districts")
     chamber: Mapped["Chamber"] = relationship(back_populates="districts")
-    service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(back_populates="district")
+    service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(
+        back_populates="district"
+    )
 
     __table_args__ = (UniqueConstraint("jurisdiction_id", "chamber_id", "code"),)
 
@@ -216,7 +252,9 @@ class District(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class Legislator(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "legislator"
 
-    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jurisdiction.id"), nullable=False)
+    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("jurisdiction.id"), nullable=False
+    )
     slug: Mapped[str] = mapped_column(String(120), nullable=False)
     external_key: Mapped[Optional[str]] = mapped_column(String(100))
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -228,9 +266,15 @@ class Legislator(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     jurisdiction: Mapped["Jurisdiction"] = relationship(back_populates="legislators")
-    service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(back_populates="legislator")
-    committee_memberships: Mapped[list["CommitteeMembership"]] = relationship(back_populates="legislator")
-    sponsorships: Mapped[list["Sponsorship"]] = relationship(back_populates="legislator")
+    service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(
+        back_populates="legislator"
+    )
+    committee_memberships: Mapped[list["CommitteeMembership"]] = relationship(
+        back_populates="legislator"
+    )
+    sponsorships: Mapped[list["Sponsorship"]] = relationship(
+        back_populates="legislator"
+    )
     vote_records: Mapped[list["VoteRecord"]] = relationship(back_populates="legislator")
     stats: Mapped[list["LegislatorStats"]] = relationship(back_populates="legislator")
 
@@ -243,10 +287,18 @@ class Legislator(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "legislator_service_period"
 
-    legislator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislator.id"), nullable=False)
-    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislative_session.id"), nullable=False)
-    chamber_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chamber.id"), nullable=False)
-    district_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("district.id"), nullable=False)
+    legislator_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislator.id"), nullable=False
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislative_session.id"), nullable=False
+    )
+    chamber_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("chamber.id"), nullable=False
+    )
+    district_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("district.id"), nullable=False
+    )
     period_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     party: Mapped[Optional[str]] = mapped_column(String(50))
     caucus_name: Mapped[Optional[str]] = mapped_column(String(100))
@@ -261,21 +313,33 @@ class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     legislator: Mapped["Legislator"] = relationship(back_populates="service_periods")
-    session: Mapped["LegislativeSession"] = relationship(back_populates="service_periods")
+    session: Mapped["LegislativeSession"] = relationship(
+        back_populates="service_periods"
+    )
     chamber: Mapped["Chamber"] = relationship(back_populates="service_periods")
     district: Mapped["District"] = relationship(back_populates="service_periods")
 
     __table_args__ = (
         UniqueConstraint("legislator_id", "session_id", "period_sequence"),
-        Index("ix_legislator_service_period_current", "session_id", "is_current", "chamber_id", "district_id"),
+        Index(
+            "ix_legislator_service_period_current",
+            "session_id",
+            "is_current",
+            "chamber_id",
+            "district_id",
+        ),
     )
 
 
 class Committee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "committee"
 
-    chamber_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chamber.id"), nullable=False)
-    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislative_session.id"), nullable=False)
+    chamber_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("chamber.id"), nullable=False
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislative_session.id"), nullable=False
+    )
     external_key: Mapped[Optional[str]] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     code: Mapped[Optional[str]] = mapped_column(String(50))
@@ -283,7 +347,9 @@ class Committee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     chamber: Mapped["Chamber"] = relationship(back_populates="committees")
     session: Mapped["LegislativeSession"] = relationship(back_populates="committees")
-    memberships: Mapped[list["CommitteeMembership"]] = relationship(back_populates="committee")
+    memberships: Mapped[list["CommitteeMembership"]] = relationship(
+        back_populates="committee"
+    )
 
     __table_args__ = (UniqueConstraint("session_id", "chamber_id", "name"),)
 
@@ -291,15 +357,21 @@ class Committee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class CommitteeMembership(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "committee_membership"
 
-    committee_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("committee.id"), nullable=False)
-    legislator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislator.id"), nullable=False)
+    committee_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("committee.id"), nullable=False
+    )
+    legislator_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislator.id"), nullable=False
+    )
     role: Mapped[Optional[str]] = mapped_column(String(50))
     start_date: Mapped[Optional[date]] = mapped_column(Date)
     end_date: Mapped[Optional[date]] = mapped_column(Date)
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     committee: Mapped["Committee"] = relationship(back_populates="memberships")
-    legislator: Mapped["Legislator"] = relationship(back_populates="committee_memberships")
+    legislator: Mapped["Legislator"] = relationship(
+        back_populates="committee_memberships"
+    )
 
     __table_args__ = (UniqueConstraint("committee_id", "legislator_id", "role"),)
 
@@ -307,8 +379,12 @@ class CommitteeMembership(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "bill"
 
-    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislative_session.id"), nullable=False)
-    chamber_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chamber.id"), nullable=False)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislative_session.id"), nullable=False
+    )
+    chamber_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("chamber.id"), nullable=False
+    )
     bill_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     file_type: Mapped[str] = mapped_column(String(20), nullable=False)
     file_number: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -317,12 +393,18 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     current_status: Mapped[Optional[str]] = mapped_column(String(200))
     current_status_code: Mapped[Optional[str]] = mapped_column(String(50))
-    latest_action_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    latest_action_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
     introduced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     official_url: Mapped[Optional[str]] = mapped_column(Text)
     is_omnibus: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    companion_bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("bill.id"))
-    ingestion_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("ingestion_run.id"))
+    companion_bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("bill.id")
+    )
+    ingestion_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("ingestion_run.id")
+    )
 
     session: Mapped["LegislativeSession"] = relationship(back_populates="bills")
     chamber: Mapped["Chamber"] = relationship(back_populates="bills")
@@ -339,7 +421,9 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         viewonly=True,
     )
     vote_events: Mapped[list["VoteEvent"]] = relationship(back_populates="bill")
-    stats: Mapped[Optional["BillStats"]] = relationship(back_populates="bill", uselist=False)
+    stats: Mapped[Optional["BillStats"]] = relationship(
+        back_populates="bill", uselist=False
+    )
     tracked_by: Mapped[list["TrackedBill"]] = relationship(back_populates="bill")
     enrichments: Mapped[list["AIEnrichment"]] = relationship(back_populates="bill")
 
@@ -360,12 +444,18 @@ class BillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     document_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     html_url: Mapped[Optional[str]] = mapped_column(Text)
     pdf_url: Mapped[Optional[str]] = mapped_column(Text)
-    source_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("source_artifact.id"))
+    source_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("source_artifact.id")
+    )
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     bill: Mapped["Bill"] = relationship(back_populates="versions")
-    sections: Mapped[list["BillVersionSection"]] = relationship(back_populates="bill_version")
-    rag_sections: Mapped[list["RagSectionDocument"]] = relationship(back_populates="bill_version")
+    sections: Mapped[list["BillVersionSection"]] = relationship(
+        back_populates="bill_version"
+    )
+    rag_sections: Mapped[list["RagSectionDocument"]] = relationship(
+        back_populates="bill_version"
+    )
 
     __table_args__ = (
         UniqueConstraint("bill_id", "version_code"),
@@ -376,7 +466,9 @@ class BillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class BillVersionSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "bill_version_section"
 
-    bill_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill_version.id"), nullable=False)
+    bill_version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bill_version.id"), nullable=False
+    )
     section_id_text: Mapped[str] = mapped_column(String(100), nullable=False)
     source_order: Mapped[int] = mapped_column(Integer, nullable=False)
     article_id_text: Mapped[Optional[str]] = mapped_column(String(100))
@@ -390,7 +482,9 @@ class BillVersionSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     source_hash: Mapped[Optional[str]] = mapped_column(String(64))
 
     bill_version: Mapped["BillVersion"] = relationship(back_populates="sections")
-    rag_sections: Mapped[list["RagSectionDocument"]] = relationship(back_populates="bill_version_section")
+    rag_sections: Mapped[list["RagSectionDocument"]] = relationship(
+        back_populates="bill_version_section"
+    )
 
     __table_args__ = (
         UniqueConstraint("bill_version_id", "section_id_text"),
@@ -402,14 +496,22 @@ class Sponsorship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "sponsorship"
 
     bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False)
-    legislator_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("legislator.id"))
-    committee_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("committee.id"))
-    role: Mapped[SponsorshipRole] = mapped_column(SQLEnum(SponsorshipRole, name="sponsorship_role"), nullable=False)
+    legislator_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("legislator.id")
+    )
+    committee_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("committee.id")
+    )
+    role: Mapped[SponsorshipRole] = mapped_column(
+        SQLEnum(SponsorshipRole, name="sponsorship_role"), nullable=False
+    )
     source_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     source_chamber: Mapped[Optional[str]] = mapped_column(String(20))
 
     bill: Mapped["Bill"] = relationship(back_populates="sponsorships")
-    legislator: Mapped[Optional["Legislator"]] = relationship(back_populates="sponsorships")
+    legislator: Mapped[Optional["Legislator"]] = relationship(
+        back_populates="sponsorships"
+    )
     committee: Mapped[Optional["Committee"]] = relationship()
 
     __table_args__ = (
@@ -426,8 +528,12 @@ class BillAction(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False)
     chamber_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("chamber.id"))
-    committee_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("committee.id"))
-    source_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("source_artifact.id"))
+    committee_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("committee.id")
+    )
+    source_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("source_artifact.id")
+    )
     action_number: Mapped[int] = mapped_column(Integer, nullable=False)
     action_group: Mapped[Optional[str]] = mapped_column(String(100))
     action_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -448,13 +554,19 @@ class VoteEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "vote_event"
 
     bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False)
-    bill_action_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("bill_action.id"))
-    chamber_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chamber.id"), nullable=False)
+    bill_action_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("bill_action.id")
+    )
+    chamber_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("chamber.id"), nullable=False
+    )
     motion_text: Mapped[Optional[str]] = mapped_column(Text)
     result_text: Mapped[Optional[str]] = mapped_column(String(100))
     occurred_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     official_url: Mapped[Optional[str]] = mapped_column(Text)
-    source_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("source_artifact.id"))
+    source_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("source_artifact.id")
+    )
     yes_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     no_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     absent_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -470,9 +582,15 @@ class VoteEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class VoteRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "vote_record"
 
-    vote_event_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vote_event.id"), nullable=False)
-    legislator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislator.id"), nullable=False)
-    vote_value: Mapped[VoteValue] = mapped_column(SQLEnum(VoteValue, name="vote_value"), nullable=False)
+    vote_event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("vote_event.id"), nullable=False
+    )
+    legislator_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislator.id"), nullable=False
+    )
+    vote_value: Mapped[VoteValue] = mapped_column(
+        SQLEnum(VoteValue, name="vote_value"), nullable=False
+    )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     vote_event: Mapped["VoteEvent"] = relationship(back_populates="records")
@@ -487,8 +605,12 @@ class IngestionRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     adapter: Mapped[str] = mapped_column(String(100), nullable=False)
     target_type: Mapped[str] = mapped_column(String(100), nullable=False)
     target_key: Mapped[Optional[str]] = mapped_column(String(200))
-    status: Mapped[IngestionStatus] = mapped_column(SQLEnum(IngestionStatus, name="ingestion_run_status"), nullable=False)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    status: Mapped[IngestionStatus] = mapped_column(
+        SQLEnum(IngestionStatus, name="ingestion_run_status"), nullable=False
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     stats: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     error_text: Mapped[Optional[str]] = mapped_column(Text)
@@ -499,16 +621,22 @@ class IngestionRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class SourceArtifact(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "source_artifact"
 
-    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ingestion_run.id"), nullable=False)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("ingestion_run.id"), nullable=False
+    )
     adapter: Mapped[str] = mapped_column(String(100), nullable=False)
-    artifact_type: Mapped[ArtifactType] = mapped_column(SQLEnum(ArtifactType, name="artifact_type"), nullable=False)
+    artifact_type: Mapped[ArtifactType] = mapped_column(
+        SQLEnum(ArtifactType, name="artifact_type"), nullable=False
+    )
     source_key: Mapped[Optional[str]] = mapped_column(String(200))
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     storage_path: Mapped[str] = mapped_column(Text, nullable=False)
     content_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     http_status: Mapped[Optional[int]] = mapped_column(Integer)
     content_type: Mapped[Optional[str]] = mapped_column(String(255))
-    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
@@ -526,23 +654,31 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     display_name: Mapped[Optional[str]] = mapped_column(String(200))
     primary_email: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    last_signed_in_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_signed_in_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     auth_identities: Mapped[list["AuthIdentity"]] = relationship(back_populates="user")
     tracked_bills: Mapped[list["TrackedBill"]] = relationship(back_populates="user")
     saved_places: Mapped[list["SavedPlace"]] = relationship(back_populates="user")
-    notification_preferences: Mapped[list["NotificationPreference"]] = relationship(back_populates="user")
+    notification_preferences: Mapped[list["NotificationPreference"]] = relationship(
+        back_populates="user"
+    )
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")
 
 
 class AuthIdentity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "auth_identity"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id"), nullable=False
+    )
     provider: Mapped[str] = mapped_column(String(100), nullable=False)
     provider_subject: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[Optional[str]] = mapped_column(String(255))
-    email_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    email_verified_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
     last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     user: Mapped["UserAccount"] = relationship(back_populates="auth_identities")
@@ -556,7 +692,9 @@ class AuthIdentity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class SavedPlace(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "saved_place"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id"), nullable=False
+    )
     label: Mapped[str] = mapped_column(String(100), nullable=False)
     address_text: Mapped[Optional[str]] = mapped_column(Text)
     city: Mapped[Optional[str]] = mapped_column(String(100))
@@ -564,8 +702,12 @@ class SavedPlace(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     postal_code: Mapped[Optional[str]] = mapped_column(String(20))
     latitude: Mapped[Optional[float]] = mapped_column(Numeric(9, 6))
     longitude: Mapped[Optional[float]] = mapped_column(Numeric(9, 6))
-    house_district_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("district.id"))
-    senate_district_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("district.id"))
+    house_district_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("district.id")
+    )
+    senate_district_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("district.id")
+    )
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     user: Mapped["UserAccount"] = relationship(back_populates="saved_places")
@@ -574,7 +716,9 @@ class SavedPlace(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class NotificationPreference(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "notification_preference"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id"), nullable=False
+    )
     channel: Mapped[NotificationChannel] = mapped_column(
         SQLEnum(NotificationChannel, name="notification_channel"), nullable=False
     )
@@ -583,7 +727,9 @@ class NotificationPreference(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    user: Mapped["UserAccount"] = relationship(back_populates="notification_preferences")
+    user: Mapped["UserAccount"] = relationship(
+        back_populates="notification_preferences"
+    )
 
     __table_args__ = (UniqueConstraint("user_id", "channel"),)
 
@@ -591,7 +737,9 @@ class NotificationPreference(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class TrackedBill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "tracked_bill"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id"), nullable=False
+    )
     bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False)
     note: Mapped[Optional[str]] = mapped_column(Text)
     alerts_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -605,7 +753,9 @@ class TrackedBill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class ChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "chat_session"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id"), nullable=False
+    )
     title: Mapped[Optional[str]] = mapped_column(String(255))
     subject_bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("bill.id"))
     retrieval_profile: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
@@ -618,8 +768,12 @@ class ChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class ChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "chat_message"
 
-    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chat_session.id"), nullable=False)
-    role: Mapped[ChatRole] = mapped_column(SQLEnum(ChatRole, name="chat_role"), nullable=False)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("chat_session.id"), nullable=False
+    )
+    role: Mapped[ChatRole] = mapped_column(
+        SQLEnum(ChatRole, name="chat_role"), nullable=False
+    )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     model_name: Mapped[Optional[str]] = mapped_column(String(100))
     input_tokens: Mapped[Optional[int]] = mapped_column(Integer)
@@ -628,15 +782,21 @@ class ChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     session: Mapped["ChatSession"] = relationship(back_populates="messages")
 
-    __table_args__ = (Index("ix_chat_message_session_created", "session_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_chat_message_session_created", "session_id", "created_at"),
+    )
 
 
 class AIEnrichment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "ai_enrichment"
 
     bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("bill.id"))
-    legislator_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("legislator.id"))
-    bill_version_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("bill_version.id"))
+    legislator_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("legislator.id")
+    )
+    bill_version_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("bill_version.id")
+    )
     enrichment_type: Mapped[EnrichmentType] = mapped_column(
         SQLEnum(EnrichmentType, name="enrichment_type"), nullable=False
     )
@@ -652,8 +812,12 @@ class RagSectionDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "rag_section_document"
 
     bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False)
-    bill_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill_version.id"), nullable=False)
-    bill_version_section_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("bill_version_section.id"))
+    bill_version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bill_version.id"), nullable=False
+    )
+    bill_version_section_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("bill_version_section.id")
+    )
     citation_label: Mapped[str] = mapped_column(Text, nullable=False)
     clean_text: Mapped[str] = mapped_column(Text, nullable=False)
     search_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -662,11 +826,17 @@ class RagSectionDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     word_count: Mapped[int] = mapped_column(Integer, nullable=False)
 
     bill_version: Mapped["BillVersion"] = relationship(back_populates="rag_sections")
-    bill_version_section: Mapped[Optional["BillVersionSection"]] = relationship(back_populates="rag_sections")
-    chunks: Mapped[list["RagChunk"]] = relationship(back_populates="rag_section_document")
+    bill_version_section: Mapped[Optional["BillVersionSection"]] = relationship(
+        back_populates="rag_sections"
+    )
+    chunks: Mapped[list["RagChunk"]] = relationship(
+        back_populates="rag_section_document"
+    )
 
     __table_args__ = (
-        UniqueConstraint("bill_version_id", "bill_version_section_id", "cleaning_version"),
+        UniqueConstraint(
+            "bill_version_id", "bill_version_section_id", "cleaning_version"
+        ),
         Index("ix_rag_section_bill_version", "bill_id", "bill_version_id"),
     )
 
@@ -674,7 +844,9 @@ class RagSectionDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class RagChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "rag_chunk"
 
-    rag_section_document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rag_section_document.id"), nullable=False)
+    rag_section_document_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rag_section_document.id"), nullable=False
+    )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     citation_label: Mapped[str] = mapped_column(Text, nullable=False)
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -683,8 +855,12 @@ class RagChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     word_count: Mapped[int] = mapped_column(Integer, nullable=False)
     token_estimate: Mapped[Optional[int]] = mapped_column(Integer)
 
-    rag_section_document: Mapped["RagSectionDocument"] = relationship(back_populates="chunks")
-    embedding: Mapped[Optional["RagChunkEmbedding"]] = relationship(back_populates="rag_chunk", uselist=False)
+    rag_section_document: Mapped["RagSectionDocument"] = relationship(
+        back_populates="chunks"
+    )
+    embedding: Mapped[Optional["RagChunkEmbedding"]] = relationship(
+        back_populates="rag_chunk", uselist=False
+    )
 
     __table_args__ = (
         UniqueConstraint("rag_section_document_id", "chunk_index", "chunking_version"),
@@ -695,7 +871,9 @@ class RagChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class RagChunkEmbedding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "rag_chunk_embedding"
 
-    rag_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rag_chunk.id"), nullable=False, unique=True)
+    rag_chunk_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rag_chunk.id"), nullable=False, unique=True
+    )
     embedding_model: Mapped[str] = mapped_column(String(100), nullable=False)
     embedding: Mapped[object] = mapped_column(Vector(1536), nullable=False)
 
@@ -705,7 +883,9 @@ class RagChunkEmbedding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class BillStats(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "bill_stats"
 
-    bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False, unique=True)
+    bill_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bill.id"), nullable=False, unique=True
+    )
     sponsor_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     action_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     version_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -718,8 +898,12 @@ class BillStats(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class LegislatorStats(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "legislator_stats"
 
-    legislator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislator.id"), nullable=False)
-    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislative_session.id"), nullable=False)
+    legislator_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislator.id"), nullable=False
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislative_session.id"), nullable=False
+    )
     chief_bill_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_bill_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     vote_record_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -751,23 +935,25 @@ def bill_detail_stmt(bill_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
         .selectinload(Legislator.service_periods)
         .selectinload(LegislatorServicePeriod.district),
         selectinload(Bill.actions),
-        selectinload(Bill.vote_events).selectinload(VoteEvent.records).selectinload(VoteRecord.legislator),
+        selectinload(Bill.vote_events)
+        .selectinload(VoteEvent.records)
+        .selectinload(VoteRecord.legislator),
         selectinload(Bill.enrichments),
     ]
     if user_id is not None:
-        options.append(selectinload(Bill.tracked_by.and_(TrackedBill.user_id == user_id)))
-    return (
-        select(Bill)
-        .where(Bill.id == bill_id)
-        .options(*options)
-    )
+        options.append(
+            selectinload(Bill.tracked_by.and_(TrackedBill.user_id == user_id))
+        )
+    return select(Bill).where(Bill.id == bill_id).options(*options)
 
 
 def current_bill_summary_enrichment_bill_ids():
     return select(AIEnrichment.bill_id).where(
         AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
         AIEnrichment.is_current.is_(True),
-        func.nullif(func.btrim(AIEnrichment.content_json["summary"].astext), "").is_not(None),
+        func.nullif(func.btrim(AIEnrichment.content_json["summary"].astext), "").is_not(
+            None
+        ),
     )
 
 
@@ -779,7 +965,9 @@ def bill_list_stmt(session_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
         selectinload(Bill.enrichments),
     ]
     if user_id is not None:
-        options.append(selectinload(Bill.tracked_by.and_(TrackedBill.user_id == user_id)))
+        options.append(
+            selectinload(Bill.tracked_by.and_(TrackedBill.user_id == user_id))
+        )
     return (
         select(Bill)
         .where(
@@ -787,7 +975,11 @@ def bill_list_stmt(session_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
             Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
         )
         .options(*options)
-        .order_by(Bill.latest_action_at.desc().nullslast(), Bill.file_number.asc(), Bill.id.asc())
+        .order_by(
+            Bill.latest_action_at.desc().nullslast(),
+            Bill.file_number.asc(),
+            Bill.id.asc(),
+        )
     )
 
 
@@ -795,7 +987,10 @@ def legislator_directory_stmt(session_id: uuid.UUID):
     """Load a legislator directory page from current terms and derived stats."""
     return (
         select(Legislator)
-        .join(LegislatorServicePeriod, LegislatorServicePeriod.legislator_id == Legislator.id)
+        .join(
+            LegislatorServicePeriod,
+            LegislatorServicePeriod.legislator_id == Legislator.id,
+        )
         .join(District, District.id == LegislatorServicePeriod.district_id)
         .where(
             LegislatorServicePeriod.session_id == session_id,
@@ -815,7 +1010,9 @@ def legislator_directory_stmt(session_id: uuid.UUID):
                     LegislatorServicePeriod.is_current.is_(True),
                 )
             ).selectinload(LegislatorServicePeriod.district),
-            selectinload(Legislator.stats.and_(LegislatorStats.session_id == session_id)),
+            selectinload(
+                Legislator.stats.and_(LegislatorStats.session_id == session_id)
+            ),
         )
         .order_by(Legislator.sort_name.asc())
     )
@@ -833,10 +1030,14 @@ def legislator_profile_stmt(legislator_id: uuid.UUID, session_id: uuid.UUID):
                     LegislatorServicePeriod.is_current.is_(True),
                 )
             ).selectinload(LegislatorServicePeriod.district),
-            selectinload(Legislator.committee_memberships.and_(CommitteeMembership.is_current.is_(True))).selectinload(
-                CommitteeMembership.committee
+            selectinload(
+                Legislator.committee_memberships.and_(
+                    CommitteeMembership.is_current.is_(True)
+                )
+            ).selectinload(CommitteeMembership.committee),
+            selectinload(
+                Legislator.stats.and_(LegislatorStats.session_id == session_id)
             ),
-            selectinload(Legislator.stats.and_(LegislatorStats.session_id == session_id)),
         )
     )
 
@@ -870,7 +1071,9 @@ def legislator_vote_history_stmt(legislator_id: uuid.UUID, session_id: uuid.UUID
             VoteRecord.legislator_id == legislator_id,
             Bill.session_id == session_id,
         )
-        .order_by(VoteEvent.occurred_at.desc().nullslast(), VoteRecord.created_at.desc())
+        .order_by(
+            VoteEvent.occurred_at.desc().nullslast(), VoteRecord.created_at.desc()
+        )
     )
 
 
@@ -912,9 +1115,10 @@ def rag_chunk_lookup_stmt(bill_id: Optional[uuid.UUID] = None):
     """Load retrieval-ready chunks with section provenance."""
     stmt = select(RagChunk).options(selectinload(RagChunk.rag_section_document))
     if bill_id is not None:
-        stmt = stmt.join(RagSectionDocument, RagSectionDocument.id == RagChunk.rag_section_document_id).where(
-            RagSectionDocument.bill_id == bill_id
-        )
+        stmt = stmt.join(
+            RagSectionDocument,
+            RagSectionDocument.id == RagChunk.rag_section_document_id,
+        ).where(RagSectionDocument.bill_id == bill_id)
     return stmt.order_by(RagChunk.created_at.desc())
 
 
@@ -929,7 +1133,10 @@ def semantic_rag_chunk_stmt(
     stmt = (
         select(RagChunk)
         .join(RagChunkEmbedding, RagChunkEmbedding.rag_chunk_id == RagChunk.id)
-        .join(RagSectionDocument, RagSectionDocument.id == RagChunk.rag_section_document_id)
+        .join(
+            RagSectionDocument,
+            RagSectionDocument.id == RagChunk.rag_section_document_id,
+        )
         .options(selectinload(RagChunk.rag_section_document))
         .order_by(RagChunkEmbedding.embedding.cosine_distance(query_embedding))
         .limit(limit)

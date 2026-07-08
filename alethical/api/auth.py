@@ -43,7 +43,9 @@ def get_optional_current_user(
     try:
         principal = auth_service.authenticate(token)
     except RuntimeError as exc:
-        raise problem_exception(503, "Service Unavailable", str(exc), type_slug="service-unavailable") from exc
+        raise problem_exception(
+            503, "Service Unavailable", str(exc), type_slug="service-unavailable"
+        ) from exc
     except Exception as exc:
         raise problem_exception(401, "Unauthorized", str(exc)) from exc
 
@@ -56,14 +58,23 @@ def get_optional_current_user(
     if identity is not None:
         user = db.scalar(select(UserAccount).where(UserAccount.id == identity.user_id))
         if user is None:
-            raise problem_exception(401, "Unauthorized", "Mapped user account not found")
+            raise problem_exception(
+                401, "Unauthorized", "Mapped user account not found"
+            )
     else:
         user = None
         if principal.email:
-            user = db.scalar(select(UserAccount).where(UserAccount.primary_email == principal.email.lower()))
+            user = db.scalar(
+                select(UserAccount).where(
+                    UserAccount.primary_email == principal.email.lower()
+                )
+            )
         if user is None:
             display_name = principal.email.split("@", 1)[0] if principal.email else None
-            user = UserAccount(display_name=display_name, primary_email=principal.email.lower() if principal.email else None)
+            user = UserAccount(
+                display_name=display_name,
+                primary_email=principal.email.lower() if principal.email else None,
+            )
             db.add(user)
             db.flush()
         identity = AuthIdentity(
@@ -71,7 +82,9 @@ def get_optional_current_user(
             provider=principal.provider,
             provider_subject=principal.provider_subject,
             email=principal.email.lower() if principal.email else None,
-            email_verified_at=datetime.now(timezone.utc) if principal.email_verified else None,
+            email_verified_at=datetime.now(timezone.utc)
+            if principal.email_verified
+            else None,
         )
         db.add(identity)
 
