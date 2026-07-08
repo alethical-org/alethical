@@ -16,11 +16,16 @@ distinct from AI-generated analysis (`docs/v1-scope.md` § Frontend Expectations
 
 - Route `/bills`; detail `/bills/:billId`. Redirect `/search` → `/bills`
   (`docs/mvp-redesign-plan.md` route table).
-- **All filter/query state serializes into the URL** (`/bills?q=&chamber=&status=&policy=&omnibus=&session=&page=`).
-  This is a hard requirement, not a nicety: the Ask `bills-list` answer's
-  "See all N {topic} bills in Search →" link (grounded-ask §9.1) is cross-page
-  navigation and can only target URL state, per `.claude/rules/grounded-answers.md` #5.
-  Reloading or sharing a filtered search must reproduce it.
+- **URL-addressable filters** — tracked in [#135](https://github.com/alethical-org/alethical/issues/135), split by milestone to keep v1 lean:
+  - **v1 (inbound read):** the screen reads an inbound filter param on load (e.g.
+    `?policy=education`) and applies it. Required because the Ask `bills-list` answer's
+    "See all N {topic} bills in Search →" overflow ([#79](https://github.com/alethical-org/alethical/issues/79),
+    grounded-ask §9.1) is cross-page navigation and can only target URL state
+    (`.claude/rules/grounded-answers.md` #5). This slice lands with #79.
+  - **v1.1 (full serialization):** all filters serialize *out* to the URL
+    (`/bills?q=&chamber=&status=&policy=&omnibus=&session=&page=`) so reload, share, and
+    back/forward reproduce the exact search. `webRoutes.ts` already serializes chat
+    params — the same pattern extends here.
 
 ## Page anatomy (top → bottom)
 
@@ -112,7 +117,10 @@ Everything else on this screen runs on the current API.
 
 ## Aesthetic
 
-Match the green / rounded / soft-shadow / bold-sans language established across the
-current redesign frames (`docs/mvp-redesign-plan.md` § Locked decisions). Note:
-`docs/aesthetics.md` still documents the superseded "Newsprint" style — it does not
-govern this screen.
+Design against the **green / rounded / soft-shadow / bold-sans** direction
+(`docs/mvp-redesign-plan.md` § Locked decisions; final visual mockups in Claude Design).
+Note the implementation state: `apps/frontend/src/theme/tokens.ts` — the styling source
+of truth — still holds the earlier "Newsprint" tokens (sharp corners, serif, ink/paper/red),
+and the green token flip is a pending redesign to-do. So this screen is *designed* green but
+will be *built* against tokens.ts once the flip lands. `docs/aesthetics.md` documents the
+current Newsprint tokens and its header records this transition.

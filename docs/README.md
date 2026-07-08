@@ -6,8 +6,10 @@ Project documentation lives here so the repository root stays focused on runnabl
 
 - [V1 scope](v1-scope.md)
 - [Initial product notes](product-notes.md)
+- [MVP redesign plan](mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker
 - [Frontend screen system design](frontend-screen-system-design.md)
-- [Visual design style](aesthetics.md)
+- [Bill search screen spec](bill-search-screen-spec.md) — v1 bill search (`/bills`)
+- [Visual design style](aesthetics.md) — current Newsprint tokens; v1 redesign → green (see MVP redesign plan)
 
 ## Backend And Data
 

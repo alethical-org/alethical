@@ -1,3 +1,18 @@
+> **Status — reconciled Jul 8, 2026.** This document describes the **Newsprint** style,
+> which is what `apps/frontend/src/theme/tokens.ts` currently implements (sharp corners,
+> Playfair/Lora serif, ink `#111` / paper `#F9F9F7` / editorial-red `#CC0000`).
+>
+> The v1 redesign has **decided a different direction** — green / rounded / soft-shadow /
+> bold-sans — locked in `docs/mvp-redesign-plan.md` § Locked decisions, with final visual
+> mockups produced in Claude Design. That direction is deliberately kept loose and not yet
+> written up as a binding design-system doc, and the **green token flip in `tokens.ts` is a
+> pending to-do** (mvp-redesign-plan build sequence). Until that flip lands, the Newsprint
+> spec below still matches the shipped app.
+>
+> **Sources of truth:** `tokens.ts` for implemented styling · `docs/mvp-redesign-plan.md`
+> for the redesign decision and direction · Claude Design for green mockups. When the green
+> flip lands, replace the Newsprint body below with the firmed green system.
+
 <design-system>
 
 # Design Style: Newsprint
