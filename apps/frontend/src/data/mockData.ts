@@ -185,7 +185,11 @@ const bills: Bill[] = [
       'How does this bill differ from current law?',
     ],
     actions: [
-      { id: 'act-1', date: '2026-03-19', description: 'Referred to Jobs and Economic Development Committee.' },
+      {
+        id: 'act-1',
+        date: '2026-03-19',
+        description: 'Referred to Jobs and Economic Development Committee.',
+      },
       { id: 'act-2', date: '2026-03-15', description: 'Second engrossment adopted.' },
       { id: 'act-3', date: '2026-03-10', description: 'Fiscal note requested.' },
     ],
@@ -223,18 +227,26 @@ const bills: Bill[] = [
         'cit-sf1832-1',
         'Official bill text',
         'Transfers funding for job creation and workforce programs and sets reporting requirements.',
-        'https://www.revisor.mn.gov/bills/94/2025/0/SF/1832/versions/latest/'
+        'https://www.revisor.mn.gov/bills/94/2025/0/SF/1832/versions/latest/',
       ),
       billCitation(
         'cit-sf1832-2',
         'Senate action history',
         'Referred to committee and amended through engrossment.',
-        'https://www.revisor.mn.gov/bills/bill.php?b=Senate&f=SF1832&ssn=0&y=2025'
+        'https://www.revisor.mn.gov/bills/bill.php?b=Senate&f=SF1832&ssn=0&y=2025',
       ),
     ],
     officialLinks: [
-      { id: 'off-sf1832-1', label: 'Official bill page', url: 'https://www.revisor.mn.gov/bills/bill.php?b=Senate&f=SF1832&ssn=0&y=2025' },
-      { id: 'off-sf1832-2', label: 'Official text', url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/1832/versions/latest/' },
+      {
+        id: 'off-sf1832-1',
+        label: 'Official bill page',
+        url: 'https://www.revisor.mn.gov/bills/bill.php?b=Senate&f=SF1832&ssn=0&y=2025',
+      },
+      {
+        id: 'off-sf1832-2',
+        label: 'Official text',
+        url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/1832/versions/latest/',
+      },
     ],
   },
   {
@@ -298,12 +310,20 @@ const bills: Bill[] = [
         'cit-sf2483-1',
         'Official bill text',
         'Creates or updates multiple higher education funding and program sections.',
-        'https://www.revisor.mn.gov/bills/94/2025/0/SF/2483/versions/latest/'
+        'https://www.revisor.mn.gov/bills/94/2025/0/SF/2483/versions/latest/',
       ),
     ],
     officialLinks: [
-      { id: 'off-sf2483-1', label: 'Official bill page', url: 'https://www.revisor.mn.gov/bills/bill.php?b=Senate&f=SF2483&ssn=0&y=2025' },
-      { id: 'off-sf2483-2', label: 'Official text', url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/2483/versions/latest/' },
+      {
+        id: 'off-sf2483-1',
+        label: 'Official bill page',
+        url: 'https://www.revisor.mn.gov/bills/bill.php?b=Senate&f=SF2483&ssn=0&y=2025',
+      },
+      {
+        id: 'off-sf2483-2',
+        label: 'Official text',
+        url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/2483/versions/latest/',
+      },
     ],
   },
   {
@@ -327,10 +347,13 @@ const bills: Bill[] = [
         'Supports both basic and advanced forensic interview training.',
         'Directs grants to recognized training organizations.',
       ],
-      whoAffected: ['Children and families', 'Law enforcement', 'Healthcare professionals', 'Child protection workers'],
-      supportersMaySay: [
-        'Better training can improve evidence gathering and child outcomes.',
+      whoAffected: [
+        'Children and families',
+        'Law enforcement',
+        'Healthcare professionals',
+        'Child protection workers',
       ],
+      supportersMaySay: ['Better training can improve evidence gathering and child outcomes.'],
       concernsMayRaise: [
         'Funding may be too limited to meet statewide demand.',
         'Training quality may vary across providers.',
@@ -370,12 +393,20 @@ const bills: Bill[] = [
         'cit-hf2136-1',
         'Official appropriation language',
         'Appropriates $250,000 in each fiscal year for scholarships and training grants.',
-        'https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/'
+        'https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/',
       ),
     ],
     officialLinks: [
-      { id: 'off-hf2136-1', label: 'Official bill page', url: 'https://www.revisor.mn.gov/bills/bill.php?b=House&f=HF2136&ssn=0&y=2025' },
-      { id: 'off-hf2136-2', label: 'Official text', url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/' },
+      {
+        id: 'off-hf2136-1',
+        label: 'Official bill page',
+        url: 'https://www.revisor.mn.gov/bills/bill.php?b=House&f=HF2136&ssn=0&y=2025',
+      },
+      {
+        id: 'off-hf2136-2',
+        label: 'Official text',
+        url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/',
+      },
     ],
   },
   {
@@ -399,7 +430,9 @@ const bills: Bill[] = [
         'Targets barriers that often delay affordable housing projects.',
       ],
       whoAffected: ['Local governments', 'Developers', 'Prospective renters and homeowners'],
-      supportersMaySay: ['It helps housing projects move faster by funding basic infrastructure needs.'],
+      supportersMaySay: [
+        'It helps housing projects move faster by funding basic infrastructure needs.',
+      ],
       concernsMayRaise: ['Local grant distribution criteria may become contentious.'],
     },
     aiAnalysis: null,
@@ -425,11 +458,15 @@ const bills: Bill[] = [
         'cit-hf2380-1',
         'Official text',
         'Creates a grant framework to prepare housing sites with needed infrastructure.',
-        'https://www.revisor.mn.gov/bills/94/2025/0/HF/2380/versions/latest/'
+        'https://www.revisor.mn.gov/bills/94/2025/0/HF/2380/versions/latest/',
       ),
     ],
     officialLinks: [
-      { id: 'off-hf2380-1', label: 'Official bill page', url: 'https://www.revisor.mn.gov/bills/bill.php?b=House&f=HF2380&ssn=0&y=2025' },
+      {
+        id: 'off-hf2380-1',
+        label: 'Official bill page',
+        url: 'https://www.revisor.mn.gov/bills/bill.php?b=House&f=HF2380&ssn=0&y=2025',
+      },
     ],
   },
 ];
@@ -597,7 +634,7 @@ export async function listBills(query?: string): Promise<Array<Bill & { sponsorN
           bill.status,
           bill.topics.join(' '),
           sponsorNamesForBill(bill).join(' '),
-        ].join(' ')
+        ].join(' '),
       );
 
       return haystack.includes(normalizedQuery);
@@ -632,11 +669,11 @@ export async function listLegislators(query?: string): Promise<Legislator[]> {
           legislator.party,
           legislator.chamber,
           legislator.focusAreas.join(' '),
-        ].join(' ')
+        ].join(' '),
       );
 
       return haystack.includes(normalizedQuery);
-    })
+    }),
   );
 }
 
@@ -646,7 +683,7 @@ export async function getLegislator(legislatorId: string): Promise<Legislator | 
 }
 
 export async function getLegislatorBills(
-  legislatorId: string
+  legislatorId: string,
 ): Promise<Array<Bill & { sponsorNames: string[] }>> {
   await wait();
   const legislator = legislators.find((item) => item.id === legislatorId);
@@ -659,7 +696,9 @@ export async function getLegislatorBills(
     .map((bill) => ({ ...clone(bill), sponsorNames: sponsorNamesForBill(bill) }));
 }
 
-export async function getRepresentativeLookup(address: string): Promise<RepresentativeLookupResult | null> {
+export async function getRepresentativeLookup(
+  address: string,
+): Promise<RepresentativeLookupResult | null> {
   await wait(120);
   const match = addressIndex[normalize(address)];
   if (match) {
@@ -673,7 +712,9 @@ export async function getRepresentativeLookup(address: string): Promise<Represen
   };
 }
 
-export async function listTrackedBills(userId: string): Promise<Array<Bill & { sponsorNames: string[] }>> {
+export async function listTrackedBills(
+  userId: string,
+): Promise<Array<Bill & { sponsorNames: string[] }>> {
   await wait();
   if (userId !== demoUserId) {
     return [];
@@ -706,11 +747,14 @@ export async function listChatSessions(userId: string): Promise<ChatSession[]> {
   }
 
   return clone(
-    [...store.chatSessions].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    [...store.chatSessions].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
   );
 }
 
-export async function getChatSession(userId: string, sessionId: string): Promise<ChatSession | null> {
+export async function getChatSession(
+  userId: string,
+  sessionId: string,
+): Promise<ChatSession | null> {
   await wait();
   if (userId !== demoUserId) {
     return null;
@@ -784,7 +828,9 @@ export async function sendChatMessage(input: {
   return clone(session);
 }
 
-export async function getNotificationPreference(userId: string): Promise<NotificationPreference | null> {
+export async function getNotificationPreference(
+  userId: string,
+): Promise<NotificationPreference | null> {
   await wait();
   if (userId !== demoUserId) {
     return null;
@@ -796,7 +842,7 @@ export async function getNotificationPreference(userId: string): Promise<Notific
 export async function updateNotificationPreference(
   userId: string,
   key: keyof NotificationPreference,
-  value: boolean
+  value: boolean,
 ): Promise<NotificationPreference | null> {
   await wait();
   if (userId !== demoUserId) {

@@ -11,7 +11,7 @@ const networkSecurityConfigPath = resolve(xmlDir, 'network_security_config.xml')
 
 if (!existsSync(manifestPath)) {
   throw new Error(
-    `Android project is missing at ${manifestPath}. Run "pnpm --dir apps/frontend exec expo prebuild --platform android" first.`
+    `Android project is missing at ${manifestPath}. Run "pnpm --dir apps/frontend exec expo prebuild --platform android" first.`,
   );
 }
 
@@ -28,7 +28,7 @@ writeFileSync(
   </domain-config>
 </network-security-config>
 `,
-  'utf8'
+  'utf8',
 );
 
 const manifest = readFileSync(manifestPath, 'utf8');

@@ -59,7 +59,16 @@ deploy (see below), so all changes go through pull requests.
    ```
    Branch off `main` — not off another feature branch — so your PR contains only
    your change. Use a prefix that describes the topic: `feat/`, `fix/`, `docs/`,
-   `chore/`, `refactor/`. Example: `docs/env-onboarding`.
+   `chore/`, `refactor/`. Example: `docs/env-onboarding`. Name the rest
+   literally, in words a newcomer could guess the meaning of
+   (`docs/update-issues-on-scope-change`, not `docs/ripple-sweep-habit`) — and
+   the same for PR titles, filenames, and headings. Metaphors and coined names
+   make the repo harder to learn.
+
+   Before you branch, skim the open PRs (`gh pr list`) for overlapping work —
+   especially with parallel Claude sessions, the same idea can be in flight
+   twice. If a PR already touches your files or topic, build on that branch
+   (or wait for it) instead of duplicating it.
 
 2. **Commit** small, focused changes with a clear imperative subject line
    (e.g. `Add .env.example and fix README env setup`).
@@ -80,6 +89,12 @@ deploy (see below), so all changes go through pull requests.
 Keeping one topic per branch makes PRs small and reviewable, keeps `main`'s
 history readable, and lets any single change be reverted cleanly.
 
+**Share branches, not file copies.** When handing work between tools, sessions,
+or people, push the branch and point at it (or at the PR) rather than exporting
+a file to Downloads or a desktop. A copy outside git has no history, so nobody
+can cheaply tell whether it matches the branch or has silently drifted — and
+reconciling that later costs more than the export ever saved.
+
 ## What CI checks
 
 On every PR (`.github/workflows/ci.yml`), path-filtered to what changed:
@@ -95,11 +110,20 @@ and land everything through reviewed PRs.
 
 ## Issue tracker hygiene
 
-An open issue should mean "still needs doing." Two habits keep that true:
+An open issue should mean "still needs doing." Three habits keep that true:
 
 - **Link every PR to its issue** with `Closes #<n>` (see the PR workflow above).
   Merging then closes the issue for you, and the closed issue keeps a link back
   to the PR that did the work.
+- **File issues at the moment of discovery.** When work surfaces something worth
+  doing later — a deferred upgrade, a scope cut, a follow-up — file the issue in
+  the same session, with enough context to act on without the original
+  conversation: what it is, what exists today instead, why it's deferred, and
+  what unblocks it. A title alone isn't an issue; it's a mystery for whoever
+  opens it next. The same discipline runs in reverse: when a change re-scopes or
+  re-phases work, *search* the open issues for ones still describing the old
+  scope and update them in the same change — don't let the tracker promise a
+  plan that no longer exists.
 - **Triage monthly.** Once a month, skim the open issues and ask of each: is this
   still true? Close anything already shipped (add a one-line note pointing at the
   PR), and re-scope anything half-done to just the remaining work. A scheduled
@@ -107,3 +131,27 @@ An open issue should mean "still needs doing." Two habits keep that true:
 
 We group work with **milestones** (e.g. `v0 hardening`, `v1`) rather than title
 prefixes, so the Milestones tab shows real progress bars.
+
+We size issues with **effort labels**, never in the title:
+
+- `effort: small` — half a day or less; one file or area, no unknowns — you can
+  picture the diff before starting.
+- `effort: medium` — half a day to ~2 days; touches a few areas, or has one
+  real unknown to figure out.
+- `effort: large` — multiple days, or an unresolved design question.
+
+Two rules make the sizes useful. **Effort is not priority** — the milestone
+says *when*, the label says *how big*; a small issue can be launch-critical and
+a medium one can wait. And **large is a smell, not a size**: before starting an
+`effort: large` issue, split it into smaller issues or file a spike to resolve
+the unknown. Re-sizing as you learn more is normal — edit the label, not the
+title.
+
+## Keeping docs current
+
+Docs carry screenshots and diagrams, and those go stale silently — `grep`
+can't see inside an image, so a review won't catch it. When you change
+something a doc's visual depicts (UI copy, layout, the states a mock shows),
+refresh that image in the **same PR**, so the doc's picture and its words never
+disagree. This covers any doc with embedded visuals — build specs, onboarding
+guides, READMEs — not just files named `*-spec.md`.

@@ -11,12 +11,7 @@ interface PrimaryButtonProps {
   style?: ViewStyle;
 }
 
-export function PrimaryButton({
-  label,
-  onPress,
-  tone = 'primary',
-  style,
-}: PrimaryButtonProps) {
+export function PrimaryButton({ label, onPress, tone = 'primary', style }: PrimaryButtonProps) {
   const primary = tone === 'primary';
   const disabled = !onPress;
   const reducedMotion = useReducedMotion();
@@ -54,7 +49,13 @@ export function PrimaryButton({
           disabled ? styles.disabled : null,
         ]}
       >
-        <Text style={[styles.label, primary ? styles.primaryLabel : styles.secondaryLabel, disabled ? styles.disabledLabel : null]}>
+        <Text
+          style={[
+            styles.label,
+            primary ? styles.primaryLabel : styles.secondaryLabel,
+            disabled ? styles.disabledLabel : null,
+          ]}
+        >
           {label}
         </Text>
       </Pressable>

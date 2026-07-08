@@ -14,7 +14,7 @@ Organized as a small monorepo with separate application, backend, and documentat
 
 - `alethical/`: Python backend package for the API, database, ingestion runtime, migrations, and backend tests.
 - `alethical/tests/fixtures/`: JSON fixtures used only by tests and deterministic local demo seeding.
-- `apps/frontend/`: Expo React Native app for web, iOS, and Android.
+- `apps/frontend/`: Expo React Native app. The MVP ships the **web** target; iOS and Android are post-MVP (see `docs/v1-scope.md`).
 - `scripts/`: Repo-level Python utilities for loading data and validating queries.
 - `docs/`: Product, design, architecture, validation, and local-development notes.
 

@@ -1,5 +1,8 @@
 # Android Prototype Handoff
 
+> **Post-MVP.** The MVP ships the web app only (see `docs/v1-scope.md` § Frontend Scope).
+> This Android build is a post-MVP prototype ([#91](https://github.com/alethical-org/alethical/issues/91)), not an MVP deliverable.
+
 This branch contains the Expo/React Native Android prototype for the Alethical mobile app. The Android native project under `apps/frontend/android` is generated locally and is not the durable source of truth for MR review.
 
 ## Durable Build Path

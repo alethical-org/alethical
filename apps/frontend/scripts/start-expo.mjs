@@ -21,7 +21,10 @@ if (existsSync(envPath)) {
     }
 
     const key = trimmed.slice(0, equalsIndex).trim();
-    const value = trimmed.slice(equalsIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+    const value = trimmed
+      .slice(equalsIndex + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, '');
     process.env[key] = value;
   }
 }

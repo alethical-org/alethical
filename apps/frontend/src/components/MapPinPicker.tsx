@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { GestureResponderEvent, Image, Linking, PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  GestureResponderEvent,
+  Image,
+  Linking,
+  PanResponder,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Svg, { Polygon, Polyline } from 'react-native-svg';
 
 import { MINNESOTA_BOUNDARY, isCoordinateInMinnesota } from '../data/minnesotaBoundary';
@@ -24,11 +34,13 @@ const TILE_RADIUS = 2;
 const DRAG_THRESHOLD = 4;
 const OPENSTREETMAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OPENSTREETMAP_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
-const MAP_TILE_USER_AGENT = process.env.EXPO_PUBLIC_MAP_TILE_USER_AGENT
-  || 'Alethical/0.1 (+https://alethical-web.vercel.app)';
-const tileTemplate = process.env.EXPO_PUBLIC_OPENSTREETMAP_TILE_URL
-  || process.env.EXPO_PUBLIC_MAP_TILE_URL
-  || OPENSTREETMAP_TILE_URL;
+const MAP_TILE_USER_AGENT =
+  process.env.EXPO_PUBLIC_MAP_TILE_USER_AGENT ||
+  'Alethical/0.1 (+https://alethical-web.vercel.app)';
+const tileTemplate =
+  process.env.EXPO_PUBLIC_OPENSTREETMAP_TILE_URL ||
+  process.env.EXPO_PUBLIC_MAP_TILE_URL ||
+  OPENSTREETMAP_TILE_URL;
 const webMapSurfaceStyle = {
   cursor: 'grab',
   touchAction: 'none',
@@ -42,8 +54,14 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const safeCoordinate = isValidCoordinate(coordinate) ? coordinate : DEFAULT_COORDINATE;
-  const tileGrid = useMemo(() => buildTileGrid(safeCoordinate, size, zoom), [safeCoordinate, size, zoom]);
-  const boundaryPoints = useMemo(() => buildBoundaryPoints(safeCoordinate, size, zoom), [safeCoordinate, size, zoom]);
+  const tileGrid = useMemo(
+    () => buildTileGrid(safeCoordinate, size, zoom),
+    [safeCoordinate, size, zoom],
+  );
+  const boundaryPoints = useMemo(
+    () => buildBoundaryPoints(safeCoordinate, size, zoom),
+    [safeCoordinate, size, zoom],
+  );
   const isInMinnesota = isCoordinateInMinnesota(safeCoordinate);
   const dragStartCoordinateRef = useRef<RepresentativeLookupCoordinates>(safeCoordinate);
   const pointerDragRef = useRef<{
@@ -80,7 +98,7 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
       pressLocation.y,
       safeCoordinate,
       size,
-      zoom
+      zoom,
     );
     if (isValidCoordinate(nextCoordinate)) {
       onCoordinateChange(nextCoordinate);
@@ -100,7 +118,7 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
       safeCoordinate,
       size,
       zoom,
-      nextZoom
+      nextZoom,
     );
     if (isValidCoordinate(nextCoordinate)) {
       onCoordinateChange(nextCoordinate);
@@ -124,101 +142,102 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
             gestureState.dx,
             gestureState.dy,
             dragStartCoordinateRef.current,
-            zoom
+            zoom,
           );
           if (isValidCoordinate(nextCoordinate)) {
             onCoordinateChange(nextCoordinate);
           }
         },
       }),
-    [onCoordinateChange, safeCoordinate, size, zoom]
+    [onCoordinateChange, safeCoordinate, size, zoom],
   );
 
-  const webGestureHandlers = Platform.OS === 'web'
-    ? ({
-        onPointerDown: (event: any) => {
-          if (event.button != null && event.button !== 0) {
-            return;
-          }
-          pointerDragRef.current = {
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startY: event.clientY,
-            coordinate: safeCoordinate,
-            moved: false,
-          };
-          event.currentTarget?.setPointerCapture?.(event.pointerId);
-        },
-        onPointerMove: (event: any) => {
-          const drag = pointerDragRef.current;
-          if (!drag || drag.pointerId !== event.pointerId) {
-            return;
-          }
+  const webGestureHandlers =
+    Platform.OS === 'web'
+      ? ({
+          onPointerDown: (event: any) => {
+            if (event.button != null && event.button !== 0) {
+              return;
+            }
+            pointerDragRef.current = {
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startY: event.clientY,
+              coordinate: safeCoordinate,
+              moved: false,
+            };
+            event.currentTarget?.setPointerCapture?.(event.pointerId);
+          },
+          onPointerMove: (event: any) => {
+            const drag = pointerDragRef.current;
+            if (!drag || drag.pointerId !== event.pointerId) {
+              return;
+            }
 
-          const dx = event.clientX - drag.startX;
-          const dy = event.clientY - drag.startY;
-          if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
-            drag.moved = true;
-          }
+            const dx = event.clientX - drag.startX;
+            const dy = event.clientY - drag.startY;
+            if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
+              drag.moved = true;
+            }
 
-          if (!drag.moved) {
-            return;
-          }
+            if (!drag.moved) {
+              return;
+            }
 
-          event.preventDefault?.();
-          const nextCoordinate = dragOffsetToCoordinate(dx, dy, drag.coordinate, zoom);
-          if (isValidCoordinate(nextCoordinate)) {
-            onCoordinateChange(nextCoordinate);
-          }
-        },
-        onPointerUp: (event: any) => {
-          if (pointerDragRef.current?.moved) {
-            suppressNextPressRef.current = true;
-          }
-          event.currentTarget?.releasePointerCapture?.(event.pointerId);
-          pointerDragRef.current = null;
-        },
-        onPointerCancel: (event: any) => {
-          event.currentTarget?.releasePointerCapture?.(event.pointerId);
-          pointerDragRef.current = null;
-        },
-        onWheel: (event: any) => {
-          if (!isValidSize(size)) {
-            return;
-          }
-
-          event.preventDefault?.();
-          const nextZoom = clamp(zoom + (event.deltaY < 0 ? 1 : -1), MIN_ZOOM, MAX_ZOOM);
-          if (nextZoom === zoom) {
-            return;
-          }
-
-          const pressLocation = eventLocationFromClientPoint(event, event.currentTarget);
-          if (!pressLocation) {
-            setZoom(nextZoom);
-            return;
-          }
-
-          const nextCoordinate = zoomAroundScreenPoint(
-            pressLocation.x,
-            pressLocation.y,
-            safeCoordinate,
-            size,
-            zoom,
-            nextZoom
-          );
-          setZoom(nextZoom);
-          if (isValidCoordinate(nextCoordinate)) {
-            onCoordinateChange(nextCoordinate);
-          }
-        },
-        onClick: (event: any) => {
-          if (suppressNextPressRef.current) {
             event.preventDefault?.();
-          }
-        },
-      } as any)
-    : null;
+            const nextCoordinate = dragOffsetToCoordinate(dx, dy, drag.coordinate, zoom);
+            if (isValidCoordinate(nextCoordinate)) {
+              onCoordinateChange(nextCoordinate);
+            }
+          },
+          onPointerUp: (event: any) => {
+            if (pointerDragRef.current?.moved) {
+              suppressNextPressRef.current = true;
+            }
+            event.currentTarget?.releasePointerCapture?.(event.pointerId);
+            pointerDragRef.current = null;
+          },
+          onPointerCancel: (event: any) => {
+            event.currentTarget?.releasePointerCapture?.(event.pointerId);
+            pointerDragRef.current = null;
+          },
+          onWheel: (event: any) => {
+            if (!isValidSize(size)) {
+              return;
+            }
+
+            event.preventDefault?.();
+            const nextZoom = clamp(zoom + (event.deltaY < 0 ? 1 : -1), MIN_ZOOM, MAX_ZOOM);
+            if (nextZoom === zoom) {
+              return;
+            }
+
+            const pressLocation = eventLocationFromClientPoint(event, event.currentTarget);
+            if (!pressLocation) {
+              setZoom(nextZoom);
+              return;
+            }
+
+            const nextCoordinate = zoomAroundScreenPoint(
+              pressLocation.x,
+              pressLocation.y,
+              safeCoordinate,
+              size,
+              zoom,
+              nextZoom,
+            );
+            setZoom(nextZoom);
+            if (isValidCoordinate(nextCoordinate)) {
+              onCoordinateChange(nextCoordinate);
+            }
+          },
+          onClick: (event: any) => {
+            if (suppressNextPressRef.current) {
+              event.preventDefault?.();
+            }
+          },
+        } as any)
+      : null;
 
   return (
     <View style={styles.container}>
@@ -317,7 +336,12 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
         <Text testID="representative-map-pin-longitude" style={styles.coordinateText}>
           {safeCoordinate.longitude.toFixed(5)}
         </Text>
-        <Text style={[styles.coordinateText, isInMinnesota ? styles.coverageInsideText : styles.coverageOutsideText]}>
+        <Text
+          style={[
+            styles.coordinateText,
+            isInMinnesota ? styles.coverageInsideText : styles.coverageOutsideText,
+          ]}
+        >
           {isInMinnesota ? 'MN lookup area' : 'Outside MN lookup area'}
         </Text>
       </View>
@@ -344,11 +368,7 @@ function pressLocationFromEvent(event: GestureResponderEvent): { x: number; y: n
   const clientX = nativeEvent.clientX;
   const clientY = nativeEvent.clientY;
   const target = event.currentTarget as unknown as { getBoundingClientRect?: () => DOMRect };
-  if (
-    target?.getBoundingClientRect &&
-    Number.isFinite(clientX) &&
-    Number.isFinite(clientY)
-  ) {
+  if (target?.getBoundingClientRect && Number.isFinite(clientX) && Number.isFinite(clientY)) {
     const rect = target.getBoundingClientRect();
     return {
       x: (clientX as number) - rect.left,
@@ -398,7 +418,7 @@ function screenPointToCoordinate(
   y: number,
   centerCoordinate: RepresentativeLookupCoordinates,
   size: Size,
-  zoom: number
+  zoom: number,
 ): RepresentativeLookupCoordinates {
   const center = coordinateToWorldPixel(centerCoordinate, zoom);
   const worldPoint = {
@@ -414,7 +434,7 @@ function zoomAroundScreenPoint(
   centerCoordinate: RepresentativeLookupCoordinates,
   size: Size,
   currentZoom: number,
-  nextZoom: number
+  nextZoom: number,
 ): RepresentativeLookupCoordinates {
   const targetCoordinate = screenPointToCoordinate(x, y, centerCoordinate, size, currentZoom);
   const targetWorldPoint = coordinateToWorldPixel(targetCoordinate, nextZoom);
@@ -423,7 +443,7 @@ function zoomAroundScreenPoint(
       x: targetWorldPoint.x - x + size.width / 2,
       y: targetWorldPoint.y - y + size.height / 2,
     },
-    nextZoom
+    nextZoom,
   );
 }
 
@@ -437,7 +457,10 @@ function coordinateToWorldPixel(coordinate: RepresentativeLookupCoordinates, zoo
   };
 }
 
-function worldPixelToCoordinate(point: { x: number; y: number }, zoom: number): RepresentativeLookupCoordinates {
+function worldPixelToCoordinate(
+  point: { x: number; y: number },
+  zoom: number,
+): RepresentativeLookupCoordinates {
   const scale = TILE_SIZE * 2 ** zoom;
   const longitude = (point.x / scale) * 360 - 180;
   const n = Math.PI - (2 * Math.PI * point.y) / scale;
@@ -448,20 +471,22 @@ function worldPixelToCoordinate(point: { x: number; y: number }, zoom: number): 
   };
 }
 
-function buildBoundaryPoints(centerCoordinate: RepresentativeLookupCoordinates, size: Size, zoom: number) {
+function buildBoundaryPoints(
+  centerCoordinate: RepresentativeLookupCoordinates,
+  size: Size,
+  zoom: number,
+) {
   if (!isValidCoordinate(centerCoordinate) || !isValidSize(size)) {
     return null;
   }
 
   const center = coordinateToWorldPixel(centerCoordinate, zoom);
-  return MINNESOTA_BOUNDARY
-    .map(([latitude, longitude]) => {
-      const point = coordinateToWorldPixel({ latitude, longitude }, zoom);
-      const x = point.x - center.x + size.width / 2;
-      const y = point.y - center.y + size.height / 2;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
+  return MINNESOTA_BOUNDARY.map(([latitude, longitude]) => {
+    const point = coordinateToWorldPixel({ latitude, longitude }, zoom);
+    const x = point.x - center.x + size.width / 2;
+    const y = point.y - center.y + size.height / 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
 }
 
 function tileUrl(x: number, y: number, z: number) {
@@ -492,7 +517,7 @@ function dragOffsetToCoordinate(
   dx: number,
   dy: number,
   centerCoordinate: RepresentativeLookupCoordinates,
-  zoom: number
+  zoom: number,
 ): RepresentativeLookupCoordinates {
   const center = coordinateToWorldPixel(centerCoordinate, zoom);
   return worldPixelToCoordinate(
@@ -500,13 +525,20 @@ function dragOffsetToCoordinate(
       x: center.x - dx,
       y: center.y - dy,
     },
-    zoom
+    zoom,
   );
 }
 
-function eventLocationFromClientPoint(event: { clientX?: number; clientY?: number }, target: unknown) {
+function eventLocationFromClientPoint(
+  event: { clientX?: number; clientY?: number },
+  target: unknown,
+) {
   const element = target as { getBoundingClientRect?: () => DOMRect };
-  if (!element?.getBoundingClientRect || !Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) {
+  if (
+    !element?.getBoundingClientRect ||
+    !Number.isFinite(event.clientX) ||
+    !Number.isFinite(event.clientY)
+  ) {
     return null;
   }
 
@@ -522,7 +554,9 @@ function isValidCoordinate(coordinate: RepresentativeLookupCoordinates) {
 }
 
 function isValidSize(size: Size) {
-  return Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0;
+  return (
+    Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0
+  );
 }
 
 function clamp(value: number, min: number, max: number) {

@@ -94,9 +94,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
 type AnyNavState = NavigationState | PartialState<NavigationState> | undefined;
 
-function activeRouteFromState(
-  state: AnyNavState
-):
+function activeRouteFromState(state: AnyNavState):
   | {
       name: keyof RootStackParamList | keyof MainTabParamList;
       params?: Record<string, unknown>;
@@ -122,7 +120,7 @@ function activeRouteFromState(
 }
 
 export function pathnameFromNavigationState(
-  state: NavigationState | PartialState<NavigationState>
+  state: NavigationState | PartialState<NavigationState>,
 ) {
   const activeRoute = activeRouteFromState(state);
 
@@ -154,7 +152,11 @@ export function pathnameFromNavigationState(
     case 'VoteDetail':
       return `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}/votes/${encodeURIComponent(String(activeRoute.params?.voteEventId ?? ''))}`;
     case 'ChatSession':
-      if (!activeRoute.params?.sessionId && activeRoute.params?.subjectType === 'bill' && activeRoute.params?.subjectId) {
+      if (
+        !activeRoute.params?.sessionId &&
+        activeRoute.params?.subjectType === 'bill' &&
+        activeRoute.params?.subjectId
+      ) {
         const params = new URLSearchParams();
         if (activeRoute.params.title) {
           params.set('title', String(activeRoute.params.title));

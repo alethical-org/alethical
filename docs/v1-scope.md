@@ -4,7 +4,7 @@ Status: discussion draft
 
 ## Goal
 
-Rebuild Alethical from scratch as a trustworthy Minnesota legislative intelligence platform with a clean data model, reliable ingestion, a scalable backend, and a shared product experience across web, iOS, and Android.
+Rebuild Alethical from scratch as a trustworthy Minnesota legislative intelligence platform with a clean data model, reliable ingestion, a scalable backend, and a responsive web product. V1 ships web only; native iOS and Android apps are post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91)). The backend APIs, auth model, and design system stay client-agnostic so mobile can follow without a rewrite.
 
 V1 should optimize for:
 
@@ -41,9 +41,9 @@ All UI and AI features should sit on top of one normalized domain model for bill
 
 Every generated summary, extracted field, and chat answer should be traceable to source material.
 
-### 4. Shared Platform, Multiple Clients
+### 4. Shared Platform, Client-Agnostic Backend
 
-Web, iOS, and Android should consume the same backend APIs, auth model, and domain concepts.
+The MVP ships one client: a responsive web app. The backend APIs, auth model, and domain concepts stay client-agnostic so that post-MVP iOS and Android apps ([#91](https://github.com/alethical-org/alethical/issues/91)) can consume the same platform without a rewrite.
 
 ### 5. AI as a Layer, Not the Source of Truth
 
@@ -365,11 +365,11 @@ The current prototype standard for this workstream is already established:
 
 ### In Scope
 
-V1 should support:
+V1 ships a single client:
 
-- Web
-- iOS
-- Android
+- Responsive web app (desktop and mobile-web breakpoints)
+
+Native iOS and Android apps are **out of scope for the MVP** and deferred to post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91)). See "Post-MVP: iOS and Android" below.
 
 ### Product Surfaces In Scope
 
@@ -389,28 +389,24 @@ V1 should support:
 - Full core functionality
 - Primary admin and operational surface in early v1
 
-### iOS and Android
+### Post-MVP: iOS and Android
 
-- Shared mobile app architecture with common backend APIs
-- Core read and track flows:
-  - browse
-  - search
-  - bill detail
-  - legislator profile
-  - tracked bills
-  - chat
-- Authentication
-- Basic account settings
+Native iOS and Android apps are deferred to post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91)). The frontend is already an Expo/React Native codebase capable of targeting all three platforms, and styling is centralized in `theme/tokens.ts`, so mobile can be added without a rewrite. When the native apps ship they will:
+
+- Share the mobile app architecture with common backend APIs
+- Cover the core read and track flows: browse, search, bill detail, legislator profile, tracked bills, chat
+- Support authentication and basic account settings
 
 ### Frontend Expectations
 
-- Shared design language across web and mobile
+- Responsive design across desktop and mobile-web breakpoints
 - Consistent navigation and domain terminology
 - Clear distinction between official data and AI-generated analysis
 - Strong source linking from bill and chat experiences
 
 ### Out of Scope
 
+- Native iOS and Android apps (post-MVP — see above)
 - Distinct feature sets by platform
 - Tablet-specific custom product surfaces
 - Heavy native-only features on first release
@@ -471,19 +467,18 @@ Recommended major components:
 - Queue for async jobs
 - Shared auth system
 - Web client
-- Mobile clients
+- Mobile clients (post-MVP — [#91](https://github.com/alethical-org/alethical/issues/91))
 
 This keeps the system simple enough to ship while still separating concerns.
 
 ## Suggested Scope Cuts If Timeline or Budget Tightens
 
-If we need to reduce scope, cut in this order:
+Native iOS and Android apps are already out of the MVP (see § Frontend Scope). If we need to cut further, cut in this order:
 
-1. Native mobile apps as fully separate first-class deliverables
-2. Rich AI analysis sections beyond summary and citations
-3. Legislator committee and historical data depth
-4. Email notifications
-5. Bill comparison UI
+1. Rich AI analysis sections beyond summary and citations
+2. Legislator committee and historical data depth
+3. Email notifications
+4. Bill comparison UI
 
 The last things we should cut are:
 
@@ -495,6 +490,7 @@ The last things we should cut are:
 
 ## Explicitly Out of Scope for V1
 
+- Native iOS and Android apps (deferred to post-MVP — [#91](https://github.com/alethical-org/alethical/issues/91))
 - Campaign promise tracking
 - Promise-vs-vote scoring
 - Corruption, fraud, or conflict-of-interest detection
@@ -513,7 +509,7 @@ V1 should be considered complete when:
 
 - Minnesota bill and legislator data refresh reliably on a scheduled basis
 - Core bill pages are accurate and traceable to source data
-- Users can search, browse, and track bills across web and mobile
+- Users can search, browse, and track bills in the responsive web app (desktop and mobile web)
 - Users can find their legislators
 - Users can ask grounded legislative questions and get cited answers
 - The product can be maintained by a small team without manual heroics
@@ -521,7 +517,6 @@ V1 should be considered complete when:
 ## Open Questions for Scope Discussion
 
 - Should federal bills be fully out of scope, or should we keep a minimal read-only federal surface?
-- Do we want native mobile apps in v1, or a responsive web app first and mobile immediately after?
 - Is bill comparison a must-have for v1, or can chat handle comparison questions initially?
 - Should push notifications be a launch requirement, or is email enough for the first release?
 - How many historical sessions do we need in the first cut to make legislator profiles credible?
@@ -535,5 +530,5 @@ Use this document to make scope decisions first. After that, produce:
 1. A system architecture document
 2. A domain model and schema draft
 3. An ingestion architecture spec
-4. A client platform plan for web, iOS, and Android
+4. A client platform plan for the responsive web app (with iOS and Android as post-MVP targets — [#91](https://github.com/alethical-org/alethical/issues/91))
 5. A chat and retrieval design

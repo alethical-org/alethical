@@ -11,7 +11,11 @@ interface AuthRequiredCardProps {
   returnTo?: string;
 }
 
-export function AuthRequiredCard({ title = 'Sign in required', message, returnTo }: AuthRequiredCardProps) {
+export function AuthRequiredCard({
+  title = 'Sign in required',
+  message,
+  returnTo,
+}: AuthRequiredCardProps) {
   const { authError, isLoading, signInWithGoogle } = useAuth();
 
   return (

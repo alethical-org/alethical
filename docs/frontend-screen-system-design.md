@@ -2,15 +2,20 @@
 
 Status: v1 design draft
 
+> **MVP scope:** V1 ships a **responsive web app only**. Native iOS and Android are
+> post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91); see
+> `docs/v1-scope.md` § Frontend Scope). The iOS/Android and native "Mobile" guidance in
+> this doc describes those post-MVP client targets — for the MVP it informs the web app's
+> mobile-web (small-viewport) layout, not a separate native app.
+
 ## Goal
 
-Define the v1 screen system for a shared React Native application targeting:
+Define the v1 screen system for the shared React Native codebase. The MVP target is:
 
-- Web
-- iOS
-- Android
+- Web (responsive: desktop + mobile-web breakpoints)
 
-The goal is one coherent product across platforms, not three unrelated apps.
+with iOS and Android as post-MVP targets on the same codebase. The goal is one coherent
+product across platforms, not three unrelated apps.
 
 ## What Good Means
 
@@ -250,6 +255,12 @@ Tabs:
 
 ## 3. Global Search
 
+> **Superseded for v1:** the combined Bills + Legislators search below is being split
+> into two dedicated screens (`docs/mvp-redesign-plan.md` § Search page split). The bill
+> search screen is specified in `docs/bill-search-screen-spec.md`, which is authoritative
+> for v1; the legislator screen follows separately. The layout here is retained as
+> historical context.
+
 ### Pagination Behavior
 
 The Bills column uses server-backed pagination. Each page request sends the active filters plus `limit` and `offset`; the UI advances only when the API returns `page.has_more=true`. The screen must not fetch a single bounded bill list and slice it locally, because that caps search results at the first response window.
@@ -290,6 +301,10 @@ The Bills column uses server-backed pagination. Each page request sends the acti
 ```
 
 ## 4. Bill List
+
+> **See `docs/bill-search-screen-spec.md`** for the authoritative v1 bill search screen.
+> The Sort control and Export button sketched below are not in v1 scope (order is fixed
+> to latest legislative action); this section predates the current build.
 
 ### Mobile
 

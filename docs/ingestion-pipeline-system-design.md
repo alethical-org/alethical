@@ -6,9 +6,7 @@ Status: discussion draft
 
 Define a production-oriented ingestion pipeline for Alethical v1 that can reliably pull Minnesota legislative data from official sources, normalize it into a canonical domain model, retain provenance, and publish data that is usable by:
 
-- web
-- iOS
-- Android
+- the web client (and post-MVP iOS and Android clients — [#91](https://github.com/alethical-org/alethical/issues/91))
 - search
 - bill comparison
 - RAG chat
@@ -305,8 +303,8 @@ Purpose:
 Consumers:
 
 - product APIs
-- mobile clients
 - web client
+- mobile clients (post-MVP)
 - notification jobs
 - retrieval service
 

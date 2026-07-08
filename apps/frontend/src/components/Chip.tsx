@@ -23,7 +23,11 @@ export function Chip({ label, selected = false, disabled = false, onPress }: Chi
         pressed && styles.pressed,
       ]}
     >
-      <Text style={[styles.label, selected && styles.selectedLabel, disabled && styles.disabledLabel]}>{label}</Text>
+      <Text
+        style={[styles.label, selected && styles.selectedLabel, disabled && styles.disabledLabel]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }

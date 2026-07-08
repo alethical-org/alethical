@@ -18,14 +18,20 @@ export function TrackedScreen({ navigation }: Props) {
 
   if (!isSignedIn) {
     return (
-      <ScreenView title="Tracked Bills" subtitle="Tracking is a signed-in feature so your alerts and context persist across devices.">
+      <ScreenView
+        title="Tracked Bills"
+        subtitle="Tracking is a signed-in feature so your alerts and context persist across devices."
+      >
         <AuthRequiredCard message="Sign in to track bills, save places, and receive updates that matter to you." />
       </ScreenView>
     );
   }
 
   return (
-    <ScreenView title="Tracked Bills" subtitle="Keep a smaller, more manageable watchlist instead of checking everything all the time.">
+    <ScreenView
+      title="Tracked Bills"
+      subtitle="Keep a smaller, more manageable watchlist instead of checking everything all the time."
+    >
       {trackedQuery.isLoading ? (
         <Card>
           <Text style={styles.bodyText}>Loading tracked bills from the backend.</Text>
@@ -34,7 +40,9 @@ export function TrackedScreen({ navigation }: Props) {
       {trackedQuery.error ? (
         <Card>
           <Text style={styles.bodyText}>
-            {trackedQuery.error instanceof Error ? trackedQuery.error.message : 'Tracked bills could not be loaded.'}
+            {trackedQuery.error instanceof Error
+              ? trackedQuery.error.message
+              : 'Tracked bills could not be loaded.'}
           </Text>
         </Card>
       ) : null}
@@ -51,7 +59,9 @@ export function TrackedScreen({ navigation }: Props) {
               bill={bill}
               tracked
               onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-              onSponsorPress={(legislatorId) => navigation.navigate('LegislatorProfile', { legislatorId })}
+              onSponsorPress={(legislatorId) =>
+                navigation.navigate('LegislatorProfile', { legislatorId })
+              }
               onToggleTrack={() => toggleTrackedBill.mutate(bill.id)}
             />
           ))}
