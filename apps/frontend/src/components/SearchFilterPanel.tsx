@@ -78,9 +78,12 @@ export function SearchFilterPanel({
   const yearOptions = useMemo(
     () => [
       { label: ALL_YEARS, value: '' },
-      ...(sessionsQuery.data ?? []).map((item) => ({ label: sessionLabel(item.name, item.slug), value: item.slug })),
+      ...(sessionsQuery.data ?? []).map((item) => ({
+        label: sessionLabel(item.name, item.slug),
+        value: item.slug,
+      })),
     ],
-    [sessionsQuery.data]
+    [sessionsQuery.data],
   );
   const policyCategories = [
     { label: ALL_POLICIES, Icon: Grid3X3 },
@@ -97,7 +100,8 @@ export function SearchFilterPanel({
 
   const statusLabel = statusOptions.find((item) => item.value === status)?.label ?? ALL_STATUSES;
   const yearLabel = yearOptions.find((item) => item.value === session)?.label ?? ALL_YEARS;
-  const policyLabel = policyArea === ALL_POLICIES ? ALL_POLICIES : formatPolicyAreaLabel(policyArea);
+  const policyLabel =
+    policyArea === ALL_POLICIES ? ALL_POLICIES : formatPolicyAreaLabel(policyArea);
 
   return (
     <Card style={[styles.panel, style]}>
@@ -151,7 +155,10 @@ export function SearchFilterPanel({
           <DropdownControl
             label={policyLabel}
             open={openMenu === 'topic'}
-            options={policyCategories.map(({ label }) => ({ label: formatPolicyAreaLabel(label), value: label }))}
+            options={policyCategories.map(({ label }) => ({
+              label: formatPolicyAreaLabel(label),
+              value: label,
+            }))}
             selectedValue={policyArea}
             onToggle={() => setOpenMenu((value) => (value === 'topic' ? null : 'topic'))}
             onSelect={(value) => {
@@ -213,7 +220,9 @@ function SegmentedFilter({ value, onChange }: SegmentedFilterProps) {
               pressed && styles.pressed,
             ]}
           >
-            <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{option}</Text>
+            <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
+              {option}
+            </Text>
           </Pressable>
         );
       })}
@@ -229,7 +238,13 @@ interface ToolbarButtonProps {
   onPress?: () => void;
 }
 
-function ToolbarButton({ label, Icon, rightIcon = false, selected = false, onPress }: ToolbarButtonProps) {
+function ToolbarButton({
+  label,
+  Icon,
+  rightIcon = false,
+  selected = false,
+  onPress,
+}: ToolbarButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -240,9 +255,19 @@ function ToolbarButton({ label, Icon, rightIcon = false, selected = false, onPre
         pressed && styles.pressed,
       ]}
     >
-      {Icon ? <Icon color={selected ? theme.colors.white : theme.colors.ink} size={18} strokeWidth={2} /> : null}
-      <Text style={[styles.toolbarButtonText, selected && styles.toolbarButtonTextSelected]}>{label}</Text>
-      {rightIcon ? <ChevronDown color={selected ? theme.colors.white : theme.colors.ink} size={16} strokeWidth={2} /> : null}
+      {Icon ? (
+        <Icon color={selected ? theme.colors.white : theme.colors.ink} size={18} strokeWidth={2} />
+      ) : null}
+      <Text style={[styles.toolbarButtonText, selected && styles.toolbarButtonTextSelected]}>
+        {label}
+      </Text>
+      {rightIcon ? (
+        <ChevronDown
+          color={selected ? theme.colors.white : theme.colors.ink}
+          size={16}
+          strokeWidth={2}
+        />
+      ) : null}
     </Pressable>
   );
 }
@@ -256,13 +281,24 @@ interface DropdownControlProps {
   onSelect: (value: string) => void;
 }
 
-function DropdownControl({ label, open, options, selectedValue, onToggle, onSelect }: DropdownControlProps) {
+function DropdownControl({
+  label,
+  open,
+  options,
+  selectedValue,
+  onToggle,
+  onSelect,
+}: DropdownControlProps) {
   return (
     <View style={styles.dropdownWrap}>
       <Pressable
         accessibilityRole="button"
         onPress={onToggle}
-        style={({ pressed }) => [styles.toolbarButton, styles.dropdownButton, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.toolbarButton,
+          styles.dropdownButton,
+          pressed && styles.pressed,
+        ]}
       >
         <Text style={styles.toolbarButtonText}>{label}</Text>
         <ChevronDown color={theme.colors.ink} size={16} strokeWidth={2} />
@@ -308,7 +344,9 @@ function PolicyPill({ label, Icon, selected, onPress }: PolicyPillProps) {
       ]}
     >
       <Icon color={selected ? theme.colors.white : theme.colors.ink} size={18} strokeWidth={2} />
-      <Text style={[styles.policyPillText, selected && styles.policyPillTextSelected]}>{label}</Text>
+      <Text style={[styles.policyPillText, selected && styles.policyPillTextSelected]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -335,7 +373,11 @@ function sessionLabel(name: string, slug: string): string {
 
 function iconForPolicyArea(category: string): FilterIcon {
   const normalized = category.toLowerCase();
-  if (normalized.includes('education') || normalized.includes('student') || normalized.includes('school')) {
+  if (
+    normalized.includes('education') ||
+    normalized.includes('student') ||
+    normalized.includes('school')
+  ) {
     return GraduationCap;
   }
   if (normalized.includes('health') || normalized.includes('medical')) {
@@ -344,7 +386,11 @@ function iconForPolicyArea(category: string): FilterIcon {
   if (normalized.includes('environment') || normalized.includes('energy')) {
     return Leaf;
   }
-  if (normalized.includes('economic') || normalized.includes('workforce') || normalized.includes('labor')) {
+  if (
+    normalized.includes('economic') ||
+    normalized.includes('workforce') ||
+    normalized.includes('labor')
+  ) {
     return TrendingUp;
   }
   if (normalized.includes('housing')) {
@@ -359,7 +405,11 @@ function iconForPolicyArea(category: string): FilterIcon {
   if (normalized.includes('rights')) {
     return Scale;
   }
-  if (normalized.includes('tax') || normalized.includes('funding') || normalized.includes('appropriation')) {
+  if (
+    normalized.includes('tax') ||
+    normalized.includes('funding') ||
+    normalized.includes('appropriation')
+  ) {
     return BadgeDollarSign;
   }
   return Grid3X3;

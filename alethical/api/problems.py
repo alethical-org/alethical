@@ -26,7 +26,9 @@ def problem_payload(
     return payload
 
 
-def problem_exception(status: int, title: str, detail: str, *, type_slug: str | None = None) -> HTTPException:
+def problem_exception(
+    status: int, title: str, detail: str, *, type_slug: str | None = None
+) -> HTTPException:
     return HTTPException(
         status_code=status,
         detail=problem_payload(
@@ -41,7 +43,9 @@ def problem_exception(status: int, title: str, detail: str, *, type_slug: str | 
 
 async def http_exception_handler(request: Request, exc: HTTPException):
     detail = exc.detail
-    if isinstance(detail, dict) and {"type", "title", "status", "detail"}.issubset(detail.keys()):
+    if isinstance(detail, dict) and {"type", "title", "status", "detail"}.issubset(
+        detail.keys()
+    ):
         payload = {**detail, "instance": str(request.url.path)}
     else:
         if exc.status_code == 401:
@@ -61,7 +65,10 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    errors = [{"field": ".".join(map(str, error["loc"])), "message": error["msg"]} for error in exc.errors()]
+    errors = [
+        {"field": ".".join(map(str, error["loc"])), "message": error["msg"]}
+        for error in exc.errors()
+    ]
     payload = problem_payload(
         type_slug="validation-error",
         title="Validation Error",

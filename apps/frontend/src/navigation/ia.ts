@@ -58,7 +58,14 @@ export const IA: IaItem[] = [
   },
 
   // Search — public discovery ("the library").
-  { id: 'search-bills', label: 'Bills', path: '/bills', menu: 'search', availability: 'mvp', authGated: false },
+  {
+    id: 'search-bills',
+    label: 'Bills',
+    path: '/bills',
+    menu: 'search',
+    availability: 'mvp',
+    authGated: false,
+  },
   {
     id: 'search-legislators',
     label: 'Legislators',
@@ -68,10 +75,38 @@ export const IA: IaItem[] = [
     authGated: false,
     note: 'Directory + profiles, with "Find My Legislator" (address lookup) as the primary CTA.',
   },
-  { id: 'search-issues', label: 'Issues', path: '/search/issues', menu: 'search', availability: 'roadmap', authGated: false },
-  { id: 'search-policies', label: 'Policies', path: '/search/policies', menu: 'search', availability: 'roadmap', authGated: false },
-  { id: 'search-laws', label: 'Laws', path: '/search/laws', menu: 'search', availability: 'roadmap', authGated: false },
-  { id: 'search-candidates', label: 'Candidates', path: '/search/candidates', menu: 'search', availability: 'roadmap', authGated: false },
+  {
+    id: 'search-issues',
+    label: 'Issues',
+    path: '/search/issues',
+    menu: 'search',
+    availability: 'roadmap',
+    authGated: false,
+  },
+  {
+    id: 'search-policies',
+    label: 'Policies',
+    path: '/search/policies',
+    menu: 'search',
+    availability: 'roadmap',
+    authGated: false,
+  },
+  {
+    id: 'search-laws',
+    label: 'Laws',
+    path: '/search/laws',
+    menu: 'search',
+    availability: 'roadmap',
+    authGated: false,
+  },
+  {
+    id: 'search-candidates',
+    label: 'Candidates',
+    path: '/search/candidates',
+    menu: 'search',
+    availability: 'roadmap',
+    authGated: false,
+  },
   {
     id: 'search-news',
     label: 'News & media',
@@ -83,9 +118,30 @@ export const IA: IaItem[] = [
   },
 
   // Track — personalized, signed-in ("your space"). Auth-gated.
-  { id: 'track-bills', label: 'Bills', path: '/track/bills', menu: 'track', availability: 'mvp', authGated: true },
-  { id: 'track-issues', label: 'Issues', path: '/track/issues', menu: 'track', availability: 'roadmap', authGated: true },
-  { id: 'track-policies', label: 'Policies', path: '/track/policies', menu: 'track', availability: 'roadmap', authGated: true },
+  {
+    id: 'track-bills',
+    label: 'Bills',
+    path: '/track/bills',
+    menu: 'track',
+    availability: 'mvp',
+    authGated: true,
+  },
+  {
+    id: 'track-issues',
+    label: 'Issues',
+    path: '/track/issues',
+    menu: 'track',
+    availability: 'roadmap',
+    authGated: true,
+  },
+  {
+    id: 'track-policies',
+    label: 'Policies',
+    path: '/track/policies',
+    menu: 'track',
+    availability: 'roadmap',
+    authGated: true,
+  },
   {
     id: 'track-legislators',
     label: 'Legislators',
@@ -95,11 +151,33 @@ export const IA: IaItem[] = [
     authGated: true,
     note: 'Roadmap: follow a legislator for activity notifications.',
   },
-  { id: 'track-laws', label: 'Laws', path: '/track/laws', menu: 'track', availability: 'roadmap', authGated: true },
-  { id: 'track-candidates', label: 'Candidates', path: '/track/candidates', menu: 'track', availability: 'roadmap', authGated: true },
+  {
+    id: 'track-laws',
+    label: 'Laws',
+    path: '/track/laws',
+    menu: 'track',
+    availability: 'roadmap',
+    authGated: true,
+  },
+  {
+    id: 'track-candidates',
+    label: 'Candidates',
+    path: '/track/candidates',
+    menu: 'track',
+    availability: 'roadmap',
+    authGated: true,
+  },
 
   // About — static content.
-  { id: 'about-us', label: 'About us', path: '/about', menu: 'about', availability: 'mvp', authGated: false, note: 'Mission, team, story.' },
+  {
+    id: 'about-us',
+    label: 'About us',
+    path: '/about',
+    menu: 'about',
+    availability: 'mvp',
+    authGated: false,
+    note: 'Mission, team, story.',
+  },
   {
     id: 'about-trust',
     label: 'Trust & integrity',
@@ -109,7 +187,14 @@ export const IA: IaItem[] = [
     authGated: false,
     note: 'Data handling + why trust us. Brand-critical.',
   },
-  { id: 'about-contact', label: 'Contact us', path: '/about/contact', menu: 'about', availability: 'mvp', authGated: false },
+  {
+    id: 'about-contact',
+    label: 'Contact us',
+    path: '/about/contact',
+    menu: 'about',
+    availability: 'mvp',
+    authGated: false,
+  },
 ];
 
 /**
@@ -168,7 +253,8 @@ export const visibleMenuItems = (menu: MenuKey, opts?: { showRoadmap?: boolean }
   itemsByMenu(menu).filter((item) => (opts?.showRoadmap ? true : item.availability === 'mvp'));
 
 /** Whether an item is reachable for the given auth state. */
-export const isReachable = (item: IaItem, isSignedIn: boolean): boolean => !item.authGated || isSignedIn;
+export const isReachable = (item: IaItem, isSignedIn: boolean): boolean =>
+  !item.authGated || isSignedIn;
 
 /**
  * Integrity check for the registry — unique ids and unique paths. Pure; wire it

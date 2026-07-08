@@ -36,14 +36,20 @@ function userFromSession(session: Session | null): AuthUser | null {
 
   return {
     id: user.id,
-    name: typeof metadataName === 'string' && metadataName.trim() ? metadataName : email.split('@')[0] || 'Signed-in user',
+    name:
+      typeof metadataName === 'string' && metadataName.trim()
+        ? metadataName
+        : email.split('@')[0] || 'Signed-in user',
     email,
   };
 }
 
 function getRedirectTo(returnTo?: string) {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return new URL(returnTo ?? `${window.location.pathname}${window.location.search}`, window.location.origin).toString();
+    return new URL(
+      returnTo ?? `${window.location.pathname}${window.location.search}`,
+      window.location.origin,
+    ).toString();
   }
 
   return AuthSession.makeRedirectUri({
@@ -136,7 +142,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
-        const callbackError = getCallbackParam(result.url, 'error_description') ?? getCallbackParam(result.url, 'error');
+        const callbackError =
+          getCallbackParam(result.url, 'error_description') ??
+          getCallbackParam(result.url, 'error');
         if (callbackError) {
           setAuthError(callbackError);
           return;
@@ -163,7 +171,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setSession(null);
       },
     }),
-    [authError, isLoading, session]
+    [authError, isLoading, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -97,7 +97,9 @@ def normalize_space(value: str) -> str:
 
 
 def slugify(value: str) -> str:
-    return "-".join("".join(ch.lower() if ch.isalnum() else " " for ch in value).split())
+    return "-".join(
+        "".join(ch.lower() if ch.isalnum() else " " for ch in value).split()
+    )
 
 
 def content_hash(text: str) -> str:
@@ -141,11 +143,13 @@ def extract_balanced_div(html_text: str, start_index: int) -> str:
         if tag.startswith("</"):
             depth -= 1
             if depth == 0:
-                return html_text[start_index:tag_match.end()]
+                return html_text[start_index : tag_match.end()]
         else:
             depth += 1
 
-    raise MinnesotaIngestionError(f"Unbalanced div structure starting at index {start_index}")
+    raise MinnesotaIngestionError(
+        f"Unbalanced div structure starting at index {start_index}"
+    )
 
 
 def locate_div_blocks(html_text: str, class_name: str) -> list[dict[str, object]]:
@@ -173,7 +177,10 @@ def fetch_text(sess: requests.Session, url: str) -> str:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = sess.get(url, timeout=TIMEOUT)
-            if response.status_code in {429, 500, 502, 503, 504} and attempt < MAX_RETRIES:
+            if (
+                response.status_code in {429, 500, 502, 503, 504}
+                and attempt < MAX_RETRIES
+            ):
                 time.sleep(0.5 * attempt)
                 continue
             response.raise_for_status()
@@ -202,24 +209,38 @@ def discover_bill(sess: requests.Session, target: BillTarget) -> dict[str, str]:
         "titleword": "",
         "format": "xml",
     }
-    request = requests.Request("GET", "https://www.revisor.mn.gov/bills/status_result.php", params=params).prepare()
+    request = requests.Request(
+        "GET", "https://www.revisor.mn.gov/bills/status_result.php", params=params
+    ).prepare()
     xml_text = fetch_text(sess, request.url or "")
     root = ET.fromstring(xml_text)
     result = root.find(".//BILL_RESULT")
     if result is None:
-        raise MinnesotaIngestionError(f"Bill search returned no results for {target.chamber} {target.bill_number}")
+        raise MinnesotaIngestionError(
+            f"Bill search returned no results for {target.chamber} {target.bill_number}"
+        )
     status_xml_uri = result.findtext("STATUS_XML_URI", "").strip()
     latest_text_html_uri = result.findtext("LATEST_TEXT_HTML_URI", "").strip()
     return {
         "file_type": result.findtext("FILE_TYPE", "").strip(),
         "file_number": result.findtext("FILE_NUMBER", "").strip(),
         "description": result.findtext("DESCRIPTION", "").strip(),
-        "status_xml_uri": status_xml_uri if status_xml_uri.startswith("http") else f"https://{status_xml_uri}",
-        "latest_text_html_uri": latest_text_html_uri if latest_text_html_uri.startswith("http") else f"https://{latest_text_html_uri}",
+        "status_xml_uri": status_xml_uri
+        if status_xml_uri.startswith("http")
+        else f"https://{status_xml_uri}",
+        "latest_text_html_uri": latest_text_html_uri
+        if latest_text_html_uri.startswith("http")
+        else f"https://{latest_text_html_uri}",
     }
 
 
-def discover_bill_range(sess: requests.Session, *, chamber: str, bill_range: str, session_code: str = "0942025") -> list[BillSearchResult]:
+def discover_bill_range(
+    sess: requests.Session,
+    *,
+    chamber: str,
+    bill_range: str,
+    session_code: str = "0942025",
+) -> list[BillSearchResult]:
     params = {
         "body": chamber,
         "search": "basic",
@@ -235,7 +256,9 @@ def discover_bill_range(sess: requests.Session, *, chamber: str, bill_range: str
         "titleword": "",
         "format": "xml",
     }
-    request = requests.Request("GET", "https://www.revisor.mn.gov/bills/status_result.php", params=params).prepare()
+    request = requests.Request(
+        "GET", "https://www.revisor.mn.gov/bills/status_result.php", params=params
+    ).prepare()
     xml_text = fetch_text(sess, request.url or "")
     root = ET.fromstring(xml_text)
     results = []
@@ -251,8 +274,12 @@ def discover_bill_range(sess: requests.Session, *, chamber: str, bill_range: str
                 file_type=(result.findtext("FILE_TYPE") or "").strip(),
                 file_number=int(file_number),
                 description=(result.findtext("DESCRIPTION") or "").strip(),
-                status_xml_uri=status_xml_uri if status_xml_uri.startswith("http") else f"https://{status_xml_uri}",
-                latest_text_html_uri=latest_text_html_uri if latest_text_html_uri.startswith("http") else f"https://{latest_text_html_uri}",
+                status_xml_uri=status_xml_uri
+                if status_xml_uri.startswith("http")
+                else f"https://{status_xml_uri}",
+                latest_text_html_uri=latest_text_html_uri
+                if latest_text_html_uri.startswith("http")
+                else f"https://{latest_text_html_uri}",
             )
         )
     return results
@@ -269,7 +296,12 @@ def discover_session_bills(
     for chamber in ("House", "Senate"):
         for start in range(1, max_bill_number + 1, chunk_size):
             end = min(start + chunk_size - 1, max_bill_number)
-            for result in discover_bill_range(sess, chamber=chamber, bill_range=f"{start}-{end}", session_code=session_code):
+            for result in discover_bill_range(
+                sess,
+                chamber=chamber,
+                bill_range=f"{start}-{end}",
+                session_code=session_code,
+            ):
                 seen[(result.file_type, result.file_number)] = result
     return sorted(seen.values(), key=lambda item: (item.file_type, item.file_number))
 
@@ -305,7 +337,9 @@ def parse_bill_xml(xml_text: str) -> dict[str, object]:
                     "action_group": (action.findtext("ACTION_GROUP") or "").strip(),
                     "action_text": (action.findtext("ACTION_TEXT") or "").strip(),
                     "action_date": (action.findtext("ACTION_DATE") or "").strip(),
-                    "action_description": (action.findtext("ACTION_DESCRIPTION") or "").strip(),
+                    "action_description": (
+                        action.findtext("ACTION_DESCRIPTION") or ""
+                    ).strip(),
                     "committee_id": (action.findtext("COMMITTEE_ID") or "").strip(),
                     "committee_name": (action.findtext("COMMITTEE_NAME") or "").strip(),
                     "journal_page": (action.findtext("JOURNAL_PAGE") or "").strip(),
@@ -322,7 +356,9 @@ def parse_bill_xml(xml_text: str) -> dict[str, object]:
                 "date_insert": (doc.findtext("DATE_INSERT") or "").strip(),
                 "document_name": (doc.findtext("DOCUMENT_NAME") or "").strip(),
                 "document_type": (doc.findtext("DOCUMENT_TYPE") or "").strip(),
-                "document_engrossment": (doc.findtext("DOCUMENT_ENGROSSMENT") or "").strip(),
+                "document_engrossment": (
+                    doc.findtext("DOCUMENT_ENGROSSMENT") or ""
+                ).strip(),
             }
         )
 
@@ -341,10 +377,20 @@ def parse_bill_xml(xml_text: str) -> dict[str, object]:
 
 
 def parse_bill_section(section_html: str, section_id: str) -> dict[str, str]:
-    heading = extract(r"""<h2 class=["']section_number["']>(.*?)</h2>""", section_html, flags=re.S)
-    statute_heading = extract(r"""<h2 class=["']statute_section_number["']>(.*?)</h2>""", section_html, flags=re.S)
-    cite_heading = extract(r"""<h1 class=["']shn["']>(.*?)</h1>""", section_html, flags=re.S)
-    effective_date = extract(r"""<h2 class=["']effective_date["']>(.*?)</h2>""", section_html, flags=re.S)
+    heading = extract(
+        r"""<h2 class=["']section_number["']>(.*?)</h2>""", section_html, flags=re.S
+    )
+    statute_heading = extract(
+        r"""<h2 class=["']statute_section_number["']>(.*?)</h2>""",
+        section_html,
+        flags=re.S,
+    )
+    cite_heading = extract(
+        r"""<h1 class=["']shn["']>(.*?)</h1>""", section_html, flags=re.S
+    )
+    effective_date = extract(
+        r"""<h2 class=["']effective_date["']>(.*?)</h2>""", section_html, flags=re.S
+    )
     text = normalize_space(
         re.sub(
             r"""<h[12]\s+class=["'](?:section_number|statute_section_number|subd_no|effective_date|shn|title)["'][^>]*>.*?</h[12]>""",
@@ -365,19 +411,29 @@ def parse_bill_section(section_html: str, section_id: str) -> dict[str, str]:
 
 def parse_bill_text_html(html_text: str, source_url: str) -> dict[str, object]:
     title = extract(r"<title>\s*(.*?)\s*</title>", html_text, flags=re.S)
-    bill_title = extract(r"<div class=\"bill_title\">(.*?)</div>", html_text, flags=re.S)
+    bill_title = extract(
+        r"<div class=\"bill_title\">(.*?)</div>", html_text, flags=re.S
+    )
     article_blocks = locate_div_blocks(html_text, "article")
-    article_ranges = [(int(block["start"]), int(block["end"])) for block in article_blocks]
+    article_ranges = [
+        (int(block["start"]), int(block["end"])) for block in article_blocks
+    ]
     articles = []
     sections = []
 
     for article_block in article_blocks:
         article_html = str(article_block["html"])
-        article_number = extract(r"""<h1 class=["']article_no["']>(.*?)</h1>""", article_html, flags=re.S)
-        article_heading = extract(r"""<h1 class=["']article_header["']>(.*?)</h1>""", article_html, flags=re.S)
+        article_number = extract(
+            r"""<h1 class=["']article_no["']>(.*?)</h1>""", article_html, flags=re.S
+        )
+        article_heading = extract(
+            r"""<h1 class=["']article_header["']>(.*?)</h1>""", article_html, flags=re.S
+        )
         article_sections = []
         for section_block in locate_div_blocks(article_html, "bill_section"):
-            parsed = parse_bill_section(str(section_block["html"]), str(section_block["id"]))
+            parsed = parse_bill_section(
+                str(section_block["html"]), str(section_block["id"])
+            )
             article_sections.append(parsed)
             sections.append(parsed)
         articles.append(
@@ -393,12 +449,19 @@ def parse_bill_text_html(html_text: str, source_url: str) -> dict[str, object]:
         for section_block in locate_div_blocks(html_text, "bill_section"):
             start = int(section_block["start"])
             end = int(section_block["end"])
-            if any(start >= article_start and end <= article_end for article_start, article_end in article_ranges):
+            if any(
+                start >= article_start and end <= article_end
+                for article_start, article_end in article_ranges
+            ):
                 continue
-            sections.append(parse_bill_section(str(section_block["html"]), str(section_block["id"])))
+            sections.append(
+                parse_bill_section(str(section_block["html"]), str(section_block["id"]))
+            )
     else:
         for section_block in locate_div_blocks(html_text, "bill_section"):
-            sections.append(parse_bill_section(str(section_block["html"]), str(section_block["id"])))
+            sections.append(
+                parse_bill_section(str(section_block["html"]), str(section_block["id"]))
+            )
 
     return {
         "source_url": source_url,
@@ -416,13 +479,17 @@ def parse_roster_entries(section_html: str, chamber: str) -> list[dict[str, str]
         r"<h5 class='mt-0 mb-0'><a href='([^']+)'><b>([^<]+)</b></a></h5>\s*District:\s*([0-9A-Z]+)",
         re.S,
     )
-    for image_url, alt_text, profile_url, display_name, district in pattern.findall(section_html):
+    for image_url, alt_text, profile_url, display_name, district in pattern.findall(
+        section_html
+    ):
         entries.append(
             {
                 "chamber": chamber,
                 "display_name": normalize_space(display_name),
                 "district": district.strip(),
-                "profile_url": urljoin("https://www.leg.mn.gov/leg/legislators", profile_url),
+                "profile_url": urljoin(
+                    "https://www.leg.mn.gov/leg/legislators", profile_url
+                ),
                 "image_url": image_url.strip(),
                 "alt_text": alt_text.strip(),
             }
@@ -442,13 +509,20 @@ def parse_roster(html_text: str) -> dict[str, object]:
         flags=re.S,
     )
     house = parse_roster_entries(house_match.group(1) if house_match else "", "house")
-    senate = parse_roster_entries(senate_match.group(1) if senate_match else "", "senate")
-    return {"source_url": "https://www.leg.mn.gov/leg/legislators", "members": [*house, *senate]}
+    senate = parse_roster_entries(
+        senate_match.group(1) if senate_match else "", "senate"
+    )
+    return {
+        "source_url": "https://www.leg.mn.gov/leg/legislators",
+        "members": [*house, *senate],
+    }
 
 
 def parse_house_profile(html_text: str, source_url: str) -> dict[str, object]:
     heading = extract(r"<h5 class=\"mt-0\">(.*?)</h5>", html_text, flags=re.S)
-    name = extract(r"<h5 class=\"mt-0\">\s*([^<]+?)\s*<span", html_text, flags=re.S) or normalize_space(heading)
+    name = extract(
+        r"<h5 class=\"mt-0\">\s*([^<]+?)\s*<span", html_text, flags=re.S
+    ) or normalize_space(heading)
     party = extract(r"\(([^)]+)\)\s*District:", heading, flags=re.S)
     district = extract(r"District:\s*([0-9A-Z]+)", heading, flags=re.S)
     return {
@@ -457,16 +531,27 @@ def parse_house_profile(html_text: str, source_url: str) -> dict[str, object]:
         "name": name,
         "party": party,
         "district": district,
-        "office_block": extract(r"<h5 class=\"mt-0\">.*?</h5>\s*(.*?)<span><a href=\"photo/", html_text, flags=re.S),
+        "office_block": extract(
+            r"<h5 class=\"mt-0\">.*?</h5>\s*(.*?)<span><a href=\"photo/",
+            html_text,
+            flags=re.S,
+        ),
         "email": extract(r"mailto:([^\"'>\s]+@house\.mn\.gov)", html_text, flags=re.I),
-        "office_phone": extract(r"<span>(651-[0-9-]+)</span>\s*<br", html_text, flags=re.I),
-        "committees": extract_all(r"<a href=\"https://www.house\.mn\.gov/cmte/Home/\?comm=\d+\">([^<]+)</a>", html_text),
+        "office_phone": extract(
+            r"<span>(651-[0-9-]+)</span>\s*<br", html_text, flags=re.I
+        ),
+        "committees": extract_all(
+            r"<a href=\"https://www.house\.mn\.gov/cmte/Home/\?comm=\d+\">([^<]+)</a>",
+            html_text,
+        ),
     }
 
 
 def parse_senate_profile(html_text: str, source_url: str) -> dict[str, object]:
     heading = extract(r"<h1 class='mb-0'>(.*?)</h1>", html_text, flags=re.S)
-    email_form = extract(r"<span><b>E-mail:</b>\s*<a href='([^']+)'", html_text, flags=re.S)
+    email_form = extract(
+        r"<span><b>E-mail:</b>\s*<a href='([^']+)'", html_text, flags=re.S
+    )
     return {
         "source_url": source_url,
         "chamber": "senate",
@@ -480,7 +565,10 @@ def parse_senate_profile(html_text: str, source_url: str) -> dict[str, object]:
         ),
         "email": urljoin(source_url, email_form) if email_form else "",
         "office_phone": extract(r"<span>(651-[0-9-]+)</span>", html_text, flags=re.I),
-        "committees": extract_all(r"<a href='/committees/committee_bio\.php\?cmte_id=\d+'>([^<]+)</a>", html_text),
+        "committees": extract_all(
+            r"<a href='/committees/committee_bio\.php\?cmte_id=\d+'>([^<]+)</a>",
+            html_text,
+        ),
     }
 
 
@@ -500,19 +588,36 @@ class MinnesotaIngestionPipeline:
 
     def seed_reference_data(self) -> dict[str, Any]:
         self.advisory_xact_lock(REFERENCE_DATA_LOCK_KEY)
-        minnesota = self.db.scalar(select(Jurisdiction).where(Jurisdiction.slug == "minnesota"))
+        minnesota = self.db.scalar(
+            select(Jurisdiction).where(Jurisdiction.slug == "minnesota")
+        )
         if minnesota is None:
-            minnesota = Jurisdiction(slug="minnesota", name="Minnesota", country_code="US", subdivision_code="MN")
+            minnesota = Jurisdiction(
+                slug="minnesota",
+                name="Minnesota",
+                country_code="US",
+                subdivision_code="MN",
+            )
             self.db.add(minnesota)
             self.db.flush()
 
         chambers: dict[str, Any] = {}
         for chamber_type, slug, name, short_name, order in [
-            (ChamberType.house, "house", "Minnesota House of Representatives", "House", 1),
+            (
+                ChamberType.house,
+                "house",
+                "Minnesota House of Representatives",
+                "House",
+                1,
+            ),
             (ChamberType.senate, "senate", "Minnesota Senate", "Senate", 2),
             (ChamberType.joint, "joint", "Joint", "Joint", 3),
         ]:
-            chamber = self.db.scalar(select(Chamber).where(Chamber.jurisdiction_id == minnesota.id, Chamber.slug == slug))
+            chamber = self.db.scalar(
+                select(Chamber).where(
+                    Chamber.jurisdiction_id == minnesota.id, Chamber.slug == slug
+                )
+            )
             if chamber is None:
                 chamber = Chamber(
                     jurisdiction_id=minnesota.id,
@@ -545,7 +650,11 @@ class MinnesotaIngestionPipeline:
             )
             self.db.add(current_session)
             self.db.flush()
-        return {"jurisdiction": minnesota, "chambers": chambers, "session": current_session}
+        return {
+            "jurisdiction": minnesota,
+            "chambers": chambers,
+            "session": current_session,
+        }
 
     def start_run(self, target_type: str, target_key: str | None = None) -> Any:
         run = IngestionRun(
@@ -564,7 +673,15 @@ class MinnesotaIngestionPipeline:
         run.finished_at = datetime.now(UTC)
         run.stats = stats
 
-    def record_artifact(self, run: Any, artifact_type: Any, source_url: str, body: str, *, source_key: str | None = None) -> Any:
+    def record_artifact(
+        self,
+        run: Any,
+        artifact_type: Any,
+        source_url: str,
+        body: str,
+        *,
+        source_key: str | None = None,
+    ) -> Any:
         digest = content_hash(body)
         artifact = self.db.scalar(
             select(SourceArtifact).where(
@@ -614,16 +731,24 @@ class MinnesotaIngestionPipeline:
             self.db.flush()
         return district
 
-    def upsert_legislator(self, refs: dict[str, Any], name: str, *, external_key: str | None = None) -> Any:
+    def upsert_legislator(
+        self, refs: dict[str, Any], name: str, *, external_key: str | None = None
+    ) -> Any:
         self.advisory_xact_lock(LEGISLATOR_LOCK_KEY)
         key = external_key or name
         legislator = self.db.scalar(
-            select(Legislator).where(Legislator.jurisdiction_id == refs["jurisdiction"].id, Legislator.external_key == key)
+            select(Legislator).where(
+                Legislator.jurisdiction_id == refs["jurisdiction"].id,
+                Legislator.external_key == key,
+            )
         )
         if legislator is None:
             slug = slugify(name)
             existing_slug = self.db.scalar(
-                select(Legislator).where(Legislator.jurisdiction_id == refs["jurisdiction"].id, Legislator.slug == slug)
+                select(Legislator).where(
+                    Legislator.jurisdiction_id == refs["jurisdiction"].id,
+                    Legislator.slug == slug,
+                )
             )
             if existing_slug is not None:
                 slug = f"{slug}-{hashlib.sha1(key.encode('utf-8')).hexdigest()[:8]}"
@@ -641,7 +766,14 @@ class MinnesotaIngestionPipeline:
             legislator.sort_name = name
         return legislator
 
-    def upsert_service_period(self, refs: dict[str, Any], legislator: Any, chamber: Any, district: Any, profile: dict[str, Any]) -> Any:
+    def upsert_service_period(
+        self,
+        refs: dict[str, Any],
+        legislator: Any,
+        chamber: Any,
+        district: Any,
+        profile: dict[str, Any],
+    ) -> Any:
         service_period = self.db.scalar(
             select(LegislatorServicePeriod).where(
                 LegislatorServicePeriod.legislator_id == legislator.id,
@@ -665,12 +797,20 @@ class MinnesotaIngestionPipeline:
         service_period.party = str(profile.get("party") or "") or None
         service_period.email = str(profile.get("email") or "") or None
         service_period.phone = str(profile.get("office_phone") or "") or None
-        service_period.profile_url = str(profile.get("source_url") or profile.get("profile_url") or "") or None
+        service_period.profile_url = (
+            str(profile.get("source_url") or profile.get("profile_url") or "") or None
+        )
         service_period.photo_url = str(profile.get("image_url") or "") or None
         service_period.office_address = str(profile.get("office_block") or "") or None
         return service_period
 
-    def upsert_committees(self, refs: dict[str, Any], legislator: Any, chamber: Any, profile: dict[str, Any]) -> None:
+    def upsert_committees(
+        self,
+        refs: dict[str, Any],
+        legislator: Any,
+        chamber: Any,
+        profile: dict[str, Any],
+    ) -> None:
         seen: set[str] = set()
         for name in profile.get("committees", []) or []:
             committee_name = str(name).strip()
@@ -685,7 +825,11 @@ class MinnesotaIngestionPipeline:
                 )
             )
             if committee is None:
-                committee = Committee(session_id=refs["session"].id, chamber_id=chamber.id, name=committee_name)
+                committee = Committee(
+                    session_id=refs["session"].id,
+                    chamber_id=chamber.id,
+                    name=committee_name,
+                )
                 self.db.add(committee)
                 self.db.flush()
             membership = self.db.scalar(
@@ -696,26 +840,44 @@ class MinnesotaIngestionPipeline:
                 )
             )
             if membership is None:
-                self.db.add(CommitteeMembership(committee_id=committee.id, legislator_id=legislator.id, is_current=True))
+                self.db.add(
+                    CommitteeMembership(
+                        committee_id=committee.id,
+                        legislator_id=legislator.id,
+                        is_current=True,
+                    )
+                )
 
-    def ingest_member_profile(self, refs: dict[str, Any], profile: dict[str, Any]) -> Any:
+    def ingest_member_profile(
+        self, refs: dict[str, Any], profile: dict[str, Any]
+    ) -> Any:
         chamber = refs["chambers"][str(profile["chamber"])]
         district = self.upsert_district(refs, chamber, str(profile["district"]))
         name = str(profile.get("name") or profile.get("display_name") or "").strip()
         if not name:
             raise ValueError("Legislator profile is missing a name")
-        external_key = str(profile.get("source_url") or profile.get("profile_url") or name)
+        external_key = str(
+            profile.get("source_url") or profile.get("profile_url") or name
+        )
         legislator = self.upsert_legislator(refs, name, external_key=external_key)
         self.upsert_service_period(refs, legislator, chamber, district, profile)
         self.upsert_committees(refs, legislator, chamber, profile)
         return legislator
 
-    def ingest_roster(self, *, limit: int | None = None, fetch_profiles: bool = True) -> dict[str, Any]:
+    def ingest_roster(
+        self, *, limit: int | None = None, fetch_profiles: bool = True
+    ) -> dict[str, Any]:
         refs = self.seed_reference_data()
         run = self.start_run("legislator_roster", "94-2025-regular")
         roster_url = "https://www.leg.mn.gov/leg/legislators"
         roster_html = fetch_text(self.http, roster_url)
-        self.record_artifact(run, ArtifactType.html, roster_url, roster_html, source_key="legislator-roster")
+        self.record_artifact(
+            run,
+            ArtifactType.html,
+            roster_url,
+            roster_html,
+            source_key="legislator-roster",
+        )
         roster = parse_roster(roster_html)
         members = list(roster["members"])[:limit]
         ingested = 0
@@ -724,50 +886,96 @@ class MinnesotaIngestionPipeline:
             if fetch_profiles:
                 profile_url = str(member["profile_url"])
                 profile_html = fetch_text(self.http, profile_url)
-                self.record_artifact(run, ArtifactType.html, profile_url, profile_html, source_key=profile_url)
+                self.record_artifact(
+                    run,
+                    ArtifactType.html,
+                    profile_url,
+                    profile_html,
+                    source_key=profile_url,
+                )
                 profile.update(parse_member_profile(profile_html, profile_url))
                 profile["image_url"] = member.get("image_url")
             self.ingest_member_profile(refs, profile)
             ingested += 1
         self.refresh_legislator_stats(refs)
-        self.finish_run(run, {"members_seen": len(roster["members"]), "members_ingested": ingested})
+        self.finish_run(
+            run, {"members_seen": len(roster["members"]), "members_ingested": ingested}
+        )
         return run.stats
 
     def ingest_bill_target(self, refs: dict[str, Any], target: BillTarget) -> Any:
-        run = self.start_run("bill", f"{target.session_code}:{target.chamber}:{target.bill_number}")
+        run = self.start_run(
+            "bill", f"{target.session_code}:{target.chamber}:{target.bill_number}"
+        )
         discovery = discover_bill(self.http, target)
         xml_text = fetch_text(self.http, discovery["status_xml_uri"])
-        xml_artifact = self.record_artifact(run, ArtifactType.xml, discovery["status_xml_uri"], xml_text)
+        xml_artifact = self.record_artifact(
+            run, ArtifactType.xml, discovery["status_xml_uri"], xml_text
+        )
         canonical = parse_bill_xml(xml_text)
 
         text_versions = list(canonical.get("text_versions", []))
         latest_version_payload = text_versions[-1] if text_versions else {}
-        latest_html_url = str(latest_version_payload.get("html_uri") or discovery["latest_text_html_uri"])
+        latest_html_url = str(
+            latest_version_payload.get("html_uri") or discovery["latest_text_html_uri"]
+        )
         latest_html_text = fetch_text(self.http, latest_html_url)
-        html_artifact = self.record_artifact(run, ArtifactType.html, latest_html_url, latest_html_text, source_key=str(canonical["bill_key"]))
+        html_artifact = self.record_artifact(
+            run,
+            ArtifactType.html,
+            latest_html_url,
+            latest_html_text,
+            source_key=str(canonical["bill_key"]),
+        )
         bill_text = parse_bill_text_html(latest_html_text, latest_html_url)
 
-        bill = self.upsert_bill(refs, canonical, bill_text, run, xml_artifact, html_artifact)
+        bill = self.upsert_bill(
+            refs, canonical, bill_text, run, xml_artifact, html_artifact
+        )
         self.finish_run(
             run,
             {
                 "bill_key": bill.bill_key,
-                "action_count": sum(len(items) for items in canonical.get("actions", {}).values()),
-                "sponsor_count": sum(len(items) for items in canonical.get("authors", {}).values()),
+                "action_count": sum(
+                    len(items) for items in canonical.get("actions", {}).values()
+                ),
+                "sponsor_count": sum(
+                    len(items) for items in canonical.get("authors", {}).values()
+                ),
                 "version_count": max(1, len(text_versions)),
                 "section_count": len(bill_text.get("sections", [])),
             },
         )
         return bill
 
-    def upsert_bill(self, refs: dict[str, Any], canonical: dict[str, Any], bill_text: dict[str, Any], run: Any, xml_artifact: Any, html_artifact: Any) -> Any:
+    def upsert_bill(
+        self,
+        refs: dict[str, Any],
+        canonical: dict[str, Any],
+        bill_text: dict[str, Any],
+        run: Any,
+        xml_artifact: Any,
+        html_artifact: Any,
+    ) -> Any:
         file_type = str(canonical["file_type"])
         chamber = refs["chambers"]["house" if file_type.upper() == "HF" else "senate"]
-        all_actions = [action for actions in canonical.get("actions", {}).values() for action in actions]
-        latest_action = max(all_actions, key=lambda action: int(action.get("action_number") or 0), default=None)
-        latest_action_at = parse_datetime(latest_action.get("action_date")) if latest_action else None
+        all_actions = [
+            action
+            for actions in canonical.get("actions", {}).values()
+            for action in actions
+        ]
+        latest_action = max(
+            all_actions,
+            key=lambda action: int(action.get("action_number") or 0),
+            default=None,
+        )
+        latest_action_at = (
+            parse_datetime(latest_action.get("action_date")) if latest_action else None
+        )
 
-        bill = self.db.scalar(select(Bill).where(Bill.bill_key == canonical["bill_key"]))
+        bill = self.db.scalar(
+            select(Bill).where(Bill.bill_key == canonical["bill_key"])
+        )
         if bill is None:
             bill = Bill(
                 session_id=refs["session"].id,
@@ -775,7 +983,11 @@ class MinnesotaIngestionPipeline:
                 bill_key=str(canonical["bill_key"]),
                 file_type=file_type,
                 file_number=int(str(canonical["file_number"])),
-                title=str(bill_text.get("bill_title_text") or canonical.get("description") or canonical["bill_key"]),
+                title=str(
+                    bill_text.get("bill_title_text")
+                    or canonical.get("description")
+                    or canonical["bill_key"]
+                ),
             )
             self.db.add(bill)
             self.db.flush()
@@ -783,7 +995,9 @@ class MinnesotaIngestionPipeline:
         bill.chamber_id = chamber.id
         bill.revisor_number = str(canonical.get("revisor_number") or "") or None
         bill.description = str(canonical.get("description") or "") or None
-        bill.current_status = latest_action.get("action_text") if latest_action else None
+        bill.current_status = (
+            latest_action.get("action_text") if latest_action else None
+        )
         bill.latest_action_at = latest_action_at
         bill.official_url = str(bill_text.get("source_url") or "") or None
         bill.is_omnibus = len(bill_text.get("articles", [])) > 1
@@ -795,23 +1009,51 @@ class MinnesotaIngestionPipeline:
         self.upsert_bill_stats(bill, canonical)
         return bill
 
-    def upsert_versions_and_sections(self, bill: Any, canonical: dict[str, Any], bill_text: dict[str, Any], html_artifact: Any) -> None:
-        text_versions = list(canonical.get("text_versions", [])) or [{"document_name": "Current", "document_type": "current"}]
+    def upsert_versions_and_sections(
+        self,
+        bill: Any,
+        canonical: dict[str, Any],
+        bill_text: dict[str, Any],
+        html_artifact: Any,
+    ) -> None:
+        text_versions = list(canonical.get("text_versions", [])) or [
+            {"document_name": "Current", "document_type": "current"}
+        ]
         latest_index = len(text_versions)
         latest_version = None
         for index, version_payload in enumerate(text_versions, start=1):
-            version_code = str(version_payload.get("document_engrossment") or version_payload.get("document_type") or index).lower()
+            version_code = str(
+                version_payload.get("document_engrossment")
+                or version_payload.get("document_type")
+                or index
+            ).lower()
             if not version_code or version_code == "none":
                 version_code = f"version-{index}"
-            version = self.db.scalar(select(BillVersion).where(BillVersion.bill_id == bill.id, BillVersion.version_code == version_code))
+            version = self.db.scalar(
+                select(BillVersion).where(
+                    BillVersion.bill_id == bill.id,
+                    BillVersion.version_code == version_code,
+                )
+            )
             if version is None:
-                version = BillVersion(bill_id=bill.id, version_code=version_code, sequence_number=index)
+                version = BillVersion(
+                    bill_id=bill.id, version_code=version_code, sequence_number=index
+                )
                 self.db.add(version)
                 self.db.flush()
-            version.version_name = str(version_payload.get("document_name") or version_code)
+            version.version_name = str(
+                version_payload.get("document_name") or version_code
+            )
             version.sequence_number = index
-            version.document_date = parse_datetime(str(version_payload.get("date_insert") or ""))
-            version.html_url = str(version_payload.get("html_uri") or bill_text.get("source_url") or "") or None
+            version.document_date = parse_datetime(
+                str(version_payload.get("date_insert") or "")
+            )
+            version.html_url = (
+                str(
+                    version_payload.get("html_uri") or bill_text.get("source_url") or ""
+                )
+                or None
+            )
             version.pdf_url = str(version_payload.get("pdf_uri") or "") or None
             version.is_current = index == latest_index
             if version.is_current:
@@ -819,7 +1061,11 @@ class MinnesotaIngestionPipeline:
                 latest_version = version
 
         if latest_version is None:
-            latest_version = self.db.scalar(select(BillVersion).where(BillVersion.bill_id == bill.id).order_by(BillVersion.sequence_number.desc()))
+            latest_version = self.db.scalar(
+                select(BillVersion)
+                .where(BillVersion.bill_id == bill.id)
+                .order_by(BillVersion.sequence_number.desc())
+            )
         if latest_version is None:
             return
 
@@ -843,16 +1089,30 @@ class MinnesotaIngestionPipeline:
                 self.db.add(section_row)
             section_row.source_order = source_order
             section_row.article_id_text = str(article.get("article_id") or "") or None
-            section_row.article_number = str(article.get("article_number") or "") or None
-            section_row.article_heading = str(article.get("article_heading") or "") or None
+            section_row.article_number = (
+                str(article.get("article_number") or "") or None
+            )
+            section_row.article_heading = (
+                str(article.get("article_heading") or "") or None
+            )
             section_row.section_heading = str(section.get("heading") or "") or None
-            section_row.statute_heading = str(section.get("statute_heading") or "") or None
+            section_row.statute_heading = (
+                str(section.get("statute_heading") or "") or None
+            )
             section_row.cite_heading = str(section.get("cite_heading") or "") or None
-            section_row.effective_date_heading = str(section.get("effective_date_heading") or "") or None
+            section_row.effective_date_heading = (
+                str(section.get("effective_date_heading") or "") or None
+            )
             section_row.raw_text = str(section["text"])
             section_row.source_hash = content_hash(str(section["text"]))
 
-    def replace_actions(self, refs: dict[str, Any], bill: Any, canonical: dict[str, Any], xml_artifact: Any) -> None:
+    def replace_actions(
+        self,
+        refs: dict[str, Any],
+        bill: Any,
+        canonical: dict[str, Any],
+        xml_artifact: Any,
+    ) -> None:
         for chamber_name, actions in canonical.get("actions", {}).items():
             chamber = refs["chambers"].get(chamber_name)
             for action in actions:
@@ -878,7 +1138,9 @@ class MinnesotaIngestionPipeline:
                 action_row.journal_page = action.get("journal_page") or None
                 action_row.roll_call_text = action.get("roll_call") or None
 
-    def replace_sponsorships(self, refs: dict[str, Any], bill: Any, canonical: dict[str, Any]) -> None:
+    def replace_sponsorships(
+        self, refs: dict[str, Any], bill: Any, canonical: dict[str, Any]
+    ) -> None:
         self.db.execute(delete(Sponsorship).where(Sponsorship.bill_id == bill.id))
         for chamber_name, authors in canonical.get("authors", {}).items():
             chamber = refs["chambers"].get(chamber_name)
@@ -889,12 +1151,16 @@ class MinnesotaIngestionPipeline:
                 if not member_name:
                     continue
                 legislator_key = author.get("legislator_key") or member_name
-                legislator = self.upsert_legislator(refs, member_name, external_key=legislator_key)
+                legislator = self.upsert_legislator(
+                    refs, member_name, external_key=legislator_key
+                )
                 self.db.add(
                     Sponsorship(
                         bill_id=bill.id,
                         legislator_id=legislator.id,
-                        role=SponsorshipRole.chief_author if index == 1 else SponsorshipRole.co_author,
+                        role=SponsorshipRole.chief_author
+                        if index == 1
+                        else SponsorshipRole.co_author,
                         source_order=index,
                         source_chamber=chamber_name,
                     )
@@ -905,8 +1171,12 @@ class MinnesotaIngestionPipeline:
         if stats is None:
             stats = BillStats(bill_id=bill.id)
             self.db.add(stats)
-        stats.sponsor_count = sum(len(authors) for authors in canonical.get("authors", {}).values())
-        stats.action_count = sum(len(actions) for actions in canonical.get("actions", {}).values())
+        stats.sponsor_count = sum(
+            len(authors) for authors in canonical.get("authors", {}).values()
+        )
+        stats.action_count = sum(
+            len(actions) for actions in canonical.get("actions", {}).values()
+        )
         stats.version_count = max(1, len(canonical.get("text_versions", [])))
         stats.vote_event_count = len(bill.vote_events)
 
@@ -914,7 +1184,10 @@ class MinnesotaIngestionPipeline:
         refs = self.seed_reference_data()
         bills = [self.ingest_bill_target(refs, target) for target in targets]
         self.refresh_legislator_stats(refs)
-        return {"bills_ingested": len(bills), "bill_keys": [bill.bill_key for bill in bills]}
+        return {
+            "bills_ingested": len(bills),
+            "bill_keys": [bill.bill_key for bill in bills],
+        }
 
     def discover_bill_targets(
         self,
@@ -923,11 +1196,15 @@ class MinnesotaIngestionPipeline:
         max_bill_number: int = 6000,
         only_missing: bool = True,
     ) -> list[BillTarget]:
-        results = discover_session_bills(self.http, session_code=session_code, max_bill_number=max_bill_number)
+        results = discover_session_bills(
+            self.http, session_code=session_code, max_bill_number=max_bill_number
+        )
         if not only_missing:
             return [result.target for result in results]
         existing_keys = set(self.db.scalars(select(Bill.bill_key)).all())
-        return [result.target for result in results if result.bill_key not in existing_keys]
+        return [
+            result.target for result in results if result.bill_key not in existing_keys
+        ]
 
     def refresh_legislator_stats(self, refs: dict[str, Any]) -> None:
         legislators = self.db.scalars(select(Legislator)).all()
@@ -939,10 +1216,22 @@ class MinnesotaIngestionPipeline:
                 )
             )
             if stats is None:
-                stats = LegislatorStats(legislator_id=legislator.id, session_id=refs["session"].id)
+                stats = LegislatorStats(
+                    legislator_id=legislator.id, session_id=refs["session"].id
+                )
                 self.db.add(stats)
-            sponsorships = self.db.scalars(select(Sponsorship).where(Sponsorship.legislator_id == legislator.id)).all()
+            sponsorships = self.db.scalars(
+                select(Sponsorship).where(Sponsorship.legislator_id == legislator.id)
+            ).all()
             stats.total_bill_count = len(sponsorships)
-            stats.chief_bill_count = len([item for item in sponsorships if item.role == SponsorshipRole.chief_author])
+            stats.chief_bill_count = len(
+                [
+                    item
+                    for item in sponsorships
+                    if item.role == SponsorshipRole.chief_author
+                ]
+            )
             stats.vote_record_count = 0
-            stats.committee_count = len([item for item in legislator.committee_memberships if item.is_current])
+            stats.committee_count = len(
+                [item for item in legislator.committee_memberships if item.is_current]
+            )

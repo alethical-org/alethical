@@ -34,7 +34,9 @@ def require_internal_dashboard_token(
     expected = os.environ.get("INTERNAL_API_TOKEN", "dev-internal-token")
     # Use secrets.compare_digest to prevent timing attacks
     # Note: Using tokens in query parameters is generally discouraged as they may leak in logs
-    is_valid_header = x_internal_token and secrets.compare_digest(x_internal_token, expected)
+    is_valid_header = x_internal_token and secrets.compare_digest(
+        x_internal_token, expected
+    )
     is_valid_query = token and secrets.compare_digest(token, expected)
 
     if not is_valid_header and not is_valid_query:

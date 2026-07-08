@@ -1,5 +1,7 @@
 format:
+  uvx ruff check --fix alethical scripts
   uvx ruff format alethical scripts
+  pnpm --dir apps/frontend exec prettier --write .
 
 lint:
   uvx ruff check alethical scripts

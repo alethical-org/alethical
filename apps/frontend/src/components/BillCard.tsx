@@ -6,7 +6,17 @@ import { Card } from './Card';
 import { Chip } from './Chip';
 
 interface BillCardProps {
-  bill: Pick<Bill, 'id' | 'identifier' | 'title' | 'chamber' | 'status' | 'updatedAt' | 'aiAnalysis' | 'chiefSponsorIds'> & {
+  bill: Pick<
+    Bill,
+    | 'id'
+    | 'identifier'
+    | 'title'
+    | 'chamber'
+    | 'status'
+    | 'updatedAt'
+    | 'aiAnalysis'
+    | 'chiefSponsorIds'
+  > & {
     topics?: string[];
     sponsorNames?: string[];
   };
@@ -16,14 +26,22 @@ interface BillCardProps {
   onSponsorPress?: (legislatorId: string) => void;
 }
 
-export function BillCard({ bill, tracked = false, onPress, onToggleTrack, onSponsorPress }: BillCardProps) {
+export function BillCard({
+  bill,
+  tracked = false,
+  onPress,
+  onToggleTrack,
+  onSponsorPress,
+}: BillCardProps) {
   const summary = bill.aiAnalysis?.summary ?? bill.title;
   const policyAreas = bill.aiAnalysis?.policyAreas ?? [];
   const meta = [
     bill.chamber,
     bill.status,
     bill.updatedAt !== 'Unknown' ? `Updated ${bill.updatedAt}` : null,
-  ].filter(Boolean).join(' | ');
+  ]
+    .filter(Boolean)
+    .join(' | ');
   const sponsors = (bill.sponsorNames ?? []).map((name, index) => ({
     name,
     legislatorId: bill.chiefSponsorIds[index],
@@ -37,15 +55,17 @@ export function BillCard({ bill, tracked = false, onPress, onToggleTrack, onSpon
             <View style={styles.titleWrap}>
               <Text style={styles.identifier}>{bill.identifier}</Text>
             </View>
-            <Chip label={tracked ? 'Tracked' : 'Track'} selected={tracked} onPress={onToggleTrack} />
+            <Chip
+              label={tracked ? 'Tracked' : 'Track'}
+              selected={tracked}
+              onPress={onToggleTrack}
+            />
           </View>
           <View style={styles.summaryBlock}>
             <Text style={styles.summaryText}>{summary}</Text>
           </View>
           <View style={styles.metaBlock}>
-            <Text style={styles.metaText}>
-              {meta}
-            </Text>
+            <Text style={styles.metaText}>{meta}</Text>
             <View style={styles.authorRow}>
               <Text style={styles.authorText}>Author: </Text>
               {sponsors.length > 0 ? (
@@ -64,7 +84,8 @@ export function BillCard({ bill, tracked = false, onPress, onToggleTrack, onSpon
                       }}
                     >
                       <Text style={[styles.authorText, clickable && styles.authorLink]}>
-                        {sponsor.name}{index < sponsors.length - 1 ? ', ' : ''}
+                        {sponsor.name}
+                        {index < sponsors.length - 1 ? ', ' : ''}
                       </Text>
                     </Pressable>
                   );

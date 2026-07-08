@@ -42,7 +42,8 @@ def normalize_database_url(url: str) -> str:
 def get_database_url() -> str:
     return normalize_database_url(
         os.environ.get(
-            "DATABASE_URL", "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+            "DATABASE_URL",
+            "postgresql+psycopg://alethical:alethical@localhost:54329/alethical",
         )
     )
 
@@ -66,7 +67,9 @@ def database_url_for_target(target: str | None, explicit_url: str | None = None)
     if target == "production":
         url = supabase_database_url()
         if not url:
-            raise RuntimeError("SUPABASE_PROJECT_URL and SUPABASE_DB_PASSWORD are required for target=production")
+            raise RuntimeError(
+                "SUPABASE_PROJECT_URL and SUPABASE_DB_PASSWORD are required for target=production"
+            )
         return url
     raise RuntimeError(f"Unknown database target: {target}")
 
@@ -78,7 +81,9 @@ def get_engine():
 
 @lru_cache(maxsize=1)
 def get_session_factory():
-    return sessionmaker(bind=get_engine(), autoflush=False, autocommit=False, expire_on_commit=False)
+    return sessionmaker(
+        bind=get_engine(), autoflush=False, autocommit=False, expire_on_commit=False
+    )
 
 
 def get_db():

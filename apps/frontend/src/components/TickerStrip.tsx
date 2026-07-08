@@ -16,7 +16,11 @@ export function TickerStrip({ title, items }: TickerStripProps) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>{title}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
         {items.map((item) => (
           <View key={`${item.label}-${item.value}`} style={styles.item}>
             <Text style={styles.label}>{item.label}</Text>

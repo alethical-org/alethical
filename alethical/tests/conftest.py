@@ -86,7 +86,9 @@ def client(seed_database: None) -> TestClient:
             )
 
     app.dependency_overrides[get_auth_service] = lambda: FakeSupabaseAuthService()
-    app.dependency_overrides[get_representative_lookup_service] = lambda: FakeRepresentativeLookupService()
+    app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        FakeRepresentativeLookupService()
+    )
     return TestClient(app)
 
 

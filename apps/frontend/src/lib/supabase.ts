@@ -23,7 +23,7 @@ export const supabase = createClient(
       flowType: 'pkce',
       lock: processLock,
     },
-  }
+  },
 );
 
 if (Platform.OS !== 'web') {

@@ -25,7 +25,9 @@ def load_jsonl_requests(path: Path) -> dict[str, dict[str, Any]]:
     return requests
 
 
-def load_manifest_items(path: Path, *, model_name: str | None = None) -> list[ManifestItem]:
+def load_manifest_items(
+    path: Path, *, model_name: str | None = None
+) -> list[ManifestItem]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     items = [ManifestItem(**item) for item in payload["items"]]
     if model_name is None:
@@ -33,7 +35,9 @@ def load_manifest_items(path: Path, *, model_name: str | None = None) -> list[Ma
     return [ManifestItem(**{**asdict(item), "model": model_name}) for item in items]
 
 
-def write_codex_manifest(source_manifest_path: Path, output_path: Path, *, model_name: str) -> Path:
+def write_codex_manifest(
+    source_manifest_path: Path, output_path: Path, *, model_name: str
+) -> Path:
     payload = json.loads(source_manifest_path.read_text(encoding="utf-8"))
     payload["model"] = model_name
     payload["generator"] = "codex-headless"
@@ -67,7 +71,9 @@ def output_row(custom_id: str, content: dict[str, Any]) -> dict[str, Any]:
         "response": {
             "status_code": 200,
             "body": {
-                "output_text": json.dumps(content, ensure_ascii=False, separators=(",", ":")),
+                "output_text": json.dumps(
+                    content, ensure_ascii=False, separators=(",", ":")
+                ),
             },
         },
     }
@@ -99,7 +105,9 @@ def validate_summary_shape(content: dict[str, Any]) -> list[str]:
     return errors
 
 
-def combine_output_files(*, run_dir: Path, manifest_path: Path | None = None, output_path: Path | None = None) -> dict[str, Any]:
+def combine_output_files(
+    *, run_dir: Path, manifest_path: Path | None = None, output_path: Path | None = None
+) -> dict[str, Any]:
     manifest_path = manifest_path or next(run_dir.glob("*.codex.manifest.json"))
     output_path = output_path or run_dir / "combined.output.jsonl"
     expected = {item.custom_id for item in load_manifest_items(manifest_path)}
@@ -111,18 +119,28 @@ def combine_output_files(*, run_dir: Path, manifest_path: Path | None = None, ou
             try:
                 row = json.loads(path.read_text(encoding="utf-8"))
                 custom_id = row.get("custom_id")
-                text = ((row.get("response") or {}).get("body") or {}).get("output_text")
+                text = ((row.get("response") or {}).get("body") or {}).get(
+                    "output_text"
+                )
                 content = json.loads(text)
                 errors = validate_summary_shape(content)
                 if custom_id not in expected:
                     errors.append("custom_id not present in manifest")
                 if errors:
-                    failed.append({"path": str(path), "custom_id": custom_id, "errors": errors})
+                    failed.append(
+                        {"path": str(path), "custom_id": custom_id, "errors": errors}
+                    )
                     continue
                 seen.add(custom_id)
                 handle.write(json.dumps(row, ensure_ascii=False) + "\n")
             except Exception as exc:
-                failed.append({"path": str(path), "error": type(exc).__name__, "message": str(exc)[:500]})
+                failed.append(
+                    {
+                        "path": str(path),
+                        "error": type(exc).__name__,
+                        "message": str(exc)[:500],
+                    }
+                )
 
     missing = sorted(expected - seen)
     return {

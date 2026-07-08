@@ -15,7 +15,7 @@ export function AppProviders({ children }: PropsWithChildren) {
             refetchOnWindowFocus: false,
           },
         },
-      })
+      }),
   );
 
   return (

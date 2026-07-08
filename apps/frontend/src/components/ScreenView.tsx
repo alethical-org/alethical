@@ -17,19 +17,28 @@ interface ScreenViewProps extends PropsWithChildren {
   scrollToEndKey?: unknown;
 }
 
-export function ScreenView({ title, subtitle, actions, hideHeader = false, hideMasthead = false, scrollToEndKey, children }: ScreenViewProps) {
+export function ScreenView({
+  title,
+  subtitle,
+  actions,
+  hideHeader = false,
+  hideMasthead = false,
+  scrollToEndKey,
+  children,
+}: ScreenViewProps) {
   const { isDesktop } = useResponsive();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const scrollRef = useRef<ScrollView | null>(null);
   const safeAreaPadding = Platform.OS === 'web' ? undefined : { paddingTop: insets.top };
-  const webBackground = Platform.OS === 'web'
-    ? ({
-        backgroundColor: theme.colors.paper,
-        backgroundImage:
-          "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'/%3E%3C/svg%3E\")",
-      } as const)
-    : { backgroundColor: theme.colors.paper };
+  const webBackground =
+    Platform.OS === 'web'
+      ? ({
+          backgroundColor: theme.colors.paper,
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'/%3E%3C/svg%3E\")",
+        } as const)
+      : { backgroundColor: theme.colors.paper };
 
   useEffect(() => {
     if (scrollToEndKey === undefined) {
@@ -74,8 +83,14 @@ export function ScreenView({ title, subtitle, actions, hideHeader = false, hideM
             <MotionIn delay={60}>
               <View style={styles.header}>
                 <View style={styles.headerText}>
-                  {title ? <Text style={[styles.title, !isDesktop && styles.mobileTitle]}>{title}</Text> : null}
-                  {subtitle ? <Text style={[styles.subtitle, !isDesktop && styles.mobileSubtitle]}>{subtitle}</Text> : null}
+                  {title ? (
+                    <Text style={[styles.title, !isDesktop && styles.mobileTitle]}>{title}</Text>
+                  ) : null}
+                  {subtitle ? (
+                    <Text style={[styles.subtitle, !isDesktop && styles.mobileSubtitle]}>
+                      {subtitle}
+                    </Text>
+                  ) : null}
                 </View>
                 {actions ? <View style={styles.actions}>{actions}</View> : null}
               </View>

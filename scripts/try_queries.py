@@ -32,14 +32,17 @@ tracked_bills_stmt = schema.tracked_bills_stmt
 
 def main() -> None:
     database_url = os.environ.get(
-        "DATABASE_URL", "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+        "DATABASE_URL",
+        "postgresql+psycopg://alethical:alethical@localhost:54329/alethical",
     )
     engine = create_engine(database_url, echo=False)
 
     with Session(engine) as session:
         session_id = session.scalar(select(LegislatorServicePeriod.session_id).limit(1))
         user_id = session.scalar(select(TrackedBill.user_id).limit(1))
-        first_bill_id = session.scalar(select(Bill.id).order_by(Bill.file_number.asc()).limit(1))
+        first_bill_id = session.scalar(
+            select(Bill.id).order_by(Bill.file_number.asc()).limit(1)
+        )
 
         bill_cards = session.scalars(bill_list_stmt(session_id, user_id=user_id)).all()
         print("bill_list_count", len(bill_cards))
@@ -67,8 +70,16 @@ def main() -> None:
         legislators = session.scalars(legislator_directory_stmt(session_id)).all()
         print("legislator_directory_count", len(legislators))
         for legislator in legislators[:3]:
-            current = next((period for period in legislator.service_periods if period.is_current), None)
-            print("legislator_card", legislator.full_name, current.party if current else None, current.district.code if current else None)
+            current = next(
+                (period for period in legislator.service_periods if period.is_current),
+                None,
+            )
+            print(
+                "legislator_card",
+                legislator.full_name,
+                current.party if current else None,
+                current.district.code if current else None,
+            )
 
         tracked = session.scalars(tracked_bills_stmt(user_id)).all()
         print("tracked_bill_count", len(tracked))

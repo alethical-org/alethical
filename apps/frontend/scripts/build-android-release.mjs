@@ -29,7 +29,10 @@ function loadEnvFile(path) {
     }
 
     const key = trimmed.slice(0, equalsIndex).trim();
-    const value = trimmed.slice(equalsIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+    const value = trimmed
+      .slice(equalsIndex + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, '');
     if (process.env[key] === undefined) {
       process.env[key] = value;
     }
@@ -66,7 +69,7 @@ requireEnv('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
 
 if (!existsSync(gradleScript)) {
   throw new Error(
-    `Android Gradle wrapper is missing at ${gradleScript}. Run "pnpm --dir apps/frontend exec expo prebuild --platform android" first.`
+    `Android Gradle wrapper is missing at ${gradleScript}. Run "pnpm --dir apps/frontend exec expo prebuild --platform android" first.`,
   );
 }
 
@@ -93,6 +96,10 @@ if (!process.env.ANDROID_SDK_ROOT && process.env.ANDROID_HOME) {
 }
 
 run(process.execPath, [syncNetworkScript]);
-run(gradleScript, [':app:createBundleReleaseJsAndAssets', ':app:assembleRelease', '--rerun-tasks', '--no-daemon'], {
-  cwd: androidRoot,
-});
+run(
+  gradleScript,
+  [':app:createBundleReleaseJsAndAssets', ':app:assembleRelease', '--rerun-tasks', '--no-daemon'],
+  {
+    cwd: androidRoot,
+  },
+);

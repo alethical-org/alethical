@@ -18,11 +18,17 @@ export function HomeScreen({ navigation }: Props) {
   const billsQuery = useBills();
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
-  const trackedIds = useMemo(() => new Set((trackedQuery.data ?? []).map((bill) => bill.id)), [trackedQuery.data]);
+  const trackedIds = useMemo(
+    () => new Set((trackedQuery.data ?? []).map((bill) => bill.id)),
+    [trackedQuery.data],
+  );
   const recentBills = (billsQuery.data?.data ?? []).slice(0, 4);
 
   return (
-    <ScreenView title="Alethical" subtitle="Minnesota legislative intelligence for search, tracking, and grounded bill questions.">
+    <ScreenView
+      title="Alethical"
+      subtitle="Minnesota legislative intelligence for search, tracking, and grounded bill questions."
+    >
       <View style={styles.quickGrid}>
         <QuickAction
           label="Search Bills"
@@ -54,7 +60,8 @@ export function HomeScreen({ navigation }: Props) {
         <Card>
           <Text style={styles.cardTitle}>Prototype account flow</Text>
           <Text style={styles.bodyText}>
-            Public search and representative lookup work without an account. Sign in when you want tracking, saved history, and bill chat.
+            Public search and representative lookup work without an account. Sign in when you want
+            tracking, saved history, and bill chat.
           </Text>
           <PrimaryButton label="Continue With Google" onPress={() => void signInWithGoogle()} />
         </Card>
@@ -81,7 +88,9 @@ export function HomeScreen({ navigation }: Props) {
         {billsQuery.error ? (
           <Card>
             <Text style={styles.bodyText}>
-              {billsQuery.error instanceof Error ? billsQuery.error.message : 'Bills could not be loaded.'}
+              {billsQuery.error instanceof Error
+                ? billsQuery.error.message
+                : 'Bills could not be loaded.'}
             </Text>
           </Card>
         ) : null}
@@ -96,7 +105,9 @@ export function HomeScreen({ navigation }: Props) {
             bill={bill}
             tracked={trackedIds.has(bill.id)}
             onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-            onSponsorPress={(legislatorId) => navigation.navigate('LegislatorProfile', { legislatorId })}
+            onSponsorPress={(legislatorId) =>
+              navigation.navigate('LegislatorProfile', { legislatorId })
+            }
             onToggleTrack={() => {
               if (!isSignedIn) {
                 void signInWithGoogle();

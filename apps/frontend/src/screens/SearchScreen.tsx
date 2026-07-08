@@ -6,8 +6,17 @@ import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { LegislatorCard } from '../components/LegislatorCard';
 import { ScreenView } from '../components/ScreenView';
-import { allPoliciesLabel, ChamberFilter, SearchFilterPanel } from '../components/SearchFilterPanel';
-import { useBills, useLegislators, useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
+import {
+  allPoliciesLabel,
+  ChamberFilter,
+  SearchFilterPanel,
+} from '../components/SearchFilterPanel';
+import {
+  useBills,
+  useLegislators,
+  useToggleTrackedBill,
+  useTrackedBills,
+} from '../hooks/useAppQueries';
 import { MainTabScreenProps } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
@@ -38,11 +47,11 @@ export function SearchScreen({ navigation }: Props) {
       omnibus: omnibusOnly ? true : undefined,
       status: status || undefined,
     }),
-    [chamber, omnibusOnly, policyCategory, status]
+    [chamber, omnibusOnly, policyCategory, status],
   );
   const legislatorFilters = useMemo(
     () => ({ chamber: chamber === 'All' ? undefined : chamber }),
-    [chamber]
+    [chamber],
   );
   const billsQuery = useBills(query, session || undefined, billFilters, {
     limit: BILLS_PAGE_SIZE,
@@ -51,7 +60,10 @@ export function SearchScreen({ navigation }: Props) {
   const legislatorsQuery = useLegislators(query, session || undefined, legislatorFilters);
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
-  const trackedIds = useMemo(() => new Set((trackedQuery.data ?? []).map((bill) => bill.id)), [trackedQuery.data]);
+  const trackedIds = useMemo(
+    () => new Set((trackedQuery.data ?? []).map((bill) => bill.id)),
+    [trackedQuery.data],
+  );
 
   const categoryNeedle = policyCategory === ALL_POLICIES ? null : policyCategory.toLowerCase();
   const bills = billsQuery.data?.data ?? [];
@@ -69,13 +81,11 @@ export function SearchScreen({ navigation }: Props) {
   const safeLegislatorPage = Math.min(legislatorPage, legislatorPageCount - 1);
   const pagedLegislators = legislators.slice(
     safeLegislatorPage * LEGISLATORS_PAGE_SIZE,
-    safeLegislatorPage * LEGISLATORS_PAGE_SIZE + LEGISLATORS_PAGE_SIZE
+    safeLegislatorPage * LEGISLATORS_PAGE_SIZE + LEGISLATORS_PAGE_SIZE,
   );
 
   return (
-    <ScreenView
-      hideHeader
-    >
+    <ScreenView hideHeader>
       <SearchFilterPanel
         query={query}
         chamber={chamber}
@@ -114,7 +124,7 @@ export function SearchScreen({ navigation }: Props) {
       />
 
       <View style={[styles.resultsGrid, isDesktop && styles.resultsGridDesktop]}>
-        {(
+        {
           <View style={styles.column}>
             <Text style={styles.columnTitle}>Bills</Text>
             <View style={styles.stack}>
@@ -126,7 +136,9 @@ export function SearchScreen({ navigation }: Props) {
               {billsQuery.error ? (
                 <Card>
                   <Text style={styles.bodyText}>
-                    {billsQuery.error instanceof Error ? billsQuery.error.message : 'Bills could not be loaded.'}
+                    {billsQuery.error instanceof Error
+                      ? billsQuery.error.message
+                      : 'Bills could not be loaded.'}
                   </Text>
                 </Card>
               ) : null}
@@ -136,21 +148,23 @@ export function SearchScreen({ navigation }: Props) {
                 </Card>
               ) : null}
               {bills.map((bill) => (
-                  <BillCard
-                    key={bill.id}
-                    bill={bill}
-                    tracked={trackedIds.has(bill.id)}
-                    onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                    onSponsorPress={(legislatorId) => navigation.navigate('LegislatorProfile', { legislatorId })}
-                    onToggleTrack={() => {
-                      if (!isSignedIn) {
-                        void signInWithGoogle();
-                        return;
-                      }
-                      toggleTrackedBill.mutate(bill.id);
-                    }}
-                  />
-                ))}
+                <BillCard
+                  key={bill.id}
+                  bill={bill}
+                  tracked={trackedIds.has(bill.id)}
+                  onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                  onSponsorPress={(legislatorId) =>
+                    navigation.navigate('LegislatorProfile', { legislatorId })
+                  }
+                  onToggleTrack={() => {
+                    if (!isSignedIn) {
+                      void signInWithGoogle();
+                      return;
+                    }
+                    toggleTrackedBill.mutate(bill.id);
+                  }}
+                />
+              ))}
               {!billsQuery.isLoading && !billsQuery.error && (billPage > 0 || hasMoreBills) ? (
                 <View style={styles.paginationRow}>
                   <Chip
@@ -159,9 +173,7 @@ export function SearchScreen({ navigation }: Props) {
                     disabled={billPage === 0}
                     onPress={() => setBillPage((page) => Math.max(0, page - 1))}
                   />
-                  <Text style={styles.pageText}>
-                    Page {billPage + 1}
-                  </Text>
+                  <Text style={styles.pageText}>Page {billPage + 1}</Text>
                   <Chip
                     label="Next"
                     selected={false}
@@ -172,9 +184,9 @@ export function SearchScreen({ navigation }: Props) {
               ) : null}
             </View>
           </View>
-        )}
+        }
 
-        {(
+        {
           <View style={[styles.column, isDesktop && styles.rightColumn]}>
             <Text style={styles.columnTitle}>Legislators</Text>
             <View style={styles.stack}>
@@ -186,11 +198,15 @@ export function SearchScreen({ navigation }: Props) {
               {legislatorsQuery.error ? (
                 <Card>
                   <Text style={styles.bodyText}>
-                    {legislatorsQuery.error instanceof Error ? legislatorsQuery.error.message : 'Legislators could not be loaded.'}
+                    {legislatorsQuery.error instanceof Error
+                      ? legislatorsQuery.error.message
+                      : 'Legislators could not be loaded.'}
                   </Text>
                 </Card>
               ) : null}
-              {!legislatorsQuery.isLoading && !legislatorsQuery.error && legislators.length === 0 ? (
+              {!legislatorsQuery.isLoading &&
+              !legislatorsQuery.error &&
+              legislators.length === 0 ? (
                 <Card>
                   <Text style={styles.bodyText}>No legislators match this search.</Text>
                 </Card>
@@ -204,7 +220,9 @@ export function SearchScreen({ navigation }: Props) {
                   }
                 />
               ))}
-              {!legislatorsQuery.isLoading && !legislatorsQuery.error && legislators.length > LEGISLATORS_PAGE_SIZE ? (
+              {!legislatorsQuery.isLoading &&
+              !legislatorsQuery.error &&
+              legislators.length > LEGISLATORS_PAGE_SIZE ? (
                 <View style={styles.paginationRow}>
                   <Chip
                     label="Previous"
@@ -217,13 +235,15 @@ export function SearchScreen({ navigation }: Props) {
                   <Chip
                     label="Next"
                     selected={false}
-                    onPress={() => setLegislatorPage((page) => Math.min(legislatorPageCount - 1, page + 1))}
+                    onPress={() =>
+                      setLegislatorPage((page) => Math.min(legislatorPageCount - 1, page + 1))
+                    }
                   />
                 </View>
               ) : null}
             </View>
           </View>
-        )}
+        }
       </View>
     </ScreenView>
   );
