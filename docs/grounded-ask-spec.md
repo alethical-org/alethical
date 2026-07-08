@@ -163,6 +163,7 @@ The deflection CTA and the hero's "how everyone voted" both land here:
 - **URL-addressable tab** (`?tab=votes` or `#votes`). The deflection CTA is cross-page navigation and can only target a tab that exists in the URL, not component state. The same anchor is what v1.1 roll-call citations will deep-link to, and it gives users shareable vote URLs for free.
 - Each roll-call row: motion/reading · date · chamber · **result with tally inline** ("Passed · 70–58") · "View roll call →" to `VoteEvent.official_url`.
 - This is a **records surface**, not a generated answer: tallies belong here and must not appear in generated answers before v1.1 ships the cited vote path.
+- The records surface carries the same trust grammar as answers (finalized in the Design mock): its own provenance strip ("4 recorded votes · data as of {date}", from `IngestionRun` like §9.2) and a page-level source line ("Source: Minnesota Legislature roll-call records · `revisor.mn.gov` ↗"). Rows sort newest-first. Bill page tab set: Overview · Full Text · Votes · Authors.
 
 ### 9.4 Fixed-copy elements (layout-owned, never LLM-generated)
 
