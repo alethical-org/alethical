@@ -102,7 +102,7 @@ because it would break the running old-IA app before screens/tokens exist):**
 Phase 0
 - [x] IA/route registry (`ia.ts`)
 - [x] Account-menu contents (O9)
-- [ ] Expand `tokens.ts` → token scale/tints, radii, shadows, gradient, bold-sans display + primitives kit (Surface/Card/Button/Pill/Chip/NavBar), old theme as default
+- [ ] Expand `tokens.ts` → token scale/tints, radii, shadows, gradient, bold-sans display + primitives kit (Surface/Card/Button/Pill/Chip/NavBar), old theme as default — part of [#136](https://github.com/alethical-org/alethical/issues/136)
 
 Backend track (start now — long pole, no design dependency)
 - [ ] **Ask AI un-stub:** replace `demo-minilm-1536` / `_deterministic_embedding` in
@@ -119,7 +119,7 @@ Frontend track (after Phase 0; parallel with backend track)
 - [ ] About static pages (About Us / Trust & Integrity / Contact Us); Trust page as real brand copy
 - [ ] Account menu + nav-after-sign-in; move Privacy/Terms into footer
 - [ ] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect
-- [ ] Green token flip (web; re-skins the post-MVP iOS/Android clients for free via shared tokens)
+- [ ] Green token flip (web; re-skins the post-MVP iOS/Android clients for free via shared tokens) — [#136](https://github.com/alethical-org/alethical/issues/136)
 - [ ] Upgrade Ask hero to the one-free-answer funnel when the backend un-stub is live
 
 ## Open items (still undecided)
