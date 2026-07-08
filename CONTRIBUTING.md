@@ -127,6 +127,21 @@ An open issue should mean "still needs doing." Three habits keep that true:
 We group work with **milestones** (e.g. `v0 hardening`, `v1`) rather than title
 prefixes, so the Milestones tab shows real progress bars.
 
+We size issues with **effort labels**, never in the title:
+
+- `effort: small` — half a day or less; one file or area, no unknowns — you can
+  picture the diff before starting.
+- `effort: medium` — half a day to ~2 days; touches a few areas, or has one
+  real unknown to figure out.
+- `effort: large` — multiple days, or an unresolved design question.
+
+Two rules make the sizes useful. **Effort is not priority** — the milestone
+says *when*, the label says *how big*; a small issue can be launch-critical and
+a medium one can wait. And **large is a smell, not a size**: before starting an
+`effort: large` issue, split it into smaller issues or file a spike to resolve
+the unknown. Re-sizing as you learn more is normal — edit the label, not the
+title.
+
 ## Keeping docs current
 
 Docs carry screenshots and diagrams, and those go stale silently — `grep`
