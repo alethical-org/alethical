@@ -39,8 +39,9 @@ roadmap noted for direction.
   markup can't be lifted into components, and web-specific CSS can actively mislead.
   Engineers implement in the RN codebase from tokens + spec; the spec is the
   contract, the mock is the visual. Screenshot sets should cover every spec'd state
-  (e.g. the §9.1 answer states), not just the happy path — the states are the
-  contract, and mocks tend to show only the golden screen.
+  (e.g. the five Answer-page states in `docs/grounded-ask-spec.md` §9.1, "The
+  states"), not just the happy path — the states are the contract, and mocks tend
+  to show only the golden screen.
 - **Re-skin mechanics:** styling is fully centralized in `theme/tokens.ts` with zero
   hardcoded hex across the 24 screen/component files, so the green flip is a token-set
   swap, not a code migration. The MVP flip targets web; because the codebase is shared
