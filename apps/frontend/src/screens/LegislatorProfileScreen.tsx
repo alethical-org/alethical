@@ -50,7 +50,7 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
       >
         <Card>
           <Text style={styles.bodyText}>
-            Loading current service, committees, stats, and sponsored bills.
+            Loading current service, committees, stats, and authored bills.
           </Text>
         </Card>
       </ScreenView>
@@ -149,11 +149,11 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
               <Text style={styles.bodyText}>No committee memberships are available yet.</Text>
             )}
           </SectionCard>
-          <SectionCard title="Sponsored Bills">
+          <SectionCard title="Authored Bills">
             <View style={styles.stack}>
               {billsQuery.isLoading ? (
                 <Card>
-                  <Text style={styles.bodyText}>Loading sponsored bills.</Text>
+                  <Text style={styles.bodyText}>Loading authored bills.</Text>
                 </Card>
               ) : null}
               {billsQuery.error ? (
@@ -161,13 +161,13 @@ export function LegislatorProfileScreen({ route, navigation }: Props) {
                   <Text style={styles.bodyText}>
                     {billsQuery.error instanceof Error
                       ? billsQuery.error.message
-                      : 'Sponsored bills could not be loaded.'}
+                      : 'Authored bills could not be loaded.'}
                   </Text>
                 </Card>
               ) : null}
               {!billsQuery.isLoading && !billsQuery.error && sponsoredBills.length === 0 ? (
                 <Card>
-                  <Text style={styles.bodyText}>No sponsored bills are available yet.</Text>
+                  <Text style={styles.bodyText}>No authored bills are available yet.</Text>
                 </Card>
               ) : null}
               {sponsoredBills.map((bill) => (
