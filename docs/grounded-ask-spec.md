@@ -13,7 +13,7 @@ Related surfaces: signed-out home (hero), chat
 The signed-out home page hero ships this copy:
 
 > **Grounded answers on Minnesota law**
-> We read every bill so you don't have to — what it says, where it stands, and how everyone voted. Plain English, every answer linked to its source.
+> We read every bill so you don't have to — what it says, where it stands, and how everyone voted. Plain language, every answer linked to its official source.
 
 The subhead is a contract, not marketing: **no answer ships without a resolvable citation to its official source.** Everything in this spec exists to keep that sentence true when the hero's Ask box goes from bill-scoped chat to a general question box.
 
