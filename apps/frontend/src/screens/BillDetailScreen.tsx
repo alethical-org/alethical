@@ -295,7 +295,7 @@ export function BillDetailScreen({ route, navigation }: Props) {
         )}
         {coAuthors.length > 0 ? (
           <>
-            <Text style={styles.authorGroupTitle}>Co-authors & Co-sponsors</Text>
+            <Text style={styles.authorGroupTitle}>Co-authors</Text>
             <View style={[styles.coAuthorGrid, isDesktop && styles.coAuthorGridDesktop]}>
               {coAuthors.map((author) => (
                 <Pressable

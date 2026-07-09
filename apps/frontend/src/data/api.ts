@@ -526,7 +526,7 @@ function mapLegislator(
       : [];
   const stats = payload.stats;
   const focusAreas = [
-    stats ? `${stats.total_bill_count} sponsored bills` : null,
+    stats ? `${stats.total_bill_count} authored bills` : null,
     stats ? `${stats.committee_count} committees` : null,
   ].filter((item): item is string => Boolean(item));
 
@@ -561,7 +561,7 @@ function mapLegislator(
         ]
       : [],
     questionPrompts: [
-      `Summarize ${displayName}'s sponsored bills this session.`,
+      `Summarize ${displayName}'s authored bills this session.`,
       `What committees or policy areas are connected to ${displayName}?`,
     ],
     sponsoredBillIds: [],
