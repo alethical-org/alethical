@@ -12,12 +12,30 @@ roadmap noted for direction.
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
 - **IA:** top nav `Ask AI · Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
-  subsections. Search and Track share one entity taxonomy.
+  subsections. Search and Track share one entity taxonomy. (Standalone Ask AI
+  entry under review — see O10 in Open items below: the final home design drops it.)
 - **MVP surface:** Ask AI; Search → Bills, Legislators ("Find My Legislator");
   Track → Bills; About → About Us, Trust & Integrity, Contact Us; Sign in.
   Everything else in the menus is roadmap.
 - **Aesthetic:** green / rounded / bold-sans / soft-shadow. Loose and non-binding
   until firmed; final visual mockups handled separately in Claude design.
+- **Final designs land one page at a time, superseding the seven comps per page:**
+  the seven HTML comps under `docs/mockups/` on the design-system branch
+  ([#67](https://github.com/alethical-org/alethical/pull/67)) were *aesthetic
+  direction*; the actual per-page UI arrives as refined Claude-design mockup
+  screenshots, and once a page's final design exists it supersedes that page's comp
+  as the visual reference (the comp stays as provenance for the tokens). First final
+  design: home signed-out (2026-07-09 refinement — full page + the three nav-dropdown
+  states). The tokens + primitives foundation extracted from the comps persists;
+  each page build tops it up with whatever new tokens/components its final design
+  needs.
+- **Roadmap items in menus = curated "coming soon" (resolves O5):** the final home
+  design shows the Search and Track dropdowns with a greyed, non-navigable
+  **COMING SOON** group (Issues · Candidates) beneath the live entries, rather than
+  hiding all roadmap items. Curated means exactly that pair for now; the other
+  roadmap registry entries stay hidden. Live entries keep icon + one-line
+  description (Search: Bills — with an "Ask AI" badge — and Legislators; Track:
+  Bills).
 - **Mockups → frontend handoff (no HTML conversion step):** when the Claude-design
   mockups finalize, they hand off to implementation as three artifacts, in value order:
   1. **Final screenshots per screen and state** — shared via Drive for human review.
@@ -48,7 +66,8 @@ roadmap noted for direction.
   Expo/React Native, the same swap will re-skin the post-MVP iOS/Android clients for free.
 - **Menu = typed registry:** codified in `apps/frontend/src/navigation/ia.ts`. Each
   item → `{ label, path, menu, availability: mvp|roadmap, authGated }`. MVP rendered;
-  roadmap declared-but-hidden.
+  roadmap declared-but-hidden — except the curated coming-soon pair shown greyed in
+  the menus (see the roadmap-items bullet above).
 - **Track stays auth-gated.**
 - **Search page split:** the current combined Bills+Legislators search becomes two
   dedicated pages. Bill search screen specified in `docs/bill-search-screen-spec.md`
@@ -150,8 +169,8 @@ Frontend track (after Phase 0; parallel with backend track)
 
 | # | Item | Leaning / notes | When |
 |---|------|-----------------|------|
-| O5 | Roadmap items: hide vs "coming soon" | Lean hide + keep registry entries; show a curated few only if it aids the investor narrative. | Before nav build |
 | O8 | Anonymous Ask guardrails specifics | Rate-limit by IP/device + cache; cap at one free answer. | Ask AI impl |
+| O10 | Standalone "Ask AI" top-nav entry: keep or drop | The final home design (2026-07-09) drops it — nav reads `Search ▾ · Track ▾ · About ▾ · Sign in`, the hero *is* the ask surface, and Search → Bills carries an "Ask AI" badge instead. The IA locked decision above, `ia.ts`, and the nav-states section still specify a top-level Ask AI item. If the design wins, update those *and* decide how users reach Ask from non-home pages (nav entry? persistent ask bar?). | Before nav build |
 
 ## Roadmap (remembered for later)
 
