@@ -155,3 +155,13 @@ something a doc's visual depicts (UI copy, layout, the states a mock shows),
 refresh that image in the **same PR**, so the doc's picture and its words never
 disagree. This covers any doc with embedded visuals — build specs, onboarding
 guides, READMEs — not just files named `*-spec.md`.
+
+## Writing cross-references
+
+When you cite a spec section anywhere — a doc, an issue, a PR body or comment —
+give the full file name and say what the section covers:
+"`docs/grounded-ask-spec.md` §9 (Answer page UI — v1 states)", not "the spec §9".
+Someone new reading the sentence in isolation should know exactly what's being
+referred to without opening anything. Once the full form has appeared, later
+mentions in the same document can shorten. Likewise, link issues and PRs with
+their titles or a short gloss rather than dropping a bare number.
