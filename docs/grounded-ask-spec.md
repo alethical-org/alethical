@@ -90,10 +90,11 @@ Extend the existing empty-retrieval fallback into a hard invariant for every ans
 **v1.1 — tolerant person resolution for answers:** name/nickname → legislator id, tolerant of partial names and misspellings, feeding the `legislator_vote` path and per-person answers. `/search` and the name-matching in `votes.py` (`legislator_keys`, `build_legislator_index`) are starting points. "My legislator" resolution depends on §8.1.
 
 ### 4.7 Follow-up chips ("Continue the conversation")
-Three rules, enforced by construction rather than review:
+Four rules, enforced by construction rather than review:
 1. **Route-live-or-don't-ship.** Every chip targets a v1 answer path and must not be refusable — a refusal of a question the system itself suggested is the worst trust failure on the page. `bill_text` chips are derived from the answer's own retrieved/cited chunks (the material is guaranteed present), never free-associated. Cross-intent chips are templates filled from the resolved topic: "What other {topic} bills are there?" (`topic_bills`) · "Which legislators authored {topic} bills?" (`topic_legislators`).
 2. **Self-contained submit text.** Signed-out chips fire stateless Asks, so a chip may *display* short text ("Can cities opt out?") but *submits* a fully qualified question ("Can cities opt out under the Adult-Use Cannabis Act (SF 2310)?"). Same mechanism signed-in, so behavior doesn't fork.
 3. **Same scope-integrity rule as the placeholder (§2).** No vote-phrased chips until v1.1, nothing opinion-shaped or how-to-shaped. Cap at 3; order deep-dive → bills → legislators.
+4. **Chip click behavior — hero vs. follow-up (decided Jul 2026).** Hero chips **populate the Ask box and focus it** (edit-before-ask; triggers the field's focus state) rather than navigating on click — the populated string is the full, routable question, so pressing Ask unedited still routes cleanly. This populate-only pattern is **hero-only**: follow-up chips here show short display text (rule 2) and must **fire their fully-qualified submit directly**, or a system-suggested chip can land on a refusal (rule 1's worst case). Whatever is submitted — chip or hand-edited — runs through cite-or-refuse / NO MATCHES (§4.5).
 
 ## 5. Coverage spike — the v1.1 gate (not a v1 launch blocker)
 
