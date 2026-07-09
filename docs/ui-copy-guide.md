@@ -39,6 +39,7 @@
 | Learn More | See What They Voted |
 | Get Started | See What They Voted / Start Knowing |
 | Sign Up *(marketing CTA)* | Start Knowing |
+| Ask AI | Grounded Ask *(feature name)* / Ask *(action verb)* |
 | Take Back Your Vote | **hold — don't use** |
 
 ## CTA hierarchy
@@ -52,6 +53,9 @@
 | Signed-out nav | See What They Voted | Start Knowing |
 | Signed-in UI | action-specific | — |
 
+## Feature naming: the AI answer feature
+One name, everywhere. **"Grounded Ask"** is the *feature name* (the Search-menu badge, About/docs); **"Ask"** is the *action verb* (the hero submit button, the global nav Ask CTA — e.g. `✦ Ask`). **Never "Ask AI"** — it reads generic/hype and undercuts the grounded, cite-or-refuse differentiator that is the whole point. The ✦ sparkle carries the AI affordance; the words carry the promise.
+
 ## Exception: sign-in buttons
 Functional auth controls (**Sign In / Log In**) keep plain functional labels. The sovereignty/promise rewrite does **not** apply to authentication buttons — only to marketing and acquisition CTAs.
 
@@ -61,4 +65,4 @@ Functional auth controls (**Sign In / Log In**) keep plain functional labels. Th
 ## Test for any copy
 Does this deliver a sovereignty recognition moment, or is it just a label? If just a label, rewrite.
 
-**Never say:** translate · dashboard · Sign Up (as marketing CTA).
+**Never say:** translate · dashboard · Sign Up (as marketing CTA) · Ask AI (use Grounded Ask / Ask).
