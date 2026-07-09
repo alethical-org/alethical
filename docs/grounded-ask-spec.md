@@ -21,7 +21,7 @@ The subhead is a contract, not marketing: **no answer ships without a resolvable
 
 A signed-out visitor types a natural-language question into the hero Ask box. The system classifies the question, answers from ingested Minnesota data with citations, or honestly declines.
 
-The v1 hero placeholder reads **"Ask about bills or legislators by issue or name…"**. The grammar is deliberate: bills and legislators are the only *destinations* the sentence promises; "by issue or name" are *entry points* (issue → the two topic paths; name → a legislator), never a third entity type — v1 has no issue-level answers (no issue pages, no cross-corpus issue summaries). Entry points are ordered by what a layperson actually arrives with: most think in issues or keywords, some know a legislator's name, almost none know a bill's name or number — so bill names are deliberately *not* advertised as an entry point (and "issue" doubles as the keyword case). Deliberately no "votes," a v1.1 capability (see Phasing below). The placeholder must never advertise an intent the router can't answer. Because this copy actively steers users toward arbitrary topics, the retrieval-relevance threshold and NO MATCHES state (§4.5) must ship before it does.
+The v1 hero placeholder reads **"Ask about bills or legislators by issue or name…"**. The grammar is deliberate: bills and legislators are the only *destinations* the sentence promises; "by issue or name" are *entry points* (issue → the two topic paths; name → a legislator's profile via directory match — §4.6, records navigation, not a generated answer), never a third entity type — v1 has no issue-level answers (no issue pages, no cross-corpus issue summaries). Entry points are ordered by what a layperson actually arrives with: most think in issues or keywords, some know a legislator's name, almost none know a bill's name or number — so bill names are deliberately *not* advertised as an entry point (and "issue" doubles as the keyword case). Deliberately no "votes," a v1.1 capability (see Phasing below). The placeholder must never advertise an intent the router can't answer. Because this copy actively steers users toward arbitrary topics, the retrieval-relevance threshold and NO MATCHES state (§4.5) must ship before it does.
 
 ### Acceptance scenarios (the hero's sample chips — these are the tests)
 
@@ -37,7 +37,7 @@ Every answer ends with tappable citations using the existing citation panel patt
 
 ### Phasing — v1 vs. v1.1
 
-**v1 (launch):** router (§4.1) · bill-text RAG path · topic → bills · topic → legislators · refuse + vote deflection (§4.5) · generalized citation URLs (§4.4) · **bill** resolution only (HF/SF-number regex + fuzzy title match) · Answer page UI states (§9) · Votes tab tally + deep link (§9.3).
+**v1 (launch):** router (§4.1) · bill-text RAG path · topic → bills · topic → legislators · refuse + vote deflection (§4.5) · generalized citation URLs (§4.4) · **bill** resolution for generated answers (HF/SF-number regex + fuzzy title match) plus legislator-name → profile navigation (§4.6) · Answer page UI states (§9) · Votes tab tally + deep link (§9.3).
 
 **v1.1 (fast follow, gated on the §5 coverage spike):** the `legislator_vote` answer path · person entity-resolution (§4.6) · the "my legislator" location prompt (§8.1) · the vote chip returns to the hero — in chamber-tally form first if individual-vote coverage turns out thin.
 
@@ -83,9 +83,11 @@ Extend the existing empty-retrieval fallback into a hard invariant for every ans
 - **Vote deflection (v1):** questions classified `legislator_vote` get an honest not-yet — vote-by-vote answers are coming soon, and every roll call is already on the bill's page (deep-link the Votes tab when the bill resolves, §9.3; when the bill doesn't resolve, degrade to the `topic_bills` list with each card linking to its Votes tab). Never a partial or unverified vote answer, and **no tallies or vote positions on the deflection page itself** — those are records and live on the Votes tab.
 
 ### 4.6 Entity resolution
-**v1 — bills only:** HF/SF-number regex plus fuzzy title match (via `/search`). This is all the v1 paths need — `topic_legislators` reaches legislators through sponsorship joins, not name lookup.
+**v1 — answer-scoped resolution is bills only:** HF/SF-number regex plus fuzzy title match (via `/search`). `topic_legislators` reaches legislators through sponsorship joins, not name lookup, so no per-person resolution feeds a *generated answer* in v1.
 
-**v1.1 — people:** name/nickname → legislator id, tolerant of partial names and misspellings. `/search` and the name-matching in `votes.py` (`legislator_keys`, `build_legislator_index`) are starting points. "My legislator" resolution depends on §8.1.
+**v1 — legislator name → profile (records navigation, not an answer):** a query that resolves to a known legislator name routes to that legislator's **profile page** — a records surface (grounded-answers rule 4), so it sidesteps the cite-or-refuse contract. It reuses the substring `full_name` match that already exists (`GET /legislators?q=`, `GET /search?types=legislators` — `alethical/api/routers/public.py`): exactly one match → open the profile; multiple → a disambiguation list (or route to Search Legislators pre-filtered on the query); zero → the NO MATCHES state (§4.5) with a Search link. Matching is substring/exact only — misspelling- and nickname-tolerance is v1.1. This is what backs the placeholder's "name" entry point (§2): typing a legislator's name takes you *to them*, it does not synthesize a person-scoped answer. Build delta on [#79](https://github.com/alethical-org/alethical/issues/79) is a thin routing branch over existing endpoints, not new backend.
+
+**v1.1 — tolerant person resolution for answers:** name/nickname → legislator id, tolerant of partial names and misspellings, feeding the `legislator_vote` path and per-person answers. `/search` and the name-matching in `votes.py` (`legislator_keys`, `build_legislator_index`) are starting points. "My legislator" resolution depends on §8.1.
 
 ### 4.7 Follow-up chips ("Continue the conversation")
 Three rules, enforced by construction rather than review:
@@ -115,6 +117,7 @@ Half-day task against the live DB. Runs in parallel with the v1 build; its findi
 - [ ] Provenance strip (answer scope · status where applicable · "data as of" from `IngestionRun`) renders on every answer state (§9.2).
 - [ ] Follow-up chips obey §4.7: live-path-only, self-contained submit text, cannot refuse.
 - [ ] Placeholder copy matches capability: "Ask about bills or legislators by issue or name…" (no "votes").
+- [ ] A typed legislator name resolves to that legislator's profile (§4.6): one match → profile; multiple → disambiguation; none → NO MATCHES. Records navigation, not a generated answer — no person-scoped answer synthesized in v1.
 - [ ] Existing bill-scoped chat is unchanged (regression: its citations still render and link).
 - [ ] Topic-tag half of the coverage spike (§5.2) done for the launch chips' topics; retrieval-relevance threshold tuned before the issue-inviting placeholder ships.
 
