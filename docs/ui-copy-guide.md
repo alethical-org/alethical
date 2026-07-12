@@ -19,6 +19,10 @@
 >
 > **Resolved:** "plain English" / "plain language" is **accepted** (Jul 9, 2026) — it matches the
 > decided hero subhead (`docs/grounded-ask-spec.md` §1, Goal) and is no longer a kill-list entry.
+> The **"Grounded Ask"** (feature / badge) / **"Ask"** (action verb, rendered **"✦ Ask"** in nav)
+> naming — and the kill of **"Ask AI"** — is **accepted** (Jul 12, 2026), ratified by the v2 home
+> design (Search → Bills "Grounded Ask" badge) and Eugene's decision. Reverses the interim "Ask AI"
+> wording in the earlier O10 record (`docs/mvp-redesign-plan.md`, now corrected).
 >
 > Terminology invariants that also bind this guide: author / co-author, never sponsor / co-sponsor,
 > in user-facing copy (`.claude/rules/grounded-answers.md` rule 3); "issue," not "topic," as the

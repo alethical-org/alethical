@@ -12,13 +12,18 @@ roadmap noted for direction.
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
 - **IA:** top nav `Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
-  subsections. Search and Track share one entity taxonomy. **Ask AI is page-aware
-  (resolves O10):** on the signed-out home the standalone top-level "Ask AI" entry is
-  dropped — the hero *is* the ask surface, and Search → Bills carries an "Ask AI"
-  badge instead. On every non-home page the nav restores a top-level **Ask AI** entry
-  (`Ask AI · Search ▾ · Track ▾ · About ▾ · [auth]`) so the ask path is always one
-  click away. `ia.ts` keeps the `askAI` menu entry (it drives the non-home nav); the
-  home nav omits it at render time.
+  subsections. Search and Track share one entity taxonomy. **The AI-answer feature is
+  named "Grounded Ask" (feature / badge) and "✦ Ask" (the action, sparkle + verb) —
+  never "Ask AI"** (ratified 2026-07-12, matching the v2 home design and
+  `docs/ui-copy-guide.md`). **It is page-aware (resolves O10):** on the signed-out home
+  there is no standalone top-level ask entry — the hero *is* the ask surface, and
+  Search → Bills carries a **"Grounded Ask"** badge instead. On every non-home page the
+  nav restores a top-level **✦ Ask** entry
+  (`✦ Ask · Search ▾ · Track ▾ · About ▾ · [auth]`) so the ask path is always one
+  click away. `ia.ts` keeps the `askAI` menu entry (it drives the non-home nav; render
+  it as "✦ Ask"); the home nav omits it at render time. (This plan still uses "Ask AI"
+  as an *internal* handle for the feature/route in places below — the user-facing name
+  is Grounded Ask / ✦ Ask.)
 - **MVP surface:** Ask AI; Search → Bills, Legislators ("Find My Legislator");
   Track → Bills; About → About Us, Trust & Integrity, Contact Us; Sign in.
   Everything else in the menus is roadmap.
@@ -34,13 +39,13 @@ roadmap noted for direction.
   states). The tokens + primitives foundation extracted from the comps persists;
   each page build tops it up with whatever new tokens/components its final design
   needs.
-- **Roadmap items in menus = curated "coming soon" (resolves O5):** the final home
-  design shows the Search and Track dropdowns with a greyed, non-navigable
-  **COMING SOON** group (Issues · Candidates) beneath the live entries, rather than
-  hiding all roadmap items. Curated means exactly that pair for now; the other
-  roadmap registry entries stay hidden. Live entries keep icon + one-line
-  description (Search: Bills — with an "Ask AI" badge — and Legislators; Track:
-  Bills).
+- **Roadmap items in menus = curated, greyed "ON THE ROADMAP" group (resolves O5):**
+  the v2 home design shows the Search and Track dropdowns with a greyed, non-navigable
+  **ON THE ROADMAP** group beneath the live entries, rather than hiding all roadmap
+  items. The curated sets differ per menu: **Search → Issues · Candidates**; **Track →
+  Legislators · Issues · Candidates**. Other roadmap registry entries stay hidden. Live
+  entries keep icon + one-line description — **Search:** Bills (with a **"Grounded Ask"**
+  badge) · Search Legislators · Find My Legislator; **Track:** Bills.
 - **Mockups → frontend handoff (no HTML conversion step):** when the Claude-design
   mockups finalize, they hand off to implementation as three artifacts, in value order:
   1. **Final screenshots per screen and state** — shared via Drive for human review.
@@ -71,8 +76,8 @@ roadmap noted for direction.
   Expo/React Native, the same swap will re-skin the post-MVP iOS/Android clients for free.
 - **Menu = typed registry:** codified in `apps/frontend/src/navigation/ia.ts`. Each
   item → `{ label, path, menu, availability: mvp|roadmap, authGated }`. MVP rendered;
-  roadmap declared-but-hidden — except the curated coming-soon pair shown greyed in
-  the menus (see the roadmap-items bullet above).
+  roadmap declared-but-hidden — except the curated "ON THE ROADMAP" items shown greyed
+  in the menus (see the roadmap-items bullet above).
 - **Track stays auth-gated.**
 - **Search page split:** the current combined Bills+Legislators search becomes two
   dedicated pages. Bill search screen specified in `docs/bill-search-screen-spec.md`
@@ -130,10 +135,11 @@ Source of truth: `apps/frontend/src/navigation/ia.ts` (`IA`, `ROUTES`, `REDIRECT
 | Roadmap (hidden) | `/search/{issues,policies,laws,candidates,news}`, `/track/{issues,policies,legislators,laws,candidates}` | declared, not rendered |
 
 **Nav states:** logged out, **home** → `Search ▾ · Track ▾ · About ▾ · [Sign in]`
-(no standalone Ask AI — the hero is the ask surface, Search → Bills is "Ask AI"-badged;
-per O10). Logged out, **non-home** → `Ask AI · Search ▾ · Track ▾ · About ▾ · [Sign in]`
-(Sign in = the single primary CTA). Logged in → same menus + `[avatar ▾]` (ACCOUNT_MENU);
-Track submenus populate; Ask AI drops its gate.
+(no standalone ask entry — the hero is the ask surface, Search → Bills is
+"Grounded Ask"-badged; per O10). Logged out, **non-home** →
+`✦ Ask · Search ▾ · Track ▾ · About ▾ · [Sign in]` (Sign in = the single primary CTA).
+Logged in → same menus + `[avatar ▾]` (ACCOUNT_MENU); Track submenus populate; the
+✦ Ask entry drops its gate.
 
 **webRoutes.ts / RootNavigator migration steps (apply during the frontend track — NOT now,
 because it would break the running old-IA app before screens/tokens exist):**
@@ -178,7 +184,7 @@ Frontend track (after Phase 0; parallel with backend track)
 |---|------|-----------------|------|
 | O8 | Anonymous Ask guardrails specifics | Rate-limit by IP/device + cache; cap at one free answer. | Ask AI impl |
 
-**Resolved:** ~~O5~~ (curated coming-soon — see Locked decisions). ~~O9~~ (account menu). **O10 (standalone "Ask AI" nav entry) — resolved 2026-07-09:** Ask AI is page-aware — dropped on the signed-out home (hero is the ask surface; Search → Bills is "Ask AI"-badged), restored as a top-level nav entry on every non-home page. See the IA locked decision above; implemented on the home/nav build ([#143](https://github.com/alethical-org/alethical/issues/143)).
+**Resolved:** ~~O5~~ (curated "ON THE ROADMAP" group — see Locked decisions). ~~O9~~ (account menu). **O10 (standalone ask nav entry) — resolved 2026-07-09, naming ratified 2026-07-12:** the ask feature is page-aware — dropped on the signed-out home (hero is the ask surface; Search → Bills carries a "Grounded Ask" badge), restored as a top-level **✦ Ask** entry on every non-home page. See the IA locked decision above; implemented on the home/nav build ([#143](https://github.com/alethical-org/alethical/issues/143)).
 
 ## Roadmap (remembered for later)
 
