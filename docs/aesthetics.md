@@ -1,17 +1,15 @@
-> **Status — reconciled Jul 8, 2026.** This document describes the **Newsprint** style,
-> which is what `apps/frontend/src/theme/tokens.ts` currently implements (sharp corners,
-> Playfair/Lora serif, ink `#111` / paper `#F9F9F7` / editorial-red `#CC0000`).
+> **Status — superseded in production, Jul 2026.** This document describes the retired
+> **Newsprint** style (sharp corners, Playfair/Lora serif, ink `#111` / paper `#F9F9F7` /
+> editorial-red `#CC0000`). The **green token flip has landed**: `apps/frontend/src/theme/tokens.ts`
+> now implements the green / rounded / soft-shadow / bold-sans system (Libre Franklin +
+> JetBrains Mono), shipped with the redesigned signed-out home ([PR #67](https://github.com/alethical-org/alethical/pull/67), tracking [#143](https://github.com/alethical-org/alethical/issues/143)).
+> Old screens render recolored-green via remapped legacy token keys until each page is
+> rebuilt ("one page at a time" — `docs/mvp-redesign-plan.md` § Locked decisions).
 >
-> The v1 redesign has **decided a different direction** — green / rounded / soft-shadow /
-> bold-sans — locked in `docs/mvp-redesign-plan.md` § Locked decisions, with final visual
-> mockups produced in Claude Design. That direction is deliberately kept loose and not yet
-> written up as a binding design-system doc, and the **green token flip in `tokens.ts` is a
-> pending to-do** (mvp-redesign-plan build sequence). Until that flip lands, the Newsprint
-> spec below still matches the shipped app.
->
-> **Sources of truth:** `tokens.ts` for implemented styling · `docs/mvp-redesign-plan.md`
-> for the redesign decision and direction · Claude Design for green mockups. When the green
-> flip lands, replace the Newsprint body below with the firmed green system.
+> **Sources of truth now:** `tokens.ts` + `theme/primitives.tsx` for the implemented green
+> system · `docs/mockups/home-signed-out-v2/README.md` for the v2 home's values/state/copy ·
+> `docs/mvp-redesign-plan.md` for redesign decisions. The Newsprint spec below is kept as
+> historical reference until a green design-system doc replaces this file.
 
 <design-system>
 
