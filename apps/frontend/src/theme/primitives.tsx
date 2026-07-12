@@ -3,6 +3,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleProp,
   StyleSheet,
   Text,
@@ -12,9 +13,10 @@ import {
   ViewStyle,
 } from 'react-native';
 import Svg, { Circle, Ellipse, Path, Rect } from 'react-native-svg';
-import { ChevronDown, MapPin, Menu, Plus, X } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, MapPin, Menu, Plus, X } from 'lucide-react-native';
 
 import { theme } from './tokens';
+import { IaItem, MenuKey, MENUS, navDropdownItems } from '../navigation/ia';
 import { useResponsive } from '../hooks/useResponsive';
 
 // Reusable primitives for the redesign, built on the green token system
@@ -79,29 +81,215 @@ export function MetaStripe({ left, right, rightMobile }: { left: string; right: 
   );
 }
 
-// --- Brand logo (bar mark + wordmark). tone controls text color for dark surfaces. ---
-export function Logo({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
+// --- Brand logo (bar mark + wordmark). tone controls text color for dark
+//     surfaces; compact shrinks it for narrow (mobile) nav bars. ---
+export function Logo({ tone = 'dark', compact = false }: { tone?: 'dark' | 'light'; compact?: boolean }) {
   const light = tone === 'light';
   const fill = light ? t.colors.white : t.colors.ink;
-  const dim = light ? 30 : 40;
+  const dim = compact ? 28 : light ? 30 : 40;
   return (
-    <View style={[styles.logo, light && styles.logoLight]}>
+    <View style={[styles.logo, light && styles.logoLight, compact && styles.logoCompact]}>
       <Svg width={dim} height={dim} viewBox="0 0 64 64" fill="none">
         <Rect x={15} y={29} width={7.5} height={21} rx={3.75} fill={fill} />
         <Rect x={28.25} y={15} width={7.5} height={35} rx={3.75} fill={fill} />
         <Rect x={41.5} y={35} width={7.5} height={15} rx={3.75} fill={fill} />
       </Svg>
-      <Text style={[styles.wordmark, light && styles.wordmarkLight]}>ALETHICAL</Text>
+      <Text style={[styles.wordmark, light && styles.wordmarkLight, compact && styles.wordmarkCompact]}>
+        ALETHICAL
+      </Text>
     </View>
   );
 }
 
-export function NavLink({ label, caret, onPress }: { label: string; caret?: boolean; onPress?: () => void }) {
+// --- v2 nav dropdowns (docs/mockups/home-signed-out-v2) ---
+
+/** Sparkle glyph — the AI affordance (ASKED eyebrow, Grounded Ask pill, ✦ Ask entry). */
+export function Sparkle({ size = 11, color = t.colors.purple.base }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 2.5 L13.9 9.4 L21 12 L13.9 14.6 L12 21.5 L10.1 14.6 L3 12 L10.1 9.4 Z" fill={color} />
+    </Svg>
+  );
+}
+
+/** Purple "Grounded Ask" pill (Search → Bills row). Sora is the pill's typeface. */
+function GroundedAskPill() {
+  return (
+    <View style={styles.gaPill}>
+      <Sparkle size={11} />
+      <Text style={styles.gaPillText}>Grounded Ask</Text>
+    </View>
+  );
+}
+
+/** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
+function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {
+  const c = disabled ? '#a4aba5' : t.colors.brand.deep;
+  return (
+    <View style={[styles.menuRowIconTile, disabled && styles.menuRowIconTileDisabled]}>
+      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+        {itemId === 'search-bills' || itemId === 'track-bills' ? (
+          <>
+            <Path d="M8 3h6l4 4v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+            <Path d="M14 3v4h4M10 12h5M10 16h4" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        ) : null}
+        {itemId === 'search-legislators' || itemId === 'track-legislators' || itemId === 'search-candidates' || itemId === 'track-candidates' ? (
+          <>
+            <Circle cx={12} cy={8} r={3.4} stroke={c} strokeWidth={2} />
+            <Path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke={c} strokeWidth={2} strokeLinecap="round" />
+          </>
+        ) : null}
+        {itemId === 'search-find-my-legislator' ? (
+          <>
+            <Path d="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+            <Circle cx={12} cy={9.5} r={2.4} stroke={c} strokeWidth={2} />
+          </>
+        ) : null}
+        {itemId === 'search-issues' || itemId === 'track-issues' ? (
+          <>
+            <Path d="M4 13l7-7a2 2 0 0 1 1.4-.6H18a2 2 0 0 1 2 2v5.6a2 2 0 0 1-.6 1.4l-7 7a2 2 0 0 1-2.8 0l-5.6-5.6a2 2 0 0 1 0-2.8Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+            <Circle cx={15.5} cy={8.5} r={1.3} fill={c} />
+          </>
+        ) : null}
+        {itemId === 'about-us' ? (
+          <>
+            <Circle cx={9.5} cy={8} r={3.2} stroke={c} strokeWidth={2} />
+            <Path d="M3.5 19.5c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path d="M16.5 5.2a3.2 3.2 0 0 1 0 5.9" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path d="M18 13.9c2.4.5 4 2.7 4 5.6" stroke={c} strokeWidth={2} strokeLinecap="round" />
+          </>
+        ) : null}
+        {itemId === 'about-trust' ? (
+          <>
+            <Path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6l7-3Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+            <Path d="M9 12l2.2 2.2L15.5 10" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        ) : null}
+        {itemId === 'about-contact' ? (
+          <>
+            <Rect x={3.5} y={5.5} width={17} height={13} rx={2} stroke={c} strokeWidth={2} />
+            <Path d="M4.5 7l7.5 5.5L19.5 7" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        ) : null}
+      </Svg>
+    </View>
+  );
+}
+
+function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem) => void }) {
+  const [hovered, hoverProps] = useHover();
+  const disabled = item.availability === 'roadmap';
+  const body = (
+    <>
+      <MenuRowIcon itemId={item.id} disabled={disabled} />
+      <View style={styles.menuRowBody}>
+        <View style={styles.menuRowTitleRow}>
+          <Text style={[styles.menuRowTitle, disabled && styles.menuRowTitleDisabled]}>{item.label}</Text>
+          {item.id === 'search-bills' ? <GroundedAskPill /> : null}
+        </View>
+        {item.description ? (
+          <Text style={[styles.menuRowDesc, disabled && styles.menuRowDescDisabled]}>{item.description}</Text>
+        ) : null}
+      </View>
+    </>
+  );
+  if (disabled) {
+    return <View style={styles.menuPanelRow}>{body}</View>;
+  }
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={() => onPress?.(item)}
+      {...hoverProps}
+      style={[styles.menuPanelRow, hovered && styles.menuPanelRowHover]}
+    >
+      {body}
+    </Pressable>
+  );
+}
+
+const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, track: 452, about: 320 };
+
+function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: IaItem) => void }) {
+  const { live, roadmap } = navDropdownItems(menu);
+  const width = PANEL_WIDTHS[menu] ?? 452;
+  return (
+    <View style={[styles.menuPanel, { width }, t.shadows.panel as ViewStyle]}>
+      <View style={[styles.menuPanelNotch, { left: width / 2 - 7.5 }]} />
+      <View style={styles.menuPanelList}>
+        {live.map((item) => (
+          <MenuPanelRow key={item.id} item={item} onPress={onNavigate} />
+        ))}
+        {roadmap.length > 0 ? (
+          <View style={styles.roadmapLabelRow}>
+            <Text style={styles.roadmapLabel}>ON THE ROADMAP</Text>
+            <View style={styles.roadmapRule} />
+          </View>
+        ) : null}
+        {roadmap.map((item) => (
+          <MenuPanelRow key={item.id} item={item} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function NavDropdownTrigger({
+  menu,
+  label,
+  open,
+  onToggle,
+  onNavigate,
+}: {
+  menu: MenuKey;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  onNavigate?: (item: IaItem) => void;
+}) {
+  const [hovered, hoverProps] = useHover();
+  const [triggerLayout, setTriggerLayout] = useState({ width: 0, height: 0 });
+  const width = PANEL_WIDTHS[menu] ?? 452;
+  const color = open ? t.colors.brand.deep : hovered ? t.colors.text.primary : '#4b524b';
+  const Caret = open ? ChevronUp : ChevronDown;
+  return (
+    <View style={styles.navTriggerWrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        onPress={onToggle}
+        {...hoverProps}
+        onLayout={(e) => setTriggerLayout(e.nativeEvent.layout)}
+        style={styles.navTrigger}
+      >
+        <Text style={[styles.navTriggerText, { color }]}>{label}</Text>
+        <Caret size={14} color={color} strokeWidth={2.2} />
+      </Pressable>
+      {open ? (
+        <View
+          style={[
+            styles.menuPanelAnchor,
+            {
+              top: triggerLayout.height + 30,
+              left: triggerLayout.width / 2 - width / 2,
+            },
+          ]}
+        >
+          <MenuPanel menu={menu} onNavigate={onNavigate} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** Purple top-level "✦ Ask" entry — non-home pages only (page-aware nav, O10). */
+function AskNavEntry({ onPress }: { onPress?: () => void }) {
   const [hovered, hoverProps] = useHover();
   return (
-    <Pressable accessibilityRole="link" onPress={onPress} {...hoverProps} style={styles.navLink}>
-      <Text style={[styles.navLinkText, hovered && { color: t.colors.text.primary }]}>{label}</Text>
-      {caret ? <ChevronDown size={15} color={hovered ? t.colors.text.primary : t.colors.text.secondary} strokeWidth={2.4} /> : null}
+    <Pressable accessibilityRole="link" onPress={onPress} {...hoverProps} style={styles.navTrigger}>
+      <Sparkle size={14} />
+      <Text style={[styles.navTriggerText, { color: t.colors.purple.base }, hovered && { textDecorationLine: 'underline' }]}>Ask</Text>
     </Pressable>
   );
 }
@@ -125,63 +313,150 @@ export function PrimaryButton({ label, onPress, size = 'md' }: { label: string; 
   );
 }
 
-// --- Top navigation (desktop links / mobile hamburger menu) ---
-export function TopNav({ items }: { items: { label: string; caret?: boolean }[] }) {
+// --- Top navigation: v2 dropdowns on desktop, drawer on mobile. PAGE-AWARE
+//     (O10): `variant="home"` hides the ✦ Ask entry (the hero is the ask
+//     surface); `variant="page"` restores it top-level. Dropdown state can be
+//     controlled by the host screen (it drives the answer-card blur overlay
+//     and the click-away layer). Rows render from the ia.ts registry. ---
+export type NavVariant = 'home' | 'page';
+
+export function TopNav({
+  variant = 'home',
+  openMenu: openMenuProp,
+  onOpenMenuChange,
+  onNavigate,
+  onSignIn,
+  onAsk,
+}: {
+  variant?: NavVariant;
+  openMenu?: MenuKey | null;
+  onOpenMenuChange?: (menu: MenuKey | null) => void;
+  onNavigate?: (item: IaItem) => void;
+  onSignIn?: () => void;
+  onAsk?: () => void;
+}) {
   const { isDesktop } = useResponsive();
-  const [open, setOpen] = useState(false);
+  const [openMenuState, setOpenMenuState] = useState<MenuKey | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const openMenu = openMenuProp !== undefined ? openMenuProp : openMenuState;
+  const setOpenMenu = (menu: MenuKey | null) => {
+    setOpenMenuState(menu);
+    onOpenMenuChange?.(menu);
+  };
+  const dropdownMenus = MENUS.filter((menu) => menu.key !== 'ask');
+  const navigate = (item: IaItem) => {
+    setOpenMenu(null);
+    setDrawerOpen(false);
+    onNavigate?.(item);
+  };
+
   return (
     <Container style={styles.navRow}>
       <View style={styles.navBar}>
-        <Logo />
+        <Logo compact={!isDesktop} />
         {isDesktop ? (
           <View style={styles.navLinks}>
-            {items.map((item) => (
-              <NavLink key={item.label} label={item.label} caret={item.caret} />
-            ))}
-            <PrimaryButton label="Sign in" />
+            <View style={styles.navTriggerGroup}>
+              {variant === 'page' ? <AskNavEntry onPress={onAsk} /> : null}
+              {dropdownMenus.map((menu) => (
+                <NavDropdownTrigger
+                  key={menu.key}
+                  menu={menu.key}
+                  label={menu.label}
+                  open={openMenu === menu.key}
+                  onToggle={() => setOpenMenu(openMenu === menu.key ? null : menu.key)}
+                  onNavigate={navigate}
+                />
+              ))}
+            </View>
+            <PrimaryButton label="Sign in" onPress={onSignIn} />
           </View>
         ) : (
           <View style={styles.navMobileRight}>
-            <PrimaryButton label="Sign in" />
+            <PrimaryButton label="Sign in" onPress={onSignIn} />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={open ? 'Close menu' : 'Open menu'}
-              onPress={() => setOpen((v) => !v)}
+              accessibilityLabel={drawerOpen ? 'Close menu' : 'Open menu'}
+              onPress={() => setDrawerOpen((v) => !v)}
               style={styles.hamburger}
             >
-              {open ? <X size={22} color={t.colors.ink} /> : <Menu size={22} color={t.colors.ink} />}
+              {drawerOpen ? <X size={22} color={t.colors.ink} /> : <Menu size={22} color={t.colors.ink} />}
             </Pressable>
           </View>
         )}
       </View>
       <Modal
-        visible={!isDesktop && open}
+        visible={!isDesktop && drawerOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setOpen(false)}
+        onRequestClose={() => setDrawerOpen(false)}
       >
         <View style={styles.menuScrim}>
           <View style={styles.menuSheet}>
             <View style={styles.menuSheetHeader}>
-              <Logo />
+              <Logo compact />
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close menu"
-                onPress={() => setOpen(false)}
+                onPress={() => setDrawerOpen(false)}
                 style={styles.hamburger}
               >
                 <X size={22} color={t.colors.ink} />
               </Pressable>
             </View>
-            <View style={styles.menuList}>
-              {items.map((item) => (
-                <Pressable key={item.label} accessibilityRole="link" style={styles.menuRow}>
-                  <Text style={styles.menuRowText}>{item.label}</Text>
+            <ScrollView style={styles.menuList}>
+              {variant === 'page' ? (
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => {
+                    setDrawerOpen(false);
+                    onAsk?.();
+                  }}
+                  style={styles.menuRow}
+                >
+                  <View style={styles.menuRowInline}>
+                    <Sparkle size={18} />
+                    <Text style={[styles.menuRowText, { color: t.colors.purple.base }]}>Ask</Text>
+                  </View>
                 </Pressable>
-              ))}
-            </View>
+              ) : null}
+              {dropdownMenus.map((menu) => {
+                const { live, roadmap } = navDropdownItems(menu.key);
+                return (
+                  <View key={menu.key} style={styles.menuGroup}>
+                    <Text style={styles.menuGroupLabel}>{menu.label.toUpperCase()}</Text>
+                    {live.map((item) => (
+                      <Pressable
+                        key={item.id}
+                        accessibilityRole="link"
+                        onPress={() => navigate(item)}
+                        style={styles.menuSubRow}
+                      >
+                        <Text style={styles.menuSubRowText}>{item.label}</Text>
+                        {item.id === 'search-bills' ? <GroundedAskPill /> : null}
+                      </Pressable>
+                    ))}
+                    {roadmap.length > 0 ? (
+                      <Text style={styles.menuGroupRoadmapLabel}>ON THE ROADMAP</Text>
+                    ) : null}
+                    {roadmap.map((item) => (
+                      <View key={item.id} style={styles.menuSubRow}>
+                        <Text style={[styles.menuSubRowText, styles.menuSubRowTextDisabled]}>{item.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
+            </ScrollView>
             <View style={styles.menuFooter}>
-              <PrimaryButton label="Sign in" size="lg" />
+              <PrimaryButton
+                label="Sign in"
+                size="lg"
+                onPress={() => {
+                  setDrawerOpen(false);
+                  onSignIn?.();
+                }}
+              />
               <Text style={styles.menuTagline}>TRUTH, UNCONCEALED</Text>
             </View>
           </View>
@@ -413,28 +688,36 @@ export function MNMap({ size = 300 }: { size?: number }) {
   );
 }
 
-// --- Footer (dark) ---
-export function Footer() {
+// --- Footer (dark, v2): sovereignty tagline left, legal links right ---
+function FooterLink({ label, onPress }: { label: string; onPress?: () => void }) {
+  const [hovered, hoverProps] = useHover();
+  return (
+    <Pressable accessibilityRole="link" onPress={onPress} {...hoverProps}>
+      <Text style={[styles.footerLink, hovered && { color: t.colors.white }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function Footer({ onPrivacy, onTerms }: { onPrivacy?: () => void; onTerms?: () => void }) {
   return (
     <View style={styles.footer}>
       <Container>
         <View style={styles.footerTop}>
           <View style={styles.footerBrand}>
-            <Logo tone="light" />
             <Text style={styles.footerTagline}>
-              Grounded answers on Minnesota law — every answer traceable to the bill text it came from.
+              We hold these truths to be self-evident.{'\n'}
+              <Text style={styles.footerTaglineAccent}>Alethical makes them accessible.</Text>
             </Text>
           </View>
           <View style={styles.footerLinks}>
-            <Text style={styles.footerLink}>Privacy Policy</Text>
-            <Text style={styles.footerLink}>Terms of Use</Text>
+            <FooterLink label="Privacy Policy" onPress={onPrivacy} />
+            <FooterLink label="Terms of Use" onPress={onTerms} />
           </View>
         </View>
         <View style={styles.footerDivider} />
         <View style={styles.footerBottom}>
-          <LabelMono style={styles.footerMeta}>© 2026 ALETHICAL · BUILT IN MINNESOTA</LabelMono>
-          <LabelMono style={styles.footerMeta}>100% OF ANSWERS CITED TO SOURCE</LabelMono>
-          <LabelMono style={styles.footerMetaGreen}>TRUTH, UNCONCEALED</LabelMono>
+          <Text style={styles.footerMeta}>© 2026 ALETHICAL · BUILT IN MINNESOTA</Text>
+          <Text style={styles.footerMetaGreen}>TRUTH, UNCONCEALED</Text>
         </View>
       </Container>
     </View>
@@ -458,12 +741,80 @@ const styles = StyleSheet.create({
   metaText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.medium, letterSpacing: 1.9, color: t.colors.text.faint },
   logo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   logoLight: { gap: 12 },
+  logoCompact: { gap: 10 },
   wordmark: { fontFamily: t.typography.title, fontSize: 25, fontWeight: t.fontWeights.semibold, letterSpacing: 4, color: t.colors.text.primary },
   wordmarkLight: { fontSize: 20, color: t.colors.white },
-  navRow: { paddingTop: 22, paddingBottom: 8 },
+  wordmarkCompact: { fontSize: 17, letterSpacing: 2 },
+  navRow: { paddingTop: 26, paddingBottom: 8, zIndex: 60 },
   navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  navLinks: { flexDirection: 'row', alignItems: 'center', gap: 26 },
+  navLinks: { flexDirection: 'row', alignItems: 'center', gap: 30 },
+  navTriggerGroup: { flexDirection: 'row', alignItems: 'center', gap: 34 },
   navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // v2 dropdown triggers + panels
+  navTriggerWrap: { position: 'relative', zIndex: 60 },
+  navTrigger: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  navTriggerText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.medium },
+  menuPanelAnchor: { position: 'absolute', zIndex: 60 },
+  menuPanel: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    borderRadius: 16,
+    padding: 10,
+  },
+  menuPanelNotch: {
+    position: 'absolute',
+    top: -8,
+    width: 15,
+    height: 15,
+    backgroundColor: t.colors.surfaces.base,
+    borderLeftWidth: 1,
+    borderTopWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    transform: [{ rotate: '45deg' }],
+  },
+  menuPanelList: { gap: 6 },
+  menuPanelRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12 },
+  menuPanelRowHover: { backgroundColor: t.colors.alpha.ink06 },
+  menuRowIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: t.colors.tint.t150,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuRowIconTileDisabled: { backgroundColor: t.colors.surfaces.s300 },
+  menuRowBody: { flex: 1, minWidth: 0 },
+  menuRowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  menuRowTitle: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
+  menuRowTitleDisabled: { fontWeight: t.fontWeights.semibold, color: t.colors.text.faint },
+  menuRowDesc: { marginTop: 3, fontFamily: t.typography.body, fontSize: t.fontSizes.small, lineHeight: 19, color: t.colors.text.muted },
+  menuRowDescDisabled: { color: '#b3b9b4' },
+  gaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 3,
+    paddingLeft: 7,
+    paddingRight: 8,
+    borderRadius: t.radii.pill,
+    backgroundColor: t.colors.purple.tint,
+    borderWidth: 1,
+    borderColor: t.colors.purple.border,
+  },
+  gaPillText: { fontFamily: t.typography.sora, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 0.2, color: t.colors.purple.base },
+  roadmapLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 14, paddingHorizontal: 14, paddingBottom: 6 },
+  roadmapLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 1.2, color: t.colors.text.faint },
+  roadmapRule: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink07 },
+  // mobile drawer groups
+  menuGroup: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: t.colors.borders.base, gap: 2 },
+  menuGroupLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 1.4, color: t.colors.brand.deep, marginBottom: 6 },
+  menuGroupRoadmapLabel: { fontFamily: t.typography.mono, fontSize: 10, fontWeight: t.fontWeights.bold, letterSpacing: 1.2, color: t.colors.text.faint, marginTop: 10, marginBottom: 2 },
+  menuSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
+  menuSubRowText: { fontFamily: t.typography.title, fontSize: 21, fontWeight: t.fontWeights.semibold, letterSpacing: -0.2, color: t.colors.text.primary },
+  menuSubRowTextDisabled: { color: t.colors.text.faint, fontWeight: t.fontWeights.medium },
+  menuRowInline: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   hamburger: { padding: 9, borderRadius: 10, backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.borders.base },
   // Right-side drawer: page stays dimmed on the left, sheet covers ~84% of the width.
   menuScrim: { flex: 1, backgroundColor: 'rgba(6,35,26,0.45)', flexDirection: 'row', justifyContent: 'flex-end' },
@@ -483,8 +834,6 @@ const styles = StyleSheet.create({
   menuRowText: { fontFamily: t.typography.title, fontSize: 27, fontWeight: t.fontWeights.semibold, letterSpacing: -0.3, color: t.colors.text.primary },
   menuFooter: { gap: 18 },
   menuTagline: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.semibold, letterSpacing: 2, color: t.colors.brand.deep },
-  navLink: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 6, paddingHorizontal: 4 },
-  navLinkText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.medium, color: t.colors.text.secondary },
   primaryBtn: { borderRadius: t.radii.md, paddingVertical: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
   primaryBtnLg: { paddingVertical: 14, paddingHorizontal: 30 },
   primaryBtnText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.semibold, color: t.colors.text.onGreen },
@@ -586,14 +935,15 @@ const styles = StyleSheet.create({
   },
   addressField: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   addressInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12, ...(isWeb ? ({ outlineStyle: 'none' } as any) : null) },
-  footer: { backgroundColor: t.colors.ink, paddingVertical: 44, marginTop: 8 },
-  footerTop: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 },
-  footerBrand: { gap: 14, maxWidth: 420 },
-  footerTagline: { fontFamily: t.typography.body, fontSize: t.fontSizes.body, lineHeight: 23, color: t.colors.text.faint },
-  footerLinks: { flexDirection: 'row', gap: 28 },
-  footerLink: { fontFamily: t.typography.ui, fontSize: t.fontSizes.body, fontWeight: t.fontWeights.medium, color: t.colors.surfaces.s400 },
-  footerDivider: { height: 1, backgroundColor: t.colors.alpha.white14, marginVertical: 28 },
-  footerBottom: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 },
-  footerMeta: { color: t.colors.text.muted, letterSpacing: 1.4 },
-  footerMetaGreen: { color: t.colors.brand.base, letterSpacing: 1.4 },
+  footer: { backgroundColor: t.colors.footerBg, paddingTop: 56, paddingBottom: 44 },
+  footerTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 48 },
+  footerBrand: { maxWidth: 480 },
+  footerTagline: { fontFamily: t.typography.body, fontSize: 21, lineHeight: 29, fontWeight: '300' as const, letterSpacing: -0.2, color: '#eef1ef' },
+  footerTaglineAccent: { color: t.colors.brand.bright },
+  footerLinks: { flexDirection: 'row', alignItems: 'center', gap: 34 },
+  footerLink: { fontFamily: t.typography.ui, fontSize: t.fontSizes.bodyLg, fontWeight: t.fontWeights.medium, color: '#cfd6d2' },
+  footerDivider: { height: 1, backgroundColor: t.colors.alpha.white12, marginTop: 40, marginBottom: 24 },
+  footerBottom: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 },
+  footerMeta: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, letterSpacing: 1.3, color: t.colors.text.muted },
+  footerMetaGreen: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, letterSpacing: 1.8, color: t.colors.brand.bright },
 });

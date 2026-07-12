@@ -3,11 +3,6 @@ import { Platform, StyleSheet, View } from 'react-native';
 
 import { AppProviders } from './src/providers/AppProviders';
 import { RootNavigator } from './src/navigation/RootNavigator';
-import { HomeSignedOutScreen } from './src/screens/redesign/HomeSignedOutScreen';
-
-// Redesign branch: render the new hero full-bleed for the fidelity checkpoint,
-// bypassing the old tab/rail shell. Set to false to restore the current app.
-const REDESIGN_PREVIEW = true;
 
 export default function App() {
   useEffect(() => {
@@ -49,7 +44,7 @@ export default function App() {
       link.id = 'alethical-fonts';
       link.rel = 'stylesheet';
       link.href =
-        'https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap';
+        'https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Sora:wght@500;600;700&display=swap';
       document.head.appendChild(link);
     };
 
@@ -72,7 +67,7 @@ export default function App() {
   return (
     <View style={styles.app}>
       <AppProviders>
-        {REDESIGN_PREVIEW ? <HomeSignedOutScreen /> : <RootNavigator />}
+        <RootNavigator />
       </AppProviders>
     </View>
   );

@@ -15,7 +15,7 @@ import {
   UserCircle,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,11 +25,13 @@ import { ChatSessionScreen } from '../screens/ChatSessionScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
 import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
 import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { TrackedScreen } from '../screens/TrackedScreen';
 import { VoteDetailScreen } from '../screens/VoteDetailScreen';
+import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
 import { MainTabParamList, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
@@ -207,12 +209,43 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
+// The site root is auth-aware: signed-out visitors get the v2 marketing home
+// (full-bleed, with its own TopNav — see #143); signed-in users keep the
+// existing app home. While the session restores, render nothing rather than
+// flashing the wrong home.
+function HomeRoute(props: ComponentProps<typeof HomeScreen>) {
+  const { isLoading, isSignedIn } = useAuth();
+  if (isLoading) {
+    return null;
+  }
+  return isSignedIn ? <HomeScreen {...props} /> : <HomeSignedOutScreen />;
+}
+
+/** True when the current surface is the signed-out marketing home (hides the app chrome). */
+function useIsSignedOutHome(activeTab: keyof MainTabParamList | undefined) {
+  const { isLoading, isSignedIn } = useAuth();
+  return !isSignedIn && !isLoading && activeTab === 'Home';
+}
+
 function MainTabs() {
   const { isDesktop } = useResponsive();
+  const { isLoading, isSignedIn } = useAuth();
 
   return (
     <Tab.Navigator
-      tabBar={isDesktop ? () => null : (props) => <MobileTabBar {...props} />}
+      tabBar={
+        isDesktop
+          ? () => null
+          : (props) => {
+              const activeTab = props.state.routes[props.state.index]?.name as
+                | keyof MainTabParamList
+                | undefined;
+              if (!isSignedIn && !isLoading && activeTab === 'Home') {
+                return null;
+              }
+              return <MobileTabBar {...props} />;
+            }
+      }
       screenOptions={{
         headerShown: false,
         sceneStyle: {
@@ -220,7 +253,7 @@ function MainTabs() {
         },
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
+      <Tab.Screen name="Home" component={HomeRoute} options={{ title: 'Home' }} />
       <Tab.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
       <Tab.Screen name="Tracked" component={TrackedScreen} options={{ title: 'Tracked' }} />
       <Tab.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
@@ -424,6 +457,9 @@ export function RootNavigator() {
   const { isDesktop } = useResponsive();
   const lastPathRef = useRef('/');
   const [activeRailRoute, setActiveRailRoute] = useState<RailRouteName | undefined>('Home');
+  const isSignedOutHome = useIsSignedOutHome(
+    activeRailRoute === 'FindMyLegislator' ? undefined : activeRailRoute,
+  );
 
   useEffect(() => {
     if (!isWeb) {
@@ -493,7 +529,7 @@ export function RootNavigator() {
       }}
     >
       <View style={isDesktop ? styles.globalShell : styles.globalShellMobile}>
-        {isDesktop ? <DesktopRail activeRouteName={activeRailRoute} /> : null}
+        {isDesktop && !isSignedOutHome ? <DesktopRail activeRouteName={activeRailRoute} /> : null}
         <View style={styles.globalContent}>
           <Stack.Navigator
             screenOptions={({ navigation }) => ({

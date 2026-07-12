@@ -51,6 +51,15 @@ const palette = {
   red600: '#c23c36',
   red800: '#5c2b2e',
   red900: '#2a1215',
+  // v2 home (docs/mockups/home-signed-out-v2): purple = AI / "Grounded Ask" / focus,
+  // status colors for bill cards, dark footer surface
+  purple: '#5b30d6',
+  purpleTint: '#f0ebfc',
+  purpleBorder: '#d8c9f7',
+  vetoedText: '#d64545',
+  vetoedStep: '#e5484d',
+  amber: '#9a7b1f',
+  progressEmpty: '#e2e5e4',
 };
 
 // --- Alpha ramps (ink for borders/overlays, green for glows, white) ---
@@ -145,6 +154,20 @@ export const theme = {
       r800: palette.red800,
       r900: palette.red900,
     },
+    // v2 home: AI/"Grounded Ask" purple family (also chip hover + field focus)
+    purple: {
+      base: palette.purple,
+      tint: palette.purpleTint,
+      border: palette.purpleBorder,
+    },
+    // v2 home: bill-card status colors
+    status: {
+      vetoedText: palette.vetoedText,
+      vetoedStep: palette.vetoedStep,
+      amber: palette.amber,
+      progressEmpty: palette.progressEmpty,
+    },
+    footerBg: palette.ink900,
     alpha,
   },
   spacing: {
@@ -174,6 +197,8 @@ export const theme = {
     body: webFont("'Libre Franklin', Helvetica, Arial, sans-serif"),
     ui: webFont("'Libre Franklin', Helvetica, Arial, sans-serif"),
     mono: webFont("'JetBrains Mono', 'Courier New', monospace"),
+    // v2 home: the "Grounded Ask" pill only
+    sora: webFont("'Sora', 'Libre Franklin', Helvetica, Arial, sans-serif"),
   },
   fontSizes: {
     caption: 11,
@@ -246,6 +271,24 @@ export const theme = {
     focus: Platform.select({
       web: { boxShadow: '0 0 0 3px rgba(45,212,126,0.18)' },
       default: { shadowColor: '#2ed47e', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.18, shadowRadius: 3, elevation: 0 },
+    }),
+    // v2 home: nav dropdown panel (three-layer stack)
+    panel: Platform.select({
+      web: { boxShadow: '0 1px 2px rgba(17,21,15,0.10), 0 12px 26px rgba(17,21,15,0.16), 0 40px 80px rgba(17,21,15,0.32)' },
+      default: { shadowColor: '#11150f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 26, elevation: 12 },
+    }),
+    // v2 home glows: purple (hero/city chips hover, field focus ring), green (capability card hover)
+    glowPurple: Platform.select({
+      web: { boxShadow: '0 0 0 3px rgba(91,48,214,0.14), 0 0 16px rgba(91,48,214,0.4)' },
+      default: { shadowColor: '#5b30d6', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 0 },
+    }),
+    focusPurple: Platform.select({
+      web: { boxShadow: '0 0 0 4px rgba(91,48,214,0.14)' },
+      default: { shadowColor: '#5b30d6', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 0 },
+    }),
+    glowGreen: Platform.select({
+      web: { boxShadow: '0 0 0 3px rgba(46,212,126,0.12), 0 0 14px rgba(46,212,126,0.32)' },
+      default: { shadowColor: '#2ed47e', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.32, shadowRadius: 14, elevation: 0 },
     }),
   },
   layout: {

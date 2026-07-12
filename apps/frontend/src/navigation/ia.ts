@@ -1,24 +1,29 @@
 /**
  * Phase-0 IA contract — single source of truth for the new top-nav information
- * architecture (Ask AI · Search · Track · About · auth).
+ * architecture (✦ Ask · Search · Track · About · auth).
  *
- * This declares the TARGET IA. It is additive and non-breaking: nothing in the
- * live app consumes it yet. During the frontend-track migration, the web router
- * (navigation/webRoutes.ts) and the nav chrome (navigation/RootNavigator.tsx)
- * become driven by this registry, so adding a roadmap item or a new surface is a
- * one-line change here instead of edits scattered across the routing switch.
+ * The ask entry is PAGE-AWARE (O10, ratified 2026-07-12 — docs/ui-copy-guide.md
+ * § Feature naming): on the signed-out home the hero IS the ask surface, so the
+ * nav shows no ask entry (Search → Bills carries the "Grounded Ask" badge);
+ * every non-home page restores "✦ Ask" as a top-level entry.
+ *
+ * The web router (navigation/webRoutes.ts) and nav chrome migrate onto this
+ * registry during the frontend track; the v2 home TopNav (theme/primitives.tsx)
+ * already renders its dropdowns from it, so adding a roadmap item or a new
+ * surface is a one-line change here instead of edits scattered across the
+ * routing switch.
  *
  * See docs/mvp-redesign-plan.md for decisions and the migration steps.
  */
 
-export type MenuKey = 'askAI' | 'search' | 'track' | 'about';
+export type MenuKey = 'ask' | 'search' | 'track' | 'about';
 
 export type Availability = 'mvp' | 'roadmap';
 
 export interface IaItem {
   /** Stable, unique id. */
   id: string;
-  /** Sentence-case nav label. */
+  /** Nav label, as displayed. */
   label: string;
   /** Web path. Detail routes carry `:param` segments. */
   path: string;
@@ -28,13 +33,20 @@ export interface IaItem {
   availability: Availability;
   /** Requires an authenticated user to reach. */
   authGated: boolean;
+  /** One-line dropdown row description (v2 nav design). */
+  description?: string;
+  /**
+   * Roadmap items only: render greyed in the nav dropdown's "ON THE ROADMAP"
+   * group (curated set — other roadmap items stay declared but unshown).
+   */
+  inNavDropdown?: boolean;
   /** Optional framing note. */
   note?: string;
 }
 
-/** Top-level menus, in nav order. */
+/** Top-level menus, in nav order. `ask` is page-aware — see the header note. */
 export const MENUS: { key: MenuKey; label: string }[] = [
-  { key: 'askAI', label: 'Ask AI' },
+  { key: 'ask', label: '✦ Ask' },
   { key: 'search', label: 'Search' },
   { key: 'track', label: 'Track' },
   { key: 'about', label: 'About' },
@@ -46,15 +58,16 @@ export const MENUS: { key: MenuKey; label: string }[] = [
  * hidden in MVP nav (see `visibleMenuItems`).
  */
 export const IA: IaItem[] = [
-  // Ask AI — top-level. Anonymous one-shot cited answer; follow-ups/history gate on auth.
+  // ✦ Ask — top-level on non-home pages only (page-aware, see header note).
+  // Anonymous one-shot cited answer; follow-ups/history gate on auth.
   {
     id: 'ask',
-    label: 'Ask AI',
+    label: '✦ Ask',
     path: '/ask',
-    menu: 'askAI',
+    menu: 'ask',
     availability: 'mvp',
     authGated: false,
-    note: 'Anonymous users get one stateless cited answer; follow-ups, history, and saved sessions require sign-in.',
+    note: 'Anonymous users get one stateless cited answer; follow-ups, history, and saved sessions require sign-in. Hidden on the signed-out home (the hero is the ask surface).',
   },
 
   // Search — public discovery ("the library").
@@ -65,15 +78,26 @@ export const IA: IaItem[] = [
     menu: 'search',
     availability: 'mvp',
     authGated: false,
+    description: 'Make sense of any bill — grounded in the source',
+    note: 'Carries the purple "Grounded Ask" pill in the nav dropdown.',
   },
   {
     id: 'search-legislators',
-    label: 'Legislators',
+    label: 'Search Legislators',
     path: '/legislators',
     menu: 'search',
     availability: 'mvp',
     authGated: false,
-    note: 'Directory + profiles, with "Find My Legislator" (address lookup) as the primary CTA.',
+    description: 'Look up any legislator — committees and authored bills',
+  },
+  {
+    id: 'search-find-my-legislator',
+    label: 'Find My Legislator',
+    path: '/find-my-legislator',
+    menu: 'search',
+    availability: 'mvp',
+    authGated: false,
+    description: 'See who represents you — by address, city, or area',
   },
   {
     id: 'search-issues',
@@ -82,6 +106,8 @@ export const IA: IaItem[] = [
     menu: 'search',
     availability: 'roadmap',
     authGated: false,
+    description: "See an issue's bills — and who authored them",
+    inNavDropdown: true,
   },
   {
     id: 'search-policies',
@@ -106,6 +132,8 @@ export const IA: IaItem[] = [
     menu: 'search',
     availability: 'roadmap',
     authGated: false,
+    description: "Know who's really running — the record behind the campaign",
+    inNavDropdown: true,
   },
   {
     id: 'search-news',
@@ -125,22 +153,7 @@ export const IA: IaItem[] = [
     menu: 'track',
     availability: 'mvp',
     authGated: true,
-  },
-  {
-    id: 'track-issues',
-    label: 'Issues',
-    path: '/track/issues',
-    menu: 'track',
-    availability: 'roadmap',
-    authGated: true,
-  },
-  {
-    id: 'track-policies',
-    label: 'Policies',
-    path: '/track/policies',
-    menu: 'track',
-    availability: 'roadmap',
-    authGated: true,
+    description: 'Follow a bill — save it to your watchlist',
   },
   {
     id: 'track-legislators',
@@ -149,7 +162,27 @@ export const IA: IaItem[] = [
     menu: 'track',
     availability: 'roadmap',
     authGated: true,
-    note: 'Roadmap: follow a legislator for activity notifications.',
+    description: 'Follow a legislator — every bill they author, every vote they cast',
+    inNavDropdown: true,
+    note: 'Roadmap: follow a legislator for activity notifications (#151).',
+  },
+  {
+    id: 'track-issues',
+    label: 'Issues',
+    path: '/track/issues',
+    menu: 'track',
+    availability: 'roadmap',
+    authGated: true,
+    description: 'Follow an issue — and every bill as it advances',
+    inNavDropdown: true,
+  },
+  {
+    id: 'track-policies',
+    label: 'Policies',
+    path: '/track/policies',
+    menu: 'track',
+    availability: 'roadmap',
+    authGated: true,
   },
   {
     id: 'track-laws',
@@ -166,12 +199,14 @@ export const IA: IaItem[] = [
     menu: 'track',
     availability: 'roadmap',
     authGated: true,
+    description: "Follow who's running — the record behind the campaign, through election day",
+    inNavDropdown: true,
   },
 
   // About — static content.
   {
     id: 'about-us',
-    label: 'About us',
+    label: 'About Us',
     path: '/about',
     menu: 'about',
     availability: 'mvp',
@@ -180,7 +215,7 @@ export const IA: IaItem[] = [
   },
   {
     id: 'about-trust',
-    label: 'Trust & integrity',
+    label: 'Trust & Integrity',
     path: '/about/trust',
     menu: 'about',
     availability: 'mvp',
@@ -189,7 +224,7 @@ export const IA: IaItem[] = [
   },
   {
     id: 'about-contact',
-    label: 'Contact us',
+    label: 'Contact Us',
     path: '/about/contact',
     menu: 'about',
     availability: 'mvp',
@@ -251,6 +286,17 @@ export const roadmapItems = (): IaItem[] => IA.filter((item) => item.availabilit
 /** Items to render in a menu right now, honoring the hide-roadmap default (O5). */
 export const visibleMenuItems = (menu: MenuKey, opts?: { showRoadmap?: boolean }): IaItem[] =>
   itemsByMenu(menu).filter((item) => (opts?.showRoadmap ? true : item.availability === 'mvp'));
+
+/**
+ * What a v2 nav dropdown renders: live (mvp) rows on top, then the curated
+ * greyed "ON THE ROADMAP" group (roadmap items opted in via `inNavDropdown`).
+ */
+export const navDropdownItems = (menu: MenuKey): { live: IaItem[]; roadmap: IaItem[] } => ({
+  live: itemsByMenu(menu).filter((item) => item.availability === 'mvp'),
+  roadmap: itemsByMenu(menu).filter(
+    (item) => item.availability === 'roadmap' && item.inNavDropdown === true,
+  ),
+});
 
 /** Whether an item is reachable for the given auth state. */
 export const isReachable = (item: IaItem, isSignedIn: boolean): boolean =>
