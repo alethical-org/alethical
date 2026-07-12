@@ -11,9 +11,14 @@ roadmap noted for direction.
   see `docs/v1-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
-- **IA:** top nav `Ask AI · Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
-  subsections. Search and Track share one entity taxonomy. (Standalone Ask AI
-  entry under review — see O10 in Open items below: the final home design drops it.)
+- **IA:** top nav `Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
+  subsections. Search and Track share one entity taxonomy. **Ask AI is page-aware
+  (resolves O10):** on the signed-out home the standalone top-level "Ask AI" entry is
+  dropped — the hero *is* the ask surface, and Search → Bills carries an "Ask AI"
+  badge instead. On every non-home page the nav restores a top-level **Ask AI** entry
+  (`Ask AI · Search ▾ · Track ▾ · About ▾ · [auth]`) so the ask path is always one
+  click away. `ia.ts` keeps the `askAI` menu entry (it drives the non-home nav); the
+  home nav omits it at render time.
 - **MVP surface:** Ask AI; Search → Bills, Legislators ("Find My Legislator");
   Track → Bills; About → About Us, Trust & Integrity, Contact Us; Sign in.
   Everything else in the menus is roadmap.
@@ -124,7 +129,9 @@ Source of truth: `apps/frontend/src/navigation/ia.ts` (`IA`, `ROUTES`, `REDIRECT
 | Legal (footer) | `/privacy`, `/terms` | not in About menu |
 | Roadmap (hidden) | `/search/{issues,policies,laws,candidates,news}`, `/track/{issues,policies,legislators,laws,candidates}` | declared, not rendered |
 
-**Nav states:** logged out → `Ask AI · Search ▾ · Track ▾ · About ▾ · [Sign in]`
+**Nav states:** logged out, **home** → `Search ▾ · Track ▾ · About ▾ · [Sign in]`
+(no standalone Ask AI — the hero is the ask surface, Search → Bills is "Ask AI"-badged;
+per O10). Logged out, **non-home** → `Ask AI · Search ▾ · Track ▾ · About ▾ · [Sign in]`
 (Sign in = the single primary CTA). Logged in → same menus + `[avatar ▾]` (ACCOUNT_MENU);
 Track submenus populate; Ask AI drops its gate.
 
@@ -170,7 +177,8 @@ Frontend track (after Phase 0; parallel with backend track)
 | # | Item | Leaning / notes | When |
 |---|------|-----------------|------|
 | O8 | Anonymous Ask guardrails specifics | Rate-limit by IP/device + cache; cap at one free answer. | Ask AI impl |
-| O10 | Standalone "Ask AI" top-nav entry: keep or drop | The final home design (2026-07-09) drops it — nav reads `Search ▾ · Track ▾ · About ▾ · Sign in`, the hero *is* the ask surface, and Search → Bills carries an "Ask AI" badge instead. The IA locked decision above, `ia.ts`, and the nav-states section still specify a top-level Ask AI item. If the design wins, update those *and* decide how users reach Ask from non-home pages (nav entry? persistent ask bar?). | Before nav build |
+
+**Resolved:** ~~O5~~ (curated coming-soon — see Locked decisions). ~~O9~~ (account menu). **O10 (standalone "Ask AI" nav entry) — resolved 2026-07-09:** Ask AI is page-aware — dropped on the signed-out home (hero is the ask surface; Search → Bills is "Ask AI"-badged), restored as a top-level nav entry on every non-home page. See the IA locked decision above; implemented on the home/nav build ([#143](https://github.com/alethical-org/alethical/issues/143)).
 
 ## Roadmap (remembered for later)
 
