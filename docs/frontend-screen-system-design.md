@@ -530,9 +530,9 @@ Recommended seeded bill prompts:
 
 ## 8. Legislator Profile
 
-### Sponsored Bills Pagination Behavior
+### Authored Bills Pagination Behavior
 
-Sponsored Bills uses the same server-backed `limit` and `offset` contract as the bill search list. The legislator stats card may show more bills than the current page contains, so the profile must keep Previous/Next controls available while the endpoint reports `page.has_more=true`.
+Authored Bills uses the same server-backed `limit` and `offset` contract as the bill search list. The legislator stats card may show more bills than the current page contains, so the profile must keep Previous/Next controls available while the endpoint reports `page.has_more=true`.
 
 ### Mobile
 
@@ -551,10 +551,10 @@ Sponsored Bills uses the same server-backed `limit` and `offset` contract as the
 | Office address                                   |
 |                                                  |
 | Stats                                            |
-| 12 sponsored bills | 4 committees                |
+| 12 authored bills | 4 committees                 |
 |                                                  |
 | Suggested Questions                              |
-| [ What bills has this legislator sponsored? ]    |
+| [ What bills has this legislator authored? ]     |
 | [ How has this legislator voted? ]               |
 | [ What issues do they focus on? ]                |
 | [ Explain this legislator's recent activity ]    |
@@ -575,11 +575,11 @@ Sponsored Bills uses the same server-backed `limit` and `offset` contract as the
 |                  | | Current Service            | | Stats                  |  |
 |                  | | email / phone / office     | | bills / votes / comm. |  |
 |                  | | Suggested Questions        | |                        |  |
-|                  | | [ sponsored bills ]        | |                        |  |
+|                  | | [ authored bills ]         | |                        |  |
 |                  | | [ voting record ]          | |                        |  |
 |                  | +----------------------------+ +------------------------+  |
 |                  |                                                           |
-|                  | Sponsored Bills                                             |
+|                  | Authored Bills                                              |
 |                  | +------------------------------------------------------+  |
 |                  | | bill card                                            |  |
 |                  | +------------------------------------------------------+  |

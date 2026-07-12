@@ -503,6 +503,8 @@ The last things we should cut are:
 - Dedicated data warehouse
 - Full enterprise admin and permissions
 
+> **Candidates vs. promise tracking:** candidate *profiles, search, and tracking* are a planned post-v1 direction (Elections milestone — [#147](https://github.com/alethical-org/alethical/issues/147) profiles/search, [#148](https://github.com/alethical-org/alethical/issues/148) tracking). What stays out of scope above is *campaign/candidate promise tracking and promise-vs-vote scoring* specifically — the accountability-scoring features, not candidate data surfaces.
+
 ## V1 Success Criteria
 
 V1 should be considered complete when:
