@@ -30,6 +30,10 @@ Not for: pure backend/data work, or design *decisions* still in flux (those go t
 8. **QA against the live preview.** If a Claude Design preview URL exists, it is drivable for interaction spot-checks (hover glows, click states, transitions) — open it in a **logged-in Chrome** (the `claude-in-chrome` tools), **not** the in-app browser; the URL is auth-gated. Compare states to your build.
 9. **Verify, then ship.** Run it (`just up` → `http://localhost:19006`), compare every state to the screenshots (desktop + mobile), `just lint`. Ship path is **per-page to `main`** (auto-deploys): the design-system foundation recoloring older screens green is accepted. Verify the Vercel preview, then merge. Commit at milestones; the PR closes the tracking issue and carries a stale-reference check (`.claude/rules/workflow.md` rule 6).
 
+## Responsive & touch
+
+The mock is almost always a fixed-width **desktop** canvas (~1600px) with **no mobile breakpoints** — MVP is responsive *web* (desktop + mobile web; native deferred, #91), so mobile web must work. Unless mobile mocks are provided, **derive** the mobile layout from the site's own responsive rules (`useResponsive`, existing screens' patterns): reflow multi-column sections to one column, turn nav dropdowns into the mobile drawer, keep touch targets ~44px. **No hover on touch** — hover-only glows/affordances never fire on mobile, so resting states must stand alone and interactive elements need a tap/`:active` state. Web-only CSS (backdrop-filter, box-shadow glows, gradients) is guarded with `isWeb` today; it needs RN-native equivalents only when native ships.
+
 ## Surface, don't guess (`.claude/rules/coding-discipline.md` rule 1)
 
 Ask when: a filter/data the design shows isn't backed by today's API; a mockup's copy conflicts with `docs/ui-copy-guide.md`; a page's nav/behavior diverges from the `ia.ts` registry; sample content's grounding is ambiguous.
@@ -45,6 +49,7 @@ Ask when: a filter/data the design shows isn't backed by today's API; a mockup's
 | "Ask AI" in the UI | "Grounded Ask" / "✦ Ask" |
 | Wiring/​"fixing" held marketing content | Build it static as designed; confirm before grounding it |
 | Assuming a PR into the draft redesign branch is live | Confirm the per-page-to-`main` ship path |
+| Building only to the desktop mock; hover-carried affordances | Derive the mobile reflow from the site's rules; ensure nothing critical needs hover |
 
 ## References
 
