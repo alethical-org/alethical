@@ -12,7 +12,6 @@ import {
   MNMap,
   PageBackground,
   PrimaryButton,
-  Sparkle,
   TopNav,
 } from '../../theme/primitives';
 import { IaItem, MenuKey } from '../../navigation/ia';
@@ -283,6 +282,7 @@ function CitedSectionCard({ n, title, quote, note }: { n: string; title: string;
 
 function AnswerCard({ dimmed }: { dimmed: boolean }) {
   const [badgeHovered, badgeHover] = useHover();
+  const { isMobile } = useResponsive();
   const blurOverlay: object = isWeb
     ? {
         backgroundColor: 'rgba(255,255,255,0.6)',
@@ -291,12 +291,8 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       }
     : { backgroundColor: 'rgba(255,255,255,0.75)' };
   return (
-    <View style={[styles.answerCard, t.shadows.lg as object]}>
-      {/* ASKED */}
-      <View style={styles.askedRow}>
-        <Sparkle size={14} />
-        <Text style={styles.askedLabel}>ASKED</Text>
-      </View>
+    <View style={[styles.answerCard, isMobile && styles.answerCardMobile, t.shadows.lg as object]}>
+      {/* The bold question is the first element (the "ASKED" eyebrow was removed). */}
       <Text style={styles.askedQuestion}>What's in the new social media law for kids?</Text>
 
       {/* BILL divider */}
@@ -305,8 +301,8 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         <View style={styles.hairlineFlex} />
       </View>
 
-      {/* badge + meta */}
-      <View style={styles.billMetaRow}>
+      {/* badge + meta — on mobile the badge sits above a single stacked meta column */}
+      <View style={[styles.billMetaRow, isMobile && styles.billMetaRowMobile]}>
         <Pressable
           accessibilityRole="link"
           onPress={() => openExternal(HF4138_STATUS_URL)}
@@ -316,7 +312,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
           <Text style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}>HF 4138</Text>
         </Pressable>
         <View style={styles.billMetaCols}>
-          <View style={styles.billMetaColsRow}>
+          <View style={[styles.billMetaColsRow, isMobile && styles.billMetaColsRowMobile]}>
             <View>
               <Text style={styles.billMetaText}>
                 <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
@@ -682,7 +678,7 @@ export function HomeSignedOutScreen() {
                     Grounded answers{'\n'}
                     <Text style={styles.heroH1Green}>on Minnesota law</Text>
                   </Text>
-                  <Text style={styles.heroSubhead}>
+                  <Text style={[styles.heroSubhead, !isDesktop && styles.heroSubheadMobile]}>
                     We read every bill so you don't have to — what it says, where it stands, and how everyone voted.
                     Plain language, every answer linked to official sources.
                   </Text>
@@ -825,14 +821,14 @@ export function HomeSignedOutScreen() {
           <View style={styles.accountSection}>
             <Container>
               <View style={[styles.accountCard, accountGradientWeb, !isDesktop && styles.accountCardStacked]}>
-                <View style={styles.accountText}>
+                <View style={[styles.accountText, !isDesktop && styles.accountColMobile]}>
                   <Text style={styles.accountH3}>Start Knowing</Text>
                   <Text style={styles.accountBody}>
                     Search bills and legislators, find who represents you, and get cited answers — no account needed.
                     An account makes it yours: track your bills, keep chat history, and pick up where you left off.
                   </Text>
                 </View>
-                <View style={styles.accountAction}>
+                <View style={[styles.accountAction, !isDesktop && styles.accountColMobile]}>
                   <GoogleButton onPress={signIn} />
                 </View>
               </View>
@@ -905,6 +901,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
     maxWidth: 660,
   },
+  heroSubheadMobile: { marginTop: 28, fontSize: 18, lineHeight: 27 },
   fieldShell: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -960,15 +957,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 34,
     position: 'relative',
   },
+  answerCardMobile: { paddingVertical: 24, paddingHorizontal: 22 },
   answerOverlay: { ...StyleSheet.absoluteFillObject, borderRadius: 20, zIndex: 5 },
-  askedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  askedLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 1.2, color: t.colors.purple.base },
   askedQuestion: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subheadLg, fontWeight: t.fontWeights.bold, lineHeight: 25, color: t.colors.text.primary, marginBottom: 16 },
   billDividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   billDividerLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 1.2, color: t.colors.text.muted },
   hairlineFlex: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink08 },
   hairline: { height: 1, backgroundColor: t.colors.alpha.ink08, marginBottom: 14 },
   billMetaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap', marginBottom: 14 },
+  billMetaRowMobile: { flexDirection: 'column', gap: 12 },
   billBadgeLg: {
     marginTop: 5,
     backgroundColor: t.colors.tint.t150,
@@ -981,6 +978,7 @@ const styles = StyleSheet.create({
   billBadgeLgText: { fontFamily: t.typography.mono, fontSize: t.fontSizes.bodyLg, fontWeight: t.fontWeights.bold, letterSpacing: 0.6, color: t.colors.brand.deep },
   billMetaCols: { flex: 1, minWidth: 0 },
   billMetaColsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' },
+  billMetaColsRowMobile: { flexDirection: 'column', gap: 8 },
   billMetaText: { fontFamily: t.typography.body, fontSize: t.fontSizes.meta, lineHeight: 21, color: t.colors.text.secondary },
   billMetaBold: { fontWeight: t.fontWeights.bold },
   billMetaLinkRow: { flexDirection: 'row', alignItems: 'center' },
@@ -1161,6 +1159,9 @@ const styles = StyleSheet.create({
     gap: 44,
   },
   accountCardStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 28 },
+  // In a stacked (column) card, flex ratios distribute *vertical* space and clip the
+  // text behind the button — so drop the ratio and let each block size to content.
+  accountColMobile: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   accountText: { flex: 1.35, minWidth: 0 },
   accountH3: { fontFamily: t.typography.title, fontSize: t.fontSizes.h1, fontWeight: t.fontWeights.heavy, letterSpacing: -0.3, color: t.colors.text.primary },
   accountBody: { marginTop: 14, fontFamily: t.typography.body, fontSize: t.fontSizes.subheadLg, lineHeight: 29, color: t.colors.text.secondary, maxWidth: 620 },
