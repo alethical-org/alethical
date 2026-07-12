@@ -100,6 +100,6 @@ Use this checklist for the signed-in user path: Supabase auth, bearer-token API 
 ## Expected Open Questions
 
 - Confirm Supabase production redirect URLs include local web, production web, and native deep links.
-- Confirm production Render backend has `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+- Confirm production Railway backend has `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
 - Confirm frontend deploy has `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `EXPO_PUBLIC_API_URL`.
 - Confirm CORS allows the deployed frontend origin.
