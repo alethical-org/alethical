@@ -70,7 +70,14 @@ roadmap noted for direction.
   (e.g. the five Answer-page states in `docs/grounded-ask-spec.md` §9.1, "The
   states"), not just the happy path — the states are the contract, and mocks tend
   to show only the golden screen.
-- **Re-skin mechanics:** styling is fully centralized in `theme/tokens.ts` with zero
+- **Mobile is derived in-build, not separately designed (2026-07-12):** the Claude-design
+  mocks are desktop-only (fixed ~1600px canvas, no breakpoints); MVP is responsive web,
+  so mobile layouts are derived during implementation from the app's own responsive rules
+  (`useResponsive`, existing screen patterns) — reflow multi-column sections to one column,
+  nav dropdowns → mobile drawer, ~44px touch targets, and **no reliance on hover** (there is
+  no hover on touch, so resting states must stand alone). Per-page mobile mocks are **not**
+  commissioned; request a *targeted* mobile mock only if a specific section doesn't reflow
+  cleanly. Codified in the `implementing-design-handoffs` skill (Responsive & touch). styling is fully centralized in `theme/tokens.ts` with zero
   hardcoded hex across the 24 screen/component files, so the green flip is a token-set
   swap, not a code migration. The MVP flip targets web; because the codebase is shared
   Expo/React Native, the same swap will re-skin the post-MVP iOS/Android clients for free.
