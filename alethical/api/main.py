@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from alethical.api.problems import http_exception_handler, validation_exception_handler
+from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.public import router as public_router
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
         return {"status": "ready"}
 
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
+    app.include_router(ask_router, prefix="/api/v1", tags=["ask"])
     app.include_router(me_router, prefix="/api/v1", tags=["me"])
     app.include_router(internal_router, prefix="/internal/v1", tags=["internal"])
     return app

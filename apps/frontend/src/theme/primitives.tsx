@@ -32,7 +32,13 @@ function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }
 
 // --- Page background: gradient + green wash, with a masked dot-grid that fades
 //     in/out vertically (matches the subtle fade in the mockups). ---
-export function PageBackground({ children, variant = 'page' }: { children: ReactNode; variant?: 'page' | 'pageGreen' }) {
+export function PageBackground({
+  children,
+  variant = 'page',
+}: {
+  children: ReactNode;
+  variant?: 'page' | 'pageGreen';
+}) {
   const baseWeb = isWeb
     ? ({
         backgroundColor: t.colors.surfaces.s200,
@@ -51,7 +57,8 @@ export function PageDots() {
   if (!isWeb) {
     return null;
   }
-  const mask = 'linear-gradient(to bottom, transparent 0px, transparent 150px, #000 280px, #000 calc(100% - 180px), transparent 100%)';
+  const mask =
+    'linear-gradient(to bottom, transparent 0px, transparent 150px, #000 280px, #000 calc(100% - 180px), transparent 100%)';
   const dots: any = {
     position: 'absolute',
     top: 0,
@@ -66,12 +73,28 @@ export function PageDots() {
   return <View pointerEvents="none" style={dots} />;
 }
 
-export function Container({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Container({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   const { isMobile } = useResponsive();
-  return <View style={[styles.container, isMobile && styles.containerMobile, style]}>{children}</View>;
+  return (
+    <View style={[styles.container, isMobile && styles.containerMobile, style]}>{children}</View>
+  );
 }
 
-export function MetaStripe({ left, right, rightMobile }: { left: string; right: string; rightMobile?: string }) {
+export function MetaStripe({
+  left,
+  right,
+  rightMobile,
+}: {
+  left: string;
+  right: string;
+  rightMobile?: string;
+}) {
   const { isMobile } = useResponsive();
   return (
     <View style={[styles.metaStripe, isMobile && styles.metaStripeMobile]}>
@@ -83,7 +106,13 @@ export function MetaStripe({ left, right, rightMobile }: { left: string; right: 
 
 // --- Brand logo (bar mark + wordmark). tone controls text color for dark
 //     surfaces; compact shrinks it for narrow (mobile) nav bars. ---
-export function Logo({ tone = 'dark', compact = false }: { tone?: 'dark' | 'light'; compact?: boolean }) {
+export function Logo({
+  tone = 'dark',
+  compact = false,
+}: {
+  tone?: 'dark' | 'light';
+  compact?: boolean;
+}) {
   const light = tone === 'light';
   const fill = light ? t.colors.white : t.colors.ink;
   const dim = compact ? 28 : light ? 30 : 40;
@@ -94,7 +123,9 @@ export function Logo({ tone = 'dark', compact = false }: { tone?: 'dark' | 'ligh
         <Rect x={28.25} y={15} width={7.5} height={35} rx={3.75} fill={fill} />
         <Rect x={41.5} y={35} width={7.5} height={15} rx={3.75} fill={fill} />
       </Svg>
-      <Text style={[styles.wordmark, light && styles.wordmarkLight, compact && styles.wordmarkCompact]}>
+      <Text
+        style={[styles.wordmark, light && styles.wordmarkLight, compact && styles.wordmarkCompact]}
+      >
         ALETHICAL
       </Text>
     </View>
@@ -104,10 +135,19 @@ export function Logo({ tone = 'dark', compact = false }: { tone?: 'dark' | 'ligh
 // --- v2 nav dropdowns (docs/mockups/home-signed-out-v2) ---
 
 /** Sparkle glyph — the AI affordance (ASKED eyebrow, Grounded Ask pill, ✦ Ask entry). */
-export function Sparkle({ size = 11, color = t.colors.purple.base }: { size?: number; color?: string }) {
+export function Sparkle({
+  size = 11,
+  color = t.colors.purple.base,
+}: {
+  size?: number;
+  color?: string;
+}) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 2.5 L13.9 9.4 L21 12 L13.9 14.6 L12 21.5 L10.1 14.6 L3 12 L10.1 9.4 Z" fill={color} />
+      <Path
+        d="M12 2.5 L13.9 9.4 L21 12 L13.9 14.6 L12 21.5 L10.1 14.6 L3 12 L10.1 9.4 Z"
+        fill={color}
+      />
     </Svg>
   );
 }
@@ -130,46 +170,102 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
       <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
         {itemId === 'search-bills' || itemId === 'track-bills' ? (
           <>
-            <Path d="M8 3h6l4 4v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
-            <Path d="M14 3v4h4M10 12h5M10 16h4" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <Path
+              d="M8 3h6l4 4v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+            <Path
+              d="M14 3v4h4M10 12h5M10 16h4"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </>
         ) : null}
-        {itemId === 'search-legislators' || itemId === 'track-legislators' || itemId === 'search-candidates' || itemId === 'track-candidates' ? (
+        {itemId === 'search-legislators' ||
+        itemId === 'track-legislators' ||
+        itemId === 'search-candidates' ||
+        itemId === 'track-candidates' ? (
           <>
             <Circle cx={12} cy={8} r={3.4} stroke={c} strokeWidth={2} />
-            <Path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path
+              d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
           </>
         ) : null}
         {itemId === 'search-find-my-legislator' ? (
           <>
-            <Path d="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+            <Path
+              d="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
             <Circle cx={12} cy={9.5} r={2.4} stroke={c} strokeWidth={2} />
           </>
         ) : null}
         {itemId === 'search-issues' || itemId === 'track-issues' ? (
           <>
-            <Path d="M4 13l7-7a2 2 0 0 1 1.4-.6H18a2 2 0 0 1 2 2v5.6a2 2 0 0 1-.6 1.4l-7 7a2 2 0 0 1-2.8 0l-5.6-5.6a2 2 0 0 1 0-2.8Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+            <Path
+              d="M4 13l7-7a2 2 0 0 1 1.4-.6H18a2 2 0 0 1 2 2v5.6a2 2 0 0 1-.6 1.4l-7 7a2 2 0 0 1-2.8 0l-5.6-5.6a2 2 0 0 1 0-2.8Z"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
             <Circle cx={15.5} cy={8.5} r={1.3} fill={c} />
           </>
         ) : null}
         {itemId === 'about-us' ? (
           <>
             <Circle cx={9.5} cy={8} r={3.2} stroke={c} strokeWidth={2} />
-            <Path d="M3.5 19.5c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke={c} strokeWidth={2} strokeLinecap="round" />
-            <Path d="M16.5 5.2a3.2 3.2 0 0 1 0 5.9" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path
+              d="M3.5 19.5c0-3.3 2.7-6 6-6s6 2.7 6 6"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+            <Path
+              d="M16.5 5.2a3.2 3.2 0 0 1 0 5.9"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
             <Path d="M18 13.9c2.4.5 4 2.7 4 5.6" stroke={c} strokeWidth={2} strokeLinecap="round" />
           </>
         ) : null}
         {itemId === 'about-trust' ? (
           <>
-            <Path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6l7-3Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
-            <Path d="M9 12l2.2 2.2L15.5 10" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <Path
+              d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6l7-3Z"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+            <Path
+              d="M9 12l2.2 2.2L15.5 10"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </>
         ) : null}
         {itemId === 'about-contact' ? (
           <>
             <Rect x={3.5} y={5.5} width={17} height={13} rx={2} stroke={c} strokeWidth={2} />
-            <Path d="M4.5 7l7.5 5.5L19.5 7" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <Path
+              d="M4.5 7l7.5 5.5L19.5 7"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </>
         ) : null}
       </Svg>
@@ -185,11 +281,15 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
       <MenuRowIcon itemId={item.id} disabled={disabled} />
       <View style={styles.menuRowBody}>
         <View style={styles.menuRowTitleRow}>
-          <Text style={[styles.menuRowTitle, disabled && styles.menuRowTitleDisabled]}>{item.label}</Text>
+          <Text style={[styles.menuRowTitle, disabled && styles.menuRowTitleDisabled]}>
+            {item.label}
+          </Text>
           {item.id === 'search-bills' ? <GroundedAskPill /> : null}
         </View>
         {item.description ? (
-          <Text style={[styles.menuRowDesc, disabled && styles.menuRowDescDisabled]}>{item.description}</Text>
+          <Text style={[styles.menuRowDesc, disabled && styles.menuRowDescDisabled]}>
+            {item.description}
+          </Text>
         ) : null}
       </View>
     </>
@@ -289,12 +389,28 @@ function AskNavEntry({ onPress }: { onPress?: () => void }) {
   return (
     <Pressable accessibilityRole="link" onPress={onPress} {...hoverProps} style={styles.navTrigger}>
       <Sparkle size={14} />
-      <Text style={[styles.navTriggerText, { color: t.colors.purple.base }, hovered && { textDecorationLine: 'underline' }]}>Ask</Text>
+      <Text
+        style={[
+          styles.navTriggerText,
+          { color: t.colors.purple.base },
+          hovered && { textDecorationLine: 'underline' },
+        ]}
+      >
+        Ask
+      </Text>
     </Pressable>
   );
 }
 
-export function PrimaryButton({ label, onPress, size = 'md' }: { label: string; onPress?: () => void; size?: 'md' | 'lg' }) {
+export function PrimaryButton({
+  label,
+  onPress,
+  size = 'md',
+}: {
+  label: string;
+  onPress?: () => void;
+  size?: 'md' | 'lg';
+}) {
   const [hovered, hoverProps] = useHover();
   return (
     <Pressable
@@ -380,7 +496,11 @@ export function TopNav({
               onPress={() => setDrawerOpen((v) => !v)}
               style={styles.hamburger}
             >
-              {drawerOpen ? <X size={22} color={t.colors.ink} /> : <Menu size={22} color={t.colors.ink} />}
+              {drawerOpen ? (
+                <X size={22} color={t.colors.ink} />
+              ) : (
+                <Menu size={22} color={t.colors.ink} />
+              )}
             </Pressable>
           </View>
         )}
@@ -441,7 +561,9 @@ export function TopNav({
                     ) : null}
                     {roadmap.map((item) => (
                       <View key={item.id} style={styles.menuSubRow}>
-                        <Text style={[styles.menuSubRowText, styles.menuSubRowTextDisabled]}>{item.label}</Text>
+                        <Text style={[styles.menuSubRowText, styles.menuSubRowTextDisabled]}>
+                          {item.label}
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -492,12 +614,26 @@ export function SectionLabel({ children }: { children: string }) {
   return <Text style={styles.sectionLabel}>{children}</Text>;
 }
 
-export function LabelMono({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
+export function LabelMono({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<TextStyle>;
+}) {
   return <Text style={[styles.labelMono, style]}>{children}</Text>;
 }
 
 // --- Section heading (big display h2 + optional action button) ---
-export function SectionHeading({ title, actionLabel, onAction }: { title: string; actionLabel?: string; onAction?: () => void }) {
+export function SectionHeading({
+  title,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   const [hovered, hoverProps] = useHover();
   return (
     <View style={styles.sectionHeadingRow}>
@@ -509,7 +645,9 @@ export function SectionHeading({ title, actionLabel, onAction }: { title: string
           {...hoverProps}
           style={[styles.viewAll, hovered && { borderColor: t.colors.brand.base }]}
         >
-          <Text style={[styles.viewAllText, hovered && { color: t.colors.brand.deep }]}>{actionLabel}</Text>
+          <Text style={[styles.viewAllText, hovered && { color: t.colors.brand.deep }]}>
+            {actionLabel}
+          </Text>
         </Pressable>
       ) : null}
     </View>
@@ -530,21 +668,45 @@ function CardIcon({ name }: { name: IconName }) {
       ) : null}
       {name === 'map' ? (
         <>
-          <Path d="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+          <Path
+            d="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
           <Circle cx={12} cy={9.5} r={2.6} stroke={c} strokeWidth={2} />
         </>
       ) : null}
-      {name === 'bookmark' ? <Path d="M7 4 h10 v16 l-5 -4 l-5 4 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" /> : null}
-      {name === 'chat' ? <Path d="M4 5 h16 v11 h-9 l-5 4 v-4 h-2 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" /> : null}
+      {name === 'bookmark' ? (
+        <Path d="M7 4 h10 v16 l-5 -4 l-5 4 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" />
+      ) : null}
+      {name === 'chat' ? (
+        <Path
+          d="M4 5 h16 v11 h-9 l-5 4 v-4 h-2 Z"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
+      ) : null}
     </Svg>
   );
 }
 
-export function InfoCard({ icon, title, subtitle }: { icon: IconName; title: string; subtitle: string }) {
+export function InfoCard({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: IconName;
+  title: string;
+  subtitle: string;
+}) {
   const { isMobile } = useResponsive();
   return (
     <View style={[styles.infoCard, isMobile && styles.infoCardMobile]}>
-      <View style={styles.infoIcon}><CardIcon name={icon} /></View>
+      <View style={styles.infoIcon}>
+        <CardIcon name={icon} />
+      </View>
       <View style={styles.infoText}>
         <Text style={styles.infoTitle}>{title}</Text>
         <Text style={styles.infoSubtitle}>{subtitle}</Text>
@@ -614,10 +776,22 @@ export function BillCard({ bill }: { bill: Bill }) {
 function GoogleG({ size = 20 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 18 18">
-      <Path fill="#4285F4" d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.909c1.702-1.567 2.682-3.874 2.682-6.615z" />
-      <Path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.909-2.259c-.806.54-1.837.859-3.048.859-2.344 0-4.328-1.583-5.036-3.71H.957v2.332C2.438 15.983 5.482 18 9 18z" />
-      <Path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.348 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" />
-      <Path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.346l2.582-2.581C13.463.892 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
+      <Path
+        fill="#4285F4"
+        d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.909c1.702-1.567 2.682-3.874 2.682-6.615z"
+      />
+      <Path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.909-2.259c-.806.54-1.837.859-3.048.859-2.344 0-4.328-1.583-5.036-3.71H.957v2.332C2.438 15.983 5.482 18 9 18z"
+      />
+      <Path
+        fill="#FBBC05"
+        d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.348 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"
+      />
+      <Path
+        fill="#EA4335"
+        d="M9 3.58c1.321 0 2.508.454 3.44 1.346l2.582-2.581C13.463.892 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
+      />
     </Svg>
   );
 }
@@ -682,7 +856,10 @@ export function MNMap({ size = 300 }: { size?: number }) {
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      <Path d="M65 84 c-6 0 -11 5 -11 11 c0 8 11 19 11 19 c0 0 11 -11 11 -19 c0 -6 -5 -11 -11 -11 Z" fill={t.colors.ink} />
+      <Path
+        d="M65 84 c-6 0 -11 5 -11 11 c0 8 11 19 11 19 c0 0 11 -11 11 -19 c0 -6 -5 -11 -11 -11 Z"
+        fill={t.colors.ink}
+      />
       <Circle cx={65} cy={95} r={4} fill={t.colors.white} />
     </Svg>
   );
@@ -739,11 +916,23 @@ const styles = StyleSheet.create({
     borderBottomColor: t.colors.borders.base,
   },
   metaStripeMobile: { paddingHorizontal: 24 },
-  metaText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.medium, letterSpacing: 1.9, color: t.colors.text.faint },
+  metaText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.medium,
+    letterSpacing: 1.9,
+    color: t.colors.text.faint,
+  },
   logo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   logoLight: { gap: 12 },
   logoCompact: { gap: 10 },
-  wordmark: { fontFamily: t.typography.title, fontSize: 25, fontWeight: t.fontWeights.semibold, letterSpacing: 4, color: t.colors.text.primary },
+  wordmark: {
+    fontFamily: t.typography.title,
+    fontSize: 25,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: 4,
+    color: t.colors.text.primary,
+  },
   wordmarkLight: { fontSize: 20, color: t.colors.white },
   wordmarkCompact: { fontSize: 17, letterSpacing: 2 },
   navRow: { paddingTop: 26, paddingBottom: 8, zIndex: 60 },
@@ -754,7 +943,11 @@ const styles = StyleSheet.create({
   // v2 dropdown triggers + panels
   navTriggerWrap: { position: 'relative', zIndex: 60 },
   navTrigger: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  navTriggerText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.medium },
+  navTriggerText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.subhead,
+    fontWeight: t.fontWeights.medium,
+  },
   menuPanelAnchor: { position: 'absolute', zIndex: 60 },
   menuPanel: {
     backgroundColor: t.colors.surfaces.base,
@@ -775,7 +968,14 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '45deg' }],
   },
   menuPanelList: { gap: 6 },
-  menuPanelRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12 },
+  menuPanelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
   menuPanelRowHover: { backgroundColor: t.colors.alpha.ink06 },
   menuRowIconTile: {
     width: 40,
@@ -788,9 +988,20 @@ const styles = StyleSheet.create({
   menuRowIconTileDisabled: { backgroundColor: t.colors.surfaces.s300 },
   menuRowBody: { flex: 1, minWidth: 0 },
   menuRowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  menuRowTitle: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
+  menuRowTitle: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.subhead,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
   menuRowTitleDisabled: { fontWeight: t.fontWeights.semibold, color: t.colors.text.faint },
-  menuRowDesc: { marginTop: 3, fontFamily: t.typography.body, fontSize: t.fontSizes.small, lineHeight: 19, color: t.colors.text.muted },
+  menuRowDesc: {
+    marginTop: 3,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 19,
+    color: t.colors.text.muted,
+  },
   menuRowDescDisabled: { color: '#b3b9b4' },
   gaPill: {
     flexDirection: 'row',
@@ -804,21 +1015,77 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: t.colors.purple.border,
   },
-  gaPillText: { fontFamily: t.typography.sora, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 0.2, color: t.colors.purple.base },
-  roadmapLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 14, paddingHorizontal: 14, paddingBottom: 6 },
-  roadmapLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 1.2, color: t.colors.text.faint },
+  gaPillText: {
+    fontFamily: t.typography.sora,
+    fontSize: t.fontSizes.caption,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.2,
+    color: t.colors.purple.base,
+  },
+  roadmapLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 14,
+    paddingHorizontal: 14,
+    paddingBottom: 6,
+  },
+  roadmapLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.2,
+    color: t.colors.text.faint,
+  },
   roadmapRule: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink07 },
   // mobile drawer groups
-  menuGroup: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: t.colors.borders.base, gap: 2 },
-  menuGroupLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 1.4, color: t.colors.brand.deep, marginBottom: 6 },
-  menuGroupRoadmapLabel: { fontFamily: t.typography.mono, fontSize: 10, fontWeight: t.fontWeights.bold, letterSpacing: 1.2, color: t.colors.text.faint, marginTop: 10, marginBottom: 2 },
+  menuGroup: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: t.colors.borders.base,
+    gap: 2,
+  },
+  menuGroupLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.4,
+    color: t.colors.brand.deep,
+    marginBottom: 6,
+  },
+  menuGroupRoadmapLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: 10,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.2,
+    color: t.colors.text.faint,
+    marginTop: 10,
+    marginBottom: 2,
+  },
   menuSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
-  menuSubRowText: { fontFamily: t.typography.title, fontSize: 21, fontWeight: t.fontWeights.semibold, letterSpacing: -0.2, color: t.colors.text.primary },
+  menuSubRowText: {
+    fontFamily: t.typography.title,
+    fontSize: 21,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: -0.2,
+    color: t.colors.text.primary,
+  },
   menuSubRowTextDisabled: { color: t.colors.text.faint, fontWeight: t.fontWeights.medium },
   menuRowInline: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  hamburger: { padding: 9, borderRadius: 10, backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.borders.base },
+  hamburger: {
+    padding: 9,
+    borderRadius: 10,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.borders.base,
+  },
   // Right-side drawer: page stays dimmed on the left, sheet covers ~84% of the width.
-  menuScrim: { flex: 1, backgroundColor: 'rgba(6,35,26,0.45)', flexDirection: 'row', justifyContent: 'flex-end' },
+  menuScrim: {
+    flex: 1,
+    backgroundColor: 'rgba(6,35,26,0.45)',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
   menuSheet: {
     width: '84%',
     maxWidth: 420,
@@ -832,12 +1099,35 @@ const styles = StyleSheet.create({
   menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   menuList: { flex: 1, marginTop: 40 },
   menuRow: { paddingVertical: 22, borderBottomWidth: 1, borderBottomColor: t.colors.borders.base },
-  menuRowText: { fontFamily: t.typography.title, fontSize: 27, fontWeight: t.fontWeights.semibold, letterSpacing: -0.3, color: t.colors.text.primary },
+  menuRowText: {
+    fontFamily: t.typography.title,
+    fontSize: 27,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: -0.3,
+    color: t.colors.text.primary,
+  },
   menuFooter: { gap: 18 },
-  menuTagline: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.semibold, letterSpacing: 2, color: t.colors.brand.deep },
-  primaryBtn: { borderRadius: t.radii.md, paddingVertical: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
+  menuTagline: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: 2,
+    color: t.colors.brand.deep,
+  },
+  primaryBtn: {
+    borderRadius: t.radii.md,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   primaryBtnLg: { paddingVertical: 14, paddingHorizontal: 30 },
-  primaryBtnText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.semibold, color: t.colors.text.onGreen },
+  primaryBtnText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.subhead,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.text.onGreen,
+  },
   primaryBtnTextLg: { fontSize: t.fontSizes.h4, fontWeight: t.fontWeights.bold },
   badge: {
     alignSelf: 'flex-start',
@@ -848,17 +1138,71 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  badgeText: { fontFamily: t.typography.mono, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.bold, letterSpacing: 0.4, color: t.colors.brand.deep },
-  card: { backgroundColor: t.colors.surfaces.base, borderRadius: 20, paddingVertical: 32, paddingHorizontal: 34 },
+  badgeText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.4,
+    color: t.colors.brand.deep,
+  },
+  card: {
+    backgroundColor: t.colors.surfaces.base,
+    borderRadius: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 34,
+  },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eyebrowSquare: { width: 13, height: 13, borderRadius: 0, backgroundColor: t.colors.brand.base },
-  eyebrowText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.small, fontWeight: t.fontWeights.semibold, letterSpacing: 2.4, color: t.colors.brand.deep },
-  sectionLabel: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.bold, letterSpacing: 2, color: t.colors.brand.deep },
-  labelMono: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.medium, letterSpacing: 1.2, color: t.colors.text.muted },
-  sectionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
-  sectionHeading: { fontFamily: t.typography.title, fontSize: t.fontSizes.displayLg, fontWeight: t.fontWeights.heavy, letterSpacing: -1.2, color: t.colors.text.primary },
-  viewAll: { backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.alpha.ink20, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginRight: 18 },
-  viewAllText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.bold, letterSpacing: 1.6, color: t.colors.text.primary },
+  eyebrowText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: 2.4,
+    color: t.colors.brand.deep,
+  },
+  sectionLabel: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 2,
+    color: t.colors.brand.deep,
+  },
+  labelMono: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.medium,
+    letterSpacing: 1.2,
+    color: t.colors.text.muted,
+  },
+  sectionHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  sectionHeading: {
+    fontFamily: t.typography.title,
+    fontSize: t.fontSizes.displayLg,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -1.2,
+    color: t.colors.text.primary,
+  },
+  viewAll: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink20,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginRight: 18,
+  },
+  viewAllText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.6,
+    color: t.colors.text.primary,
+  },
   infoCard: {
     flex: 1,
     minWidth: 140,
@@ -872,13 +1216,45 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 18,
   },
-  infoCardMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 18, paddingVertical: 20 },
-  infoIcon: { width: 40, height: 40, borderRadius: t.radii.sm, backgroundColor: t.colors.tint.t150, alignItems: 'center', justifyContent: 'center' },
+  infoCardMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 18,
+    paddingVertical: 20,
+  },
+  infoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: t.radii.sm,
+    backgroundColor: t.colors.tint.t150,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   infoText: { flex: 1, minWidth: 0, gap: 3 },
-  infoTitle: { fontFamily: t.typography.title, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
-  infoSubtitle: { fontFamily: t.typography.body, fontSize: t.fontSizes.body, color: t.colors.text.secondary },
-  tag: { backgroundColor: t.colors.surfaces.s400, borderRadius: t.radii.sm, paddingVertical: 6, paddingHorizontal: 12 },
-  tagText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.bold, letterSpacing: 0.7, color: t.colors.text.secondary },
+  infoTitle: {
+    fontFamily: t.typography.title,
+    fontSize: t.fontSizes.subhead,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  infoSubtitle: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    color: t.colors.text.secondary,
+  },
+  tag: {
+    backgroundColor: t.colors.surfaces.s400,
+    borderRadius: t.radii.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  tagText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.7,
+    color: t.colors.text.secondary,
+  },
   trackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -888,12 +1264,33 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
-  trackBtnText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.small, fontWeight: t.fontWeights.bold, color: t.colors.white },
-  billCard: { backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.borders.base, borderRadius: t.radii.lg, padding: 24, gap: 12 },
+  trackBtnText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.white,
+  },
+  billCard: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.borders.base,
+    borderRadius: t.radii.lg,
+    padding: 24,
+    gap: 12,
+  },
   billTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  billDesc: { fontFamily: t.typography.body, fontSize: t.fontSizes.subhead, lineHeight: 27, color: t.colors.text.primary },
+  billDesc: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.subhead,
+    lineHeight: 27,
+    color: t.colors.text.primary,
+  },
   billMeta: { marginTop: 2 },
-  billAuthor: { fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.secondary },
+  billAuthor: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.bodyLg,
+    color: t.colors.text.secondary,
+  },
   billAuthorName: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
   billTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
   googleBtn: {
@@ -909,7 +1306,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     ...(t.shadows.sm as object),
   },
-  googleBtnText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.bodyLg, fontWeight: t.fontWeights.semibold, color: t.colors.text.primary },
+  googleBtnText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.bodyLg,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.text.primary,
+  },
   cityChip: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -918,7 +1320,13 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 15,
   },
-  cityChipText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.semibold, letterSpacing: 0.7, color: t.colors.text.primary },
+  cityChipText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: 0.7,
+    color: t.colors.text.primary,
+  },
   addressBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -935,17 +1343,63 @@ const styles = StyleSheet.create({
     ...(t.shadows.sm as object),
   },
   addressField: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  addressInput: { flex: 1, minWidth: 0, fontFamily: t.typography.body, fontSize: t.fontSizes.bodyLg, color: t.colors.text.primary, paddingVertical: 12, ...(isWeb ? ({ outlineStyle: 'none' } as any) : null) },
+  addressInput: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.bodyLg,
+    color: t.colors.text.primary,
+    paddingVertical: 12,
+    ...(isWeb ? ({ outlineStyle: 'none' } as any) : null),
+  },
   footer: { backgroundColor: t.colors.footerBg, paddingTop: 56, paddingBottom: 44 },
-  footerTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 48 },
+  footerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 48,
+  },
   footerBrand: { maxWidth: 480 },
-  footerTagline: { fontFamily: t.typography.body, fontSize: 21, lineHeight: 29, fontWeight: '300' as const, letterSpacing: -0.2, color: '#eef1ef' },
+  footerTagline: {
+    fontFamily: t.typography.body,
+    fontSize: 21,
+    lineHeight: 29,
+    fontWeight: '300' as const,
+    letterSpacing: -0.2,
+    color: '#eef1ef',
+  },
   footerTaglineMobile: { fontSize: 16, lineHeight: 23 },
   footerTaglineAccent: { color: t.colors.brand.bright },
   footerLinks: { flexDirection: 'row', alignItems: 'center', gap: 34 },
-  footerLink: { fontFamily: t.typography.ui, fontSize: t.fontSizes.bodyLg, fontWeight: t.fontWeights.medium, color: '#cfd6d2' },
-  footerDivider: { height: 1, backgroundColor: t.colors.alpha.white12, marginTop: 40, marginBottom: 24 },
-  footerBottom: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 },
-  footerMeta: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, letterSpacing: 1.3, color: t.colors.text.muted },
-  footerMetaGreen: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, letterSpacing: 1.8, color: t.colors.brand.bright },
+  footerLink: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.bodyLg,
+    fontWeight: t.fontWeights.medium,
+    color: '#cfd6d2',
+  },
+  footerDivider: {
+    height: 1,
+    backgroundColor: t.colors.alpha.white12,
+    marginTop: 40,
+    marginBottom: 24,
+  },
+  footerBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 24,
+  },
+  footerMeta: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    letterSpacing: 1.3,
+    color: t.colors.text.muted,
+  },
+  footerMetaGreen: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    letterSpacing: 1.8,
+    color: t.colors.brand.bright,
+  },
 });
