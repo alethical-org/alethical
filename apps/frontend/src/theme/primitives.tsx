@@ -699,12 +699,13 @@ function FooterLink({ label, onPress }: { label: string; onPress?: () => void })
 }
 
 export function Footer({ onPrivacy, onTerms }: { onPrivacy?: () => void; onTerms?: () => void }) {
+  const { isMobile } = useResponsive();
   return (
     <View style={styles.footer}>
       <Container>
         <View style={styles.footerTop}>
           <View style={styles.footerBrand}>
-            <Text style={styles.footerTagline}>
+            <Text style={[styles.footerTagline, isMobile && styles.footerTaglineMobile]}>
               We hold these truths to be self-evident.{'\n'}
               <Text style={styles.footerTaglineAccent}>Alethical makes them accessible.</Text>
             </Text>
@@ -939,6 +940,7 @@ const styles = StyleSheet.create({
   footerTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 48 },
   footerBrand: { maxWidth: 480 },
   footerTagline: { fontFamily: t.typography.body, fontSize: 21, lineHeight: 29, fontWeight: '300' as const, letterSpacing: -0.2, color: '#eef1ef' },
+  footerTaglineMobile: { fontSize: 16, lineHeight: 23 },
   footerTaglineAccent: { color: t.colors.brand.bright },
   footerLinks: { flexDirection: 'row', alignItems: 'center', gap: 34 },
   footerLink: { fontFamily: t.typography.ui, fontSize: t.fontSizes.bodyLg, fontWeight: t.fontWeights.medium, color: '#cfd6d2' },
