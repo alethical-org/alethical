@@ -219,14 +219,14 @@ function FillChip({ label, city, onPress }: { label: string; city?: boolean; onP
       {...hoverProps}
       style={[
         city ? styles.cityChip : styles.exampleChip,
-        transition('border-color, color, box-shadow'),
+        transition('border-color, box-shadow'),
         hovered && styles.chipHover,
         hovered && (t.shadows.glowPurple as object),
       ]}
     >
-      <Text style={[city ? styles.cityChipText : styles.exampleChipText, hovered && { color: t.colors.purple.base }]}>
-        {label}
-      </Text>
+      {/* Hover turns only the border + glow purple (chipHover + glowPurple);
+          the label keeps its default color. */}
+      <Text style={city ? styles.cityChipText : styles.exampleChipText}>{label}</Text>
     </Pressable>
   );
 }
