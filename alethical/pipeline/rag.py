@@ -14,7 +14,6 @@ import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-
 CLEANING_VERSION = "v0.1"
 CHUNKING_VERSION = "v0.1"
 TARGET_CHUNK_WORDS = 220
@@ -29,6 +28,50 @@ BANNED_MARKERS = [
     "deleted text begin",
     "deleted text end",
 ]
+
+
+# SQL to find bill_keys whose current version has source sections but is missing
+# RAG sections, chunks, or embeddings for the target model. Shared by the Oban
+# RagBackfillWorker and scripts/backfill_rag_bulk.py so the discovery logic stays
+# in one place. Bind params: :cleaning_version, :chunking_version, :model.
+STALE_RAG_BILL_KEYS_SQL = """
+with current_versions as (
+  select distinct on (b.id) b.id as bill_id, b.bill_key, bv.id as bill_version_id
+  from bill b
+  join bill_version bv on bv.bill_id = b.id
+  where bv.is_current = true
+  order by b.id, bv.sequence_number desc
+),
+section_counts as (
+  select cv.bill_key, cv.bill_version_id, count(bvs.id) as source_sections
+  from current_versions cv
+  left join bill_version_section bvs on bvs.bill_version_id = cv.bill_version_id
+  group by cv.bill_key, cv.bill_version_id
+),
+rag_counts as (
+  select rsd.bill_version_id,
+         count(distinct rsd.id) as rag_sections,
+         count(rc.id) as rag_chunks,
+         count(rce.id) as rag_embeddings
+  from rag_section_document rsd
+  left join rag_chunk rc on rc.rag_section_document_id = rsd.id
+       and rc.chunking_version = :chunking_version
+  left join rag_chunk_embedding rce on rce.rag_chunk_id = rc.id
+       and rce.embedding_model = :model
+  where rsd.cleaning_version = :cleaning_version
+  group by rsd.bill_version_id
+)
+select sc.bill_key
+from section_counts sc
+left join rag_counts rc on rc.bill_version_id = sc.bill_version_id
+where sc.source_sections > 0
+  and (
+    coalesce(rc.rag_sections, 0) <> sc.source_sections
+    or coalesce(rc.rag_chunks, 0) = 0
+    or coalesce(rc.rag_chunks, 0) <> coalesce(rc.rag_embeddings, 0)
+  )
+order by sc.bill_key
+"""
 
 
 def read_json(path: Path) -> Dict[str, object]:

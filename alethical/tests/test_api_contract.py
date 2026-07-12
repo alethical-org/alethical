@@ -575,6 +575,20 @@ def test_signed_in_chat_session_and_message_flow(client, auth_headers, monkeypat
 
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setattr("alethical.api.routers.me.requests.post", fake_openai_post)
+    # build_query_embedding now delegates to rag_ingest._build_embeddings, which
+    # calls a different requests.post. Stub it to return a deterministic vector
+    # so retrieval still runs against the seeded chunks.
+    from alethical.pipeline.rag_ingest import (
+        VECTOR_DIMENSIONS,
+        _deterministic_embedding,
+    )
+
+    monkeypatch.setattr(
+        "alethical.api.routers.me._build_embeddings",
+        lambda texts, **kw: [
+            _deterministic_embedding(t, dimensions=VECTOR_DIMENSIONS) for t in texts
+        ],
+    )
     sessions_response = client.get("/api/v1/me/chat-sessions", headers=auth_headers)
     assert sessions_response.status_code == 200
     assert len(sessions_response.json()["data"]) >= 1

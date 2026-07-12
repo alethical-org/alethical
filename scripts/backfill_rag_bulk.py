@@ -16,48 +16,10 @@ from alethical.db.session import database_url_for_target, get_database_url
 from alethical.pipeline import rag as rag_text
 from alethical.pipeline.rag_ingest import _build_embeddings, _chunk_payloads
 
+MODEL = "text-embedding-3-small"
 
-MODEL = "demo-minilm-1536"
 
-
-MISSING_SQL = text(
-    """
-    with current_versions as (
-      select distinct on (b.id) b.id as bill_id, b.bill_key, bv.id as bill_version_id
-      from bill b
-      join bill_version bv on bv.bill_id = b.id
-      where bv.is_current = true
-      order by b.id, bv.sequence_number desc
-    ),
-    section_counts as (
-      select cv.bill_key, cv.bill_version_id, count(bvs.id) as source_sections
-      from current_versions cv
-      left join bill_version_section bvs on bvs.bill_version_id = cv.bill_version_id
-      group by cv.bill_key, cv.bill_version_id
-    ),
-    rag_counts as (
-      select rsd.bill_version_id,
-             count(distinct rsd.id) as rag_sections,
-             count(rc.id) as rag_chunks,
-             count(rce.id) as rag_embeddings
-      from rag_section_document rsd
-      left join rag_chunk rc on rc.rag_section_document_id = rsd.id and rc.chunking_version = :chunking_version
-      left join rag_chunk_embedding rce on rce.rag_chunk_id = rc.id and rce.embedding_model = :model
-      where rsd.cleaning_version = :cleaning_version
-      group by rsd.bill_version_id
-    )
-    select sc.bill_key
-    from section_counts sc
-    left join rag_counts rc on rc.bill_version_id = sc.bill_version_id
-    where sc.source_sections > 0
-      and (
-        coalesce(rc.rag_sections, 0) <> sc.source_sections
-        or coalesce(rc.rag_chunks, 0) = 0
-        or coalesce(rc.rag_chunks, 0) <> coalesce(rc.rag_embeddings, 0)
-      )
-    order by sc.bill_key
-    """
-)
+MISSING_SQL = text(rag_text.STALE_RAG_BILL_KEYS_SQL)
 
 
 PROD_SECTION_MAP_SQL = text(

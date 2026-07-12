@@ -4,10 +4,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from pathlib import Path
-from typing import Any
 import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import Session
@@ -593,7 +593,7 @@ def ingest_bill_payload(
             session.add(
                 RagChunkEmbedding(
                     rag_chunk_id=chunk_row.id,
-                    embedding_model="demo-minilm-1536",
+                    embedding_model="text-embedding-3-small",
                     embedding=deterministic_embedding(chunk["chunk_text"]),
                 )
             )

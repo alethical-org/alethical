@@ -29,9 +29,10 @@ from alethical.pipeline.oban_workers import (
     FullBillSyncWorker,
     ObanSmokeWorker,
     PipelineRunWorker,
+    RagBackfillChunkWorker,
+    RagBackfillWorker,
     VoteBackfillWorker,
 )
-
 
 ACTIVE_STATES = ("available", "scheduled", "retryable", "executing", "completed")
 
@@ -41,6 +42,8 @@ WORKERS = {
     "pipeline-run": PipelineRunWorker,
     "full-bill-sync": FullBillSyncWorker,
     "bill-sync-chunk": BillSyncChunkWorker,
+    "rag-backfill": RagBackfillWorker,
+    "rag-backfill-chunk": RagBackfillChunkWorker,
     "ai-prepare": AiBatchPrepareWorker,
     "ai-apply": AiBatchApplyWorker,
     "codex-ai-enqueue": CodexAiEnqueueWorker,
@@ -209,6 +212,27 @@ async def enqueue(args: argparse.Namespace) -> None:
                     "allow_writes": args.allow_writes,
                 }
             )
+        elif args.kind == "rag-backfill":
+            job_args.update(
+                {
+                    "rag_model": args.rag_model,
+                    "rag_embedding_batch_size": args.rag_embedding_batch_size,
+                    "rag_target": args.rag_target,
+                    "chunk_size": args.chunk_size,
+                    "dry_run": args.dry_run,
+                    "allow_writes": args.allow_writes,
+                    "force_chunks": args.force_child_jobs,
+                }
+            )
+        elif args.kind == "rag-backfill-chunk":
+            job_args.update(
+                {
+                    "bill_keys": json.loads(args.bill_keys_json),
+                    "rag_model": args.rag_model,
+                    "rag_embedding_batch_size": args.rag_embedding_batch_size,
+                    "rag_target": args.rag_target,
+                }
+            )
         elif args.kind == "ai-prepare":
             job_args.update(
                 {
@@ -345,6 +369,7 @@ def build_parser() -> argparse.ArgumentParser:
     enqueue_parser.add_argument("--max-bill-number", type=int, default=6000)
     enqueue_parser.add_argument("--chunk-size", type=int, default=25)
     enqueue_parser.add_argument("--targets-json", default="[]")
+    enqueue_parser.add_argument("--bill-keys-json", default="[]")
     enqueue_parser.add_argument("--refresh-existing", action="store_true")
     enqueue_parser.add_argument("--max-input-chars", type=int, default=60_000)
     enqueue_parser.add_argument("--force-enrichment", action="store_true")
@@ -371,7 +396,10 @@ def build_parser() -> argparse.ArgumentParser:
     enqueue_parser.add_argument("--skip-votes", action="store_true")
     enqueue_parser.add_argument("--skip-ai-prepare", action="store_true")
     enqueue_parser.add_argument("--skip-rag", action="store_true")
-    enqueue_parser.add_argument("--rag-model", default="demo-minilm-1536")
+    enqueue_parser.add_argument(
+        "--rag-model",
+        default=os.environ.get("OPENAI_RAG_EMBEDDING_MODEL", "text-embedding-3-small"),
+    )
     enqueue_parser.add_argument("--rag-embedding-batch-size", type=int, default=32)
     enqueue_parser.add_argument("--rag-target", default="production")
     enqueue_parser.add_argument("--force-child-jobs", action="store_true")

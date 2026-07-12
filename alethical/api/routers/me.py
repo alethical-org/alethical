@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
 import requests
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, select, text
 from sqlalchemy.orm import Session
 
@@ -26,7 +26,7 @@ from alethical.api.serializers import (
 )
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
-from alethical.pipeline.rag_ingest import _deterministic_embedding
+from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, _build_embeddings
 
 schema = load_schema()
 Bill = schema.Bill
@@ -35,7 +35,6 @@ ChatRole = schema.ChatRole
 ChatSession = schema.ChatSession
 NotificationChannel = schema.NotificationChannel
 NotificationPreference = schema.NotificationPreference
-RagChunkEmbedding = schema.RagChunkEmbedding
 SavedPlace = schema.SavedPlace
 TrackedBill = schema.TrackedBill
 TrackedBillModel = schema.TrackedBill
@@ -55,8 +54,13 @@ def get_bill_by_key(db: Session, bill_key: str):
 
 
 def build_query_embedding(text: str) -> list[float]:
-    """Use the same local embedding implementation as RAG ingestion."""
-    return _deterministic_embedding(text)
+    """Embed a user query using the same model as RAG ingestion.
+
+    Delegates to _build_embeddings so the query path and ingest path share one
+    OpenAI call site. Falls back to the deterministic hash embedding when
+    OPENAI_API_KEY is not set (tests, local dev).
+    """
+    return _build_embeddings([text], model=DEFAULT_RAG_MODEL, batch_size=1)[0]
 
 
 def extract_openai_response_text(payload: dict) -> str | None:
@@ -550,13 +554,15 @@ def create_chat_message(
         raise HTTPException(status_code=404, detail="bill not found")
 
     embedding = build_query_embedding(request.content)
-    probe_embedding = db.scalar(select(RagChunkEmbedding.embedding_model).limit(1))
     db.execute(text("SET LOCAL ivfflat.probes = 10"))
+    # Filter retrieval to chunks embedded with the same model used for the query
+    # vector, so cosine distance is meaningful. Chunks stored under a stale model
+    # are excluded until re-embedded by the RAG backfill.
     chunks = db.scalars(
         semantic_rag_chunk_stmt(
             embedding,
             bill_id=session_row.subject_bill_id,
-            embedding_model=probe_embedding,
+            embedding_model=DEFAULT_RAG_MODEL,
             limit=3,
         )
     ).all()

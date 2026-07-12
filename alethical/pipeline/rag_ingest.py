@@ -1,24 +1,32 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
 from hashlib import sha256
 from typing import Any
 
+import requests
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 
 from alethical.db import models as schema
 from alethical.pipeline import rag as rag_text
 
-
-DEFAULT_RAG_MODEL = "demo-minilm-1536"
+DEFAULT_RAG_MODEL = "text-embedding-3-small"
 DEFAULT_RAG_BATCH_SIZE = 32
 VECTOR_DIMENSIONS = 1536
+OPENAI_EMBEDDING_TIMEOUT_SECONDS = 60
 
 
 def _deterministic_embedding(
     text: str, dimensions: int = VECTOR_DIMENSIONS
 ) -> list[float]:
+    """Deterministic hash-based embedding used as a test/offline fallback.
+
+    Not semantically meaningful. Production code path uses _build_embeddings, which
+    calls the OpenAI embeddings API. This fallback exists so tests and local dev
+    can run without OPENAI_API_KEY set.
+    """
     values: list[float] = []
     seed = text.encode("utf-8")
     counter = 0
@@ -102,6 +110,8 @@ def _bill_rag_sections_complete(
     db: Any,
     version_id: Any,
     expected_sections: list[dict[str, Any]],
+    *,
+    embedding_model: str | None = None,
 ) -> bool:
     section_docs = db.scalars(
         select(schema.RagSectionDocument).where(
@@ -135,6 +145,20 @@ def _bill_rag_sections_complete(
         expected_chunks = expected["chunks"]
         if len(existing_chunks) != len(expected_chunks):
             return False
+        # Fetch embedding models for all chunks in one query to avoid N+1.
+        chunk_embedding_models: dict[Any, str | None] = {}
+        if embedding_model is not None and existing_chunks:
+            rows = db.execute(
+                select(
+                    schema.RagChunkEmbedding.rag_chunk_id,
+                    schema.RagChunkEmbedding.embedding_model,
+                ).where(
+                    schema.RagChunkEmbedding.rag_chunk_id.in_(
+                        [c.id for c in existing_chunks]
+                    )
+                )
+            ).all()
+            chunk_embedding_models = {row[0]: row[1] for row in rows}
         for chunk_index, (expected_chunk, existing_chunk) in enumerate(
             zip(expected_chunks, existing_chunks)
         ):
@@ -151,6 +175,11 @@ def _bill_rag_sections_complete(
                 return False
             if chunk_index != expected_chunk["chunk_index"]:
                 return False
+            # Re-embed when the target embedding model differs from what's stored.
+            # This lets a model bump trigger re-embedding without re-chunking.
+            if embedding_model is not None:
+                if chunk_embedding_models.get(existing_chunk.id) != embedding_model:
+                    return False
         if doc.citation_label != expected["citation_label"]:
             return False
         if doc.word_count != expected["word_count"]:
@@ -207,19 +236,66 @@ def _delete_bill_rag_rows(db: Any, bill_id: Any, version_id: Any) -> dict[str, i
     }
 
 
+def _openai_embeddings(
+    texts: list[str], *, model: str, batch_size: int
+) -> list[list[float]]:
+    """Call OpenAI embeddings API in batches.
+
+    Mirrors the requests-based pattern used in api/routers/me.py for synthesis.
+    Returns a flat list aligned with `texts`. Raises RuntimeError if
+    OPENAI_API_KEY is unset; raises requests.HTTPError on non-2xx responses
+    (e.g. rate limits) — callers running in Oban should rely on Oban's retry.
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "OPENAI_API_KEY is required to generate RAG embeddings via "
+            f"model={model}. Set the key or fall back to local fixtures."
+        )
+
+    out: list[list[float]] = []
+    for start in range(0, len(texts), max(1, batch_size)):
+        batch = texts[start : start + batch_size]
+        response = requests.post(
+            "https://api.openai.com/v1/embeddings",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "input": batch,
+                "dimensions": VECTOR_DIMENSIONS,
+                "encoding_format": "float",
+            },
+            timeout=OPENAI_EMBEDDING_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        data = sorted(payload.get("data", []), key=lambda d: d.get("index", 0))
+        if len(data) != len(batch):
+            raise RuntimeError(
+                f"OpenAI embeddings returned {len(data)} vectors for a batch of "
+                f"{len(batch)} inputs"
+            )
+        out.extend(item["embedding"] for item in data)
+    return out
+
+
 def _build_embeddings(
     texts: list[str], *, model: str, batch_size: int
 ) -> list[list[float]]:
-    _ = batch_size
     if not texts:
         return []
-    if str(model) != DEFAULT_RAG_MODEL:
-        # Force local deterministic embeddings to remain stable and uniform.
-        # Keeping a different model here would violate the pipeline-wide embedding policy.
-        model = DEFAULT_RAG_MODEL
-    return [
-        _deterministic_embedding(text, dimensions=VECTOR_DIMENSIONS) for text in texts
-    ]
+    if not os.environ.get("OPENAI_API_KEY"):
+        # Offline fallback for tests / local dev without an API key. The stored
+        # embedding_model column distinguishes these from real OpenAI embeddings,
+        # so a backfill will replace them when a key is present.
+        return [
+            _deterministic_embedding(text, dimensions=VECTOR_DIMENSIONS)
+            for text in texts
+        ]
+    return _openai_embeddings(texts, model=model, batch_size=batch_size)
 
 
 def _upsert_rag_section_with_chunks(
@@ -305,7 +381,6 @@ def build_rag_rows_for_bill_keys(
     rag_model: str = DEFAULT_RAG_MODEL,
     rag_embedding_batch_size: int = DEFAULT_RAG_BATCH_SIZE,
 ) -> dict[str, Any]:
-    rag_model = DEFAULT_RAG_MODEL
     bill_keys = _bill_keys(bill_keys)
     summary: dict[str, Any] = {
         "bill_keys": bill_keys,
@@ -374,7 +449,12 @@ def build_rag_rows_for_bill_keys(
         ]
         summary["bills_processed"] += 1
 
-        if _bill_rag_sections_complete(db, bill_version.id, prepared_sections):
+        if _bill_rag_sections_complete(
+            db,
+            bill_version.id,
+            prepared_sections,
+            embedding_model=rag_model,
+        ):
             summary["rag_already_exists"] += 1
             summary["rag_results"].append(
                 {
