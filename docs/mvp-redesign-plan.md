@@ -175,7 +175,7 @@ Frontend track (after Phase 0; parallel with backend track)
 - [ ] About static pages (About Us / Trust & Integrity / Contact Us); Trust page as real brand copy
 - [ ] Account menu + nav-after-sign-in; move Privacy/Terms into footer
 - [ ] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect
-- [ ] Green token flip (web; re-skins the post-MVP iOS/Android clients for free via shared tokens) — [#136](https://github.com/alethical-org/alethical/issues/136)
+- [x] Green token flip (web; re-skins the post-MVP iOS/Android clients for free via shared tokens) — [#136](https://github.com/alethical-org/alethical/issues/136); landed with the signed-out home ship (PR #67)
 - [ ] Upgrade Ask hero to the one-free-answer funnel when the backend un-stub is live
 
 ## Open items (still undecided)
