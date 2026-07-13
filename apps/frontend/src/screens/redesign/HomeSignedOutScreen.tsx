@@ -1411,7 +1411,9 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.small,
     lineHeight: 20,
-    color: t.colors.text.faint,
+    // muted, not faint: this note sits on the tinted card bg (#f7f9f8), where faint
+    // (#70776f) is only 4.36:1 — below WCAG AA. muted (#656c66) is ~5.0:1 there.
+    color: t.colors.text.muted,
   },
   answerFooter: {
     marginTop: 12,
