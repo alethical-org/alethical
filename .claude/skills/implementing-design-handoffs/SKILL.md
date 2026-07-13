@@ -20,6 +20,7 @@ Not for: pure backend/data work, or design *decisions* still in flux (those go t
 
 ## Procedure
 
+0. **Intake first if the prompt is terse or ambiguous.** Run `design-task-intake` to proof the prompt for missing high-value context and confirm which assets are actually needed (usually none — the bundle is already in-repo) before building. Skip only when the task is already fully specified.
 1. **Land the bundle in-repo first.** Copy the handoff bundle to `docs/mockups/<page>/` (drop `support.js` — prototype runtime — and `.DS_Store`; rename any spaced filename). Build from that tracked path, never from a `~/Downloads` copy that goes stale (`.claude/rules/workflow.md` rule 3). Prepend a repo-context note (naming, held items, tokens location). The bundle's `README.md` is the per-page spec; the `.dc.html` is the literal-values reference; `screenshots/` are visual QA targets.
 2. **Target branch = the one with the green design system.** Currently `redesign/design-system` (PR #67): it holds `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx`. Sync it with `main` first. Do **not** branch off `main` yet — you'd get the old theme and no primitives. (Once the foundation has merged to `main` with the first page, later pages branch per-page off `main`.)
 3. **Build in RN from the spec.** Reuse the tokens + primitives; add any token the design needs that's missing, pulling exact values from the README / `.dc.html`. Match the screenshots. Ignore `support.js`.
