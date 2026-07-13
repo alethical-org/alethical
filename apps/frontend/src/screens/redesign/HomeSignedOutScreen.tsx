@@ -301,19 +301,23 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         <View style={styles.hairlineFlex} />
       </View>
 
-      {/* badge + meta — on mobile the badge sits above a single stacked meta column */}
-      <View style={[styles.billMetaRow, isMobile && styles.billMetaRowMobile]}>
-        <Pressable
-          accessibilityRole="link"
-          onPress={() => openExternal(HF4138_STATUS_URL)}
-          {...badgeHover}
-          style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
-        >
-          <Text style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}>HF 4138</Text>
-        </Pressable>
-        <View style={styles.billMetaCols}>
-          <View style={[styles.billMetaColsRow, isMobile && styles.billMetaColsRowMobile]}>
-            <View>
+      {/* badge + meta. Mobile: compact 2×2 grid (fixed 90px left column shared by
+          badge + votes; right column holds dates and author/companion, both aligned
+          at 90 + 20px). Desktop unchanged. */}
+      {isMobile ? (
+        <View style={styles.billMetaMobile}>
+          <View style={styles.billMetaMobileRow}>
+            <View style={styles.billMetaMobileBadgeCell}>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => openExternal(HF4138_STATUS_URL)}
+                {...badgeHover}
+                style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
+              >
+                <Text style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}>HF 4138</Text>
+              </Pressable>
+            </View>
+            <View style={styles.billMetaMobileRight}>
               <Text style={styles.billMetaText}>
                 <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
               </Text>
@@ -321,7 +325,17 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 <Text style={styles.billMetaBold}>Effective</Text> July 1, 2027
               </Text>
             </View>
-            <View>
+          </View>
+          <View style={[styles.billMetaMobileRow, { marginTop: 12 }]}>
+            <View style={styles.billMetaMobileVotesCell}>
+              <Text style={styles.billMetaText}>
+                House <Text style={styles.billVoteNum}>132–2</Text>
+              </Text>
+              <Text style={[styles.billMetaText, { marginTop: 2 }]}>
+                Senate <Text style={styles.billVoteNum}>66–0</Text>
+              </Text>
+            </View>
+            <View style={styles.billMetaMobileRight}>
               <View style={styles.billMetaLinkRow}>
                 <Text style={styles.billMetaText}>Chief author </Text>
                 <TextLink label="Rep. Peggy Scott →" size={13} weight="600" onPress={() => openExternal(HF4138_AUTHOR_URL)} />
@@ -332,9 +346,42 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
               </View>
             </View>
           </View>
-          <Text style={[styles.billMetaText, { marginTop: 10 }]}>House 132–2 · Senate 66–0</Text>
         </View>
-      </View>
+      ) : (
+        <View style={styles.billMetaRow}>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => openExternal(HF4138_STATUS_URL)}
+            {...badgeHover}
+            style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
+          >
+            <Text style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}>HF 4138</Text>
+          </Pressable>
+          <View style={styles.billMetaCols}>
+            <View style={styles.billMetaColsRow}>
+              <View>
+                <Text style={styles.billMetaText}>
+                  <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
+                </Text>
+                <Text style={[styles.billMetaText, { marginTop: 2 }]}>
+                  <Text style={styles.billMetaBold}>Effective</Text> July 1, 2027
+                </Text>
+              </View>
+              <View>
+                <View style={styles.billMetaLinkRow}>
+                  <Text style={styles.billMetaText}>Chief author </Text>
+                  <TextLink label="Rep. Peggy Scott →" size={13} weight="600" onPress={() => openExternal(HF4138_AUTHOR_URL)} />
+                </View>
+                <View style={[styles.billMetaLinkRow, { marginTop: 2 }]}>
+                  <Text style={styles.billMetaText}>Companion bill </Text>
+                  <TextLink label="SF 4696 →" size={13} weight="600" onPress={() => openExternal(SF4696_URL)} />
+                </View>
+              </View>
+            </View>
+            <Text style={[styles.billMetaText, { marginTop: 10 }]}>House 132–2 · Senate 66–0</Text>
+          </View>
+        </View>
+      )}
 
       <View style={styles.hairline} />
 
@@ -960,7 +1007,6 @@ const styles = StyleSheet.create({
   hairlineFlex: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink08 },
   hairline: { height: 1, backgroundColor: t.colors.alpha.ink08, marginBottom: 14 },
   billMetaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap', marginBottom: 14 },
-  billMetaRowMobile: { flexDirection: 'column', gap: 12 },
   billBadgeLg: {
     marginTop: 5,
     backgroundColor: t.colors.tint.t150,
@@ -973,10 +1019,15 @@ const styles = StyleSheet.create({
   billBadgeLgText: { fontFamily: t.typography.mono, fontSize: t.fontSizes.bodyLg, fontWeight: t.fontWeights.bold, letterSpacing: 0.6, color: t.colors.brand.deep },
   billMetaCols: { flex: 1, minWidth: 0 },
   billMetaColsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' },
-  billMetaColsRowMobile: { flexDirection: 'column', gap: 8 },
   billMetaText: { fontFamily: t.typography.body, fontSize: t.fontSizes.meta, lineHeight: 21, color: t.colors.text.secondary },
   billMetaBold: { fontWeight: t.fontWeights.bold },
   billMetaLinkRow: { flexDirection: 'row', alignItems: 'center' },
+  // Mobile compact metadata grid: fixed 90px left column + 20px gap + flexible right column.
+  billMetaMobile: { marginBottom: 14 },
+  billMetaMobileRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 20 },
+  billMetaMobileBadgeCell: { width: 90, alignItems: 'center' },
+  billMetaMobileVotesCell: { width: 90 },
+  billMetaMobileRight: { flex: 1, minWidth: 0 },
   answerSummary: { fontFamily: t.typography.body, fontSize: t.fontSizes.subheadLg, lineHeight: 27, color: t.colors.ink, marginBottom: 14 },
   answerSummaryBold: { fontWeight: t.fontWeights.semibold },
   citedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
