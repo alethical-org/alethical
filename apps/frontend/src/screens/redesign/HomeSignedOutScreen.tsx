@@ -920,7 +920,9 @@ export function HomeSignedOutScreen() {
                       />
                       <TextInput
                         ref={askInputRef}
-                        accessibilityLabel="Ask about bills or legislators"
+                        // No accessibilityLabel: the descriptive placeholder is the field's
+                        // accessible name. An aria-label here would make screen readers announce
+                        // both it AND the placeholder (a11y refinement, see web-design-guidelines skill).
                         value={askValue}
                         onChangeText={setAskValue}
                         onFocus={() => setAskFocused(true)}
@@ -1032,7 +1034,7 @@ export function HomeSignedOutScreen() {
                     <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
                     <TextInput
                       ref={finderInputRef}
-                      accessibilityLabel="Find your legislator by address, city, or area"
+                      // No accessibilityLabel: the placeholder names the field (see ask input above).
                       value={finderValue}
                       onChangeText={setFinderValue}
                       onFocus={() => setFinderFocused(true)}
