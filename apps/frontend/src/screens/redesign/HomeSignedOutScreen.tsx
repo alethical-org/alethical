@@ -1025,8 +1025,11 @@ const styles = StyleSheet.create({
   // Mobile compact metadata grid: fixed 90px left column + 20px gap + flexible right column.
   billMetaMobile: { marginBottom: 14 },
   billMetaMobileRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 20 },
-  billMetaMobileBadgeCell: { width: 90, alignItems: 'center' },
-  billMetaMobileVotesCell: { width: 90 },
+  // Left column wide enough for the "HF 4138" badge on one line; badge left-aligned
+  // (flush with the votes below it), matching the design. Both cells share the width
+  // so the right column aligns across both rows.
+  billMetaMobileBadgeCell: { width: 104, alignItems: 'flex-start' },
+  billMetaMobileVotesCell: { width: 104 },
   billMetaMobileRight: { flex: 1, minWidth: 0 },
   answerSummary: { fontFamily: t.typography.body, fontSize: t.fontSizes.subheadLg, lineHeight: 27, color: t.colors.ink, marginBottom: 14 },
   answerSummaryBold: { fontWeight: t.fontWeights.semibold },
