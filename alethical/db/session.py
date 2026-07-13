@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import os
-import re
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
-from sqlalchemy import create_engine
+from sqlalchemy import URL, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 
@@ -61,15 +61,31 @@ def supabase_database_url() -> str | None:
     password = os.environ.get("SUPABASE_DB_PASSWORD")
     if not project_url or not password:
         return None
-    project_ref = os.environ.get("SUPABASE_PROJECT_REF") or re.sub(
-        r"^https?://([^.]+).*$", r"\1", project_url
+    project_ref = os.environ.get("SUPABASE_PROJECT_REF") or _project_ref_from_url(
+        project_url
     )
     pooler_host = os.environ.get(
         "SUPABASE_POOLER_HOST", "aws-1-us-east-2.pooler.supabase.com"
     )
-    return normalize_database_url(
-        f"postgresql://postgres.{project_ref}:{password}@{pooler_host}:6543/postgres?sslmode=require"
-    )
+    return URL.create(
+        "postgresql+psycopg",
+        username=f"postgres.{project_ref}",
+        password=password,
+        host=pooler_host,
+        port=6543,
+        database="postgres",
+        query={"sslmode": "require"},
+    ).render_as_string(hide_password=False)
+
+
+def _project_ref_from_url(project_url: str) -> str:
+    """Extract the Supabase project ref (first subdomain label) from its URL."""
+    hostname = urlparse(project_url).hostname
+    if not hostname:
+        raise ValueError(
+            f"Could not parse hostname from SUPABASE_PROJECT_URL: {project_url!r}"
+        )
+    return hostname.split(".")[0]
 
 
 def database_url_for_target(target: str | None, explicit_url: str | None = None) -> str:
