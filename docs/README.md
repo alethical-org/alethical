@@ -9,7 +9,8 @@ Project documentation lives here so the repository root stays focused on runnabl
 - [MVP redesign plan](mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker
 - [Frontend screen system design](frontend-screen-system-design.md)
 - [Bill search screen spec](bill-search-screen-spec.md) — v1 bill search (`/bills`)
-- [Visual design style](aesthetics.md) — current Newsprint tokens; v1 redesign → green (see MVP redesign plan)
+- [Design principles](design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
+- [Visual design style](aesthetics.md) — retired Newsprint identity (historical); superseded by design principles + green tokens
 
 ## Backend And Data
 
