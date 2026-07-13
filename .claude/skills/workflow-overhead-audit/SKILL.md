@@ -27,7 +27,7 @@ Verdicts for layers 1–2 are applied in the same pass (`.claude/rules/workflow.
 3. **Score value on evidence only.** A gate earns its keep by pointing at something: a named incident it prevented or caught (PR, issue, observation-log entry) or a correctness guarantee it enforces. Ask "what did this catch in the last ~20 sessions?" — silence is a trim signal. Also verify each gate's *facts* are still true (branch names, paths, tool claims): a stale instruction is a negative-value gate — it actively costs time.
 4. **Verdict** per gate: **keep / trim** (shorten, make conditional) **/ merge / drop**. Exempt from trimming: safety rails — the leak-guard commit hook, `.claude/rules/grounded-answers.md` invariants, CI correctness and format checks. The target is redundant process, never protection.
 5. **Record** the repo-layer table in `audits/YYYY-MM-DD-<task-type>.md` beside this skill. Diff against the most recent previous record and lead with deltas: gates added since, kept gates still silent, dropped gates whose absence caused an incident (a re-add signal).
-6. **Apply** layer-1/2 verdicts in the same pass (one PR); ship layer-3 verdicts as copy-paste edits in the summary.
+6. **Apply** layer-1/2 verdicts in the same pass (one PR) — including meaning-preserving rewrites of a rule or skill file. Don't propose them for approval: the audit record's before/after diff is the verification and `git revert` undoes it cleanly, so `workflow.md` rule 10's "can't cheaply verify → propose-first" bar does not gate audit edits. Only the exempt safety rails (step 4) stay off-limits. Ship layer-3 verdicts as copy-paste edits in the summary.
 
 ## Cadence
 
