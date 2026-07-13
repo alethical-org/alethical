@@ -232,6 +232,11 @@ function TextLink({
   );
 }
 
+// Min time the purple press-glow stays lit after a chip press-in, so a quick tap still
+// gets a full pulse; a press-and-hold keeps glowing past it. Mirrors the capability
+// cards' CARD_PULSE_MS so the two press-glows feel identical.
+const CHIP_PULSE_MS = 650;
+
 /** Hero example chip / finder city chip — purple hover glow, fills its input. */
 function FillChip({
   label,
@@ -244,22 +249,36 @@ function FillChip({
 }) {
   const [hovered, hoverProps] = useHover();
   const { isMobile } = useResponsive();
-  // Touch has no hover, so a tap shows the same purple glow transiently (~650ms),
-  // then the .18s transition fades it out. Covers both hero example chips and city chips.
-  const [tapped, setTapped] = useState(false);
-  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => (tapTimer.current ? clearTimeout(tapTimer.current) : undefined), []);
-  const glow = hovered || tapped;
-  const handlePress = () => {
-    setTapped(true);
-    if (tapTimer.current) clearTimeout(tapTimer.current);
-    tapTimer.current = setTimeout(() => setTapped(false), 650);
-    onPress();
+  // Touch has no hover, so a press shows the same purple glow the chip uses on hover.
+  // The glow appears on press-in and stays lit while held (press-and-hold), matching
+  // the capability cards' green press-glow; on release it fades no sooner than
+  // CHIP_PULSE_MS, so a quick tap still gets a full pulse. Unlike the cards, a chip only
+  // fills its input (it never unmounts), so onPress fires immediately and the glow fades
+  // independently on release. Covers both hero example chips and city chips.
+  const [pressed, setPressed] = useState(false);
+  const pressStart = useRef<number | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (settleTimer.current ? clearTimeout(settleTimer.current) : undefined), []);
+  const glow = hovered || pressed;
+  const handlePressIn = () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    pressStart.current = Date.now();
+    setPressed(true);
+  };
+  // Drop the glow no sooner than CHIP_PULSE_MS after press-in. Fires on every release
+  // (tap or drag-off), so the glow always clears; the fill runs from onPress.
+  const handlePressOut = () => {
+    const elapsed = pressStart.current != null ? Date.now() - pressStart.current : CHIP_PULSE_MS;
+    const remaining = Math.max(0, CHIP_PULSE_MS - elapsed);
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => setPressed(false), remaining);
   };
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={onPress}
       {...hoverProps}
       style={[
         city ? styles.cityChip : styles.exampleChip,
@@ -268,7 +287,7 @@ function FillChip({
         glow && (t.shadows.glowPurple as object),
       ]}
     >
-      {/* Hover/tap turns only the border + glow purple (chipHover + glowPurple);
+      {/* Hover/press turns only the border + glow purple (chipHover + glowPurple);
           the label keeps its default color. */}
       <Text
         style={[
