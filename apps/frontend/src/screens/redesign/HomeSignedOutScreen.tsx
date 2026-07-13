@@ -1,5 +1,14 @@
 import { useRef, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Check, MapPin, Plus, Search } from 'lucide-react-native';
@@ -30,7 +39,11 @@ const isWeb = Platform.OS === 'web';
 // .18s ease micro-transitions (README "Hover / focus micro-states") — web only.
 const transition = (props: string): object =>
   isWeb
-    ? ({ transitionProperty: props, transitionDuration: '0.18s', transitionTimingFunction: 'ease' } as object)
+    ? ({
+        transitionProperty: props,
+        transitionDuration: '0.18s',
+        transitionTimingFunction: 'ease',
+      } as object)
     : {};
 
 const openExternal = (url: string) => {
@@ -110,7 +123,10 @@ const RECENTLY_DECIDED: SampleBill[] = [
     action: 'Vetoed by the Governor',
     actionDate: 'June 30, 2026',
     votes: { text: 'House 68–66 · Senate 34–33' },
-    amberNote: { lead: 'Possible next step: ', bold: 'override needs two-thirds — 90 House · 45 Senate' },
+    amberNote: {
+      lead: 'Possible next step: ',
+      bold: 'override needs two-thirds — 90 House · 45 Senate',
+    },
     tags: ['TAXATION', 'TRANSPORTATION'],
   },
 ];
@@ -138,7 +154,8 @@ const MOVING_NOW: SampleBill[] = [
     summary:
       'Appropriates $120M to the Border-to-Border Broadband fund, prioritizing unserved rural households, and shortens the challenge-process window that lets incumbents contest grant awards.',
     author: 'Representative Patty Acomb',
-    action: 'Received from House, first reading, referred to Agriculture, Veterans, Broadband and Rural Development',
+    action:
+      'Received from House, first reading, referred to Agriculture, Veterans, Broadband and Rural Development',
     actionDate: 'June 5, 2026',
     votes: { text: 'House 121–12', pendingNote: '· Senate vote pending' },
     tags: ['INFRASTRUCTURE', 'RURAL DEVELOPMENT'],
@@ -211,7 +228,15 @@ function TextLink({
 }
 
 /** Hero example chip / finder city chip — purple hover glow, fills its input. */
-function FillChip({ label, city, onPress }: { label: string; city?: boolean; onPress: () => void }) {
+function FillChip({
+  label,
+  city,
+  onPress,
+}: {
+  label: string;
+  city?: boolean;
+  onPress: () => void;
+}) {
   const [hovered, hoverProps] = useHover();
   return (
     <Pressable
@@ -252,7 +277,17 @@ const HF4138_TEXT_URL = 'https://www.revisor.mn.gov/bills/94/2026/0/HF/4138/vers
 const HF4138_AUTHOR_URL = 'https://www.house.mn.gov/members/profile/15314';
 const SF4696_URL = 'https://www.revisor.mn.gov/bills/94/2026/0/SF/4696/';
 
-function CitedSectionCard({ n, title, quote, note }: { n: string; title: string; quote: string; note?: string }) {
+function CitedSectionCard({
+  n,
+  title,
+  quote,
+  note,
+}: {
+  n: string;
+  title: string;
+  quote: string;
+  note?: string;
+}) {
   return (
     <View style={styles.sectionCardBox}>
       <View style={styles.sectionCardHead}>
@@ -303,7 +338,14 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 {...badgeHover}
                 style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
               >
-                <Text style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}>HF 4138</Text>
+                <Text
+                  style={[
+                    styles.billBadgeLgText,
+                    badgeHovered && { textDecorationLine: 'underline' },
+                  ]}
+                >
+                  HF 4138
+                </Text>
               </Pressable>
             </View>
             <View style={styles.billMetaMobileRight}>
@@ -327,11 +369,21 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
             <View style={styles.billMetaMobileRight}>
               <View style={styles.billMetaLinkRow}>
                 <Text style={styles.billMetaText}>Chief author </Text>
-                <TextLink label="Rep. Peggy Scott →" size={13} weight="600" onPress={() => openExternal(HF4138_AUTHOR_URL)} />
+                <TextLink
+                  label="Rep. Peggy Scott →"
+                  size={13}
+                  weight="600"
+                  onPress={() => openExternal(HF4138_AUTHOR_URL)}
+                />
               </View>
               <View style={[styles.billMetaLinkRow, { marginTop: 2 }]}>
                 <Text style={styles.billMetaText}>Companion bill </Text>
-                <TextLink label="SF 4696 →" size={13} weight="600" onPress={() => openExternal(SF4696_URL)} />
+                <TextLink
+                  label="SF 4696 →"
+                  size={13}
+                  weight="600"
+                  onPress={() => openExternal(SF4696_URL)}
+                />
               </View>
             </View>
           </View>
@@ -344,7 +396,11 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
             {...badgeHover}
             style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
           >
-            <Text style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}>HF 4138</Text>
+            <Text
+              style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}
+            >
+              HF 4138
+            </Text>
           </Pressable>
           <View style={styles.billMetaCols}>
             <View style={styles.billMetaColsRow}>
@@ -359,11 +415,21 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
               <View>
                 <View style={styles.billMetaLinkRow}>
                   <Text style={styles.billMetaText}>Chief author </Text>
-                  <TextLink label="Rep. Peggy Scott →" size={13} weight="600" onPress={() => openExternal(HF4138_AUTHOR_URL)} />
+                  <TextLink
+                    label="Rep. Peggy Scott →"
+                    size={13}
+                    weight="600"
+                    onPress={() => openExternal(HF4138_AUTHOR_URL)}
+                  />
                 </View>
                 <View style={[styles.billMetaLinkRow, { marginTop: 2 }]}>
                   <Text style={styles.billMetaText}>Companion bill </Text>
-                  <TextLink label="SF 4696 →" size={13} weight="600" onPress={() => openExternal(SF4696_URL)} />
+                  <TextLink
+                    label="SF 4696 →"
+                    size={13}
+                    weight="600"
+                    onPress={() => openExternal(SF4696_URL)}
+                  />
                 </View>
               </View>
             </View>
@@ -375,16 +441,23 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       <View style={styles.hairline} />
 
       <Text style={styles.answerSummary}>
-        Minnesota's <Text style={styles.answerSummaryBold}>Stop Harms from Addictive Social Media Act</Text> will
-        require parental consent for kids under 16, ban addictive features, and default their accounts to the
-        strictest privacy.
+        Minnesota's{' '}
+        <Text style={styles.answerSummaryBold}>Stop Harms from Addictive Social Media Act</Text>{' '}
+        will require parental consent for kids under 16, ban addictive features, and default their
+        accounts to the strictest privacy.
       </Text>
 
       <View style={styles.citedRow}>
         <Text style={styles.citedLabel}>Cited</Text>
         <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
           <Circle cx={12} cy={12} r={9} stroke={t.colors.brand.deep} strokeWidth={2} />
-          <Path d="M8.5 12.2 L11 14.7 L15.7 9.6" stroke={t.colors.brand.deep} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <Path
+            d="M8.5 12.2 L11 14.7 L15.7 9.6"
+            stroke={t.colors.brand.deep}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </Svg>
         <Text style={styles.citedLabel}>Section 325M.40</Text>
       </View>
@@ -393,18 +466,24 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         <CitedSectionCard
           n="1"
           title="3(b) — Parental consent"
-          quote={'"A covered social media platform may not create an account for a user identified as a child … without first obtaining verifiable parental consent."'}
+          quote={
+            '"A covered social media platform may not create an account for a user identified as a child … without first obtaining verifiable parental consent."'
+          }
         />
         <CitedSectionCard
           n="2"
           title="5(a) — Addictive features"
-          quote={'"A covered social media platform may not present addictive interface features in the display or feed of any account of a child."'}
+          quote={
+            '"A covered social media platform may not present addictive interface features in the display or feed of any account of a child."'
+          }
           note="Such as infinite scrolling, autoplay video, and push notifications"
         />
         <CitedSectionCard
           n="3"
           title="4(a) — Privacy by default"
-          quote={'"An account for a child shall have all privacy settings set by default at the most private levels."'}
+          quote={
+            '"An account for a child shall have all privacy settings set by default at the most private levels."'
+          }
         />
       </View>
 
@@ -453,11 +532,23 @@ function CapabilityCard({
               <Path d="M16.5 16.5 L21 21" stroke={c} strokeWidth={2} strokeLinecap="round" />
             </>
           ) : null}
-          {icon === 'bookmark' ? <Path d="M7 4 h10 v16 l-5 -4 l-5 4 Z" stroke={c} strokeWidth={2} strokeLinejoin="round" /> : null}
+          {icon === 'bookmark' ? (
+            <Path
+              d="M7 4 h10 v16 l-5 -4 l-5 4 Z"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+          ) : null}
           {icon === 'person' ? (
             <>
               <Circle cx={12} cy={8} r={3.4} stroke={c} strokeWidth={2} />
-              <Path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke={c} strokeWidth={2} strokeLinecap="round" />
+              <Path
+                d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"
+                stroke={c}
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
             </>
           ) : null}
         </Svg>
@@ -506,7 +597,11 @@ function TrackButtonDark({ onPress }: { onPress?: () => void }) {
       accessibilityLabel="Track bill"
       onPress={onPress}
       {...hoverProps}
-      style={[styles.trackBtn, t.shadows.md as object, hovered && { backgroundColor: '#000000', borderColor: '#000000' }]}
+      style={[
+        styles.trackBtn,
+        t.shadows.md as object,
+        hovered && { backgroundColor: '#000000', borderColor: '#000000' },
+      ]}
     >
       <Plus size={16} color={t.colors.white} strokeWidth={2.8} />
       <Text style={styles.trackBtnText}>Track</Text>
@@ -526,7 +621,10 @@ function AmberFlag() {
 function CompanionPill({ label }: { label: string }) {
   const [hovered, hoverProps] = useHover();
   return (
-    <View {...hoverProps} style={[styles.companionPill, hovered && { borderColor: t.colors.brand.base }]}>
+    <View
+      {...hoverProps}
+      style={[styles.companionPill, hovered && { borderColor: t.colors.brand.base }]}
+    >
       <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
         <Path
           d="M4 8 H17 M13.5 4.5 L17 8 L13.5 11.5 M20 16 H7 M10.5 12.5 L7 16 L10.5 19.5"
@@ -581,7 +679,9 @@ function BillCardV2({ bill, onTrack }: { bill: SampleBill; onTrack: () => void }
                 <Text key={i}>{part}</Text>
               ),
             )}
-            {bill.votes.pendingNote ? <Text style={styles.billVotePending}> {bill.votes.pendingNote}</Text> : null}
+            {bill.votes.pendingNote ? (
+              <Text style={styles.billVotePending}> {bill.votes.pendingNote}</Text>
+            ) : null}
           </Text>
         </View>
       ) : null}
@@ -695,7 +795,12 @@ export function HomeSignedOutScreen() {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           {/* HERO WRAPPER */}
           <View style={[styles.heroWrap, heroGradientWeb]}>
-            {isWeb ? <View pointerEvents="none" style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]} /> : null}
+            {isWeb ? (
+              <View
+                pointerEvents="none"
+                style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
+              />
+            ) : null}
 
             <TopNav
               variant="home"
@@ -715,8 +820,8 @@ export function HomeSignedOutScreen() {
                     <Text style={styles.heroH1Green}>on Minnesota law</Text>
                   </Text>
                   <Text style={[styles.heroSubhead, !isDesktop && styles.heroSubheadMobile]}>
-                    We read every bill so you don't have to — what it says, where it stands, and how everyone voted.
-                    Plain language, every answer linked to official sources.
+                    We read every bill so you don't have to — what it says, where it stands, and how
+                    everyone voted. Plain language, every answer linked to official sources.
                   </Text>
 
                   {/* ASK FIELD */}
@@ -733,7 +838,11 @@ export function HomeSignedOutScreen() {
                       placeholderTextColor={t.colors.text.faint}
                       style={styles.askInput}
                     />
-                    <Pressable accessibilityRole="button" onPress={submitAsk} style={styles.askButton}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={submitAsk}
+                      style={styles.askButton}
+                    >
                       <Text style={styles.askButtonText}>Ask</Text>
                     </Pressable>
                   </FieldShell>
@@ -784,13 +893,21 @@ export function HomeSignedOutScreen() {
 
           {/* FIND MY LEGISLATOR */}
           <View style={[styles.finderBand, finderGradientWeb]}>
-            {isWeb ? <View pointerEvents="none" style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]} /> : null}
+            {isWeb ? (
+              <View
+                pointerEvents="none"
+                style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
+              />
+            ) : null}
             <Container>
               <View style={[styles.finderGrid, isDesktop && styles.finderGridDesktop]}>
                 <View style={styles.finderLeft}>
-                  <Text style={[styles.finderH2, !isDesktop && styles.finderH2Mobile]}>Find My Legislator</Text>
+                  <Text style={[styles.finderH2, !isDesktop && styles.finderH2Mobile]}>
+                    Find My Legislator
+                  </Text>
                   <Text style={styles.finderSub}>
-                    Find who represents you — their profile, committees, and the bills they've authored.
+                    Find who represents you — their profile, committees, and the bills they've
+                    authored.
                   </Text>
                   <FieldShell focused={finderFocused} style={styles.finderShell}>
                     <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
@@ -805,7 +922,10 @@ export function HomeSignedOutScreen() {
                       placeholderTextColor={t.colors.text.faint}
                       style={styles.finderInput}
                     />
-                    <PrimaryButton label="Find" onPress={() => navigation.navigate('FindMyLegislator')} />
+                    <PrimaryButton
+                      label="Find"
+                      onPress={() => navigation.navigate('FindMyLegislator')}
+                    />
                   </FieldShell>
                   <View style={styles.cityRow}>
                     {CITIES.map((city) => (
@@ -856,12 +976,19 @@ export function HomeSignedOutScreen() {
           {/* START KNOWING */}
           <View style={styles.accountSection}>
             <Container>
-              <View style={[styles.accountCard, accountGradientWeb, !isDesktop && styles.accountCardStacked]}>
+              <View
+                style={[
+                  styles.accountCard,
+                  accountGradientWeb,
+                  !isDesktop && styles.accountCardStacked,
+                ]}
+              >
                 <View style={[styles.accountText, !isDesktop && styles.accountColMobile]}>
                   <Text style={styles.accountH3}>Start Knowing</Text>
                   <Text style={styles.accountBody}>
-                    Search bills and legislators, find who represents you, and get cited answers — no account needed.
-                    An account makes it yours: track your bills, keep chat history, and pick up where you left off.
+                    Search bills and legislators, find who represents you, and get cited answers —
+                    no account needed. An account makes it yours: track your bills, keep chat
+                    history, and pick up where you left off.
                   </Text>
                 </View>
                 <View style={[styles.accountAction, !isDesktop && styles.accountColMobile]}>
@@ -871,7 +998,10 @@ export function HomeSignedOutScreen() {
             </Container>
           </View>
 
-          <Footer onPrivacy={() => navigation.navigate('Privacy')} onTerms={() => navigation.navigate('Terms')} />
+          <Footer
+            onPrivacy={() => navigation.navigate('Privacy')}
+            onTerms={() => navigation.navigate('Terms')}
+          />
           {/* Outside-click close is handled inside TopNav (web document listener). A
               full-screen overlay here stacked above the dropdown panel and swallowed
               its row hover/clicks. */}
@@ -962,8 +1092,20 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 40,
   },
-  askButtonText: { fontFamily: t.typography.ui, fontSize: 20, fontWeight: t.fontWeights.bold, color: t.colors.brand.darkest },
-  chipsRow: { marginTop: 16, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, maxWidth: 720 },
+  askButtonText: {
+    fontFamily: t.typography.ui,
+    fontSize: 20,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.brand.darkest,
+  },
+  chipsRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    maxWidth: 720,
+  },
   exampleChip: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -972,7 +1114,12 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 16,
   },
-  exampleChipText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.small, fontWeight: t.fontWeights.medium, color: t.colors.text.secondary },
+  exampleChipText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.medium,
+    color: t.colors.text.secondary,
+  },
   chipHover: { borderColor: t.colors.purple.base },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
@@ -990,12 +1137,31 @@ const styles = StyleSheet.create({
   },
   answerCardMobile: { paddingVertical: 24, paddingHorizontal: 22 },
   answerOverlay: { ...StyleSheet.absoluteFillObject, borderRadius: 20, zIndex: 5 },
-  askedQuestion: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subheadLg, fontWeight: t.fontWeights.bold, lineHeight: 25, color: t.colors.text.primary, marginBottom: 16 },
+  askedQuestion: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.subheadLg,
+    fontWeight: t.fontWeights.bold,
+    lineHeight: 25,
+    color: t.colors.text.primary,
+    marginBottom: 16,
+  },
   billDividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  billDividerLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 1.2, color: t.colors.text.muted },
+  billDividerLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.2,
+    color: t.colors.text.muted,
+  },
   hairlineFlex: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink08 },
   hairline: { height: 1, backgroundColor: t.colors.alpha.ink08, marginBottom: 14 },
-  billMetaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap', marginBottom: 14 },
+  billMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 24,
+    flexWrap: 'wrap',
+    marginBottom: 14,
+  },
   billBadgeLg: {
     marginTop: 5,
     backgroundColor: t.colors.tint.t150,
@@ -1005,10 +1171,21 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 13,
   },
-  billBadgeLgText: { fontFamily: t.typography.mono, fontSize: t.fontSizes.bodyLg, fontWeight: t.fontWeights.bold, letterSpacing: 0.6, color: t.colors.brand.deep },
+  billBadgeLgText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.bodyLg,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.6,
+    color: t.colors.brand.deep,
+  },
   billMetaCols: { flex: 1, minWidth: 0 },
   billMetaColsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' },
-  billMetaText: { fontFamily: t.typography.body, fontSize: t.fontSizes.meta, lineHeight: 21, color: t.colors.text.secondary },
+  billMetaText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    lineHeight: 21,
+    color: t.colors.text.secondary,
+  },
   billMetaBold: { fontWeight: t.fontWeights.bold },
   billMetaLinkRow: { flexDirection: 'row', alignItems: 'center' },
   // Mobile compact metadata grid: fixed 90px left column + 20px gap + flexible right column.
@@ -1020,10 +1197,22 @@ const styles = StyleSheet.create({
   billMetaMobileBadgeCell: { width: 104, alignItems: 'flex-start' },
   billMetaMobileVotesCell: { width: 104 },
   billMetaMobileRight: { flex: 1, minWidth: 0 },
-  answerSummary: { fontFamily: t.typography.body, fontSize: t.fontSizes.subheadLg, lineHeight: 27, color: t.colors.ink, marginBottom: 14 },
+  answerSummary: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.subheadLg,
+    lineHeight: 27,
+    color: t.colors.ink,
+    marginBottom: 14,
+  },
   answerSummaryBold: { fontWeight: t.fontWeights.semibold },
   citedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  citedLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.bold, letterSpacing: 0.7, color: t.colors.text.muted },
+  citedLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.7,
+    color: t.colors.text.muted,
+  },
   sectionCardStack: { gap: 8 },
   sectionCardBox: {
     backgroundColor: '#f7f9f8',
@@ -1044,17 +1233,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionCardNumText: { fontFamily: t.typography.mono, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.bold, color: t.colors.purple.base },
-  sectionCardTitle: { fontFamily: t.typography.ui, fontSize: t.fontSizes.body, fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
-  sectionCardQuote: { marginTop: 8, paddingLeft: 12, borderLeftWidth: 3, borderLeftColor: t.colors.tint.border },
-  sectionCardQuoteText: { fontFamily: t.typography.body, fontSize: t.fontSizes.small, lineHeight: 21, color: t.colors.text.secondary, fontStyle: 'italic' },
-  sectionCardNote: { marginTop: 6, paddingLeft: 15, fontFamily: t.typography.body, fontSize: t.fontSizes.small, lineHeight: 20, color: t.colors.text.faint },
-  answerFooter: { marginTop: 12, paddingLeft: 17, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  answerFooterHost: { fontFamily: t.typography.mono, fontSize: t.fontSizes.label, color: t.colors.text.faint },
+  sectionCardNumText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.purple.base,
+  },
+  sectionCardTitle: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.body,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  sectionCardQuote: {
+    marginTop: 8,
+    paddingLeft: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: t.colors.tint.border,
+  },
+  sectionCardQuoteText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    color: t.colors.text.secondary,
+    fontStyle: 'italic',
+  },
+  sectionCardNote: {
+    marginTop: 6,
+    paddingLeft: 15,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 20,
+    color: t.colors.text.faint,
+  },
+  answerFooter: {
+    marginTop: 12,
+    paddingLeft: 17,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  answerFooterHost: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    color: t.colors.text.faint,
+  },
 
   // capability directory
   capSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 60, paddingBottom: 64 },
-  sectionEyebrow: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.bold, letterSpacing: 2.6, color: t.colors.brand.deep, marginBottom: 22 },
+  sectionEyebrow: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 2.6,
+    color: t.colors.brand.deep,
+    marginBottom: 22,
+  },
   capGrid: { flexDirection: 'row', gap: 20 },
   capGridStacked: { flexDirection: 'column' },
   capCard: {
@@ -1068,19 +1303,51 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
   },
-  capIconTile: { width: 48, height: 48, borderRadius: 12, backgroundColor: t.colors.tint.t150, alignItems: 'center', justifyContent: 'center' },
+  capIconTile: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: t.colors.tint.t150,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   capBody: { flex: 1, minWidth: 0 },
-  capTitle: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subheadLg, fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
-  capSubtitle: { marginTop: 5, fontFamily: t.typography.body, fontSize: t.fontSizes.lg, lineHeight: 24, color: t.colors.text.secondary },
+  capTitle: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.subheadLg,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  capSubtitle: {
+    marginTop: 5,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.lg,
+    lineHeight: 24,
+    color: t.colors.text.secondary,
+  },
 
   // finder band
   finderBand: { position: 'relative', paddingTop: 64, paddingBottom: 56, overflow: 'hidden' },
   finderGrid: { gap: 40 },
   finderGridDesktop: { flexDirection: 'row', alignItems: 'center', gap: 56 },
   finderLeft: { flex: 1.15, minWidth: 0, maxWidth: 760 },
-  finderH2: { fontFamily: t.typography.title, fontSize: 52, lineHeight: 53, fontWeight: t.fontWeights.heavy, letterSpacing: -1, color: t.colors.text.primary },
+  finderH2: {
+    fontFamily: t.typography.title,
+    fontSize: 52,
+    lineHeight: 53,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -1,
+    color: t.colors.text.primary,
+  },
   finderH2Mobile: { fontSize: 40, lineHeight: 42 },
-  finderSub: { marginTop: 22, fontFamily: t.typography.body, fontSize: 22, lineHeight: 33, color: t.colors.text.secondary, maxWidth: 820 },
+  finderSub: {
+    marginTop: 22,
+    fontFamily: t.typography.body,
+    fontSize: 22,
+    lineHeight: 33,
+    color: t.colors.text.secondary,
+    maxWidth: 820,
+  },
   finderShell: { marginTop: 38, maxWidth: 600, paddingLeft: 24 },
   finderInput: {
     flex: 1,
@@ -1092,7 +1359,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
   },
-  cityRow: { marginTop: 22, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, maxWidth: 760 },
+  cityRow: {
+    marginTop: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    maxWidth: 760,
+  },
   cityChip: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -1101,13 +1375,34 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 15,
   },
-  cityChipText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.bold, letterSpacing: 1, color: t.colors.text.primary },
+  cityChipText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1,
+    color: t.colors.text.primary,
+  },
   finderMap: { flex: 0.85, alignItems: 'center', justifyContent: 'center' },
 
   // bills section
   billsSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 52, paddingBottom: 76 },
-  billsHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', marginTop: -8 },
-  billsH2: { fontFamily: t.typography.title, fontSize: 44, lineHeight: 48, fontWeight: t.fontWeights.heavy, letterSpacing: -0.9, color: t.colors.text.primary, flexShrink: 1 },
+  billsHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 24,
+    flexWrap: 'wrap',
+    marginTop: -8,
+  },
+  billsH2: {
+    fontFamily: t.typography.title,
+    fontSize: 44,
+    lineHeight: 48,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.9,
+    color: t.colors.text.primary,
+    flexShrink: 1,
+  },
   billsH2Mobile: { fontSize: 32, lineHeight: 36 },
   viewAllBtn: {
     backgroundColor: t.colors.surfaces.base,
@@ -1117,9 +1412,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 22,
   },
-  viewAllText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.bold, letterSpacing: 1.6, color: t.colors.text.primary },
+  viewAllText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.6,
+    color: t.colors.text.primary,
+  },
   billGroups: { marginTop: 30, gap: 40 },
-  billGroupLabel: { fontFamily: t.typography.ui, fontSize: t.fontSizes.small, fontWeight: t.fontWeights.bold, letterSpacing: 1.7, color: t.colors.text.secondary, marginBottom: 16 },
+  billGroupLabel: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.7,
+    color: t.colors.text.secondary,
+    marginBottom: 16,
+  },
   billStack: { gap: 18 },
   billCard: {
     backgroundColor: t.colors.surfaces.base,
@@ -1129,8 +1437,19 @@ const styles = StyleSheet.create({
     paddingVertical: 26,
     paddingHorizontal: 32,
   },
-  billCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 24 },
-  billCardTopLeft: { flexDirection: 'row', alignItems: 'center', gap: 16, flexWrap: 'wrap', flexShrink: 1 },
+  billCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 24,
+  },
+  billCardTopLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flexWrap: 'wrap',
+    flexShrink: 1,
+  },
   billBadgeSm: {
     backgroundColor: t.colors.tint.t150,
     borderWidth: 1,
@@ -1139,8 +1458,18 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  billBadgeSmText: { fontFamily: t.typography.mono, fontSize: t.fontSizes.body, fontWeight: t.fontWeights.bold, letterSpacing: 0.6, color: t.colors.brand.deep },
-  billStatus: { fontFamily: t.typography.ui, fontSize: t.fontSizes.small, fontWeight: t.fontWeights.bold },
+  billBadgeSmText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.body,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.6,
+    color: t.colors.brand.deep,
+  },
+  billStatus: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.bold,
+  },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   progressRowMobile: { marginTop: 12 },
   progressStep: { width: 30, height: 7, borderRadius: 4 },
@@ -1155,22 +1484,80 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 22,
   },
-  trackBtnText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.body, fontWeight: t.fontWeights.bold, color: t.colors.white },
-  billSummary: { marginTop: 16, fontFamily: t.typography.body, fontSize: t.fontSizes.h4, lineHeight: 30, color: t.colors.ink },
-  billLine: { marginTop: 8, fontFamily: t.typography.body, fontSize: t.fontSizes.lg, color: t.colors.text.secondary },
-  billLineText: { fontFamily: t.typography.body, fontSize: t.fontSizes.lg, color: t.colors.text.secondary },
+  trackBtnText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.body,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.white,
+  },
+  billSummary: {
+    marginTop: 16,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.h4,
+    lineHeight: 30,
+    color: t.colors.ink,
+  },
+  billLine: {
+    marginTop: 8,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.lg,
+    color: t.colors.text.secondary,
+  },
+  billLineText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.lg,
+    color: t.colors.text.secondary,
+  },
   billAuthor: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
   billAction: { color: t.colors.text.primary, fontWeight: t.fontWeights.semibold },
   billActionDate: { color: t.colors.text.faint },
-  billVotesRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 7, flexWrap: 'wrap' },
-  billVoteNum: { fontFamily: t.typography.mono, fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
+  billVotesRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flexWrap: 'wrap',
+  },
+  billVoteNum: {
+    fontFamily: t.typography.mono,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
   billVotePending: { color: t.colors.text.faint, fontWeight: t.fontWeights.semibold },
-  billAmberRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 7, flexWrap: 'wrap' },
-  billAmberText: { fontFamily: t.typography.body, fontSize: t.fontSizes.body, color: t.colors.text.secondary, flexShrink: 1 },
+  billAmberRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flexWrap: 'wrap',
+  },
+  billAmberText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    color: t.colors.text.secondary,
+    flexShrink: 1,
+  },
   billAmberBold: { color: t.colors.status.amber, fontWeight: t.fontWeights.bold },
-  billTagsRow: { marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  billTag: { backgroundColor: t.colors.surfaces.s400, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  billTagText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.label, fontWeight: t.fontWeights.bold, letterSpacing: 0.7, color: t.colors.text.secondary },
+  billTagsRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  billTag: {
+    backgroundColor: t.colors.surfaces.s400,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  billTagText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.7,
+    color: t.colors.text.secondary,
+  },
   companionPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1182,7 +1569,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  companionPillText: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 0.3, color: t.colors.brand.deep },
+  companionPillText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.3,
+    color: t.colors.brand.deep,
+  },
 
   // account card
   accountSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 20, paddingBottom: 72 },
@@ -1201,7 +1594,20 @@ const styles = StyleSheet.create({
   // text behind the button — so drop the ratio and let each block size to content.
   accountColMobile: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   accountText: { flex: 1.35, minWidth: 0 },
-  accountH3: { fontFamily: t.typography.title, fontSize: t.fontSizes.h1, fontWeight: t.fontWeights.heavy, letterSpacing: -0.3, color: t.colors.text.primary },
-  accountBody: { marginTop: 14, fontFamily: t.typography.body, fontSize: t.fontSizes.subheadLg, lineHeight: 29, color: t.colors.text.secondary, maxWidth: 620 },
+  accountH3: {
+    fontFamily: t.typography.title,
+    fontSize: t.fontSizes.h1,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.3,
+    color: t.colors.text.primary,
+  },
+  accountBody: {
+    marginTop: 14,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.subheadLg,
+    lineHeight: 29,
+    color: t.colors.text.secondary,
+    maxWidth: 620,
+  },
   accountAction: { flex: 1, minWidth: 0 },
 });
