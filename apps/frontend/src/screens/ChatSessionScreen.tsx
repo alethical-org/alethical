@@ -24,6 +24,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
+import { fieldFocusRing } from '../theme/fieldFocus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatSession'>;
 type ChatParams = RootStackParamList['ChatSession'];
@@ -400,7 +401,7 @@ export function ChatSessionScreen({ route }: Props) {
                 </View>
                 <View style={styles.composer}>
                   {sendError ? <Text style={styles.errorText}>{sendError}</Text> : null}
-                  <View style={[styles.inputBar, composerFocused ? styles.inputBarFocused : null]}>
+                  <View style={[styles.inputBar, ...fieldFocusRing(composerFocused)]}>
                     <TextInput
                       accessibilityLabel="Chat message"
                       placeholder="Ask a question about this bill"
@@ -863,13 +864,6 @@ const styles = StyleSheet.create({
     paddingLeft: theme.spacing.md,
     paddingRight: theme.spacing.xs,
     paddingVertical: 4,
-  },
-  inputBarFocused: {
-    borderColor: theme.colors.ink,
-    borderWidth: 2,
-    paddingLeft: theme.spacing.md - 1,
-    paddingRight: theme.spacing.xs - 1,
-    paddingVertical: 3,
   },
   sendButton: {
     minWidth: 104,
