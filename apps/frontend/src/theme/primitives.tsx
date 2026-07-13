@@ -177,6 +177,15 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
   );
 }
 
+/** Web-only ~0.15s ease fade for the dropdown row hover highlight (no-op on native). */
+const rowHoverTransition = isWeb
+  ? ({
+      transitionProperty: 'background-color',
+      transitionDuration: '0.15s',
+      transitionTimingFunction: 'ease',
+    } as object)
+  : null;
+
 function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem) => void }) {
   const [hovered, hoverProps] = useHover();
   const disabled = item.availability === 'roadmap';
@@ -202,7 +211,7 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
       accessibilityRole="link"
       onPress={() => onPress?.(item)}
       {...hoverProps}
-      style={[styles.menuPanelRow, hovered && styles.menuPanelRowHover]}
+      style={[styles.menuPanelRow, rowHoverTransition, hovered && styles.menuPanelRowHover]}
     >
       {body}
     </Pressable>
@@ -484,7 +493,9 @@ export function TopNav({
                   onSignIn?.();
                 }}
               />
-              <Text style={styles.menuTagline}>TRUTH, UNCONCEALED</Text>
+              <View style={styles.menuFooterSig}>
+                <Text style={styles.menuTagline}>TRUTH, UNCONCEALED</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -851,7 +862,7 @@ const styles = StyleSheet.create({
   mobileRoadmapLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   mobileRoadmapPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   // mobile drawer groups
-  menuGroup: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: t.colors.borders.base, gap: 2 },
+  menuGroup: { paddingVertical: 14, gap: 2 },
   menuGroupLabel: { fontFamily: t.typography.mono, fontSize: 12, fontWeight: t.fontWeights.bold, letterSpacing: 1.68, color: t.colors.brand.deep, marginBottom: 6 },
   menuSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
   menuSubRowText: { fontFamily: t.typography.title, fontSize: 21, fontWeight: t.fontWeights.semibold, letterSpacing: -0.2, color: t.colors.text.primary },
@@ -862,6 +873,7 @@ const styles = StyleSheet.create({
   menuSheet: {
     width: '84%',
     maxWidth: 420,
+    height: '100%',
     backgroundColor: t.colors.surfaces.base,
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
@@ -873,8 +885,9 @@ const styles = StyleSheet.create({
   menuList: { flex: 1, marginTop: 40 },
   menuRow: { paddingVertical: 22, borderBottomWidth: 1, borderBottomColor: t.colors.borders.base },
   menuRowText: { fontFamily: t.typography.title, fontSize: 27, fontWeight: t.fontWeights.semibold, letterSpacing: -0.3, color: t.colors.text.primary },
-  menuFooter: { gap: 18 },
-  menuTagline: { fontFamily: t.typography.ui, fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.semibold, letterSpacing: 2, color: t.colors.brand.deep },
+  menuFooter: {},
+  menuFooterSig: { marginTop: 24, borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08, paddingTop: 18 },
+  menuTagline: { fontFamily: t.typography.mono, fontSize: 12, fontWeight: t.fontWeights.bold, letterSpacing: 1.68, color: t.colors.brand.deep },
   primaryBtn: { borderRadius: t.radii.md, paddingVertical: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
   primaryBtnLg: { paddingVertical: 14, paddingHorizontal: 30 },
   primaryBtnText: { fontFamily: t.typography.ui, fontSize: t.fontSizes.subhead, fontWeight: t.fontWeights.semibold, color: t.colors.text.onGreen },
