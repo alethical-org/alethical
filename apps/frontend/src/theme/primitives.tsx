@@ -631,9 +631,6 @@ export function TopNav({
                   onSignIn?.();
                 }}
               />
-              <View style={styles.menuFooterSig}>
-                <Text style={styles.menuTagline}>TRUTH, UNCONCEALED</Text>
-              </View>
             </View>
           </View>
         </View>
@@ -1173,26 +1170,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   menuFooter: {},
-  menuFooterSig: {
-    marginTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink08,
-    paddingTop: 18,
-  },
-  menuTagline: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.68,
-    color: t.colors.brand.deep,
-  },
-  primaryBtn: {
-    borderRadius: t.radii.md,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  primaryBtn: { borderRadius: t.radii.md, paddingVertical: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
   primaryBtnLg: { paddingVertical: 14, paddingHorizontal: 30 },
   primaryBtnText: {
     fontFamily: t.typography.ui,

@@ -6,10 +6,12 @@
 > Old screens render recolored-green via remapped legacy token keys until each page is
 > rebuilt ("one page at a time" — `docs/mvp-redesign-plan.md` § Locked decisions).
 >
-> **Sources of truth now:** `tokens.ts` + `theme/primitives.tsx` for the implemented green
-> system · `docs/mockups/home-signed-out-v2/README.md` for the v2 home's values/state/copy ·
-> `docs/mvp-redesign-plan.md` for redesign decisions. The Newsprint spec below is kept as
-> historical reference until a green design-system doc replaces this file.
+> **Sources of truth now:** `docs/design-principles.md` for the green system's design intent +
+> visual/interaction/accessibility rules · `apps/frontend/src/theme/tokens.ts` +
+> `theme/primitives.tsx` for the implemented values · `docs/mockups/home-signed-out-v2/README.md`
+> for the v2 home's values/state/copy · `docs/mvp-redesign-plan.md` for redesign decisions. The
+> green design-system doc this file was holding a place for now exists (`docs/design-principles.md`);
+> the Newsprint spec below is kept as historical reference only.
 
 <design-system>
 

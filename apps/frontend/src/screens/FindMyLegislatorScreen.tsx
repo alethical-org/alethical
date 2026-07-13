@@ -12,10 +12,12 @@ import { RepresentativeLookupCoordinates } from '../data/types';
 import { useRepresentativeLookup } from '../hooks/useAppQueries';
 import { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme/tokens';
+import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FindMyLegislator'>;
 
 export function FindMyLegislatorScreen({ navigation }: Props) {
+  const { focused: addressFocused, focusProps: addressFocusProps } = useFieldFocus();
   const [address, setAddress] = useState('350 S 5th St, Minneapolis, MN 55415');
   const [pinCoordinate, setPinCoordinate] = useState<RepresentativeLookupCoordinates>({
     latitude: 44.97683,
@@ -42,9 +44,10 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
           accessibilityLabel="Address lookup"
           placeholder="Enter an address or city and ZIP"
           placeholderTextColor={theme.colors.mutedInk}
-          style={styles.input}
+          style={[styles.input, ...fieldFocusRing(addressFocused), fieldOutlineReset]}
           value={address}
           onChangeText={setAddress}
+          {...addressFocusProps}
         />
         <View style={styles.quickRow}>
           <PrimaryButton

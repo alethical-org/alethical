@@ -132,8 +132,8 @@ Everything else on this screen runs on the current API.
 
 Design against the **green / rounded / soft-shadow / bold-sans** direction
 (`docs/mvp-redesign-plan.md` § Locked decisions; final visual mockups in Claude Design).
-Note the implementation state: `apps/frontend/src/theme/tokens.ts` — the styling source
-of truth — still holds the earlier "Newsprint" tokens (sharp corners, serif, ink/paper/red),
-and the green token flip is a pending redesign to-do. So this screen is *designed* green but
-will be *built* against tokens.ts once the flip lands. `docs/aesthetics.md` documents the
-current Newsprint tokens and its header records this transition.
+Design intent and the visual/interaction/accessibility rules are in `docs/design-principles.md`;
+`apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` are the implemented styling source of
+truth. The green token flip has **landed** (PR [#67](https://github.com/alethical-org/alethical/pull/67)),
+so this screen is both designed and built against the green tokens/primitives.
+(`docs/aesthetics.md` is the retired Newsprint identity, kept for history only.)
