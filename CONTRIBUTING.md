@@ -40,12 +40,14 @@ needs no configuration. See `.env.example` for what each variable does.
 | Command | What it does |
 |---|---|
 | `just up` / `just down` | Start / stop the local stack |
-| `just format` | Auto-format Python (`ruff format`) |
+| `just format` | Auto-format Python (`ruff format`) **and the frontend (Prettier)** |
 | `just lint` | Lint + type-check: `ruff check`, `ty check`, and frontend `tsc --noEmit` |
 | `just migrate` | Apply database migrations (`alembic upgrade head`) |
 | `uv run pytest` | Run the backend test suite |
 
 Run `just lint` and `uv run pytest` before opening a PR — CI runs the same checks.
+
+**Format the frontend only with `just format`** (Prettier from the lockfile-pinned toolchain — run `pnpm install --frozen-lockfile` first if deps look stale). Do **not** run a global or ad-hoc `prettier` binary: a version that differs from the pinned one reflows unrelated lines across whole files and buries your change (and can diverge from what CI accepts). If a diff balloons far beyond what you edited, that's the signal — reset and format via `just format`. A dev-server "expected versions of the packages" warning means your `node_modules` drifted from the lockfile; reinstall before formatting.
 
 ## Branch & PR workflow
 

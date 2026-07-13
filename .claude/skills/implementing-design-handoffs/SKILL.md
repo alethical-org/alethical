@@ -34,6 +34,16 @@ Not for: pure backend/data work, or design *decisions* still in flux (those go t
 
 The mock is almost always a fixed-width **desktop** canvas (~1600px) with **no mobile breakpoints** — MVP is responsive *web* (desktop + mobile web; native deferred, #91), so mobile web must work. Unless mobile mocks are provided, **derive** the mobile layout from the site's own responsive rules (`useResponsive`, existing screens' patterns): reflow multi-column sections to one column, turn nav dropdowns into the mobile drawer, keep touch targets ~44px. **No hover on touch** — hover-only glows/affordances never fire on mobile, so resting states must stand alone and interactive elements need a tap/`:active` state. Web-only CSS (backdrop-filter, box-shadow glows, gradients) is guarded with `isWeb` today; it needs RN-native equivalents only when native ships.
 
+## Interaction & stacking (RN-Web)
+
+Dropdowns, menus, and popovers are where RN-Web bites. Two rules, learned the hard way from the nav-dropdown hover bug ([#171](https://github.com/alethical-org/alethical/pull/171)):
+
+- **Never close an open menu with a full-screen "click-away" overlay `Pressable`.** On web it competes on `z-index` with the panel and usually *wins*: an absolutely-positioned panel that hangs below the nav is trapped in its section's stacking context, so a later full-screen overlay (even a lower `z-index`) paints *above* it and silently swallows the panel's hover **and** clicks — the rows look dead, and a click closes the menu instead of navigating. Close instead via a **web `document` pointerdown listener** that ignores clicks inside the trigger+panel ref, or an RN **`Modal`** (which escapes stacking contexts — the mobile drawer already does this). `TopNav` is the reference.
+- **When something "renders but won't interact," suspect stacking, not styles.** `document.elementFromPoint(cx, cy)` on the dead element reveals what's actually on top; walk `getComputedStyle` up its ancestry for the `position` / `z-index` / `transform` that formed the trapping context. Reach for this before touching CSS.
+
+### Verifying interactive states
+Drive states through the DOM, not pixels. Interact by **element ref** (`read_page` → `ref_N`), never screenshot coordinates — screenshot-pixel space ≠ CSS-pixel space, and the mismatch makes you "miss" the element and misread a working feature as broken (this ate real time in #171). Assert the state with **`getComputedStyle`** (e.g. a hovered row's bg is `rgba(17,21,15,0.06)`) and use **`elementFromPoint`** to prove nothing covers the target. Screenshots confirm looks; the DOM confirms behavior. No frontend test runner exists yet, so these checks are manual — automated interaction regressions are tracked in [#173](https://github.com/alethical-org/alethical/issues/173).
+
 ## Surface, don't guess (`.claude/rules/coding-discipline.md` rule 1)
 
 Ask when: a filter/data the design shows isn't backed by today's API; a mockup's copy conflicts with `docs/ui-copy-guide.md`; a page's nav/behavior diverges from the `ia.ts` registry; sample content's grounding is ambiguous.
@@ -50,6 +60,9 @@ Ask when: a filter/data the design shows isn't backed by today's API; a mockup's
 | Wiring/​"fixing" held marketing content | Build it static as designed; confirm before grounding it |
 | Assuming a PR into the draft redesign branch is live | Confirm the per-page-to-`main` ship path |
 | Building only to the desktop mock; hover-carried affordances | Derive the mobile reflow from the site's rules; ensure nothing critical needs hover |
+| Closing a menu with a full-screen click-away overlay | Outside-click `document` listener (web) or `Modal`; overlays lose the z-index fight and eat the panel's hover/clicks |
+| Verifying hover/click by screenshot pixel coordinates | Interact by element ref; assert with `getComputedStyle` + `elementFromPoint` |
+| `prettier --write` with a mismatched local version | Format via `just format` after `pnpm install --frozen-lockfile`; an ad-hoc/global prettier reflows unrelated lines |
 
 ## References
 
