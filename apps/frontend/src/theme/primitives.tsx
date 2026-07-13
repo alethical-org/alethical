@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -273,6 +273,15 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
   );
 }
 
+/** Web-only ~0.15s ease fade for the dropdown row hover highlight (no-op on native). */
+const rowHoverTransition = isWeb
+  ? ({
+      transitionProperty: 'background-color',
+      transitionDuration: '0.15s',
+      transitionTimingFunction: 'ease',
+    } as object)
+  : null;
+
 function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem) => void }) {
   const [hovered, hoverProps] = useHover();
   const disabled = item.availability === 'roadmap';
@@ -302,10 +311,19 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
       accessibilityRole="link"
       onPress={() => onPress?.(item)}
       {...hoverProps}
-      style={[styles.menuPanelRow, hovered && styles.menuPanelRowHover]}
+      style={[styles.menuPanelRow, rowHoverTransition, hovered && styles.menuPanelRowHover]}
     >
       {body}
     </Pressable>
+  );
+}
+
+/** Muted, non-interactive "coming soon" pill for the ON THE ROADMAP group. `large` = mobile size. */
+function RoadmapPill({ label, large }: { label: string; large?: boolean }) {
+  return (
+    <View style={[styles.roadmapPill, large && styles.roadmapPillLarge]}>
+      <Text style={[styles.roadmapPillText, large && styles.roadmapPillTextLarge]}>{label}</Text>
+    </View>
   );
 }
 
@@ -322,14 +340,18 @@ function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: Ia
           <MenuPanelRow key={item.id} item={item} onPress={onNavigate} />
         ))}
         {roadmap.length > 0 ? (
-          <View style={styles.roadmapLabelRow}>
-            <Text style={styles.roadmapLabel}>ON THE ROADMAP</Text>
-            <View style={styles.roadmapRule} />
-          </View>
+          <>
+            <View style={styles.roadmapLabelRow}>
+              <Text style={styles.roadmapLabel}>ON THE ROADMAP</Text>
+              <View style={styles.roadmapRule} />
+            </View>
+            <View style={styles.roadmapPillRow}>
+              {roadmap.map((item) => (
+                <RoadmapPill key={item.id} label={item.label} />
+              ))}
+            </View>
+          </>
         ) : null}
-        {roadmap.map((item) => (
-          <MenuPanelRow key={item.id} item={item} />
-        ))}
       </View>
     </View>
   );
@@ -432,8 +454,10 @@ export function PrimaryButton({
 // --- Top navigation: v2 dropdowns on desktop, drawer on mobile. PAGE-AWARE
 //     (O10): `variant="home"` hides the ✦ Ask entry (the hero is the ask
 //     surface); `variant="page"` restores it top-level. Dropdown state can be
-//     controlled by the host screen (it drives the answer-card blur overlay
-//     and the click-away layer). Rows render from the ia.ts registry. ---
+//     controlled by the host screen (it drives the answer-card blur overlay).
+//     Outside-click close is handled here on web via a document listener — NOT a
+//     full-screen overlay, which stacked above the panel and swallowed row
+//     hover/clicks. Rows render from the ia.ts registry. ---
 export type NavVariant = 'home' | 'page';
 
 export function TopNav({
@@ -459,7 +483,34 @@ export function TopNav({
     setOpenMenuState(menu);
     onOpenMenuChange?.(menu);
   };
+  // Close an open dropdown on any click outside the trigger+panel cluster (web).
+  // Replaces a full-screen click-away overlay that stacked above the panel and
+  // blocked its row hover/clicks. No-op on native (dropdowns are web/desktop only).
+  const navTriggerGroupRef = useRef<unknown>(null);
+  useEffect(() => {
+    if (!isWeb || openMenu === null) return;
+    const handlePointerDown = (event: Event) => {
+      const node = navTriggerGroupRef.current as HTMLElement | null;
+      const target = event.target as Node | null;
+      if (node && target && node.contains(target)) return;
+      setOpenMenu(null);
+    };
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openMenu]);
   const dropdownMenus = MENUS.filter((menu) => menu.key !== 'ask');
+  // Mobile flattens every menu's roadmap items into one pill row. Search items keep
+  // their bare label; Track-only items are prefixed ("Legislators" → "Track Legislators")
+  // to disambiguate. → Issues · Candidates · Track Legislators.
+  const searchRoadmap = navDropdownItems('search').roadmap;
+  const searchRoadmapLabels = new Set(searchRoadmap.map((item) => item.label));
+  const mobileRoadmapPills = [
+    ...searchRoadmap.map((item) => item.label),
+    ...navDropdownItems('track')
+      .roadmap.filter((item) => !searchRoadmapLabels.has(item.label))
+      .map((item) => `Track ${item.label}`),
+  ];
   const navigate = (item: IaItem) => {
     setOpenMenu(null);
     setDrawerOpen(false);
@@ -472,7 +523,7 @@ export function TopNav({
         <Logo compact={!isDesktop} />
         {isDesktop ? (
           <View style={styles.navLinks}>
-            <View style={styles.navTriggerGroup}>
+            <View ref={navTriggerGroupRef as never} style={styles.navTriggerGroup}>
               {variant === 'page' ? <AskNavEntry onPress={onAsk} /> : null}
               {dropdownMenus.map((menu) => (
                 <NavDropdownTrigger
@@ -541,7 +592,7 @@ export function TopNav({
                 </Pressable>
               ) : null}
               {dropdownMenus.map((menu) => {
-                const { live, roadmap } = navDropdownItems(menu.key);
+                const { live } = navDropdownItems(menu.key);
                 return (
                   <View key={menu.key} style={styles.menuGroup}>
                     <Text style={styles.menuGroupLabel}>{menu.label.toUpperCase()}</Text>
@@ -556,19 +607,20 @@ export function TopNav({
                         {item.id === 'search-bills' ? <GroundedAskPill /> : null}
                       </Pressable>
                     ))}
-                    {roadmap.length > 0 ? (
-                      <Text style={styles.menuGroupRoadmapLabel}>ON THE ROADMAP</Text>
-                    ) : null}
-                    {roadmap.map((item) => (
-                      <View key={item.id} style={styles.menuSubRow}>
-                        <Text style={[styles.menuSubRowText, styles.menuSubRowTextDisabled]}>
-                          {item.label}
-                        </Text>
-                      </View>
-                    ))}
                   </View>
                 );
               })}
+              <View style={styles.mobileRoadmapBlock}>
+                <View style={styles.mobileRoadmapLabelRow}>
+                  <Text style={styles.roadmapLabel}>ON THE ROADMAP</Text>
+                  <View style={styles.roadmapRule} />
+                </View>
+                <View style={styles.mobileRoadmapPillRow}>
+                  {mobileRoadmapPills.map((label) => (
+                    <RoadmapPill key={label} label={label} large />
+                  ))}
+                </View>
+              </View>
             </ScrollView>
             <View style={styles.menuFooter}>
               <PrimaryButton
@@ -579,7 +631,9 @@ export function TopNav({
                   onSignIn?.();
                 }}
               />
-              <Text style={styles.menuTagline}>TRUTH, UNCONCEALED</Text>
+              <View style={styles.menuFooterSig}>
+                <Text style={styles.menuTagline}>TRUTH, UNCONCEALED</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -1038,29 +1092,41 @@ const styles = StyleSheet.create({
     color: t.colors.text.faint,
   },
   roadmapRule: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink07 },
-  // mobile drawer groups
-  menuGroup: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: t.colors.borders.base,
-    gap: 2,
+  roadmapPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
   },
+  roadmapPill: {
+    backgroundColor: t.colors.surfaces.s300,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 13,
+  },
+  roadmapPillLarge: { paddingVertical: 8, paddingHorizontal: 15 },
+  roadmapPillText: {
+    fontFamily: t.typography.title,
+    fontSize: 13,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.text.faint,
+  },
+  roadmapPillTextLarge: { fontSize: 14 },
+  mobileRoadmapBlock: { paddingTop: 16, gap: 12 },
+  mobileRoadmapLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mobileRoadmapPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // mobile drawer groups
+  menuGroup: { paddingVertical: 14, gap: 2 },
   menuGroupLabel: {
     fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.caption,
+    fontSize: 12,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.4,
+    letterSpacing: 1.68,
     color: t.colors.brand.deep,
     marginBottom: 6,
-  },
-  menuGroupRoadmapLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: 10,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.2,
-    color: t.colors.text.faint,
-    marginTop: 10,
-    marginBottom: 2,
   },
   menuSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
   menuSubRowText: {
@@ -1070,7 +1136,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     color: t.colors.text.primary,
   },
-  menuSubRowTextDisabled: { color: t.colors.text.faint, fontWeight: t.fontWeights.medium },
   menuRowInline: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   hamburger: {
     padding: 9,
@@ -1089,6 +1154,7 @@ const styles = StyleSheet.create({
   menuSheet: {
     width: '84%',
     maxWidth: 420,
+    height: '100%',
     backgroundColor: t.colors.surfaces.base,
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
@@ -1106,12 +1172,18 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     color: t.colors.text.primary,
   },
-  menuFooter: { gap: 18 },
+  menuFooter: {},
+  menuFooterSig: {
+    marginTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: t.colors.alpha.ink08,
+    paddingTop: 18,
+  },
   menuTagline: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.semibold,
-    letterSpacing: 2,
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.68,
     color: t.colors.brand.deep,
   },
   primaryBtn: {

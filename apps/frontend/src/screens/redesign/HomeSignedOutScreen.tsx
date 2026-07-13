@@ -336,23 +336,30 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         <View style={styles.hairlineFlex} />
       </View>
 
-      {/* badge + meta — on mobile the badge sits above a single stacked meta column */}
-      <View style={[styles.billMetaRow, isMobile && styles.billMetaRowMobile]}>
-        <Pressable
-          accessibilityRole="link"
-          onPress={() => openExternal(HF4138_STATUS_URL)}
-          {...badgeHover}
-          style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
-        >
-          <Text
-            style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}
-          >
-            HF 4138
-          </Text>
-        </Pressable>
-        <View style={styles.billMetaCols}>
-          <View style={[styles.billMetaColsRow, isMobile && styles.billMetaColsRowMobile]}>
-            <View>
+      {/* badge + meta. Mobile: compact 2×2 grid (fixed 90px left column shared by
+          badge + votes; right column holds dates and author/companion, both aligned
+          at 90 + 20px). Desktop unchanged. */}
+      {isMobile ? (
+        <View style={styles.billMetaMobile}>
+          <View style={styles.billMetaMobileRow}>
+            <View style={styles.billMetaMobileBadgeCell}>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => openExternal(HF4138_STATUS_URL)}
+                {...badgeHover}
+                style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
+              >
+                <Text
+                  style={[
+                    styles.billBadgeLgText,
+                    badgeHovered && { textDecorationLine: 'underline' },
+                  ]}
+                >
+                  HF 4138
+                </Text>
+              </Pressable>
+            </View>
+            <View style={styles.billMetaMobileRight}>
               <Text style={styles.billMetaText}>
                 <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
               </Text>
@@ -360,7 +367,17 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 <Text style={styles.billMetaBold}>Effective</Text> July 1, 2027
               </Text>
             </View>
-            <View>
+          </View>
+          <View style={[styles.billMetaMobileRow, { marginTop: 12 }]}>
+            <View style={styles.billMetaMobileVotesCell}>
+              <Text style={styles.billMetaText}>
+                House <Text style={styles.billVoteNum}>132–2</Text>
+              </Text>
+              <Text style={[styles.billMetaText, { marginTop: 2 }]}>
+                Senate <Text style={styles.billVoteNum}>66–0</Text>
+              </Text>
+            </View>
+            <View style={styles.billMetaMobileRight}>
               <View style={styles.billMetaLinkRow}>
                 <Text style={styles.billMetaText}>Chief author </Text>
                 <TextLink
@@ -381,9 +398,56 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
               </View>
             </View>
           </View>
-          <Text style={[styles.billMetaText, { marginTop: 10 }]}>House 132–2 · Senate 66–0</Text>
         </View>
-      </View>
+      ) : (
+        <View style={styles.billMetaRow}>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => openExternal(HF4138_STATUS_URL)}
+            {...badgeHover}
+            style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
+          >
+            <Text
+              style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}
+            >
+              HF 4138
+            </Text>
+          </Pressable>
+          <View style={styles.billMetaCols}>
+            <View style={styles.billMetaColsRow}>
+              <View>
+                <Text style={styles.billMetaText}>
+                  <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
+                </Text>
+                <Text style={[styles.billMetaText, { marginTop: 2 }]}>
+                  <Text style={styles.billMetaBold}>Effective</Text> July 1, 2027
+                </Text>
+              </View>
+              <View>
+                <View style={styles.billMetaLinkRow}>
+                  <Text style={styles.billMetaText}>Chief author </Text>
+                  <TextLink
+                    label="Rep. Peggy Scott →"
+                    size={13}
+                    weight="600"
+                    onPress={() => openExternal(HF4138_AUTHOR_URL)}
+                  />
+                </View>
+                <View style={[styles.billMetaLinkRow, { marginTop: 2 }]}>
+                  <Text style={styles.billMetaText}>Companion bill </Text>
+                  <TextLink
+                    label="SF 4696 →"
+                    size={13}
+                    weight="600"
+                    onPress={() => openExternal(SF4696_URL)}
+                  />
+                </View>
+              </View>
+            </View>
+            <Text style={[styles.billMetaText, { marginTop: 10 }]}>House 132–2 · Senate 66–0</Text>
+          </View>
+        </View>
+      )}
 
       <View style={styles.hairline} />
 
@@ -949,16 +1013,9 @@ export function HomeSignedOutScreen() {
             onPrivacy={() => navigation.navigate('Privacy')}
             onTerms={() => navigation.navigate('Terms')}
           />
-
-          {/* Click-away layer: covers the page below the nav (nav row is z60,
-              this is z50) and closes the open menu on any outside press. */}
-          {openMenu !== null ? (
-            <Pressable
-              accessibilityLabel="Close menu"
-              onPress={() => setOpenMenu(null)}
-              style={styles.clickAway}
-            />
-          ) : null}
+          {/* Outside-click close is handled inside TopNav (web document listener). A
+              full-screen overlay here stacked above the dropdown panel and swallowed
+              its row hover/clicks. */}
         </ScrollView>
       </View>
     </PageBackground>
@@ -983,8 +1040,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 0 },
-  // Click-away sits UNDER the nav row + panels (z 60) but over page content.
-  clickAway: { ...StyleSheet.absoluteFillObject, zIndex: 50 },
 
   // hero
   heroWrap: { position: 'relative' },
@@ -1118,7 +1173,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: 14,
   },
-  billMetaRowMobile: { flexDirection: 'column', gap: 12 },
   billBadgeLg: {
     marginTop: 5,
     backgroundColor: t.colors.tint.t150,
@@ -1137,7 +1191,6 @@ const styles = StyleSheet.create({
   },
   billMetaCols: { flex: 1, minWidth: 0 },
   billMetaColsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' },
-  billMetaColsRowMobile: { flexDirection: 'column', gap: 8 },
   billMetaText: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,
@@ -1146,6 +1199,15 @@ const styles = StyleSheet.create({
   },
   billMetaBold: { fontWeight: t.fontWeights.bold },
   billMetaLinkRow: { flexDirection: 'row', alignItems: 'center' },
+  // Mobile compact metadata grid: fixed 90px left column + 20px gap + flexible right column.
+  billMetaMobile: { marginBottom: 14 },
+  billMetaMobileRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 20 },
+  // Left column wide enough for the "HF 4138" badge on one line; badge left-aligned
+  // (flush with the votes below it), matching the design. Both cells share the width
+  // so the right column aligns across both rows.
+  billMetaMobileBadgeCell: { width: 104, alignItems: 'flex-start' },
+  billMetaMobileVotesCell: { width: 104 },
+  billMetaMobileRight: { flex: 1, minWidth: 0 },
   answerSummary: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.subheadLg,
