@@ -1,7 +1,7 @@
 > **Repo context** (added on landing, 2026-07-12). Tracked design reference for the
 > **signed-out home** page — the v2 final design. Tracking issue: [#143](https://github.com/alethical-org/alethical/issues/143);
-> plan: `docs/mvp-redesign-plan.md`. Implementation is in React Native on
-> `redesign/design-system` (PR #67); tokens already live in
+> plan: `docs/mvp-redesign-plan.md`. Implementation is in React Native, merged to
+> `main` via PR #67 (design-system foundation + this page); tokens live in
 > `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx`. This bundle is the
 > *values + state + copy* reference, **not code to port** — `support.js` was dropped on
 > landing (see "About the Design Files"). **Feature naming:** "Grounded Ask" (badge) /

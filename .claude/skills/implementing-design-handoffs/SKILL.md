@@ -22,7 +22,7 @@ Not for: pure backend/data work, or design *decisions* still in flux (those go t
 
 0. **Intake first if the prompt is terse or ambiguous.** Run `design-task-intake` to proof the prompt for missing high-value context and confirm which assets are actually needed (usually none — the bundle is already in-repo) before building. Skip only when the task is already fully specified.
 1. **Land the bundle in-repo first.** Copy the handoff bundle to `docs/mockups/<page>/` (drop `support.js` — prototype runtime — and `.DS_Store`; rename any spaced filename). Build from that tracked path, never from a `~/Downloads` copy that goes stale (`.claude/rules/workflow.md` rule 3). Prepend a repo-context note (naming, held items, tokens location). The bundle's `README.md` is the per-page spec; the `.dc.html` is the literal-values reference; `screenshots/` are visual QA targets.
-2. **Target branch = the one with the green design system.** Currently `redesign/design-system` (PR #67): it holds `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx`. Sync it with `main` first. Do **not** branch off `main` yet — you'd get the old theme and no primitives. (Once the foundation has merged to `main` with the first page, later pages branch per-page off `main`.)
+2. **Branch per-page off `main`.** The design-system foundation — `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` — merged to `main` with the first page ([#67, Design-system foundation + redesigned signed-out home](https://github.com/alethical-org/alethical/pull/67), 2026-07-12), and the old `redesign/design-system` branch is deleted. Start each page from `origin/main` per CONTRIBUTING's branch workflow; the green tokens and primitives are already there.
 3. **Build in RN from the spec.** Reuse the tokens + primitives; add any token the design needs that's missing, pulling exact values from the README / `.dc.html`. Match the screenshots. Ignore `support.js`.
 4. **Route it — this is the crux.** A screen nothing renders ships nothing. Wire it into `apps/frontend/src/navigation/webRoutes.ts` + `RootNavigator.tsx` at its `ia.ts` route so real users reach it. This is the step most often forgotten. Do the *minimal* routing for this page — not a full IA migration — unless the task is the migration.
 5. **Copy + naming invariants.** User-facing strings come **verbatim** from the spec (`docs/grounded-ask-spec.md` for Ask surfaces). The AI-answer feature is **"Grounded Ask"** (badge) / **"✦ Ask"** (action / nav), **never "Ask AI"** (`docs/ui-copy-guide.md`). Obey `.claude/rules/grounded-answers.md`: suggested chips must not lead to a refusal; no coverage claims the data can't back; records vs. generated answers stay visually distinct; linked states are URL-addressable.
@@ -54,12 +54,11 @@ Ask when: a filter/data the design shows isn't backed by today's API; a mockup's
 | Mistake | Do instead |
 |---|---|
 | Building from the `~/Downloads` bundle | Land it in `docs/mockups/<page>/` and build from there |
-| Branching off `main` | Branch off the foundation branch (green tokens + primitives) |
+| Hunting for the old `redesign/design-system` foundation branch | It merged in #67; branch per-page off `main` (green tokens + primitives live there) |
 | Screen built but never routed | Wire `webRoutes.ts` + `RootNavigator.tsx`; verify it renders at its URL |
 | Porting HTML/CSS or `support.js` | Re-express in RN from the literal values; ignore the runtime |
 | "Ask AI" in the UI | "Grounded Ask" / "✦ Ask" |
 | Wiring/​"fixing" held marketing content | Build it static as designed; confirm before grounding it |
-| Assuming a PR into the draft redesign branch is live | Confirm the per-page-to-`main` ship path |
 | Building only to the desktop mock; hover-carried affordances | Derive the mobile reflow from the site's rules; ensure nothing critical needs hover |
 | Closing a menu with a full-screen click-away overlay | Outside-click `document` listener (web) or `Modal`; overlays lose the z-index fight and eat the panel's hover/clicks |
 | Verifying hover/click by screenshot pixel coordinates | Interact by element ref; assert with `getComputedStyle` + `elementFromPoint` |
