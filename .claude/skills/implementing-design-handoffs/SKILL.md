@@ -29,7 +29,7 @@ Not for: pure backend/data work, or design *decisions* still in flux (those go t
 6. **Interim behavior for not-yet-shipped backends.** If a surface depends on unbuilt backend (e.g. Ask on a stub embedding), build the interim the plan specifies (e.g. Ask → sign-in) — never a faked live answer.
 7. **Static sample content stays static.** Marketing sample content (hero answer cards, sample bills) is built as designed from the design's values — not wired to data and not "fixed" for grounded-answers — unless the plan says otherwise. If it *looks* like a generated answer but isn't, confirm whether grounding reconciliation is required now or deferred (it is often deliberately held).
 8. **QA against the live preview.** If a Claude Design preview URL exists, it is drivable for interaction spot-checks (hover glows, click states, transitions) — open it in a **logged-in Chrome** (the `claude-in-chrome` tools), **not** the in-app browser; the URL is auth-gated. Compare states to your build.
-9. **Verify, then ship.** Run it (`just up` → `http://localhost:19006`), compare every state to the screenshots (desktop + mobile), `just lint`. Ship path is **per-page to `main`** (auto-deploys): the design-system foundation recoloring older screens green is accepted. Verify the Vercel preview, then merge. Commit at milestones; the PR closes the tracking issue and carries a stale-reference check (`.claude/rules/workflow.md` rule 6).
+9. **Verify, then ship.** Run it (`just up` → `http://localhost:19006`), compare every state to the screenshots (desktop + mobile), then `just lint` **and** `just format` — CI's `prettier --check .` is repo-wide and `just lint` does not cover formatting, so lint passing alone is not enough. Ship path is **per-page to `main`** (auto-deploys): the design-system foundation recoloring older screens green is accepted. Verify the Vercel preview, then merge. Commit at milestones; the PR closes the tracking issue and carries a stale-reference check (`.claude/rules/workflow.md` rule 6).
 
 ## Responsive & touch
 
@@ -63,7 +63,7 @@ Ask when: a filter/data the design shows isn't backed by today's API; a mockup's
 | Building only to the desktop mock; hover-carried affordances | Derive the mobile reflow from the site's rules; ensure nothing critical needs hover |
 | Closing a menu with a full-screen click-away overlay | Outside-click `document` listener (web) or `Modal`; overlays lose the z-index fight and eat the panel's hover/clicks |
 | Verifying hover/click by screenshot pixel coordinates | Interact by element ref; assert with `getComputedStyle` + `elementFromPoint` |
-| `prettier --write` with a mismatched local version | Format via `just format` after `pnpm install --frozen-lockfile`; an ad-hoc/global prettier reflows unrelated lines |
+| Skipping Prettier, or resetting a large `just format` diff, to avoid a "reflow" | The workspace Prettier (`just format` / `pnpm exec prettier`, pinned 3.4.2 + `apps/frontend/.prettierrc.json`) is safe — a large diff means the file was genuinely dirty; **keep** it, or format pre-existing debt in a separate `chore/format-*` PR then rebase. Only a *global/npx* prettier reflows spuriously. CI runs `prettier --check .` **repo-wide** (not just changed files) and `just lint` does *not* cover it — run `just format` before pushing |
 
 ## References
 
