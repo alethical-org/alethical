@@ -233,9 +233,10 @@ function TextLink({
 }
 
 // Min time the purple press-glow stays lit after a chip press-in, so a quick tap still
-// gets a full pulse; a press-and-hold keeps glowing past it. Mirrors the capability
-// cards' CARD_PULSE_MS so the two press-glows feel identical.
-const CHIP_PULSE_MS = 650;
+// gets a full pulse; a press-and-hold keeps glowing past it. Kept equal to the
+// capability cards' CARD_PULSE_MS (both 300ms) so the two press-glows feel identical —
+// update the two together if either changes.
+const CHIP_PULSE_MS = 300;
 
 /** Hero example chip / finder city chip — purple hover glow, fills its input. */
 function FillChip({
