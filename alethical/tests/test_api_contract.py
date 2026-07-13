@@ -663,6 +663,122 @@ def test_openai_responses_payload_text_extraction():
     )
 
 
+def _fake_ask_router_response(intent: str, confidence: float | None = None):
+    import json
+
+    body = {"intent": intent}
+    if confidence is not None:
+        body["confidence"] = confidence
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"output_text": json.dumps(body)}
+
+    return FakeResponse()
+
+
+def test_ask_classify_llm_intents(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    calls = []
+
+    def fake_post(*args, **kwargs):
+        calls.append(kwargs)
+        question = kwargs["json"]["input"][1]["content"].lower()
+        if "list" in question or "bills" in question:
+            return _fake_ask_router_response("list_bills", 0.91)
+        if "follow up" in question:
+            return _fake_ask_router_response("chat", 0.7)
+        if "poem" in question:
+            return _fake_ask_router_response("off_topic", 0.99)
+        return _fake_ask_router_response("answer", 0.88)
+
+    monkeypatch.setattr("alethical.api.services.ask_router.requests.post", fake_post)
+
+    answer = client.post(
+        "/api/v1/ask/classify",
+        json={"content": "What has Minnesota done to make housing more affordable?"},
+    )
+    assert answer.status_code == 200
+    answer_data = answer.json()["data"]
+    assert answer_data["intent"] == "answer"
+    assert answer_data["auth_required"] is False
+    assert answer_data["source"] == "llm"
+    assert answer_data["confidence"] == 0.88
+
+    listing = client.post(
+        "/api/v1/ask/classify",
+        json={"content": "What bills have impacted housing?"},
+    )
+    assert listing.status_code == 200
+    assert listing.json()["data"]["intent"] == "list_bills"
+    assert listing.json()["data"]["auth_required"] is False
+
+    chat = client.post(
+        "/api/v1/ask/classify",
+        json={"content": "as a follow up, what about the Senate"},
+    )
+    assert chat.status_code == 200
+    assert chat.json()["data"]["intent"] == "chat"
+    assert chat.json()["data"]["auth_required"] is True
+
+    off_topic = client.post(
+        "/api/v1/ask/classify",
+        json={"content": "write me a poem"},
+    )
+    assert off_topic.status_code == 200
+    assert off_topic.json()["data"]["intent"] == "off_topic"
+    assert off_topic.json()["data"]["auth_required"] is False
+
+    assert len(calls) == 4
+
+
+def test_ask_classify_falls_back_without_api_key(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    def fail_post(*args, **kwargs):
+        raise AssertionError("OpenAI must not be called on the fallback path")
+
+    monkeypatch.setattr("alethical.api.services.ask_router.requests.post", fail_post)
+
+    listing = client.post(
+        "/api/v1/ask/classify",
+        json={"content": "What bills affect affordable housing?"},
+    )
+    assert listing.status_code == 200
+    assert listing.json()["data"]["intent"] == "list_bills"
+    assert listing.json()["data"]["source"] == "fallback"
+
+    answer = client.post(
+        "/api/v1/ask/classify",
+        json={"content": "How does the paid-leave program work?"},
+    )
+    assert answer.status_code == 200
+    assert answer.json()["data"]["intent"] == "answer"
+    assert answer.json()["data"]["source"] == "fallback"
+
+
+def test_ask_classify_rejects_empty_content(client):
+    response = client.post("/api/v1/ask/classify", json={"content": "   "})
+    assert response.status_code == 400
+
+
+def test_ask_router_fallback_is_deterministic_and_offline(monkeypatch):
+    from alethical.api.services.ask_router import AskIntent, classify_query
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert (
+        classify_query("What bills affect healthcare?").intent == AskIntent.LIST_BILLS
+    )
+    result = classify_query("What has Minnesota done about housing?")
+    assert result.intent == AskIntent.ANSWER
+    assert result.source == "fallback"
+    # The fallback never emits interactive intents.
+    assert result.intent in {AskIntent.ANSWER, AskIntent.LIST_BILLS}
+
+
 def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(
     client, auth_headers, monkeypatch
 ):

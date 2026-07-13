@@ -272,6 +272,17 @@ class SavedPlacePatchRequest(BaseModel):
     is_default: bool | None = None
 
 
+class AskClassifyRequest(BaseModel):
+    content: str
+
+
+class AskClassificationPayload(BaseModel):
+    intent: str
+    auth_required: bool
+    source: str
+    confidence: float | None = None
+
+
 class ChatSessionCreateRequest(BaseModel):
     title: str | None = None
     subject_bill_id: str | None = None
