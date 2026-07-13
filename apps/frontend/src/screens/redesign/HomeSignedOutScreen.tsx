@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Linking,
   Platform,
@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Check, MapPin, Plus, Search } from 'lucide-react-native';
 
-import { theme } from '../../theme/tokens';
+import { theme, prefersReducedMotion } from '../../theme/tokens';
 import {
   Container,
   Footer,
@@ -36,9 +36,14 @@ import { useResponsive } from '../../hooks/useResponsive';
 const t = theme;
 const isWeb = Platform.OS === 'web';
 
+// Hero ask field auto-grows from one line to a ~4-line cap, then scrolls.
+const ASK_MIN_HEIGHT = 60;
+const ASK_MAX_HEIGHT = 150;
+const ASK_PLACEHOLDER = 'Ask about bills or legislators by issue or name…';
+
 // .18s ease micro-transitions (README "Hover / focus micro-states") — web only.
 const transition = (props: string): object =>
-  isWeb
+  isWeb && !prefersReducedMotion()
     ? ({
         transitionProperty: props,
         transitionDuration: '0.18s',
@@ -238,19 +243,31 @@ function FillChip({
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
+  // Touch has no hover, so a tap shows the same purple glow transiently (~650ms),
+  // then the .18s transition fades it out. Covers both hero example chips and city chips.
+  const [tapped, setTapped] = useState(false);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (tapTimer.current ? clearTimeout(tapTimer.current) : undefined), []);
+  const glow = hovered || tapped;
+  const handlePress = () => {
+    setTapped(true);
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    tapTimer.current = setTimeout(() => setTapped(false), 650);
+    onPress();
+  };
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={onPress}
+      onPress={handlePress}
       {...hoverProps}
       style={[
         city ? styles.cityChip : styles.exampleChip,
         transition('border-color, box-shadow'),
-        hovered && styles.chipHover,
-        hovered && (t.shadows.glowPurple as object),
+        glow && styles.chipHover,
+        glow && (t.shadows.glowPurple as object),
       ]}
     >
-      {/* Hover turns only the border + glow purple (chipHover + glowPurple);
+      {/* Hover/tap turns only the border + glow purple (chipHover + glowPurple);
           the label keeps its default color. */}
       <Text style={city ? styles.cityChipText : styles.exampleChipText}>{label}</Text>
     </Pressable>
@@ -499,6 +516,12 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
 }
 
 // --- Capability card ---
+
+// Min time the green press-glow shows before a tap navigates, so a quick tap
+// still gets a full pulse; a press-and-hold keeps glowing past it and navigates
+// on release.
+const CARD_PULSE_MS = 650;
+
 function CapabilityCard({
   icon,
   title,
@@ -511,17 +534,45 @@ function CapabilityCard({
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
+  // Touch has no hover, so a press shows the same green glow the card uses on hover.
+  // The glow appears on press-in and stays lit while held (press-and-hold to preview);
+  // on release the card navigates — but never before the glow has shown for
+  // CARD_PULSE_MS, so a quick tap still gets a full pulse before it leaves.
+  const [pressed, setPressed] = useState(false);
+  const pressStart = useRef<number | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (settleTimer.current ? clearTimeout(settleTimer.current) : undefined), []);
+  const glow = hovered || pressed;
   const c = t.colors.brand.deep;
+  const handlePressIn = () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    pressStart.current = Date.now();
+    setPressed(true);
+  };
+  // Drop the glow no sooner than CARD_PULSE_MS after press-in, and navigate too when
+  // this is a real selection. onPressOut fires first and only fades the glow, so a
+  // press dragged off the card (no onPress) clears the glow without navigating.
+  const settle = (navigate: boolean) => {
+    const elapsed = pressStart.current != null ? Date.now() - pressStart.current : CARD_PULSE_MS;
+    const remaining = Math.max(0, CARD_PULSE_MS - elapsed);
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      setPressed(false);
+      if (navigate) onPress();
+    }, remaining);
+  };
   return (
     <Pressable
       accessibilityRole="link"
-      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={() => settle(false)}
+      onPress={() => settle(true)}
       {...hoverProps}
       style={[
         styles.capCard,
         transition('border-color, box-shadow'),
-        hovered && { borderColor: t.colors.brand.base },
-        hovered && (t.shadows.glowGreen as object),
+        glow && { borderColor: t.colors.brand.base },
+        glow && (t.shadows.glowGreen as object),
       ]}
     >
       <View style={styles.capIconTile}>
@@ -720,6 +771,32 @@ export function HomeSignedOutScreen() {
   const askInputRef = useRef<TextInput>(null);
   const finderInputRef = useRef<TextInput>(null);
 
+  // Auto-grow the ask textarea (web): reset to content height so it grows AND
+  // shrinks, capped at ASK_MAX_HEIGHT (then RN-Web scrolls it). RN-Web's own
+  // onContentSizeChange can't shrink (it reads scrollHeight of the pinned box),
+  // so drive the DOM node directly. Re-runs on typed or chip-inserted text and
+  // on the mobile/desktop breakpoint (wrapping changes).
+  useLayoutEffect(() => {
+    if (!isWeb) return;
+    const el = askInputRef.current as unknown as HTMLTextAreaElement | null;
+    if (!el || typeof el.scrollHeight !== 'number') return;
+    const empty = !askValue;
+    if (empty && !isMobile) {
+      // Desktop empty: pin one line. The wide field fits the placeholder, and
+      // measuring it would only inflate the resting height.
+      el.style.height = `${ASK_MIN_HEIGHT}px`;
+      return;
+    }
+    // Mobile empty: the placeholder wraps to two lines on a phone, so size the
+    // field to show all of it rather than clipping. scrollHeight ignores the
+    // placeholder, so mirror it into the value only while measuring.
+    if (empty) el.value = ASK_PLACEHOLDER;
+    el.style.height = 'auto';
+    const next = Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT);
+    if (empty) el.value = '';
+    el.style.height = `${next}px`;
+  }, [askValue, isMobile]);
+
   const signIn = () => void signInWithGoogle();
   // Interim locked behavior: the Ask backend is stubbed, so Ask routes to sign-in
   // (docs/mvp-redesign-plan.md § Locked decisions, "Logged-out Ask AI funnel").
@@ -815,7 +892,10 @@ export function HomeSignedOutScreen() {
                 {/* LEFT */}
                 <View style={styles.heroLeft}>
                   <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                  <Text style={[styles.heroH1, !isDesktop && styles.heroH1Mobile]}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[styles.heroH1, !isDesktop && styles.heroH1Mobile]}
+                  >
                     Grounded answers{'\n'}
                     <Text style={styles.heroH1Green}>on Minnesota law</Text>
                   </Text>
@@ -824,28 +904,64 @@ export function HomeSignedOutScreen() {
                     everyone voted. Plain language, every answer linked to official sources.
                   </Text>
 
-                  {/* ASK FIELD */}
-                  <FieldShell focused={askFocused} style={styles.askShell}>
-                    <Search size={22} color={t.colors.text.faint} strokeWidth={2} />
-                    <TextInput
-                      ref={askInputRef}
-                      value={askValue}
-                      onChangeText={setAskValue}
-                      onFocus={() => setAskFocused(true)}
-                      onBlur={() => setAskFocused(false)}
-                      onSubmitEditing={submitAsk}
-                      placeholder="Ask about bills or legislators by issue or name…"
-                      placeholderTextColor={t.colors.text.faint}
-                      style={styles.askInput}
-                    />
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={submitAsk}
-                      style={styles.askButton}
+                  {/* ASK FIELD. Mobile stacks a full-width Ask button below the
+                      field (inline, it would clip the placeholder on a narrow
+                      screen) and top-aligns the icon so it holds as the field grows. */}
+                  <View style={[styles.askShell, isMobile && styles.askFieldMobile]}>
+                    <FieldShell
+                      focused={askFocused}
+                      style={isMobile ? styles.askShellMobileInner : undefined}
                     >
-                      <Text style={styles.askButtonText}>Ask</Text>
-                    </Pressable>
-                  </FieldShell>
+                      <Search
+                        size={22}
+                        color={t.colors.text.faint}
+                        strokeWidth={2}
+                        style={isMobile ? styles.askIconMobile : undefined}
+                      />
+                      <TextInput
+                        ref={askInputRef}
+                        accessibilityLabel="Ask about bills or legislators"
+                        value={askValue}
+                        onChangeText={setAskValue}
+                        onFocus={() => setAskFocused(true)}
+                        onBlur={() => setAskFocused(false)}
+                        // Auto-grow (multiline): starts at one row; the layout effect
+                        // above sizes it to content between one line and the cap.
+                        multiline
+                        numberOfLines={1}
+                        blurOnSubmit={false}
+                        // Enter submits (Shift+Enter = newline), matching the chat composer.
+                        onKeyPress={(event) => {
+                          const ne = event.nativeEvent as { key?: string; shiftKey?: boolean };
+                          if (isWeb && ne.key === 'Enter' && !ne.shiftKey) {
+                            (event as { preventDefault?: () => void }).preventDefault?.();
+                            submitAsk();
+                          }
+                        }}
+                        placeholder={ASK_PLACEHOLDER}
+                        placeholderTextColor={t.colors.text.faint}
+                        style={[styles.askInput, isMobile && styles.askInputMobile]}
+                      />
+                      {!isMobile && (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={submitAsk}
+                          style={styles.askButton}
+                        >
+                          <Text style={styles.askButtonText}>Ask</Text>
+                        </Pressable>
+                      )}
+                    </FieldShell>
+                    {isMobile && (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={submitAsk}
+                        style={styles.askButtonMobile}
+                      >
+                        <Text style={styles.askButtonText}>Ask</Text>
+                      </Pressable>
+                    )}
+                  </View>
 
                   {/* EXAMPLE CHIPS */}
                   <View style={styles.chipsRow}>
@@ -902,7 +1018,10 @@ export function HomeSignedOutScreen() {
             <Container>
               <View style={[styles.finderGrid, isDesktop && styles.finderGridDesktop]}>
                 <View style={styles.finderLeft}>
-                  <Text style={[styles.finderH2, !isDesktop && styles.finderH2Mobile]}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[styles.finderH2, !isDesktop && styles.finderH2Mobile]}
+                  >
                     Find My Legislator
                   </Text>
                   <Text style={styles.finderSub}>
@@ -913,6 +1032,7 @@ export function HomeSignedOutScreen() {
                     <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
                     <TextInput
                       ref={finderInputRef}
+                      accessibilityLabel="Find your legislator by address, city, or area"
                       value={finderValue}
                       onChangeText={setFinderValue}
                       onFocus={() => setFinderFocused(true)}
@@ -947,7 +1067,10 @@ export function HomeSignedOutScreen() {
             <Container>
               <Text style={styles.sectionEyebrow}>2025–26 LEGISLATIVE SESSION</Text>
               <View style={styles.billsHeadRow}>
-                <Text style={[styles.billsH2, !isDesktop && styles.billsH2Mobile]}>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.billsH2, !isDesktop && styles.billsH2Mobile]}
+                >
                   Bills Moving Through the Legislature
                 </Text>
                 <ViewAllButton onPress={() => navigation.navigate('Search')} />
@@ -984,7 +1107,9 @@ export function HomeSignedOutScreen() {
                 ]}
               >
                 <View style={[styles.accountText, !isDesktop && styles.accountColMobile]}>
-                  <Text style={styles.accountH3}>Start Knowing</Text>
+                  <Text accessibilityRole="header" style={styles.accountH3}>
+                    Start Knowing
+                  </Text>
                   <Text style={styles.accountBody}>
                     Search bills and legislators, find who represents you, and get cited answers —
                     no account needed. An account makes it yours: track your bills, keep chat
@@ -1079,11 +1204,15 @@ const styles = StyleSheet.create({
   askInput: {
     flex: 1,
     minWidth: 0,
+    minHeight: ASK_MIN_HEIGHT,
+    maxHeight: ASK_MAX_HEIGHT,
     fontFamily: t.typography.body,
     fontSize: 21,
+    lineHeight: 28,
     color: t.colors.text.primary,
     paddingVertical: 16,
     paddingHorizontal: 6,
+    textAlignVertical: 'top',
     ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
   },
   askButton: {
@@ -1097,6 +1226,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.darkest,
+  },
+  // Mobile: field row + full-width Ask button stacked in a column.
+  askFieldMobile: { gap: 12 },
+  // Top-align the icon (row no longer centers) and balance the right padding now
+  // that the inline button is gone.
+  askShellMobileInner: { alignItems: 'flex-start', paddingRight: 26 },
+  askIconMobile: { marginTop: 17 },
+  // Smaller than the 21px desktop size so the placeholder wraps to two lines on a
+  // phone, matching how the hero H1/subhead also scale down on mobile.
+  askInputMobile: { fontSize: 17, lineHeight: 24 },
+  askButtonMobile: {
+    backgroundColor: t.colors.brand.base,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipsRow: {
     marginTop: 16,

@@ -80,6 +80,9 @@ jobs:
       - name: Lint backend
         run: uvx ruff check alethical scripts
 
+      - name: Format check backend
+        run: uvx ruff format --check alethical scripts
+
       - name: Type check backend
         run: uvx ty check alethical/db
 
@@ -115,6 +118,9 @@ jobs:
 
       - name: Type check frontend
         run: pnpm exec tsc --noEmit
+
+      - name: Format check frontend
+        run: pnpm exec prettier --check .
 
       - name: Build frontend
         run: pnpm run build

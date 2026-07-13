@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Platform } from 'react-native';
 
-import { theme } from './tokens';
+import { theme, prefersReducedMotion } from './tokens';
 
 // Site-wide persistent focus glow for primary text-entry fields: while the caret
 // is in the field, its bordered element shows the purple border + ring (matching
@@ -39,14 +39,18 @@ export function useFieldFocus() {
 /**
  * Style fragments for a field's bordered element. Spread into its style array:
  * `style={[styles.wrapper, ...fieldFocusRing(focused)]}`. Adds the .18s transition
- * always (so it eases out on blur) and the purple border + ring while focused.
+ * (so it eases out on blur) and the purple border + ring while focused. The
+ * transition is dropped when the user prefers reduced motion (#193).
  */
 export function fieldFocusRing(focused: boolean) {
   return [
-    focusTransition,
+    prefersReducedMotion() ? null : focusTransition,
     // Set both so it works for full-border pills and bottom-border fields
     // (which set borderBottomColor explicitly, so borderColor alone wouldn't win).
-    focused && { borderColor: theme.colors.purple.base, borderBottomColor: theme.colors.purple.base },
+    focused && {
+      borderColor: theme.colors.purple.base,
+      borderBottomColor: theme.colors.purple.base,
+    },
     focused && (theme.shadows.focusPurple as object),
   ];
 }

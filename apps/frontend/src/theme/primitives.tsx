@@ -1170,7 +1170,13 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   menuFooter: {},
-  primaryBtn: { borderRadius: t.radii.md, paddingVertical: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
+  primaryBtn: {
+    borderRadius: t.radii.md,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   primaryBtnLg: { paddingVertical: 14, paddingHorizontal: 30 },
   primaryBtnText: {
     fontFamily: t.typography.ui,
