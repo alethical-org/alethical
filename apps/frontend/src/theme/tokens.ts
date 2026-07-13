@@ -15,8 +15,10 @@ const palette = {
   ink500: '#4b524b',
   ink450: '#4f5651',
   ink400: '#6b716b',
-  ink300: '#7c847f',
-  ink200: '#9aa39e',
+  // ink300/ink200 back only text.muted/text.faint; darkened from #7c847f/#9aa39e
+  // to meet WCAG AA on white — muted 5.4:1, faint 4.61:1 (a11y pass, #193).
+  ink300: '#656c66',
+  ink200: '#70776f',
   // green ramp — bright fill to deep text/darker
   green300: '#3de08a',
   green400: '#2ed47e',
@@ -86,6 +88,14 @@ const alpha = {
 
 const webFont = (stack: string) =>
   Platform.select({ web: stack, ios: 'System', default: 'sans-serif' }) as string;
+
+// True when the user has asked the OS/browser to minimize motion (web only). Gate
+// decorative CSS transitions on this to honor "prefers-reduced-motion" (#193).
+export const prefersReducedMotion = (): boolean =>
+  Platform.OS === 'web' &&
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export const theme = {
   colors: {
