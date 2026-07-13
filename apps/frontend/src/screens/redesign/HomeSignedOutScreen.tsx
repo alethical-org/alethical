@@ -836,12 +836,9 @@ export function HomeSignedOutScreen() {
           </View>
 
           <Footer onPrivacy={() => navigation.navigate('Privacy')} onTerms={() => navigation.navigate('Terms')} />
-
-          {/* Click-away layer: covers the page below the nav (nav row is z60,
-              this is z50) and closes the open menu on any outside press. */}
-          {openMenu !== null ? (
-            <Pressable accessibilityLabel="Close menu" onPress={() => setOpenMenu(null)} style={styles.clickAway} />
-          ) : null}
+          {/* Outside-click close is handled inside TopNav (web document listener). A
+              full-screen overlay here stacked above the dropdown panel and swallowed
+              its row hover/clicks. */}
         </ScrollView>
       </View>
     </PageBackground>
@@ -866,8 +863,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 0 },
-  // Click-away sits UNDER the nav row + panels (z 60) but over page content.
-  clickAway: { ...StyleSheet.absoluteFillObject, zIndex: 50 },
 
   // hero
   heroWrap: { position: 'relative' },

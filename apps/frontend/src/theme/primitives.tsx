@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -338,8 +338,10 @@ export function PrimaryButton({ label, onPress, size = 'md' }: { label: string; 
 // --- Top navigation: v2 dropdowns on desktop, drawer on mobile. PAGE-AWARE
 //     (O10): `variant="home"` hides the ✦ Ask entry (the hero is the ask
 //     surface); `variant="page"` restores it top-level. Dropdown state can be
-//     controlled by the host screen (it drives the answer-card blur overlay
-//     and the click-away layer). Rows render from the ia.ts registry. ---
+//     controlled by the host screen (it drives the answer-card blur overlay).
+//     Outside-click close is handled here on web via a document listener — NOT a
+//     full-screen overlay, which stacked above the panel and swallowed row
+//     hover/clicks. Rows render from the ia.ts registry. ---
 export type NavVariant = 'home' | 'page';
 
 export function TopNav({
@@ -365,6 +367,22 @@ export function TopNav({
     setOpenMenuState(menu);
     onOpenMenuChange?.(menu);
   };
+  // Close an open dropdown on any click outside the trigger+panel cluster (web).
+  // Replaces a full-screen click-away overlay that stacked above the panel and
+  // blocked its row hover/clicks. No-op on native (dropdowns are web/desktop only).
+  const navTriggerGroupRef = useRef<unknown>(null);
+  useEffect(() => {
+    if (!isWeb || openMenu === null) return;
+    const handlePointerDown = (event: Event) => {
+      const node = navTriggerGroupRef.current as HTMLElement | null;
+      const target = event.target as Node | null;
+      if (node && target && node.contains(target)) return;
+      setOpenMenu(null);
+    };
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openMenu]);
   const dropdownMenus = MENUS.filter((menu) => menu.key !== 'ask');
   // Mobile flattens every menu's roadmap items into one pill row. Search items keep
   // their bare label; Track-only items are prefixed ("Legislators" → "Track Legislators")
@@ -389,7 +407,7 @@ export function TopNav({
         <Logo compact={!isDesktop} />
         {isDesktop ? (
           <View style={styles.navLinks}>
-            <View style={styles.navTriggerGroup}>
+            <View ref={navTriggerGroupRef as never} style={styles.navTriggerGroup}>
               {variant === 'page' ? <AskNavEntry onPress={onAsk} /> : null}
               {dropdownMenus.map((menu) => (
                 <NavDropdownTrigger
