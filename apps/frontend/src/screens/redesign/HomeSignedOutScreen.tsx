@@ -527,17 +527,29 @@ function CapabilityCard({
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
+  // Touch has no hover, so a tap shows the same green glow transiently (~650ms),
+  // then the .18s transition fades it out — mirrors FillChip's tap feedback.
+  const [tapped, setTapped] = useState(false);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (tapTimer.current ? clearTimeout(tapTimer.current) : undefined), []);
+  const glow = hovered || tapped;
   const c = t.colors.brand.deep;
+  const handlePress = () => {
+    setTapped(true);
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    tapTimer.current = setTimeout(() => setTapped(false), 650);
+    onPress();
+  };
   return (
     <Pressable
       accessibilityRole="link"
-      onPress={onPress}
+      onPress={handlePress}
       {...hoverProps}
       style={[
         styles.capCard,
         transition('border-color, box-shadow'),
-        hovered && { borderColor: t.colors.brand.base },
-        hovered && (t.shadows.glowGreen as object),
+        glow && { borderColor: t.colors.brand.base },
+        glow && (t.shadows.glowGreen as object),
       ]}
     >
       <View style={styles.capIconTile}>
