@@ -515,6 +515,12 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
 }
 
 // --- Capability card ---
+
+// Min time the green press-glow shows before a tap navigates, so a quick tap
+// still gets a full pulse; a press-and-hold keeps glowing past it and navigates
+// on release.
+const CARD_PULSE_MS = 650;
+
 function CapabilityCard({
   icon,
   title,
@@ -527,23 +533,39 @@ function CapabilityCard({
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
-  // Touch has no hover, so a tap shows the same green glow transiently (~650ms),
-  // then the .18s transition fades it out — mirrors FillChip's tap feedback.
-  const [tapped, setTapped] = useState(false);
-  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => (tapTimer.current ? clearTimeout(tapTimer.current) : undefined), []);
-  const glow = hovered || tapped;
+  // Touch has no hover, so a press shows the same green glow the card uses on hover.
+  // The glow appears on press-in and stays lit while held (press-and-hold to preview);
+  // on release the card navigates — but never before the glow has shown for
+  // CARD_PULSE_MS, so a quick tap still gets a full pulse before it leaves.
+  const [pressed, setPressed] = useState(false);
+  const pressStart = useRef<number | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (settleTimer.current ? clearTimeout(settleTimer.current) : undefined), []);
+  const glow = hovered || pressed;
   const c = t.colors.brand.deep;
-  const handlePress = () => {
-    setTapped(true);
-    if (tapTimer.current) clearTimeout(tapTimer.current);
-    tapTimer.current = setTimeout(() => setTapped(false), 650);
-    onPress();
+  const handlePressIn = () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    pressStart.current = Date.now();
+    setPressed(true);
+  };
+  // Drop the glow no sooner than CARD_PULSE_MS after press-in, and navigate too when
+  // this is a real selection. onPressOut fires first and only fades the glow, so a
+  // press dragged off the card (no onPress) clears the glow without navigating.
+  const settle = (navigate: boolean) => {
+    const elapsed = pressStart.current != null ? Date.now() - pressStart.current : CARD_PULSE_MS;
+    const remaining = Math.max(0, CARD_PULSE_MS - elapsed);
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      setPressed(false);
+      if (navigate) onPress();
+    }, remaining);
   };
   return (
     <Pressable
       accessibilityRole="link"
-      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={() => settle(false)}
+      onPress={() => settle(true)}
       {...hoverProps}
       style={[
         styles.capCard,
