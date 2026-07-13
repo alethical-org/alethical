@@ -39,7 +39,7 @@ const isWeb = Platform.OS === 'web';
 // Hero ask field auto-grows from one line to a ~4-line cap, then scrolls.
 const ASK_MIN_HEIGHT = 60;
 const ASK_MAX_HEIGHT = 150;
-const ASK_PLACEHOLDER = 'Ask about bills or legislators by issue or name…';
+const ASK_PLACEHOLDER = 'Ask about bills or legislators by issue or name';
 
 // .18s ease micro-transitions (README "Hover / focus micro-states") — web only.
 const transition = (props: string): object =>
@@ -60,7 +60,7 @@ const openExternal = (url: string) => {
 };
 
 const ASK_QUESTIONS = [
-  "What's in the new social media law for kids?",
+  'What’s in the new social media law for kids?',
   'What bills affect healthcare?',
   'Which legislators support affordable housing?',
 ];
@@ -334,7 +334,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
   return (
     <View style={[styles.answerCard, isMobile && styles.answerCardMobile, t.shadows.lg as object]}>
       {/* The bold question is the first element (the "ASKED" eyebrow was removed). */}
-      <Text style={styles.askedQuestion}>What's in the new social media law for kids?</Text>
+      <Text style={styles.askedQuestion}>What’s in the new social media law for kids?</Text>
 
       {/* BILL divider */}
       <View style={styles.billDividerRow}>
@@ -458,7 +458,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       <View style={styles.hairline} />
 
       <Text style={styles.answerSummary}>
-        Minnesota's{' '}
+        Minnesota’s{' '}
         <Text style={styles.answerSummaryBold}>Stop Harms from Addictive Social Media Act</Text>{' '}
         will require parental consent for kids under 16, ban addictive features, and default their
         accounts to the strictest privacy.
@@ -484,14 +484,14 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
           n="1"
           title="3(b) — Parental consent"
           quote={
-            '"A covered social media platform may not create an account for a user identified as a child … without first obtaining verifiable parental consent."'
+            '“A covered social media platform may not create an account for a user identified as a child … without first obtaining verifiable parental consent.”'
           }
         />
         <CitedSectionCard
           n="2"
           title="5(a) — Addictive features"
           quote={
-            '"A covered social media platform may not present addictive interface features in the display or feed of any account of a child."'
+            '“A covered social media platform may not present addictive interface features in the display or feed of any account of a child.”'
           }
           note="Such as infinite scrolling, autoplay video, and push notifications"
         />
@@ -499,7 +499,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
           n="3"
           title="4(a) — Privacy by default"
           quote={
-            '"An account for a child shall have all privacy settings set by default at the most private levels."'
+            '“An account for a child shall have all privacy settings set by default at the most private levels.”'
           }
         />
       </View>
@@ -900,7 +900,7 @@ export function HomeSignedOutScreen() {
                     <Text style={styles.heroH1Green}>on Minnesota law</Text>
                   </Text>
                   <Text style={[styles.heroSubhead, !isDesktop && styles.heroSubheadMobile]}>
-                    We read every bill so you don't have to — what it says, where it stands, and how
+                    We read every bill so you don’t have to — what it says, where it stands, and how
                     everyone voted. Plain language, every answer linked to official sources.
                   </Text>
 
@@ -1027,7 +1027,7 @@ export function HomeSignedOutScreen() {
                     Find My Legislator
                   </Text>
                   <Text style={styles.finderSub}>
-                    Find who represents you — their profile, committees, and the bills they've
+                    Find who represents you — their profile, committees, and the bills they’ve
                     authored.
                   </Text>
                   <FieldShell focused={finderFocused} style={styles.finderShell}>
@@ -1260,6 +1260,9 @@ const styles = StyleSheet.create({
     borderRadius: t.radii.pill,
     paddingVertical: 9,
     paddingHorizontal: 16,
+    // 44px min touch target (WCAG 2.5.5); the label centers within it.
+    minHeight: 44,
+    justifyContent: 'center',
   },
   exampleChipText: {
     fontFamily: t.typography.ui,
@@ -1523,6 +1526,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 9,
     paddingHorizontal: 15,
+    // 44px min touch target (WCAG 2.5.5); the label centers within it.
+    minHeight: 44,
+    justifyContent: 'center',
   },
   cityChipText: {
     fontFamily: t.typography.ui,

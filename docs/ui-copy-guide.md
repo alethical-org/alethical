@@ -70,3 +70,12 @@ Functional auth controls (**Sign In / Log In**) keep plain functional labels. Th
 Does this deliver a sovereignty recognition moment, or is it just a label? If just a label, rewrite.
 
 **Never say:** translate · dashboard · Sign Up (as marketing CTA) · Ask AI (use Grounded Ask / Ask).
+
+## Punctuation & typography
+Use typographer's punctuation in all user-facing copy. It is the quality-publishing default, and for a truth-and-records product the polish quietly reinforces credibility (ratified 2026-07-13).
+- **Apostrophes — curly `’` (U+2019), never the straight typewriter `'`.** e.g. don’t, they’ve, Minnesota’s.
+- **Quotation marks — curly `“ ”` (U+201C / U+201D), never straight `"`.** Applies to quoted bill/statute language, pull-quotes, etc.
+- **Ellipsis — the single glyph `…` (U+2026), never three periods `...`** — for genuine omission inside a quotation and for loading/progress states ("Loading…"). **Do *not* trail input-field placeholders with `…`** — a placeholder states its prompt plainly (e.g. "Ask about bills or legislators by issue or name"). This deliberately overrides the generic "placeholders end with …" web guideline.
+- **Dashes — em dash `—` for a break in thought**, matching existing copy's spacing.
+
+Displayed strings only. **Code — identifiers, comments, JSON keys, test fixtures — keeps straight ASCII punctuation.** This is `docs/design-principles.md` §2 (typography) at the character level; the `web-design-guidelines` review checks it on shipped screens.
