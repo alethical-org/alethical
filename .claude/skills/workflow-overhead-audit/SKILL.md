@@ -1,6 +1,6 @@
 ---
 name: workflow-overhead-audit
-description: Use to re-check whether every gate in the Claude working pipeline still earns its cost — hooks, skills, rules, conventions, CI — when asked to "audit workflow overhead", "check process friction", "are all these checks still worth it", after adding a new gate, or roughly quarterly. Maps the pipeline for a task type (default: design handoff → live site), costs each gate, scores it against evidence of what it actually caught, and outputs keep/trim/merge/drop verdicts diffed against the previous audit's table.
+description: Use to re-check whether every gate in the Claude working pipeline still earns its cost — hooks, skills, rules, conventions, CI — when asked to "audit workflow overhead", "check process friction", "are all these checks still worth it", after adding a new gate, or on a periodic (monthly-to-quarterly) backstop. Maps the pipeline for a task type (default: design handoff → live site), costs each gate, scores it against evidence of what it actually caught, and outputs keep/trim/merge/drop verdicts diffed against the previous audit's table.
 ---
 
 # Workflow-overhead audit
@@ -31,7 +31,7 @@ Verdicts for layers 1–2 are applied in the same pass (`.claude/rules/workflow.
 
 ## Cadence
 
-On demand: quarterly, after adding any new gate, or whenever process friction annoys. Don't schedule it blind — an audit without fresh evidence (new sessions, new incidents) just restates the last table.
+Two triggers, not a fixed clock. **Event:** after adding or materially changing a gate, or whenever process friction annoys. **Periodic backstop:** monthly while the process layer is churning fast (as in mid-2026), dropping back to quarterly once it settles. Never run it blind — an audit without fresh evidence (new gates, new incidents) just restates the last table, so **any scheduled runner must self-skip when no gate has changed since the most recent `audits/` record** (compare `git log` on the gate files and merged PRs touching `.claude/`, `.github/workflows/`, and `CONTRIBUTING.md` against that record's date; run only if something moved).
 
 ## Anti-patterns
 
