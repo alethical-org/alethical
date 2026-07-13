@@ -544,10 +544,11 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
 
 // --- Capability card ---
 
-// Min time the green press-glow shows before a tap navigates, so a quick tap
-// still gets a full pulse; a press-and-hold keeps glowing past it and navigates
-// on release.
-const CARD_PULSE_MS = 650;
+// Min time the green press-glow shows before a tap navigates. The glow's fade-in
+// is 180ms on web (instant on native), so this leaves a brief lit dwell — a quick
+// tap still gets a full pulse, but navigation stays snappy. A press-and-hold keeps
+// glowing past it and navigates on release.
+const CARD_PULSE_MS = 300;
 
 function CapabilityCard({
   icon,
