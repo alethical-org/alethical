@@ -243,6 +243,7 @@ function FillChip({
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
+  const { isMobile } = useResponsive();
   // Touch has no hover, so a tap shows the same purple glow transiently (~650ms),
   // then the .18s transition fades it out. Covers both hero example chips and city chips.
   const [tapped, setTapped] = useState(false);
@@ -269,7 +270,14 @@ function FillChip({
     >
       {/* Hover/tap turns only the border + glow purple (chipHover + glowPurple);
           the label keeps its default color. */}
-      <Text style={city ? styles.cityChipText : styles.exampleChipText}>{label}</Text>
+      <Text
+        style={[
+          city ? styles.cityChipText : styles.exampleChipText,
+          !city && isMobile && styles.exampleChipTextMobile,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -1030,25 +1038,43 @@ export function HomeSignedOutScreen() {
                     Find who represents you — their profile, committees, and the bills they’ve
                     authored.
                   </Text>
-                  <FieldShell focused={finderFocused} style={styles.finderShell}>
-                    <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
-                    <TextInput
-                      ref={finderInputRef}
-                      // No accessibilityLabel: the placeholder names the field (see ask input above).
-                      value={finderValue}
-                      onChangeText={setFinderValue}
-                      onFocus={() => setFinderFocused(true)}
-                      onBlur={() => setFinderFocused(false)}
-                      onSubmitEditing={() => navigation.navigate('FindMyLegislator')}
-                      placeholder="Enter an address, city, or area"
-                      placeholderTextColor={t.colors.text.faint}
-                      style={styles.finderInput}
-                    />
-                    <PrimaryButton
-                      label="Find"
-                      onPress={() => navigation.navigate('FindMyLegislator')}
-                    />
-                  </FieldShell>
+                  {/* Find field. Mobile stacks a full-width Find button below the field
+                      (matching the Ask hero); desktop keeps the Find button inline. */}
+                  <View style={[styles.finderFieldWrap, isMobile && styles.askFieldMobile]}>
+                    <FieldShell
+                      focused={finderFocused}
+                      style={isMobile ? styles.finderShellMobileInner : styles.finderShellInner}
+                    >
+                      <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
+                      <TextInput
+                        ref={finderInputRef}
+                        // No accessibilityLabel: the placeholder names the field (see ask input above).
+                        value={finderValue}
+                        onChangeText={setFinderValue}
+                        onFocus={() => setFinderFocused(true)}
+                        onBlur={() => setFinderFocused(false)}
+                        onSubmitEditing={() => navigation.navigate('FindMyLegislator')}
+                        placeholder="Enter an address, city, or area"
+                        placeholderTextColor={t.colors.text.faint}
+                        style={styles.finderInput}
+                      />
+                      {!isMobile && (
+                        <PrimaryButton
+                          label="Find"
+                          onPress={() => navigation.navigate('FindMyLegislator')}
+                        />
+                      )}
+                    </FieldShell>
+                    {isMobile && (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => navigation.navigate('FindMyLegislator')}
+                        style={styles.askButtonMobile}
+                      >
+                        <Text style={styles.askButtonText}>Find</Text>
+                      </Pressable>
+                    )}
+                  </View>
                   <View style={styles.cityRow}>
                     {CITIES.map((city) => (
                       <FillChip key={city} label={city} city onPress={() => fillFinder(city)} />
@@ -1189,7 +1215,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
     maxWidth: 660,
   },
-  heroSubheadMobile: { marginTop: 28, fontSize: 18, lineHeight: 27 },
+  heroSubheadMobile: { marginTop: 28, fontSize: 22, lineHeight: 33 },
   fieldShell: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1235,9 +1261,9 @@ const styles = StyleSheet.create({
   // that the inline button is gone.
   askShellMobileInner: { alignItems: 'flex-start', paddingRight: 26 },
   askIconMobile: { marginTop: 17 },
-  // Smaller than the 21px desktop size so the placeholder wraps to two lines on a
-  // phone, matching how the hero H1/subhead also scale down on mobile.
-  askInputMobile: { fontSize: 17, lineHeight: 24 },
+  // Mobile ask size matches the Find field's placeholder (20px, tokens.h4) so the two
+  // hero fields read consistently; still below the 21px desktop size.
+  askInputMobile: { fontSize: 20, lineHeight: 26 },
   askButtonMobile: {
     backgroundColor: t.colors.brand.base,
     borderRadius: 12,
@@ -1270,6 +1296,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.medium,
     color: t.colors.text.secondary,
   },
+  exampleChipTextMobile: { fontSize: 15 },
   chipHover: { borderColor: t.colors.purple.base },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
@@ -1500,7 +1527,13 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
     maxWidth: 820,
   },
-  finderShell: { marginTop: 38, maxWidth: 600, paddingLeft: 24 },
+  // Field-group wrapper (positioning); mirrors askShell so the mobile stacked Find
+  // button and the field share the 600px cap and align.
+  finderFieldWrap: { marginTop: 38, maxWidth: 600 },
+  finderShellInner: { paddingLeft: 24 },
+  // Mobile: balance right padding now that the inline Find button is gone (the default
+  // fieldShell paddingRight of 6 assumes an inline trailing button).
+  finderShellMobileInner: { paddingLeft: 24, paddingRight: 24 },
   finderInput: {
     flex: 1,
     minWidth: 0,
