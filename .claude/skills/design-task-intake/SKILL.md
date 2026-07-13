@@ -20,6 +20,7 @@ One gate, once: for design tasks this skill **is** the intake/brainstorming step
 - Is the page's design bundle already in `docs/mockups/<page>/`? It usually is — you rarely need assets re-handed.
 - Is this a **regression**? `git log` / blame the component or area; a recent change often *is* the cause.
 - Which screen / route / component owns it? (`navigation/ia.ts`, `navigation/webRoutes.ts`, the screen file, `theme/primitives.tsx`.)
+- **Screen-local fix, or shared token/primitive?** A fix that can only be made by editing a shared token (`theme/tokens.ts`), a theme helper, or `theme/primitives.tsx` changes *every* surface that consumes it — its blast radius is app-wide even when the task named one screen. If shared: name the other affected surfaces up front, add at least one to the manual-QA set, and plan a PR tradeoff callout. (Flagship: the #194 contrast fix darkened shared faint/muted tokens site-wide, not just the signed-out home.)
 - What's the current behavior? Run it (`just up`) or read the code. For a bug, a repro beats a mockup.
 
 ## 2. Classify, then check the right list for *genuine* gaps
