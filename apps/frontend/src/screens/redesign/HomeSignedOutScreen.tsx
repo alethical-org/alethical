@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Check, MapPin, Plus, Search } from 'lucide-react-native';
 
-import { theme } from '../../theme/tokens';
+import { theme, prefersReducedMotion } from '../../theme/tokens';
 import {
   Container,
   Footer,
@@ -43,7 +43,7 @@ const ASK_PLACEHOLDER = 'Ask about bills or legislators by issue or name…';
 
 // .18s ease micro-transitions (README "Hover / focus micro-states") — web only.
 const transition = (props: string): object =>
-  isWeb
+  isWeb && !prefersReducedMotion()
     ? ({
         transitionProperty: props,
         transitionDuration: '0.18s',
@@ -892,7 +892,10 @@ export function HomeSignedOutScreen() {
                 {/* LEFT */}
                 <View style={styles.heroLeft}>
                   <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                  <Text style={[styles.heroH1, !isDesktop && styles.heroH1Mobile]}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[styles.heroH1, !isDesktop && styles.heroH1Mobile]}
+                  >
                     Grounded answers{'\n'}
                     <Text style={styles.heroH1Green}>on Minnesota law</Text>
                   </Text>
@@ -917,6 +920,7 @@ export function HomeSignedOutScreen() {
                       />
                       <TextInput
                         ref={askInputRef}
+                        accessibilityLabel="Ask about bills or legislators"
                         value={askValue}
                         onChangeText={setAskValue}
                         onFocus={() => setAskFocused(true)}
@@ -1014,7 +1018,10 @@ export function HomeSignedOutScreen() {
             <Container>
               <View style={[styles.finderGrid, isDesktop && styles.finderGridDesktop]}>
                 <View style={styles.finderLeft}>
-                  <Text style={[styles.finderH2, !isDesktop && styles.finderH2Mobile]}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[styles.finderH2, !isDesktop && styles.finderH2Mobile]}
+                  >
                     Find My Legislator
                   </Text>
                   <Text style={styles.finderSub}>
@@ -1025,6 +1032,7 @@ export function HomeSignedOutScreen() {
                     <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
                     <TextInput
                       ref={finderInputRef}
+                      accessibilityLabel="Find your legislator by address, city, or area"
                       value={finderValue}
                       onChangeText={setFinderValue}
                       onFocus={() => setFinderFocused(true)}
@@ -1059,7 +1067,10 @@ export function HomeSignedOutScreen() {
             <Container>
               <Text style={styles.sectionEyebrow}>2025–26 LEGISLATIVE SESSION</Text>
               <View style={styles.billsHeadRow}>
-                <Text style={[styles.billsH2, !isDesktop && styles.billsH2Mobile]}>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.billsH2, !isDesktop && styles.billsH2Mobile]}
+                >
                   Bills Moving Through the Legislature
                 </Text>
                 <ViewAllButton onPress={() => navigation.navigate('Search')} />
@@ -1096,7 +1107,9 @@ export function HomeSignedOutScreen() {
                 ]}
               >
                 <View style={[styles.accountText, !isDesktop && styles.accountColMobile]}>
-                  <Text style={styles.accountH3}>Start Knowing</Text>
+                  <Text accessibilityRole="header" style={styles.accountH3}>
+                    Start Knowing
+                  </Text>
                   <Text style={styles.accountBody}>
                     Search bills and legislators, find who represents you, and get cited answers —
                     no account needed. An account makes it yours: track your bills, keep chat
