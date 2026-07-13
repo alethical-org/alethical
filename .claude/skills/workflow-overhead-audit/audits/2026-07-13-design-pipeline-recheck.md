@@ -44,6 +44,13 @@ it, but silent meaning-drift in a behavioral rule wouldn't *trigger* a revert.
 So the rewrite goes to the session summary for an explicit yes; only this record
 is applied now.
 
+**Update (same session, after the yes):** Eugene approved the consolidation and
+directed that future audit verdicts be applied autonomously. Rule 10 was
+consolidated (807 → 718 words) and a new clause makes applying
+workflow-overhead-audit verdicts on non-exempt gates part of the safe/reversible
+lane — so the "propose-first" hesitation above will not recur. The next audit's
+diff base is the *consolidated* rule 10.
+
 ## Headline
 
 The repo layer is still lean — nothing dropped for lack of evidence, one gate
