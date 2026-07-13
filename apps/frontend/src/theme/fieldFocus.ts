@@ -46,7 +46,10 @@ export function fieldFocusRing(focused: boolean) {
     focusTransition,
     // Set both so it works for full-border pills and bottom-border fields
     // (which set borderBottomColor explicitly, so borderColor alone wouldn't win).
-    focused && { borderColor: theme.colors.purple.base, borderBottomColor: theme.colors.purple.base },
+    focused && {
+      borderColor: theme.colors.purple.base,
+      borderBottomColor: theme.colors.purple.base,
+    },
     focused && (theme.shadows.focusPurple as object),
   ];
 }

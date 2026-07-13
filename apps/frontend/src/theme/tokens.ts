@@ -84,7 +84,8 @@ const alpha = {
   white14: 'rgba(255,255,255,0.14)',
 };
 
-const webFont = (stack: string) => Platform.select({ web: stack, ios: 'System', default: 'sans-serif' }) as string;
+const webFont = (stack: string) =>
+  Platform.select({ web: stack, ios: 'System', default: 'sans-serif' }) as string;
 
 export const theme = {
   colors: {
@@ -250,45 +251,108 @@ export const theme = {
   shadows: {
     sm: Platform.select({
       web: { boxShadow: '0 1px 4px rgba(0,0,0,0.08)' },
-      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 1 },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 1,
+      },
     }),
     raised: Platform.select({
       web: { boxShadow: '0 1px 4px rgba(0,0,0,0.12)' },
-      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 2 },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+        elevation: 2,
+      },
     }),
     card: Platform.select({
       web: { boxShadow: '0 8px 24px rgba(17,21,15,0.06)' },
-      default: { shadowColor: '#11150f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 24, elevation: 3 },
+      default: {
+        shadowColor: '#11150f',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 24,
+        elevation: 3,
+      },
     }),
     md: Platform.select({
       web: { boxShadow: '0 2px 8px rgba(17,21,15,0.16)' },
-      default: { shadowColor: '#11150f', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.16, shadowRadius: 8, elevation: 4 },
+      default: {
+        shadowColor: '#11150f',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.16,
+        shadowRadius: 8,
+        elevation: 4,
+      },
     }),
     lg: Platform.select({
       web: { boxShadow: '0 18px 44px rgba(17,21,15,0.08)' },
-      default: { shadowColor: '#11150f', shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.08, shadowRadius: 44, elevation: 8 },
+      default: {
+        shadowColor: '#11150f',
+        shadowOffset: { width: 0, height: 18 },
+        shadowOpacity: 0.08,
+        shadowRadius: 44,
+        elevation: 8,
+      },
     }),
     focus: Platform.select({
       web: { boxShadow: '0 0 0 3px rgba(45,212,126,0.18)' },
-      default: { shadowColor: '#2ed47e', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.18, shadowRadius: 3, elevation: 0 },
+      default: {
+        shadowColor: '#2ed47e',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.18,
+        shadowRadius: 3,
+        elevation: 0,
+      },
     }),
     // v2 home: nav dropdown panel (three-layer stack)
     panel: Platform.select({
-      web: { boxShadow: '0 1px 2px rgba(17,21,15,0.10), 0 12px 26px rgba(17,21,15,0.16), 0 40px 80px rgba(17,21,15,0.32)' },
-      default: { shadowColor: '#11150f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 26, elevation: 12 },
+      web: {
+        boxShadow:
+          '0 1px 2px rgba(17,21,15,0.10), 0 12px 26px rgba(17,21,15,0.16), 0 40px 80px rgba(17,21,15,0.32)',
+      },
+      default: {
+        shadowColor: '#11150f',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.2,
+        shadowRadius: 26,
+        elevation: 12,
+      },
     }),
     // v2 home glows: purple (hero/city chips hover, field focus ring), green (capability card hover)
     glowPurple: Platform.select({
       web: { boxShadow: '0 0 0 3px rgba(91,48,214,0.14), 0 0 16px rgba(91,48,214,0.4)' },
-      default: { shadowColor: '#5b30d6', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 0 },
+      default: {
+        shadowColor: '#5b30d6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 0,
+      },
     }),
     focusPurple: Platform.select({
       web: { boxShadow: '0 0 0 4px rgba(91,48,214,0.14)' },
-      default: { shadowColor: '#5b30d6', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 0 },
+      default: {
+        shadowColor: '#5b30d6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.14,
+        shadowRadius: 4,
+        elevation: 0,
+      },
     }),
     glowGreen: Platform.select({
       web: { boxShadow: '0 0 0 3px rgba(46,212,126,0.12), 0 0 14px rgba(46,212,126,0.32)' },
-      default: { shadowColor: '#2ed47e', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.32, shadowRadius: 14, elevation: 0 },
+      default: {
+        shadowColor: '#2ed47e',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.32,
+        shadowRadius: 14,
+        elevation: 0,
+      },
     }),
   },
   layout: {
