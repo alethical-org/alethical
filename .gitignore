@@ -15,6 +15,10 @@ __pycache__/
 .vscode/
 .codex/
 
+# task-observer (global ~/.claude skill) writes session logs to the project root
+skill-observations/
+skill-updates/
+
 node_modules/
 .pnpm-store/
 .vercel/
