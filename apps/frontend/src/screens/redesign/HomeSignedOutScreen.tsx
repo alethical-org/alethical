@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Linking,
   Platform,
@@ -35,6 +35,10 @@ import { useResponsive } from '../../hooks/useResponsive';
 
 const t = theme;
 const isWeb = Platform.OS === 'web';
+
+// Hero ask field auto-grows from one line to a ~4-line cap, then scrolls.
+const ASK_MIN_HEIGHT = 60;
+const ASK_MAX_HEIGHT = 150;
 
 // .18s ease micro-transitions (README "Hover / focus micro-states") — web only.
 const transition = (props: string): object =>
@@ -238,19 +242,31 @@ function FillChip({
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
+  // Touch has no hover, so a tap shows the same purple glow transiently (~650ms),
+  // then the .18s transition fades it out. Covers both hero example chips and city chips.
+  const [tapped, setTapped] = useState(false);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (tapTimer.current ? clearTimeout(tapTimer.current) : undefined), []);
+  const glow = hovered || tapped;
+  const handlePress = () => {
+    setTapped(true);
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    tapTimer.current = setTimeout(() => setTapped(false), 650);
+    onPress();
+  };
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={onPress}
+      onPress={handlePress}
       {...hoverProps}
       style={[
         city ? styles.cityChip : styles.exampleChip,
         transition('border-color, box-shadow'),
-        hovered && styles.chipHover,
-        hovered && (t.shadows.glowPurple as object),
+        glow && styles.chipHover,
+        glow && (t.shadows.glowPurple as object),
       ]}
     >
-      {/* Hover turns only the border + glow purple (chipHover + glowPurple);
+      {/* Hover/tap turns only the border + glow purple (chipHover + glowPurple);
           the label keeps its default color. */}
       <Text style={city ? styles.cityChipText : styles.exampleChipText}>{label}</Text>
     </Pressable>
@@ -720,6 +736,25 @@ export function HomeSignedOutScreen() {
   const askInputRef = useRef<TextInput>(null);
   const finderInputRef = useRef<TextInput>(null);
 
+  // Auto-grow the ask textarea (web): reset to content height so it grows AND
+  // shrinks, capped at ASK_MAX_HEIGHT (then RN-Web scrolls it). RN-Web's own
+  // onContentSizeChange can't shrink (it reads scrollHeight of the pinned box),
+  // so drive the DOM node directly. Re-runs on typed or chip-inserted text and
+  // on the mobile/desktop breakpoint (wrapping changes).
+  useLayoutEffect(() => {
+    if (!isWeb) return;
+    const el = askInputRef.current as unknown as HTMLTextAreaElement | null;
+    if (!el || typeof el.scrollHeight !== 'number') return;
+    if (!askValue) {
+      // Empty: pin one line. A long placeholder wraps at narrow widths and would
+      // otherwise inflate scrollHeight; clip it like a normal single-line field.
+      el.style.height = `${ASK_MIN_HEIGHT}px`;
+      return;
+    }
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT)}px`;
+  }, [askValue, isMobile]);
+
   const signIn = () => void signInWithGoogle();
   // Interim locked behavior: the Ask backend is stubbed, so Ask routes to sign-in
   // (docs/mvp-redesign-plan.md § Locked decisions, "Logged-out Ask AI funnel").
@@ -833,7 +868,19 @@ export function HomeSignedOutScreen() {
                       onChangeText={setAskValue}
                       onFocus={() => setAskFocused(true)}
                       onBlur={() => setAskFocused(false)}
-                      onSubmitEditing={submitAsk}
+                      // Auto-grow (multiline): starts at one row; the layout effect
+                      // above sizes it to content between one line and the cap.
+                      multiline
+                      numberOfLines={1}
+                      blurOnSubmit={false}
+                      // Enter submits (Shift+Enter = newline), matching the chat composer.
+                      onKeyPress={(event) => {
+                        const ne = event.nativeEvent as { key?: string; shiftKey?: boolean };
+                        if (isWeb && ne.key === 'Enter' && !ne.shiftKey) {
+                          (event as { preventDefault?: () => void }).preventDefault?.();
+                          submitAsk();
+                        }
+                      }}
                       placeholder="Ask about bills or legislators by issue or name…"
                       placeholderTextColor={t.colors.text.faint}
                       style={styles.askInput}
@@ -1079,11 +1126,15 @@ const styles = StyleSheet.create({
   askInput: {
     flex: 1,
     minWidth: 0,
+    minHeight: ASK_MIN_HEIGHT,
+    maxHeight: ASK_MAX_HEIGHT,
     fontFamily: t.typography.body,
     fontSize: 21,
+    lineHeight: 28,
     color: t.colors.text.primary,
     paddingVertical: 16,
     paddingHorizontal: 6,
+    textAlignVertical: 'top',
     ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
   },
   askButton: {
