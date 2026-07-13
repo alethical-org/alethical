@@ -39,6 +39,7 @@ const isWeb = Platform.OS === 'web';
 // Hero ask field auto-grows from one line to a ~4-line cap, then scrolls.
 const ASK_MIN_HEIGHT = 60;
 const ASK_MAX_HEIGHT = 150;
+const ASK_PLACEHOLDER = 'Ask about bills or legislators by issue or name…';
 
 // .18s ease micro-transitions (README "Hover / focus micro-states") — web only.
 const transition = (props: string): object =>
@@ -745,14 +746,21 @@ export function HomeSignedOutScreen() {
     if (!isWeb) return;
     const el = askInputRef.current as unknown as HTMLTextAreaElement | null;
     if (!el || typeof el.scrollHeight !== 'number') return;
-    if (!askValue) {
-      // Empty: pin one line. A long placeholder wraps at narrow widths and would
-      // otherwise inflate scrollHeight; clip it like a normal single-line field.
+    const empty = !askValue;
+    if (empty && !isMobile) {
+      // Desktop empty: pin one line. The wide field fits the placeholder, and
+      // measuring it would only inflate the resting height.
       el.style.height = `${ASK_MIN_HEIGHT}px`;
       return;
     }
+    // Mobile empty: the placeholder wraps to two lines on a phone, so size the
+    // field to show all of it rather than clipping. scrollHeight ignores the
+    // placeholder, so mirror it into the value only while measuring.
+    if (empty) el.value = ASK_PLACEHOLDER;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT)}px`;
+    const next = Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT);
+    if (empty) el.value = '';
+    el.style.height = `${next}px`;
   }, [askValue, isMobile]);
 
   const signIn = () => void signInWithGoogle();
@@ -859,40 +867,63 @@ export function HomeSignedOutScreen() {
                     everyone voted. Plain language, every answer linked to official sources.
                   </Text>
 
-                  {/* ASK FIELD */}
-                  <FieldShell focused={askFocused} style={styles.askShell}>
-                    <Search size={22} color={t.colors.text.faint} strokeWidth={2} />
-                    <TextInput
-                      ref={askInputRef}
-                      value={askValue}
-                      onChangeText={setAskValue}
-                      onFocus={() => setAskFocused(true)}
-                      onBlur={() => setAskFocused(false)}
-                      // Auto-grow (multiline): starts at one row; the layout effect
-                      // above sizes it to content between one line and the cap.
-                      multiline
-                      numberOfLines={1}
-                      blurOnSubmit={false}
-                      // Enter submits (Shift+Enter = newline), matching the chat composer.
-                      onKeyPress={(event) => {
-                        const ne = event.nativeEvent as { key?: string; shiftKey?: boolean };
-                        if (isWeb && ne.key === 'Enter' && !ne.shiftKey) {
-                          (event as { preventDefault?: () => void }).preventDefault?.();
-                          submitAsk();
-                        }
-                      }}
-                      placeholder="Ask about bills or legislators by issue or name…"
-                      placeholderTextColor={t.colors.text.faint}
-                      style={styles.askInput}
-                    />
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={submitAsk}
-                      style={styles.askButton}
+                  {/* ASK FIELD. Mobile stacks a full-width Ask button below the
+                      field (inline, it would clip the placeholder on a narrow
+                      screen) and top-aligns the icon so it holds as the field grows. */}
+                  <View style={[styles.askShell, isMobile && styles.askFieldMobile]}>
+                    <FieldShell
+                      focused={askFocused}
+                      style={isMobile ? styles.askShellMobileInner : undefined}
                     >
-                      <Text style={styles.askButtonText}>Ask</Text>
-                    </Pressable>
-                  </FieldShell>
+                      <Search
+                        size={22}
+                        color={t.colors.text.faint}
+                        strokeWidth={2}
+                        style={isMobile ? styles.askIconMobile : undefined}
+                      />
+                      <TextInput
+                        ref={askInputRef}
+                        value={askValue}
+                        onChangeText={setAskValue}
+                        onFocus={() => setAskFocused(true)}
+                        onBlur={() => setAskFocused(false)}
+                        // Auto-grow (multiline): starts at one row; the layout effect
+                        // above sizes it to content between one line and the cap.
+                        multiline
+                        numberOfLines={1}
+                        blurOnSubmit={false}
+                        // Enter submits (Shift+Enter = newline), matching the chat composer.
+                        onKeyPress={(event) => {
+                          const ne = event.nativeEvent as { key?: string; shiftKey?: boolean };
+                          if (isWeb && ne.key === 'Enter' && !ne.shiftKey) {
+                            (event as { preventDefault?: () => void }).preventDefault?.();
+                            submitAsk();
+                          }
+                        }}
+                        placeholder={ASK_PLACEHOLDER}
+                        placeholderTextColor={t.colors.text.faint}
+                        style={[styles.askInput, isMobile && styles.askInputMobile]}
+                      />
+                      {!isMobile && (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={submitAsk}
+                          style={styles.askButton}
+                        >
+                          <Text style={styles.askButtonText}>Ask</Text>
+                        </Pressable>
+                      )}
+                    </FieldShell>
+                    {isMobile && (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={submitAsk}
+                        style={styles.askButtonMobile}
+                      >
+                        <Text style={styles.askButtonText}>Ask</Text>
+                      </Pressable>
+                    )}
+                  </View>
 
                   {/* EXAMPLE CHIPS */}
                   <View style={styles.chipsRow}>
@@ -1148,6 +1179,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.darkest,
+  },
+  // Mobile: field row + full-width Ask button stacked in a column.
+  askFieldMobile: { gap: 12 },
+  // Top-align the icon (row no longer centers) and balance the right padding now
+  // that the inline button is gone.
+  askShellMobileInner: { alignItems: 'flex-start', paddingRight: 26 },
+  askIconMobile: { marginTop: 17 },
+  // Smaller than the 21px desktop size so the placeholder wraps to two lines on a
+  // phone, matching how the hero H1/subhead also scale down on mobile.
+  askInputMobile: { fontSize: 17, lineHeight: 24 },
+  askButtonMobile: {
+    backgroundColor: t.colors.brand.base,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipsRow: {
     marginTop: 16,
