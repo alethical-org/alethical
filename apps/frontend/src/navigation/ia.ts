@@ -83,7 +83,10 @@ export const IA: IaItem[] = [
   },
   {
     id: 'search-legislators',
-    label: 'Search Legislators',
+    // "Legislators" (not "Search Legislators") in the nav dropdown — we're already
+    // in the Search menu, so the "Search" prefix is redundant. The capability card
+    // in the page body keeps the fuller "Search Legislators" title.
+    label: 'Legislators',
     path: '/legislators',
     menu: 'search',
     availability: 'mvp',

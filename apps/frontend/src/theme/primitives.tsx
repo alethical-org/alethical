@@ -209,6 +209,15 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
   );
 }
 
+/** Muted, non-interactive "coming soon" pill for the ON THE ROADMAP group. `large` = mobile size. */
+function RoadmapPill({ label, large }: { label: string; large?: boolean }) {
+  return (
+    <View style={[styles.roadmapPill, large && styles.roadmapPillLarge]}>
+      <Text style={[styles.roadmapPillText, large && styles.roadmapPillTextLarge]}>{label}</Text>
+    </View>
+  );
+}
+
 const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, track: 452, about: 320 };
 
 function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: IaItem) => void }) {
@@ -222,14 +231,18 @@ function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: Ia
           <MenuPanelRow key={item.id} item={item} onPress={onNavigate} />
         ))}
         {roadmap.length > 0 ? (
-          <View style={styles.roadmapLabelRow}>
-            <Text style={styles.roadmapLabel}>ON THE ROADMAP</Text>
-            <View style={styles.roadmapRule} />
-          </View>
+          <>
+            <View style={styles.roadmapLabelRow}>
+              <Text style={styles.roadmapLabel}>ON THE ROADMAP</Text>
+              <View style={styles.roadmapRule} />
+            </View>
+            <View style={styles.roadmapPillRow}>
+              {roadmap.map((item) => (
+                <RoadmapPill key={item.id} label={item.label} />
+              ))}
+            </View>
+          </>
         ) : null}
-        {roadmap.map((item) => (
-          <MenuPanelRow key={item.id} item={item} />
-        ))}
       </View>
     </View>
   );
@@ -344,6 +357,17 @@ export function TopNav({
     onOpenMenuChange?.(menu);
   };
   const dropdownMenus = MENUS.filter((menu) => menu.key !== 'ask');
+  // Mobile flattens every menu's roadmap items into one pill row. Search items keep
+  // their bare label; Track-only items are prefixed ("Legislators" → "Track Legislators")
+  // to disambiguate. → Issues · Candidates · Track Legislators.
+  const searchRoadmap = navDropdownItems('search').roadmap;
+  const searchRoadmapLabels = new Set(searchRoadmap.map((item) => item.label));
+  const mobileRoadmapPills = [
+    ...searchRoadmap.map((item) => item.label),
+    ...navDropdownItems('track')
+      .roadmap.filter((item) => !searchRoadmapLabels.has(item.label))
+      .map((item) => `Track ${item.label}`),
+  ];
   const navigate = (item: IaItem) => {
     setOpenMenu(null);
     setDrawerOpen(false);
@@ -421,7 +445,7 @@ export function TopNav({
                 </Pressable>
               ) : null}
               {dropdownMenus.map((menu) => {
-                const { live, roadmap } = navDropdownItems(menu.key);
+                const { live } = navDropdownItems(menu.key);
                 return (
                   <View key={menu.key} style={styles.menuGroup}>
                     <Text style={styles.menuGroupLabel}>{menu.label.toUpperCase()}</Text>
@@ -436,17 +460,20 @@ export function TopNav({
                         {item.id === 'search-bills' ? <GroundedAskPill /> : null}
                       </Pressable>
                     ))}
-                    {roadmap.length > 0 ? (
-                      <Text style={styles.menuGroupRoadmapLabel}>ON THE ROADMAP</Text>
-                    ) : null}
-                    {roadmap.map((item) => (
-                      <View key={item.id} style={styles.menuSubRow}>
-                        <Text style={[styles.menuSubRowText, styles.menuSubRowTextDisabled]}>{item.label}</Text>
-                      </View>
-                    ))}
                   </View>
                 );
               })}
+              <View style={styles.mobileRoadmapBlock}>
+                <View style={styles.mobileRoadmapLabelRow}>
+                  <Text style={styles.roadmapLabel}>ON THE ROADMAP</Text>
+                  <View style={styles.roadmapRule} />
+                </View>
+                <View style={styles.mobileRoadmapPillRow}>
+                  {mobileRoadmapPills.map((label) => (
+                    <RoadmapPill key={label} label={label} large />
+                  ))}
+                </View>
+              </View>
             </ScrollView>
             <View style={styles.menuFooter}>
               <PrimaryButton
@@ -808,13 +835,26 @@ const styles = StyleSheet.create({
   roadmapLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 14, paddingHorizontal: 14, paddingBottom: 6 },
   roadmapLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 1.2, color: t.colors.text.faint },
   roadmapRule: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink07 },
+  roadmapPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingBottom: 8 },
+  roadmapPill: {
+    backgroundColor: t.colors.surfaces.s300,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 13,
+  },
+  roadmapPillLarge: { paddingVertical: 8, paddingHorizontal: 15 },
+  roadmapPillText: { fontFamily: t.typography.title, fontSize: 13, fontWeight: t.fontWeights.semibold, color: t.colors.text.faint },
+  roadmapPillTextLarge: { fontSize: 14 },
+  mobileRoadmapBlock: { paddingTop: 16, gap: 12 },
+  mobileRoadmapLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mobileRoadmapPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   // mobile drawer groups
   menuGroup: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: t.colors.borders.base, gap: 2 },
-  menuGroupLabel: { fontFamily: t.typography.mono, fontSize: t.fontSizes.caption, fontWeight: t.fontWeights.bold, letterSpacing: 1.4, color: t.colors.brand.deep, marginBottom: 6 },
-  menuGroupRoadmapLabel: { fontFamily: t.typography.mono, fontSize: 10, fontWeight: t.fontWeights.bold, letterSpacing: 1.2, color: t.colors.text.faint, marginTop: 10, marginBottom: 2 },
+  menuGroupLabel: { fontFamily: t.typography.mono, fontSize: 12, fontWeight: t.fontWeights.bold, letterSpacing: 1.68, color: t.colors.brand.deep, marginBottom: 6 },
   menuSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
   menuSubRowText: { fontFamily: t.typography.title, fontSize: 21, fontWeight: t.fontWeights.semibold, letterSpacing: -0.2, color: t.colors.text.primary },
-  menuSubRowTextDisabled: { color: t.colors.text.faint, fontWeight: t.fontWeights.medium },
   menuRowInline: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   hamburger: { padding: 9, borderRadius: 10, backgroundColor: t.colors.surfaces.base, borderWidth: 1, borderColor: t.colors.borders.base },
   // Right-side drawer: page stays dimmed on the left, sheet covers ~84% of the width.
