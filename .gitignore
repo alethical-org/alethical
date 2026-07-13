@@ -29,6 +29,10 @@ apps/frontend/web-build/
 apps/frontend/.vercel/
 apps/frontend/expo-env.d.ts
 
+# Stray root-level artifacts tooling drops here; the real configs live in apps/frontend/
+/.expo/
+/tsconfig.json
+
 supabase/.temp/
 
 alethical.db
