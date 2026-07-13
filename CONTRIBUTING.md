@@ -45,9 +45,9 @@ needs no configuration. See `.env.example` for what each variable does.
 | `just migrate` | Apply database migrations (`alembic upgrade head`) |
 | `uv run pytest` | Run the backend test suite |
 
-Run `just lint` and `uv run pytest` before opening a PR — CI runs the same checks.
+Run `just lint`, `just format`, and `uv run pytest` before opening a PR — CI runs the same checks, **plus a repo-wide `prettier --check .` that `just lint` does not cover** (so `just lint` passing is not enough — run `just format` too).
 
-**Format the frontend only with `just format`** (Prettier from the lockfile-pinned toolchain — run `pnpm install --frozen-lockfile` first if deps look stale). Do **not** run a global or ad-hoc `prettier` binary: a version that differs from the pinned one reflows unrelated lines across whole files and buries your change (and can diverge from what CI accepts). If a diff balloons far beyond what you edited, that's the signal — reset and format via `just format`. A dev-server "expected versions of the packages" warning means your `node_modules` drifted from the lockfile; reinstall before formatting.
+**Format the frontend only with `just format`** (Prettier from the lockfile-pinned toolchain — `3.4.2`, config in `apps/frontend/.prettierrc.json`; run `pnpm install --frozen-lockfile` first if deps look stale). The workspace Prettier is **safe**: if it produces a large diff, the file was genuinely non-conformant — **keep** the formatting, don't reset it. Only a **global or ad-hoc `prettier`** binary (a different version, or run where it can't find the config) reflows spuriously — never use that. CI's format step is `prettier --check .`, which is **repo-wide**: a frontend PR fails if *any* frontend file is non-conformant, even files you didn't touch. If `just format` reformats files unrelated to your change, that's pre-existing debt — format it in a separate `chore/format-*` PR first, then rebase your change on top so its diff stays surgical. A dev-server "expected versions of the packages" warning means your `node_modules` drifted from the lockfile; reinstall before formatting.
 
 ## Branch & PR workflow
 
