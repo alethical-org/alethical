@@ -18,6 +18,7 @@ import {
 import { useResponsive } from '../hooks/useResponsive';
 import { usePolicyAreas, useSessions } from '../hooks/useAppQueries';
 import { theme } from '../theme/tokens';
+import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 import { Card } from './Card';
 
 export type ChamberFilter = 'All' | 'House' | 'Senate';
@@ -72,6 +73,7 @@ export function SearchFilterPanel({
   style,
 }: SearchFilterPanelProps) {
   const { isDesktop } = useResponsive();
+  const { focused: queryFocused, focusProps: queryFocusProps } = useFieldFocus();
   const [openMenu, setOpenMenu] = useState<'status' | 'year' | 'topic' | null>(null);
   const policyAreasQuery = usePolicyAreas(session || undefined);
   const sessionsQuery = useSessions();
@@ -105,15 +107,19 @@ export function SearchFilterPanel({
 
   return (
     <Card style={[styles.panel, style]}>
-      <View style={styles.searchBox}>
+      <View style={[styles.searchBox, ...fieldFocusRing(queryFocused)]}>
         <Search color={theme.colors.mutedInk} size={18} strokeWidth={2} />
         <TextInput
           accessibilityLabel="Search bills and legislators"
           placeholder="Search keyword or bills (e.g. HF 2904, SF 1832)"
           placeholderTextColor={theme.colors.mutedInk}
-          style={styles.searchInput}
+          style={[styles.searchInput, fieldOutlineReset]}
           value={query}
-          onFocus={onQueryFocus}
+          onFocus={() => {
+            queryFocusProps.onFocus();
+            onQueryFocus?.();
+          }}
+          onBlur={queryFocusProps.onBlur}
           onChangeText={onQueryChange}
         />
       </View>

@@ -15,6 +15,7 @@ import {
   TopNav,
 } from '../../theme/primitives';
 import { IaItem, MenuKey } from '../../navigation/ia';
+import { fieldFocusRing } from '../../theme/fieldFocus';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
 
@@ -241,19 +242,7 @@ function FieldShell({
   focused: boolean;
   style?: object;
 }) {
-  return (
-    <View
-      style={[
-        styles.fieldShell,
-        transition('border-color, box-shadow'),
-        focused && { borderColor: t.colors.purple.base },
-        focused && (t.shadows.focusPurple as object),
-        style,
-      ]}
-    >
-      {children}
-    </View>
-  );
+  return <View style={[styles.fieldShell, ...fieldFocusRing(focused), style]}>{children}</View>;
 }
 
 // --- Hero answer card (static sample answer — HF 4138) ---
