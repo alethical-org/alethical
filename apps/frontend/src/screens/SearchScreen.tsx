@@ -14,6 +14,7 @@ import {
 import {
   useBills,
   useLegislators,
+  useMeta,
   useToggleTrackedBill,
   useTrackedBills,
 } from '../hooks/useAppQueries';
@@ -28,6 +29,18 @@ type Props = MainTabScreenProps<'Search'>;
 const BILLS_PAGE_SIZE = 5;
 const LEGISLATORS_PAGE_SIZE = 8;
 const ALL_POLICIES = allPoliciesLabel();
+
+// "Data as of {date}" provenance from the latest succeeded ingestion (/meta).
+function formatDataAsOf(dataAsOf: string | null): string | null {
+  if (!dataAsOf) {
+    return null;
+  }
+  const parsed = new Date(dataAsOf);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export function SearchScreen({ navigation, route }: Props) {
   const { isDesktop } = useResponsive();
@@ -61,6 +74,8 @@ export function SearchScreen({ navigation, route }: Props) {
     offset: billPage * BILLS_PAGE_SIZE,
   });
   const legislatorsQuery = useLegislators(query, session || undefined, legislatorFilters);
+  const metaQuery = useMeta();
+  const dataAsOf = formatDataAsOf(metaQuery.data?.dataAsOf ?? null);
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
   const trackedIds = useMemo(
@@ -137,6 +152,7 @@ export function SearchScreen({ navigation, route }: Props) {
               <Text style={styles.resultCount}>
                 {billTotal.toLocaleString()} {billTotal === 1 ? 'bill' : 'bills'} · Sorted by latest
                 action
+                {dataAsOf ? ` · Data as of ${dataAsOf}` : ''}
               </Text>
             ) : null}
             <View style={styles.stack}>

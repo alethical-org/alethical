@@ -8,6 +8,7 @@ import {
   getChatSessionFromApi,
   getCurrentUserFromApi,
   getLegislatorBillsFromApi,
+  getMetaFromApi,
   getLegislatorFromApi,
   ListPagination,
   LegislatorListFilters,
@@ -80,6 +81,13 @@ export function useSessions() {
   return useQuery({
     queryKey: ['sessions'],
     queryFn: listSessionsFromApi,
+  });
+}
+
+export function useMeta() {
+  return useQuery({
+    queryKey: ['meta'],
+    queryFn: getMetaFromApi,
   });
 }
 

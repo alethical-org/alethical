@@ -1088,6 +1088,20 @@ export async function listPolicyAreasFromApi(session?: string): Promise<PolicyAr
     .map((item) => ({ name: item.name.trim(), billCount: item.bill_count }));
 }
 
+interface ApiMetaPayload {
+  api_version: string;
+  data_as_of?: string | null;
+}
+
+export interface Meta {
+  dataAsOf: string | null;
+}
+
+export async function getMetaFromApi(): Promise<Meta> {
+  const response = await publicApiRequest<DetailResponse<ApiMetaPayload>>('/meta');
+  return { dataAsOf: response.data.data_as_of ?? null };
+}
+
 export async function listSessionsFromApi(): Promise<LegislativeSession[]> {
   const response = await publicApiRequest<PageResponse<ApiSessionPayload>>('/sessions');
 
