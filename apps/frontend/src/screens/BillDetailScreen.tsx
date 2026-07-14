@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ArrowLeft, Check } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '../components/Card';
@@ -9,6 +9,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
 import { useBill, useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
 import { RootStackParamList } from '../navigation/types';
+import { trackSignInReturnTo } from '../navigation/webRoutes';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
 import { useResponsive } from '../hooks/useResponsive';
@@ -67,6 +68,30 @@ export function BillDetailScreen({ route, navigation }: Props) {
     () => new Set((trackedQuery.data ?? []).map((item) => item.id)),
     [trackedQuery.data],
   );
+
+  // Intent-preserving track: a signed-out user who tapped Track was sent through
+  // sign-in and back here with ?track=1. Once signed in and the tracked list has
+  // loaded, complete the track (unless already tracked) and clear the param so a
+  // refresh doesn't re-trigger it.
+  const autoTrackFired = useRef(false);
+  useEffect(() => {
+    if (!route.params.track || !isSignedIn || !bill || trackedQuery.isLoading) {
+      return;
+    }
+    if (!autoTrackFired.current && !trackedIds.has(bill.id)) {
+      autoTrackFired.current = true;
+      toggleTrackedBill.mutate(bill.id);
+    }
+    navigation.setParams({ track: undefined });
+  }, [
+    route.params.track,
+    isSignedIn,
+    bill,
+    trackedQuery.isLoading,
+    trackedIds,
+    toggleTrackedBill,
+    navigation,
+  ]);
 
   if (billQuery.isLoading) {
     return (
@@ -183,7 +208,7 @@ export function BillDetailScreen({ route, navigation }: Props) {
               label={tracked ? 'Tracked' : 'Track'}
               onPress={() => {
                 if (!isSignedIn) {
-                  void signInWithGoogle();
+                  void signInWithGoogle(trackSignInReturnTo(bill.id));
                   return;
                 }
                 toggleTrackedBill.mutate(bill.id);
