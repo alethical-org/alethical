@@ -18,6 +18,7 @@ import {
   useTrackedBills,
 } from '../hooks/useAppQueries';
 import { MainTabScreenProps } from '../navigation/types';
+import { trackSignInReturnTo } from '../navigation/webRoutes';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
 import { useResponsive } from '../hooks/useResponsive';
@@ -160,7 +161,7 @@ export function SearchScreen({ navigation, route }: Props) {
                   }
                   onToggleTrack={() => {
                     if (!isSignedIn) {
-                      void signInWithGoogle();
+                      void signInWithGoogle(trackSignInReturnTo(bill.id));
                       return;
                     }
                     toggleTrackedBill.mutate(bill.id);

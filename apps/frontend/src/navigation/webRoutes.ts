@@ -4,7 +4,7 @@ import { MainTabParamList, RootStackParamList } from './types';
 
 type WebRouteTarget =
   | { kind: 'tab'; screen: keyof MainTabParamList }
-  | { kind: 'bill'; billId: string; tab?: string }
+  | { kind: 'bill'; billId: string; tab?: string; track?: boolean }
   | { kind: 'legislator'; legislatorId: string }
   | { kind: 'findMyLegislator' }
   | { kind: 'privacy' }
@@ -12,6 +12,13 @@ type WebRouteTarget =
   | { kind: 'vote'; billId: string; voteEventId: string }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
   | { kind: 'ask'; params: RootStackParamList['Ask'] };
+
+// Sign-in returnTo for a signed-out user who tapped Track: land back on the
+// bill and auto-complete the track (see BillDetailScreen). Kept here so every
+// call site shares one URL shape (grounded-answers.md rule 5).
+export function trackSignInReturnTo(billId: string) {
+  return `/bills/${encodeURIComponent(billId)}?track=1`;
+}
 
 function normalizePathname(pathname: string) {
   const trimmed = pathname.split('?')[0].replace(/\/+$/, '');
@@ -64,6 +71,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       kind: 'bill',
       billId: decodeURIComponent(segments[1]),
       tab: searchParams.get('tab') ?? undefined,
+      track: searchParams.get('track') === '1' ? true : undefined,
     };
   }
 
@@ -157,8 +165,15 @@ export function pathnameFromNavigationState(
     }
     case 'BillDetail': {
       const path = `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}`;
-      const tab = activeRoute.params?.tab;
-      return tab ? `${path}?tab=${encodeURIComponent(String(tab))}` : path;
+      const params = new URLSearchParams();
+      if (activeRoute.params?.tab) {
+        params.set('tab', String(activeRoute.params.tab));
+      }
+      if (activeRoute.params?.track) {
+        params.set('track', '1');
+      }
+      const query = params.toString();
+      return query ? `${path}?${query}` : path;
     }
     case 'LegislatorProfile':
       return `/legislators/${encodeURIComponent(String(activeRoute.params?.legislatorId ?? ''))}`;
@@ -231,7 +246,7 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
           homeTabs,
           {
             name: 'BillDetail',
-            params: { billId: target.billId, tab: target.tab },
+            params: { billId: target.billId, tab: target.tab, track: target.track },
           },
         ],
         index: 1,

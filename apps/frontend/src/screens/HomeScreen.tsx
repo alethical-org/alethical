@@ -8,6 +8,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
 import { useBills, useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
 import { MainTabScreenProps } from '../navigation/types';
+import { trackSignInReturnTo } from '../navigation/webRoutes';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
 
@@ -110,7 +111,7 @@ export function HomeScreen({ navigation }: Props) {
             }
             onToggleTrack={() => {
               if (!isSignedIn) {
-                void signInWithGoogle();
+                void signInWithGoogle(trackSignInReturnTo(bill.id));
                 return;
               }
               toggleTrackedBill.mutate(bill.id);

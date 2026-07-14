@@ -22,7 +22,11 @@ export function TrackedScreen({ navigation }: Props) {
         title="Tracked Bills"
         subtitle="Tracking is a signed-in feature so your alerts and context persist across devices."
       >
-        <AuthRequiredCard message="Sign in to track bills, save places, and receive updates that matter to you." />
+        <AuthRequiredCard
+          title="Track the bills you care about"
+          message="Sign in to build a watchlist and keep it in sync across devices, so the bills you care about and their current status stay in one place. You can browse and search everything without an account."
+          returnTo="/tracked"
+        />
       </ScreenView>
     );
   }
