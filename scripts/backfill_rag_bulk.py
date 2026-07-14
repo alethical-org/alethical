@@ -12,7 +12,11 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
-from alethical.db.session import database_url_for_target, get_database_url
+from alethical.db.session import (
+    NO_PREPARED_STATEMENTS,
+    database_url_for_target,
+    get_database_url,
+)
 from alethical.pipeline import rag as rag_text
 from alethical.pipeline.rag_ingest import _build_embeddings, _chunk_payloads
 
@@ -339,9 +343,13 @@ def main() -> None:
         if args.source_target == "local"
         else database_url_for_target("production", None)
     )
-    local_engine = create_engine(source_url, pool_pre_ping=True)
+    local_engine = create_engine(
+        source_url, pool_pre_ping=True, connect_args=NO_PREPARED_STATEMENTS
+    )
     prod_engine = create_engine(
-        database_url_for_target("production", None), pool_pre_ping=True
+        database_url_for_target("production", None),
+        pool_pre_ping=True,
+        connect_args=NO_PREPARED_STATEMENTS,
     )
 
     with Session(prod_engine) as db:

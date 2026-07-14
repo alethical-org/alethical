@@ -17,7 +17,11 @@ from sqlalchemy.orm import Session, selectinload
 
 from alethical.db import models as schema
 from alethical.pipeline.sessions import CURRENT_SESSION_SLUG
-from alethical.db.session import get_database_url, normalize_database_url
+from alethical.db.session import (
+    NO_PREPARED_STATEMENTS,
+    get_database_url,
+    normalize_database_url,
+)
 from alethical.db.session import supabase_database_url as _supabase_database_url
 
 
@@ -343,7 +347,9 @@ def prepare_batch(args: argparse.Namespace) -> None:
         args.database_url
         or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
     )
-    engine = create_engine(database_url, pool_pre_ping=True)
+    engine = create_engine(
+        database_url, pool_pre_ping=True, connect_args=NO_PREPARED_STATEMENTS
+    )
 
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     jsonl_path = output_dir / f"ai-enrichment-{timestamp}.jsonl"
@@ -553,7 +559,9 @@ def apply_output(args: argparse.Namespace) -> None:
         args.database_url
         or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
     )
-    engine = create_engine(database_url, pool_pre_ping=True)
+    engine = create_engine(
+        database_url, pool_pre_ping=True, connect_args=NO_PREPARED_STATEMENTS
+    )
     applied = 0
     failed = 0
     with Session(engine) as db:
