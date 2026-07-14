@@ -64,6 +64,8 @@ Rationale: the vote path stacks the three hardest problems (person resolution, r
 ### 4.1 Question router
 Classify each Ask into: `bill_text` (scenario 1) · `topic_bills` (scenario 2) · `topic_legislators` (scenario 3) · `legislator_vote` (scenario 4) · `refuse` (scenario 5). Bounded LLM classification step; low temperature; the router's output is a typed intent, not free text. All five intents are classified in v1 — `legislator_vote` maps to the deflection response (§4.5) until v1.1 ships the real path.
 
+There is deliberately **no `chat` intent** (confirmed Jul 14, 2026, resolving the 4-intent shipped router's `chat` catch-all): the router only ever produces a one-shot answer page. Chat is a *continuation* surface — entered from a bill page or from a `bill_text` answer's signed-in follow-up composer (§9.2) — never a classification destination. Durable invariant: `.claude/rules/grounded-answers.md` rule 8 (Follow-up chat is a standing capability).
+
 ### 4.2 Structured-answer formatters (2–3 thin functions)
 Each takes existing query results and produces a plain-English answer **plus a citations array** in the same shape `me.py` already emits (`citation_label`, `excerpt`, `url`, …):
 - `topic_bills`: policy-area + keyword match → bill list with AI summary lines; cite each `Bill.official_url`. Return the **total match count** (the UI shows "6 of 23"). Order by **legislative progress** (signed into law → passed chamber → in committee), secondary sort by most recent action date — ordering must be deterministic so a shared `?q=` link re-renders identically. Cap the displayed list at ~6; overflow routes to Search pre-filtered to the topic.
