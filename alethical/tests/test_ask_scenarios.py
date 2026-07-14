@@ -193,3 +193,45 @@ def test_degraded_offline_path_never_fabricates_answer(client, monkeypatch):
             continue
         # If the heuristic did route to a topic answer, it still must cite.
         _assert_cite_or_refuse(answer, data["intent"])
+
+
+def test_topic_bills_generalizes_to_a_second_topic(client, monkeypatch):
+    """The cited-list path is not hardwired to one topic: a different in-scope
+    topic ("student aid") resolves to its own matching bill, cited."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    data = client.post(
+        "/api/v1/ask", json={"content": "What bills affect student aid?"}
+    ).json()["data"]
+    assert data["intent"] == "topic_bills"
+    answer = data["answer"]
+    assert answer["topic"] == "student aid"
+    assert answer["total_matches"] >= 1
+    assert "94-2025-SF2483" in [bill["id"] for bill in answer["bills"]]
+    _assert_cite_or_refuse(answer, "topic_bills")
+
+
+def test_topic_below_minimum_length_returns_no_matches_state(client, monkeypatch):
+    """Rule 2: a topic too short to carry signal yields the honest NO MATCHES
+    empty state, never a rendered answer with nothing to cite."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    data = client.post("/api/v1/ask", json={"content": "What bills affect AI?"}).json()[
+        "data"
+    ]
+    assert data["intent"] == "topic_bills"
+    answer = data["answer"]
+    assert answer["total_matches"] == 0
+    assert answer["bills"] == []
+
+
+def test_topic_matches_by_bill_title_not_only_policy_area(client, monkeypatch):
+    """A topic that appears in a bill's title but not its policy-area tags still
+    matches — the title/description keyword branch of the match predicate."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    data = client.post(
+        "/api/v1/ask", json={"content": "What bills affect jobs?"}
+    ).json()["data"]
+    assert data["intent"] == "topic_bills"
+    answer = data["answer"]
+    assert answer["topic"] == "jobs"
+    assert "94-2025-SF1832" in [bill["id"] for bill in answer["bills"]]
+    _assert_cite_or_refuse(answer, "topic_bills")
