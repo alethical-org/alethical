@@ -235,4 +235,16 @@ export interface AskAnswer {
   // legislator_vote (§4.5 vote deflection): the bill the question named, if it
   // resolved. When absent, the deflection degrades to the `bills` list above.
   resolvedBill?: AskAnswerBill;
+  // bill_text (§4.1 / §9.4): the RAG prose answer, its passage citations, and
+  // the single bill it is scoped to. Present only for a bill_text answer.
+  billText?: string;
+  citations?: AskCitation[];
+  answeringBill?: AskAnswerBill;
+}
+
+export interface AskCitation {
+  label: string;
+  billId: string;
+  excerpt: string;
+  url: string;
 }

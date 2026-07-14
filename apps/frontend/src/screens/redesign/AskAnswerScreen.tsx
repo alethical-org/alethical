@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -43,6 +44,12 @@ function formatDataAsOf(dataAsOf?: string) {
     return null;
   }
   return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// The RAG synthesis returns light markdown (**bold**); strip the emphasis
+// markers so the prose reads cleanly — there is no markdown renderer here.
+function stripInlineMarkdown(value: string) {
+  return value.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1');
 }
 
 function AnswerBillCard({
@@ -202,10 +209,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     [shownLegislators],
   );
 
-  // Intents with no rendered answer body yet (bill_text, refuse), each with
-  // honest copy per docs/grounded-ask-spec.md §9.1 — never a false "on the way"
-  // promise for a genuinely out-of-scope question (.claude/rules/grounded-answers.md rule 2).
-  // legislator_vote now renders its own vote-deflection block below (§9.4).
+  // States with no rendered answer body — out-of-scope refusal, or a bill_text
+  // question we couldn't pin to a single bill (cite-or-refuse, §4.5): honest
+  // copy, never a false "on the way" promise (.claude/rules/grounded-answers.md
+  // rule 2). legislator_vote and answered bill_text render their own blocks below.
   const pending =
     answer?.intent === 'refuse'
       ? {
@@ -215,10 +222,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           cta: 'Browse Minnesota bills in Search →',
         }
       : {
-          eyebrow: 'ON THE ROADMAP',
-          muted: false,
-          body: 'Plain-English answers about what a bill says are coming. In the meantime, open any bill to read its full text and summary.',
-          cta: 'Find a bill in Search →',
+          eyebrow: 'NO BILL MATCHED',
+          muted: true,
+          body: 'We couldn’t match this to a single Minnesota bill’s text. Try naming the bill, or browse bills by issue in Search.',
+          cta: 'Browse bills in Search →',
         };
 
   // legislator_vote → the v1 honest vote deflection (§4.5 / §9.4): never a vote
@@ -226,6 +233,13 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // the topic_bills list. hasAnswer is true, so this sits outside `pending`.
   const isVoteDeflection = answer?.intent === 'legislator_vote';
   const resolvedBill = answer?.resolvedBill;
+
+  // bill_text → the §4.1 / §9.4 single-bill RAG answer: prose + passage
+  // citations + the answering bill. hasAnswer is true, so (like vote deflection)
+  // it renders its own block ahead of the NO MATCHES check.
+  const isBillText = answer?.intent === 'bill_text';
+  const answeringBill = answer?.answeringBill;
+  const citations = answer?.citations ?? [];
 
   const submitRetry = () => {
     const next = retryValue.trim();
@@ -420,6 +434,61 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   <Text style={styles.viewBillLink}>Browse bills to see their votes →</Text>
                 </Pressable>
               )}
+            </View>
+          ) : isBillText && answer && answer.billText ? (
+            <View style={styles.answerBlock}>
+              {/* §9.4 bill_text: answer prose + provenance strip + a Sources
+                  section, each citation opening its official source. */}
+              <Text style={styles.eyebrow}>ANSWER</Text>
+              <Text style={styles.question}>{question}</Text>
+              {answeringBill ? (
+                <Text style={styles.provenance}>
+                  {answeringBill.identifier}
+                  {answer.sessionName ? ` · ${answer.sessionName}` : ''}
+                  {dataAsOf ? ` · Data as of ${dataAsOf}` : ''}
+                </Text>
+              ) : null}
+              <Text style={styles.billTextProse}>{stripInlineMarkdown(answer.billText)}</Text>
+              {citations.length > 0 ? (
+                <View style={styles.sourcesBlock}>
+                  <Text style={styles.sourcesHeading}>SOURCES</Text>
+                  {citations.map((citation, index) => (
+                    <View key={`${citation.label}-${index}`} style={styles.citationCard}>
+                      <Text style={styles.citationLabel}>
+                        {index + 1}. {citation.label}
+                      </Text>
+                      <Text style={styles.citationExcerpt}>“{citation.excerpt}”</Text>
+                      <Pressable
+                        accessibilityRole="link"
+                        accessibilityLabel={`Open the official source for ${citation.label}`}
+                        onPress={() => void Linking.openURL(citation.url)}
+                      >
+                        <Text style={styles.citationLink}>Open official source ↗</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              {answeringBill ? (
+                <AnswerBillCard
+                  bill={answeringBill}
+                  tracked={isSignedIn && trackedIds.has(answeringBill.id)}
+                  onOpen={() => navigation.navigate('BillDetail', { billId: answeringBill.id })}
+                  onTrack={() => handleTrack(answeringBill.id)}
+                />
+              ) : null}
+              <View style={styles.shareRow}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={isWeb ? 'Copy link to this answer' : 'Share this answer'}
+                  style={styles.shareButton}
+                  onPress={() => void copyLink()}
+                >
+                  <Text style={styles.shareButtonText}>
+                    {copied ? 'Link copied' : isWeb ? 'Copy link' : 'Share'}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
           ) : noMatches ? (
             <View style={styles.answerBlock}>
@@ -694,6 +763,50 @@ const styles = StyleSheet.create({
   provenance: {
     fontFamily: t.typography.mono,
     fontSize: 12,
+    color: t.colors.text.muted,
+  },
+  billTextProse: {
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    lineHeight: 25,
+    color: t.colors.text.primary,
+  },
+  sourcesBlock: {
+    gap: t.spacing.sm,
+  },
+  sourcesHeading: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    fontWeight: '700',
+    color: t.colors.text.secondary,
+  },
+  citationCard: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.borders.base,
+    borderRadius: t.radii.card,
+    padding: t.spacing.md,
+    gap: 6,
+  },
+  citationLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    fontWeight: '700',
+    color: t.colors.text.secondary,
+  },
+  citationExcerpt: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+    fontStyle: 'italic',
+    color: t.colors.text.primary,
+  },
+  // Gray external link — the §9.4 grammar: gray ↗ leaves the app to the record.
+  citationLink: {
+    fontFamily: t.typography.ui,
+    fontSize: 13,
+    fontWeight: '700',
     color: t.colors.text.muted,
   },
   cardsColumn: {
