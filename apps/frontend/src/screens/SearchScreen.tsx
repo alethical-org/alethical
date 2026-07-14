@@ -105,6 +105,24 @@ export function SearchScreen({ navigation, route }: Props) {
     safeLegislatorPage * LEGISLATORS_PAGE_SIZE + LEGISLATORS_PAGE_SIZE,
   );
 
+  const hasActiveFilters =
+    query.trim() !== '' ||
+    chamber !== 'All' ||
+    policyCategory !== ALL_POLICIES ||
+    omnibusOnly ||
+    status !== '' ||
+    session !== '';
+  const clearFilters = () => {
+    setQuery('');
+    setChamber('All');
+    setPolicyCategory(ALL_POLICIES);
+    setOmnibusOnly(false);
+    setStatus('');
+    setSession('');
+    setBillPage(0);
+    setLegislatorPage(0);
+  };
+
   return (
     <ScreenView hideHeader>
       <SearchFilterPanel
@@ -172,7 +190,12 @@ export function SearchScreen({ navigation, route }: Props) {
               ) : null}
               {!billsQuery.isLoading && !billsQuery.error && bills.length === 0 ? (
                 <Card>
-                  <Text style={styles.bodyText}>No bills match this search.</Text>
+                  <Text style={styles.bodyText}>No bills match your search.</Text>
+                  {hasActiveFilters ? (
+                    <View style={styles.clearFiltersRow}>
+                      <Chip label="Clear filters" selected={false} onPress={clearFilters} />
+                    </View>
+                  ) : null}
                 </Card>
               ) : null}
               {bills.map((bill) => (
@@ -239,7 +262,12 @@ export function SearchScreen({ navigation, route }: Props) {
               !legislatorsQuery.error &&
               legislators.length === 0 ? (
                 <Card>
-                  <Text style={styles.bodyText}>No legislators match this search.</Text>
+                  <Text style={styles.bodyText}>No legislators match your search.</Text>
+                  {hasActiveFilters ? (
+                    <View style={styles.clearFiltersRow}>
+                      <Chip label="Clear filters" selected={false} onPress={clearFilters} />
+                    </View>
+                  ) : null}
                 </Card>
               ) : null}
               {pagedLegislators.map((legislator) => (
@@ -318,6 +346,10 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.body,
     fontSize: 15,
     lineHeight: 23,
+  },
+  clearFiltersRow: {
+    flexDirection: 'row',
+    marginTop: theme.spacing.md,
   },
   paginationRow: {
     flexDirection: 'row',
