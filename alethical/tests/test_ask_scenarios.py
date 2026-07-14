@@ -81,6 +81,18 @@ def _assert_cite_or_refuse(answer: dict, kind: str) -> None:
         for row in items:
             assert row["bills"], "each row must cite the bills backing its counts"
             assert all(ref["id"] for ref in row["bills"]), "bill cites resolve by key"
+    elif kind == "vote_deflection":
+        # §4.5 / §9.4: the honest vote deflection carries no generated answer —
+        # either a resolved bill (cited by its official URL; the frontend
+        # deep-links its Votes tab, §9.3) or a degrade to the topic_bills list,
+        # which itself must satisfy cite-or-refuse.
+        resolved = answer.get("resolved_bill")
+        if resolved is not None:
+            assert resolved["official_url"], "resolved bill must cite its official URL"
+            assert resolved["id"], "resolved bill must be URL-addressable by key"
+        else:
+            assert answer.get("topic_bills") is not None, "unresolved → topic_bills"
+            _assert_cite_or_refuse(answer["topic_bills"], "topic_bills")
     else:  # pragma: no cover - guards against a mistyped kind
         raise AssertionError(f"unknown answer kind: {kind}")
 
@@ -157,10 +169,14 @@ def test_answered_scenarios_satisfy_cite_or_refuse(
     _assert_cite_or_refuse(data["answer"], kind)
 
 
-@pytest.mark.parametrize("intent", ["bill_text", "legislator_vote", "refuse"])
+@pytest.mark.parametrize("intent", ["bill_text", "refuse"])
 def test_interim_intents_return_no_ungrounded_answer(client, monkeypatch, intent):
     """Rule 4: an intent whose cited answer path has not shipped returns no
-    answer body — never an ungrounded stretch. Updates as #79 slices land."""
+    answer body — never an ungrounded stretch. Updates as #79 slices land.
+
+    ``legislator_vote`` has left this list: its v1 honest deflection now ships
+    a body (§4.5 / §9.4), covered by
+    ``test_vote_deflection_resolves_named_bill_and_degrades_otherwise``."""
     _mock_llm_intent(monkeypatch, intent)
     response = client.post(
         "/api/v1/ask", json={"content": "What does this bill do about housing?"}
@@ -169,6 +185,40 @@ def test_interim_intents_return_no_ungrounded_answer(client, monkeypatch, intent
     data = response.json()["data"]
     assert data["intent"] == intent
     assert data["answer"] is None
+
+
+def test_vote_deflection_resolves_named_bill_and_degrades_otherwise(
+    client, monkeypatch
+):
+    """Scenario 4 v1 (docs/grounded-ask-spec.md §4.5 / §9.4, Vote deflection): a
+    vote question is an honest deflection, never a vote answer. When it names a
+    resolvable bill (HF/SF number) the body carries that bill's card so the
+    frontend can deep-link its Votes tab (§9.3); when no bill resolves it
+    degrades to the cited topic_bills list. No generated vote answer either way.
+    """
+    # Names HF 9901 → resolves to that bill's card, cited by official URL.
+    _mock_llm_intent(monkeypatch, "legislator_vote", topic="children")
+    data = client.post(
+        "/api/v1/ask",
+        json={"content": "How did the House vote on HF 9901?"},
+    ).json()["data"]
+    assert data["intent"] == "legislator_vote"
+    answer = data["answer"]
+    assert answer is not None
+    assert answer["resolved_bill"]["id"] == "94-2025-HF9901"
+    assert answer["topic_bills"] is None
+    _assert_cite_or_refuse(answer, "vote_deflection")
+
+    # No bill number → degrade to the cited topic_bills list (§4.5).
+    _mock_llm_intent(monkeypatch, "legislator_vote", topic="jobs")
+    degraded = client.post(
+        "/api/v1/ask",
+        json={"content": "How did my senator vote on workforce funding?"},
+    ).json()["data"]["answer"]
+    assert degraded["resolved_bill"] is None
+    assert degraded["topic_bills"] is not None
+    assert "94-2025-SF1832" in [b["id"] for b in degraded["topic_bills"]["bills"]]
+    _assert_cite_or_refuse(degraded, "vote_deflection")
 
 
 def test_degraded_offline_path_never_fabricates_answer(client, monkeypatch):
