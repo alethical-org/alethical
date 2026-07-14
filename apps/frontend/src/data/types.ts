@@ -188,3 +188,26 @@ export interface RepresentativeLookupCoordinates {
 }
 
 export type RepresentativeLookupInput = string | RepresentativeLookupCoordinates;
+
+export interface AskAnswerBill {
+  id: string;
+  identifier: string;
+  title: string;
+  status: string;
+  statusKey?: string;
+  summary?: string;
+  officialUrl?: string;
+}
+
+// One routed Ask answer (POST /api/v1/ask). `hasAnswer` is false for intents
+// whose answer paths haven't shipped yet — the UI falls back to the interim
+// funnel for those.
+export interface AskAnswer {
+  intent: string;
+  hasAnswer: boolean;
+  topic?: string;
+  sessionName?: string;
+  dataAsOf?: string;
+  totalMatches: number;
+  bills: AskAnswerBill[];
+}

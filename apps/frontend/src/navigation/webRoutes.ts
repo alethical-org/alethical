@@ -10,7 +10,8 @@ type WebRouteTarget =
   | { kind: 'privacy' }
   | { kind: 'terms' }
   | { kind: 'vote'; billId: string; voteEventId: string }
-  | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] };
+  | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
+  | { kind: 'ask'; params: RootStackParamList['Ask'] };
 
 function normalizePathname(pathname: string) {
   const trimmed = pathname.split('?')[0].replace(/\/+$/, '');
@@ -43,6 +44,9 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     }
     if (segments[0] === 'account') {
       return { kind: 'tab', screen: 'Account' };
+    }
+    if (segments[0] === 'ask') {
+      return { kind: 'ask', params: { q: searchParams.get('q') ?? undefined } };
     }
     if (segments[0] === 'find-my-legislator') {
       return { kind: 'findMyLegislator' };
@@ -139,6 +143,14 @@ export function pathnameFromNavigationState(
       return '/chat';
     case 'Account':
       return '/account';
+    case 'Ask': {
+      const params = new URLSearchParams();
+      if (activeRoute.params?.q) {
+        params.set('q', String(activeRoute.params.q));
+      }
+      const query = params.toString();
+      return query ? `/ask?${query}` : '/ask';
+    }
     case 'BillDetail':
       return `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}`;
     case 'LegislatorProfile':
@@ -263,6 +275,11 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
             params: target.params,
           },
         ],
+        index: 1,
+      };
+    case 'ask':
+      return {
+        routes: [homeTabs, { name: 'Ask', params: target.params }],
         index: 1,
       };
   }

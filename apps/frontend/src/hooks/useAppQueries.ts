@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  askFromApi,
   createChatSessionFromApi,
   BillListFilters,
   getBillFromApi,
@@ -36,6 +37,15 @@ export function useCurrentUser() {
     queryFn: () => getCurrentUserFromApi(accessToken ?? ''),
     enabled: Boolean(accessToken),
     retry: false,
+  });
+}
+
+export function useAskAnswer(question?: string) {
+  const trimmed = question?.trim();
+  return useQuery({
+    queryKey: ['ask', trimmed ?? ''],
+    queryFn: () => askFromApi(trimmed!),
+    enabled: Boolean(trimmed),
   });
 }
 

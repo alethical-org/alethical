@@ -827,9 +827,17 @@ export function HomeSignedOutScreen() {
   }, [askValue, isMobile]);
 
   const signIn = () => void signInWithGoogle();
-  // Interim locked behavior: the Ask backend is stubbed, so Ask routes to sign-in
-  // (docs/mvp-redesign-plan.md § Locked decisions, "Logged-out Ask AI funnel").
-  const submitAsk = () => signIn();
+  // Ask routes to the answer page (#217): topic questions render a cited bill
+  // list there; intents whose answer paths haven't shipped yet fall back to an
+  // interim coming-soon state on the same page.
+  const submitAsk = () => {
+    const question = askValue.trim();
+    if (!question) {
+      askInputRef.current?.focus();
+      return;
+    }
+    navigation.navigate('Ask', { q: question });
+  };
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {

@@ -20,6 +20,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountScreen } from '../screens/AccountScreen';
+import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
 import { BillDetailScreen } from '../screens/BillDetailScreen';
 import { ChatSessionScreen } from '../screens/ChatSessionScreen';
 import { ChatScreen } from '../screens/ChatScreen';
@@ -569,6 +570,11 @@ export function RootNavigator() {
             })}
           >
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="Ask"
+              component={AskAnswerScreen}
+              options={{ headerShown: false, title: 'Ask' }}
+            />
             <Stack.Screen
               name="BillDetail"
               component={BillDetailScreen}
