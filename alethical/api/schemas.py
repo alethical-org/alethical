@@ -11,6 +11,7 @@ class PageInfo(BaseModel):
     offset: int | None = None
     next_cursor: str | None = None
     has_more: bool = False
+    total: int | None = None
 
 
 class CollectionResponse(BaseModel):
@@ -43,6 +44,7 @@ class MetaPayload(BaseModel):
     api_version: str
     jurisdiction: JurisdictionSummary
     current_session: SessionSummary
+    data_as_of: datetime | None = None
 
 
 class TrackingState(BaseModel):

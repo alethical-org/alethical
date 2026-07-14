@@ -5,7 +5,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -341,6 +341,7 @@ def ingest_bill_payload(
         target_type="bill",
         target_key=canonical["bill_key"],
         status=IngestionStatus.succeeded,
+        finished_at=datetime.now(timezone.utc),
         stats={"source": "test-fixtures"},
     )
     session.add(run)

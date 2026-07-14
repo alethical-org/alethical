@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import re
+
 from uuid import UUID
 
 import requests
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.auth import get_optional_current_user
@@ -49,6 +51,8 @@ Chamber = schema.Chamber
 ChamberType = schema.ChamberType
 District = schema.District
 EnrichmentType = schema.EnrichmentType
+IngestionRun = schema.IngestionRun
+IngestionStatus = schema.IngestionStatus
 Jurisdiction = schema.Jurisdiction
 LegislativeSession = schema.LegislativeSession
 Legislator = schema.Legislator
@@ -69,6 +73,34 @@ def paginated_scalars(db: Session, stmt, *, limit: int, offset: int):
         return [], False
     rows = db.scalars(stmt.offset(offset).limit(limit + 1)).all()
     return rows[:limit], len(rows) > limit
+
+
+_BILL_NUMBER_QUERY_RE = re.compile(r"^\s*([A-Za-z]{2})\s*0*(\d+)\s*$")
+
+
+def bill_number_clause(q: str):
+    """Match a chamber-prefix + number query ("HF 2904", "HF2904", "SF 1832")
+    against file_type + file_number so bill-number searches resolve (#134).
+    Returns None when the query isn't a bill number, leaving keyword search
+    untouched."""
+    match = _BILL_NUMBER_QUERY_RE.match(q)
+    if match is None:
+        return None
+    file_type, file_number = match.group(1), int(match.group(2))
+    return and_(
+        func.lower(Bill.file_type) == file_type.lower(),
+        Bill.file_number == file_number,
+    )
+
+
+def latest_ingested_at(db: Session):
+    """Newest succeeded-ingestion finish time — the "Data as of" provenance
+    timestamp shown on the bill search screen and Ask answer pages (#134)."""
+    return db.scalar(
+        select(func.max(IngestionRun.finished_at)).where(
+            IngestionRun.status == IngestionStatus.succeeded
+        )
+    )
 
 
 def get_session_by_slug(db: Session, slug: str | None):
@@ -239,6 +271,7 @@ def meta(db: Session = Depends(get_db)):
             "name": current_session.name,
             "is_current": current_session.is_current,
         },
+        data_as_of=latest_ingested_at(db),
     )
     return DetailResponse(data=payload, links={"self": "/api/v1/meta"})
 
@@ -323,9 +356,11 @@ def bills(
         session_row.id, user_id=tracking_user_id(include_set, current_user)
     )
     if q:
-        stmt = stmt.where(
-            or_(Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%"))
-        )
+        keyword_clauses = [Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%")]
+        number_clause = bill_number_clause(q)
+        if number_clause is not None:
+            keyword_clauses.append(number_clause)
+        stmt = stmt.where(or_(*keyword_clauses))
     if chamber:
         stmt = stmt.where(Bill.chamber.has(Chamber.slug == chamber.strip().lower()))
     if status:
@@ -342,6 +377,7 @@ def bills(
         stmt = stmt.where(Bill.id.in_(matching_policy_area_bills))
     if omnibus is not None:
         stmt = stmt.where(Bill.is_omnibus.is_(omnibus))
+    total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
     rows, has_more = paginated_scalars(db, stmt, limit=limit, offset=offset)
     data = [
         bill_list_item(
@@ -356,6 +392,7 @@ def bills(
             "offset": offset,
             "next_cursor": None,
             "has_more": has_more,
+            "total": total,
         },
         links={"self": "/api/v1/bills"},
     )
