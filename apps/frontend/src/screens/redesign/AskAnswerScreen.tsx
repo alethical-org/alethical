@@ -202,6 +202,31 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     [shownLegislators],
   );
 
+  // The three intents that don't yet render a full answer, each with honest
+  // copy per docs/grounded-ask-spec.md §9.1/§9.4 — never a false "on the way"
+  // promise for a genuinely out-of-scope question (.claude/rules/grounded-answers.md rule 2).
+  const pending =
+    answer?.intent === 'refuse'
+      ? {
+          eyebrow: 'OUT OF SCOPE',
+          muted: true,
+          body: 'Alethical answers questions about Minnesota bills, legislators, and votes. This one falls outside that — so we won’t guess.',
+          cta: 'Browse Minnesota bills in Search →',
+        }
+      : answer?.intent === 'legislator_vote'
+        ? {
+            eyebrow: 'COMING SOON',
+            muted: false,
+            body: 'Vote-by-vote answers are on the way. Until then, every roll call is on each bill’s Votes page — each linked to the official record.',
+            cta: 'Browse bills to see their votes →',
+          }
+        : {
+            eyebrow: 'ON THE ROADMAP',
+            muted: false,
+            body: 'Plain-English answers about what a bill says are coming. In the meantime, open any bill to read its full text and summary.',
+            cta: 'Find a bill in Search →',
+          };
+
   const submitRetry = () => {
     const next = retryValue.trim();
     if (next) {
@@ -312,17 +337,16 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             </View>
           ) : answer && !answer.hasAnswer ? (
             <View style={styles.answerBlock}>
-              <Text style={styles.eyebrow}>ON THE ROADMAP</Text>
-              <Text style={styles.question}>{question}</Text>
-              <Text style={styles.introLine}>
-                We can’t answer this kind of question yet. Answers about what a bill says,
-                legislators, and votes are on the way.
+              <Text style={[styles.eyebrow, pending.muted && styles.eyebrowMuted]}>
+                {pending.eyebrow}
               </Text>
+              <Text style={styles.question}>{question}</Text>
+              <Text style={styles.introLine}>{pending.body}</Text>
               <Pressable
                 accessibilityRole="link"
                 onPress={() => navigation.navigate('Tabs', { screen: 'Search' })}
               >
-                <Text style={styles.viewBillLink}>Browse bills in Search →</Text>
+                <Text style={styles.viewBillLink}>{pending.cta}</Text>
               </Pressable>
             </View>
           ) : noMatches ? (
@@ -547,6 +571,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: t.colors.text.green,
     fontWeight: '700',
+  },
+  // Out-of-scope is a calm, muted state — not an answer, not "coming soon".
+  eyebrowMuted: {
+    color: t.colors.text.muted,
   },
   question: {
     fontFamily: t.typography.title,
