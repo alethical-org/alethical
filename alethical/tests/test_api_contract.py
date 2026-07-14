@@ -228,6 +228,48 @@ def test_bill_search_supports_bill_number_query(client):
     assert keyword_response.json()["data"]
 
 
+def test_legislator_list_supports_offset_pagination_and_total(client):
+    first_response = client.get(
+        "/api/v1/legislators",
+        params={"session": "94-2025-regular", "limit": 1, "offset": 0},
+    )
+    assert first_response.status_code == 200
+    first_payload = first_response.json()
+    assert len(first_payload["data"]) == 1
+    assert first_payload["page"]["offset"] == 0
+    # has_more is real now, not hardcoded False — a next page exists (#267).
+    assert first_payload["page"]["has_more"] is True
+    total = first_payload["page"]["total"]
+    assert total >= 2
+
+    second_response = client.get(
+        "/api/v1/legislators",
+        params={"session": "94-2025-regular", "limit": 1, "offset": 1},
+    )
+    assert second_response.status_code == 200
+    second_payload = second_response.json()
+    assert second_payload["page"]["offset"] == 1
+    assert second_payload["page"]["total"] == total
+    assert second_payload["data"][0]["id"] != first_payload["data"][0]["id"]
+
+    # The full directory is reachable — the last page reports no more.
+    full_response = client.get(
+        "/api/v1/legislators",
+        params={"session": "94-2025-regular", "limit": total, "offset": 0},
+    )
+    assert len(full_response.json()["data"]) == total
+    assert full_response.json()["page"]["has_more"] is False
+
+    # A chamber filter narrows the total to that chamber's members.
+    senate_response = client.get(
+        "/api/v1/legislators",
+        params={"session": "94-2025-regular", "chamber": "senate", "limit": 100},
+    )
+    senate_total = senate_response.json()["page"]["total"]
+    assert 1 <= senate_total < total
+    assert len(senate_response.json()["data"]) == senate_total
+
+
 def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     detail_response = client.get(
         "/api/v1/bills/94-2025-SF1832",
