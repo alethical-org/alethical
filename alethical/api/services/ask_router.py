@@ -328,3 +328,76 @@ def classify_query(question: str) -> AskClassification:
         confidence=float(confidence) if confidence is not None else None,
         topic=topic.strip().lower() if topic else None,
     )
+
+
+_BILL_PICK_SYSTEM_PROMPT = (
+    "You match a question about Minnesota legislation to exactly one bill from a "
+    "provided candidate list, or 'none'. Choose the bill the question is most "
+    "specifically about. When the question refers to a 'law' (something enacted), "
+    "prefer a bill whose status shows it was signed/enacted over a still-pending "
+    "companion. Answer 'none' unless one candidate clearly matches — never guess."
+)
+
+
+def pick_bill_from_candidates(
+    question: str, candidates: list[tuple[str, str, str | None, str | None]]
+) -> str | None:
+    """Ask the LLM which single bill a question is about, from a short candidate
+    list (docs/grounded-ask-spec.md §4.1 semantic resolution; #266). Each
+    candidate is ``(bill_key, title, status, summary)``. Returns the chosen
+    ``bill_key`` (guaranteed to be one of the candidates) or ``None`` — no key,
+    no OpenAI key, or an unusable response all yield ``None`` so the caller
+    degrades / refuses. Reasoning-based, so it can tell the enacted bill from its
+    companion and pick among several bills on one topic (which distance/count
+    heuristics can't, #271 / #273)."""
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key or not candidates:
+        return None
+    keys = [key for key, _title, _status, _summary in candidates]
+    catalog = "\n".join(
+        f"- {key}: {title}"
+        + (f" [{status}]" if status else "")
+        + (f" — {summary.strip()[:280]}" if summary else "")
+        for key, title, status, summary in candidates
+    )
+    schema = {
+        "type": "object",
+        "properties": {"bill_key": {"type": "string", "enum": keys + ["none"]}},
+        "required": ["bill_key"],
+        "additionalProperties": False,
+    }
+    model = os.environ.get("OPENAI_ASK_ROUTER_MODEL", "gpt-4o-mini")
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/responses",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "input": [
+                    {"role": "system", "content": _BILL_PICK_SYSTEM_PROMPT},
+                    {
+                        "role": "user",
+                        "content": f"Question: {question}\n\nBills:\n{catalog}",
+                    },
+                ],
+                "text": {
+                    "format": {
+                        "type": "json_schema",
+                        "name": "bill_pick",
+                        "strict": True,
+                        "schema": schema,
+                    }
+                },
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        parsed = _extract_response_json(response.json())
+    except requests.RequestException:
+        logger.exception("ask-router: OpenAI bill-pick failed; not resolving")
+        return None
+    key = parsed.get("bill_key") if parsed else None
+    return key if key in keys else None
