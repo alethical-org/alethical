@@ -92,14 +92,17 @@ FEW_SHOT_EXAMPLES: list[tuple[str, AskIntent]] = [
 
 # JSON schema forcing one known label. ``confidence`` is logging-only;
 # ``topic`` feeds the topic answer paths (docs/grounded-ask-spec.md §4.2).
+# OpenAI strict mode requires every property to be listed in ``required`` — so
+# the optional fields are nullable and required (the model returns null when
+# they don't apply), not omitted. Guarded by test_ask_response_schema_is_strict.
 _RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
         "intent": {"type": "string", "enum": [intent.value for intent in AskIntent]},
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-        "topic": {"type": "string"},
+        "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "topic": {"type": ["string", "null"]},
     },
-    "required": ["intent"],
+    "required": ["intent", "confidence", "topic"],
     "additionalProperties": False,
 }
 

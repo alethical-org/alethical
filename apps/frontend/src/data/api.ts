@@ -108,11 +108,39 @@ interface ApiAskTopicBillsAnswerPayload {
   bills: ApiBillListItemPayload[];
 }
 
+interface ApiAskLegislatorBillPayload {
+  id: string;
+  file_type: string;
+  file_number: number;
+  title: string;
+}
+
+interface ApiAskLegislatorPayload {
+  id: string;
+  full_name: string;
+  party?: string | null;
+  district?: string | null;
+  chamber?: string | null;
+  profile_url?: string | null;
+  authored_count: number;
+  coauthored_count: number;
+  bills: ApiAskLegislatorBillPayload[];
+}
+
+interface ApiAskTopicLegislatorsAnswerPayload {
+  topic?: string | null;
+  session: { slug: string; name: string };
+  data_as_of?: string | null;
+  total_matches: number;
+  total_bills: number;
+  legislators: ApiAskLegislatorPayload[];
+}
+
 interface ApiAskAnswerPayload {
   intent: string;
   source: string;
   confidence?: number | null;
-  answer?: ApiAskTopicBillsAnswerPayload | null;
+  answer?: ApiAskTopicBillsAnswerPayload | ApiAskTopicLegislatorsAnswerPayload | null;
 }
 
 export interface PolicyArea {
@@ -901,6 +929,9 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
   });
   const payload = response.data;
   const answer = payload.answer;
+  const bills = answer && 'bills' in answer ? answer.bills : [];
+  const legislators = answer && 'legislators' in answer ? answer.legislators : [];
+  const totalBills = answer && 'total_bills' in answer ? answer.total_bills : undefined;
   return {
     intent: payload.intent,
     hasAnswer: Boolean(answer),
@@ -908,7 +939,8 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
     sessionName: answer?.session.name,
     dataAsOf: answer?.data_as_of ?? undefined,
     totalMatches: answer?.total_matches ?? 0,
-    bills: (answer?.bills ?? []).map((bill) => ({
+    totalBills,
+    bills: bills.map((bill) => ({
       id: bill.id,
       identifier: formatBillIdentifier(bill.file_type, bill.file_number),
       title: bill.title,
@@ -916,6 +948,21 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
       statusKey: bill.status_key ?? undefined,
       summary: bill.ai_analysis?.summary ?? undefined,
       officialUrl: bill.official_url ?? undefined,
+    })),
+    legislators: legislators.map((leg) => ({
+      id: leg.id,
+      fullName: leg.full_name,
+      party: leg.party ?? undefined,
+      district: leg.district ?? undefined,
+      chamber: leg.chamber ?? undefined,
+      profileUrl: leg.profile_url ?? undefined,
+      authoredCount: leg.authored_count,
+      coauthoredCount: leg.coauthored_count,
+      bills: leg.bills.map((bill) => ({
+        id: bill.id,
+        identifier: formatBillIdentifier(bill.file_type, bill.file_number),
+        title: bill.title,
+      })),
     })),
   };
 }

@@ -303,13 +303,51 @@ class AskTopicBillsAnswer(BaseModel):
     bills: list[BillListItem]
 
 
+class AskLegislatorBillRef(BaseModel):
+    """A matched bill a legislator is on the record for — the citation backing
+    an authorship count (docs/grounded-ask-spec.md §4.2, topic_legislators)."""
+
+    id: str
+    file_type: str
+    file_number: int
+    title: str
+
+
+class AskLegislatorRow(BaseModel):
+    id: str
+    full_name: str
+    party: str | None
+    district: str | None
+    chamber: str | None
+    profile_url: str | None
+    authored_count: int
+    coauthored_count: int
+    bills: list[AskLegislatorBillRef]
+
+
+class AskTopicLegislatorsAnswer(BaseModel):
+    """Authorship-framed legislator list (docs/grounded-ask-spec.md §4.2/§4.3).
+
+    ``total_matches`` counts legislators; ``total_bills`` counts the underlying
+    topic bills (the "See all N bills in Search" overflow, §9.1). Zero matches
+    is the NO MATCHES state (§4.5).
+    """
+
+    topic: str | None
+    session: AskSessionRef
+    data_as_of: datetime | None
+    total_matches: int
+    total_bills: int
+    legislators: list[AskLegislatorRow]
+
+
 class AskAnswerPayload(BaseModel):
     intent: str
     source: str
     confidence: float | None = None
-    # Present only for topic_bills; other intents' answer paths land in later
-    # slices of #79 and return no answer body yet.
-    answer: AskTopicBillsAnswer | None = None
+    # Present for topic_bills / topic_legislators; other intents' answer paths
+    # land in later slices of #79 and return no answer body yet.
+    answer: AskTopicBillsAnswer | AskTopicLegislatorsAnswer | None = None
 
 
 class ChatSessionCreateRequest(BaseModel):

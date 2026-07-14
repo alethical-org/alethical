@@ -18,7 +18,7 @@ import { IaItem, MenuKey } from '../../navigation/ia';
 import { RootScreenProps } from '../../navigation/types';
 import { useAuth } from '../../providers/AuthProvider';
 import { useAskAnswer, useToggleTrackedBill, useTrackedBills } from '../../hooks/useAppQueries';
-import { AskAnswerBill } from '../../data/types';
+import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
 const t = theme;
 const isWeb = Platform.OS === 'web';
@@ -93,6 +93,74 @@ function AnswerBillCard({
   );
 }
 
+function AnswerLegislatorRow({
+  legislator,
+  onOpenProfile,
+  onOpenBill,
+}: {
+  legislator: AskAnswerLegislator;
+  onOpenProfile: () => void;
+  onOpenBill: (billId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const partyDistrict = [
+    legislator.party,
+    legislator.district ? `District ${legislator.district}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const counts = [
+    legislator.authoredCount ? `Authored ${legislator.authoredCount}` : null,
+    legislator.coauthoredCount ? `Co-authored ${legislator.coauthoredCount}` : null,
+  ].filter(Boolean);
+  const billCount = legislator.bills.length;
+
+  return (
+    <View style={styles.legRow}>
+      <View style={styles.legRowTop}>
+        <View style={styles.legNameCol}>
+          <Text style={styles.legName}>{legislator.fullName}</Text>
+          {partyDistrict ? <Text style={styles.legMeta}>{partyDistrict}</Text> : null}
+        </View>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={`View profile for ${legislator.fullName}`}
+          onPress={onOpenProfile}
+        >
+          <Text style={styles.viewBillLink}>View profile →</Text>
+        </Pressable>
+      </View>
+      <Text style={styles.legCounts}>{counts.join(' · ')}</Text>
+      {/* The underlying bills are the citation for the authorship claim. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${expanded ? 'Hide' : 'Show'} the ${billCount} ${billCount === 1 ? 'bill' : 'bills'} ${legislator.fullName} is on the record for`}
+        onPress={() => setExpanded((value) => !value)}
+      >
+        <Text style={styles.onRecordToggle}>
+          On the record: {billCount} {billCount === 1 ? 'bill' : 'bills'} {expanded ? '▾' : '▸'}
+        </Text>
+      </Pressable>
+      {expanded ? (
+        <View style={styles.billPillsRow}>
+          {legislator.bills.map((bill) => (
+            <Pressable
+              key={bill.id}
+              accessibilityRole="link"
+              accessibilityLabel={`View ${bill.identifier}`}
+              onPress={() => onOpenBill(bill.id)}
+            >
+              <View style={styles.billPill}>
+                <Text style={styles.billPillText}>{bill.identifier}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const question = route.params?.q?.trim() ?? '';
   const { isSignedIn, signInWithGoogle, user } = useAuth();
@@ -109,10 +177,30 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   );
 
   const answer = askQuery.data;
+  const isLegislators = answer?.intent === 'topic_legislators';
   const shownBills = answer?.bills ?? [];
+  const shownLegislators = answer?.legislators ?? [];
   const hasMatches = Boolean(answer?.hasAnswer && answer.totalMatches > 0);
   const noMatches = Boolean(answer?.hasAnswer && answer.totalMatches === 0);
   const dataAsOf = formatDataAsOf(answer?.dataAsOf);
+
+  // House first, then Senate — drop empty chambers (spec §9.4).
+  const chamberGroups = useMemo(
+    () =>
+      (
+        [
+          ['house', 'House'],
+          ['senate', 'Senate'],
+        ] as const
+      )
+        .map(([key, label]) => ({
+          key,
+          label,
+          legislators: shownLegislators.filter((leg) => leg.chamber === key),
+        }))
+        .filter((group) => group.legislators.length > 0),
+    [shownLegislators],
+  );
 
   const submitRetry = () => {
     const next = retryValue.trim();
@@ -242,7 +330,9 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               <Text style={styles.eyebrow}>NO MATCHES</Text>
               <Text style={styles.question}>{question}</Text>
               <Text style={styles.introLine}>
-                No current-session bills match{' '}
+                {isLegislators
+                  ? 'No current-session legislators are on the record for'
+                  : 'No current-session bills match'}{' '}
                 {answer?.topic ? (
                   <Text style={styles.topicPill}> {answer.topic} </Text>
                 ) : (
@@ -261,6 +351,71 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               >
                 <Text style={styles.viewBillLink}>Search all bills →</Text>
               </Pressable>
+            </View>
+          ) : hasMatches && answer && isLegislators ? (
+            <View style={styles.answerBlock}>
+              <Text style={styles.eyebrow}>ANSWER</Text>
+              <Text style={styles.question}>{question}</Text>
+              {/* Fixed framing copy owned by the layout, never LLM output
+                  (docs/grounded-ask-spec.md §4.3; .claude/rules/grounded-answers.md rule 3). */}
+              <Text style={styles.framingNote}>
+                “Support” shown as what the public record shows: bills authored or co-authored on
+                this topic — not inferred opinions.
+              </Text>
+              <Text style={styles.introLine}>
+                Legislators on the record for
+                <Text style={styles.topicPill}> {answer.topic} </Text>, grouped by chamber:
+              </Text>
+              <Text style={styles.provenance}>
+                {shownLegislators.length} of {answer.totalMatches} legislators
+                {answer.sessionName ? ` · ${answer.sessionName}` : ''}
+                {dataAsOf ? ` · Data as of ${dataAsOf}` : ''}
+              </Text>
+              {chamberGroups.map((group) => (
+                <View key={group.key} style={styles.chamberGroup}>
+                  <Text style={styles.chamberHeading}>{group.label}</Text>
+                  {group.legislators.map((legislator) => (
+                    <AnswerLegislatorRow
+                      key={legislator.id}
+                      legislator={legislator}
+                      onOpenProfile={() =>
+                        navigation.navigate('LegislatorProfile', {
+                          legislatorId: legislator.id,
+                        })
+                      }
+                      onOpenBill={(billId) => navigation.navigate('BillDetail', { billId })}
+                    />
+                  ))}
+                </View>
+              ))}
+              {answer.totalBills && answer.totalBills > 0 ? (
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() =>
+                    navigation.navigate('Tabs', {
+                      screen: 'Search',
+                      params: answer.topic ? { q: answer.topic } : undefined,
+                    })
+                  }
+                >
+                  <Text style={styles.viewBillLink}>
+                    See all {answer.totalBills} {answer.topic}{' '}
+                    {answer.totalBills === 1 ? 'bill' : 'bills'} in Search →
+                  </Text>
+                </Pressable>
+              ) : null}
+              <View style={styles.shareRow}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={isWeb ? 'Copy link to this answer' : 'Share this answer'}
+                  style={styles.shareButton}
+                  onPress={() => void copyLink()}
+                >
+                  <Text style={styles.shareButtonText}>
+                    {copied ? 'Link copied' : isWeb ? 'Copy link' : 'Share'}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
           ) : hasMatches && answer ? (
             <View style={styles.answerBlock}>
@@ -424,6 +579,83 @@ const styles = StyleSheet.create({
   },
   cardsColumn: {
     gap: t.spacing.md,
+  },
+  framingNote: {
+    fontFamily: t.typography.body,
+    fontSize: 13,
+    lineHeight: 19,
+    fontStyle: 'italic',
+    color: t.colors.text.muted,
+  },
+  chamberGroup: {
+    gap: t.spacing.sm,
+  },
+  chamberHeading: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    fontWeight: '700',
+    color: t.colors.text.secondary,
+    marginTop: t.spacing.xs,
+  },
+  legRow: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.borders.base,
+    borderRadius: t.radii.card,
+    padding: t.spacing.md,
+    gap: 6,
+  },
+  legRowTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: t.spacing.sm,
+  },
+  legNameCol: {
+    flexShrink: 1,
+    gap: 2,
+  },
+  legName: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    fontWeight: '700',
+    color: t.colors.text.primary,
+  },
+  legMeta: {
+    fontFamily: t.typography.ui,
+    fontSize: 13,
+    color: t.colors.text.secondary,
+  },
+  legCounts: {
+    fontFamily: t.typography.ui,
+    fontSize: 13,
+    fontWeight: '600',
+    color: t.colors.brand.deep,
+  },
+  onRecordToggle: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    color: t.colors.text.muted,
+    marginTop: 2,
+  },
+  billPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  billPill: {
+    backgroundColor: t.colors.tint.t150,
+    borderRadius: t.radii.badge,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  billPillText: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    fontWeight: '700',
+    color: t.colors.brand.deep,
   },
   billCard: {
     backgroundColor: t.colors.surfaces.base,

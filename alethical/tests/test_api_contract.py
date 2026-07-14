@@ -1140,3 +1140,89 @@ def test_internal_routes_require_internal_token(client, internal_headers):
         "/internal/v1/ingestion-runs", headers=internal_headers
     )
     assert valid_token_response.status_code == 200
+
+
+def _force_router(monkeypatch, intent: str, topic: str | None = None):
+    """Force the LLM router to return a fixed intent (+topic) — the offline
+    fallback can't emit topic_legislators, so drive it through the LLM path."""
+    import json as _json
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+
+    body: dict = {"intent": intent, "confidence": 0.9}
+    if topic is not None:
+        body["topic"] = topic
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"output_text": _json.dumps(body)}
+
+    monkeypatch.setattr(
+        "alethical.api.services.ask_router.requests.post",
+        lambda *a, **k: _Resp(),
+    )
+
+
+def test_ask_answers_topic_legislators_question_grouped_by_chamber(client, monkeypatch):
+    _force_router(monkeypatch, "topic_legislators", topic="economic development")
+
+    response = client.post(
+        "/api/v1/ask",
+        json={"content": "Which legislators support economic development?"},
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["intent"] == "topic_legislators"
+
+    answer = data["answer"]
+    assert answer["topic"] == "economic development"
+    assert answer["session"]["slug"] == "94-2025-regular"
+    assert answer["total_bills"] >= 1
+
+    by_name = {row["full_name"]: row for row in answer["legislators"]}
+    # SF 1832 (economic development) has chief authors Pinto (House) + Champion (Senate).
+    assert "Pinto" in by_name and "Champion" in by_name
+    assert answer["total_matches"] == len(answer["legislators"]) == 2
+
+    pinto = by_name["Pinto"]
+    assert pinto["authored_count"] == 1
+    assert pinto["coauthored_count"] == 0
+    assert pinto["chamber"] == "house"
+    # The authorship claim is grounded in the underlying bill (its citation).
+    assert any(
+        bill["file_type"] == "SF" and bill["file_number"] == 1832
+        for bill in pinto["bills"]
+    )
+
+    # Deterministic re-run for the shareable ?q= link.
+    again = client.post(
+        "/api/v1/ask",
+        json={"content": "Which legislators support economic development?"},
+    )
+    assert again.json()["data"] == data
+
+
+def test_ask_topic_legislators_zero_match_returns_no_matches(client, monkeypatch):
+    _force_router(monkeypatch, "topic_legislators", topic="healthcare")
+
+    response = client.post(
+        "/api/v1/ask",
+        json={"content": "Which legislators support healthcare?"},
+    )
+    assert response.status_code == 200
+    answer = response.json()["data"]["answer"]
+    assert answer["topic"] == "healthcare"
+    assert answer["total_matches"] == 0
+    assert answer["legislators"] == []
+
+
+def test_ask_response_schema_is_strict_valid():
+    # OpenAI strict json_schema requires `required` to list every property, or
+    # the live classify call 502s (regression guard for that latent bug).
+    from alethical.api.services.ask_router import _RESPONSE_SCHEMA
+
+    assert set(_RESPONSE_SCHEMA["required"]) == set(_RESPONSE_SCHEMA["properties"])
+    assert _RESPONSE_SCHEMA["additionalProperties"] is False
