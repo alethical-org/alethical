@@ -122,10 +122,12 @@ An open issue should mean "still needs doing." Three habits keep that true:
   the same session, with enough context to act on without the original
   conversation: what it is, what exists today instead, why it's deferred, and
   what unblocks it. A title alone isn't an issue; it's a mystery for whoever
-  opens it next. The same discipline runs in reverse: when a change re-scopes or
-  re-phases work, *search* the open issues for ones still describing the old
-  scope and update them in the same change — don't let the tracker promise a
-  plan that no longer exists.
+  opens it next. Give every issue a **milestone and an effort label at filing**
+  (see the sizing guide below) — not as a later triage step; an unmilestoned,
+  unsized issue is invisible to planning. The same discipline runs in reverse:
+  when a change re-scopes or re-phases work, *search* the open issues for ones
+  still describing the old scope and update them in the same change — don't let
+  the tracker promise a plan that no longer exists.
 - **Triage monthly.** Once a month, skim the open issues and ask of each: is this
   still true? Close anything already shipped (add a one-line note pointing at the
   PR), and re-scope anything half-done to just the remaining work. A scheduled
