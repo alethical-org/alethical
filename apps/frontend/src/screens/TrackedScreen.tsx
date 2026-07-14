@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { BillCard } from '../components/BillCard';
 import { AuthRequiredCard } from '../components/AuthRequiredCard';
 import { Card } from '../components/Card';
+import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
 import { useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQueries';
 import { MainTabScreenProps } from '../navigation/types';
@@ -15,6 +16,8 @@ export function TrackedScreen({ navigation }: Props) {
   const { isSignedIn, user } = useAuth();
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
+  const bills = trackedQuery.data ?? [];
+  const ready = !trackedQuery.isLoading && !trackedQuery.error;
 
   if (!isSignedIn) {
     return (
@@ -50,14 +53,21 @@ export function TrackedScreen({ navigation }: Props) {
           </Text>
         </Card>
       ) : null}
-      {!trackedQuery.isLoading && !trackedQuery.error && (trackedQuery.data ?? []).length === 0 ? (
+      {ready && bills.length === 0 ? (
         <Card>
-          <Text style={styles.bodyText}>You are not tracking any bills yet.</Text>
+          <Text style={styles.bodyText}>
+            You are not tracking any bills yet. Find a bill in search and tap Track to add it to
+            your watchlist.
+          </Text>
+          <PrimaryButton label="Browse bills" onPress={() => navigation.navigate('Search')} />
         </Card>
       ) : null}
-      {!trackedQuery.isLoading && !trackedQuery.error && (trackedQuery.data ?? []).length > 0 ? (
+      {ready && bills.length > 0 ? (
         <View style={styles.stack}>
-          {(trackedQuery.data ?? []).map((bill) => (
+          <Text style={styles.summaryText}>
+            Tracking {bills.length} {bills.length === 1 ? 'bill' : 'bills'}
+          </Text>
+          {bills.map((bill) => (
             <BillCard
               key={bill.id}
               bill={bill}
@@ -84,5 +94,11 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.body,
     fontSize: 15,
     lineHeight: 23,
+  },
+  summaryText: {
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.body,
+    fontSize: 14,
+    lineHeight: 21,
   },
 });
