@@ -472,8 +472,11 @@ export function RootNavigator() {
         return;
       }
 
-      navigationRef.resetRoot(stateFromPathname(window.location.pathname || '/'));
-      lastPathRef.current = window.location.pathname || '/';
+      // Include the query string: ?q= / ?subjectType= params live there and
+      // targetFromPathname parses them (the pathname alone drops them).
+      const fullPath = `${window.location.pathname}${window.location.search}` || '/';
+      navigationRef.resetRoot(stateFromPathname(fullPath));
+      lastPathRef.current = fullPath;
     };
 
     window.addEventListener('popstate', onPopState);
@@ -487,7 +490,7 @@ export function RootNavigator() {
       return undefined;
     }
 
-    lastPathRef.current = window.location.pathname || '/';
+    lastPathRef.current = `${window.location.pathname}${window.location.search}` || '/';
     return stateFromPathname(lastPathRef.current);
   }, [isWeb]);
 

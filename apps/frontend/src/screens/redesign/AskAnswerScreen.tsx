@@ -70,14 +70,23 @@ function AnswerBillCard({
         {/* Signed out always shows "+ Track" (tapping starts sign-in); the
             affirmed state never renders signed-out (docs/grounded-ask-spec.md
             §9.2, Track-button states). */}
-        <Pressable style={styles.trackButton} onPress={onTrack}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={tracked ? `Tracking ${bill.identifier}` : `Track ${bill.identifier}`}
+          style={styles.trackButton}
+          onPress={onTrack}
+        >
           <Plus size={13} color={t.colors.surfaces.base} strokeWidth={3} />
           <Text style={styles.trackButtonText}>{tracked ? 'Tracking' : 'Track'}</Text>
         </Pressable>
       </View>
       <Text style={styles.billTitle}>{bill.title}</Text>
       {bill.summary ? <Text style={styles.billSummary}>{bill.summary}</Text> : null}
-      <Pressable onPress={onOpen}>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={`View bill ${bill.identifier}`}
+        onPress={onOpen}
+      >
         <Text style={styles.viewBillLink}>View bill →</Text>
       </Pressable>
     </View>
@@ -139,13 +148,17 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   };
 
   const copyLink = async () => {
-    if (isWeb && typeof window !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      return;
+    try {
+      if (isWeb && typeof window !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
+      }
+      await Share.share({ message: `${question} — Alethical` });
+    } catch {
+      // Clipboard/share permission denied — leave the button label unchanged.
     }
-    await Share.share({ message: `${question} — Alethical` });
   };
 
   return (
@@ -184,7 +197,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   }
                 : null)}
             />
-            <Pressable style={styles.askButton} onPress={submitRetry}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Ask"
+              style={styles.askButton}
+              onPress={submitRetry}
+            >
               <Text style={styles.askButtonText}>Ask</Text>
             </Pressable>
           </View>
@@ -196,7 +214,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           ) : askQuery.isError ? (
             <View style={styles.centerBlock}>
               <Text style={styles.errorText}>Something went wrong answering this question.</Text>
-              <Pressable onPress={() => askQuery.refetch()}>
+              <Pressable accessibilityRole="button" onPress={() => askQuery.refetch()}>
                 <Text style={styles.viewBillLink}>Try again →</Text>
               </Pressable>
             </View>
@@ -212,7 +230,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 We can’t answer this kind of question yet. Answers about what a bill says,
                 legislators, and votes are on the way.
               </Text>
-              <Pressable onPress={() => navigation.navigate('Tabs', { screen: 'Search' })}>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => navigation.navigate('Tabs', { screen: 'Search' })}
+              >
                 <Text style={styles.viewBillLink}>Browse bills in Search →</Text>
               </Pressable>
             </View>
@@ -230,6 +251,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 . Try another issue, or browse everything in Search.
               </Text>
               <Pressable
+                accessibilityRole="link"
                 onPress={() =>
                   navigation.navigate('Tabs', {
                     screen: 'Search',
@@ -266,6 +288,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               </View>
               {answer.totalMatches > shownBills.length ? (
                 <Pressable
+                  accessibilityRole="link"
                   onPress={() =>
                     navigation.navigate('Tabs', {
                       screen: 'Search',
@@ -279,7 +302,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 </Pressable>
               ) : null}
               <View style={styles.shareRow}>
-                <Pressable style={styles.shareButton} onPress={() => void copyLink()}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={isWeb ? 'Copy link to this answer' : 'Share this answer'}
+                  style={styles.shareButton}
+                  onPress={() => void copyLink()}
+                >
                   <Text style={styles.shareButtonText}>
                     {copied ? 'Link copied' : isWeb ? 'Copy link' : 'Share'}
                   </Text>
