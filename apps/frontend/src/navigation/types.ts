@@ -5,7 +5,10 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<MainTabParamList>;
   Ask: { q?: string };
-  BillDetail: { billId: string };
+  BillDetail: {
+    billId: string;
+    tab?: 'summary' | 'actions' | 'versions' | 'votes';
+  };
   LegislatorProfile: { legislatorId: string };
   FindMyLegislator: undefined;
   Privacy: undefined;

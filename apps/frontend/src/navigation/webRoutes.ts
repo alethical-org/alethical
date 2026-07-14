@@ -4,7 +4,7 @@ import { MainTabParamList, RootStackParamList } from './types';
 
 type WebRouteTarget =
   | { kind: 'tab'; screen: keyof MainTabParamList }
-  | { kind: 'bill'; billId: string }
+  | { kind: 'bill'; billId: string; tab?: string }
   | { kind: 'legislator'; legislatorId: string }
   | { kind: 'findMyLegislator' }
   | { kind: 'privacy' }
@@ -60,7 +60,11 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments.length === 2 && segments[0] === 'bills') {
-    return { kind: 'bill', billId: decodeURIComponent(segments[1]) };
+    return {
+      kind: 'bill',
+      billId: decodeURIComponent(segments[1]),
+      tab: searchParams.get('tab') ?? undefined,
+    };
   }
 
   if (segments.length === 2 && segments[0] === 'legislators') {
@@ -151,8 +155,11 @@ export function pathnameFromNavigationState(
       const query = params.toString();
       return query ? `/ask?${query}` : '/ask';
     }
-    case 'BillDetail':
-      return `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}`;
+    case 'BillDetail': {
+      const path = `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}`;
+      const tab = activeRoute.params?.tab;
+      return tab ? `${path}?tab=${encodeURIComponent(String(tab))}` : path;
+    }
     case 'LegislatorProfile':
       return `/legislators/${encodeURIComponent(String(activeRoute.params?.legislatorId ?? ''))}`;
     case 'FindMyLegislator':
@@ -220,7 +227,13 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
       };
     case 'bill':
       return {
-        routes: [homeTabs, { name: 'BillDetail', params: { billId: target.billId } }],
+        routes: [
+          homeTabs,
+          {
+            name: 'BillDetail',
+            params: { billId: target.billId, tab: target.tab },
+          },
+        ],
         index: 1,
       };
     case 'legislator':

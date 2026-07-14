@@ -16,6 +16,22 @@ import type { BillSponsor } from '../data/types';
 
 type DetailTab = 'Summary' | 'Actions' | 'Versions' | 'Votes';
 type Props = NativeStackScreenProps<RootStackParamList, 'BillDetail'>;
+
+// The URL uses a lowercase tab slug; the UI uses the capitalized label. Keeping
+// the tab URL-addressable (e.g. /bills/{id}?tab=votes) is a grounded-answer
+// requirement (grounded-answers.md rule 5; docs/grounded-ask-spec.md §9.3).
+const TAB_SLUGS: Record<DetailTab, 'summary' | 'actions' | 'versions' | 'votes'> = {
+  Summary: 'summary',
+  Actions: 'actions',
+  Versions: 'versions',
+  Votes: 'votes',
+};
+const TAB_FROM_SLUG: Record<string, DetailTab> = {
+  summary: 'Summary',
+  actions: 'Actions',
+  versions: 'Versions',
+  votes: 'Votes',
+};
 const pendingBillChatStorageKey = 'alethical.pendingBillChat';
 
 function EmptyState({ message }: { message: string }) {
@@ -30,7 +46,18 @@ export function BillDetailScreen({ route, navigation }: Props) {
   const { billId } = route.params;
   const { isDesktop } = useResponsive();
   const { isSignedIn, signInWithGoogle, user } = useAuth();
-  const [tab, setTab] = useState<DetailTab>('Summary');
+  const [tab, setTab] = useState<DetailTab>(
+    (route.params.tab && TAB_FROM_SLUG[route.params.tab]) || 'Summary',
+  );
+
+  // Switching tabs updates the shareable URL (?tab=votes); Summary is the clean
+  // default (/bills/{id} with no query).
+  const selectTab = (value: DetailTab) => {
+    setTab(value);
+    navigation.setParams({
+      tab: value === 'Summary' ? undefined : TAB_SLUGS[value],
+    });
+  };
   const billQuery = useBill(billId);
   const trackedQuery = useTrackedBills(user?.id);
   const toggleTrackedBill = useToggleTrackedBill(user?.id);
@@ -326,7 +353,12 @@ export function BillDetailScreen({ route, navigation }: Props) {
 
       <View style={styles.tabRow}>
         {(['Summary', 'Actions', 'Versions', 'Votes'] as DetailTab[]).map((value) => (
-          <Chip key={value} label={value} selected={tab === value} onPress={() => setTab(value)} />
+          <Chip
+            key={value}
+            label={value}
+            selected={tab === value}
+            onPress={() => selectTab(value)}
+          />
         ))}
       </View>
 
