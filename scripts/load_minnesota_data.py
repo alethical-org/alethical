@@ -13,7 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from alethical.db.session import normalize_database_url  # noqa: E402
+from alethical.db.session import (  # noqa: E402
+    NO_PREPARED_STATEMENTS,
+    normalize_database_url,
+)
 from alethical.pipeline.minnesota import BillTarget, MinnesotaIngestionPipeline  # noqa: E402
 from alethical.pipeline.sessions import DEFAULT_SESSION_CODE  # noqa: E402
 
@@ -112,7 +115,9 @@ def main() -> None:
             for item in DEFAULT_BILLS
         ]
 
-    engine = create_engine(database_url, echo=False)
+    engine = create_engine(
+        database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
+    )
     with Session(engine) as session:
         pipeline = MinnesotaIngestionPipeline(session)
         if not args.skip_legislators:

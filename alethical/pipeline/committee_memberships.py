@@ -15,7 +15,11 @@ from sqlalchemy import create_engine, delete, func, select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
-from alethical.db.session import get_database_url, normalize_database_url
+from alethical.db.session import (
+    NO_PREPARED_STATEMENTS,
+    get_database_url,
+    normalize_database_url,
+)
 from alethical.db.session import supabase_database_url as _supabase_database_url
 
 
@@ -351,7 +355,9 @@ def main() -> None:
         raise SystemExit("DATABASE_URL or Supabase env vars are required")
 
     engine = create_engine(
-        normalize_database_url(args.database_url), pool_pre_ping=True
+        normalize_database_url(args.database_url),
+        pool_pre_ping=True,
+        connect_args=NO_PREPARED_STATEMENTS,
     )
     with Session(engine) as db:
         stats = backfill(db, dry_run=args.dry_run, cleanup_orphans=args.cleanup_orphans)
