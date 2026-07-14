@@ -292,6 +292,24 @@ def test_bill_text_refuses_when_bill_has_no_retrievable_text(client, monkeypatch
     assert data["answer"] is None
 
 
+def test_bill_text_degrades_to_topic_bills_when_ambiguous(client, monkeypatch):
+    """§4.1 fallback: a bill_text question that names no *single* bill (the phrase
+    is ambiguous, matching more than one) degrades to the cited topic_bills list
+    rather than refusing. "appropriations" matches 2 seeded bills by title, so it
+    resolves to no single bill but still names a topic with matches."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    data = client.post(
+        "/api/v1/ask", json={"content": "What's in the appropriations bill?"}
+    ).json()["data"]
+    assert data["intent"] == "bill_text"
+    answer = data["answer"]
+    assert answer is not None
+    assert "bills" in answer, "an ambiguous bill_text degrades to the topic_bills list"
+    assert answer["total_matches"] >= 2
+    _assert_cite_or_refuse(answer, "topic_bills")
+
+
 def test_vote_deflection_resolves_named_bill_and_degrades_otherwise(
     client, monkeypatch
 ):
