@@ -41,7 +41,7 @@ flowchart LR
     ART[("source_artifact<br/>hash · URL · run id")]
     PARSE["Source-specific parsers<br/>XML · regex-HTML · PDF"]
     CANON[("Canonical tables<br/>bill · action · sponsor · version<br/>legislator · committee · vote")]
-    RAG["RAG chunk + embed<br/>embeddings = PLACEHOLDER"]
+    RAG["RAG chunk + embed<br/>embeddings = OpenAI + hash fallback"]
     AIENR["AI summaries<br/>OpenAI Batch API"]
     DERIV[("Derived<br/>rag chunks · ai_enrichment")]
     DISC --> FETCH --> ART --> PARSE --> CANON
@@ -71,8 +71,9 @@ flowchart LR
   CL -->|"map tiles"| OSM
 ```
 
-`PLACEHOLDER` = RAG embeddings are currently deterministic SHA-256 hashes, not a
-real semantic model (see the **E & F — OpenAI** section). All other flows are functional.
+RAG embeddings use OpenAI `text-embedding-3-small` when `OPENAI_API_KEY` is set;
+offline (tests / no key) they fall back to a deterministic SHA-256 hash — see the
+**E & F — OpenAI** section. All flows are functional.
 
 > Downloadable version of this diagram (for slides / offline):
 > [SVG](data-ingestion-pipeline.svg) · [PNG](data-ingestion-pipeline.png).
@@ -252,8 +253,11 @@ just pipeline local --write --allow-writes     # commit after review
 
 ## Gotchas
 
-1. **RAG embeddings are a placeholder** (SHA-256) — semantic search/chat is
-   non-functional until a real model is wired in (see **E & F — OpenAI**).
+1. **RAG embeddings need `OPENAI_API_KEY`** — with the key set they use OpenAI
+   `text-embedding-3-small`; without it (tests, local dev) they fall back to a
+   deterministic SHA-256 hash that is not semantically meaningful (see **E & F —
+   OpenAI**). The stored `embedding_model` column distinguishes the two, so a
+   keyed backfill replaces fallback rows.
 2. **HTML parsing is regex-based, no schema validation** — an upstream template
    change yields *silently empty* results, not a loud failure. Watch
    `IngestionRun` counts (roster should be 134/67; a bill shouldn't lose all

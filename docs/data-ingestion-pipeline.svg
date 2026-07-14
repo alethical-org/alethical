@@ -78,8 +78,8 @@
   <!-- ================= right: caution + query-time ================= -->
   <line class="dash" x1="450" y1="357" x2="470" y2="351"/>
   <rect class="amber" x="470" y="336" width="196" height="34" rx="6"/>
-  <text class="t"  x="480" y="351">embeddings: placeholder</text>
-  <text class="ts" x="480" y="365">SHA-256, not semantic yet</text>
+  <text class="t"  x="480" y="351">embeddings: OpenAI</text>
+  <text class="ts" x="480" y="365">hash fallback when no key</text>
 
   <text class="th" x="470" y="404">Query-time calls</text>
   <rect class="amber" x="470" y="414" width="196" height="30" rx="6"/>
