@@ -10,6 +10,7 @@ from alethical.db import models as schema
 from alethical.db.session import get_database_url
 from alethical.pipeline.oban_workers import (
     BillSyncChunkWorker,
+    PipelineRunWorker,
     RagBackfillChunkWorker,
     RagBackfillWorker,
 )
@@ -405,3 +406,44 @@ async def test_rag_backfill_worker_dry_run_reports_candidates(
     assert result["candidates"] == 2
     assert result["chunks"] == 1
     assert result["sample"] == ["94-2025-SF1832", "94-2025-HF2136"]
+
+
+@pytest.mark.asyncio
+async def test_pipeline_run_worker_threads_include_rag_to_full_bill_sync(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The coordinator must pass include_rag down to the full-bill-sync child so
+    that --skip-rag (include_rag=False) actually suppresses inline RAG building.
+    Regression: previously the coordinator dropped include_rag, so the child
+    defaulted it back to True and chunks always built RAG."""
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    async def fake_enqueue_child(worker_cls, args, *, force=False):
+        calls.append((worker_cls.__name__, dict(args)))
+        return {"inserted": False, "worker": worker_cls.__name__}
+
+    monkeypatch.setattr(
+        "alethical.pipeline.oban_workers._enqueue_child", fake_enqueue_child
+    )
+
+    bills_only = {
+        "include_bills": True,
+        "include_committees": False,
+        "include_votes": False,
+        "include_ai_prepare": False,
+        "refresh_existing": True,
+        "dry_run": True,
+    }
+
+    # include_rag=False must reach the full-bill-sync child.
+    await PipelineRunWorker().process(
+        SimpleNamespace(args={**bills_only, "include_rag": False})
+    )
+    child = next(args for name, args in calls if name == "FullBillSyncWorker")
+    assert child["include_rag"] is False
+
+    # Default (omitted) preserves the RAG-on behavior: child sees include_rag=True.
+    calls.clear()
+    await PipelineRunWorker().process(SimpleNamespace(args=bills_only))
+    child = next(args for name, args in calls if name == "FullBillSyncWorker")
+    assert child["include_rag"] is True
