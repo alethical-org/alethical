@@ -3,13 +3,16 @@ from __future__ import annotations
 import re
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import String, and_, cast, func, or_, select
+from sqlalchemy import String, and_, cast, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
 from alethical.api.problems import problem_exception
+from alethical.api.routers.me import build_query_embedding, synthesize_grounded_answer
 from alethical.api.schemas import (
     AskAnswerPayload,
+    AskBillTextAnswer,
+    AskCitation,
     AskClassificationPayload,
     AskClassifyRequest,
     AskLegislatorBillRef,
@@ -25,6 +28,7 @@ from alethical.api.serializers import bill_list_item, bill_status_key_from_summa
 from alethical.api.services.ask_router import AskIntent, classify_query
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
+from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding_model
 
 schema = load_schema()
 Bill = schema.Bill
@@ -40,6 +44,7 @@ LegislatorServicePeriod = schema.LegislatorServicePeriod
 Sponsorship = schema.Sponsorship
 SponsorshipRole = schema.SponsorshipRole
 bill_list_stmt = schema.bill_list_stmt
+semantic_rag_chunk_stmt = schema.semantic_rag_chunk_stmt
 current_bill_summary_enrichment_bill_ids = (
     schema.current_bill_summary_enrichment_bill_ids
 )
@@ -311,6 +316,70 @@ def _resolve_bill(db: Session, session_id, content: str):
     return db.scalars(stmt).first()
 
 
+# bill_text RAG retrieval knobs (docs/grounded-ask-spec.md §4.1 / §9.4).
+_BILL_TEXT_CHUNK_LIMIT = 4
+# Retrieval-relevance threshold (§4.5): a weak match must refuse, not stretch.
+# Only real embeddings carry meaningful cosine distances, so the hash fallback
+# (tests / no OpenAI key) skips the gate — a threshold on hash vectors would be
+# arbitrary. Provisional value; tune against the §5.2 coverage spike (#255).
+_BILL_TEXT_MAX_DISTANCE = 0.6
+
+
+def _bill_text_answer(db: Session, content: str) -> AskBillTextAnswer | None:
+    """Scenario 1 single-bill RAG answer (docs/grounded-ask-spec.md §4.1 / §9.4).
+
+    Resolve one bill, retrieve its passages within the relevance threshold, and
+    synthesize a cited prose answer — reusing the bill-scoped chat machinery. A
+    bill that doesn't resolve, or resolves with no relevant passage, refuses
+    (returns ``None``) rather than stretches (cite-or-refuse, §4.5)."""
+    session_row = db.scalar(
+        select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
+    )
+    resolved = _resolve_bill(db, session_row.id, content)
+    if resolved is None:
+        return None
+
+    model = effective_embedding_model(DEFAULT_RAG_MODEL)
+    embedding = build_query_embedding(content)
+    db.execute(text("SET LOCAL ivfflat.probes = 10"))
+    chunks = db.scalars(
+        semantic_rag_chunk_stmt(
+            embedding,
+            bill_id=resolved.id,
+            embedding_model=model,
+            limit=_BILL_TEXT_CHUNK_LIMIT,
+            max_distance=_BILL_TEXT_MAX_DISTANCE
+            if model == DEFAULT_RAG_MODEL
+            else None,
+        )
+    ).all()
+    if not chunks:
+        return None
+
+    prose = synthesize_grounded_answer(content, chunks, bill_key=resolved.bill_key)
+    citations = [
+        AskCitation(
+            label=chunk.citation_label,
+            bill_id=resolved.bill_key,
+            excerpt=chunk.chunk_text.strip().replace("\n", " ")[:220],
+            url=resolved.official_url,
+        )
+        for chunk in chunks
+    ]
+    data_as_of = db.scalar(
+        select(func.max(IngestionRun.finished_at)).where(
+            IngestionRun.status == IngestionStatus.succeeded
+        )
+    )
+    return AskBillTextAnswer(
+        answer=prose,
+        citations=citations,
+        bill=bill_list_item(resolved),
+        session=AskSessionRef(slug=session_row.slug, name=session_row.name),
+        data_as_of=data_as_of,
+    )
+
+
 def _vote_deflection_answer(
     db: Session, content: str, topic: str | None
 ) -> AskVoteDeflectionAnswer:
@@ -380,10 +449,10 @@ def ask(
 
     Answered intents: topic_bills / topic_legislators (cited lists) and
     legislator_vote (the §4.5 honest deflection — a resolved-bill card or a
-    topic_bills degrade, never a vote answer). Anonymous by design — every v1
-    answer path is signed-out-accessible (docs/grounded-ask-spec.md §9.1). The
-    remaining intents (bill_text, refuse) return no answer body until their
-    slices of #79 land; the frontend keeps its interim behavior for them.
+    topic_bills degrade, never a vote answer) and bill_text (the §4.1 single-bill
+    RAG answer, or a refuse when the bill doesn't resolve / has no relevant
+    text). Anonymous by design — every v1 answer path is signed-out-accessible
+    (docs/grounded-ask-spec.md §9.1). refuse returns no answer body.
     """
     content = request.content.strip()
     if not content:
@@ -391,7 +460,9 @@ def ask(
 
     result = classify_query(content)
     answer = None
-    if result.intent is AskIntent.TOPIC_BILLS:
+    if result.intent is AskIntent.BILL_TEXT:
+        answer = _bill_text_answer(db, content)
+    elif result.intent is AskIntent.TOPIC_BILLS:
         answer = _topic_bills_answer(db, result.topic)
     elif result.intent is AskIntent.TOPIC_LEGISLATORS:
         answer = _topic_legislators_answer(db, result.topic)

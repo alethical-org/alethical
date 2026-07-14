@@ -58,6 +58,41 @@ def _mock_llm_intent(monkeypatch, intent: str, *, topic: str | None = None):
     )
 
 
+def _mock_rag(
+    monkeypatch, *, answer_text: str = "Synthesized bill-text answer."
+) -> None:
+    """Set up the RAG synthesis path like the bill-scoped chat test: a (fake)
+    OpenAI synthesis key, a deterministic hash query embedding, and the model
+    filter pinned to the seeded chunks' FALLBACK label so retrieval runs. Pair
+    with _mock_llm_intent(..., "bill_text") to drive the whole bill_text path."""
+    from alethical.pipeline.rag_ingest import (
+        FALLBACK_EMBEDDING_MODEL,
+        VECTOR_DIMENSIONS,
+        _deterministic_embedding,
+    )
+
+    class _FakeSynthesis:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"output_text": answer_text}
+
+    monkeypatch.setattr(
+        "alethical.api.routers.me.requests.post", lambda *a, **k: _FakeSynthesis()
+    )
+    monkeypatch.setattr(
+        "alethical.api.routers.me._build_embeddings",
+        lambda texts, **kw: [
+            _deterministic_embedding(t, dimensions=VECTOR_DIMENSIONS) for t in texts
+        ],
+    )
+    monkeypatch.setattr(
+        "alethical.api.routers.ask.effective_embedding_model",
+        lambda _model: FALLBACK_EMBEDDING_MODEL,
+    )
+
+
 def _assert_cite_or_refuse(answer: dict, kind: str) -> None:
     """Rule 1: either the NO MATCHES state, or every rendered item is cited."""
     if kind == "topic_bills":
@@ -93,6 +128,15 @@ def _assert_cite_or_refuse(answer: dict, kind: str) -> None:
         else:
             assert answer.get("topic_bills") is not None, "unresolved → topic_bills"
             _assert_cite_or_refuse(answer["topic_bills"], "topic_bills")
+    elif kind == "bill_text":
+        # §9.4 bill_text: prose scoped to one resolved bill, with ≥1 citation
+        # resolving to an official URL. A weak/empty retrieval is a refuse
+        # (answer is None) and never reaches here.
+        assert answer["answer"], "a bill_text answer must carry prose"
+        assert answer["bill"]["official_url"], "the answering bill must be citable"
+        assert answer["citations"], "a bill_text answer must cite its passages"
+        for citation in answer["citations"]:
+            assert citation["url"], "every citation resolves to an official URL"
     else:  # pragma: no cover - guards against a mistyped kind
         raise AssertionError(f"unknown answer kind: {kind}")
 
@@ -169,14 +213,14 @@ def test_answered_scenarios_satisfy_cite_or_refuse(
     _assert_cite_or_refuse(data["answer"], kind)
 
 
-@pytest.mark.parametrize("intent", ["bill_text", "refuse"])
+@pytest.mark.parametrize("intent", ["refuse"])
 def test_interim_intents_return_no_ungrounded_answer(client, monkeypatch, intent):
     """Rule 4: an intent whose cited answer path has not shipped returns no
     answer body — never an ungrounded stretch. Updates as #79 slices land.
 
-    ``legislator_vote`` has left this list: its v1 honest deflection now ships
-    a body (§4.5 / §9.4), covered by
-    ``test_vote_deflection_resolves_named_bill_and_degrades_otherwise``."""
+    ``legislator_vote`` (§4.5 / §9.4) and ``bill_text`` (§9.4) have both left
+    this list — their answer bodies now ship, covered by the dedicated
+    vote-deflection and bill-text contract tests below."""
     _mock_llm_intent(monkeypatch, intent)
     response = client.post(
         "/api/v1/ask", json={"content": "What does this bill do about housing?"}
@@ -184,6 +228,37 @@ def test_interim_intents_return_no_ungrounded_answer(client, monkeypatch, intent
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["intent"] == intent
+    assert data["answer"] is None
+
+
+def test_bill_text_answer_cites_the_resolved_bill(client, monkeypatch):
+    """Scenario 1 (docs/grounded-ask-spec.md §4.1 / §9.4, bill_text): a question
+    naming a bill resolves it, retrieves its passages, and answers in prose with
+    citations that each resolve to an official URL (grounded rule 1)."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    data = client.post("/api/v1/ask", json={"content": "What's in SF 1832?"}).json()[
+        "data"
+    ]
+    assert data["intent"] == "bill_text"
+    answer = data["answer"]
+    assert answer is not None
+    assert answer["answer"] == "Synthesized bill-text answer."
+    assert answer["bill"]["id"] == "94-2025-SF1832"
+    assert {c["bill_id"] for c in answer["citations"]} == {"94-2025-SF1832"}
+    _assert_cite_or_refuse(answer, "bill_text")
+
+
+def test_bill_text_refuses_when_bill_has_no_retrievable_text(client, monkeypatch):
+    """Cite-or-refuse (rule 1): a bill that resolves but has no retrieval-ready
+    passages yields no answer body — an honest refuse, never an ungrounded
+    stretch. HF 9901 is the seeded no-chunks bill."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    data = client.post("/api/v1/ask", json={"content": "What's in HF 9901?"}).json()[
+        "data"
+    ]
+    assert data["intent"] == "bill_text"
     assert data["answer"] is None
 
 
