@@ -365,13 +365,16 @@ def _resolve_bill_by_title(db: Session, session_id, content: str):
     return rows[0] if len(rows) == 1 else None
 
 
-# bill_text RAG retrieval knobs (docs/grounded-ask-spec.md §4.1 / §9.4).
+# bill_text RAG retrieval: how many of the resolved bill's passages to feed the
+# synthesizer (docs/grounded-ask-spec.md §4.1 / §9.4). No cosine-distance gate —
+# once the bill is *resolved* by number/title, retrieval is scoped to that bill,
+# so its top passages ARE the answer material; the synthesis prompt says "the
+# bill doesn't address that" when a specific question isn't covered. An earlier
+# 0.6 distance gate over-filtered generic "what's in this bill?" queries into a
+# false refuse in production (#255) — the query is semantically far from the
+# specific text even though the bill is the right one. A relevance threshold
+# belongs on *content-based* resolution (finding the bill by meaning), not here.
 _BILL_TEXT_CHUNK_LIMIT = 4
-# Retrieval-relevance threshold (§4.5): a weak match must refuse, not stretch.
-# Only real embeddings carry meaningful cosine distances, so the hash fallback
-# (tests / no OpenAI key) skips the gate — a threshold on hash vectors would be
-# arbitrary. Provisional value; tune against the §5.2 coverage spike (#255).
-_BILL_TEXT_MAX_DISTANCE = 0.6
 
 
 def _bill_text_answer(
@@ -408,9 +411,6 @@ def _bill_text_answer(
             bill_id=resolved.id,
             embedding_model=model,
             limit=_BILL_TEXT_CHUNK_LIMIT,
-            max_distance=_BILL_TEXT_MAX_DISTANCE
-            if model == DEFAULT_RAG_MODEL
-            else None,
         )
     ).all()
     if not chunks:
