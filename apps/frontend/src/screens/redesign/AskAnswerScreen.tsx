@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -18,7 +18,12 @@ import { Container, Footer, PageBackground, TopNav } from '../../theme/primitive
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { RootScreenProps } from '../../navigation/types';
 import { useAuth } from '../../providers/AuthProvider';
-import { useAskAnswer, useToggleTrackedBill, useTrackedBills } from '../../hooks/useAppQueries';
+import {
+  useAskAnswer,
+  useLegislators,
+  useToggleTrackedBill,
+  useTrackedBills,
+} from '../../hooks/useAppQueries';
 import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
 const t = theme;
@@ -183,6 +188,21 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     [trackedQuery.data],
   );
 
+  // §4.6 — the placeholder's "name" entry point. A query that resolves to a
+  // single legislator name is records navigation, so redirect to that profile
+  // instead of running it through the cite-or-refuse answer path. Reuses the
+  // existing directory search (GET /legislators?q=); multiple or zero matches
+  // fall through to the normal answer below.
+  const nameQuery = useLegislators(question);
+  const nameMatch = nameQuery.data && nameQuery.data.length === 1 ? nameQuery.data[0] : undefined;
+  const resolvingName = Boolean(question) && (nameQuery.isLoading || Boolean(nameMatch));
+
+  useEffect(() => {
+    if (nameMatch) {
+      navigation.replace('LegislatorProfile', { legislatorId: nameMatch.id });
+    }
+  }, [nameMatch, navigation]);
+
   const answer = askQuery.data;
   const isLegislators = answer?.intent === 'topic_legislators';
   const shownBills = answer?.bills ?? [];
@@ -334,7 +354,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             </Pressable>
           </View>
 
-          {askQuery.isLoading ? (
+          {askQuery.isLoading || resolvingName ? (
             <View style={styles.centerBlock}>
               <ActivityIndicator color={t.colors.brand.deep} />
             </View>
