@@ -182,6 +182,8 @@ _TOPIC_LEAD_WORDS = {
     "regarding",
     "for",
     "to",
+    "relate",
+    "relates",
     "related",
     "relating",
     "the",
@@ -189,13 +191,18 @@ _TOPIC_LEAD_WORDS = {
 
 
 def _extract_topic(question: str) -> str | None:
-    """Deterministic topic guess: the clause after "bills/laws", minus verbs."""
+    """Deterministic topic guess: the clause after "bills/laws", minus the
+    leading and trailing verbs/qualifiers that aren't part of the topic."""
     match = re.search(r"\b(?:bills?|laws?|statutes?)\b(.*)$", question, re.IGNORECASE)
     if not match:
         return None
     words = match.group(1).strip().rstrip("?.!").split()
     while words and words[0].lower() in _TOPIC_LEAD_WORDS:
         words.pop(0)
+    # Trailing verbs/qualifiers ("...data privacy passed") narrow the ILIKE
+    # match and cause a false NO MATCHES, so strip them too (#258).
+    while words and words[-1].lower() in _TOPIC_LEAD_WORDS:
+        words.pop()
     topic = " ".join(words).strip().lower()
     return topic or None
 
