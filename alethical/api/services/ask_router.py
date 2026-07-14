@@ -10,6 +10,7 @@ offline fallback like ``pipeline.rag_ingest._build_embeddings``.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -17,7 +18,7 @@ from enum import Enum
 
 import requests
 
-from fastapi import HTTPException
+logger = logging.getLogger(__name__)
 
 
 class AskIntent(str, Enum):
@@ -282,24 +283,29 @@ def classify_query(question: str) -> AskClassification:
         )
         response.raise_for_status()
         parsed = _extract_response_json(response.json())
-    except requests.RequestException as exc:
-        raise HTTPException(
-            status_code=502, detail="OpenAI ask-router classification failed"
-        ) from exc
+    except requests.RequestException:
+        # A classifier outage (bad/expired key, OpenAI down, rate limit, schema
+        # rejection) must not take down the endpoint — degrade to the offline
+        # heuristic. Logged at ERROR so the misconfiguration stays visible.
+        logger.exception(
+            "ask-router: OpenAI classification failed; using offline heuristic"
+        )
+        return _heuristic_fallback(question)
 
     if not parsed:
-        raise HTTPException(
-            status_code=502,
-            detail="OpenAI ask-router classification returned no usable result",
+        logger.error(
+            "ask-router: OpenAI returned no usable result; using offline heuristic"
         )
+        return _heuristic_fallback(question)
 
     try:
         intent = AskIntent(parsed.get("intent"))
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail="OpenAI ask-router classification returned an unknown intent",
-        ) from exc
+    except ValueError:
+        logger.error(
+            "ask-router: OpenAI returned unknown intent %r; using offline heuristic",
+            parsed.get("intent"),
+        )
+        return _heuristic_fallback(question)
 
     confidence = parsed.get("confidence")
     if not isinstance(confidence, (int, float)):
