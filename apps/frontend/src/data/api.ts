@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import {
   AskAnswer,
+  AskAnswerBill,
   Bill,
   BillSponsor,
   Chamber,
@@ -136,11 +137,22 @@ interface ApiAskTopicLegislatorsAnswerPayload {
   legislators: ApiAskLegislatorPayload[];
 }
 
+interface ApiAskVoteDeflectionAnswerPayload {
+  session: { slug: string; name: string };
+  data_as_of?: string | null;
+  resolved_bill?: ApiBillListItemPayload | null;
+  topic_bills?: ApiAskTopicBillsAnswerPayload | null;
+}
+
 interface ApiAskAnswerPayload {
   intent: string;
   source: string;
   confidence?: number | null;
-  answer?: ApiAskTopicBillsAnswerPayload | ApiAskTopicLegislatorsAnswerPayload | null;
+  answer?:
+    | ApiAskTopicBillsAnswerPayload
+    | ApiAskTopicLegislatorsAnswerPayload
+    | ApiAskVoteDeflectionAnswerPayload
+    | null;
 }
 
 export interface PolicyArea {
@@ -929,26 +941,43 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
   });
   const payload = response.data;
   const answer = payload.answer;
-  const bills = answer && 'bills' in answer ? answer.bills : [];
+
+  const mapBill = (bill: ApiBillListItemPayload): AskAnswerBill => ({
+    id: bill.id,
+    identifier: formatBillIdentifier(bill.file_type, bill.file_number),
+    title: bill.title,
+    status: statusLabel(bill.status_key, bill.current_status),
+    statusKey: bill.status_key ?? undefined,
+    summary: bill.ai_analysis?.summary ?? undefined,
+    officialUrl: bill.official_url ?? undefined,
+  });
+
+  // legislator_vote (§4.5 vote deflection) carries a resolved bill and/or a
+  // topic_bills degrade. Treat its topic_bills as the effective bill list so the
+  // deflection reuses the topic_bills rendering; surface the resolved bill on
+  // its own field.
+  const resolvedBill =
+    answer && 'resolved_bill' in answer && answer.resolved_bill
+      ? mapBill(answer.resolved_bill)
+      : undefined;
+  const topicBills =
+    answer && 'topic_bills' in answer ? (answer.topic_bills ?? undefined) : undefined;
+  const billsAnswer = topicBills ?? (answer && 'bills' in answer ? answer : undefined);
   const legislators = answer && 'legislators' in answer ? answer.legislators : [];
-  const totalBills = answer && 'total_bills' in answer ? answer.total_bills : undefined;
+
   return {
     intent: payload.intent,
     hasAnswer: Boolean(answer),
-    topic: answer?.topic ?? undefined,
+    topic:
+      billsAnswer?.topic ?? (answer && 'topic' in answer ? (answer.topic ?? undefined) : undefined),
     sessionName: answer?.session.name,
     dataAsOf: answer?.data_as_of ?? undefined,
-    totalMatches: answer?.total_matches ?? 0,
-    totalBills,
-    bills: bills.map((bill) => ({
-      id: bill.id,
-      identifier: formatBillIdentifier(bill.file_type, bill.file_number),
-      title: bill.title,
-      status: statusLabel(bill.status_key, bill.current_status),
-      statusKey: bill.status_key ?? undefined,
-      summary: bill.ai_analysis?.summary ?? undefined,
-      officialUrl: bill.official_url ?? undefined,
-    })),
+    totalMatches:
+      billsAnswer?.total_matches ??
+      (answer && 'total_matches' in answer ? answer.total_matches : 0),
+    totalBills: answer && 'total_bills' in answer ? answer.total_bills : undefined,
+    resolvedBill,
+    bills: (billsAnswer?.bills ?? []).map(mapBill),
     legislators: legislators.map((leg) => ({
       id: leg.id,
       fullName: leg.full_name,

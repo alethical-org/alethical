@@ -202,9 +202,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     [shownLegislators],
   );
 
-  // The three intents that don't yet render a full answer, each with honest
-  // copy per docs/grounded-ask-spec.md §9.1/§9.4 — never a false "on the way"
+  // Intents with no rendered answer body yet (bill_text, refuse), each with
+  // honest copy per docs/grounded-ask-spec.md §9.1 — never a false "on the way"
   // promise for a genuinely out-of-scope question (.claude/rules/grounded-answers.md rule 2).
+  // legislator_vote now renders its own vote-deflection block below (§9.4).
   const pending =
     answer?.intent === 'refuse'
       ? {
@@ -213,19 +214,18 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           body: 'Alethical answers questions about Minnesota bills, legislators, and votes. This one falls outside that — so we won’t guess.',
           cta: 'Browse Minnesota bills in Search →',
         }
-      : answer?.intent === 'legislator_vote'
-        ? {
-            eyebrow: 'COMING SOON',
-            muted: false,
-            body: 'Vote-by-vote answers are on the way. Until then, every roll call is on each bill’s Votes page — each linked to the official record.',
-            cta: 'Browse bills to see their votes →',
-          }
-        : {
-            eyebrow: 'ON THE ROADMAP',
-            muted: false,
-            body: 'Plain-English answers about what a bill says are coming. In the meantime, open any bill to read its full text and summary.',
-            cta: 'Find a bill in Search →',
-          };
+      : {
+          eyebrow: 'ON THE ROADMAP',
+          muted: false,
+          body: 'Plain-English answers about what a bill says are coming. In the meantime, open any bill to read its full text and summary.',
+          cta: 'Find a bill in Search →',
+        };
+
+  // legislator_vote → the v1 honest vote deflection (§4.5 / §9.4): never a vote
+  // answer. A resolved bill deep-links its Votes tab; otherwise it degrades to
+  // the topic_bills list. hasAnswer is true, so this sits outside `pending`.
+  const isVoteDeflection = answer?.intent === 'legislator_vote';
+  const resolvedBill = answer?.resolvedBill;
 
   const submitRetry = () => {
     const next = retryValue.trim();
@@ -348,6 +348,78 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               >
                 <Text style={styles.viewBillLink}>{pending.cta}</Text>
               </Pressable>
+            </View>
+          ) : isVoteDeflection && answer ? (
+            <View style={styles.answerBlock}>
+              {/* §9.4 vote-deflection: ANSWER eyebrow (not an error) + COMING
+                  SOON badge; never a vote answer, no tallies or positions. */}
+              <View style={styles.eyebrowRow}>
+                <Text style={styles.eyebrow}>ANSWER</Text>
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+                </View>
+              </View>
+              <Text style={styles.question}>{question}</Text>
+              {/* Fixed deflection copy owned by the layout (docs/grounded-ask-spec.md
+                  §9.4) — .claude/rules/grounded-answers.md rules 3 & 4. */}
+              <Text style={styles.introLine}>
+                Vote-by-vote answers will land right here. Until then, every roll call on this bill
+                is on its Votes page — each with a link to the official record.
+              </Text>
+              {resolvedBill ? (
+                <View style={styles.cardsColumn}>
+                  <AnswerBillCard
+                    bill={resolvedBill}
+                    tracked={isSignedIn && trackedIds.has(resolvedBill.id)}
+                    onOpen={() => navigation.navigate('BillDetail', { billId: resolvedBill.id })}
+                    onTrack={() => handleTrack(resolvedBill.id)}
+                  />
+                  <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel={`See all votes on ${resolvedBill.identifier}`}
+                    onPress={() =>
+                      navigation.navigate('BillDetail', {
+                        billId: resolvedBill.id,
+                        tab: 'votes',
+                      })
+                    }
+                  >
+                    <Text style={styles.viewBillLink}>
+                      See all votes on {resolvedBill.identifier} →
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : shownBills.length > 0 ? (
+                <>
+                  {/* Unresolved bill → degrade to the topic_bills list, each card
+                      deep-linking its Votes tab (§4.5 / §9.4). */}
+                  <Text style={styles.introLine}>
+                    No specific bill was named. Here are current-session bills on
+                    <Text style={styles.topicPill}> {answer.topic ?? 'this topic'} </Text>— open any
+                    to see its roll-call votes:
+                  </Text>
+                  <View style={styles.cardsColumn}>
+                    {shownBills.map((bill) => (
+                      <AnswerBillCard
+                        key={bill.id}
+                        bill={bill}
+                        tracked={isSignedIn && trackedIds.has(bill.id)}
+                        onOpen={() =>
+                          navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
+                        }
+                        onTrack={() => handleTrack(bill.id)}
+                      />
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => navigation.navigate('Tabs', { screen: 'Search' })}
+                >
+                  <Text style={styles.viewBillLink}>Browse bills to see their votes →</Text>
+                </Pressable>
+              )}
             </View>
           ) : noMatches ? (
             <View style={styles.answerBlock}>
@@ -571,6 +643,25 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: t.colors.text.green,
     fontWeight: '700',
+  },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: t.spacing.sm,
+  },
+  comingSoonBadge: {
+    backgroundColor: t.colors.tint.t150,
+    borderRadius: t.radii.badge,
+    ...(isWeb
+      ? ({ paddingLeft: 8, paddingRight: 8, paddingTop: 2, paddingBottom: 2 } as object)
+      : { paddingHorizontal: 8, paddingVertical: 2 }),
+  },
+  comingSoonBadgeText: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+    fontWeight: '700',
+    color: t.colors.brand.deep,
   },
   // Out-of-scope is a calm, muted state — not an answer, not "coming soon".
   eyebrowMuted: {
