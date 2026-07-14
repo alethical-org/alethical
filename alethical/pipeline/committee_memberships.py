@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
 from alethical.db.session import get_database_url, normalize_database_url
+from alethical.db.session import supabase_database_url as _supabase_database_url
 
 
 Chamber = schema.Chamber
@@ -52,12 +53,7 @@ class BackfillStats:
 
 
 def supabase_database_url() -> str | None:
-    project_url = os.environ.get("SUPABASE_PROJECT_URL")
-    password = os.environ.get("SUPABASE_DB_PASSWORD")
-    if not project_url or not password:
-        return None
-    project_ref = re.sub(r"^https?://([^.]+).*$", r"\1", project_url)
-    return f"postgresql+psycopg://postgres:{password}@db.{project_ref}.supabase.co:5432/postgres?sslmode=require"
+    return _supabase_database_url()
 
 
 def normalize_space(value: str) -> str:
