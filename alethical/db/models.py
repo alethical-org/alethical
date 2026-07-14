@@ -664,6 +664,9 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     notification_preferences: Mapped[list["NotificationPreference"]] = relationship(
         back_populates="user"
     )
+    notification_events: Mapped[list["NotificationEvent"]] = relationship(
+        back_populates="user"
+    )
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")
 
 
@@ -748,6 +751,37 @@ class TrackedBill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     bill: Mapped["Bill"] = relationship(back_populates="tracked_by")
 
     __table_args__ = (UniqueConstraint("user_id", "bill_id"),)
+
+
+class NotificationEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A pending (or delivered) notification for a user about a tracked bill.
+
+    Recorded when a tracked bill's status changes; a later digest job reads the
+    unsent rows (``sent_at IS NULL``), emails them, and stamps ``sent_at``. That
+    delivery slice and the email transport are deferred and gated
+    (`.claude/rules/workflow.md`; tracked in #36) — recording an event here
+    sends nothing on its own. ``event_type`` is a plain string rather than a PG
+    enum so new event kinds don't need an enum migration; known values live in
+    ``alethical.api.services.notifications``.
+    """
+
+    __tablename__ = "notification_event"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id"), nullable=False
+    )
+    bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    old_status_code: Mapped[Optional[str]] = mapped_column(String(50))
+    new_status_code: Mapped[Optional[str]] = mapped_column(String(50))
+    old_status: Mapped[Optional[str]] = mapped_column(String(200))
+    new_status: Mapped[Optional[str]] = mapped_column(String(200))
+    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped["UserAccount"] = relationship(back_populates="notification_events")
+    bill: Mapped["Bill"] = relationship()
+
+    __table_args__ = (Index("ix_notification_event_user_unsent", "user_id", "sent_at"),)
 
 
 class ChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
