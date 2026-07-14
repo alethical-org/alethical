@@ -579,6 +579,7 @@ def test_signed_in_chat_session_and_message_flow(client, auth_headers, monkeypat
     # calls a different requests.post. Stub it to return a deterministic vector
     # so retrieval still runs against the seeded chunks.
     from alethical.pipeline.rag_ingest import (
+        FALLBACK_EMBEDDING_MODEL,
         VECTOR_DIMENSIONS,
         _deterministic_embedding,
     )
@@ -588,6 +589,14 @@ def test_signed_in_chat_session_and_message_flow(client, auth_headers, monkeypat
         lambda texts, **kw: [
             _deterministic_embedding(t, dimensions=VECTOR_DIMENSIONS) for t in texts
         ],
+    )
+    # The stubbed query vector above is the hash fallback, and the sample-data
+    # chunks are stored under FALLBACK_EMBEDDING_MODEL (#221). Pin retrieval's
+    # model filter to the same label so query and chunks stay a consistent pair
+    # even though the (fake) synthesis key is set.
+    monkeypatch.setattr(
+        "alethical.api.routers.me.effective_embedding_model",
+        lambda _model: FALLBACK_EMBEDDING_MODEL,
     )
     sessions_response = client.get("/api/v1/me/chat-sessions", headers=auth_headers)
     assert sessions_response.status_code == 200

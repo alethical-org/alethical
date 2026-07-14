@@ -18,6 +18,7 @@ if str(ROOT) not in sys.path:
 
 from alethical.db import models as schema  # noqa: E402
 from alethical.db.session import normalize_database_url  # noqa: E402
+from alethical.pipeline.rag_ingest import FALLBACK_EMBEDDING_MODEL  # noqa: E402
 from alethical.pipeline.sessions import CURRENT_SESSION_SLUG  # noqa: E402
 
 FIXTURE_ROOT = ROOT / "alethical" / "tests" / "fixtures"
@@ -594,7 +595,10 @@ def ingest_bill_payload(
             session.add(
                 RagChunkEmbedding(
                     rag_chunk_id=chunk_row.id,
-                    embedding_model="text-embedding-3-small",
+                    # These vectors are always the hash fallback, so label them as
+                    # such — retrieval matches them only when it also runs keyless,
+                    # and a keyed backfill re-embeds them (#221).
+                    embedding_model=FALLBACK_EMBEDDING_MODEL,
                     embedding=deterministic_embedding(chunk["chunk_text"]),
                 )
             )

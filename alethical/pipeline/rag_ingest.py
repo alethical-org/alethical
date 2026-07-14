@@ -13,9 +13,24 @@ from alethical.db import models as schema
 from alethical.pipeline import rag as rag_text
 
 DEFAULT_RAG_MODEL = "text-embedding-3-small"
+# Label stored on rows embedded by the deterministic hash fallback (no
+# OPENAI_API_KEY). Distinct from any real model name so retrieval's model filter
+# excludes fallback rows and a keyed backfill re-embeds them (#221).
+FALLBACK_EMBEDDING_MODEL = "deterministic-sha256"
 DEFAULT_RAG_BATCH_SIZE = 32
 VECTOR_DIMENSIONS = 1536
 OPENAI_EMBEDDING_TIMEOUT_SECONDS = 60
+
+
+def effective_embedding_model(requested: str) -> str:
+    """The model label matching what _build_embeddings will actually produce.
+
+    Returns ``requested`` when OPENAI_API_KEY is set (real OpenAI embeddings),
+    else FALLBACK_EMBEDDING_MODEL (deterministic hash). Callers that store or
+    filter by embedding_model must use this so stored labels always describe the
+    vectors they sit next to.
+    """
+    return requested if os.environ.get("OPENAI_API_KEY") else FALLBACK_EMBEDDING_MODEL
 
 
 def _deterministic_embedding(
@@ -288,9 +303,9 @@ def _build_embeddings(
     if not texts:
         return []
     if not os.environ.get("OPENAI_API_KEY"):
-        # Offline fallback for tests / local dev without an API key. The stored
-        # embedding_model column distinguishes these from real OpenAI embeddings,
-        # so a backfill will replace them when a key is present.
+        # Offline fallback for tests / local dev without an API key. Callers must
+        # store these under FALLBACK_EMBEDDING_MODEL (via effective_embedding_model)
+        # so retrieval excludes them and a keyed backfill replaces them (#221).
         return [
             _deterministic_embedding(text, dimensions=VECTOR_DIMENSIONS)
             for text in texts
@@ -453,7 +468,7 @@ def build_rag_rows_for_bill_keys(
             db,
             bill_version.id,
             prepared_sections,
-            embedding_model=rag_model,
+            embedding_model=effective_embedding_model(rag_model),
         ):
             summary["rag_already_exists"] += 1
             summary["rag_results"].append(
@@ -493,6 +508,9 @@ def build_rag_rows_for_bill_keys(
                 )
             )
 
+        # Resolve the label right before building so it matches the vectors
+        # _build_embeddings actually produces (real model vs hash fallback, #221).
+        stored_embedding_model = effective_embedding_model(rag_model)
         embeddings = _build_embeddings(
             [chunk_text for _, chunk_text in chunk_rows],
             model=rag_model,
@@ -505,7 +523,7 @@ def build_rag_rows_for_bill_keys(
             db.add(
                 schema.RagChunkEmbedding(
                     rag_chunk_id=rag_chunk.id,
-                    embedding_model=rag_model,
+                    embedding_model=stored_embedding_model,
                     embedding=embedding,
                 )
             )

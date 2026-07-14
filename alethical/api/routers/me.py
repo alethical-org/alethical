@@ -26,7 +26,11 @@ from alethical.api.serializers import (
 )
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
-from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, _build_embeddings
+from alethical.pipeline.rag_ingest import (
+    DEFAULT_RAG_MODEL,
+    _build_embeddings,
+    effective_embedding_model,
+)
 
 schema = load_schema()
 Bill = schema.Bill
@@ -555,14 +559,15 @@ def create_chat_message(
 
     embedding = build_query_embedding(request.content)
     db.execute(text("SET LOCAL ivfflat.probes = 10"))
-    # Filter retrieval to chunks embedded with the same model used for the query
-    # vector, so cosine distance is meaningful. Chunks stored under a stale model
-    # are excluded until re-embedded by the RAG backfill.
+    # Filter retrieval to chunks embedded with the same model the query vector
+    # was just built with (real model when keyed, hash fallback when not — #221),
+    # so cosine distance is meaningful. Chunks stored under any other model are
+    # excluded until re-embedded by the RAG backfill.
     chunks = db.scalars(
         semantic_rag_chunk_stmt(
             embedding,
             bill_id=session_row.subject_bill_id,
-            embedding_model=DEFAULT_RAG_MODEL,
+            embedding_model=effective_embedding_model(DEFAULT_RAG_MODEL),
             limit=3,
         )
     ).all()
