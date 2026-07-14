@@ -64,7 +64,14 @@ def _mock_rag(
     """Set up the RAG synthesis path like the bill-scoped chat test: a (fake)
     OpenAI synthesis key, a deterministic hash query embedding, and the model
     filter pinned to the seeded chunks' FALLBACK label so retrieval runs. Pair
-    with _mock_llm_intent(..., "bill_text") to drive the whole bill_text path."""
+    with _mock_llm_intent(..., "bill_text") to drive the whole bill_text path.
+
+    The classifier and the synthesizer both call ``requests.post`` on the *same*
+    ``requests`` module, so this can't just overwrite it — it would clobber the
+    router mock and drop classification to the heuristic. Instead it dispatches:
+    a synthesis request (identified by its system prompt) returns the fake
+    answer; anything else delegates to the already-installed classifier mock."""
+    import alethical.api.routers.me as me_module
     from alethical.pipeline.rag_ingest import (
         FALLBACK_EMBEDDING_MODEL,
         VECTOR_DIMENSIONS,
@@ -78,9 +85,16 @@ def _mock_rag(
         def json(self):
             return {"output_text": answer_text}
 
-    monkeypatch.setattr(
-        "alethical.api.routers.me.requests.post", lambda *a, **k: _FakeSynthesis()
-    )
+    classifier_post = me_module.requests.post
+
+    def _dispatch_post(url, **kwargs):
+        messages = kwargs.get("json", {}).get("input", [])
+        system = str(messages[0].get("content", "")) if messages else ""
+        if "Answer only from the provided bill text" in system:
+            return _FakeSynthesis()
+        return classifier_post(url, **kwargs)
+
+    monkeypatch.setattr("alethical.api.routers.me.requests.post", _dispatch_post)
     monkeypatch.setattr(
         "alethical.api.routers.me._build_embeddings",
         lambda texts, **kw: [
@@ -246,6 +260,22 @@ def test_bill_text_answer_cites_the_resolved_bill(client, monkeypatch):
     assert answer["answer"] == "Synthesized bill-text answer."
     assert answer["bill"]["id"] == "94-2025-SF1832"
     assert {c["bill_id"] for c in answer["citations"]} == {"94-2025-SF1832"}
+    _assert_cite_or_refuse(answer, "bill_text")
+
+
+def test_bill_text_resolves_a_bill_by_fuzzy_title(client, monkeypatch):
+    """Scenario 1 (docs/grounded-ask-spec.md §4.1, bill_text): a question with no
+    HF/SF number resolves via a single confident title match ("higher education"
+    → SF 2483) and answers with citations — proving you don't need the number."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    data = client.post(
+        "/api/v1/ask", json={"content": "What's in the higher education bill?"}
+    ).json()["data"]
+    assert data["intent"] == "bill_text"
+    answer = data["answer"]
+    assert answer is not None
+    assert answer["bill"]["id"] == "94-2025-SF2483"
     _assert_cite_or_refuse(answer, "bill_text")
 
 

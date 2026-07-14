@@ -316,6 +316,55 @@ def _resolve_bill(db: Session, session_id, content: str):
     return db.scalars(stmt).first()
 
 
+# Question scaffolding stripped to isolate the bill's title phrase for a fuzzy
+# match: leading interrogatives and a trailing "bill"/"law"/"act" noun.
+_BILL_TITLE_LEAD_RE = re.compile(
+    r"^\s*(what(?:'s| is| does| are)?|tell me about|explain|describe|summari[sz]e|"
+    r"in|about|the|a|an)\b\s*",
+    re.IGNORECASE,
+)
+_BILL_TITLE_TRAIL_RE = re.compile(
+    r"\s*\b(bill|law|act|statute|legislation)\b\s*$", re.IGNORECASE
+)
+# Below this the phrase carries too little signal to name a single bill safely.
+_MIN_TITLE_PHRASE_LENGTH = 4
+
+
+def _bill_title_phrase(content: str) -> str | None:
+    """Isolate the core title phrase from a bill_text question by peeling off the
+    question scaffolding ("what's in the … bill?"). Heuristic on purpose — the
+    single-match rule in ``_resolve_bill_by_title`` is what keeps it safe."""
+    phrase = content.strip().rstrip("?.! ")
+    prev = None
+    while phrase and phrase != prev:
+        prev = phrase
+        phrase = _BILL_TITLE_LEAD_RE.sub("", phrase)
+    phrase = _BILL_TITLE_TRAIL_RE.sub("", phrase).strip()
+    return phrase or None
+
+
+def _resolve_bill_by_title(db: Session, session_id, content: str):
+    """Fuzzy title/description match, but only a *single* confident match
+    resolves (docs/grounded-ask-spec.md §4.1, v1 fuzzy title match). An ambiguous
+    phrase (2+ matches) or none returns ``None`` so the caller refuses rather
+    than risk answering about the wrong bill — the worst failure (grounded rule
+    1). Requires ``official_url`` so the answer is always citable."""
+    phrase = _bill_title_phrase(content)
+    if phrase is None or len(phrase) < _MIN_TITLE_PHRASE_LENGTH:
+        return None
+    pattern = f"%{phrase}%"
+    rows = db.scalars(
+        select(Bill)
+        .where(
+            Bill.session_id == session_id,
+            Bill.official_url.isnot(None),
+            or_(Bill.title.ilike(pattern), Bill.description.ilike(pattern)),
+        )
+        .limit(2)
+    ).all()
+    return rows[0] if len(rows) == 1 else None
+
+
 # bill_text RAG retrieval knobs (docs/grounded-ask-spec.md §4.1 / §9.4).
 _BILL_TEXT_CHUNK_LIMIT = 4
 # Retrieval-relevance threshold (§4.5): a weak match must refuse, not stretch.
@@ -335,7 +384,9 @@ def _bill_text_answer(db: Session, content: str) -> AskBillTextAnswer | None:
     session_row = db.scalar(
         select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
     )
-    resolved = _resolve_bill(db, session_row.id, content)
+    resolved = _resolve_bill(db, session_row.id, content) or _resolve_bill_by_title(
+        db, session_row.id, content
+    )
     if resolved is None:
         return None
 
