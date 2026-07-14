@@ -20,6 +20,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountScreen } from '../screens/AccountScreen';
+import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
 import { BillDetailScreen } from '../screens/BillDetailScreen';
 import { ChatSessionScreen } from '../screens/ChatSessionScreen';
 import { ChatScreen } from '../screens/ChatScreen';
@@ -471,8 +472,11 @@ export function RootNavigator() {
         return;
       }
 
-      navigationRef.resetRoot(stateFromPathname(window.location.pathname || '/'));
-      lastPathRef.current = window.location.pathname || '/';
+      // Include the query string: ?q= / ?subjectType= params live there and
+      // targetFromPathname parses them (the pathname alone drops them).
+      const fullPath = `${window.location.pathname}${window.location.search}` || '/';
+      navigationRef.resetRoot(stateFromPathname(fullPath));
+      lastPathRef.current = fullPath;
     };
 
     window.addEventListener('popstate', onPopState);
@@ -486,7 +490,7 @@ export function RootNavigator() {
       return undefined;
     }
 
-    lastPathRef.current = window.location.pathname || '/';
+    lastPathRef.current = `${window.location.pathname}${window.location.search}` || '/';
     return stateFromPathname(lastPathRef.current);
   }, [isWeb]);
 
@@ -569,6 +573,11 @@ export function RootNavigator() {
             })}
           >
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="Ask"
+              component={AskAnswerScreen}
+              options={{ headerShown: false, title: 'Ask' }}
+            />
             <Stack.Screen
               name="BillDetail"
               component={BillDetailScreen}

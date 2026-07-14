@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import {
+  AskAnswer,
   Bill,
   BillSponsor,
   Chamber,
@@ -97,6 +98,21 @@ interface ApiBillListItemPayload {
 interface ApiPolicyAreaPayload {
   name: string;
   bill_count: number;
+}
+
+interface ApiAskTopicBillsAnswerPayload {
+  topic?: string | null;
+  session: { slug: string; name: string };
+  data_as_of?: string | null;
+  total_matches: number;
+  bills: ApiBillListItemPayload[];
+}
+
+interface ApiAskAnswerPayload {
+  intent: string;
+  source: string;
+  confidence?: number | null;
+  answer?: ApiAskTopicBillsAnswerPayload | null;
 }
 
 export interface PolicyArea {
@@ -877,6 +893,31 @@ export async function sendChatMessageToApi(
   );
 
   return getChatSessionFromApi(accessToken, input.sessionId);
+}
+
+export async function askFromApi(question: string): Promise<AskAnswer> {
+  const response = await publicApiPost<DetailResponse<ApiAskAnswerPayload>>('/ask', {
+    content: question,
+  });
+  const payload = response.data;
+  const answer = payload.answer;
+  return {
+    intent: payload.intent,
+    hasAnswer: Boolean(answer),
+    topic: answer?.topic ?? undefined,
+    sessionName: answer?.session.name,
+    dataAsOf: answer?.data_as_of ?? undefined,
+    totalMatches: answer?.total_matches ?? 0,
+    bills: (answer?.bills ?? []).map((bill) => ({
+      id: bill.id,
+      identifier: formatBillIdentifier(bill.file_type, bill.file_number),
+      title: bill.title,
+      status: statusLabel(bill.status_key, bill.current_status),
+      statusKey: bill.status_key ?? undefined,
+      summary: bill.ai_analysis?.summary ?? undefined,
+      officialUrl: bill.official_url ?? undefined,
+    })),
+  };
 }
 
 export async function listBillsFromApi(

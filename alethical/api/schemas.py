@@ -281,6 +281,35 @@ class AskClassificationPayload(BaseModel):
     auth_required: bool
     source: str
     confidence: float | None = None
+    topic: str | None = None
+
+
+class AskSessionRef(BaseModel):
+    slug: str
+    name: str
+
+
+class AskTopicBillsAnswer(BaseModel):
+    """Cited topic → bills answer (docs/grounded-ask-spec.md §4.2, topic_bills).
+
+    ``total_matches == 0`` is the NO MATCHES state — in scope, just empty —
+    never rendered as a normal answer (§4.5).
+    """
+
+    topic: str | None
+    session: AskSessionRef
+    data_as_of: datetime | None
+    total_matches: int
+    bills: list[BillListItem]
+
+
+class AskAnswerPayload(BaseModel):
+    intent: str
+    source: str
+    confidence: float | None = None
+    # Present only for topic_bills; other intents' answer paths land in later
+    # slices of #79 and return no answer body yet.
+    answer: AskTopicBillsAnswer | None = None
 
 
 class ChatSessionCreateRequest(BaseModel):

@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<MainTabParamList>;
+  Ask: { q?: string };
   BillDetail: { billId: string };
   LegislatorProfile: { legislatorId: string };
   FindMyLegislator: undefined;
@@ -22,7 +23,7 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  Search: undefined;
+  Search: { q?: string } | undefined;
   Tracked: undefined;
   Chat: undefined;
   Account: undefined;

@@ -96,8 +96,11 @@ roadmap noted for direction.
   answer as a **stateless one-shot** (not a persisted `ChatSession`); follow-ups,
   history, and tracking gate behind sign-in. Preserve the question+answer through auth.
   **Lower the cold start:** seed the hero with 3–4 clickable example-question chips.
-  Depends on real Ask AI (don't ship the teaser on stub embeddings). Interim hero
-  behavior (Ask → sign-in) is fine until the backend un-stub lands.
+  Depends on real Ask AI (don't ship the teaser on stub embeddings). *Status (Jul 14,
+  2026, PR #227):* the interim Ask → sign-in behavior is retired — hero submits route
+  to the `/ask?q=` answer page; topic → bills questions get the real cited answer,
+  and not-yet-shipped intents get an "ON THE ROADMAP" state. The one-free-answer cap
+  and rate limiting (O8, #98) are still open — anonymous asks are unmetered today.
 - **Logged-out Track experience:** read-only shell with a value-prop empty state (not a
   hard redirect); the TRACK button triggers intent-preserving sign-in ("Sign in to
   track HF 1"); post-auth redirect returns the user to the exact action.
@@ -184,6 +187,9 @@ Frontend track (after Phase 0; parallel with backend track)
 - [ ] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect
 - [x] Green token flip (web; re-skins the post-MVP iOS/Android clients for free via shared tokens) — [#136](https://github.com/alethical-org/alethical/issues/136); landed with the signed-out home ship (PR #67)
 - [ ] Upgrade Ask hero to the one-free-answer funnel when the backend un-stub is live
+      — *partially delivered by PR #227 (topic → bills answers live from the hero);
+      still missing: the one-free-answer cap + rate limiting (O8, #98) and the
+      remaining answer paths (#79)*
 
 ## Open items (still undecided)
 

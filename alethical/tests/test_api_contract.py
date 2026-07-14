@@ -800,6 +800,92 @@ def test_ask_router_fallback_is_deterministic_and_offline(monkeypatch):
     assert result.intent in {AskIntent.BILL_TEXT, AskIntent.TOPIC_BILLS}
 
 
+def test_ask_router_fallback_extracts_topic(monkeypatch):
+    from alethical.api.services.ask_router import classify_query
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert classify_query("What bills affect healthcare?").topic == "healthcare"
+    assert classify_query("What bills have impacted housing?").topic == "housing"
+    assert classify_query("List the laws passed on paid leave.").topic == "paid leave"
+    assert (
+        classify_query("What bills affect economic development?").topic
+        == "economic development"
+    )
+    # Non-topic classifications carry no topic.
+    assert classify_query("How does the paid-leave program work?").topic is None
+
+
+def test_ask_answers_topic_bills_question_with_cited_list(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    response = client.post(
+        "/api/v1/ask",
+        json={"content": "What bills affect economic development?"},
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["intent"] == "topic_bills"
+    assert data["source"] == "fallback"
+
+    answer = data["answer"]
+    assert answer["topic"] == "economic development"
+    assert answer["session"]["slug"] == "94-2025-regular"
+    assert "data_as_of" in answer
+    assert answer["total_matches"] >= 1
+    assert 1 <= len(answer["bills"]) <= 6
+    assert answer["total_matches"] >= len(answer["bills"])
+
+    bill_ids = [bill["id"] for bill in answer["bills"]]
+    assert "94-2025-SF1832" in bill_ids
+    for bill in answer["bills"]:
+        # Cite-or-refuse: every card is its own citation, with a summary line.
+        assert bill["official_url"]
+        assert bill["ai_analysis"]["summary"]
+
+    # Deterministic re-run — the ?q= share link must re-render identically.
+    again = client.post(
+        "/api/v1/ask",
+        json={"content": "What bills affect economic development?"},
+    )
+    assert again.json()["data"] == data
+
+
+def test_ask_zero_match_topic_returns_no_matches_payload(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    response = client.post(
+        "/api/v1/ask",
+        json={"content": "What bills affect healthcare?"},
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["intent"] == "topic_bills"
+    # In-scope topic, zero matches: distinct NO MATCHES payload, never a
+    # normal answer with nothing to cite.
+    answer = data["answer"]
+    assert answer["topic"] == "healthcare"
+    assert answer["total_matches"] == 0
+    assert answer["bills"] == []
+
+
+def test_ask_non_topic_bills_intent_returns_no_answer(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    response = client.post(
+        "/api/v1/ask",
+        json={"content": "How does the paid-leave program work?"},
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["intent"] == "bill_text"
+    assert data["answer"] is None
+
+
+def test_ask_rejects_empty_content(client):
+    response = client.post("/api/v1/ask", json={"content": "   "})
+    assert response.status_code == 400
+
+
 def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(
     client, auth_headers, monkeypatch
 ):

@@ -28,10 +28,12 @@ const BILLS_PAGE_SIZE = 5;
 const LEGISLATORS_PAGE_SIZE = 8;
 const ALL_POLICIES = allPoliciesLabel();
 
-export function SearchScreen({ navigation }: Props) {
+export function SearchScreen({ navigation, route }: Props) {
   const { isDesktop } = useResponsive();
   const { isSignedIn, signInWithGoogle, user } = useAuth();
-  const [query, setQuery] = useState('');
+  // Seeded when another screen routes here pre-filtered (e.g. an Ask answer's
+  // "See all N bills in Search" overflow link).
+  const [query, setQuery] = useState(route.params?.q ?? '');
   const [chamber, setChamber] = useState<ChamberFilter>('All');
   const [policyCategory, setPolicyCategory] = useState<PolicyCategory>(ALL_POLICIES);
   const [omnibusOnly, setOmnibusOnly] = useState(false);
