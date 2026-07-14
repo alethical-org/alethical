@@ -22,6 +22,8 @@ def test_health_and_meta_endpoints(client):
     assert payload["data"]["api_version"] == "v1"
     assert payload["data"]["jurisdiction"]["slug"] == "minnesota"
     assert payload["data"]["current_session"]["slug"] == "94-2025-regular"
+    # "Data as of {date}" provenance strip source (#134): latest succeeded ingestion.
+    assert payload["data"]["data_as_of"]
 
 
 def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
@@ -188,6 +190,42 @@ def test_bill_list_supports_offset_pagination(client):
     assert len(second_page_payload["data"]) == 1
     assert second_page_payload["page"]["offset"] == 1
     assert second_page_payload["data"][0]["id"] != first_page_payload["data"][0]["id"]
+    # Total is the full matching-bill count, independent of the page window (#134).
+    total = first_page_payload["page"]["total"]
+    assert total >= 2
+    assert second_page_payload["page"]["total"] == total
+
+
+def test_bill_search_supports_bill_number_query(client):
+    # "SF 1832" — a bill-number query — must resolve the bill by file_type +
+    # file_number, even though its number appears in neither title nor
+    # description (#134). Spacing and case are normalized.
+    for query in ("SF 1832", "SF1832", "sf 1832"):
+        response = client.get(
+            "/api/v1/bills",
+            params={"session": "94-2025-regular", "q": query, "limit": 20},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        ids = [bill["id"] for bill in payload["data"]]
+        assert ids == ["94-2025-SF1832"], query
+        assert payload["page"]["total"] == 1
+
+    # A chamber-mismatched prefix does not resolve the Senate bill.
+    chamber_miss = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "q": "HF 1832", "limit": 20},
+    )
+    assert chamber_miss.status_code == 200
+    assert "94-2025-SF1832" not in [b["id"] for b in chamber_miss.json()["data"]]
+
+    # Keyword search is unchanged — a plain word still matches title/description.
+    keyword_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "q": "education", "limit": 20},
+    )
+    assert keyword_response.status_code == 200
+    assert keyword_response.json()["data"]
 
 
 def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
