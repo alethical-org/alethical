@@ -17,6 +17,7 @@ from sqlalchemy import create_engine, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.db import models as schema
+from alethical.pipeline.sessions import CURRENT_SESSION_SLUG
 from alethical.db.session import get_database_url, normalize_database_url
 
 
@@ -652,7 +653,7 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument(
         "--model", default=os.environ.get("OPENAI_AI_ENRICHMENT_MODEL", DEFAULT_MODEL)
     )
-    prepare.add_argument("--session", default="94-2025-regular")
+    prepare.add_argument("--session", default=CURRENT_SESSION_SLUG)
     prepare.add_argument("--bill-key", default=None)
     prepare.add_argument("--limit", type=int, default=None)
     prepare.add_argument("--max-input-chars", type=int, default=60_000)

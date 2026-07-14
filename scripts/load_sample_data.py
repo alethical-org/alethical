@@ -18,6 +18,7 @@ if str(ROOT) not in sys.path:
 
 from alethical.db import models as schema  # noqa: E402
 from alethical.db.session import normalize_database_url  # noqa: E402
+from alethical.pipeline.sessions import CURRENT_SESSION_SLUG  # noqa: E402
 
 FIXTURE_ROOT = ROOT / "alethical" / "tests" / "fixtures"
 ArtifactType = schema.ArtifactType
@@ -134,13 +135,13 @@ def seed_reference_data(session: Session) -> dict[str, Any]:
     current_session = session.scalar(
         select(LegislativeSession).where(
             LegislativeSession.jurisdiction_id == minnesota.id,
-            LegislativeSession.slug == "94-2025-regular",
+            LegislativeSession.slug == CURRENT_SESSION_SLUG,
         )
     )
     if current_session is None:
         current_session = LegislativeSession(
             jurisdiction_id=minnesota.id,
-            slug="94-2025-regular",
+            slug=CURRENT_SESSION_SLUG,
             session_number=94,
             session_type=SessionType.regular,
             year_start=2025,
