@@ -65,6 +65,11 @@ class BillTarget:
     session_code: str = DEFAULT_SESSION_CODE
 
 
+# Session number + year embedded in a bill's status XML URI, e.g.
+# https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/
+STATUS_URI_SESSION_RE = re.compile(r"/bills/v1/(\d+)/(\d{4})/")
+
+
 @dataclass(frozen=True)
 class BillSearchResult:
     chamber: str
@@ -77,7 +82,17 @@ class BillSearchResult:
 
     @property
     def bill_key(self) -> str:
-        session_number, year = parse_session_code(self.session_code)
+        # The Revisor search returns the whole biennium regardless of the year in
+        # the search session code (verified Jul 2026: a 0942026 search still lists
+        # carried-over 2025 bills, and 0942025 lists 2026 introductions), so the
+        # search code cannot identify a bill's session year. The bill's own status
+        # URI can — and it matches the SESSION_NUMBER/SESSION_YEAR the canonical
+        # XML parse keys the bill with, keeping only-missing dedup accurate.
+        match = STATUS_URI_SESSION_RE.search(self.status_xml_uri)
+        if match:
+            session_number, year = int(match.group(1)), int(match.group(2))
+        else:
+            session_number, year = parse_session_code(self.session_code)
         return f"{session_number}-{year}-{self.file_type}{self.file_number}"
 
     @property
