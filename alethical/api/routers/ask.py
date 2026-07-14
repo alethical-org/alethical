@@ -385,7 +385,7 @@ _BILL_TEXT_CHUNK_LIMIT = 4
 # distance cap is a light guard for a bill_text query with no good corpus match.
 # Provisional cap, tuned live against real embeddings (#255).
 _BILL_TEXT_RESOLVE_LIMIT = 5
-_BILL_TEXT_RESOLVE_MAX_DISTANCE = 0.6
+_BILL_TEXT_RESOLVE_MAX_DISTANCE = 0.45
 
 
 def _resolve_bill_by_content(db: Session, session_id, model: str, embedding):
