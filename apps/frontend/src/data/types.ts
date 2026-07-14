@@ -202,12 +202,34 @@ export interface AskAnswerBill {
 // One routed Ask answer (POST /api/v1/ask). `hasAnswer` is false for intents
 // whose answer paths haven't shipped yet — the UI falls back to the interim
 // funnel for those.
+export interface AskAnswerLegislatorBill {
+  id: string;
+  identifier: string;
+  title: string;
+}
+
+export interface AskAnswerLegislator {
+  id: string;
+  fullName: string;
+  party?: string;
+  district?: string;
+  chamber?: string;
+  profileUrl?: string;
+  authoredCount: number;
+  coauthoredCount: number;
+  bills: AskAnswerLegislatorBill[];
+}
+
 export interface AskAnswer {
   intent: string;
   hasAnswer: boolean;
   topic?: string;
   sessionName?: string;
   dataAsOf?: string;
+  // For topic_bills this counts bills; for topic_legislators it counts
+  // legislators, with totalBills carrying the underlying bill count.
   totalMatches: number;
+  totalBills?: number;
   bills: AskAnswerBill[];
+  legislators: AskAnswerLegislator[];
 }

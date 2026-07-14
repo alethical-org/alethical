@@ -1217,3 +1217,12 @@ def test_ask_topic_legislators_zero_match_returns_no_matches(client, monkeypatch
     assert answer["topic"] == "healthcare"
     assert answer["total_matches"] == 0
     assert answer["legislators"] == []
+
+
+def test_ask_response_schema_is_strict_valid():
+    # OpenAI strict json_schema requires `required` to list every property, or
+    # the live classify call 502s (regression guard for that latent bug).
+    from alethical.api.services.ask_router import _RESPONSE_SCHEMA
+
+    assert set(_RESPONSE_SCHEMA["required"]) == set(_RESPONSE_SCHEMA["properties"])
+    assert _RESPONSE_SCHEMA["additionalProperties"] is False
