@@ -65,7 +65,10 @@ ROUTER_SYSTEM_PROMPT = (
     '(e.g. "How did my legislator vote on cannabis?").\n'
     "- refuse: anything Alethical does not cover — federal legislation, Minnesota "
     'Statutes lookups, opinion or prediction ("is this bill good?"), or anything '
-    "not about Minnesota legislation, politics, or civic process.\n"
+    "not about Minnesota legislation, politics, or civic process.\n\n"
+    "When the intent is topic_bills or topic_legislators, also return "
+    '"topic": the policy topic of the question in a few plain lowercase words '
+    '(e.g. "healthcare", "paid leave"). Omit "topic" for other intents.\n'
 )
 
 
@@ -87,12 +90,14 @@ FEW_SHOT_EXAMPLES: list[tuple[str, AskIntent]] = [
 ]
 
 
-# JSON schema forcing one known label. ``confidence`` is logging-only.
+# JSON schema forcing one known label. ``confidence`` is logging-only;
+# ``topic`` feeds the topic answer paths (docs/grounded-ask-spec.md §4.2).
 _RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
         "intent": {"type": "string", "enum": [intent.value for intent in AskIntent]},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "topic": {"type": "string"},
     },
     "required": ["intent"],
     "additionalProperties": False,
@@ -105,16 +110,22 @@ class AskClassification:
     auth_required: bool
     source: str  # "llm" | "fallback"
     confidence: float | None = None
+    topic: str | None = None
 
 
 def _classification(
-    intent: AskIntent, *, source: str, confidence: float | None = None
+    intent: AskIntent,
+    *,
+    source: str,
+    confidence: float | None = None,
+    topic: str | None = None,
 ) -> AskClassification:
     return AskClassification(
         intent=intent,
         auth_required=INTENT_AUTH_REQUIRED[intent],
         source=source,
         confidence=confidence,
+        topic=topic,
     )
 
 
@@ -130,11 +141,70 @@ _TOPIC_BILLS_PATTERNS = [
 ]
 
 
+# Words stripped from the front of the post-"bills/laws" clause to isolate the
+# topic: auxiliaries, matching verbs, and prepositions ("affect", "passed on").
+_TOPIC_LEAD_WORDS = {
+    "that",
+    "which",
+    "have",
+    "has",
+    "had",
+    "were",
+    "was",
+    "are",
+    "is",
+    "been",
+    "affect",
+    "affects",
+    "affected",
+    "affecting",
+    "impact",
+    "impacts",
+    "impacted",
+    "impacting",
+    "address",
+    "addresses",
+    "addressed",
+    "addressing",
+    "cover",
+    "covers",
+    "covered",
+    "covering",
+    "passed",
+    "introduced",
+    "enacted",
+    "on",
+    "about",
+    "regarding",
+    "for",
+    "to",
+    "related",
+    "relating",
+    "the",
+}
+
+
+def _extract_topic(question: str) -> str | None:
+    """Deterministic topic guess: the clause after "bills/laws", minus verbs."""
+    match = re.search(r"\b(?:bills?|laws?|statutes?)\b(.*)$", question, re.IGNORECASE)
+    if not match:
+        return None
+    words = match.group(1).strip().rstrip("?.!").split()
+    while words and words[0].lower() in _TOPIC_LEAD_WORDS:
+        words.pop(0)
+    topic = " ".join(words).strip().lower()
+    return topic or None
+
+
 def _heuristic_fallback(question: str) -> AskClassification:
     """Offline classification for tests / missing API key."""
     for pattern in _TOPIC_BILLS_PATTERNS:
         if pattern.search(question):
-            return _classification(AskIntent.TOPIC_BILLS, source="fallback")
+            return _classification(
+                AskIntent.TOPIC_BILLS,
+                source="fallback",
+                topic=_extract_topic(question),
+            )
     return _classification(AskIntent.BILL_TEXT, source="fallback")
 
 
@@ -232,8 +302,13 @@ def classify_query(question: str) -> AskClassification:
     if not isinstance(confidence, (int, float)):
         confidence = None
 
+    topic = parsed.get("topic")
+    if not isinstance(topic, str) or not topic.strip():
+        topic = None
+
     return _classification(
         intent,
         source="llm",
         confidence=float(confidence) if confidence is not None else None,
+        topic=topic.strip().lower() if topic else None,
     )
