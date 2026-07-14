@@ -1292,3 +1292,54 @@ def test_representative_lookup_enforces_rate_limit(client):
     blocked = client.post("/api/v1/representative-lookups", json=payload)
     assert blocked.status_code == 429
     assert blocked.json()["title"] == "Too Many Requests"
+
+
+def test_ask_classifier_degrades_to_fallback_when_openai_errors(client, monkeypatch):
+    # Live outage guard: a failing OpenAI classify call must degrade to the
+    # offline heuristic (source="fallback"), never 502 the whole endpoint.
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+
+    def boom(*args, **kwargs):
+        raise requests.ConnectionError("openai unreachable")
+
+    monkeypatch.setattr("alethical.api.services.ask_router.requests.post", boom)
+
+    from alethical.api.services.ask_router import AskIntent, classify_query
+
+    result = classify_query("What bills affect economic development?")
+    assert result.source == "fallback"
+    assert result.intent == AskIntent.TOPIC_BILLS
+
+    response = client.post(
+        "/api/v1/ask",
+        json={"content": "What bills affect economic development?"},
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["source"] == "fallback"
+    assert data["intent"] == "topic_bills"
+    assert data["answer"]["total_matches"] >= 1
+
+
+def test_ask_classifier_degrades_to_fallback_on_unparseable_response(
+    client, monkeypatch
+):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+
+    class _Empty:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {}  # no output_text/output → nothing to parse
+
+    monkeypatch.setattr(
+        "alethical.api.services.ask_router.requests.post", lambda *a, **k: _Empty()
+    )
+
+    response = client.post(
+        "/api/v1/ask",
+        json={"content": "What bills affect economic development?"},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["source"] == "fallback"
