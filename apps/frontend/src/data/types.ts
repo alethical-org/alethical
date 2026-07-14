@@ -232,4 +232,7 @@ export interface AskAnswer {
   totalBills?: number;
   bills: AskAnswerBill[];
   legislators: AskAnswerLegislator[];
+  // legislator_vote (§4.5 vote deflection): the bill the question named, if it
+  // resolved. When absent, the deflection degrades to the `bills` list above.
+  resolvedBill?: AskAnswerBill;
 }
