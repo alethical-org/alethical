@@ -107,6 +107,7 @@ class PipelineRunWorker:
                         "refresh_existing": _bool_arg(
                             job.args, "refresh_existing", False
                         ),
+                        "include_rag": _bool_arg(job.args, "include_rag", True),
                         "dry_run": dry_run,
                         "allow_writes": allow_writes,
                     },
