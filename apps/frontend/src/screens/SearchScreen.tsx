@@ -71,6 +71,9 @@ export function SearchScreen({ navigation, route }: Props) {
   const categoryNeedle = policyCategory === ALL_POLICIES ? null : policyCategory.toLowerCase();
   const bills = billsQuery.data?.data ?? [];
   const hasMoreBills = billsQuery.data?.page.hasMore ?? false;
+  const billTotal = billsQuery.data?.page.total ?? null;
+  const billPageCount =
+    billTotal !== null ? Math.max(1, Math.ceil(billTotal / BILLS_PAGE_SIZE)) : null;
   const legislators = (legislatorsQuery.data ?? []).filter((legislator) => {
     const matchesChamber = chamber === 'All' || legislator.chamber === chamber;
     const matchesCategory =
@@ -130,6 +133,12 @@ export function SearchScreen({ navigation, route }: Props) {
         {
           <View style={styles.column}>
             <Text style={styles.columnTitle}>Bills</Text>
+            {billTotal !== null && !billsQuery.isLoading && !billsQuery.error ? (
+              <Text style={styles.resultCount}>
+                {billTotal.toLocaleString()} {billTotal === 1 ? 'bill' : 'bills'} · Sorted by latest
+                action
+              </Text>
+            ) : null}
             <View style={styles.stack}>
               {billsQuery.isLoading ? (
                 <Card>
@@ -176,7 +185,10 @@ export function SearchScreen({ navigation, route }: Props) {
                     disabled={billPage === 0}
                     onPress={() => setBillPage((page) => Math.max(0, page - 1))}
                   />
-                  <Text style={styles.pageText}>Page {billPage + 1}</Text>
+                  <Text style={styles.pageText}>
+                    Page {billPage + 1}
+                    {billPageCount !== null ? ` of ${billPageCount}` : ''}
+                  </Text>
                   <Chip
                     label="Next"
                     selected={false}
@@ -273,6 +285,14 @@ const styles = StyleSheet.create({
     color: theme.colors.ink,
     fontFamily: theme.typography.title,
     fontSize: 28,
+  },
+  resultCount: {
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.ui,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   stack: {
     gap: theme.spacing.md,
