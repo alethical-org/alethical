@@ -377,22 +377,69 @@ def _resolve_bill_by_title(db: Session, session_id, content: str):
 _BILL_TEXT_CHUNK_LIMIT = 4
 
 
+# Content-based (semantic) bill resolution — the third resolution step, when
+# HF/SF-number and title matching both fail (docs/grounded-ask-spec.md §4.1, the
+# semantic half of fuzzy resolution; #266). Real-model-only: hash-fallback
+# distances are arbitrary. The classifier already routes out-of-scope questions
+# to `refuse`, so this only sees questions already "about a bill/law"; the
+# distance cap is a light guard for a bill_text query with no good corpus match.
+# Provisional cap, tuned live against real embeddings (#255).
+_BILL_TEXT_RESOLVE_LIMIT = 5
+_BILL_TEXT_RESOLVE_MAX_DISTANCE = 0.6
+
+
+def _resolve_bill_by_content(db: Session, session_id, model: str, embedding):
+    """Resolve a colloquial description ("the new social media law for kids") to
+    a single bill by semantic search over all bills' passages, when number/title
+    resolution failed (§4.1 / #266). Returns the closest passage's current-session
+    citable bill within the relevance cap, or ``None`` so the caller degrades /
+    refuses. Real-model-only; on the hash fallback (tests) it is a no-op."""
+    if model != DEFAULT_RAG_MODEL:
+        return None
+    chunks = db.scalars(
+        semantic_rag_chunk_stmt(
+            embedding,
+            embedding_model=model,
+            limit=_BILL_TEXT_RESOLVE_LIMIT,
+            max_distance=_BILL_TEXT_RESOLVE_MAX_DISTANCE,
+        )
+    ).all()
+    for chunk in chunks:
+        bill = db.scalar(
+            select(Bill).where(
+                Bill.id == chunk.rag_section_document.bill_id,
+                Bill.session_id == session_id,
+                Bill.official_url.isnot(None),
+            )
+        )
+        if bill is not None:
+            return bill
+    return None
+
+
 def _bill_text_answer(
     db: Session, content: str
 ) -> AskBillTextAnswer | AskTopicBillsAnswer | None:
     """Scenario 1 single-bill RAG answer (docs/grounded-ask-spec.md §4.1 / §9.4).
 
-    Resolve one bill, retrieve its passages within the relevance threshold, and
-    synthesize a cited prose answer — reusing the bill-scoped chat machinery. If
-    the question names no *single* bill (ambiguous or unresolved), degrade to the
-    cited topic_bills list when the phrase still names a topic with matches (§4.1
-    fallback); otherwise, or when the resolved bill has no relevant passage,
-    refuse (return ``None``) rather than stretch (cite-or-refuse, §4.5)."""
+    Resolve one bill — by HF/SF number, then title, then semantic content match
+    (#266) — retrieve its passages, and synthesize a cited prose answer, reusing
+    the bill-scoped chat machinery. If the question names no *single* bill,
+    degrade to the cited topic_bills list when the phrase still names a topic
+    with matches (§4.1 fallback); otherwise, or when the resolved bill has no
+    passage, refuse (return ``None``) rather than stretch (cite-or-refuse, §4.5).
+    """
     session_row = db.scalar(
         select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
     )
-    resolved = _resolve_bill(db, session_row.id, content) or _resolve_bill_by_title(
-        db, session_row.id, content
+    model = effective_embedding_model(DEFAULT_RAG_MODEL)
+    embedding = build_query_embedding(content)
+    db.execute(text("SET LOCAL ivfflat.probes = 10"))
+
+    resolved = (
+        _resolve_bill(db, session_row.id, content)
+        or _resolve_bill_by_title(db, session_row.id, content)
+        or _resolve_bill_by_content(db, session_row.id, model, embedding)
     )
     if resolved is None:
         phrase = _bill_title_phrase(content)
@@ -402,9 +449,6 @@ def _bill_text_answer(
                 return degraded
         return None
 
-    model = effective_embedding_model(DEFAULT_RAG_MODEL)
-    embedding = build_query_embedding(content)
-    db.execute(text("SET LOCAL ivfflat.probes = 10"))
     chunks = db.scalars(
         semantic_rag_chunk_stmt(
             embedding,
