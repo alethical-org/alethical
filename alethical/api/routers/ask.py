@@ -25,7 +25,11 @@ from alethical.api.schemas import (
 )
 from alethical.api.rate_limit import rate_limit
 from alethical.api.serializers import bill_list_item, bill_status_key_from_summary
-from alethical.api.services.ask_router import AskIntent, classify_query
+from alethical.api.services.ask_router import (
+    AskIntent,
+    classify_query,
+    pick_bill_from_candidates,
+)
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
 from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding_model
@@ -379,42 +383,61 @@ _BILL_TEXT_CHUNK_LIMIT = 4
 
 # Content-based (semantic) bill resolution — the third resolution step, when
 # HF/SF-number and title matching both fail (docs/grounded-ask-spec.md §4.1, the
-# semantic half of fuzzy resolution; #266). Real-model-only: hash-fallback
-# distances are arbitrary. The classifier already routes out-of-scope questions
-# to `refuse`, so this only sees questions already "about a bill/law"; the
-# distance cap is a light guard for a bill_text query with no good corpus match.
-# Provisional cap, tuned live against real embeddings (#255).
-_BILL_TEXT_RESOLVE_LIMIT = 5
-_BILL_TEXT_RESOLVE_MAX_DISTANCE = 0.45
+# semantic half of fuzzy resolution; #266). Semantic search surfaces the top
+# candidate bills, then the LLM picks the single best (or none): reasoning
+# separates a real-but-loose match from a nonsense one, and the enacted bill from
+# its companion — which distance/count heuristics couldn't (#271 / #273).
+# Real-model-only: hash-fallback distances are arbitrary. The classifier already
+# routes out-of-scope questions to `refuse`, so this only sees "about a bill/law"
+# questions; the distance cap trims the candidate pool. Tuned live (#255).
+_BILL_TEXT_RESOLVE_CHUNK_LIMIT = 25
+_BILL_TEXT_RESOLVE_CANDIDATES = 6
+_BILL_TEXT_RESOLVE_MAX_DISTANCE = 0.6
 
 
-def _resolve_bill_by_content(db: Session, session_id, model: str, embedding):
-    """Resolve a colloquial description ("the new social media law for kids") to
-    a single bill by semantic search over all bills' passages, when number/title
-    resolution failed (§4.1 / #266). Returns the closest passage's current-session
-    citable bill within the relevance cap, or ``None`` so the caller degrades /
-    refuses. Real-model-only; on the hash fallback (tests) it is a no-op."""
+def _semantic_candidate_bills(db: Session, session_id, model: str, embedding):
+    """Top distinct current-session, citable, AI-summarized bills by best matching
+    passage — the candidate pool the LLM chooses from. Real-model-only."""
     if model != DEFAULT_RAG_MODEL:
-        return None
+        return []
     chunks = db.scalars(
         semantic_rag_chunk_stmt(
             embedding,
             embedding_model=model,
-            limit=_BILL_TEXT_RESOLVE_LIMIT,
+            limit=_BILL_TEXT_RESOLVE_CHUNK_LIMIT,
             max_distance=_BILL_TEXT_RESOLVE_MAX_DISTANCE,
         )
     ).all()
-    for chunk in chunks:
-        bill = db.scalar(
-            select(Bill).where(
-                Bill.id == chunk.rag_section_document.bill_id,
-                Bill.session_id == session_id,
-                Bill.official_url.isnot(None),
-            )
-        )
-        if bill is not None:
-            return bill
-    return None
+    ordered_ids = list(
+        dict.fromkeys(chunk.rag_section_document.bill_id for chunk in chunks)
+    )
+    candidates = []
+    for bill_id in ordered_ids:
+        bill = db.scalar(bill_list_stmt(session_id).where(Bill.id == bill_id))
+        if bill is not None and bill.official_url:
+            candidates.append(bill)
+        if len(candidates) >= _BILL_TEXT_RESOLVE_CANDIDATES:
+            break
+    return candidates
+
+
+def _resolve_bill_by_content(db: Session, session_id, model: str, content, embedding):
+    """Resolve a colloquial description ("the new social media law for kids") to a
+    single bill when number/title resolution failed (§4.1 / #266): the LLM picks
+    the best of the top semantic candidates, or none → the caller degrades /
+    refuses. Real-model-only; on the hash fallback (tests) it is a no-op."""
+    candidates = _semantic_candidate_bills(db, session_id, model, embedding)
+    if not candidates:
+        return None
+    catalog = []
+    for bill in candidates:
+        item = bill_list_item(bill)
+        summary = item.ai_analysis.summary if item.ai_analysis else None
+        catalog.append((bill.bill_key, bill.title, item.current_status, summary))
+    chosen_key = pick_bill_from_candidates(content, catalog)
+    if chosen_key is None:
+        return None
+    return next((b for b in candidates if b.bill_key == chosen_key), None)
 
 
 def _bill_text_answer(
@@ -439,7 +462,7 @@ def _bill_text_answer(
     resolved = (
         _resolve_bill(db, session_row.id, content)
         or _resolve_bill_by_title(db, session_row.id, content)
-        or _resolve_bill_by_content(db, session_row.id, model, embedding)
+        or _resolve_bill_by_content(db, session_row.id, model, content, embedding)
     )
     if resolved is None:
         phrase = _bill_title_phrase(content)

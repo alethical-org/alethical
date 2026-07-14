@@ -880,6 +880,48 @@ def test_ask_router_fallback_is_deterministic_and_offline(monkeypatch):
     assert result.intent in {AskIntent.BILL_TEXT, AskIntent.TOPIC_BILLS}
 
 
+def test_pick_bill_from_candidates_selects_valid_key_or_refuses(monkeypatch):
+    """The LLM bill-picker (#266) returns only a candidate key or None: a valid
+    pick resolves, 'none' and an out-of-list key both refuse, and an empty
+    candidate list short-circuits without calling OpenAI (grounded rule 1)."""
+    import json
+
+    from alethical.api.services import ask_router
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    candidates = [
+        ("94-2026-HF4138", "civil law; social media", "Chapter number", "Minors."),
+        ("94-2026-SF4696", "companion", "in committee", "Companion."),
+    ]
+
+    def stub(pick):
+        class _R:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"output_text": json.dumps({"bill_key": pick})}
+
+        monkeypatch.setattr(
+            "alethical.api.services.ask_router.requests.post", lambda *a, **k: _R()
+        )
+
+    stub("94-2026-HF4138")
+    assert (
+        ask_router.pick_bill_from_candidates("the law", candidates) == "94-2026-HF4138"
+    )
+    stub("none")
+    assert ask_router.pick_bill_from_candidates("the law", candidates) is None
+    stub("99-9999-XX0000")  # a key not in the list must not be trusted
+    assert ask_router.pick_bill_from_candidates("the law", candidates) is None
+    # No candidates → no OpenAI call, no resolution.
+    monkeypatch.setattr(
+        "alethical.api.services.ask_router.requests.post",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not call OpenAI")),
+    )
+    assert ask_router.pick_bill_from_candidates("the law", []) is None
+
+
 def test_ask_router_fallback_extracts_topic(monkeypatch):
     from alethical.api.services.ask_router import classify_query
 
