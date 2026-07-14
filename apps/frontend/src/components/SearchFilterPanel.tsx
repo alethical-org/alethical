@@ -87,11 +87,12 @@ export function SearchFilterPanel({
     ],
     [sessionsQuery.data],
   );
-  const policyCategories = [
+  const policyCategories: Array<{ label: string; Icon: FilterIcon; count?: number }> = [
     { label: ALL_POLICIES, Icon: Grid3X3 },
     ...(policyAreasQuery.data ?? []).map((item) => ({
       label: item.name,
       Icon: iconForPolicyArea(item.name),
+      count: item.billCount,
     })),
   ].slice(0, 8);
 
@@ -182,10 +183,11 @@ export function SearchFilterPanel({
           contentContainerStyle={styles.policyRow}
           style={styles.policyScroller}
         >
-          {policyCategories.map(({ label, Icon }) => (
+          {policyCategories.map(({ label, Icon, count }) => (
             <PolicyPill
               key={label}
               label={formatPolicyAreaLabel(label)}
+              count={count}
               Icon={Icon}
               selected={policyArea === label}
               onPress={() => handleControlPress(() => onPolicyAreaChange(label))}
@@ -333,15 +335,17 @@ function DropdownControl({
 
 interface PolicyPillProps {
   label: string;
+  count?: number;
   Icon: FilterIcon;
   selected: boolean;
   onPress: () => void;
 }
 
-function PolicyPill({ label, Icon, selected, onPress }: PolicyPillProps) {
+function PolicyPill({ label, count, Icon, selected, onPress }: PolicyPillProps) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={typeof count === 'number' ? `${label}, ${count} bills` : label}
       onPress={onPress}
       style={({ pressed }) => [
         styles.policyPill,
@@ -353,6 +357,11 @@ function PolicyPill({ label, Icon, selected, onPress }: PolicyPillProps) {
       <Text style={[styles.policyPillText, selected && styles.policyPillTextSelected]}>
         {label}
       </Text>
+      {typeof count === 'number' ? (
+        <Text style={[styles.policyPillCount, selected && styles.policyPillCountSelected]}>
+          {count}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -580,6 +589,17 @@ const styles = StyleSheet.create({
   },
   policyPillTextSelected: {
     color: theme.colors.white,
+  },
+  policyPillCount: {
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.ui,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  policyPillCountSelected: {
+    color: theme.colors.white,
+    opacity: 0.85,
   },
   pressed: {
     opacity: 0.78,
