@@ -13,7 +13,11 @@ from alethical.pipeline.oban_workers import (
     RagBackfillChunkWorker,
     RagBackfillWorker,
 )
-from alethical.pipeline.rag_ingest import build_rag_rows_for_bill_keys
+from alethical.pipeline.rag_ingest import (
+    DEFAULT_RAG_MODEL,
+    FALLBACK_EMBEDDING_MODEL,
+    build_rag_rows_for_bill_keys,
+)
 
 
 def _session():
@@ -124,6 +128,55 @@ def test_build_rag_rows_for_bill_keys_is_idempotent() -> None:
         assert second["rag_already_exists"] == 1
         assert second["rag_results"][0]["status"] == "already_exists"
         assert after_second == after_first
+
+
+def test_fallback_embeddings_are_labeled_distinctly_and_rebuilt_when_keyed(
+    monkeypatch,
+) -> None:
+    """Keyless builds store FALLBACK_EMBEDDING_MODEL, and a keyed run re-embeds them (#221)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    bill_key = "94-2025-SF1832"
+    with _session() as db:
+        bill_id = _reset_bill_rag_rows(db, bill_key)
+        build_rag_rows_for_bill_keys(
+            db,
+            [bill_key],
+            dry_run=False,
+            rag_embedding_batch_size=8,
+            rag_model=DEFAULT_RAG_MODEL,
+        )
+        db.commit()
+
+        stored_models = set(
+            db.scalars(
+                select(schema.RagChunkEmbedding.embedding_model).where(
+                    schema.RagChunkEmbedding.rag_chunk_id.in_(
+                        select(schema.RagChunk.id).where(
+                            schema.RagChunk.rag_section_document_id.in_(
+                                select(schema.RagSectionDocument.id).where(
+                                    schema.RagSectionDocument.bill_id == bill_id
+                                )
+                            )
+                        )
+                    )
+                )
+            ).all()
+        )
+        assert stored_models == {FALLBACK_EMBEDDING_MODEL}
+
+        # Still keyless: the fallback rows count as complete — no rebuild loop.
+        keyless_again = build_rag_rows_for_bill_keys(
+            db, [bill_key], dry_run=True, rag_model=DEFAULT_RAG_MODEL
+        )
+        assert keyless_again["rag_results"][0]["status"] == "already_exists"
+
+        # With a key present, the same rows must read as needing re-embedding.
+        # Dry-run reports would_build before any embedding call, so no API hit.
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
+        keyed = build_rag_rows_for_bill_keys(
+            db, [bill_key], dry_run=True, rag_model=DEFAULT_RAG_MODEL
+        )
+        assert keyed["rag_results"][0]["status"] == "would_build"
 
 
 class _FakeMinnesotaIngestionPipeline:
