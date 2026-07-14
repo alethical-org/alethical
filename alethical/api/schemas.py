@@ -341,13 +341,33 @@ class AskTopicLegislatorsAnswer(BaseModel):
     legislators: list[AskLegislatorRow]
 
 
+class AskVoteDeflectionAnswer(BaseModel):
+    """v1 honest vote deflection (docs/grounded-ask-spec.md §4.5 / §9.4, Vote
+    deflection). Never a generated vote answer.
+
+    No tallies or vote positions live here — those are records on the bill's
+    Votes tab. When the question names a resolvable bill, ``resolved_bill``
+    carries the resolved-bill card and the frontend deep-links its Votes tab
+    (``?tab=votes``, §9.3); otherwise the ask degrades to the ``topic_bills``
+    list (§4.5), each card linking to its own Votes tab.
+    """
+
+    session: AskSessionRef
+    data_as_of: datetime | None
+    resolved_bill: BillListItem | None = None
+    topic_bills: AskTopicBillsAnswer | None = None
+
+
 class AskAnswerPayload(BaseModel):
     intent: str
     source: str
     confidence: float | None = None
-    # Present for topic_bills / topic_legislators; other intents' answer paths
-    # land in later slices of #79 and return no answer body yet.
-    answer: AskTopicBillsAnswer | AskTopicLegislatorsAnswer | None = None
+    # Present for topic_bills / topic_legislators / legislator_vote (deflection);
+    # other intents' answer paths land in later slices of #79 and return no
+    # answer body yet.
+    answer: (
+        AskTopicBillsAnswer | AskTopicLegislatorsAnswer | AskVoteDeflectionAnswer | None
+    ) = None
 
 
 class ChatSessionCreateRequest(BaseModel):

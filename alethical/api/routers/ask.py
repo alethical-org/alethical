@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.orm import Session
@@ -15,6 +17,7 @@ from alethical.api.schemas import (
     AskSessionRef,
     AskTopicBillsAnswer,
     AskTopicLegislatorsAnswer,
+    AskVoteDeflectionAnswer,
     DetailResponse,
 )
 from alethical.api.rate_limit import rate_limit
@@ -69,6 +72,12 @@ _MIN_TOPIC_LENGTH = 3
 # The `sponsor` role and committee-target rows are held out until the §5.3
 # spike confirms their semantics (docs/grounded-ask-spec.md §4.2).
 _AUTHORSHIP_ROLES = (SponsorshipRole.chief_author, SponsorshipRole.co_author)
+
+# A House/Senate file citation in free text: "HF 2136", "H.F. 2136", "SF1832",
+# "S. F. 1832". The high-precision half of §4.6 bill resolution (HF/SF-number
+# regex + fuzzy title); fuzzy title match lands with the bill_text path, where
+# a titled bill is the realistic input. Leading zeros are tolerated and dropped.
+_BILL_REFERENCE_RE = re.compile(r"\b([HS])\.?\s*F\.?\s*0*(\d{1,5})\b", re.IGNORECASE)
 
 
 def _progress_sort_key(bill):
@@ -271,6 +280,72 @@ def _topic_legislators_answer(
     )
 
 
+def _parse_bill_reference(content: str) -> tuple[str, int] | None:
+    """Extract an ``(file_type, file_number)`` HF/SF citation from free text, or
+    ``None``. First match wins — a vote question names at most one bill."""
+    match = _BILL_REFERENCE_RE.search(content)
+    if match is None:
+        return None
+    return f"{match.group(1).upper()}F", int(match.group(2))
+
+
+def _resolve_bill(db: Session, session_id, content: str):
+    """Resolve a free-text ask to a single current-session bill by its HF/SF
+    number, or ``None`` when no number is named or none matches (§4.6). The
+    caller degrades an unresolved ask to the topic_bills list (§4.5).
+
+    Unlike ``bill_list_stmt`` this does not require a bill-summary enrichment —
+    the resolved-bill card (§9.4) is records, not a generated summary. It does
+    require ``official_url`` so a resolved card always carries its citation
+    (grounded rule 1, cite-or-refuse); a bill without one degrades instead."""
+    reference = _parse_bill_reference(content)
+    if reference is None:
+        return None
+    file_type, file_number = reference
+    stmt = select(Bill).where(
+        Bill.session_id == session_id,
+        Bill.file_type == file_type,
+        Bill.file_number == file_number,
+        Bill.official_url.isnot(None),
+    )
+    return db.scalars(stmt).first()
+
+
+def _vote_deflection_answer(
+    db: Session, content: str, topic: str | None
+) -> AskVoteDeflectionAnswer:
+    """Scenario 4 v1 honest deflection (docs/grounded-ask-spec.md §4.5 / §9.4).
+
+    Never a vote answer. If the ask names a resolvable bill, carry its card so
+    the frontend can deep-link the Votes tab (§9.3); otherwise degrade to the
+    cited topic_bills list. No tallies or vote positions in either shape — those
+    are records on the Votes tab, not a generated answer (grounded rule 4)."""
+    session_row = db.scalar(
+        select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
+    )
+    data_as_of = db.scalar(
+        select(func.max(IngestionRun.finished_at)).where(
+            IngestionRun.status == IngestionStatus.succeeded
+        )
+    )
+    session_ref = AskSessionRef(slug=session_row.slug, name=session_row.name)
+
+    resolved = _resolve_bill(db, session_row.id, content)
+    if resolved is not None:
+        return AskVoteDeflectionAnswer(
+            session=session_ref,
+            data_as_of=data_as_of,
+            resolved_bill=bill_list_item(resolved),
+            topic_bills=None,
+        )
+    return AskVoteDeflectionAnswer(
+        session=session_ref,
+        data_as_of=data_as_of,
+        resolved_bill=None,
+        topic_bills=_topic_bills_answer(db, topic),
+    )
+
+
 @router.post("/ask/classify", response_model=DetailResponse, status_code=200)
 def classify_ask_query(
     request: AskClassifyRequest,
@@ -301,12 +376,14 @@ def ask(
     db: Session = Depends(get_db),
     _rate_limited: None = Depends(_ask_rate_limit),
 ):
-    """Classify an Ask and, for topic_bills, resolve the cited bill list.
+    """Classify an Ask and build its answer body.
 
-    Anonymous by design — every v1 answer path is signed-out-accessible
-    (docs/grounded-ask-spec.md §9.1). Other intents return no answer body
-    until their slices of #79 land; the frontend keeps its interim behavior
-    for them.
+    Answered intents: topic_bills / topic_legislators (cited lists) and
+    legislator_vote (the §4.5 honest deflection — a resolved-bill card or a
+    topic_bills degrade, never a vote answer). Anonymous by design — every v1
+    answer path is signed-out-accessible (docs/grounded-ask-spec.md §9.1). The
+    remaining intents (bill_text, refuse) return no answer body until their
+    slices of #79 land; the frontend keeps its interim behavior for them.
     """
     content = request.content.strip()
     if not content:
@@ -318,6 +395,8 @@ def ask(
         answer = _topic_bills_answer(db, result.topic)
     elif result.intent is AskIntent.TOPIC_LEGISLATORS:
         answer = _topic_legislators_answer(db, result.topic)
+    elif result.intent is AskIntent.LEGISLATOR_VOTE:
+        answer = _vote_deflection_answer(db, content, result.topic)
 
     return DetailResponse(
         data=AskAnswerPayload(
