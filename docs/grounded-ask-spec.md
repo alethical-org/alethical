@@ -17,6 +17,8 @@ The signed-out home page hero ships this copy:
 
 The subhead is a contract, not marketing: **no answer ships without a resolvable citation to its official source.** Everything in this spec exists to keep that sentence true when the hero's Ask box goes from bill-scoped chat to a general question box.
 
+**Corpus currency is part of that promise.** Every answer path below can only surface what ingestion has pulled in, so "what it says, where it stands" presumes the *current* legislative session is in the corpus. Ingestion is presently pinned to the 2025 regular session, so canonical current-law questions — e.g. **"What's in the new social media law for kids?"** (the enacted 2026 bill **HF 4138**, already a router few-shot in `alethical/api/services/ask_router.py`) — correctly *refuse* today for lack of data, not for any router or retrieval fault. Making the current session ingestable and ingested is tracked in [#155](https://github.com/alethical-org/alethical/issues/155) and is a **launch dependency**, not a post-launch nicety. Until it lands, currency-implying hero copy and chips must stay within what the ingested session can answer. Durable invariant: `.claude/rules/grounded-answers.md` rule 7 (Answerable means ingested — keep the corpus current).
+
 ## 2. User-facing behavior
 
 A signed-out visitor types a natural-language question into the hero Ask box. The system classifies the question, answers from ingested Minnesota data with citations, or honestly declines.
@@ -121,6 +123,7 @@ Half-day task against the live DB. Runs in parallel with the v1 build; its findi
 - [ ] A typed legislator name resolves to that legislator's profile (§4.6): one match → profile; multiple → disambiguation; none → NO MATCHES. Records navigation, not a generated answer — no person-scoped answer synthesized in v1.
 - [ ] Existing bill-scoped chat is unchanged (regression: its citations still render and link).
 - [ ] Topic-tag half of the coverage spike (§5.2) done for the launch chips' topics; retrieval-relevance threshold tuned before the issue-inviting placeholder ships.
+- [ ] **Corpus currency (launch dependency, tracked in [#155](https://github.com/alethical-org/alethical/issues/155)):** the current legislative session is ingested, so canonical current-law questions — e.g. "What's in the new social media law for kids?" → **HF 4138** — resolve to a cited answer, not a coverage refusal. Grounded Ask is only as current as the corpus (`.claude/rules/grounded-answers.md` rule 7).
 
 ### v1.1 (fast follow)
 - [ ] Coverage spike (§5.1) completed; vote-chip form decided (individual vs. chamber tally).
