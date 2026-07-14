@@ -604,7 +604,8 @@ def legislators(
     session: str | None = None,
     q: str | None = None,
     chamber: str | None = None,
-    limit: int = Query(default=20, le=100),
+    limit: int = Query(default=20, ge=0, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
     session_row = get_session_by_slug(db, session)
@@ -615,11 +616,18 @@ def legislators(
         stmt = stmt.where(
             LegislatorServicePeriod.chamber.has(Chamber.slug == chamber.strip().lower())
         )
-    rows = db.scalars(stmt.limit(limit)).all()
+    total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
+    rows, has_more = paginated_scalars(db, stmt, limit=limit, offset=offset)
     data = [legislator_list_item(row).model_dump(exclude_none=True) for row in rows]
     return CollectionResponse(
         data=data,
-        page={"limit": limit, "next_cursor": None, "has_more": False},
+        page={
+            "limit": limit,
+            "offset": offset,
+            "next_cursor": None,
+            "has_more": has_more,
+            "total": total,
+        },
         links={"self": "/api/v1/legislators"},
     )
 
