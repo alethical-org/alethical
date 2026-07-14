@@ -1226,3 +1226,69 @@ def test_ask_response_schema_is_strict_valid():
 
     assert set(_RESPONSE_SCHEMA["required"]) == set(_RESPONSE_SCHEMA["properties"])
     assert _RESPONSE_SCHEMA["additionalProperties"] is False
+
+
+def test_sliding_window_limiter_enforces_limit_and_recovers():
+    from alethical.api.rate_limit import SlidingWindowLimiter
+
+    limiter = SlidingWindowLimiter(max_requests=2, window_seconds=10.0)
+    assert limiter.allow("client-a", now=100.0) is True
+    assert limiter.allow("client-a", now=100.5) is True
+    # Third hit inside the 10s window is blocked...
+    assert limiter.allow("client-a", now=101.0) is False
+    # ...a different key is unaffected...
+    assert limiter.allow("client-b", now=101.0) is True
+    # ...and once the first hit ages out of the window, the client recovers.
+    assert limiter.allow("client-a", now=111.0) is True
+
+
+def test_client_ip_prefers_forwarded_header_over_proxy_socket():
+    from starlette.requests import Request
+
+    from alethical.api.rate_limit import client_ip
+
+    # Behind Railway's proxy every request's socket peer is the proxy, so the
+    # limiter must key on the left-most X-Forwarded-For entry or it throttles
+    # all users as one bucket.
+    forwarded = Request(
+        {
+            "type": "http",
+            "headers": [(b"x-forwarded-for", b"203.0.113.7, 10.0.0.1")],
+            "client": ("10.0.0.1", 0),
+        }
+    )
+    assert client_ip(forwarded) == "203.0.113.7"
+
+    direct = Request({"type": "http", "headers": [], "client": ("198.51.100.9", 0)})
+    assert client_ip(direct) == "198.51.100.9"
+
+
+def test_ask_endpoint_enforces_rate_limit(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)  # offline fallback; no network
+    limit = client.app.state.ask_limiter.max_requests
+    payload = {"content": "What bills affect economic development?"}
+
+    for _ in range(limit):
+        assert client.post("/api/v1/ask", json=payload).status_code == 200
+
+    blocked = client.post("/api/v1/ask", json=payload)
+    assert blocked.status_code == 429
+    body = blocked.json()
+    assert body["status"] == 429
+    assert body["title"] == "Too Many Requests"
+    assert body["type"].endswith("/rate-limited")
+
+
+def test_representative_lookup_enforces_rate_limit(client):
+    limit = client.app.state.lookup_limiter.max_requests
+    payload = {"address_text": "75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN"}
+
+    for _ in range(limit):
+        assert (
+            client.post("/api/v1/representative-lookups", json=payload).status_code
+            == 200
+        )
+
+    blocked = client.post("/api/v1/representative-lookups", json=payload)
+    assert blocked.status_code == 429
+    assert blocked.json()["title"] == "Too Many Requests"

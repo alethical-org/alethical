@@ -17,6 +17,7 @@ from alethical.api.schemas import (
     AskTopicLegislatorsAnswer,
     DetailResponse,
 )
+from alethical.api.rate_limit import rate_limit
 from alethical.api.serializers import bill_list_item, bill_status_key_from_summary
 from alethical.api.services.ask_router import AskIntent, classify_query
 from alethical.db.schema import load_schema
@@ -41,6 +42,9 @@ current_bill_summary_enrichment_bill_ids = (
 )
 
 router = APIRouter()
+
+# Both Ask endpoints make an OpenAI classify call, so they share one budget (#98).
+_ask_rate_limit = rate_limit("ask_limiter", "ask")
 
 # Display order per docs/grounded-ask-spec.md §4.2 (topic_bills formatter):
 # legislative progress first, then most recent action (tie-broken in
@@ -271,6 +275,7 @@ def _topic_legislators_answer(
 def classify_ask_query(
     request: AskClassifyRequest,
     _current_user=Depends(get_optional_current_user),
+    _rate_limited: None = Depends(_ask_rate_limit),
 ):
     """Identify which Ask view/intent a free-form query should route to."""
     content = request.content.strip()
@@ -291,7 +296,11 @@ def classify_ask_query(
 
 
 @router.post("/ask", response_model=DetailResponse, status_code=200)
-def ask(request: AskClassifyRequest, db: Session = Depends(get_db)):
+def ask(
+    request: AskClassifyRequest,
+    db: Session = Depends(get_db),
+    _rate_limited: None = Depends(_ask_rate_limit),
+):
     """Classify an Ask and, for topic_bills, resolve the cited bill list.
 
     Anonymous by design — every v1 answer path is signed-out-accessible

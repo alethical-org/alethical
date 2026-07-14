@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.auth import get_optional_current_user
 from alethical.api.problems import problem_exception
+from alethical.api.rate_limit import rate_limit
 from alethical.api.schemas import (
     CollectionResponse,
     DetailResponse,
@@ -723,6 +724,7 @@ def representative_lookup(
     lookup_service: RepresentativeLookupService = Depends(
         get_representative_lookup_service
     ),
+    _rate_limited: None = Depends(rate_limit("lookup_limiter", "lookup")),
 ):
     current_session = get_session_by_slug(db, None)
     try:
