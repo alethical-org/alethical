@@ -57,6 +57,56 @@ function stripInlineMarkdown(value: string) {
   return value.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1');
 }
 
+// §4.7 follow-up chips — cross-intent templates filled from the *resolved*
+// topic, so they are non-refusable by construction (rule 1): the topic already
+// matched, so the target path returns results. A topic answer bridges to the
+// other topic path. Capped at 3, ordered deep-dive → bills → legislators (§4.7
+// rule 3). bill_text chunk-derived deep-dive chips are a follow-on.
+function crossIntentChips(intent?: string, topic?: string): { label: string; submit: string }[] {
+  if (!topic) {
+    return [];
+  }
+  if (intent === 'topic_bills') {
+    const submit = `Which legislators authored ${topic} bills?`;
+    return [{ label: submit, submit }];
+  }
+  if (intent === 'topic_legislators') {
+    const submit = `What other ${topic} bills are there?`;
+    return [{ label: submit, submit }];
+  }
+  return [];
+}
+
+function FollowUpChips({
+  chips,
+  onAsk,
+}: {
+  chips: { label: string; submit: string }[];
+  onAsk: (submit: string) => void;
+}) {
+  if (chips.length === 0) {
+    return null;
+  }
+  return (
+    <View style={styles.followupBlock}>
+      <Text style={styles.followupHeading}>CONTINUE</Text>
+      <View style={styles.followupRow}>
+        {chips.map((chip) => (
+          <Pressable
+            key={chip.submit}
+            accessibilityRole="button"
+            accessibilityLabel={chip.submit}
+            style={styles.followupChip}
+            onPress={() => onAsk(chip.submit)}
+          >
+            <Text style={styles.followupChipText}>{chip.label} →</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function AnswerBillCard({
   bill,
   tracked,
@@ -210,6 +260,14 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const hasMatches = Boolean(answer?.hasAnswer && answer.totalMatches > 0);
   const noMatches = Boolean(answer?.hasAnswer && answer.totalMatches === 0);
   const dataAsOf = formatDataAsOf(answer?.dataAsOf);
+  const followUpChips = crossIntentChips(answer?.intent, answer?.topic);
+
+  // §4.7 rule 4: follow-up chips fire their fully-qualified submit directly
+  // (not populate — that is hero-only). Re-runs the Ask in place, updating ?q=.
+  const askFollowUp = (submit: string) => {
+    setRetryValue(submit);
+    navigation.setParams({ q: submit });
+  };
 
   // House first, then Senate — drop empty chambers (spec §9.4).
   const chamberGroups = useMemo(
@@ -589,6 +647,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   </Text>
                 </Pressable>
               ) : null}
+              <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
               <View style={styles.shareRow}>
                 <Pressable
                   accessibilityRole="button"
@@ -641,6 +700,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   </Text>
                 </Pressable>
               ) : null}
+              <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
               <View style={styles.shareRow}>
                 <Pressable
                   accessibilityRole="button"
@@ -831,6 +891,36 @@ const styles = StyleSheet.create({
   },
   cardsColumn: {
     gap: t.spacing.md,
+  },
+  followupBlock: {
+    gap: t.spacing.sm,
+  },
+  followupHeading: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    fontWeight: '700',
+    color: t.colors.text.secondary,
+  },
+  followupRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: t.spacing.sm,
+  },
+  followupChip: {
+    borderWidth: 1,
+    borderColor: t.colors.borders.base,
+    borderRadius: t.radii.badge,
+    backgroundColor: t.colors.surfaces.base,
+    ...(isWeb
+      ? ({ paddingLeft: 12, paddingRight: 12, paddingTop: 8, paddingBottom: 8 } as object)
+      : { paddingHorizontal: 12, paddingVertical: 8 }),
+  },
+  followupChipText: {
+    fontFamily: t.typography.ui,
+    fontSize: 14,
+    fontWeight: '600',
+    color: t.colors.brand.deep,
   },
   framingNote: {
     fontFamily: t.typography.body,
