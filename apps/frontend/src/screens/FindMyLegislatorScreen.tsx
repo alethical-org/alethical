@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Card } from '../components/Card';
 import { LegislatorCard } from '../components/LegislatorCard';
@@ -16,6 +16,14 @@ import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/field
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FindMyLegislator'>;
 
+function getBrowserGeolocation(): Geolocation | null {
+  if (Platform.OS !== 'web') {
+    return null;
+  }
+  const nav = globalThis.navigator as Navigator | undefined;
+  return nav && 'geolocation' in nav ? nav.geolocation : null;
+}
+
 export function FindMyLegislatorScreen({ navigation }: Props) {
   const { focused: addressFocused, focusProps: addressFocusProps } = useFieldFocus();
   const [address, setAddress] = useState('350 S 5th St, Minneapolis, MN 55415');
@@ -23,10 +31,48 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
     latitude: 44.97683,
     longitude: -93.26579,
   });
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const representativeLookup = useRepresentativeLookup();
+  const geolocation = getBrowserGeolocation();
   const isPinInMinnesota = isCoordinateInMinnesota(pinCoordinate);
-  const canRunLookup = address.trim().length > 0 && !representativeLookup.isPending;
-  const canRunPinLookup = isPinInMinnesota && !representativeLookup.isPending;
+  const canRunLookup = address.trim().length > 0 && !representativeLookup.isPending && !locating;
+  const canRunPinLookup = isPinInMinnesota && !representativeLookup.isPending && !locating;
+  const canUseMyLocation = geolocation !== null && !representativeLookup.isPending && !locating;
+
+  function useMyLocation() {
+    if (!geolocation) {
+      return;
+    }
+    setLocationError(null);
+    setLocating(true);
+    geolocation.getCurrentPosition(
+      (position) => {
+        setLocating(false);
+        const coordinate: RepresentativeLookupCoordinates = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        setPinCoordinate(coordinate);
+        if (!isCoordinateInMinnesota(coordinate)) {
+          setLocationError(
+            'Your location is outside Minnesota. Alethical only covers Minnesota legislative districts.',
+          );
+          return;
+        }
+        representativeLookup.mutate(coordinate);
+      },
+      (error) => {
+        setLocating(false);
+        setLocationError(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location access was denied. Enter an address or drag the map pin instead.'
+            : 'Could not read your location. Enter an address or drag the map pin instead.',
+        );
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+    );
+  }
 
   return (
     <ScreenView
@@ -40,6 +86,14 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
       }
     >
       <Card>
+        {geolocation ? (
+          <View style={styles.quickRow}>
+            <PrimaryButton
+              label={locating ? 'Locating' : 'Use My Location'}
+              onPress={canUseMyLocation ? useMyLocation : undefined}
+            />
+          </View>
+        ) : null}
         <TextInput
           accessibilityLabel="Address lookup"
           placeholder="Enter an address or city and ZIP"
@@ -74,6 +128,12 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
           />
         </View>
       </Card>
+
+      {locationError ? (
+        <Card>
+          <Text style={styles.bodyText}>{locationError}</Text>
+        </Card>
+      ) : null}
 
       {representativeLookup.isPending ? (
         <Card>
