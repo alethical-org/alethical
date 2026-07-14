@@ -358,15 +358,41 @@ class AskVoteDeflectionAnswer(BaseModel):
     topic_bills: AskTopicBillsAnswer | None = None
 
 
+class AskCitation(BaseModel):
+    """One retrieved passage backing a bill_text answer (docs/grounded-ask-spec.md
+    §9.4, citation card). ``url`` is the official source and is never absent —
+    no citation without a resolvable URL (grounded rule 1)."""
+
+    label: str
+    bill_id: str
+    excerpt: str
+    url: str
+
+
+class AskBillTextAnswer(BaseModel):
+    """Single-bill RAG prose answer with citations (docs/grounded-ask-spec.md
+    §4.1 / §9.4, bill_text). Always scoped to one resolved bill; a weak or empty
+    retrieval refuses (no answer body) rather than stretches (§4.5)."""
+
+    answer: str
+    citations: list[AskCitation]
+    bill: BillListItem
+    session: AskSessionRef
+    data_as_of: datetime | None
+
+
 class AskAnswerPayload(BaseModel):
     intent: str
     source: str
     confidence: float | None = None
-    # Present for topic_bills / topic_legislators / legislator_vote (deflection);
-    # other intents' answer paths land in later slices of #79 and return no
-    # answer body yet.
+    # Present for bill_text / topic_bills / topic_legislators / legislator_vote
+    # (deflection); the remaining intent (refuse) returns no answer body.
     answer: (
-        AskTopicBillsAnswer | AskTopicLegislatorsAnswer | AskVoteDeflectionAnswer | None
+        AskBillTextAnswer
+        | AskTopicBillsAnswer
+        | AskTopicLegislatorsAnswer
+        | AskVoteDeflectionAnswer
+        | None
     ) = None
 
 

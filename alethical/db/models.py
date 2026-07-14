@@ -1128,8 +1128,16 @@ def semantic_rag_chunk_stmt(
     bill_id: Optional[uuid.UUID] = None,
     embedding_model: Optional[str] = None,
     limit: int = 10,
+    max_distance: Optional[float] = None,
 ):
-    """Load retrieval-ready chunks ordered by vector similarity with canonical provenance."""
+    """Load retrieval-ready chunks ordered by vector similarity with canonical provenance.
+
+    ``max_distance`` gates the retrieval-relevance threshold: when set, only
+    chunks within that cosine distance of the query are returned, so a weak
+    match yields nothing (the caller refuses rather than stretches — the Ask
+    cite-or-refuse guardrail, docs/grounded-ask-spec.md §4.5). Left ``None`` for
+    callers like bill-scoped chat that always want the nearest neighbours."""
+    distance = RagChunkEmbedding.embedding.cosine_distance(query_embedding)
     stmt = (
         select(RagChunk)
         .join(RagChunkEmbedding, RagChunkEmbedding.rag_chunk_id == RagChunk.id)
@@ -1138,11 +1146,13 @@ def semantic_rag_chunk_stmt(
             RagSectionDocument.id == RagChunk.rag_section_document_id,
         )
         .options(selectinload(RagChunk.rag_section_document))
-        .order_by(RagChunkEmbedding.embedding.cosine_distance(query_embedding))
+        .order_by(distance)
         .limit(limit)
     )
     if bill_id is not None:
         stmt = stmt.where(RagSectionDocument.bill_id == bill_id)
     if embedding_model is not None:
         stmt = stmt.where(RagChunkEmbedding.embedding_model == embedding_model)
+    if max_distance is not None:
+        stmt = stmt.where(distance <= max_distance)
     return stmt

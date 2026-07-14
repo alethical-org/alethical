@@ -144,11 +144,27 @@ interface ApiAskVoteDeflectionAnswerPayload {
   topic_bills?: ApiAskTopicBillsAnswerPayload | null;
 }
 
+interface ApiAskCitationPayload {
+  label: string;
+  bill_id: string;
+  excerpt: string;
+  url: string;
+}
+
+interface ApiAskBillTextAnswerPayload {
+  answer: string;
+  citations: ApiAskCitationPayload[];
+  bill: ApiBillListItemPayload;
+  session: { slug: string; name: string };
+  data_as_of?: string | null;
+}
+
 interface ApiAskAnswerPayload {
   intent: string;
   source: string;
   confidence?: number | null;
   answer?:
+    | ApiAskBillTextAnswerPayload
     | ApiAskTopicBillsAnswerPayload
     | ApiAskTopicLegislatorsAnswerPayload
     | ApiAskVoteDeflectionAnswerPayload
@@ -965,9 +981,21 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
   const billsAnswer = topicBills ?? (answer && 'bills' in answer ? answer : undefined);
   const legislators = answer && 'legislators' in answer ? answer.legislators : [];
 
+  // bill_text (§4.1 / §9.4): a single-bill RAG answer — prose + citations + the
+  // answering bill (its 'citations' field distinguishes it from the others).
+  const billTextAnswer = answer && 'citations' in answer ? answer : undefined;
+
   return {
     intent: payload.intent,
     hasAnswer: Boolean(answer),
+    billText: billTextAnswer?.answer,
+    citations: billTextAnswer?.citations.map((citation) => ({
+      label: citation.label,
+      billId: citation.bill_id,
+      excerpt: citation.excerpt,
+      url: citation.url,
+    })),
+    answeringBill: billTextAnswer ? mapBill(billTextAnswer.bill) : undefined,
     topic:
       billsAnswer?.topic ?? (answer && 'topic' in answer ? (answer.topic ?? undefined) : undefined),
     sessionName: answer?.session.name,
