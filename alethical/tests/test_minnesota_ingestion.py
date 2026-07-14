@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alethical.db.models import Legislator, LegislatorServicePeriod
 from alethical.db.session import get_engine
 from alethical.pipeline.minnesota import (
+    LEGISLATOR_LOCK_KEY,
+    REFERENCE_DATA_LOCK_KEY,
     MinnesotaIngestionPipeline,
     parse_bill_text_html,
     parse_bill_xml,
@@ -117,3 +121,40 @@ def test_roster_only_member_can_be_ingested(seed_database: None) -> None:
         assert (
             service_period.photo_url == "https://example.test/representatives/60b.jpg"
         )
+
+
+def test_reference_upserts_skip_advisory_lock_when_rows_exist(
+    seed_database: None, monkeypatch
+) -> None:
+    """Double-checked locking: seed_reference_data / upsert_legislator take the
+    advisory lock only when they actually insert. On a refresh (rows already
+    present) they skip it, so concurrent chunks don't serialize on it.
+    Regression guard for the ~7h→~1h refresh speedup."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        session.commit()
+
+        lock_calls: list[int] = []
+        monkeypatch.setattr(
+            pipeline, "advisory_xact_lock", lambda key: lock_calls.append(key)
+        )
+
+        # Reference data already present -> no reference lock.
+        pipeline.seed_reference_data()
+        assert REFERENCE_DATA_LOCK_KEY not in lock_calls
+
+        # New legislator -> insert path takes the legislator lock. Unique key +
+        # no commit (rollback at end) keeps the test idempotent across runs.
+        new_key = f"tm-{uuid.uuid4().hex[:12]}"
+        lock_calls.clear()
+        pipeline.upsert_legislator(refs, "Test Member A", external_key=new_key)
+        assert LEGISLATOR_LOCK_KEY in lock_calls
+
+        # Same legislator again (now present in-session) -> no lock.
+        lock_calls.clear()
+        again = pipeline.upsert_legislator(refs, "Test Member A", external_key=new_key)
+        assert lock_calls == []
+        assert again.external_key == new_key
+
+        session.rollback()

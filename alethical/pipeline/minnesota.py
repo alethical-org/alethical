@@ -613,7 +613,42 @@ class MinnesotaIngestionPipeline:
     def advisory_xact_lock(self, key: int) -> None:
         self.db.execute(text("select pg_advisory_xact_lock(:key)"), {"key": key})
 
+    def _existing_reference_data(self) -> dict[str, Any] | None:
+        """Return the reference dict if jurisdiction, all chambers, and the
+        current session already exist; else None. Lets seed_reference_data skip
+        the advisory lock on the common (refresh) path so concurrent chunks do
+        not serialize on it."""
+        minnesota = self.db.scalar(
+            select(Jurisdiction).where(Jurisdiction.slug == "minnesota")
+        )
+        if minnesota is None:
+            return None
+        chambers: dict[str, Any] = {}
+        for slug in ("house", "senate", "joint"):
+            chamber = self.db.scalar(
+                select(Chamber).where(
+                    Chamber.jurisdiction_id == minnesota.id, Chamber.slug == slug
+                )
+            )
+            if chamber is None:
+                return None
+            chambers[slug] = chamber
+        session = self.db.scalar(
+            select(LegislativeSession).where(
+                LegislativeSession.jurisdiction_id == minnesota.id,
+                LegislativeSession.slug == CURRENT_SESSION_SLUG,
+            )
+        )
+        if session is None:
+            return None
+        return {"jurisdiction": minnesota, "chambers": chambers, "session": session}
+
     def seed_reference_data(self) -> dict[str, Any]:
+        existing = self._existing_reference_data()
+        if existing is not None:
+            return existing
+        # A reference row is missing — seed under the lock. The body below
+        # re-checks every row, so it stays race-safe while the lock is held.
         self.advisory_xact_lock(REFERENCE_DATA_LOCK_KEY)
         minnesota = self.db.scalar(
             select(Jurisdiction).where(Jurisdiction.slug == "minnesota")
@@ -739,14 +774,21 @@ class MinnesotaIngestionPipeline:
         return artifact
 
     def upsert_district(self, refs: dict[str, Any], chamber: Any, code: str) -> Any:
-        self.advisory_xact_lock(DISTRICT_LOCK_KEY)
-        district = self.db.scalar(
-            select(District).where(
-                District.jurisdiction_id == refs["jurisdiction"].id,
-                District.chamber_id == chamber.id,
-                District.code == code,
+        def _lookup() -> Any:
+            return self.db.scalar(
+                select(District).where(
+                    District.jurisdiction_id == refs["jurisdiction"].id,
+                    District.chamber_id == chamber.id,
+                    District.code == code,
+                )
             )
-        )
+
+        district = _lookup()
+        if district is not None:
+            return district
+        # Missing — lock, then re-check before inserting (race-safe under lock).
+        self.advisory_xact_lock(DISTRICT_LOCK_KEY)
+        district = _lookup()
         if district is None:
             district = District(
                 jurisdiction_id=refs["jurisdiction"].id,
@@ -761,14 +803,21 @@ class MinnesotaIngestionPipeline:
     def upsert_legislator(
         self, refs: dict[str, Any], name: str, *, external_key: str | None = None
     ) -> Any:
-        self.advisory_xact_lock(LEGISLATOR_LOCK_KEY)
         key = external_key or name
-        legislator = self.db.scalar(
-            select(Legislator).where(
-                Legislator.jurisdiction_id == refs["jurisdiction"].id,
-                Legislator.external_key == key,
+
+        def _lookup() -> Any:
+            return self.db.scalar(
+                select(Legislator).where(
+                    Legislator.jurisdiction_id == refs["jurisdiction"].id,
+                    Legislator.external_key == key,
+                )
             )
-        )
+
+        legislator = _lookup()
+        if legislator is None:
+            # Take the lock and re-check before inserting (race-safe under lock).
+            self.advisory_xact_lock(LEGISLATOR_LOCK_KEY)
+            legislator = _lookup()
         if legislator is None:
             slug = slugify(name)
             existing_slug = self.db.scalar(
