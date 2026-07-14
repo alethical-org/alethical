@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import unquote, urlparse
+
 import pytest
 
 from alethical.db.session import (
@@ -41,10 +43,17 @@ def test_uses_pooler_host_port_and_user_from_project_url(
     monkeypatch.setenv("SUPABASE_DB_PASSWORD", "hunter2")
 
     url = supabase_database_url()
-    assert url == (
-        "postgresql+psycopg://postgres.abcdefghij:hunter2"
-        "@aws-1-us-east-2.pooler.supabase.com:6543/postgres?sslmode=require"
-    )
+    assert url is not None
+
+    # Assert the project-specific choices, not SQLAlchemy's exact rendering.
+    parsed = urlparse(url)
+    assert parsed.scheme == "postgresql+psycopg"
+    assert parsed.hostname == "aws-1-us-east-2.pooler.supabase.com"
+    assert parsed.port == 6543
+    assert parsed.username == "postgres.abcdefghij"
+    assert parsed.password == "hunter2"
+    assert parsed.path == "/postgres"
+    assert parsed.query == "sslmode=require"
 
 
 def test_project_ref_env_overrides_url_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -67,19 +76,21 @@ def test_pooler_host_env_overrides_default(monkeypatch: pytest.MonkeyPatch) -> N
     assert "@aws-0-eu-central-1.pooler.supabase.com:6543/postgres" in url
 
 
-def test_password_with_url_special_chars_is_percent_encoded(
+def test_password_with_url_special_chars_yields_parseable_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Supabase-generated passwords routinely contain @, :, /, #, etc.
+    # SQLAlchemy's URL.create percent-encodes them; we just need the URL to
+    # round-trip through urlparse cleanly (proves validity without coupling to
+    # SQLAlchemy's exact encoding choices).
     monkeypatch.setenv("SUPABASE_PROJECT_URL", "https://abcdefghij.supabase.co")
     monkeypatch.setenv("SUPABASE_DB_PASSWORD", "p@ss:wo/rd#")
 
     url = supabase_database_url()
     assert url is not None
-    # SQLAlchemy's URL.create percent-encodes the password so the DSN stays valid.
-    assert "p%40ss%3Awo%2Frd%23" in url
-    # And the raw password never appears verbatim.
-    assert "p@ss:wo/rd#" not in url
+    parsed = urlparse(url)
+    assert unquote(parsed.password or "") == "p@ss:wo/rd#"
+    assert parsed.hostname == "aws-1-us-east-2.pooler.supabase.com"
 
 
 def test_database_url_for_target_production_uses_pooler_dsn(
@@ -89,10 +100,13 @@ def test_database_url_for_target_production_uses_pooler_dsn(
     monkeypatch.setenv("SUPABASE_DB_PASSWORD", "hunter2")
 
     url = database_url_for_target("production")
-    assert url == (
-        "postgresql+psycopg://postgres.abcdefghij:hunter2"
-        "@aws-1-us-east-2.pooler.supabase.com:6543/postgres?sslmode=require"
-    )
+    parsed = urlparse(url)
+    assert parsed.scheme == "postgresql+psycopg"
+    assert parsed.hostname == "aws-1-us-east-2.pooler.supabase.com"
+    assert parsed.port == 6543
+    assert parsed.username == "postgres.abcdefghij"
+    assert parsed.path == "/postgres"
+    assert parsed.query == "sslmode=require"
 
 
 def test_database_url_for_target_production_raises_when_env_missing() -> None:
