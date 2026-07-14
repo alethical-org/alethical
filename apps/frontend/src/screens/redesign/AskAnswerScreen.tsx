@@ -224,7 +224,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             </View>
           ) : answer && !answer.hasAnswer ? (
             <View style={styles.answerBlock}>
-              <Text style={styles.eyebrow}>COMING SOON</Text>
+              <Text style={styles.eyebrow}>ON THE ROADMAP</Text>
               <Text style={styles.question}>{question}</Text>
               <Text style={styles.introLine}>
                 We can’t answer this kind of question yet. Answers about what a bill says,
