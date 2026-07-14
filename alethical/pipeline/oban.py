@@ -14,6 +14,7 @@ from oban.testing import drain_queue
 from psycopg_pool import AsyncConnectionPool
 
 from alethical.db.session import (
+    NO_PREPARED_STATEMENTS,
     database_url_for_target,
     get_database_url,
     normalize_database_url,
@@ -73,7 +74,13 @@ def dsn_for_args(args: argparse.Namespace) -> str:
 
 
 async def open_pool(dsn: str) -> AsyncConnectionPool:
-    pool = AsyncConnectionPool(conninfo=dsn, min_size=1, max_size=5, open=False)
+    pool = AsyncConnectionPool(
+        conninfo=dsn,
+        kwargs=NO_PREPARED_STATEMENTS,
+        min_size=1,
+        max_size=5,
+        open=False,
+    )
     await pool.open()
     await pool.wait()
     return pool

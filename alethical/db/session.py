@@ -8,6 +8,16 @@ from urllib.parse import urlparse
 from sqlalchemy import URL, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+# The production path connects through the Supabase pgbouncer pooler in
+# transaction-pooling mode (port 6543), which multiplexes clients over shared
+# backend connections. psycopg's automatic server-side prepared statements reuse
+# names per logical connection, so under concurrency a name collides on a reused
+# backend -> DuplicatePreparedStatement. `prepare_threshold=None` disables
+# server-side prepared statements entirely; pass it as connect_args on every
+# engine / pool that may reach the pooler. Harmless (a tiny per-query cost) on
+# the direct/local path.
+NO_PREPARED_STATEMENTS = {"prepare_threshold": None}
+
 
 def load_dotenv_if_present() -> None:
     for parent in (Path.cwd(), *Path.cwd().parents):
@@ -105,7 +115,12 @@ def database_url_for_target(target: str | None, explicit_url: str | None = None)
 
 @lru_cache(maxsize=1)
 def get_engine():
-    return create_engine(get_database_url(), echo=False, pool_pre_ping=True)
+    return create_engine(
+        get_database_url(),
+        echo=False,
+        pool_pre_ping=True,
+        connect_args=NO_PREPARED_STATEMENTS,
+    )
 
 
 @lru_cache(maxsize=1)

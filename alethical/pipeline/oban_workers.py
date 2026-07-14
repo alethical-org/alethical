@@ -10,7 +10,11 @@ from typing import Any
 
 from oban import Record, worker
 
-from alethical.db.session import database_url_for_target, get_database_url
+from alethical.db.session import (
+    NO_PREPARED_STATEMENTS,
+    database_url_for_target,
+    get_database_url,
+)
 from alethical.pipeline.sessions import CURRENT_SESSION_SLUG, DEFAULT_SESSION_CODE
 
 
@@ -184,7 +188,11 @@ class FullBillSyncWorker:
         from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL
 
         def run() -> dict[str, Any]:
-            engine = create_engine(_database_url(job.args), pool_pre_ping=True)
+            engine = create_engine(
+                _database_url(job.args),
+                pool_pre_ping=True,
+                connect_args=NO_PREPARED_STATEMENTS,
+            )
             with Session(engine) as db:
                 pipeline = MinnesotaIngestionPipeline(db)
                 targets = pipeline.discover_bill_targets(
@@ -304,7 +312,11 @@ class BillSyncChunkWorker:
                     "Bill sync chunk requires allow_writes=true when dry_run=false"
                 )
 
-            engine = create_engine(_database_url(job.args), pool_pre_ping=True)
+            engine = create_engine(
+                _database_url(job.args),
+                pool_pre_ping=True,
+                connect_args=NO_PREPARED_STATEMENTS,
+            )
             with Session(engine) as db:
                 pipeline = MinnesotaIngestionPipeline(db)
                 stats = pipeline.ingest_bills(targets)
@@ -315,7 +327,9 @@ class BillSyncChunkWorker:
                     )
 
                     rag_db = _resolve_rag_write_url(job.args)
-                    rag_engine = create_engine(rag_db, pool_pre_ping=True)
+                    rag_engine = create_engine(
+                        rag_db, pool_pre_ping=True, connect_args=NO_PREPARED_STATEMENTS
+                    )
                     with Session(rag_engine) as rag_db_session:
                         rag_stats = build_rag_rows_for_bill_keys(
                             rag_db_session,
@@ -355,7 +369,11 @@ class RagBackfillWorker:
 
         def run() -> dict[str, Any]:
             rag_model = str(job.args.get("rag_model") or DEFAULT_RAG_MODEL)
-            engine = create_engine(_database_url(job.args), pool_pre_ping=True)
+            engine = create_engine(
+                _database_url(job.args),
+                pool_pre_ping=True,
+                connect_args=NO_PREPARED_STATEMENTS,
+            )
             with Session(engine) as db:
                 rows = db.execute(
                     text(rag_text.STALE_RAG_BILL_KEYS_SQL),
@@ -438,7 +456,11 @@ class RagBackfillChunkWorker:
             bill_keys = list(job.args.get("bill_keys", []))
             if not bill_keys:
                 return {"rag_built": 0, "rag_skipped": 0, "rag_already_exists": 0}
-            engine = create_engine(_resolve_rag_write_url(job.args), pool_pre_ping=True)
+            engine = create_engine(
+                _resolve_rag_write_url(job.args),
+                pool_pre_ping=True,
+                connect_args=NO_PREPARED_STATEMENTS,
+            )
             with Session(engine) as db:
                 stats = build_rag_rows_for_bill_keys(
                     db,
@@ -469,7 +491,11 @@ class CommitteeMembershipBackfillWorker:
         from alethical.pipeline.committee_memberships import backfill
 
         def run() -> dict[str, Any]:
-            engine = create_engine(_database_url(job.args), pool_pre_ping=True)
+            engine = create_engine(
+                _database_url(job.args),
+                pool_pre_ping=True,
+                connect_args=NO_PREPARED_STATEMENTS,
+            )
             with Session(engine) as db:
                 stats = backfill(
                     db,
@@ -490,7 +516,11 @@ class VoteBackfillWorker:
         from alethical.pipeline.votes import backfill_votes
 
         def run() -> dict[str, Any]:
-            engine = create_engine(_database_url(job.args), pool_pre_ping=True)
+            engine = create_engine(
+                _database_url(job.args),
+                pool_pre_ping=True,
+                connect_args=NO_PREPARED_STATEMENTS,
+            )
             with Session(engine) as db:
                 stats = backfill_votes(
                     db,
