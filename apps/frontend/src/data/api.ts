@@ -38,6 +38,7 @@ interface PageResponse<T> extends CollectionResponse<T> {
     offset?: number | null;
     next_cursor?: string | null;
     has_more: boolean;
+    total?: number | null;
   } | null;
 }
 
@@ -48,6 +49,7 @@ export interface PaginatedResult<T> {
     offset: number;
     nextCursor?: string | null;
     hasMore: boolean;
+    total?: number | null;
   };
 }
 
@@ -1065,6 +1067,7 @@ export async function listBillsFromApi(
       offset: response.page?.offset ?? offset,
       nextCursor: response.page?.next_cursor,
       hasMore: response.page?.has_more ?? false,
+      total: response.page?.total ?? null,
     },
   };
 }
@@ -1184,6 +1187,7 @@ export async function getLegislatorBillsFromApi(
       offset: response.page?.offset ?? offset,
       nextCursor: response.page?.next_cursor,
       hasMore: response.page?.has_more ?? false,
+      total: response.page?.total ?? null,
     },
   };
 }
