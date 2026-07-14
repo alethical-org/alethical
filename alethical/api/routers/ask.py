@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import String, and_, cast, func, or_, select, text
@@ -381,18 +382,27 @@ _BILL_TEXT_CHUNK_LIMIT = 4
 # HF/SF-number and title matching both fail (docs/grounded-ask-spec.md §4.1, the
 # semantic half of fuzzy resolution; #266). Real-model-only: hash-fallback
 # distances are arbitrary. The classifier already routes out-of-scope questions
-# to `refuse`, so this only sees questions already "about a bill/law"; the
-# distance cap is a light guard for a bill_text query with no good corpus match.
-# Provisional cap, tuned live against real embeddings (#255).
-_BILL_TEXT_RESOLVE_LIMIT = 5
-_BILL_TEXT_RESOLVE_MAX_DISTANCE = 0.45
+# to `refuse`, so this only sees questions already "about a bill/law".
+#
+# Resolution is by DOMINANCE, not an absolute distance cap: a distance cap can't
+# separate a moderate *real* match ("paid family leave law") from a nonsense
+# nearest-match ("lawn mowers on the moon") — they overlap in cosine distance
+# (found tuning #271). Instead, a genuine bill question concentrates its top
+# passages on one bill, while a nonsense question scatters them across unrelated
+# bills. So we pull the top passages (within a generous cap that only excludes
+# the clearly-unrelated) and resolve only when one bill OWNS enough of them.
+# Tuned live against real embeddings (#255).
+_BILL_TEXT_RESOLVE_LIMIT = 8
+_BILL_TEXT_RESOLVE_MAX_DISTANCE = 0.6
+_BILL_TEXT_RESOLVE_MIN_DOMINANCE = 2
 
 
 def _resolve_bill_by_content(db: Session, session_id, model: str, embedding):
     """Resolve a colloquial description ("the new social media law for kids") to
     a single bill by semantic search over all bills' passages, when number/title
-    resolution failed (§4.1 / #266). Returns the closest passage's current-session
-    citable bill within the relevance cap, or ``None`` so the caller degrades /
+    resolution failed (§4.1 / #266). Resolves to the bill that owns the most of
+    the top passages, but only when that count clears the dominance floor — so a
+    scattered (nonsense) result set returns ``None`` and the caller degrades /
     refuses. Real-model-only; on the hash fallback (tests) it is a no-op."""
     if model != DEFAULT_RAG_MODEL:
         return None
@@ -404,10 +414,13 @@ def _resolve_bill_by_content(db: Session, session_id, model: str, embedding):
             max_distance=_BILL_TEXT_RESOLVE_MAX_DISTANCE,
         )
     ).all()
-    for chunk in chunks:
+    counts = Counter(str(chunk.rag_section_document.bill_id) for chunk in chunks)
+    for bill_id, count in counts.most_common():
+        if count < _BILL_TEXT_RESOLVE_MIN_DOMINANCE:
+            return None
         bill = db.scalar(
             select(Bill).where(
-                Bill.id == chunk.rag_section_document.bill_id,
+                Bill.id == bill_id,
                 Bill.session_id == session_id,
                 Bill.official_url.isnot(None),
             )
