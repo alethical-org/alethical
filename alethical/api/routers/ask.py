@@ -374,13 +374,17 @@ _BILL_TEXT_CHUNK_LIMIT = 4
 _BILL_TEXT_MAX_DISTANCE = 0.6
 
 
-def _bill_text_answer(db: Session, content: str) -> AskBillTextAnswer | None:
+def _bill_text_answer(
+    db: Session, content: str
+) -> AskBillTextAnswer | AskTopicBillsAnswer | None:
     """Scenario 1 single-bill RAG answer (docs/grounded-ask-spec.md §4.1 / §9.4).
 
     Resolve one bill, retrieve its passages within the relevance threshold, and
-    synthesize a cited prose answer — reusing the bill-scoped chat machinery. A
-    bill that doesn't resolve, or resolves with no relevant passage, refuses
-    (returns ``None``) rather than stretches (cite-or-refuse, §4.5)."""
+    synthesize a cited prose answer — reusing the bill-scoped chat machinery. If
+    the question names no *single* bill (ambiguous or unresolved), degrade to the
+    cited topic_bills list when the phrase still names a topic with matches (§4.1
+    fallback); otherwise, or when the resolved bill has no relevant passage,
+    refuse (return ``None``) rather than stretch (cite-or-refuse, §4.5)."""
     session_row = db.scalar(
         select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
     )
@@ -388,6 +392,11 @@ def _bill_text_answer(db: Session, content: str) -> AskBillTextAnswer | None:
         db, session_row.id, content
     )
     if resolved is None:
+        phrase = _bill_title_phrase(content)
+        if phrase:
+            degraded = _topic_bills_answer(db, phrase)
+            if degraded.total_matches:
+                return degraded
         return None
 
     model = effective_embedding_model(DEFAULT_RAG_MODEL)
