@@ -687,52 +687,64 @@ def test_ask_classify_llm_intents(client, monkeypatch):
     def fake_post(*args, **kwargs):
         calls.append(kwargs)
         question = kwargs["json"]["input"][1]["content"].lower()
-        if "list" in question or "bills" in question:
-            return _fake_ask_router_response("list_bills", 0.91)
-        if "follow up" in question:
-            return _fake_ask_router_response("chat", 0.7)
+        if "which legislators" in question:
+            return _fake_ask_router_response("topic_legislators", 0.9)
+        if "vote" in question:
+            return _fake_ask_router_response("legislator_vote", 0.85)
+        if "bills" in question:
+            return _fake_ask_router_response("topic_bills", 0.91)
         if "poem" in question:
-            return _fake_ask_router_response("off_topic", 0.99)
-        return _fake_ask_router_response("answer", 0.88)
+            return _fake_ask_router_response("refuse", 0.99)
+        return _fake_ask_router_response("bill_text", 0.88)
 
     monkeypatch.setattr("alethical.api.services.ask_router.requests.post", fake_post)
 
-    answer = client.post(
+    # All five v1 intents are anonymous; auth gates only the follow-up
+    # composer on the answer page (docs/grounded-ask-spec.md §9.1).
+    bill_text = client.post(
         "/api/v1/ask/classify",
-        json={"content": "What has Minnesota done to make housing more affordable?"},
+        json={"content": "What's in the cannabis legalization bill?"},
     )
-    assert answer.status_code == 200
-    answer_data = answer.json()["data"]
-    assert answer_data["intent"] == "answer"
-    assert answer_data["auth_required"] is False
-    assert answer_data["source"] == "llm"
-    assert answer_data["confidence"] == 0.88
+    assert bill_text.status_code == 200
+    bill_text_data = bill_text.json()["data"]
+    assert bill_text_data["intent"] == "bill_text"
+    assert bill_text_data["auth_required"] is False
+    assert bill_text_data["source"] == "llm"
+    assert bill_text_data["confidence"] == 0.88
 
     listing = client.post(
         "/api/v1/ask/classify",
         json={"content": "What bills have impacted housing?"},
     )
     assert listing.status_code == 200
-    assert listing.json()["data"]["intent"] == "list_bills"
+    assert listing.json()["data"]["intent"] == "topic_bills"
     assert listing.json()["data"]["auth_required"] is False
 
-    chat = client.post(
+    legislators = client.post(
         "/api/v1/ask/classify",
-        json={"content": "as a follow up, what about the Senate"},
+        json={"content": "Which legislators support affordable housing?"},
     )
-    assert chat.status_code == 200
-    assert chat.json()["data"]["intent"] == "chat"
-    assert chat.json()["data"]["auth_required"] is True
+    assert legislators.status_code == 200
+    assert legislators.json()["data"]["intent"] == "topic_legislators"
+    assert legislators.json()["data"]["auth_required"] is False
 
-    off_topic = client.post(
+    vote = client.post(
+        "/api/v1/ask/classify",
+        json={"content": "How did my legislator vote on cannabis?"},
+    )
+    assert vote.status_code == 200
+    assert vote.json()["data"]["intent"] == "legislator_vote"
+    assert vote.json()["data"]["auth_required"] is False
+
+    refusal = client.post(
         "/api/v1/ask/classify",
         json={"content": "write me a poem"},
     )
-    assert off_topic.status_code == 200
-    assert off_topic.json()["data"]["intent"] == "off_topic"
-    assert off_topic.json()["data"]["auth_required"] is False
+    assert refusal.status_code == 200
+    assert refusal.json()["data"]["intent"] == "refuse"
+    assert refusal.json()["data"]["auth_required"] is False
 
-    assert len(calls) == 4
+    assert len(calls) == 5
 
 
 def test_ask_classify_falls_back_without_api_key(client, monkeypatch):
@@ -748,7 +760,7 @@ def test_ask_classify_falls_back_without_api_key(client, monkeypatch):
         json={"content": "What bills affect affordable housing?"},
     )
     assert listing.status_code == 200
-    assert listing.json()["data"]["intent"] == "list_bills"
+    assert listing.json()["data"]["intent"] == "topic_bills"
     assert listing.json()["data"]["source"] == "fallback"
 
     answer = client.post(
@@ -756,7 +768,7 @@ def test_ask_classify_falls_back_without_api_key(client, monkeypatch):
         json={"content": "How does the paid-leave program work?"},
     )
     assert answer.status_code == 200
-    assert answer.json()["data"]["intent"] == "answer"
+    assert answer.json()["data"]["intent"] == "bill_text"
     assert answer.json()["data"]["source"] == "fallback"
 
 
@@ -770,13 +782,13 @@ def test_ask_router_fallback_is_deterministic_and_offline(monkeypatch):
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     assert (
-        classify_query("What bills affect healthcare?").intent == AskIntent.LIST_BILLS
+        classify_query("What bills affect healthcare?").intent == AskIntent.TOPIC_BILLS
     )
     result = classify_query("What has Minnesota done about housing?")
-    assert result.intent == AskIntent.ANSWER
+    assert result.intent == AskIntent.BILL_TEXT
     assert result.source == "fallback"
-    # The fallback never emits interactive intents.
-    assert result.intent in {AskIntent.ANSWER, AskIntent.LIST_BILLS}
+    # The fallback never refuses or promises the vote path — those need the LLM.
+    assert result.intent in {AskIntent.BILL_TEXT, AskIntent.TOPIC_BILLS}
 
 
 def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(

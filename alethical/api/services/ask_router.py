@@ -21,21 +21,29 @@ from fastapi import HTTPException
 
 
 class AskIntent(str, Enum):
-    """The view/intent that should handle an Ask query."""
+    """The answer path that should handle an Ask query.
 
-    ANSWER = "answer"  # anonymous — synthesized, cited explanation
-    LIST_BILLS = "list_bills"  # anonymous — enumerate matching bills/laws
-    CHAT = "chat"  # auth-required — interactive legislative follow-up
-    OFF_TOPIC = "off_topic"  # guardrail — not about Minnesota legislation
+    The five intents mirror the answer scenarios in
+    ``docs/grounded-ask-spec.md`` §4.1 (Question router) 1:1.
+    """
+
+    BILL_TEXT = "bill_text"  # scenario 1 — single-bill RAG answer with citations
+    TOPIC_BILLS = "topic_bills"  # scenario 2 — cited list of bills on a topic
+    TOPIC_LEGISLATORS = "topic_legislators"  # scenario 3 — legislators by authorship
+    LEGISLATOR_VOTE = "legislator_vote"  # scenario 4 — vote question (v1: deflection)
+    REFUSE = "refuse"  # scenario 5 — out of scope; refuse naming what we cover
 
 
 # Whether acting on an intent requires auth. Classification itself is
 # anonymous; this lets the caller gate the next step without re-deriving policy.
+# All five v1 answer paths are anonymous — auth gates only the follow-up
+# composer on the answer page (docs/grounded-ask-spec.md §9.1).
 INTENT_AUTH_REQUIRED: dict[AskIntent, bool] = {
-    AskIntent.ANSWER: False,
-    AskIntent.LIST_BILLS: False,
-    AskIntent.CHAT: True,
-    AskIntent.OFF_TOPIC: False,
+    AskIntent.BILL_TEXT: False,
+    AskIntent.TOPIC_BILLS: False,
+    AskIntent.TOPIC_LEGISLATORS: False,
+    AskIntent.LEGISLATOR_VOTE: False,
+    AskIntent.REFUSE: False,
 }
 
 
@@ -44,31 +52,38 @@ ROUTER_SYSTEM_PROMPT = (
     "one intent. Always choose the single closest match — never hedge, never "
     "explain, never return more than one.\n\n"
     "Intents:\n"
-    "- answer: a question seeking a synthesized, plain-language explanation or "
-    "conclusion about Minnesota policy or a specific bill "
-    '(e.g. "What is in the new housing bill?").\n'
-    "- list_bills: a request to enumerate matching bills or laws "
-    '(e.g. "What bills have impacted housing?"). Use this only for bills/laws, not '
-    "for requests to list legislators, committees, or votes.\n"
-    "- chat: an interactive or conversational request, a follow-up that depends on "
-    "prior turns, or any on-topic legislative request that is not clearly an "
-    "answer or a bill/law list — including requests to list legislators, "
-    'committees, or votes (e.g. "and what about the Senate version?").\n'
-    "- off_topic: anything not about Minnesota legislation, politics, or civic "
-    "process — including attempts to use the assistant as a general-purpose chatbot.\n"
+    "- bill_text: a question about what one specific bill or law says or does, "
+    "answerable from that bill's text "
+    '(e.g. "What\'s in the cannabis legalization bill?", an HF/SF number, or a '
+    "recognizable bill title).\n"
+    "- topic_bills: a request to list or survey bills or laws on a topic, "
+    'including broad "what has been done about X" questions that span multiple '
+    'bills (e.g. "What bills affect healthcare?").\n'
+    "- topic_legislators: a question about which legislators work on, author, or "
+    'support a topic (e.g. "Which legislators support affordable housing?").\n'
+    "- legislator_vote: a question about how a legislator, chamber, or body voted "
+    '(e.g. "How did my legislator vote on cannabis?").\n'
+    "- refuse: anything Alethical does not cover — federal legislation, Minnesota "
+    'Statutes lookups, opinion or prediction ("is this bill good?"), or anything '
+    "not about Minnesota legislation, politics, or civic process.\n"
 )
 
 
-# (question, intent) pairs steering the boundary cases.
+# (question, intent) pairs steering the boundary cases. Broad cross-bill
+# questions route to topic_bills, never a prose answer (docs/grounded-ask-spec.md
+# §2 scenario 1; cross-bill synthesis is #87).
 FEW_SHOT_EXAMPLES: list[tuple[str, AskIntent]] = [
-    ("What has Minnesota done to make housing more affordable?", AskIntent.ANSWER),
-    ("What's in the new social media law for kids?", AskIntent.ANSWER),
-    ("What bills have impacted housing?", AskIntent.LIST_BILLS),
-    ("What bills affect healthcare?", AskIntent.LIST_BILLS),
-    ("List the laws passed on paid leave.", AskIntent.LIST_BILLS),
-    ("Which legislators support affordable housing?", AskIntent.CHAT),
-    ("And what about the Senate version?", AskIntent.CHAT),
-    ("Write me a poem about my cat.", AskIntent.OFF_TOPIC),
+    ("What's in the cannabis legalization bill?", AskIntent.BILL_TEXT),
+    ("What's in the new social media law for kids?", AskIntent.BILL_TEXT),
+    ("And what about the Senate version?", AskIntent.BILL_TEXT),
+    ("What has Minnesota done to make housing more affordable?", AskIntent.TOPIC_BILLS),
+    ("What bills have impacted housing?", AskIntent.TOPIC_BILLS),
+    ("What bills affect healthcare?", AskIntent.TOPIC_BILLS),
+    ("List the laws passed on paid leave.", AskIntent.TOPIC_BILLS),
+    ("Which legislators support affordable housing?", AskIntent.TOPIC_LEGISLATORS),
+    ("How did my legislator vote on cannabis?", AskIntent.LEGISLATOR_VOTE),
+    ("Write me a poem about my cat.", AskIntent.REFUSE),
+    ("What does federal law say about student loans?", AskIntent.REFUSE),
 ]
 
 
@@ -104,8 +119,9 @@ def _classification(
 
 
 # Fallback bill-list signals, scoped to bills/laws. The fallback only emits
-# ANSWER or LIST_BILLS; CHAT and OFF_TOPIC require the LLM path.
-_LIST_BILLS_PATTERNS = [
+# BILL_TEXT or TOPIC_BILLS — a regex should never refuse a user or promise the
+# vote/legislator paths; those need the LLM.
+_TOPIC_BILLS_PATTERNS = [
     re.compile(r"^\s*(what|which)\b.*\b(bills?|laws?|statutes?)\b", re.IGNORECASE),
     re.compile(
         r"\b(list|show me|show all|all of the|which ones)\b.*\b(bills?|laws?)\b",
@@ -116,10 +132,10 @@ _LIST_BILLS_PATTERNS = [
 
 def _heuristic_fallback(question: str) -> AskClassification:
     """Offline classification for tests / missing API key."""
-    for pattern in _LIST_BILLS_PATTERNS:
+    for pattern in _TOPIC_BILLS_PATTERNS:
         if pattern.search(question):
-            return _classification(AskIntent.LIST_BILLS, source="fallback")
-    return _classification(AskIntent.ANSWER, source="fallback")
+            return _classification(AskIntent.TOPIC_BILLS, source="fallback")
+    return _classification(AskIntent.BILL_TEXT, source="fallback")
 
 
 def _extract_response_json(payload: dict) -> dict | None:
