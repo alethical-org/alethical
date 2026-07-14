@@ -15,6 +15,11 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
+from alethical.pipeline.sessions import (
+    CURRENT_SESSION_SLUG,
+    DEFAULT_SESSION_CODE,
+    parse_session_code,
+)
 
 USER_AGENT = "Alethical Minnesota Ingest/0.1"
 TIMEOUT = 30
@@ -57,7 +62,7 @@ class MinnesotaIngestionError(RuntimeError):
 class BillTarget:
     chamber: str
     bill_number: str
-    session_code: str = "0942025"
+    session_code: str = DEFAULT_SESSION_CODE
 
 
 @dataclass(frozen=True)
@@ -68,14 +73,20 @@ class BillSearchResult:
     description: str
     status_xml_uri: str
     latest_text_html_uri: str
+    session_code: str = DEFAULT_SESSION_CODE
 
     @property
     def bill_key(self) -> str:
-        return f"94-2025-{self.file_type}{self.file_number}"
+        session_number, year = parse_session_code(self.session_code)
+        return f"{session_number}-{year}-{self.file_type}{self.file_number}"
 
     @property
     def target(self) -> BillTarget:
-        return BillTarget(chamber=self.chamber, bill_number=str(self.file_number))
+        return BillTarget(
+            chamber=self.chamber,
+            bill_number=str(self.file_number),
+            session_code=self.session_code,
+        )
 
 
 def http_session() -> requests.Session:
@@ -239,7 +250,7 @@ def discover_bill_range(
     *,
     chamber: str,
     bill_range: str,
-    session_code: str = "0942025",
+    session_code: str = DEFAULT_SESSION_CODE,
 ) -> list[BillSearchResult]:
     params = {
         "body": chamber,
@@ -280,6 +291,7 @@ def discover_bill_range(
                 latest_text_html_uri=latest_text_html_uri
                 if latest_text_html_uri.startswith("http")
                 else f"https://{latest_text_html_uri}",
+                session_code=session_code,
             )
         )
     return results
@@ -288,7 +300,7 @@ def discover_bill_range(
 def discover_session_bills(
     sess: requests.Session,
     *,
-    session_code: str = "0942025",
+    session_code: str = DEFAULT_SESSION_CODE,
     max_bill_number: int = 6000,
     chunk_size: int = 500,
 ) -> list[BillSearchResult]:
@@ -634,13 +646,13 @@ class MinnesotaIngestionPipeline:
         current_session = self.db.scalar(
             select(LegislativeSession).where(
                 LegislativeSession.jurisdiction_id == minnesota.id,
-                LegislativeSession.slug == "94-2025-regular",
+                LegislativeSession.slug == CURRENT_SESSION_SLUG,
             )
         )
         if current_session is None:
             current_session = LegislativeSession(
                 jurisdiction_id=minnesota.id,
-                slug="94-2025-regular",
+                slug=CURRENT_SESSION_SLUG,
                 session_number=94,
                 session_type=SessionType.regular,
                 year_start=2025,
@@ -868,7 +880,7 @@ class MinnesotaIngestionPipeline:
         self, *, limit: int | None = None, fetch_profiles: bool = True
     ) -> dict[str, Any]:
         refs = self.seed_reference_data()
-        run = self.start_run("legislator_roster", "94-2025-regular")
+        run = self.start_run("legislator_roster", CURRENT_SESSION_SLUG)
         roster_url = "https://www.leg.mn.gov/leg/legislators"
         roster_html = fetch_text(self.http, roster_url)
         self.record_artifact(
@@ -1192,7 +1204,7 @@ class MinnesotaIngestionPipeline:
     def discover_bill_targets(
         self,
         *,
-        session_code: str = "0942025",
+        session_code: str = DEFAULT_SESSION_CODE,
         max_bill_number: int = 6000,
         only_missing: bool = True,
     ) -> list[BillTarget]:

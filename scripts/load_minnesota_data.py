@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 
 from alethical.db.session import normalize_database_url  # noqa: E402
 from alethical.pipeline.minnesota import BillTarget, MinnesotaIngestionPipeline  # noqa: E402
+from alethical.pipeline.sessions import DEFAULT_SESSION_CODE  # noqa: E402
 
 DEFAULT_BILLS = [
     BillTarget(chamber="House", bill_number="2136"),
@@ -54,8 +55,8 @@ def main() -> None:
     parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
     parser.add_argument(
         "--session-code",
-        default="0942025",
-        help="Minnesota search session code, e.g. 0942025.",
+        default=DEFAULT_SESSION_CODE,
+        help="Minnesota search session code, e.g. 0942025 (2025) or 0942026 (2026).",
     )
     parser.add_argument(
         "--bill",

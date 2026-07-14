@@ -11,6 +11,7 @@ from typing import Any
 from oban import Record, worker
 
 from alethical.db.session import database_url_for_target, get_database_url
+from alethical.pipeline.sessions import CURRENT_SESSION_SLUG, DEFAULT_SESSION_CODE
 
 
 async def _enqueue_child(
@@ -98,7 +99,9 @@ class PipelineRunWorker:
                         **common,
                         "_kind": "full-bill-sync",
                         "task_key": f"{run_id}:full-bill-sync",
-                        "session_code": str(job.args.get("session_code") or "0942025"),
+                        "session_code": str(
+                            job.args.get("session_code") or DEFAULT_SESSION_CODE
+                        ),
                         "max_bill_number": int(job.args.get("max_bill_number") or 6000),
                         "chunk_size": int(job.args.get("chunk_size") or 25),
                         "refresh_existing": _bool_arg(
@@ -149,7 +152,7 @@ class PipelineRunWorker:
                         "_kind": "ai-prepare",
                         "task_key": f"{run_id}:ai-prepare",
                         "model": str(job.args.get("model") or "gpt-4o-mini"),
-                        "session": str(job.args.get("session") or "94-2025-regular"),
+                        "session": str(job.args.get("session") or CURRENT_SESSION_SLUG),
                         "bill_key": job.args.get("bill_key"),
                         "limit": job.args.get("ai_limit"),
                         "max_input_chars": int(
@@ -184,7 +187,9 @@ class FullBillSyncWorker:
             with Session(engine) as db:
                 pipeline = MinnesotaIngestionPipeline(db)
                 targets = pipeline.discover_bill_targets(
-                    session_code=str(job.args.get("session_code") or "0942025"),
+                    session_code=str(
+                        job.args.get("session_code") or DEFAULT_SESSION_CODE
+                    ),
                     max_bill_number=int(job.args.get("max_bill_number") or 6000),
                     only_missing=not _bool_arg(job.args, "refresh_existing", False),
                 )
@@ -274,7 +279,7 @@ class BillSyncChunkWorker:
                 BillTarget(
                     chamber=str(item["chamber"]),
                     bill_number=str(item["bill_number"]),
-                    session_code=str(item.get("session_code") or "0942025"),
+                    session_code=str(item.get("session_code") or DEFAULT_SESSION_CODE),
                 )
                 for item in job.args.get("targets", [])
             ]
@@ -512,7 +517,7 @@ class AiBatchPrepareWorker:
                     database_url=_database_url(job.args),
                     output_dir=output_dir,
                     model=str(job.args.get("model") or "gpt-4o-mini"),
-                    session=str(job.args.get("session") or "94-2025-regular"),
+                    session=str(job.args.get("session") or CURRENT_SESSION_SLUG),
                     bill_key=job.args.get("bill_key"),
                     limit=job.args.get("limit"),
                     max_input_chars=int(job.args.get("max_input_chars") or 60_000),
