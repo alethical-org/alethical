@@ -8,6 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from alethical.api.problems import http_exception_handler, validation_exception_handler
+from alethical.api.rate_limit import (
+    DEFAULT_ASK_PER_MINUTE,
+    DEFAULT_LOOKUP_PER_MINUTE,
+    limiter_from_env,
+)
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
@@ -34,6 +39,15 @@ def create_app() -> FastAPI:
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
+
+    # Per-endpoint rate limiters for the paid/third-party call paths (#98).
+    # Held on app.state so each app (and each test) gets isolated state.
+    app.state.ask_limiter = limiter_from_env(
+        "ALETHICAL_ASK_RATE_PER_MIN", DEFAULT_ASK_PER_MINUTE
+    )
+    app.state.lookup_limiter = limiter_from_env(
+        "ALETHICAL_LOOKUP_RATE_PER_MIN", DEFAULT_LOOKUP_PER_MINUTE
+    )
 
     @app.get("/healthz")
     def healthz():
