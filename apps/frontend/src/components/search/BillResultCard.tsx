@@ -39,7 +39,7 @@ type Tone = 'neutral' | 'green' | 'vetoed';
 
 // Derive the 5-stage progress + tone from the bill's status text (client-side, so
 // the bar always agrees with the status label shown — no #295 dependency).
-// Stages: Proposed 0 · In Committee 1 · Passed House 2 · Passed Senate 3 · Signed 4.
+// Stages: Introduced 0 · In Committee 1 · Passed House 2 · Passed Senate 3 · Signed 4.
 function billStage(status: string): { index: number; tone: Tone } {
   const s = status.toLowerCase();
   if (s.includes('veto')) return { index: 4, tone: 'vetoed' };

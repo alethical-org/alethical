@@ -461,7 +461,7 @@ function mapSponsor(payload: ApiSponsorPayload): BillSponsor {
 
 function defaultProgress(): Bill['progress'] {
   return [
-    { key: 'proposed', label: 'Proposed', reached: true, current: true },
+    { key: 'proposed', label: 'Introduced', reached: true, current: true },
     { key: 'in_committee', label: 'In Committee', reached: false, current: false },
     { key: 'passed_house', label: 'Passed House', reached: false, current: false },
     { key: 'passed_senate', label: 'Passed Senate', reached: false, current: false },
@@ -471,7 +471,7 @@ function defaultProgress(): Bill['progress'] {
 
 function statusLabel(statusKey?: string | null, fallback?: string | null) {
   const labels: Record<string, string> = {
-    proposed: 'Proposed',
+    proposed: 'Introduced',
     in_committee: 'In Committee',
     passed_house: 'Passed House',
     passed_senate: 'Passed Senate',

@@ -53,7 +53,7 @@ const STATUS_OPTIONS = [
   { label: 'Passed Senate', value: 'passed_senate' },
   { label: 'Passed House', value: 'passed_house' },
   { label: 'In Committee', value: 'in_committee' },
-  { label: 'Proposed', value: 'proposed' },
+  { label: 'Introduced', value: 'proposed' },
   { label: 'Vetoed', value: 'vetoed' },
 ];
 

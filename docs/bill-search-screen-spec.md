@@ -49,7 +49,7 @@ distinct from AI-generated analysis (`docs/v1-scope.md` § Frontend Expectations
 |---|---|---|
 | Keyword / bill number | search input | `q` (title/description today; + bill number via [#134](https://github.com/alethical-org/alethical/issues/134)) |
 | Chamber | segmented All / House / Senate | `chamber` |
-| Status | dropdown: All / Proposed / In Committee / Passed House / Passed Senate / Signed into Law / Vetoed | `status` |
+| Status | dropdown: All / Introduced / In Committee / Passed House / Passed Senate / Signed into Law / Vetoed | `status` |
 | Session / year | dropdown | `session` |
 | Omnibus | toggle "Omnibus only" | `omnibus` |
 | Policy area | selectable pills **with live bill counts** ("Education 214") | `policy_area` (counts from `GET /policy-areas`) |
@@ -65,7 +65,7 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
 **Primary**
 - **Bill pill + status/progress** — the bill identifier ("HF 2904") with the status word
   ("In Committee") beside a compact 5-step progress motif matching the bill's legislative
-  stages: Proposed → In Committee → Passed House → Passed Senate → Signed into Law, with
+  stages: Introduced → In Committee → Passed House → Passed Senate → Signed into Law, with
   Vetoed as a distinct terminal state. Chamber is not repeated as a word — HF/SF encodes
   it. (Status key derived at serialization from action text; `serializers.py`.)
 - **Omnibus pill** — a single prominent amber pill (capitol/gavel glyph + "OMNIBUS", fill
