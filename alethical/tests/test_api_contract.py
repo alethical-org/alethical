@@ -296,6 +296,7 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
     detail_payload = detail_response.json()["data"]
 
     assert detail_payload["ai_analysis"] == {
+        "short_title": None,
         "summary": (
             "SF 1832 is an omnibus jobs, labor, and economic development package. "
             "It combines agency appropriations with policy changes for workforce programs, "

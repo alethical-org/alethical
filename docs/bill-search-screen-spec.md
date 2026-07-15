@@ -68,8 +68,15 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   stages: Proposed → In Committee → Passed House → Passed Senate → Signed into Law, with
   Vetoed as a distinct terminal state. Chamber is not repeated as a word — HF/SF encodes
   it. (Status key derived at serialization from action text; `serializers.py`.)
-- **Official bill title** — the card headline, largest text. (Today's card leads with the
-  summary and omits the title; official data leads.)
+- **Bill title (short, plain-language)** — the card headline, largest text, clamped to 2
+  lines. It leads with an AI-generated neutral `short_title` (`AIEnrichment`
+  `bill_summary.short_title`) and falls back to the official statutory title when no
+  `short_title` has been generated yet. The full official title always stays reachable via
+  the headline's `aria-label` + web hover tooltip and on the bill detail page. (Rationale:
+  `Bill.title` is an 827-char statutory run-on — no short title exists in any source — so a
+  neutral generated headline is scannable while official data still leads on the detail
+  page; Phase 1 clamp [#303](https://github.com/alethical-org/alethical/pull/303),
+  short_title [#304](https://github.com/alethical-org/alethical/pull/304).)
 - **AI summary** — 2–3 lines under a small "AI SUMMARY" eyebrow label, so official record
   and AI analysis are distinguishable at a glance. (`AIEnrichment` `bill_summary`.)
 

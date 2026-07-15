@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Bill } from '../../data/types';
@@ -73,6 +73,14 @@ export function BillResultCard({
   onRollCalls,
 }: BillResultCardProps) {
   const [hovered, setHovered] = useState(false);
+  // Full statutory title as a web hover tooltip. RN-Web drops the `title` prop, so
+  // set it on the DOM node directly; aria-label carries it for screen readers.
+  const titleRef = useRef<Text>(null);
+  useEffect(() => {
+    if (isWeb && titleRef.current) {
+      (titleRef.current as unknown as HTMLElement).title = bill.title;
+    }
+  }, [bill.title]);
   const summary = bill.aiAnalysis?.summary ?? bill.title;
   const policyAreas = bill.aiAnalysis?.policyAreas ?? [];
   const { index, tone } = billStage(bill.status);
@@ -120,13 +128,8 @@ export function BillResultCard({
         </Pressable>
       </View>
 
-      <Text
-        style={styles.title}
-        numberOfLines={2}
-        accessibilityLabel={bill.title}
-        {...(isWeb ? ({ title: bill.title } as object) : null)}
-      >
-        {bill.title}
+      <Text ref={titleRef} style={styles.title} numberOfLines={2} accessibilityLabel={bill.title}>
+        {bill.aiAnalysis?.shortTitle ?? bill.title}
       </Text>
 
       <View style={styles.summaryEyebrowRow}>

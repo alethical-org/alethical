@@ -319,6 +319,7 @@ interface ApiBillProgressStepPayload {
 }
 
 interface ApiAiAnalysisPayload {
+  short_title?: string | null;
   summary?: string | null;
   key_points?: string[] | null;
   policy_areas?: string[] | null;
@@ -533,6 +534,10 @@ function aiAnalysisFromPayload(
   if (!analysis) {
     return null;
   }
+  const shortTitle =
+    typeof analysis.short_title === 'string' && analysis.short_title.trim()
+      ? analysis.short_title.trim()
+      : null;
   const summary =
     typeof analysis.summary === 'string' && analysis.summary.trim()
       ? analysis.summary.trim()
@@ -551,6 +556,7 @@ function aiAnalysisFromPayload(
     return null;
   }
   return {
+    shortTitle,
     summary,
     keyPoints: keyPoints.map((item) => item.trim()),
     policyAreas: policyAreas.map((item) => item.trim()),
