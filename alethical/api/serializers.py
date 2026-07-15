@@ -287,6 +287,7 @@ def bill_list_item(bill, *, include_tracking: bool = False) -> api_schemas.BillL
         status_key=bill_status_key_from_summary(bill),
         latest_action_at=bill.latest_action_at,
         official_url=bill.official_url,
+        is_omnibus=bill.is_omnibus,
         chief_sponsors=sponsor_payloads(bill.chief_sponsorships),
         stats=bill_stats_payload(bill.stats),
         tracked=tracking_payload(bill.tracked_by) if include_tracking else None,

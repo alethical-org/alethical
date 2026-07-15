@@ -62,6 +62,12 @@ const palette = {
   vetoedStep: '#e5484d',
   amber: '#9a7b1f',
   progressEmpty: '#e2e5e4',
+  // omnibus indicator pill (docs/mockups/search-bills omnibus amber).
+  // Text darkened from the mockup's #a76a1a to clear WCAG AA (4.5:1): #8f5a12 on
+  // the #fbf1e2 fill is 5.16:1; #a76a1a was 3.98:1, short for 11px text.
+  omnibusFill: '#fbf1e2',
+  omnibusBorder: '#f0d6a8',
+  omnibusText: '#8f5a12',
 };
 
 // --- Alpha ramps (ink for borders/overlays, green for glows, white) ---
@@ -177,6 +183,12 @@ export const theme = {
       vetoedStep: palette.vetoedStep,
       amber: palette.amber,
       progressEmpty: palette.progressEmpty,
+    },
+    // omnibus indicator pill on bill cards
+    omnibus: {
+      fill: palette.omnibusFill,
+      border: palette.omnibusBorder,
+      text: palette.omnibusText,
     },
     footerBg: palette.ink900,
     alpha,

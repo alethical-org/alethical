@@ -89,6 +89,7 @@ export interface Bill {
   title: string;
   chamber: Chamber;
   status: string;
+  isOmnibus?: boolean;
   updatedAt: string;
   sessionLabel: string;
   topics: string[];

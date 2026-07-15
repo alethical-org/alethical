@@ -136,7 +136,10 @@ def test_bill_and_legislator_lists_support_search_filter_contract(client):
         params={"session": "94-2025-regular", "omnibus": True, "limit": 20},
     )
     assert omnibus_bills_response.status_code == 200
-    assert omnibus_bills_response.json()["data"]
+    omnibus_bills = omnibus_bills_response.json()["data"]
+    assert omnibus_bills
+    # The list item exposes is_omnibus so the card can render its OMNIBUS pill.
+    assert all(bill["is_omnibus"] is True for bill in omnibus_bills)
 
     committee_bills_response = client.get(
         "/api/v1/bills",

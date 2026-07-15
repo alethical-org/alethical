@@ -93,6 +93,7 @@ interface ApiBillListItemPayload {
   status_key?: string | null;
   latest_action_at?: string | null;
   official_url?: string | null;
+  is_omnibus?: boolean;
   chief_sponsors: ApiSponsorPayload[];
   stats?: ApiBillStatsPayload | null;
   ai_analysis?: ApiAiAnalysisPayload | null;
@@ -689,6 +690,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
     title: payload.title,
     chamber: toChamber(payload.file_type),
     status: statusLabel(payload.status_key, payload.current_status),
+    isOmnibus: payload.is_omnibus ?? false,
     updatedAt: formatUpdatedAt(payload.latest_action_at),
     sessionLabel: 'Current session',
     topics: [],

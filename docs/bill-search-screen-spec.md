@@ -68,6 +68,12 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   stages: Proposed → In Committee → Passed House → Passed Senate → Signed into Law, with
   Vetoed as a distinct terminal state. Chamber is not repeated as a word — HF/SF encodes
   it. (Status key derived at serialization from action text; `serializers.py`.)
+- **Omnibus pill** — a single prominent amber pill (capitol/gavel glyph + "OMNIBUS", fill
+  `#fbf1e2` / border `#f0d6a8` / text `#8f5a12`) in the top row immediately after the bill
+  pill, before the status word. Shown only when `is_omnibus` (surfaced per-bill on the
+  `/bills` list item). One indicator only — it is not repeated in the meta block. (Text is
+  darkened from the mockup's `#a76a1a`, which was 3.98:1 on the fill, to `#8f5a12` = 5.16:1
+  to clear WCAG AA for 11px text.)
 - **Bill title (short, plain-language)** — the card headline, largest text, clamped to 2
   lines. It leads with an AI-generated neutral `short_title` (`AIEnrichment`
   `bill_summary.short_title`) and falls back to the official statutory title when no
@@ -90,7 +96,6 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
 - **Roll-call chip** — "N roll calls", shown only when votes exist, links to the bill's
   Votes tab (`/bills/:billId?tab=votes`; the tab ships in v1 per grounded-ask §9.3).
   Puts "how everyone voted" one click from search.
-- **Omnibus badge** — only when `is_omnibus`.
 
 **Actions**
 - **Track button — auth-gated**, mirroring the answer/bill rail cards (`docs/mvp-redesign-plan.md`
