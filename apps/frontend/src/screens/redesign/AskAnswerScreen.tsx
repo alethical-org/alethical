@@ -77,6 +77,27 @@ function crossIntentChips(intent?: string, topic?: string): { label: string; sub
   return [];
 }
 
+// §4.7 follow-up chips for a bill_text answer — deterministic cross-intent
+// templates filled from the answering bill's own policy-area tag, so they are
+// non-refusable by construction (the bill is itself in that policy area, so
+// each target path returns results). No LLM, no extra call. Deeper chunk-derived
+// deep-dive chips (§4.7 rule 1) are the v1.1 upgrade (#261).
+function billTextChips(topic?: string): { label: string; submit: string }[] {
+  if (!topic) {
+    return [];
+  }
+  return [
+    {
+      label: `What other ${topic} bills are there?`,
+      submit: `What other ${topic} bills are there?`,
+    },
+    {
+      label: `Which legislators authored ${topic} bills?`,
+      submit: `Which legislators authored ${topic} bills?`,
+    },
+  ];
+}
+
 function FollowUpChips({
   chips,
   onAsk,
@@ -555,6 +576,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   onTrack={() => handleTrack(answeringBill.id)}
                 />
               ) : null}
+              <FollowUpChips
+                chips={billTextChips(answeringBill?.policyAreas?.[0])}
+                onAsk={askFollowUp}
+              />
               <View style={styles.shareRow}>
                 <Pressable
                   accessibilityRole="button"
