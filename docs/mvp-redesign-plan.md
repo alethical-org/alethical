@@ -148,6 +148,27 @@ roadmap noted for direction.
     (Home, Tracked, Chat, Account) is a separate fast-follow with its own designs — not this
     pass.
   - Drafts are still iterating in Claude Design; these are the change requests relayed back.
+  - **Backend data priority (2026-07-15):** the two search screens take priority over all
+    other deferred backend/records work. Only **three real-data blockers** remain, across
+    two independent, parallel serializer lanes; everything else on the deferred list was cut
+    from these screens or is unrelated and ranks below them.
+    - **Lane A — bills serializer** (`bill_list_stmt`, `bill_status_key*`, `serializers.py`
+      bill items): [#292](https://github.com/alethical-org/alethical/issues/292) (progress
+      sort) shipped as PR #297 (CI-green, ready to merge) →
+      [#295](https://github.com/alethical-org/alethical/issues/295) (real per-bill progress
+      bar + co-author count; today the list bar is a hardcoded `defaultProgress()`). Run #295
+      **after #297 merges** — same lane, don't run concurrently or branch off #297.
+    - **Lane B — legislator directory serializer** (`public.py`/`serializers.py` directory,
+      `models.py legislator_directory_stmt`):
+      [#291](https://github.com/alethical-org/alethical/issues/291) (authored-count bug — every
+      card reads "0 authored bills"; blocks the activity line; **in flight**) →
+      [#296](https://github.com/alethical-org/alethical/issues/296) (committee-name chips + show
+      "DFL" not "D"). Run #296 **after #291 merges** — same lane.
+    - Lanes A and B are independent and run in **parallel**. Deferred past both screens:
+      [#293](https://github.com/alethical-org/alethical/issues/293) (companion, cut element,
+      data unverified), #38 (vote-detail page — roll-call *count* is already backed, pill →
+      `/bills/:id?tab=votes`), [#151](https://github.com/alethical-org/alethical/issues/151)
+      (follow legislators, cut), #36 (notifications, unrelated).
 
 ## Build sequence
 
