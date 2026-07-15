@@ -500,6 +500,31 @@ export function FilterPill({
   );
 }
 
+/** Toggle at the end of the issue-pill row: reveals the rest of the common
+ * issues, or collapses back to the inline set. */
+export function MoreIssuesPill({
+  expanded,
+  hiddenCount,
+  onPress,
+}: {
+  expanded: boolean;
+  hiddenCount: number;
+  onPress: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={expanded ? 'Show fewer issues' : `Show ${hiddenCount} more issues`}
+      onPress={onPress}
+      {...hover}
+      style={[styles.morePill, hovered && styles.filterHover]}
+    >
+      <Text style={styles.morePillText}>{expanded ? 'Show fewer' : `+${hiddenCount} more`}</Text>
+    </Pressable>
+  );
+}
+
 // --- Results header: count + noun, sort label, and "AS OF {date}" ---
 export function ResultsHeader({
   count,
@@ -912,6 +937,24 @@ const styles = StyleSheet.create({
     color: t.colors.text.faint,
   },
   pillCountActive: { color: '#0b7a45' },
+  morePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: t.colors.brand.base,
+    borderStyle: 'dashed',
+    borderRadius: 11,
+    paddingVertical: 9,
+    paddingHorizontal: 15,
+    minHeight: 40,
+  },
+  morePillText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.brand.deep,
+  },
 
   // results header
   resultsHeader: {
