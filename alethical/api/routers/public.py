@@ -62,6 +62,7 @@ Sponsorship = schema.Sponsorship
 SponsorshipRole = schema.SponsorshipRole
 bill_detail_stmt = schema.bill_detail_stmt
 bill_list_stmt = schema.bill_list_stmt
+bill_status_key_expr = schema.bill_status_key_expr
 find_my_legislator_stmt = schema.find_my_legislator_stmt
 legislator_directory_stmt = schema.legislator_directory_stmt
 legislator_profile_stmt = schema.legislator_profile_stmt
@@ -272,41 +273,19 @@ def district_for_match(db: Session, match: DistrictMatch | None):
 
 
 def status_filter_clause(status: str):
-    status_value = status.strip()
-    normalized = status_value.lower().replace(" ", "_")
-    status_patterns = {
-        "proposed": [
-            "introduction",
-            "author added",
-            "authors added",
-            "chief author added",
-        ],
-        "in_committee": ["referred", "committee", "second reading"],
-        "passed_house": [
-            "passed house",
-            "house passed",
-            "bill was passed",
-            "third reading passed",
-        ],
-        "passed_senate": ["passed senate", "senate passed", "repassed"],
-        "signed_into_law": [
-            "governor",
-            "chapter number",
-            "secretary of state",
-            "effective date",
-        ],
-        "vetoed": ["veto"],
-    }
-    patterns = status_patterns.get(normalized)
-    if patterns:
-        return or_(
-            Bill.current_status_code == normalized,
-            *[Bill.current_status.ilike(f"%{pattern}%") for pattern in patterns],
-        )
-    return or_(
-        Bill.current_status_code == status_value,
-        Bill.current_status.ilike(f"%{status_value}%"),
-    )
+    """Filter bills to a single status, matching the list-card badge exactly.
+
+    Classifies each bill with ``bill_status_key_expr`` — the same cascade the
+    displayed badge uses — and keeps only the bills whose derived key equals the
+    selected status. Because every bill maps to exactly one status, the six
+    filters are mutually exclusive and their counts sum to the session total
+    (the prior per-status OR-substring match double-counted any bill whose
+    latest-action text hit two stages, e.g. "Introduction and first reading,
+    referred to committee" landed in both "proposed" and "in_committee"). An
+    unrecognized status matches nothing, which is correct — it has no bills.
+    """
+    normalized = status.strip().lower().replace(" ", "_")
+    return bill_status_key_expr() == normalized
 
 
 @router.get("/meta", response_model=DetailResponse)
