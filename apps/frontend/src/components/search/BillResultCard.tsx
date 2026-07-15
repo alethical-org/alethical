@@ -120,7 +120,14 @@ export function BillResultCard({
         </Pressable>
       </View>
 
-      <Text style={styles.title}>{bill.title}</Text>
+      <Text
+        style={styles.title}
+        numberOfLines={2}
+        accessibilityLabel={bill.title}
+        {...(isWeb ? ({ title: bill.title } as object) : null)}
+      >
+        {bill.title}
+      </Text>
 
       <View style={styles.summaryEyebrowRow}>
         <View style={styles.aiDot} />
