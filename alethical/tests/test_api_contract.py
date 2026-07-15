@@ -145,15 +145,22 @@ def test_bill_and_legislator_lists_support_search_filter_contract(client):
     assert committee_bills_response.status_code == 200
     assert isinstance(committee_bills_response.json()["data"], list)
 
+    # policy_area filters on exact array-element membership (the value a
+    # /policy-areas pill sends), not a substring — so the pill's count and the
+    # filtered list agree.
     economy_bills_response = client.get(
         "/api/v1/bills",
-        params={"session": "94-2025-regular", "policy_area": "economic", "limit": 20},
+        params={
+            "session": "94-2025-regular",
+            "policy_area": "economic development",
+            "limit": 20,
+        },
     )
     assert economy_bills_response.status_code == 200
     economy_bills = economy_bills_response.json()["data"]
     assert economy_bills
     assert all(
-        any("economic" in area for area in bill["ai_analysis"]["policy_areas"])
+        "economic development" in bill["ai_analysis"]["policy_areas"]
         for bill in economy_bills
     )
 
@@ -1858,3 +1865,47 @@ def test_bills_sort_rejects_unknown_value(client):
         params={"session": "94-2025-regular", "sort": "banana"},
     )
     assert response.status_code == 422
+
+
+def test_bills_policy_area_filter_matches_exact_element_under_progress_sort(client):
+    """Regression: a Search Bills policy pill filters by exact array element and
+    returns 200 alongside the default sort=progress.
+
+    The pill sends the exact /policy-areas value (e.g. "higher education"); the
+    filter must match whole elements, not substrings, so the pill count and the
+    filtered list agree. The prior substring cast(...)::text ILIKE was also so
+    slow that combining it with sort=progress timed out (502) on production, so
+    the click never narrowed the list. SF2483's policy_areas are
+    ["higher education", "funding", "student aid", "appropriations"]."""
+    exact_response = client.get(
+        "/api/v1/bills",
+        params={
+            "session": "94-2025-regular",
+            "policy_area": "higher education",
+            "sort": "progress",
+            "limit": 50,
+        },
+    )
+    assert exact_response.status_code == 200
+    exact_bills = exact_response.json()["data"]
+    assert exact_bills
+    assert all(
+        "higher education" in bill["ai_analysis"]["policy_areas"]
+        for bill in exact_bills
+    )
+    assert any(bill["file_number"] == 2483 for bill in exact_bills)
+
+    # "education" is a substring of "higher education" but not an element of any
+    # bill's policy_areas, so exact-element matching returns nothing — proving
+    # the over-matching substring behavior is gone.
+    substring_response = client.get(
+        "/api/v1/bills",
+        params={
+            "session": "94-2025-regular",
+            "policy_area": "education",
+            "sort": "progress",
+            "limit": 50,
+        },
+    )
+    assert substring_response.status_code == 200
+    assert substring_response.json()["data"] == []
