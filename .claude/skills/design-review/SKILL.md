@@ -26,6 +26,8 @@ Not for: a **finalized** design ready to build (→ `design-build`), proofing a 
 
 ## Procedure
 
+**Resolving which bundle to review.** If the invocation names a bundle (a path or page name), use it. Otherwise — including a bare `/design-review` with no other arguments — default to the **most recently downloaded bundle in `~/Downloads`**, so the skill can be invoked with nothing else and still know what to review. Find the newest candidate with `ls -td ~/Downloads/*/ ~/Downloads/*.zip 2>/dev/null | head` (a Claude Design bundle is a folder — or a `.zip` of one — holding `README.md` + a `.dc.html` + `screenshots/`); unzip a `.zip` first. If the newest item isn't a design bundle, fall back to the newest one that is. Confirm in one line which bundle you picked and what page it's for, then frame it (step 0). This pass reads the bundle in place for feedback — it does not land it in-repo (that's `design-build`'s job once the design finalizes).
+
 **0. Frame it.** Identify the page, the preview-band state(s) shown (reference frames only by Claude Design's own band labels — never invented names, per the `claude-design-prompt-rules` memory), its place in the IA and `docs/mvp-redesign-plan.md`, and pull the governing spec (`docs/v1-scope.md`, `docs/grounded-ask-spec.md`, the relevant issues/milestone). State in one line what this screen is and is for.
 
 **1. Ground every element.** Walk *each discrete element* — every field, chip, badge, count, filter, card, CTA, empty state, suggested question — and tag it:
