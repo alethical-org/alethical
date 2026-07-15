@@ -34,7 +34,8 @@ import {
 
 // Search Bills (docs/mockups/search-bills). Server-paginated bill discovery over
 // the current session with chamber / status / session / omnibus filters + policy
-// pills, ordered by latest legislative action, with auth-gated per-bill tracking.
+// pills, ordered by legislative progress (sort=progress, #292), with auth-gated
+// per-bill tracking.
 
 const PAGE_SIZE = 10;
 const ALL_POLICIES = 'All policies';
@@ -77,6 +78,9 @@ export function SearchBillsScreen() {
     status: status || undefined,
     policyArea: policyArea === ALL_POLICIES ? undefined : policyArea,
     omnibus: omnibusOnly ? true : undefined,
+    // Default sort per Search Bills design-review (2026-07-15): legislative
+    // progress — bills closest to becoming law first (#292).
+    sort: 'progress',
   };
 
   const billsQuery = useBills(query || undefined, sessionSlug || undefined, filters, {
@@ -262,7 +266,7 @@ export function SearchBillsScreen() {
       <ResultsHeader
         count={resultCount}
         noun="bills"
-        sortLabel="Sorted by latest action"
+        sortLabel="Sorted by legislative progress"
         dataAsOf={metaQuery.data?.dataAsOf}
       />
 
