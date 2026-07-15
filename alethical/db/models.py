@@ -22,6 +22,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    case,
     func,
     select,
     text,
@@ -1002,8 +1003,49 @@ def current_bill_summary_enrichment_bill_ids():
     )
 
 
-def bill_list_stmt(session_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
-    """Load a bill list page with stats, chief-sponsor preview, and optional tracked state."""
+def bill_progress_rank():
+    """Stage rank for legislative-progress sort: lower rank = further along.
+
+    Mirrors ``bill_status_key_from_summary`` (alethical/api/serializers.py) — the
+    heuristic the list card's status badge displays — so the sort order and the
+    displayed badge never disagree. Both classify from ``Bill.current_status``
+    alone, in the same priority cascade (veto wins over governor), so this needs
+    no join to ``bill_action`` and adds no N+1. Keep the two in sync.
+    """
+    status = func.lower(func.coalesce(Bill.current_status, ""))
+    return case(
+        (status.contains("veto"), 1),  # vetoed
+        (
+            status.contains("governor")
+            | status.contains("chapter number")
+            | status.contains("secretary of state")
+            | status.contains("effective date"),
+            0,  # signed_into_law
+        ),
+        (status.contains("senate") & status.contains("pass"), 2),  # passed_senate
+        (status.contains("pass"), 3),  # passed_house
+        (
+            status.contains("referred")
+            | status.contains("committee")
+            | status.contains("second reading"),
+            4,  # in_committee
+        ),
+        else_=5,  # proposed
+    )
+
+
+def bill_list_stmt(
+    session_id: uuid.UUID,
+    user_id: Optional[uuid.UUID] = None,
+    sort: str = "latest_action",
+):
+    """Load a bill list page with stats, chief-sponsor preview, and optional tracked state.
+
+    ``sort`` selects the ordering: ``"latest_action"`` (default) keeps the
+    most-recent-activity order; ``"progress"`` orders by legislative stage
+    (signed → vetoed → passed senate → passed house → in committee → proposed),
+    tie-broken by most-recent activity.
+    """
     options = [
         selectinload(Bill.stats),
         selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
@@ -1013,6 +1055,15 @@ def bill_list_stmt(session_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
         options.append(
             selectinload(Bill.tracked_by.and_(TrackedBill.user_id == user_id))
         )
+    recency_order = (
+        Bill.latest_action_at.desc().nullslast(),
+        Bill.file_number.asc(),
+        Bill.id.asc(),
+    )
+    if sort == "progress":
+        order_by = (bill_progress_rank().asc(), *recency_order)
+    else:
+        order_by = recency_order
     return (
         select(Bill)
         .where(
@@ -1020,11 +1071,7 @@ def bill_list_stmt(session_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
             Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
         )
         .options(*options)
-        .order_by(
-            Bill.latest_action_at.desc().nullslast(),
-            Bill.file_number.asc(),
-            Bill.id.asc(),
-        )
+        .order_by(*order_by)
     )
 
 

@@ -1465,3 +1465,190 @@ def test_ask_classifier_degrades_to_fallback_on_unparseable_response(
     )
     assert response.status_code == 200
     assert response.json()["data"]["source"] == "fallback"
+
+
+PROGRESS_SORT_SESSION_SLUG = "test-progress-sort-fixture"
+
+
+def _seed_progress_sort_bills(schema) -> str:
+    """Idempotently seed one listed bill per legislative stage (plus a
+    same-stage recency pair) into a dedicated, isolated legislative session so
+    the fixtures never leak into the shared ``94-2025-regular`` list other
+    tests query. Returns the dedicated session slug."""
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    from alethical.db.session import get_session_factory
+
+    # current_status string -> expected status_key (bill_status_key_from_summary),
+    # file_number, latest_action_at. Chosen so each maps unambiguously and the
+    # veto/governor priority (veto wins) is exercised.
+    fixtures = [
+        (
+            "Governor approval; chapter number 45",
+            "signed_into_law",
+            90001,
+            datetime(2025, 3, 1, tzinfo=timezone.utc),
+        ),
+        (
+            "Vetoed by the Governor",
+            "vetoed",
+            90002,
+            datetime(2025, 3, 2, tzinfo=timezone.utc),
+        ),
+        (
+            "Passed the senate on third reading",
+            "passed_senate",
+            90003,
+            datetime(2025, 3, 3, tzinfo=timezone.utc),
+        ),
+        (
+            "Third reading passed",
+            "passed_house",
+            90004,
+            datetime(2025, 3, 4, tzinfo=timezone.utc),
+        ),
+        (
+            "Referred to committee on education",
+            "in_committee",
+            90005,
+            datetime(2025, 1, 10, tzinfo=timezone.utc),
+        ),
+        (
+            "Second reading and referred to committee",
+            "in_committee",
+            90006,
+            datetime(2025, 2, 20, tzinfo=timezone.utc),
+        ),
+        (
+            "Introduction and first reading",
+            "proposed",
+            90007,
+            datetime(2025, 1, 5, tzinfo=timezone.utc),
+        ),
+    ]
+    with get_session_factory()() as db:
+        base_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        chamber = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "house")
+        )
+        assert base_session is not None and chamber is not None
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == PROGRESS_SORT_SESSION_SLUG
+            )
+        )
+        if session_row is None:
+            session_row = schema.LegislativeSession(
+                jurisdiction_id=base_session.jurisdiction_id,
+                slug=PROGRESS_SORT_SESSION_SLUG,
+                session_number=9999,
+                session_type=schema.SessionType.regular,
+                year_start=2999,
+                year_end=3000,
+                name="Progress-sort fixture session",
+                is_current=False,
+            )
+            db.add(session_row)
+            db.flush()
+        for current_status, _expected_key, file_number, latest_action_at in fixtures:
+            bill_key = f"{PROGRESS_SORT_SESSION_SLUG}-HF{file_number}"
+            existing = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == bill_key)
+            )
+            if existing is not None:
+                continue
+            bill = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=chamber.id,
+                bill_key=bill_key,
+                file_type="HF",
+                file_number=file_number,
+                title=f"Progress-sort fixture HF{file_number}",
+                description="Progress-sort fixture bill",
+                current_status=current_status,
+                latest_action_at=latest_action_at,
+                official_url=f"https://example.test/hf{file_number}",
+                is_omnibus=False,
+            )
+            db.add(bill)
+            db.flush()
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=bill.id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={"summary": "Fixture summary."},
+                    is_current=True,
+                )
+            )
+        db.commit()
+    return PROGRESS_SORT_SESSION_SLUG
+
+
+def test_bills_sort_progress_orders_by_stage_then_recency(client):
+    from alethical.db.schema import load_schema
+
+    session_slug = _seed_progress_sort_bills(load_schema())
+
+    response = client.get(
+        "/api/v1/bills",
+        params={"session": session_slug, "sort": "progress", "limit": 100},
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    keys = [item["status_key"] for item in data]
+    file_numbers = [item["file_number"] for item in data]
+
+    # Stage rank: signed -> vetoed -> passed_senate -> passed_house ->
+    # in_committee -> proposed. Ties broken by latest_action_at DESC.
+    assert keys == [
+        "signed_into_law",
+        "vetoed",
+        "passed_senate",
+        "passed_house",
+        "in_committee",
+        "in_committee",
+        "proposed",
+    ]
+    # Within the in_committee band, the more recent action sorts first.
+    in_committee_files = [
+        fn for fn, k in zip(file_numbers, keys) if k == "in_committee"
+    ]
+    assert in_committee_files == [90006, 90005]
+
+
+def test_bills_sort_default_is_latest_action_unchanged(client):
+    from alethical.db.schema import load_schema
+
+    session_slug = _seed_progress_sort_bills(load_schema())
+
+    default_response = client.get(
+        "/api/v1/bills",
+        params={"session": session_slug, "limit": 100},
+    )
+    latest_response = client.get(
+        "/api/v1/bills",
+        params={"session": session_slug, "sort": "latest_action", "limit": 100},
+    )
+    assert default_response.status_code == 200
+    assert latest_response.status_code == 200
+    default_files = [item["file_number"] for item in default_response.json()["data"]]
+    latest_files = [item["file_number"] for item in latest_response.json()["data"]]
+
+    # Default == explicit latest_action, and both order by latest_action_at DESC.
+    assert default_files == latest_files
+    assert default_files == [90004, 90003, 90002, 90001, 90006, 90005, 90007]
+
+
+def test_bills_sort_rejects_unknown_value(client):
+    response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "sort": "banana"},
+    )
+    assert response.status_code == 422
