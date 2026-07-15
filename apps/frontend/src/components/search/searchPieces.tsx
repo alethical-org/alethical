@@ -340,7 +340,7 @@ export function FilterDropdown({
   }, [open]);
 
   return (
-    <View ref={wrapRef as never} style={styles.dropdownWrap}>
+    <View ref={wrapRef as never} style={[styles.dropdownWrap, open && styles.dropdownWrapOpen]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
@@ -792,6 +792,9 @@ const styles = StyleSheet.create({
 
   // dropdown
   dropdownWrap: { position: 'relative', zIndex: 30 },
+  // An open dropdown outranks its sibling filter controls (the other dropdown,
+  // segmented control, omnibus toggle) so its menu is never painted behind them.
+  dropdownWrapOpen: { zIndex: 100 },
   dropdownTrigger: {
     flexDirection: 'row',
     alignItems: 'center',

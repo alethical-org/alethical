@@ -323,8 +323,10 @@ export function SearchBillsScreen() {
 }
 
 const styles = StyleSheet.create({
-  filterRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
-  pillRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
+  // The filter row (with its dropdown menus) sits above the policy pill row so an
+  // open menu overlays the pills instead of being painted behind them.
+  filterRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12, zIndex: 2 },
+  pillRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, zIndex: 1 },
   list: { marginTop: 22, gap: 18 },
   stateBox: {
     paddingVertical: 64,
