@@ -18,6 +18,7 @@ import {
   SearchHero,
   SearchPageShell,
   SESSION_LABEL_FALLBACK,
+  formatSessionLabel,
 } from '../../components/search/searchPieces';
 
 // Search Legislators (docs/mockups/search-legislators). Name / district / party
@@ -52,8 +53,8 @@ export function SearchLegislatorsScreen() {
   const currentSession =
     sessionsQuery.data?.find((item) => item.isCurrent) ?? sessionsQuery.data?.[0];
   const sessionSlug = session || currentSession?.slug || '';
-  const sessionLabel =
-    sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name ?? SESSION_LABEL_FALLBACK;
+  const sessionName = sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name;
+  const sessionLabel = sessionName ? formatSessionLabel(sessionName) : SESSION_LABEL_FALLBACK;
 
   // The list API serves the full roster (no server pagination); chamber + party
   // filtering and paging happen client-side.
@@ -141,7 +142,10 @@ export function SearchLegislatorsScreen() {
       <FilterDropdown
         label={sessionLabel}
         accessibilityLabel="Filter by session"
-        options={(sessionsQuery.data ?? []).map((item) => ({ label: item.name, value: item.slug }))}
+        options={(sessionsQuery.data ?? []).map((item) => ({
+          label: formatSessionLabel(item.name),
+          value: item.slug,
+        }))}
         selectedValue={sessionSlug}
         open={openFilter === 'session'}
         onOpenChange={(next) => setOpenFilter(next ? 'session' : null)}
