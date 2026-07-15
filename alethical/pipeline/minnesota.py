@@ -11,7 +11,7 @@ from typing import Any
 from urllib.parse import urljoin
 
 import requests
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
@@ -1097,6 +1097,22 @@ class MinnesotaIngestionPipeline:
         ]
         latest_index = len(text_versions)
         latest_version = None
+        # Exactly one current version per bill (#285). Clear any existing current
+        # flag up front, so the loop below re-marks only the latest. A prior ingest
+        # may have made a version current under a version_code no longer in this
+        # fetch (e.g. the "current" fallback used when text_versions was empty, vs.
+        # a real engrossment code like "0"); without this it would stay current
+        # forever, doubling the flag. Clearing *before* the loop also keeps the
+        # partial unique index (one current per bill) satisfied at every flush.
+        self.db.execute(
+            update(BillVersion)
+            .where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.is_current.is_(True),
+            )
+            .values(is_current=False)
+            .execution_options(synchronize_session="fetch")
+        )
         for index, version_payload in enumerate(text_versions, start=1):
             version_code = str(
                 version_payload.get("document_engrossment")

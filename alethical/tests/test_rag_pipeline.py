@@ -447,3 +447,100 @@ async def test_pipeline_run_worker_threads_include_rag_to_full_bill_sync(
     await PipelineRunWorker().process(SimpleNamespace(args=bills_only))
     child = next(args for name, args in calls if name == "FullBillSyncWorker")
     assert child["include_rag"] is True
+
+
+def test_semantic_retrieval_excludes_non_current_versions() -> None:
+    """#285: retrieval keys on bill_id, not version, so RAG left on a superseded
+    version must not surface in a grounded answer. semantic_rag_chunk_stmt defaults
+    to current_version_only=True and returns only the current version's chunks;
+    the opt-out returns both, proving the scope is what excludes the old one."""
+    vec = [0.1] * 1536
+    with _session() as db:
+        seed = db.scalar(select(schema.Bill).limit(1))
+        assert seed is not None
+        bill = schema.Bill(
+            session_id=seed.session_id,
+            chamber_id=seed.chamber_id,
+            bill_key="test-285-versionscope-HF7777",
+            file_type="HF",
+            file_number=7777,
+            title="version-scoping retrieval test",
+        )
+        db.add(bill)
+        db.flush()
+
+        def add_version(code: str, is_current: bool, label: str):
+            version = schema.BillVersion(
+                bill_id=bill.id,
+                version_code=code,
+                sequence_number=1,
+                is_current=is_current,
+            )
+            db.add(version)
+            db.flush()
+            rsd = schema.RagSectionDocument(
+                bill_id=bill.id,
+                bill_version_id=version.id,
+                citation_label=label,
+                clean_text="text",
+                search_text="text",
+                cleaning_version="v0.1",
+                source_hash=f"hash-{code}",
+                word_count=1,
+            )
+            db.add(rsd)
+            db.flush()
+            chunk = schema.RagChunk(
+                rag_section_document_id=rsd.id,
+                chunk_index=0,
+                citation_label=label,
+                chunk_text=f"chunk {label}",
+                search_text="chunk",
+                chunking_version="v0.1",
+                word_count=1,
+            )
+            db.add(chunk)
+            db.flush()
+            db.add(
+                schema.RagChunkEmbedding(
+                    rag_chunk_id=chunk.id,
+                    embedding_model="text-embedding-3-small",
+                    embedding=vec,
+                )
+            )
+            db.flush()
+
+        # Current first, then the superseded version (the partial unique index
+        # permits only one is_current at a time).
+        add_version("0", True, "HF 7777 (current)")
+        add_version("current", False, "HF 7777 (superseded)")
+
+        scoped = {
+            c.citation_label
+            for c in db.scalars(
+                schema.semantic_rag_chunk_stmt(
+                    vec,
+                    bill_id=bill.id,
+                    embedding_model="text-embedding-3-small",
+                    limit=10,
+                )
+            ).all()
+        }
+        assert "HF 7777 (current)" in scoped
+        assert "HF 7777 (superseded)" not in scoped
+
+        unscoped = {
+            c.citation_label
+            for c in db.scalars(
+                schema.semantic_rag_chunk_stmt(
+                    vec,
+                    bill_id=bill.id,
+                    embedding_model="text-embedding-3-small",
+                    limit=10,
+                    current_version_only=False,
+                )
+            ).all()
+        }
+        assert "HF 7777 (superseded)" in unscoped
+
+        db.rollback()

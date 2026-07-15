@@ -24,6 +24,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
     select,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import (
@@ -460,6 +461,16 @@ class BillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("bill_id", "version_code"),
         Index("ix_bill_version_bill_sequence", "bill_id", "sequence_number"),
+        # At most one current version per bill. A canonical refresh that adds a
+        # new version must clear is_current on the others (see
+        # MinnesotaIngestionPipeline.upsert_versions_and_sections); this partial
+        # unique index makes the invariant impossible to violate (#285).
+        Index(
+            "uq_bill_version_one_current_per_bill",
+            "bill_id",
+            unique=True,
+            postgresql_where=text("is_current"),
+        ),
     )
 
 
@@ -1163,6 +1174,7 @@ def semantic_rag_chunk_stmt(
     embedding_model: Optional[str] = None,
     limit: int = 10,
     max_distance: Optional[float] = None,
+    current_version_only: bool = True,
 ):
     """Load retrieval-ready chunks ordered by vector similarity with canonical provenance.
 
@@ -1170,7 +1182,13 @@ def semantic_rag_chunk_stmt(
     chunks within that cosine distance of the query are returned, so a weak
     match yields nothing (the caller refuses rather than stretches — the Ask
     cite-or-refuse guardrail, docs/grounded-ask-spec.md §4.5). Left ``None`` for
-    callers like bill-scoped chat that always want the nearest neighbours."""
+    callers like bill-scoped chat that always want the nearest neighbours.
+
+    ``current_version_only`` (default True) scopes retrieval to each bill's
+    current ``BillVersion``, so RAG left on a superseded version can never surface
+    in a grounded answer — the answer always reflects the bill as it stands now
+    (#285). Retrieval keys on ``bill_id`` alone, not the version, so without this a
+    stale/duplicate version's chunks would mix in."""
     distance = RagChunkEmbedding.embedding.cosine_distance(query_embedding)
     stmt = (
         select(RagChunk)
@@ -1183,6 +1201,10 @@ def semantic_rag_chunk_stmt(
         .order_by(distance)
         .limit(limit)
     )
+    if current_version_only:
+        stmt = stmt.join(
+            BillVersion, BillVersion.id == RagSectionDocument.bill_version_id
+        ).where(BillVersion.is_current.is_(True))
     if bill_id is not None:
         stmt = stmt.where(RagSectionDocument.bill_id == bill_id)
     if embedding_model is not None:

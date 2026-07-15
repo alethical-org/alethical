@@ -5,7 +5,13 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from alethical.db.models import Legislator, LegislatorServicePeriod
+from alethical.db.models import (
+    ArtifactType,
+    Bill,
+    BillVersion,
+    Legislator,
+    LegislatorServicePeriod,
+)
 from alethical.db.session import get_engine
 from alethical.pipeline.minnesota import (
     LEGISLATOR_LOCK_KEY,
@@ -156,5 +162,71 @@ def test_reference_upserts_skip_advisory_lock_when_rows_exist(
         again = pipeline.upsert_legislator(refs, "Test Member A", external_key=new_key)
         assert lock_calls == []
         assert again.external_key == new_key
+
+        session.rollback()
+
+
+def test_reingest_with_new_version_code_keeps_one_current(seed_database: None) -> None:
+    """#285 regression: a refresh that introduces a new version_code — the real
+    engrossment code, when the prior ingest stored the "current" fallback — must
+    leave exactly one is_current version per bill, not double the flag. The old
+    version is retained (superseded) but demoted."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        run = pipeline.start_run("bill", "94-2025-HF8888")
+        artifact = pipeline.record_artifact(
+            run,
+            ArtifactType.html,
+            "https://example.test/hf8888.html",
+            "<html></html>",
+        )
+
+        bill = Bill(
+            session_id=refs["session"].id,
+            chamber_id=refs["chambers"]["house"].id,
+            bill_key="94-2025-HF8888",
+            file_type="HF",
+            file_number=8888,
+            title="Dup-current regression bill",
+        )
+        session.add(bill)
+        session.flush()
+
+        bill_text: dict = {"sections": [], "articles": []}
+
+        # First ingest: empty text_versions -> the "current" fallback code.
+        pipeline.upsert_versions_and_sections(
+            bill, {"text_versions": []}, bill_text, artifact
+        )
+        # Second ingest (refresh): a real engrossment code "0".
+        pipeline.upsert_versions_and_sections(
+            bill,
+            {
+                "text_versions": [
+                    {"document_engrossment": "0", "document_name": "Introduced"}
+                ]
+            },
+            bill_text,
+            artifact,
+        )
+        session.flush()
+
+        current = session.scalars(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.is_current.is_(True),
+            )
+        ).all()
+        assert len(current) == 1
+        assert current[0].version_code == "0"
+
+        all_codes = {
+            v.version_code
+            for v in session.scalars(
+                select(BillVersion).where(BillVersion.bill_id == bill.id)
+            ).all()
+        }
+        assert all_codes == {"current", "0"}
 
         session.rollback()
