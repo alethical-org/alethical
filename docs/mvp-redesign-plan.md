@@ -109,6 +109,45 @@ roadmap noted for direction.
 - **Find My Legislator hero:** Option C — dedicated "Find your legislators" band directly
   below the hero with a Minnesota map motif + address/ZIP input; additive to the
   Search → Legislators menu entry. (Mockup in progress.)
+- **Search Bills / Search Legislators — design-review decisions (2026-07-15):** the split
+  (`SearchScreen` → `BillsScreen` + `LegislatorsScreen`, per the build-sequence + route
+  scheme below) is now driven by a matched pair of high-fidelity Claude-design drafts
+  (`design_handoff_search_bills`, `design_handoff_search_legislators`). Design-review
+  grounded every element against the DB/API; the resolved calls:
+  - **Bills screen ships largely as drawn** — real data backs search, chamber/status/
+    session/omnibus filters, policy pills **with real counts** (`/policy-areas`), the
+    per-bill **AI summary** (genuine `AIEnrichment`, not the official digest), Track +
+    Google sign-in, author/latest-action, roll-call **count**, pagination, data-as-of.
+  - **Session label is the 94th, not the 89th.** DB stores "94th Legislature (2025-2026)
+    Regular Session" (`pipeline/minnesota.py:706-711`, `pipeline/sessions.py`); the draft's
+    "89th" was factually wrong. Always spelled out in full with years.
+  - **Roll-calls pill links to the bill's votes tab** (`/bills/:id?tab=votes`), not a
+    standalone roll-call page (deferred, #38) — keeps it URL-addressable (grounded-answers
+    rule 5).
+  - **Companion-bill link cut** for the first ship — schema has `companion_bill_id` but no
+    API serves it and population is unverified. Tracked as **#293**.
+  - **Sort:** ships **"Sorted by latest action"** (the only order the API supports today);
+    "by legislative progress" (the draft's label) is a fast follow — **#292**.
+  - **Legislators screen — four ungrounded draft elements resolved:**
+    - **Follow (cut).** Follow-a-legislator is #151 (v2) and depends on notifications
+      (#36); removed the Follow button, its sign-in modal, and its toast. Screen ships as a
+      browsable directory (whole-card link to the profile).
+    - **Focus-area filter pills (cut).** No legislator topic/focus data exists; counts were
+      invented. Keep the **Chamber** + **Party** filters (both backed).
+    - **Activity line → "{n} bills authored" only.** "Signed into law this session" isn't
+      computed; dropped. The authored count itself is currently **0 for everyone** — a real
+      attribution bug fixed via **#291** (blocks this line).
+    - **Role line → chamber-derived title** ("State Senator" / "State Representative").
+      Committee `role` ("Chair") is never ingested (always null); dropped. Committee **chips**
+      stay (needs committee names added to the `/legislators` list serializer — small).
+    - **Party shows "DFL"** (DB stores the raw MN abbreviation; the live "D" is a frontend
+      `toParty` collapse to adjust). Neutral chip, no partisan color (grounded-answers
+      rule 3).
+  - **Nav scope (sequencing):** build both screens with the shared TopNav (works signed-out
+    + signed-in); the global left-rail → TopNav migration of the rest of the signed-in app
+    (Home, Tracked, Chat, Account) is a separate fast-follow with its own designs — not this
+    pass.
+  - Drafts are still iterating in Claude Design; these are the change requests relayed back.
 
 ## Build sequence
 
@@ -181,7 +220,10 @@ Frontend track (after Phase 0; parallel with backend track)
 - [ ] Migrate `webRoutes.ts` onto the registry + redirects
 - [ ] Option 1 marketing hero: green primitives, placeholder copy, example-question chips, interim Ask → sign-in
 - [ ] Find My Legislator Option C band + MN map (mockup in progress)
-- [ ] Search split → `BillsScreen` + `LegislatorsScreen` + shared filter hook
+- [ ] Search split → `BillsScreen` + `LegislatorsScreen` + shared filter hook — driven by
+  the 2026-07-15 design-review decisions (Locked decisions above); build blockers/follow-ups
+  #291 (authored-count bug, blocks the legislators activity line), #292 (progress-sort, fast
+  follow), #293 (companion link, deferred)
 - [ ] About static pages (About Us / Trust & Integrity / Contact Us); Trust page as real brand copy
 - [ ] Account menu + nav-after-sign-in; move Privacy/Terms into footer
 - [ ] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect
