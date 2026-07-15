@@ -8,7 +8,7 @@ from uuid import UUID
 import requests
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import String, and_, cast, func, or_, select
+from sqlalchemy import String, and_, case, cast, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.auth import get_optional_current_user
@@ -59,6 +59,7 @@ LegislativeSession = schema.LegislativeSession
 Legislator = schema.Legislator
 LegislatorServicePeriod = schema.LegislatorServicePeriod
 Sponsorship = schema.Sponsorship
+SponsorshipRole = schema.SponsorshipRole
 bill_detail_stmt = schema.bill_detail_stmt
 bill_list_stmt = schema.bill_list_stmt
 find_my_legislator_stmt = schema.find_my_legislator_stmt
@@ -74,6 +75,38 @@ def paginated_scalars(db: Session, stmt, *, limit: int, offset: int):
         return [], False
     rows = db.scalars(stmt.offset(offset).limit(limit + 1)).all()
     return rows[:limit], len(rows) > limit
+
+
+def authored_bill_counts(db: Session, legislator_ids) -> dict[str, tuple[int, int]]:
+    """Live authored-bill counts (total, chief) per legislator, computed
+    set-wise from Sponsorship in one grouped query. Mirrors the Ask path
+    (alethical/api/routers/ask.py, topic→legislators) which derives counts from
+    the Sponsorship join rather than the stored LegislatorStats, whose
+    total_bill_count can read 0 on directory rows even when the person authored
+    bills (#291). One query for the whole page — no per-row N+1. Returns
+    {legislator_id: (total_bill_count, chief_bill_count)}."""
+    ids = list(legislator_ids)
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(
+            Sponsorship.legislator_id,
+            func.count(func.distinct(Sponsorship.bill_id)).label("total"),
+            func.count(
+                func.distinct(
+                    case(
+                        (
+                            Sponsorship.role == SponsorshipRole.chief_author,
+                            Sponsorship.bill_id,
+                        )
+                    )
+                )
+            ).label("chief"),
+        )
+        .where(Sponsorship.legislator_id.in_(ids))
+        .group_by(Sponsorship.legislator_id)
+    ).all()
+    return {str(row.legislator_id): (row.total, row.chief) for row in rows}
 
 
 _BILL_NUMBER_QUERY_RE = re.compile(r"^\s*([A-Za-z]{2})\s*0*(\d+)\s*$")
@@ -622,7 +655,15 @@ def legislators(
         )
     total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
     rows, has_more = paginated_scalars(db, stmt, limit=limit, offset=offset)
-    data = [legislator_list_item(row).model_dump(exclude_none=True) for row in rows]
+    counts = authored_bill_counts(db, [row.id for row in rows])
+    data = [
+        legislator_list_item(
+            row,
+            total_bill_count=counts.get(str(row.id), (0, 0))[0],
+            chief_bill_count=counts.get(str(row.id), (0, 0))[1],
+        ).model_dump(exclude_none=True)
+        for row in rows
+    ]
     return CollectionResponse(
         data=data,
         page={
@@ -663,12 +704,15 @@ def legislator_detail(
         )
     if "stats" in include_set:
         stats = row.stats[0] if row.stats else None
-        if stats:
+        total_bill_count, chief_bill_count = authored_bill_counts(db, [row.id]).get(
+            str(row.id), (0, 0)
+        )
+        if stats or total_bill_count or chief_bill_count:
             payload["stats"] = {
-                "chief_bill_count": stats.chief_bill_count,
-                "total_bill_count": stats.total_bill_count,
-                "vote_record_count": stats.vote_record_count,
-                "committee_count": stats.committee_count,
+                "chief_bill_count": chief_bill_count,
+                "total_bill_count": total_bill_count,
+                "vote_record_count": stats.vote_record_count if stats else 0,
+                "committee_count": stats.committee_count if stats else 0,
             }
     if "committees" in include_set:
         payload["committees"] = [
@@ -757,8 +801,13 @@ def district_legislators(
 ):
     session_row = get_session_by_slug(db, session)
     rows = db.scalars(find_my_legislator_stmt(session_row.id, [district_id])).all()
+    counts = authored_bill_counts(db, [row.legislator.id for row in rows])
     data = [
-        legislator_list_item(row.legislator).model_dump(exclude_none=True)
+        legislator_list_item(
+            row.legislator,
+            total_bill_count=counts.get(str(row.legislator.id), (0, 0))[0],
+            chief_bill_count=counts.get(str(row.legislator.id), (0, 0))[1],
+        ).model_dump(exclude_none=True)
         for row in rows
     ]
     return CollectionResponse(
@@ -842,6 +891,14 @@ def representative_lookup(
             type_slug="representative-legislators-not-found",
         )
 
+    rep_counts = authored_bill_counts(
+        db,
+        [
+            period.legislator.id
+            for period in (house_period, senate_period)
+            if period is not None
+        ],
+    )
     geocoded = lookup_result.geocoded_address
     payload = {
         "resolved_place": {
@@ -854,14 +911,22 @@ def representative_lookup(
             "house_district": house_district.code if house_district else None,
             "senate_district": senate_district.code if senate_district else None,
         },
-        "house_legislator": legislator_list_item(house_period.legislator).model_dump(
-            exclude_none=True
-        )
+        "house_legislator": legislator_list_item(
+            house_period.legislator,
+            total_bill_count=rep_counts.get(str(house_period.legislator.id), (0, 0))[0],
+            chief_bill_count=rep_counts.get(str(house_period.legislator.id), (0, 0))[1],
+        ).model_dump(exclude_none=True)
         if house_period
         else None,
-        "senate_legislator": legislator_list_item(senate_period.legislator).model_dump(
-            exclude_none=True
-        )
+        "senate_legislator": legislator_list_item(
+            senate_period.legislator,
+            total_bill_count=rep_counts.get(str(senate_period.legislator.id), (0, 0))[
+                0
+            ],
+            chief_bill_count=rep_counts.get(str(senate_period.legislator.id), (0, 0))[
+                1
+            ],
+        ).model_dump(exclude_none=True)
         if senate_period
         else None,
     }
@@ -891,8 +956,14 @@ def search(
         legislators_stmt = legislator_directory_stmt(session_row.id).where(
             Legislator.full_name.ilike(f"%{q}%")
         )
+        legislator_rows = db.scalars(legislators_stmt.limit(limit)).all()
+        counts = authored_bill_counts(db, [row.id for row in legislator_rows])
         payload["legislators"] = [
-            legislator_list_item(row).model_dump(exclude_none=True)
-            for row in db.scalars(legislators_stmt.limit(limit)).all()
+            legislator_list_item(
+                row,
+                total_bill_count=counts.get(str(row.id), (0, 0))[0],
+                chief_bill_count=counts.get(str(row.id), (0, 0))[1],
+            ).model_dump(exclude_none=True)
+            for row in legislator_rows
         ]
     return DetailResponse(data=payload)

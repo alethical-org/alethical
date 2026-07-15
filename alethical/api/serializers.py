@@ -310,26 +310,49 @@ def current_service_payload(service_period) -> api_schemas.CurrentServicePayload
     )
 
 
-def legislator_stats_payload(stats_rows) -> api_schemas.LegislatorStatsPayload | None:
-    if not stats_rows:
+def legislator_stats_payload(
+    stats_rows,
+    *,
+    total_bill_count: int | None = None,
+    chief_bill_count: int | None = None,
+) -> api_schemas.LegislatorStatsPayload | None:
+    """Serialize a legislator's stats. Authorship counts (total/chief bill
+    counts) may be supplied live from a Sponsorship join to override the stored
+    LegislatorStats, which can be stale or attributed to a shadow author-keyed
+    row rather than the directory row (#291); vote/committee counts still come
+    from the stored stats row."""
+    stats = stats_rows[0] if stats_rows else None
+    if stats is None and total_bill_count is None and chief_bill_count is None:
         return None
-    stats = stats_rows[0]
     return api_schemas.LegislatorStatsPayload(
-        chief_bill_count=stats.chief_bill_count,
-        total_bill_count=stats.total_bill_count,
-        vote_record_count=stats.vote_record_count,
-        committee_count=stats.committee_count,
+        chief_bill_count=chief_bill_count
+        if chief_bill_count is not None
+        else (stats.chief_bill_count if stats else 0),
+        total_bill_count=total_bill_count
+        if total_bill_count is not None
+        else (stats.total_bill_count if stats else 0),
+        vote_record_count=stats.vote_record_count if stats else 0,
+        committee_count=stats.committee_count if stats else 0,
     )
 
 
-def legislator_list_item(legislator) -> api_schemas.LegislatorListItem:
+def legislator_list_item(
+    legislator,
+    *,
+    total_bill_count: int | None = None,
+    chief_bill_count: int | None = None,
+) -> api_schemas.LegislatorListItem:
     current_service = next(iter(legislator.service_periods), None)
     return api_schemas.LegislatorListItem(
         id=str(legislator.id),
         slug=legislator.slug,
         full_name=legislator.full_name,
         current_service=current_service_payload(current_service),
-        stats=legislator_stats_payload(legislator.stats),
+        stats=legislator_stats_payload(
+            legislator.stats,
+            total_bill_count=total_bill_count,
+            chief_bill_count=chief_bill_count,
+        ),
     )
 
 

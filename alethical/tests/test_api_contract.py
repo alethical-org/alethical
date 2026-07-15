@@ -588,6 +588,147 @@ def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
         )
 
 
+def test_legislator_directory_authored_count_uses_live_sponsorships(client):
+    """Regression for #291: the directory (and detail) authored-bill count must
+    come from a live Sponsorship join, not the stored LegislatorStats — which
+    can read 0 for a legislator who has actually authored bills (stale or
+    attributed to a shadow author-keyed row). Reproduce the production symptom
+    directly: a current, real-district legislator who chief-authored a bill but
+    whose LegislatorStats.total_bill_count is 0. Before the fix the directory
+    returned 0; after it returns the real count, matching the detail page."""
+    from sqlalchemy import delete, select
+
+    from alethical.db.schema import load_schema
+    from alethical.db.session import get_session_factory
+
+    schema = load_schema()
+    external_key = "regression-291-directory-author"
+    full_name = "Regressionia Twoninetyone Directoryauthor"
+    district_code = "R291"
+
+    created_ids: dict[str, object] = {}
+    try:
+        with get_session_factory()() as db:
+            session_row = db.scalar(
+                select(schema.LegislativeSession).where(
+                    schema.LegislativeSession.slug == "94-2025-regular"
+                )
+            )
+            chamber = db.scalar(
+                select(schema.Chamber).where(schema.Chamber.slug == "house")
+            )
+            bill = db.scalar(
+                select(schema.Bill).where(schema.Bill.session_id == session_row.id)
+            )
+            assert session_row is not None and chamber is not None and bill is not None
+
+            district = schema.District(
+                jurisdiction_id=chamber.jurisdiction_id,
+                chamber_id=chamber.id,
+                code=district_code,
+                label=f"District {district_code}",
+            )
+            db.add(district)
+            db.flush()
+            legislator = schema.Legislator(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="regressionia-291-directoryauthor",
+                external_key=external_key,
+                full_name=full_name,
+                sort_name=full_name,
+            )
+            db.add(legislator)
+            db.flush()
+            db.add(
+                schema.LegislatorServicePeriod(
+                    legislator_id=legislator.id,
+                    session_id=session_row.id,
+                    chamber_id=chamber.id,
+                    district_id=district.id,
+                    is_current=True,
+                )
+            )
+            db.add(
+                schema.Sponsorship(
+                    bill_id=bill.id,
+                    legislator_id=legislator.id,
+                    role=schema.SponsorshipRole.chief_author,
+                    source_order=1,
+                )
+            )
+            # Stored stats deliberately stale/misattributed — the bug's state.
+            db.add(
+                schema.LegislatorStats(
+                    legislator_id=legislator.id,
+                    session_id=session_row.id,
+                    total_bill_count=0,
+                    chief_bill_count=0,
+                )
+            )
+            db.commit()
+            created_ids = {
+                "legislator": legislator.id,
+                "district": district.id,
+                "bill": bill.id,
+            }
+
+        directory_response = client.get(
+            "/api/v1/legislators",
+            params={"session": "94-2025-regular", "q": full_name, "limit": 5},
+        )
+        assert directory_response.status_code == 200
+        matches = [
+            item
+            for item in directory_response.json()["data"]
+            if item["id"] == str(created_ids["legislator"])
+        ]
+        assert len(matches) == 1
+        directory_total = matches[0]["stats"]["total_bill_count"]
+        # The core bug: this was 0 (read from stale stats) before the fix.
+        assert directory_total == 1
+        assert matches[0]["stats"]["chief_bill_count"] == 1
+
+        detail_response = client.get(
+            f"/api/v1/legislators/{created_ids['legislator']}",
+            params={"session": "94-2025-regular", "include": "stats"},
+        )
+        assert detail_response.status_code == 200
+        detail_total = detail_response.json()["data"]["stats"]["total_bill_count"]
+        # Same person, same number, everywhere we show it.
+        assert detail_total == directory_total
+    finally:
+        with get_session_factory()() as db:
+            if created_ids:
+                db.execute(
+                    delete(schema.Sponsorship).where(
+                        schema.Sponsorship.legislator_id == created_ids["legislator"]
+                    )
+                )
+                db.execute(
+                    delete(schema.LegislatorStats).where(
+                        schema.LegislatorStats.legislator_id
+                        == created_ids["legislator"]
+                    )
+                )
+                db.execute(
+                    delete(schema.LegislatorServicePeriod).where(
+                        schema.LegislatorServicePeriod.legislator_id
+                        == created_ids["legislator"]
+                    )
+                )
+                db.execute(
+                    delete(schema.Legislator).where(
+                        schema.Legislator.id == created_ids["legislator"]
+                    )
+                )
+                db.execute(
+                    delete(schema.District).where(
+                        schema.District.id == created_ids["district"]
+                    )
+                )
+                db.commit()
+
+
 def test_signed_in_bill_tracking_and_notification_preferences(client, auth_headers):
     me_response = client.get("/api/v1/me", headers=auth_headers)
     assert me_response.status_code == 200
