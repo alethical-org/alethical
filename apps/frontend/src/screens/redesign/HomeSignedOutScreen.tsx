@@ -113,7 +113,7 @@ const RECENTLY_DECIDED: SampleBill[] = [
     action: 'Signed by the Governor',
     actionDate: 'July 6, 2026',
     votes: { text: 'House 79–52 · Senate 36–30' },
-    tags: ['LABOR', 'HEALTH', 'PUBLIC FINANCE'],
+    tags: ['Labor', 'Health', 'Public Finance'],
     companion: 'COMPANION HF 1976 · IN COMMITTEE',
   },
   {
@@ -132,7 +132,7 @@ const RECENTLY_DECIDED: SampleBill[] = [
       lead: 'Possible next step: ',
       bold: 'override needs two-thirds — 90 House · 45 Senate',
     },
-    tags: ['TAXATION', 'TRANSPORTATION'],
+    tags: ['Taxation', 'Transportation'],
   },
 ];
 
@@ -148,7 +148,7 @@ const MOVING_NOW: SampleBill[] = [
     action: 'Sent to conference committee after House amendments',
     actionDate: 'June 24, 2026',
     votes: { text: 'House 102–31 · Senate 45–21' },
-    tags: ['PUBLIC SAFETY', 'JUDICIARY'],
+    tags: ['Public Safety', 'Judiciary'],
     companion: 'COMPANION HF 2489 · LAID OVER',
   },
   {
@@ -163,7 +163,7 @@ const MOVING_NOW: SampleBill[] = [
       'Received from House, first reading, referred to Agriculture, Veterans, Broadband and Rural Development',
     actionDate: 'June 5, 2026',
     votes: { text: 'House 121–12', pendingNote: '· Senate vote pending' },
-    tags: ['INFRASTRUCTURE', 'RURAL DEVELOPMENT'],
+    tags: ['Infrastructure', 'Rural Development'],
     companion: 'COMPANION SF 588 · IN COMMITTEE',
   },
   {
@@ -177,7 +177,7 @@ const MOVING_NOW: SampleBill[] = [
     action: 'Referred to the Capital Investment Committee',
     actionDate: 'May 18, 2026',
     amberNote: { lead: 'Vote threshold: ', bold: 'three-fifths to pass — 81 House · 41 Senate' },
-    tags: ['CAPITAL INVESTMENT', 'RECREATION', 'LOCAL DEVELOPMENT'],
+    tags: ['Capital Investment', 'Recreation', 'Local Development'],
     companion: 'COMPANION HF 1210 · IN COMMITTEE',
   },
   {
@@ -190,7 +190,7 @@ const MOVING_NOW: SampleBill[] = [
     author: 'Representative Patti Anderson',
     action: 'Introduced, first reading',
     actionDate: 'Apr 27, 2026',
-    tags: ['FRAUD PREVENTION', 'GOVERNMENT ACCOUNTABILITY', 'GRANT OVERSIGHT'],
+    tags: ['Fraud Prevention', 'Government Accountability', 'Grant Oversight'],
     companion: 'COMPANION SF 316 · PROPOSED',
   },
 ];
