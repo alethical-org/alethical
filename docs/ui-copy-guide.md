@@ -29,6 +29,13 @@
 > bill's subject-area chips/filters, not "policy" either — as the layperson entry word (the nav's
 > "Issues" menu and the Search Bills topic filter both say "issue(s)"; the underlying data field and
 > API stay `policy_areas` / `/policy-areas`, since rule 3 governs displayed strings only).
+>
+> Issue names display in **Title Case, every word capitalized** ("Public Safety", "Capital
+> Investment"), on **every** surface — filter chips, bill-card badges, and the bill-detail policy
+> pills. Never lowercase or ALL CAPS. Real (lowercase) API values go through
+> `apps/frontend/src/lib/issues.ts` `titleCaseIssue`; static/mock example strings are written in
+> Title Case directly (that helper only fixes the first letter, so it won't down-case an ALL-CAPS
+> literal). This is display formatting only — the stored/queried `policy_areas` values are unchanged.
 
 # Alethical UI Copy Guide: Sovereignty Restoration
 
