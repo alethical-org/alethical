@@ -3,6 +3,7 @@ import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } fr
 import Svg, { Path } from 'react-native-svg';
 
 import { Bill } from '../../data/types';
+import { titleCaseIssue } from '../../lib/issues';
 import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
@@ -198,7 +199,7 @@ export function BillResultCard({
         <View style={styles.tagRow}>
           {policyAreas.map((topic) => (
             <View key={topic} style={styles.tag}>
-              <Text style={styles.tagText}>{topic}</Text>
+              <Text style={styles.tagText}>{titleCaseIssue(topic)}</Text>
             </View>
           ))}
           {bill.rollCallCount > 0 ? (

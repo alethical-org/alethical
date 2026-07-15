@@ -1,6 +1,7 @@
 import { GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Bill } from '../data/types';
+import { titleCaseIssue } from '../lib/issues';
 import { theme } from '../theme/tokens';
 import { Card } from './Card';
 import { Chip } from './Chip';
@@ -98,7 +99,7 @@ export function BillCard({
           <View style={styles.topicRow}>
             {(policyAreas.length > 0 ? policyAreas : (bill.topics ?? [])).map((topic) => (
               <View key={topic} style={styles.topicPill}>
-                <Text style={styles.topicLabel}>{topic}</Text>
+                <Text style={styles.topicLabel}>{titleCaseIssue(topic)}</Text>
               </View>
             ))}
           </View>

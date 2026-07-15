@@ -11,6 +11,7 @@ import { useBill, useToggleTrackedBill, useTrackedBills } from '../hooks/useAppQ
 import { RootStackParamList } from '../navigation/types';
 import { trackSignInReturnTo } from '../navigation/webRoutes';
 import { useAuth } from '../providers/AuthProvider';
+import { titleCaseIssue } from '../lib/issues';
 import { theme } from '../theme/tokens';
 import { useResponsive } from '../hooks/useResponsive';
 import type { BillSponsor } from '../data/types';
@@ -253,7 +254,7 @@ export function BillDetailScreen({ route, navigation }: Props) {
         <View style={styles.policyAreaWrap}>
           {analysis.policyAreas.map((area) => (
             <View key={area} style={styles.policyPill}>
-              <Text style={styles.policyPillText}>{area}</Text>
+              <Text style={styles.policyPillText}>{titleCaseIssue(area)}</Text>
             </View>
           ))}
         </View>
