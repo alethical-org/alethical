@@ -1912,3 +1912,166 @@ def test_bills_policy_area_filter_matches_exact_element_under_progress_sort(clie
     )
     assert substring_response.status_code == 200
     assert substring_response.json()["data"] == []
+
+
+STATUS_FILTER_SESSION_SLUG = "test-status-filter-fixture"
+
+
+def _seed_status_filter_bills(schema):
+    """Idempotently seed one bill per displayed status badge — plus the
+    dual-keyword bill that caused the reported bug — into a dedicated isolated
+    session, so the status-filter isolation assertions never touch the shared
+    ``94-2025-regular`` list. Returns ``(session_slug, {file_number: key})``.
+
+    HF90108's ``current_status`` contains BOTH "introduction" (the old buggy
+    ``proposed`` substring pattern) and "referred to committee", so its badge is
+    ``in_committee``; it must be returned only by the ``in_committee`` filter,
+    never by ``proposed`` ("Introduced") — the exact reported regression.
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    from alethical.db.session import get_session_factory
+
+    fixtures = [
+        ("Governor approval; chapter number 12", "signed_into_law", 90101),
+        ("Vetoed by the Governor", "vetoed", 90102),
+        ("Passed the senate on third reading", "passed_senate", 90103),
+        ("Third reading passed", "passed_house", 90104),
+        ("Referred to committee on education", "in_committee", 90105),
+        ("Introduction and first reading", "proposed", 90107),
+        (
+            "Introduction and first reading, referred to committee on education",
+            "in_committee",
+            90108,
+        ),
+    ]
+    with get_session_factory()() as db:
+        base_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        chamber = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "house")
+        )
+        assert base_session is not None and chamber is not None
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == STATUS_FILTER_SESSION_SLUG
+            )
+        )
+        if session_row is None:
+            session_row = schema.LegislativeSession(
+                jurisdiction_id=base_session.jurisdiction_id,
+                slug=STATUS_FILTER_SESSION_SLUG,
+                session_number=9998,
+                session_type=schema.SessionType.regular,
+                year_start=2997,
+                year_end=2998,
+                name="Status-filter fixture session",
+                is_current=False,
+            )
+            db.add(session_row)
+            db.flush()
+        for current_status, _expected_key, file_number in fixtures:
+            bill_key = f"{STATUS_FILTER_SESSION_SLUG}-HF{file_number}"
+            existing = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == bill_key)
+            )
+            if existing is not None:
+                continue
+            bill = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=chamber.id,
+                bill_key=bill_key,
+                file_type="HF",
+                file_number=file_number,
+                title=f"Status-filter fixture HF{file_number}",
+                description="Status-filter fixture bill",
+                current_status=current_status,
+                latest_action_at=datetime(2025, 1, 5, tzinfo=timezone.utc),
+                official_url=f"https://example.test/status-hf{file_number}",
+                is_omnibus=False,
+            )
+            db.add(bill)
+            db.flush()
+            # bill_list_stmt only surfaces bills with a current bill_summary
+            # enrichment, so each fixture needs one to appear in the list.
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=bill.id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={"summary": "Fixture summary."},
+                    is_current=True,
+                )
+            )
+        db.commit()
+    return STATUS_FILTER_SESSION_SLUG, {fn: key for _, key, fn in fixtures}
+
+
+def test_bills_status_filter_isolates_results_to_selected_status(client):
+    """Selecting a status returns only bills whose card badge equals that status,
+    with mutually exclusive, exhaustive counts.
+
+    Regression for the reported bug: the "Introduced" (value ``proposed``) filter
+    returned bills badged "In Committee" because the filter and the badge used
+    different classifications. Both now derive from ``bill_status_key_expr``, so
+    each bill maps to exactly one status.
+    """
+    from alethical.db.schema import load_schema
+
+    slug, expected_by_file = _seed_status_filter_bills(load_schema())
+
+    status_values = [
+        "proposed",
+        "in_committee",
+        "passed_house",
+        "passed_senate",
+        "signed_into_law",
+        "vetoed",
+    ]
+    seen: dict[int, list[str]] = {}
+    for status in status_values:
+        response = client.get(
+            "/api/v1/bills",
+            params={"session": slug, "status": status, "limit": 100},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        returned = payload["data"]
+        # Every returned bill's displayed badge equals the selected status.
+        for bill in returned:
+            assert bill["status_key"] == status, (
+                status,
+                bill["file_number"],
+                bill["status_key"],
+            )
+        # The count equals exactly the fixtures with that badge — isolated,
+        # not the old overlapping OR-substring total.
+        expected_files = sorted(
+            fn for fn, key in expected_by_file.items() if key == status
+        )
+        assert sorted(bill["file_number"] for bill in returned) == expected_files
+        assert payload["page"]["total"] == len(expected_files)
+        for bill in returned:
+            seen.setdefault(bill["file_number"], []).append(status)
+
+    # Mutual exclusivity: no seeded bill is returned under two statuses.
+    for file_number in expected_by_file:
+        assert seen.get(file_number, []) == [expected_by_file[file_number]], (
+            file_number,
+            seen.get(file_number),
+        )
+
+    # Reported regression, pinned: the dual-keyword bill appears only under
+    # in_committee, never under proposed ("Introduced").
+    assert seen[90108] == ["in_committee"]
+
+    # Exhaustive: the six filters together return every seeded bill exactly once,
+    # matching "All statuses" — no bill falls through every filter.
+    all_response = client.get("/api/v1/bills", params={"session": slug, "limit": 100})
+    all_files = {bill["file_number"] for bill in all_response.json()["data"]}
+    assert all_files == set(seen) == set(expected_by_file)

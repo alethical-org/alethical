@@ -1003,34 +1003,66 @@ def current_bill_summary_enrichment_bill_ids():
     )
 
 
-def bill_progress_rank():
-    """Stage rank for legislative-progress sort: lower rank = further along.
+# Progress rank per status key: lower rank = further along the legislative
+# process. Used to order sort=progress; derived from ``bill_status_key_expr``
+# so the sort and the displayed badge classify from one shared cascade.
+_STATUS_KEY_RANK = {
+    "signed_into_law": 0,
+    "vetoed": 1,
+    "passed_senate": 2,
+    "passed_house": 3,
+    "in_committee": 4,
+    "proposed": 5,
+}
 
-    Mirrors ``bill_status_key_from_summary`` (alethical/api/serializers.py) — the
-    heuristic the list card's status badge displays — so the sort order and the
-    displayed badge never disagree. Both classify from ``Bill.current_status``
-    alone, in the same priority cascade (veto wins over governor), so this needs
-    no join to ``bill_action`` and adds no N+1. Keep the two in sync.
+
+def bill_status_key_expr():
+    """SQL expression yielding a bill's list-card status key from
+    ``Bill.current_status`` alone.
+
+    The single SQL-side source of truth for status classification, mirroring
+    ``bill_status_key_from_summary`` (alethical/api/serializers.py) — the
+    heuristic the list card's status badge displays. Because the status *filter*
+    (``status_filter_clause``) and the displayed *badge* now derive from the
+    same priority cascade (veto wins over governor), selecting a status returns
+    exactly the bills whose badge matches it: each bill maps to exactly one
+    status, so the six filters are mutually exclusive and their counts sum to
+    the session total. Classifies from ``current_status`` alone, so it needs no
+    join to ``bill_action`` and adds no N+1. Keep this and the serializer twin
+    in sync.
     """
     status = func.lower(func.coalesce(Bill.current_status, ""))
     return case(
-        (status.contains("veto"), 1),  # vetoed
+        (status.contains("veto"), "vetoed"),
         (
             status.contains("governor")
             | status.contains("chapter number")
             | status.contains("secretary of state")
             | status.contains("effective date"),
-            0,  # signed_into_law
+            "signed_into_law",
         ),
-        (status.contains("senate") & status.contains("pass"), 2),  # passed_senate
-        (status.contains("pass"), 3),  # passed_house
+        (status.contains("senate") & status.contains("pass"), "passed_senate"),
+        (status.contains("pass"), "passed_house"),
         (
             status.contains("referred")
             | status.contains("committee")
             | status.contains("second reading"),
-            4,  # in_committee
+            "in_committee",
         ),
-        else_=5,  # proposed
+        else_="proposed",
+    )
+
+
+def bill_progress_rank():
+    """Stage rank for legislative-progress sort: lower rank = further along.
+
+    Derived from ``bill_status_key_expr`` so the sort order and the displayed
+    badge never disagree — both read one shared classification cascade.
+    """
+    key = bill_status_key_expr()
+    return case(
+        *[(key == status, rank) for status, rank in _STATUS_KEY_RANK.items()],
+        else_=_STATUS_KEY_RANK["proposed"],
     )
 
 
