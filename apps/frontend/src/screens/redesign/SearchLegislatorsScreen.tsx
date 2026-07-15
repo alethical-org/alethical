@@ -40,6 +40,7 @@ export function SearchLegislatorsScreen() {
   const { isDesktop } = useResponsive();
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
+  const [openFilter, setOpenFilter] = useState<'party' | 'session' | null>(null);
   const [queryInput, setQueryInput] = useState('');
   const [query, setQuery] = useState('');
   const [chamber, setChamber] = useState<ChamberFilter>('All');
@@ -130,6 +131,8 @@ export function SearchLegislatorsScreen() {
         accessibilityLabel="Filter by party"
         options={partyOptions}
         selectedValue={party}
+        open={openFilter === 'party'}
+        onOpenChange={(next) => setOpenFilter(next ? 'party' : null)}
         onSelect={(value) => {
           setParty(value as PartyFilter);
           resetToFirstPage();
@@ -140,6 +143,8 @@ export function SearchLegislatorsScreen() {
         accessibilityLabel="Filter by session"
         options={(sessionsQuery.data ?? []).map((item) => ({ label: item.name, value: item.slug }))}
         selectedValue={sessionSlug}
+        open={openFilter === 'session'}
+        onOpenChange={(next) => setOpenFilter(next ? 'session' : null)}
         onSelect={(value) => {
           setSession(value);
           resetToFirstPage();
@@ -160,9 +165,6 @@ export function SearchLegislatorsScreen() {
       hero={
         <SearchHero
           title="Search legislators"
-          crossLinkPrefix="Looking for a bill?"
-          crossLinkLabel="Search bills →"
-          onCrossLink={() => navigation.navigate('Bills')}
           placeholder="Search by name, district, or party"
           query={queryInput}
           onQueryChange={setQueryInput}

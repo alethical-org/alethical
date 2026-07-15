@@ -40,13 +40,16 @@ import {
 const PAGE_SIZE = 10;
 const ALL_POLICIES = 'All policies';
 
+// Ordered most-progressed first (matching the sort=progress ordering), with the
+// off-path Vetoed state last. Every value maps to a status the /bills filter can
+// actually serve (alethical/api/routers/public.py status_filter_clause).
 const STATUS_OPTIONS = [
   { label: 'All statuses', value: '' },
-  { label: 'Proposed', value: 'proposed' },
-  { label: 'In Committee', value: 'in_committee' },
-  { label: 'Passed House', value: 'passed_house' },
+  { label: 'Signed into Law', value: 'signed_into_law' },
   { label: 'Passed Senate', value: 'passed_senate' },
-  { label: 'Signed Into Law', value: 'signed_into_law' },
+  { label: 'Passed House', value: 'passed_house' },
+  { label: 'In Committee', value: 'in_committee' },
+  { label: 'Proposed', value: 'proposed' },
   { label: 'Vetoed', value: 'vetoed' },
 ];
 
@@ -55,6 +58,7 @@ export function SearchBillsScreen() {
   const { isSignedIn, user, signInWithGoogle } = useAuth();
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
+  const [openFilter, setOpenFilter] = useState<'status' | 'session' | null>(null);
   const [queryInput, setQueryInput] = useState('');
   const [query, setQuery] = useState('');
   const [chamber, setChamber] = useState<ChamberFilter>('All');
@@ -181,6 +185,8 @@ export function SearchBillsScreen() {
           accessibilityLabel="Filter by status"
           options={STATUS_OPTIONS}
           selectedValue={status}
+          open={openFilter === 'status'}
+          onOpenChange={(next) => setOpenFilter(next ? 'status' : null)}
           onSelect={(value) => {
             setStatus(value);
             resetToFirstPage();
@@ -194,6 +200,8 @@ export function SearchBillsScreen() {
             value: item.slug,
           }))}
           selectedValue={sessionSlug}
+          open={openFilter === 'session'}
+          onOpenChange={(next) => setOpenFilter(next ? 'session' : null)}
           onSelect={(value) => {
             setSession(value);
             resetToFirstPage();
@@ -251,9 +259,6 @@ export function SearchBillsScreen() {
       hero={
         <SearchHero
           title="Search bills"
-          crossLinkPrefix="Looking for a legislator?"
-          crossLinkLabel="Search legislators →"
-          onCrossLink={() => navigation.navigate('Legislators')}
           placeholder="Search by keyword or bill number (e.g. HF 2904, SF 1832)"
           query={queryInput}
           onQueryChange={setQueryInput}
