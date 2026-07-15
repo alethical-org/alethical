@@ -1,5 +1,7 @@
 # Workflow-overhead audit — design pipeline — 2026-07-13 (re-check)
 
+> _Skill renames since this audit (2026-07-15): `design-task-intake` → `design-intake`, `implementing-design-handoffs` → `design-build`, `web-design-guidelines` → `design-audit`; new sibling `design-review`. Old names below are historical._
+
 Task type: **design handoff / design instructions → live site** (same as baseline).
 Second audit of the day, run on demand. Justified by fresh gate-layer evidence
 since the baseline (all merged after [#190](https://github.com/alethical-org/alethical/pull/190)):

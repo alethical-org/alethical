@@ -1,6 +1,6 @@
 ---
-name: design-task-intake
-description: Use at the very START of any Alethical frontend/design task — a build/change from a mockup OR a bug report ("the hover doesn't work", "the card looks off") — before building or debugging, especially when the prompt is terse. Proofs the prompt for missing high-value context and needed assets: self-answers what the repo already reveals, then asks the user only the genuine gaps (batched, with defaults), and skips itself when the prompt is already complete. Hands off to implementing-design-handoffs (builds) or systematic-debugging (bugs).
+name: design-intake
+description: Use at the very START of any Alethical frontend/design task — a build/change from a mockup OR a bug report ("the hover doesn't work", "the card looks off") — before building or debugging, especially when the prompt is terse. Proofs the prompt for missing high-value context and needed assets: self-answers what the repo already reveals, then asks the user only the genuine gaps (batched, with defaults), and skips itself when the prompt is already complete. Hands off to design-build (builds) or systematic-debugging (bugs). Part of the design- skill set: design-review (evaluate a draft mockup) → design-intake → design-build → design-audit.
 ---
 
 # Design-task intake
@@ -43,7 +43,7 @@ Put the genuine unknowns to the user in one `AskUserQuestion` call (≤ 4 questi
 
 ## 4. Restate, then hand off
 
-State the sharpened task in one line — scope · deliverable · acceptance · assets needed (usually none; they're in-repo) — then continue with `implementing-design-handoffs` (build/change) or `superpowers:systematic-debugging` (bug).
+State the sharpened task in one line — scope · deliverable · acceptance · assets needed (usually none; they're in-repo) — then continue with `design-build` (build/change) or `superpowers:systematic-debugging` (bug).
 
 ## Anti-patterns
 
@@ -51,4 +51,4 @@ Interrogating for repo-discoverable facts · asking low-value questions · gatin
 
 ## References
 
-`.claude/skills/implementing-design-handoffs/SKILL.md` (the build workflow this feeds) · `.claude/rules/coding-discipline.md` rule 1 (surface real ambiguity; don't gate routine work) · `docs/mvp-redesign-plan.md`. Origin: retro on the nav-dropdown hover fix ([#171](https://github.com/alethical-org/alethical/pull/171)).
+`.claude/skills/design-build/SKILL.md` (the build workflow this feeds) · `.claude/skills/design-review/SKILL.md` (the pre-build mockup evaluation that precedes intake) · `.claude/rules/coding-discipline.md` rule 1 (surface real ambiguity; don't gate routine work) · `docs/mvp-redesign-plan.md`. Origin: retro on the nav-dropdown hover fix ([#171](https://github.com/alethical-org/alethical/pull/171)).

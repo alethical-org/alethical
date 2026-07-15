@@ -110,7 +110,7 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
   than a prose description. Prose brief is the lightweight path; the synced system is the durable one.
 - **At build time (implementation):** this doc plus `tokens.ts`/`primitives.tsx` is the reference;
   the per-page `README.md` under `docs/mockups/<page>/` is the literal spec. See the
-  `implementing-design-handoffs` skill for the build/route/QA sequence.
+  `design-build` skill for the build/route/QA sequence.
 - **At review time:** §3 is the checklist. Audit the rendered web output against it before shipping.
 
 ## References

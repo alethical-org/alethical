@@ -1,6 +1,6 @@
 ---
-name: implementing-design-handoffs
-description: Use when a finalized Claude Design mockup or handoff bundle (README + .dc.html + screenshots, or raw screenshots + a live preview URL) needs to be built as a real page on Alethical's React Native / Expo frontend and shipped to the live site.
+name: design-build
+description: Use when a finalized Claude Design mockup or handoff bundle (README + .dc.html + screenshots, or raw screenshots + a live preview URL) needs to be built as a real page on Alethical's React Native / Expo frontend and shipped to the live site. Part of the design- skill set: design-review (evaluate a draft mockup) → design-intake (proof the request) → design-build → design-audit (verify the live build).
 ---
 
 # Implementing design handoffs
@@ -20,7 +20,7 @@ Not for: pure backend/data work, or design *decisions* still in flux (those go t
 
 ## Procedure
 
-0. **Intake first if the prompt is terse or ambiguous.** Run `design-task-intake` to proof the prompt for missing high-value context and confirm which assets are actually needed (usually none — the bundle is already in-repo) before building. Skip only when the task is already fully specified.
+0. **Intake first if the prompt is terse or ambiguous.** Run `design-intake` to proof the prompt for missing high-value context and confirm which assets are actually needed (usually none — the bundle is already in-repo) before building. Skip only when the task is already fully specified. (If the design itself is still a draft — not finalized — it belongs in `design-review` first, not here.)
 1. **Land the bundle in-repo first.** Copy the handoff bundle to `docs/mockups/<page>/` (drop `support.js` — prototype runtime — and `.DS_Store`; rename any spaced filename). Build from that tracked path, never from a `~/Downloads` copy that goes stale (`.claude/rules/workflow.md` rule 3). Prepend a repo-context note (naming, held items, tokens location). The bundle's `README.md` is the per-page spec; the `.dc.html` is the literal-values reference; `screenshots/` are visual QA targets.
 2. **Branch per-page off `main`.** The design-system foundation — `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` — merged to `main` with the first page ([#67, Design-system foundation + redesigned signed-out home](https://github.com/alethical-org/alethical/pull/67), 2026-07-12), and the old `redesign/design-system` branch is deleted. Start each page from `origin/main` per CONTRIBUTING's branch workflow; the green tokens and primitives are already there.
 3. **Build in RN from the spec.** Reuse the tokens + primitives; add any token the design needs that's missing, pulling exact values from the README / `.dc.html`. Match the screenshots. Ignore `support.js`.
@@ -29,7 +29,7 @@ Not for: pure backend/data work, or design *decisions* still in flux (those go t
 6. **Interim behavior for not-yet-shipped backends.** If a surface depends on unbuilt backend (e.g. Ask on a stub embedding), build the interim the plan specifies (e.g. Ask → sign-in) — never a faked live answer.
 7. **Static sample content stays static.** Marketing sample content (hero answer cards, sample bills) is built as designed from the design's values — not wired to data and not "fixed" for grounded-answers — unless the plan says otherwise. If it *looks* like a generated answer but isn't, confirm whether grounding reconciliation is required now or deferred (it is often deliberately held).
 8. **QA against the live preview.** If a Claude Design preview URL exists, it is drivable for interaction spot-checks (hover glows, click states, transitions) — open it in a **logged-in Chrome** (the `claude-in-chrome` tools), **not** the in-app browser; the URL is auth-gated. Compare states to your build.
-9. **Verify, then ship.** Run it (`just up` → `http://localhost:19006`), compare every state to the screenshots (desktop + mobile), then `just lint` **and** `just format` — CI's `prettier --check .` is repo-wide and `just lint` does not cover formatting, so lint passing alone is not enough. Ship path is **per-page to `main`** (auto-deploys): the design-system foundation recoloring older screens green is accepted. Verify the Vercel preview, then merge. Commit at milestones; the PR closes the tracking issue and carries a stale-reference check (`.claude/rules/workflow.md` rule 6).
+9. **Verify, then ship.** Run it (`just up` → `http://localhost:19006`), compare every state to the screenshots (desktop + mobile), run `design-audit` for the live-only accessibility/interaction checks (keyboard, real focus order/visibility, coded contrast, `prefers-reduced-motion`, RN-Web stacking) that a static mockup couldn't prove, then `just lint` **and** `just format` — CI's `prettier --check .` is repo-wide and `just lint` does not cover formatting, so lint passing alone is not enough. Ship path is **per-page to `main`** (auto-deploys): the design-system foundation recoloring older screens green is accepted. Verify the Vercel preview, then merge. Commit at milestones; the PR closes the tracking issue and carries a stale-reference check (`.claude/rules/workflow.md` rule 6).
 
 ## Responsive & touch
 
@@ -66,4 +66,4 @@ Ask when: a filter/data the design shows isn't backed by today's API; a mockup's
 
 ## References
 
-`docs/mvp-redesign-plan.md` (decisions, build sequence, IA/O-items) · `docs/mockups/<page>/README.md` (per-page spec) · `.claude/rules/grounded-answers.md` · `.claude/rules/workflow.md` · `docs/ui-copy-guide.md` · `docs/grounded-ask-spec.md`. First reference implementation: the signed-out home (`docs/mockups/home-signed-out-v2/`, issue #143).
+`docs/mvp-redesign-plan.md` (decisions, build sequence, IA/O-items) · `docs/mockups/<page>/README.md` (per-page spec) · `.claude/rules/grounded-answers.md` · `.claude/rules/workflow.md` · `docs/ui-copy-guide.md` · `docs/grounded-ask-spec.md`. First reference implementation: the signed-out home (`docs/mockups/home-signed-out-v2/`, issue #143). Sibling skills: `design-review` (pre-build mockup evaluation), `design-intake` (proof the request), `design-audit` (verify the live build against the Web Interface Guidelines + WCAG).
