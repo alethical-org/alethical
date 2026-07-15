@@ -131,12 +131,9 @@ export function SearchPageShell({
   );
 }
 
-// --- Hero: H1 + Bills<->Legislators cross-link + search bar + filter-row slot ---
+// --- Hero: H1 + search bar + filter-row slot ---
 export function SearchHero({
   title,
-  crossLinkPrefix,
-  crossLinkLabel,
-  onCrossLink,
   placeholder,
   query,
   onQueryChange,
@@ -146,9 +143,6 @@ export function SearchHero({
   filters,
 }: {
   title: string;
-  crossLinkPrefix: string;
-  crossLinkLabel: string;
-  onCrossLink: () => void;
   placeholder: string;
   query: string;
   onQueryChange: (value: string) => void;
@@ -159,7 +153,6 @@ export function SearchHero({
 }) {
   const { isMobile } = useResponsive();
   const { focused, focusProps } = useFieldFocus();
-  const [crossHovered, crossHover] = useHover();
 
   const findByAddress =
     variant === 'legislators' && onFindByAddress ? (
@@ -172,16 +165,6 @@ export function SearchHero({
         <Text accessibilityRole="header" style={[styles.heroH1, isMobile && styles.heroH1Mobile]}>
           {title}
         </Text>
-        <Pressable
-          accessibilityRole="link"
-          onPress={onCrossLink}
-          {...crossHover}
-          style={styles.crossLink}
-        >
-          <Text style={[styles.crossLinkPrefix, crossHovered && { color: t.colors.brand.deep }]}>
-            {crossLinkPrefix} <Text style={styles.crossLinkAccent}>{crossLinkLabel}</Text>
-          </Text>
-        </Pressable>
       </View>
 
       {/* SEARCH BAR — purple focus ring via fieldFocus. */}
@@ -309,21 +292,33 @@ function SegmentButton({
 }
 
 // --- Filter dropdown (statuses / parties / session). Closes on outside click
-//     via a document pointerdown listener (web) — never a click-away overlay. ---
+//     via a document pointerdown listener (web) — never a click-away overlay.
+//     Open state is optionally controlled so a row of dropdowns can enforce
+//     "one open at a time" (opening one closes the others). ---
 export function FilterDropdown({
   label,
   options,
   selectedValue,
   onSelect,
   accessibilityLabel,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   label: string;
   options: Array<{ label: string; value: string }>;
   selectedValue: string;
   onSelect: (value: string) => void;
   accessibilityLabel?: string;
+  /** Controlled open state; omit to let the dropdown manage its own. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (value: boolean) => {
+    if (onOpenChange) onOpenChange(value);
+    else setInternalOpen(value);
+  };
   const [hovered, hover] = useHover();
   const wrapRef = useRef<unknown>(null);
 
@@ -337,6 +332,8 @@ export function FilterDropdown({
     };
     document.addEventListener('pointerdown', handlePointerDown, true);
     return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+    // setOpen is stable enough for this listener; only re-bind when open flips.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
@@ -345,7 +342,7 @@ export function FilterDropdown({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ expanded: open }}
-        onPress={() => setOpen((value) => !value)}
+        onPress={() => setOpen(!open)}
         {...hover}
         style={[styles.dropdownTrigger, (hovered || open) && styles.filterHover]}
       >
@@ -362,30 +359,56 @@ export function FilterDropdown({
       </Pressable>
       {open ? (
         <View style={styles.dropdownMenu}>
-          {options.map((option) => {
-            const selected = option.value === selectedValue;
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                key={`${option.value}-${option.label}`}
-                onPress={() => {
-                  setOpen(false);
-                  onSelect(option.value);
-                }}
-                style={({ pressed }) => [
-                  styles.dropdownItem,
-                  pressed && styles.dropdownItemPressed,
-                ]}
-              >
-                <Text style={styles.dropdownItemText}>{option.label}</Text>
-                {selected ? <Text style={styles.dropdownCheck}>✓</Text> : null}
-              </Pressable>
-            );
-          })}
+          {options.map((option) => (
+            <DropdownItem
+              key={`${option.value}-${option.label}`}
+              label={option.label}
+              selected={option.value === selectedValue}
+              onSelect={() => {
+                setOpen(false);
+                onSelect(option.value);
+              }}
+            />
+          ))}
         </View>
       ) : null}
     </View>
+  );
+}
+
+// A single dropdown row. Selected → green-tint fill, green bold label, green
+// check. Hovered (non-selected) → same green-tint fill + green label, matching
+// the app's green hover accent.
+function DropdownItem({
+  label,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  const highlighted = selected || hovered;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onSelect}
+      {...hover}
+      style={[styles.dropdownItem, highlighted && styles.dropdownItemHighlight]}
+    >
+      <Text
+        style={[
+          styles.dropdownItemText,
+          highlighted && styles.dropdownItemTextHighlight,
+          selected && styles.dropdownItemTextSelected,
+        ]}
+      >
+        {label}
+      </Text>
+      {selected ? <Text style={styles.dropdownCheck}>✓</Text> : null}
+    </Pressable>
   );
 }
 
@@ -677,14 +700,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   heroH1Mobile: { fontSize: 40, lineHeight: 42, letterSpacing: -0.8 },
-  crossLink: { marginBottom: 9 },
-  crossLinkPrefix: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.medium,
-    color: t.colors.text.muted,
-  },
-  crossLinkAccent: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
 
   searchBarWrap: { marginTop: 28 },
   searchBarWrapMobile: { gap: 12 },
@@ -814,13 +829,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minHeight: 44,
   },
-  dropdownItemPressed: { backgroundColor: t.colors.alpha.ink06 },
+  // #f1faf4 is the design's green-tint row fill (per the .dc.html ref); the
+  // nearest token is greenTint50 (#f2f9f5), close but not exact.
+  dropdownItemHighlight: { backgroundColor: '#f1faf4' },
   dropdownItemText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.medium,
     color: t.colors.text.primary,
   },
+  dropdownItemTextHighlight: { color: t.colors.brand.deep },
+  dropdownItemTextSelected: { fontWeight: t.fontWeights.bold },
   dropdownCheck: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
