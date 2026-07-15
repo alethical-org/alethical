@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
 import { BillListFilters } from '../../data/api';
+import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { trackSignInReturnTo } from '../../navigation/webRoutes';
 import { useAuth } from '../../providers/AuthProvider';
@@ -42,17 +43,6 @@ const PAGE_SIZE = 10;
 // terminology invariants) — matches the nav's "Issues" menu. The data field and
 // API stay `policy_areas` (grounded-answers rule 3 governs displayed strings only).
 const ALL_ISSUES = 'All issues';
-
-// Issue chips display in Title Case (e.g. "Public Safety"), but the value sent
-// to the API stays the exact stored element (e.g. "public safety") — the /bills
-// policy_area filter matches whole elements exactly, so the raw value must be
-// preserved. Mirrors formatPolicyAreaLabel in the legacy SearchFilterPanel.
-const titleCaseIssue = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
-    .join(' ');
 
 // Ordered most-progressed first (matching the sort=progress ordering), with the
 // off-path Vetoed state last. Every value maps to a status the /bills filter can
