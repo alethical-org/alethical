@@ -587,7 +587,7 @@ export function NoResults({
   const body =
     typeof total === 'number'
       ? `Your filters returned 0 of ${total.toLocaleString('en-US')} ${noun}. Try broadening or clearing them.`
-      : `No ${noun} match the current filters. Try broadening or clearing them.`;
+      : 'Try broadening or clearing them.';
   return (
     <View style={styles.noResults}>
       <View style={styles.noResultsIcon}>
