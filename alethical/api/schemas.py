@@ -87,6 +87,7 @@ class BillListItem(BaseModel):
     status_key: str | None = None
     latest_action_at: datetime | None = None
     official_url: str | None = None
+    is_omnibus: bool = False
     chief_sponsors: list[SponsorSummary]
     stats: BillStatsPayload | None = None
     tracked: TrackingState | None = None

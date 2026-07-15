@@ -26,6 +26,13 @@ design-review decisions (2026-07-15)".
 - **Roll-calls pill** links to the bill's votes tab (`/bills/:id?tab=votes`), not a
   standalone roll-call page (deferred, #38).
 
+## Deviations from the mockup
+- **OMNIBUS indicator moved to the top row.** The mockup places the amber OMNIBUS badge
+  last in the meta row; the build shows a single prominent OMNIBUS pill in the card's top
+  row, immediately after the bill pill and before the status word (one indicator only, no
+  meta-row duplicate). Requires `is_omnibus` on the `/bills` list item. See
+  `docs/bill-search-screen-spec.md` (Bill result card → Primary → Omnibus pill).
+
 ## Invariants
 - User-facing copy verbatim from the spec; "issue" not "topic".
 - Tokens + primitives: `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx`

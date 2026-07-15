@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { Bill } from '../../data/types';
 import { theme as t } from '../../theme/tokens';
@@ -16,6 +17,7 @@ type BillCardData = Pick<
   | 'identifier'
   | 'title'
   | 'status'
+  | 'isOmnibus'
   | 'updatedAt'
   | 'aiAnalysis'
   | 'chiefSponsorIds'
@@ -60,6 +62,24 @@ function ProgressBar({ index, tone }: { index: number; tone: Tone }) {
         }
         return <View key={i} style={[styles.progressStep, { backgroundColor: color }]} />;
       })}
+    </View>
+  );
+}
+
+// Prominent OMNIBUS indicator: amber pill with a small capitol/gavel glyph, shown
+// in the card's top row (after the code badge) only for omnibus bills.
+function OmnibusPill() {
+  return (
+    <View style={styles.omnibus} accessibilityRole="text" accessibilityLabel="Omnibus bill">
+      <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z"
+          stroke={t.colors.omnibus.text}
+          strokeWidth={1.9}
+          strokeLinejoin="round"
+        />
+      </Svg>
+      <Text style={styles.omnibusText}>OMNIBUS</Text>
     </View>
   );
 }
@@ -110,6 +130,7 @@ export function BillResultCard({
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{bill.identifier}</Text>
         </View>
+        {bill.isOmnibus ? <OmnibusPill /> : null}
         <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
         <ProgressBar index={index} tone={tone} />
         <View style={styles.topSpacer} />
@@ -234,6 +255,24 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.4,
     color: t.colors.brand.deep,
+  },
+  omnibus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: t.colors.omnibus.fill,
+    borderWidth: 1,
+    borderColor: t.colors.omnibus.border,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  omnibusText: {
+    fontFamily: t.typography.ui,
+    fontSize: 11,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.88,
+    color: t.colors.omnibus.text,
   },
   statusLabel: {
     fontFamily: t.typography.ui,
