@@ -190,11 +190,16 @@ export interface LegislativeSession {
   isCurrent: boolean;
 }
 
+export type BillSort = 'latest_action' | 'progress';
+
 export interface BillListFilters {
   chamber?: Chamber;
   status?: string;
   policyArea?: string;
   omnibus?: boolean;
+  // Result ordering. Omitted → API default (latest_action). 'progress' orders
+  // by legislative stage (signed → … → proposed), tie-broken by recency (#292).
+  sort?: BillSort;
 }
 
 export interface LegislatorListFilters {
@@ -1055,6 +1060,9 @@ export async function listBillsFromApi(
   }
   if (filters.omnibus !== undefined) {
     params.set('omnibus', String(filters.omnibus));
+  }
+  if (filters.sort) {
+    params.set('sort', filters.sort);
   }
 
   const response = await publicApiRequest<PageResponse<ApiBillListItemPayload>>(
