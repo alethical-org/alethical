@@ -29,6 +29,8 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
 import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
 import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
+import { SearchBillsScreen } from '../screens/redesign/SearchBillsScreen';
+import { SearchLegislatorsScreen } from '../screens/redesign/SearchLegislatorsScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { TrackedScreen } from '../screens/TrackedScreen';
 import { VoteDetailScreen } from '../screens/VoteDetailScreen';
@@ -592,6 +594,16 @@ export function RootNavigator() {
               name="FindMyLegislator"
               component={FindMyLegislatorScreen}
               options={{ title: 'Find My Legislator' }}
+            />
+            <Stack.Screen
+              name="Bills"
+              component={SearchBillsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Legislators"
+              component={SearchLegislatorsScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Privacy"

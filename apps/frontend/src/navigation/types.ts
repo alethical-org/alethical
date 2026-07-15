@@ -5,6 +5,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<MainTabParamList>;
   Ask: { q?: string };
+  Bills: undefined;
+  Legislators: undefined;
   BillDetail: {
     billId: string;
     tab?: 'summary' | 'actions' | 'versions' | 'votes';

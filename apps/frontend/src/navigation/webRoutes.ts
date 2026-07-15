@@ -6,6 +6,8 @@ type WebRouteTarget =
   | { kind: 'tab'; screen: keyof MainTabParamList }
   | { kind: 'bill'; billId: string; tab?: string; track?: boolean }
   | { kind: 'legislator'; legislatorId: string }
+  | { kind: 'bills' }
+  | { kind: 'legislators' }
   | { kind: 'findMyLegislator' }
   | { kind: 'privacy' }
   | { kind: 'terms' }
@@ -42,6 +44,12 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   if (segments.length === 1) {
     if (segments[0] === 'search') {
       return { kind: 'tab', screen: 'Search' };
+    }
+    if (segments[0] === 'bills') {
+      return { kind: 'bills' };
+    }
+    if (segments[0] === 'legislators') {
+      return { kind: 'legislators' };
     }
     if (segments[0] === 'tracked') {
       return { kind: 'tab', screen: 'Tracked' };
@@ -149,6 +157,10 @@ export function pathnameFromNavigationState(
       return '/';
     case 'Search':
       return '/search';
+    case 'Bills':
+      return '/bills';
+    case 'Legislators':
+      return '/legislators';
     case 'Tracked':
       return '/tracked';
     case 'Chat':
@@ -265,6 +277,16 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
     case 'findMyLegislator':
       return {
         routes: [homeTabs, { name: 'FindMyLegislator' }],
+        index: 1,
+      };
+    case 'bills':
+      return {
+        routes: [homeTabs, { name: 'Bills' }],
+        index: 1,
+      };
+    case 'legislators':
+      return {
+        routes: [homeTabs, { name: 'Legislators' }],
         index: 1,
       };
     case 'privacy':
