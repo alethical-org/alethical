@@ -43,6 +43,17 @@ const PAGE_SIZE = 10;
 // API stay `policy_areas` (grounded-answers rule 3 governs displayed strings only).
 const ALL_ISSUES = 'All issues';
 
+// Issue chips display in Title Case (e.g. "Public Safety"), but the value sent
+// to the API stays the exact stored element (e.g. "public safety") — the /bills
+// policy_area filter matches whole elements exactly, so the raw value must be
+// preserved. Mirrors formatPolicyAreaLabel in the legacy SearchFilterPanel.
+const titleCaseIssue = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(' ');
+
 // Ordered most-progressed first (matching the sort=progress ordering), with the
 // off-path Vetoed state last. Every value maps to a status the /bills filter can
 // actually serve (alethical/api/routers/public.py status_filter_clause).
@@ -106,9 +117,13 @@ export function SearchBillsScreen() {
   const totalPages = total != null ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : undefined;
   const resultCount = total ?? bills.length;
 
-  const policyOptions: Array<{ label: string; count?: number }> = [
-    { label: ALL_ISSUES },
-    ...(policyAreasQuery.data ?? []).map((area) => ({ label: area.name, count: area.billCount })),
+  const policyOptions: Array<{ value: string; label: string; count?: number }> = [
+    { value: ALL_ISSUES, label: ALL_ISSUES },
+    ...(policyAreasQuery.data ?? []).map((area) => ({
+      value: area.name,
+      label: titleCaseIssue(area.name),
+      count: area.billCount,
+    })),
   ].slice(0, 8);
 
   const resetToFirstPage = () => setPage(1);
@@ -134,7 +149,7 @@ export function SearchBillsScreen() {
     const label = STATUS_OPTIONS.find((option) => option.value === status)?.label;
     if (label) activeFilters.push(label);
   }
-  if (policyArea !== ALL_ISSUES) activeFilters.push(policyArea);
+  if (policyArea !== ALL_ISSUES) activeFilters.push(titleCaseIssue(policyArea));
   if (omnibusOnly) activeFilters.push('Omnibus only');
   if (query) activeFilters.push(`“${query}”`);
 
@@ -221,12 +236,12 @@ export function SearchBillsScreen() {
       <View style={styles.pillRow}>
         {policyOptions.map((option) => (
           <FilterPill
-            key={option.label}
+            key={option.value}
             label={option.label}
             count={option.count}
-            active={policyArea === option.label}
+            active={policyArea === option.value}
             onPress={() => {
-              setPolicyArea(option.label);
+              setPolicyArea(option.value);
               resetToFirstPage();
             }}
           />
