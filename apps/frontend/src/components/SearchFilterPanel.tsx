@@ -30,7 +30,7 @@ const ALL_STATUSES = 'All Statuses';
 const ALL_YEARS = 'All Years';
 const statusOptions = [
   { label: ALL_STATUSES, value: '' },
-  { label: 'Proposed', value: 'proposed' },
+  { label: 'Introduced', value: 'proposed' },
   { label: 'In Committee', value: 'in_committee' },
   { label: 'Passed House', value: 'passed_house' },
   { label: 'Passed Senate', value: 'passed_senate' },

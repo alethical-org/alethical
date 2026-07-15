@@ -182,7 +182,7 @@ const MOVING_NOW: SampleBill[] = [
   },
   {
     billId: 'HF 1',
-    status: 'Proposed',
+    status: 'Introduced',
     statusColor: t.colors.text.secondary,
     progress: 1,
     summary:

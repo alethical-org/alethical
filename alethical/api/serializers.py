@@ -162,7 +162,7 @@ def bill_progress_payload(bill) -> list[api_schemas.BillProgressStep]:
     }
     current_step = status_steps.get(status_key, 1)
     steps = [
-        ("proposed", "Proposed"),
+        ("proposed", "Introduced"),
         ("in_committee", "In Committee"),
         ("passed_house", "Passed House"),
         ("passed_senate", "Passed Senate"),
