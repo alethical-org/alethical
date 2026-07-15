@@ -9,7 +9,7 @@ import requests
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import String, and_, case, cast, func, or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, aliased, selectinload
 
 from alethical.api.auth import get_optional_current_user
 from alethical.api.problems import problem_exception
@@ -78,19 +78,29 @@ def paginated_scalars(db: Session, stmt, *, limit: int, offset: int):
 
 
 def authored_bill_counts(db: Session, legislator_ids) -> dict[str, tuple[int, int]]:
-    """Live authored-bill counts (total, chief) per legislator, computed
-    set-wise from Sponsorship in one grouped query. Mirrors the Ask path
-    (alethical/api/routers/ask.py, topic→legislators) which derives counts from
-    the Sponsorship join rather than the stored LegislatorStats, whose
-    total_bill_count can read 0 on directory rows even when the person authored
-    bills (#291). One query for the whole page — no per-row N+1. Returns
+    """Live authored-bill counts (total, chief) for the given directory rows,
+    computed set-wise from Sponsorship in one grouped query.
+
+    Production keeps two Legislator rows per member: the roster row shown in the
+    directory (external_key = the member profile URL, a real district) carries no
+    sponsorships, while a separate bill-author row (external_key = the numeric
+    member key, a "*-unknown" placeholder district excluded from the directory)
+    carries every Sponsorship. The two are linked by the roster key *ending
+    with* the author key -- the same relationship canonical_legislator_for_
+    placeholder() resolves in the opposite direction. So reading Sponsorship on a
+    directory row's own id (equivalently, its stored LegislatorStats) is always 0
+    (#291). We instead join each requested row to its author row(s) via that
+    suffix match and count their sponsorships; the self-match (author == roster)
+    also covers any row that carries sponsorships on its own id. One grouped query
+    for the whole page -- no per-row N+1. Returns
     {legislator_id: (total_bill_count, chief_bill_count)}."""
     ids = list(legislator_ids)
     if not ids:
         return {}
+    author = aliased(Legislator)
     rows = db.execute(
         select(
-            Sponsorship.legislator_id,
+            Legislator.id,
             func.count(func.distinct(Sponsorship.bill_id)).label("total"),
             func.count(
                 func.distinct(
@@ -103,10 +113,20 @@ def authored_bill_counts(db: Session, legislator_ids) -> dict[str, tuple[int, in
                 )
             ).label("chief"),
         )
-        .where(Sponsorship.legislator_id.in_(ids))
-        .group_by(Sponsorship.legislator_id)
+        .select_from(Legislator)
+        .join(
+            author,
+            and_(
+                author.jurisdiction_id == Legislator.jurisdiction_id,
+                author.external_key.isnot(None),
+                Legislator.external_key.ilike(func.concat("%", author.external_key)),
+            ),
+        )
+        .join(Sponsorship, Sponsorship.legislator_id == author.id)
+        .where(Legislator.id.in_(ids))
+        .group_by(Legislator.id)
     ).all()
-    return {str(row.legislator_id): (row.total, row.chief) for row in rows}
+    return {str(row.id): (row.total, row.chief) for row in rows}
 
 
 _BILL_NUMBER_QUERY_RE = re.compile(r"^\s*([A-Za-z]{2})\s*0*(\d+)\s*$")

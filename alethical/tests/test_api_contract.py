@@ -590,21 +590,35 @@ def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
 
 def test_legislator_directory_authored_count_uses_live_sponsorships(client):
     """Regression for #291: the directory (and detail) authored-bill count must
-    come from a live Sponsorship join, not the stored LegislatorStats — which
-    can read 0 for a legislator who has actually authored bills (stale or
-    attributed to a shadow author-keyed row). Reproduce the production symptom
-    directly: a current, real-district legislator who chief-authored a bill but
-    whose LegislatorStats.total_bill_count is 0. Before the fix the directory
-    returned 0; after it returns the real count, matching the detail page."""
+    resolve the sponsorship-bearing shadow row, not read the directory row's own
+    stored LegislatorStats — which is always 0.
+
+    Reproduces the real production topology exactly (Scenario B), because reading
+    Sponsorship on the directory row's own id would pass a naive test but fixes
+    nothing on the live site:
+
+      * a "roster" row (external_key = a member profile URL, a real district)
+        that appears in the directory but carries NO sponsorships and a stored
+        LegislatorStats.total_bill_count of 0 — the state that renders "0 bills";
+      * a separate "author" row whose external_key is the numeric member key
+        (a suffix of the roster URL) on a "*-unknown" placeholder district
+        excluded from the directory, which carries every Sponsorship.
+
+    The two are linked only by the roster key ending with the author key. Under
+    the old logic (count Sponsorship.legislator_id == roster id) the directory
+    returned 0; the fix joins roster -> author by that suffix and returns the
+    real count. total counts all authorship (chief + co), chief only chief-author,
+    and the count matches wherever the person is shown (directory, detail, and
+    detail reached via the placeholder/author id)."""
     from sqlalchemy import delete, select
 
     from alethical.db.schema import load_schema
     from alethical.db.session import get_session_factory
 
     schema = load_schema()
-    external_key = "regression-291-directory-author"
-    full_name = "Regressionia Twoninetyone Directoryauthor"
-    district_code = "R291"
+    author_key = "reg291authorkey"
+    roster_key = f"https://www.house.mn.gov/members/profile/{author_key}"
+    roster_name = "Regressionia Twoninetyone Rosterrow"
 
     created_ids: dict[str, object] = {}
     try:
@@ -617,113 +631,163 @@ def test_legislator_directory_authored_count_uses_live_sponsorships(client):
             chamber = db.scalar(
                 select(schema.Chamber).where(schema.Chamber.slug == "house")
             )
-            bill = db.scalar(
-                select(schema.Bill).where(schema.Bill.session_id == session_row.id)
-            )
-            assert session_row is not None and chamber is not None and bill is not None
+            bills = db.scalars(
+                select(schema.Bill)
+                .where(schema.Bill.session_id == session_row.id)
+                .limit(2)
+            ).all()
+            assert session_row is not None and chamber is not None
+            assert len(bills) >= 2
 
-            district = schema.District(
+            real_district = schema.District(
                 jurisdiction_id=chamber.jurisdiction_id,
                 chamber_id=chamber.id,
-                code=district_code,
-                label=f"District {district_code}",
+                code="R291",
+                label="District R291",
             )
-            db.add(district)
-            db.flush()
-            legislator = schema.Legislator(
+            unknown_district = schema.District(
                 jurisdiction_id=chamber.jurisdiction_id,
-                slug="regressionia-291-directoryauthor",
-                external_key=external_key,
-                full_name=full_name,
-                sort_name=full_name,
+                chamber_id=chamber.id,
+                code="HR291-unknown",
+                label="District HR291 (unknown)",
             )
-            db.add(legislator)
+            db.add_all([real_district, unknown_district])
             db.flush()
-            db.add(
-                schema.LegislatorServicePeriod(
-                    legislator_id=legislator.id,
-                    session_id=session_row.id,
-                    chamber_id=chamber.id,
-                    district_id=district.id,
-                    is_current=True,
-                )
+
+            # Roster row: real district, in the directory, no sponsorships.
+            roster = schema.Legislator(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="regressionia-291-rosterrow",
+                external_key=roster_key,
+                full_name=roster_name,
+                sort_name=roster_name,
             )
-            db.add(
-                schema.Sponsorship(
-                    bill_id=bill.id,
-                    legislator_id=legislator.id,
-                    role=schema.SponsorshipRole.chief_author,
-                    source_order=1,
-                )
+            # Author row: placeholder district, excluded from the directory,
+            # bears the sponsorships; keyed so roster_key ends with author_key.
+            author = schema.Legislator(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="regressionia-291-authorrow",
+                external_key=author_key,
+                full_name="Rosterrow, R. T.",
+                sort_name="Rosterrow, R. T.",
             )
-            # Stored stats deliberately stale/misattributed — the bug's state.
-            db.add(
-                schema.LegislatorStats(
-                    legislator_id=legislator.id,
-                    session_id=session_row.id,
-                    total_bill_count=0,
-                    chief_bill_count=0,
-                )
+            db.add_all([roster, author])
+            db.flush()
+            db.add_all(
+                [
+                    schema.LegislatorServicePeriod(
+                        legislator_id=roster.id,
+                        session_id=session_row.id,
+                        chamber_id=chamber.id,
+                        district_id=real_district.id,
+                        is_current=True,
+                    ),
+                    schema.LegislatorServicePeriod(
+                        legislator_id=author.id,
+                        session_id=session_row.id,
+                        chamber_id=chamber.id,
+                        district_id=unknown_district.id,
+                        is_current=True,
+                    ),
+                    schema.Sponsorship(
+                        bill_id=bills[0].id,
+                        legislator_id=author.id,
+                        role=schema.SponsorshipRole.chief_author,
+                        source_order=1,
+                    ),
+                    schema.Sponsorship(
+                        bill_id=bills[1].id,
+                        legislator_id=author.id,
+                        role=schema.SponsorshipRole.co_author,
+                        source_order=2,
+                    ),
+                    # Stored stats on the roster row are 0 — the bug's state.
+                    schema.LegislatorStats(
+                        legislator_id=roster.id,
+                        session_id=session_row.id,
+                        total_bill_count=0,
+                        chief_bill_count=0,
+                    ),
+                ]
             )
             db.commit()
             created_ids = {
-                "legislator": legislator.id,
-                "district": district.id,
-                "bill": bill.id,
+                "roster": roster.id,
+                "author": author.id,
+                "real_district": real_district.id,
+                "unknown_district": unknown_district.id,
             }
 
         directory_response = client.get(
             "/api/v1/legislators",
-            params={"session": "94-2025-regular", "q": full_name, "limit": 5},
+            params={"session": "94-2025-regular", "q": roster_name, "limit": 5},
         )
         assert directory_response.status_code == 200
+        directory_ids = {item["id"] for item in directory_response.json()["data"]}
+        # The author (placeholder) row must never appear in the directory.
+        assert str(created_ids["author"]) not in directory_ids
         matches = [
             item
             for item in directory_response.json()["data"]
-            if item["id"] == str(created_ids["legislator"])
+            if item["id"] == str(created_ids["roster"])
         ]
         assert len(matches) == 1
         directory_total = matches[0]["stats"]["total_bill_count"]
-        # The core bug: this was 0 (read from stale stats) before the fix.
-        assert directory_total == 1
+        # The core bug: this was 0 (roster row bears no sponsorships) before the fix.
+        assert directory_total == 2
         assert matches[0]["stats"]["chief_bill_count"] == 1
 
+        # Detail on the roster row: same number, everywhere we show it.
         detail_response = client.get(
-            f"/api/v1/legislators/{created_ids['legislator']}",
+            f"/api/v1/legislators/{created_ids['roster']}",
             params={"session": "94-2025-regular", "include": "stats"},
         )
         assert detail_response.status_code == 200
-        detail_total = detail_response.json()["data"]["stats"]["total_bill_count"]
-        # Same person, same number, everywhere we show it.
-        assert detail_total == directory_total
+        detail_stats = detail_response.json()["data"]["stats"]
+        assert detail_stats["total_bill_count"] == directory_total
+        assert detail_stats["chief_bill_count"] == 1
+
+        # Detail reached via the placeholder/author id resolves to the roster row
+        # and reports the same count (canonical_legislator_for_placeholder path).
+        placeholder_response = client.get(
+            f"/api/v1/legislators/{created_ids['author']}",
+            params={"session": "94-2025-regular", "include": "stats"},
+        )
+        assert placeholder_response.status_code == 200
+        assert (
+            placeholder_response.json()["data"]["stats"]["total_bill_count"]
+            == directory_total
+        )
     finally:
         with get_session_factory()() as db:
             if created_ids:
+                leg_ids = [created_ids["roster"], created_ids["author"]]
                 db.execute(
                     delete(schema.Sponsorship).where(
-                        schema.Sponsorship.legislator_id == created_ids["legislator"]
+                        schema.Sponsorship.legislator_id.in_(leg_ids)
                     )
                 )
                 db.execute(
                     delete(schema.LegislatorStats).where(
-                        schema.LegislatorStats.legislator_id
-                        == created_ids["legislator"]
+                        schema.LegislatorStats.legislator_id.in_(leg_ids)
                     )
                 )
                 db.execute(
                     delete(schema.LegislatorServicePeriod).where(
-                        schema.LegislatorServicePeriod.legislator_id
-                        == created_ids["legislator"]
+                        schema.LegislatorServicePeriod.legislator_id.in_(leg_ids)
                     )
                 )
                 db.execute(
-                    delete(schema.Legislator).where(
-                        schema.Legislator.id == created_ids["legislator"]
-                    )
+                    delete(schema.Legislator).where(schema.Legislator.id.in_(leg_ids))
                 )
                 db.execute(
                     delete(schema.District).where(
-                        schema.District.id == created_ids["district"]
+                        schema.District.id.in_(
+                            [
+                                created_ids["real_district"],
+                                created_ids["unknown_district"],
+                            ]
+                        )
                     )
                 )
                 db.commit()
