@@ -237,6 +237,7 @@ export function SearchBillsScreen() {
       openMenu={openMenu}
       onOpenMenuChange={setOpenMenu}
       onNavigate={handleNavigate}
+      onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
       onSignIn={() => void signInWithGoogle()}
       onAsk={() => navigation.navigate('Ask')}
       onPrivacy={() => navigation.navigate('Privacy')}

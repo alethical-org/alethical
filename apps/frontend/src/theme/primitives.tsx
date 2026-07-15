@@ -465,6 +465,7 @@ export function TopNav({
   openMenu: openMenuProp,
   onOpenMenuChange,
   onNavigate,
+  onHome,
   onSignIn,
   onAsk,
 }: {
@@ -472,6 +473,7 @@ export function TopNav({
   openMenu?: MenuKey | null;
   onOpenMenuChange?: (menu: MenuKey | null) => void;
   onNavigate?: (item: IaItem) => void;
+  onHome?: () => void;
   onSignIn?: () => void;
   onAsk?: () => void;
 }) {
@@ -520,7 +522,18 @@ export function TopNav({
   return (
     <Container style={styles.navRow}>
       <View style={styles.navBar}>
-        <Logo compact={!isDesktop} />
+        {onHome ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Alethical home"
+            onPress={onHome}
+            style={({ pressed }) => [styles.logoLink, pressed && styles.logoLinkPressed]}
+          >
+            <Logo compact={!isDesktop} />
+          </Pressable>
+        ) : (
+          <Logo compact={!isDesktop} />
+        )}
         {isDesktop ? (
           <View style={styles.navLinks}>
             <View ref={navTriggerGroupRef as never} style={styles.navTriggerGroup}>
@@ -974,6 +987,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.9,
     color: t.colors.text.faint,
   },
+  logoLink: { alignSelf: 'flex-start' },
+  logoLinkPressed: { opacity: 0.72 },
   logo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   logoLight: { gap: 12 },
   logoCompact: { gap: 10 },

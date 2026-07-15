@@ -923,6 +923,7 @@ export function HomeSignedOutScreen() {
               openMenu={openMenu}
               onOpenMenuChange={setOpenMenu}
               onNavigate={handleNavigate}
+              onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
               onSignIn={signIn}
             />
 

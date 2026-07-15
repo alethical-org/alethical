@@ -61,6 +61,7 @@ export function SearchPageShell({
   openMenu,
   onOpenMenuChange,
   onNavigate,
+  onHome,
   onSignIn,
   onAsk,
   onPrivacy,
@@ -73,6 +74,7 @@ export function SearchPageShell({
   openMenu: MenuKey | null;
   onOpenMenuChange: (menu: MenuKey | null) => void;
   onNavigate: (item: IaItem) => void;
+  onHome?: () => void;
   onSignIn: () => void;
   onAsk: () => void;
   onPrivacy?: () => void;
@@ -111,6 +113,7 @@ export function SearchPageShell({
               openMenu={openMenu}
               onOpenMenuChange={onOpenMenuChange}
               onNavigate={onNavigate}
+              onHome={onHome}
               onSignIn={onSignIn}
               onAsk={onAsk}
             />
