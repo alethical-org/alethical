@@ -1,5 +1,7 @@
 # Workflow-overhead audit — design pipeline — 2026-07-13 (baseline)
 
+> _Skill renames since this audit (2026-07-15): `design-task-intake` → `design-intake`, `implementing-design-handoffs` → `design-build`, `web-design-guidelines` → `design-audit`; new sibling `design-review`. Old names below are historical._
+
 Task type: **design handoff / design instructions → live site.** First audit; no
 previous table to diff. Repo-tracked and repo-local layers only — the
 machine-global layer (personal `~/.claude` config and plugins) was audited in the

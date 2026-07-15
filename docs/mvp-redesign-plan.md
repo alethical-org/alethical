@@ -77,7 +77,7 @@ roadmap noted for direction.
   nav dropdowns → mobile drawer, ~44px touch targets, and **no reliance on hover** (there is
   no hover on touch, so resting states must stand alone). Per-page mobile mocks are **not**
   commissioned; request a *targeted* mobile mock only if a specific section doesn't reflow
-  cleanly. Codified in the `implementing-design-handoffs` skill (Responsive & touch). styling is fully centralized in `theme/tokens.ts` with zero
+  cleanly. Codified in the `design-build` skill (Responsive & touch). styling is fully centralized in `theme/tokens.ts` with zero
   hardcoded hex across the 24 screen/component files, so the green flip is a token-set
   swap, not a code migration. The MVP flip targets web; because the codebase is shared
   Expo/React Native, the same swap will re-skin the post-MVP iOS/Android clients for free.

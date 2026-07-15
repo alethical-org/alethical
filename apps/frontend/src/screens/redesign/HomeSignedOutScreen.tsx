@@ -959,7 +959,7 @@ export function HomeSignedOutScreen() {
                         ref={askInputRef}
                         // No accessibilityLabel: the descriptive placeholder is the field's
                         // accessible name. An aria-label here would make screen readers announce
-                        // both it AND the placeholder (a11y refinement, see web-design-guidelines skill).
+                        // both it AND the placeholder (a11y refinement, see design-audit skill).
                         value={askValue}
                         onChangeText={setAskValue}
                         onFocus={() => setAskFocused(true)}

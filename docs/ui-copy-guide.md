@@ -78,4 +78,4 @@ Use typographer's punctuation in all user-facing copy. It is the quality-publish
 - **Ellipsis — the single glyph `…` (U+2026), never three periods `...`** — for genuine omission inside a quotation and for loading/progress states ("Loading…"). **Do *not* trail input-field placeholders with `…`** — a placeholder states its prompt plainly (e.g. "Ask about bills or legislators by issue or name"). This deliberately overrides the generic "placeholders end with …" web guideline.
 - **Dashes — em dash `—` for a break in thought**, matching existing copy's spacing.
 
-Displayed strings only. **Code — identifiers, comments, JSON keys, test fixtures — keeps straight ASCII punctuation.** This is `docs/design-principles.md` §2 (typography) at the character level; the `web-design-guidelines` review checks it on shipped screens.
+Displayed strings only. **Code — identifiers, comments, JSON keys, test fixtures — keeps straight ASCII punctuation.** This is `docs/design-principles.md` §2 (typography) at the character level; the `design-audit` review checks it on shipped screens.
