@@ -1,3 +1,25 @@
+# --- Concurrent-session isolation ------------------------------------------
+# This repo runs many Claude sessions at once against the same checkout. Work in
+# your OWN worktree off origin/main instead of the shared checkout, so a branch
+# switch or destructive clean in one session can't wipe another's uncommitted
+# work. See .claude/rules/workflow.md rule 10 (concurrent-session isolation).
+
+# Create an isolated worktree off origin/main, fully set up to build & verify.
+# Usage: just worktree my-branch   ->   ../alethical-wt-my-branch (its own deps).
+worktree branch:
+  git fetch origin main
+  git worktree add -b {{branch}} ../alethical-wt-{{branch}} origin/main
+  main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; [ -f "$main_root/.env" ] && ln -sf "$main_root/.env" ../alethical-wt-{{branch}}/.env || true
+  cd ../alethical-wt-{{branch}} && pnpm install --frozen-lockfile
+  @echo "✅ Worktree ready: ../alethical-wt-{{branch}} (branch {{branch}}). cd there to build, commit, and push."
+
+# Remove a worktree created by `just worktree` (run after its PR is merged).
+# Usage: just worktree-rm my-branch
+worktree-rm branch:
+  git worktree remove ../alethical-wt-{{branch}}
+  -git branch -D {{branch}}
+  @echo "🧹 Removed worktree ../alethical-wt-{{branch}}."
+
 format:
   uvx ruff check --fix alethical scripts
   uvx ruff format alethical scripts
