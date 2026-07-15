@@ -29,9 +29,18 @@ const t = theme;
 
 export type ChamberFilter = 'All' | 'House' | 'Senate';
 
-// The session dropdown always spells the current session out in full. The DB
-// serves this exact string; the fallback covers the pre-load render.
-export const SESSION_LABEL_FALLBACK = '94th Legislature (2025–2026) Regular Session';
+// The session filter reads as "2025–2026 Legislative Session" — the year range
+// a regular person recognizes, not the DB's formal chamber name. formatSession-
+// Label reshapes the served name (e.g. "94th Legislature (2025 - 2026) Regular
+// Session") into that; the fallback covers the pre-load render.
+export function formatSessionLabel(name: string): string {
+  const years = name.match(/\b(20\d{2})\b(?:\s*[-–]\s*(20\d{2}))?/);
+  if (!years) return name;
+  const range = years[2] ? `${years[1]}–${years[2]}` : years[1];
+  return `${range} Legislative Session`;
+}
+
+export const SESSION_LABEL_FALLBACK = '2025–2026 Legislative Session';
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 

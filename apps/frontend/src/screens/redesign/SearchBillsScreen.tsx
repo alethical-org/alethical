@@ -31,6 +31,7 @@ import {
   SearchHero,
   SearchPageShell,
   SESSION_LABEL_FALLBACK,
+  formatSessionLabel,
 } from '../../components/search/searchPieces';
 
 // Search Bills (docs/mockups/search-bills). Server-paginated bill discovery over
@@ -78,8 +79,8 @@ export function SearchBillsScreen() {
   const currentSession =
     sessionsQuery.data?.find((item) => item.isCurrent) ?? sessionsQuery.data?.[0];
   const sessionSlug = session || currentSession?.slug || '';
-  const sessionLabel =
-    sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name ?? SESSION_LABEL_FALLBACK;
+  const sessionName = sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name;
+  const sessionLabel = sessionName ? formatSessionLabel(sessionName) : SESSION_LABEL_FALLBACK;
 
   const filters: BillListFilters = {
     chamber: chamber === 'All' ? undefined : chamber,
@@ -204,7 +205,7 @@ export function SearchBillsScreen() {
           label={sessionLabel}
           accessibilityLabel="Filter by session"
           options={(sessionsQuery.data ?? []).map((item) => ({
-            label: item.name,
+            label: formatSessionLabel(item.name),
             value: item.slug,
           }))}
           selectedValue={sessionSlug}
