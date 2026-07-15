@@ -8,7 +8,7 @@ from uuid import UUID
 import requests
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import String, and_, case, cast, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased, selectinload
 
 from alethical.api.auth import get_optional_current_user
@@ -424,12 +424,17 @@ def bills(
         stmt = stmt.where(status_filter_clause(status))
     if policy_area:
         policy_area_value = policy_area.strip()
+        # Exact array-element membership via the JSONB `?` operator (has_key), not
+        # a substring match on the array cast to text. The prior
+        # cast(...)::text ILIKE '%value%' scan was unindexable and took ~90s on
+        # the production corpus — combined with sort=progress it exceeded the
+        # gateway timeout (502) so the pill click never narrowed the list. `?`
+        # runs in ~200ms and matches whole elements, so the filtered total now
+        # agrees with the /policy-areas pill count (both key off exact elements).
         matching_policy_area_bills = select(AIEnrichment.bill_id).where(
             AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
             AIEnrichment.is_current.is_(True),
-            cast(AIEnrichment.content_json["policy_areas"], String).ilike(
-                f"%{policy_area_value}%"
-            ),
+            AIEnrichment.content_json["policy_areas"].has_key(policy_area_value),
         )
         stmt = stmt.where(Bill.id.in_(matching_policy_area_bills))
     if omnibus is not None:
