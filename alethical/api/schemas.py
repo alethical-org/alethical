@@ -117,6 +117,7 @@ class TopicPayload(BaseModel):
 
 
 class AIAnalysisPayload(BaseModel):
+    short_title: str | None = None
     summary: str | None = None
     key_points: list[str]
     policy_areas: list[str]

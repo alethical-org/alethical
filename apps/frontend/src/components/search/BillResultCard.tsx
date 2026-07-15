@@ -126,7 +126,7 @@ export function BillResultCard({
         accessibilityLabel={bill.title}
         {...(isWeb ? ({ title: bill.title } as object) : null)}
       >
-        {bill.title}
+        {bill.aiAnalysis?.shortTitle ?? bill.title}
       </Text>
 
       <View style={styles.summaryEyebrowRow}>

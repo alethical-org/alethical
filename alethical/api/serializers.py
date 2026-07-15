@@ -239,10 +239,14 @@ def ai_analysis_payload_for_enrichment(
     if enrichment is None:
         return None
     content = enrichment.content_json or {}
+    short_title = content.get("short_title")
     summary = content.get("summary")
     key_points = content.get("key_points")
     policy_areas = content.get("policy_areas")
     return api_schemas.AIAnalysisPayload(
+        short_title=short_title.strip()
+        if isinstance(short_title, str) and short_title.strip()
+        else None,
         summary=summary.strip()
         if isinstance(summary, str) and summary.strip()
         else None,

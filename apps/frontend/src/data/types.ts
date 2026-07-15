@@ -77,6 +77,7 @@ export interface BillBriefing {
 }
 
 export interface BillAIAnalysis {
+  shortTitle: string | null;
   summary: string;
   keyPoints: string[];
   policyAreas: string[];

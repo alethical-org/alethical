@@ -36,6 +36,10 @@ Sponsorship = schema.Sponsorship
 
 OPENAI_API_BASE = "https://api.openai.com/v1"
 DEFAULT_MODEL = "gpt-5.2"
+# Short-title generation runs on the cheap model regardless of --model. It reads
+# only bill metadata (no bill text), so it stays inexpensive; pin it here so a
+# drifted DEFAULT_MODEL never leaks into the title backfill.
+TITLE_MODEL = "gpt-4o-mini"
 DEFAULT_OUTPUT_DIR = Path(".tmp/openai-batches")
 MAX_BATCH_REQUESTS = 50_000
 MAX_BATCH_FILE_BYTES = 200 * 1024 * 1024
@@ -45,6 +49,7 @@ SUMMARY_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
+        "short_title": {"type": "string"},
         "what": {"type": "string"},
         "why": {"type": "string"},
         "summary": {"type": "string"},
@@ -107,6 +112,7 @@ SUMMARY_SCHEMA: dict[str, Any] = {
         "source_notes": {"type": "array", "items": {"type": "string"}},
     },
     "required": [
+        "short_title",
         "what",
         "why",
         "summary",
@@ -133,9 +139,25 @@ SUMMARY_SCHEMA: dict[str, Any] = {
 }
 
 
+# Minimal schema for the title-only backfill: generate just a neutral short_title
+# from bill metadata. Kept separate from SUMMARY_SCHEMA so a title-only request is
+# cheap and strict (no full analysis fields).
+SHORT_TITLE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {"short_title": {"type": "string"}},
+    "required": ["short_title"],
+}
+
+
 SYSTEM_PROMPT = """You write careful, source-grounded legislative analysis for Alethical.
 
-Return JSON matching the provided schema. Base the analysis only on the supplied bill metadata and bill text excerpts. Do not invent vote outcomes, author motives, public opinion, fiscal scores, or legal effects not supported by the text. If a field cannot be supported, use cautious language or an empty array. Keep wording neutral and make both benefits and concerns conditional when the bill text does not prove real-world outcomes."""
+Return JSON matching the provided schema. Base the analysis only on the supplied bill metadata and bill text excerpts. Do not invent vote outcomes, author motives, public opinion, fiscal scores, or legal effects not supported by the text. If a field cannot be supported, use cautious language or an empty array. Keep wording neutral and make both benefits and concerns conditional when the bill text does not prove real-world outcomes. Also produce `short_title`: a neutral, descriptive headline-case title (about 4-8 words, at most 70 characters) that states plainly what the bill does, with no editorializing or advocacy."""
+
+
+SHORT_TITLE_SYSTEM_PROMPT = """You write short, neutral, plain-language titles for Minnesota bills for Alethical.
+
+Return JSON matching the provided schema. Produce a single `short_title`: a neutral, descriptive headline in headline case, about 4-8 words and at most 70 characters, that states plainly what the bill does. Base it only on the supplied bill metadata. Do not editorialize, advocate, praise, or criticize; do not predict outcomes or impute motives. Keep it factual and neutral (for example "Paid Family and Medical Leave Program", not "Landmark Worker Protections")."""
 
 
 @dataclass(frozen=True)
@@ -340,6 +362,68 @@ def batch_request(custom_id: str, model: str, prompt: str) -> dict[str, Any]:
     }
 
 
+def current_summary_content(bill: Any) -> dict[str, Any] | None:
+    """Return the content_json of the bill's current bill_summary enrichment, or
+    None when there is nothing to patch a short_title into."""
+    for enrichment in bill.enrichments:
+        if (
+            enrichment.enrichment_type == EnrichmentType.bill_summary
+            and enrichment.is_current
+        ):
+            return enrichment.content_json or {}
+    return None
+
+
+def short_title_prompt(bill: Any) -> tuple[str, str]:
+    metadata = {
+        "bill_key": bill.bill_key,
+        "title": bill.title,
+        "description": bill.description,
+        "current_status": bill.current_status,
+    }
+    version_hash = source_hash(
+        [
+            bill.bill_key,
+            bill.title or "",
+            bill.description or "",
+            bill.current_status or "",
+        ]
+    )
+    prompt = (
+        "Write one neutral, plain-language short_title for this Minnesota bill. "
+        "Return JSON only.\n\n"
+        f"Bill metadata:\n{json.dumps(metadata, ensure_ascii=False, indent=2)}"
+    )
+    return prompt, version_hash
+
+
+def short_title_batch_request(
+    custom_id: str, model: str, prompt: str
+) -> dict[str, Any]:
+    return {
+        "custom_id": custom_id,
+        "method": "POST",
+        "url": "/v1/responses",
+        "body": {
+            "model": model,
+            "input": [
+                {"role": "system", "content": SHORT_TITLE_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "bill_short_title",
+                    "description": "Neutral plain-language short title for a Minnesota bill.",
+                    "strict": True,
+                    "schema": SHORT_TITLE_SCHEMA,
+                }
+            },
+            "max_output_tokens": 120,
+        },
+    }
+
+
 def prepare_batch(args: argparse.Namespace) -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -355,37 +439,67 @@ def prepare_batch(args: argparse.Namespace) -> None:
     jsonl_path = output_dir / f"ai-enrichment-{timestamp}.jsonl"
     manifest_path = output_dir / f"ai-enrichment-{timestamp}.manifest.json"
 
+    titles_only = getattr(args, "titles_only", False)
+    # Title-only always runs on the cheap metadata model; the full path honors --model.
+    model = TITLE_MODEL if titles_only else args.model
+    mode = "titles_only" if titles_only else "full"
+
     manifest: list[ManifestItem] = []
     bytes_written = 0
     pending_custom_ids = (
-        pending_manifest_custom_ids(output_dir, model=args.model)
+        pending_manifest_custom_ids(output_dir, model=model)
         if not args.force
         else set()
     )
     skipped_pending = 0
     skipped_existing_current = 0
+    skipped_existing_title = 0
+    skipped_no_summary = 0
     with Session(engine) as db, jsonl_path.open("w", encoding="utf-8") as handle:
         for bill in bills_for_batch(
             db, session_slug=args.session, bill_key=args.bill_key, limit=args.limit
         ):
-            if getattr(args, "only_missing_current", False) and has_current_summary(
-                bill, args.model
+            if (
+                not titles_only
+                and getattr(args, "only_missing_current", False)
+                and has_current_summary(bill, model)
             ):
                 skipped_existing_current += 1
                 continue
             version = current_bill_version(db, bill.id)
             if version is None:
                 continue
-            prompt, version_hash, truncated = bill_prompt(
-                db, bill, version, max_input_chars=args.max_input_chars
-            )
-            if not should_enqueue(bill, args.model, version_hash, force=args.force):
-                continue
-            custom_id = f"bill_summary:{bill.bill_key}:{version_hash[:16]}"
+            if titles_only:
+                # The title backfill patches an existing bill_summary; skip bills
+                # with none to patch, and skip bills that already carry a
+                # short_title unless --force (caching, keyed per bill).
+                content = current_summary_content(bill)
+                if content is None:
+                    skipped_no_summary += 1
+                    continue
+                existing_title = content.get("short_title")
+                if (
+                    not args.force
+                    and isinstance(existing_title, str)
+                    and existing_title.strip()
+                ):
+                    skipped_existing_title += 1
+                    continue
+                prompt, version_hash = short_title_prompt(bill)
+                custom_id = f"bill_title:{bill.bill_key}:{version_hash[:16]}"
+                request = short_title_batch_request(custom_id, model, prompt)
+            else:
+                prompt, version_hash, _truncated = bill_prompt(
+                    db, bill, version, max_input_chars=args.max_input_chars
+                )
+                if not should_enqueue(bill, model, version_hash, force=args.force):
+                    continue
+                custom_id = f"bill_summary:{bill.bill_key}:{version_hash[:16]}"
+                request = batch_request(custom_id, model, prompt)
             if custom_id in pending_custom_ids:
                 skipped_pending += 1
                 continue
-            line = json_dumps(batch_request(custom_id, args.model, prompt)) + "\n"
+            line = json_dumps(request) + "\n"
             bytes_written += len(line.encode("utf-8"))
             if len(manifest) + 1 > MAX_BATCH_REQUESTS:
                 raise SystemExit(f"Batch request limit exceeded: {MAX_BATCH_REQUESTS}")
@@ -400,7 +514,7 @@ def prepare_batch(args: argparse.Namespace) -> None:
                     bill_id=str(bill.id),
                     bill_key=bill.bill_key,
                     bill_version_id=str(version.id),
-                    model=args.model,
+                    model=model,
                     source_version_hash=version_hash,
                 )
             )
@@ -410,8 +524,9 @@ def prepare_batch(args: argparse.Namespace) -> None:
             {
                 "created_at": timestamp,
                 "endpoint": "/v1/responses",
+                "mode": mode,
                 "jsonl_path": str(jsonl_path),
-                "model": args.model,
+                "model": model,
                 "items": [asdict(item) for item in manifest],
             },
             indent=2,
@@ -421,9 +536,13 @@ def prepare_batch(args: argparse.Namespace) -> None:
     print(
         json.dumps(
             {
+                "mode": mode,
+                "model": model,
                 "requests": len(manifest),
                 "skipped_pending": skipped_pending,
                 "skipped_existing_current": skipped_existing_current,
+                "skipped_existing_title": skipped_existing_title,
+                "skipped_no_summary": skipped_no_summary,
                 "jsonl_path": str(jsonl_path),
                 "manifest_path": str(manifest_path),
             },
@@ -516,9 +635,11 @@ def extract_response_text(body: dict[str, Any]) -> str:
     return "".join(fragments).strip()
 
 
-def load_manifest(path: Path) -> dict[str, ManifestItem]:
+def load_manifest(path: Path) -> tuple[str, dict[str, ManifestItem]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    return {item["custom_id"]: ManifestItem(**item) for item in payload["items"]}
+    mode = payload.get("mode", "full")
+    items = {item["custom_id"]: ManifestItem(**item) for item in payload["items"]}
+    return mode, items
 
 
 def pending_manifest_custom_ids(
@@ -554,7 +675,8 @@ def apply_output(args: argparse.Namespace) -> None:
     if output_path is None:
         raise SystemExit("--output-path or --batch-id is required")
 
-    manifest = load_manifest(Path(args.manifest_path))
+    mode, manifest = load_manifest(Path(args.manifest_path))
+    merge = mode == "titles_only"
     database_url = normalize_database_url(
         args.database_url
         or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
@@ -584,12 +706,46 @@ def apply_output(args: argparse.Namespace) -> None:
             except json.JSONDecodeError:
                 failed += 1
                 continue
+            bill_id = uuid.UUID(item.bill_id)
+
+            if merge:
+                # Title-only merge: patch short_title into the bill's current
+                # bill_summary content_json without clobbering the other fields
+                # or touching is_current. Skip bills with no current summary.
+                new_title = (
+                    content.get("short_title") if isinstance(content, dict) else None
+                )
+                if not isinstance(new_title, str) or not new_title.strip():
+                    failed += 1
+                    continue
+                existing = db.scalar(
+                    select(AIEnrichment).where(
+                        AIEnrichment.bill_id == bill_id,
+                        AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+                        AIEnrichment.is_current.is_(True),
+                    )
+                )
+                if existing is None:
+                    failed += 1
+                    continue
+                # Reassign content_json (rather than mutating in place) so
+                # SQLAlchemy detects the JSONB change.
+                patched = dict(existing.content_json or {})
+                patched["short_title"] = new_title.strip()
+                meta = dict(patched.get("_meta") or {})
+                meta["short_title_model"] = item.model
+                if args.batch_id:
+                    meta["short_title_openai_batch_id"] = args.batch_id
+                patched["_meta"] = meta
+                existing.content_json = patched
+                applied += 1
+                continue
+
             content["_meta"] = {
                 "model": item.model,
                 "source_version_hash": item.source_version_hash,
                 "openai_batch_id": args.batch_id,
             }
-            bill_id = uuid.UUID(item.bill_id)
             bill_version_id = uuid.UUID(item.bill_version_id)
 
             db.execute(
@@ -662,6 +818,14 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--max-input-chars", type=int, default=60_000)
     prepare.add_argument("--force", action="store_true")
     prepare.add_argument("--only-missing-current", action="store_true")
+    prepare.add_argument(
+        "--titles-only",
+        action="store_true",
+        help=(
+            "Generate only a neutral short_title from bill metadata (pinned to "
+            f"{TITLE_MODEL}); apply merges it into the existing bill_summary."
+        ),
+    )
     prepare.set_defaults(func=prepare_batch)
 
     submit = subparsers.add_parser(
