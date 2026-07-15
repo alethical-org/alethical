@@ -113,14 +113,6 @@ export const IA: IaItem[] = [
     inNavDropdown: true,
   },
   {
-    id: 'search-policies',
-    label: 'Policies',
-    path: '/search/policies',
-    menu: 'search',
-    availability: 'roadmap',
-    authGated: false,
-  },
-  {
     id: 'search-laws',
     label: 'Laws',
     path: '/search/laws',
@@ -178,14 +170,6 @@ export const IA: IaItem[] = [
     authGated: true,
     description: 'Follow an issue — and every bill as it advances',
     inNavDropdown: true,
-  },
-  {
-    id: 'track-policies',
-    label: 'Policies',
-    path: '/track/policies',
-    menu: 'track',
-    availability: 'roadmap',
-    authGated: true,
   },
   {
     id: 'track-laws',

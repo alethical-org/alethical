@@ -38,7 +38,10 @@ import {
 // per-bill tracking.
 
 const PAGE_SIZE = 10;
-const ALL_POLICIES = 'All policies';
+// "issue" is the layperson entry word for a bill's topic (docs/ui-copy-guide.md
+// terminology invariants) — matches the nav's "Issues" menu. The data field and
+// API stay `policy_areas` (grounded-answers rule 3 governs displayed strings only).
+const ALL_ISSUES = 'All issues';
 
 // Ordered most-progressed first (matching the sort=progress ordering), with the
 // off-path Vetoed state last. Every value maps to a status the /bills filter can
@@ -65,7 +68,7 @@ export function SearchBillsScreen() {
   const [status, setStatus] = useState('');
   const [session, setSession] = useState('');
   const [omnibusOnly, setOmnibusOnly] = useState(false);
-  const [policyArea, setPolicyArea] = useState(ALL_POLICIES);
+  const [policyArea, setPolicyArea] = useState(ALL_ISSUES);
   const [page, setPage] = useState(1);
   const [signInBill, setSignInBill] = useState<{ id: string; code: string } | null>(null);
   const [toast, setToast] = useState<{ code: string } | null>(null);
@@ -80,7 +83,7 @@ export function SearchBillsScreen() {
   const filters: BillListFilters = {
     chamber: chamber === 'All' ? undefined : chamber,
     status: status || undefined,
-    policyArea: policyArea === ALL_POLICIES ? undefined : policyArea,
+    policyArea: policyArea === ALL_ISSUES ? undefined : policyArea,
     omnibus: omnibusOnly ? true : undefined,
     // Default sort per Search Bills design-review (2026-07-15): legislative
     // progress — bills closest to becoming law first (#292).
@@ -104,7 +107,7 @@ export function SearchBillsScreen() {
   const resultCount = total ?? bills.length;
 
   const policyOptions: Array<{ label: string; count?: number }> = [
-    { label: ALL_POLICIES },
+    { label: ALL_ISSUES },
     ...(policyAreasQuery.data ?? []).map((area) => ({ label: area.name, count: area.billCount })),
   ].slice(0, 8);
 
@@ -120,7 +123,7 @@ export function SearchBillsScreen() {
     setQuery('');
     setChamber('All');
     setStatus('');
-    setPolicyArea(ALL_POLICIES);
+    setPolicyArea(ALL_ISSUES);
     setOmnibusOnly(false);
     resetToFirstPage();
   };
@@ -131,7 +134,7 @@ export function SearchBillsScreen() {
     const label = STATUS_OPTIONS.find((option) => option.value === status)?.label;
     if (label) activeFilters.push(label);
   }
-  if (policyArea !== ALL_POLICIES) activeFilters.push(policyArea);
+  if (policyArea !== ALL_ISSUES) activeFilters.push(policyArea);
   if (omnibusOnly) activeFilters.push('Omnibus only');
   if (query) activeFilters.push(`“${query}”`);
 

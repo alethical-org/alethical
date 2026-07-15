@@ -25,8 +25,10 @@
 > wording in the earlier O10 record (`docs/mvp-redesign-plan.md`, now corrected).
 >
 > Terminology invariants that also bind this guide: author / co-author, never sponsor / co-sponsor,
-> in user-facing copy (`.claude/rules/grounded-answers.md` rule 3); "issue," not "topic," as the
-> layperson entry word.
+> in user-facing copy (`.claude/rules/grounded-answers.md` rule 3); "issue," not "topic" — and, for a
+> bill's subject-area chips/filters, not "policy" either — as the layperson entry word (the nav's
+> "Issues" menu and the Search Bills topic filter both say "issue(s)"; the underlying data field and
+> API stay `policy_areas` / `/policy-areas`, since rule 3 governs displayed strings only).
 
 # Alethical UI Copy Guide: Sovereignty Restoration
 
