@@ -842,8 +842,10 @@ export function HomeSignedOutScreen() {
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
       case 'search-bills':
+        navigation.navigate('Bills');
+        return;
       case 'search-legislators':
-        navigation.navigate('Search');
+        navigation.navigate('Legislators');
         return;
       case 'search-find-my-legislator':
         navigation.navigate('FindMyLegislator');
@@ -1028,7 +1030,7 @@ export function HomeSignedOutScreen() {
                   icon="search"
                   title="Search Bills"
                   subtitle="Read any bill yourself — by issue or keyword"
-                  onPress={() => navigation.navigate('Search')}
+                  onPress={() => navigation.navigate('Bills')}
                 />
                 <CapabilityCard
                   icon="bookmark"
@@ -1040,7 +1042,7 @@ export function HomeSignedOutScreen() {
                   icon="person"
                   title="Search Legislators"
                   subtitle="See who writes your laws — profiles, committees, authored bills"
-                  onPress={() => navigation.navigate('Search')}
+                  onPress={() => navigation.navigate('Legislators')}
                 />
               </View>
             </Container>

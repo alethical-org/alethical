@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  a{color:#149d5b;}
+  a:hover{color:#11832b;}
+  a[data-tlink]:hover{color:#0f7a45 !important;text-decoration:underline !important;}
+  [data-glow-field]:focus-within{border-color:#5b30d6 !important;box-shadow:0 0 0 4px rgba(91,48,214,0.14) !important;}
+</style>
+</helmet>
+<div style="width:1600px;min-height:1120px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;position:relative;display:flex;flex-direction:column;">
+
+  <!-- HERO / GRADIENT (matches home) -->
+  <div style="position:relative;background:linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%);overflow:hidden;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px);background-size:30px 30px;pointer-events:none;-webkit-mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);"></div>
+
+    <!-- NAV -->
+    <nav data-screen-label="Nav" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:26px 56px 0;">
+      <a href="LIVE Home Signed Out.dc.html" style="display:flex;align-items:center;gap:16px;text-decoration:none;">
+        <svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex:none;">
+          <rect x="15" y="29" width="7.5" height="21" rx="3.75" fill="#11150f"></rect>
+          <rect x="28.25" y="15" width="7.5" height="35" rx="3.75" fill="#11150f"></rect>
+          <rect x="41.5" y="35" width="7.5" height="15" rx="3.75" fill="#11150f"></rect>
+        </svg>
+        <span style="font-weight:600;font-size:25px;letter-spacing:0.16em;color:#11150f;">ALETHICAL</span>
+      </a>
+      <div style="display:flex;align-items:center;gap:30px;">
+        <div style="display:flex;align-items:center;gap:34px;">
+          <a data-tlink="1" href="Search Bills.dc.html" style="color:#149d5b;text-decoration:none;font-size:18px;font-weight:700;">Search</a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Track<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">About<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </div>
+        <sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}"><a href="#account" style="display:inline-flex;align-items:center;justify-content:center;padding:13px 26px;background:#2ed47e;border:1px solid #2ed47e;border-radius:12px;color:#06231a;text-decoration:none;font-size:18px;font-weight:600;" style-hover="background:#28bf71;border-color:#28bf71;">Sign in</a></sc-if><sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}"><div style="display:inline-flex;align-items:center;gap:11px;padding:12px 20px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;color:#11150f;font-size:17px;font-weight:600;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">
+          <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;box-shadow:0 0 0 3px rgba(45,212,126,0.18);"></span>
+          Jordan Reyes
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#9aa39e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div></sc-if>
+      </div>
+    </nav>
+
+    <!-- HERO CONTENT -->
+    <div data-screen-label="Search header" style="position:relative;padding:40px 56px 44px;">
+      <div style="max-width:1400px;margin:0 auto;">
+        <div style="display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap;">
+          <h1 style="margin:0;font-size:58px;line-height:0.98;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Search legislators</h1>
+          <a data-tlink="1" href="Search Bills.dc.html" style="margin-bottom:9px;display:inline-flex;align-items:center;gap:7px;color:#6b716b;font-size:16px;font-weight:500;text-decoration:none;" style-hover="color:#149d5b;">Looking for a bill?<span style="color:#149d5b;font-weight:700;">Search bills →</span></a>
+        </div>
+
+        <!-- SEARCH BAR -->
+        <div data-glow-field style="margin-top:28px;display:flex;align-items:center;gap:14px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:14px;padding:6px 6px 6px 24px;box-shadow:0 12px 34px rgba(17,21,15,0.07);transition:border-color .18s ease, box-shadow .18s ease;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="11" cy="11" r="7" stroke="#9aa39e" stroke-width="2"/><path d="M16.5 16.5 L21 21" stroke="#9aa39e" stroke-width="2" stroke-linecap="round"/></svg>
+          <input placeholder="Search by name, district, or party" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:18px;padding:14px 4px;" />
+          <a href="Find My Legislator.dc.html" data-tlink="1" style="flex:none;display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:14px;font-weight:600;padding:0 10px;white-space:nowrap;" style-hover="color:#149d5b;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 21s7-6.6 7-11a7 7 0 1 0-14 0c0 4.4 7 11 7 11Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="2"/></svg>Find by address</a>
+          <button style="flex:none;background:#2ed47e;color:#06231a;border:none;border-radius:11px;padding:14px 32px;font-family:'Libre Franklin',sans-serif;font-size:17px;font-weight:700;cursor:pointer;" style-hover="background:#28bf71;">Search</button>
+        </div>
+
+        <!-- FILTER CONTROLS -->
+        <div data-screen-label="Filters" style="margin-top:22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="display:inline-flex;align-items:center;gap:4px;padding:4px;background:#eef0f1;border:1px solid rgba(17,21,15,0.1);border-radius:12px;">
+            <sc-for list="{{ chambers }}" as="ch" hint-placeholder-count="3">
+              <sc-if value="{{ ch.active }}" hint-placeholder-val="{{ true }}"><button onClick="{{ ch.select }}" style="border:none;background:#11150f;color:#ffffff;border-radius:9px;padding:9px 20px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">{{ ch.label }}</button></sc-if>
+              <sc-if value="{{ ch.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ ch.select }}" style="border:none;background:transparent;color:#4f5651;border-radius:9px;padding:9px 20px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;cursor:pointer;" style-hover="color:#11150f;">{{ ch.label }}</button></sc-if>
+            </sc-for>
+          </div>
+
+          <button style="display:inline-flex;align-items:center;gap:10px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#2ed47e;color:#149d5b;">All parties<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#9aa39e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+
+          <button style="display:inline-flex;align-items:center;gap:10px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#2ed47e;color:#149d5b;">94th Legislature (2025–2026) Regular Session<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#9aa39e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div data-screen-label="Results" style="position:relative;background:#ffffff;padding:40px 56px 8px;flex:1;">
+    <div style="max-width:1400px;margin:0 auto;">
+
+      <!-- RESULTS HEADER STRIP -->
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid rgba(17,21,15,0.09);">
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <span style="font-size:24px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ totalCount }}</span>
+          <span style="font-size:17px;color:#6b716b;">legislators</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+          <span style="display:inline-flex;align-items:center;gap:8px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#4f5651;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M7 5 V19 M7 19 L3.5 15.5 M7 19 L10.5 15.5 M15 5 h6 M15 10 h5 M15 15 h4" stroke="#9aa39e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Sorted by name (A–Z)</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.05em;color:#9aa39e;">AS OF MAR 21, 2026</span>
+        </div>
+      </div>
+
+      <!-- RESULTS GRID -->
+      <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+        <sc-for list="{{ legislators }}" as="leg" hint-placeholder-count="8">
+          <div style="position:relative;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:18px;padding:24px 26px;box-shadow:0 8px 24px rgba(17,21,15,0.05);" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+            <a href="Legislator Profile.dc.html" aria-label="Open profile for {{ leg.name }}" style="position:absolute;inset:0;z-index:1;border-radius:18px;"></a>
+
+            <div style="display:flex;align-items:flex-start;gap:16px;">
+              <span style="width:54px;height:54px;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;color:#149d5b;display:inline-flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;letter-spacing:0.02em;flex:none;">{{ leg.initials }}</span>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <span style="font-size:20px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ leg.name }}</span>
+                  <span style="padding:4px 10px;background:#f1f1f4;border-radius:999px;font-family:'Libre Franklin',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#4f5651;">{{ leg.party }}</span>
+                </div>
+                <div style="margin-top:4px;font-size:14px;color:#6b716b;">{{ leg.chamber }} · {{ leg.district }}</div>
+                <div style="margin-top:9px;display:inline-flex;align-items:center;gap:7px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#149d5b;">
+                  <span style="width:7px;height:7px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;"></span>{{ leg.title }}
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(17,21,15,0.08);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <sc-for list="{{ leg.committees }}" as="c" hint-placeholder-count="2">
+                <span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;color:#4f5651;">{{ c }}</span>
+              </sc-for>
+              <sc-if value="{{ leg.hasMoreCommittees }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#9aa39e;">+{{ leg.moreCommittees }} more</span></sc-if>
+            </div>
+
+            <div style="margin-top:12px;font-size:14px;color:#4f5651;"><span style="font-weight:700;color:#11150f;">{{ leg.authored }}</span> bills authored</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- PAGINATION -->
+      <div style="margin-top:28px;display:flex;align-items:center;justify-content:center;gap:16px;">
+        <button style="display:inline-flex;align-items:center;gap:8px;padding:12px 22px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:12px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#b7bdb8;cursor:not-allowed;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 6 L9 12 L15 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Previous</button>
+        <span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#4f5651;">Page <span style="font-weight:800;color:#11150f;">1</span> of 26</span>
+        <button style="display:inline-flex;align-items:center;gap:8px;padding:12px 22px;background:#ffffff;border:1px solid rgba(17,21,15,0.2);border-radius:12px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#11150f;cursor:pointer;" style-hover="border-color:#2ed47e;color:#149d5b;">Next<svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M9 6 L15 12 L9 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      </sc-if>
+
+      <!-- NO RESULTS -->
+      <sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="No results" style="max-width:860px;margin:34px auto 0;text-align:center;background:#ffffff;border:1px dashed rgba(17,21,15,0.2);border-radius:20px;padding:64px 48px;">
+        <span style="width:64px;height:64px;border-radius:16px;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="#9aa39e" stroke-width="2"/><path d="M5 20 a7 7 0 0 1 14 0" stroke="#9aa39e" stroke-width="2" stroke-linecap="round"/></svg></span>
+        <h3 style="margin:22px 0 0;font-size:28px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">No legislators match your search</h3>
+        <p style="margin:12px 0 0;font-size:17px;line-height:1.5;color:#6b716b;">Your filters returned 0 of 201 legislators. Try broadening or clearing them.</p>
+        <button onClick="{{ clearFilters }}" style="margin-top:26px;display:inline-flex;align-items:center;gap:9px;padding:14px 26px;background:#11150f;border:1px solid #11150f;border-radius:12px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;cursor:pointer;" style-hover="background:#000000;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Clear filters</button>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div style="height:64px;background:#ffffff;"></div>
+
+  <!-- FOOTER -->
+  <footer data-screen-label="Footer" style="position:relative;background:#0a0e0c;color:#ffffff;padding:56px 56px 44px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:48px;flex-wrap:wrap;">
+      <div style="max-width:480px;">
+        <p style="margin:0;font-size:21px;line-height:1.4;font-weight:300;letter-spacing:-0.01em;color:#eef1ef;">We hold these truths to be self-evident.<br><span style="color:#3de08a;">Alethical makes them accessible.</span></p>
+      </div>
+      <div style="display:flex;align-items:center;gap:34px;">
+        <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Privacy Policy</a>
+        <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Terms of Use</a>
+      </div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.1em;color:#7c847f;">© 2026 ALETHICAL · BUILT IN MINNESOTA</div>
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.14em;color:#3de08a;">TRUTH, UNCONCEALED</div>
+    </div>
+  </footer>
+
+  <!-- PREVIEW STATE CONTROLS (mockup artifact, not product UI) -->
+  <div data-screen-label="Preview state controls" style="background:#0a0e0c;padding:0 56px 30px;display:flex;justify-content:center;">
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 16px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:14px;flex-wrap:wrap;justify-content:center;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">PREVIEW</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <sc-for list="{{ resultBtns }}" as="btn" hint-placeholder-count="2">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:7px 12px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;background:transparent;border:none;color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+      <span style="width:1px;height:22px;background:rgba(255,255,255,0.14);display:inline-block;"></span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <sc-for list="{{ authBtns }}" as="btn" hint-placeholder-count="2">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:7px 12px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;background:transparent;border:none;color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:1400}}">
+class Component extends DCLogic {
+  state = { chamber: 'All', uiAuth: null, uiEmpty: false };
+  renderVals() {
+    // Party shown as a NEUTRAL chip (nonpartisan brand stance). Whole card links to the
+    // legislator's profile. No Follow action on this screen.
+    const signedIn = this.state.uiAuth ?? false;
+    const raw = [
+      { id: 'fateh',    name: 'Sen. Omar Fateh',     initials: 'OF', chamber: 'Senate', district: 'District 62',  party: 'DFL', committees: ['Jobs & Economic Dev.', 'Taxes', 'Transportation'], authored: 24 },
+      { id: 'mann',     name: 'Sen. Alice Mann',     initials: 'AM', chamber: 'Senate', district: 'District 50',  party: 'DFL', committees: ['Health & Human Services', 'Commerce'], authored: 21 },
+      { id: 'latz',     name: 'Sen. Ron Latz',       initials: 'RL', chamber: 'Senate', district: 'District 46',  party: 'DFL', committees: ['Judiciary & Public Safety'], authored: 18 },
+      { id: 'rarick',   name: 'Sen. Jason Rarick',   initials: 'JR', chamber: 'Senate', district: 'District 11',  party: 'R',   committees: ['Energy & Utilities', 'Transportation'], authored: 12 },
+      { id: 'youakim',  name: 'Rep. Cheryl Youakim', initials: 'CY', chamber: 'House',  district: 'District 46A', party: 'DFL', committees: ['Education Finance', 'Taxes'], authored: 19 },
+      { id: 'acomb',    name: 'Rep. Patty Acomb',    initials: 'PA', chamber: 'House',  district: 'District 44B', party: 'DFL', committees: ['Climate & Energy', 'Transportation'], authored: 14 },
+      { id: 'anderson', name: 'Rep. Patti Anderson', initials: 'PA', chamber: 'House',  district: 'District 36A', party: 'R',   committees: ['Taxes', 'Education Finance'], authored: 16 },
+      { id: 'paul',     name: 'Rep. Paul Anderson',  initials: 'PA', chamber: 'House',  district: 'District 12B', party: 'R',   committees: ['Agriculture Finance'], authored: 11 },
+    ];
+    const legislators = raw.map(l => {
+      const shown = l.committees.slice(0, 2);
+      const more = l.committees.length - shown.length;
+      const title = l.chamber === 'Senate' ? 'State Senator' : 'State Representative';
+      return { ...l, committees: shown, hasMoreCommittees: more > 0, moreCommittees: more, title };
+    });
+
+    const chambers = ['All', 'House', 'Senate'].map(c => ({
+      label: c, active: this.state.chamber === c, inactive: this.state.chamber !== c,
+      select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ chamber: c }); },
+    }));
+
+    const empty = !!this.state.uiEmpty;
+    const mkBtn = (label, active, patch) => ({ label, active, inactive: !active, select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(patch); } });
+    const resultBtns = [ mkBtn('With results', !empty, { uiEmpty: false }), mkBtn('No results', empty, { uiEmpty: true }) ];
+    const authBtns = [ mkBtn('Signed out', !signedIn, { uiAuth: false }), mkBtn('Signed in', signedIn, { uiAuth: true }) ];
+
+    return {
+      legislators, chambers, totalCount: 201,
+      resultBtns, authBtns,
+      signedIn, signedOut: !signedIn,
+      empty, hasResults: !empty,
+      clearFilters: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ uiEmpty: false, chamber: 'All' }); },
+    };
+  }
+}
+</script>
+</body>
+</html>
