@@ -968,6 +968,7 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
     statusKey: bill.status_key ?? undefined,
     summary: bill.ai_analysis?.summary ?? undefined,
     officialUrl: bill.official_url ?? undefined,
+    policyAreas: bill.ai_analysis?.policy_areas ?? undefined,
   });
 
   // legislator_vote (§4.5 vote deflection) carries a resolved bill and/or a

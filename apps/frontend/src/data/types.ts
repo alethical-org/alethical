@@ -197,6 +197,7 @@ export interface AskAnswerBill {
   statusKey?: string;
   summary?: string;
   officialUrl?: string;
+  policyAreas?: string[];
 }
 
 // One routed Ask answer (POST /api/v1/ask). `hasAnswer` is false for intents
