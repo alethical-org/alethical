@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from typing import Literal
 from uuid import UUID
 
 import requests
@@ -345,6 +346,7 @@ def bills(
     policy_area: str | None = None,
     omnibus: bool | None = None,
     include: str | None = None,
+    sort: Literal["latest_action", "progress"] = "latest_action",
     limit: int = Query(default=20, ge=0, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -353,7 +355,9 @@ def bills(
     session_row = get_session_by_slug(db, session)
     include_set = {item.strip() for item in include.split(",")} if include else set()
     stmt = bill_list_stmt(
-        session_row.id, user_id=tracking_user_id(include_set, current_user)
+        session_row.id,
+        user_id=tracking_user_id(include_set, current_user),
+        sort=sort,
     )
     if q:
         keyword_clauses = [Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%")]
