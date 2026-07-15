@@ -24,6 +24,7 @@ import {
   ChamberSegmented,
   FilterDropdown,
   FilterPill,
+  MoreIssuesPill,
   NoResults,
   OmnibusToggle,
   Pagination,
@@ -44,6 +45,13 @@ const PAGE_SIZE = 10;
 // terminology invariants) — matches the nav's "Issues" menu. The data field and
 // API stay `policy_areas` (grounded-answers rule 3 governs displayed strings only).
 const ALL_ISSUES = 'All issues';
+
+// Issue chips: the AI vocabulary has a long tail (thousands of rare labels), so
+// show the most common inline and reveal the rest of the head via a "More"
+// toggle — capped at the top MAX_ISSUE_CHIPS by bill count rather than listing
+// every value. Counts come from /policy-areas, which folds casing.
+const INLINE_ISSUE_CHIPS = 12;
+const MAX_ISSUE_CHIPS = 30;
 
 // Ordered most-progressed first (matching the sort=progress ordering), with the
 // off-path Vetoed state last. Every value maps to a status the /bills filter can
@@ -71,6 +79,7 @@ export function SearchBillsScreen() {
   const [session, setSession] = useState('');
   const [omnibusOnly, setOmnibusOnly] = useState(false);
   const [policyArea, setPolicyArea] = useState(ALL_ISSUES);
+  const [showAllIssues, setShowAllIssues] = useState(false);
   const [page, setPage] = useState(1);
   const [signInBill, setSignInBill] = useState<{ id: string; code: string } | null>(null);
   const [toast, setToast] = useState<{ code: string } | null>(null);
@@ -110,12 +119,23 @@ export function SearchBillsScreen() {
 
   const policyOptions: Array<{ value: string; label: string; count?: number }> = [
     { value: ALL_ISSUES, label: ALL_ISSUES },
-    ...(policyAreasQuery.data ?? []).map((area) => ({
+    ...(policyAreasQuery.data ?? []).slice(0, MAX_ISSUE_CHIPS).map((area) => ({
       value: area.name,
       label: titleCaseIssue(area.name),
       count: area.billCount,
     })),
-  ].slice(0, 8);
+  ];
+  // "All issues" always shows; INLINE_ISSUE_CHIPS issue pills show inline, the
+  // rest expand under "More". A selected issue outside the inline set forces the
+  // list open so its active pill stays visible.
+  const selectedIsHidden =
+    policyArea !== ALL_ISSUES &&
+    policyOptions.findIndex((option) => option.value === policyArea) > INLINE_ISSUE_CHIPS;
+  const issuesExpanded = showAllIssues || selectedIsHidden;
+  const visiblePolicyOptions = issuesExpanded
+    ? policyOptions
+    : policyOptions.slice(0, INLINE_ISSUE_CHIPS + 1);
+  const hiddenIssueCount = policyOptions.length - (INLINE_ISSUE_CHIPS + 1);
 
   const resetToFirstPage = () => setPage(1);
 
@@ -225,7 +245,7 @@ export function SearchBillsScreen() {
         />
       </View>
       <View style={styles.pillRow}>
-        {policyOptions.map((option) => (
+        {visiblePolicyOptions.map((option) => (
           <FilterPill
             key={option.value}
             label={option.label}
@@ -237,6 +257,13 @@ export function SearchBillsScreen() {
             }}
           />
         ))}
+        {hiddenIssueCount > 0 && !selectedIsHidden ? (
+          <MoreIssuesPill
+            expanded={issuesExpanded}
+            hiddenCount={hiddenIssueCount}
+            onPress={() => setShowAllIssues((value) => !value)}
+          />
+        ) : null}
       </View>
     </>
   );

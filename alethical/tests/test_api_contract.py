@@ -2075,3 +2075,128 @@ def test_bills_status_filter_isolates_results_to_selected_status(client):
     all_response = client.get("/api/v1/bills", params={"session": slug, "limit": 100})
     all_files = {bill["file_number"] for bill in all_response.json()["data"]}
     assert all_files == set(seen) == set(expected_by_file)
+
+
+ISSUE_CASE_SESSION_SLUG = "test-issue-case-fixture"
+
+
+def _seed_mixed_case_policy_bills(schema):
+    """Seed two bills whose policy areas collide only by case ("Taxation" vs
+    "taxation") into a dedicated session, so the case-folding assertions never
+    touch the shared list. Returns the session slug."""
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    from alethical.db.session import get_session_factory
+
+    # file_number -> policy_areas (deliberately mixed case)
+    fixtures = {
+        90201: ["Taxation", "Health"],
+        90202: ["taxation"],
+    }
+    with get_session_factory()() as db:
+        base_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        chamber = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "house")
+        )
+        assert base_session is not None and chamber is not None
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == ISSUE_CASE_SESSION_SLUG
+            )
+        )
+        if session_row is None:
+            session_row = schema.LegislativeSession(
+                jurisdiction_id=base_session.jurisdiction_id,
+                slug=ISSUE_CASE_SESSION_SLUG,
+                session_number=9997,
+                session_type=schema.SessionType.regular,
+                year_start=2995,
+                year_end=2996,
+                name="Issue-case fixture session",
+                is_current=False,
+            )
+            db.add(session_row)
+            db.flush()
+        for file_number, policy_areas in fixtures.items():
+            bill_key = f"{ISSUE_CASE_SESSION_SLUG}-HF{file_number}"
+            if db.scalar(select(schema.Bill).where(schema.Bill.bill_key == bill_key)):
+                continue
+            bill = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=chamber.id,
+                bill_key=bill_key,
+                file_type="HF",
+                file_number=file_number,
+                title=f"Issue-case fixture HF{file_number}",
+                description="Issue-case fixture bill",
+                current_status="Introduction and first reading",
+                latest_action_at=datetime(2025, 1, 5, tzinfo=timezone.utc),
+                official_url=f"https://example.test/issue-hf{file_number}",
+                is_omnibus=False,
+            )
+            db.add(bill)
+            db.flush()
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=bill.id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={
+                        "summary": "Fixture summary.",
+                        "policy_areas": policy_areas,
+                    },
+                    is_current=True,
+                )
+            )
+        db.commit()
+    return ISSUE_CASE_SESSION_SLUG
+
+
+def test_policy_areas_fold_case_and_filter_matches_case_insensitively(client):
+    """Regression: /policy-areas folds casing into one canonical (lowercase)
+    issue with a merged distinct-bill count, and the /bills policy_area filter
+    matches case-insensitively — so the chip count and the filtered total agree.
+
+    "Taxation" (HF90201) and "taxation" (HF90202) must collapse to a single
+    "taxation" issue counting both bills; filtering by any casing returns both.
+    """
+    from alethical.db.schema import load_schema
+
+    slug = _seed_mixed_case_policy_bills(load_schema())
+
+    areas = client.get("/api/v1/policy-areas", params={"session": slug})
+    assert areas.status_code == 200
+    by_name = {row["name"]: row["bill_count"] for row in areas.json()["data"]}
+    # Folded to one lowercase "taxation" counting both bills, not two entries.
+    assert by_name.get("taxation") == 2
+    assert "Taxation" not in by_name
+    assert by_name.get("health") == 1
+
+    # Filtering by any casing returns both bills, and the total equals the chip
+    # count above (2) — count and filter can't diverge.
+    for value in ("taxation", "Taxation", "TAXATION"):
+        resp = client.get(
+            "/api/v1/bills",
+            params={
+                "session": slug,
+                "policy_area": value,
+                "sort": "progress",
+                "limit": 50,
+            },
+        )
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert payload["page"]["total"] == 2
+        assert {b["file_number"] for b in payload["data"]} == {90201, 90202}
+
+    # A distinct issue still isolates correctly.
+    health = client.get(
+        "/api/v1/bills", params={"session": slug, "policy_area": "health", "limit": 50}
+    )
+    assert {b["file_number"] for b in health.json()["data"]} == {90201}

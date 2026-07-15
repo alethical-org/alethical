@@ -340,11 +340,17 @@ def policy_areas(
     db: Session = Depends(get_db),
 ):
     session_row = get_session_by_slug(db, session)
+    # The AI enrichment emits free-text policy areas with inconsistent casing
+    # ("taxation" and "Taxation" both occur), so fold case and count distinct
+    # bills. The folded lowercase value is the canonical name; the frontend
+    # Title-Cases it for display and sends it back as the (case-insensitive)
+    # /bills policy_area filter, so the pill count and filtered total agree.
     area_rows = (
         select(
             func.jsonb_array_elements_text(
                 AIEnrichment.content_json["policy_areas"]
-            ).label("name")
+            ).label("raw_name"),
+            Bill.id.label("bill_id"),
         )
         .join(Bill, Bill.id == AIEnrichment.bill_id)
         .where(
@@ -354,14 +360,16 @@ def policy_areas(
         )
         .subquery()
     )
+    folded_name = func.lower(func.btrim(area_rows.c.raw_name))
+    bill_count = func.count(func.distinct(area_rows.c.bill_id))
     rows = db.execute(
-        select(area_rows.c.name, func.count().label("bill_count"))
-        .where(func.btrim(area_rows.c.name) != "")
-        .group_by(area_rows.c.name)
-        .order_by(func.count().desc(), area_rows.c.name.asc())
+        select(folded_name.label("name"), bill_count.label("bill_count"))
+        .where(func.btrim(area_rows.c.raw_name) != "")
+        .group_by(folded_name)
+        .order_by(bill_count.desc(), folded_name.asc())
         .limit(limit)
     ).all()
-    data = [{"name": name, "bill_count": bill_count} for name, bill_count in rows]
+    data = [{"name": name, "bill_count": count} for name, count in rows]
     return CollectionResponse(
         data=data,
         page={"limit": limit, "next_cursor": None, "has_more": False},
@@ -402,18 +410,27 @@ def bills(
     if status:
         stmt = stmt.where(status_filter_clause(status))
     if policy_area:
-        policy_area_value = policy_area.strip()
-        # Exact array-element membership via the JSONB `?` operator (has_key), not
-        # a substring match on the array cast to text. The prior
-        # cast(...)::text ILIKE '%value%' scan was unindexable and took ~90s on
-        # the production corpus — combined with sort=progress it exceeded the
-        # gateway timeout (502) so the pill click never narrowed the list. `?`
-        # runs in ~200ms and matches whole elements, so the filtered total now
-        # agrees with the /policy-areas pill count (both key off exact elements).
+        # Case-insensitive whole-element match. The enrichment emits policy
+        # areas with inconsistent casing ("taxation" vs "Taxation"), and
+        # /policy-areas folds case into one canonical lowercase name, so the
+        # filter must fold case too or the pill count and filtered total
+        # diverge. A whole-array cast + ILIKE would over-match and (with
+        # sort=progress) time out to a 502; instead unnest and compare each
+        # element folded — measured ~270ms on the production corpus.
+        policy_area_value = policy_area.strip().lower()
+        element = func.jsonb_array_elements_text(
+            AIEnrichment.content_json["policy_areas"]
+        ).table_valued("value")
+        element_matches = (
+            select(1)
+            .select_from(element)
+            .where(func.lower(func.btrim(element.c.value)) == policy_area_value)
+            .exists()
+        )
         matching_policy_area_bills = select(AIEnrichment.bill_id).where(
             AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
             AIEnrichment.is_current.is_(True),
-            AIEnrichment.content_json["policy_areas"].has_key(policy_area_value),
+            element_matches,
         )
         stmt = stmt.where(Bill.id.in_(matching_policy_area_bills))
     if omnibus is not None:
