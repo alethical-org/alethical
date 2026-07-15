@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  a{color:#149d5b;}
+  a:hover{color:#11832b;}
+  @keyframes toastLife{0%{opacity:0;transform:translateY(8px);}8%{opacity:1;transform:translateY(0);}82%{opacity:1;}100%{opacity:0;}}
+  @keyframes ovFade{from{opacity:0;}to{opacity:1;}}
+  @keyframes cardPop{from{opacity:0;transform:translateY(10px) scale(0.98);}to{opacity:1;transform:none;}}
+  a[data-tlink]:hover{color:#0f7a45 !important;text-decoration:underline !important;}
+  [data-glow-field]:focus-within{border-color:#5b30d6 !important;box-shadow:0 0 0 4px rgba(91,48,214,0.14) !important;}
+</style>
+</helmet>
+<div style="width:1600px;min-height:1120px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;position:relative;display:flex;flex-direction:column;">
+
+  <!-- HERO / GRADIENT -->
+  <div style="position:relative;background:linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%);overflow:hidden;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px);background-size:30px 30px;pointer-events:none;-webkit-mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);"></div>
+
+    <!-- NAV -->
+    <nav data-screen-label="Nav" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:26px 56px 0;">
+      <a href="LIVE Home Signed Out.dc.html" style="display:flex;align-items:center;gap:16px;text-decoration:none;">
+        <svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex:none;">
+          <rect x="15" y="29" width="7.5" height="21" rx="3.75" fill="#11150f"></rect>
+          <rect x="28.25" y="15" width="7.5" height="35" rx="3.75" fill="#11150f"></rect>
+          <rect x="41.5" y="35" width="7.5" height="15" rx="3.75" fill="#11150f"></rect>
+        </svg>
+        <span style="font-weight:600;font-size:25px;letter-spacing:0.16em;color:#11150f;">ALETHICAL</span>
+      </a>
+      <div style="display:flex;align-items:center;gap:30px;">
+        <div style="display:flex;align-items:center;gap:34px;">
+          <a data-tlink="1" href="Search Bills.dc.html" style="color:#149d5b;text-decoration:none;font-size:18px;font-weight:700;">Search</a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Track<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">About<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </div>
+        <sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}"><a href="#account" style="display:inline-flex;align-items:center;justify-content:center;padding:13px 26px;background:#2ed47e;border:1px solid #2ed47e;border-radius:12px;color:#06231a;text-decoration:none;font-size:18px;font-weight:600;" style-hover="background:#28bf71;border-color:#28bf71;">Sign in</a></sc-if><sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}"><div style="display:inline-flex;align-items:center;gap:11px;padding:12px 20px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;color:#11150f;font-size:17px;font-weight:600;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">
+          <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;box-shadow:0 0 0 3px rgba(45,212,126,0.18);"></span>
+          Jordan Reyes
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#9aa39e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div></sc-if>
+      </div>
+    </nav>
+
+    <!-- HERO CONTENT -->
+    <div data-screen-label="Search header" style="position:relative;padding:40px 56px 44px;">
+      <div style="max-width:1400px;margin:0 auto;">
+        <div style="display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap;">
+          <h1 style="margin:0;font-size:58px;line-height:0.98;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Search bills</h1>
+          <a data-tlink="1" href="Search Legislators.dc.html" style="margin-bottom:9px;display:inline-flex;align-items:center;gap:7px;color:#6b716b;font-size:16px;font-weight:500;text-decoration:none;" style-hover="color:#149d5b;">Looking for a legislator?<span style="color:#149d5b;font-weight:700;">Search legislators →</span></a>
+        </div>
+
+        <!-- SEARCH BAR -->
+        <div data-glow-field style="margin-top:28px;display:flex;align-items:center;gap:14px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:14px;padding:6px 6px 6px 24px;box-shadow:0 12px 34px rgba(17,21,15,0.07);transition:border-color .18s ease, box-shadow .18s ease;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="11" cy="11" r="7" stroke="#9aa39e" stroke-width="2"/><path d="M16.5 16.5 L21 21" stroke="#9aa39e" stroke-width="2" stroke-linecap="round"/></svg>
+          <input placeholder="Search by keyword or bill number (e.g. HF 2904, SF 1832)" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:18px;padding:14px 4px;" />
+          <button style="flex:none;background:#2ed47e;color:#06231a;border:none;border-radius:11px;padding:14px 32px;font-family:'Libre Franklin',sans-serif;font-size:17px;font-weight:700;cursor:pointer;" style-hover="background:#28bf71;">Search</button>
+        </div>
+
+        <!-- FILTER CONTROLS -->
+        <div data-screen-label="Filters" style="margin-top:22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="display:inline-flex;align-items:center;gap:4px;padding:4px;background:#eef0f1;border:1px solid rgba(17,21,15,0.1);border-radius:12px;">
+            <sc-for list="{{ chambers }}" as="ch" hint-placeholder-count="3">
+              <sc-if value="{{ ch.active }}" hint-placeholder-val="{{ true }}"><button onClick="{{ ch.select }}" style="border:none;background:#11150f;color:#ffffff;border-radius:9px;padding:9px 20px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">{{ ch.label }}</button></sc-if>
+              <sc-if value="{{ ch.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ ch.select }}" style="border:none;background:transparent;color:#4f5651;border-radius:9px;padding:9px 20px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;cursor:pointer;" style-hover="color:#11150f;">{{ ch.label }}</button></sc-if>
+            </sc-for>
+          </div>
+
+          <button style="display:inline-flex;align-items:center;gap:10px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#2ed47e;color:#149d5b;">All statuses<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#9aa39e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+
+          <button style="display:inline-flex;align-items:center;gap:10px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#2ed47e;color:#149d5b;">94th Legislature (2025–2026) Regular Session<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#9aa39e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+
+          <sc-if value="{{ omnibusOn }}" hint-placeholder-val="{{ false }}"><button onClick="{{ toggleOmnibus }}" style="display:inline-flex;align-items:center;gap:9px;background:#2ed47e;border:1px solid #2ed47e;border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#06231a;cursor:pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Omnibus only</button></sc-if>
+          <sc-if value="{{ omnibusOff }}" hint-placeholder-val="{{ true }}"><button onClick="{{ toggleOmnibus }}" style="display:inline-flex;align-items:center;gap:9px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#2ed47e;color:#149d5b;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Omnibus only</button></sc-if>
+        </div>
+
+        <!-- POLICY PILLS -->
+        <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <sc-for list="{{ policies }}" as="p" hint-placeholder-count="8">
+            <sc-if value="{{ p.active }}" hint-placeholder-val="{{ false }}"><button onClick="{{ p.select }}" style="display:inline-flex;align-items:center;gap:8px;background:#2ed47e;border:1px solid #2ed47e;border-radius:11px;padding:9px 15px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#06231a;cursor:pointer;">{{ p.label }}<sc-if value="{{ p.hasCount }}" hint-placeholder-val="{{ true }}"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#0b7a45;">{{ p.count }}</span></sc-if></button></sc-if>
+            <sc-if value="{{ p.inactive }}" hint-placeholder-val="{{ true }}"><button onClick="{{ p.select }}" style="display:inline-flex;align-items:center;gap:8px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:9px 15px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#2ed47e;color:#149d5b;">{{ p.label }}<sc-if value="{{ p.hasCount }}" hint-placeholder-val="{{ true }}"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#9aa39e;">{{ p.count }}</span></sc-if></button></sc-if>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div data-screen-label="Results" style="position:relative;background:#ffffff;padding:40px 56px 8px;flex:1;">
+    <div style="max-width:1400px;margin:0 auto;">
+
+      <!-- RESULTS HEADER STRIP -->
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid rgba(17,21,15,0.09);">
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <span style="font-size:24px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ totalCount }}</span>
+          <span style="font-size:17px;color:#6b716b;">bills</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+          <span style="display:inline-flex;align-items:center;gap:8px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#4f5651;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M7 5 V19 M7 19 L3.5 15.5 M7 19 L10.5 15.5 M15 5 h6 M15 10 h5 M15 15 h4" stroke="#9aa39e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Sorted by latest action</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.05em;color:#9aa39e;">AS OF MAR 21, 2026</span>
+        </div>
+      </div>
+
+      <!-- RESULTS LIST -->
+      <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top:22px;display:flex;flex-direction:column;gap:18px;">
+        <sc-for list="{{ bills }}" as="bill" hint-placeholder-count="5">
+          <div style="position:relative;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:18px;padding:26px 30px;box-shadow:0 8px 24px rgba(17,21,15,0.05);" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+            <a href="Bill Votes.dc.html" aria-label="Open {{ bill.code }}" style="position:absolute;inset:0;z-index:1;border-radius:18px;"></a>
+
+            <!-- PRIMARY -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;">
+              <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+                <span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;letter-spacing:0.04em;background:#e4f8ee;border:1px solid #bfeacf;color:#149d5b;padding:6px 12px;border-radius:7px;">{{ bill.code }}</span>
+                <div style="display:flex;align-items:center;gap:13px;">
+                  <sc-if value="{{ bill.toneGreen }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#149d5b;white-space:nowrap;">{{ bill.statusLabel }}</span></sc-if>
+                  <sc-if value="{{ bill.toneRed }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#d64545;white-space:nowrap;">{{ bill.statusLabel }}</span></sc-if>
+                  <sc-if value="{{ bill.toneNeutral }}" hint-placeholder-val="{{ true }}"><span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#4f5651;white-space:nowrap;">{{ bill.statusLabel }}</span></sc-if>
+                  <div style="display:flex;align-items:center;gap:5px;">
+                    <sc-for list="{{ bill.steps }}" as="st" hint-placeholder-count="5">
+                      <sc-if value="{{ st.isOn }}" hint-placeholder-val="{{ true }}"><span style="width:30px;height:7px;border-radius:4px;background:#2ed47e;display:inline-block;"></span></sc-if>
+                      <sc-if value="{{ st.isOff }}" hint-placeholder-val="{{ false }}"><span style="width:30px;height:7px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span></sc-if>
+                      <sc-if value="{{ st.isRed }}" hint-placeholder-val="{{ false }}"><span style="width:30px;height:7px;border-radius:4px;background:#e5484d;display:inline-block;"></span></sc-if>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+              <sc-if value="{{ bill.untracked }}" hint-placeholder-val="{{ true }}"><button onClick="{{ bill.toggle }}" style="position:relative;z-index:2;flex:none;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:#11150f;border:1px solid #11150f;border-radius:12px;color:#ffffff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Libre Franklin',sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(17,21,15,0.16);" style-hover="background:#000000;border-color:#000000;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 L12 19 M5 12 L19 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Track</button></sc-if>
+              <sc-if value="{{ bill.tracked }}" hint-placeholder-val="{{ false }}"><button onClick="{{ bill.toggle }}" style="position:relative;z-index:2;flex:none;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:#2ed47e;border:1px solid #2ed47e;border-radius:12px;color:#06231a;font-size:14px;font-weight:700;cursor:pointer;font-family:'Libre Franklin',sans-serif;white-space:nowrap;" style-hover="background:#28bf71;border-color:#28bf71;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="#06231a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Tracking</button></sc-if>
+            </div>
+
+            <!-- TITLE -->
+            <h3 style="margin:18px 0 0;font-size:25px;line-height:1.25;font-weight:800;letter-spacing:-0.01em;color:#11150f;max-width:1040px;">{{ bill.title }}</h3>
+
+            <!-- AI SUMMARY -->
+            <div style="margin-top:16px;display:flex;align-items:center;gap:8px;">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#5b30d6;">AI SUMMARY</span>
+              <span style="width:5px;height:5px;border-radius:50%;background:#d8c9f7;display:inline-block;"></span>
+            </div>
+            <p style="margin:8px 0 0;font-size:16px;line-height:1.55;color:#4f5651;max-width:1040px;">{{ bill.summary }}</p>
+
+            <!-- SECONDARY META -->
+            <div style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(17,21,15,0.08);display:flex;flex-direction:column;gap:11px;">
+              <div style="font-size:15px;color:#4f5651;">Author: <a data-tlink="1" href="Legislator Profile.dc.html" style="position:relative;z-index:2;color:#149d5b;font-weight:700;text-decoration:none;" style-hover="color:#0f7a45;">{{ bill.author }}</a> <span style="color:#9aa39e;">· +{{ bill.coauthors }} co-authors</span></div>
+              <div style="font-size:15px;color:#4f5651;">Latest action: <span style="color:#11150f;font-weight:600;">{{ bill.action }}</span> <span style="color:#9aa39e;">· {{ bill.actionDate }}</span></div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <sc-for list="{{ bill.policies }}" as="pol" hint-placeholder-count="3">
+                  <span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#4f5651;">{{ pol }}</span>
+                </sc-for>
+                <sc-if value="{{ bill.hasVotes }}" hint-placeholder-val="{{ false }}"><a href="Bill Votes.dc.html#votes" style="position:relative;z-index:2;display:inline-flex;align-items:center;gap:7px;padding:6px 12px;background:#e4f8ee;border:1px solid #bfeacf;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.03em;color:#149d5b;text-decoration:none;" style-hover="border-color:#2ed47e;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M7 5 V19 M7 19 L3.5 15.5 M7 19 L10.5 15.5 M14 8 h6 M14 13 h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ bill.rollLabel }}</a></sc-if>
+                <sc-if value="{{ bill.omnibus }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#fbf1e2;border:1px solid #f0d6a8;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#a76a1a;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>OMNIBUS</span></sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- PAGINATION -->
+      <sc-if value="{{ showPagination }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top:28px;display:flex;align-items:center;justify-content:center;gap:16px;">
+        <button style="display:inline-flex;align-items:center;gap:8px;padding:12px 22px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:12px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#b7bdb8;cursor:not-allowed;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 6 L9 12 L15 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Previous</button>
+        <span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#4f5651;">Page <span style="font-weight:800;color:#11150f;">1</span> of 12</span>
+        <button style="display:inline-flex;align-items:center;gap:8px;padding:12px 22px;background:#ffffff;border:1px solid rgba(17,21,15,0.2);border-radius:12px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#11150f;cursor:pointer;" style-hover="border-color:#2ed47e;color:#149d5b;">Next<svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M9 6 L15 12 L9 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      </sc-if>
+      </sc-if>
+
+      <!-- NO RESULTS -->
+      <sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="No results" style="max-width:860px;margin:34px auto 0;text-align:center;background:#ffffff;border:1px dashed rgba(17,21,15,0.2);border-radius:20px;padding:64px 48px;">
+        <span style="width:64px;height:64px;border-radius:16px;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9aa39e" stroke-width="2"/><path d="M16.5 16.5 L21 21" stroke="#9aa39e" stroke-width="2" stroke-linecap="round"/></svg></span>
+        <h3 style="margin:22px 0 0;font-size:28px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">No bills match your search</h3>
+        <p style="margin:12px 0 0;font-size:17px;line-height:1.5;color:#6b716b;">Your filters returned 0 of 312 bills. Try broadening or clearing them.</p>
+        <div style="margin-top:24px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
+          <sc-for list="{{ activeFilters }}" as="f" hint-placeholder-count="3">
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:#f6f8f7;border:1px solid rgba(17,21,15,0.12);border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;color:#4f5651;">{{ f.label }}</span>
+          </sc-for>
+        </div>
+        <button onClick="{{ clearFilters }}" style="margin-top:26px;display:inline-flex;align-items:center;gap:9px;padding:14px 26px;background:#11150f;border:1px solid #11150f;border-radius:12px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;cursor:pointer;" style-hover="background:#000000;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Clear filters</button>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div style="height:64px;background:#ffffff;"></div>
+
+  <!-- RETURN-AFTER-SIGN-IN TOAST -->
+  <sc-if value="{{ justReturned }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Toast — now tracking" style="position:fixed;left:32px;bottom:32px;z-index:60;display:flex;align-items:center;gap:12px;background:#0a0e0c;color:#ffffff;padding:15px 22px;border-radius:13px;box-shadow:0 16px 40px rgba(17,21,15,0.35);animation:toastLife 3.6s ease forwards;">
+    <span style="width:22px;height:22px;border-radius:50%;background:#2ed47e;display:inline-flex;align-items:center;justify-content:center;flex:none;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#06231a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <span style="font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;">Now tracking <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#3de08a;">{{ toastBill }}</span>.</span>
+  </div>
+  </sc-if>
+
+  <!-- INTENT-PRESERVING SIGN-IN (triggered by Track while signed out) -->
+  <sc-if value="{{ signInActive }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Sign in to track" style="position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(10,14,12,0.55);padding:40px;animation:ovFade 0.16s ease;">
+    <div style="width:470px;max-width:100%;background:#ffffff;border-radius:20px;padding:34px 34px 32px;box-shadow:0 30px 80px rgba(10,14,12,0.4);position:relative;animation:cardPop 0.2s ease;">
+      <button onClick="{{ closeSignIn }}" style="position:absolute;top:18px;right:18px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:9px;cursor:pointer;color:#9aa39e;" style-hover="background:#f1f1f4;color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+      <span style="width:52px;height:52px;border-radius:14px;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#149d5b" stroke-width="2"/><path d="M8 11 V8 a4 4 0 0 1 8 0 v3" stroke="#149d5b" stroke-width="2" stroke-linecap="round"/></svg></span>
+      <h3 style="margin:20px 0 0;font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Sign in to track {{ signInCode }}</h3>
+      <p style="margin:10px 0 0;font-size:16px;line-height:1.5;color:#6b716b;">Tracking saves this bill to your watchlist and turns on status updates. You’ll come right back to your search.</p>
+      <button onClick="{{ completeSignIn }}" style="margin-top:24px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:12px;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.18);border-radius:12px;padding:15px 22px;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(17,21,15,0.06);" style-hover="background:#f7f8fa;border-color:rgba(17,21,15,0.3);">
+        <img src="assets/google-g.png" width="20" height="20" alt="Google" style="display:block;flex:none;" />
+        Continue with Google
+      </button>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- FOOTER -->
+  <footer data-screen-label="Footer" style="position:relative;background:#0a0e0c;color:#ffffff;padding:56px 56px 44px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:48px;flex-wrap:wrap;">
+      <div style="max-width:480px;">
+        <p style="margin:0;font-size:21px;line-height:1.4;font-weight:300;letter-spacing:-0.01em;color:#eef1ef;">We hold these truths to be self-evident.<br><span style="color:#3de08a;">Alethical makes them accessible.</span></p>
+      </div>
+      <div style="display:flex;align-items:center;gap:34px;">
+        <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Privacy Policy</a>
+        <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Terms of Use</a>
+      </div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.1em;color:#7c847f;">© 2026 ALETHICAL · BUILT IN MINNESOTA</div>
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.14em;color:#3de08a;">TRUTH, UNCONCEALED</div>
+    </div>
+  </footer>
+
+  <!-- PREVIEW STATE CONTROLS (mockup artifact, not product UI) -->
+  <div data-screen-label="Preview state controls" style="background:#0a0e0c;padding:0 56px 30px;display:flex;justify-content:center;">
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 16px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:14px;flex-wrap:wrap;justify-content:center;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">PREVIEW</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <sc-for list="{{ resultBtns }}" as="btn" hint-placeholder-count="2">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:7px 12px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;background:transparent;border:none;color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+      <span style="width:1px;height:22px;background:rgba(255,255,255,0.14);display:inline-block;"></span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <sc-for list="{{ authBtns }}" as="btn" hint-placeholder-count="3">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:7px 12px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;background:transparent;border:none;color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:1620},&quot;showPagination&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;}}">
+class Component extends DCLogic {
+  state = { chamber: 'All', policy: 'All policies', omnibus: false, tracked: {}, uiAuth: null, uiEmpty: false, returned: false, toastShown: false, toastBill: '', signInFor: null };
+  renderVals() {
+    const stageIndex = { proposed: 0, committee: 1, house: 2, senate: 3, signed: 4 };
+    const statusMeta = {
+      proposed:  { label: 'Proposed',        tone: 'neutral' },
+      committee: { label: 'In Committee',    tone: 'neutral' },
+      house:     { label: 'Passed House',    tone: 'neutral' },
+      senate:    { label: 'Passed Senate',   tone: 'neutral' },
+      signed:    { label: 'Signed into Law', tone: 'green' },
+      vetoed:    { label: 'Vetoed',          tone: 'red' },
+    };
+    const buildSteps = (key) => {
+      if (key === 'vetoed') return [0,1,2,3,4].map(i => ({ isOn: i < 4, isOff: false, isRed: i === 4 }));
+      const idx = stageIndex[key];
+      return [0,1,2,3,4].map(i => ({ isOn: i <= idx, isOff: i > idx, isRed: false }));
+    };
+
+    // Tracking requires an account. Signed out → "+ Track" only; clicking opens
+    // intent-preserving sign-in, then returns here with that bill affirmed + a toast.
+    const signedIn = this.state.returned ? true : (this.state.uiAuth ?? false);
+    const track = (id) => this.setState(s => ({ tracked: { ...s.tracked, [id]: !s.tracked[id] } }));
+    const openSignIn = (id, code) => this.setState({ signInFor: { id, code } });
+    const raw = [
+      { id: 'HF2904', code: 'HF 2904', status: 'committee', title: 'Education Finance and Policy Act', summary: 'Sets the two-year E-12 education budget, raises the per-pupil general-education formula by 4%, and expands funding for special education cross-subsidy relief and school mental-health grants.', author: 'Patti Anderson', coauthors: 42, action: 'Referred to Ways and Means', actionDate: 'Mar 12, 2026', policies: ['Education', 'School Funding', 'Taxation'], rollCalls: 0, omnibus: true, companion: 'SF 2744 · IN COMMITTEE' },
+      { id: 'SF1832', code: 'SF 1832', status: 'signed', title: 'Paid Family and Medical Leave Amendments', summary: 'Refines the state paid-leave program ahead of launch: clarifies employer premium splits, adds a small-business grant, and aligns the wage-replacement schedule with the unemployment-insurance base.', author: 'Alice Mann', coauthors: 18, action: 'Signed by the Governor', actionDate: 'Feb 28, 2026', policies: ['Labor', 'Health', 'Public Finance'], rollCalls: 3, omnibus: false, companion: 'HF 1976 · IN COMMITTEE' },
+      { id: 'HF615', code: 'HF 615', status: 'house', title: 'Rural Broadband Expansion Grants', summary: 'Appropriates $120M to the Border-to-Border Broadband fund, prioritizing unserved rural households, and shortens the challenge-process window that lets incumbents contest grant awards.', author: 'Patty Acomb', coauthors: 9, action: 'Passed House, referred to Senate', actionDate: 'Mar 18, 2026', policies: ['Infrastructure', 'Rural Development', 'Technology'], rollCalls: 1, omnibus: false, companion: 'SF 588 · IN COMMITTEE' },
+      { id: 'SF2210', code: 'SF 2210', status: 'senate', title: 'Public Safety and Judiciary Omnibus', summary: 'Funds courts, corrections, and public safety for the biennium; adds co-responder mental-health teams, updates use-of-force reporting, and increases county attorney diversion grants.', author: 'Ron Latz', coauthors: 6, action: 'Passed Senate, sent to conference committee', actionDate: 'Mar 15, 2026', policies: ['Public Safety', 'Judiciary', 'Corrections'], rollCalls: 2, omnibus: true, companion: 'HF 2489 · PASSED HOUSE' },
+      { id: 'HF88', code: 'HF 88', status: 'proposed', title: 'Prohibiting Foreign Ownership of Agricultural Land', summary: 'Bars certain foreign governments and entities from acquiring Minnesota farmland, directs the Department of Agriculture to maintain a public ownership registry, and sets divestment timelines for existing holdings.', author: 'Paul Anderson', coauthors: 3, action: 'Introduced, first reading', actionDate: 'Jan 22, 2026', policies: ['Agriculture', 'Land Use'], rollCalls: 0, omnibus: false, companion: 'SF 92 · PROPOSED' },
+      { id: 'SF940', code: 'SF 940', status: 'vetoed', title: 'Motor Vehicle Registration Tax Rebate', summary: 'Would have issued a one-time registration-tax rebate funded by the projected surplus. Passed both chambers on party lines; returned without the Governor\u2019s signature over long-term revenue concerns.', author: 'Jason Rarick', coauthors: 12, action: 'Vetoed by the Governor', actionDate: 'Mar 5, 2026', policies: ['Taxation', 'Transportation'], rollCalls: 4, omnibus: false },
+    ];
+    const bills = raw.map(b => {
+      const m = statusMeta[b.status];
+      const on = signedIn && !!this.state.tracked[b.id];
+      return {
+        ...b,
+        statusLabel: m.label,
+        toneGreen: m.tone === 'green', toneRed: m.tone === 'red', toneNeutral: m.tone === 'neutral',
+        steps: buildSteps(b.status),
+        hasVotes: b.rollCalls > 0,
+        hasCompanion: !!b.companion, companionLabel: b.companion || '',
+        rollLabel: b.rollCalls === 1 ? '1 roll call' : (b.rollCalls + ' roll calls'),
+        tracked: on,
+        untracked: !on,
+        toggle: (e) => { if (e && e.preventDefault) e.preventDefault(); if (signedIn) track(b.id); else openSignIn(b.id, b.code); },
+      };
+    });
+    // Rule: default sort = most-recent legislative activity (latest action first)
+    bills.sort((x, y) => Date.parse(y.actionDate) - Date.parse(x.actionDate));
+
+    const chambers = ['All', 'House', 'Senate'].map(c => ({
+      label: c, active: this.state.chamber === c, inactive: this.state.chamber !== c,
+      select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ chamber: c }); },
+    }));
+
+    const POL = [['All policies', 312], ['Education', 214], ['Infrastructure', 168], ['Public Safety', 132], ['Health', 140], ['Taxation', 96], ['Transportation', 88], ['Capital Investment', 74]];
+    const policies = POL.map(([label, count]) => ({
+      label, count, hasCount: label !== 'All policies',
+      active: this.state.policy === label, inactive: this.state.policy !== label,
+      select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ policy: label }); },
+    }));
+    const totalCount = (POL.find(([l]) => l === this.state.policy) || ['', 312])[1];
+
+    const activeFilters = [{ label: '94th Legislature (2025–2026) Regular Session' }];
+    if (this.state.chamber !== 'All') activeFilters.push({ label: 'Chamber: ' + this.state.chamber });
+    if (this.state.policy !== 'All policies') activeFilters.push({ label: this.state.policy });
+    if (this.state.omnibus) activeFilters.push({ label: 'Omnibus only' });
+
+    const empty = !!this.state.uiEmpty;
+
+    const completeSignIn = (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+      const f = this.state.signInFor; if (!f) return;
+      if (this.__toastTimer) clearTimeout(this.__toastTimer);
+      this.setState(s => ({ signInFor: null, returned: true, toastShown: true, toastBill: f.code, tracked: { ...s.tracked, [f.id]: true } }));
+      this.__toastTimer = setTimeout(() => this.setState({ toastShown: false }), 3650);
+    };
+    const closeSignIn = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ signInFor: null }); };
+
+    // Preview state band (see CLAUDE.md) — demo states live here, not in Tweaks.
+    const mkBtn = (label, active, patch) => ({ label, active, inactive: !active, select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(patch); } });
+    const resultBtns = [
+      mkBtn('With results', !empty, { uiEmpty: false }),
+      mkBtn('No results', empty, { uiEmpty: true }),
+    ];
+    const authBtns = [
+      mkBtn('Signed out', !signedIn, { uiAuth: false, returned: false, toastShown: false }),
+      mkBtn('Signed in', signedIn && !this.state.returned, { uiAuth: true, returned: false, toastShown: false }),
+      { label: 'Returned after sign-in', active: this.state.returned, inactive: !this.state.returned, select: (e) => { if (e && e.preventDefault) e.preventDefault(); if (this.__toastTimer) clearTimeout(this.__toastTimer); this.setState(s => ({ uiAuth: true, returned: true, toastShown: true, toastBill: 'HF 2904', tracked: { ...s.tracked, HF2904: true } })); this.__toastTimer = setTimeout(() => this.setState({ toastShown: false }), 3650); } },
+    ];
+
+    return {
+      bills, chambers, policies, totalCount, activeFilters,
+      resultBtns, authBtns,
+      signedIn, signedOut: !signedIn,
+      justReturned: this.state.returned && this.state.toastShown,
+      toastBill: this.state.toastBill,
+      signInActive: !!this.state.signInFor,
+      signInCode: this.state.signInFor ? this.state.signInFor.code : '',
+      completeSignIn, closeSignIn,
+      omnibusOn: this.state.omnibus, omnibusOff: !this.state.omnibus,
+      toggleOmnibus: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ omnibus: !s.omnibus })); },
+      empty, hasResults: !empty,
+      clearFilters: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ uiEmpty: false, chamber: 'All', policy: 'All policies', omnibus: false }); },
+      showPagination: this.props.showPagination ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>
