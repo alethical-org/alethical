@@ -6,7 +6,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "0003_bill_version_one_current_index"
+# Keep the revision id <= 32 chars — alembic_version.version_num is varchar(32).
+revision = "0003_one_current_per_bill"
 down_revision = "0002_notification_event"
 branch_labels = None
 depends_on = None
