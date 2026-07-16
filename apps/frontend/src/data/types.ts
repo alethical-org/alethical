@@ -97,6 +97,9 @@ export interface Bill {
   sessionLabel: string;
   topics: string[];
   chiefSponsorIds: string[];
+  /** Number of co-authors (co_author-role sponsorships) on the bill, for the
+   *  "+N co-authors" line on list cards. Undefined when not served (#295). */
+  coAuthorCount?: number;
   sponsors?: BillSponsor[];
   progress?: BillProgressStep[];
   actionCount: number;

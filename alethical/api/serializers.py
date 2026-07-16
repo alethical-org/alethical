@@ -277,7 +277,9 @@ def ai_analysis_payload(enrichments) -> api_schemas.AIAnalysisPayload | None:
     )
 
 
-def bill_list_item(bill, *, include_tracking: bool = False) -> api_schemas.BillListItem:
+def bill_list_item(
+    bill, *, include_tracking: bool = False, co_author_count: int = 0
+) -> api_schemas.BillListItem:
     return api_schemas.BillListItem(
         id=bill.bill_key,
         file_type=bill.file_type,
@@ -289,6 +291,7 @@ def bill_list_item(bill, *, include_tracking: bool = False) -> api_schemas.BillL
         official_url=bill.official_url,
         is_omnibus=bill.is_omnibus,
         chief_sponsors=sponsor_payloads(bill.chief_sponsorships),
+        co_author_count=co_author_count,
         stats=bill_stats_payload(bill.stats),
         tracked=tracking_payload(bill.tracked_by) if include_tracking else None,
         ai_analysis=ai_analysis_payload(bill.enrichments),

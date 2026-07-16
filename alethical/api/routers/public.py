@@ -133,6 +133,29 @@ def authored_bill_counts(db: Session, legislator_ids) -> dict[str, tuple[int, in
     return {str(row.id): (row.total, row.chief) for row in rows}
 
 
+def bill_co_author_counts(db: Session, bill_ids) -> dict[str, int]:
+    """Co-author count per bill -- distinct legislators with a co_author-role
+    sponsorship, excluding the chief author and the distinct 'sponsor' role
+    (grounded-answers rule 3, MN author/co-author terminology). Computed set-wise
+    in one grouped query for the whole page (no per-row N+1). Feeds the Search
+    Bills card's "+N co-authors" line (#295). Returns {bill_id: count}."""
+    ids = list(bill_ids)
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(
+            Sponsorship.bill_id,
+            func.count(func.distinct(Sponsorship.legislator_id)),
+        )
+        .where(
+            Sponsorship.bill_id.in_(ids),
+            Sponsorship.role == SponsorshipRole.co_author,
+        )
+        .group_by(Sponsorship.bill_id)
+    ).all()
+    return {str(bill_id): count for bill_id, count in rows}
+
+
 def current_committee_names(db: Session, legislator_ids) -> dict[str, list[str]]:
     """Current committee names per directory row, in one grouped query (no N+1).
 
@@ -475,9 +498,12 @@ def bills(
         stmt = stmt.where(Bill.is_omnibus.is_(omnibus))
     total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
     rows, has_more = paginated_scalars(db, stmt, limit=limit, offset=offset)
+    co_author_counts = bill_co_author_counts(db, [row.id for row in rows])
     data = [
         bill_list_item(
-            row, include_tracking="tracking" in include_set and current_user is not None
+            row,
+            include_tracking="tracking" in include_set and current_user is not None,
+            co_author_count=co_author_counts.get(str(row.id), 0),
         )
         for row in rows
     ]

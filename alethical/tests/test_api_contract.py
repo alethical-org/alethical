@@ -2354,3 +2354,98 @@ def test_policy_areas_roll_up_synonyms_to_canonical_issues(client):
         params={"session": slug, "policy_area": "Taxation", "limit": 50},
     )
     assert {b["file_number"] for b in taxation.json()["data"]} == {90211}
+
+
+def test_bills_list_reports_co_author_count_by_role(client):
+    """The /bills list item exposes co_author_count — a count of co_author-role
+    sponsorships only, excluding the chief author and the distinct 'sponsor'
+    role (grounded-answers rule 3). Feeds the Search Bills card's
+    "+N co-authors" line (#295)."""
+    from sqlalchemy import select
+
+    from alethical.db.schema import load_schema
+    from alethical.db.session import get_session_factory
+
+    schema = load_schema()
+    slug = "test-coauthor-count-fixture"
+    bill_key = f"{slug}-HF7001"
+    with get_session_factory()() as db:
+        base = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        chamber = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "house")
+        )
+        assert base is not None and chamber is not None
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == slug
+            )
+        )
+        if session_row is None:
+            session_row = schema.LegislativeSession(
+                jurisdiction_id=base.jurisdiction_id,
+                slug=slug,
+                session_number=9998,
+                session_type=schema.SessionType.regular,
+                year_start=2998,
+                year_end=2999,
+                name="Co-author count fixture session",
+                is_current=False,
+            )
+            db.add(session_row)
+            db.flush()
+        if (
+            db.scalar(select(schema.Bill).where(schema.Bill.bill_key == bill_key))
+            is None
+        ):
+            bill = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=chamber.id,
+                bill_key=bill_key,
+                file_type="HF",
+                file_number=7001,
+                title="Co-author count fixture",
+                description="fixture",
+                current_status="Introduction and first reading",
+                official_url="https://example.test/hf7001",
+                is_omnibus=False,
+            )
+            db.add(bill)
+            db.flush()
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=bill.id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={"summary": "Fixture."},
+                    is_current=True,
+                )
+            )
+            roles = (
+                [schema.SponsorshipRole.chief_author]
+                + [schema.SponsorshipRole.co_author] * 3
+                + [schema.SponsorshipRole.sponsor]
+            )
+            # A sponsorship needs a legislator or committee target
+            # (ck_sponsorship_has_target); reuse existing roster legislators.
+            legislators = db.scalars(select(schema.Legislator).limit(len(roles))).all()
+            assert len(legislators) >= len(roles)
+            for order, (role, legislator) in enumerate(zip(roles, legislators)):
+                db.add(
+                    schema.Sponsorship(
+                        bill_id=bill.id,
+                        legislator_id=legislator.id,
+                        role=role,
+                        source_order=order,
+                    )
+                )
+            db.commit()
+
+    response = client.get("/api/v1/bills", params={"session": slug, "limit": 100})
+    assert response.status_code == 200
+    items = {item["id"]: item for item in response.json()["data"]}
+    assert bill_key in items
+    assert items[bill_key]["co_author_count"] == 3
