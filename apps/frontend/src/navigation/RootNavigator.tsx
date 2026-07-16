@@ -212,22 +212,23 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-// The site root is auth-aware: signed-out visitors get the v2 marketing home
-// (full-bleed, with its own TopNav — see #143); signed-in users keep the
-// existing app home. While the session restores, render nothing rather than
-// flashing the wrong home.
-function HomeRoute(props: ComponentProps<typeof HomeScreen>) {
-  const { isLoading, isSignedIn } = useAuth();
+// Sign-in isn't available yet (no post-login experience shipped), so the site
+// root always renders the v2 marketing home (full-bleed, with its own TopNav —
+// see #143), regardless of auth state — including a stale signed-in session
+// from earlier testing. While the session restores, render nothing rather
+// than flashing the wrong home.
+function HomeRoute(_props: ComponentProps<typeof HomeScreen>) {
+  const { isLoading } = useAuth();
   if (isLoading) {
     return null;
   }
-  return isSignedIn ? <HomeScreen {...props} /> : <HomeSignedOutScreen />;
+  return <HomeSignedOutScreen />;
 }
 
 /** True when the current surface is the signed-out marketing home (hides the app chrome). */
 function useIsSignedOutHome(activeTab: keyof MainTabParamList | undefined) {
-  const { isLoading, isSignedIn } = useAuth();
-  return !isSignedIn && !isLoading && activeTab === 'Home';
+  const { isLoading } = useAuth();
+  return !isLoading && activeTab === 'Home';
 }
 
 function MainTabs() {

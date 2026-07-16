@@ -173,7 +173,9 @@ export function SearchLegislatorsScreen() {
           onQueryChange={setQueryInput}
           onSubmit={submitSearch}
           variant="legislators"
-          onFindByAddress={() => navigation.navigate('FindMyLegislator')}
+          // Find My Legislator is on the roadmap — the link stays visible but
+          // doesn't route anywhere yet.
+          onFindByAddress={() => {}}
           filters={filterRow}
         />
       }
@@ -205,9 +207,9 @@ export function SearchLegislatorsScreen() {
               <View key={legislator.id} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
                 <LegislatorResultCard
                   legislator={legislator}
-                  onPress={() =>
-                    navigation.navigate('LegislatorProfile', { legislatorId: legislator.id })
-                  }
+                  // Legislator profile is an old-design page — cards stay
+                  // visible but don't route anywhere until its new design ships.
+                  onPress={() => {}}
                 />
               </View>
             ))}

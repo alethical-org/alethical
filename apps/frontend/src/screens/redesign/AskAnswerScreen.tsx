@@ -268,6 +268,9 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const nameMatch = nameQuery.data && nameQuery.data.length === 1 ? nameQuery.data[0] : undefined;
   const resolvingName = Boolean(question) && (nameQuery.isLoading || Boolean(nameMatch));
 
+  // Exception to "no routing into old-design pages": this redirect is load-
+  // bearing for resolvingName above — skipping it would leave a name query
+  // spinning forever instead of landing on a (currently old-design) profile.
   useEffect(() => {
     if (nameMatch) {
       navigation.replace('LegislatorProfile', { legislatorId: nameMatch.id });
@@ -368,8 +371,9 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   };
 
   const handleTrack = (billId: string) => {
+    // Sign-in isn't available yet (no post-login experience shipped), so
+    // Track stays a visible no-op rather than starting Google sign-in.
     if (!isSignedIn) {
-      void signInWithGoogle();
       return;
     }
     toggleTrackedBill.mutate(billId);
@@ -483,18 +487,15 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   <AnswerBillCard
                     bill={resolvedBill}
                     tracked={isSignedIn && trackedIds.has(resolvedBill.id)}
-                    onOpen={() => navigation.navigate('BillDetail', { billId: resolvedBill.id })}
+                    // Bill detail is an old-design page — stays visible but
+                    // doesn't route anywhere until its new design ships.
+                    onOpen={() => {}}
                     onTrack={() => handleTrack(resolvedBill.id)}
                   />
                   <Pressable
                     accessibilityRole="link"
                     accessibilityLabel={`See all votes on ${resolvedBill.identifier}`}
-                    onPress={() =>
-                      navigation.navigate('BillDetail', {
-                        billId: resolvedBill.id,
-                        tab: 'votes',
-                      })
-                    }
+                    onPress={() => {}}
                   >
                     <Text style={styles.viewBillLink}>
                       See all votes on {resolvedBill.identifier} →
@@ -516,9 +517,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                         key={bill.id}
                         bill={bill}
                         tracked={isSignedIn && trackedIds.has(bill.id)}
-                        onOpen={() =>
-                          navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
-                        }
+                        onOpen={() => {}}
                         onTrack={() => handleTrack(bill.id)}
                       />
                     ))}
@@ -568,7 +567,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 <AnswerBillCard
                   bill={answeringBill}
                   tracked={isSignedIn && trackedIds.has(answeringBill.id)}
-                  onOpen={() => navigation.navigate('BillDetail', { billId: answeringBill.id })}
+                  onOpen={() => {}}
                   onTrack={() => handleTrack(answeringBill.id)}
                 />
               ) : null}
@@ -639,12 +638,11 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                     <AnswerLegislatorRow
                       key={legislator.id}
                       legislator={legislator}
-                      onOpenProfile={() =>
-                        navigation.navigate('LegislatorProfile', {
-                          legislatorId: legislator.id,
-                        })
-                      }
-                      onOpenBill={(billId) => navigation.navigate('BillDetail', { billId })}
+                      // Legislator profile and bill detail are old-design
+                      // pages — rows stay visible but don't route anywhere
+                      // until their new designs ship.
+                      onOpenProfile={() => {}}
+                      onOpenBill={() => {}}
                     />
                   ))}
                 </View>
@@ -695,7 +693,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                     key={bill.id}
                     bill={bill}
                     tracked={isSignedIn && trackedIds.has(bill.id)}
-                    onOpen={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                    onOpen={() => {}}
                     onTrack={() => handleTrack(bill.id)}
                   />
                 ))}

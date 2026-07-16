@@ -65,29 +65,14 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments.length === 1) {
-    if (segments[0] === 'search') {
-      return { kind: 'tab', screen: 'Search' };
-    }
     if (segments[0] === 'bills') {
       return { kind: 'bills', params: billsFilterParams(searchParams) };
     }
     if (segments[0] === 'legislators') {
       return { kind: 'legislators' };
     }
-    if (segments[0] === 'tracked') {
-      return { kind: 'tab', screen: 'Tracked' };
-    }
-    if (segments[0] === 'chat') {
-      return { kind: 'tab', screen: 'Chat' };
-    }
-    if (segments[0] === 'account') {
-      return { kind: 'tab', screen: 'Account' };
-    }
     if (segments[0] === 'ask') {
       return { kind: 'ask', params: { q: searchParams.get('q') ?? undefined } };
-    }
-    if (segments[0] === 'find-my-legislator') {
-      return { kind: 'findMyLegislator' };
     }
     if (segments[0] === 'privacy') {
       return { kind: 'privacy' };
@@ -95,45 +80,43 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'terms') {
       return { kind: 'terms' };
     }
+    // '/search', '/tracked', '/chat', '/account', '/find-my-legislator' are
+    // old-design or auth-gated surfaces — redirect a stray bookmark/link to a
+    // live page instead of resolving to them.
+    if (segments[0] === 'search') {
+      return { kind: 'bills', params: {} };
+    }
+    if (
+      segments[0] === 'tracked' ||
+      segments[0] === 'chat' ||
+      segments[0] === 'account' ||
+      segments[0] === 'find-my-legislator'
+    ) {
+      return { kind: 'tab', screen: 'Home' };
+    }
   }
 
+  // Bill detail, legislator detail, chat sessions, and vote detail are
+  // old-design pages — redirect to the new list page (or Home) instead of
+  // resolving to them until their new designs ship.
   if (segments.length === 2 && segments[0] === 'bills') {
-    return {
-      kind: 'bill',
-      billId: decodeURIComponent(segments[1]),
-      tab: searchParams.get('tab') ?? undefined,
-      track: searchParams.get('track') === '1' ? true : undefined,
-    };
+    return { kind: 'bills', params: {} };
   }
 
   if (segments.length === 2 && segments[0] === 'legislators') {
-    return { kind: 'legislator', legislatorId: decodeURIComponent(segments[1]) };
+    return { kind: 'legislators' };
   }
 
   if (segments.length === 3 && segments[0] === 'chat' && segments[1] === 'sessions') {
-    return { kind: 'chatSession', params: { sessionId: decodeURIComponent(segments[2]) } };
+    return { kind: 'tab', screen: 'Home' };
   }
 
   if (segments.length === 2 && segments[0] === 'chat' && segments[1] === 'new') {
-    const subjectType = searchParams.get('subjectType');
-    return {
-      kind: 'chatSession',
-      params: {
-        title: searchParams.get('title') ?? undefined,
-        seedPrompt: searchParams.get('prompt') ?? undefined,
-        subjectType: subjectType === 'bill' ? 'bill' : undefined,
-        subjectId: searchParams.get('subjectId') ?? undefined,
-        subjectLabel: searchParams.get('subjectLabel') ?? undefined,
-      },
-    };
+    return { kind: 'tab', screen: 'Home' };
   }
 
   if (segments.length === 4 && segments[0] === 'bills' && segments[2] === 'votes') {
-    return {
-      kind: 'vote',
-      billId: decodeURIComponent(segments[1]),
-      voteEventId: decodeURIComponent(segments[3]),
-    };
+    return { kind: 'bills', params: {} };
   }
 
   return { kind: 'tab', screen: 'Home' };

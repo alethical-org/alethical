@@ -184,8 +184,9 @@ export function SearchBillsScreen() {
   if (query) activeFilters.push(`“${query}”`);
 
   const handleToggleTrack = (bill: { id: string; identifier: string }) => {
+    // Sign-in isn't available yet (no post-login experience shipped), so
+    // Track stays a visible no-op rather than opening the sign-in modal.
     if (!isSignedIn) {
-      setSignInBill({ id: bill.id, code: bill.identifier });
       return;
     }
     const wasTracked = trackedSet.has(bill.id);
@@ -339,14 +340,13 @@ export function SearchBillsScreen() {
                 key={bill.id}
                 bill={bill}
                 tracked={trackedSet.has(bill.id)}
-                onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                // Bill detail and legislator profile are old-design pages —
+                // cards stay visible but don't route anywhere until their new
+                // designs ship.
+                onPress={() => {}}
                 onToggleTrack={() => handleToggleTrack(bill)}
-                onSponsorPress={(legislatorId) =>
-                  navigation.navigate('LegislatorProfile', { legislatorId })
-                }
-                onRollCalls={() =>
-                  navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
-                }
+                onSponsorPress={() => {}}
+                onRollCalls={() => {}}
               />
             ))}
           </View>

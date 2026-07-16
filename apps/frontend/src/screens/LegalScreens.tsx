@@ -173,7 +173,7 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Questions about this Policy or your data? Contact us at alethicaldev@gmail.com.',
+          text: 'Questions about this Policy or your data? Contact us at ask@alethical.com.',
         },
         {
           kind: 'paragraph',
@@ -321,7 +321,7 @@ const termsContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Questions about these Terms? Contact us at alethicaldev@gmail.com.',
+          text: 'Questions about these Terms? Contact us at ask@alethical.com.',
         },
       ],
     },

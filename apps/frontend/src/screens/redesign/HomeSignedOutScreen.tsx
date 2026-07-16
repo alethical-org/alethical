@@ -17,7 +17,6 @@ import { theme, prefersReducedMotion } from '../../theme/tokens';
 import {
   Container,
   Footer,
-  GoogleButton,
   MNMap,
   PageBackground,
   PrimaryButton,
@@ -697,9 +696,6 @@ function HomeSignedOutDesktop() {
         WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 36%, transparent 88%)',
       }
     : {};
-  const accountGradientWeb: object = isWeb
-    ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' }
-    : { backgroundColor: t.colors.tint.t50 };
 
   return (
     <PageBackground>
@@ -830,12 +826,6 @@ function HomeSignedOutDesktop() {
                   onPress={() => navigation.navigate('Bills')}
                 />
                 <CapabilityCard
-                  icon="bookmark"
-                  title="Track Bills"
-                  subtitle="Your watchlist — sign in to follow the bills you choose"
-                  onPress={() => navigation.navigate('Tracked')}
-                />
-                <CapabilityCard
                   icon="person"
                   title="Search Legislators"
                   subtitle="See who writes your laws — profiles, committees, authored bills"
@@ -881,24 +871,16 @@ function HomeSignedOutDesktop() {
                         onChangeText={setFinderValue}
                         onFocus={() => setFinderFocused(true)}
                         onBlur={() => setFinderFocused(false)}
-                        onSubmitEditing={() => navigation.navigate('FindMyLegislator')}
+                        // Find My Legislator is on the roadmap — the field stays
+                        // visible but doesn't route anywhere yet.
                         placeholder="Enter an address, city, or area"
                         placeholderTextColor={t.colors.text.faint}
                         style={styles.finderInput}
                       />
-                      {!isMobile && (
-                        <PrimaryButton
-                          label="Find"
-                          onPress={() => navigation.navigate('FindMyLegislator')}
-                        />
-                      )}
+                      {!isMobile && <PrimaryButton label="Find" />}
                     </FieldShell>
                     {isMobile && (
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => navigation.navigate('FindMyLegislator')}
-                        style={styles.askButtonMobile}
-                      >
+                      <Pressable accessibilityRole="button" style={styles.askButtonMobile}>
                         <Text style={styles.askButtonText}>Find</Text>
                       </Pressable>
                     )}
@@ -940,14 +922,13 @@ function HomeSignedOutDesktop() {
                         <BillResultCard
                           key={bill.id}
                           bill={bill}
-                          onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                          onToggleTrack={signIn}
-                          onSponsorPress={(legislatorId) =>
-                            navigation.navigate('LegislatorProfile', { legislatorId })
-                          }
-                          onRollCalls={() =>
-                            navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
-                          }
+                          // Bill detail and legislator profile are old-design
+                          // pages — cards stay visible but don't route
+                          // anywhere until their new designs ship.
+                          onPress={() => {}}
+                          onToggleTrack={() => {}}
+                          onSponsorPress={() => {}}
+                          onRollCalls={() => {}}
                         />
                       ))}
                     </View>
@@ -961,14 +942,10 @@ function HomeSignedOutDesktop() {
                         <BillResultCard
                           key={bill.id}
                           bill={bill}
-                          onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                          onToggleTrack={signIn}
-                          onSponsorPress={(legislatorId) =>
-                            navigation.navigate('LegislatorProfile', { legislatorId })
-                          }
-                          onRollCalls={() =>
-                            navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
-                          }
+                          onPress={() => {}}
+                          onToggleTrack={() => {}}
+                          onSponsorPress={() => {}}
+                          onRollCalls={() => {}}
                         />
                       ))}
                     </View>
@@ -978,32 +955,8 @@ function HomeSignedOutDesktop() {
             </Container>
           </View>
 
-          {/* START KNOWING */}
-          <View style={styles.accountSection}>
-            <Container>
-              <View
-                style={[
-                  styles.accountCard,
-                  accountGradientWeb,
-                  !isDesktop && styles.accountCardStacked,
-                ]}
-              >
-                <View style={[styles.accountText, !isDesktop && styles.accountColMobile]}>
-                  <Text accessibilityRole="header" style={styles.accountH3}>
-                    Start Knowing
-                  </Text>
-                  <Text style={styles.accountBody}>
-                    Search bills and legislators, find who represents you, and get cited answers —
-                    no account needed. An account makes it yours: track your bills, keep chat
-                    history, and pick up where you left off.
-                  </Text>
-                </View>
-                <View style={[styles.accountAction, !isDesktop && styles.accountColMobile]}>
-                  <GoogleButton onPress={signIn} />
-                </View>
-              </View>
-            </Container>
-          </View>
+          {/* "Start Knowing" (Google sign-in CTA) removed until sign-in ships a
+              real post-login experience — see conversation notes, reintroduce then. */}
 
           <Footer
             onPrivacy={() => navigation.navigate('Privacy')}
@@ -1317,9 +1270,11 @@ function HomeSignedOutMobile() {
     }
     navigation.navigate('Ask', { q: question });
   };
-  const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
+  // Bill detail and Find My Legislator are old-design pages — the cards/field
+  // stay visible but don't route anywhere until their new designs ship.
+  const openBill = (_billId: string) => {};
   const openSearchBills = () => navigation.navigate('Bills');
-  const openFinder = () => navigation.navigate('FindMyLegislator');
+  const openFinder = () => {};
 
   const titleCase = (s: string) =>
     s
@@ -1390,9 +1345,6 @@ function HomeSignedOutMobile() {
           'linear-gradient(180deg,#eaf6ef 0%,#eaf6ef 20%,#f2f9f5 36%,#ffffff 52%,#ffffff 100%)',
       }
     : { backgroundColor: t.colors.tint.t100 };
-  const accountGradientWeb: object = isWeb
-    ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' }
-    : { backgroundColor: t.colors.tint.t50 };
 
   return (
     <PageBackground>
@@ -1597,20 +1549,8 @@ function HomeSignedOutMobile() {
               </Container>
             </View>
 
-            {/* BE IN THE KNOW — account (sits on the continuous white below) */}
-            <Container style={m.sectionRoomy}>
-              <View style={[m.accountCard, accountGradientWeb]}>
-                <Text accessibilityRole="header" style={m.accountH3}>
-                  Be in the Know
-                </Text>
-                <Text style={m.accountBody}>
-                  Search bills and legislators, find who represents you, and get cited answers — no
-                  account needed. An account makes it yours: track bills, keep chat history, and
-                  pick up where you left off.
-                </Text>
-                <GoogleButton onPress={signIn} />
-              </View>
-            </Container>
+            {/* "Be in the Know" (Google sign-in CTA) removed until sign-in ships a
+                real post-login experience — see conversation notes, reintroduce then. */}
           </View>
 
           <Footer
