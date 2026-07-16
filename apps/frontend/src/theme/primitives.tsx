@@ -1074,7 +1074,9 @@ const styles = StyleSheet.create({
   },
   roadmapLabel: {
     fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.caption,
+    // 12 (label), matching the SEARCH/ABOUT group eyebrows — 11 (caption) left
+    // it the smallest text in the drawer for no reason.
+    fontSize: t.fontSizes.label,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.2,
     color: t.colors.text.faint,
@@ -1113,7 +1115,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.68,
-    color: t.colors.brand.deep,
+    // forest (green700), not deep (green600): at 12px this label needs ≥4.5:1 on
+    // white; deep is only ~3.5:1, forest is ~5.4:1 (WCAG AA). Scoped to this small
+    // label so the brand green elsewhere (larger, passes at 3:1) is unaffected.
+    color: t.colors.brand.forest,
     marginBottom: 6,
   },
   // paddingVertical 12 (not 9) gives the 21px rows more breathing room within a
