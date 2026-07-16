@@ -160,7 +160,8 @@ def parse_datetime(value: str | None) -> datetime | None:
     # The MN source emits action/version dates as "YYYY-MM-DD HH:MM:SS"
     # (e.g. "2025-04-30 00:00:00"); the date-only forms cover roster/profile
     # dates. Without the datetime forms every action_date parsed to None, which
-    # is why the production corpus has no temporal signal (#328).
+    # is why the production corpus previously had no temporal signal (#328,
+    # fixed here + one-time backfilled Jul 2026).
     for fmt in (
         "%m/%d/%Y",
         "%Y-%m-%d",
