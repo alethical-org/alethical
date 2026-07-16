@@ -7,7 +7,7 @@ from uuid import UUID
 
 import requests
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import and_, case, func, or_, select, text
 from sqlalchemy.orm import Session, aliased, selectinload
 
@@ -72,6 +72,15 @@ legislator_profile_stmt = schema.legislator_profile_stmt
 legislator_sponsored_bills_stmt = schema.legislator_sponsored_bills_stmt
 
 router = APIRouter()
+
+# Public record reads (bills/legislators lists and detail) change only when
+# ingestion runs — human-triggered and infrequent — so they carry a short
+# shared-cache TTL with a longer stale-while-revalidate window. This lets the
+# browser serve repeat loads instantly and lets a CDN, once in front of the API,
+# absorb the first hit for everyone (the ~1s cost today is the DB query, not the
+# network). Responses that vary by user (tracking state) are never cached.
+PUBLIC_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300"
+PRIVATE_CACHE_CONTROL = "private, no-store"
 
 
 def paginated_scalars(db: Session, stmt, *, limit: int, offset: int):
@@ -453,9 +462,17 @@ def bills(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user=Depends(get_optional_current_user),
+    response: Response = None,  # type: ignore[assignment]
 ):
     session_row = get_session_by_slug(db, session)
     include_set = {item.strip() for item in include.split(",")} if include else set()
+    # Cacheable only when the response carries no per-user data: anonymous and
+    # no tracking include. (Anonymous + tracking already 401s upstream.)
+    response.headers["Cache-Control"] = (
+        PUBLIC_CACHE_CONTROL
+        if current_user is None and "tracking" not in include_set
+        else PRIVATE_CACHE_CONTROL
+    )
     stmt = bill_list_stmt(
         session_row.id,
         user_id=tracking_user_id(include_set, current_user),
@@ -526,9 +543,16 @@ def bill_detail(
     include: str | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_optional_current_user),
+    response: Response = None,  # type: ignore[assignment]
 ):
     bill_row = get_bill_by_key(db, bill_id)
     include_set = {item.strip() for item in include.split(",")} if include else set()
+    # Cacheable unless the response carries per-user tracking state (see /bills).
+    response.headers["Cache-Control"] = (
+        PUBLIC_CACHE_CONTROL
+        if current_user is None and "tracking" not in include_set
+        else PRIVATE_CACHE_CONTROL
+    )
     row = db.scalar(
         bill_detail_stmt(
             bill_row.id,
@@ -703,7 +727,13 @@ def bill_version_text(
 
 
 @router.get("/bills/{bill_id}/votes", response_model=CollectionResponse)
-def bill_votes(bill_id: str, db: Session = Depends(get_db)):
+def bill_votes(
+    bill_id: str,
+    db: Session = Depends(get_db),
+    response: Response = None,  # type: ignore[assignment]
+):
+    # Vote records carry no per-user data — always publicly cacheable.
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
     bill_row = get_bill_by_key(db, bill_id)
     row = db.scalar(bill_detail_stmt(bill_row.id))
     data = [
