@@ -157,7 +157,18 @@ def parse_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
     value = value.strip()
-    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m/%d/%y"):
+    # The MN source emits action/version dates as "YYYY-MM-DD HH:MM:SS"
+    # (e.g. "2025-04-30 00:00:00"); the date-only forms cover roster/profile
+    # dates. Without the datetime forms every action_date parsed to None, which
+    # is why the production corpus has no temporal signal (#328).
+    for fmt in (
+        "%m/%d/%Y",
+        "%Y-%m-%d",
+        "%m/%d/%y",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+        "%m/%d/%Y %H:%M:%S",
+    ):
         try:
             return datetime.strptime(value, fmt).replace(tzinfo=UTC)
         except ValueError:
@@ -1128,8 +1139,31 @@ class MinnesotaIngestionPipeline:
             key=lambda action: int(action.get("action_number") or 0),
             default=None,
         )
-        latest_action_at = (
-            parse_datetime(latest_action.get("action_date")) if latest_action else None
+        # latest_action_at is the newest *dated* action. The procedurally-last
+        # action (max action_number) is often undated (e.g. "Laid on table"), so
+        # keying off action_number would leave the timestamp null; take the max
+        # over the actions that actually carry a parseable date (#328).
+        action_dates = [
+            parsed
+            for action in all_actions
+            if (parsed := parse_datetime(action.get("action_date"))) is not None
+        ]
+        latest_action_at = max(action_dates) if action_dates else None
+        # introduced_at comes from the "Introduction and first reading" action
+        # in the bill's origin chamber (the only action carrying that text).
+        introduced_action = next(
+            (
+                action
+                for action in all_actions
+                if "introduction and first reading"
+                in (action.get("action_text") or "").lower()
+            ),
+            None,
+        )
+        introduced_at = (
+            parse_datetime(introduced_action.get("action_date"))
+            if introduced_action
+            else None
         )
 
         bill = self.db.scalar(
@@ -1158,6 +1192,7 @@ class MinnesotaIngestionPipeline:
             latest_action.get("action_text") if latest_action else None
         )
         bill.latest_action_at = latest_action_at
+        bill.introduced_at = introduced_at
         bill.official_url = str(bill_text.get("source_url") or "") or None
         bill.is_omnibus = len(bill_text.get("articles", [])) > 1
         bill.ingestion_run_id = run.id
