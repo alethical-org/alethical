@@ -576,6 +576,15 @@ export function TopNav({
         onRequestClose={() => setDrawerOpen(false)}
       >
         <View style={styles.menuScrim}>
+          {/* Tapping the dimmed area beside the sheet closes the drawer, matching
+              the X in the sheet header. Sits behind the sheet (earlier sibling), so
+              the sheet's own rows still receive their taps. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close menu"
+            onPress={() => setDrawerOpen(false)}
+            style={StyleSheet.absoluteFill}
+          />
           <View style={styles.menuSheet}>
             <View style={styles.menuSheetHeader}>
               <Logo compact />
