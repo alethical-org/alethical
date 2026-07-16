@@ -958,10 +958,12 @@ export function Footer({ onPrivacy, onTerms }: { onPrivacy?: () => void; onTerms
         </View>
         <View style={styles.footerDivider} />
         <View style={styles.footerBottom}>
-          <Text style={styles.footerMeta}>
+          <Text style={[styles.footerMeta, isMobile && styles.footerMetaMobile]}>
             {isMobile ? '© 2026 ALETHICAL' : '© 2026 ALETHICAL · BUILT IN MINNESOTA'}
           </Text>
-          <Text style={styles.footerMetaGreen}>TRUTH, UNCONCEALED</Text>
+          <Text style={[styles.footerMetaGreen, isMobile && styles.footerMetaMobile]}>
+            TRUTH, UNCONCEALED
+          </Text>
         </View>
       </Container>
     </View>
@@ -1442,7 +1444,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     color: '#eef1ef',
   },
-  footerTaglineMobile: { fontSize: 16, lineHeight: 23 },
+  footerTaglineMobile: { fontSize: 19, lineHeight: 28 },
+  // Mobile home scales footer meta lines up for legibility (2nd-pass delta #6).
+  footerMetaMobile: { fontSize: 15 },
   footerTaglineAccent: { color: t.colors.brand.bright },
   footerLinks: { flexDirection: 'row', alignItems: 'center', gap: 34 },
   footerLink: {
