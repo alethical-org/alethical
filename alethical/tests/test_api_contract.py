@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import requests
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from alethical.db.schema import load_schema
+from alethical.db.session import get_engine
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
     GeocodedAddress,
@@ -386,6 +390,55 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     assert lookup_payload["resolved_place"]["senate_district"] == "35"
     assert lookup_payload["house_legislator"] is not None
     assert lookup_payload["senate_legislator"] is not None
+
+
+def test_legislator_list_includes_current_committee_names(client):
+    """The /legislators list item carries current committee names (#296) so the
+    directory card can show committee chips without a per-row detail fetch."""
+    schema = load_schema()
+    directory = client.get(
+        "/api/v1/legislators", params={"session": "94-2025-regular"}
+    ).json()["data"]
+    legislator_id = directory[0]["id"]
+
+    with Session(get_engine()) as db:
+        service = db.scalar(
+            select(schema.LegislatorServicePeriod).where(
+                schema.LegislatorServicePeriod.legislator_id == legislator_id,
+                schema.LegislatorServicePeriod.is_current.is_(True),
+            )
+        )
+        committee = schema.Committee(
+            session_id=service.session_id,
+            chamber_id=service.chamber_id,
+            name="Test Committee on Roster Chips",
+        )
+        db.add(committee)
+        db.flush()
+        membership = schema.CommitteeMembership(
+            committee_id=committee.id,
+            legislator_id=legislator_id,
+            is_current=True,
+        )
+        db.add(membership)
+        db.commit()
+        committee_id, membership_id = committee.id, membership.id
+
+    try:
+        item = next(
+            leg
+            for leg in client.get(
+                "/api/v1/legislators", params={"session": "94-2025-regular"}
+            ).json()["data"]
+            if leg["id"] == legislator_id
+        )
+        names = [c["name"] for c in item.get("committees", [])]
+        assert "Test Committee on Roster Chips" in names
+    finally:
+        with Session(get_engine()) as db:
+            db.delete(db.get(schema.CommitteeMembership, membership_id))
+            db.delete(db.get(schema.Committee, committee_id))
+            db.commit()
 
 
 def test_representative_lookup_maps_service_district_codes_to_legislators(client):

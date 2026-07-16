@@ -166,17 +166,18 @@ class CurrentServicePayload(BaseModel):
     profile_url: str | None = None
 
 
+class CommitteePayload(BaseModel):
+    name: str
+    role: str | None = None
+
+
 class LegislatorListItem(BaseModel):
     id: str
     slug: str
     full_name: str
     current_service: CurrentServicePayload | None = None
+    committees: list[CommitteePayload] | None = None
     stats: LegislatorStatsPayload | None = None
-
-
-class CommitteePayload(BaseModel):
-    name: str
-    role: str | None = None
 
 
 class LegislatorDetailPayload(BaseModel):

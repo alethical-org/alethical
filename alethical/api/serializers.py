@@ -346,13 +346,20 @@ def legislator_list_item(
     *,
     total_bill_count: int | None = None,
     chief_bill_count: int | None = None,
+    committee_names: list[str] | None = None,
 ) -> api_schemas.LegislatorListItem:
     current_service = next(iter(legislator.service_periods), None)
+    committees = (
+        [api_schemas.CommitteePayload(name=name) for name in committee_names]
+        if committee_names
+        else None
+    )
     return api_schemas.LegislatorListItem(
         id=str(legislator.id),
         slug=legislator.slug,
         full_name=legislator.full_name,
         current_service=current_service_payload(current_service),
+        committees=committees,
         stats=legislator_stats_payload(
             legislator.stats,
             total_bill_count=total_bill_count,

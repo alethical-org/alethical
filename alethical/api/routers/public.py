@@ -50,6 +50,8 @@ BillVersion = schema.BillVersion
 BillVersionSection = schema.BillVersionSection
 Chamber = schema.Chamber
 ChamberType = schema.ChamberType
+Committee = schema.Committee
+CommitteeMembership = schema.CommitteeMembership
 District = schema.District
 EnrichmentType = schema.EnrichmentType
 IngestionRun = schema.IngestionRun
@@ -128,6 +130,31 @@ def authored_bill_counts(db: Session, legislator_ids) -> dict[str, tuple[int, in
         .group_by(Legislator.id)
     ).all()
     return {str(row.id): (row.total, row.chief) for row in rows}
+
+
+def current_committee_names(db: Session, legislator_ids) -> dict[str, list[str]]:
+    """Current committee names per directory row, in one grouped query (no N+1).
+
+    Unlike sponsorships (which live on the bill-author row, see
+    authored_bill_counts), committee memberships are scraped onto the roster row
+    shown in the directory, so we read them directly off the requested ids.
+    Returns {legislator_id: [committee_name, ...]} ordered by name."""
+    ids = list(legislator_ids)
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(CommitteeMembership.legislator_id, Committee.name)
+        .join(Committee, Committee.id == CommitteeMembership.committee_id)
+        .where(
+            CommitteeMembership.legislator_id.in_(ids),
+            CommitteeMembership.is_current.is_(True),
+        )
+        .order_by(Committee.name.asc())
+    ).all()
+    result: dict[str, list[str]] = {}
+    for legislator_id, name in rows:
+        result.setdefault(str(legislator_id), []).append(name)
+    return result
 
 
 _BILL_NUMBER_QUERY_RE = re.compile(r"^\s*([A-Za-z]{2})\s*0*(\d+)\s*$")
@@ -676,12 +703,15 @@ def legislators(
         )
     total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
     rows, has_more = paginated_scalars(db, stmt, limit=limit, offset=offset)
-    counts = authored_bill_counts(db, [row.id for row in rows])
+    row_ids = [row.id for row in rows]
+    counts = authored_bill_counts(db, row_ids)
+    committees = current_committee_names(db, row_ids)
     data = [
         legislator_list_item(
             row,
             total_bill_count=counts.get(str(row.id), (0, 0))[0],
             chief_bill_count=counts.get(str(row.id), (0, 0))[1],
+            committee_names=committees.get(str(row.id), []),
         ).model_dump(exclude_none=True)
         for row in rows
     ]
