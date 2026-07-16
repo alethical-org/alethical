@@ -89,6 +89,9 @@ export interface Bill {
   title: string;
   chamber: Chamber;
   status: string;
+  /** Raw latest-action text (e.g. "Referred to", "Effective date"), distinct from
+   *  the derived `status` label. Undefined when the source has no action text. */
+  latestActionText?: string;
   isOmnibus?: boolean;
   updatedAt: string;
   sessionLabel: string;

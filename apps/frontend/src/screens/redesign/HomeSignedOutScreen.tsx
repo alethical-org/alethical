@@ -296,6 +296,7 @@ function FillChip({
         style={[
           city ? styles.cityChipText : styles.exampleChipText,
           !city && isMobile && styles.exampleChipTextMobile,
+          city && isMobile && styles.cityChipTextMobile,
         ]}
       >
         {label}
@@ -1325,6 +1326,13 @@ function NewsCardMobile({
 function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void }) {
   const [hovered, hoverProps] = useHover();
   const { filled, vetoed } = statusToProgress(bill.status);
+  const summary = bill.aiAnalysis?.summary;
+  const action = bill.latestActionText;
+  // Freshness meta line (design): the raw latest action + its date. The corpus
+  // has no dates yet (#328) — updatedAt is the "Unknown" sentinel — so the "· {date}"
+  // tail is appended only once real dates land (then the design's full
+  // "Latest action: {action} · {date}" / "Updated {date}" treatment fills in, #329).
+  const date = bill.updatedAt && bill.updatedAt !== 'Unknown' ? bill.updatedAt : null;
   return (
     <Pressable
       accessibilityRole="link"
@@ -1340,10 +1348,19 @@ function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void
         <ProgressSteps filled={filled} vetoed={vetoed} />
       </View>
       <Text style={m.activityTitle}>{billHeadline(bill)}</Text>
-      {/* The design's meta line here is "Latest action: {action} · {date}" /
-          "Updated {date}" — both require dates the corpus doesn't have yet
-          (#328). Held until #329 adds it with real dates rather than showing a
-          dateless/cryptic line or the (design-removed) chief author. */}
+      {summary ? (
+        <Text style={m.newsSummary} numberOfLines={3}>
+          {summary}
+        </Text>
+      ) : null}
+      {action ? (
+        <View style={m.cardMeta}>
+          <Text style={m.metaStatus}>
+            Latest action: <Text style={m.metaActionBold}>{action}</Text>
+            {date ? <Text style={m.metaEffective}> · {date}</Text> : null}
+          </Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -1446,8 +1463,15 @@ function HomeSignedOutMobile() {
         WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 36%, transparent 92%)',
       }
     : {};
-  const finderGradientWeb: object = isWeb
-    ? { backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)' }
+  // Find My Legislator + Be in the Know share ONE continuous background: green
+  // tint fills the finder (held longer so it reads clearly green, not near-white),
+  // then fades to white and STAYS white behind the account card — no hard section
+  // break. Green dots are masked to the finder portion only.
+  const greenBandGradientWeb: object = isWeb
+    ? {
+        backgroundImage:
+          'linear-gradient(180deg,#eaf6ef 0%,#eaf6ef 20%,#f2f9f5 36%,#ffffff 52%,#ffffff 100%)',
+      }
     : { backgroundColor: t.colors.tint.t100 };
   const accountGradientWeb: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' }
@@ -1522,7 +1546,7 @@ function HomeSignedOutMobile() {
           {/* LEGISLATIVE BILL ACTIVITY — live */}
           {introducedBill || signedBill ? (
             <Container style={m.section}>
-              <Text style={m.eyebrow}>2025–2026 LEGISLATIVE SESSION</Text>
+              <Text style={m.eyebrow}>2025–2026 SESSION</Text>
               <Text accessibilityRole="header" style={m.sectionH2}>
                 Legislative Bill Activity
               </Text>
@@ -1583,60 +1607,65 @@ function HomeSignedOutMobile() {
             </Container>
           </View>
 
-          {/* FIND MY LEGISLATOR — green band */}
-          <View style={[m.finderBand, finderGradientWeb]}>
-            {isWeb ? (
-              <View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
-              />
-            ) : null}
-            <Container style={m.section}>
-              <Text accessibilityRole="header" style={m.finderH2}>
-                Find My Legislator
-              </Text>
-              <Text style={m.finderSub}>
-                Find who represents you — their profile, committees, and the bills they’ve authored.
-              </Text>
-              <FieldShell focused={finderFocused} style={m.finderShell}>
-                <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
-                <TextInput
-                  ref={finderInputRef}
-                  value={finderValue}
-                  onChangeText={setFinderValue}
-                  onFocus={() => setFinderFocused(true)}
-                  onBlur={() => setFinderFocused(false)}
-                  onSubmitEditing={openFinder}
-                  placeholder="Enter an address, city, or area"
-                  placeholderTextColor={t.colors.text.faint}
-                  style={m.finderInput}
+          {/* FIND MY LEGISLATOR + BE IN THE KNOW share one continuous green→white
+              background — the tint fades to white and stays white behind the
+              account card (no hard section break). Green dots mask to the finder. */}
+          <View style={[m.greenBand, greenBandGradientWeb]}>
+            <View style={m.finderInner}>
+              {isWeb ? (
+                <View
+                  pointerEvents="none"
+                  style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
                 />
-              </FieldShell>
-              <Pressable accessibilityRole="button" onPress={openFinder} style={m.findButton}>
-                <Text style={m.findButtonText}>Find</Text>
-              </Pressable>
-              <View style={m.cityRow}>
-                {CITIES.slice(0, 6).map((city) => (
-                  <FillChip key={city} label={city} city onPress={() => fillFinder(city)} />
-                ))}
+              ) : null}
+              <Container style={m.section}>
+                <Text accessibilityRole="header" style={m.finderH2}>
+                  Find My Legislator
+                </Text>
+                <Text style={m.finderSub}>
+                  Find who represents you — their profile, committees, and the bills they’ve
+                  authored.
+                </Text>
+                <FieldShell focused={finderFocused} style={m.finderShell}>
+                  <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
+                  <TextInput
+                    ref={finderInputRef}
+                    value={finderValue}
+                    onChangeText={setFinderValue}
+                    onFocus={() => setFinderFocused(true)}
+                    onBlur={() => setFinderFocused(false)}
+                    onSubmitEditing={openFinder}
+                    placeholder="Enter an address, city, or area"
+                    placeholderTextColor={t.colors.text.faint}
+                    style={m.finderInput}
+                  />
+                </FieldShell>
+                <Pressable accessibilityRole="button" onPress={openFinder} style={m.findButton}>
+                  <Text style={m.findButtonText}>Find</Text>
+                </Pressable>
+                <View style={m.cityRow}>
+                  {CITIES.slice(0, 6).map((city) => (
+                    <FillChip key={city} label={city} city onPress={() => fillFinder(city)} />
+                  ))}
+                </View>
+              </Container>
+            </View>
+
+            {/* BE IN THE KNOW — account (sits on the continuous white below) */}
+            <Container style={m.sectionRoomy}>
+              <View style={[m.accountCard, accountGradientWeb]}>
+                <Text accessibilityRole="header" style={m.accountH3}>
+                  Be in the Know
+                </Text>
+                <Text style={m.accountBody}>
+                  Search bills and legislators, find who represents you, and get cited answers — no
+                  account needed. An account makes it yours: track bills, keep chat history, and
+                  pick up where you left off.
+                </Text>
+                <GoogleButton onPress={signIn} />
               </View>
             </Container>
           </View>
-
-          {/* BE IN THE KNOW — account */}
-          <Container style={m.sectionRoomy}>
-            <View style={[m.accountCard, accountGradientWeb]}>
-              <Text accessibilityRole="header" style={m.accountH3}>
-                Be in the Know
-              </Text>
-              <Text style={m.accountBody}>
-                Search bills and legislators, find who represents you, and get cited answers — no
-                account needed. An account makes it yours: track bills, keep chat history, and pick
-                up where you left off.
-              </Text>
-              <GoogleButton onPress={signIn} />
-            </View>
-          </Container>
 
           <Footer
             onPrivacy={() => navigation.navigate('Privacy')}
@@ -1676,18 +1705,21 @@ const m = StyleSheet.create({
   heroWrap: { position: 'relative', overflow: 'hidden' },
   askWrap: { position: 'relative', overflow: 'hidden' },
   heroBody: { paddingTop: 8, paddingBottom: 34 },
+  // Type scaled up ~1.2x for mobile legibility; the four largest black headers
+  // (hero H1, "Legislative Bill Activity", "Find My Legislator", "Be in the Know")
+  // hold their size to keep the hierarchy.
   heroEyebrow: {
     fontFamily: t.typography.ui,
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: t.fontWeights.semibold,
-    letterSpacing: 2.2,
+    letterSpacing: 2.4,
     color: t.colors.brand.deep,
   },
   heroH1: {
     marginTop: 14,
     fontFamily: t.typography.title,
-    fontSize: 34,
-    lineHeight: 37,
+    fontSize: 36,
+    lineHeight: 39,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.8,
     color: t.colors.text.primary,
@@ -1696,17 +1728,17 @@ const m = StyleSheet.create({
   heroSubhead: {
     marginTop: 18,
     fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 18,
+    lineHeight: 27,
     color: t.colors.text.muted,
   },
-  // Even section rhythm from the mock: 30 top / 34 bottom (Ask + account cap at
-  // 50 bottom via sectionRoomy). 20px sides come from Container's mobile padding.
-  section: { paddingTop: 30, paddingBottom: 34 },
-  sectionRoomy: { paddingTop: 30, paddingBottom: 50 },
+  // Section rhythm: 44 top (up from 30 — clearer separation with the larger type)
+  // / 34 bottom; Ask + account cap at 50 bottom. 20px sides from Container mobile.
+  section: { paddingTop: 44, paddingBottom: 34 },
+  sectionRoomy: { paddingTop: 44, paddingBottom: 50 },
   eyebrow: {
     fontFamily: t.typography.ui,
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 2.4,
     color: t.colors.brand.deep,
@@ -1742,7 +1774,7 @@ const m = StyleSheet.create({
   },
   billBadgeText: {
     fontFamily: t.typography.mono,
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.4,
     color: t.colors.brand.deep,
@@ -1754,30 +1786,32 @@ const m = StyleSheet.create({
     borderWidth: 1,
     borderColor: t.colors.omnibus.border,
     borderRadius: t.radii.pill,
-    paddingVertical: 4,
-    paddingHorizontal: 11,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
   },
   hotPillText: {
     fontFamily: t.typography.ui,
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: 0.4,
     color: t.colors.omnibus.text,
+    // Stay on one line at the larger size.
+    ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
   },
   newsTitle: {
     marginTop: 12,
     fontFamily: t.typography.title,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 21,
+    lineHeight: 27,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.2,
     color: t.colors.text.primary,
   },
   newsSummary: {
-    marginTop: 8,
+    marginTop: 9,
     fontFamily: t.typography.body,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 17,
+    lineHeight: 26,
     color: t.colors.text.muted,
   },
   cardMeta: {
@@ -1792,23 +1826,26 @@ const m = StyleSheet.create({
   },
   metaStatus: {
     fontFamily: t.typography.ui,
-    fontSize: 13,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.secondary,
   },
-  // Grey "Effective {date}". The mock's #9aa39e fails WCAG AA on white (~2.9:1),
-  // so this uses the repo's AA-hardened faint token (the same darkening tokens.ts
-  // already applied to the mock greys) — de-emphasized but readable.
+  // Bold action text in the "Latest action: {action}" meta line.
+  metaActionBold: { color: t.colors.text.primary, fontWeight: t.fontWeights.bold },
+  // Grey date. The mock's #9aa39e fails WCAG AA on white (~2.9:1), so this uses
+  // the repo's AA-hardened faint token (the same darkening tokens.ts already
+  // applied to the mock greys) — de-emphasized but readable.
   metaEffective: {
     fontFamily: t.typography.ui,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: t.fontWeights.medium,
     color: t.colors.text.faint,
   },
   activityGroup: { marginTop: 16, gap: 10 },
   groupLabel: {
     fontFamily: t.typography.ui,
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.4,
     color: t.colors.text.muted,
@@ -1816,7 +1853,7 @@ const m = StyleSheet.create({
   activityHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   activityStatus: {
     fontFamily: t.typography.ui,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.secondary,
   },
@@ -1824,8 +1861,8 @@ const m = StyleSheet.create({
   activityTitle: {
     marginTop: 14,
     fontFamily: t.typography.title,
-    fontSize: 17,
-    lineHeight: 23,
+    fontSize: 20,
+    lineHeight: 27,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.2,
     color: t.colors.text.primary,
@@ -1844,15 +1881,15 @@ const m = StyleSheet.create({
   },
   seeMoreText: {
     fontFamily: t.typography.ui,
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
   askSub: {
     marginTop: 8,
     fontFamily: t.typography.body,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 17,
+    lineHeight: 25,
     color: t.colors.text.muted,
   },
   askShell: {
@@ -1872,8 +1909,8 @@ const m = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.body,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 19,
+    lineHeight: 26,
     color: t.colors.text.primary,
     ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
   },
@@ -1887,14 +1924,15 @@ const m = StyleSheet.create({
   },
   askButtonText: {
     fontFamily: t.typography.ui,
-    fontSize: 16,
+    fontSize: 19,
     fontWeight: t.fontWeights.bold,
     color: t.colors.white,
   },
-  // Full-bleed green band: its own section rhythm comes from the inner Container
-  // (m.section); no extra top margin (that was the oversized gap after Ask).
-  // overflow:hidden contains the masked green dots to the band.
-  finderBand: { position: 'relative', overflow: 'hidden' },
+  // Continuous green→white band spanning Find My Legislator + Be in the Know
+  // (see greenBandGradientWeb). No hard break; section rhythm comes from the inner
+  // Containers. finderInner is overflow:hidden to contain the masked green dots.
+  greenBand: { position: 'relative' },
+  finderInner: { position: 'relative', overflow: 'hidden' },
   finderH2: {
     fontFamily: t.typography.title,
     fontSize: 30,
@@ -1906,8 +1944,8 @@ const m = StyleSheet.create({
   finderSub: {
     marginTop: 12,
     fontFamily: t.typography.body,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 17,
+    lineHeight: 25,
     color: t.colors.text.secondary,
   },
   finderShell: {
@@ -1926,7 +1964,7 @@ const m = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.body,
-    fontSize: 16,
+    fontSize: 19,
     color: t.colors.text.primary,
     paddingVertical: 4,
     ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
@@ -1941,7 +1979,7 @@ const m = StyleSheet.create({
   },
   findButtonText: {
     fontFamily: t.typography.ui,
-    fontSize: 16,
+    fontSize: 19,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.onGreen,
   },
@@ -1966,8 +2004,8 @@ const m = StyleSheet.create({
     marginTop: 12,
     marginBottom: 20,
     fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 18,
+    lineHeight: 27,
     color: t.colors.text.secondary,
   },
 });
@@ -2378,6 +2416,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: t.colors.text.primary,
   },
+  // Mobile home scales city-chip labels up ~1.2x for legibility (2nd-pass delta #6).
+  cityChipTextMobile: { fontSize: 15 },
   finderMap: { flex: 0.85, alignItems: 'center', justifyContent: 'center' },
 
   // bills section
