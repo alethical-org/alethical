@@ -191,7 +191,7 @@ export interface LegislativeSession {
   isCurrent: boolean;
 }
 
-export type BillSort = 'latest_action' | 'progress';
+export type BillSort = 'latest_action' | 'progress' | 'newest';
 
 export interface BillListFilters {
   chamber?: Chamber;
@@ -200,6 +200,9 @@ export interface BillListFilters {
   omnibus?: boolean;
   // Result ordering. Omitted → API default (latest_action). 'progress' orders
   // by legislative stage (signed → … → proposed), tie-broken by recency (#292).
+  // 'newest' orders by file number desc — MN numbers bills at introduction, so
+  // the highest number is the most recently introduced; the honest recency
+  // signal while action dates are unpopulated (#328/#329).
   sort?: BillSort;
 }
 

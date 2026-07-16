@@ -386,7 +386,7 @@ def bills(
     policy_area: str | None = None,
     omnibus: bool | None = None,
     include: str | None = None,
-    sort: Literal["latest_action", "progress"] = "latest_action",
+    sort: Literal["latest_action", "progress", "newest"] = "latest_action",
     limit: int = Query(default=20, ge=0, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
