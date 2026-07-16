@@ -30,9 +30,7 @@ const PAGE_SIZE = 12;
 type PartyFilter = 'All' | 'DFL' | 'R' | 'I';
 
 function matchesParty(filter: PartyFilter, stored: string): boolean {
-  if (filter === 'All') return true;
-  if (filter === 'DFL') return stored === 'D';
-  return stored === filter;
+  return filter === 'All' || stored === filter;
 }
 
 export function SearchLegislatorsScreen() {

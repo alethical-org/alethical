@@ -265,12 +265,12 @@ interface ApiLegislatorListItemPayload {
   slug: string;
   full_name: string;
   current_service?: ApiCurrentServicePayload | null;
+  committees?: ApiCommitteePayload[] | null;
   stats?: ApiLegislatorStatsPayload | null;
 }
 
 interface ApiLegislatorDetailPayload extends ApiLegislatorListItemPayload {
   biography?: string | null;
-  committees?: ApiCommitteePayload[] | null;
 }
 
 interface ApiRepresentativeLookupPayload {
@@ -450,7 +450,8 @@ function toParty(party?: string | null): Legislator['party'] {
   if (normalized === 'I' || normalized === 'INDEPENDENT') {
     return 'I';
   }
-  return 'D';
+  // MN Democrats are the DFL (Democratic-Farmer-Labor); keep the real label.
+  return 'DFL';
 }
 
 function mapSponsor(payload: ApiSponsorPayload): BillSponsor {

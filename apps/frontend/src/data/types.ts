@@ -1,5 +1,5 @@
 export type Chamber = 'House' | 'Senate';
-export type Party = 'D' | 'R' | 'I';
+export type Party = 'DFL' | 'R' | 'I';
 export type ChatSubjectType = 'bill' | 'legislator' | 'general';
 
 export interface Citation {

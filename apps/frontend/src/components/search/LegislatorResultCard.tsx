@@ -27,12 +27,6 @@ function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-// MN Democrats are DFL; the API's collapsed "D" displays as "DFL" until #296
-// serves the raw stored label. Neutral — no partisan color (grounded-answers §3).
-function partyLabel(party: string): string {
-  return party === 'D' ? 'DFL' : party;
-}
-
 function chamberTitle(chamber: string): string {
   return chamber === 'Senate' ? 'State Senator' : 'State Representative';
 }
@@ -71,7 +65,7 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
           <View style={styles.nameRow}>
             <Text style={styles.name}>{legislator.name}</Text>
             <View style={styles.partyChip}>
-              <Text style={styles.partyText}>{partyLabel(legislator.party)}</Text>
+              <Text style={styles.partyText}>{legislator.party}</Text>
             </View>
           </View>
           <Text style={styles.subMeta}>
