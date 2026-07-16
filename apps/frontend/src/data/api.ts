@@ -95,6 +95,7 @@ interface ApiBillListItemPayload {
   official_url?: string | null;
   is_omnibus?: boolean;
   chief_sponsors: ApiSponsorPayload[];
+  co_author_count?: number;
   stats?: ApiBillStatsPayload | null;
   ai_analysis?: ApiAiAnalysisPayload | null;
 }
@@ -699,6 +700,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
     sessionLabel: 'Current session',
     topics: [],
     chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
+    coAuthorCount: payload.co_author_count ?? 0,
     sponsors: payload.chief_sponsors.map(mapSponsor),
     progress: defaultProgress(),
     actionCount: payload.stats?.action_count ?? 0,

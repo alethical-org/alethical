@@ -89,6 +89,7 @@ class BillListItem(BaseModel):
     official_url: str | None = None
     is_omnibus: bool = False
     chief_sponsors: list[SponsorSummary]
+    co_author_count: int = 0
     stats: BillStatsPayload | None = None
     tracked: TrackingState | None = None
     ai_analysis: AIAnalysisPayload | None = None
