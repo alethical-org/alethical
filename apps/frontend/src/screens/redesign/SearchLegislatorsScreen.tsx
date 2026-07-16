@@ -47,7 +47,7 @@ export function SearchLegislatorsScreen() {
   const [session, setSession] = useState('');
   const [page, setPage] = useState(1);
 
-  const sessionsQuery = useSessions();
+  const sessionsQuery = useSessions('legislators');
   const currentSession =
     sessionsQuery.data?.find((item) => item.isCurrent) ?? sessionsQuery.data?.[0];
   const sessionSlug = session || currentSession?.slug || '';

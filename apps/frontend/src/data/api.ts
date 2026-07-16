@@ -192,6 +192,10 @@ export interface LegislativeSession {
   isCurrent: boolean;
 }
 
+// Which search surface's sessions to list. The API returns only the sessions
+// that surface can populate, so a dropdown never offers an empty choice.
+export type SessionScope = 'bills' | 'legislators';
+
 export type BillSort = 'latest_action' | 'progress' | 'introduced';
 
 export interface BillListFilters {
@@ -1126,8 +1130,12 @@ export async function getMetaFromApi(): Promise<Meta> {
   return { dataAsOf: response.data.data_as_of ?? null };
 }
 
-export async function listSessionsFromApi(): Promise<LegislativeSession[]> {
-  const response = await publicApiRequest<PageResponse<ApiSessionPayload>>('/sessions');
+export async function listSessionsFromApi(
+  scope: SessionScope = 'bills',
+): Promise<LegislativeSession[]> {
+  const response = await publicApiRequest<PageResponse<ApiSessionPayload>>(
+    `/sessions?scope=${encodeURIComponent(scope)}`,
+  );
 
   return response.data.map((session) => ({
     slug: session.slug,

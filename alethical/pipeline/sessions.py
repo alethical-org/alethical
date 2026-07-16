@@ -24,7 +24,13 @@ CURRENT_SESSION_SLUG = "94-2025-regular"
 
 @dataclass(frozen=True)
 class LegislativeSessionDef:
-    """Definition of a legislative session for database initialization."""
+    """Canonical definition of one biennium ``LegislativeSession`` row.
+
+    ``session_number`` is the Minnesota Legislature number (94th, 93rd, 92nd);
+    it matches the ``SESSION_NUMBER`` a bill reports in its Revisor status XML,
+    which is how each ingested bill resolves to the right session row.
+    """
+
     slug: str
     session_number: int
     year_start: int
@@ -33,8 +39,13 @@ class LegislativeSessionDef:
     is_current: bool
 
 
-# All legislative sessions to be ingested and available in the system.
-# The current session is marked is_current=True; others are historical.
+# Every biennium Alethical knows how to ingest and surface, newest first. Bills
+# from either year of a biennium attach to that biennium's single row (#155).
+# A row is only *created* in a database when its session is actually ingested
+# (see MinnesotaIngestionPipeline.seed_reference_data), so a session appears in
+# the /sessions list and the Search Bills session dropdown only once it has
+# data -- never as an empty option (grounded-answers rule 2: never advertise
+# what you can't answer).
 LEGISLATIVE_SESSIONS = [
     LegislativeSessionDef(
         slug="94-2025-regular",
@@ -62,12 +73,43 @@ LEGISLATIVE_SESSIONS = [
     ),
 ]
 
+# The single current biennium; always ensured so /meta, /sessions/current, and
+# the default (slug-less) bill query have a session to resolve to.
+CURRENT_SESSION_DEF = next(d for d in LEGISLATIVE_SESSIONS if d.is_current)
+
 
 def parse_session_code(session_code: str) -> tuple[int, int]:
     """Split a Revisor session code into ``(session_number, year)``.
 
-    ``"0942025"`` -> ``(94, 2025)``; ``"0942026"`` -> ``(94, 2026)``. The trailing
-    four digits are the year; the leading digits are the (zero-padded) session
-    number.
+    ``"0942025"`` -> ``(94, 2025)``; ``"0942026"`` -> ``(94, 2026)``;
+    ``"0932023"`` -> ``(93, 2023)``. The trailing four digits are the year; the
+    leading digits are the (zero-padded) session number.
     """
     return int(session_code[:-4]), int(session_code[-4:])
+
+
+def session_def_for_number(session_number: int) -> LegislativeSessionDef | None:
+    """The biennium definition for a Legislature number, or None if unknown."""
+    for session_def in LEGISLATIVE_SESSIONS:
+        if session_def.session_number == session_number:
+            return session_def
+    return None
+
+
+def session_defs_to_ensure(session_code: str) -> list[LegislativeSessionDef]:
+    """Session rows an ingestion for ``session_code`` should create/ensure.
+
+    Always the current biennium, plus the biennium the code targets (when it is
+    a known session). Ingesting a historical session thus creates *only* that
+    row and the current one -- it never pre-creates the other historical rows as
+    empty dropdown options.
+    """
+    target_number, _ = parse_session_code(session_code)
+    defs = [CURRENT_SESSION_DEF]
+    target = session_def_for_number(target_number)
+    if (
+        target is not None
+        and target.session_number != CURRENT_SESSION_DEF.session_number
+    ):
+        defs.append(target)
+    return defs

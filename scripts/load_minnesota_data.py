@@ -63,7 +63,11 @@ def main() -> None:
     parser.add_argument(
         "--session-code",
         default=DEFAULT_SESSION_CODE,
-        help="Minnesota search session code, e.g. 0942025 (2025) or 0942026 (2026).",
+        help="Minnesota search session code: <zero-padded legislature number><year>. "
+        "Current biennium: 0942025 (2025) / 0942026 (2026). Prior bienniums: "
+        "0932023 or 0932024 (93rd, 2023-2024); 0922021 or 0922022 (92nd, "
+        "2021-2022). A single --all-bills run for one code discovers the whole "
+        "biennium and files each bill under its own session.",
     )
     parser.add_argument(
         "--bill",

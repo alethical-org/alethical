@@ -66,6 +66,9 @@ SponsorshipRole = schema.SponsorshipRole
 bill_detail_stmt = schema.bill_detail_stmt
 bill_list_stmt = schema.bill_list_stmt
 bill_status_key_expr = schema.bill_status_key_expr
+current_bill_summary_enrichment_bill_ids = (
+    schema.current_bill_summary_enrichment_bill_ids
+)
 find_my_legislator_stmt = schema.find_my_legislator_stmt
 legislator_directory_stmt = schema.legislator_directory_stmt
 legislator_profile_stmt = schema.legislator_profile_stmt
@@ -370,9 +373,40 @@ def meta(db: Session = Depends(get_db)):
 
 
 @router.get("/sessions", response_model=CollectionResponse)
-def sessions(db: Session = Depends(get_db)):
+def sessions(
+    scope: Literal["bills", "legislators"] = "bills",
+    db: Session = Depends(get_db),
+):
+    # Only surface sessions a given search surface can actually populate, so a
+    # session dropdown never offers a dead/empty choice (grounded-answers rule 2
+    # — never advertise what you can't answer). ``scope`` picks the surface:
+    #   bills       -> sessions with a listable bill (a current AI summary — the
+    #                  same set /bills returns): the Search Bills dropdown.
+    #   legislators -> sessions with a current, real-district service period:
+    #                  the Search Legislators dropdown.
+    # A prior biennium therefore appears in each dropdown independently, only
+    # once the matching corpus is ingested — with no further code change. The
+    # current session is always included as a safety net so neither dropdown can
+    # render empty.
+    if scope == "legislators":
+        has_data = LegislativeSession.id.in_(
+            select(LegislatorServicePeriod.session_id)
+            .join(District, District.id == LegislatorServicePeriod.district_id)
+            .where(
+                LegislatorServicePeriod.is_current.is_(True),
+                District.code.not_like("%-unknown"),
+            )
+        )
+    else:
+        has_data = LegislativeSession.id.in_(
+            select(Bill.session_id).where(
+                Bill.id.in_(current_bill_summary_enrichment_bill_ids())
+            )
+        )
     rows = db.scalars(
-        select(LegislativeSession).order_by(LegislativeSession.year_start.desc())
+        select(LegislativeSession)
+        .where(or_(has_data, LegislativeSession.is_current.is_(True)))
+        .order_by(LegislativeSession.year_start.desc())
     ).all()
     data = [
         {"slug": row.slug, "name": row.name, "is_current": row.is_current}
