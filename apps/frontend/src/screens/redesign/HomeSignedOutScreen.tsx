@@ -835,6 +835,61 @@ function HomeSignedOutDesktop() {
             </Container>
           </View>
 
+          {/* BILLS MOVING THROUGH THE LEGISLATURE */}
+          <View style={styles.billsSection}>
+            <Container>
+              <Text style={styles.sectionEyebrow}>2025–26 LEGISLATIVE SESSION</Text>
+              <View style={styles.billsHeadRow}>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.billsH2, !isDesktop && styles.billsH2Mobile]}
+                >
+                  Bills Moving Through the Legislature
+                </Text>
+                <ViewAllButton onPress={() => navigation.navigate('Bills')} />
+              </View>
+              <View style={styles.billGroups}>
+                {(recentlyPassed.data?.data ?? []).length > 0 ? (
+                  <View>
+                    <Text style={styles.billGroupLabel}>RECENTLY PASSED</Text>
+                    <View style={styles.billStack}>
+                      {(recentlyPassed.data?.data ?? []).map((bill) => (
+                        <BillResultCard
+                          key={bill.id}
+                          bill={bill}
+                          // Bill detail and legislator profile are old-design
+                          // pages — cards stay visible but don't route
+                          // anywhere until their new designs ship.
+                          onPress={() => {}}
+                          onToggleTrack={() => {}}
+                          onSponsorPress={() => {}}
+                          onRollCalls={() => {}}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+                {(recentlyIntroduced.data?.data ?? []).length > 0 ? (
+                  <View>
+                    <Text style={styles.billGroupLabel}>RECENTLY INTRODUCED</Text>
+                    <View style={styles.billStack}>
+                      {(recentlyIntroduced.data?.data ?? []).map((bill) => (
+                        <BillResultCard
+                          key={bill.id}
+                          bill={bill}
+                          onPress={() => {}}
+                          onToggleTrack={() => {}}
+                          onSponsorPress={() => {}}
+                          onRollCalls={() => {}}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            </Container>
+          </View>
+
           {/* FIND MY LEGISLATOR */}
           <View style={[styles.finderBand, finderGradientWeb]}>
             {isWeb ? (
@@ -894,61 +949,6 @@ function HomeSignedOutDesktop() {
                 {isDesktop ? (
                   <View style={styles.finderMap}>
                     <MNMap size={284} />
-                  </View>
-                ) : null}
-              </View>
-            </Container>
-          </View>
-
-          {/* BILLS MOVING THROUGH THE LEGISLATURE */}
-          <View style={styles.billsSection}>
-            <Container>
-              <Text style={styles.sectionEyebrow}>2025–26 LEGISLATIVE SESSION</Text>
-              <View style={styles.billsHeadRow}>
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.billsH2, !isDesktop && styles.billsH2Mobile]}
-                >
-                  Bills Moving Through the Legislature
-                </Text>
-                <ViewAllButton onPress={() => navigation.navigate('Bills')} />
-              </View>
-              <View style={styles.billGroups}>
-                {(recentlyPassed.data?.data ?? []).length > 0 ? (
-                  <View>
-                    <Text style={styles.billGroupLabel}>RECENTLY PASSED</Text>
-                    <View style={styles.billStack}>
-                      {(recentlyPassed.data?.data ?? []).map((bill) => (
-                        <BillResultCard
-                          key={bill.id}
-                          bill={bill}
-                          // Bill detail and legislator profile are old-design
-                          // pages — cards stay visible but don't route
-                          // anywhere until their new designs ship.
-                          onPress={() => {}}
-                          onToggleTrack={() => {}}
-                          onSponsorPress={() => {}}
-                          onRollCalls={() => {}}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                ) : null}
-                {(recentlyIntroduced.data?.data ?? []).length > 0 ? (
-                  <View>
-                    <Text style={styles.billGroupLabel}>RECENTLY INTRODUCED</Text>
-                    <View style={styles.billStack}>
-                      {(recentlyIntroduced.data?.data ?? []).map((bill) => (
-                        <BillResultCard
-                          key={bill.id}
-                          bill={bill}
-                          onPress={() => {}}
-                          onToggleTrack={() => {}}
-                          onSponsorPress={() => {}}
-                          onRollCalls={() => {}}
-                        />
-                      ))}
-                    </View>
                   </View>
                 ) : null}
               </View>
