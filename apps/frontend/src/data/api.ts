@@ -1150,28 +1150,44 @@ export async function getBillFromApi(
   return mapBillDetail(detailResponse.data, votesResponse.data);
 }
 
+// The API paginates the legislator list (max 100 per page) and has no party
+// filter, while the directory screen wants the whole roster to filter, count,
+// and page client-side. So page through until has_more is false and return the
+// full set. Two requests at ~200 members today; the guard caps a pathological
+// loop.
+const LEGISLATOR_PAGE_LIMIT = 100;
+const LEGISLATOR_MAX_PAGES = 50;
+
 export async function listLegislatorsFromApi(
   query?: string,
   session?: string,
   filters: LegislatorListFilters = {},
 ): Promise<Legislator[]> {
-  const params = new URLSearchParams();
-  params.set('limit', '50');
-  if (query?.trim()) {
-    params.set('q', query.trim());
-  }
-  if (session?.trim()) {
-    params.set('session', session.trim());
-  }
-  if (filters.chamber) {
-    params.set('chamber', filters.chamber.toLowerCase());
+  const items: ApiLegislatorListItemPayload[] = [];
+  for (let pageIndex = 0; pageIndex < LEGISLATOR_MAX_PAGES; pageIndex += 1) {
+    const params = new URLSearchParams();
+    params.set('limit', String(LEGISLATOR_PAGE_LIMIT));
+    params.set('offset', String(pageIndex * LEGISLATOR_PAGE_LIMIT));
+    if (query?.trim()) {
+      params.set('q', query.trim());
+    }
+    if (session?.trim()) {
+      params.set('session', session.trim());
+    }
+    if (filters.chamber) {
+      params.set('chamber', filters.chamber.toLowerCase());
+    }
+
+    const response = await publicApiRequest<PageResponse<ApiLegislatorListItemPayload>>(
+      `/legislators?${params.toString()}`,
+    );
+    items.push(...response.data);
+    if (!response.page?.has_more || response.data.length === 0) {
+      break;
+    }
   }
 
-  const response = await publicApiRequest<PageResponse<ApiLegislatorListItemPayload>>(
-    `/legislators?${params.toString()}`,
-  );
-
-  return response.data.map(mapLegislator);
+  return items.map(mapLegislator);
 }
 
 export async function lookupRepresentativeFromApi(
