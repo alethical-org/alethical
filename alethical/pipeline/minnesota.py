@@ -25,6 +25,7 @@ from alethical.pipeline.roster_pdf import (
 from alethical.pipeline.sessions import (
     CURRENT_SESSION_SLUG,
     DEFAULT_SESSION_CODE,
+    LEGISLATIVE_SESSIONS,
     parse_session_code,
 )
 
@@ -712,25 +713,29 @@ class MinnesotaIngestionPipeline:
                 self.db.flush()
             chambers[slug] = chamber
 
-        current_session = self.db.scalar(
-            select(LegislativeSession).where(
-                LegislativeSession.jurisdiction_id == minnesota.id,
-                LegislativeSession.slug == CURRENT_SESSION_SLUG,
+        current_session = None
+        for session_def in LEGISLATIVE_SESSIONS:
+            session = self.db.scalar(
+                select(LegislativeSession).where(
+                    LegislativeSession.jurisdiction_id == minnesota.id,
+                    LegislativeSession.slug == session_def.slug,
+                )
             )
-        )
-        if current_session is None:
-            current_session = LegislativeSession(
-                jurisdiction_id=minnesota.id,
-                slug=CURRENT_SESSION_SLUG,
-                session_number=94,
-                session_type=SessionType.regular,
-                year_start=2025,
-                year_end=2026,
-                name="94th Legislature (2025 - 2026) Regular Session",
-                is_current=True,
-            )
-            self.db.add(current_session)
-            self.db.flush()
+            if session is None:
+                session = LegislativeSession(
+                    jurisdiction_id=minnesota.id,
+                    slug=session_def.slug,
+                    session_number=session_def.session_number,
+                    session_type=SessionType.regular,
+                    year_start=session_def.year_start,
+                    year_end=session_def.year_end,
+                    name=session_def.name,
+                    is_current=session_def.is_current,
+                )
+                self.db.add(session)
+                self.db.flush()
+            if session_def.is_current:
+                current_session = session
         return {
             "jurisdiction": minnesota,
             "chambers": chambers,
