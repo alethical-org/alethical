@@ -1519,6 +1519,36 @@ def test_tracking_include_requires_authentication_but_public_surfaces_stay_open(
     assert lookup_response.status_code == 200
 
 
+def test_public_bill_reads_are_cacheable_but_user_varying_reads_are_not(
+    client, auth_headers
+):
+    """Anonymous record reads carry a public, shared-cacheable Cache-Control so a
+    browser/CDN can absorb repeat loads; responses that vary by user (tracking
+    state) are never cached."""
+    public = "public, max-age=60, stale-while-revalidate=300"
+
+    list_response = client.get("/api/v1/bills", params={"session": "94-2025-regular"})
+    assert list_response.status_code == 200
+    assert list_response.headers["Cache-Control"] == public
+
+    detail_response = client.get("/api/v1/bills/94-2025-SF1832")
+    assert detail_response.status_code == 200
+    assert detail_response.headers["Cache-Control"] == public
+
+    votes_response = client.get("/api/v1/bills/94-2025-SF1832/votes")
+    assert votes_response.status_code == 200
+    assert votes_response.headers["Cache-Control"] == public
+
+    # Authenticated tracking include returns per-user state → must not be cached.
+    tracked_list_response = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "include": "tracking"},
+        headers=auth_headers,
+    )
+    assert tracked_list_response.status_code == 200
+    assert tracked_list_response.headers["Cache-Control"] == "private, no-store"
+
+
 def test_internal_routes_require_internal_token(client, internal_headers):
     missing_token_response = client.get("/internal/v1/ingestion-runs")
     assert missing_token_response.status_code == 401
