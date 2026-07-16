@@ -1245,6 +1245,29 @@ function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void
   );
 }
 
+/**
+ * Placeholder card that reserves a data-gated section's height while its query
+ * loads, so the mobile home keeps its final section order from the first paint
+ * (no layout shift when In the News / Bill Activity arrive). Static grey bars —
+ * no shimmer — and hidden from assistive tech since it carries no real content.
+ */
+function SkeletonCard({ lines }: { lines: number }) {
+  return (
+    <View
+      style={m.card}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <View style={m.skelBadge} />
+      <View style={m.skelTitle} />
+      {Array.from({ length: lines }).map((_, i) => (
+        <View key={i} style={[m.skelLine, i === lines - 1 && m.skelLineShort]} />
+      ))}
+      <View style={m.skelMeta} />
+    </View>
+  );
+}
+
 function HomeSignedOutMobile() {
   const navigation = useNavigation<any>();
   const { signInWithGoogle } = useAuth();
@@ -1315,6 +1338,16 @@ function HomeSignedOutMobile() {
   ].filter((n) => n.bill != null) as { pin: (typeof IN_THE_NEWS)[number]; bill: Bill }[];
   const introducedBill = introduced.data?.data?.[0];
   const signedBill = signed.data?.data?.[0];
+
+  // First-paint layout stability: "In the News" and "Bill Activity" are gated on
+  // async query data, so until those queries resolve they'd render null (zero
+  // height) and the Ask section below them would sit right under the hero, then
+  // jump down once the data arrived. While a section's queries are still loading,
+  // render skeletons in its slot so the page holds its final order from the first
+  // paint (no content-driven layout shift). On error/empty the section still
+  // collapses to null, unchanged.
+  const newsLoading = news0.isLoading || news1.isLoading;
+  const activityLoading = introduced.isLoading || signed.isLoading;
 
   // Masked dot textures — ONLY three sections carry them (Hero, Ask, Find My
   // Legislator), each contained to its own section and faded soft at the edges
@@ -1408,7 +1441,8 @@ function HomeSignedOutMobile() {
             </Container>
           </View>
 
-          {/* IN THE NEWS — editorial pins, real data */}
+          {/* IN THE NEWS — editorial pins, real data (skeletons hold the slot while
+              the pinned-bill queries load, so the layout doesn't shift). */}
           {newsBills.length > 0 ? (
             <Container style={m.section}>
               <Text style={m.eyebrow}>IN THE NEWS</Text>
@@ -1425,9 +1459,19 @@ function HomeSignedOutMobile() {
               </View>
               <SeeMore onPress={openSearchBills} />
             </Container>
+          ) : newsLoading ? (
+            <Container style={m.section}>
+              <Text style={m.eyebrow}>IN THE NEWS</Text>
+              <View style={m.cardStack}>
+                <SkeletonCard lines={4} />
+                <SkeletonCard lines={4} />
+              </View>
+              <SeeMore onPress={openSearchBills} />
+            </Container>
           ) : null}
 
-          {/* LEGISLATIVE BILL ACTIVITY — live */}
+          {/* LEGISLATIVE BILL ACTIVITY — live (skeletons hold the slot while the
+              date-ordered queries load, so the layout doesn't shift). */}
           {introducedBill || signedBill ? (
             <Container style={m.section}>
               <Text style={m.eyebrow}>2025–2026 SESSION</Text>
@@ -1449,6 +1493,22 @@ function HomeSignedOutMobile() {
                   />
                 </View>
               ) : null}
+              <SeeMore onPress={openSearchBills} />
+            </Container>
+          ) : activityLoading ? (
+            <Container style={m.section}>
+              <Text style={m.eyebrow}>2025–2026 SESSION</Text>
+              <Text accessibilityRole="header" style={m.sectionH2}>
+                Legislative Bill Activity
+              </Text>
+              <View style={m.activityGroup}>
+                <Text style={m.groupLabel}>RECENTLY PASSED</Text>
+                <SkeletonCard lines={3} />
+              </View>
+              <View style={m.activityGroup}>
+                <Text style={m.groupLabel}>RECENTLY INTRODUCED</Text>
+                <SkeletonCard lines={3} />
+              </View>
               <SeeMore onPress={openSearchBills} />
             </Container>
           ) : null}
@@ -1646,6 +1706,31 @@ const m = StyleSheet.create({
     ...(t.shadows.card as object),
   },
   cardHover: { borderColor: t.colors.brand.base },
+  // Skeleton placeholders (see SkeletonCard) — static grey bars sized to roughly
+  // match a real card so the loading state reserves the section's final height.
+  skelBadge: { width: 68, height: 22, borderRadius: 6, backgroundColor: t.colors.alpha.ink10 },
+  skelTitle: {
+    marginTop: 14,
+    width: '85%',
+    height: 20,
+    borderRadius: 6,
+    backgroundColor: t.colors.alpha.ink10,
+  },
+  skelLine: {
+    marginTop: 10,
+    width: '100%',
+    height: 13,
+    borderRadius: 5,
+    backgroundColor: t.colors.alpha.ink08,
+  },
+  skelLineShort: { width: '60%' },
+  skelMeta: {
+    marginTop: 16,
+    width: '45%',
+    height: 13,
+    borderRadius: 5,
+    backgroundColor: t.colors.alpha.ink08,
+  },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   billBadge: {
     alignSelf: 'flex-start',
