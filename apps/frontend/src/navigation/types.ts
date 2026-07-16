@@ -5,7 +5,19 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<MainTabParamList>;
   Ask: { q?: string };
-  Bills: undefined;
+  // Filter state lives in the URL query (issue #135) so a filtered Search Bills
+  // view is shareable / bookmarkable / reload-safe. All optional; absent = default.
+  Bills:
+    | {
+        q?: string;
+        chamber?: string;
+        status?: string;
+        session?: string;
+        issue?: string;
+        omnibus?: string;
+        page?: string;
+      }
+    | undefined;
   Legislators: undefined;
   BillDetail: {
     billId: string;

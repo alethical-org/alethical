@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
 import { BillListFilters } from '../../data/api';
@@ -68,21 +68,41 @@ const STATUS_OPTIONS = [
 
 export function SearchBillsScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const { isSignedIn, user, signInWithGoogle } = useAuth();
+
+  // URL-addressable filter state (issue #135): the filters live in the /bills
+  // query string so a filtered view is shareable, bookmarkable, reload-safe, and
+  // works with the browser Back button. The route params are the single source
+  // of truth; only the search-box draft and the issue-list expander are local.
+  const params: Record<string, unknown> = route.params ?? {};
+  const query = typeof params.q === 'string' ? params.q : '';
+  const chamber: ChamberFilter =
+    params.chamber === 'House' || params.chamber === 'Senate' ? params.chamber : 'All';
+  const status = typeof params.status === 'string' ? params.status : '';
+  const session = typeof params.session === 'string' ? params.session : '';
+  const policyArea = typeof params.issue === 'string' && params.issue ? params.issue : ALL_ISSUES;
+  const omnibusOnly = params.omnibus === '1';
+  const page = Math.max(1, Number.parseInt(String(params.page ?? ''), 10) || 1);
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [openFilter, setOpenFilter] = useState<'status' | 'session' | null>(null);
-  const [queryInput, setQueryInput] = useState('');
-  const [query, setQuery] = useState('');
-  const [chamber, setChamber] = useState<ChamberFilter>('All');
-  const [status, setStatus] = useState('');
-  const [session, setSession] = useState('');
-  const [omnibusOnly, setOmnibusOnly] = useState(false);
-  const [policyArea, setPolicyArea] = useState(ALL_ISSUES);
+  const [queryInput, setQueryInput] = useState(query);
   const [showAllIssues, setShowAllIssues] = useState(false);
-  const [page, setPage] = useState(1);
   const [signInBill, setSignInBill] = useState<{ id: string; code: string } | null>(null);
   const [toast, setToast] = useState<{ code: string } | null>(null);
+
+  // Keep the search-box draft in sync when the URL query changes externally
+  // (e.g. Back/Forward, a shared link, or Clear filters).
+  useEffect(() => {
+    setQueryInput(query);
+  }, [query]);
+
+  // Merge a filter change into the URL. Any filter change resets to page 1
+  // unless the patch sets page itself; undefined removes a param (→ default).
+  const updateFilters = (patch: Record<string, string | undefined>) => {
+    navigation.setParams({ page: undefined, ...patch });
+  };
 
   const sessionsQuery = useSessions();
   const currentSession =
@@ -137,21 +157,20 @@ export function SearchBillsScreen() {
     : policyOptions.slice(0, INLINE_ISSUE_CHIPS + 1);
   const hiddenIssueCount = policyOptions.length - (INLINE_ISSUE_CHIPS + 1);
 
-  const resetToFirstPage = () => setPage(1);
-
   const submitSearch = () => {
-    setQuery(queryInput.trim());
-    resetToFirstPage();
+    updateFilters({ q: queryInput.trim() || undefined });
   };
 
+  // Mirror the prior Clear: reset keyword/chamber/status/issue/omnibus/page but
+  // keep the chosen session.
   const clearFilters = () => {
-    setQueryInput('');
-    setQuery('');
-    setChamber('All');
-    setStatus('');
-    setPolicyArea(ALL_ISSUES);
-    setOmnibusOnly(false);
-    resetToFirstPage();
+    updateFilters({
+      q: undefined,
+      chamber: undefined,
+      status: undefined,
+      issue: undefined,
+      omnibus: undefined,
+    });
   };
 
   const activeFilters: string[] = [sessionLabel];
@@ -204,10 +223,7 @@ export function SearchBillsScreen() {
       <View style={styles.filterRow}>
         <ChamberSegmented
           value={chamber}
-          onChange={(value) => {
-            setChamber(value);
-            resetToFirstPage();
-          }}
+          onChange={(value) => updateFilters({ chamber: value === 'All' ? undefined : value })}
         />
         <FilterDropdown
           label={STATUS_OPTIONS.find((option) => option.value === status)?.label ?? 'All statuses'}
@@ -216,10 +232,7 @@ export function SearchBillsScreen() {
           selectedValue={status}
           open={openFilter === 'status'}
           onOpenChange={(next) => setOpenFilter(next ? 'status' : null)}
-          onSelect={(value) => {
-            setStatus(value);
-            resetToFirstPage();
-          }}
+          onSelect={(value) => updateFilters({ status: value || undefined })}
         />
         <FilterDropdown
           label={sessionLabel}
@@ -231,17 +244,11 @@ export function SearchBillsScreen() {
           selectedValue={sessionSlug}
           open={openFilter === 'session'}
           onOpenChange={(next) => setOpenFilter(next ? 'session' : null)}
-          onSelect={(value) => {
-            setSession(value);
-            resetToFirstPage();
-          }}
+          onSelect={(value) => updateFilters({ session: value || undefined })}
         />
         <OmnibusToggle
           value={omnibusOnly}
-          onChange={(value) => {
-            setOmnibusOnly(value);
-            resetToFirstPage();
-          }}
+          onChange={(value) => updateFilters({ omnibus: value ? '1' : undefined })}
         />
       </View>
       <View style={styles.pillRow}>
@@ -251,10 +258,9 @@ export function SearchBillsScreen() {
             label={option.label}
             count={option.count}
             active={policyArea === option.value}
-            onPress={() => {
-              setPolicyArea(option.value);
-              resetToFirstPage();
-            }}
+            onPress={() =>
+              updateFilters({ issue: option.value === ALL_ISSUES ? undefined : option.value })
+            }
           />
         ))}
         {hiddenIssueCount > 0 && !selectedIsHidden ? (
@@ -349,8 +355,8 @@ export function SearchBillsScreen() {
             totalPages={totalPages}
             hasPrev={page > 1}
             hasNext={totalPages != null ? page < totalPages : hasMore}
-            onPrev={() => setPage((value) => Math.max(1, value - 1))}
-            onNext={() => setPage((value) => value + 1)}
+            onPrev={() => navigation.setParams({ page: page > 2 ? String(page - 1) : undefined })}
+            onNext={() => navigation.setParams({ page: String(page + 1) })}
           />
         </>
       )}
