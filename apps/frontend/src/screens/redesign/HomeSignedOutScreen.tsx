@@ -1704,7 +1704,7 @@ const m = StyleSheet.create({
   // texture (and its fade) to the section so it never bleeds page-wide.
   heroWrap: { position: 'relative', overflow: 'hidden' },
   askWrap: { position: 'relative', overflow: 'hidden' },
-  heroBody: { paddingTop: 8, paddingBottom: 34 },
+  heroBody: { paddingTop: 40, paddingBottom: 34 },
   // Type scaled up ~1.2x for mobile legibility; the four largest black headers
   // (hero H1, "Legislative Bill Activity", "Find My Legislator", "Be in the Know")
   // hold their size to keep the hierarchy.
