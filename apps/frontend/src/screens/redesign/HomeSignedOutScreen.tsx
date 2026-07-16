@@ -1441,9 +1441,19 @@ function HomeSignedOutMobile() {
             </Container>
           </View>
 
-          {/* IN THE NEWS — editorial pins, real data (skeletons hold the slot while
-              the pinned-bill queries load, so the layout doesn't shift). */}
-          {newsBills.length > 0 ? (
+          {/* IN THE NEWS — editorial pins, real data. Check loading FIRST so the
+              skeletons hold until BOTH pinned-bill queries settle, then both cards
+              render together — no "one card, then the second pops in" stagger. */}
+          {newsLoading ? (
+            <Container style={m.section}>
+              <Text style={m.eyebrow}>IN THE NEWS</Text>
+              <View style={m.cardStack}>
+                <SkeletonCard lines={4} />
+                <SkeletonCard lines={4} />
+              </View>
+              <SeeMore onPress={openSearchBills} />
+            </Container>
+          ) : newsBills.length > 0 ? (
             <Container style={m.section}>
               <Text style={m.eyebrow}>IN THE NEWS</Text>
               <View style={m.cardStack}>
@@ -1459,20 +1469,28 @@ function HomeSignedOutMobile() {
               </View>
               <SeeMore onPress={openSearchBills} />
             </Container>
-          ) : newsLoading ? (
+          ) : null}
+
+          {/* LEGISLATIVE BILL ACTIVITY — live. Check loading FIRST so the skeletons
+              hold until BOTH date-ordered queries settle, then both cards render
+              together — no stagger. */}
+          {activityLoading ? (
             <Container style={m.section}>
-              <Text style={m.eyebrow}>IN THE NEWS</Text>
-              <View style={m.cardStack}>
-                <SkeletonCard lines={4} />
-                <SkeletonCard lines={4} />
+              <Text style={m.eyebrow}>2025–2026 SESSION</Text>
+              <Text accessibilityRole="header" style={m.sectionH2}>
+                Legislative Bill Activity
+              </Text>
+              <View style={m.activityGroup}>
+                <Text style={m.groupLabel}>RECENTLY PASSED</Text>
+                <SkeletonCard lines={3} />
+              </View>
+              <View style={m.activityGroup}>
+                <Text style={m.groupLabel}>RECENTLY INTRODUCED</Text>
+                <SkeletonCard lines={3} />
               </View>
               <SeeMore onPress={openSearchBills} />
             </Container>
-          ) : null}
-
-          {/* LEGISLATIVE BILL ACTIVITY — live (skeletons hold the slot while the
-              date-ordered queries load, so the layout doesn't shift). */}
-          {introducedBill || signedBill ? (
+          ) : introducedBill || signedBill ? (
             <Container style={m.section}>
               <Text style={m.eyebrow}>2025–2026 SESSION</Text>
               <Text accessibilityRole="header" style={m.sectionH2}>
@@ -1493,22 +1511,6 @@ function HomeSignedOutMobile() {
                   />
                 </View>
               ) : null}
-              <SeeMore onPress={openSearchBills} />
-            </Container>
-          ) : activityLoading ? (
-            <Container style={m.section}>
-              <Text style={m.eyebrow}>2025–2026 SESSION</Text>
-              <Text accessibilityRole="header" style={m.sectionH2}>
-                Legislative Bill Activity
-              </Text>
-              <View style={m.activityGroup}>
-                <Text style={m.groupLabel}>RECENTLY PASSED</Text>
-                <SkeletonCard lines={3} />
-              </View>
-              <View style={m.activityGroup}>
-                <Text style={m.groupLabel}>RECENTLY INTRODUCED</Text>
-                <SkeletonCard lines={3} />
-              </View>
               <SeeMore onPress={openSearchBills} />
             </Container>
           ) : null}
