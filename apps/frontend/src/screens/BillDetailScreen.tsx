@@ -225,7 +225,7 @@ export function BillDetailScreen({ route, navigation }: Props) {
               }
             />
             <PrimaryButton
-              label="Ask AI"
+              label="✦ Ask"
               tone="secondary"
               onPress={() => {
                 if (Platform.OS === 'web' && typeof window !== 'undefined') {
