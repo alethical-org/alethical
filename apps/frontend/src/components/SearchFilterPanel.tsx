@@ -34,7 +34,7 @@ const statusOptions = [
   { label: 'In Committee', value: 'in_committee' },
   { label: 'Passed House', value: 'passed_house' },
   { label: 'Passed Senate', value: 'passed_senate' },
-  { label: 'Signed Into Law', value: 'signed_into_law' },
+  { label: 'Signed into Law', value: 'signed_into_law' },
   { label: 'Vetoed', value: 'vetoed' },
 ];
 type FilterIcon = ComponentType<{ color?: string; size?: number; strokeWidth?: number }>;

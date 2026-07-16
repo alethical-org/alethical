@@ -468,7 +468,7 @@ function defaultProgress(): Bill['progress'] {
     { key: 'in_committee', label: 'In Committee', reached: false, current: false },
     { key: 'passed_house', label: 'Passed House', reached: false, current: false },
     { key: 'passed_senate', label: 'Passed Senate', reached: false, current: false },
-    { key: 'signed_into_law', label: 'Signed Into Law', reached: false, current: false },
+    { key: 'signed_into_law', label: 'Signed into Law', reached: false, current: false },
   ];
 }
 
@@ -478,7 +478,7 @@ function statusLabel(statusKey?: string | null, fallback?: string | null) {
     in_committee: 'In Committee',
     passed_house: 'Passed House',
     passed_senate: 'Passed Senate',
-    signed_into_law: 'Signed Into Law',
+    signed_into_law: 'Signed into Law',
     vetoed: 'Vetoed',
   };
   return (statusKey && labels[statusKey]) || fallback || 'Status unavailable';
