@@ -351,8 +351,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
       case 'search-bills':
+        navigation.navigate('Bills');
+        return;
       case 'search-legislators':
-        navigation.navigate('Tabs', { screen: 'Search' });
+        navigation.navigate('Legislators');
         return;
       case 'search-find-my-legislator':
         navigation.navigate('FindMyLegislator');
@@ -455,10 +457,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               </Text>
               <Text style={styles.question}>{question}</Text>
               <Text style={styles.introLine}>{pending.body}</Text>
-              <Pressable
-                accessibilityRole="link"
-                onPress={() => navigation.navigate('Tabs', { screen: 'Search' })}
-              >
+              <Pressable accessibilityRole="link" onPress={() => navigation.navigate('Bills')}>
                 <Text style={styles.viewBillLink}>{pending.cta}</Text>
               </Pressable>
             </View>
@@ -526,10 +525,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   </View>
                 </>
               ) : (
-                <Pressable
-                  accessibilityRole="link"
-                  onPress={() => navigation.navigate('Tabs', { screen: 'Search' })}
-                >
+                <Pressable accessibilityRole="link" onPress={() => navigation.navigate('Bills')}>
                   <Text style={styles.viewBillLink}>Browse bills to see their votes →</Text>
                 </Pressable>
               )}
@@ -611,10 +607,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               <Pressable
                 accessibilityRole="link"
                 onPress={() =>
-                  navigation.navigate('Tabs', {
-                    screen: 'Search',
-                    params: answer?.topic ? { q: answer.topic } : undefined,
-                  })
+                  navigation.navigate('Bills', answer?.topic ? { q: answer.topic } : undefined)
                 }
               >
                 <Text style={styles.viewBillLink}>Search all bills →</Text>
@@ -660,10 +653,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 <Pressable
                   accessibilityRole="link"
                   onPress={() =>
-                    navigation.navigate('Tabs', {
-                      screen: 'Search',
-                      params: answer.topic ? { q: answer.topic } : undefined,
-                    })
+                    navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined)
                   }
                 >
                   <Text style={styles.viewBillLink}>
@@ -714,10 +704,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 <Pressable
                   accessibilityRole="link"
                   onPress={() =>
-                    navigation.navigate('Tabs', {
-                      screen: 'Search',
-                      params: answer.topic ? { q: answer.topic } : undefined,
-                    })
+                    navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined)
                   }
                 >
                   <Text style={styles.viewBillLink}>
