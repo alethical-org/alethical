@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -237,23 +238,6 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
               strokeLinecap="round"
             />
             <Path d="M18 13.9c2.4.5 4 2.7 4 5.6" stroke={c} strokeWidth={2} strokeLinecap="round" />
-          </>
-        ) : null}
-        {itemId === 'about-trust' ? (
-          <>
-            <Path
-              d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6l7-3Z"
-              stroke={c}
-              strokeWidth={2}
-              strokeLinejoin="round"
-            />
-            <Path
-              d="M9 12l2.2 2.2L15.5 10"
-              stroke={c}
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
           </>
         ) : null}
         {itemId === 'about-contact' ? (
@@ -516,6 +500,17 @@ export function TopNav({
   const navigate = (item: IaItem) => {
     setOpenMenu(null);
     setDrawerOpen(false);
+    // Contact Us opens mail composition directly rather than routing anywhere
+    // in-app — handled once here so every screen's nav gets it for free.
+    if (item.id === 'about-contact') {
+      const mailto = 'mailto:ask@alethical.com';
+      if (isWeb && typeof window !== 'undefined') {
+        window.location.href = mailto;
+      } else {
+        void Linking.openURL(mailto);
+      }
+      return;
+    }
     onNavigate?.(item);
   };
 
@@ -549,11 +544,15 @@ export function TopNav({
                 />
               ))}
             </View>
-            <PrimaryButton label="Sign in" onPress={onSignIn} />
+            {/* Visible but inert: sign-in isn't available yet (no post-login
+                experience shipped), so the button shows without routing anywhere. */}
+            <PrimaryButton label="Sign in" onPress={undefined} />
           </View>
         ) : (
           <View style={styles.navMobileRight}>
-            <PrimaryButton label="Sign in" onPress={onSignIn} />
+            {/* Visible but inert: sign-in isn't available yet (no post-login
+                experience shipped), so the button shows without routing anywhere. */}
+            <PrimaryButton label="Sign in" onPress={undefined} />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={drawerOpen ? 'Close menu' : 'Open menu'}
@@ -645,14 +644,7 @@ export function TopNav({
               </View>
             </ScrollView>
             <View style={styles.menuFooter}>
-              <PrimaryButton
-                label="Sign in"
-                size="lg"
-                onPress={() => {
-                  setDrawerOpen(false);
-                  onSignIn?.();
-                }}
-              />
+              <PrimaryButton label="Sign in" size="lg" onPress={() => setDrawerOpen(false)} />
             </View>
           </View>
         </View>
