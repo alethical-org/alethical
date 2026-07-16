@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from alethical.db.models import (
     ArtifactType,
     Bill,
+    BillAction,
     BillVersion,
     Legislator,
     LegislatorServicePeriod,
@@ -19,6 +21,7 @@ from alethical.pipeline.minnesota import (
     MinnesotaIngestionPipeline,
     parse_bill_text_html,
     parse_bill_xml,
+    parse_datetime,
 )
 
 
@@ -228,5 +231,120 @@ def test_reingest_with_new_version_code_keeps_one_current(seed_database: None) -
             ).all()
         }
         assert all_codes == {"current", "0"}
+
+
+def test_parse_datetime_handles_source_datetime_format() -> None:
+    """#328 regression: the MN source emits dates as "YYYY-MM-DD HH:MM:SS", not
+    the date-only forms the parser originally handled. Every such value used to
+    parse to None, leaving the whole corpus without action/version dates."""
+    assert parse_datetime("2025-04-30 00:00:00") == datetime(2025, 4, 30, tzinfo=UTC)
+    assert parse_datetime("2025-02-21 08:44:29") == datetime(
+        2025, 2, 21, 8, 44, 29, tzinfo=UTC
+    )
+    # ISO 'T' separator and the pre-existing date-only forms still parse.
+    assert parse_datetime("2025-04-30T00:00:00") == datetime(2025, 4, 30, tzinfo=UTC)
+    assert parse_datetime("04/30/2025") == datetime(2025, 4, 30, tzinfo=UTC)
+    # Empty / unparseable values stay None.
+    assert parse_datetime("") is None
+    assert parse_datetime("not a date") is None
+
+
+# A bill whose actions use the real source datetime format, including a
+# higher-numbered *undated* trailing action ("Laid on table") — the production
+# shape that left latest_action_at null even where dated actions existed (#328).
+DATED_BILL_XML = """<?xml version="1.0"?>
+<BILL>
+  <SESSION_NUMBER>94</SESSION_NUMBER>
+  <SESSION_YEAR>2025</SESSION_YEAR>
+  <FILE_TYPE>HF</FILE_TYPE>
+  <FILE_NUMBER>7777</FILE_NUMBER>
+  <REVISOR_NUMBER>25-7777</REVISOR_NUMBER>
+  <DESCRIPTION>Test dated ingestion bill</DESCRIPTION>
+  <ACTIONS>
+    <house>
+      <ACTION>
+        <ACTION_NUMBER>1</ACTION_NUMBER>
+        <ACTION_TEXT>Introduction and first reading</ACTION_TEXT>
+        <ACTION_DATE>2025-01-10 00:00:00</ACTION_DATE>
+      </ACTION>
+      <ACTION>
+        <ACTION_NUMBER>2</ACTION_NUMBER>
+        <ACTION_TEXT>Referred to committee</ACTION_TEXT>
+        <ACTION_DATE>2025-02-15 00:00:00</ACTION_DATE>
+      </ACTION>
+      <ACTION>
+        <ACTION_NUMBER>3</ACTION_NUMBER>
+        <ACTION_TEXT>Bill was passed</ACTION_TEXT>
+        <ACTION_DATE>2025-03-20 00:00:00</ACTION_DATE>
+      </ACTION>
+      <ACTION>
+        <ACTION_NUMBER>4</ACTION_NUMBER>
+        <ACTION_TEXT>Laid on table</ACTION_TEXT>
+        <ACTION_DATE></ACTION_DATE>
+      </ACTION>
+    </house>
+  </ACTIONS>
+  <TEXT_VERSION_LIST>
+    <DOCUMENT>
+      <HTML_URI>https://example.test/hf7777.html</HTML_URI>
+      <DATE_INSERT>2025-01-10 08:44:29</DATE_INSERT>
+      <DOCUMENT_NAME>Introduced</DOCUMENT_NAME>
+      <DOCUMENT_TYPE>1</DOCUMENT_TYPE>
+      <DOCUMENT_ENGROSSMENT>0</DOCUMENT_ENGROSSMENT>
+    </DOCUMENT>
+  </TEXT_VERSION_LIST>
+</BILL>
+"""
+
+
+def test_upsert_bill_populates_action_dates(seed_database: None) -> None:
+    """#328 regression: end-to-end, upsert_bill must capture action_at on each
+    dated action, set latest_action_at from the newest *dated* action (not the
+    undated trailing one), populate introduced_at, and set version.document_date
+    — all from the source's "YYYY-MM-DD HH:MM:SS" format."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical = parse_bill_xml(DATED_BILL_XML)
+        run = pipeline.start_run("bill", canonical["bill_key"])
+        xml_artifact = pipeline.record_artifact(
+            run, ArtifactType.xml, "https://example.test/hf7777.xml", DATED_BILL_XML
+        )
+        html_artifact = pipeline.record_artifact(
+            run, ArtifactType.html, "https://example.test/hf7777.html", "<html></html>"
+        )
+        bill_text = {
+            "sections": [],
+            "articles": [],
+            "source_url": "https://example.test/hf7777.html",
+        }
+
+        bill = pipeline.upsert_bill(
+            refs, canonical, bill_text, run, xml_artifact, html_artifact
+        )
+        session.flush()
+
+        # Newest dated action is #3 (2025-03-20); the undated #4 must not win.
+        assert bill.latest_action_at == datetime(2025, 3, 20, tzinfo=UTC)
+        assert bill.introduced_at == datetime(2025, 1, 10, tzinfo=UTC)
+
+        actions = {
+            a.action_number: a
+            for a in session.scalars(
+                select(BillAction).where(BillAction.bill_id == bill.id)
+            ).all()
+        }
+        assert actions[1].action_at == datetime(2025, 1, 10, tzinfo=UTC)
+        assert actions[2].action_at == datetime(2025, 2, 15, tzinfo=UTC)
+        assert actions[3].action_at == datetime(2025, 3, 20, tzinfo=UTC)
+        assert actions[4].action_at is None  # genuinely undated action stays null
+
+        version = session.scalar(
+            select(BillVersion).where(BillVersion.bill_id == bill.id)
+        )
+        assert version is not None
+        assert version.document_date == datetime(2025, 1, 10, 8, 44, 29, tzinfo=UTC)
+
+        session.rollback()
 
         session.rollback()
