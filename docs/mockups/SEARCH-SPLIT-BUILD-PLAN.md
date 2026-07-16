@@ -90,7 +90,7 @@ Map lowercased `bill.status` keyword → `{ index 0-4, tone }`:
   full-screen click-away overlay (RN-Web stacking trap, #171). Guard web-only CSS with `isWeb`.
 
 ## Verification (design-build step 9)
-`just up` → `http://localhost:19006/bills` and `/legislators`. Compare states to the specs
+`just up` → `http://localhost:8081/bills` and `/legislators`. Compare states to the specs
 (desktop + mobile): results, no-results, pagination, (bills) Track sign-in modal + toast,
 hero focus ring, cross-links. Run `design-audit` for live-only a11y/interaction. Then
 `just lint` **and** `just format` (CI runs repo-wide `prettier --check .`). Verify the

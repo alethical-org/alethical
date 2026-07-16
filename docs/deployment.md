@@ -17,7 +17,7 @@ Required Railway environment variables:
 DATABASE_URL=postgresql://...
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-ALETHICAL_CORS_ORIGINS=https://your-vercel-domain.vercel.app,http://localhost:19006,http://127.0.0.1:19006
+ALETHICAL_CORS_ORIGINS=https://your-vercel-domain.vercel.app,http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006
 ```
 
 The build installs dependencies with:
@@ -63,6 +63,8 @@ In Supabase Authentication > URL Configuration, set the production site URL to t
 
 ```text
 https://your-vercel-domain.vercel.app/**
+http://localhost:8081/**
+http://127.0.0.1:8081/**
 http://localhost:19006/**
 http://127.0.0.1:19006/**
 alethical://auth/callback
