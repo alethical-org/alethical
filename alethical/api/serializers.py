@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from alethical.api import schemas as api_schemas
+from alethical.api.issue_taxonomy import canonicalize_areas
 
 
 def tracking_payload(tracked_rows) -> api_schemas.TrackingState | None:
@@ -259,12 +260,11 @@ def ai_analysis_payload_for_enrichment(
             if isinstance(key_points, list)
             else []
         ),
+        # Badges display canonical issues (issue_taxonomy) so a card's tags match
+        # the Search Bills filter chips; unmapped rare values fall through
+        # Title-Cased. De-duped, display only — stored data is untouched.
         policy_areas=(
-            [
-                item.strip()
-                for item in policy_areas
-                if isinstance(item, str) and item.strip()
-            ]
+            canonicalize_areas([item for item in policy_areas if isinstance(item, str)])
             if isinstance(policy_areas, list)
             else []
         ),

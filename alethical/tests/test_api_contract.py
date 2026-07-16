@@ -152,14 +152,14 @@ def test_bill_and_legislator_lists_support_search_filter_contract(client):
     assert committee_bills_response.status_code == 200
     assert isinstance(committee_bills_response.json()["data"], list)
 
-    # policy_area filters on exact array-element membership (the value a
-    # /policy-areas pill sends), not a substring — so the pill's count and the
-    # filtered list agree.
+    # policy_area filters on the canonical issue a /policy-areas chip sends
+    # (issue_taxonomy), and card badges render that same canonical label — so
+    # the chip's count and the filtered list agree and badges match filters.
     economy_bills_response = client.get(
         "/api/v1/bills",
         params={
             "session": "94-2025-regular",
-            "policy_area": "economic development",
+            "policy_area": "Economic Development",
             "limit": 20,
         },
     )
@@ -167,7 +167,7 @@ def test_bill_and_legislator_lists_support_search_filter_contract(client):
     economy_bills = economy_bills_response.json()["data"]
     assert economy_bills
     assert all(
-        "economic development" in bill["ai_analysis"]["policy_areas"]
+        "Economic Development" in bill["ai_analysis"]["policy_areas"]
         for bill in economy_bills
     )
 
@@ -322,10 +322,13 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
             "Changes labor and worker safety rules, including underground telecommunications installer certification.",
             "Requires reports and makes technical corrections across jobs and economic development statutes.",
         ],
+        # Canonical issues (issue_taxonomy): "workforce development" → Labor &
+        # Employment, "economic development" → Economic Development, and the
+        # unmapped "labor policy" falls through Title-Cased.
         "policy_areas": [
-            "workforce development",
-            "economic development",
-            "labor policy",
+            "Labor & Employment",
+            "Economic Development",
+            "Labor Policy",
         ],
     }
     assert "confidence" not in detail_payload["ai_analysis"]
@@ -2026,48 +2029,33 @@ def test_bills_sort_rejects_unknown_value(client):
     assert response.status_code == 422
 
 
-def test_bills_policy_area_filter_matches_exact_element_under_progress_sort(client):
-    """Regression: a Search Bills policy pill filters by exact array element and
-    returns 200 alongside the default sort=progress.
+def test_bills_policy_area_canonical_filter_under_progress_sort(client):
+    """A Search Bills chip sends a canonical issue (issue_taxonomy); the /bills
+    filter matches every raw policy area that rolls up to it, returns 200 under
+    the default sort=progress (no 502), and card badges render the same
+    canonical label — so badges and filters share one vocabulary.
 
-    The pill sends the exact /policy-areas value (e.g. "higher education"); the
-    filter must match whole elements, not substrings, so the pill count and the
-    filtered list agree. The prior substring cast(...)::text ILIKE was also so
-    slow that combining it with sort=progress timed out (502) on production, so
-    the click never narrowed the list. SF2483's policy_areas are
-    ["higher education", "funding", "student aid", "appropriations"]."""
-    exact_response = client.get(
+    SF2483's raw policy_areas ["higher education", "funding", "student aid",
+    "appropriations"] roll up to Education / Government Finance / Student Aid."""
+    response = client.get(
         "/api/v1/bills",
         params={
             "session": "94-2025-regular",
-            "policy_area": "higher education",
+            "policy_area": "Education",
             "sort": "progress",
             "limit": 50,
         },
     )
-    assert exact_response.status_code == 200
-    exact_bills = exact_response.json()["data"]
-    assert exact_bills
+    assert response.status_code == 200
+    bills = response.json()["data"]
+    assert bills
+    # "higher education" rolls up to Education, so SF2483 matches — and its badge
+    # shows the canonical "Education", never the raw "higher education".
+    assert any(bill["file_number"] == 2483 for bill in bills)
+    assert all("Education" in bill["ai_analysis"]["policy_areas"] for bill in bills)
     assert all(
-        "higher education" in bill["ai_analysis"]["policy_areas"]
-        for bill in exact_bills
+        "higher education" not in bill["ai_analysis"]["policy_areas"] for bill in bills
     )
-    assert any(bill["file_number"] == 2483 for bill in exact_bills)
-
-    # "education" is a substring of "higher education" but not an element of any
-    # bill's policy_areas, so exact-element matching returns nothing — proving
-    # the over-matching substring behavior is gone.
-    substring_response = client.get(
-        "/api/v1/bills",
-        params={
-            "session": "94-2025-regular",
-            "policy_area": "education",
-            "sort": "progress",
-            "limit": 50,
-        },
-    )
-    assert substring_response.status_code == 200
-    assert substring_response.json()["data"] == []
 
 
 STATUS_FILTER_SESSION_SLUG = "test-status-filter-fixture"
@@ -2233,7 +2221,7 @@ def test_bills_status_filter_isolates_results_to_selected_status(client):
     assert all_files == set(seen) == set(expected_by_file)
 
 
-ISSUE_CASE_SESSION_SLUG = "test-issue-case-fixture"
+ISSUE_TAXONOMY_SESSION_SLUG = "test-issue-taxonomy-fixture"
 
 
 def _seed_mixed_case_policy_bills(schema):
@@ -2246,10 +2234,11 @@ def _seed_mixed_case_policy_bills(schema):
 
     from alethical.db.session import get_session_factory
 
-    # file_number -> policy_areas (deliberately mixed case)
+    # file_number -> raw policy_areas. Deliberately mixes synonyms and casing:
+    # "Healthcare"/"public health"/"health care" all roll up to Health.
     fixtures = {
-        90201: ["Taxation", "Health"],
-        90202: ["taxation"],
+        90211: ["Healthcare", "public health", "Taxation"],
+        90212: ["health care"],
     }
     with get_session_factory()() as db:
         base_session = db.scalar(
@@ -2263,24 +2252,24 @@ def _seed_mixed_case_policy_bills(schema):
         assert base_session is not None and chamber is not None
         session_row = db.scalar(
             select(schema.LegislativeSession).where(
-                schema.LegislativeSession.slug == ISSUE_CASE_SESSION_SLUG
+                schema.LegislativeSession.slug == ISSUE_TAXONOMY_SESSION_SLUG
             )
         )
         if session_row is None:
             session_row = schema.LegislativeSession(
                 jurisdiction_id=base_session.jurisdiction_id,
-                slug=ISSUE_CASE_SESSION_SLUG,
-                session_number=9997,
+                slug=ISSUE_TAXONOMY_SESSION_SLUG,
+                session_number=9990,
                 session_type=schema.SessionType.regular,
                 year_start=2995,
                 year_end=2996,
-                name="Issue-case fixture session",
+                name="Issue-taxonomy fixture session",
                 is_current=False,
             )
             db.add(session_row)
             db.flush()
         for file_number, policy_areas in fixtures.items():
-            bill_key = f"{ISSUE_CASE_SESSION_SLUG}-HF{file_number}"
+            bill_key = f"{ISSUE_TAXONOMY_SESSION_SLUG}-HF{file_number}"
             if db.scalar(select(schema.Bill).where(schema.Bill.bill_key == bill_key)):
                 continue
             bill = schema.Bill(
@@ -2311,16 +2300,18 @@ def _seed_mixed_case_policy_bills(schema):
                 )
             )
         db.commit()
-    return ISSUE_CASE_SESSION_SLUG
+    return ISSUE_TAXONOMY_SESSION_SLUG
 
 
-def test_policy_areas_fold_case_and_filter_matches_case_insensitively(client):
-    """Regression: /policy-areas folds casing into one canonical (lowercase)
-    issue with a merged distinct-bill count, and the /bills policy_area filter
-    matches case-insensitively — so the chip count and the filtered total agree.
+def test_policy_areas_roll_up_synonyms_to_canonical_issues(client):
+    """Regression (Phase 2, #325): /policy-areas rolls synonymous/mixed-case raw
+    values up to one canonical issue with a merged distinct-bill count; the
+    /bills filter matches every raw value under that canonical; and card badges
+    render the canonical label — so the chip count, the filtered total, and the
+    badge all agree.
 
-    "Taxation" (HF90201) and "taxation" (HF90202) must collapse to a single
-    "taxation" issue counting both bills; filtering by any casing returns both.
+    "Healthcare" + "public health" (HF90211) and "health care" (HF90212) all
+    roll up to Health, counting both bills; HF90211 also has Taxation.
     """
     from alethical.db.schema import load_schema
 
@@ -2329,14 +2320,15 @@ def test_policy_areas_fold_case_and_filter_matches_case_insensitively(client):
     areas = client.get("/api/v1/policy-areas", params={"session": slug})
     assert areas.status_code == 200
     by_name = {row["name"]: row["bill_count"] for row in areas.json()["data"]}
-    # Folded to one lowercase "taxation" counting both bills, not two entries.
-    assert by_name.get("taxation") == 2
-    assert "Taxation" not in by_name
-    assert by_name.get("health") == 1
+    # The three health synonyms collapse to one "Health" counting both bills;
+    # no raw variant survives as its own issue.
+    assert by_name.get("Health") == 2
+    assert by_name.get("Taxation") == 1
+    assert not (set(by_name) & {"healthcare", "health care", "public health"})
 
-    # Filtering by any casing returns both bills, and the total equals the chip
-    # count above (2) — count and filter can't diverge.
-    for value in ("taxation", "Taxation", "TAXATION"):
+    # Filtering by the canonical issue (any casing) returns every rolled-up bill,
+    # and the total equals the chip count — count and filter can't diverge.
+    for value in ("Health", "health", "HEALTH"):
         resp = client.get(
             "/api/v1/bills",
             params={
@@ -2349,10 +2341,16 @@ def test_policy_areas_fold_case_and_filter_matches_case_insensitively(client):
         assert resp.status_code == 200
         payload = resp.json()
         assert payload["page"]["total"] == 2
-        assert {b["file_number"] for b in payload["data"]} == {90201, 90202}
+        assert {b["file_number"] for b in payload["data"]} == {90211, 90212}
 
-    # A distinct issue still isolates correctly.
-    health = client.get(
-        "/api/v1/bills", params={"session": slug, "policy_area": "health", "limit": 50}
+    # Badges show the canonical label, deduped — HF90211's two health synonyms
+    # become a single "Health" tag alongside "Taxation".
+    hf90211 = next(b for b in payload["data"] if b["file_number"] == 90211)
+    assert hf90211["ai_analysis"]["policy_areas"] == ["Health", "Taxation"]
+
+    # A distinct canonical issue still isolates correctly.
+    taxation = client.get(
+        "/api/v1/bills",
+        params={"session": slug, "policy_area": "Taxation", "limit": 50},
     )
-    assert {b["file_number"] for b in health.json()["data"]} == {90201}
+    assert {b["file_number"] for b in taxation.json()["data"]} == {90211}

@@ -8,10 +8,11 @@ from uuid import UUID
 import requests
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select, text
 from sqlalchemy.orm import Session, aliased, selectinload
 
 from alethical.api.auth import get_optional_current_user
+from alethical.api.issue_taxonomy import alias_canonical_arrays, aliases_for
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit
 from alethical.api.schemas import (
@@ -367,34 +368,45 @@ def policy_areas(
     db: Session = Depends(get_db),
 ):
     session_row = get_session_by_slug(db, session)
-    # The AI enrichment emits free-text policy areas with inconsistent casing
-    # ("taxation" and "Taxation" both occur), so fold case and count distinct
-    # bills. The folded lowercase value is the canonical name; the frontend
-    # Title-Cases it for display and sends it back as the (case-insensitive)
-    # /bills policy_area filter, so the pill count and filtered total agree.
-    area_rows = (
-        select(
-            func.jsonb_array_elements_text(
-                AIEnrichment.content_json["policy_areas"]
-            ).label("raw_name"),
-            Bill.id.label("bill_id"),
-        )
-        .join(Bill, Bill.id == AIEnrichment.bill_id)
-        .where(
-            Bill.session_id == session_row.id,
-            AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
-            AIEnrichment.is_current.is_(True),
-        )
-        .subquery()
-    )
-    folded_name = func.lower(func.btrim(area_rows.c.raw_name))
-    bill_count = func.count(func.distinct(area_rows.c.bill_id))
+    # The AI enrichment emits ~7,600 distinct free-text policy areas with heavy
+    # casing/synonym fragmentation, so roll each raw value up to a curated
+    # canonical issue (alethical/api/issue_taxonomy.py) and count distinct bills
+    # per canonical. The canonical display name is what the frontend shows and
+    # sends back as the /bills policy_area filter, so the chip count and the
+    # filtered total agree. Grouping/display only — stored data is untouched.
+    aliases, canonicals = alias_canonical_arrays()
     rows = db.execute(
-        select(folded_name.label("name"), bill_count.label("bill_count"))
-        .where(func.btrim(area_rows.c.raw_name) != "")
-        .group_by(folded_name)
-        .order_by(bill_count.desc(), folded_name.asc())
-        .limit(limit)
+        text(
+            """
+            WITH m(alias, canonical) AS (
+                SELECT * FROM unnest(:aliases ::text[], :canonicals ::text[])
+            ),
+            bill_area AS (
+                SELECT b.id AS bill_id, lower(btrim(e)) AS area
+                FROM ai_enrichment ae
+                JOIN bill b ON b.id = ae.bill_id,
+                     LATERAL jsonb_array_elements_text(
+                         ae.content_json -> 'policy_areas'
+                     ) AS e
+                WHERE b.session_id = :sid ::uuid
+                  AND ae.enrichment_type = 'bill_summary'
+                  AND ae.is_current IS true
+                  AND btrim(e) <> ''
+            )
+            SELECT m.canonical AS name, count(DISTINCT ba.bill_id) AS bill_count
+            FROM bill_area ba
+            JOIN m ON m.alias = ba.area
+            GROUP BY m.canonical
+            ORDER BY bill_count DESC, name ASC
+            LIMIT :limit
+            """
+        ),
+        {
+            "aliases": aliases,
+            "canonicals": canonicals,
+            "sid": str(session_row.id),
+            "limit": limit,
+        },
     ).all()
     data = [{"name": name, "bill_count": count} for name, count in rows]
     return CollectionResponse(
@@ -437,21 +449,20 @@ def bills(
     if status:
         stmt = stmt.where(status_filter_clause(status))
     if policy_area:
-        # Case-insensitive whole-element match. The enrichment emits policy
-        # areas with inconsistent casing ("taxation" vs "Taxation"), and
-        # /policy-areas folds case into one canonical lowercase name, so the
-        # filter must fold case too or the pill count and filtered total
-        # diverge. A whole-array cast + ILIKE would over-match and (with
-        # sort=progress) time out to a 502; instead unnest and compare each
-        # element folded — measured ~270ms on the production corpus.
-        policy_area_value = policy_area.strip().lower()
+        # Match any raw policy area that rolls up to the selected canonical issue
+        # (alethical/api/issue_taxonomy.py) — so "Health" catches "healthcare",
+        # "public health", etc. Case-folded whole-element match via unnest (a
+        # whole-array cast + ILIKE would over-match and, with sort=progress, time
+        # out to a 502). aliases_for falls back to the value itself for an
+        # unmapped issue. Measured ~270ms on the production corpus.
+        policy_area_aliases = aliases_for(policy_area)
         element = func.jsonb_array_elements_text(
             AIEnrichment.content_json["policy_areas"]
         ).table_valued("value")
         element_matches = (
             select(1)
             .select_from(element)
-            .where(func.lower(func.btrim(element.c.value)) == policy_area_value)
+            .where(func.lower(func.btrim(element.c.value)).in_(policy_area_aliases))
             .exists()
         )
         matching_policy_area_bills = select(AIEnrichment.bill_id).where(
