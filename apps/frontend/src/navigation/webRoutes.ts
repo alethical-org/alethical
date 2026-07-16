@@ -6,7 +6,7 @@ type WebRouteTarget =
   | { kind: 'tab'; screen: keyof MainTabParamList }
   | { kind: 'bill'; billId: string; tab?: string; track?: boolean }
   | { kind: 'legislator'; legislatorId: string }
-  | { kind: 'bills' }
+  | { kind: 'bills'; params: Record<string, string> }
   | { kind: 'legislators' }
   | { kind: 'findMyLegislator' }
   | { kind: 'privacy' }
@@ -32,6 +32,29 @@ function searchParamsFromPathname(pathname: string) {
   return new URLSearchParams(queryIndex >= 0 ? pathname.slice(queryIndex + 1) : '');
 }
 
+// URL-addressable Search Bills filters (issue #135). One list drives both
+// directions so the query string and the Bills route params stay in lockstep.
+const BILLS_FILTER_PARAMS = [
+  'q',
+  'chamber',
+  'status',
+  'session',
+  'issue',
+  'omnibus',
+  'page',
+] as const;
+
+function billsFilterParams(searchParams: URLSearchParams): Record<string, string> {
+  const params: Record<string, string> = {};
+  for (const key of BILLS_FILTER_PARAMS) {
+    const value = searchParams.get(key);
+    if (value) {
+      params[key] = value;
+    }
+  }
+  return params;
+}
+
 export function targetFromPathname(pathname: string): WebRouteTarget {
   const normalized = normalizePathname(pathname);
   const searchParams = searchParamsFromPathname(pathname);
@@ -46,7 +69,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       return { kind: 'tab', screen: 'Search' };
     }
     if (segments[0] === 'bills') {
-      return { kind: 'bills' };
+      return { kind: 'bills', params: billsFilterParams(searchParams) };
     }
     if (segments[0] === 'legislators') {
       return { kind: 'legislators' };
@@ -157,8 +180,17 @@ export function pathnameFromNavigationState(
       return '/';
     case 'Search':
       return '/search';
-    case 'Bills':
-      return '/bills';
+    case 'Bills': {
+      const params = new URLSearchParams();
+      for (const key of BILLS_FILTER_PARAMS) {
+        const value = (activeRoute.params as Record<string, unknown> | undefined)?.[key];
+        if (value) {
+          params.set(key, String(value));
+        }
+      }
+      const query = params.toString();
+      return query ? `/bills?${query}` : '/bills';
+    }
     case 'Legislators':
       return '/legislators';
     case 'Tracked':
@@ -281,7 +313,7 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
       };
     case 'bills':
       return {
-        routes: [homeTabs, { name: 'Bills' }],
+        routes: [homeTabs, { name: 'Bills', params: target.params }],
         index: 1,
       };
     case 'legislators':
