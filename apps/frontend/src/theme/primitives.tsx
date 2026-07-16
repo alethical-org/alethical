@@ -958,7 +958,9 @@ export function Footer({ onPrivacy, onTerms }: { onPrivacy?: () => void; onTerms
         </View>
         <View style={styles.footerDivider} />
         <View style={styles.footerBottom}>
-          <Text style={styles.footerMeta}>© 2026 ALETHICAL · BUILT IN MINNESOTA</Text>
+          <Text style={styles.footerMeta}>
+            {isMobile ? '© 2026 ALETHICAL' : '© 2026 ALETHICAL · BUILT IN MINNESOTA'}
+          </Text>
           <Text style={styles.footerMetaGreen}>TRUTH, UNCONCEALED</Text>
         </View>
       </Container>

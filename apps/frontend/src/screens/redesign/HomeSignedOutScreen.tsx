@@ -20,7 +20,6 @@ import {
   GoogleButton,
   MNMap,
   PageBackground,
-  PageDots,
   PrimaryButton,
   TopNav,
 } from '../../theme/primitives';
@@ -1224,9 +1223,14 @@ function HomeSignedOutDesktop() {
 // each card shows that bill's real data. HF 4138 is the enacted social-media law
 // the design's card 1 depicts (the mock labeled it "SF 3933", which is a different
 // bill in our corpus). SF 856 is the enacted Office of the Inspector General bill.
-const IN_THE_NEWS: { key: string; hotIssue: boolean }[] = [
-  { key: '94-2026-HF4138', hotIssue: true },
-  { key: '94-2025-SF856', hotIssue: false },
+// `effectiveDate` is editorial metadata verified from the enacted primary source
+// (grounded-answers rule 9) — the corpus stores no dates (#328), so it can't come
+// from the API. HF 4138 → 2026 Ch. 111 §§1–2 (325M), both "effective July 1, 2027";
+// SF 856 → 2025 Ch. 92, Minnesota's default effective date (Aug 1 following
+// enactment) for the act's general provisions (some sections stagger).
+const IN_THE_NEWS: { key: string; hotIssue: boolean; effectiveDate?: string }[] = [
+  { key: '94-2026-HF4138', hotIssue: true, effectiveDate: 'July 1, 2027' },
+  { key: '94-2025-SF856', hotIssue: true, effectiveDate: 'Aug 1, 2026' },
 ];
 
 // status text → filled progress steps (of 5), mirroring BillResultCard.billStage
@@ -1278,10 +1282,12 @@ function SeeMore({ onPress }: { onPress: () => void }) {
 function NewsCardMobile({
   bill,
   hotIssue,
+  effectiveDate,
   onPress,
 }: {
   bill: Bill;
   hotIssue: boolean;
+  effectiveDate?: string;
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
@@ -1309,6 +1315,7 @@ function NewsCardMobile({
       ) : null}
       <View style={m.cardMeta}>
         <Text style={m.metaStatus}>{bill.status}</Text>
+        {effectiveDate ? <Text style={m.metaEffective}>Effective {effectiveDate}</Text> : null}
       </View>
     </Pressable>
   );
@@ -1318,7 +1325,6 @@ function NewsCardMobile({
 function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void }) {
   const [hovered, hoverProps] = useHover();
   const { filled, vetoed } = statusToProgress(bill.status);
-  const author = bill.sponsors?.[0]?.name;
   return (
     <Pressable
       accessibilityRole="link"
@@ -1334,13 +1340,10 @@ function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void
         <ProgressSteps filled={filled} vetoed={vetoed} />
       </View>
       <Text style={m.activityTitle}>{billHeadline(bill)}</Text>
-      {author ? (
-        <View style={m.cardMeta}>
-          <Text style={m.metaStatus}>
-            Chief author: <Text style={m.metaStrong}>{author}</Text>
-          </Text>
-        </View>
-      ) : null}
+      {/* The design's meta line here is "Latest action: {action} · {date}" /
+          "Updated {date}" — both require dates the corpus doesn't have yet
+          (#328). Held until #329 adds it with real dates rather than showing a
+          dateless/cryptic line or the (design-removed) chief author. */}
     </Pressable>
   );
 }
@@ -1412,9 +1415,32 @@ function HomeSignedOutMobile() {
   const introducedBill = introduced.data?.data?.[0];
   const signedBill = signed.data?.data?.[0];
 
+  // Masked dot textures — ONLY three sections carry them (Hero, Ask, Find My
+  // Legislator), each contained to its own section and faded soft at the edges
+  // (mask stops lifted from the mock source). No page-wide dot field.
+  const heroDotsWeb: object = isWeb
+    ? {
+        backgroundImage: t.gradients.dotInk, // rgba(17,21,15,0.07)
+        backgroundSize: '30px 30px',
+        maskImage:
+          'linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 40px), transparent 100%)',
+        WebkitMaskImage:
+          'linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 40px), transparent 100%)',
+      }
+    : {};
+  const askDotsWeb: object = isWeb
+    ? {
+        backgroundImage: 'radial-gradient(rgba(17,21,15,0.09) 1.4px, transparent 1.5px)',
+        backgroundSize: '30px 30px',
+        maskImage:
+          'linear-gradient(to bottom, transparent 0%, #000 32%, #000 84%, transparent 100%)',
+        WebkitMaskImage:
+          'linear-gradient(to bottom, transparent 0%, #000 32%, #000 84%, transparent 100%)',
+      }
+    : {};
   const finderDotsWeb: object = isWeb
     ? {
-        backgroundImage: t.gradients.dotGreen,
+        backgroundImage: t.gradients.dotGreen, // rgba(20,157,91,0.09)
         backgroundSize: '30px 30px',
         maskImage: 'linear-gradient(to bottom, transparent 0%, #000 36%, transparent 92%)',
         WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 36%, transparent 92%)',
@@ -1431,40 +1457,48 @@ function HomeSignedOutMobile() {
     <PageBackground>
       <View style={m.root}>
         <ScrollView style={m.scroll} contentContainerStyle={m.scrollContent}>
-          {isWeb ? <PageDots /> : null}
+          {/* HERO — TopNav + copy share one wrapper so the masked dot texture
+              spans them, faded off the top bar and out before In the News. */}
+          <View style={m.heroWrap}>
+            {isWeb ? (
+              <View
+                pointerEvents="none"
+                style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
+              />
+            ) : null}
+            <TopNav
+              variant="home"
+              onNavigate={(item: IaItem) => {
+                switch (item.id) {
+                  case 'search-bills':
+                    return navigation.navigate('Bills');
+                  case 'search-legislators':
+                    return navigation.navigate('Legislators');
+                  case 'search-find-my-legislator':
+                    return navigation.navigate('FindMyLegislator');
+                  case 'track-bills':
+                    return navigation.navigate('Tracked');
+                  default:
+                    return;
+                }
+              }}
+              onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
+              onSignIn={signIn}
+            />
 
-          <TopNav
-            variant="home"
-            onNavigate={(item: IaItem) => {
-              switch (item.id) {
-                case 'search-bills':
-                  return navigation.navigate('Bills');
-                case 'search-legislators':
-                  return navigation.navigate('Legislators');
-                case 'search-find-my-legislator':
-                  return navigation.navigate('FindMyLegislator');
-                case 'track-bills':
-                  return navigation.navigate('Tracked');
-                default:
-                  return;
-              }
-            }}
-            onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-            onSignIn={signIn}
-          />
-
-          {/* HERO COPY (no ask field — Ask is its own section below) */}
-          <Container style={m.heroBody}>
-            <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-            <Text accessibilityRole="header" style={m.heroH1}>
-              Grounded answers{'\n'}
-              <Text style={m.heroH1Green}>on Minnesota law</Text>
-            </Text>
-            <Text style={m.heroSubhead}>
-              We read every bill so you don’t have to — what it says, where it stands, and how
-              everyone voted. Plain language, every answer linked to official sources.
-            </Text>
-          </Container>
+            {/* HERO COPY (no ask field — Ask is its own section below) */}
+            <Container style={m.heroBody}>
+              <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
+              <Text accessibilityRole="header" style={m.heroH1}>
+                Grounded answers{'\n'}
+                <Text style={m.heroH1Green}>on Minnesota law</Text>
+              </Text>
+              <Text style={m.heroSubhead}>
+                We read every bill so you don’t have to — what it says, where it stands, and how
+                everyone voted. Plain language, every answer linked to official sources.
+              </Text>
+            </Container>
+          </View>
 
           {/* IN THE NEWS — editorial pins, real data */}
           {newsBills.length > 0 ? (
@@ -1476,6 +1510,7 @@ function HomeSignedOutMobile() {
                     key={bill.id}
                     bill={bill}
                     hotIssue={pin.hotIssue}
+                    effectiveDate={pin.effectiveDate}
                     onPress={() => openBill(bill.id)}
                   />
                 ))}
@@ -1493,7 +1528,7 @@ function HomeSignedOutMobile() {
               </Text>
               {signedBill ? (
                 <View style={m.activityGroup}>
-                  <Text style={m.groupLabel}>SIGNED INTO LAW</Text>
+                  <Text style={m.groupLabel}>RECENTLY PASSED</Text>
                   <ActivityCardMobile bill={signedBill} onPress={() => openBill(signedBill.id)} />
                 </View>
               ) : null}
@@ -1510,35 +1545,43 @@ function HomeSignedOutMobile() {
             </Container>
           ) : null}
 
-          {/* ASK — purple AI entry point */}
-          <Container style={m.section}>
-            <Text style={m.eyebrow}>HAVE A QUESTION?</Text>
-            <Text style={m.askSub}>Plain language answers linked to official sources.</Text>
-            <FieldShell focused={askFocused} style={m.askShell}>
-              <Search size={22} color={t.colors.text.faint} strokeWidth={2} style={m.askIcon} />
-              <TextInput
-                ref={askInputRef}
-                value={askValue}
-                onChangeText={setAskValue}
-                onFocus={() => setAskFocused(true)}
-                onBlur={() => setAskFocused(false)}
-                multiline
-                numberOfLines={1}
-                blurOnSubmit={false}
-                onKeyPress={(event) => {
-                  const ne = event.nativeEvent as { key?: string; shiftKey?: boolean };
-                  if (isWeb && ne.key === 'Enter' && !ne.shiftKey) {
-                    (event as { preventDefault?: () => void }).preventDefault?.();
-                    submitAsk();
-                  }
-                }}
-                placeholder={ASK_PLACEHOLDER}
-                placeholderTextColor={t.colors.text.faint}
-                style={m.askInput}
+          {/* ASK — purple AI entry point (own masked dot texture) */}
+          <View style={m.askWrap}>
+            {isWeb ? (
+              <View
+                pointerEvents="none"
+                style={[StyleSheet.absoluteFillObject as object, askDotsWeb]}
               />
-            </FieldShell>
-            <AskButton onPress={submitAsk} />
-          </Container>
+            ) : null}
+            <Container style={m.sectionRoomy}>
+              <Text style={m.eyebrow}>HAVE A QUESTION?</Text>
+              <Text style={m.askSub}>Plain language answers linked to official sources.</Text>
+              <FieldShell focused={askFocused} style={m.askShell}>
+                <Search size={22} color={t.colors.text.faint} strokeWidth={2} style={m.askIcon} />
+                <TextInput
+                  ref={askInputRef}
+                  value={askValue}
+                  onChangeText={setAskValue}
+                  onFocus={() => setAskFocused(true)}
+                  onBlur={() => setAskFocused(false)}
+                  multiline
+                  numberOfLines={1}
+                  blurOnSubmit={false}
+                  onKeyPress={(event) => {
+                    const ne = event.nativeEvent as { key?: string; shiftKey?: boolean };
+                    if (isWeb && ne.key === 'Enter' && !ne.shiftKey) {
+                      (event as { preventDefault?: () => void }).preventDefault?.();
+                      submitAsk();
+                    }
+                  }}
+                  placeholder={ASK_PLACEHOLDER}
+                  placeholderTextColor={t.colors.text.faint}
+                  style={m.askInput}
+                />
+              </FieldShell>
+              <AskButton onPress={submitAsk} />
+            </Container>
+          </View>
 
           {/* FIND MY LEGISLATOR — green band */}
           <View style={[m.finderBand, finderGradientWeb]}>
@@ -1581,7 +1624,7 @@ function HomeSignedOutMobile() {
           </View>
 
           {/* BE IN THE KNOW — account */}
-          <Container style={m.section}>
+          <Container style={m.sectionRoomy}>
             <View style={[m.accountCard, accountGradientWeb]}>
               <Text accessibilityRole="header" style={m.accountH3}>
                 Be in the Know
@@ -1628,7 +1671,11 @@ const m = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { position: 'relative', paddingBottom: 0 },
-  heroBody: { paddingTop: 30, paddingBottom: 8 },
+  // Hero + Ask each own their masked dot texture; overflow:hidden contains the
+  // texture (and its fade) to the section so it never bleeds page-wide.
+  heroWrap: { position: 'relative', overflow: 'hidden' },
+  askWrap: { position: 'relative', overflow: 'hidden' },
+  heroBody: { paddingTop: 8, paddingBottom: 34 },
   heroEyebrow: {
     fontFamily: t.typography.ui,
     fontSize: 12,
@@ -1653,7 +1700,10 @@ const m = StyleSheet.create({
     lineHeight: 23,
     color: t.colors.text.muted,
   },
-  section: { paddingTop: 40 },
+  // Even section rhythm from the mock: 30 top / 34 bottom (Ask + account cap at
+  // 50 bottom via sectionRoomy). 20px sides come from Container's mobile padding.
+  section: { paddingTop: 30, paddingBottom: 34 },
+  sectionRoomy: { paddingTop: 30, paddingBottom: 50 },
   eyebrow: {
     fontFamily: t.typography.ui,
     fontSize: 12,
@@ -1735,6 +1785,10 @@ const m = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 10,
   },
   metaStatus: {
     fontFamily: t.typography.ui,
@@ -1742,7 +1796,15 @@ const m = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.secondary,
   },
-  metaStrong: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
+  // Grey "Effective {date}". The mock's #9aa39e fails WCAG AA on white (~2.9:1),
+  // so this uses the repo's AA-hardened faint token (the same darkening tokens.ts
+  // already applied to the mock greys) — de-emphasized but readable.
+  metaEffective: {
+    fontFamily: t.typography.ui,
+    fontSize: 13,
+    fontWeight: t.fontWeights.medium,
+    color: t.colors.text.faint,
+  },
   activityGroup: { marginTop: 16, gap: 10 },
   groupLabel: {
     fontFamily: t.typography.ui,
@@ -1829,7 +1891,10 @@ const m = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.white,
   },
-  finderBand: { marginTop: 40, paddingBottom: 8, position: 'relative' },
+  // Full-bleed green band: its own section rhythm comes from the inner Container
+  // (m.section); no extra top margin (that was the oversized gap after Ask).
+  // overflow:hidden contains the masked green dots to the band.
+  finderBand: { position: 'relative', overflow: 'hidden' },
   finderH2: {
     fontFamily: t.typography.title,
     fontSize: 30,
