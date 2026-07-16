@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { Check, MapPin, Plus, Search } from 'lucide-react-native';
+import { MapPin, Search } from 'lucide-react-native';
 
 import { theme, prefersReducedMotion } from '../../theme/tokens';
 import {
@@ -28,6 +28,7 @@ import { fieldFocusRing } from '../../theme/fieldFocus';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBill, useBills } from '../../hooks/useAppQueries';
+import { BillResultCard } from '../../components/search/BillResultCard';
 import type { Bill } from '../../data/types';
 
 // The v2 signed-out home — docs/mockups/home-signed-out-v2 (README = state/token/copy
@@ -83,118 +84,6 @@ const CITIES = [
   'EDINA',
   'MANKATO',
   'MOORHEAD',
-];
-
-// --- Static bill-card sample content (exact copy/values from the DC source) ---
-interface SampleBill {
-  billId: string;
-  status: string;
-  statusColor: string;
-  /** Progress steps filled (of 5); `vetoed` paints the last filled step red. */
-  progress: number;
-  vetoed?: boolean;
-  summary: string;
-  author: string;
-  action: string;
-  actionDate: string;
-  votes?: { text: string; pendingNote?: string };
-  amberNote?: { lead: string; bold: string };
-  tags: string[];
-  companion?: string;
-}
-
-const RECENTLY_DECIDED: SampleBill[] = [
-  {
-    billId: 'SF 1832',
-    status: 'Signed into Law',
-    statusColor: t.colors.brand.deep,
-    progress: 5,
-    summary:
-      'Refines the state paid-leave program ahead of launch: clarifies employer premium splits, adds a small-business grant, and aligns the wage-replacement schedule with the unemployment-insurance base.',
-    author: 'Senator Alice Mann',
-    action: 'Signed by the Governor',
-    actionDate: 'July 6, 2026',
-    votes: { text: 'House 79–52 · Senate 36–30' },
-    tags: ['Labor', 'Health', 'Public Finance'],
-    companion: 'COMPANION HF 1976 · IN COMMITTEE',
-  },
-  {
-    billId: 'SF 940',
-    status: 'Vetoed',
-    statusColor: t.colors.status.vetoedText,
-    progress: 5,
-    vetoed: true,
-    summary:
-      'Would have issued a one-time registration-tax rebate funded by the projected surplus. Passed both chambers on party lines; returned without the Governor’s signature over long-term revenue concerns.',
-    author: 'Senator Jason Rarick',
-    action: 'Vetoed by the Governor',
-    actionDate: 'June 30, 2026',
-    votes: { text: 'House 68–66 · Senate 34–33' },
-    amberNote: {
-      lead: 'Possible next step: ',
-      bold: 'override needs two-thirds — 90 House · 45 Senate',
-    },
-    tags: ['Taxation', 'Transportation'],
-  },
-];
-
-const MOVING_NOW: SampleBill[] = [
-  {
-    billId: 'SF 2210',
-    status: 'Passed both chambers',
-    statusColor: t.colors.text.secondary,
-    progress: 4,
-    summary:
-      'The judiciary and public-safety omnibus — funds courts, corrections, and prosecution for the biennium, adds co-responder mental-health teams, updates use-of-force reporting, and increases county-attorney diversion grants.',
-    author: 'Senator Ron Latz',
-    action: 'Sent to conference committee after House amendments',
-    actionDate: 'June 24, 2026',
-    votes: { text: 'House 102–31 · Senate 45–21' },
-    tags: ['Public Safety', 'Judiciary'],
-    companion: 'COMPANION HF 2489 · LAID OVER',
-  },
-  {
-    billId: 'HF 615',
-    status: 'Passed House',
-    statusColor: t.colors.text.secondary,
-    progress: 3,
-    summary:
-      'Appropriates $120M to the Border-to-Border Broadband fund, prioritizing unserved rural households, and shortens the challenge-process window that lets incumbents contest grant awards.',
-    author: 'Representative Patty Acomb',
-    action:
-      'Received from House, first reading, referred to Agriculture, Veterans, Broadband and Rural Development',
-    actionDate: 'June 5, 2026',
-    votes: { text: 'House 121–12', pendingNote: '· Senate vote pending' },
-    tags: ['Infrastructure', 'Rural Development'],
-    companion: 'COMPANION SF 588 · IN COMMITTEE',
-  },
-  {
-    billId: 'SF 1847',
-    status: 'In Committee',
-    statusColor: t.colors.text.secondary,
-    progress: 2,
-    summary:
-      'The bill appropriates $2,500,000 from the bond proceeds fund for the development of a campground and recreational area in Brookston. It authorizes the sale and issuance of state bonds to fund this project and outlines the uses of the appropriated funds.',
-    author: 'Senator Jason Rarick',
-    action: 'Referred to the Capital Investment Committee',
-    actionDate: 'May 18, 2026',
-    amberNote: { lead: 'Vote threshold: ', bold: 'three-fifths to pass — 81 House · 41 Senate' },
-    tags: ['Capital Investment', 'Recreation', 'Local Development'],
-    companion: 'COMPANION HF 1210 · IN COMMITTEE',
-  },
-  {
-    billId: 'HF 1',
-    status: 'Introduced',
-    statusColor: t.colors.text.secondary,
-    progress: 1,
-    summary:
-      'The bill establishes an Office of Inspector General to enhance oversight of state-funded services, prevent fraud, and protect whistleblowers.',
-    author: 'Representative Patti Anderson',
-    action: 'Introduced, first reading',
-    actionDate: 'Apr 27, 2026',
-    tags: ['Fraud Prevention', 'Government Accountability', 'Grant Oversight'],
-    companion: 'COMPANION SF 316 · PROPOSED',
-  },
 ];
 
 // --- Small shared bits ---
@@ -672,123 +561,6 @@ function ProgressSteps({ filled, vetoed }: { filled: number; vetoed?: boolean })
   );
 }
 
-function TrackButtonDark({ onPress }: { onPress?: () => void }) {
-  const [hovered, hoverProps] = useHover();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Track bill"
-      onPress={onPress}
-      {...hoverProps}
-      style={[
-        styles.trackBtn,
-        t.shadows.md as object,
-        hovered && { backgroundColor: '#000000', borderColor: '#000000' },
-      ]}
-    >
-      <Plus size={16} color={t.colors.white} strokeWidth={2.8} />
-      <Text style={styles.trackBtnText}>Track</Text>
-    </Pressable>
-  );
-}
-
-function AmberFlag() {
-  return (
-    <Svg width={13} height={14} viewBox="0 0 24 24" fill="none">
-      <Path d="M6 22 V3" stroke={t.colors.status.amber} strokeWidth={2} strokeLinecap="round" />
-      <Path d="M6 3.5 H18.5 L15.5 8 L18.5 12.5 H6 Z" fill={t.colors.status.amber} />
-    </Svg>
-  );
-}
-
-function CompanionPill({ label }: { label: string }) {
-  const [hovered, hoverProps] = useHover();
-  return (
-    <View
-      {...hoverProps}
-      style={[styles.companionPill, hovered && { borderColor: t.colors.brand.base }]}
-    >
-      <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M4 8 H17 M13.5 4.5 L17 8 L13.5 11.5 M20 16 H7 M10.5 12.5 L7 16 L10.5 19.5"
-          stroke={t.colors.brand.deep}
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-      <Text style={styles.companionPillText}>{label}</Text>
-    </View>
-  );
-}
-
-function BillCardV2({ bill, onTrack }: { bill: SampleBill; onTrack: () => void }) {
-  const { isMobile } = useResponsive();
-  return (
-    <View style={[styles.billCard, t.shadows.card as object]}>
-      <View style={styles.billCardTop}>
-        <View style={styles.billCardTopLeft}>
-          <View style={styles.billBadgeSm}>
-            <Text style={styles.billBadgeSmText}>{bill.billId}</Text>
-          </View>
-          <Text style={[styles.billStatus, { color: bill.statusColor }]}>{bill.status}</Text>
-          {!isMobile ? <ProgressSteps filled={bill.progress} vetoed={bill.vetoed} /> : null}
-        </View>
-        <TrackButtonDark onPress={onTrack} />
-      </View>
-      {isMobile ? (
-        <View style={styles.progressRowMobile}>
-          <ProgressSteps filled={bill.progress} vetoed={bill.vetoed} />
-        </View>
-      ) : null}
-      <Text style={styles.billSummary}>{bill.summary}</Text>
-      <Text style={styles.billLine}>
-        Chief author: <Text style={styles.billAuthor}>{bill.author}</Text>
-      </Text>
-      <Text style={styles.billLine}>
-        Latest action: <Text style={styles.billAction}>{bill.action}</Text>
-        <Text style={styles.billActionDate}> · {bill.actionDate}</Text>
-      </Text>
-      {bill.votes ? (
-        <View style={styles.billVotesRow}>
-          <Check size={15} color={t.colors.text.muted} strokeWidth={2.6} />
-          <Text style={styles.billLineText}>
-            {bill.votes.text.split(/(\d+–\d+)/g).map((part, i) =>
-              /^\d+–\d+$/.test(part) ? (
-                <Text key={i} style={styles.billVoteNum}>
-                  {part}
-                </Text>
-              ) : (
-                <Text key={i}>{part}</Text>
-              ),
-            )}
-            {bill.votes.pendingNote ? (
-              <Text style={styles.billVotePending}> {bill.votes.pendingNote}</Text>
-            ) : null}
-          </Text>
-        </View>
-      ) : null}
-      {bill.amberNote ? (
-        <View style={styles.billAmberRow}>
-          <AmberFlag />
-          <Text style={styles.billAmberText}>
-            {bill.amberNote.lead}
-            <Text style={styles.billAmberBold}>{bill.amberNote.bold}</Text>
-          </Text>
-        </View>
-      ) : null}
-      <View style={styles.billTagsRow}>
-        {bill.tags.map((tag) => (
-          <View key={tag} style={styles.billTag}>
-            <Text style={styles.billTagText}>{tag}</Text>
-          </View>
-        ))}
-        {bill.companion ? <CompanionPill label={bill.companion} /> : null}
-      </View>
-    </View>
-  );
-}
-
 // --- The screen ---
 
 // Route entry. Mobile is an intentional redesign (docs/mockups/home-signed-out-mobile),
@@ -804,6 +576,18 @@ function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
   const { signInWithGoogle } = useAuth();
   const { isDesktop, isMobile } = useResponsive();
+  // Bill Activity — real, date-ordered data (#342: the section previously showed
+  // fabricated bills under real legislators' names). Mirrors the mobile home feed
+  // (#341); web shows more per NEXT-home-spec (§"Bill Activity"): 2 passed, 3
+  // introduced. "Recently Passed" = enacted (signed_into_law) by latest action;
+  // "Recently Introduced" = real introduction date desc.
+  const recentlyPassed = useBills(
+    undefined,
+    undefined,
+    { status: 'signed_into_law', sort: 'latest_action' },
+    { limit: 2 },
+  );
+  const recentlyIntroduced = useBills(undefined, undefined, { sort: 'introduced' }, { limit: 3 });
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [askFocused, setAskFocused] = useState(false);
   const [finderFocused, setFinderFocused] = useState(false);
@@ -1145,25 +929,51 @@ function HomeSignedOutDesktop() {
                 >
                   Bills Moving Through the Legislature
                 </Text>
-                <ViewAllButton onPress={() => navigation.navigate('Search')} />
+                <ViewAllButton onPress={() => navigation.navigate('Bills')} />
               </View>
               <View style={styles.billGroups}>
-                <View>
-                  <Text style={styles.billGroupLabel}>RECENTLY DECIDED</Text>
-                  <View style={styles.billStack}>
-                    {RECENTLY_DECIDED.map((bill) => (
-                      <BillCardV2 key={bill.billId} bill={bill} onTrack={signIn} />
-                    ))}
+                {(recentlyPassed.data?.data ?? []).length > 0 ? (
+                  <View>
+                    <Text style={styles.billGroupLabel}>RECENTLY PASSED</Text>
+                    <View style={styles.billStack}>
+                      {(recentlyPassed.data?.data ?? []).map((bill) => (
+                        <BillResultCard
+                          key={bill.id}
+                          bill={bill}
+                          onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                          onToggleTrack={signIn}
+                          onSponsorPress={(legislatorId) =>
+                            navigation.navigate('LegislatorProfile', { legislatorId })
+                          }
+                          onRollCalls={() =>
+                            navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
+                          }
+                        />
+                      ))}
+                    </View>
                   </View>
-                </View>
-                <View>
-                  <Text style={styles.billGroupLabel}>MOVING NOW</Text>
-                  <View style={styles.billStack}>
-                    {MOVING_NOW.map((bill) => (
-                      <BillCardV2 key={bill.billId} bill={bill} onTrack={signIn} />
-                    ))}
+                ) : null}
+                {(recentlyIntroduced.data?.data ?? []).length > 0 ? (
+                  <View>
+                    <Text style={styles.billGroupLabel}>RECENTLY INTRODUCED</Text>
+                    <View style={styles.billStack}>
+                      {(recentlyIntroduced.data?.data ?? []).map((bill) => (
+                        <BillResultCard
+                          key={bill.id}
+                          bill={bill}
+                          onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                          onToggleTrack={signIn}
+                          onSponsorPress={(legislatorId) =>
+                            navigation.navigate('LegislatorProfile', { legislatorId })
+                          }
+                          onRollCalls={() =>
+                            navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
+                          }
+                        />
+                      ))}
+                    </View>
                   </View>
-                </View>
+                ) : null}
               </View>
             </Container>
           </View>
