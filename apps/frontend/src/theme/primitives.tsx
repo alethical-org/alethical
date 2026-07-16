@@ -1116,7 +1116,9 @@ const styles = StyleSheet.create({
     color: t.colors.brand.deep,
     marginBottom: 6,
   },
-  menuSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
+  // paddingVertical 12 (not 9) gives the 21px rows more breathing room within a
+  // group and lifts each row's tap target to ~49px (clears the 44px minimum).
+  menuSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
   menuSubRowText: {
     fontFamily: t.typography.title,
     fontSize: 21,
