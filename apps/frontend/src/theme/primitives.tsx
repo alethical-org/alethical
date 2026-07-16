@@ -153,16 +153,6 @@ export function Sparkle({
   );
 }
 
-/** Purple "Grounded Ask" pill (Search → Bills row). Sora is the pill's typeface. */
-function GroundedAskPill() {
-  return (
-    <View style={styles.gaPill}>
-      <Sparkle size={11} />
-      <Text style={styles.gaPillText}>Grounded Ask</Text>
-    </View>
-  );
-}
-
 /** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
 function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {
   const c = disabled ? '#a4aba5' : t.colors.brand.deep;
@@ -277,7 +267,6 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
           <Text style={[styles.menuRowTitle, disabled && styles.menuRowTitleDisabled]}>
             {item.label}
           </Text>
-          {item.id === 'search-bills' ? <GroundedAskPill /> : null}
         </View>
         {item.description ? (
           <Text style={[styles.menuRowDesc, disabled && styles.menuRowDescDisabled]}>
@@ -487,15 +476,16 @@ export function TopNav({
   }, [openMenu]);
   const dropdownMenus = MENUS.filter((menu) => menu.key !== 'ask');
   // Mobile flattens every menu's roadmap items into one pill row. Search items keep
-  // their bare label; Track-only items are prefixed ("Legislators" → "Track Legislators")
-  // to disambiguate. → Issues · Candidates · Track Legislators.
+  // their bare label; Track-only items collapse into a single "Tracking Features"
+  // pill rather than listing each one. → Issues · Candidates · Tracking Features.
   const searchRoadmap = navDropdownItems('search').roadmap;
   const searchRoadmapLabels = new Set(searchRoadmap.map((item) => item.label));
+  const trackOnlyRoadmap = navDropdownItems('track').roadmap.filter(
+    (item) => !searchRoadmapLabels.has(item.label),
+  );
   const mobileRoadmapPills = [
     ...searchRoadmap.map((item) => item.label),
-    ...navDropdownItems('track')
-      .roadmap.filter((item) => !searchRoadmapLabels.has(item.label))
-      .map((item) => `Track ${item.label}`),
+    ...(trackOnlyRoadmap.length > 0 ? ['Tracking Features'] : []),
   ];
   const navigate = (item: IaItem) => {
     setOpenMenu(null);
@@ -614,6 +604,7 @@ export function TopNav({
               ) : null}
               {dropdownMenus.map((menu) => {
                 const { live } = navDropdownItems(menu.key);
+                if (live.length === 0) return null;
                 return (
                   <View key={menu.key} style={styles.menuGroup}>
                     <Text style={styles.menuGroupLabel}>{menu.label.toUpperCase()}</Text>
@@ -625,7 +616,6 @@ export function TopNav({
                         style={styles.menuSubRow}
                       >
                         <Text style={styles.menuSubRowText}>{item.label}</Text>
-                        {item.id === 'search-bills' ? <GroundedAskPill /> : null}
                       </Pressable>
                     ))}
                   </View>
@@ -1074,25 +1064,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   menuRowDescDisabled: { color: '#b3b9b4' },
-  gaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 3,
-    paddingLeft: 7,
-    paddingRight: 8,
-    borderRadius: t.radii.pill,
-    backgroundColor: t.colors.purple.tint,
-    borderWidth: 1,
-    borderColor: t.colors.purple.border,
-  },
-  gaPillText: {
-    fontFamily: t.typography.sora,
-    fontSize: t.fontSizes.caption,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.2,
-    color: t.colors.purple.base,
-  },
   roadmapLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
