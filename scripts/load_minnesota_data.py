@@ -15,10 +15,14 @@ if str(ROOT) not in sys.path:
 
 from alethical.db.session import (  # noqa: E402
     NO_PREPARED_STATEMENTS,
+    database_url_for_target,
     normalize_database_url,
 )
 from alethical.pipeline.minnesota import BillTarget, MinnesotaIngestionPipeline  # noqa: E402
-from alethical.pipeline.sessions import DEFAULT_SESSION_CODE  # noqa: E402
+from alethical.pipeline.sessions import (  # noqa: E402
+    CURRENT_SESSION_SLUG,
+    DEFAULT_SESSION_CODE,
+)
 
 DEFAULT_BILLS = [
     BillTarget(chamber="House", bill_number="2136"),
@@ -102,11 +106,33 @@ def main() -> None:
         action="store_true",
         help="Load roster identity/service rows without fetching each member profile.",
     )
+    parser.add_argument(
+        "--reconcile-roster",
+        action="store_true",
+        help="After the roster load, reconcile current membership against the official "
+        "roster PDF (deactivate members no longer listed).",
+    )
+    parser.add_argument(
+        "--reconcile-only",
+        action="store_true",
+        help="Only reconcile current membership against the roster PDF; skip the roster "
+        "HTML scrape and bills.",
+    )
+    parser.add_argument(
+        "--session-slug",
+        default=CURRENT_SESSION_SLUG,
+        help="Session slug to reconcile membership for, e.g. 94-2025-regular.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="With reconciliation, report what would change without writing.",
+    )
     args = parser.parse_args()
 
     database_url = normalize_database_url(
         args.database_url
-        or "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+        or database_url_for_target(os.environ.get("ALETHICAL_DATABASE_TARGET"))
     )
     targets = [parse_bill(value, args.session_code) for value in args.bill]
     if not targets and not args.skip_bills:
@@ -120,11 +146,26 @@ def main() -> None:
     )
     with Session(engine) as session:
         pipeline = MinnesotaIngestionPipeline(session)
+        if args.reconcile_only:
+            report = pipeline.reconcile_current_members(
+                args.session_slug, dry_run=args.dry_run
+            )
+            print(report.summary())
+            if args.dry_run:
+                session.rollback()
+            else:
+                session.commit()
+            return
         if not args.skip_legislators:
             stats = pipeline.ingest_roster(
                 limit=args.legislator_limit, fetch_profiles=not args.roster_only
             )
             print("legislators", stats)
+            if args.reconcile_roster:
+                report = pipeline.reconcile_current_members(
+                    args.session_slug, dry_run=args.dry_run
+                )
+                print(report.summary())
         if not args.skip_bills:
             if args.all_bills:
                 targets = pipeline.discover_bill_targets(

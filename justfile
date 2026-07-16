@@ -53,3 +53,9 @@ pipeline-work target:
   uv run python -m alethical.pipeline.oban --target {{target}} drain committee_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain vote_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain ai_batch
+
+# Reconcile current legislator membership against the official roster PDF.
+# Dry-run by default (no writes); pass apply=true to deactivate departed members.
+# Set ALETHICAL_DATABASE_TARGET=production to run against prod.
+reconcile-roster apply="false":
+  uv run python scripts/load_minnesota_data.py --reconcile-only {{ if apply == "true" { "" } else { "--dry-run" } }}

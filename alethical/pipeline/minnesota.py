@@ -15,6 +15,13 @@ from sqlalchemy import delete, select, text, update
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
+from alethical.pipeline.roster_pdf import (
+    ReconcileReport,
+    RosterMember,
+    fetch_roster_pdf_text,
+    name_matches,
+    parse_roster_pdf,
+)
 from alethical.pipeline.sessions import (
     CURRENT_SESSION_SLUG,
     DEFAULT_SESSION_CODE,
@@ -978,6 +985,82 @@ class MinnesotaIngestionPipeline:
             run, {"members_seen": len(roster["members"]), "members_ingested": ingested}
         )
         return run.stats
+
+    def reconcile_current_members(
+        self,
+        session_slug: str = CURRENT_SESSION_SLUG,
+        *,
+        roster_members: list[RosterMember] | None = None,
+        dry_run: bool = False,
+    ) -> ReconcileReport:
+        """Make DB current-membership match the official roster PDF.
+
+        The HTML roster scrape only ever adds/updates members present in the
+        source, so a member who leaves mid-biennium lingers as ``is_current``.
+        This reconciles against the canonical PDF: any current member whose seat
+        the PDF no longer lists -- vacated, or now held by someone else -- is set
+        ``is_current = False``. Rows are never deleted (identity, service
+        history, and bill authorship are preserved); creating a brand-new member
+        stays the HTML scrape's job and is surfaced here only as a ``missing``
+        warning. Idempotent and safe to re-run.
+        """
+        if roster_members is None:
+            roster_members = parse_roster_pdf(fetch_roster_pdf_text())
+
+        session = self.db.scalar(
+            select(LegislativeSession).where(LegislativeSession.slug == session_slug)
+        )
+        if session is None:
+            raise ValueError(f"No legislative session found for slug {session_slug!r}")
+
+        by_seat: dict[tuple[str, str], RosterMember] = {
+            (m.chamber, m.district_code): m for m in roster_members
+        }
+
+        rows = self.db.execute(
+            select(LegislatorServicePeriod, Legislator, District, Chamber)
+            .join(Legislator, Legislator.id == LegislatorServicePeriod.legislator_id)
+            .join(District, District.id == LegislatorServicePeriod.district_id)
+            .join(Chamber, Chamber.id == LegislatorServicePeriod.chamber_id)
+            .where(
+                LegislatorServicePeriod.session_id == session.id,
+                LegislatorServicePeriod.is_current.is_(True),
+                District.code.not_like("%-unknown"),
+            )
+        ).all()
+
+        kept = 0
+        deactivated: list[tuple[str, str, str]] = []
+        matched_seats: set[tuple[str, str]] = set()
+        for service_period, legislator, district, chamber in rows:
+            seat = (chamber.chamber_type.value, district.code)
+            member = by_seat.get(seat)
+            if member is not None and name_matches(
+                member.last_name, legislator.full_name
+            ):
+                kept += 1
+                matched_seats.add(seat)
+                continue
+            deactivated.append((seat[0], seat[1], legislator.full_name))
+            if not dry_run:
+                service_period.is_current = False
+
+        missing = [
+            (m.chamber, m.district_code, f"{m.last_name}, {m.first_name}")
+            for seat, m in sorted(by_seat.items())
+            if seat not in matched_seats
+        ]
+
+        if not dry_run:
+            self.db.flush()
+
+        return ReconcileReport(
+            pdf_total=len(roster_members),
+            kept=kept,
+            deactivated=deactivated,
+            missing=missing,
+            dry_run=dry_run,
+        )
 
     def ingest_bill_target(self, refs: dict[str, Any], target: BillTarget) -> Any:
         run = self.start_run(
