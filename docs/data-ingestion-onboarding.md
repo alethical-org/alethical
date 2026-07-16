@@ -128,6 +128,22 @@ Reference URL shapes: `https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/` �
   → **separate adapter** (the HTML differs).
 - **Committee memberships** are scraped from those same profile pages; a
   legislator with zero committees is valid (`committee_count = 0`).
+- **Membership reconciliation (canonical PDF):** the HTML scrape only ever
+  *adds/updates* members, so a member who leaves mid-biennium lingers as
+  `is_current`. The official printable roster PDF
+  (`https://www.house.mn.gov/hinfo/leginfo/memroster.pdf`, linked as the "All
+  Members Roster" from both `senate.mn` and `house.mn.gov`) is the canonical
+  authority for **who currently holds each seat**. `reconcile_current_members`
+  ([roster_pdf.py](../alethical/pipeline/roster_pdf.py) +
+  [minnesota.py](../alethical/pipeline/minnesota.py)) parses it and sets
+  `is_current = False` on any current member the PDF no longer lists (vacated,
+  or the seat is now held by someone else). Rows are never deleted. Run it via
+  `just reconcile-roster` (dry-run) / `just reconcile-roster apply=true`, or
+  `scripts/load_minnesota_data.py --reconcile-only [--dry-run]`; the normal
+  roster load also runs it when passed `--reconcile-roster`. **Re-run at each new
+  biennium (~every 2 years, against the new `--session-slug`) and whenever a
+  member leaves mid-session.** Spec:
+  [legislator-roster-canonical-membership-spec.md](legislator-roster-canonical-membership-spec.md).
 
 ## C — Roll-call votes (chamber-specific)
 
@@ -223,7 +239,8 @@ just pipeline local --write --allow-writes     # commit after review
 
 | Command | Purpose |
 |---|---|
-| `uv run python scripts/load_minnesota_data.py` | Live loader — roster + profiles + smoke bill set, idempotent (`--legislator-limit N`, `--bill HF2136`, `--roster-only`, `--skip-bills`) |
+| `uv run python scripts/load_minnesota_data.py` | Live loader — roster + profiles + smoke bill set, idempotent (`--legislator-limit N`, `--bill HF2136`, `--roster-only`, `--skip-bills`, `--reconcile-roster`, `--reconcile-only [--dry-run]`, `--session-slug`) |
+| `just reconcile-roster [apply=true]` | Reconcile current membership against the official roster PDF (dry-run by default; deactivates departed members). `ALETHICAL_DATABASE_TARGET=production` to target prod |
 | `uv run python scripts/load_sample_data.py` | Deterministic fixtures for tests/offline demos (no network) |
 | `uv run python scripts/backfill_rag_bulk.py` | Threaded RAG backfill for current versions missing chunks |
 | `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans` | Committee repair/backfill |
