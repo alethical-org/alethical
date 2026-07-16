@@ -1394,7 +1394,24 @@ class MinnesotaIngestionPipeline:
     def ingest_bills(self, targets: list[BillTarget]) -> dict[str, Any]:
         refs = self.seed_reference_data()
         bills = [self.ingest_bill_target(refs, target) for target in targets]
-        self.refresh_legislator_stats(refs)
+        # Refresh stats only for the legislators this batch actually touched (the
+        # sponsors of its bills), not the whole jurisdiction — otherwise concurrent
+        # chunk workers all contend on the same ~400 legislator_stats rows and hit
+        # Postgres's statement timeout, crashing the drain (#257). A removed sponsor
+        # (rare for MN bills) reconciles on the next full/roster refresh.
+        bill_ids = [bill.id for bill in bills]
+        affected_legislator_ids = (
+            set(
+                self.db.scalars(
+                    select(Sponsorship.legislator_id)
+                    .where(Sponsorship.bill_id.in_(bill_ids))
+                    .distinct()
+                ).all()
+            )
+            if bill_ids
+            else set()
+        )
+        self.refresh_legislator_stats(refs, legislator_ids=affected_legislator_ids)
         return {
             "bills_ingested": len(bills),
             "bill_keys": [bill.bill_key for bill in bills],
@@ -1417,8 +1434,17 @@ class MinnesotaIngestionPipeline:
             result.target for result in results if result.bill_key not in existing_keys
         ]
 
-    def refresh_legislator_stats(self, refs: dict[str, Any]) -> None:
-        legislators = self.db.scalars(select(Legislator)).all()
+    def refresh_legislator_stats(
+        self, refs: dict[str, Any], legislator_ids: set[Any] | None = None
+    ) -> None:
+        # Scope to specific legislators when given (the ones a bill batch touched),
+        # so concurrent chunk workers don't all rewrite every legislator_stats row
+        # and deadlock to a statement timeout (#257). None = every legislator
+        # (the roster sync path, where all members are touched anyway).
+        query = select(Legislator)
+        if legislator_ids is not None:
+            query = query.where(Legislator.id.in_(legislator_ids))
+        legislators = self.db.scalars(query).all()
         for legislator in legislators:
             stats = self.db.scalar(
                 select(LegislatorStats).where(

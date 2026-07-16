@@ -13,6 +13,7 @@ from alethical.db.models import (
     BillVersion,
     Legislator,
     LegislatorServicePeriod,
+    LegislatorStats,
 )
 from alethical.db.session import get_engine
 from alethical.pipeline.minnesota import (
@@ -130,6 +131,39 @@ def test_roster_only_member_can_be_ingested(seed_database: None) -> None:
         assert (
             service_period.photo_url == "https://example.test/representatives/60b.jpg"
         )
+
+
+def test_refresh_legislator_stats_scopes_to_given_ids(seed_database: None) -> None:
+    """#257: refresh_legislator_stats(refs, legislator_ids=...) recomputes only the
+    given legislators, so concurrent bill-sync chunk workers don't all rewrite every
+    legislator_stats row and deadlock to a statement timeout. Passing None keeps the
+    whole-jurisdiction behavior the roster sync relies on."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        session_id = refs["session"].id
+        touched = pipeline.upsert_legislator(refs, "Rep. Touched", external_key="t-1")
+        untouched = pipeline.upsert_legislator(
+            refs, "Rep. Untouched", external_key="u-1"
+        )
+        session.flush()
+
+        def stats_for(legislator_id: uuid.UUID) -> LegislatorStats | None:
+            return session.scalar(
+                select(LegislatorStats).where(
+                    LegislatorStats.legislator_id == legislator_id,
+                    LegislatorStats.session_id == session_id,
+                )
+            )
+
+        # Scoped: only the named legislator's stats are (re)computed.
+        pipeline.refresh_legislator_stats(refs, legislator_ids={touched.id})
+        assert stats_for(touched.id) is not None
+        assert stats_for(untouched.id) is None
+
+        # None → whole jurisdiction (roster path), so the other one now gets stats too.
+        pipeline.refresh_legislator_stats(refs)
+        assert stats_for(untouched.id) is not None
 
 
 def test_reference_upserts_skip_advisory_lock_when_rows_exist(
