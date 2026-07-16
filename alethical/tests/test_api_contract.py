@@ -1862,6 +1862,33 @@ def test_bills_sort_default_is_latest_action_unchanged(client):
     assert default_files == [90004, 90003, 90002, 90001, 90006, 90005, 90007]
 
 
+def test_bills_sort_newest_orders_by_file_number_descending(client):
+    """sort=newest orders by file number DESC — MN numbers bills at introduction,
+    so the highest number is the most recently introduced. This is the honest
+    recency signal for the mobile home Bill Activity feed while action dates are
+    unpopulated (#328); a real introduction-date sort supersedes it later (#329)."""
+    from alethical.db.schema import load_schema
+
+    session_slug = _seed_progress_sort_bills(load_schema())
+
+    response = client.get(
+        "/api/v1/bills",
+        params={"session": session_slug, "sort": "newest", "limit": 100},
+    )
+    assert response.status_code == 200
+    file_numbers = [item["file_number"] for item in response.json()["data"]]
+    assert file_numbers == sorted(file_numbers, reverse=True)
+    assert file_numbers == [90007, 90006, 90005, 90004, 90003, 90002, 90001]
+
+    # limit=1 yields the single newest-numbered bill (the home's "Recently
+    # Introduced" card fetches exactly this).
+    top = client.get(
+        "/api/v1/bills",
+        params={"session": session_slug, "sort": "newest", "limit": 1},
+    )
+    assert [item["file_number"] for item in top.json()["data"]] == [90007]
+
+
 def test_bills_sort_rejects_unknown_value(client):
     response = client.get(
         "/api/v1/bills",

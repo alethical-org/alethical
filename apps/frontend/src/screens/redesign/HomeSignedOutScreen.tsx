@@ -20,6 +20,7 @@ import {
   GoogleButton,
   MNMap,
   PageBackground,
+  PageDots,
   PrimaryButton,
   TopNav,
 } from '../../theme/primitives';
@@ -27,6 +28,8 @@ import { IaItem, MenuKey } from '../../navigation/ia';
 import { fieldFocusRing } from '../../theme/fieldFocus';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useBill, useBills } from '../../hooks/useAppQueries';
+import type { Bill } from '../../data/types';
 
 // The v2 signed-out home — docs/mockups/home-signed-out-v2 (README = state/token/copy
 // spec; the .dc.html = literal values). The answer card and the bill cards are STATIC
@@ -788,7 +791,16 @@ function BillCardV2({ bill, onTrack }: { bill: SampleBill; onTrack: () => void }
 
 // --- The screen ---
 
+// Route entry. Mobile is an intentional redesign (docs/mockups/home-signed-out-mobile),
+// not a reflow of the desktop layout, so it renders as its own component. Switching
+// on a whole component (rather than an early return inside one) keeps each layout's
+// hook order stable across a resize that crosses the breakpoint.
 export function HomeSignedOutScreen() {
+  const { isDesktop } = useResponsive();
+  return isDesktop ? <HomeSignedOutDesktop /> : <HomeSignedOutMobile />;
+}
+
+function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
   const { signInWithGoogle } = useAuth();
   const { isDesktop, isMobile } = useResponsive();
@@ -1195,6 +1207,705 @@ export function HomeSignedOutScreen() {
     </PageBackground>
   );
 }
+
+// ============================================================================
+// MOBILE HOME (v3) — docs/mockups/home-signed-out-mobile. An intentional redesign
+// for mobile web (a separate web redesign follows), so it's a distinct single-
+// column composition, not a reflow of the desktop layout above. Everything here
+// is wired to REAL data (no static marketing cards):
+//   • In the News = two editorially-pinned bills, fetched by key so they bypass
+//     the /bills AI-summary list gate; rendered with their live status.
+//   • Bill Activity = live sort=newest (file-number order == introduction order —
+//     the honest recency signal while action dates are unpopulated, #328/#329).
+// ============================================================================
+
+// Editorial "In the News" pins — keys verified against production 2026-07-15.
+// Inclusion + order are editorial (docs/mockups/home-signed-out-mobile/NEXT-home-spec.md);
+// each card shows that bill's real data. HF 4138 is the enacted social-media law
+// the design's card 1 depicts (the mock labeled it "SF 3933", which is a different
+// bill in our corpus). SF 856 is the enacted Office of the Inspector General bill.
+const IN_THE_NEWS: { key: string; hotIssue: boolean }[] = [
+  { key: '94-2026-HF4138', hotIssue: true },
+  { key: '94-2025-SF856', hotIssue: false },
+];
+
+// status text → filled progress steps (of 5), mirroring BillResultCard.billStage
+// so the bar always agrees with the shown status label.
+function statusToProgress(status: string): { filled: number; vetoed: boolean } {
+  const s = status.toLowerCase();
+  if (s.includes('veto')) return { filled: 5, vetoed: true };
+  if (s.includes('signed') || s.includes('law') || s.includes('enacted'))
+    return { filled: 5, vetoed: false };
+  if (s.includes('senate')) return { filled: 4, vetoed: false };
+  if (s.includes('house')) return { filled: 3, vetoed: false };
+  if (s.includes('committee')) return { filled: 2, vetoed: false };
+  return { filled: 1, vetoed: false };
+}
+
+/** A cleaner display title: prefer the AI short title, fall back to the legal title. */
+const billHeadline = (bill: Bill) => bill.aiAnalysis?.shortTitle || bill.title;
+
+/** Green mono bill badge (e.g. "HF 4138"). */
+function BillBadge({ label }: { label: string }) {
+  return (
+    <View style={m.billBadge}>
+      <Text style={m.billBadgeText}>{label}</Text>
+    </View>
+  );
+}
+
+/** "See more" — full-width outline button → default Search Bills. */
+function SeeMore({ onPress }: { onPress: () => void }) {
+  const [hovered, hoverProps] = useHover();
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={onPress}
+      {...hoverProps}
+      style={[
+        m.seeMore,
+        transition('border-color'),
+        hovered && { borderColor: t.colors.brand.base },
+      ]}
+    >
+      <Text style={[m.seeMoreText, hovered && { color: t.colors.brand.deep }]}>See more</Text>
+      <Text style={[m.seeMoreText, hovered && { color: t.colors.brand.deep }]}>→</Text>
+    </Pressable>
+  );
+}
+
+/** In-the-News card — editorial pin, real bill data. Whole card → bill detail. */
+function NewsCardMobile({
+  bill,
+  hotIssue,
+  onPress,
+}: {
+  bill: Bill;
+  hotIssue: boolean;
+  onPress: () => void;
+}) {
+  const [hovered, hoverProps] = useHover();
+  const summary = bill.aiAnalysis?.summary;
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={onPress}
+      {...hoverProps}
+      style={[m.card, transition('border-color, box-shadow'), hovered && m.cardHover]}
+    >
+      <View style={m.cardTopRow}>
+        <BillBadge label={bill.identifier} />
+        {hotIssue ? (
+          <View style={m.hotPill}>
+            <Text style={m.hotPillText}>🔥 Hot issue</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={m.newsTitle}>{billHeadline(bill)}</Text>
+      {summary ? (
+        <Text style={m.newsSummary} numberOfLines={4}>
+          {summary}
+        </Text>
+      ) : null}
+      <View style={m.cardMeta}>
+        <Text style={m.metaStatus}>{bill.status}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+/** Bill Activity card — live data. Whole card → bill detail. */
+function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void }) {
+  const [hovered, hoverProps] = useHover();
+  const { filled, vetoed } = statusToProgress(bill.status);
+  const author = bill.sponsors?.[0]?.name;
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={onPress}
+      {...hoverProps}
+      style={[m.card, transition('border-color, box-shadow'), hovered && m.cardHover]}
+    >
+      <View style={m.activityHeadRow}>
+        <BillBadge label={bill.identifier} />
+        <Text style={m.activityStatus}>{bill.status}</Text>
+      </View>
+      <View style={m.activityProgress}>
+        <ProgressSteps filled={filled} vetoed={vetoed} />
+      </View>
+      <Text style={m.activityTitle}>{billHeadline(bill)}</Text>
+      {author ? (
+        <View style={m.cardMeta}>
+          <Text style={m.metaStatus}>
+            Chief author: <Text style={m.metaStrong}>{author}</Text>
+          </Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function HomeSignedOutMobile() {
+  const navigation = useNavigation<any>();
+  const { signInWithGoogle } = useAuth();
+  const [askFocused, setAskFocused] = useState(false);
+  const [finderFocused, setFinderFocused] = useState(false);
+  const [askValue, setAskValue] = useState('');
+  const [finderValue, setFinderValue] = useState('');
+  const askInputRef = useRef<TextInput>(null);
+  const finderInputRef = useRef<TextInput>(null);
+
+  // In the News — two pinned bills by key (bypasses the /bills AI-summary gate).
+  const news0 = useBill(IN_THE_NEWS[0].key);
+  const news1 = useBill(IN_THE_NEWS[1].key);
+  // Bill Activity — live, honest interim: newest by file number (== introduction
+  // order) for "Recently Introduced"; newest signed bill for "Signed into Law".
+  const introduced = useBills(undefined, undefined, { sort: 'newest' }, { limit: 1 });
+  const signed = useBills(
+    undefined,
+    undefined,
+    { status: 'signed_into_law', sort: 'newest' },
+    { limit: 1 },
+  );
+
+  // Auto-grow the ask textarea from one line to a cap, then scroll (web only).
+  useLayoutEffect(() => {
+    if (!isWeb) return;
+    const el = askInputRef.current as unknown as HTMLTextAreaElement | null;
+    if (!el || typeof el.scrollHeight !== 'number') return;
+    const empty = !askValue;
+    if (empty) el.value = ASK_PLACEHOLDER;
+    el.style.height = 'auto';
+    const next = Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT);
+    if (empty) el.value = '';
+    el.style.height = `${next}px`;
+  }, [askValue]);
+
+  const signIn = () => void signInWithGoogle();
+  const submitAsk = () => {
+    const question = askValue.trim();
+    if (!question) {
+      askInputRef.current?.focus();
+      return;
+    }
+    navigation.navigate('Ask', { q: question });
+  };
+  const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
+  const openSearchBills = () => navigation.navigate('Bills');
+  const openFinder = () => navigation.navigate('FindMyLegislator');
+
+  const titleCase = (s: string) =>
+    s
+      .toLowerCase()
+      .split(' ')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  const fillFinder = (city: string) => {
+    setFinderValue(titleCase(city));
+    finderInputRef.current?.focus();
+  };
+
+  const newsBills = [
+    { pin: IN_THE_NEWS[0], bill: news0.data },
+    { pin: IN_THE_NEWS[1], bill: news1.data },
+  ].filter((n) => n.bill != null) as { pin: (typeof IN_THE_NEWS)[number]; bill: Bill }[];
+  const introducedBill = introduced.data?.data?.[0];
+  const signedBill = signed.data?.data?.[0];
+
+  const finderDotsWeb: object = isWeb
+    ? {
+        backgroundImage: t.gradients.dotGreen,
+        backgroundSize: '30px 30px',
+        maskImage: 'linear-gradient(to bottom, transparent 0%, #000 36%, transparent 92%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, #000 36%, transparent 92%)',
+      }
+    : {};
+  const finderGradientWeb: object = isWeb
+    ? { backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)' }
+    : { backgroundColor: t.colors.tint.t100 };
+  const accountGradientWeb: object = isWeb
+    ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' }
+    : { backgroundColor: t.colors.tint.t50 };
+
+  return (
+    <PageBackground>
+      <View style={m.root}>
+        <ScrollView style={m.scroll} contentContainerStyle={m.scrollContent}>
+          {isWeb ? <PageDots /> : null}
+
+          <TopNav
+            variant="home"
+            onNavigate={(item: IaItem) => {
+              switch (item.id) {
+                case 'search-bills':
+                  return navigation.navigate('Bills');
+                case 'search-legislators':
+                  return navigation.navigate('Legislators');
+                case 'search-find-my-legislator':
+                  return navigation.navigate('FindMyLegislator');
+                case 'track-bills':
+                  return navigation.navigate('Tracked');
+                default:
+                  return;
+              }
+            }}
+            onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
+            onSignIn={signIn}
+          />
+
+          {/* HERO COPY (no ask field — Ask is its own section below) */}
+          <Container style={m.heroBody}>
+            <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
+            <Text accessibilityRole="header" style={m.heroH1}>
+              Grounded answers{'\n'}
+              <Text style={m.heroH1Green}>on Minnesota law</Text>
+            </Text>
+            <Text style={m.heroSubhead}>
+              We read every bill so you don’t have to — what it says, where it stands, and how
+              everyone voted. Plain language, every answer linked to official sources.
+            </Text>
+          </Container>
+
+          {/* IN THE NEWS — editorial pins, real data */}
+          {newsBills.length > 0 ? (
+            <Container style={m.section}>
+              <Text style={m.eyebrow}>IN THE NEWS</Text>
+              <View style={m.cardStack}>
+                {newsBills.map(({ pin, bill }) => (
+                  <NewsCardMobile
+                    key={bill.id}
+                    bill={bill}
+                    hotIssue={pin.hotIssue}
+                    onPress={() => openBill(bill.id)}
+                  />
+                ))}
+              </View>
+              <SeeMore onPress={openSearchBills} />
+            </Container>
+          ) : null}
+
+          {/* LEGISLATIVE BILL ACTIVITY — live */}
+          {introducedBill || signedBill ? (
+            <Container style={m.section}>
+              <Text style={m.eyebrow}>2025–2026 LEGISLATIVE SESSION</Text>
+              <Text accessibilityRole="header" style={m.sectionH2}>
+                Legislative Bill Activity
+              </Text>
+              {signedBill ? (
+                <View style={m.activityGroup}>
+                  <Text style={m.groupLabel}>SIGNED INTO LAW</Text>
+                  <ActivityCardMobile bill={signedBill} onPress={() => openBill(signedBill.id)} />
+                </View>
+              ) : null}
+              {introducedBill ? (
+                <View style={m.activityGroup}>
+                  <Text style={m.groupLabel}>RECENTLY INTRODUCED</Text>
+                  <ActivityCardMobile
+                    bill={introducedBill}
+                    onPress={() => openBill(introducedBill.id)}
+                  />
+                </View>
+              ) : null}
+              <SeeMore onPress={openSearchBills} />
+            </Container>
+          ) : null}
+
+          {/* ASK — purple AI entry point */}
+          <Container style={m.section}>
+            <Text style={m.eyebrow}>HAVE A QUESTION?</Text>
+            <Text style={m.askSub}>Plain language answers linked to official sources.</Text>
+            <FieldShell focused={askFocused} style={m.askShell}>
+              <Search size={22} color={t.colors.text.faint} strokeWidth={2} style={m.askIcon} />
+              <TextInput
+                ref={askInputRef}
+                value={askValue}
+                onChangeText={setAskValue}
+                onFocus={() => setAskFocused(true)}
+                onBlur={() => setAskFocused(false)}
+                multiline
+                numberOfLines={1}
+                blurOnSubmit={false}
+                onKeyPress={(event) => {
+                  const ne = event.nativeEvent as { key?: string; shiftKey?: boolean };
+                  if (isWeb && ne.key === 'Enter' && !ne.shiftKey) {
+                    (event as { preventDefault?: () => void }).preventDefault?.();
+                    submitAsk();
+                  }
+                }}
+                placeholder={ASK_PLACEHOLDER}
+                placeholderTextColor={t.colors.text.faint}
+                style={m.askInput}
+              />
+            </FieldShell>
+            <AskButton onPress={submitAsk} />
+          </Container>
+
+          {/* FIND MY LEGISLATOR — green band */}
+          <View style={[m.finderBand, finderGradientWeb]}>
+            {isWeb ? (
+              <View
+                pointerEvents="none"
+                style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
+              />
+            ) : null}
+            <Container style={m.section}>
+              <Text accessibilityRole="header" style={m.finderH2}>
+                Find My Legislator
+              </Text>
+              <Text style={m.finderSub}>
+                Find who represents you — their profile, committees, and the bills they’ve authored.
+              </Text>
+              <FieldShell focused={finderFocused} style={m.finderShell}>
+                <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
+                <TextInput
+                  ref={finderInputRef}
+                  value={finderValue}
+                  onChangeText={setFinderValue}
+                  onFocus={() => setFinderFocused(true)}
+                  onBlur={() => setFinderFocused(false)}
+                  onSubmitEditing={openFinder}
+                  placeholder="Enter an address, city, or area"
+                  placeholderTextColor={t.colors.text.faint}
+                  style={m.finderInput}
+                />
+              </FieldShell>
+              <Pressable accessibilityRole="button" onPress={openFinder} style={m.findButton}>
+                <Text style={m.findButtonText}>Find</Text>
+              </Pressable>
+              <View style={m.cityRow}>
+                {CITIES.slice(0, 6).map((city) => (
+                  <FillChip key={city} label={city} city onPress={() => fillFinder(city)} />
+                ))}
+              </View>
+            </Container>
+          </View>
+
+          {/* BE IN THE KNOW — account */}
+          <Container style={m.section}>
+            <View style={[m.accountCard, accountGradientWeb]}>
+              <Text accessibilityRole="header" style={m.accountH3}>
+                Be in the Know
+              </Text>
+              <Text style={m.accountBody}>
+                Search bills and legislators, find who represents you, and get cited answers — no
+                account needed. An account makes it yours: track bills, keep chat history, and pick
+                up where you left off.
+              </Text>
+              <GoogleButton onPress={signIn} />
+            </View>
+          </Container>
+
+          <Footer
+            onPrivacy={() => navigation.navigate('Privacy')}
+            onTerms={() => navigation.navigate('Terms')}
+          />
+        </ScrollView>
+      </View>
+    </PageBackground>
+  );
+}
+
+/** Full-width purple Ask button (mobile Ask section). */
+function AskButton({ onPress }: { onPress: () => void }) {
+  const [hovered, hoverProps] = useHover();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      {...hoverProps}
+      style={[
+        m.askButton,
+        transition('background-color'),
+        hovered && { backgroundColor: '#4a26b0' },
+      ]}
+    >
+      <Text style={m.askButtonText}>Ask</Text>
+    </Pressable>
+  );
+}
+
+const m = StyleSheet.create({
+  root: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { position: 'relative', paddingBottom: 0 },
+  heroBody: { paddingTop: 30, paddingBottom: 8 },
+  heroEyebrow: {
+    fontFamily: t.typography.ui,
+    fontSize: 12,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: 2.2,
+    color: t.colors.brand.deep,
+  },
+  heroH1: {
+    marginTop: 14,
+    fontFamily: t.typography.title,
+    fontSize: 34,
+    lineHeight: 37,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.8,
+    color: t.colors.text.primary,
+  },
+  heroH1Green: { color: t.colors.brand.deep },
+  heroSubhead: {
+    marginTop: 18,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 23,
+    color: t.colors.text.muted,
+  },
+  section: { paddingTop: 40 },
+  eyebrow: {
+    fontFamily: t.typography.ui,
+    fontSize: 12,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 2.4,
+    color: t.colors.brand.deep,
+  },
+  sectionH2: {
+    marginTop: 8,
+    fontFamily: t.typography.title,
+    fontSize: 26,
+    lineHeight: 30,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.6,
+    color: t.colors.text.primary,
+  },
+  cardStack: { marginTop: 16, gap: 14 },
+  card: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 16,
+    padding: 18,
+    ...(t.shadows.card as object),
+  },
+  cardHover: { borderColor: t.colors.brand.base },
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  billBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: t.colors.tint.t150,
+    borderWidth: 1,
+    borderColor: t.colors.tint.border,
+    borderRadius: t.radii.badge,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  billBadgeText: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.4,
+    color: t.colors.brand.deep,
+  },
+  hotPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: t.colors.omnibus.fill,
+    borderWidth: 1,
+    borderColor: t.colors.omnibus.border,
+    borderRadius: t.radii.pill,
+    paddingVertical: 4,
+    paddingHorizontal: 11,
+  },
+  hotPillText: {
+    fontFamily: t.typography.ui,
+    fontSize: 11,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: 0.4,
+    color: t.colors.omnibus.text,
+  },
+  newsTitle: {
+    marginTop: 12,
+    fontFamily: t.typography.title,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.2,
+    color: t.colors.text.primary,
+  },
+  newsSummary: {
+    marginTop: 8,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    color: t.colors.text.muted,
+  },
+  cardMeta: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: t.colors.alpha.ink08,
+  },
+  metaStatus: {
+    fontFamily: t.typography.ui,
+    fontSize: 13,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.text.secondary,
+  },
+  metaStrong: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
+  activityGroup: { marginTop: 16, gap: 10 },
+  groupLabel: {
+    fontFamily: t.typography.ui,
+    fontSize: 12,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.4,
+    color: t.colors.text.muted,
+  },
+  activityHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  activityStatus: {
+    fontFamily: t.typography.ui,
+    fontSize: 13,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.secondary,
+  },
+  activityProgress: { marginTop: 14 },
+  activityTitle: {
+    marginTop: 14,
+    fontFamily: t.typography.title,
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.2,
+    color: t.colors.text.primary,
+  },
+  seeMore: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink20,
+    borderRadius: 13,
+    paddingVertical: 14,
+  },
+  seeMoreText: {
+    fontFamily: t.typography.ui,
+    fontSize: 14,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  askSub: {
+    marginTop: 8,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: t.colors.text.muted,
+  },
+  askShell: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    borderRadius: 13,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  askIcon: { marginTop: 2 },
+  askInput: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    lineHeight: 22,
+    color: t.colors.text.primary,
+    ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
+  },
+  askButton: {
+    marginTop: 12,
+    backgroundColor: t.colors.purple.base,
+    borderRadius: 13,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  askButtonText: {
+    fontFamily: t.typography.ui,
+    fontSize: 16,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.white,
+  },
+  finderBand: { marginTop: 40, paddingBottom: 8, position: 'relative' },
+  finderH2: {
+    fontFamily: t.typography.title,
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.6,
+    color: t.colors.text.primary,
+  },
+  finderSub: {
+    marginTop: 12,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: t.colors.text.secondary,
+  },
+  finderShell: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  finderInput: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    color: t.colors.text.primary,
+    paddingVertical: 4,
+    ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
+  },
+  findButton: {
+    marginTop: 12,
+    backgroundColor: t.colors.brand.base,
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  findButtonText: {
+    fontFamily: t.typography.ui,
+    fontSize: 16,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.onGreen,
+  },
+  cityRow: { marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  accountCard: {
+    marginTop: 8,
+    backgroundColor: t.colors.tint.t50,
+    borderWidth: 1,
+    borderColor: '#cbeed6',
+    borderRadius: 20,
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+  },
+  accountH3: {
+    fontFamily: t.typography.title,
+    fontSize: 24,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.2,
+    color: t.colors.text.primary,
+  },
+  accountBody: {
+    marginTop: 12,
+    marginBottom: 20,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 23,
+    color: t.colors.text.secondary,
+  },
+});
 
 function ViewAllButton({ onPress }: { onPress: () => void }) {
   const [hovered, hoverProps] = useHover();
