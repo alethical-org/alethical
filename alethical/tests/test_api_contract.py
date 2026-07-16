@@ -1862,6 +1862,109 @@ def test_bills_sort_default_is_latest_action_unchanged(client):
     assert default_files == [90004, 90003, 90002, 90001, 90006, 90005, 90007]
 
 
+INTRODUCED_SORT_SESSION_SLUG = "test-introduced-sort-fixture"
+
+
+def _seed_introduced_sort_bills(schema) -> str:
+    """Seed listed bills whose introduction-date order is deliberately the
+    REVERSE of their file-number order (plus one with no introduced_at) into an
+    isolated session, so the sort=introduced assertion proves it orders by the
+    real introduction date (#329), not the file-number recency proxy. Returns the
+    dedicated session slug."""
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    from alethical.db.session import get_session_factory
+
+    # (file_number, introduced_at) — highest file number is the OLDEST intro, so
+    # a file-number sort would invert the expected introduced-date order.
+    fixtures = [
+        (80001, datetime(2025, 3, 15, tzinfo=timezone.utc)),  # newest intro
+        (80002, datetime(2025, 2, 1, tzinfo=timezone.utc)),
+        (80003, datetime(2025, 1, 10, tzinfo=timezone.utc)),  # oldest intro
+        (80004, None),  # no introduction date -> sorts last (nullslast)
+    ]
+    with get_session_factory()() as db:
+        base_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        chamber = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "house")
+        )
+        assert base_session is not None and chamber is not None
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == INTRODUCED_SORT_SESSION_SLUG
+            )
+        )
+        if session_row is None:
+            session_row = schema.LegislativeSession(
+                jurisdiction_id=base_session.jurisdiction_id,
+                slug=INTRODUCED_SORT_SESSION_SLUG,
+                session_number=9996,
+                session_type=schema.SessionType.regular,
+                year_start=2993,
+                year_end=2994,
+                name="Introduced-sort fixture session",
+                is_current=False,
+            )
+            db.add(session_row)
+            db.flush()
+        for file_number, introduced_at in fixtures:
+            bill_key = f"{INTRODUCED_SORT_SESSION_SLUG}-HF{file_number}"
+            existing = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == bill_key)
+            )
+            if existing is not None:
+                continue
+            bill = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=chamber.id,
+                bill_key=bill_key,
+                file_type="HF",
+                file_number=file_number,
+                title=f"Introduced-sort fixture HF{file_number}",
+                description="Introduced-sort fixture bill",
+                current_status="Introduction and first reading",
+                introduced_at=introduced_at,
+                official_url=f"https://example.test/intro-hf{file_number}",
+                is_omnibus=False,
+            )
+            db.add(bill)
+            db.flush()
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=bill.id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={"summary": "Fixture summary."},
+                    is_current=True,
+                )
+            )
+        db.commit()
+    return INTRODUCED_SORT_SESSION_SLUG
+
+
+def test_bills_sort_introduced_orders_by_introduction_date_desc(client):
+    from alethical.db.schema import load_schema
+
+    session_slug = _seed_introduced_sort_bills(load_schema())
+
+    response = client.get(
+        "/api/v1/bills",
+        params={"session": session_slug, "sort": "introduced", "limit": 100},
+    )
+    assert response.status_code == 200
+    file_numbers = [item["file_number"] for item in response.json()["data"]]
+
+    # introduced_at DESC (newest introduction first); the undated bill sorts last.
+    # NOT file-number order (which would be 80004, 80003, 80002, 80001).
+    assert file_numbers == [80001, 80002, 80003, 80004]
+
+
 def test_bills_sort_newest_orders_by_file_number_descending(client):
     """sort=newest orders by file number DESC — MN numbers bills at introduction,
     so the highest number is the most recently introduced. This is the honest

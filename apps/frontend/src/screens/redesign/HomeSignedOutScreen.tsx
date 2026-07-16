@@ -1215,8 +1215,9 @@ function HomeSignedOutDesktop() {
 // is wired to REAL data (no static marketing cards):
 //   • In the News = two editorially-pinned bills, fetched by key so they bypass
 //     the /bills AI-summary list gate; rendered with their live status.
-//   • Bill Activity = live sort=newest (file-number order == introduction order —
-//     the honest recency signal while action dates are unpopulated, #328/#329).
+//   • Bill Activity = live, date-ordered: Recently Introduced by real introduction
+//     date, Recently Passed = most recently enacted bill (#329, now that action
+//     dates are ingested #328).
 // ============================================================================
 
 // Editorial "In the News" pins — keys verified against production 2026-07-15.
@@ -1322,17 +1323,79 @@ function NewsCardMobile({
   );
 }
 
+// Card meta line freshness treatment (#329, NEXT-home-spec.md §"Card meta line").
+// updatedAt arrives as "YYYY-MM-DD" (formatUpdatedAt) or the "Unknown" sentinel
+// when a bill still has no dated action; render it as a plain "Mon D, YYYY".
+const META_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+function friendlyMetaDate(iso?: string): string | null {
+  if (!iso || iso === 'Unknown') return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!match) return null;
+  const monthIndex = parseInt(match[2], 10) - 1;
+  if (monthIndex < 0 || monthIndex > 11) return null;
+  return `${META_MONTHS[monthIndex]} ${parseInt(match[3], 10)}, ${match[1]}`;
+}
+
+// The MN source's latest-action text is often a terse fragment ("Referred to",
+// "Introduction and first reading, referred to"); map the common ones to fuller,
+// plain phrasing for the meta line. Unmapped values pass through trimmed.
+const ACTION_LABELS: Record<string, string> = {
+  'introduction and first reading, referred to': 'Introduced and referred to committee',
+  'introduction and first reading, referred to committee': 'Introduced and referred to committee',
+  'referred to': 'Referred to committee',
+  'author stricken': 'Author removed',
+  'bill was passed': 'Passed',
+  'bill was passed as amended': 'Passed as amended',
+  'third reading passed': 'Passed on third reading',
+  'third reading passed as amended': 'Passed on third reading, as amended',
+};
+// Terse actions that merely restate an enacted status ("Chapter number" =
+// assigned a session-law chapter; "Effective date"), and opaque companion-file
+// artifacts ("See", "See Senate file in House") that carry no real action — both
+// collapse to the "Updated {date}" freshness stamp rather than a latest-action line.
+const RESTATING_ACTIONS = new Set([
+  'chapter number',
+  'effective date',
+  'see',
+  'see also',
+  'see senate file in house',
+  'see house file in senate',
+]);
+function cleanActionText(raw: string): string {
+  const trimmed = raw.trim();
+  return ACTION_LABELS[trimmed.toLowerCase()] ?? trimmed;
+}
+
 /** Bill Activity card — live data. Whole card → bill detail. */
 function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void }) {
   const [hovered, hoverProps] = useHover();
   const { filled, vetoed } = statusToProgress(bill.status);
   const summary = bill.aiAnalysis?.summary;
-  const action = bill.latestActionText;
-  // Freshness meta line (design): the raw latest action + its date. The corpus
-  // has no dates yet (#328) — updatedAt is the "Unknown" sentinel — so the "· {date}"
-  // tail is appended only once real dates land (then the design's full
-  // "Latest action: {action} · {date}" / "Updated {date}" treatment fills in, #329).
-  const date = bill.updatedAt && bill.updatedAt !== 'Unknown' ? bill.updatedAt : null;
+  // Meta line freshness rule (design): show "Latest action: {action} · {date}"
+  // (action dark, date grey), unless the latest action merely restates the bill's
+  // status (e.g. an enacted bill whose last action is "Chapter number") or is an
+  // opaque companion artifact — then show a plain "Updated {date}" stamp instead.
+  const date = friendlyMetaDate(bill.updatedAt);
+  const rawAction = bill.latestActionText?.trim();
+  const actionKey = (rawAction ?? '').toLowerCase();
+  const restatesStatus =
+    !!rawAction &&
+    (RESTATING_ACTIONS.has(actionKey) || actionKey === bill.status.trim().toLowerCase());
+  const showUpdatedStamp = !!date && (!rawAction || restatesStatus);
+  const action = rawAction ? cleanActionText(rawAction) : null;
   return (
     <Pressable
       accessibilityRole="link"
@@ -1353,7 +1416,11 @@ function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void
           {summary}
         </Text>
       ) : null}
-      {action ? (
+      {showUpdatedStamp ? (
+        <View style={m.cardMeta}>
+          <Text style={m.metaEffective}>Updated {date}</Text>
+        </View>
+      ) : action ? (
         <View style={m.cardMeta}>
           <Text style={m.metaStatus}>
             Latest action: <Text style={m.metaActionBold}>{action}</Text>
@@ -1378,13 +1445,17 @@ function HomeSignedOutMobile() {
   // In the News — two pinned bills by key (bypasses the /bills AI-summary gate).
   const news0 = useBill(IN_THE_NEWS[0].key);
   const news1 = useBill(IN_THE_NEWS[1].key);
-  // Bill Activity — live, honest interim: newest by file number (== introduction
-  // order) for "Recently Introduced"; newest signed bill for "Signed into Law".
-  const introduced = useBills(undefined, undefined, { sort: 'newest' }, { limit: 1 });
+  // Bill Activity — live, date-ordered now that action dates are ingested (#329):
+  //   • Recently Introduced = newest by real introduction date (sort=introduced).
+  //   • Recently Passed = most recently enacted bill (status=signed_into_law,
+  //     ordered by latest-action date desc — the signing/enactment milestone).
+  //     "Passed both chambers, not yet signed" is ~0 genuine bills in the corpus
+  //     (#305), so enacted is the honest population for the "Recently Passed" card.
+  const introduced = useBills(undefined, undefined, { sort: 'introduced' }, { limit: 1 });
   const signed = useBills(
     undefined,
     undefined,
-    { status: 'signed_into_law', sort: 'newest' },
+    { status: 'signed_into_law', sort: 'latest_action' },
     { limit: 1 },
   );
 

@@ -1076,11 +1076,13 @@ def bill_list_stmt(
     ``sort`` selects the ordering: ``"latest_action"`` (default) keeps the
     most-recent-activity order; ``"progress"`` orders by legislative stage
     (signed → vetoed → passed senate → passed house → in committee → proposed),
-    tie-broken by most-recent activity; ``"newest"`` orders by file number
-    descending — MN assigns bill numbers sequentially at introduction, so the
-    highest number is the most recently introduced. This is the honest recency
-    signal while action dates are unpopulated in the corpus (#328); once dates
-    land, a real introduction-date sort supersedes it (#329).
+    tie-broken by most-recent activity; ``"introduced"`` orders by introduction
+    date descending (most recently introduced first), tie-broken by file number;
+    ``"newest"`` orders by file number descending — MN assigns bill numbers
+    sequentially at introduction, so the highest number is the most recently
+    introduced. ``"newest"`` was the honest recency proxy while action dates were
+    unpopulated (#328); now that dates are ingested, ``"introduced"`` is the real
+    introduction-date sort the mobile home Bill Activity uses (#329).
     """
     options = [
         selectinload(Bill.stats),
@@ -1098,6 +1100,12 @@ def bill_list_stmt(
     )
     if sort == "progress":
         order_by = (bill_progress_rank().asc(), *recency_order)
+    elif sort == "introduced":
+        order_by = (
+            Bill.introduced_at.desc().nullslast(),
+            Bill.file_number.desc(),
+            Bill.id.asc(),
+        )
     elif sort == "newest":
         order_by = (Bill.file_number.desc(), Bill.id.asc())
     else:
