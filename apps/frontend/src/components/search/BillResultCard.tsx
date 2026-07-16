@@ -150,14 +150,18 @@ export function BillResultCard({
         </Pressable>
       </View>
 
-      <Text ref={titleRef} style={styles.title} numberOfLines={2} accessibilityLabel={bill.title}>
+      <Text
+        ref={titleRef}
+        style={styles.title}
+        // Only clamp when falling back to the long statutory title — the
+        // AI-generated short title is already short and shouldn't get an
+        // ellipsis just because it wraps to 3 lines on a narrow viewport.
+        numberOfLines={bill.aiAnalysis?.shortTitle ? undefined : 2}
+        accessibilityLabel={bill.title}
+      >
         {bill.aiAnalysis?.shortTitle ?? bill.title}
       </Text>
 
-      <View style={styles.summaryEyebrowRow}>
-        <View style={styles.aiDot} />
-        <Text style={styles.aiEyebrow}>AI SUMMARY</Text>
-      </View>
       <Text style={styles.summary}>{summary}</Text>
 
       <View style={styles.meta}>
@@ -305,15 +309,6 @@ const styles = StyleSheet.create({
     lineHeight: 31,
     color: t.colors.text.primary,
     maxWidth: 1040,
-  },
-  summaryEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  aiDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: t.colors.purple.base },
-  aiEyebrow: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.caption,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.6,
-    color: t.colors.purple.base,
   },
   summary: {
     fontFamily: t.typography.body,
