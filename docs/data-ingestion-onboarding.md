@@ -121,7 +121,8 @@ Reference URL shapes: `https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/` �
 
 - **Roster (discovery):** `GET https://www.leg.mn.gov/leg/legislators` →
   regex-parsed into House + Senate members (name, district, profile URL, image).
-  Sanity check: **134 House + 67 Senate**.
+  Sanity check: **134 House + 67 Senate seats** (the scrape lists seats, so a
+  mid-biennium vacancy may still appear here).
 - **House profile:** `https://www.house.mn.gov/members/profile/{id}` → party,
   district, office block, `@house.mn.gov` email, `651-` phone, committees.
 - **Senate profile:** `http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id={id}`
@@ -277,8 +278,10 @@ just pipeline local --write --allow-writes     # commit after review
    keyed backfill replaces fallback rows.
 2. **HTML parsing is regex-based, no schema validation** — an upstream template
    change yields *silently empty* results, not a loud failure. Watch
-   `IngestionRun` counts (roster should be 134/67; a bill shouldn't lose all
-   actions/authors).
+   `IngestionRun` counts (roster is ~134 House / 67 Senate seats, **minus any
+   current vacancies** — after membership reconciliation the current-member
+   directory shows filled seats only, e.g. 133/67 while HD 21A is vacant; a bill
+   shouldn't lose all actions/authors).
 3. **No scheduler.** Ingestion is human-triggered via the CLI/justfile today.
 4. **You're scraping public .gov sites** — be a polite citizen. The code sets a
    descriptive User-Agent and backs off on 5xx/429, but there's no global rate
