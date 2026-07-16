@@ -29,7 +29,7 @@ curl http://localhost:8000/healthz     # -> {"status":"ok"}
 ```
 
 - Backend API: http://localhost:8000
-- Web frontend: http://localhost:19006
+- Web frontend: http://localhost:8081
 
 Only Supabase auth, OpenAI (AI summaries + chat), and district lookup read
 secrets. The government data ingestion (Revisor bills, legislator roster, votes)

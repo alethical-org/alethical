@@ -26,4 +26,4 @@ just up
 ## Verified behavior
 
 - `http://localhost:8000/healthz` returns `200`
-- `http://localhost:19006` returns `200`
+- `http://localhost:8081` returns `200`
