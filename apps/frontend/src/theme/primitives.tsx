@@ -105,38 +105,67 @@ export function MetaStripe({
   );
 }
 
-// --- Brand logo: the ALETHICAL wordmark lockup (twin-peak mark + wordmark),
-//     pre-baked to single currentColor paths so it stays crisp at any size and
-//     recolors per surface. On phones the full wordmark can't share the nav bar
-//     with the Sign-in button and menu, so we drop to the mark alone (<768px);
-//     tablet and up show the full lockup. tone sets the fill for dark vs light
-//     surfaces. ---
-const LOGO_ASPECT = 2022 / 232.5;
-const MARK_ASPECT = 239 / 232.5;
-const LOGO_PATH =
-  'M131.1 116.2 L131 232.5 L185 232.5 C236.2 232.5 239 232.4 238.1 230.7 C237.5 229.4 146.6 33.6 133.4 5 L131.1 0 L131.1 116.2 Z M53.2 116.3 C23.9 179.5 0 231.4 0 231.8 C0 232.2 24.1 232.5 53.5 232.5 L107 232.5 L107 117 C107 53.5 106.9 1.5 106.7 1.5 C106.5 1.5 82.5 53.2 53.2 116.3 Z M1534 19 C1524.6 21.1 1519.4 23.2 1511.3 28.1 C1501.8 34 1494.1 42.5 1489 52.8 C1481.6 67.9 1481.5 69 1481.5 113.5 C1481.5 157.6 1481.7 159.1 1488.7 173.5 C1493.7 183.9 1505.4 195.5 1516.2 200.8 C1527.7 206.3 1538.8 208.7 1554 208.7 C1569.7 208.6 1579 206.8 1589.9 201.4 C1600.7 196.1 1609.1 187.8 1614.7 176.8 C1620 166.8 1621.9 159.5 1622.7 146.7 L1623.3 136.4 L1609.4 136.7 L1595.5 137 L1594.9 145.5 C1593.8 160 1587.3 172.3 1577.8 177.9 C1565.5 185.1 1544.4 185.3 1531 178.5 C1525.2 175.5 1517.7 167.5 1514.6 160.9 C1509.9 151 1509 143.3 1509 112.2 C1509 81.5 1509.9 74.4 1514.6 64.8 C1518 57.8 1525.1 50.8 1532.3 47.4 C1544 41.9 1560.7 41.2 1572.6 45.6 C1585.4 50.4 1594.2 65 1595.3 83 L1595.5 87 L1609.3 87.3 L1623 87.6 L1623 81.6 C1623 78.3 1622.4 72.4 1621.6 68.3 C1616.9 43.8 1601.3 26.7 1577.4 20 C1569.1 17.6 1542.8 17 1534 19 Z M416.1 27.2 C415 31 403.3 72 390 118.5 C376.8 165 365.7 203.6 365.5 204.3 C365.1 205.3 368.2 205.5 379.7 205.3 L394.3 205 L400 184.3 C403.2 173 406.1 163.2 406.4 162.6 C406.9 161.8 418.1 161.5 442.9 161.5 L478.7 161.5 L484.7 183.2 L490.7 205 L505.5 205.3 L520.2 205.6 L519.5 202.8 C517.7 195.5 468.8 24.7 468 22.7 C467 20.5 467 20.5 442.6 20.5 L418.1 20.5 L416.1 27.2 Z M450.4 58.7 C453.5 69.9 459.6 91.6 463.9 107 L471.7 135 L457.4 135.3 C449.5 135.4 436.4 135.4 428.3 135.3 L413.4 135 L423 100.5 C428.3 81.5 434.4 59.8 436.5 52.2 C439.9 39.8 440.5 38.5 442.5 38.5 C444.6 38.5 445.2 40.2 450.4 58.7 Z M588 113 L588 205.5 L646.5 205.5 L705 205.5 L705 192.5 L705 179.5 L660.5 179.5 L616 179.5 L616 100 L616 20.5 L602 20.5 L588 20.5 L588 113 Z M773.7 21.2 C773.3 21.5 773 63.2 773 113.7 L773 205.5 L832 205.5 L891 205.5 L891 192.5 L891 179.5 L846.5 179.5 L802 179.5 L802 152.5 L802 125.5 L842 125.5 L882 125.5 L882 112.5 L882 99.5 L842 99.5 L802 99.5 L802 73 L802 46.5 L846 46.5 L890.1 46.5 L889.8 33.7 L889.5 21 L831.9 20.7 C800.3 20.6 774 20.8 773.7 21.2 Z M951 33.5 L951 46.5 L979 46.5 L1007 46.5 L1007 126 L1007 205.5 L1021.5 205.5 L1036 205.5 L1036 126 L1036 46.5 L1064 46.5 L1092 46.5 L1092 33.5 L1092 20.5 L1021.5 20.5 L951 20.5 L951 33.5 Z M1161 113 L1161 205.5 L1175 205.5 L1189 205.5 L1189 165.5 L1189 125.5 L1227.8 125.7 L1266.5 126 L1266.8 165.7 L1267 205.5 L1281 205.5 L1295 205.5 L1295 113 L1295 20.5 L1281 20.5 L1267 20.5 L1267 60 L1267 99.5 L1228 99.5 L1189 99.5 L1189 60 L1189 20.5 L1175 20.5 L1161 20.5 L1161 113 Z M1376 113 L1376 205.5 L1390 205.5 L1404 205.5 L1404.2 113 L1404.5 20.5 L1390.3 20.5 L1376 20.5 L1376 113 Z M1734.5 21.7 C1734.2 22.4 1722.6 63 1708.7 112 C1694.7 161 1683 202 1682.6 203.2 L1681.9 205.5 L1696.4 205.5 L1710.9 205.5 L1712.9 198.7 C1714 195 1716.5 185.9 1718.5 178.5 C1720.6 171.1 1722.6 164.2 1723.1 163.2 C1724 161.6 1726.8 161.5 1759.8 161.5 L1795.6 161.5 L1801.6 183.2 L1807.5 205 L1822.3 205.3 C1830.4 205.4 1837 205.2 1837 204.8 C1836.9 204.3 1825.1 162.8 1810.7 112.5 L1784.5 21 L1759.7 20.7 C1740.4 20.5 1734.8 20.7 1734.5 21.7 Z M1775.1 87 L1788.7 135.5 L1759.4 135.5 C1736.4 135.5 1730.2 135.2 1730.5 134.2 C1730.7 133.6 1736.6 112.5 1743.5 87.5 C1750.4 62.5 1756.3 41.2 1756.6 40.2 C1756.9 39.3 1758.1 38.5 1759.4 38.5 C1761.5 38.5 1762.4 41.4 1775.1 87 Z M1905 113 L1905 205.5 L1963.5 205.5 L2022 205.5 L2022 192.5 L2022 179.5 L1977.5 179.5 L1933 179.5 L1933 100 L1933 20.5 L1919 20.5 L1905 20.5 L1905 113 Z';
-const MARK_PATH =
-  'M131.1 116.2 L131 232.5 L185 232.5 C236.2 232.5 239 232.4 238.1 230.7 C237.5 229.4 146.6 33.6 133.4 5 L131.1 0 L131.1 116.2 Z M53.2 116.3 C23.9 179.5 0 231.4 0 231.8 C0 232.2 24.1 232.5 53.5 232.5 L107 232.5 L107 117 C107 53.5 106.9 1.5 106.7 1.5 C106.5 1.5 82.5 53.2 53.2 116.3 Z';
+// --- Brand logo: twin-peak mark (two sharp triangles) + the ALETHICAL wordmark
+//     as live Space Grotesk text (weight 500, letter-spacing 0.16em, vertically
+//     centered on the mark) — matching the brand lockup SVG. `variant`: 'nav'
+//     renders mark + wordmark in the top bar (a touch smaller on phones so the
+//     wordmark still fits beside Sign in + menu); 'menu' renders the mark alone
+//     for the drawer header. tone sets the fill for dark vs light surfaces. ---
+const MARK_ASPECT = 84 / 82; // near-square twin-peak mark
+const MARK_PATH = 'M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z';
 
-export function Logo({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
+function LogoMark({ height, fill }: { height: number; fill: string }) {
+  return (
+    <Svg width={height * MARK_ASPECT} height={height} viewBox="0 0 84 82" fill="none">
+      <Path d={MARK_PATH} fill={fill} />
+    </Svg>
+  );
+}
+
+export function Logo({
+  tone = 'dark',
+  variant = 'nav',
+}: {
+  tone?: 'dark' | 'light';
+  variant?: 'nav' | 'menu';
+}) {
   const { isMobile } = useResponsive();
   const light = tone === 'light';
   const fill = light ? t.colors.white : t.colors.ink;
-  const height = isMobile ? 30 : 34;
-  const aspect = isMobile ? MARK_ASPECT : LOGO_ASPECT;
-  const viewBox = isMobile ? '0 0 239 232.5' : '0 0 2022 232.5';
-  const path = isMobile ? MARK_PATH : LOGO_PATH;
+
+  // Drawer header: mark alone.
+  if (variant === 'menu') {
+    return (
+      <View accessibilityRole="image" accessibilityLabel="Alethical">
+        <LogoMark height={30} fill={fill} />
+      </View>
+    );
+  }
+
+  // Top bar: mark + wordmark. Scale the whole lockup down on phones so the full
+  // wordmark still fits beside the Sign-in button and menu.
+  const markH = isMobile ? 22 : 34;
+  const fontSize = isMobile ? 20 : 30;
   return (
-    <Svg
-      width={height * aspect}
-      height={height}
-      viewBox={viewBox}
-      fill="none"
+    <View
+      style={{ flexDirection: 'row', alignItems: 'center', gap: Math.round(markH * 0.4) }}
       accessibilityRole="image"
       accessibilityLabel="Alethical"
     >
-      <Path d={path} fill={fill} />
-    </Svg>
+      <LogoMark height={markH} fill={fill} />
+      <Text
+        style={{
+          fontFamily: t.typography.wordmark,
+          fontWeight: '500',
+          fontSize,
+          lineHeight: fontSize,
+          letterSpacing: fontSize * 0.16,
+          color: fill,
+        }}
+      >
+        ALETHICAL
+      </Text>
+    </View>
   );
 }
 
@@ -583,7 +612,7 @@ export function TopNav({
           />
           <View style={styles.menuSheet}>
             <View style={styles.menuSheetHeader}>
-              <Logo />
+              <Logo variant="menu" />
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close menu"
