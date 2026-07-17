@@ -105,27 +105,63 @@ export function MetaStripe({
   );
 }
 
-// --- Brand logo (bar mark + wordmark). tone controls text color for dark
-//     surfaces; compact shrinks it for narrow (mobile) nav bars. ---
+// --- Brand logo: twin-peak mark (two sharp triangles) + the ALETHICAL wordmark
+//     as live Space Grotesk text (weight 500, letter-spacing 0.16em, vertically
+//     centered on the mark) — matching the brand lockup SVG. `variant`: 'nav'
+//     renders mark + wordmark in the top bar (a touch smaller on phones so the
+//     wordmark still fits beside Sign in + menu); 'menu' renders the mark alone
+//     for the drawer header. tone sets the fill for dark vs light surfaces. ---
+const MARK_ASPECT = 84 / 82; // near-square twin-peak mark
+const MARK_PATH = 'M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z';
+
+function LogoMark({ height, fill }: { height: number; fill: string }) {
+  return (
+    <Svg width={height * MARK_ASPECT} height={height} viewBox="0 0 84 82" fill="none">
+      <Path d={MARK_PATH} fill={fill} />
+    </Svg>
+  );
+}
+
 export function Logo({
   tone = 'dark',
-  compact = false,
+  variant = 'nav',
 }: {
   tone?: 'dark' | 'light';
-  compact?: boolean;
+  variant?: 'nav' | 'menu';
 }) {
+  const { isMobile } = useResponsive();
   const light = tone === 'light';
   const fill = light ? t.colors.white : t.colors.ink;
-  const dim = compact ? 28 : light ? 30 : 40;
+
+  // Drawer header: mark alone.
+  if (variant === 'menu') {
+    return (
+      <View accessibilityRole="image" accessibilityLabel="Alethical">
+        <LogoMark height={30} fill={fill} />
+      </View>
+    );
+  }
+
+  // Top bar: mark + wordmark. Scale the whole lockup down on phones so the full
+  // wordmark still fits beside the Sign-in button and menu.
+  const markH = isMobile ? 22 : 34;
+  const fontSize = isMobile ? 20 : 30;
   return (
-    <View style={[styles.logo, light && styles.logoLight, compact && styles.logoCompact]}>
-      <Svg width={dim} height={dim} viewBox="0 0 64 64" fill="none">
-        <Rect x={15} y={29} width={7.5} height={21} rx={3.75} fill={fill} />
-        <Rect x={28.25} y={15} width={7.5} height={35} rx={3.75} fill={fill} />
-        <Rect x={41.5} y={35} width={7.5} height={15} rx={3.75} fill={fill} />
-      </Svg>
+    <View
+      style={{ flexDirection: 'row', alignItems: 'center', gap: Math.round(markH * 0.4) }}
+      accessibilityRole="image"
+      accessibilityLabel="Alethical"
+    >
+      <LogoMark height={markH} fill={fill} />
       <Text
-        style={[styles.wordmark, light && styles.wordmarkLight, compact && styles.wordmarkCompact]}
+        style={{
+          fontFamily: t.typography.wordmark,
+          fontWeight: '500',
+          fontSize,
+          lineHeight: fontSize,
+          letterSpacing: fontSize * 0.16,
+          color: fill,
+        }}
       >
         ALETHICAL
       </Text>
@@ -514,10 +550,10 @@ export function TopNav({
             onPress={onHome}
             style={({ pressed }) => [styles.logoLink, pressed && styles.logoLinkPressed]}
           >
-            <Logo compact={!isDesktop} />
+            <Logo />
           </Pressable>
         ) : (
-          <Logo compact={!isDesktop} />
+          <Logo />
         )}
         {isDesktop ? (
           <View style={styles.navLinks}>
@@ -576,7 +612,7 @@ export function TopNav({
           />
           <View style={styles.menuSheet}>
             <View style={styles.menuSheetHeader}>
-              <Logo compact />
+              <Logo variant="menu" />
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close menu"
@@ -984,18 +1020,6 @@ const styles = StyleSheet.create({
   },
   logoLink: { alignSelf: 'flex-start' },
   logoLinkPressed: { opacity: 0.72 },
-  logo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  logoLight: { gap: 12 },
-  logoCompact: { gap: 10 },
-  wordmark: {
-    fontFamily: t.typography.title,
-    fontSize: 25,
-    fontWeight: t.fontWeights.semibold,
-    letterSpacing: 4,
-    color: t.colors.text.primary,
-  },
-  wordmarkLight: { fontSize: 20, color: t.colors.white },
-  wordmarkCompact: { fontSize: 17, letterSpacing: 2 },
   navRow: { paddingTop: 26, paddingBottom: 8, zIndex: 60 },
   navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 30 },
