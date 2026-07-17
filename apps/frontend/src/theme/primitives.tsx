@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.9,
     color: t.colors.text.faint,
   },
-  logoLink: { alignSelf: 'flex-start' },
+  logoLink: { alignSelf: 'center' },
   logoLinkPressed: { opacity: 0.72 },
   navRow: { paddingTop: 26, paddingBottom: 8, zIndex: 60 },
   navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
