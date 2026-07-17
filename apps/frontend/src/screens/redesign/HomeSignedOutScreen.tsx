@@ -92,7 +92,7 @@ function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
 }
 
-/** Green inline text link ("View bill text →", chief author, companion bill). */
+/** Green inline text link ("Read the full law →", chief author, companion bill). */
 function TextLink({
   label,
   onPress,
@@ -209,7 +209,10 @@ function FieldShell({
 // --- Hero answer card (static sample answer — HF 4138) ---
 
 const HF4138_STATUS_URL = 'https://www.revisor.mn.gov/bills/94/2026/0/HF/4138/';
-const HF4138_TEXT_URL = 'https://www.revisor.mn.gov/bills/94/2026/0/HF/4138/versions/5/';
+// HF 4138 was enacted as 2026 Session Law Chapter 111, so the footer links to the
+// signed law rather than a bill draft. Hardcoded because the hero is a static sample;
+// the reusable bill card derives this from status (see BillCard reusability note).
+const HF4138_LAW_URL = 'https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/111/';
 const HF4138_AUTHOR_URL = 'https://www.house.mn.gov/members/profile/15314';
 const SF4696_URL = 'https://www.revisor.mn.gov/bills/94/2026/0/SF/4696/';
 
@@ -424,7 +427,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       </View>
 
       <View style={styles.answerFooter}>
-        <TextLink label="View bill text →" onPress={() => openExternal(HF4138_TEXT_URL)} />
+        <TextLink label="Read the full law →" onPress={() => openExternal(HF4138_LAW_URL)} />
         <Text style={styles.answerFooterHost}>revisor.mn.gov</Text>
       </View>
 
