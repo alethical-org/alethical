@@ -118,7 +118,9 @@ export function SearchPageShell({
             ) : null}
 
             <TopNav
-              variant="page"
+              // Search pages suppress the top-level ✦ Ask entry (variant="home"
+              // is the Ask-hidden nav) — the search hero is the primary action here.
+              variant="home"
               openMenu={openMenu}
               onOpenMenuChange={onOpenMenuChange}
               onNavigate={onNavigate}
