@@ -129,7 +129,7 @@ export function Logo({
   tone?: 'dark' | 'light';
   variant?: 'nav' | 'menu';
 }) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isDesktop } = useResponsive();
   const light = tone === 'light';
   const fill = light ? t.colors.white : t.colors.ink;
 
@@ -142,10 +142,13 @@ export function Logo({
     );
   }
 
-  // Top bar: mark + wordmark. Scale the whole lockup down on phones so the full
-  // wordmark still fits beside the Sign-in button and menu.
-  const markH = isMobile ? 22 : 34;
-  const fontSize = isMobile ? 20 : 30;
+  // Top bar: mark + wordmark, sized per context:
+  //  - phone (<768): scaled down so the full wordmark fits beside Sign in + menu.
+  //  - desktop (>=1100): a touch smaller than tablet, since here the wordmark sits
+  //    beside the 18px inline nav links and full-size reads oversized next to them.
+  //  - tablet (768-1099): full size (inline links are collapsed into the menu).
+  const markH = isMobile ? 22 : isDesktop ? 30 : 34;
+  const fontSize = isMobile ? 20 : isDesktop ? 26 : 30;
   return (
     <View
       style={{ flexDirection: 'row', alignItems: 'center', gap: Math.round(markH * 0.4) }}
