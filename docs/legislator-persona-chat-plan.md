@@ -72,6 +72,9 @@ The proof-of-concept is one file, `alethical/api/routers/legislator_chat.py`:
 Each item has a verification check. Ordered by dependency, not necessarily by ship order.
 
 ### 1. Multi-legislator selection — Net: let the user chat with any legislator who has enough record, not just Schultz.
+
+**Tracking:** [#388](https://github.com/alethical-org/alethical/issues/388) · PR [#382](https://github.com/alethical-org/alethical/pull/382) (built, CI green).
+
 - Replace the hardcoded `ISAAC_SCHULTZ_ID` in `create_session`/`chat_page` with a
   chosen `legislator_id` carried on the session.
 - Gate the pickable set to legislators with a meaningful record (e.g. has sponsorships
@@ -81,6 +84,9 @@ Each item has a verification check. Ordered by dependency, not necessarily by sh
   in its own record and a no-record legislator refuses cleanly.
 
 ### 2. Retrieval instead of corpus-stuffing (RRF hybrid) — Net: stop dumping the whole record into the prompt; fetch only the bills relevant to the question, combining keyword and semantic search.
+
+**Tracking:** [#389](https://github.com/alethical-org/alethical/issues/389) · PR [#383](https://github.com/alethical-org/alethical/pull/383) (built vector-only, CI green). Full RRF layer deferred to [#380](https://github.com/alethical-org/alethical/issues/380); depends on real embeddings [#105](https://github.com/alethical-org/alethical/issues/105); threshold tuning with [#255](https://github.com/alethical-org/alethical/issues/255).
+
 - **Do not act yet** (Joe, 2026-07-17) — sequence after the risk blocker (item 3) is
   understood together with this.
 - Hybrid retrieval via Reciprocal Rank Fusion (keyword `tsvector` + vector `pgvector`),
@@ -93,6 +99,9 @@ Each item has a verification check. Ordered by dependency, not necessarily by sh
   ones that require a lexical (bill-number) match vector search alone would miss.
 
 ### 3. Blocker on loose thematic grounding — Net: the "connect to any thematically related bill" instruction is the biggest hallucination risk; constrain it so the model can't attach a bill the record doesn't actually support.
+
+**Tracking:** [#390](https://github.com/alethical-org/alethical/issues/390) · PR [#384](https://github.com/alethical-org/alethical/pull/384) (built, CI green).
+
 - The loose-connection instruction feeds **character/persona hallucination** (RoleBreak,
   TimeChara — `docs/persona-rag-chatbot-research.md` §1) and post-hoc citation
   (up to 57% of citations are rationalized after the fact — §5).
@@ -102,6 +111,9 @@ Each item has a verification check. Ordered by dependency, not necessarily by sh
   refuses (or answers without over-claiming) instead of fabricating a position.
 
 ### 4. Post-hoc citation verification — Net: don't trust the model's self-reported sources; check in code that each cited bill actually backs the claim before showing it as a source.
+
+**Tracking:** [#391](https://github.com/alethical-org/alethical/issues/391) · PR [#385](https://github.com/alethical-org/alethical/pull/385) (built, CI green). Threshold (0.25) tuning with [#255](https://github.com/alethical-org/alethical/issues/255); depends on real embeddings [#105](https://github.com/alethical-org/alethical/issues/105).
+
 - In `parse_answer` (or a new verification step after it), for each cited bill key
   measure semantic overlap between the claim sentence(s) and the bill's
   `summary`/`key_points` (embedding cosine similarity or a lightweight LLM entailment
@@ -113,6 +125,9 @@ Each item has a verification check. Ordered by dependency, not necessarily by sh
   has that citation dropped/flagged rather than rendered as a green source pill.
 
 ### 5. Frontend integration — Net: build the real in-app screen and delete the throwaway HTML page.
+
+**Tracking:** [#392](https://github.com/alethical-org/alethical/issues/392) · PR [#386](https://github.com/alethical-org/alethical/pull/386) (built, CI green; live viewport QA pending). Orphaned dead helpers noted for cleanup.
+
 - New React Native screen reusing existing bill-scoped chat patterns
   (`ChatSessionScreen.tsx`), calling the JSON endpoints through the app's `api.ts` /
   `useAppQueries` layer instead of raw `fetch`.
@@ -124,6 +139,9 @@ Each item has a verification check. Ordered by dependency, not necessarily by sh
   the standalone route is gone and nothing references it.
 
 ### 6. Cite-or-refuse acceptance coverage — Net: bring persona-chat answers under the same automated grounding contract as the rest of the product, so a careless prompt edit can't silently ship an ungrounded claim.
+
+**Tracking:** [#393](https://github.com/alethical-org/alethical/issues/393) · PR [#387](https://github.com/alethical-org/alethical/pull/387) (built, CI green — suite passes in CI).
+
 - Once persona chat is a real generated-answer surface,
   `.claude/rules/grounded-answers.md` rules 1 (cite or refuse) and 3 (grounded
   neutrality) apply. Add acceptance tests alongside `alethical/tests/test_ask_scenarios.py`:
