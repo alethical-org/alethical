@@ -24,8 +24,16 @@ type WebRouteTarget =
   | { kind: 'confirmEmail' }
   | { kind: 'resetPassword' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
+  | { kind: 'legislatorChat' }
   | { kind: 'ask'; params: RootStackParamList['Ask'] }
   | { kind: 'notFound'; path: string };
+
+// Sign-in returnTo for a signed-out user who tapped Track: land back on the
+// bill and auto-complete the track (see BillDetailScreen). Kept here so every
+// call site shares one URL shape (grounded-answers.md rule 5).
+export function trackSignInReturnTo(billId: string) {
+  return `/bills/${encodeURIComponent(billId)}?track=1`;
+}
 
 function normalizePathname(pathname: string) {
   const trimmed = pathname.split('?')[0].replace(/\/+$/, '');
@@ -110,6 +118,10 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
           ...(suggestionIndex === undefined ? {} : { suggestionIndex }),
         },
       };
+    }
+    // Internal-demo persona chat. URL-addressable but not linked from product nav.
+    if (segments[0] === 'legislator-chat') {
+      return { kind: 'legislatorChat' };
     }
     if (segments[0] === 'privacy') {
       return { kind: 'privacy' };
@@ -309,6 +321,8 @@ export function pathForRoute(activeRoute: {
         ? `/find-my-legislator?address=${encodeURIComponent(String(address))}`
         : '/find-my-legislator';
     }
+    case 'LegislatorChat':
+      return '/legislator-chat';
     case 'Privacy':
       return '/privacy';
     case 'SiteMetrics':
@@ -483,6 +497,11 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'ask':
       return {
         routes: [homeTabs, { name: 'Ask', params: target.params }],
+        index: 1,
+      };
+    case 'legislatorChat':
+      return {
+        routes: [homeTabs, { name: 'LegislatorChat' }],
         index: 1,
       };
     case 'notFound':

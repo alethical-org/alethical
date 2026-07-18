@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AccountScreen } from '../screens/AccountScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { ChatSessionScreen } from '../screens/ChatSessionScreen';
+import { LegislatorChatScreen } from '../screens/LegislatorChatScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
 import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
 import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
@@ -680,6 +681,11 @@ export function RootNavigator() {
               name="ChatSession"
               component={ChatSessionScreen}
               options={{ title: 'Chat' }}
+            />
+            <Stack.Screen
+              name="LegislatorChat"
+              component={LegislatorChatScreen}
+              options={{ title: 'Legislator Chat' }}
             />
           </Stack.Navigator>
         </View>
