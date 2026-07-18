@@ -16,12 +16,17 @@ DATABASE_URL = os.environ.get(
 
 @pytest.fixture(scope="session", autouse=True)
 def seed_database() -> None:
-    subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
-        cwd=ROOT,
-        check=True,
-        env={**os.environ, "DATABASE_URL": DATABASE_URL},
-    )
+    # Set SKIP_ALEMBIC_UPGRADE=1 to skip the `alembic upgrade head` step and only
+    # re-seed sample data. Useful when the target DB's schema is already applied
+    # (e.g. a shared local Postgres whose alembic_version diverges from this
+    # checkout's migration heads), where `upgrade head` would otherwise fail.
+    if os.environ.get("SKIP_ALEMBIC_UPGRADE") != "1":
+        subprocess.run(
+            [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
+            cwd=ROOT,
+            check=True,
+            env={**os.environ, "DATABASE_URL": DATABASE_URL},
+        )
     subprocess.run(
         [sys.executable, "scripts/load_sample_data.py"],
         cwd=ROOT,
