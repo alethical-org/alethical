@@ -15,6 +15,7 @@ from alethical.api.rate_limit import (
 )
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.internal import router as internal_router
+from alethical.api.routers.legislator_chat import router as legislator_chat_router
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.public import router as public_router
 from alethical.logging import configure_logging
@@ -61,4 +62,5 @@ def create_app() -> FastAPI:
     app.include_router(ask_router, prefix="/api/v1", tags=["ask"])
     app.include_router(me_router, prefix="/api/v1", tags=["me"])
     app.include_router(internal_router, prefix="/internal/v1", tags=["internal"])
+    app.include_router(legislator_chat_router, prefix="/legislator-chat", tags=["legislator-chat"])
     return app

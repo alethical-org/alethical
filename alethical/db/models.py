@@ -833,6 +833,39 @@ class ChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
 
+class LegislatorChatRole(enum.Enum):
+    user = "user"
+    assistant = "assistant"
+
+
+class LegislatorChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "legislator_chat_session"
+
+    legislator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislator.id"), nullable=False)
+    last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    legislator: Mapped["Legislator"] = relationship()
+    messages: Mapped[list["LegislatorChatMessage"]] = relationship(back_populates="session")
+
+    __table_args__ = (Index("ix_legislator_chat_session_legislator", "legislator_id"),)
+
+
+class LegislatorChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "legislator_chat_message"
+
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislator_chat_session.id"), nullable=False)
+    role: Mapped[LegislatorChatRole] = mapped_column(
+        SQLEnum(LegislatorChatRole, name="legislator_chat_role"), nullable=False
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    was_refusal: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    citations: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    session: Mapped["LegislatorChatSession"] = relationship(back_populates="messages")
+
+    __table_args__ = (Index("ix_legislator_chat_message_session_created", "session_id", "created_at"),)
+
+
 class AIEnrichment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "ai_enrichment"
 
@@ -1298,3 +1331,31 @@ def semantic_rag_chunk_stmt(
     if max_distance is not None:
         stmt = stmt.where(distance <= max_distance)
     return stmt
+
+
+def legislator_chat_record_stmt(legislator_id: uuid.UUID):
+    """Every bill this legislator sponsored or voted on, with current summary enrichment."""
+    return (
+        select(Bill)
+        .where(
+            Bill.id.in_(select(Sponsorship.bill_id).where(Sponsorship.legislator_id == legislator_id))
+            | Bill.id.in_(
+                select(VoteEvent.bill_id)
+                .join(VoteRecord, VoteRecord.vote_event_id == VoteEvent.id)
+                .where(VoteRecord.legislator_id == legislator_id)
+            )
+        )
+        .options(
+            selectinload(Bill.sponsorships.and_(Sponsorship.legislator_id == legislator_id)),
+            selectinload(Bill.vote_events).selectinload(
+                VoteEvent.records.and_(VoteRecord.legislator_id == legislator_id)
+            ),
+            selectinload(
+                Bill.enrichments.and_(
+                    AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+                    AIEnrichment.is_current.is_(True),
+                )
+            ),
+        )
+        .order_by(Bill.latest_action_at.desc().nullslast(), Bill.bill_key.asc())
+    )
