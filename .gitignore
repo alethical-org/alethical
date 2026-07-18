@@ -50,3 +50,5 @@ htmlcov/
 *.log
 *.tmp
 .vercel
+
+.claude/settings.local.json
