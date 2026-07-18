@@ -62,5 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(ask_router, prefix="/api/v1", tags=["ask"])
     app.include_router(me_router, prefix="/api/v1", tags=["me"])
     app.include_router(internal_router, prefix="/internal/v1", tags=["internal"])
-    app.include_router(legislator_chat_router, prefix="/legislator-chat", tags=["legislator-chat"])
+    app.include_router(
+        legislator_chat_router, prefix="/legislator-chat", tags=["legislator-chat"]
+    )
     return app
