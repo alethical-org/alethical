@@ -33,7 +33,9 @@ ISAAC_SCHULTZ_ID = uuid.UUID("da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78")
 
 LEGISLATOR_CHAT_REFUSAL = "I don't have a public record on that."
 
-SOURCES_LINE_PATTERN = re.compile(r"\n?\s*SOURCES:\s*(.*)\s*$", re.IGNORECASE | re.DOTALL)
+SOURCES_LINE_PATTERN = re.compile(
+    r"\n?\s*SOURCES:\s*(.*)\s*$", re.IGNORECASE | re.DOTALL
+)
 INLINE_BILL_KEY_PATTERN = re.compile(r"\[?\b\d{2}-\d{4}-[A-Za-z]+\d+\b\]?")
 
 SYSTEM_PROMPT_TEMPLATE = """You are {legislator_name}, a Minnesota state legislator, speaking directly and
@@ -86,7 +88,12 @@ His record:
 {record_context}"""
 
 
-PARTY_NAMES = {"R": "Republican", "D": "Democrat", "DFL": "Democrat", "I": "Independent"}
+PARTY_NAMES = {
+    "R": "Republican",
+    "D": "Democrat",
+    "DFL": "Democrat",
+    "I": "Independent",
+}
 
 
 def load_legislator_bills(db: Session, legislator_id: uuid.UUID) -> list:
@@ -100,7 +107,10 @@ def load_legislator_profile(db: Session, legislator_id: uuid.UUID) -> dict:
         select(LegislatorServicePeriod, Chamber, District)
         .join(Chamber, Chamber.id == LegislatorServicePeriod.chamber_id)
         .join(District, District.id == LegislatorServicePeriod.district_id)
-        .where(LegislatorServicePeriod.legislator_id == legislator_id, LegislatorServicePeriod.is_current.is_(True))
+        .where(
+            LegislatorServicePeriod.legislator_id == legislator_id,
+            LegislatorServicePeriod.is_current.is_(True),
+        )
     ).first()
     if row is None:
         return {}
@@ -117,7 +127,9 @@ def load_legislator_profile(db: Session, legislator_id: uuid.UUID) -> dict:
 def summarize_record_stats(bills: list) -> dict:
     """Aggregate counts + topic tags for the profile card, computed from the same record the chat uses."""
     sponsorship_count = sum(len(bill.sponsorships) for bill in bills)
-    vote_count = sum(len(vote_event.records) for bill in bills for vote_event in bill.vote_events)
+    vote_count = sum(
+        len(vote_event.records) for bill in bills for vote_event in bill.vote_events
+    )
     bills_with_summary = sum(1 for bill in bills if bill.enrichments)
     topics: list[str] = []
     for bill in bills:
@@ -142,8 +154,14 @@ def format_record_context(bills: list) -> str:
             lines.append(f"Role: {sponsorship.role.value}")
         for vote_event in bill.vote_events:
             for record in vote_event.records:
-                when = vote_event.occurred_at.date().isoformat() if vote_event.occurred_at else "unknown date"
-                lines.append(f"Vote: {record.vote_value.value} ({when}, motion: {vote_event.motion_text or 'n/a'})")
+                when = (
+                    vote_event.occurred_at.date().isoformat()
+                    if vote_event.occurred_at
+                    else "unknown date"
+                )
+                lines.append(
+                    f"Vote: {record.vote_value.value} ({when}, motion: {vote_event.motion_text or 'n/a'})"
+                )
         for enrichment in bill.enrichments:
             content = enrichment.content_json or {}
             summary = content.get("summary")
@@ -180,7 +198,13 @@ def parse_answer(raw_text: str, bill_by_key: dict) -> tuple[str, list[dict]]:
             key = raw_key.strip().strip("[]")
             bill = bill_by_key.get(key)
             if bill is not None:
-                citations.append({"bill_key": bill.bill_key, "title": bill.title, "official_url": bill.official_url})
+                citations.append(
+                    {
+                        "bill_key": bill.bill_key,
+                        "title": bill.title,
+                        "official_url": bill.official_url,
+                    }
+                )
     return content, citations
 
 
@@ -220,7 +244,10 @@ def synthesize_legislator_answer(
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is required for legislator chat synthesis")
+        raise HTTPException(
+            status_code=503,
+            detail="OPENAI_API_KEY is required for legislator chat synthesis",
+        )
 
     model = os.environ.get("OPENAI_RAG_CHAT_MODEL", "gpt-4o-mini")
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
@@ -237,7 +264,10 @@ def synthesize_legislator_answer(
     try:
         response = requests.post(
             "https://api.openai.com/v1/responses",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
             json={"model": model, "input": input_messages},
             timeout=30,
         )
@@ -247,9 +277,13 @@ def synthesize_legislator_answer(
         if text_value:
             return text_value
     except requests.RequestException as exc:
-        raise HTTPException(status_code=502, detail="OpenAI legislator chat synthesis failed") from exc
+        raise HTTPException(
+            status_code=502, detail="OpenAI legislator chat synthesis failed"
+        ) from exc
 
-    raise HTTPException(status_code=502, detail="OpenAI legislator chat synthesis returned no answer")
+    raise HTTPException(
+        status_code=502, detail="OpenAI legislator chat synthesis returned no answer"
+    )
 
 
 def session_payload(row: LegislatorChatSession) -> dict:
@@ -286,29 +320,41 @@ def create_session(db: Session = Depends(get_db)):
 
 @router.get("/sessions/{session_id}/messages", response_model=CollectionResponse)
 def list_messages(session_id: str, db: Session = Depends(get_db)):
-    session_row = db.scalar(select(LegislatorChatSession).where(LegislatorChatSession.id == session_id))
+    session_row = db.scalar(
+        select(LegislatorChatSession).where(LegislatorChatSession.id == session_id)
+    )
     if session_row is None:
         raise HTTPException(status_code=404, detail="chat session not found")
     rows = db.scalars(
         select(LegislatorChatMessage)
         .where(LegislatorChatMessage.session_id == session_row.id)
-        .order_by(LegislatorChatMessage.created_at.asc(), LegislatorChatMessage.id.asc())
+        .order_by(
+            LegislatorChatMessage.created_at.asc(), LegislatorChatMessage.id.asc()
+        )
     ).all()
     data = [message_payload(row) for row in rows]
-    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
+    return CollectionResponse(
+        data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
 
 
-@router.post("/sessions/{session_id}/messages", response_model=DetailResponse, status_code=201)
+@router.post(
+    "/sessions/{session_id}/messages", response_model=DetailResponse, status_code=201
+)
 def create_message(session_id: str, request: dict, db: Session = Depends(get_db)):
     content = (request or {}).get("content", "").strip()
     if not content:
         raise HTTPException(status_code=400, detail="content is required")
 
-    session_row = db.scalar(select(LegislatorChatSession).where(LegislatorChatSession.id == session_id))
+    session_row = db.scalar(
+        select(LegislatorChatSession).where(LegislatorChatSession.id == session_id)
+    )
     if session_row is None:
         raise HTTPException(status_code=404, detail="chat session not found")
 
-    legislator = db.scalar(select(Legislator).where(Legislator.id == session_row.legislator_id))
+    legislator = db.scalar(
+        select(Legislator).where(Legislator.id == session_row.legislator_id)
+    )
     if legislator is None:
         raise HTTPException(status_code=404, detail="legislator not found")
 
@@ -320,7 +366,9 @@ def create_message(session_id: str, request: dict, db: Session = Depends(get_db)
     ).all()
     history = list(reversed(history))
 
-    user_message = LegislatorChatMessage(session_id=session_row.id, role=LegislatorChatRole.user, content=content)
+    user_message = LegislatorChatMessage(
+        session_id=session_row.id, role=LegislatorChatRole.user, content=content
+    )
     db.add(user_message)
     # Commit (not just flush) before the LLM call: func.now() freezes to transaction start,
     # so leaving this in the same transaction as the assistant message gives both rows an
@@ -558,7 +606,9 @@ def render_chat_page(legislator, profile: dict, stats: dict) -> str:
         role_bits.append(f"District {profile['district_code']}")
     if profile.get("party"):
         role_bits.append(profile["party"])
-    subtitle = html.escape(" · ".join(role_bits)) if role_bits else "Minnesota Legislature"
+    subtitle = (
+        html.escape(" · ".join(role_bits)) if role_bits else "Minnesota Legislature"
+    )
 
     profile_link = ""
     if profile.get("profile_url"):
@@ -567,7 +617,9 @@ def render_chat_page(legislator, profile: dict, stats: dict) -> str:
             f'target="_blank" rel="noopener noreferrer">View official profile ↗</a>'
         )
 
-    topics_html = "".join(f'<span class="topic-chip">{html.escape(t)}</span>' for t in stats["topics"])
+    topics_html = "".join(
+        f'<span class="topic-chip">{html.escape(t)}</span>' for t in stats["topics"]
+    )
     topics_section = (
         f'<div class="section-label">Topics in his record</div><div class="topics">{topics_html}</div>'
         if topics_html
@@ -577,9 +629,9 @@ def render_chat_page(legislator, profile: dict, stats: dict) -> str:
     stats_html = f"""
       <div class="section-label">Data sources</div>
       <div class="stats">
-        <div class="stat-tile"><strong>{stats['sponsorship_count']}</strong><span>Sponsorships</span></div>
-        <div class="stat-tile"><strong>{stats['vote_count']}</strong><span>Vote records</span></div>
-        <div class="stat-tile"><strong>{stats['bills_with_summary']}</strong><span>Bill summaries</span></div>
+        <div class="stat-tile"><strong>{stats["sponsorship_count"]}</strong><span>Sponsorships</span></div>
+        <div class="stat-tile"><strong>{stats["vote_count"]}</strong><span>Vote records</span></div>
+        <div class="stat-tile"><strong>{stats["bills_with_summary"]}</strong><span>Bill summaries</span></div>
       </div>
     """
 
