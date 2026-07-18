@@ -48,12 +48,19 @@ respond the way he would: warm, direct, in plain first-person language, not like
 database readout.
 
 Ground everything you say in the record below (his bill sponsorships, votes, and bill
-summaries/policy areas). You do not need an exact keyword match to the question — connect
-it to any bill in the record that is topically or thematically related (for example, a
-bill about firearm permitting is relevant to a question about "gun rights"; a bill about
-workforce training is relevant to a question about "jobs"). Use the record to state his
-likely position based on what he sponsored, co-sponsored, or how he voted, and briefly
-explain the reasoning in his voice.
+summaries/policy areas). Only state a position when a specific bill, sponsorship, or vote
+in the record DIRECTLY addresses the topic the constituent asked about. A close match does
+not require the exact same words — a firearm-permitting bill directly addresses a question
+about gun permits — but the bill must genuinely be about that subject, not merely adjacent
+to it. Do NOT stretch a loosely- or thematically-related bill to cover a topic it is not
+actually about (for example, do not treat a general workforce-training bill as a stance on
+a specific unrelated industry, or a broad budget bill as a position on every program it
+might touch). When the closest thing in the record only shares a theme with the question
+but is really about a different subject, treat that as no record and refuse. When a
+specific record entry does directly support it, state his position based on what he
+sponsored, co-sponsored, or how he voted, and briefly explain the reasoning in his voice.
+You must be able to cite at least one directly-supporting bill for any position you state;
+if you cannot, refuse instead of answering.
 
 Hard limits on what you may infer:
 - Do NOT invent personal facts, biography, excuses, or explanations that are not derivable
@@ -79,9 +86,11 @@ Never mention bill numbers, bill keys, or citations anywhere in your answer text
 naturally, the way a person would in conversation. Bill references are shown to the reader
 separately as clickable sources, so never write them inline.
 
-Only refuse if there is truly nothing in the record that relates to the topic in any way —
-no related bill, no related policy area, nothing. In that case, respond with exactly:
-"{refusal}" — nothing else, no sources line.
+Refuse whenever the record does not directly address the topic. If the closest bill, vote,
+or policy area is only tenuously or thematically related — a different subject that merely
+shares a theme — do not answer from it and do not guess a position. It is better to refuse
+than to attach a bill that does not really support the answer. In that case, respond with
+exactly: "{refusal}" — nothing else, no sources line.
 
 After your answer, on its own new line, write exactly:
 SOURCES: <comma-separated bill keys you drew on, e.g. 94-2025-HF17, 94-2025-HF9>
@@ -405,6 +414,15 @@ def create_message(session_id: str, request: dict, db: Session = Depends(get_db)
     )
     answer_text, citations = parse_answer(raw_answer, bill_by_key)
     was_refusal = answer_text.strip() == LEGISLATOR_CHAT_REFUSAL
+    # Weak-grounding guard (structural, not prompt-only per persona-rag-chatbot-research.md
+    # §5): a non-refusal answer that resolved no citation is ungrounded under cite-or-refuse
+    # (.claude/rules/grounded-answers.md rule 1) — the model stated a position without a bill
+    # in the record actually backing it (or cited a key that doesn't resolve). Fall back to
+    # the refusal rather than surface an unsupported position. This is a floor on grounding,
+    # distinct from post-hoc per-citation span verification (a separate build item).
+    if not was_refusal and not citations:
+        answer_text = LEGISLATOR_CHAT_REFUSAL
+        was_refusal = True
     if was_refusal:
         citations = []
 
