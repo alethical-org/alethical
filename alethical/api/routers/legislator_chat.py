@@ -17,6 +17,7 @@ from alethical.api.schemas import CollectionResponse, DetailResponse
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
 from alethical.pipeline.rag_ingest import (
+    DEFAULT_RAG_BATCH_SIZE,
     DEFAULT_RAG_MODEL,
     _build_embeddings,
     effective_embedding_model,
@@ -180,6 +181,94 @@ def format_record_context(bills: list) -> str:
                 lines.append(f"Policy areas: {', '.join(policy_areas)}")
         entries.append("\n".join(lines))
     return "\n\n".join(entries)
+
+
+# How many of a legislator's bills to retrieve into the prompt per question,
+# instead of stuffing the whole record. A single legislator's corpus is tens to
+# low-hundreds of bills; this focuses the prompt on the question while leaving
+# enough headroom for the persona to connect thematically related bills (the
+# grounding style the system prompt asks for). See
+# docs/persona-rag-chatbot-research.md Addendum (2026-07-16, Hybrid retrieval / RRF).
+LEGISLATOR_RETRIEVAL_TOP_K = 8
+
+
+def bill_retrieval_text(bill) -> str:
+    """The text embedded to rank a bill against the question.
+
+    Deliberately the same material the persona actually grounds in — title plus
+    the AI summary / key points / policy areas — so retrieval selects bills on
+    the content that will end up in the prompt (not the raw section text the
+    bill-scoped RAG chunks carry, a different corpus that also doesn't cover every
+    bill in a legislator's record)."""
+    parts = [bill.title.strip()]
+    for enrichment in bill.enrichments:
+        content = enrichment.content_json or {}
+        if content.get("summary"):
+            parts.append(content["summary"])
+        if content.get("key_points"):
+            parts.append("; ".join(content["key_points"]))
+        if content.get("policy_areas"):
+            parts.append(", ".join(content["policy_areas"]))
+    return "\n".join(part for part in parts if part)
+
+
+def cosine_similarity(left: list[float], right: list[float]) -> float:
+    dot = sum(a * b for a, b in zip(left, right))
+    left_norm = math.sqrt(sum(a * a for a in left))
+    right_norm = math.sqrt(sum(b * b for b in right))
+    if left_norm == 0 or right_norm == 0:
+        return 0.0
+    return dot / (left_norm * right_norm)
+
+
+def retrieve_relevant_bills(
+    question: str, bills: list, *, top_k: int = LEGISLATOR_RETRIEVAL_TOP_K
+) -> list:
+    """Rank a legislator's bills by semantic similarity to the question and return
+    the top ``top_k`` — retrieval in place of dumping the whole record.
+
+    Vector-only, code-only v1 (no schema change, deferred RRF): embeds each bill's
+    summary doc (``bill_retrieval_text``) and the question at request time and
+    ranks by cosine similarity. The corpus is small enough that per-request
+    embedding is acceptable — see docs/persona-rag-chatbot-research.md Addendum
+    (2026-07-16, Hybrid retrieval / RRF). Vector search alone can miss a pure
+    lexical match (a bare bill number the summary text doesn't mention); that
+    miss is the documented signal for whether the deferred keyword+RRF layer is
+    later justified.
+
+    Degrades to the full bill list (the previous corpus-stuffing behavior) when
+    ranking would be meaningless or unavailable — no OpenAI key (embeddings are
+    the deterministic hash fallback, so cosine is noise; tests/offline dev), the
+    record already fits within ``top_k``, no bill has embeddable text, or the
+    embedding call fails — so grounding stays available rather than crashing."""
+    if len(bills) <= top_k:
+        return bills
+    # Without a real key, _build_embeddings returns deterministic hashes whose
+    # cosine ordering is meaningless — fall back to the full record.
+    if not os.environ.get("OPENAI_API_KEY"):
+        return bills
+
+    docs = [(bill, bill_retrieval_text(bill)) for bill in bills]
+    docs = [(bill, doc) for bill, doc in docs if doc.strip()]
+    if not docs:
+        return bills
+
+    # One batched call embeds the question and every bill doc together.
+    texts = [question] + [doc for _, doc in docs]
+    try:
+        vectors = _build_embeddings(
+            texts, model=DEFAULT_RAG_MODEL, batch_size=DEFAULT_RAG_BATCH_SIZE
+        )
+    except (requests.RequestException, RuntimeError):
+        return bills
+
+    question_vec = vectors[0]
+    scored = sorted(
+        zip((bill for bill, _ in docs), vectors[1:]),
+        key=lambda pair: cosine_similarity(question_vec, pair[1]),
+        reverse=True,
+    )
+    return [bill for bill, _ in scored[:top_k]]
 
 
 def parse_answer(raw_text: str, bill_by_key: dict) -> tuple[str, list[dict]]:
@@ -515,8 +604,11 @@ def create_message(session_id: str, request: dict, db: Session = Depends(get_db)
     db.refresh(user_message)
 
     bills = load_legislator_bills(db, legislator.id)
+    # Resolve citations against the full record; ground the answer only on the
+    # bills retrieved for this question (retrieval, not corpus-stuffing).
     bill_by_key = {bill.bill_key: bill for bill in bills}
-    record_context = format_record_context(bills)
+    retrieved_bills = retrieve_relevant_bills(content, bills)
+    record_context = format_record_context(retrieved_bills)
     raw_answer = synthesize_legislator_answer(
         content,
         record_context,
