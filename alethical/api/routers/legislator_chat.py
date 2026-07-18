@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import html
+import logging
+import math
 import os
 import re
 import uuid
@@ -14,6 +16,13 @@ from sqlalchemy.orm import Session
 from alethical.api.schemas import CollectionResponse, DetailResponse
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
+from alethical.pipeline.rag_ingest import (
+    DEFAULT_RAG_MODEL,
+    _build_embeddings,
+    effective_embedding_model,
+)
+
+logger = logging.getLogger(__name__)
 
 schema = load_schema()
 Chamber = schema.Chamber
@@ -196,6 +205,108 @@ def parse_answer(raw_text: str, bill_by_key: dict) -> tuple[str, list[dict]]:
             if bill is not None:
                 citations.append({"bill_key": bill.bill_key, "title": bill.title, "official_url": bill.official_url})
     return content, citations
+
+
+# Post-hoc citation verification (plan doc item 4; docs/persona-rag-chatbot-research.md
+# §5, "Citation accuracy is a structural problem"). The model self-reports a SOURCES line,
+# but citation-prose alignment is unreliable at the claim level — models cite the right
+# document yet not the right span. So we don't trust the linkage: for each cited bill we
+# embed its own summary/key_points and the answer text and drop citations whose cosine
+# similarity falls below the threshold, rather than render a bill the record doesn't
+# actually support as a green source pill (cite-or-refuse, .claude/rules/grounded-answers.md
+# rule 1).
+#
+# Threshold: with text-embedding-3-small, cosine similarity between an answer and a
+# genuinely supporting bill's summary typically runs ~0.3-0.6 while an off-topic bill sits
+# ~0.05-0.15, so 0.25 is a conservative floor that separates them. Set as a default here
+# rather than empirically tuned live; revisit once a working key allows a live sweep.
+# Override with LEGISLATOR_CHAT_CITATION_MIN_SIMILARITY.
+CITATION_SIMILARITY_THRESHOLD = float(
+    os.environ.get("LEGISLATOR_CHAT_CITATION_MIN_SIMILARITY", "0.25")
+)
+
+
+def _bill_support_text(bill) -> str:
+    """The bill's own words a citation must semantically back — title + summary + key points."""
+    parts = [bill.title.strip() if bill.title else ""]
+    for enrichment in bill.enrichments:
+        content = enrichment.content_json or {}
+        if content.get("summary"):
+            parts.append(content["summary"])
+        key_points = content.get("key_points")
+        if key_points:
+            parts.append("; ".join(key_points))
+    return "\n".join(part for part in parts if part).strip()
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def _default_citation_embedder():
+    """Batch embedder for verification, or None when no real embedding model is available.
+
+    Verification is semantic, so the deterministic hash fallback (no OPENAI_API_KEY) is
+    meaningless here — verification is real-model-only and skipped otherwise (degrade
+    safe, not drop-everything)."""
+    if effective_embedding_model(DEFAULT_RAG_MODEL) != DEFAULT_RAG_MODEL:
+        return None
+    return lambda texts: _build_embeddings(
+        texts, model=DEFAULT_RAG_MODEL, batch_size=max(1, len(texts))
+    )
+
+
+def verify_citations(
+    answer_text: str,
+    citations: list[dict],
+    bill_by_key: dict,
+    *,
+    threshold: float = CITATION_SIMILARITY_THRESHOLD,
+    embed=None,
+) -> tuple[list[dict], list[dict]]:
+    """Drop self-reported citations whose bill doesn't semantically back the answer.
+
+    Returns (kept, dropped). Degrades safely: with no real embedding model or on any
+    embedding failure it returns citations unchanged rather than 500ing the request or
+    wrongly dropping everything — a verification outage must not silently refuse.
+    """
+    if not citations:
+        return citations, []
+    if embed is None:
+        embed = _default_citation_embedder()
+    if embed is None:
+        return citations, []
+
+    support_texts = [
+        _bill_support_text(bill_by_key[c["bill_key"]])
+        if c["bill_key"] in bill_by_key
+        else ""
+        for c in citations
+    ]
+    try:
+        vectors = embed([answer_text, *support_texts])
+    except Exception:
+        logger.warning(
+            "legislator-chat citation verification skipped: embedding failed",
+            exc_info=True,
+        )
+        return citations, []
+
+    answer_vec = vectors[0]
+    kept: list[dict] = []
+    dropped: list[dict] = []
+    for citation, support_text, vector in zip(citations, support_texts, vectors[1:]):
+        score = _cosine_similarity(answer_vec, vector) if support_text else 0.0
+        if score >= threshold:
+            kept.append(citation)
+        else:
+            dropped.append({**citation, "similarity": round(score, 4)})
+    return kept, dropped
 
 
 def extract_openai_response_text(payload: dict) -> str | None:
@@ -425,6 +536,22 @@ def create_message(session_id: str, request: dict, db: Session = Depends(get_db)
         was_refusal = True
     if was_refusal:
         citations = []
+    else:
+        # Don't trust the model's self-reported SOURCES: verify each cited bill actually
+        # backs the answer, and drop those that don't (research §5; rule 1 cite-or-refuse).
+        had_citations = bool(citations)
+        citations, dropped = verify_citations(answer_text, citations, bill_by_key)
+        if dropped:
+            logger.info(
+                "legislator-chat dropped %d unsupported citation(s): %s",
+                len(dropped),
+                ", ".join(f"{d['bill_key']}={d['similarity']}" for d in dropped),
+            )
+        if had_citations and not citations:
+            # Every self-reported source failed verification — the answer is ungrounded
+            # (post-hoc citation). Refuse rather than ship an answer with no valid source.
+            answer_text = LEGISLATOR_CHAT_REFUSAL
+            was_refusal = True
 
     assistant_message = LegislatorChatMessage(
         session_id=session_row.id,
