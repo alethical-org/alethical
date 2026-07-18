@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 import requests
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from alethical.api.schemas import CollectionResponse, DetailResponse
@@ -23,12 +23,17 @@ LegislatorChatMessage = schema.LegislatorChatMessage
 LegislatorChatRole = schema.LegislatorChatRole
 LegislatorChatSession = schema.LegislatorChatSession
 LegislatorServicePeriod = schema.LegislatorServicePeriod
+Sponsorship = schema.Sponsorship
+VoteRecord = schema.VoteRecord
 legislator_chat_record_stmt = schema.legislator_chat_record_stmt
 
 router = APIRouter()
 
-# Internal proof-of-concept demo: single hardcoded legislator (richest data of the 119
-# in the DB - 50 sponsorships, 51 votes). Not for real users; see plan doc for scope.
+# Internal proof-of-concept demo. Isaac Schultz has the richest record in the corpus
+# (50 sponsorships, 51 votes) and is the default legislator when a session is created
+# without an explicit legislator_id, so the demo works out of the box. A session can be
+# created for any legislator with a meaningful record (see list_legislators). Not for
+# real users; see plan doc for scope.
 ISAAC_SCHULTZ_ID = uuid.UUID("da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78")
 
 LEGISLATOR_CHAT_REFUSAL = "I don't have a public record on that."
@@ -272,11 +277,71 @@ def message_payload(row: LegislatorChatMessage) -> dict:
     }
 
 
+def legislator_record_counts(legislator_id: uuid.UUID):
+    """Scalar subqueries for a legislator's sponsorship and vote-record counts."""
+    sponsorship_count = (
+        select(func.count())
+        .select_from(Sponsorship)
+        .where(Sponsorship.legislator_id == legislator_id)
+        .scalar_subquery()
+    )
+    vote_count = (
+        select(func.count())
+        .select_from(VoteRecord)
+        .where(VoteRecord.legislator_id == legislator_id)
+        .scalar_subquery()
+    )
+    return sponsorship_count, vote_count
+
+
+@router.get("/legislators", response_model=CollectionResponse)
+def list_legislators(db: Session = Depends(get_db)):
+    """Legislators with enough public record to ground answers (has sponsorships and/or votes)."""
+    sponsorship_count, vote_count = legislator_record_counts(Legislator.id)
+    rows = db.execute(
+        select(
+            Legislator.id,
+            Legislator.full_name,
+            sponsorship_count.label("sponsorship_count"),
+            vote_count.label("vote_count"),
+        )
+        .where((sponsorship_count > 0) | (vote_count > 0))
+        .order_by((sponsorship_count + vote_count).desc(), Legislator.sort_name.asc())
+    ).all()
+    data = [
+        {
+            "id": str(row.id),
+            "full_name": row.full_name,
+            "sponsorship_count": row.sponsorship_count,
+            "vote_count": row.vote_count,
+        }
+        for row in rows
+    ]
+    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
+
+
 @router.post("/sessions", response_model=DetailResponse, status_code=201)
-def create_session(db: Session = Depends(get_db)):
-    legislator = db.scalar(select(Legislator).where(Legislator.id == ISAAC_SCHULTZ_ID))
+def create_session(request: dict | None = None, db: Session = Depends(get_db)):
+    raw_id = (request or {}).get("legislator_id")
+    if raw_id:
+        try:
+            legislator_id = uuid.UUID(str(raw_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="legislator_id is not a valid UUID") from exc
+    else:
+        legislator_id = ISAAC_SCHULTZ_ID
+
+    legislator = db.scalar(select(Legislator).where(Legislator.id == legislator_id))
     if legislator is None:
         raise HTTPException(status_code=404, detail="legislator not found")
+
+    # A legislator with no sponsorships and no votes has nothing to ground answers in and
+    # would only ever refuse, so reject the session rather than create a dead chat.
+    sponsorship_count, vote_count = legislator_record_counts(legislator.id)
+    has_record = db.scalar(select((sponsorship_count > 0) | (vote_count > 0)))
+    if not has_record:
+        raise HTTPException(status_code=400, detail="legislator has no public record to ground answers")
+
     row = LegislatorChatSession(legislator_id=legislator.id)
     db.add(row)
     db.commit()
