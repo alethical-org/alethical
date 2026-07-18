@@ -24,6 +24,7 @@ import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
 import { BillDetailScreen } from '../screens/BillDetailScreen';
 import { ChatSessionScreen } from '../screens/ChatSessionScreen';
 import { ChatScreen } from '../screens/ChatScreen';
+import { LegislatorChatScreen } from '../screens/LegislatorChatScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
@@ -625,6 +626,11 @@ export function RootNavigator() {
               name="ChatSession"
               component={ChatSessionScreen}
               options={{ title: 'Chat' }}
+            />
+            <Stack.Screen
+              name="LegislatorChat"
+              component={LegislatorChatScreen}
+              options={{ title: 'Legislator Chat' }}
             />
           </Stack.Navigator>
         </View>

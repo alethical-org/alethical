@@ -3,6 +3,9 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   askFromApi,
   createChatSessionFromApi,
+  createLegislatorChatSessionFromApi,
+  listLegislatorChatMessagesFromApi,
+  sendLegislatorChatMessageFromApi,
   BillListFilters,
   getBillFromApi,
   getChatSessionFromApi,
@@ -214,6 +217,37 @@ export function useSendChatMessage(userId?: string) {
 
       queryClient.setQueryData(['chat-session', userId ?? 'anon', session.id], session);
       void queryClient.invalidateQueries({ queryKey: ['chat-sessions', userId ?? 'anon'] });
+    },
+  });
+}
+
+// Legislator persona chat (internal demo). Public endpoints, no auth; the
+// backend pins a single hardcoded legislator on create_session.
+export function useCreateLegislatorChatSession() {
+  return useMutation({
+    mutationFn: () => createLegislatorChatSessionFromApi(),
+  });
+}
+
+export function useLegislatorChatMessages(sessionId?: string) {
+  return useQuery({
+    queryKey: ['legislator-chat-messages', sessionId ?? 'new'],
+    queryFn: () => listLegislatorChatMessagesFromApi(sessionId ?? ''),
+    enabled: Boolean(sessionId),
+    retry: false,
+  });
+}
+
+export function useSendLegislatorChatMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { sessionId: string; content: string }) =>
+      sendLegislatorChatMessageFromApi(input.sessionId, input.content),
+    onSuccess: (_message, input) => {
+      void queryClient.invalidateQueries({
+        queryKey: ['legislator-chat-messages', input.sessionId],
+      });
     },
   });
 }

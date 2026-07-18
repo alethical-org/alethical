@@ -13,6 +13,7 @@ type WebRouteTarget =
   | { kind: 'terms' }
   | { kind: 'vote'; billId: string; voteEventId: string }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
+  | { kind: 'legislatorChat' }
   | { kind: 'ask'; params: RootStackParamList['Ask'] };
 
 // Sign-in returnTo for a signed-out user who tapped Track: land back on the
@@ -73,6 +74,10 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     }
     if (segments[0] === 'ask') {
       return { kind: 'ask', params: { q: searchParams.get('q') ?? undefined } };
+    }
+    // Internal-demo persona chat. URL-addressable but not linked from product nav.
+    if (segments[0] === 'legislator-chat') {
+      return { kind: 'legislatorChat' };
     }
     if (segments[0] === 'privacy') {
       return { kind: 'privacy' };
@@ -206,6 +211,8 @@ export function pathnameFromNavigationState(
       return `/legislators/${encodeURIComponent(String(activeRoute.params?.legislatorId ?? ''))}`;
     case 'FindMyLegislator':
       return '/find-my-legislator';
+    case 'LegislatorChat':
+      return '/legislator-chat';
     case 'Privacy':
       return '/privacy';
     case 'Terms':
@@ -345,6 +352,11 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
     case 'ask':
       return {
         routes: [homeTabs, { name: 'Ask', params: target.params }],
+        index: 1,
+      };
+    case 'legislatorChat':
+      return {
+        routes: [homeTabs, { name: 'LegislatorChat' }],
         index: 1,
       };
   }
