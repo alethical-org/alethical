@@ -117,5 +117,7 @@ def create_app() -> FastAPI:
         pending_actions_router, prefix="/api/v1", tags=["pending-actions"]
     )
     app.include_router(internal_router, prefix="/internal/v1", tags=["internal"])
-    app.include_router(legislator_chat_router, prefix="/legislator-chat", tags=["legislator-chat"])
+    app.include_router(
+        legislator_chat_router, prefix="/legislator-chat", tags=["legislator-chat"]
+    )
     return app

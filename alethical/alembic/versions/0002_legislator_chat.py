@@ -7,7 +7,7 @@ from alethical.db import models
 
 # revision identifiers, used by Alembic.
 revision = "0002_legislator_chat"
-down_revision = "0001_initial_schema"
+down_revision = "0003_one_current_per_bill"
 branch_labels = None
 depends_on = None
 
