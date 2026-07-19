@@ -973,6 +973,136 @@ export async function sendChatMessageToApi(
   return getChatSessionFromApi(accessToken, input.sessionId);
 }
 
+// --- Legislator persona chat (internal demo) ---------------------------------
+// These endpoints live at the origin root (/legislator-chat), not under
+// /api/v1, so they use their own URL builder. They are public (no auth), matching
+// the router in alethical/api/routers/legislator_chat.py.
+interface ApiLegislatorChatCitationPayload {
+  bill_key: string;
+  title: string;
+  official_url?: string | null;
+}
+
+interface ApiLegislatorChatSessionPayload {
+  id: string;
+  legislator_id: string;
+  last_message_at?: string | null;
+  created_at: string;
+}
+
+interface ApiLegislatorChatMessagePayload {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  was_refusal: boolean;
+  citations?: ApiLegislatorChatCitationPayload[] | null;
+  created_at: string;
+}
+
+export interface LegislatorChatCitation {
+  id: string;
+  billKey: string;
+  title: string;
+  url?: string;
+}
+
+export interface LegislatorChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  wasRefusal: boolean;
+  citations: LegislatorChatCitation[];
+  createdAt: string;
+}
+
+export interface LegislatorChatSession {
+  id: string;
+  legislatorId: string;
+  lastMessageAt?: string;
+  createdAt: string;
+}
+
+function legislatorChatUrl(path: string) {
+  if (!configuredApiOrigin) {
+    throw new Error('Legislator chat API is not configured for this deployment.');
+  }
+
+  return `${configuredApiOrigin}/legislator-chat${path}`;
+}
+
+async function legislatorChatRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(legislatorChatUrl(path), {
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      ...(init.body ? { 'Content-Type': 'application/json' } : null),
+      ...(init.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `API request failed with ${response.status}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+function mapLegislatorChatMessage(payload: ApiLegislatorChatMessagePayload): LegislatorChatMessage {
+  return {
+    id: payload.id,
+    role: payload.role,
+    content: payload.content,
+    wasRefusal: payload.was_refusal,
+    citations: (payload.citations ?? []).map((citation, index) => ({
+      id: `${payload.id}-${citation.bill_key}-${index}`,
+      billKey: citation.bill_key,
+      title: citation.title,
+      url: citation.official_url ?? undefined,
+    })),
+    createdAt: payload.created_at,
+  };
+}
+
+export async function createLegislatorChatSessionFromApi(): Promise<LegislatorChatSession> {
+  const response = await legislatorChatRequest<DetailResponse<ApiLegislatorChatSessionPayload>>(
+    '/sessions',
+    { method: 'POST' },
+  );
+
+  return {
+    id: response.data.id,
+    legislatorId: response.data.legislator_id,
+    lastMessageAt: response.data.last_message_at ?? undefined,
+    createdAt: response.data.created_at,
+  };
+}
+
+export async function listLegislatorChatMessagesFromApi(
+  sessionId: string,
+): Promise<LegislatorChatMessage[]> {
+  const response = await legislatorChatRequest<CollectionResponse<ApiLegislatorChatMessagePayload>>(
+    `/sessions/${encodeURIComponent(sessionId)}/messages`,
+  );
+
+  return response.data.map(mapLegislatorChatMessage);
+}
+
+export async function sendLegislatorChatMessageFromApi(
+  sessionId: string,
+  content: string,
+): Promise<LegislatorChatMessage> {
+  const response = await legislatorChatRequest<DetailResponse<ApiLegislatorChatMessagePayload>>(
+    `/sessions/${encodeURIComponent(sessionId)}/messages`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    },
+  );
+
+  return mapLegislatorChatMessage(response.data);
+}
+
 export async function askFromApi(question: string): Promise<AskAnswer> {
   const response = await publicApiPost<DetailResponse<ApiAskAnswerPayload>>('/ask', {
     content: question,

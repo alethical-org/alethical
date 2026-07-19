@@ -40,6 +40,10 @@ export type RootStackParamList = {
     subjectLabel?: string;
     title?: string;
   };
+  // Internal demo: AI-simulation persona chat with a single hardcoded
+  // legislator. URL-addressable at /legislator-chat but deliberately not linked
+  // from product nav (internal-demo wall — docs/legislator-persona-chat-plan.md).
+  LegislatorChat: undefined;
 };
 
 export type MainTabParamList = {

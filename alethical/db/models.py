@@ -841,11 +841,15 @@ class LegislatorChatRole(enum.Enum):
 class LegislatorChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "legislator_chat_session"
 
-    legislator_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislator.id"), nullable=False)
+    legislator_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislator.id"), nullable=False
+    )
     last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     legislator: Mapped["Legislator"] = relationship()
-    messages: Mapped[list["LegislatorChatMessage"]] = relationship(back_populates="session")
+    messages: Mapped[list["LegislatorChatMessage"]] = relationship(
+        back_populates="session"
+    )
 
     __table_args__ = (Index("ix_legislator_chat_session_legislator", "legislator_id"),)
 
@@ -853,7 +857,9 @@ class LegislatorChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class LegislatorChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "legislator_chat_message"
 
-    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legislator_chat_session.id"), nullable=False)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislator_chat_session.id"), nullable=False
+    )
     role: Mapped[LegislatorChatRole] = mapped_column(
         SQLEnum(LegislatorChatRole, name="legislator_chat_role"), nullable=False
     )
@@ -863,7 +869,9 @@ class LegislatorChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     session: Mapped["LegislatorChatSession"] = relationship(back_populates="messages")
 
-    __table_args__ = (Index("ix_legislator_chat_message_session_created", "session_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_legislator_chat_message_session_created", "session_id", "created_at"),
+    )
 
 
 class AIEnrichment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -1338,7 +1346,11 @@ def legislator_chat_record_stmt(legislator_id: uuid.UUID):
     return (
         select(Bill)
         .where(
-            Bill.id.in_(select(Sponsorship.bill_id).where(Sponsorship.legislator_id == legislator_id))
+            Bill.id.in_(
+                select(Sponsorship.bill_id).where(
+                    Sponsorship.legislator_id == legislator_id
+                )
+            )
             | Bill.id.in_(
                 select(VoteEvent.bill_id)
                 .join(VoteRecord, VoteRecord.vote_event_id == VoteEvent.id)
@@ -1346,7 +1358,9 @@ def legislator_chat_record_stmt(legislator_id: uuid.UUID):
             )
         )
         .options(
-            selectinload(Bill.sponsorships.and_(Sponsorship.legislator_id == legislator_id)),
+            selectinload(
+                Bill.sponsorships.and_(Sponsorship.legislator_id == legislator_id)
+            ),
             selectinload(Bill.vote_events).selectinload(
                 VoteEvent.records.and_(VoteRecord.legislator_id == legislator_id)
             ),
