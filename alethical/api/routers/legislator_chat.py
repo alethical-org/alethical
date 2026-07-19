@@ -24,13 +24,10 @@ from alethical.pipeline.rag_ingest import (
 logger = logging.getLogger(__name__)
 
 schema = load_schema()
-Chamber = schema.Chamber
-District = schema.District
 Legislator = schema.Legislator
 LegislatorChatMessage = schema.LegislatorChatMessage
 LegislatorChatRole = schema.LegislatorChatRole
 LegislatorChatSession = schema.LegislatorChatSession
-LegislatorServicePeriod = schema.LegislatorServicePeriod
 Sponsorship = schema.Sponsorship
 VoteRecord = schema.VoteRecord
 legislator_chat_record_stmt = schema.legislator_chat_record_stmt
@@ -108,51 +105,9 @@ His record:
 {record_context}"""
 
 
-PARTY_NAMES = {"R": "Republican", "D": "Democrat", "DFL": "Democrat", "I": "Independent"}
-
-
 def load_legislator_bills(db: Session, legislator_id: uuid.UUID) -> list:
     """Every bill this legislator sponsored or voted on, with current summary enrichment."""
     return db.scalars(legislator_chat_record_stmt(legislator_id)).unique().all()
-
-
-def load_legislator_profile(db: Session, legislator_id: uuid.UUID) -> dict:
-    """Current service-period facts (party, title, district, chamber, official profile link)."""
-    row = db.execute(
-        select(LegislatorServicePeriod, Chamber, District)
-        .join(Chamber, Chamber.id == LegislatorServicePeriod.chamber_id)
-        .join(District, District.id == LegislatorServicePeriod.district_id)
-        .where(LegislatorServicePeriod.legislator_id == legislator_id, LegislatorServicePeriod.is_current.is_(True))
-    ).first()
-    if row is None:
-        return {}
-    service_period, chamber, district = row
-    return {
-        "party": PARTY_NAMES.get(service_period.party, service_period.party),
-        "title": service_period.title,
-        "chamber_name": chamber.name,
-        "district_code": district.code,
-        "profile_url": service_period.profile_url,
-    }
-
-
-def summarize_record_stats(bills: list) -> dict:
-    """Aggregate counts + topic tags for the profile card, computed from the same record the chat uses."""
-    sponsorship_count = sum(len(bill.sponsorships) for bill in bills)
-    vote_count = sum(len(vote_event.records) for bill in bills for vote_event in bill.vote_events)
-    bills_with_summary = sum(1 for bill in bills if bill.enrichments)
-    topics: list[str] = []
-    for bill in bills:
-        for enrichment in bill.enrichments:
-            for topic in (enrichment.content_json or {}).get("policy_areas") or []:
-                if topic not in topics:
-                    topics.append(topic)
-    return {
-        "sponsorship_count": sponsorship_count,
-        "vote_count": vote_count,
-        "bills_with_summary": bills_with_summary,
-        "topics": topics[:10],
-    }
 
 
 def format_record_context(bills: list) -> str:
@@ -190,24 +145,24 @@ def format_record_context(bills: list) -> str:
 LEGISLATOR_RETRIEVAL_TOP_K = 8
 
 
-def bill_retrieval_text(bill) -> str:
-    """The text embedded to rank a bill against the question.
+def bill_embedding_text(bill, *, include_policy_areas: bool = False) -> str:
+    """Bill text embedded for semantic comparison — title plus the AI summary /
+    key points, and policy areas when ``include_policy_areas`` is set.
 
-    Deliberately the same material the persona actually grounds in — title plus
-    the AI summary / key points / policy areas — so retrieval selects bills on
-    the content that will end up in the prompt (not the raw section text the
-    bill-scoped RAG chunks carry, a different corpus that also doesn't cover every
-    bill in a legislator's record)."""
-    parts = [bill.title.strip()]
+    Shared by per-question retrieval ranking (``include_policy_areas=True`` — the
+    same material the persona actually grounds in, so retrieval selects on the
+    content that ends up in the prompt) and post-hoc citation verification
+    (``include_policy_areas=False`` — the bill's own words a citation must back)."""
+    parts = [bill.title.strip() if bill.title else ""]
     for enrichment in bill.enrichments:
         content = enrichment.content_json or {}
         if content.get("summary"):
             parts.append(content["summary"])
         if content.get("key_points"):
             parts.append("; ".join(content["key_points"]))
-        if content.get("policy_areas"):
+        if include_policy_areas and content.get("policy_areas"):
             parts.append(", ".join(content["policy_areas"]))
-    return "\n".join(part for part in parts if part)
+    return "\n".join(part for part in parts if part).strip()
 
 
 def cosine_similarity(left: list[float], right: list[float]) -> float:
@@ -226,7 +181,7 @@ def retrieve_relevant_bills(
     the top ``top_k`` — retrieval in place of dumping the whole record.
 
     Vector-only, code-only v1 (no schema change, deferred RRF): embeds each bill's
-    summary doc (``bill_retrieval_text``) and the question at request time and
+    summary doc (``bill_embedding_text``) and the question at request time and
     ranks by cosine similarity. The corpus is small enough that per-request
     embedding is acceptable — see docs/persona-rag-chatbot-research.md Addendum
     (2026-07-16, Hybrid retrieval / RRF). Vector search alone can miss a pure
@@ -246,7 +201,7 @@ def retrieve_relevant_bills(
     if not os.environ.get("OPENAI_API_KEY"):
         return bills
 
-    docs = [(bill, bill_retrieval_text(bill)) for bill in bills]
+    docs = [(bill, bill_embedding_text(bill, include_policy_areas=True)) for bill in bills]
     docs = [(bill, doc) for bill, doc in docs if doc.strip()]
     if not docs:
         return bills
@@ -313,28 +268,6 @@ CITATION_SIMILARITY_THRESHOLD = float(
 )
 
 
-def _bill_support_text(bill) -> str:
-    """The bill's own words a citation must semantically back — title + summary + key points."""
-    parts = [bill.title.strip() if bill.title else ""]
-    for enrichment in bill.enrichments:
-        content = enrichment.content_json or {}
-        if content.get("summary"):
-            parts.append(content["summary"])
-        key_points = content.get("key_points")
-        if key_points:
-            parts.append("; ".join(key_points))
-    return "\n".join(part for part in parts if part).strip()
-
-
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = math.sqrt(sum(x * x for x in a))
-    norm_b = math.sqrt(sum(y * y for y in b))
-    if norm_a == 0.0 or norm_b == 0.0:
-        return 0.0
-    return dot / (norm_a * norm_b)
-
-
 def _default_citation_embedder():
     """Batch embedder for verification, or None when no real embedding model is available.
 
@@ -370,7 +303,7 @@ def verify_citations(
         return citations, []
 
     support_texts = [
-        _bill_support_text(bill_by_key[c["bill_key"]])
+        bill_embedding_text(bill_by_key[c["bill_key"]])
         if c["bill_key"] in bill_by_key
         else ""
         for c in citations
@@ -388,7 +321,7 @@ def verify_citations(
     kept: list[dict] = []
     dropped: list[dict] = []
     for citation, support_text, vector in zip(citations, support_texts, vectors[1:]):
-        score = _cosine_similarity(answer_vec, vector) if support_text else 0.0
+        score = cosine_similarity(answer_vec, vector) if support_text else 0.0
         if score >= threshold:
             kept.append(citation)
         else:
