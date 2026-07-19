@@ -78,7 +78,9 @@ def _assert_cite_or_refuse(message: dict) -> None:
         "a non-refusal answer must cite at least one bill (cite-or-refuse)"
     )
     for citation in message["citations"]:
-        assert citation["official_url"], "every citation must resolve to an official URL"
+        assert citation["official_url"], (
+            "every citation must resolve to an official URL"
+        )
         assert citation["bill_key"], "every citation must be addressable by bill key"
 
 

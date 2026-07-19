@@ -43,7 +43,9 @@ ISAAC_SCHULTZ_ID = uuid.UUID("da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78")
 
 LEGISLATOR_CHAT_REFUSAL = "I don't have a public record on that."
 
-SOURCES_LINE_PATTERN = re.compile(r"\n?\s*SOURCES:\s*(.*)\s*$", re.IGNORECASE | re.DOTALL)
+SOURCES_LINE_PATTERN = re.compile(
+    r"\n?\s*SOURCES:\s*(.*)\s*$", re.IGNORECASE | re.DOTALL
+)
 INLINE_BILL_KEY_PATTERN = re.compile(r"\[?\b\d{2}-\d{4}-[A-Za-z]+\d+\b\]?")
 
 SYSTEM_PROMPT_TEMPLATE = """You are {legislator_name}, a Minnesota state legislator, speaking directly and
@@ -119,8 +121,14 @@ def format_record_context(bills: list) -> str:
             lines.append(f"Role: {sponsorship.role.value}")
         for vote_event in bill.vote_events:
             for record in vote_event.records:
-                when = vote_event.occurred_at.date().isoformat() if vote_event.occurred_at else "unknown date"
-                lines.append(f"Vote: {record.vote_value.value} ({when}, motion: {vote_event.motion_text or 'n/a'})")
+                when = (
+                    vote_event.occurred_at.date().isoformat()
+                    if vote_event.occurred_at
+                    else "unknown date"
+                )
+                lines.append(
+                    f"Vote: {record.vote_value.value} ({when}, motion: {vote_event.motion_text or 'n/a'})"
+                )
         for enrichment in bill.enrichments:
             content = enrichment.content_json or {}
             summary = content.get("summary")
@@ -201,7 +209,9 @@ def retrieve_relevant_bills(
     if not os.environ.get("OPENAI_API_KEY"):
         return bills
 
-    docs = [(bill, bill_embedding_text(bill, include_policy_areas=True)) for bill in bills]
+    docs = [
+        (bill, bill_embedding_text(bill, include_policy_areas=True)) for bill in bills
+    ]
     docs = [(bill, doc) for bill, doc in docs if doc.strip()]
     if not docs:
         return bills
@@ -245,7 +255,13 @@ def parse_answer(raw_text: str, bill_by_key: dict) -> tuple[str, list[dict]]:
             key = raw_key.strip().strip("[]")
             bill = bill_by_key.get(key)
             if bill is not None:
-                citations.append({"bill_key": bill.bill_key, "title": bill.title, "official_url": bill.official_url})
+                citations.append(
+                    {
+                        "bill_key": bill.bill_key,
+                        "title": bill.title,
+                        "official_url": bill.official_url,
+                    }
+                )
     return content, citations
 
 
@@ -365,7 +381,10 @@ def synthesize_legislator_answer(
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is required for legislator chat synthesis")
+        raise HTTPException(
+            status_code=503,
+            detail="OPENAI_API_KEY is required for legislator chat synthesis",
+        )
 
     model = os.environ.get("OPENAI_RAG_CHAT_MODEL", "gpt-4o-mini")
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
@@ -382,7 +401,10 @@ def synthesize_legislator_answer(
     try:
         response = requests.post(
             "https://api.openai.com/v1/responses",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
             json={"model": model, "input": input_messages},
             timeout=30,
         )
@@ -392,9 +414,13 @@ def synthesize_legislator_answer(
         if text_value:
             return text_value
     except requests.RequestException as exc:
-        raise HTTPException(status_code=502, detail="OpenAI legislator chat synthesis failed") from exc
+        raise HTTPException(
+            status_code=502, detail="OpenAI legislator chat synthesis failed"
+        ) from exc
 
-    raise HTTPException(status_code=502, detail="OpenAI legislator chat synthesis returned no answer")
+    raise HTTPException(
+        status_code=502, detail="OpenAI legislator chat synthesis returned no answer"
+    )
 
 
 def session_payload(row: LegislatorChatSession) -> dict:
@@ -457,7 +483,9 @@ def list_legislators(db: Session = Depends(get_db)):
         }
         for row in rows
     ]
-    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
+    return CollectionResponse(
+        data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
 
 
 @router.post("/sessions", response_model=DetailResponse, status_code=201)
@@ -467,7 +495,9 @@ def create_session(request: dict | None = None, db: Session = Depends(get_db)):
         try:
             legislator_id = uuid.UUID(str(raw_id))
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail="legislator_id is not a valid UUID") from exc
+            raise HTTPException(
+                status_code=400, detail="legislator_id is not a valid UUID"
+            ) from exc
     else:
         legislator_id = ISAAC_SCHULTZ_ID
 
@@ -480,7 +510,9 @@ def create_session(request: dict | None = None, db: Session = Depends(get_db)):
     sponsorship_count, vote_count = legislator_record_counts(legislator.id)
     has_record = db.scalar(select((sponsorship_count > 0) | (vote_count > 0)))
     if not has_record:
-        raise HTTPException(status_code=400, detail="legislator has no public record to ground answers")
+        raise HTTPException(
+            status_code=400, detail="legislator has no public record to ground answers"
+        )
 
     row = LegislatorChatSession(legislator_id=legislator.id)
     db.add(row)
@@ -491,29 +523,41 @@ def create_session(request: dict | None = None, db: Session = Depends(get_db)):
 
 @router.get("/sessions/{session_id}/messages", response_model=CollectionResponse)
 def list_messages(session_id: str, db: Session = Depends(get_db)):
-    session_row = db.scalar(select(LegislatorChatSession).where(LegislatorChatSession.id == session_id))
+    session_row = db.scalar(
+        select(LegislatorChatSession).where(LegislatorChatSession.id == session_id)
+    )
     if session_row is None:
         raise HTTPException(status_code=404, detail="chat session not found")
     rows = db.scalars(
         select(LegislatorChatMessage)
         .where(LegislatorChatMessage.session_id == session_row.id)
-        .order_by(LegislatorChatMessage.created_at.asc(), LegislatorChatMessage.id.asc())
+        .order_by(
+            LegislatorChatMessage.created_at.asc(), LegislatorChatMessage.id.asc()
+        )
     ).all()
     data = [message_payload(row) for row in rows]
-    return CollectionResponse(data=data, page={"limit": len(data), "next_cursor": None, "has_more": False})
+    return CollectionResponse(
+        data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
 
 
-@router.post("/sessions/{session_id}/messages", response_model=DetailResponse, status_code=201)
+@router.post(
+    "/sessions/{session_id}/messages", response_model=DetailResponse, status_code=201
+)
 def create_message(session_id: str, request: dict, db: Session = Depends(get_db)):
     content = (request or {}).get("content", "").strip()
     if not content:
         raise HTTPException(status_code=400, detail="content is required")
 
-    session_row = db.scalar(select(LegislatorChatSession).where(LegislatorChatSession.id == session_id))
+    session_row = db.scalar(
+        select(LegislatorChatSession).where(LegislatorChatSession.id == session_id)
+    )
     if session_row is None:
         raise HTTPException(status_code=404, detail="chat session not found")
 
-    legislator = db.scalar(select(Legislator).where(Legislator.id == session_row.legislator_id))
+    legislator = db.scalar(
+        select(Legislator).where(Legislator.id == session_row.legislator_id)
+    )
     if legislator is None:
         raise HTTPException(status_code=404, detail="legislator not found")
 
@@ -525,7 +569,9 @@ def create_message(session_id: str, request: dict, db: Session = Depends(get_db)
     ).all()
     history = list(reversed(history))
 
-    user_message = LegislatorChatMessage(session_id=session_row.id, role=LegislatorChatRole.user, content=content)
+    user_message = LegislatorChatMessage(
+        session_id=session_row.id, role=LegislatorChatRole.user, content=content
+    )
     db.add(user_message)
     # Commit (not just flush) before the LLM call: func.now() freezes to transaction start,
     # so leaving this in the same transaction as the assistant message gives both rows an
