@@ -1044,7 +1044,7 @@ function SeeMore({ onPress }: { onPress: () => void }) {
       ]}
     >
       <Text style={[m.seeMoreText, hovered && { color: t.colors.brand.deep }]}>See more</Text>
-      <Text style={[m.seeMoreText, hovered && { color: t.colors.brand.deep }]}>→</Text>
+      <Text style={[m.seeMoreArrow, hovered && { color: t.colors.brand.deep }]}>→</Text>
     </Pressable>
   );
 }
@@ -1798,6 +1798,16 @@ const m = StyleSheet.create({
     fontSize: 17,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
+  },
+  // Full-size "→" at the button's font size, regular weight so it matches the
+  // text's visual length; nudged down ~0.09em to sit on the label's x-height.
+  seeMoreArrow: {
+    fontFamily: t.typography.ui,
+    fontSize: 17,
+    fontWeight: t.fontWeights.regular,
+    color: t.colors.text.primary,
+    position: 'relative',
+    top: 1.5,
   },
   askSub: {
     marginTop: 8,
