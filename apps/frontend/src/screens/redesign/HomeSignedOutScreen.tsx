@@ -1044,7 +1044,15 @@ function SeeMore({ onPress }: { onPress: () => void }) {
       ]}
     >
       <Text style={[m.seeMoreText, hovered && { color: t.colors.brand.deep }]}>See more</Text>
-      <Text style={[m.seeMoreArrow, hovered && { color: t.colors.brand.deep }]}>→</Text>
+      <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" style={m.seeMoreArrow}>
+        <Path
+          d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
+          stroke={hovered ? t.colors.brand.deep : t.colors.text.primary}
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
     </Pressable>
   );
 }
@@ -1799,15 +1807,14 @@ const m = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
-  // Full-size "→" at the button's font size, regular weight so it matches the
-  // text's visual length; nudged down ~0.09em to sit on the label's x-height.
+  // Arrow drawn as an SVG, not the "→" glyph. Libre Franklin's Google-Fonts
+  // latin subset omits U+2192, so a glyph arrow always falls back to a different
+  // font per OS (Helvetica on desktop → long; Roboto on Android → short and
+  // vertically offset), which read inconsistently. An SVG renders identically
+  // everywhere. Nudged down ~1px so it optically centers on the label's x-height.
   seeMoreArrow: {
-    fontFamily: t.typography.ui,
-    fontSize: 17,
-    fontWeight: t.fontWeights.regular,
-    color: t.colors.text.primary,
     position: 'relative',
-    top: 1.5,
+    top: 1,
   },
   askSub: {
     marginTop: 8,
