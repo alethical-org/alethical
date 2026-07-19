@@ -213,13 +213,16 @@ def test_non_refusal_answer_resolves_a_citation_to_official_url(
     assert resolved[bill_key] == official_url
 
 
-def test_non_refusal_dropping_unresolvable_source_fails_cite_or_refuse(
+def test_unresolvable_source_is_refused_in_code_and_check_still_bites(
     client, monkeypatch, record_session
 ):
-    """The bite: a non-refusal answer whose only cited key does NOT resolve to a
-    real bill ends up with zero citations, and ``_assert_cite_or_refuse`` MUST
-    reject it. This proves the acceptance check catches an ungrounded answer
-    rather than waving it through."""
+    """A non-refusal answer whose only cited key does NOT resolve to a real bill
+    is now enforced in code: it leaves zero resolved citations, and the grounding
+    guard (plan item 3) converts a zero-citation answer into the refusal — so the
+    router refuses rather than shipping an ungrounded position. Separately,
+    ``_assert_cite_or_refuse`` must still bite on that ungrounded shape directly,
+    proving the acceptance check would catch one if a regression ever let it
+    through."""
     _mock_synthesis(
         monkeypatch,
         "Here's my totally unsupported position.\nSOURCES: 99-9999-ZZ9999",
@@ -232,13 +235,18 @@ def test_non_refusal_dropping_unresolvable_source_fails_cite_or_refuse(
     assert response.status_code == 201
     message = response.json()["data"]
 
-    # Feature behavior today: an unresolvable key yields a non-refusal with no
-    # citations (prompt-only grounding, no code enforcement yet — plan item 4).
-    # The contract check must FAIL on exactly this shape.
-    assert message["was_refusal"] is False
+    # Integrated behavior: the code enforces cite-or-refuse. An unresolvable
+    # citation resolves to zero citations, and the grounding guard refuses.
+    assert message["was_refusal"] is True
+    assert message["content"].strip() == LEGISLATOR_CHAT_REFUSAL
     assert message["citations"] == []
+    _assert_cite_or_refuse(message)
+
+    # The acceptance check itself must still reject an ungrounded (non-refusal,
+    # no-citation) shape, so a future regression that lets one through is caught.
+    ungrounded = {"was_refusal": False, "content": "Ungrounded.", "citations": []}
     with pytest.raises(AssertionError):
-        _assert_cite_or_refuse(message)
+        _assert_cite_or_refuse(ungrounded)
 
 
 def test_refusal_path_sets_flag_and_empties_citations(
