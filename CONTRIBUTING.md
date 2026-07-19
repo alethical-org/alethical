@@ -122,9 +122,11 @@ An open issue should mean "still needs doing." Three habits keep that true:
   the same session, with enough context to act on without the original
   conversation: what it is, what exists today instead, why it's deferred, and
   what unblocks it. A title alone isn't an issue; it's a mystery for whoever
-  opens it next. Give every issue a **milestone and an effort label at filing**
-  (see the sizing guide below) — not as a later triage step; an unmilestoned,
-  unsized issue is invisible to planning. The same discipline runs in reverse:
+  opens it next. Categorize every issue at filing — a **milestone** (its
+  release/phase), an **issue type** (`Bug`/`Feature`/`Task`), a **topic label**
+  (its area), and an **effort label** (its size); see the categorization guide
+  below — not as a later triage step; an uncategorized issue is invisible to
+  planning. The same discipline runs in reverse:
   when a change re-scopes or re-phases work, *search* the open issues for ones
   still describing the old scope and update them in the same change — don't let
   the tracker promise a plan that no longer exists.
@@ -133,8 +135,22 @@ An open issue should mean "still needs doing." Three habits keep that true:
   PR), and re-scope anything half-done to just the remaining work. A scheduled
   agent posts a "candidates to close" report to help — but a human decides.
 
-We group work with **milestones** (e.g. `v0 hardening`, `v1`) rather than title
-prefixes, so the Milestones tab shows real progress bars.
+### Categorizing an issue
+
+Each question about a piece of work has exactly one home — nothing is tracked in
+two places:
+
+- **Which release/phase?** → the **milestone** (`v0 hardening`, `v1`, `v1.1`,
+  `v2`, `Elections`). We group work with milestones rather than title prefixes, so
+  the Milestones tab shows real progress bars. The milestone is the single source
+  of truth for phase — there is no separate scope label.
+- **What kind of work?** → the native **Type** (`Bug` / `Feature` / `Task`). A
+  documentation task is a `Task` in the `documentation` area, not its own type.
+- **Which area?** → a **topic label** (`frontend`, `backend`, `data`, `ops`,
+  `auth`, `chat`, `documentation`) — also applied to PRs.
+- **How big?** → an **effort label** (below) — also applied to PRs.
+- **Where in flight?** → the **Status** field on the Kanban project board
+  (Backlog → In progress → In review → Done), maintained on the board.
 
 We size issues with **effort labels**, never in the title:
 
