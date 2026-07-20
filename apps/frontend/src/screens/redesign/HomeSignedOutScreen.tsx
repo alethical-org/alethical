@@ -2283,7 +2283,7 @@ const styles = StyleSheet.create({
   },
 
   // finder band
-  finderBand: { position: 'relative', paddingTop: 64, paddingBottom: 56, overflow: 'hidden' },
+  finderBand: { position: 'relative', paddingTop: 64, paddingBottom: 128, overflow: 'hidden' },
   finderGrid: { gap: 40 },
   finderGridDesktop: { flexDirection: 'row', alignItems: 'center', gap: 56 },
   finderLeft: { flex: 1.15, minWidth: 0, maxWidth: 760 },
