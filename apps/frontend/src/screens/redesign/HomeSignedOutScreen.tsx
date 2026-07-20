@@ -1486,7 +1486,7 @@ function HomeSignedOutMobile() {
                 style={[StyleSheet.absoluteFillObject as object, askDotsWeb]}
               />
             ) : null}
-            <Container style={m.sectionRoomy}>
+            <Container style={m.section}>
               <Text style={m.eyebrow}>HAVE A QUESTION?</Text>
               <Text style={m.askSub}>Plain language answers linked to official sources.</Text>
               <FieldShell focused={askFocused} style={m.askShell}>
@@ -1527,7 +1527,7 @@ function HomeSignedOutMobile() {
                   style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
                 />
               ) : null}
-              <Container style={m.section}>
+              <Container style={[m.section, m.lastSectionBottom]}>
                 <Text accessibilityRole="header" style={m.finderH2}>
                   Find My Legislator
                 </Text>
@@ -1601,7 +1601,7 @@ const m = StyleSheet.create({
   // texture (and its fade) to the section so it never bleeds page-wide.
   heroWrap: { position: 'relative', overflow: 'hidden' },
   askWrap: { position: 'relative', overflow: 'hidden' },
-  heroBody: { paddingTop: 40, paddingBottom: 34 },
+  heroBody: { paddingTop: 40, paddingBottom: 40 },
   // Type scaled up ~1.2x for mobile legibility; the four largest black headers
   // (hero H1, "Legislative Bill Activity", "Find My Legislator", "Be in the Know")
   // hold their size to keep the hierarchy.
@@ -1629,10 +1629,12 @@ const m = StyleSheet.create({
     lineHeight: 27,
     color: t.colors.text.muted,
   },
-  // Section rhythm: 44 top (up from 30 — clearer separation with the larger type)
-  // / 34 bottom; Ask + account cap at 50 bottom. 20px sides from Container mobile.
-  section: { paddingTop: 44, paddingBottom: 34 },
-  sectionRoomy: { paddingTop: 44, paddingBottom: 50 },
+  // Even section rhythm: every top-level section gets 40 top / 40 bottom, so the
+  // gaps between stacked sections read as a consistent ~80px. 20px sides from
+  // Container mobile. The last section before the footer overrides its bottom to
+  // 96 (lastSectionBottom) so its content isn't crowded against the black footer.
+  section: { paddingTop: 40, paddingBottom: 40 },
+  lastSectionBottom: { paddingBottom: 96 },
   eyebrow: {
     fontFamily: t.typography.ui,
     fontSize: 15,
