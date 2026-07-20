@@ -20,26 +20,25 @@ IngestionRun = schema.IngestionRun
 router = APIRouter()
 
 
+def _expected_internal_token() -> str | None:
+    """The configured internal API token, or None if unset.
+
+    No default: a missing token fails closed (every request is rejected) rather
+    than falling back to a guessable value like the old ``dev-internal-token`` (#97).
+    """
+    return os.environ.get("INTERNAL_API_TOKEN") or None
+
+
 def require_internal_token(x_internal_token: str | None = Header(default=None)):
-    expected = os.environ.get("INTERNAL_API_TOKEN", "dev-internal-token")
-    # Use secrets.compare_digest to prevent timing attacks
-    if not x_internal_token or not secrets.compare_digest(x_internal_token, expected):
-        raise problem_exception(401, "Unauthorized", "Valid internal token required")
-
-
-def require_internal_dashboard_token(
-    x_internal_token: str | None = Header(default=None),
-    token: str | None = Query(default=None),
-):
-    expected = os.environ.get("INTERNAL_API_TOKEN", "dev-internal-token")
-    # Use secrets.compare_digest to prevent timing attacks
-    # Note: Using tokens in query parameters is generally discouraged as they may leak in logs
-    is_valid_header = x_internal_token and secrets.compare_digest(
-        x_internal_token, expected
-    )
-    is_valid_query = token and secrets.compare_digest(token, expected)
-
-    if not is_valid_header and not is_valid_query:
+    expected = _expected_internal_token()
+    # Use secrets.compare_digest to prevent timing attacks. Fail closed when the
+    # token is unset (expected is None) so missing config never allows access.
+    # Header-only: the token is never accepted as a query param (leaks into logs).
+    if (
+        not expected
+        or not x_internal_token
+        or not secrets.compare_digest(x_internal_token, expected)
+    ):
         raise problem_exception(401, "Unauthorized", "Valid internal token required")
 
 
@@ -241,9 +240,8 @@ def _render_job_row(job: dict) -> str:
 
 @router.get("/oban", response_class=HTMLResponse)
 def oban_dashboard(
-    _=Depends(require_internal_dashboard_token),
+    _=Depends(require_internal_token),
     db: Session = Depends(get_db),
-    token: str | None = None,
     state: str | None = None,
     queue: str | None = None,
     limit: int = Query(default=50, ge=1, le=200),
@@ -257,12 +255,11 @@ def oban_dashboard(
           </main>
         """
     else:
-        token_param = f"&token={html.escape(token)}" if token else ""
         states = "".join(
             _pill(
                 str(row["state"]),
                 int(row["count"]),
-                f"/internal/v1/oban?state={row['state']}&limit={limit}{token_param}",
+                f"/internal/v1/oban?state={row['state']}&limit={limit}",
             )
             for row in data["counts_by_state"]
         )
@@ -270,7 +267,7 @@ def oban_dashboard(
             _pill(
                 f"{row['queue']} / {row['state']}",
                 int(row["count"]),
-                f"/internal/v1/oban?queue={row['queue']}&state={row['state']}&limit={limit}{token_param}",
+                f"/internal/v1/oban?queue={row['queue']}&state={row['state']}&limit={limit}",
             )
             for row in data["counts_by_queue"]
         )
@@ -294,7 +291,7 @@ def oban_dashboard(
                 <p class="eyebrow">Alethical Pipeline</p>
                 <h1>Oban Jobs</h1>
               </div>
-              <a class="button" href="/internal/v1/oban?limit={limit}{token_param}">Clear filters</a>
+              <a class="button" href="/internal/v1/oban?limit={limit}">Clear filters</a>
             </header>
             <p class="muted">Auto-refreshes every 10 seconds. {active_filters}</p>
             <section>

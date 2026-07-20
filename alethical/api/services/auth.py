@@ -95,6 +95,13 @@ def get_supabase_auth_service():
 
     dev_auth_token = os.environ.get("ALETHICAL_DEV_AUTH_TOKEN")
     if dev_auth_token:
+        # Fail closed: a static dev bypass token must never be active against the
+        # production database. Refuse to start rather than silently accept it (#97).
+        if os.environ.get("ALETHICAL_DATABASE_TARGET") == "production":
+            raise RuntimeError(
+                "ALETHICAL_DEV_AUTH_TOKEN must not be set when "
+                "ALETHICAL_DATABASE_TARGET=production"
+            )
         services.append(LocalDevAuthService(token=dev_auth_token))
 
     supabase_url = os.environ.get("SUPABASE_URL")

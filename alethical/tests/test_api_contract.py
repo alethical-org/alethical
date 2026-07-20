@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 import requests
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -1564,6 +1565,44 @@ def test_internal_routes_require_internal_token(client, internal_headers):
         "/internal/v1/ingestion-runs", headers=internal_headers
     )
     assert valid_token_response.status_code == 200
+
+
+def test_internal_token_fails_closed_when_unset(client, monkeypatch):
+    # With INTERNAL_API_TOKEN unset, the endpoint must reject every request —
+    # the old guessable "dev-internal-token" default no longer grants access (#97).
+    monkeypatch.delenv("INTERNAL_API_TOKEN", raising=False)
+    response = client.get(
+        "/internal/v1/ingestion-runs",
+        headers={"X-Internal-Token": "dev-internal-token"},
+    )
+    assert response.status_code == 401
+
+
+def test_internal_dashboard_rejects_query_param_token(client, internal_headers):
+    from alethical.tests.conftest import TEST_INTERNAL_TOKEN
+
+    # The Oban dashboard no longer accepts the token as a query param (it leaks
+    # into logs/proxies) — the correct token in ?token= must be rejected (#97).
+    query_only = client.get(f"/internal/v1/oban?token={TEST_INTERNAL_TOKEN}")
+    assert query_only.status_code == 401
+
+    # The header path still works.
+    header_response = client.get("/internal/v1/oban", headers=internal_headers)
+    assert header_response.status_code == 200
+
+
+def test_dev_auth_token_refused_when_target_is_production(monkeypatch):
+    # A static dev bypass token must never be active against production (#97).
+    from alethical.api.services import auth as auth_module
+
+    monkeypatch.setenv("ALETHICAL_DEV_AUTH_TOKEN", "some-dev-token")
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    auth_module.get_supabase_auth_service.cache_clear()
+    try:
+        with pytest.raises(RuntimeError, match="ALETHICAL_DEV_AUTH_TOKEN"):
+            auth_module.get_supabase_auth_service()
+    finally:
+        auth_module.get_supabase_auth_service.cache_clear()
 
 
 def _force_router(monkeypatch, intent: str, topic: str | None = None):
