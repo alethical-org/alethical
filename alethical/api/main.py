@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -16,6 +16,7 @@ from alethical.api.rate_limit import (
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
+from alethical.api.routers.public import PUBLIC_CACHE_CONTROL
 from alethical.api.routers.public import router as public_router
 from alethical.logging import configure_logging
 
@@ -36,6 +37,27 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def default_public_cache(request: Request, call_next):
+        """Stamp a shared-cacheable Cache-Control on anonymous public GET reads
+        that don't set their own, so the whole /api/v1 read surface is
+        explicitly cacheable for the CDN (docs/api-cdn-setup.md) rather than
+        relying on the edge's default guess. Endpoints that vary by user
+        (bills/bill_detail with tracking) set their own header first and win; a
+        request carrying Authorization (any /me route, authed tracking) is never
+        stamped, so no per-user response can be edge-cached."""
+        response = await call_next(request)
+        if (
+            request.method == "GET"
+            and response.status_code == 200
+            and request.url.path.startswith("/api/v1/")
+            and "authorization" not in request.headers
+            and "cache-control" not in response.headers
+        ):
+            response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+        return response
+
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
