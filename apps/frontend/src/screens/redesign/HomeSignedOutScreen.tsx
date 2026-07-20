@@ -1447,7 +1447,7 @@ function HomeSignedOutMobile() {
                 <Text style={m.groupLabel}>RECENTLY PASSED</Text>
                 <SkeletonCard lines={3} />
               </View>
-              <View style={m.activityGroup}>
+              <View style={[m.activityGroup, m.activityGroupFollowing]}>
                 <Text style={m.groupLabel}>RECENTLY INTRODUCED</Text>
                 <SkeletonCard lines={3} />
               </View>
@@ -1466,7 +1466,9 @@ function HomeSignedOutMobile() {
                 </View>
               ) : null}
               {introducedBill ? (
-                <View style={m.activityGroup}>
+                <View
+                  style={signedBill ? [m.activityGroup, m.activityGroupFollowing] : m.activityGroup}
+                >
                   <Text style={m.groupLabel}>RECENTLY INTRODUCED</Text>
                   <ActivityCardMobile
                     bill={introducedBill}
@@ -1651,7 +1653,7 @@ const m = StyleSheet.create({
     letterSpacing: -0.6,
     color: t.colors.text.primary,
   },
-  cardStack: { marginTop: 16, gap: 14 },
+  cardStack: { marginTop: 16, gap: 18 },
   card: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -1766,7 +1768,13 @@ const m = StyleSheet.create({
     fontWeight: t.fontWeights.medium,
     color: t.colors.text.faint,
   },
-  activityGroup: { marginTop: 16, gap: 10 },
+  // A sub-labeled group (RECENTLY PASSED / RECENTLY INTRODUCED + its card).
+  // marginTop 16 sits it below the section h2; gap 14 spaces the label from its
+  // card. A group that FOLLOWS another (activityGroupFollowing) gets 32 above
+  // instead, so its label has more space above than below and reads as grouped
+  // with the card beneath it, not the card above.
+  activityGroup: { marginTop: 16, gap: 14 },
+  activityGroupFollowing: { marginTop: 32 },
   groupLabel: {
     fontFamily: t.typography.ui,
     fontSize: 15,
