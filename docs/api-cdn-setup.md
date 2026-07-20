@@ -99,11 +99,28 @@ scoped token.
      permanently leaves the public host ≠ origin host, which can surprise on
      redirects/absolute-URL/cookie edge cases. Our API is stateless JSON so the
      risk is low. Use this if Railway access isn't available.
-8. Add a **Cache Rule** (Rules → Caching): when hostname = `api.alethical.com`
-   and URI path starts with `/api/v1/`, set **Eligible for cache** and **Respect
-   origin Cache-Control** (Edge TTL = "Use cache-control header if present").
-   This is what makes Cloudflare cache the JSON; it will honor `max-age`/`s-w-r`
-   for anonymous reads and skip `private, no-store` for signed-in ones.
+8. Add a **Cache Rule** (Rules → Caching). Match expression:
+
+   ```
+   (http.host eq "api.alethical.com"
+    and http.request.method eq "GET"
+    and starts_with(http.request.uri.path, "/api/v1/")
+    and not any(http.request.headers.names[*] eq "authorization"))
+   ```
+
+   Action: **Eligible for cache** on; **Edge TTL = Respect origin** ("Use
+   cache-control header if present"); Browser TTL = respect origin. This caches
+   the JSON, honoring `max-age`/`s-w-r` for anonymous reads and skipping
+   `private, no-store` for signed-in ones. Two independent safety nets keep
+   per-user data out of the shared cache: the `authorization`-header exclusion in
+   the match, and the app tagging user-varying responses `private, no-store`.
+
+   The **entire** public `/api/v1` GET surface is safe to target: every public
+   read endpoint sends an explicit `public` Cache-Control — the bill endpoints via
+   PR #363, and everything else (legislators, districts, meta, sessions,
+   policy-areas, search, bill actions/versions) via the response middleware in PR
+   #423. Public read paths: `bills*`, `legislators*`, `districts*`, `meta`,
+   `sessions*`, `policy-areas`, `search`.
 9. Point the frontend at the new host: set Vercel env
    `EXPO_PUBLIC_API_URL=https://api.alethical.com` and redeploy. I can do this
    with a Vercel token (a `VERCEL_TOKEN` already exists in GitHub Actions), or you
@@ -119,18 +136,49 @@ scoped token.
 12. Load the live app and confirm it fetches from `api.alethical.com` and renders
     (mobile home, bill detail, search).
 
-## What I need from you to drive it
+## Status (2026-07-20)
 
-- The scoped **Cloudflare API token** (step 3).
-- **Railway access** to add the custom domain (the recommended routing in step 7)
-  — or I'll fall back to the Cloudflare Origin Rule, which needs nothing from
-  Railway.
-- **Vercel:** the maintainer has handed me the lead on infra/devops, so I'll set
-  `EXPO_PUBLIC_API_URL` and redeploy (step 9) myself.
+Done manually via the Cloudflare/Railway/Porkbun dashboards:
+- Cloudflare account created, `alethical.com` zone added, DNS import verified
+  (A + `www` → Vercel; MX + TXT → Google). Porkbun remains registrar.
+- Nameservers flipped at Porkbun (`isla`/`lochlan.ns.cloudflare.com`), live.
+- Vercel records left **DNS-only** (grey cloud) — Vercel runs its own TLS/CDN.
+- `api.alethical.com` on the **Railway custom-domain** path (port 8080), Railway
+  cert issued, Cloudflare CNAME proxied. Verified Full (strict) TLS end to end.
 
-The two things only you can do are creating the Cloudflare account (step 1–2) and
-flipping the nameservers at Porkbun (step 4). Everything else I can execute and
-verify.
+Remaining: the **Cache Rule** (step 8) and **email auth** (below). Both are
+drivable via a scoped Cloudflare API token placed in the gitignored `.env` as
+`CLOUDFLARE_API_TOKEN=…` (never in chat/commits).
+
+## Email authentication (SPF / DMARC / DKIM)
+
+Adding the zone surfaced that `alethical.com` has **no SPF and no DMARC** — Google
+Workspace mail (`MX → smtp.google.com`) is unprotected against spoofing. Add two
+TXT records in Cloudflare (both additive, zero delivery impact):
+
+| Type | Name | Value |
+| --- | --- | --- |
+| TXT | `@` | `v=spf1 include:_spf.google.com ~all` |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:<mailbox you own>` |
+
+Start DMARC at `p=none` (monitor only); after a couple weeks of clean reports,
+tighten to `p=quarantine` then `p=reject`. **Before tightening**, if anything
+other than Google Workspace sends mail as `@alethical.com` (a marketing or
+transactional-email provider), add its `include:` to the SPF record first, or
+those messages will start failing. The third leg, **DKIM**, is enabled in the
+Google Admin console (Apps → Google Workspace → Gmail → Authenticate email); it
+generates a key you add as a TXT at `google._domainkey`.
+
+## What I need from you
+
+- **Cloudflare API token** in `.env` (`CLOUDFLARE_API_TOKEN=…`) — then I drive the
+  Cache Rule, the SPF/DMARC records, and verification.
+- **Nothing else for the CDN** — the account, zone, nameserver flip, and Railway
+  custom domain are done. (Creating the account and flipping registrar
+  nameservers were the only steps that had to be yours.)
+- **Vercel** frontend host flip (`EXPO_PUBLIC_API_URL=https://api.alethical.com`)
+  is mine to drive under the infra/devops lead. Note: it is only needed if the app
+  isn't already pointed at `api.alethical.com`.
 
 ## Rollback
 
