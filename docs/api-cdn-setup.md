@@ -48,9 +48,12 @@ personalized response.
 
 Cloudflare's free plan honors origin `Cache-Control`, caches JSON via a single
 Cache Rule, and also accelerates/protects the whole site. The one-time cost is
-moving `alethical.com`'s nameservers from Porkbun to Cloudflare. Cloudflare
-auto-imports the existing DNS records on zone add; we verify the import is
-complete **before** the nameserver cutover so the live site never breaks.
+moving `alethical.com`'s nameservers from Porkbun to Cloudflare. **Porkbun stays
+the registrar** — we only change the nameserver delegation, so ownership,
+renewal, and WHOIS remain at Porkbun; only DNS *hosting* (and record editing)
+moves to Cloudflare. Cloudflare auto-imports the existing DNS records on zone
+add; we verify the import is complete **before** the nameserver cutover so the
+live site never breaks.
 
 (Lower-commitment alternative, if you'd rather not move the zone: a pull-CDN that
 gives you a CNAME target — Bunny, Fastly, CloudFront — added as a single
@@ -82,12 +85,20 @@ scoped token.
    clean. (Frontend records stay **DNS-only / grey-cloud** so Vercel is untouched.)
 6. Add a **proxied** (orange-cloud) record for the API:
    `CNAME api.alethical.com → alethical-api-production.up.railway.app`.
-7. Make Railway accept the new host. Two options:
-   - **Origin Rule (no Railway change):** Cloudflare rewrites the Host header sent
-     to origin back to `alethical-api-production.up.railway.app`. I can set this
-     with the token. Simplest.
-   - **Railway custom domain:** add `api.alethical.com` in Railway (needs Railway
-     access or you do it in the Railway UI) so Railway routes it and issues TLS.
+7. Make Railway accept the new host. Railway routes by the `Host` header, and
+   `api.alethical.com` is a host it doesn't know yet. Two ways:
+   - **Railway custom domain (recommended):** add `api.alethical.com` in Railway
+     (needs Railway access, or you click "add domain" in the Railway UI) so
+     Railway issues a real TLS cert for it and routes on the true host. Canonical
+     setup — Full (strict) TLS with a matching cert, no per-request header
+     rewriting. One-time friction: Railway's domain verification with a *proxied*
+     record can be fiddly (grey-cloud the record to verify, then re-proxy).
+   - **Cloudflare Origin Rule (shortcut):** Cloudflare rewrites the Host header
+     sent to origin back to `alethical-api-production.up.railway.app`, so Railway
+     needs no change. Fastest and fully reversible, good for a trial — but it
+     permanently leaves the public host ≠ origin host, which can surprise on
+     redirects/absolute-URL/cookie edge cases. Our API is stateless JSON so the
+     risk is low. Use this if Railway access isn't available.
 8. Add a **Cache Rule** (Rules → Caching): when hostname = `api.alethical.com`
    and URI path starts with `/api/v1/`, set **Eligible for cache** and **Respect
    origin Cache-Control** (Edge TTL = "Use cache-control header if present").
@@ -111,10 +122,11 @@ scoped token.
 ## What I need from you to drive it
 
 - The scoped **Cloudflare API token** (step 3).
-- Either confirm I should use the **Origin Rule** (step 7, no Railway access
-  needed) or grant Railway access to add the custom domain.
-- Confirm I may set the **Vercel** env var + redeploy (I can use the existing
-  Vercel token path), or you'll do step 9.
+- **Railway access** to add the custom domain (the recommended routing in step 7)
+  — or I'll fall back to the Cloudflare Origin Rule, which needs nothing from
+  Railway.
+- **Vercel:** the maintainer has handed me the lead on infra/devops, so I'll set
+  `EXPO_PUBLIC_API_URL` and redeploy (step 9) myself.
 
 The two things only you can do are creating the Cloudflare account (step 1–2) and
 flipping the nameservers at Porkbun (step 4). Everything else I can execute and
