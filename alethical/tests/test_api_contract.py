@@ -1550,6 +1550,24 @@ def test_public_bill_reads_are_cacheable_but_user_varying_reads_are_not(
     assert tracked_list_response.headers["Cache-Control"] == "private, no-store"
 
 
+def test_all_public_get_reads_carry_public_cache_control(client, auth_headers):
+    """Every anonymous public GET under /api/v1 is edge-cacheable — endpoints that
+    don't set their own header get the shared default from the middleware — so a
+    CDN can cache the whole read surface. Authenticated / user-specific routes are
+    never publicly cached."""
+    public = "public, max-age=60, stale-while-revalidate=300"
+
+    for path in ["/api/v1/meta", "/api/v1/sessions", "/api/v1/legislators"]:
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers.get("Cache-Control") == public, path
+
+    # A /me read is per-user (carries Authorization) → never publicly cached.
+    me_response = client.get("/api/v1/me", headers=auth_headers)
+    assert me_response.status_code == 200
+    assert me_response.headers.get("Cache-Control") != public
+
+
 def test_internal_routes_require_internal_token(client, internal_headers):
     missing_token_response = client.get("/internal/v1/ingestion-runs")
     assert missing_token_response.status_code == 401
