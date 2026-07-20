@@ -265,7 +265,6 @@ class Legislator(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_name: Mapped[Optional[str]] = mapped_column(String(100))
     preferred_name: Mapped[Optional[str]] = mapped_column(String(100))
     biography: Mapped[Optional[str]] = mapped_column(Text)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     jurisdiction: Mapped["Jurisdiction"] = relationship(back_populates="legislators")
     service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(
