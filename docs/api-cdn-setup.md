@@ -146,39 +146,49 @@ Done manually via the Cloudflare/Railway/Porkbun dashboards:
 - `api.alethical.com` on the **Railway custom-domain** path (port 8080), Railway
   cert issued, Cloudflare CNAME proxied. Verified Full (strict) TLS end to end.
 
-Remaining: the **Cache Rule** (step 8) and **email auth** (below). Both are
-drivable via a scoped Cloudflare API token placed in the gitignored `.env` as
-`CLOUDFLARE_API_TOKEN=…` (never in chat/commits).
+Done via the Cloudflare API (scoped token in the gitignored `.env` as
+`CLOUDFLARE_API_TOKEN`):
+- **Cache Rule** live (step 8 expression). Verified: `api.alethical.com/api/v1/bills`
+  `cf-cache-status: MISS` (2.3 s) → **`HIT` (0.32 s)**; `/api/v1/legislators`
+  MISS (0.9 s) → HIT (0.13 s); an `Authorization`-bearing request returns
+  `DYNAMIC` (never cached). The whole `/api/v1` public GET surface caches now that
+  #423 is deployed.
+- **SPF + DMARC** added (see below), both resolving.
+
+**CDN work is complete.** Remaining optional follow-ups: tighten DMARC after a
+monitoring period, and reduce origin-side latency (issue #364 backend items).
 
 ## Email authentication (SPF / DMARC / DKIM)
 
-Adding the zone surfaced that `alethical.com` has **no SPF and no DMARC** — Google
-Workspace mail (`MX → smtp.google.com`) is unprotected against spoofing. Add two
-TXT records in Cloudflare (both additive, zero delivery impact):
+Adding the zone surfaced that `alethical.com` had **no SPF and no DMARC** — Google
+Workspace mail (`MX → smtp.google.com`) was unprotected against spoofing. Both are
+now added (both additive, zero delivery impact), and DKIM was already present:
 
-| Type | Name | Value |
-| --- | --- | --- |
-| TXT | `@` | `v=spf1 include:_spf.google.com ~all` |
-| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:<mailbox you own>` |
+| Type | Name | Value | Status |
+| --- | --- | --- | --- |
+| TXT | `@` | `v=spf1 include:_spf.google.com ~all` | added, resolving |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:eug@alethical.com` | added, resolving |
+| TXT | `google._domainkey` | `v=DKIM1; …` | already present |
 
-Start DMARC at `p=none` (monitor only); after a couple weeks of clean reports,
-tighten to `p=quarantine` then `p=reject`. **Before tightening**, if anything
-other than Google Workspace sends mail as `@alethical.com` (a marketing or
-transactional-email provider), add its `include:` to the SPF record first, or
-those messages will start failing. The third leg, **DKIM**, is enabled in the
-Google Admin console (Apps → Google Workspace → Gmail → Authenticate email); it
-generates a key you add as a TXT at `google._domainkey`.
+DMARC is at `p=none` (monitor only); after a couple weeks of clean reports at
+`rua`, tighten to `p=quarantine` then `p=reject`. **Before tightening**, if
+anything other than Google Workspace sends mail as `@alethical.com` (a marketing
+or transactional-email provider), add its `include:` to the SPF record first, or
+those messages will start failing.
 
-## What I need from you
+## Open follow-ups
 
-- **Cloudflare API token** in `.env` (`CLOUDFLARE_API_TOKEN=…`) — then I drive the
-  Cache Rule, the SPF/DMARC records, and verification.
-- **Nothing else for the CDN** — the account, zone, nameserver flip, and Railway
-  custom domain are done. (Creating the account and flipping registrar
-  nameservers were the only steps that had to be yours.)
-- **Vercel** frontend host flip (`EXPO_PUBLIC_API_URL=https://api.alethical.com`)
-  is mine to drive under the infra/devops lead. Note: it is only needed if the app
-  isn't already pointed at `api.alethical.com`.
+- **Frontend host (activates the CDN for users):** the deployed app still calls
+  `alethical-api-production.up.railway.app` directly, so it isn't getting the CDN
+  yet. Point `EXPO_PUBLIC_API_URL` at `https://api.alethical.com` in Vercel and
+  redeploy (it's a build-time var, so a rebuild is required). Mine to drive once a
+  `VERCEL_TOKEN` is in `.env` (same pattern as the Cloudflare token), or a
+  two-field change in the Vercel dashboard. CORS is unaffected — the browser origin
+  stays `alethical.com`.
+- **Tighten DMARC** from `p=none` to `quarantine`/`reject` after a monitoring
+  period (check `rua` reports first; add any non-Google sender to SPF beforehand).
+- **Origin latency:** the uncached first-hit is still ~1–2 s (cross-region
+  multi-query DB path) — backend items tracked in #364.
 
 ## Rollback
 
