@@ -20,8 +20,13 @@ concurrency:
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    # Build the production URL from the same Supabase inputs the app uses
+    # (alembic env.py -> database_url_for_target), so there is no separate
+    # DATABASE_URL copy of the password to rotate out of date (#288).
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -39,8 +44,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Check migration database URL
-        run: test -n "$DATABASE_URL"
+      - name: Check migration secrets are set
+        run: test -n "$SUPABASE_PROJECT_URL" && test -n "$SUPABASE_DB_PASSWORD"
 
       - name: Run Alembic migrations
         run: uv run python -m alembic -c alembic.ini upgrade head

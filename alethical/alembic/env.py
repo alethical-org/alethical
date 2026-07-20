@@ -5,7 +5,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from alethical.db import models
-from alethical.db.session import normalize_database_url
+from alethical.db.session import database_url_for_target
 from sqlalchemy import engine_from_config, pool
 
 config = context.config
@@ -15,9 +15,19 @@ if config.config_file_name is not None:
 
 target_metadata = models.Base.metadata
 
-database_url = os.environ.get("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", normalize_database_url(database_url))
+# Resolve the connection URL the same way the app does, so migrations and the
+# running service share one source of truth (#288). An explicit DATABASE_URL
+# still wins (local dev, ad-hoc overrides); otherwise ALETHICAL_DATABASE_TARGET
+# selects the target -- target=production builds the Supabase pooler URL from
+# SUPABASE_PROJECT_URL + SUPABASE_DB_PASSWORD, so there is no separate copy of
+# the DB password to drift out of date.
+config.set_main_option(
+    "sqlalchemy.url",
+    database_url_for_target(
+        os.environ.get("ALETHICAL_DATABASE_TARGET"),
+        os.environ.get("DATABASE_URL"),
+    ),
+)
 
 
 def run_migrations_offline() -> None:
