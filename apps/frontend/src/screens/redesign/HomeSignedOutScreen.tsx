@@ -951,7 +951,7 @@ function HomeSignedOutDesktop() {
                 </View>
                 {isDesktop ? (
                   <View style={styles.finderMap}>
-                    <MNMap size={284} />
+                    <MNMap size={330} />
                   </View>
                 ) : null}
               </View>
