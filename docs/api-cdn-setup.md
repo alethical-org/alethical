@@ -178,13 +178,11 @@ those messages will start failing.
 
 ## Open follow-ups
 
-- **Frontend host (activates the CDN for users):** the deployed app still calls
-  `alethical-api-production.up.railway.app` directly, so it isn't getting the CDN
-  yet. Point `EXPO_PUBLIC_API_URL` at `https://api.alethical.com` in Vercel and
-  redeploy (it's a build-time var, so a rebuild is required). Mine to drive once a
-  `VERCEL_TOKEN` is in `.env` (same pattern as the Cloudflare token), or a
-  two-field change in the Vercel dashboard. CORS is unaffected — the browser origin
-  stays `alethical.com`.
+- **Frontend host — done.** `EXPO_PUBLIC_API_URL` was repointed to
+  `https://api.alethical.com` (Vercel production) and the app redeployed. Verified
+  on live `alethical.com`: all `/api/v1` calls now go to `api.alethical.com`, and a
+  repeat fetch dropped 1197 ms → 66 ms (edge cache). CORS unaffected — browser
+  origin stays `alethical.com`.
 - **Tighten DMARC** from `p=none` to `quarantine`/`reject` after a monitoring
   period (check `rua` reports first; add any non-Google sender to SPF beforehand).
 - **Origin latency:** the uncached first-hit is still ~1–2 s (cross-region
