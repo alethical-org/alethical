@@ -97,6 +97,16 @@ def auth_headers() -> dict[str, str]:
     return {"Authorization": "Bearer test-supabase-token"}
 
 
+TEST_INTERNAL_TOKEN = "test-internal-token"
+
+
+@pytest.fixture(autouse=True)
+def _internal_api_token(monkeypatch) -> None:
+    # The internal API now fails closed when INTERNAL_API_TOKEN is unset (#97),
+    # so tests must set it explicitly. internal_headers sends this same value.
+    monkeypatch.setenv("INTERNAL_API_TOKEN", TEST_INTERNAL_TOKEN)
+
+
 @pytest.fixture()
 def internal_headers() -> dict[str, str]:
-    return {"X-Internal-Token": "dev-internal-token"}
+    return {"X-Internal-Token": TEST_INTERNAL_TOKEN}
