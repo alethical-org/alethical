@@ -433,6 +433,19 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UniqueConstraint("session_id", "file_type", "file_number"),
         Index("ix_bill_session_status", "session_id", "current_status_code"),
         Index("ix_bill_latest_action", "latest_action_at"),
+        # Serves the introduced-date sort (sort=introduced) used by the Search
+        # Bills list and the mobile home Bill Activity feed. Without it the list
+        # query sorts every bill in the session on disk to take the top rows
+        # (~70ms on the production corpus); the index turns that into a 2ms index
+        # scan. Column directions match the query's ORDER BY exactly
+        # (introduced_at DESC NULLS LAST, file_number DESC) so the planner can
+        # walk the index instead of sorting.
+        Index(
+            "ix_bill_session_introduced",
+            "session_id",
+            text("introduced_at DESC NULLS LAST"),
+            text("file_number DESC"),
+        ),
     )
 
 
