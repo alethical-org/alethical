@@ -26,6 +26,7 @@ import { useAuth } from '../../providers/AuthProvider';
 import { useBill, useSessions } from '../../hooks/useAppQueries';
 import { Bill, BillAction, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../components/search/searchPieces';
+import { BillDetailWebScreen } from './BillDetailWebScreen';
 
 // Bill Detail — mobile-first, single scrolling page (docs/mockups/bill-detail-mobile).
 // Re-expressed in RN from the .dc.html literal values; support.js not ported.
@@ -258,7 +259,15 @@ function Section({
 
 // --- screen -----------------------------------------------------------------
 
+// Responsive dispatcher: the desktop/web design is a tabbed two-column layout
+// (design_handoff_bill_profile_web); the narrow design is this single-scrolling
+// page (design_handoff_bill_profile_mobile). Same pattern as HomeSignedOut.
 export function BillDetailScreen() {
+  const { isDesktop } = useResponsive();
+  return isDesktop ? <BillDetailWebScreen /> : <BillDetailMobileScreen />;
+}
+
+function BillDetailMobileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isSignedIn, signInWithGoogle } = useAuth();
