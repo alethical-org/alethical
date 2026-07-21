@@ -33,6 +33,7 @@ from alethical.api.serializers import (
     bill_list_item,
     bill_progress_payload,
     bill_status_key,
+    companion_payload,
     current_bill_summary_enrichment,
     current_service_payload,
     district_payload,
@@ -674,6 +675,11 @@ def bill_detail(
         "status_key": bill_status_key(row),
         "latest_action_at": row.latest_action_at,
         "official_url": row.official_url,
+        "companion": (
+            payload_model.model_dump()
+            if (payload_model := companion_payload(row)) is not None
+            else None
+        ),
         "chief_sponsors": [
             item.model_dump()
             for item in sponsor_payloads(

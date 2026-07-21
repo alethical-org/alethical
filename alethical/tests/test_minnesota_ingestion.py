@@ -34,6 +34,8 @@ SAMPLE_BILL_XML = """<?xml version="1.0"?>
   <FILE_NUMBER>9999</FILE_NUMBER>
   <REVISOR_NUMBER>25-9999</REVISOR_NUMBER>
   <DESCRIPTION>Test live ingestion bill</DESCRIPTION>
+  <COMPANION_TYPE>SF</COMPANION_TYPE>
+  <COMPANION_NUMBER>9998</COMPANION_NUMBER>
   <AUTHORS>
     <house>
       <AUTHOR>
@@ -86,6 +88,8 @@ def test_bill_parsers_extract_canonical_payloads() -> None:
     )
 
     assert canonical["bill_key"] == "94-2025-HF9999"
+    assert canonical["companion_type"] == "SF"
+    assert canonical["companion_number"] == "9998"
     assert canonical["authors"]["house"][0]["member_name"] == "Example Author"
     assert (
         canonical["actions"]["house"][0]["action_text"]
@@ -380,5 +384,70 @@ def test_upsert_bill_populates_action_dates(seed_database: None) -> None:
         assert version.document_date == datetime(2025, 1, 10, 8, 44, 29, tzinfo=UTC)
 
         session.rollback()
+
+        session.rollback()
+
+
+def _companion_xml(
+    file_type: str, file_number: str, companion_type: str, companion_number: str
+) -> str:
+    return f"""<?xml version="1.0"?>
+<BILL>
+  <SESSION_NUMBER>94</SESSION_NUMBER>
+  <SESSION_YEAR>2025</SESSION_YEAR>
+  <FILE_TYPE>{file_type}</FILE_TYPE>
+  <FILE_NUMBER>{file_number}</FILE_NUMBER>
+  <DESCRIPTION>Companion pair test bill</DESCRIPTION>
+  <COMPANION_TYPE>{companion_type}</COMPANION_TYPE>
+  <COMPANION_NUMBER>{companion_number}</COMPANION_NUMBER>
+  <ACTIONS></ACTIONS>
+  <TEXT_VERSION_LIST></TEXT_VERSION_LIST>
+</BILL>
+"""
+
+
+def test_upsert_bill_links_companion_symmetrically(seed_database: None) -> None:
+    """#293: MN bills come in HF/SF companion pairs. The status XML names the
+    companion's file type + number; upsert_bill must resolve it to a Bill row and
+    set companion_bill_id on *both* sides. Linking is order-independent: the first
+    bill ingested has no companion row yet (stays null), and ingesting the second
+    connects the pair symmetrically."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+
+        def _ingest(xml: str) -> Bill:
+            canonical = parse_bill_xml(xml)
+            key = canonical["bill_key"]
+            run = pipeline.start_run("bill", key)
+            xml_artifact = pipeline.record_artifact(
+                run, ArtifactType.xml, f"https://example.test/{key}.xml", xml
+            )
+            html_artifact = pipeline.record_artifact(
+                run,
+                ArtifactType.html,
+                f"https://example.test/{key}.html",
+                "<html></html>",
+            )
+            bill_text = {
+                "sections": [],
+                "articles": [],
+                "source_url": f"https://example.test/{key}.html",
+            }
+            bill = pipeline.upsert_bill(
+                refs, canonical, bill_text, run, xml_artifact, html_artifact
+            )
+            session.flush()
+            return bill
+
+        hf = _ingest(_companion_xml("HF", "6001", "SF", "6002"))
+        # First bill ingested: its companion isn't in the DB yet, so no link.
+        assert hf.companion_bill_id is None
+
+        sf = _ingest(_companion_xml("SF", "6002", "HF", "6001"))
+        session.refresh(hf)
+        # Ingesting the second member links both directions.
+        assert sf.companion_bill_id == hf.id
+        assert hf.companion_bill_id == sf.id
 
         session.rollback()

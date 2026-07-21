@@ -301,6 +301,13 @@ interface ApiTopicPayload {
   name: string;
 }
 
+interface ApiCompanionPayload {
+  id: string;
+  code: string;
+  status?: string | null;
+  status_key?: string | null;
+}
+
 interface ApiBillDetailPayload {
   id: string;
   title: string;
@@ -316,6 +323,7 @@ interface ApiBillDetailPayload {
   versions?: ApiBillVersionPayload[] | null;
   topics?: ApiTopicPayload[] | null;
   ai_analysis?: ApiAiAnalysisPayload | null;
+  companion?: ApiCompanionPayload | null;
 }
 
 interface ApiBillProgressStepPayload {
@@ -897,6 +905,14 @@ function mapBillDetail(
     title: payload.title,
     chamber: toChamber(fileType),
     status: statusLabel(payload.status_key, payload.current_status),
+    companion: payload.companion
+      ? {
+          id: payload.companion.id,
+          identifier: payload.companion.code,
+          chamber: toChamber(payload.companion.code.split(' ')[0]),
+          status: statusLabel(payload.companion.status_key, payload.companion.status),
+        }
+      : null,
     latestActionText: payload.current_status ?? undefined,
     updatedAt: formatUpdatedAt(payload.latest_action_at),
     sessionLabel: 'Current session',

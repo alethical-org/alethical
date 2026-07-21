@@ -418,6 +418,11 @@ def parse_bill_xml(xml_text: str) -> dict[str, object]:
         "description": text("DESCRIPTION"),
         "session_year": text("SESSION_YEAR"),
         "session_number": text("SESSION_NUMBER"),
+        # MN bills come in House/Senate companion pairs; the detailed status XML
+        # names the companion's file type + number (e.g. SF2483 -> HF2431). Used
+        # to populate Bill.companion_bill_id in upsert_bill (#293).
+        "companion_type": text("COMPANION_TYPE"),
+        "companion_number": text("COMPANION_NUMBER"),
         "authors": authors,
         "actions": actions,
         "text_versions": versions,
@@ -1205,12 +1210,38 @@ class MinnesotaIngestionPipeline:
         bill.official_url = str(bill_text.get("source_url") or "") or None
         bill.is_omnibus = len(bill_text.get("articles", [])) > 1
         bill.ingestion_run_id = run.id
+        self.link_companion(bill, canonical)
 
         self.upsert_versions_and_sections(bill, canonical, bill_text, html_artifact)
         self.replace_actions(refs, bill, canonical, xml_artifact)
         self.replace_sponsorships(refs, bill, canonical)
         self.upsert_bill_stats(bill, canonical)
         return bill
+
+    def link_companion(self, bill: Any, canonical: dict[str, Any]) -> None:
+        """Link a bill to its House/Senate companion, symmetrically.
+
+        The status XML names the companion's file type + number; resolve it to a
+        Bill row (same session) and set companion_bill_id on *both* sides. Setting
+        both directions makes the link order-independent: whichever member of the
+        pair is ingested second connects the pair, so a full ingest links every
+        pair regardless of processing order or which side was ingested first
+        (#293). Absence of a companion in the source is left as-is rather than
+        cleared, so a partial re-ingest never drops a valid link.
+        """
+        companion_type = str(canonical.get("companion_type") or "").strip().upper()
+        companion_number = str(canonical.get("companion_number") or "").strip()
+        if not companion_type or not companion_number:
+            return
+        companion_key = (
+            f"{canonical['session_number']}-{canonical['session_year']}"
+            f"-{companion_type}{companion_number}"
+        )
+        companion = self.db.scalar(select(Bill).where(Bill.bill_key == companion_key))
+        if companion is None or companion.id == bill.id:
+            return
+        bill.companion_bill_id = companion.id
+        companion.companion_bill_id = bill.id
 
     def upsert_versions_and_sections(
         self,
