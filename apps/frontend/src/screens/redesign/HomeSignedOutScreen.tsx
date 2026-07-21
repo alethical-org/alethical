@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import {
   Linking,
   Platform,
@@ -42,6 +42,65 @@ const isWeb = Platform.OS === 'web';
 const ASK_MIN_HEIGHT = 60;
 const ASK_MAX_HEIGHT = 150;
 const ASK_PLACEHOLDER = 'Ask about bills or legislators by issue or name';
+
+// Size the ask textarea (web) to its CONTENT: one line at rest, growing to fit a
+// wrapped placeholder/value and shrinking back — never a fixed multi-line height,
+// so it neither crops the text nor leaves an empty second line (#468 + follow-up).
+// scrollHeight ignores the placeholder, so mirror it into the value only while
+// measuring; Math.max floors a text that fits on one line at ASK_MIN_HEIGHT.
+const measureAskField = (node: TextInput | null) => {
+  if (!isWeb) return;
+  const el = node as unknown as HTMLTextAreaElement | null;
+  if (!el || typeof el.scrollHeight !== 'number') return;
+  const empty = !el.value;
+  if (empty) el.value = ASK_PLACEHOLDER;
+  el.style.height = 'auto';
+  const next = Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT);
+  if (empty) el.value = '';
+  el.style.height = `${next}px`;
+};
+
+// Keep the ask field sized to its content. Measuring only on value change froze a
+// stale height: a field measured at its mount width (or with the fallback font,
+// before Libre Franklin loads — the fallback is wider and wraps the placeholder)
+// stayed two lines tall after it later widened or the font swapped in. So
+// also re-measure on the two things that silently change how the text wraps:
+//   • the field's WIDTH — a ResizeObserver catches every reflow (viewport resize,
+//     layout shift), guarded on width so our own height write can't feed back;
+//   • web-font load — `fonts.ready`, since the font changes text metrics without
+//     changing the (flex-driven) field width, so the observer alone would miss it.
+const useAskAutoGrow = (ref: RefObject<TextInput | null>, value: string) => {
+  useLayoutEffect(() => {
+    measureAskField(ref.current);
+  }, [ref, value]);
+  useEffect(() => {
+    if (!isWeb) return;
+    const el = ref.current as unknown as HTMLElement | null;
+    const remeasure = () => measureAskField(ref.current);
+    let cancelled = false;
+    let observer: ResizeObserver | undefined;
+    if (el && typeof ResizeObserver !== 'undefined') {
+      let lastWidth = -1;
+      observer = new ResizeObserver((entries) => {
+        const width = Math.round(entries[0]?.contentRect.width ?? 0);
+        if (width !== lastWidth) {
+          lastWidth = width;
+          remeasure();
+        }
+      });
+      observer.observe(el);
+    } else {
+      window.addEventListener('resize', remeasure);
+    }
+    const fonts = (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts;
+    fonts?.ready?.then(() => !cancelled && remeasure()).catch(() => {});
+    return () => {
+      cancelled = true;
+      if (observer) observer.disconnect();
+      else window.removeEventListener('resize', remeasure);
+    };
+  }, [ref]);
+};
 
 // .18s ease micro-transitions (README "Hover / focus micro-states") — web only.
 const transition = (props: string): object =>
@@ -598,28 +657,11 @@ function HomeSignedOutDesktop() {
   const askInputRef = useRef<TextInput>(null);
   const finderInputRef = useRef<TextInput>(null);
 
-  // Auto-grow the ask textarea (web): reset to content height so it grows AND
-  // shrinks, capped at ASK_MAX_HEIGHT (then RN-Web scrolls it). RN-Web's own
-  // onContentSizeChange can't shrink (it reads scrollHeight of the pinned box),
-  // so drive the DOM node directly. Re-runs on typed or chip-inserted text.
-  //
-  // The empty field is sized to its PLACEHOLDER, never pinned to one line: in
-  // the hero's split layout the field is only ~half the container wide, so the
-  // placeholder wraps to two lines and a one-line pin would clip "or name"
-  // (universal rule — a placeholder is never cropped). scrollHeight ignores the
-  // placeholder, so mirror it into the value only while measuring; Math.max
-  // keeps a placeholder that does fit on one line at ASK_MIN_HEIGHT.
-  useLayoutEffect(() => {
-    if (!isWeb) return;
-    const el = askInputRef.current as unknown as HTMLTextAreaElement | null;
-    if (!el || typeof el.scrollHeight !== 'number') return;
-    const empty = !askValue;
-    if (empty) el.value = ASK_PLACEHOLDER;
-    el.style.height = 'auto';
-    const next = Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT);
-    if (empty) el.value = '';
-    el.style.height = `${next}px`;
-  }, [askValue]);
+  // Auto-size the ask field to its content (see useAskAutoGrow): one line at
+  // rest, growing only when the placeholder/value actually wraps, and shrinking
+  // back — RN-Web's onContentSizeChange can't shrink, so the hook drives the DOM
+  // node and re-measures on resize + font-load.
+  useAskAutoGrow(askInputRef, askValue);
 
   const signIn = () => void signInWithGoogle();
   // Ask routes to the answer page (#217): topic questions render a cited bill
@@ -1256,18 +1298,9 @@ function HomeSignedOutMobile() {
     { limit: 1 },
   );
 
-  // Auto-grow the ask textarea from one line to a cap, then scroll (web only).
-  useLayoutEffect(() => {
-    if (!isWeb) return;
-    const el = askInputRef.current as unknown as HTMLTextAreaElement | null;
-    if (!el || typeof el.scrollHeight !== 'number') return;
-    const empty = !askValue;
-    if (empty) el.value = ASK_PLACEHOLDER;
-    el.style.height = 'auto';
-    const next = Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT);
-    if (empty) el.value = '';
-    el.style.height = `${next}px`;
-  }, [askValue]);
+  // Auto-size the ask field to its content — one line at rest, grow only on
+  // real wrap, shrink back; re-measures on resize + font-load (see useAskAutoGrow).
+  useAskAutoGrow(askInputRef, askValue);
 
   const signIn = () => void signInWithGoogle();
   const submitAsk = () => {
