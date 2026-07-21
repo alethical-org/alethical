@@ -308,7 +308,7 @@ def _make_bill_with_sections(
     return bill.id, version.id
 
 
-def test_resolve_key_point_citations_grounds_prunes_and_drops() -> None:
+def test_resolve_key_point_citations_grounds_and_cites_anchorable_subset() -> None:
     with _session() as db:
         bill_id, version_id = _make_bill_with_sections(
             db,
@@ -357,10 +357,13 @@ def test_resolve_key_point_citations_grounds_prunes_and_drops() -> None:
             stats = ai_enrichment.resolve_key_point_citations(db, version_id, content)
 
         assert stats == {"points": 4, "anchored": 2, "dropped": 2}
-        # Only the two grounded points survive, in original order.
+        # All key points are preserved for display; only the two grounded ones
+        # get a citation (unanchorable points show without a marker).
         assert content["key_points"] == [
             "Creates a school grant program.",
             "Requires an annual district report.",
+            "Imposes a fine on late filers.",
+            "Paraphrased point with no matching quote.",
         ]
         resolved = content["key_point_citations"]
         assert len(resolved) == 2

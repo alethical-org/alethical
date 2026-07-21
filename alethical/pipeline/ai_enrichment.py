@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -353,14 +354,19 @@ def _normalize_for_match(value: str) -> str:
 
 
 def _chip_label(anchor: SectionAnchor) -> str:
-    """Concise citation-chip label. The curated section/heading label unless it
-    is too long for a pill, then fall back to the section identifier."""
+    """Concise citation-chip label. Prefer the curated section/heading label; if
+    it is too long for a pill, extract the "…Sec. N" citation prefix (dropping a
+    trailing statute heading) before truncating. Never expose the internal
+    `section_id_text` key (e.g. "laws.0.1.0"), which is not human-readable."""
     label = (anchor.label or "").strip()
-    if label and len(label) <= 48:
+    if not label:
+        return "Cited section"
+    if len(label) <= 48:
         return label
-    if anchor.section_id_text:
-        return f"Sec. {anchor.section_id_text}"
-    return label[:48].rstrip() if label else "Cited section"
+    match = re.match(r"^(.*?\bSec(?:tion)?\.?\s+[\w.\-]+)\.?", label)
+    if match and len(match.group(1)) <= 60:
+        return match.group(1).strip()
+    return label[:46].rstrip() + "…"
 
 
 def resolve_key_point_citations(
@@ -371,8 +377,10 @@ def resolve_key_point_citations(
     real supplied anchor that resolves to a `BillVersionSection` AND whose
     `quote` appears verbatim in that excerpt. Rewrites content in place so each
     surviving citation carries the resolved `section_id` (the section identifier)
-    plus a display `label`, and prunes `key_points` to the anchored survivors so
-    every displayed bullet is citable. Returns {points, anchored, dropped}."""
+    plus a display `label`. `key_points` is left intact — an unanchorable point
+    is shown without a citation marker (flagged, never invented), not dropped, so
+    the summary stays complete. Returns {points, anchored, dropped}, where
+    anchored/dropped count key points that did / didn't get a citation."""
     raw = content.get("key_point_citations")
     original_points = [
         item for item in (content.get("key_points") or []) if isinstance(item, str)
@@ -418,14 +426,13 @@ def resolve_key_point_citations(
             anchored_points.append(point.strip())
 
     content["key_point_citations"] = resolved
-    # Keep the display key_points to the anchored survivors, preserving the
-    # model's ordering; a point the model dropped or failed to anchor drops out
-    # rather than showing an uncited bullet.
-    content["key_points"] = [p for p in original_points if p in seen_points]
+    # Leave key_points untouched: an unanchorable point still displays, just
+    # without a citation chip (flagged, never invented). Only the anchorable
+    # subset carries a resolved citation.
     return {
         "points": len(original_points),
-        "anchored": len(content["key_points"]),
-        "dropped": len(original_points) - len(content["key_points"]),
+        "anchored": len(seen_points),
+        "dropped": len(original_points) - len(seen_points),
     }
 
 
