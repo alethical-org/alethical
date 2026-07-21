@@ -20,6 +20,7 @@ import {
   listTrackedBillsFromApi,
   lookupRepresentativeFromApi,
   sendChatMessageToApi,
+  SessionScope,
   toggleTrackedBillFromApi,
 } from '../data/api';
 import {
@@ -77,10 +78,13 @@ export function usePolicyAreas(session?: string) {
   });
 }
 
-export function useSessions() {
+// `scope` selects which surface's sessions to list: 'bills' (default) returns
+// sessions with listable bills; 'legislators' returns sessions with a current
+// roster. Each dropdown thus only offers sessions it can populate.
+export function useSessions(scope: SessionScope = 'bills') {
   return useQuery({
-    queryKey: ['sessions'],
-    queryFn: listSessionsFromApi,
+    queryKey: ['sessions', scope],
+    queryFn: () => listSessionsFromApi(scope),
   });
 }
 

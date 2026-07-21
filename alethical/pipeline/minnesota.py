@@ -23,9 +23,11 @@ from alethical.pipeline.roster_pdf import (
     parse_roster_pdf,
 )
 from alethical.pipeline.sessions import (
+    CURRENT_SESSION_DEF,
     CURRENT_SESSION_SLUG,
     DEFAULT_SESSION_CODE,
     parse_session_code,
+    session_defs_to_ensure,
 )
 
 USER_AGENT = "Alethical Minnesota Ingest/0.1"
@@ -632,11 +634,46 @@ class MinnesotaIngestionPipeline:
     def advisory_xact_lock(self, key: int) -> None:
         self.db.execute(text("select pg_advisory_xact_lock(:key)"), {"key": key})
 
-    def _existing_reference_data(self) -> dict[str, Any] | None:
-        """Return the reference dict if jurisdiction, all chambers, and the
-        current session already exist; else None. Lets seed_reference_data skip
-        the advisory lock on the common (refresh) path so concurrent chunks do
-        not serialize on it."""
+    def _sessions_by_number(self, minnesota_id: Any) -> dict[int, Any]:
+        """Every existing ``LegislativeSession`` row for the jurisdiction, keyed
+        by Legislature number — the key a bill's parsed SESSION_NUMBER resolves
+        against so each bill files under its own biennium (#155)."""
+        rows = self.db.scalars(
+            select(LegislativeSession).where(
+                LegislativeSession.jurisdiction_id == minnesota_id
+            )
+        ).all()
+        return {row.session_number: row for row in rows}
+
+    def _reference_refs(
+        self,
+        minnesota: Any,
+        chambers: dict[str, Any],
+        session_code: str,
+    ) -> dict[str, Any]:
+        sessions_by_number = self._sessions_by_number(minnesota.id)
+        target_number, _ = parse_session_code(session_code)
+        # The "primary" session (roster / committee / per-session stats attach
+        # here) is the biennium being ingested; fall back to current so a plain
+        # refresh keeps today's behavior. Bills override this per bill below.
+        session = sessions_by_number.get(target_number) or sessions_by_number.get(
+            CURRENT_SESSION_DEF.session_number
+        )
+        return {
+            "jurisdiction": minnesota,
+            "chambers": chambers,
+            "session": session,
+            "sessions_by_number": sessions_by_number,
+        }
+
+    def _existing_reference_data(
+        self, session_code: str = DEFAULT_SESSION_CODE
+    ) -> dict[str, Any] | None:
+        """Return the reference dict if the jurisdiction, all chambers, and the
+        session rows this ingestion needs (current + the ``session_code`` target)
+        already exist; else None. Lets seed_reference_data skip the advisory lock
+        on the common (refresh) path so concurrent chunks do not serialize on
+        it."""
         minnesota = self.db.scalar(
             select(Jurisdiction).where(Jurisdiction.slug == "minnesota")
         )
@@ -652,18 +689,29 @@ class MinnesotaIngestionPipeline:
             if chamber is None:
                 return None
             chambers[slug] = chamber
-        session = self.db.scalar(
-            select(LegislativeSession).where(
-                LegislativeSession.jurisdiction_id == minnesota.id,
-                LegislativeSession.slug == CURRENT_SESSION_SLUG,
-            )
-        )
-        if session is None:
-            return None
-        return {"jurisdiction": minnesota, "chambers": chambers, "session": session}
+        for session_def in session_defs_to_ensure(session_code):
+            if (
+                self.db.scalar(
+                    select(LegislativeSession).where(
+                        LegislativeSession.jurisdiction_id == minnesota.id,
+                        LegislativeSession.slug == session_def.slug,
+                    )
+                )
+                is None
+            ):
+                return None
+        return self._reference_refs(minnesota, chambers, session_code)
 
-    def seed_reference_data(self) -> dict[str, Any]:
-        existing = self._existing_reference_data()
+    def seed_reference_data(
+        self, session_code: str = DEFAULT_SESSION_CODE
+    ) -> dict[str, Any]:
+        """Ensure reference rows exist and return them.
+
+        Only the session rows this ingestion needs are created: the current
+        biennium plus the one ``session_code`` targets. A historical run thus
+        creates just its own session row, so a session never shows up as an
+        empty option before it has bills (grounded-answers rule 2)."""
+        existing = self._existing_reference_data(session_code)
         if existing is not None:
             return existing
         # A reference row is missing — seed under the lock. The body below
@@ -712,30 +760,39 @@ class MinnesotaIngestionPipeline:
                 self.db.flush()
             chambers[slug] = chamber
 
-        current_session = self.db.scalar(
-            select(LegislativeSession).where(
-                LegislativeSession.jurisdiction_id == minnesota.id,
-                LegislativeSession.slug == CURRENT_SESSION_SLUG,
+        for session_def in session_defs_to_ensure(session_code):
+            session = self.db.scalar(
+                select(LegislativeSession).where(
+                    LegislativeSession.jurisdiction_id == minnesota.id,
+                    LegislativeSession.slug == session_def.slug,
+                )
             )
-        )
-        if current_session is None:
-            current_session = LegislativeSession(
-                jurisdiction_id=minnesota.id,
-                slug=CURRENT_SESSION_SLUG,
-                session_number=94,
-                session_type=SessionType.regular,
-                year_start=2025,
-                year_end=2026,
-                name="94th Legislature (2025 - 2026) Regular Session",
-                is_current=True,
-            )
-            self.db.add(current_session)
-            self.db.flush()
-        return {
-            "jurisdiction": minnesota,
-            "chambers": chambers,
-            "session": current_session,
-        }
+            if session is None:
+                session = LegislativeSession(
+                    jurisdiction_id=minnesota.id,
+                    slug=session_def.slug,
+                    session_number=session_def.session_number,
+                    session_type=SessionType.regular,
+                    year_start=session_def.year_start,
+                    year_end=session_def.year_end,
+                    name=session_def.name,
+                    is_current=session_def.is_current,
+                )
+                self.db.add(session)
+                self.db.flush()
+        return self._reference_refs(minnesota, chambers, session_code)
+
+    def _session_for_bill(self, refs: dict[str, Any], canonical: dict[str, Any]) -> Any:
+        """Resolve the session a bill belongs to from its own parsed
+        SESSION_NUMBER, so a full-biennium discovery files each bill under the
+        right session even though the Revisor search returns the whole biennium
+        (#155). Falls back to the run's primary session if the number is unknown."""
+        try:
+            number = int(str(canonical.get("session_number") or "").strip())
+        except ValueError:
+            number = 0
+        sessions_by_number = refs.get("sessions_by_number") or {}
+        return sessions_by_number.get(number) or refs["session"]
 
     def start_run(self, target_type: str, target_key: str | None = None) -> Any:
         run = IngestionRun(
@@ -1167,12 +1224,13 @@ class MinnesotaIngestionPipeline:
             else None
         )
 
+        session = self._session_for_bill(refs, canonical)
         bill = self.db.scalar(
             select(Bill).where(Bill.bill_key == canonical["bill_key"])
         )
         if bill is None:
             bill = Bill(
-                session_id=refs["session"].id,
+                session_id=session.id,
                 chamber_id=chamber.id,
                 bill_key=str(canonical["bill_key"]),
                 file_type=file_type,
@@ -1185,7 +1243,7 @@ class MinnesotaIngestionPipeline:
             )
             self.db.add(bill)
             self.db.flush()
-        bill.session_id = refs["session"].id
+        bill.session_id = session.id
         bill.chamber_id = chamber.id
         bill.revisor_number = str(canonical.get("revisor_number") or "") or None
         bill.description = str(canonical.get("description") or "") or None
@@ -1392,7 +1450,11 @@ class MinnesotaIngestionPipeline:
         stats.vote_event_count = len(bill.vote_events)
 
     def ingest_bills(self, targets: list[BillTarget]) -> dict[str, Any]:
-        refs = self.seed_reference_data()
+        # All targets in a run share the session_code the discovery/CLI passed,
+        # so seed the reference data (and thus the primary session) for it. Each
+        # bill still resolves its own session from its parsed SESSION_NUMBER.
+        session_code = targets[0].session_code if targets else DEFAULT_SESSION_CODE
+        refs = self.seed_reference_data(session_code)
         bills = [self.ingest_bill_target(refs, target) for target in targets]
         # Refresh stats only for the legislators this batch actually touched (the
         # sponsors of its bills), not the whole jurisdiction — otherwise concurrent

@@ -12,6 +12,7 @@ from alethical.db.models import (
     BillAction,
     BillVersion,
     Legislator,
+    LegislativeSession,
     LegislatorServicePeriod,
     LegislatorStats,
 )
@@ -265,6 +266,132 @@ def test_reingest_with_new_version_code_keeps_one_current(seed_database: None) -
             ).all()
         }
         assert all_codes == {"current", "0"}
+
+
+# A 93rd-Legislature (2023-2024 biennium) bill and a 92nd-Legislature
+# (2021-2022) bill — the two prior sessions the corpus now covers. The
+# SESSION_NUMBER/SESSION_YEAR are what upsert_bill resolves the session from.
+HISTORICAL_BILL_XML_93 = """<?xml version="1.0"?>
+<BILL>
+  <SESSION_NUMBER>93</SESSION_NUMBER>
+  <SESSION_YEAR>2023</SESSION_YEAR>
+  <FILE_TYPE>HF</FILE_TYPE>
+  <FILE_NUMBER>100</FILE_NUMBER>
+  <DESCRIPTION>A 93rd Legislature bill</DESCRIPTION>
+</BILL>
+"""
+
+HISTORICAL_BILL_XML_92 = """<?xml version="1.0"?>
+<BILL>
+  <SESSION_NUMBER>92</SESSION_NUMBER>
+  <SESSION_YEAR>2021</SESSION_YEAR>
+  <FILE_TYPE>SF</FILE_TYPE>
+  <FILE_NUMBER>200</FILE_NUMBER>
+  <DESCRIPTION>A 92nd Legislature bill</DESCRIPTION>
+</BILL>
+"""
+
+
+def _session_row(session, slug: str):
+    return session.scalar(
+        select(LegislativeSession).where(LegislativeSession.slug == slug)
+    )
+
+
+def test_seed_reference_data_for_prior_biennium_ensures_only_current_and_target(
+    seed_database: None,
+) -> None:
+    """Seeding for the 93rd session creates the 93rd row and keeps the current
+    one, but does NOT pre-create the 92nd row — a session becomes visible only
+    once it is ingested, never as an empty dropdown option."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data("0932023")
+
+        # Primary session for the run is the 93rd; current 94th is still present.
+        assert refs["session"].slug == "93-2023-regular"
+        assert refs["sessions_by_number"][93].slug == "93-2023-regular"
+        assert refs["sessions_by_number"][94].slug == "94-2025-regular"
+
+        assert _session_row(session, "93-2023-regular") is not None
+        assert _session_row(session, "94-2025-regular") is not None
+        # The other historical biennium is NOT created by a 93rd-only run.
+        assert 92 not in refs["sessions_by_number"]
+        assert _session_row(session, "92-2021-regular") is None
+
+        session.rollback()
+
+
+def test_historical_bills_file_under_their_own_biennium(seed_database: None) -> None:
+    """The core session-aware fix: a bill attaches to the session its parsed
+    SESSION_NUMBER names, so a 2023 bill lands in the 93rd session and a 2021
+    bill in the 92nd — never the current biennium (#155)."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+
+        # 93rd-biennium run: the 2023 bill files under the 93rd session.
+        refs93 = pipeline.seed_reference_data("0932023")
+        run93 = pipeline.start_run("bill", "93-2023-HF100")
+        xml93 = pipeline.record_artifact(
+            run93,
+            ArtifactType.xml,
+            "https://example.test/hf100.xml",
+            HISTORICAL_BILL_XML_93,
+        )
+        html93 = pipeline.record_artifact(
+            run93, ArtifactType.html, "https://example.test/hf100.html", "<html></html>"
+        )
+        canonical93 = parse_bill_xml(HISTORICAL_BILL_XML_93)
+        assert canonical93["bill_key"] == "93-2023-HF100"
+        bill93 = pipeline.upsert_bill(
+            refs93,
+            canonical93,
+            {
+                "sections": [],
+                "articles": [],
+                "source_url": "https://example.test/hf100.html",
+            },
+            run93,
+            xml93,
+            html93,
+        )
+        session.flush()
+        assert bill93.session_id == _session_row(session, "93-2023-regular").id
+
+        # 92nd-biennium run: the 2021 bill files under the 92nd session.
+        refs92 = pipeline.seed_reference_data("0922021")
+        run92 = pipeline.start_run("bill", "92-2021-SF200")
+        xml92 = pipeline.record_artifact(
+            run92,
+            ArtifactType.xml,
+            "https://example.test/sf200.xml",
+            HISTORICAL_BILL_XML_92,
+        )
+        html92 = pipeline.record_artifact(
+            run92, ArtifactType.html, "https://example.test/sf200.html", "<html></html>"
+        )
+        canonical92 = parse_bill_xml(HISTORICAL_BILL_XML_92)
+        bill92 = pipeline.upsert_bill(
+            refs92,
+            canonical92,
+            {
+                "sections": [],
+                "articles": [],
+                "source_url": "https://example.test/sf200.html",
+            },
+            run92,
+            xml92,
+            html92,
+        )
+        session.flush()
+        assert bill92.session_id == _session_row(session, "92-2021-regular").id
+
+        # Neither historical bill leaked into the current 2025-2026 session.
+        current_id = _session_row(session, "94-2025-regular").id
+        assert bill93.session_id != current_id
+        assert bill92.session_id != current_id
+
+        session.rollback()
 
 
 def test_parse_datetime_handles_source_datetime_format() -> None:

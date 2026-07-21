@@ -90,10 +90,21 @@ offline (tests / no key) they fall back to a deterministic SHA-256 hash — see 
 | F | RAG chat synthesis | OpenAI Responses API | HTTPS `POST`, JSON | `OPENAI_API_KEY` | [me.py](../alethical/api/routers/me.py) |
 | G | Map tiles | OpenStreetMap | HTTP tiles | none | frontend `MapPinPicker.tsx` |
 
-**Timeframe scope:** hardcoded to the **94th Legislature, 2025 regular session** —
-`session_code="0942025"`, `session="94-2025-regular"`, `bill_key` format
-`94-2025-{FILETYPE}{NUMBER}` (e.g. `94-2025-HF2136`). Supporting other biennia
-means threading these through.
+**Timeframe scope:** the current biennium is the **94th Legislature, 2025
+regular session** (`DEFAULT_SESSION_CODE="0942025"`, `session="94-2025-regular"`,
+`bill_key` format `94-2025-{FILETYPE}{NUMBER}`). **Bill ingestion is
+session-aware:** pass another `--session-code` and each bill files under the
+biennium its own status-XML `SESSION_NUMBER` names (see
+`alethical/pipeline/sessions.py` — `LEGISLATIVE_SESSIONS`). The two prior
+bienniums are defined and supported — 93rd (2023-2024, `0932023`/`0932024`) and
+92nd (2021-2022, `0922021`/`0922022`); a single `--all-bills` run per biennium
+discovers the whole biennium and files every bill correctly. A session row is
+created only when that session is actually ingested, and `/sessions?scope=bills`
+returns a session only once it has a listable (AI-summarized) bill, so the
+Search Bills dropdown never offers an empty biennium (grounded-answers rule 2).
+Roster / committee / vote ingestion is still current-biennium-scoped — historical
+legislator rosters are follow-on work, and `/sessions?scope=legislators` keeps
+the Search Legislators dropdown to sessions that actually have a roster.
 
 ## A — Bills (MN Revisor)
 
@@ -288,4 +299,10 @@ just pipeline local --write --allow-writes     # commit after review
    limiter.
 5. **`local` vs `production` targets** — `--target production` writes to Supabase.
    Always dry-run first.
-6. **Session is hardcoded to 94th/2025** in multiple places.
+6. **Bills are session-aware; roster/committee/vote ingestion is still
+   current-biennium only.** Bill ingestion files each bill under the biennium
+   its status XML names (94th/93rd/92nd defined in
+   `alethical/pipeline/sessions.py`), so `--session-code 0932023` / `0922021`
+   backfills prior sessions. Legislator rosters, committees, and votes for prior
+   bienniums are not yet ingested — a follow-on if historical member/vote data
+   is wanted.
