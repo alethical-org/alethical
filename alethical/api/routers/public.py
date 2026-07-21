@@ -634,6 +634,7 @@ def bill_detail(
         "status_key": bill_status_key(row),
         "latest_action_at": row.latest_action_at,
         "official_url": row.official_url,
+        "is_omnibus": row.is_omnibus,
         "companion": (
             payload_model.model_dump()
             if (payload_model := companion_payload(row)) is not None

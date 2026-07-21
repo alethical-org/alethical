@@ -144,6 +144,7 @@ class BillDetailPayload(BaseModel):
     status_key: str | None = None
     latest_action_at: datetime | None = None
     official_url: str | None = None
+    is_omnibus: bool = False
     companion: CompanionBillPayload | None = None
     chief_sponsors: list[SponsorSummary]
     all_sponsors: list[SponsorSummary] | None = None

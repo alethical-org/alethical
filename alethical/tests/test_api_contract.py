@@ -367,6 +367,21 @@ def test_bill_detail_serves_companion_bill(client):
             db.commit()
 
 
+def test_bill_detail_serves_is_omnibus(client):
+    """The detail payload exposes is_omnibus so the bill page can render the
+    OMNIBUS tag — the list payload already did, but the detail one omitted it,
+    so the tag never showed on the bill page (found in web QA, Jul 2026)."""
+    omnibus = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular", "omnibus": True, "limit": 1},
+    ).json()["data"]
+    assert omnibus, "fixture must include at least one omnibus bill"
+    # The field is present on the detail payload (not just the list) and reflects
+    # the record — an omnibus bill reads True, matching its list-payload value.
+    omnibus_detail = client.get(f"/api/v1/bills/{omnibus[0]['id']}").json()["data"]
+    assert omnibus_detail["is_omnibus"] is True
+
+
 def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
     detail_response = client.get(
         "/api/v1/bills/94-2025-SF1832",
