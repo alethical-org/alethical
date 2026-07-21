@@ -26,10 +26,12 @@ export function FactsRail({
   bill,
   onOpenUrl,
   onOpenLegislator,
+  onOpenBill,
 }: {
   bill: Bill;
   onOpenUrl: (url: string) => void;
   onOpenLegislator: (legislatorId: string) => void;
+  onOpenBill: (billId: string) => void;
 }) {
   const { index, tone } = billStage(bill.status);
   const label = stageLabel(bill.status);
@@ -101,6 +103,15 @@ export function FactsRail({
             <TextLink label={`${readLabel(bill.status)} →`} onPress={() => onOpenUrl(readUrl)} />
           ) : null}
         </View>
+        {bill.companion ? (
+          <View style={styles.companionRow}>
+            <Text style={styles.authorFieldLabel}>Companion</Text>
+            <TextLink
+              label={`${bill.companion.chamber} (${bill.companion.identifier}) →`}
+              onPress={() => onOpenBill(bill.companion!.id)}
+            />
+          </View>
+        ) : null}
       </View>
 
       {/* CHIEF AUTHOR */}
@@ -245,6 +256,7 @@ const styles = StyleSheet.create({
     color: t.colors.omnibus.text,
   },
   linkCol: { marginTop: 12, gap: 8, alignItems: 'flex-start' },
+  companionRow: { marginTop: 12, flexDirection: 'row', alignItems: 'baseline', gap: 10 },
   tlink: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
