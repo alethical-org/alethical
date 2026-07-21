@@ -253,8 +253,6 @@ interface ApiCurrentServicePayload {
   office_address?: string | null;
   profile_url?: string | null;
   photo_url?: string | null;
-  elected?: string | null;
-  term?: string | null;
 }
 
 interface ApiLegislatorStatsPayload {
@@ -936,8 +934,6 @@ function mapLegislator(
     officeAddress: cleanOfficeAddress(service?.office_address),
     profileUrl: service?.profile_url ?? undefined,
     photoUrl: service?.photo_url ?? undefined,
-    elected: service?.elected ?? undefined,
-    term: service?.term ?? undefined,
     committees,
     committeeAssignments,
     focusAreas,

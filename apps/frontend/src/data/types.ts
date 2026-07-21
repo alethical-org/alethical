@@ -193,11 +193,6 @@ export interface Legislator {
   /** Official portrait URL (senate.mn / lrl.mn.gov headshot). Undefined for the
    *  handful of members without a scraped photo — render an initials fallback. */
   photoUrl?: string;
-  /** Verbatim "Elected:" value from the official member page (e.g. "2020,
-   *  re-elected 2022"); undefined until the bio backfill populates it. */
-  elected?: string;
-  /** Verbatim "Term:" value from the official member page (e.g. "2nd"). */
-  term?: string;
   committees: string[];
   /** Committees with their leadership role preserved, for the profile's badge
    *  rows. `committees` keeps the flattened name-only strings for older screens.

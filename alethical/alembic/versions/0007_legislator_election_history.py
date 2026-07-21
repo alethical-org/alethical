@@ -13,8 +13,8 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 # revision identifiers, used by Alembic.
-revision = "0005_legislator_election_history"
-down_revision = "0004_bill_session_introduced"
+revision = "0007_legislator_election_history"
+down_revision = "0006_widen_legislator_term"
 branch_labels = None
 depends_on = None
 

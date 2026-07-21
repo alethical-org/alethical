@@ -189,26 +189,6 @@ export function LegislatorProfileWebScreen() {
           )}
         </View>
 
-        {service && service.lines.length > 0 ? (
-          <View style={styles.card}>
-            <Text style={[styles.h2, styles.h2Spaced]}>Legislative Service</Text>
-            <View style={styles.serviceList}>
-              {service.lines.map((line, index) => (
-                <Text key={`${line.label}-${index}`} style={styles.serviceLine}>
-                  <Text style={styles.serviceLabel}>{line.label}: </Text>
-                  {line.elected}
-                </Text>
-              ))}
-              {service.term ? (
-                <Text style={styles.serviceLine}>
-                  <Text style={styles.serviceLabel}>Term: </Text>
-                  {service.term}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
-
         <View>
           <View style={styles.authoredHead}>
             <Text style={styles.h2}>Chief-Authored Bills</Text>
@@ -276,20 +256,20 @@ export function LegislatorProfileWebScreen() {
           </View>
         </View>
 
-        {legislator.elected || legislator.term ? (
+        {service && service.lines.length > 0 ? (
           <View style={styles.card}>
             <Text style={[styles.h3, styles.h3Spaced]}>Legislative Service</Text>
             <View style={styles.serviceStack}>
-              {legislator.elected ? (
-                <Text style={styles.serviceRow}>
-                  <Text style={styles.serviceLabel}>Elected: </Text>
-                  {legislator.elected}
+              {service.lines.map((line, index) => (
+                <Text key={`${line.label}-${index}`} style={styles.serviceRow}>
+                  <Text style={styles.serviceLabel}>{line.label}: </Text>
+                  {line.elected}
                 </Text>
-              ) : null}
-              {legislator.term ? (
+              ))}
+              {service.term ? (
                 <Text style={styles.serviceRow}>
                   <Text style={styles.serviceLabel}>Term: </Text>
-                  {legislator.term}
+                  {service.term}
                 </Text>
               ) : null}
             </View>
@@ -1377,15 +1357,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
     lineHeight: 24,
   },
-  // --- Legislative Service ---
-  serviceList: { gap: 10 },
-  serviceLine: {
-    fontFamily: t.typography.body,
-    fontSize: 18,
-    lineHeight: 27,
-    color: '#1a201d',
-  },
-  serviceLabel: { fontWeight: t.fontWeights.bold },
   // --- Committees ---
   committeeList: { gap: 14 },
   committeeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
