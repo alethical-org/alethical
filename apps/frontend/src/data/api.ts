@@ -541,7 +541,9 @@ function engrossmentLabel(sequence: number, unofficial: boolean): string {
 // Sampled across production, versions arrive in two shapes:
 //   - friendly:  "HF 1 4th Engrossment - 94th Legislature (2025 - 2026)"
 //                "SF 856 1st Unofficial Engrossment - ...", "HF 31 Introduction - ..."
-//   - raw code:  "2026.0-HF4138-5", "2025.0-UES0334-1" (YYYY.N-{PREFIX}{file}-{seq})
+//   - raw code:  "2026.0-HF4138-5", "2025.0-UES0334-1", "2026.0-UEH4138-1"
+//                (YYYY.N-{PREFIX}{file}-{seq}; PREFIX is SF/HF for official
+//                engrossments, UES/UEH for unofficial — Senate/House)
 // version_code carries the engrossment sequence ("0", "1", ...) or "current".
 // (MN's text_versions have no separate "session law" entry, so enacted bills
 // simply end at their highest engrossment — there is no chapter label to derive.)
@@ -561,7 +563,8 @@ function versionDisplayName(code: string, name?: string | null): string {
   // Raw internal code form: YYYY.N-{PREFIX}{number}-{sequence}.
   const codeForm = raw.match(/^\d{4}\.\d+-([A-Za-z]+)\d+-(\d+)$/);
   if (codeForm) {
-    return engrossmentLabel(Number(codeForm[2]), codeForm[1].toUpperCase() === 'UES');
+    // UES (Senate) / UEH (House) are both unofficial engrossments; SF/HF official.
+    return engrossmentLabel(Number(codeForm[2]), codeForm[1].toUpperCase().startsWith('UE'));
   }
 
   // Fall back to the numeric version_code as an engrossment sequence.
