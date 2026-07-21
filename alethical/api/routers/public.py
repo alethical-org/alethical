@@ -743,6 +743,21 @@ def bill_votes(
             "result_text": vote_event.result_text,
             "yes_count": vote_event.yes_count,
             "no_count": vote_event.no_count,
+            "absent_count": vote_event.absent_count,
+            "excused_count": vote_event.excused_count,
+            "present_count": vote_event.present_count,
+            "occurred_at": vote_event.occurred_at,
+            "official_url": vote_event.official_url,
+            # Per-member roll call (#83). Records are eager-loaded by
+            # bill_detail_stmt; only yes/no records are ingested today, so a
+            # "did-not-vote" state is deliberately not synthesized here.
+            "records": [
+                {
+                    "legislator_id": str(record.legislator_id),
+                    "vote_value": record.vote_value.value,
+                }
+                for record in vote_event.records
+            ],
         }
         for vote_event in row.vote_events
     ]

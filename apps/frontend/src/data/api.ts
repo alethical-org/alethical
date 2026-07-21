@@ -329,12 +329,23 @@ interface ApiAiAnalysisPayload {
   policy_areas?: string[] | null;
 }
 
+interface ApiBillVoteRecordPayload {
+  legislator_id: string;
+  vote_value: string;
+}
+
 interface ApiBillVotePayload {
   id: string;
   motion_text?: string | null;
   result_text?: string | null;
   yes_count?: number | null;
   no_count?: number | null;
+  absent_count?: number | null;
+  excused_count?: number | null;
+  present_count?: number | null;
+  occurred_at?: string | null;
+  official_url?: string | null;
+  records?: ApiBillVoteRecordPayload[] | null;
 }
 
 interface ApiChatMessagePayload {
@@ -771,14 +782,19 @@ function mapBillDetail(
     votes: votes.map((vote) => ({
       id: vote.id,
       motion: vote.motion_text ?? 'Vote',
-      date: '',
+      date: formatOptionalDate(vote.occurred_at),
       result: vote.result_text ?? 'Result unavailable',
       breakdown: {
         yes: vote.yes_count ?? 0,
         no: vote.no_count ?? 0,
-        absent: 0,
+        // Members who did not vote yes/no. Only ingested when the source records
+        // it; today these columns are 0, so nothing "didn't vote" is claimed (#83).
+        absent: (vote.absent_count ?? 0) + (vote.excused_count ?? 0) + (vote.present_count ?? 0),
       },
-      votes: [],
+      votes: (vote.records ?? []).map((record) => ({
+        legislatorId: record.legislator_id,
+        vote: record.vote_value === 'yes' ? 'YES' : record.vote_value === 'no' ? 'NO' : 'ABSENT',
+      })),
     })),
     citations: [],
     officialLinks: payload.official_url
