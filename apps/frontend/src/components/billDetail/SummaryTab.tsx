@@ -147,7 +147,7 @@ function AskModule({
           onBlur={focusProps.onBlur}
           onSubmitEditing={submit}
           returnKeyType="search"
-          placeholder={`Ask a question about ${identifier}…`}
+          placeholder={`Ask a question about ${identifier}`}
           placeholderTextColor={t.colors.text.faint}
           style={[styles.askInput, fieldOutlineReset]}
         />
