@@ -53,9 +53,9 @@ import { BillDetailWebScreen } from './BillDetailWebScreen';
 // carries. Per-member roll-call votes + party now ship (#435/#443 → api.ts
 // mapBillDetail), so the Votes section renders the real party-grouped member grid,
 // crossover dots, and party splits from that data — degrading to the tally + result
-// + proportion bar on rolls the corpus has no per-member records for. Still absent:
-// the per-point cited-sections strip (#377) and companion (#293), which fill in when
-// their backends ship.
+// + proportion bar on rolls the corpus has no per-member records for. The companion
+// row ships from the served link (#293). Still absent: the per-point cited-sections
+// strip (#377), which fills in when its backend ships.
 
 const isWeb = Platform.OS === 'web';
 
@@ -613,6 +613,17 @@ function BillDetailMobileScreen() {
                       <TextLink
                         label={`${readLabel(bill.status)} →`}
                         onPress={() => openExternal(vm.readUrl as string)}
+                      />
+                    ) : null}
+                    {/* Companion bill (#293): the paired House/Senate file. Links to
+                        the companion's bill page (URL-addressable, grounded-answers
+                        rule 5); shown only when the pair is linked. */}
+                    {bill.companion ? (
+                      <TextLink
+                        label={`Companion → ${bill.companion.chamber} (${bill.companion.identifier})`}
+                        onPress={() =>
+                          navigation.navigate('BillDetail', { billId: bill.companion!.id })
+                        }
                       />
                     ) : null}
                   </View>
