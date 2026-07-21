@@ -22,6 +22,7 @@ export function SummaryTab({
   onAsk,
   onOpenUrl,
   onOpenLegislator,
+  onOpenBill,
   isDesktop,
   updatedLabel,
 }: {
@@ -30,6 +31,7 @@ export function SummaryTab({
   onAsk: (question: string) => void;
   onOpenUrl: (url: string) => void;
   onOpenLegislator: (legislatorId: string) => void;
+  onOpenBill: (billId: string) => void;
   isDesktop: boolean;
   updatedLabel: string;
 }) {
@@ -119,7 +121,12 @@ export function SummaryTab({
             isDesktop && isWeb ? STICKY_RAIL : null,
           ]}
         >
-          <FactsRail bill={bill} onOpenUrl={onOpenUrl} onOpenLegislator={onOpenLegislator} />
+          <FactsRail
+            bill={bill}
+            onOpenUrl={onOpenUrl}
+            onOpenLegislator={onOpenLegislator}
+            onOpenBill={onOpenBill}
+          />
         </View>
       </View>
 

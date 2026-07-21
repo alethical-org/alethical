@@ -56,6 +56,9 @@ export function BillDetailWebScreen() {
   const openLegislator = (legislatorId: string) => {
     navigation.navigate('LegislatorProfile', { legislatorId });
   };
+  const openBill = (nextBillId: string) => {
+    navigation.push('BillDetail', { billId: nextBillId });
+  };
   const askAboutBill = (question: string) => {
     navigation.navigate('Ask', { q: question || undefined });
   };
@@ -156,6 +159,7 @@ export function BillDetailWebScreen() {
         onAsk={askAboutBill}
         onOpenUrl={openUrl}
         onOpenLegislator={openLegislator}
+        onOpenBill={openBill}
         isDesktop={isDesktop}
         updatedLabel={updatedLabel}
       />
