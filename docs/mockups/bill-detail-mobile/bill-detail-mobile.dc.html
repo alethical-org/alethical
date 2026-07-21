@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  a{color:#149d5b;}
+  a:hover{color:#11832b;}
+  [data-tlink]:active{color:#0f7a45;text-decoration:underline;text-underline-offset:2px;}
+  [data-glow-field]:focus-within{border-color:#5b30d6 !important;box-shadow:0 0 0 4px rgba(91,48,214,0.14) !important;}
+  @keyframes ovFade{from{opacity:0;}to{opacity:1;}}
+  @keyframes sheetUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  /* a11y: keyboard focus ring — WCAG 2.4.7 + 1.4.11 (visible on light & dark) */
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[tabindex]:focus-visible,[role="button"]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}
+  [data-glow-field] input:focus-visible,[data-glow-field] textarea:focus-visible{outline:none !important;}
+</style>
+</helmet>
+<div style="min-height:100%;background:#e6e9ec;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:40px 40px 28px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;">
+  <div style="width:430px;background:#0a0e0c;border-radius:52px;padding:12px;box-shadow:0 40px 90px rgba(17,21,15,0.30);">
+    <div data-screen-label="Bill Detail (mobile)" style="background:#ffffff;border-radius:42px;overflow:hidden;height:884px;position:relative;">
+      <div ref="{{ scrollRef }}" style="height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,#edf0f4 0%,#f7f9fb 8%,#ffffff 24%,#ffffff 72%,#f5f8fa 100%);color:#11150f;position:relative;">
+
+  <!-- TOP BAR -->
+  <div style="position:relative;z-index:60;display:flex;align-items:center;justify-content:space-between;padding:18px 20px 6px;">
+    <span style="display:flex;align-items:center;gap:8px;">
+      <svg width="20" height="20" viewBox="8 9 84 84" fill="none" style="display:block;flex:none;"><path d="M8,92 L46,10 L46,92 Z" fill="#11150f"></path><path d="M92,92 L54,10 L54,92 Z" fill="#11150f"></path></svg>
+      <span style="font-weight:600;font-size:21px;letter-spacing:0.16em;color:#11150f;">ALETHICAL</span>
+    </span>
+    <span style="display:flex;align-items:center;gap:10px;">
+      <sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}"><button onClick="{{ openVotesSignIn }}" style="background:#2ed47e;color:#06231a;border:none;border-radius:10px;padding:9px 16px;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:700;cursor:pointer;">Sign in</button></sc-if>
+      <sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:10px;font-size:16px;font-weight:600;color:#11150f;"><span style="width:8px;height:8px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;box-shadow:0 0 0 3px rgba(45,212,126,0.18);"></span>Jordan</span></sc-if>
+      <button aria-label="Menu" style="width:38px;height:38px;background:transparent;border:1px solid rgba(17,21,15,0.14);border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 7h16 M4 12h16 M4 17h16" stroke="#11150f" stroke-width="2" stroke-linecap="round"></path></svg></button>
+    </span>
+  </div>
+
+  <!-- BILL HEADER -->
+  <div data-screen-label="Bill header" style="position:relative;padding:24px 20px 18px;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px);background-size:30px 30px;pointer-events:none;-webkit-mask:linear-gradient(to bottom, transparent 0px, #000 70px, #000 calc(100% - 24px), transparent 100%);mask:linear-gradient(to bottom, transparent 0px, #000 70px, #000 calc(100% - 24px), transparent 100%);"></div>
+    <div style="position:relative;">
+      <h1 style="margin:0;font-size:32px;line-height:1.1;font-weight:800;letter-spacing:-0.02em;color:#11150f;">{{ b.title }}</h1>
+      <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0;">
+        <sc-if value="{{ b.pillGreen }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#2ed47e;display:inline-block;box-shadow:0 0 0 4px rgba(45,212,126,0.18);"></span><span style="font-size:16px;font-weight:700;color:#149d5b;">{{ b.stageLabel }}</span></span></sc-if>
+        <sc-if value="{{ b.pillNeutral }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#b7bdb8;display:inline-block;"></span><span style="font-size:16px;font-weight:700;color:#4f5651;">{{ b.stageLabel }}</span></span></sc-if>
+        <sc-if value="{{ b.pillRed }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#e5484d;display:inline-block;box-shadow:0 0 0 4px rgba(229,72,77,0.15);"></span><span style="font-size:16px;font-weight:700;color:#c23c36;">{{ b.stageLabel }}</span></span></sc-if>
+        <sc-if value="{{ b.omnibus }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:transparent;border:1px solid #e3c17f;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:0.07em;color:#a76a1a;">OMNIBUS</span></sc-if>
+        </div>
+        <button onClick="{{ openShare }}" aria-haspopup="true" aria-expanded="{{ shareOpen }}" style="flex:none;display:inline-flex;align-items:center;gap:7px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:10px;padding:10px 14px;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;color:#11150f;cursor:pointer;" style-active="background:#f1f1f4;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="18" cy="5" r="2.6" stroke="#11150f" stroke-width="2"></circle><circle cx="6" cy="12" r="2.6" stroke="#11150f" stroke-width="2"></circle><circle cx="18" cy="19" r="2.6" stroke="#11150f" stroke-width="2"></circle><path d="M8.4 10.7 L15.6 6.5 M8.4 13.3 L15.6 17.5" stroke="#11150f" stroke-width="2" stroke-linecap="round"></path></svg>Share</button>
+      </div>
+      <div style="margin-top:12px;font-size:13px;font-weight:500;letter-spacing:0.06em;color:#6f756f;">{{ b.sessionYear }}</div>
+    </div>
+  </div>
+
+  <!-- JUMP CHIPS (sticky) -->
+  <div data-screen-label="Section jump bar" style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid rgba(17,21,15,0.08);padding:12px 20px;display:flex;align-items:center;gap:8px;overflow-x:auto;">
+    <sc-for list="{{ navChips }}" as="c" hint-placeholder-count="4">
+      <sc-if value="{{ c.active }}" hint-placeholder-val="{{ true }}"><a href="{{ c.href }}" onClick="{{ c.go }}" aria-current="true" style="flex:none;padding:9px 15px;background:#11150f;border:1px solid #11150f;border-radius:999px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;">{{ c.label }}</a></sc-if>
+      <sc-if value="{{ c.inactive }}" hint-placeholder-val="{{ false }}"><a href="{{ c.href }}" onClick="{{ c.go }}" style="flex:none;padding:9px 15px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:999px;font-size:16px;font-weight:600;color:#4f5651;text-decoration:none;" style-hover="background:#f6f7fb;box-shadow:0 0 0 3px rgba(91,48,214,0.16);" style-active="background:#efeafb;box-shadow:0 0 0 4px rgba(91,48,214,0.22);">{{ c.label }}</a></sc-if>
+    </sc-for>
+  </div>
+
+  <!-- ============ SUMMARY ============ -->
+  <div id="m-summary" data-screen-label="Summary" style="position:relative;padding:28px 20px 8px;scroll-margin-top:64px;">
+    <h2 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Key points</h2>
+    <p style="margin:8px 0 0;font-size:16px;line-height:1.5;color:#4f5651;text-wrap:pretty;">{{ b.lede }}</p>
+    <div style="margin-top:18px;display:flex;flex-direction:column;gap:15px;">
+      <sc-for list="{{ b.points }}" as="p" hint-placeholder-count="4">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <span style="flex:none;width:8px;height:8px;background:#11150f;border-radius:50%;display:inline-block;margin-top:11px;"></span>
+          <div style="min-width:0;"><span style="font-size:19px;font-weight:500;line-height:1.5;color:#2c322c;">{{ p.text }}</span></div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- CITED SECTIONS -->
+    <div style="margin-top:22px;">
+      <div style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">CITED SECTIONS<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="12" cy="12" r="9" stroke="#149d5b" stroke-width="2"></circle><path d="M8.5 12.2 L11 14.7 L15.7 9.6" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+      <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
+        <sc-for list="{{ b.points }}" as="p" hint-placeholder-count="4">
+          <span style="display:inline-flex;align-items:center;white-space:nowrap;padding:5px 11px;border-radius:8px;background:#f0ebfc;border:1px solid #d8c9f7;color:#5b30d6;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:0.02em;">{{ p.sec }}</span>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- FACTS CARD (rail content) -->
+    <div style="margin-top:28px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);overflow:hidden;">
+      <!-- STATUS DATE -->
+      <div style="padding:18px 18px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">{{ b.dateLabel }}</div>
+        <div style="margin-top:4px;font-size:19px;font-weight:600;color:#11150f;">{{ b.dateValue }}</div>
+      </div>
+      <!-- THIS BILL -->
+      <div style="padding:16px 18px;border-top:1px solid rgba(17,21,15,0.08);">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">{{ b.billLabel }}</div>
+        <div style="margin-top:11px;"><span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;letter-spacing:0.04em;background:#fbe7bd;border:1px solid #eccf86;color:#875312;padding:6px 12px;border-radius:7px;">{{ b.code }}</span></div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:12px;">
+          <a data-tlink="1" href="#" style="font-size:17px;font-weight:700;color:#149d5b;text-decoration:none;">Bill overview →</a>
+          <a data-tlink="1" href="#" style="font-size:17px;font-weight:700;color:#149d5b;text-decoration:none;">{{ b.readLabel }}</a>
+          <sc-if value="{{ b.hasCompanion }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:baseline;gap:12px;"><span style="font-size:15px;color:#6f756f;min-width:64px;">Companion</span><a data-tlink="1" href="#" style="font-size:17px;font-weight:700;color:#149d5b;text-decoration:none;">{{ b.companionLabel }} →</a></div></sc-if>
+        </div>
+      </div>
+      <!-- CHIEF AUTHOR -->
+      <div style="padding:16px 18px;border-top:1px solid rgba(17,21,15,0.08);">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">CHIEF AUTHOR</div>
+          <span style="font-size:14px;color:#6f756f;white-space:nowrap;">+{{ b.coauthors }} co-authors</span>
+        </div>
+        <div style="margin-top:11px;"><a data-tlink="1" href="Legislator Profile.dc.html" style="font-size:19px;font-weight:700;color:#149d5b;text-decoration:none;">{{ b.authorName }} →</a></div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:7px;">
+          <div style="display:flex;gap:12px;font-size:15px;"><span style="color:#6f756f;min-width:64px;">Party</span><span style="color:#11150f;font-weight:500;">{{ b.authorParty }}</span></div>
+          <div style="display:flex;gap:12px;font-size:15px;"><span style="color:#6f756f;min-width:64px;">District</span><span style="color:#11150f;font-weight:500;">{{ b.authorDistrict }}</span></div>
+        </div>
+      </div>
+      <!-- ISSUES -->
+      <div style="padding:16px 18px;border-top:1px solid rgba(17,21,15,0.08);">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">ISSUES</div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <sc-for list="{{ b.policies }}" as="pol" hint-placeholder-count="3">
+            <span style="padding:6px 11px;background:#f1f1f4;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.06em;color:#4f5651;">{{ pol }}</span>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASK ABOUT THIS BILL -->
+    <sc-if value="{{ showAsk }}" hint-placeholder-val="{{ true }}">
+    <div style="margin-top:24px;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:20px 18px;">
+      <h3 style="margin:0;font-size:22px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Ask about this bill</h3>
+      <p style="margin:6px 0 0;font-size:17px;color:#6b716b;">No account needed — answers cite the bill text.</p>
+      <div data-glow-field style="margin-top:14px;display:flex;align-items:center;gap:10px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:12px;padding:4px 4px 4px 16px;transition:border-color .18s ease, box-shadow .18s ease;">
+        <input placeholder="{{ b.askPlaceholder }}" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:17px;padding:13px 2px;" />
+      </div>
+      <a href="NEXT Ask v2.dc.html" style="margin-top:10px;width:100%;display:flex;align-items:center;justify-content:center;background:#5b30d6;color:#ffffff;border-radius:12px;padding:14px;font-size:18px;font-weight:700;text-decoration:none;" style-hover="background:#4c27b8;">Ask</a>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <sc-for list="{{ b.askChips }}" as="q" hint-placeholder-count="3">
+          <a href="NEXT Ask v2.dc.html" style="font-size:15px;font-weight:500;color:#4f5651;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:999px;padding:8px 13px;text-decoration:none;" style-hover="background:#f6f7fb;box-shadow:0 0 0 3px rgba(91,48,214,0.16);" style-active="background:#efeafb;box-shadow:0 0 0 4px rgba(91,48,214,0.22);">{{ q }}</a>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+
+  <!-- ============ ACTIONS ============ -->
+  <div id="m-actions" data-screen-label="Actions" style="position:relative;padding:36px 20px 8px;scroll-margin-top:64px;">
+    <h2 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Actions</h2>
+    <p style="margin:8px 0 0;font-size:16px;line-height:1.5;color:#6b716b;">Every official step this bill has taken.</p>
+    <div style="margin:22px 0 4px;display:flex;flex-wrap:wrap;gap:12px 16px;font-size:13px;color:#6f756f;">
+      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:#2ed47e;display:inline-block;"></span>Enacted milestone</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:#11150f;display:inline-block;"></span>Recorded vote</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:#ffffff;border:2px solid #c9cec9;display:inline-block;"></span>Procedural step</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:#e5484d;display:inline-block;"></span>Not adopted</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:#ffffff;border:2px dashed #2ed47e;display:inline-block;"></span>Scheduled</span>
+    </div>
+    <div style="margin-top:30px;display:flex;flex-direction:column;">
+      <sc-for list="{{ b.actions }}" as="a" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:24px 1fr;gap:0 14px;">
+          <div style="position:relative;">
+            <span style="position:absolute;top:0;bottom:0;left:11px;width:2px;background:rgba(17,21,15,0.08);display:block;"></span>
+            <sc-if value="{{ a.dotGreen }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:6px;left:5px;width:14px;height:14px;border-radius:50%;background:#2ed47e;box-shadow:0 0 0 4px rgba(45,212,126,0.2);display:block;"></span></sc-if>
+            <sc-if value="{{ a.dotRed }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:6px;left:5px;width:14px;height:14px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 4px rgba(229,72,77,0.18);display:block;"></span></sc-if>
+            <sc-if value="{{ a.dotVote }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:6px;left:5px;width:14px;height:14px;border-radius:50%;background:#11150f;display:block;"></span></sc-if>
+            <sc-if value="{{ a.dotScheduled }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:6px;left:5px;width:14px;height:14px;border-radius:50%;background:#ffffff;border:2px dashed #2ed47e;display:block;"></span></sc-if>
+            <sc-if value="{{ a.dotPlain }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;top:8px;left:7px;width:10px;height:10px;border-radius:50%;background:#ffffff;border:2px solid #c9cec9;display:block;"></span></sc-if>
+          </div>
+          <div style="padding-bottom:24px;min-width:0;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.04em;color:#6f756f;">{{ a.date }}</div>
+            <div style="margin-top:4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="font-size:19px;font-weight:700;color:{{ a.titleColor }};line-height:1.3;">{{ a.title }}</span>
+              <sc-if value="{{ a.upcoming }}" hint-placeholder-val="{{ false }}"><span style="padding:3px 9px;background:#ffffff;border:1px dashed #2ed47e;border-radius:7px;font-size:12px;font-weight:700;letter-spacing:0.07em;color:#149d5b;">SCHEDULED</span></sc-if>
+              <sc-if value="{{ a.hasTally }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:#11150f;background:#f1f1f4;border-radius:7px;padding:3px 8px;">{{ a.tally }}</span></sc-if>
+              <sc-if value="{{ a.adopted }}" hint-placeholder-val="{{ false }}"><span style="padding:3px 9px;background:#e4f8ee;border:1px solid #bfeacf;border-radius:7px;font-size:13px;font-weight:700;letter-spacing:0.07em;color:#149d5b;">ADOPTED</span></sc-if>
+              <sc-if value="{{ a.notAdopted }}" hint-placeholder-val="{{ false }}"><span style="padding:3px 9px;background:#fdecec;border:1px solid #f5c6c4;border-radius:7px;font-size:13px;font-weight:700;letter-spacing:0.07em;color:#c23c36;">NOT ADOPTED</span></sc-if>
+            </div>
+            <sc-if value="{{ a.hasMeta }}" hint-placeholder-val="{{ true }}"><div style="margin-top:3px;font-size:16px;color:#6f756f;">{{ a.meta }}</div></sc-if>
+            <sc-if value="{{ a.hasRoll }}" hint-placeholder-val="{{ false }}"><a data-tlink="1" onClick="{{ a.goRoll }}" href="#m-votes" style="margin-top:6px;display:inline-block;font-size:15px;font-weight:700;letter-spacing:0.04em;color:#149d5b;text-decoration:none;">View votes →</a></sc-if>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- PLAIN-LANGUAGE KEY (tap to reveal) -->
+    <div style="margin-top:36px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">PLAIN-LANGUAGE KEY</div>
+      <p style="margin:8px 0 0;font-size:14px;color:#6b716b;">Tap any term for its meaning.</p>
+      <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
+        <sc-for list="{{ glossary }}" as="g" hint-placeholder-count="6">
+          <sc-if value="{{ g.active }}" hint-placeholder-val="{{ false }}"><button onClick="{{ g.toggle }}" style="font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;color:#5b30d6;background:#f0ebfc;border:1px solid #d8c9f7;border-radius:999px;padding:8px 14px;cursor:pointer;">{{ g.term }}</button></sc-if>
+          <sc-if value="{{ g.inactive }}" hint-placeholder-val="{{ true }}"><button onClick="{{ g.toggle }}" style="font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;color:#4f5651;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:999px;padding:8px 14px;cursor:pointer;" style-hover="background:#f6f7fb;box-shadow:0 0 0 3px rgba(91,48,214,0.16);" style-active="background:#efeafb;box-shadow:0 0 0 4px rgba(91,48,214,0.22);">{{ g.term }}</button></sc-if>
+        </sc-for>
+      </div>
+      <sc-if value="{{ hasOpenTerm }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:12px;background:#f7f5fd;border:1px solid #d8c9f7;border-radius:12px;padding:14px 16px;">
+        <div style="font-size:16px;font-weight:800;color:#11150f;">{{ openTermTerm }}</div>
+        <div style="margin-top:4px;font-size:16px;line-height:1.5;color:#4f5651;">{{ openTermDef }}</div>
+      </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- ============ VOTES (near bottom) ============ -->
+  <div id="m-votes" data-screen-label="Votes" style="position:relative;padding:36px 20px 8px;scroll-margin-top:64px;">
+    <sc-if value="{{ b.hasRolls }}" hint-placeholder-val="{{ true }}">
+    <h2 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Votes</h2>
+    <p style="margin:10px 0 0;font-size:16px;line-height:1.5;color:#6b716b;">Each recorded <span style="font-weight:600;color:#4f5651;">roll call</span> lists how members voted.</p>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <sc-if value="{{ votesHelpOpen }}" hint-placeholder-val="{{ false }}"><button onClick="{{ toggleVotesHelp }}" aria-expanded="true" style="display:inline-flex;align-items:center;gap:7px;background:#11150f;border:1px solid #11150f;border-radius:999px;padding:8px 14px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#ffffff;cursor:pointer;">How to read a roll call<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 15 L12 9 L18 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></sc-if>
+      <sc-if value="{{ votesHelpClosed }}" hint-placeholder-val="{{ true }}"><button onClick="{{ toggleVotesHelp }}" aria-expanded="false" style="display:inline-flex;align-items:center;gap:7px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:999px;padding:8px 14px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#4f5651;cursor:pointer;" style-hover="background:#f6f7fb;box-shadow:0 0 0 3px rgba(91,48,214,0.16);" style-active="background:#efeafb;box-shadow:0 0 0 4px rgba(91,48,214,0.22);">How to read a roll call<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></sc-if>
+    </div>
+    <sc-if value="{{ votesHelpOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top:12px;background:#f7f9f8;border:1px solid rgba(17,21,15,0.08);border-radius:12px;padding:14px 16px;font-size:16px;line-height:1.55;color:#4f5651;">The chief author is a <span style="font-weight:700;color:#11150f;">{{ b.authorParty }}</span> {{ b.authorRole }}; their party carried this bill through the {{ b.authorChamber }}, and it also passed the {{ b.authorChamberOther }}. On the main passage votes, {{ b.authorPartyOther }} members largely opposed it. The <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#a76a1a;vertical-align:middle;margin:0 5px 0 2px;"></span> marks members who crossed their party.</div>
+    </sc-if>
+
+    <!-- ROLL CARDS -->
+    <div style="margin-top:18px;display:flex;flex-direction:column;gap:14px;">
+      <sc-for list="{{ b.rolls }}" as="r" hint-placeholder-count="4">
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:14px;box-shadow:0 6px 18px rgba(17,21,15,0.04);overflow:hidden;">
+          <button onClick="{{ r.toggle }}" aria-expanded="{{ r.open }}" style="display:block;width:100%;text-align:left;background:transparent;border:none;padding:18px;font-family:'Libre Franklin',sans-serif;cursor:pointer;" style-hover="background:#fafbfb;" style-active="background:#f6f8f7;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div style="min-width:0;">
+              <div style="font-size:19px;font-weight:700;color:#11150f;line-height:1.3;">{{ r.motion }}</div>
+              <div style="margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.05em;color:#6f756f;">{{ r.metaDate }} · {{ r.recordShort }}</div>
+            </div>
+            <div style="flex:none;text-align:right;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:700;color:#11150f;">{{ r.tally }}</div>
+              <sc-if value="{{ r.hasAbsent }}" hint-placeholder-val="{{ false }}"><div style="margin-top:2px;font-size:12px;color:#6f756f;white-space:nowrap;">{{ r.absent }} didn't vote</div></sc-if>
+            </div>
+          </div>
+          <div style="margin-top:11px;display:flex;align-items:center;gap:10px;">
+            <sc-if value="{{ r.passed }}" hint-placeholder-val="{{ true }}"><span style="flex:none;padding:5px 10px;background:#e4f8ee;border:1px solid #bfeacf;border-radius:7px;font-size:13px;font-weight:700;letter-spacing:0.07em;color:#149d5b;">PASSED</span></sc-if>
+            <sc-if value="{{ r.failed }}" hint-placeholder-val="{{ false }}"><span style="flex:none;padding:5px 10px;background:#fdecec;border:1px solid #f5c6c4;border-radius:7px;font-size:13px;font-weight:700;letter-spacing:0.07em;color:#c23c36;">FAILED</span></sc-if>
+            <div style="flex:1;display:flex;height:9px;border-radius:5px;overflow:hidden;background:#e2e5e4;">
+              <span style="width:{{ r.barPct }}%;background:#2ed47e;display:block;"></span>
+              <span style="width:{{ r.barNoPct }}%;background:#e5484d;display:block;"></span>
+              <sc-if value="{{ r.hasAbsent }}" hint-placeholder-val="{{ false }}"><span style="flex:1;min-width:6px;background:#e2e5e4;display:block;"></span></sc-if>
+            </div>
+          </div>
+          <sc-if value="{{ r.closed }}" hint-placeholder-val="{{ true }}"><div style="margin-top:13px;display:flex;align-items:center;justify-content:center;gap:7px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:10px;padding:11px;font-size:16px;font-weight:700;color:#149d5b;">See who voted<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></sc-if>
+          <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}"><div style="margin-top:13px;display:flex;align-items:center;justify-content:center;gap:7px;background:#11150f;border:1px solid #11150f;border-radius:10px;padding:11px;font-size:16px;font-weight:700;color:#ffffff;">Hide<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 15 L12 9 L18 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></sc-if>
+          </button>
+          <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:16px 18px 18px;border-top:1px solid rgba(17,21,15,0.08);">
+            <div style="display:inline-flex;align-items:center;gap:3px;padding:3px;background:#eef0f1;border:1px solid rgba(17,21,15,0.1);border-radius:10px;max-width:100%;overflow-x:auto;">
+              <sc-for list="{{ r.filters }}" as="f" hint-placeholder-count="3">
+                <sc-if value="{{ f.active }}" hint-placeholder-val="{{ true }}"><button onClick="{{ f.select }}" style="border:none;background:#11150f;color:#ffffff;border-radius:8px;padding:8px 13px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">{{ f.label }}</button></sc-if>
+                <sc-if value="{{ f.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ f.select }}" style="border:none;background:transparent;color:#4f5651;border-radius:8px;padding:8px 13px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;cursor:pointer;" style-hover="background:#ffffff;box-shadow:0 0 0 3px rgba(91,48,214,0.16);" style-active="background:#ffffff;box-shadow:0 0 0 4px rgba(91,48,214,0.22);">{{ f.label }}</button></sc-if>
+              </sc-for>
+            </div>
+            <div data-glow-field style="margin-top:12px;display:flex;align-items:center;gap:9px;background:#f4f5f7;border:1px solid rgba(17,21,15,0.12);border-radius:10px;padding:4px 4px 4px 13px;transition:border-color .18s ease, box-shadow .18s ease;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="11" cy="11" r="7" stroke="#6f756f" stroke-width="2"></circle><path d="M16 16 L21 21" stroke="#6f756f" stroke-width="2" stroke-linecap="round"></path></svg>
+              <input value="{{ r.searchVal }}" onInput="{{ r.setSearch }}" placeholder="Find a member" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:16px;padding:9px 2px;" />
+            </div>
+            <div style="margin-top:18px;display:flex;flex-direction:column;gap:20px;">
+              <sc-for list="{{ r.blocks }}" as="blk" hint-placeholder-count="2">
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.08em;color:#11150f;">{{ blk.label }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#6f756f;">{{ blk.seats }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;"><span style="color:#149d5b;">{{ blk.yes }} Yes</span><span style="color:#6f756f;"> · </span><span style="color:#c23c36;">{{ blk.no }} No</span></span>
+                    <sc-if value="{{ blk.hasAbs }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f756f;">· {{ blk.absN }} didn't vote</span></sc-if>
+                  </div>
+                  <sc-if value="{{ blk.hasChips }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
+                    <sc-for list="{{ blk.chips }}" as="c" hint-placeholder-count="16">
+                      <sc-if value="{{ c.isYea }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:6px;padding:6px 11px;background:#e9faf1;border:1px solid #bfeacf;border-radius:999px;font-size:14px;font-weight:600;color:#149d5b;white-space:nowrap;"><span style="font-weight:800;">✓</span>{{ c.name }}<sc-if value="{{ c.crossover }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;border-radius:50%;background:#a76a1a;display:inline-block;"></span></sc-if></span></sc-if>
+                      <sc-if value="{{ c.isNay }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;padding:6px 11px;background:#fdecec;border:1px solid #f5c6c4;border-radius:999px;font-size:14px;font-weight:700;color:#c23c36;white-space:nowrap;"><span style="font-weight:800;">✕</span>{{ c.name }}<sc-if value="{{ c.crossover }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;border-radius:50%;background:#a76a1a;display:inline-block;"></span></sc-if></span></sc-if>
+                      <sc-if value="{{ c.isAbsent }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;padding:6px 11px;background:#f4f5f4;border:1px solid rgba(17,21,15,0.08);border-radius:999px;font-size:14px;font-weight:500;color:#6f756f;white-space:nowrap;"><span style="font-weight:700;">–</span>{{ c.name }}</span></sc-if>
+                    </sc-for>
+                  </div>
+                  </sc-if>
+                  <sc-if value="{{ blk.empty }}" hint-placeholder-val="{{ false }}"><div style="margin-top:12px;font-size:14px;color:#6f756f;">No members match.</div></sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <sc-if value="{{ showYL }}" hint-placeholder-val="{{ true }}">
+    <!-- YOUR LEGISLATORS -->
+    <sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top:18px;background:linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%);border:1px solid #cbeed6;border-radius:16px;padding:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:0.12em;color:#149d5b;">YOUR LEGISLATORS · SD 50 / 50B</div>
+        <a data-tlink="1" href="Find My Legislator.dc.html" style="font-size:15px;font-weight:700;color:#149d5b;text-decoration:none;">Update</a>
+      </div>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+        <sc-for list="{{ b.yourVotes }}" as="yv" hint-placeholder-count="2">
+          <a href="Legislator Profile.dc.html" style="display:flex;align-items:center;gap:11px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:12px 14px;text-decoration:none;box-shadow:0 4px 12px rgba(17,21,15,0.05);">
+            <sc-if value="{{ yv.isYea }}" hint-placeholder-val="{{ true }}"><span style="flex:none;width:30px;height:30px;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;color:#149d5b;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;">✓</span></sc-if>
+            <sc-if value="{{ yv.isNay }}" hint-placeholder-val="{{ false }}"><span style="flex:none;width:30px;height:30px;border-radius:50%;background:#fdecec;border:1px solid #f5c6c4;color:#c23c36;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;">✕</span></sc-if>
+            <span style="flex:1;min-width:0;font-size:18px;font-weight:700;color:#11150f;">{{ yv.name }}</span>
+            <sc-if value="{{ yv.isYea }}" hint-placeholder-val="{{ true }}"><span style="font-size:16px;font-weight:700;color:#149d5b;white-space:nowrap;">voted Yes</span></sc-if>
+            <sc-if value="{{ yv.isNay }}" hint-placeholder-val="{{ false }}"><span style="font-size:16px;font-weight:700;color:#c23c36;white-space:nowrap;">voted No</span></sc-if>
+          </a>
+        </sc-for>
+        <span style="font-size:15px;color:#6f756f;">On final passage in each chamber</span>
+      </div>
+    </div>
+    </sc-if>
+    <sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}">
+    <div style="margin-top:18px;position:relative;min-height:200px;background:linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%);border:1px solid #cbeed6;border-radius:16px;padding:18px;overflow:hidden;">
+      <div aria-hidden="true" style="filter:blur(7px);pointer-events:none;user-select:none;display:flex;flex-direction:column;gap:10px;">
+        <span style="display:flex;align-items:center;gap:11px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:12px 14px;"><span style="width:30px;height:30px;border-radius:50%;background:#e4f8ee;display:inline-block;flex:none;"></span><span style="font-size:18px;font-weight:700;color:#11150f;">Sen. ████████</span><span style="margin-left:auto;font-size:16px;font-weight:700;color:#149d5b;">voted Yes</span></span>
+        <span style="display:flex;align-items:center;gap:11px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:12px 14px;"><span style="width:30px;height:30px;border-radius:50%;background:#fdecec;display:inline-block;flex:none;"></span><span style="font-size:18px;font-weight:700;color:#11150f;">Rep. ██████</span><span style="margin-left:auto;font-size:16px;font-weight:700;color:#c23c36;">voted No</span></span>
+      </div>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;background:rgba(255,255,255,0.62);text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:#11150f;">See how your legislators voted</div>
+        <div style="font-size:16px;color:#4f5651;">Save your district once — every roll call gets personal.</div>
+        <button onClick="{{ openVotesSignIn }}" style="margin-top:4px;display:inline-flex;align-items:center;gap:9px;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.18);border-radius:12px;padding:12px 18px;font-family:'Libre Franklin',sans-serif;font-size:17px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(17,21,15,0.06);">
+          <img src="assets/google-g.png" width="20" height="20" alt="Google" style="display:block;flex:none;" />
+          Continue with Google
+        </button>
+      </div>
+    </div>
+    </sc-if>
+    </sc-if>
+    </sc-if>
+
+    <!-- NO VOTES YET -->
+    <sc-if value="{{ b.noRolls }}" hint-placeholder-val="{{ false }}">
+    <h2 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Votes</h2>
+    <div style="margin-top:16px;text-align:center;background:#ffffff;border:1px dashed rgba(17,21,15,0.2);border-radius:18px;padding:40px 24px;">
+      <span style="width:56px;height:56px;border-radius:14px;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M7 5 V19 M7 19 L3.5 15.5 M7 19 L10.5 15.5 M14 8 h6 M14 13 h4" stroke="#6f756f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+      <h3 style="margin:18px 0 0;font-size:24px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">No floor votes yet</h3>
+      <p style="margin:10px 0 0;font-size:19px;line-height:1.5;color:#6b716b;">{{ b.code }} is in committee. Roll calls appear here when a chamber votes.</p>
+    </div>
+    </sc-if>
+  </div>
+
+  <!-- ============ VERSIONS (last) ============ -->
+  <div id="m-versions" data-screen-label="Versions" style="position:relative;padding:36px 20px 40px;scroll-margin-top:64px;">
+    <h2 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Versions</h2>
+    <p style="margin:10px 0 0;font-size:16px;line-height:1.5;color:#6b716b;">A bill's exact wording changes as it moves through the Legislature. Each version is a snapshot of the full text at one stage — and links to the official document. An <span style="font-weight:600;color:#4f5651;">engrossment</span> is an updated draft that folds in the latest amendments.</p>
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px;">
+      <sc-for list="{{ b.versions }}" as="v" hint-placeholder-count="3">
+        <a href="#" aria-label="{{ v.linkLabel }} — {{ v.name }}" style="background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:14px;padding:15px 16px;box-shadow:0 6px 18px rgba(17,21,15,0.04);display:flex;align-items:center;gap:13px;text-decoration:none;">
+          <span style="flex:none;width:38px;height:38px;border-radius:10px;background:#f4f5f4;display:inline-flex;align-items:center;justify-content:center;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M7 3.5 h7 l4 4 v13 h-11 Z M14 3.5 v4 h4 M9.5 12 h5 M9.5 15.5 h5" stroke="#4f5651" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"></path></svg></span>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+              <span style="font-size:18px;font-weight:700;color:#11150f;">{{ v.name }}</span>
+              <sc-if value="{{ v.isLaw }}" hint-placeholder-val="{{ false }}"><span style="padding:3px 8px;background:transparent;border:1px solid #e3c17f;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.05em;color:#a76a1a;">{{ v.lawLabel }}</span></sc-if>
+            </div>
+            <div style="margin-top:2px;font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:0.04em;color:#6f756f;">{{ v.date }}</div>
+          </div>
+          <span style="flex:none;font-size:15px;font-weight:700;color:#149d5b;">{{ v.linkLabel }} →</span>
+        </a>
+      </sc-for>
+    </div>
+    <div style="margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f756f;">Source: Minnesota Legislature · revisor.mn.gov · Updated Mar 21, 2026</div>
+  </div>
+
+      </div>
+
+      <!-- SIGN-IN SHEET -->
+      <sc-if value="{{ signInActive }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Sign in sheet" style="position:absolute;inset:0;z-index:80;display:flex;align-items:flex-end;background:rgba(10,14,12,0.55);animation:ovFade 0.16s ease;border-radius:42px;overflow:hidden;">
+        <div style="width:100%;background:#ffffff;border-radius:24px 24px 42px 42px;padding:26px 22px 30px;box-shadow:0 -20px 60px rgba(10,14,12,0.4);position:relative;animation:sheetUp 0.24s ease;">
+          <button onClick="{{ closeSignIn }}" aria-label="Close" style="position:absolute;top:16px;right:16px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:9px;cursor:pointer;color:#6f756f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+          <span style="width:48px;height:48px;border-radius:13px;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#149d5b" stroke-width="2"></rect><path d="M8 11 V8 a4 4 0 0 1 8 0 v3" stroke="#149d5b" stroke-width="2" stroke-linecap="round"></path></svg></span>
+          <h3 style="margin:16px 0 0;font-size:24px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">See how your legislators voted</h3>
+          <p style="margin:8px 0 0;font-size:18px;line-height:1.5;color:#6b716b;">Save your district once from Find My Legislator, and every roll call shows how your senator and representative voted.</p>
+          <button onClick="{{ completeSignIn }}" style="margin-top:20px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:11px;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.18);border-radius:12px;padding:15px;font-family:'Libre Franklin',sans-serif;font-size:18px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(17,21,15,0.06);">
+            <img src="assets/google-g.png" width="20" height="20" alt="Google" style="display:block;flex:none;" />
+            Continue with Google
+          </button>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- SHARE SHEET -->
+      <sc-if value="{{ shareOpen }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Share sheet" onClick="{{ closeShare }}" style="position:absolute;inset:0;z-index:80;display:flex;align-items:flex-end;background:rgba(10,14,12,0.55);animation:ovFade 0.16s ease;border-radius:42px;overflow:hidden;">
+        <div onClick="{{ stopProp }}" style="width:100%;background:#ffffff;border-radius:24px 24px 42px 42px;padding:24px 22px 30px;box-shadow:0 -20px 60px rgba(10,14,12,0.4);position:relative;animation:sheetUp 0.24s ease;">
+          <button onClick="{{ closeShare }}" aria-label="Close" style="position:absolute;top:16px;right:16px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:9px;cursor:pointer;color:#6f756f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+          <span style="width:48px;height:48px;border-radius:13px;background:#f0ebfc;border:1px solid #d8c9f7;display:inline-flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.6" stroke="#5b30d6" stroke-width="2"></circle><circle cx="6" cy="12" r="2.6" stroke="#5b30d6" stroke-width="2"></circle><circle cx="18" cy="19" r="2.6" stroke="#5b30d6" stroke-width="2"></circle><path d="M8.4 10.7 L15.6 6.5 M8.4 13.3 L15.6 17.5" stroke="#5b30d6" stroke-width="2" stroke-linecap="round"></path></svg></span>
+          <h3 style="margin:14px 0 0;font-size:24px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Share this bill</h3>
+          <div style="margin-top:6px;font-size:16px;color:#6b716b;">{{ share.title }}</div>
+          <div data-glow-field style="margin-top:16px;display:flex;align-items:center;gap:9px;background:#f4f5f7;border:1px solid rgba(17,21,15,0.12);border-radius:12px;padding:12px 14px;transition:border-color .18s ease, box-shadow .18s ease;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M9 15 L15 9 M10.5 6.5 L12 5 a3.5 3.5 0 0 1 5 5 l-1.5 1.5 M13.5 17.5 L12 19 a3.5 3.5 0 0 1-5-5 l1.5-1.5" stroke="#6f756f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            <input readonly value="{{ share.url }}" aria-label="Bill link" style="flex:1;min-width:0;background:transparent;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:14px;color:#4f5651;" />
+          </div>
+          <sc-if value="{{ notCopied }}" hint-placeholder-val="{{ true }}"><button onClick="{{ copyLink }}" style="margin-top:10px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#2ed47e;color:#06231a;border:none;border-radius:12px;padding:15px;font-family:'Libre Franklin',sans-serif;font-size:18px;font-weight:700;cursor:pointer;" style-active="background:#28bf71;">Copy link</button></sc-if>
+          <sc-if value="{{ copied }}" hint-placeholder-val="{{ false }}"><div style="margin-top:10px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#2ed47e;color:#06231a;border-radius:12px;padding:15px;font-size:18px;font-weight:700;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#06231a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>Link copied</div></sc-if>
+          <div style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(17,21,15,0.08);">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">SHARE TO</div>
+            <div style="margin-top:14px;display:flex;align-items:center;gap:12px;">
+              <a href="{{ share.linkedin }}" target="_blank" rel="noopener" aria-label="Share on LinkedIn" style="flex:none;width:52px;height:52px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-active="background:#e7e8ec;"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"></path></svg></a>
+              <a href="{{ share.x }}" target="_blank" rel="noopener" aria-label="Share on X" style="flex:none;width:52px;height:52px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-active="background:#e7e8ec;"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg></a>
+              <a href="{{ share.facebook }}" target="_blank" rel="noopener" aria-label="Share on Facebook" style="flex:none;width:52px;height:52px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-active="background:#e7e8ec;"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.6H6.61v3.56h3.07V22h3.68v-9.14h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z"></path></svg></a>
+              <a href="{{ share.instagram }}" target="_blank" rel="noopener" aria-label="Share on Instagram" style="flex:none;width:52px;height:52px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-active="background:#e7e8ec;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5.4" stroke="currentColor" stroke-width="2"></rect><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"></circle><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"></circle></svg></a>
+              <a href="{{ share.email }}" aria-label="Share by email" style="flex:none;width:52px;height:52px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-active="background:#e7e8ec;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.4" stroke="currentColor" stroke-width="2"></rect><path d="M4 7.5 L12 13 L20 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <!-- PREVIEW STATE CONTROLS -->
+  <div data-screen-label="Preview state controls" style="margin-top:26px;display:flex;justify-content:center;">
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 16px;background:#0a0e0c;border:1px solid rgba(255,255,255,0.12);border-radius:14px;flex-wrap:wrap;justify-content:center;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">PREVIEW</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <sc-for list="{{ billBtns }}" as="btn" hint-placeholder-count="3">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:7px 12px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;background:transparent;border:none;color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+      <span style="width:1px;height:22px;background:rgba(255,255,255,0.14);display:inline-block;"></span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <sc-for list="{{ authBtns }}" as="btn" hint-placeholder-count="2">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:7px 12px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;background:transparent;border:none;color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:510,&quot;height&quot;:1000},&quot;showAskModule&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;},&quot;showYourLegislators&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;}}">
+class Component extends DCLogic {
+  state = { billKey: 'signed', uiAuth: false, returned: false, signInOpen: false, shareOpen: false, copied: false, openRolls: {}, rollFilters: {}, rollSearches: {}, openTerm: null, votesHelpOpen: false, activeSection: 'm-summary' };
+
+  scrollRef = (el) => { if (el) this.scrollEl = el; };
+
+  componentDidMount() {
+    if (!this.scrollEl || typeof IntersectionObserver === 'undefined') return;
+    const ids = ['m-summary', 'm-actions', 'm-votes', 'm-versions'];
+    const secs = ids.map(id => this.scrollEl.querySelector('#' + id)).filter(Boolean);
+    if (!secs.length) return;
+    this._io = new IntersectionObserver(() => {
+      const rootTop = this.scrollEl.getBoundingClientRect().top;
+      const passed = secs.filter(s => (s.getBoundingClientRect().top - rootTop) < 96);
+      const cur = passed.length ? passed[passed.length - 1].id : 'm-summary';
+      if (cur !== this.state.activeSection) this.setState({ activeSection: cur });
+    }, { root: this.scrollEl, rootMargin: '-88px 0px -55% 0px', threshold: [0, 1] });
+    secs.forEach(s => this._io.observe(s));
+  }
+  componentWillUnmount() { if (this._io) this._io.disconnect(); }
+
+  renderVals() {
+    const SEN = 'Abeler,Anderson,Bahr,Boldon,Carlson,Champion,Clark,Coleman,Cwodzinski,Dahms,Dibble,Dornink,Draheim,Drazkowski,Duckworth,Dziedzic,Eaton,Eichorn,Farnsworth,Fateh,Frentz,Green,Gruenhagen,Gustafson,Hauschild,Hawj,Hoffman,Housley,Howe,Jasinski,Johnson,Koran,Kreun,Kunesh,Kupec,Lang,Latz,Lieske,Limmer,Lucero,Mann,Marty,Mathews,Maye Quade,McEwen,Miller,Mitchell,Mohamed,Morrison,Murphy,Nelson,Pappas,Pha,Port,Pratt,Putnam,Rarick,Rasmusson,Rest,Seeberger,Utke,Weber,Westlin,Westrom,Wiger,Wiklund,Xiong'.split(',');
+    const HOU = "Acomb,Agbaje,Allen,Altendorf,Anderson,Backer,Bahner,Bakeberg,Baker,Bennett,Berg,Bierman,Bliss,Brand,Burkel,Carroll,Cha,Clardy,Coulter,Curran,Daniels,Davids,Davis,Demuth,Dotseth,Edelson,Elkins,Engen,Feist,Fischer,Fogelman,Franson,Frazier,Frederick,Freiberg,Garofalo,Gillman,Gomez,Greenman,Grossell,Hansen,Hanson,Harder,Heintzeman,Hemmingsen-Jaeger,Her,Hicks,Hill,Hollins,Hornstein,Hudella,Hudson,Huot,Hussein,Igo,Jacob,Johnson,Jordan,Joy,Keeler,Kiel,Klevorn,Knudsen,Koegel,Kotyza-Witthuhn,Kozlowski,Kraft,Kresha,Lawrence,Lee F.,Lee K.,Liebling,Lillie,Long,Luger-Nikolai,Mahamoud,McDonald,Mekeland,Moller,Momanyi-Hiltsley,Mueller,Murphy,Myers,Nadeau,Nash,Nelson,Neu Brindley,Niska,Noor,Norris,Novotny,O'Driscoll,Olson,Pelowski,Perryman,Petersburg,Pfarr,Pinto,Pursell,Quam,Rarick,Rehm,Rehrauer,Repinski,Reyer,Robbins,Roy,Rymer,Schomacker,Schultz,Scott,Sencer-Mura,Sexton,Smith,Stephenson,Stier,Swedzinski,Tabke,Torkelson,Urdahl,Vang,Virnig,Warwas,West,Wiener,Wiens,Witte,Wolgamott,Xiong,Youakim,Zeleznikar".split(',');
+
+    const hashN = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 131 + s.charCodeAt(i)) >>> 0; return h; };
+    const SEN_R = new Set('Abeler,Anderson,Bahr,Coleman,Dahms,Dornink,Draheim,Drazkowski,Eichorn,Farnsworth,Green,Gruenhagen,Gustafson,Housley,Howe,Jasinski,Johnson,Koran,Kreun,Kupec,Lang,Lieske,Limmer,Lucero,Mathews,Miller,Nelson,Pratt,Rarick,Rasmusson,Utke,Weber,Westrom'.split(','));
+    const HOU_R = new Set('Allen,Altendorf,Anderson,Backer,Bakeberg,Baker,Bennett,Bliss,Burkel,Clardy,Daniels,Davids,Davis,Demuth,Dotseth,Engen,Fogelman,Franson,Frederick,Garofalo,Gillman,Grossell,Harder,Heintzeman,Hudella,Hudson,Igo,Jacob,Johnson,Joy,Kiel,Knudsen,Kresha,Lawrence,McDonald,Mekeland,Mueller,Myers,Nadeau,Nash,Neu Brindley,Niska,Novotny,O\u2019Driscoll,Olson,Perryman,Petersburg,Pfarr,Quam,Rarick,Repinski,Robbins,Roy,Rymer,Schomacker,Scott,Sexton,Stier,Swedzinski,Torkelson,Urdahl,Warwas,West,Wiener,Wiens,Witte,Zeleznikar'.split(','));
+    const R_SET = { sen: SEN_R, hou: HOU_R };
+    const buildMembers = (roster, yea, nay, yesParty, rosterKey) => {
+      const total = roster.length, absent = total - yea - nay;
+      const rset = R_SET[rosterKey] || new Set();
+      const m = roster.map((name, i) => ({ name, party: rset.has(name) ? 'R' : 'DFL', v: '', crossover: false, k: hashN(name + '|s') }));
+      const order = [...m].sort((a, b) => a.k - b.k);
+      if (absent > 0) { for (let j = 0; j < absent; j++) order[Math.floor(j * total / absent)].v = 'a'; }
+      let need = absent - m.filter(x => x.v === 'a').length, j2 = 0;
+      while (need > 0 && j2 < total) { if (order[j2].v !== 'a') { order[j2].v = 'a'; need--; } j2++; }
+      const voting = m.filter(x => x.v !== 'a');
+      const A = voting.filter(x => x.party === yesParty).sort((a, b) => a.k - b.k);
+      const B = voting.filter(x => x.party !== yesParty).sort((a, b) => a.k - b.k);
+      const aLen = A.length, bLen = B.length;
+      const d = yea - aLen;
+      const lo = Math.max(0, -d), hi = Math.min(aLen, bLen - d);
+      const loMix = Math.max(lo, 1, 1 - d), hiMix = Math.min(hi, aLen - 1, bLen - 1 - d);
+      const ideal = Math.round(0.12 * aLen);
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      const crossA = (loMix <= hiMix) ? clamp(ideal, loMix, hiMix) : clamp(ideal, lo, hi);
+      const yesA = aLen - crossA;
+      const yesB = yea - yesA;
+      A.forEach((x, i) => { if (i < yesA) { x.v = 'y'; } else { x.v = 'n'; x.crossover = true; } });
+      B.forEach((x, i) => { if (i < yesB) { x.v = 'y'; x.crossover = true; } else { x.v = 'n'; } });
+      return m;
+    };
+
+    const stageIndex = { introduced: 0, committee: 1, house: 2, senate: 3, signed: 4 };
+    const buildSteps = (key) => key === 'vetoed'
+      ? [0,1,2,3,4].map(i => ({ isOn: i < 4, isOff: false, isRed: i === 4 }))
+      : [0,1,2,3,4].map(i => ({ isOn: i <= stageIndex[key], isOff: i > stageIndex[key], isRed: false }));
+
+    const BILLS = {
+      signed: {
+        code: 'SF 2310', slug: 'sf-2310', title: 'Adult-Use Cannabis Act', status: 'signed',
+        pillLabel: 'SIGNED INTO LAW', stageLabel: 'Signed into Law',
+        eyebrow: 'SENATE · 2025–2026 LEGISLATIVE SESSION',
+        authorName: 'Sen. Omar Fateh', authorPartyCode: 'DFL', authorDistrict: 'Minneapolis (SD 62)', coauthors: 34, companion: 'HF 100 · IN COMMITTEE', omnibus: false,
+        dateLabel: 'EFFECTIVE', dateValue: 'Aug 1, 2025',
+        policies: ['COMMERCE', 'TAXATION', 'PUBLIC SAFETY'],
+        lede: 'Minnesota’s law legalizing recreational cannabis for adults.',
+        points: [
+          { text: 'Adults 21 and older may possess, transport, and purchase cannabis from licensed retailers.', src: '§ 342.10 · Licenses' },
+          { text: 'Retail sales carry a 10 percent gross-receipts tax, paid by the retailer.', src: '§ 295.81 · Retail tax' },
+          { text: 'Cities and counties cannot ban licensed cannabis businesses, but may set time, place, and manner limits.', src: '§ 342.13 · Local rules' },
+          { text: 'Certain low-level cannabis convictions are automatically expunged.', src: '§ 609A.55 · Expungement' },
+        ],
+        excerpts: [
+          { n: 1, sec: '§ 342.10', label: 'License classes', quote: '“A person 21 years of age or older may possess, transport, and purchase adult-use cannabis from a licensed cannabis retailer.”' },
+          { n: 2, sec: '§ 295.81', label: 'Gross-receipts tax', quote: '“A tax equal to 10 percent of gross receipts from retail sales of taxable cannabis products is imposed on the retailer.”' },
+          { n: 3, sec: '§ 342.13', label: 'Local authority', quote: '“A local unit of government may not prohibit the establishment or operation of a licensed cannabis business, but may adopt reasonable time, place, and manner restrictions.”' },
+          { n: 4, sec: '§ 609A.55', label: 'Expungement', quote: '“The bureau shall automatically grant expungement relief for records of a petty misdemeanor or misdemeanor cannabis offense.”' },
+        ],
+        plain: 'Minnesota legalized recreational cannabis for adults. You can buy from licensed stores, which pay a 10% tax on sales; your city can decide where and when stores operate, but it can\u2019t keep them out entirely. Old low-level cannabis records are cleared automatically — no petition needed.',
+        askPlaceholder: 'Can my city limit dispensary hours?',
+        askChips: ['How is cannabis taxed?', 'Can cities ban dispensaries?', 'Who can get a license?'],
+        actions: [
+          { date: 'JAN 1, 2027', title: 'Automatic expungement begins', kind: 'green', meta: 'Eligible low-level cannabis records cleared' },
+          { date: 'AUG 1, 2025', title: 'Law effective', kind: 'green', meta: 'Most provisions take effect' },
+          { date: 'MAY 30, 2025', title: 'Signed by the Governor', kind: 'green', meta: 'Session Law · Chapter 63' },
+          { date: 'MAY 26, 2025', title: 'Presented to the Governor', kind: 'plain' },
+          { date: 'MAY 20, 2025', title: 'Senate concurred in House amendments; repassed', kind: 'vote', tally: '34–33', rollIdx: 0, meta: 'Senate floor' },
+          { date: 'MAY 18, 2025', title: 'Passed House, third reading, as amended', kind: 'vote', tally: '70–58', rollIdx: 1, meta: 'House floor' },
+          { date: 'MAY 18, 2025', title: 'House floor amendment A-2: local registration timeline', kind: 'adopted', meta: 'Adopted by voice vote' },
+          { date: 'APR 28, 2025', title: 'Passed Senate, third reading', kind: 'vote', tally: '34–32', rollIdx: 2, meta: 'Senate floor' },
+          { date: 'APR 28, 2025', title: 'Floor amendment: delay retail licensing to 2027', kind: 'notAdopted', tally: '31–36', rollIdx: 3, meta: 'Senate floor' },
+          { date: 'MAR 20, 2025', title: 'Committee report: to pass as amended', kind: 'plain', meta: 'Re-referred to Finance' },
+          { date: 'JAN 16, 2025', title: 'Introduced, first reading', kind: 'plain', meta: 'Referred to Commerce' },
+        ],
+        versions: [
+          { name: 'Session Law', date: 'MAY 30, 2025', isLaw: true, lawLabel: 'CHAPTER 63' },
+          { name: '2nd engrossment', date: 'MAY 18, 2025' },
+          { name: '1st engrossment', date: 'APR 28, 2025' },
+          { name: 'As introduced', date: 'JAN 16, 2025' },
+        ],
+        rolls: [
+          { motion: 'Concurrence and repassage', decided: 'Accepted the House changes and sent the bill to the Governor.', yesParty: 'DFL', meta: 'MAY 20, 2025 · SENATE', tally: '34–33', passed: true, roster: 'sen', yea: 34, nay: 33, recordRef: 'SENATE VOTE 512' },
+          { motion: 'Third reading, as amended', decided: 'Passed the bill in the House.', yesParty: 'DFL', meta: 'MAY 18, 2025 · HOUSE', tally: '70–58', passed: true, roster: 'hou', yea: 70, nay: 58, recordRef: 'HOUSE VOTE 388' },
+          { motion: 'Third reading', decided: 'Passed the bill in the Senate.', yesParty: 'DFL', meta: 'APR 28, 2025 · SENATE', tally: '34–32', passed: true, roster: 'sen', yea: 34, nay: 32, recordRef: 'SENATE VOTE 470' },
+          { motion: 'Amendment: delay retail licensing to 2027', decided: 'Rejected the Senate push to delay retail sales by two years.', yesParty: 'R', meta: 'APR 28, 2025 · SENATE', tally: '31–36', passed: false, roster: 'sen', yea: 31, nay: 36, recordRef: 'SENATE VOTE 471' },
+        ],
+        yourVotes: [ { name: 'Sen. Alice Mann', isYea: true }, { name: 'Rep. Kaela Berg', isYea: false } ],
+      },
+      committee: {
+        code: 'HF 2904', slug: 'hf-2904', title: 'Education Finance and Policy Act', status: 'committee',
+        pillLabel: 'IN COMMITTEE', stageLabel: 'In Committee',
+        eyebrow: 'HOUSE · 2025–2026 LEGISLATIVE SESSION',
+        authorName: 'Rep. Patti Anderson', authorPartyCode: 'DFL', authorDistrict: 'Plymouth (44A)', coauthors: 42, companion: 'SF 2744 · IN COMMITTEE', omnibus: true,
+        dateLabel: 'LATEST ACTION', dateValue: 'Referred to Ways and Means · Mar 12, 2026',
+        policies: ['EDUCATION', 'SCHOOL FUNDING', 'TAXATION'],
+        lede: 'The House’s two-year education budget — still in committee, so the numbers may change.',
+        points: [
+          { text: 'Raises the per-pupil general-education formula by 4 percent for the next two school years.', src: 'Art. 1 § 2 · Formula' },
+          { text: 'Adds state aid to shrink the special-education cross-subsidy that districts cover from general funds.', src: 'Art. 3 § 5 · Special ed' },
+          { text: 'Expands school mental-health grants to every district, sized by enrollment.', src: 'Art. 5 § 12 · Mental health' },
+        ],
+        excerpts: [
+          { n: 1, sec: 'Art. 1 §2', label: 'Formula allowance', quote: '“The formula allowance for fiscal year 2027 is increased by 4 percent over the fiscal year 2026 allowance.”' },
+          { n: 2, sec: 'Art. 3 §5', label: 'Special education aid', quote: '“A district\u2019s special education aid must be increased to reduce the district\u2019s net unreimbursed cost of providing required services.”' },
+          { n: 3, sec: 'Art. 5 §12', label: 'School mental health', quote: '“The commissioner shall award grants to districts and charter schools to provide school-linked mental health services to all enrolled students.”' },
+        ],
+        plain: 'This is the House\u2019s two-year education budget. It puts more money into the basic per-student formula every district relies on, helps districts stop raiding general funds to pay for required special education, and funds mental-health services in schools statewide. It\u2019s still in committee — numbers can change before a floor vote.',
+        askPlaceholder: 'What does this mean for my district?',
+        askChips: ['How much does it spend?', 'What changes for special education?', 'When would it take effect?'],
+        actions: [
+          { date: 'MAR 12, 2026', title: 'Referred to Ways and Means', kind: 'plain' },
+          { date: 'MAR 10, 2026', title: 'Committee amendment A-3: charter school aid', kind: 'adopted', meta: 'Education Finance · adopted by voice vote' },
+          { date: 'MAR 4, 2026', title: 'Hearing held', kind: 'plain', meta: 'Education Finance committee' },
+          { date: 'FEB 6, 2026', title: 'Referred to Education Finance', kind: 'plain' },
+          { date: 'FEB 2, 2026', title: 'Introduced, first reading', kind: 'plain' },
+        ],
+        versions: [
+          { name: '1st committee engrossment', date: 'MAR 10, 2026' },
+          { name: 'As introduced', date: 'FEB 2, 2026' },
+        ],
+        rolls: [],
+        yourVotes: [],
+      },
+      vetoed: {
+        code: 'SF 940', slug: 'sf-940', title: 'Motor Vehicle Registration Tax Rebate', status: 'vetoed',
+        pillLabel: 'VETOED', stageLabel: 'Vetoed',
+        eyebrow: 'SENATE · 2025–2026 LEGISLATIVE SESSION',
+        authorName: 'Sen. Jason Rarick', authorPartyCode: 'R', authorDistrict: 'Pine City (SD 11)', coauthors: 12, companion: '', omnibus: false,
+        dateLabel: 'LATEST ACTION', dateValue: 'Vetoed by the Governor · Mar 5, 2026',
+        policies: ['TAXATION', 'TRANSPORTATION'],
+        lede: 'A one-time refund of your 2025 vehicle-registration tax — passed by both chambers, then vetoed.',
+        points: [
+          { text: 'Would have issued a one-time rebate of the registration tax paid on each vehicle in 2025 — about $94 on average.', src: '§ 1 · Rebate' },
+          { text: 'Funded from the projected budget surplus, capped at $312 million.', src: '§ 2 · Funding' },
+          { text: 'Vetoed by the Governor over long-term revenue concerns; an override would take a two-thirds vote in each chamber.', src: 'Veto letter' },
+        ],
+        excerpts: [
+          { n: 1, sec: '§ 1', label: 'Rebate', quote: '“A registered owner is entitled to a one-time rebate equal to the registration tax paid for the vehicle for registration year 2025.”' },
+          { n: 2, sec: '§ 2', label: 'Appropriation', quote: '“$312,000,000 in fiscal year 2027 is appropriated from the general fund to the commissioner for rebates under section 1.”' },
+          { n: 3, sec: 'Veto letter', label: 'Governor\u2019s objection', quote: '“A permanent obligation funded by a one-time surplus is not a responsible tax policy for Minnesota.”' },
+        ],
+        plain: 'Both chambers passed a one-time refund of your 2025 vehicle registration tax, paid for out of the state surplus. The Governor returned it unsigned, arguing the surplus is temporary and the revenue loss isn\u2019t. Unless the Legislature overrides the veto — which takes a two-thirds vote in each chamber — the rebate is dead for this session.',
+        askPlaceholder: 'Why was this vetoed?',
+        askChips: ['Why was it vetoed?', 'Could the veto be overridden?', 'What happens to the surplus?'],
+        actions: [
+          { date: 'MAR 5, 2026', title: 'Vetoed by the Governor', kind: 'red', meta: 'Veto letter ↗' },
+          { date: 'MAR 2, 2026', title: 'Presented to the Governor', kind: 'plain' },
+          { date: 'FEB 26, 2026', title: 'Passed House, third reading', kind: 'vote', tally: '68–60', rollIdx: 1, meta: 'House floor' },
+          { date: 'FEB 12, 2026', title: 'Passed Senate, third reading', kind: 'vote', tally: '35–32', rollIdx: 0, meta: 'Senate floor' },
+          { date: 'FEB 3, 2026', title: 'Committee report: to pass', kind: 'plain', meta: 'Taxes committee' },
+          { date: 'JAN 20, 2026', title: 'Introduced, first reading', kind: 'plain', meta: 'Referred to Taxes' },
+        ],
+        versions: [
+          { name: '2nd engrossment', date: 'FEB 26, 2026' },
+          { name: '1st engrossment', date: 'FEB 12, 2026' },
+          { name: 'As introduced', date: 'JAN 20, 2026' },
+        ],
+        rolls: [
+          { motion: 'Third reading', decided: 'Passed the bill in the Senate.', yesParty: 'R', meta: 'FEB 12, 2026 · SENATE', tally: '35–32', passed: true, roster: 'sen', yea: 35, nay: 32, recordRef: 'SENATE VOTE 402' },
+          { motion: 'Third reading', decided: 'Passed the bill in the House.', yesParty: 'R', meta: 'FEB 26, 2026 · HOUSE', tally: '68–60', passed: true, roster: 'hou', yea: 68, nay: 60, recordRef: 'HOUSE VOTE 301' },
+        ],
+        yourVotes: [ { name: 'Sen. Alice Mann', isYea: false }, { name: 'Rep. Kaela Berg', isYea: true } ],
+      },
+    };
+
+    const raw = BILLS[this.state.billKey];
+    const signedIn = this.state.returned ? true : this.state.uiAuth;
+
+    const MOCK_NOW = new Date('2026-03-21');
+    const actions = raw.actions.map(a => {
+      const d = new Date(a.date);
+      const upcoming = !isNaN(d.getTime()) && d > MOCK_NOW;
+      return {
+      ...a,
+      upcoming,
+      dotGreen: !upcoming && a.kind === 'green', dotRed: !upcoming && (a.kind === 'red' || a.kind === 'notAdopted'),
+      dotVote: !upcoming && a.kind === 'vote', dotPlain: !upcoming && (a.kind === 'plain' || a.kind === 'adopted'),
+      dotScheduled: upcoming,
+      titleColor: upcoming ? '#6f756f' : '#11150f',
+      adopted: a.kind === 'adopted', notAdopted: a.kind === 'notAdopted',
+      hasRoll: a.rollIdx != null, hasTally: !!a.tally,
+      hasMeta: !!a.meta, meta: a.meta || '',
+      goRoll: (e) => { const idx = a.rollIdx ?? 0; this.setState({ openRolls: { [idx]: true } }); },
+    }; });
+
+    const rolls = raw.rolls.map((r, i) => {
+      const roster = r.roster === 'sen' ? SEN : HOU;
+      const open = !!this.state.openRolls[i];
+      const filter = this.state.rollFilters[i] || 'all';
+      const q = (this.state.rollSearches[i] || '').trim().toLowerCase();
+      const members = buildMembers(roster, r.yea, r.nay, r.yesParty, r.roster);
+      const total = roster.length;
+      const absent = total - r.yea - r.nay;
+      const filterEff = (filter === 'abs' && absent === 0) ? 'all' : filter;
+      const matchTab = (m) => filterEff === 'all' ? true : filterEff === 'yea' ? m.v === 'y' : filterEff === 'nay' ? m.v === 'n' : m.v === 'a';
+      const matchQ = (m) => !q || m.name.toLowerCase().indexOf(q) > -1;
+      const mkChip = (m) => ({ name: m.name, isYea: m.v === 'y', isNay: m.v === 'n', isAbsent: m.v === 'a', crossover: m.crossover });
+      const forParty = (p) => {
+        const all = members.filter(m => m.party === p);
+        const yes = all.filter(m => m.v === 'y').length, no = all.filter(m => m.v === 'n').length, abs = all.filter(m => m.v === 'a').length;
+        const chips = all.filter(m => matchTab(m) && matchQ(m)).map(mkChip);
+        return { seats: all.length, yes: yes, no: no, absN: abs, hasAbs: abs > 0, chips, hasChips: chips.length > 0, empty: chips.length === 0 };
+      };
+      const dfl = forParty('DFL'), rep = forParty('R');
+      const hasCross = members.some(m => m.crossover);
+      const blocks = [
+        { party: 'DFL', label: 'Democratic-Farmer-Labor', seats: dfl.seats, yes: dfl.yes, no: dfl.no, absN: dfl.absN, hasAbs: dfl.hasAbs, chips: dfl.chips, hasChips: dfl.hasChips, empty: dfl.empty },
+        { party: 'R', label: 'Republican', seats: rep.seats, yes: rep.yes, no: rep.no, absN: rep.absN, hasAbs: rep.hasAbs, chips: rep.chips, hasChips: rep.hasChips, empty: rep.empty },
+      ];
+      const mkF = (key, label) => ({ label, active: filterEff === key, inactive: filterEff !== key, select: (e) => { if (e && e.preventDefault) { e.preventDefault(); e.stopPropagation(); } this.setState(s => ({ rollFilters: { ...s.rollFilters, [i]: key } })); } });
+      const filters = [mkF('all', 'All ' + total), mkF('yea', 'Yes ' + r.yea), mkF('nay', 'No ' + r.nay)];
+      if (absent > 0) filters.push(mkF('abs', 'Didn\u2019t vote ' + absent));
+      return {
+        ...r, failed: !r.passed, open, closed: !open,
+        recordShort: r.recordRef.replace(/^(SENATE|HOUSE)\s+VOTE\s+/i, (mm, ch) => (ch.charAt(0) + ch.slice(1).toLowerCase()) + ' Vote '),
+        metaDate: r.meta.split(' \u00b7 ')[0],
+        barPct: Math.round(r.yea / total * 100),
+        barNoPct: Math.round(r.nay / total * 100),
+        absent, hasAbsent: absent > 0,
+        blocks, filters, hasCross,
+        searchVal: this.state.rollSearches[i] || '',
+        setSearch: (e) => { const val = e && e.target ? e.target.value : ''; this.setState(s => ({ rollSearches: { ...s.rollSearches, [i]: val } })); },
+        toggle: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ openRolls: s.openRolls[i] ? {} : { [i]: true } })); },
+      };
+    });
+
+    const b = {
+      ...raw, points: raw.points.map(p => ({ ...p, sec: (p.src || '').split(' · ').join(' ') })), actions, rolls,
+      pillGreen: raw.status === 'signed', pillNeutral: raw.status === 'committee', pillRed: raw.status === 'vetoed',
+      steps: buildSteps(raw.status === 'committee' ? 'committee' : raw.status),
+      hasCompanion: !!raw.companion,
+      companionLabel: (() => { const c = (raw.companion || '').split(' · ')[0]; return c ? ((c.indexOf('HF') === 0 ? 'House' : 'Senate') + ' (' + c + ')') : ''; })(),
+      authorParty: raw.authorPartyCode === 'DFL' ? 'Democratic-Farmer-Labor' : (raw.authorPartyCode === 'R' ? 'Republican' : 'Independent'),
+      authorPartyOther: raw.authorPartyCode === 'DFL' ? 'Republican' : 'Democratic-Farmer-Labor',
+      authorRole: /^Sen\./.test(raw.authorName) ? 'senator' : 'representative',
+      authorChamber: /^Sen\./.test(raw.authorName) ? 'Senate' : 'House',
+      authorChamberOther: /^Sen\./.test(raw.authorName) ? 'House' : 'Senate',
+      hasRolls: raw.rolls.length > 0, noRolls: raw.rolls.length === 0,
+      rollCount: raw.rolls.length, actionCount: raw.actions.length, versionCount: raw.versions.length,
+      versions: raw.versions.map(v => ({ ...v, linkLabel: v.isLaw ? 'Read the full law' : 'Read the bill text' })),
+      readLabel: raw.status === 'signed' ? 'Read the full law →' : 'Read the bill text →',
+      billLabel: ({ SF: 'SENATE BILL', HF: 'HOUSE BILL' })[raw.code.split(' ')[0]] || 'BILL',
+      sessionYear: (raw.eyebrow.split(' · ')[1] || raw.eyebrow),
+      yourVotes: raw.yourVotes.map(v => ({ ...v, isNay: !v.isYea })),
+    };
+
+    // glossary — tap to reveal (mobile: tap, not hover)
+    const GLOSSARY = [
+      ['Third reading', 'The final floor vote to pass a bill in a chamber.'],
+      ['Concurred', 'One chamber accepted the other\u2019s changes to the bill.'],
+      ['Re-referred', 'Sent to another committee for more review.'],
+      ['Voice vote', 'A spoken aye/nay with no individual names recorded.'],
+      ['Committee report', 'A committee\u2019s recommendation on whether a bill should pass.'],
+      ['First reading', 'A bill\u2019s formal introduction, by title.'],
+      ['Engrossment', 'An updated draft that folds in the latest amendments.'],
+    ];
+    const glossary = GLOSSARY.map(([term, def]) => ({
+      term, def, active: this.state.openTerm === term, inactive: this.state.openTerm !== term,
+      toggle: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ openTerm: s.openTerm === term ? null : term })); },
+    }));
+    const openG = GLOSSARY.find(([t]) => t === this.state.openTerm);
+
+    const openVotesSignIn = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ signInOpen: true }); };
+    const completeSignIn = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ signInOpen: false, returned: true, uiAuth: true }); };
+    const closeSignIn = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ signInOpen: false }); };
+
+    const mkBtn = (label, active, patch) => ({ label, active, inactive: !active, select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(patch); } });
+    const billBtns = [
+      mkBtn('Signed into law', this.state.billKey === 'signed', { billKey: 'signed', openRolls: {}, rollFilters: {}, rollSearches: {}, openTerm: null, votesHelpOpen: false }),
+      mkBtn('In committee', this.state.billKey === 'committee', { billKey: 'committee', openRolls: {}, rollFilters: {}, rollSearches: {}, openTerm: null, votesHelpOpen: false }),
+      mkBtn('Vetoed', this.state.billKey === 'vetoed', { billKey: 'vetoed', openRolls: {}, rollFilters: {}, rollSearches: {}, openTerm: null, votesHelpOpen: false }),
+    ];
+    const authBtns = [
+      mkBtn('Signed out', !signedIn, { uiAuth: false, returned: false }),
+      mkBtn('Signed in', signedIn, { uiAuth: true, returned: false }),
+    ];
+
+    // share (copy link + social) — deep link to the bill
+    const shareUrl = 'https://alethical.com/bills/' + raw.slug;
+    const shareTitle = raw.code + ' — ' + raw.title;
+    const enc = encodeURIComponent;
+    const share = {
+      url: shareUrl, title: shareTitle,
+      x: 'https://twitter.com/intent/tweet?text=' + enc(shareTitle + ' · Alethical') + '&url=' + enc(shareUrl),
+      facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + enc(shareUrl),
+      instagram: 'https://www.instagram.com/',
+      linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + enc(shareUrl),
+      email: 'mailto:?subject=' + enc(shareTitle) + '&body=' + enc(shareTitle + '\n\n' + shareUrl + '\n\nvia Alethical'),
+    };
+    const openShare = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ shareOpen: true, copied: false }); };
+    const closeShare = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ shareOpen: false }); };
+    const copyLink = (e) => { if (e && e.preventDefault) e.preventDefault(); try { if (navigator.clipboard) navigator.clipboard.writeText(shareUrl); } catch (_) {} if (this._cpT) clearTimeout(this._cpT); this._cpT = setTimeout(() => this.setState({ copied: false }), 1900); this.setState({ copied: true }); };
+
+    const NAV = [['m-summary', 'Summary'], ['m-actions', 'Actions'], ['m-votes', 'Votes'], ['m-versions', 'Versions']];
+    const navChips = NAV.map(([id, label]) => ({ id, href: '#' + id, label, active: this.state.activeSection === id, inactive: this.state.activeSection !== id, go: () => this.setState({ activeSection: id }) }));
+    const toggleVotesHelp = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ votesHelpOpen: !s.votesHelpOpen })); };
+
+    return {
+      b, glossary, navChips, stopProp: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      votesHelpOpen: this.state.votesHelpOpen, votesHelpClosed: !this.state.votesHelpOpen, toggleVotesHelp,
+      scrollRef: this.scrollRef,
+      hasOpenTerm: !!openG, openTermTerm: openG ? openG[0] : '', openTermDef: openG ? openG[1] : '',
+      signedIn, signedOut: !signedIn,
+      openVotesSignIn, completeSignIn, closeSignIn,
+      signInActive: this.state.signInOpen,
+      billBtns, authBtns,
+      share, openShare, closeShare, copyLink,
+      shareOpen: this.state.shareOpen, copied: this.state.copied, notCopied: !this.state.copied,
+      showAsk: this.props.showAskModule ?? true,
+      showYL: this.props.showYourLegislators ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>
