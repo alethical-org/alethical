@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 import requests
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
@@ -327,6 +327,86 @@ def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     action_payload = actions_response.json()["data"]
     assert action_payload
     assert "action_at" in action_payload[0]
+
+
+def test_bill_detail_omits_vote_tree_but_votes_endpoint_still_serves_it(client):
+    """The detail payload does not eager-load the roll-call tree
+    (vote_events -> records -> legislator) because it never renders votes — those
+    come from the separate /bills/{id}/votes endpoint. This regression pins that
+    the detail response still serves the full include set (all_sponsors, actions,
+    versions, ai_analysis) for a bill that HAS votes, while /votes keeps returning
+    the roll call. If someone reintroduces a vote_events read into the detail
+    serializer without eager-loading it, or drops the /votes eager-load, this
+    fails."""
+    schema = load_schema()
+    from datetime import datetime, timezone
+
+    with Session(get_engine()) as db:
+        bill = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+        )
+        legislators = db.scalars(select(schema.Legislator).limit(2)).all()
+        assert len(legislators) == 2, "seed must provide at least 2 legislators"
+        event = schema.VoteEvent(
+            bill_id=bill.id,
+            chamber_id=bill.chamber_id,
+            motion_text="Third reading, final passage",
+            result_text="Passed",
+            occurred_at=datetime(2025, 5, 30, tzinfo=timezone.utc),
+            official_url="https://www.senate.mn/journals/example.pdf#page=1",
+            yes_count=1,
+            no_count=1,
+        )
+        db.add(event)
+        db.flush()
+        db.add_all(
+            [
+                schema.VoteRecord(
+                    vote_event_id=event.id,
+                    legislator_id=legislators[0].id,
+                    vote_value=schema.VoteValue.yes,
+                ),
+                schema.VoteRecord(
+                    vote_event_id=event.id,
+                    legislator_id=legislators[1].id,
+                    vote_value=schema.VoteValue.no,
+                ),
+            ]
+        )
+        db.commit()
+        event_id = str(event.id)
+
+    try:
+        detail_response = client.get(
+            "/api/v1/bills/94-2025-SF1832",
+            params={
+                "include": "all_sponsors,actions,versions,topics,ai_analysis,progress"
+            },
+        )
+        assert detail_response.status_code == 200
+        detail = detail_response.json()["data"]
+        # The full include set is still served after dropping the vote-tree load.
+        assert isinstance(detail["all_sponsors"], list) and detail["all_sponsors"]
+        assert isinstance(detail["actions"], list) and detail["actions"]
+        assert isinstance(detail["versions"], list) and detail["versions"]
+        assert detail["ai_analysis"]
+        # The detail payload deliberately carries no vote data.
+        assert "votes" not in detail
+
+        # The separate votes endpoint still eager-loads and serves the roll call.
+        votes_response = client.get("/api/v1/bills/94-2025-SF1832/votes")
+        assert votes_response.status_code == 200
+        roll = next(v for v in votes_response.json()["data"] if v["id"] == event_id)
+        assert len(roll["records"]) == 2
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(
+                delete(schema.VoteRecord).where(
+                    schema.VoteRecord.vote_event_id == event_id
+                )
+            )
+            db.delete(db.get(schema.VoteEvent, event_id))
+            db.commit()
 
 
 def test_bill_detail_serves_companion_bill(client):

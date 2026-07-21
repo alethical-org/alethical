@@ -655,6 +655,10 @@ def bill_detail(
         bill_detail_stmt(
             bill_row.id,
             user_id=tracking_user_id(include_set, current_user),
+            # The detail payload never reads the roll-call tree (votes come from
+            # the separate /bills/{id}/votes endpoint), so skip eager-loading
+            # vote_events -> records -> legislator: three fewer round trips.
+            load_votes=False,
         )
     )
     ai_enrichment = None
