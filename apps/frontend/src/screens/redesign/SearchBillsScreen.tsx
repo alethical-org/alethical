@@ -340,13 +340,16 @@ export function SearchBillsScreen() {
                 key={bill.id}
                 bill={bill}
                 tracked={trackedSet.has(bill.id)}
-                // Bill detail and legislator profile are old-design pages —
-                // cards stay visible but don't route anywhere until their new
-                // designs ship.
-                onPress={() => {}}
+                // Bill detail now ships as the redesigned mobile screen, so the
+                // card routes there (and roll-calls deep-link to its Votes
+                // section). Legislator profile is still old-design — sponsor
+                // taps stay a no-op until that screen's redesign ships.
+                onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
                 onToggleTrack={() => handleToggleTrack(bill)}
                 onSponsorPress={() => {}}
-                onRollCalls={() => {}}
+                onRollCalls={() =>
+                  navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
+                }
               />
             ))}
           </View>

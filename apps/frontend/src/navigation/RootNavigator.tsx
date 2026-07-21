@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountScreen } from '../screens/AccountScreen';
 import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
-import { BillDetailScreen } from '../screens/BillDetailScreen';
+import { BillDetailScreen } from '../screens/redesign/BillDetailScreen';
 import { ChatSessionScreen } from '../screens/ChatSessionScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
