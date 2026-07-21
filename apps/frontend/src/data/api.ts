@@ -214,6 +214,10 @@ export interface LegislatorListFilters {
 export interface ListPagination {
   limit?: number;
   offset?: number;
+  /** Sponsorship role filter for legislator bills (e.g. "chief_author"). */
+  role?: string;
+  /** Session slug (e.g. "94-2025-regular"); defaults to the current session. */
+  session?: string;
 }
 
 interface ApiTrackedBillPayload {
@@ -246,6 +250,7 @@ interface ApiCurrentServicePayload {
   phone?: string | null;
   office_address?: string | null;
   profile_url?: string | null;
+  photo_url?: string | null;
 }
 
 interface ApiLegislatorStatsPayload {
@@ -856,12 +861,16 @@ function mapLegislator(
   const party = toParty(service?.party);
   const district = service?.district.code ?? 'Unknown';
   const displayName = payload.full_name;
-  const committees =
+  const committeeAssignments =
     'committees' in payload
-      ? (payload.committees ?? []).map((committee) =>
-          committee.role ? `${committee.name} (${committee.role})` : committee.name,
-        )
+      ? (payload.committees ?? []).map((committee) => ({
+          name: committee.name,
+          role: committee.role ?? null,
+        }))
       : [];
+  const committees = committeeAssignments.map((committee) =>
+    committee.role ? `${committee.name} (${committee.role})` : committee.name,
+  );
   const stats = payload.stats;
   const focusAreas = [
     stats ? `${stats.total_bill_count} authored bills` : null,
@@ -883,7 +892,9 @@ function mapLegislator(
     phone: service?.phone ?? undefined,
     officeAddress: cleanOfficeAddress(service?.office_address),
     profileUrl: service?.profile_url ?? undefined,
+    photoUrl: service?.photo_url ?? undefined,
     committees,
+    committeeAssignments,
     focusAreas,
     serviceHistory: service
       ? [
@@ -1494,6 +1505,8 @@ export async function getLegislatorBillsFromApi(
   const params = new URLSearchParams();
   params.set('limit', String(limit));
   params.set('offset', String(offset));
+  if (pagination.role) params.set('role', pagination.role);
+  if (pagination.session) params.set('session', pagination.session);
 
   const response = await publicApiRequest<PageResponse<ApiBillListItemPayload>>(
     `/legislators/${encodeURIComponent(legislatorId)}/bills?${params.toString()}`,
