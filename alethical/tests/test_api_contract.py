@@ -445,6 +445,89 @@ def test_legislator_list_includes_current_committee_names(client):
             db.commit()
 
 
+def test_bill_votes_returns_per_member_records_summing_to_the_tally(client):
+    """GET /bills/{id}/votes serves per-member VoteRecords (#83) whose yes/no
+    counts sum exactly to the roll's recorded tally, plus occurred_at and
+    official_url. This is the grid's honesty contract (grounded-answers rule 3):
+    the party-grouped attribution renders only because these records join
+    reliably to legislators and add up to the tally."""
+    schema = load_schema()
+    from datetime import datetime, timezone
+
+    with Session(get_engine()) as db:
+        bill = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+        )
+        legislators = db.scalars(select(schema.Legislator).limit(3)).all()
+        assert len(legislators) == 3, "seed must provide at least 3 legislators"
+
+        event = schema.VoteEvent(
+            bill_id=bill.id,
+            chamber_id=bill.chamber_id,
+            motion_text="Third reading, final passage",
+            result_text="Passed",
+            occurred_at=datetime(2025, 5, 30, tzinfo=timezone.utc),
+            official_url="https://www.senate.mn/journals/example.pdf#page=1",
+            yes_count=2,
+            no_count=1,
+        )
+        db.add(event)
+        db.flush()
+        db.add_all(
+            [
+                schema.VoteRecord(
+                    vote_event_id=event.id,
+                    legislator_id=legislators[0].id,
+                    vote_value=schema.VoteValue.yes,
+                ),
+                schema.VoteRecord(
+                    vote_event_id=event.id,
+                    legislator_id=legislators[1].id,
+                    vote_value=schema.VoteValue.yes,
+                ),
+                schema.VoteRecord(
+                    vote_event_id=event.id,
+                    legislator_id=legislators[2].id,
+                    vote_value=schema.VoteValue.no,
+                ),
+            ]
+        )
+        db.commit()
+        event_id = str(event.id)
+
+    try:
+        response = client.get("/api/v1/bills/94-2025-SF1832/votes")
+        assert response.status_code == 200
+        roll = next(v for v in response.json()["data"] if v["id"] == event_id)
+
+        assert roll["occurred_at"] is not None
+        assert (
+            roll["official_url"] == "https://www.senate.mn/journals/example.pdf#page=1"
+        )
+        assert roll["absent_count"] == 0
+
+        records = roll["records"]
+        assert len(records) == 3
+        assert all(r["legislator_id"] and r["vote_value"] for r in records)
+
+        rec_yes = sum(1 for r in records if r["vote_value"] == "yes")
+        rec_no = sum(1 for r in records if r["vote_value"] == "no")
+        # The per-member split must reconstruct the recorded tally exactly.
+        assert rec_yes == roll["yes_count"] == 2
+        assert rec_no == roll["no_count"] == 1
+        assert rec_yes + rec_no == roll["yes_count"] + roll["no_count"]
+    finally:
+        with Session(get_engine()) as db:
+            for record in db.scalars(
+                select(schema.VoteRecord).where(
+                    schema.VoteRecord.vote_event_id == event_id
+                )
+            ).all():
+                db.delete(record)
+            db.delete(db.get(schema.VoteEvent, event_id))
+            db.commit()
+
+
 def test_representative_lookup_maps_service_district_codes_to_legislators(client):
     response = client.post(
         "/api/v1/representative-lookups",
