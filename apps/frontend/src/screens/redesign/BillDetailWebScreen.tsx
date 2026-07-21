@@ -174,6 +174,7 @@ export function BillDetailWebScreen() {
         chiefParty={author?.party}
         onOpenSignIn={() => setSignInOpen(true)}
         onOpenLegislator={openLegislator}
+        onOpenUrl={openUrl}
         onAsk={() => askAboutBill('')}
         updatedLabel={updatedLabel}
       />

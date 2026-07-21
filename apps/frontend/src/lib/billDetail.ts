@@ -210,10 +210,12 @@ export function buildPartyBlocks(
 ): PartyBlock[] {
   const members: MemberVote[] = votes.map((v) => {
     const leg = legislatorsById.get(v.legislatorId);
+    // Prefer the party/name carried on the roll-call record (the /legislators list
+    // doesn't serve party); fall back to the legislators map if present.
     return {
       legislatorId: v.legislatorId,
-      name: leg?.shortName || leg?.name || 'Unknown',
-      party: normalizeParty(leg?.party),
+      name: v.name || leg?.shortName || leg?.name || 'Unknown',
+      party: normalizeParty(v.party ?? leg?.party),
       vote: v.vote,
       crossover: false,
     };
@@ -293,35 +295,16 @@ export function coAuthorCount(bill: Bill): number {
   return (bill.sponsors ?? []).filter((s) => s.role === 'co_author').length;
 }
 
-// Try to link an action row to a recorded roll call by matching date + motion
-// wording, so "View votes →" can deep-open the right roll. Returns the vote index
-// or null. Best-effort (frontend BillAction has no roll_call_text — #future).
+// Link an action row to the recorded roll call it reports, by matching the action's
+// tally (roll_call_text, e.g. "62-0") to a VoteEvent's yes–no. Returns the vote
+// index or null. Tally-matching is reliable even though VoteEvent.occurred_at is
+// often null (date-matching would fail); an action whose tally has no ingested
+// VoteEvent (e.g. a roll the corpus didn't capture) correctly returns null, so
+// "View votes →" only appears where there is a roll to open.
 export function rollIndexForAction(action: BillAction, votes: VoteEvent[]): number | null {
   if (!votes.length) return null;
-  const aDate = parseActionDate(action.date);
-  const desc = (action.description || '').toLowerCase();
-  // Only passage-type actions carry a recorded roll call.
-  const passageAction =
-    /third reading|read the third|final passage|repass|concur|\bpassed\b|was passed/.test(desc);
-  if (!passageAction) return null;
-  const share = (a: string, b: string, kws: string[]) =>
-    kws.some((k) => a.includes(k) && b.includes(k));
-  let best: number | null = null;
-  votes.forEach((v, i) => {
-    const vDate = parseActionDate(v.date);
-    const sameDay =
-      aDate &&
-      vDate &&
-      aDate.getFullYear() === vDate.getFullYear() &&
-      aDate.getMonth() === vDate.getMonth() &&
-      aDate.getDate() === vDate.getDate();
-    if (!sameDay) return;
-    const motion = (v.motion || '').toLowerCase();
-    const overlaps =
-      share(desc, motion, ['third', 'concur', 'passage', 'repass', 'final']) ||
-      (/\bpassed\b/.test(desc) && /pass/.test(motion)) ||
-      best === null; // same-day passage action → link even if wording differs
-    if (overlaps) best = i;
-  });
-  return best;
+  const tally = (action.tally || '').replace(/[–—]/g, '-').replace(/\s/g, '');
+  if (!tally) return null;
+  const i = votes.findIndex((v) => `${v.breakdown.yes}-${v.breakdown.no}` === tally);
+  return i >= 0 ? i : null;
 }

@@ -70,6 +70,7 @@ type Row = {
   upcoming: boolean;
   adopted: boolean;
   notAdopted: boolean;
+  tally?: string;
   rollIdx: number | null;
   showVotes: boolean;
 };
@@ -84,7 +85,12 @@ export function ActionsTab({
   onViewVotes: (rollIdx: number) => void;
   updatedLabel: string;
 }) {
-  const now = parseActionDate(bill.updatedAt) ?? new Date();
+  // "Now" is the real current date, not the bill's last-action date: an action is
+  // only SCHEDULED if it's genuinely still in the future (e.g. a phased effective
+  // date). Using updatedAt mis-flagged already-past enacted milestones (signing,
+  // effective) that carry their date in the description with a null action_at, so
+  // they never counted toward updatedAt.
+  const now = new Date();
 
   const rows: Row[] = [...bill.actions]
     .sort((a, b) => {
@@ -96,7 +102,8 @@ export function ActionsTab({
       const rollIdx = rollIndexForAction(a, bill.votes);
       const d = parseActionDate(a.date);
       const desc = a.description || '';
-      const kind = dotKind(desc, rollIdx != null);
+      const hasTally = !!a.tally;
+      const kind = dotKind(desc, hasTally);
       const upcoming = !!d && d > now;
       return {
         id: a.id,
@@ -106,11 +113,11 @@ export function ActionsTab({
         upcoming,
         adopted: /(?:^|\b)adopted\b/i.test(desc) && !/not adopted/i.test(desc),
         notAdopted: /not adopted/i.test(desc),
+        tally: a.tally,
         rollIdx,
-        // Offer the jump to the Votes tab on recorded-vote rows whenever the bill
-        // has any roll calls — even when we can't match this action to a specific
-        // roll (roll dates aren't served yet, so the tab shows all of them).
-        showVotes: !upcoming && kind === 'vote' && bill.votes.length > 0,
+        // "View votes →" only when this action's tally matches an ingested roll call
+        // (so Actions and the Votes tab agree — no link to a roll that isn't there).
+        showVotes: !upcoming && rollIdx != null,
       };
     });
 
@@ -140,6 +147,11 @@ export function ActionsTab({
             <View style={styles.content}>
               <View style={styles.titleRow}>
                 <Text style={[styles.title, row.upcoming && styles.titleMuted]}>{row.title}</Text>
+                {row.tally ? (
+                  <View style={styles.tallyChip}>
+                    <Text style={styles.tallyChipText}>{row.tally.replace(/-/g, '–')}</Text>
+                  </View>
+                ) : null}
                 {row.upcoming ? (
                   <View style={styles.scheduledBadge}>
                     <Text style={styles.scheduledText}>SCHEDULED</Text>
@@ -169,7 +181,7 @@ export function ActionsTab({
           <Text style={styles.keyLabel}>PLAIN-LANGUAGE KEY</Text>
           <View style={styles.keyGrid}>
             {glossary.map((g) => (
-              <Text key={g.term} style={styles.keyItem}>
+              <Text key={g.term} style={[styles.keyItem, styles.keyItemCol]}>
                 <Text style={styles.keyTerm}>{g.term}</Text>
                 <Text> — {g.def}</Text>
               </Text>
@@ -319,6 +331,18 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   titleMuted: { color: t.colors.text.muted, fontWeight: t.fontWeights.semibold },
+  tallyChip: {
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+    backgroundColor: t.colors.surfaces.s400,
+    borderRadius: t.radii.badge,
+  },
+  tallyChipText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
   scheduledBadge: {
     paddingVertical: 4,
     paddingHorizontal: 10,
@@ -387,7 +411,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: t.colors.text.muted,
   },
-  keyGrid: { marginTop: 14, gap: 10 },
+  // Two-column definition grid (design uses grid-template-columns:1fr 1fr).
+  keyGrid: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', columnGap: 40, rowGap: 10 },
+  keyItemCol: { width: '46%', minWidth: 220, flexGrow: 1 },
   keyItem: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.small,

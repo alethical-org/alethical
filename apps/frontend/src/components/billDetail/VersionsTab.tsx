@@ -27,7 +27,7 @@ export function VersionsTab({
       </Text>
 
       <View style={styles.rows}>
-        {bill.versions.map((v) => {
+        {orderVersions(bill.versions).map((v) => {
           const law = /session law|chapter|final law/i.test(v.label);
           return (
             <VersionRow
@@ -52,6 +52,29 @@ function extractChapter(text: string | undefined): string | null {
   if (!text) return null;
   const m = text.match(/chapter\s+(\d+)/i);
   return m ? `CHAPTER ${m[1]}` : null;
+}
+
+// Rank a friendly label for newest-first ordering: Session Law (enacted) on top,
+// then higher engrossments, "As introduced" last.
+function versionRank(label: string): number {
+  if (/session law|chapter/i.test(label)) return 1000;
+  const m = label.match(/^(\d+)/);
+  if (m) return Number(m[1]);
+  if (/introduced/i.test(label)) return 0;
+  return 50;
+}
+
+// Newest-first, de-duplicated by friendly label (the source feed sometimes emits
+// two rows that map to the same stage, e.g. an "Introduction" entry + a "-0" file).
+function orderVersions<T extends { label: string }>(versions: T[]): T[] {
+  const seen = new Set<string>();
+  const unique = versions.filter((v) => {
+    const key = v.label.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return [...unique].sort((a, b) => versionRank(b.label) - versionRank(a.label));
 }
 
 function VersionRow({

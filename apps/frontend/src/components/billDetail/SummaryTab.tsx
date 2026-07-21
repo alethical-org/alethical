@@ -100,7 +100,15 @@ export function SummaryTab({
             </>
           ) : null}
 
-          {showAsk ? <AskModule identifier={bill.identifier} onAsk={onAsk} /> : null}
+          {showAsk ? (
+            <AskModule
+              identifier={bill.identifier}
+              chips={
+                bill.questionPrompts?.length ? bill.questionPrompts.slice(0, 3) : DEFAULT_ASK_CHIPS
+              }
+              onAsk={onAsk}
+            />
+          ) : null}
         </View>
 
         {/* RIGHT: sticky facts rail (sticky is web-only; RN has no 'sticky') */}
@@ -120,11 +128,21 @@ export function SummaryTab({
   );
 }
 
+// Safe, bill-scoped suggestions that route to Ask and can't lead to a refusal
+// (grounded-answers rule 2) — used when the bill has no served question prompts.
+const DEFAULT_ASK_CHIPS = [
+  'What does this bill do?',
+  'When does it take effect?',
+  'Who does it affect?',
+];
+
 function AskModule({
   identifier,
+  chips,
   onAsk,
 }: {
   identifier: string;
+  chips: string[];
   onAsk: (question: string) => void;
 }) {
   const [value, setValue] = useState('');
@@ -160,7 +178,28 @@ function AskModule({
           <Text style={styles.askBtnText}>Ask</Text>
         </Pressable>
       </View>
+      {chips.length ? (
+        <View style={styles.askChips}>
+          {chips.map((chip) => (
+            <AskChip key={chip} label={chip} onPress={() => onAsk(chip)} />
+          ))}
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+function AskChip({ label, onPress }: { label: string; onPress: () => void }) {
+  const [hovered, hover] = useHover();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      {...hover}
+      style={[styles.askChip, hovered && styles.askChipHover]}
+    >
+      <Text style={[styles.askChipText, hovered && styles.askChipTextHover]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -321,4 +360,26 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.white,
   },
+  askChips: { marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 9 },
+  askChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink12,
+    borderRadius: t.radii.pill,
+  },
+  askChipHover: {
+    borderColor: t.colors.purple.base,
+    ...(isWeb
+      ? { boxShadow: '0 0 0 3px rgba(91,48,214,0.14)' }
+      : (t.shadows.focusPurple as object)),
+  },
+  askChipText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.medium,
+    color: t.colors.text.secondary,
+  },
+  askChipTextHover: { color: t.colors.purple.base },
 });

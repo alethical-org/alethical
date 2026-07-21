@@ -29,6 +29,7 @@ export function VotesTab({
   chiefParty,
   onOpenSignIn,
   onOpenLegislator,
+  onOpenUrl,
   onAsk,
   updatedLabel,
 }: {
@@ -39,6 +40,7 @@ export function VotesTab({
   chiefParty: string | undefined;
   onOpenSignIn: () => void;
   onOpenLegislator: (legislatorId: string) => void;
+  onOpenUrl: (url: string) => void;
   onAsk: () => void;
   updatedLabel: string;
 }) {
@@ -90,6 +92,7 @@ export function VotesTab({
             legislatorsById={legislatorsById}
             onToggle={() => setOpenRolls((s) => ({ ...s, [i]: !s[i] }))}
             onOpenLegislator={onOpenLegislator}
+            onOpenUrl={onOpenUrl}
           />
         ))}
       </View>
@@ -111,12 +114,14 @@ function RollCard({
   legislatorsById,
   onToggle,
   onOpenLegislator,
+  onOpenUrl,
 }: {
   vote: VoteEvent;
   open: boolean;
   legislatorsById: Map<string, Legislator>;
   onToggle: () => void;
   onOpenLegislator: (legislatorId: string) => void;
+  onOpenUrl: (url: string) => void;
 }) {
   const [hovered, hover] = useHover();
   const [filter, setFilter] = useState<RollFilter>('all');
@@ -158,7 +163,6 @@ function RollCard({
       >
         <View style={styles.cardHeadMain}>
           <Text style={styles.motion}>{vote.motion}</Text>
-          <Text style={styles.meta}>{formatMonoDate(vote.date)}</Text>
         </View>
         <View style={styles.cardHeadRight}>
           <View style={styles.badgeSlot}>
@@ -196,6 +200,16 @@ function RollCard({
           ) : null}
         </View>
       </Pressable>
+
+      {/* meta: date (when served) + official-record link — outside the toggle button
+          so the link isn't an interactive element nested inside a button. */}
+      {vote.date || vote.officialUrl ? (
+        <View style={styles.metaRow}>
+          {vote.date ? <Text style={styles.meta}>{formatMonoDate(vote.date)}</Text> : null}
+          {vote.date && vote.officialUrl ? <Text style={styles.meta}> · </Text> : null}
+          {vote.officialUrl ? <RecordLink url={vote.officialUrl} onOpen={onOpenUrl} /> : null}
+        </View>
+      ) : null}
 
       {/* proportion bar */}
       <View style={styles.bar}>
@@ -311,6 +325,15 @@ function PartyBlockView({
         <Text style={styles.blockEmpty}>No members in this group.</Text>
       )}
     </View>
+  );
+}
+
+function RecordLink({ url, onOpen }: { url: string; onOpen: (url: string) => void }) {
+  const [hovered, hover] = useHover();
+  return (
+    <Pressable accessibilityRole="link" onPress={() => onOpen(url)} {...hover}>
+      <Text style={[styles.recordLink, hovered && styles.recordLinkHover]}>Official record →</Text>
+    </Pressable>
   );
 }
 
@@ -495,6 +518,15 @@ const styles = StyleSheet.create({
     color: t.colors.text.faint,
   },
   introStrong: { fontWeight: t.fontWeights.bold, color: t.colors.text.secondary },
+  metaRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  recordLink: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: 0.5,
+    color: t.colors.text.green,
+  },
+  recordLinkHover: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
   crossLegend: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
   crossLegendText: {
     fontFamily: t.typography.body,
