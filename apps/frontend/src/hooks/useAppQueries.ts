@@ -146,6 +146,34 @@ export function usePrefetchLegislator() {
     });
 }
 
+// Warm the bill-list cache for a filter combo the user is about to select
+// (chip hover), so the filtered results are already loading — usually loaded —
+// by the time they tap, making the swap feel instant instead of waiting on a
+// fresh GET /bills round trip (#492). The key must match useBills exactly so
+// the prefetched entry is the one the list reads; prefetchQuery honors the
+// default staleTime, so hovering across chips fetches each combo at most once
+// per freshness window.
+export function usePrefetchBills() {
+  const queryClient = useQueryClient();
+  return (
+    query: string | undefined,
+    session: string | undefined,
+    filters: BillListFilters,
+    pagination: ListPagination,
+  ) =>
+    void queryClient.prefetchQuery({
+      queryKey: [
+        'bills',
+        session ?? 'current',
+        query ?? '',
+        filters,
+        pagination.limit ?? 20,
+        pagination.offset ?? 0,
+      ],
+      queryFn: () => listBillsFromApi(query, session, filters, pagination),
+    });
+}
+
 export function useLegislatorBills(legislatorId: string, pagination: ListPagination = {}) {
   return useQuery({
     queryKey: [

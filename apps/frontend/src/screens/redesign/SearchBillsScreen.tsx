@@ -12,6 +12,7 @@ import {
   useBills,
   useMeta,
   usePolicyAreas,
+  usePrefetchBills,
   useSessions,
   useToggleTrackedBill,
   useTrackedBills,
@@ -125,6 +126,18 @@ export function SearchBillsScreen() {
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   });
+  // Warm the cache for a filter the user is hovering over (web only — no hover
+  // on touch). Tapping a chip keeps the other active filters and resets to
+  // page 1, so prefetch the current filters with just this override applied at
+  // offset 0 — an exact key match for what useBills reads after the tap (#492).
+  const prefetchBills = usePrefetchBills();
+  const prefetchFilter = (override: Partial<BillListFilters>) =>
+    prefetchBills(
+      query || undefined,
+      sessionSlug || undefined,
+      { ...filters, ...override },
+      { limit: PAGE_SIZE, offset: 0 },
+    );
   const metaQuery = useMeta();
   const policyAreasQuery = usePolicyAreas(sessionSlug || undefined);
   const trackedQuery = useTrackedBills(user?.id);
@@ -225,6 +238,9 @@ export function SearchBillsScreen() {
         <ChamberSegmented
           value={chamber}
           onChange={(value) => updateFilters({ chamber: value === 'All' ? undefined : value })}
+          onHoverOption={(value) =>
+            prefetchFilter({ chamber: value === 'All' ? undefined : value })
+          }
         />
         <FilterDropdown
           label={STATUS_OPTIONS.find((option) => option.value === status)?.label ?? 'All statuses'}
@@ -261,6 +277,11 @@ export function SearchBillsScreen() {
             active={policyArea === option.value}
             onPress={() =>
               updateFilters({ issue: option.value === ALL_ISSUES ? undefined : option.value })
+            }
+            onHoverIn={() =>
+              prefetchFilter({
+                policyArea: option.value === ALL_ISSUES ? undefined : option.value,
+              })
             }
           />
         ))}
