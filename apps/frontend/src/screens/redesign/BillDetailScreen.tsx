@@ -43,6 +43,7 @@ import {
   readLabel,
   rollPassed,
   validateRoll,
+  versionTrackTag,
 } from '../../lib/billDetail';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
@@ -1470,6 +1471,7 @@ function VersionRow({
   onPress?: () => void;
 }) {
   const [hovered, hover] = useHover();
+  const tag = isLaw ? null : versionTrackTag(label);
   return (
     <Pressable
       accessibilityRole={onPress ? 'link' : undefined}
@@ -1496,6 +1498,10 @@ function VersionRow({
           {isLaw ? (
             <View style={styles.chapterChip}>
               <Text style={styles.chapterChipText}>SESSION LAW</Text>
+            </View>
+          ) : tag ? (
+            <View style={styles.versionTrackTag}>
+              <Text style={styles.versionTrackTagText}>{tag}</Text>
             </View>
           ) : null}
         </View>
@@ -2480,6 +2486,21 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.5,
     color: AMBER_TEXT,
+  },
+  // Neutral grey track marker (UNOFFICIAL / CONFERENCE) — never amber; amber is
+  // reserved for the bill/law CODE and omnibus indicators.
+  versionTrackTag: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 7,
+    backgroundColor: t.colors.alpha.ink06,
+  },
+  versionTrackTagText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.1,
+    color: t.colors.text.faint,
   },
   versionDate: {
     marginTop: 2,

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
-import { formatMonoDate, orderBillVersions } from '../../lib/billDetail';
+import { formatMonoDate, orderBillVersions, versionTrackTag } from '../../lib/billDetail';
 import { SourceLine } from './SourceLine';
 import { useHover } from './interactions';
 
@@ -36,6 +36,7 @@ export function VersionsTab({
               date={formatMonoDate(v.date)}
               law={law}
               chapter={law ? extractChapter(v.summary) || extractChapter(v.label) : null}
+              tag={law ? null : versionTrackTag(v.label)}
               linkLabel={law ? 'Read the full law' : 'Read the bill text'}
               onPress={() => (v.url ? onOpenUrl(v.url) : undefined)}
             />
@@ -59,6 +60,7 @@ function VersionRow({
   date,
   law,
   chapter,
+  tag,
   linkLabel,
   onPress,
 }: {
@@ -66,6 +68,7 @@ function VersionRow({
   date: string;
   law: boolean;
   chapter: string | null;
+  tag: 'UNOFFICIAL' | 'CONFERENCE' | null;
   linkLabel: string;
   onPress: () => void;
 }) {
@@ -83,6 +86,10 @@ function VersionRow({
           {law && chapter ? (
             <View style={styles.chapterChip}>
               <Text style={styles.chapterText}>{chapter}</Text>
+            </View>
+          ) : tag ? (
+            <View style={styles.trackTag}>
+              <Text style={styles.trackTagText}>{tag}</Text>
             </View>
           ) : null}
         </View>
@@ -136,6 +143,21 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.6,
     color: t.colors.omnibus.text,
+  },
+  // Neutral grey track marker (UNOFFICIAL / CONFERENCE) — deliberately NOT amber;
+  // amber is reserved for the bill/law CODE and omnibus indicators.
+  trackTag: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    backgroundColor: t.colors.alpha.ink06,
+    borderRadius: t.radii.badge,
+  },
+  trackTagText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.1,
+    color: t.colors.text.faint,
   },
   rowDate: {
     marginTop: 3,

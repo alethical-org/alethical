@@ -356,3 +356,15 @@ export function orderBillVersions(versions: BillVersion[], actions: BillAction[]
     return db - da; // newest first; undated rows sink to the bottom
   });
 }
+
+// A neutral track marker for versions that aren't official engrossments, so the
+// strict newest-first list doesn't read as one broken ordinal sequence: unofficial
+// engrossments and the conference-committee report each carry their own numbering
+// (revisor lists them in separate sections), so an unofficial "1st" can legitimately
+// sort above an official "2nd". Official engrossments, "As introduced", and the
+// Session Law row get no tag (null). Rendered as neutral grey meta, never amber.
+export function versionTrackTag(label: string): 'UNOFFICIAL' | 'CONFERENCE' | null {
+  if (/unofficial/i.test(label)) return 'UNOFFICIAL';
+  if (/conference committee report/i.test(label)) return 'CONFERENCE';
+  return null;
+}
