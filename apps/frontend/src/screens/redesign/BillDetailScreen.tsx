@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -243,8 +243,13 @@ function Section({
 }) {
   return (
     <View
+      nativeID={`sec-${id}`}
       onLayout={(e) => onLayout(id, e.nativeEvent.layout.y)}
-      style={[styles.sectionOuter, style]}
+      style={[
+        styles.sectionOuter,
+        isWeb ? ({ scrollMarginTop: STICKY_OFFSET } as object) : null,
+        style,
+      ]}
     >
       <View style={styles.column}>{children}</View>
     </View>
@@ -278,7 +283,6 @@ export function BillDetailScreen() {
   // chrome + overlays
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [signInOpen, setSignInOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // scroll-spy
@@ -292,17 +296,9 @@ export function BillDetailScreen() {
   const [active, setActive] = useState<SectionId>('summary');
   const didInitialJump = useRef(false);
 
-  const onSectionLayout = useCallback(
-    (id: SectionId, y: number) => {
-      offsets.current[id] = y;
-      if (!didInitialJump.current && initialTab && id === initialTab) {
-        didInitialJump.current = true;
-        setActive(initialTab);
-        scrollRef.current?.scrollTo({ y: Math.max(0, y - STICKY_OFFSET), animated: false });
-      }
-    },
-    [initialTab],
-  );
+  const onSectionLayout = useCallback((id: SectionId, y: number) => {
+    offsets.current[id] = y;
+  }, []);
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y + STICKY_OFFSET + 8;
@@ -315,11 +311,38 @@ export function BillDetailScreen() {
 
   const jumpTo = useCallback((id: SectionId) => {
     setActive(id);
-    scrollRef.current?.scrollTo({
-      y: Math.max(0, offsets.current[id] - STICKY_OFFSET),
-      animated: true,
-    });
+    if (isWeb && typeof document !== 'undefined') {
+      // position:sticky + scroll-margin-top handle the offset; scrollIntoView is
+      // the reliable web scroller (RN's imperative scrollTo is flaky under RNW).
+      // 'auto' (instant) — 'smooth' silently no-ops inside this nested RNW
+      // overflow container, so the jump would never fire.
+      document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    } else {
+      scrollRef.current?.scrollTo({
+        y: Math.max(0, offsets.current[id] - STICKY_OFFSET),
+        animated: true,
+      });
+    }
   }, []);
+
+  // Initial ?tab= deep link: jump once the bill has loaded and painted. Deferred
+  // to after paint (layout settles async) rather than fired during onLayout,
+  // which scrolls too early and gets reset when content above finishes laying out.
+  useEffect(() => {
+    if (!bill || !initialTab || didInitialJump.current) return;
+    didInitialJump.current = true;
+    if (isWeb && typeof document !== 'undefined') {
+      const id = window.setTimeout(() => {
+        document
+          .getElementById(`sec-${initialTab}`)
+          ?.scrollIntoView({ behavior: 'auto', block: 'start' });
+        setActive(initialTab);
+      }, 180);
+      return () => window.clearTimeout(id);
+    }
+    scrollRef.current?.scrollTo({ y: Math.max(0, offsets.current[initialTab] - STICKY_OFFSET) });
+    setActive(initialTab);
+  }, [bill, initialTab]);
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
@@ -342,7 +365,11 @@ export function BillDetailScreen() {
 
   // --- share ---
   const shareUrl = bill ? `https://alethical.com/bills/${bill.id}` : 'https://alethical.com';
-  const shareTitle = bill ? `${bill.identifier} — ${bill.title}` : 'Alethical';
+  // Prefer the concise AI short title for the share text (the statutory title can
+  // be hundreds of chars); fall back to it when absent.
+  const shareTitle = bill
+    ? `${bill.identifier} — ${bill.aiAnalysis?.shortTitle ?? bill.title}`
+    : 'Alethical';
   const openExternal = (url: string) => {
     void Linking.openURL(url);
   };
@@ -395,7 +422,6 @@ export function BillDetailScreen() {
         style={styles.scroll}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        stickyHeaderIndices={bill ? [2] : undefined}
       >
         {/* 0 — top nav (scrolls away) */}
         <TopNav {...shellProps} />
@@ -418,8 +444,16 @@ export function BillDetailScreen() {
             <View style={styles.headerOuter}>
               {isWeb ? <View pointerEvents="none" style={styles.headerDots} /> : null}
               <View style={styles.column}>
-                <Text accessibilityRole="header" style={styles.h1}>
-                  {bill.title}
+                <Text
+                  accessibilityRole="header"
+                  accessibilityLabel={bill.title}
+                  // The design hero is a punchy AI short title. When a bill has
+                  // none, fall back to the canonical statutory title but shrink +
+                  // clamp it so a 40-word title doesn't consume the whole screen.
+                  numberOfLines={bill.aiAnalysis?.shortTitle ? undefined : 4}
+                  style={[styles.h1, bill.aiAnalysis?.shortTitle ? null : styles.h1Long]}
+                >
+                  {bill.aiAnalysis?.shortTitle ?? bill.title}
                 </Text>
                 <View style={styles.statusRow}>
                   <View style={styles.statusRowLeft}>
@@ -440,20 +474,22 @@ export function BillDetailScreen() {
 
             {/* 2 — sticky jump chips (scroll-spy) */}
             <View style={styles.chipBar}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chipBarInner}
-              >
-                {SECTIONS.map((s) => (
-                  <JumpChip
-                    key={s.id}
-                    label={s.label}
-                    active={active === s.id}
-                    onPress={() => jumpTo(s.id)}
-                  />
-                ))}
-              </ScrollView>
+              <View style={styles.chipBarCenter}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chipBarInner}
+                >
+                  {SECTIONS.map((s) => (
+                    <JumpChip
+                      key={s.id}
+                      label={s.label}
+                      active={active === s.id}
+                      onPress={() => jumpTo(s.id)}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
             </View>
 
             {/* 3 — Summary */}
@@ -569,9 +605,11 @@ export function BillDetailScreen() {
               <ActionLegend />
               {vm.actions.length > 0 ? (
                 <View style={styles.timeline}>
-                  {vm.actions.map((a) => (
+                  {/* action_number isn't unique in the source data, so a.id can
+                      collide — index-suffix the key to keep it stable + unique. */}
+                  {vm.actions.map((a, i) => (
                     <ActionRow
-                      key={a.id}
+                      key={`${a.id}-${i}`}
                       action={a}
                       onViewVotes={a.isVote && vm.hasVotes ? () => jumpTo('votes') : undefined}
                     />
@@ -637,9 +675,9 @@ export function BillDetailScreen() {
               </Text>
               {bill.versions.length > 0 ? (
                 <View style={styles.versionList}>
-                  {bill.versions.map((v) => (
+                  {bill.versions.map((v, i) => (
                     <VersionRow
-                      key={v.id}
+                      key={`${v.id}-${i}`}
                       label={v.label}
                       date={v.date}
                       isLaw={vm.tone === 'green' && /session law|chapter/i.test(v.label)}
@@ -669,7 +707,9 @@ export function BillDetailScreen() {
         <Text accessibilityRole="header" style={styles.sheetTitle}>
           Share this bill
         </Text>
-        <Text style={styles.sheetSub}>{shareTitle}</Text>
+        <Text style={styles.sheetSub} numberOfLines={2}>
+          {shareTitle}
+        </Text>
         <View style={styles.shareUrlField}>
           <Text numberOfLines={1} style={styles.shareUrlText}>
             {shareUrl}
@@ -745,38 +785,11 @@ export function BillDetailScreen() {
         </View>
       </BottomSheet>
 
-      {/* SIGN-IN SHEET (kept for the votes conversion hook; single 'votes' intent) */}
-      <BottomSheet visible={signInOpen} onClose={() => setSignInOpen(false)} label="Sign in sheet">
-        <View style={styles.sheetIconGreen}>
-          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-            <Path
-              d="M5 11 h14 v9 h-14 Z M8 11 V8 a4 4 0 0 1 8 0 v3"
-              stroke={t.colors.brand.deep}
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-        </View>
-        <Text accessibilityRole="header" style={styles.sheetTitle}>
-          See how your legislators voted
-        </Text>
-        <Text style={styles.sheetSub}>
-          Save your district once from Find My Legislator, and every roll call shows how your
-          senator and representative voted.
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Continue with Google"
-          onPress={() => {
-            setSignInOpen(false);
-            void signInWithGoogle();
-          }}
-          style={styles.googleBtn}
-        >
-          <Text style={styles.googleBtnText}>Continue with Google</Text>
-        </Pressable>
-      </BottomSheet>
+      {/* NOTE: the design's "your legislators voted" sign-in bottom sheet is
+          intentionally not built yet — it advertises per-member roll-call reveal,
+          which is deferred (#83). Adding it would advertise an unshippable
+          capability (grounded-answers.md rule 2). Sign-in stays available via the
+          top nav. Wire this sheet + the votes teaser together when #83 ships. */}
     </PageBackground>
   );
 }
@@ -1197,6 +1210,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.64,
     color: t.colors.text.primary,
   },
+  // Long statutory-title fallback (no AI short title): smaller + clamped.
+  h1Long: { fontSize: 23, lineHeight: 29, letterSpacing: -0.3 },
   statusRow: {
     marginTop: 14,
     flexDirection: 'row',
@@ -1261,19 +1276,27 @@ const styles = StyleSheet.create({
     color: t.colors.text.faint,
   },
 
-  // sticky chip bar
+  // sticky chip bar — CSS position:sticky on web (RNW stickyHeaderIndices is
+  // unreliable with fragment children); scrolls away on native.
   chipBar: {
     backgroundColor: t.colors.alpha.white90,
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
+    zIndex: 50,
     ...(isWeb
-      ? ({ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as object)
+      ? ({
+          position: 'sticky',
+          top: 0,
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        } as object)
       : null),
   },
+  // Centered wrapper so the chip row's left edge lines up with the section
+  // content column on wide viewports (on mobile maxWidth exceeds the viewport,
+  // so it's full-width and the chips scroll horizontally).
+  chipBarCenter: { width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' },
   chipBarInner: {
-    width: '100%',
-    maxWidth: COLUMN_MAX,
-    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -1807,16 +1830,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetIconGreen: {
-    width: 48,
-    height: 48,
-    borderRadius: 13,
-    backgroundColor: t.colors.tint.t150,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   sheetTitle: {
     marginTop: 16,
     fontFamily: t.typography.title,
@@ -1887,25 +1900,5 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.s400,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  googleBtn: {
-    marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 11,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink18,
-    borderRadius: 12,
-    paddingVertical: 15,
-    minHeight: 48,
-    ...(t.shadows.sm as object),
-  },
-  googleBtnText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.subhead,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.primary,
   },
 });
