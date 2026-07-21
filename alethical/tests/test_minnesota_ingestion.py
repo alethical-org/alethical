@@ -469,6 +469,106 @@ def test_reingest_with_new_version_code_keeps_one_current(seed_database: None) -
         assert all_codes == {"current", "0"}
 
 
+# A bill's text versions in the real MN shape: an official AND an unofficial
+# engrossment both carry DOCUMENT_ENGROSSMENT="1" (they differ only by
+# DOCUMENT_TYPE, "official" vs "ue"), plus a conference report whose engrossment
+# is the letter "A". Values taken from HF 1141's live status XML (#467).
+ENGROSSMENT_COLLISION_VERSIONS = [
+    {
+        "document_type": "official",
+        "document_engrossment": "0",
+        "document_name": "Introduced",
+        "date_insert": "2025-02-18 13:27:54",
+    },
+    {
+        "document_type": "official",
+        "document_engrossment": "1",
+        "document_name": "1st Engrossment",
+        "date_insert": "2026-04-20 13:16:41",
+    },
+    {
+        "document_type": "ue",
+        "document_engrossment": "1",
+        "document_name": "1st Unofficial Engrossment",
+        "date_insert": "2026-05-07 16:53:43",
+    },
+    {
+        "document_type": "ccr",
+        "document_engrossment": "A",
+        "document_name": "Conference Committee Report",
+        "date_insert": "2026-05-12 22:05:51",
+    },
+    {
+        "document_type": "official",
+        "document_engrossment": "2",
+        "document_name": "2nd Engrossment",
+        "date_insert": "2026-04-27 13:08:18",
+    },
+]
+
+
+def test_official_and_unofficial_first_engrossment_coexist(
+    seed_database: None,
+) -> None:
+    """#467 regression: MN reuses DOCUMENT_ENGROSSMENT="1" for BOTH the official
+    and the unofficial 1st engrossment (they differ only by DOCUMENT_TYPE). Keying
+    the version on the engrossment alone collided at version_code="1", so the
+    official 1st engrossment was silently overwritten by the unofficial one. Each
+    track must land as its own row with a distinct, URL-safe version_code, and CCR
+    (letter engrossment, never collided) stays bare."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        run = pipeline.start_run("bill", "94-2025-HF1141")
+        artifact = pipeline.record_artifact(
+            run,
+            ArtifactType.html,
+            "https://example.test/hf1141.html",
+            "<html></html>",
+        )
+        bill = Bill(
+            session_id=refs["session"].id,
+            chamber_id=refs["chambers"]["house"].id,
+            bill_key="94-2025-HF1141",
+            file_type="HF",
+            file_number=1141,
+            title="Engrossment collision regression bill",
+        )
+        session.add(bill)
+        session.flush()
+
+        pipeline.upsert_versions_and_sections(
+            bill,
+            {"text_versions": ENGROSSMENT_COLLISION_VERSIONS},
+            {"sections": [], "articles": []},
+            artifact,
+        )
+        session.flush()
+
+        versions = {
+            v.version_code: v
+            for v in session.scalars(
+                select(BillVersion).where(BillVersion.bill_id == bill.id)
+            ).all()
+        }
+        # Official 0/1/2 stay bare; the unofficial 1st engrossment is namespaced
+        # to "ue-1"; CCR stays bare ("a"). Official-1 and unofficial-1 coexist.
+        assert set(versions) == {"0", "1", "ue-1", "a", "2"}
+        # version_code stays URL-safe for the frontend id + the
+        # /bills/{bill_id}/versions/{version_code} route.
+        for code in versions:
+            assert code == code.lower()
+            assert " " not in code and "/" not in code
+        # The official 1st engrossment (04/20/2026) is no longer overwritten by
+        # the unofficial one (05/07/2026); each keeps its own date.
+        assert versions["1"].document_date == datetime(
+            2026, 4, 20, 13, 16, 41, tzinfo=UTC
+        )
+        assert versions["ue-1"].document_date == datetime(
+            2026, 5, 7, 16, 53, 43, tzinfo=UTC
+        )
+
+
 def test_parse_datetime_handles_source_datetime_format() -> None:
     """#328 regression: the MN source emits dates as "YYYY-MM-DD HH:MM:SS", not
     the date-only forms the parser originally handled. Every such value used to

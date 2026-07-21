@@ -1509,11 +1509,26 @@ class MinnesotaIngestionPipeline:
             .execution_options(synchronize_session="fetch")
         )
         for index, version_payload in enumerate(text_versions, start=1):
-            version_code = str(
-                version_payload.get("document_engrossment")
-                or version_payload.get("document_type")
-                or index
-            ).lower()
+            document_type = (
+                str(version_payload.get("document_type") or "").strip().lower()
+            )
+            engrossment = (
+                str(version_payload.get("document_engrossment") or "").strip().lower()
+            )
+            # MN reuses DOCUMENT_ENGROSSMENT across document tracks: an official and
+            # an unofficial engrossment both arrive as "1" (they differ only by
+            # DOCUMENT_TYPE, e.g. "official" vs "ue"), so keying on the engrossment
+            # alone collides on (bill_id, version_code) and the second silently
+            # overwrites the first (#467). Namespace non-official engrossments by
+            # their document type ("ue-1") so each track stays distinct. Official
+            # stays bare (the common case — keeps existing version URLs stable), and
+            # CCR engrossments are letters that never collide, so they stay bare too.
+            # Kept URL-safe (lowercase, no spaces/slashes) for the frontend version
+            # id and the /bills/{bill_id}/versions/{version_code} route.
+            if engrossment and document_type not in ("", "official", "ccr"):
+                version_code = f"{document_type}-{engrossment}"
+            else:
+                version_code = engrossment or document_type or str(index)
             if not version_code or version_code == "none":
                 version_code = f"version-{index}"
             version = self.db.scalar(
