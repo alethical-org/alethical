@@ -35,7 +35,6 @@ import {
   formatMonoDate,
   formatNiceDate,
   isKnownDistrict,
-  isLaw,
   MemberVote,
   orderActionsForTimeline,
   orderBillVersions,
@@ -430,17 +429,16 @@ function BillDetailMobileScreen() {
       6,
     );
     const coauthors = coAuthorCount(bill);
-    const law = isLaw(bill.status);
-    // Signed → EFFECTIVE {date}; otherwise LATEST ACTION {text · date}. Never the
+    // Always the honest LATEST ACTION {text · date}. We have no derivable statutory
+    // effective-date field, so we never label a last-action date as EFFECTIVE — that
+    // is wrong whenever the real effective date is in the future (see #455). Never the
     // literal "Effective date" status string, and never a "· Unknown" date suffix.
     const niceDate =
       bill.updatedAt && bill.updatedAt !== 'Unknown' ? formatNiceDate(bill.updatedAt) : '';
-    const dateLabel = law ? 'EFFECTIVE' : 'LATEST ACTION';
-    const dateValue = law
-      ? niceDate
-      : bill.latestActionText
-        ? `${bill.latestActionText}${niceDate ? ` · ${niceDate}` : ''}`
-        : niceDate;
+    const dateLabel = 'LATEST ACTION';
+    const dateValue = bill.latestActionText
+      ? `${bill.latestActionText}${niceDate ? ` · ${niceDate}` : ''}`
+      : niceDate;
     const overviewUrl = bill.officialLinks?.[0]?.url;
     const readUrl = bill.versions?.[0]?.url ?? overviewUrl;
     // Newest-first timeline. Dateless rows are slotted next to their sequence
@@ -459,7 +457,6 @@ function BillDetailMobileScreen() {
       citations,
       issues,
       coauthors,
-      law,
       dateLabel,
       dateValue,
       overviewUrl,
