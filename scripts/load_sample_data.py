@@ -294,35 +294,25 @@ def ingest_member_profiles(session: Session, refs: dict[str, Any]) -> list[Any]:
 def ingest_election_history(
     session: Session, refs: dict[str, Any], members: list[Any]
 ) -> None:
-    """Seed Legislative Service history + biography (issues #486/#499) for the
-    sample member profiles: the House member gets a single-chamber tenure and a
-    biography (occupation/education/family prose, as the House bio scrape
-    produces); the Senate member gets a multi-chamber (House → Senate) history
-    and NO biography (Senate member_bio pages carry none). Exercises both render
-    paths locally. ``members`` is [house_legislator, senate_legislator] as
+    """Seed Legislative Service history (issue #486) for the sample member
+    profiles: the House member gets a single-chamber tenure; the Senate member
+    gets a multi-chamber (House → Senate) history so both render paths are
+    exercised locally. ``members`` is [house_legislator, senate_legislator] as
     returned by ingest_member_profiles."""
     house = refs["chambers"]["house"]
     senate = refs["chambers"]["senate"]
-    # [(legislator, [(chamber, initial_year, reelection_years, is_current, term)], biography)]
+    # [(legislator, [(chamber, initial_year, reelection_years, is_current, term)])]
     histories = [
-        (
-            members[0],
-            [(house, 2022, [], True, 2)],
-            "Business owner. B.A., University of Minnesota; M.A., Hamline "
-            "University. Married, spouse Doug, 6 children.",
-        ),
+        (members[0], [(house, 2022, [], True, 2)]),
         (
             members[1],
             [
                 (house, 2012, [2014, 2016, 2018, 2020], False, None),
                 (senate, 2022, [], True, 1),
             ],
-            None,
         ),
     ]
-    for legislator, periods, biography in histories:
-        if biography and not (legislator.biography or "").strip():
-            legislator.biography = biography
+    for legislator, periods in histories:
         existing = session.scalar(
             select(LegislatorElectionHistory.id).where(
                 LegislatorElectionHistory.legislator_id == legislator.id
