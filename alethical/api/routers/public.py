@@ -13,7 +13,7 @@ from sqlalchemy import and_, case, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
-from alethical.api.issue_taxonomy import alias_canonical_arrays, aliases_for
+from alethical.api.issue_taxonomy import aliases_for
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit
 from alethical.api.schemas import (
@@ -44,6 +44,7 @@ from alethical.api.serializers import (
 )
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
+from alethical.pipeline.policy_area_counts import compute_policy_area_counts
 
 schema = load_schema()
 Bill = schema.Bill
@@ -406,45 +407,30 @@ def policy_areas(
 ):
     session_row = get_session_by_slug(db, session)
     # The AI enrichment emits ~7,600 distinct free-text policy areas with heavy
-    # casing/synonym fragmentation, so roll each raw value up to a curated
-    # canonical issue (alethical/api/issue_taxonomy.py) and count distinct bills
-    # per canonical. The canonical display name is what the frontend shows and
-    # sends back as the /bills policy_area filter, so the chip count and the
-    # filtered total agree. Grouping/display only — stored data is untouched.
-    aliases, canonicals = alias_canonical_arrays()
+    # casing/synonym fragmentation; each raw value rolls up to a curated canonical
+    # issue (alethical/api/issue_taxonomy.py) and we count distinct bills per
+    # canonical. The canonical display name is what the frontend shows and sends
+    # back as the /bills policy_area filter, so the chip count and the filtered
+    # total must agree (grounded-answers rule 2). That ~278ms live rollup is
+    # precomputed into policy_area_count (refreshed at the end of enrichment --
+    # alethical/pipeline/policy_area_counts.py), so read the prepared table here.
+    # The stored counts are byte-identical to the live rollup; fall back to
+    # computing live for any session never refreshed, so a missing precompute
+    # degrades safely to the correct-but-slower path rather than serving nothing.
     rows = db.execute(
         text(
             """
-            WITH m(alias, canonical) AS (
-                SELECT * FROM unnest(:aliases ::text[], :canonicals ::text[])
-            ),
-            bill_area AS (
-                SELECT b.id AS bill_id, lower(btrim(e)) AS area
-                FROM ai_enrichment ae
-                JOIN bill b ON b.id = ae.bill_id,
-                     LATERAL jsonb_array_elements_text(
-                         ae.content_json -> 'policy_areas'
-                     ) AS e
-                WHERE b.session_id = :sid ::uuid
-                  AND ae.enrichment_type = 'bill_summary'
-                  AND ae.is_current IS true
-                  AND btrim(e) <> ''
-            )
-            SELECT m.canonical AS name, count(DISTINCT ba.bill_id) AS bill_count
-            FROM bill_area ba
-            JOIN m ON m.alias = ba.area
-            GROUP BY m.canonical
+            SELECT canonical_name AS name, bill_count
+            FROM policy_area_count
+            WHERE session_id = :sid ::uuid
             ORDER BY bill_count DESC, name ASC
             LIMIT :limit
             """
         ),
-        {
-            "aliases": aliases,
-            "canonicals": canonicals,
-            "sid": str(session_row.id),
-            "limit": limit,
-        },
+        {"sid": str(session_row.id), "limit": limit},
     ).all()
+    if not rows:
+        rows = compute_policy_area_counts(db, session_row.id)[:limit]
     data = [{"name": name, "bill_count": count} for name, count in rows]
     return CollectionResponse(
         data=data,

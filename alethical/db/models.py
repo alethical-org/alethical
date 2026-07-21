@@ -911,6 +911,38 @@ class AIEnrichment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     bill: Mapped[Optional["Bill"]] = relationship(back_populates="enrichments")
 
 
+class PolicyAreaCount(Base):
+    """Precomputed distinct-bill count per canonical issue, per session (#501).
+
+    A derived cache for GET /policy-areas: the endpoint's ~278ms live rollup of
+    ~7,600 free-text ``ai_enrichment`` policy areas up to curated canonical issues
+    (``alethical/api/issue_taxonomy.py``) is precomputed here and refreshed at the
+    end of the enrichment pipeline (``alethical/pipeline/policy_area_counts.py``).
+    The stored counts are byte-identical to that live rollup; the endpoint falls
+    back to recomputing live for any session with no rows, so a missing precompute
+    degrades safely. No timestamps -- it is a pure count cache, wholly rederivable.
+    """
+
+    __tablename__ = "policy_area_count"
+
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislative_session.id"), primary_key=True
+    )
+    canonical_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    bill_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    __table_args__ = (
+        # The endpoint reads ORDER BY bill_count DESC, canonical_name ASC per
+        # session, so index the session's rows in exactly that order.
+        Index(
+            "ix_policy_area_count_session_count",
+            "session_id",
+            text("bill_count DESC"),
+            "canonical_name",
+        ),
+    )
+
+
 class RagSectionDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "rag_section_document"
 

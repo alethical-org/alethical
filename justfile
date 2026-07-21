@@ -47,6 +47,14 @@ pipeline-install target:
 pipeline target *ARGS:
   uv run python -m alethical.pipeline.oban --target {{target}} enqueue pipeline-run {{ARGS}}
 
+# Refresh the precomputed /policy-areas issue-chip counts (#501). Zero-cost --
+# derived from ai_enrichment.content_json already in the DB (no API calls). Runs
+# automatically at the end of `ai_enrichment apply`; re-run on demand with this.
+# Pass target=production (or set ALETHICAL_DATABASE_TARGET) to run against prod;
+# add --session SLUG to refresh a single session.
+refresh-policy-area-counts target="local" *ARGS:
+  uv run python -m alethical.pipeline.policy_area_counts --target {{target}} {{ARGS}}
+
 pipeline-work target:
   uv run python -m alethical.pipeline.oban --target {{target}} drain source_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain bill_sync --concurrency 8
