@@ -1097,12 +1097,12 @@ function VersionRow({
           ) : null}
         </View>
         {date ? <Text style={styles.versionDate}>{date}</Text> : null}
+        {onPress ? (
+          <Text style={styles.versionLink}>
+            {isLaw ? 'Read the full law →' : 'Read the bill text →'}
+          </Text>
+        ) : null}
       </View>
-      {onPress ? (
-        <Text style={styles.versionLink}>
-          {isLaw ? 'Read the full law →' : 'Read the bill text →'}
-        </Text>
-      ) : null}
     </Pressable>
   );
 }
@@ -1872,6 +1872,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.faint,
   },
   versionLink: {
+    marginTop: 8,
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
