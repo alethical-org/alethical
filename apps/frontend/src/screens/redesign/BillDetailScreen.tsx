@@ -23,8 +23,8 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
-import { useBill, useLegislators, useSessions } from '../../hooks/useAppQueries';
-import { Bill, BillAction, Legislator, VoteEvent } from '../../data/types';
+import { useBill, useSessions } from '../../hooks/useAppQueries';
+import { Bill, BillAction, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../components/search/searchPieces';
 import {
   authorDisplayName,
@@ -280,16 +280,6 @@ function BillDetailMobileScreen() {
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
-
-  // Per-member roll-call records carry name + party inline, so the roster grid
-  // groups by party without a join; the legislators map is a fallback for any
-  // record missing party (mirrors the shipped web BillDetailWebScreen).
-  const legislatorsQuery = useLegislators();
-  const legislatorsById = useMemo(() => {
-    const map = new Map<string, Legislator>();
-    (legislatorsQuery.data ?? []).forEach((leg) => map.set(leg.id, leg));
-    return map;
-  }, [legislatorsQuery.data]);
 
   const sessionsQuery = useSessions();
   const currentSession =
@@ -730,7 +720,6 @@ function BillDetailMobileScreen() {
               {vm.hasVotes ? (
                 <MobileVotesSection
                   bill={bill}
-                  legislatorsById={legislatorsById}
                   chiefParty={vm.chief?.party}
                   onOpenLegislator={openLegislator}
                   onOpenUrl={openExternal}
@@ -1095,13 +1084,11 @@ type RollFilter = 'all' | 'yes' | 'no' | 'abs';
 // per-member data AND the chief author's party are known.
 function MobileVotesSection({
   bill,
-  legislatorsById,
   chiefParty,
   onOpenLegislator,
   onOpenUrl,
 }: {
   bill: Bill;
-  legislatorsById: Map<string, Legislator>;
   chiefParty: string | undefined;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenUrl: (url: string) => void;
@@ -1156,7 +1143,6 @@ function MobileVotesSection({
             key={vote.id}
             vote={vote}
             open={openRoll === i}
-            legislatorsById={legislatorsById}
             onToggle={() => setOpenRoll((cur) => (cur === i ? -1 : i))}
             onOpenLegislator={onOpenLegislator}
             onOpenUrl={onOpenUrl}
@@ -1174,14 +1160,12 @@ function MobileVotesSection({
 function MobileRollCard({
   vote,
   open,
-  legislatorsById,
   onToggle,
   onOpenLegislator,
   onOpenUrl,
 }: {
   vote: VoteEvent;
   open: boolean;
-  legislatorsById: Map<string, Legislator>;
   onToggle: () => void;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenUrl: (url: string) => void;
@@ -1199,8 +1183,8 @@ function MobileRollCard({
   const hasMembers = vote.votes.length > 0;
 
   const blocks = useMemo(
-    () => (hasMembers ? buildPartyBlocks(vote.votes, legislatorsById) : []),
-    [vote.votes, legislatorsById, hasMembers],
+    () => (hasMembers ? buildPartyBlocks(vote.votes) : []),
+    [vote.votes, hasMembers],
   );
   if (hasMembers) validateRoll(blocks, yes, no);
 

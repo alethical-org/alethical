@@ -1,13 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
 import { IaItem, MenuKey } from '../../navigation/ia';
-import { Legislator } from '../../data/types';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
-import { useBill, useLegislators } from '../../hooks/useAppQueries';
+import { useBill } from '../../hooks/useAppQueries';
 import { bienniumEyebrow, chiefAuthor, formatNiceDate } from '../../lib/billDetail';
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { BillHeader, DetailTab } from '../../components/billDetail/BillHeader';
@@ -36,12 +35,6 @@ export function BillDetailWebScreen() {
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
-  const legislatorsQuery = useLegislators();
-  const legislatorsById = useMemo(() => {
-    const map = new Map<string, Legislator>();
-    (legislatorsQuery.data ?? []).forEach((leg) => map.set(leg.id, leg));
-    return map;
-  }, [legislatorsQuery.data]);
 
   const selectTab = (tab: DetailTab) => {
     navigation.setParams({ tab: tab === 'summary' ? undefined : tab });
@@ -162,7 +155,6 @@ export function BillDetailWebScreen() {
     body = (
       <VotesTab
         bill={bill}
-        legislatorsById={legislatorsById}
         chiefParty={author?.party}
         onOpenLegislator={openLegislator}
         onOpenUrl={openUrl}

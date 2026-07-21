@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { MapPin, Search } from 'lucide-react-native';
 
@@ -637,6 +637,10 @@ function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
   const { signInWithGoogle } = useAuth();
   const { isDesktop, isMobile } = useResponsive();
+  // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
+  // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
+  // would fire these queries and contend with the visible screen's first load.
+  const isFocused = useIsFocused();
   // Bill Activity — real, date-ordered data (#342: the section previously showed
   // fabricated bills under real legislators' names). Mirrors the mobile home feed
   // (#341); web shows more per NEXT-home-spec (§"Bill Activity"): 2 passed, 3
@@ -647,8 +651,15 @@ function HomeSignedOutDesktop() {
     undefined,
     { status: 'signed_into_law', sort: 'latest_action' },
     { limit: 2 },
+    { enabled: isFocused },
   );
-  const recentlyIntroduced = useBills(undefined, undefined, { sort: 'introduced' }, { limit: 3 });
+  const recentlyIntroduced = useBills(
+    undefined,
+    undefined,
+    { sort: 'introduced' },
+    { limit: 3 },
+    { enabled: isFocused },
+  );
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [askFocused, setAskFocused] = useState(false);
   const [finderFocused, setFinderFocused] = useState(false);
@@ -1281,21 +1292,32 @@ function HomeSignedOutMobile() {
   const askInputRef = useRef<TextInput>(null);
   const finderInputRef = useRef<TextInput>(null);
 
+  // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
+  // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
+  // would fire these queries and contend with the visible screen's first load.
+  const isFocused = useIsFocused();
   // In the News — two pinned bills by key (bypasses the /bills AI-summary gate).
-  const news0 = useBill(IN_THE_NEWS[0].key);
-  const news1 = useBill(IN_THE_NEWS[1].key);
+  const news0 = useBill(IN_THE_NEWS[0].key, { enabled: isFocused });
+  const news1 = useBill(IN_THE_NEWS[1].key, { enabled: isFocused });
   // Bill Activity — live, date-ordered now that action dates are ingested (#329):
   //   • Recently Introduced = newest by real introduction date (sort=introduced).
   //   • Recently Passed = most recently enacted bill (status=signed_into_law,
   //     ordered by latest-action date desc — the signing/enactment milestone).
   //     "Passed both chambers, not yet signed" is ~0 genuine bills in the corpus
   //     (#305), so enacted is the honest population for the "Recently Passed" card.
-  const introduced = useBills(undefined, undefined, { sort: 'introduced' }, { limit: 1 });
+  const introduced = useBills(
+    undefined,
+    undefined,
+    { sort: 'introduced' },
+    { limit: 1 },
+    { enabled: isFocused },
+  );
   const signed = useBills(
     undefined,
     undefined,
     { status: 'signed_into_law', sort: 'latest_action' },
     { limit: 1 },
+    { enabled: isFocused },
   );
 
   // Auto-size the ask field to its content — one line at rest, grow only on

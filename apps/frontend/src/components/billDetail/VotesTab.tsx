@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
-import { Bill, Legislator, VoteEvent } from '../../data/types';
+import { Bill, VoteEvent } from '../../data/types';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import {
   buildPartyBlocks,
@@ -23,7 +23,6 @@ type RollFilter = 'all' | 'yes' | 'no' | 'abs';
 // filters/search, your-legislators, and the in-committee empty state (spec §Votes).
 export function VotesTab({
   bill,
-  legislatorsById,
   chiefParty,
   onOpenLegislator,
   onOpenUrl,
@@ -31,7 +30,6 @@ export function VotesTab({
   updatedLabel,
 }: {
   bill: Bill;
-  legislatorsById: Map<string, Legislator>;
   chiefParty: string | undefined;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenUrl: (url: string) => void;
@@ -83,7 +81,6 @@ export function VotesTab({
             key={vote.id}
             vote={vote}
             open={!!openRolls[i]}
-            legislatorsById={legislatorsById}
             onToggle={() => setOpenRolls((s) => ({ ...s, [i]: !s[i] }))}
             onOpenLegislator={onOpenLegislator}
             onOpenUrl={onOpenUrl}
@@ -101,14 +98,12 @@ export function VotesTab({
 function RollCard({
   vote,
   open,
-  legislatorsById,
   onToggle,
   onOpenLegislator,
   onOpenUrl,
 }: {
   vote: VoteEvent;
   open: boolean;
-  legislatorsById: Map<string, Legislator>;
   onToggle: () => void;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenUrl: (url: string) => void;
@@ -126,8 +121,8 @@ function RollCard({
   const hasMembers = vote.votes.length > 0;
 
   const blocks = useMemo(
-    () => (hasMembers ? buildPartyBlocks(vote.votes, legislatorsById) : []),
-    [vote.votes, legislatorsById, hasMembers],
+    () => (hasMembers ? buildPartyBlocks(vote.votes) : []),
+    [vote.votes, hasMembers],
   );
   if (hasMembers) validateRoll(blocks, yes, no);
 

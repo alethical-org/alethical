@@ -1,11 +1,4 @@
-import {
-  Bill,
-  BillAction,
-  BillVersion,
-  IndividualVote,
-  Legislator,
-  VoteEvent,
-} from '../data/types';
+import { Bill, BillAction, BillVersion, IndividualVote, VoteEvent } from '../data/types';
 
 // Shared logic for the redesign Bill Detail page (screens/redesign/BillDetailScreen).
 // Kept framework-free (pure functions) so it is unit-testable and reused by the tab
@@ -261,25 +254,18 @@ function normalizeParty(p: string | undefined): 'DFL' | 'R' | 'I' {
   return 'I';
 }
 
-// Join per-member votes to legislator party/name, group into party blocks, and
-// mark crossovers against each party's own majority. Returns blocks ordered
-// DFL, Republican, then any Independents (only when non-empty).
-export function buildPartyBlocks(
-  votes: IndividualVote[],
-  legislatorsById: Map<string, Legislator>,
-): PartyBlock[] {
-  const members: MemberVote[] = votes.map((v) => {
-    const leg = legislatorsById.get(v.legislatorId);
-    // Prefer the party/name carried on the roll-call record (the /legislators list
-    // doesn't serve party); fall back to the legislators map if present.
-    return {
-      legislatorId: v.legislatorId,
-      name: v.name || leg?.shortName || leg?.name || 'Unknown',
-      party: normalizeParty(v.party ?? leg?.party),
-      vote: v.vote,
-      crossover: false,
-    };
-  });
+// Group per-member votes into party blocks and mark crossovers against each
+// party's own majority. Party + name are carried inline on each roll-call record
+// (the /legislators list doesn't serve party), so no roster join is needed.
+// Returns blocks ordered DFL, Republican, then any Independents (only when non-empty).
+export function buildPartyBlocks(votes: IndividualVote[]): PartyBlock[] {
+  const members: MemberVote[] = votes.map((v) => ({
+    legislatorId: v.legislatorId,
+    name: v.name || 'Unknown',
+    party: normalizeParty(v.party),
+    vote: v.vote,
+    crossover: false,
+  }));
 
   const parties: Array<'DFL' | 'R' | 'I'> = ['DFL', 'R', 'I'];
   const blocks: PartyBlock[] = parties.map((party) => {
