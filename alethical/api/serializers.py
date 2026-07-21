@@ -18,18 +18,16 @@ def tracking_payload(tracked_rows) -> api_schemas.TrackingState | None:
 
 
 def sponsor_payloads(
-    sponsorships, *, session_id=None, resolved=None
+    sponsorships, *, session_id=None
 ) -> list[api_schemas.SponsorSummary]:
     """Serialize bill sponsors.
 
-    ``resolved`` (optional) maps an author legislator id (str) to its real
-    ``{"party", "district"}`` — see resolve_sponsor_party_district() in
-    routers/public.py. Bill sponsors are stored on the numeric-keyed bill-author
-    row, whose own service period carries a null party and a "*-unknown"
-    placeholder district (#291); the real values live on the member's roster row.
-    When a sponsor's id is in ``resolved`` we use those values; otherwise we fall
-    back to the author row's own service period (today's behavior), so callers
-    that don't pass ``resolved`` — e.g. bill_list_item — are unaffected.
+    Party + district come from the sponsor's own current service period for the
+    bill's session. Since #302 merged each bill-author row into its roster row,
+    the sponsor row *is* the canonical row, so its own service period carries the
+    real party + district — no suffix resolution to a separate roster row needed.
+    Callers without a ``session_id`` (e.g. bill_list_item) get no service period,
+    so party/district stay null.
     """
     payloads: list[api_schemas.SponsorSummary] = []
     for sponsorship in sponsorships:
@@ -47,9 +45,9 @@ def sponsor_payloads(
                 ),
                 None,
             )
-        resolved_entry = (
-            resolved.get(legislator_id) if resolved and legislator_id else None
-        )
+        district = None
+        if service_period:
+            district = service_period.district.label or service_period.district.code
         payloads.append(
             api_schemas.SponsorSummary(
                 name=name,
@@ -62,12 +60,8 @@ def sponsor_payloads(
                 chamber=service_period.chamber.slug
                 if service_period
                 else sponsorship.source_chamber,
-                party=resolved_entry["party"]
-                if resolved_entry
-                else (service_period.party if service_period else None),
-                district=resolved_entry["district"]
-                if resolved_entry
-                else (service_period.district.code if service_period else None),
+                party=service_period.party if service_period else None,
+                district=district,
             )
         )
     return payloads

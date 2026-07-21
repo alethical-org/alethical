@@ -59,3 +59,9 @@ pipeline-work target:
 # Set ALETHICAL_DATABASE_TARGET=production to run against prod.
 reconcile-roster apply="false":
   uv run python scripts/load_minnesota_data.py --reconcile-only {{ if apply == "true" { "" } else { "--dry-run" } }}
+
+# One-time backfill: merge each bill-author placeholder row into its roster row
+# and repoint sponsorships (#302). Dry-run by default; pass apply=true to write.
+# Set ALETHICAL_DATABASE_TARGET=production to run against prod.
+merge-duplicate-legislators apply="false":
+  uv run python scripts/load_minnesota_data.py --merge-duplicate-legislators {{ if apply == "true" { "" } else { "--dry-run" } }}

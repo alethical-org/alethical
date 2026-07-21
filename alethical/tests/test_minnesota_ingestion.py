@@ -14,6 +14,8 @@ from alethical.db.models import (
     Legislator,
     LegislatorServicePeriod,
     LegislatorStats,
+    Sponsorship,
+    SponsorshipRole,
 )
 from alethical.db.session import get_engine
 from alethical.pipeline.minnesota import (
@@ -168,6 +170,202 @@ def test_refresh_legislator_stats_scopes_to_given_ids(seed_database: None) -> No
         # None → whole jurisdiction (roster path), so the other one now gets stats too.
         pipeline.refresh_legislator_stats(refs)
         assert stats_for(untouched.id) is not None
+
+
+def _make_bill(pipeline, refs, *, file_number, key) -> Bill:
+    bill = Bill(
+        session_id=refs["session"].id,
+        chamber_id=refs["chambers"]["house"].id,
+        bill_key=key,
+        file_type="HF",
+        file_number=file_number,
+        title=f"Merge test bill {file_number}",
+    )
+    pipeline.db.add(bill)
+    pipeline.db.flush()
+    return bill
+
+
+def test_replace_sponsorships_attaches_to_existing_roster(seed_database: None) -> None:
+    """#302: when the roster row already exists, replace_sponsorships attaches the
+    sponsorship to it (matched by the member id in its profile URL) instead of
+    spawning a parallel numeric-keyed bill-author row."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        roster = pipeline.ingest_member_profile(
+            refs,
+            {
+                "chamber": "house",
+                "display_name": "Rep. Canonical One",
+                "district": "45B",
+                "profile_url": "https://www.house.mn.gov/members/profile/778899",
+            },
+        )
+        session.flush()
+        bill = _make_bill(pipeline, refs, file_number=7001, key="94-2025-HF7001")
+
+        pipeline.replace_sponsorships(
+            refs,
+            bill,
+            {
+                "authors": {
+                    "house": [{"legislator_key": "778899", "member_name": "One, C."}]
+                }
+            },
+        )
+        session.flush()
+
+        # No parallel numeric-keyed author row was created.
+        assert (
+            session.scalar(
+                select(Legislator).where(
+                    Legislator.jurisdiction_id == refs["jurisdiction"].id,
+                    Legislator.external_key == "778899",
+                )
+            )
+            is None
+        )
+        # The sponsorship is on the roster row, and its name was not overwritten
+        # by the bill's abbreviated MEMBER_NAME.
+        sponsorships = session.scalars(
+            select(Sponsorship).where(Sponsorship.bill_id == bill.id)
+        ).all()
+        assert len(sponsorships) == 1
+        assert sponsorships[0].legislator_id == roster.id
+        assert (
+            session.scalar(
+                select(Legislator.full_name).where(Legislator.id == roster.id)
+            )
+            == "Rep. Canonical One"
+        )
+
+
+def test_ingest_member_profile_folds_in_prior_bill_author_placeholder(
+    seed_database: None,
+) -> None:
+    """#302: a bill ingested before its roster row creates a bare-numeric
+    placeholder; ingesting the roster row later folds that placeholder in
+    (sponsorships repointed, placeholder deleted) so there is one row per member."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        bill = _make_bill(pipeline, refs, file_number=7002, key="94-2025-HF7002")
+
+        # Bill first: creates the bare-numeric placeholder.
+        pipeline.replace_sponsorships(
+            refs,
+            bill,
+            {
+                "authors": {
+                    "house": [{"legislator_key": "334455", "member_name": "Two, D."}]
+                }
+            },
+        )
+        session.flush()
+        placeholder = session.scalar(
+            select(Legislator).where(
+                Legislator.jurisdiction_id == refs["jurisdiction"].id,
+                Legislator.external_key == "334455",
+            )
+        )
+        assert placeholder is not None
+        placeholder_id = placeholder.id
+
+        # Roster second: folds the placeholder in.
+        roster = pipeline.ingest_member_profile(
+            refs,
+            {
+                "chamber": "house",
+                "display_name": "Rep. Canonical Two",
+                "district": "46A",
+                "profile_url": "https://www.house.mn.gov/members/profile/334455",
+            },
+        )
+        session.flush()
+
+        assert session.get(Legislator, placeholder_id) is None
+        sponsorships = session.scalars(
+            select(Sponsorship).where(Sponsorship.bill_id == bill.id)
+        ).all()
+        assert len(sponsorships) == 1
+        assert sponsorships[0].legislator_id == roster.id
+
+
+def test_merge_duplicate_legislators_backfill(seed_database: None) -> None:
+    """#302 backfill: merge_duplicate_legislators folds a legacy bill-author row
+    (numeric key, "*-unknown" district) into its roster row, repointing
+    sponsorships. dry_run reports without writing; author rows with no roster
+    match are reported as orphans and left untouched."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        chamber = refs["chambers"]["house"]
+        bill = _make_bill(pipeline, refs, file_number=7003, key="94-2025-HF7003")
+
+        real_district = pipeline.upsert_district(refs, chamber, "47C")
+        unknown_district = pipeline.upsert_district(refs, chamber, "H7003-unknown")
+        roster = pipeline.upsert_legislator(
+            refs,
+            "Rep. Canonical Three",
+            external_key="https://www.house.mn.gov/members/profile/556677",
+        )
+        author = pipeline.upsert_legislator(refs, "Three, E.", external_key="556677")
+        session.flush()
+        session.add_all(
+            [
+                LegislatorServicePeriod(
+                    legislator_id=roster.id,
+                    session_id=refs["session"].id,
+                    chamber_id=chamber.id,
+                    district_id=real_district.id,
+                    party="DFL",
+                    is_current=True,
+                ),
+                LegislatorServicePeriod(
+                    legislator_id=author.id,
+                    session_id=refs["session"].id,
+                    chamber_id=chamber.id,
+                    district_id=unknown_district.id,
+                    is_current=True,
+                ),
+                Sponsorship(
+                    bill_id=bill.id,
+                    legislator_id=author.id,
+                    role=SponsorshipRole.chief_author,
+                    source_order=1,
+                    source_chamber="house",
+                ),
+            ]
+        )
+        session.flush()
+        author_id = author.id
+        roster_id = roster.id
+
+        # Dry run: reports the pair, writes nothing.
+        report = pipeline.merge_duplicate_legislators(dry_run=True)
+        assert report.dry_run is True
+        assert report.merged_pairs >= 1
+        assert session.get(Legislator, author_id) is not None
+
+        # Apply: the author row is gone and its sponsorship is on the roster row.
+        report = pipeline.merge_duplicate_legislators(dry_run=False)
+        assert report.dry_run is False
+        assert report.merged_pairs >= 1
+        assert session.get(Legislator, author_id) is None
+        sponsorships = session.scalars(
+            select(Sponsorship).where(Sponsorship.bill_id == bill.id)
+        ).all()
+        assert len(sponsorships) == 1
+        assert sponsorships[0].legislator_id == roster_id
+        # refresh_legislator_stats ran for the roster row → correct direct count.
+        stats = session.scalar(
+            select(LegislatorStats).where(
+                LegislatorStats.legislator_id == roster_id,
+                LegislatorStats.session_id == refs["session"].id,
+            )
+        )
+        assert stats is not None and stats.total_bill_count == 1
 
 
 def test_reference_upserts_skip_advisory_lock_when_rows_exist(

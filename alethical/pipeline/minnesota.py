@@ -11,7 +11,7 @@ from typing import Any
 from urllib.parse import urljoin
 
 import requests
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
@@ -72,6 +72,36 @@ class BillTarget:
     chamber: str
     bill_number: str
     session_code: str = DEFAULT_SESSION_CODE
+
+
+@dataclass
+class MergeReport:
+    """Outcome of merging duplicate bill-author rows into their roster row.
+
+    Every member historically had two Legislator rows: the roster row shown in
+    the directory (external_key = profile URL, real district) and a bill-author
+    row (external_key = the bare numeric member key, a "*-unknown" placeholder
+    district) carrying every Sponsorship. This merges each author row into its
+    roster row (#302); ``orphans`` are author rows with no roster match (former
+    or non-current members), left untouched.
+    """
+
+    merged_pairs: int
+    sponsorships_moved: int
+    # (external_key, full_name) author rows with no roster match — left as-is
+    orphans: list[tuple[str, str]]
+    dry_run: bool
+
+    def summary(self) -> str:
+        verb = "would merge" if self.dry_run else "merged"
+        lines = [
+            f"Legislator merge: {verb} {self.merged_pairs} author row(s) into "
+            f"their roster row, moving {self.sponsorships_moved} sponsorship(s); "
+            f"{len(self.orphans)} author row(s) had no roster match (left as-is)."
+        ]
+        for external_key, name in self.orphans:
+            lines.append(f"  ! orphan (no roster match): {name} [{external_key}]")
+        return "\n".join(lines)
 
 
 # Session number + year embedded in a bill's status XML URI, e.g.
@@ -874,6 +904,206 @@ class MinnesotaIngestionPipeline:
             legislator.sort_name = name
         return legislator
 
+    @staticmethod
+    def _member_key(external_key: str | None) -> str | None:
+        """The trailing numeric member id of a Legislator external_key.
+
+        Roster rows key on the member profile URL (House
+        ``.../members/profile/15640``, Senate ``...member_bio.php?leg_id=15541``);
+        bill-author rows key on the bare numeric id (``15640``). Both end with the
+        member id, so its trailing digits are the shared identity used to fold the
+        author row into the roster row (#302)."""
+        if not external_key:
+            return None
+        match = re.search(r"(\d+)\s*$", external_key)
+        return match.group(1) if match else None
+
+    def _find_canonical_roster(
+        self, refs: dict[str, Any], member_key: str | None
+    ) -> Any:
+        """The roster Legislator whose external_key ends with ``member_key`` (its
+        profile-URL id), if exactly one exists. Excludes the bare-numeric author
+        row (external_key == member_key) so this returns the roster/profile row.
+        Returns None when the match is absent or ambiguous — the caller then falls
+        back to the numeric-keyed row (bills ingested before the roster, or a
+        genuine non-roster author)."""
+        if not member_key:
+            return None
+        candidates = self.db.scalars(
+            select(Legislator).where(
+                Legislator.jurisdiction_id == refs["jurisdiction"].id,
+                Legislator.external_key.isnot(None),
+                Legislator.external_key != member_key,
+                Legislator.external_key.ilike(f"%{member_key}"),
+            )
+        ).all()
+        # Anchor to trailing-digit equality so a short key can't suffix-match a
+        # longer id (e.g. "5541" inside "15541").
+        matches = [
+            c for c in candidates if self._member_key(c.external_key) == member_key
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    def _find_placeholder_author(
+        self, refs: dict[str, Any], member_key: str | None, *, exclude_id: Any
+    ) -> Any:
+        """The bare-numeric bill-author placeholder row for ``member_key`` (its
+        external_key is exactly the numeric id), if any — used at roster ingest to
+        fold a placeholder created by an earlier bill ingest into the roster row."""
+        if not member_key:
+            return None
+        return self.db.scalar(
+            select(Legislator).where(
+                Legislator.jurisdiction_id == refs["jurisdiction"].id,
+                Legislator.external_key == member_key,
+                Legislator.id != exclude_id,
+            )
+        )
+
+    # Every table.column that references legislator.id, as (table, fk_column,
+    # dedup_columns). Repointing a source row's data to the target must not
+    # violate the referencing table's own unique key, so dedup_columns names the
+    # rest of that key: a source row whose (target_id, *dedup) already exists on
+    # the target is dropped instead of repointed. Kept in sync with the live
+    # production FK set — including columns from the representative-evidence
+    # feature applied to prod out-of-band (#288) and not yet in the repo schema
+    # (evidence_document, chat_session.subject_legislator_id), which are repointed
+    # only where the column actually exists. service_period + stats are dropped
+    # (the target keeps its own real-district ones), so they are not listed here.
+    _LEGISLATOR_FK_REPOINTS = (
+        # (table, fk_column, dedup_columns)  -- dedup = the rest of the unique key
+        ("sponsorship", "legislator_id", ("bill_id", "role")),
+        ("vote_record", "legislator_id", ("vote_event_id",)),
+        ("committee_membership", "legislator_id", ("committee_id", "role")),
+        ("evidence_document", "legislator_id", ("source_url",)),
+        ("ai_enrichment", "legislator_id", ()),
+        ("chat_session", "subject_legislator_id", ()),
+    )
+
+    def _merge_legislator(self, source: Any, target: Any) -> int:
+        """Move ``source``'s data onto ``target`` and delete ``source``.
+
+        Repoints every legislator-referencing row (sponsorships, votes, committee
+        memberships, AI/evidence documents, chat sessions), dropping any that
+        would duplicate an existing target row on the referencing table's unique
+        key; drops ``source``'s own service periods and stats; then deletes
+        ``source``. Returns the number of sponsorships moved. Idempotent."""
+        moved = 0
+        for table, column, dedup in self._LEGISLATOR_FK_REPOINTS:
+            if not self._column_exists(table, column):
+                continue
+            count = self._repoint(table, column, dedup, source.id, target.id)
+            if table == "sponsorship":
+                moved = count
+        self.db.execute(
+            delete(LegislatorServicePeriod).where(
+                LegislatorServicePeriod.legislator_id == source.id
+            )
+        )
+        self.db.execute(
+            delete(LegislatorStats).where(LegislatorStats.legislator_id == source.id)
+        )
+        self.db.execute(delete(Legislator).where(Legislator.id == source.id))
+        self.db.flush()
+        return moved
+
+    def _column_exists(self, table: str, column: str) -> bool:
+        """Whether public.<table>.<column> exists. Some FK columns
+        (evidence_document, chat_session.subject_legislator_id) live only in the
+        out-of-band prod schema (#288), so the merge repoints them only where the
+        column is actually present — a no-op on the repo's canonical schema."""
+        return (
+            self.db.scalar(
+                text(
+                    "SELECT 1 FROM information_schema.columns "
+                    "WHERE table_schema='public' AND table_name=:t "
+                    "AND column_name=:c"
+                ),
+                {"t": table, "c": column},
+            )
+            is not None
+        )
+
+    def _repoint(
+        self,
+        table: str,
+        column: str,
+        dedup: tuple[str, ...],
+        source_id: Any,
+        target_id: Any,
+    ) -> int:
+        """Repoint ``table.column`` rows from source to target. First drops any
+        source row that would collide with an existing target row on the rest of
+        that table's unique key (``dedup`` columns), then repoints the remainder.
+        Table/column names are fixed literals (see _LEGISLATOR_FK_REPOINTS), never
+        user input. Returns the number of rows repointed."""
+        if dedup:
+            match = " AND ".join(f"t.{col} = s.{col}" for col in dedup)
+            self.db.execute(
+                text(
+                    f"DELETE FROM {table} AS s WHERE s.{column} = :src "
+                    f"AND EXISTS (SELECT 1 FROM {table} AS t "
+                    f"WHERE t.{column} = :tgt AND {match})"
+                ),
+                {"src": source_id, "tgt": target_id},
+            )
+        result = self.db.execute(
+            text(f"UPDATE {table} SET {column} = :tgt WHERE {column} = :src"),
+            {"src": source_id, "tgt": target_id},
+        )
+        return result.rowcount or 0
+
+    def merge_duplicate_legislators(self, *, dry_run: bool = True) -> MergeReport:
+        """One-time backfill: merge every bill-author placeholder row into its
+        roster row and repoint sponsorships (#302). Author rows with no roster
+        match (former/non-current members) are reported as orphans and left
+        untouched. Recomputes stats for the merged roster rows. Idempotent."""
+        refs = self.seed_reference_data()
+        jurisdiction_id = refs["jurisdiction"].id
+        real_current_sp = (
+            select(LegislatorServicePeriod.id)
+            .join(District, District.id == LegislatorServicePeriod.district_id)
+            .where(
+                LegislatorServicePeriod.legislator_id == Legislator.id,
+                LegislatorServicePeriod.is_current.is_(True),
+                District.code.not_like("%-unknown"),
+            )
+        )
+        authors = self.db.scalars(
+            select(Legislator).where(
+                Legislator.jurisdiction_id == jurisdiction_id,
+                Legislator.external_key.isnot(None),
+                select(Sponsorship.id)
+                .where(Sponsorship.legislator_id == Legislator.id)
+                .exists(),
+                ~real_current_sp.exists(),
+            )
+        ).all()
+        merged_pairs = 0
+        sponsorships_moved = 0
+        orphans: list[tuple[str, str]] = []
+        merged_roster_ids: set[Any] = set()
+        for author in authors:
+            roster = self._find_canonical_roster(
+                refs, self._member_key(author.external_key)
+            )
+            if roster is None or roster.id == author.id:
+                orphans.append((author.external_key, author.full_name))
+                continue
+            if dry_run:
+                sponsorships_moved += self.db.scalar(
+                    select(func.count(Sponsorship.id)).where(
+                        Sponsorship.legislator_id == author.id
+                    )
+                )
+            else:
+                sponsorships_moved += self._merge_legislator(author, roster)
+            merged_pairs += 1
+            merged_roster_ids.add(roster.id)
+        if not dry_run and merged_roster_ids:
+            self.refresh_legislator_stats(refs, legislator_ids=merged_roster_ids)
+        return MergeReport(merged_pairs, sponsorships_moved, orphans, dry_run)
+
     def upsert_service_period(
         self,
         refs: dict[str, Any],
@@ -968,6 +1198,13 @@ class MinnesotaIngestionPipeline:
             profile.get("source_url") or profile.get("profile_url") or name
         )
         legislator = self.upsert_legislator(refs, name, external_key=external_key)
+        # Fold in any bill-author placeholder created before this roster row
+        # existed (a bill ingested first), so there is one row per member (#302).
+        placeholder = self._find_placeholder_author(
+            refs, self._member_key(external_key), exclude_id=legislator.id
+        )
+        if placeholder is not None:
+            self._merge_legislator(placeholder, legislator)
         self.upsert_service_period(refs, legislator, chamber, district, profile)
         self.upsert_committees(refs, legislator, chamber, profile)
         return legislator
@@ -1401,7 +1638,14 @@ class MinnesotaIngestionPipeline:
                 if not member_name:
                     continue
                 legislator_key = author.get("legislator_key") or member_name
-                legislator = self.upsert_legislator(
+                # Attach to the canonical roster row (real district + profile URL)
+                # when it already exists, so we don't spawn a parallel numeric-keyed
+                # author row (#302). Falls back to the numeric-keyed row when the
+                # roster hasn't been ingested yet (a bill ingested before the
+                # roster) — ingest_member_profile folds that placeholder in later.
+                legislator = self._find_canonical_roster(
+                    refs, self._member_key(legislator_key)
+                ) or self.upsert_legislator(
                     refs, member_name, external_key=legislator_key
                 )
                 self.db.add(

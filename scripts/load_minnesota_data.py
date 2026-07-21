@@ -124,9 +124,16 @@ def main() -> None:
         help="Session slug to reconcile membership for, e.g. 94-2025-regular.",
     )
     parser.add_argument(
+        "--merge-duplicate-legislators",
+        action="store_true",
+        help="One-time backfill: merge each bill-author placeholder row into its "
+        "roster row and repoint sponsorships (#302); skip the scrape and bills.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="With reconciliation, report what would change without writing.",
+        help="With reconciliation or the legislator merge, report what would "
+        "change without writing.",
     )
     args = parser.parse_args()
 
@@ -146,6 +153,14 @@ def main() -> None:
     )
     with Session(engine) as session:
         pipeline = MinnesotaIngestionPipeline(session)
+        if args.merge_duplicate_legislators:
+            report = pipeline.merge_duplicate_legislators(dry_run=args.dry_run)
+            print(report.summary())
+            if args.dry_run:
+                session.rollback()
+            else:
+                session.commit()
+            return
         if args.reconcile_only:
             report = pipeline.reconcile_current_members(
                 args.session_slug, dry_run=args.dry_run

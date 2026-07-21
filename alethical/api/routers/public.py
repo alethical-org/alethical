@@ -10,7 +10,7 @@ import requests
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import and_, case, func, or_, select, text
-from sqlalchemy.orm import Session, aliased, selectinload
+from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
 from alethical.api.issue_taxonomy import alias_canonical_arrays, aliases_for
@@ -93,29 +93,20 @@ def paginated_scalars(db: Session, stmt, *, limit: int, offset: int):
 
 
 def authored_bill_counts(db: Session, legislator_ids) -> dict[str, tuple[int, int]]:
-    """Live authored-bill counts (total, chief) for the given directory rows,
-    computed set-wise from Sponsorship in one grouped query.
+    """Live authored-bill counts (total, chief) for the given rows, counted
+    directly from Sponsorship in one grouped query -- no per-row N+1. Returns
+    {legislator_id: (total_bill_count, chief_bill_count)}.
 
-    Production keeps two Legislator rows per member: the roster row shown in the
-    directory (external_key = the member profile URL, a real district) carries no
-    sponsorships, while a separate bill-author row (external_key = the numeric
-    member key, a "*-unknown" placeholder district excluded from the directory)
-    carries every Sponsorship. The two are linked by the roster key *ending
-    with* the author key -- the same relationship canonical_legislator_for_
-    placeholder() resolves in the opposite direction. So reading Sponsorship on a
-    directory row's own id (equivalently, its stored LegislatorStats) is always 0
-    (#291). We instead join each requested row to its author row(s) via that
-    suffix match and count their sponsorships; the self-match (author == roster)
-    also covers any row that carries sponsorships on its own id. One grouped query
-    for the whole page -- no per-row N+1. Returns
-    {legislator_id: (total_bill_count, chief_bill_count)}."""
+    Since #302 merged the duplicate bill-author rows into their roster row, every
+    member's sponsorships live on the single canonical row, so this counts
+    Sponsorship on each requested id directly (no more suffix self-join to a
+    separate placeholder row)."""
     ids = list(legislator_ids)
     if not ids:
         return {}
-    author = aliased(Legislator)
     rows = db.execute(
         select(
-            Legislator.id,
+            Sponsorship.legislator_id,
             func.count(func.distinct(Sponsorship.bill_id)).label("total"),
             func.count(
                 func.distinct(
@@ -128,20 +119,10 @@ def authored_bill_counts(db: Session, legislator_ids) -> dict[str, tuple[int, in
                 )
             ).label("chief"),
         )
-        .select_from(Legislator)
-        .join(
-            author,
-            and_(
-                author.jurisdiction_id == Legislator.jurisdiction_id,
-                author.external_key.isnot(None),
-                Legislator.external_key.ilike(func.concat("%", author.external_key)),
-            ),
-        )
-        .join(Sponsorship, Sponsorship.legislator_id == author.id)
-        .where(Legislator.id.in_(ids))
-        .group_by(Legislator.id)
+        .where(Sponsorship.legislator_id.in_(ids))
+        .group_by(Sponsorship.legislator_id)
     ).all()
-    return {str(row.id): (row.total, row.chief) for row in rows}
+    return {str(row.legislator_id): (row.total, row.chief) for row in rows}
 
 
 def bill_co_author_counts(db: Session, bill_ids) -> dict[str, int]:
@@ -252,59 +233,6 @@ def get_legislator_by_id(db: Session, legislator_id: str):
     return legislator
 
 
-def canonical_legislator_for_placeholder(db: Session, legislator, session_id):
-    current_service = next(iter(legislator.service_periods), None)
-    if (
-        current_service is None
-        or not current_service.district.code.endswith("-unknown")
-        or not legislator.external_key
-    ):
-        return legislator
-    return (
-        db.scalar(
-            select(Legislator)
-            .join(
-                LegislatorServicePeriod,
-                LegislatorServicePeriod.legislator_id == Legislator.id,
-            )
-            .join(District, District.id == LegislatorServicePeriod.district_id)
-            .where(
-                Legislator.id != legislator.id,
-                Legislator.jurisdiction_id == legislator.jurisdiction_id,
-                Legislator.external_key.ilike(f"%{legislator.external_key}"),
-                LegislatorServicePeriod.session_id == session_id,
-                LegislatorServicePeriod.is_current.is_(True),
-                District.code.not_like("%-unknown"),
-            )
-            .options(
-                selectinload(
-                    Legislator.service_periods.and_(
-                        LegislatorServicePeriod.session_id == session_id,
-                        LegislatorServicePeriod.is_current.is_(True),
-                    )
-                ).selectinload(LegislatorServicePeriod.chamber),
-                selectinload(
-                    Legislator.service_periods.and_(
-                        LegislatorServicePeriod.session_id == session_id,
-                        LegislatorServicePeriod.is_current.is_(True),
-                    )
-                ).selectinload(LegislatorServicePeriod.district),
-                selectinload(
-                    Legislator.committee_memberships.and_(
-                        schema.CommitteeMembership.is_current.is_(True)
-                    )
-                ).selectinload(schema.CommitteeMembership.committee),
-                selectinload(
-                    Legislator.stats.and_(
-                        schema.LegislatorStats.session_id == session_id
-                    )
-                ),
-            )
-        )
-        or legislator
-    )
-
-
 def member_name_by_legislator(db: Session, legislator_ids) -> dict[str, str]:
     """Full name per legislator id, batched in one query for a whole roll call
     (no per-member N+1). Feeds the /votes per-member records (#83)."""
@@ -340,66 +268,6 @@ def member_party_by_legislator(db: Session, legislator_ids) -> dict[str, str | N
         )
     ).all()
     return {str(legislator_id): party for legislator_id, party in rows}
-
-
-def resolve_sponsor_party_district(
-    db: Session, sponsorships, session_id
-) -> dict[str, dict]:
-    """Real party + district for author-keyed sponsor placeholder rows.
-
-    Bill sponsors are stored on the numeric-keyed bill-author Legislator row,
-    whose own service period carries a null party and a "*-unknown" placeholder
-    district (#291). The real party/district live on the member's roster row,
-    linked by the roster external_key *ending with* the author key — the same
-    suffix relationship canonical_legislator_for_placeholder() and
-    authored_bill_counts() resolve. Join each author sponsor to its roster row's
-    current service period (party) and district (label, else code) for the bill's
-    session, one query for the whole sponsor list (no per-sponsor N+1). Returns
-    {author_legislator_id: {"party": ..., "district": ...}}. Sponsors whose own
-    row already carries a real district produce no entry, so sponsor_payloads
-    falls back to their own service period (correct today)."""
-    author_ids = {
-        sponsorship.legislator.id
-        for sponsorship in sponsorships
-        if sponsorship.legislator
-    }
-    if not author_ids:
-        return {}
-    author = aliased(Legislator)
-    roster = aliased(Legislator)
-    rows = db.execute(
-        select(
-            author.id,
-            LegislatorServicePeriod.party,
-            District.label,
-            District.code,
-        )
-        .select_from(author)
-        .join(
-            roster,
-            and_(
-                roster.jurisdiction_id == author.jurisdiction_id,
-                author.external_key.isnot(None),
-                roster.id != author.id,
-                roster.external_key.ilike(func.concat("%", author.external_key)),
-            ),
-        )
-        .join(
-            LegislatorServicePeriod,
-            LegislatorServicePeriod.legislator_id == roster.id,
-        )
-        .join(District, District.id == LegislatorServicePeriod.district_id)
-        .where(
-            author.id.in_(author_ids),
-            LegislatorServicePeriod.session_id == session_id,
-            LegislatorServicePeriod.is_current.is_(True),
-            District.code.not_like("%-unknown"),
-        )
-    ).all()
-    resolved: dict[str, dict] = {}
-    for author_id, party, label, code in rows:
-        resolved.setdefault(str(author_id), {"party": party, "district": label or code})
-    return resolved
 
 
 def tracking_user_id(include_set: set[str], current_user):
@@ -758,11 +626,6 @@ def bill_detail(
         ai_enrichment = current_bill_summary_enrichment(row.enrichments)
     if "ai_analysis" in include_set and ai_enrichment is None:
         raise HTTPException(status_code=404, detail="bill enrichment not found")
-    # Resolve real party/district for author-keyed sponsor placeholder rows once
-    # for both the chief and all-sponsor lists (#291 two-row topology).
-    resolved_sponsors = resolve_sponsor_party_district(
-        db, row.chief_sponsorships + row.sponsorships, row.session_id
-    )
     payload = {
         "id": row.bill_key,
         "title": row.title,
@@ -781,7 +644,6 @@ def bill_detail(
             for item in sponsor_payloads(
                 row.chief_sponsorships,
                 session_id=row.session_id,
-                resolved=resolved_sponsors,
             )
         ],
         "tracking": tracking_payload(row.tracked_by).model_dump()
@@ -796,7 +658,6 @@ def bill_detail(
             for item in sponsor_payloads(
                 row.sponsorships,
                 session_id=row.session_id,
-                resolved=resolved_sponsors,
             )
         ]
     if "progress" in include_set:
@@ -1025,7 +886,6 @@ def legislator_detail(
     session_row = get_session_by_slug(db, session)
     legislator = get_legislator_by_id(db, legislator_id)
     row = db.scalar(legislator_profile_stmt(legislator.id, session_row.id))
-    row = canonical_legislator_for_placeholder(db, row, session_row.id)
     current_service = next(iter(row.service_periods), None)
     payload = {
         "id": str(row.id),
