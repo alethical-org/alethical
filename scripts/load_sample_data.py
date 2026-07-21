@@ -19,7 +19,11 @@ if str(ROOT) not in sys.path:
 from alethical.db import models as schema  # noqa: E402
 from alethical.db.session import normalize_database_url  # noqa: E402
 from alethical.pipeline.rag_ingest import FALLBACK_EMBEDDING_MODEL  # noqa: E402
-from alethical.pipeline.sessions import CURRENT_SESSION_SLUG  # noqa: E402
+from alethical.pipeline.sessions import (  # noqa: E402
+    CURRENT_SESSION_END_DATE,
+    CURRENT_SESSION_SLUG,
+    CURRENT_SESSION_START_DATE,
+)
 
 FIXTURE_ROOT = ROOT / "alethical" / "tests" / "fixtures"
 ArtifactType = schema.ArtifactType
@@ -152,6 +156,11 @@ def seed_reference_data(session: Session) -> dict[str, Any]:
         )
         session.add(current_session)
         session.flush()
+
+    # Idempotently ensure the biennium date range (#343): heals rows created
+    # before these columns were populated, so the seed never leaves them null.
+    current_session.start_date = CURRENT_SESSION_START_DATE
+    current_session.end_date = CURRENT_SESSION_END_DATE
 
     return {"jurisdiction": minnesota, "chambers": chambers, "session": current_session}
 
