@@ -19,6 +19,7 @@ from sqlalchemy import (
     Integer,
     MetaData,
     Numeric,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -399,6 +400,22 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     current_status: Mapped[Optional[str]] = mapped_column(String(200))
     current_status_code: Mapped[Optional[str]] = mapped_column(String(50))
+    # Denormalized per-request signals (#505), maintained by DB triggers (see
+    # alembic 0007) so they can never drift from their source data:
+    #   * has_current_summary — true iff a current non-empty bill_summary
+    #     enrichment exists; equals ``current_bill_summary_enrichment_bill_ids``.
+    #     Lets the list gate read a cheap bill column instead of seq-scanning and
+    #     detoasting the whole ai_enrichment table every request.
+    #   * status_key / status_rank — the list-card status classification and its
+    #     progress rank, precomputed from ``current_status`` via the exact cascade
+    #     in ``bill_status_key_expr`` / ``bill_progress_rank`` (the Python source
+    #     of truth). Lets sort=progress and the status filter read a plain indexed
+    #     column instead of a live lower()/ILIKE CASE cascade.
+    has_current_summary: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    status_key: Mapped[Optional[str]] = mapped_column(String(50))
+    status_rank: Mapped[Optional[int]] = mapped_column(SmallInteger)
     latest_action_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
@@ -456,6 +473,22 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "session_id",
             text("introduced_at DESC NULLS LAST"),
             text("file_number DESC"),
+        ),
+        # Serves sort=progress on the Search Bills list (#505): the default screen
+        # sort orders the summary-having bills of a session by legislative-stage
+        # rank, tie-broken by most-recent activity. Column directions match that
+        # ORDER BY exactly and the partial predicate matches the list gate, so the
+        # planner walks this index instead of recomputing a lower()/ILIKE CASE
+        # cascade over every row and quicksorting ~10k results (~250ms → index
+        # scan on the production corpus).
+        Index(
+            "ix_bill_session_progress",
+            "session_id",
+            "status_rank",
+            text("latest_action_at DESC NULLS LAST"),
+            "file_number",
+            "id",
+            postgresql_where=text("has_current_summary"),
         ),
     )
 
@@ -1137,7 +1170,11 @@ def bill_list_stmt(
         Bill.id.asc(),
     )
     if sort == "progress":
-        order_by = (bill_progress_rank().asc(), *recency_order)
+        # Read the precomputed rank column (#505) rather than recomputing the
+        # lower()/ILIKE CASE cascade per row. ``Bill.status_rank`` is maintained
+        # by the DB trigger from the exact ``bill_progress_rank`` cascade, so the
+        # order is identical; ix_bill_session_progress serves it without a sort.
+        order_by = (Bill.status_rank.asc(), *recency_order)
     elif sort == "introduced":
         order_by = (
             Bill.introduced_at.desc().nullslast(),
@@ -1150,7 +1187,11 @@ def bill_list_stmt(
         select(Bill)
         .where(
             Bill.session_id == session_id,
-            Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
+            # Precomputed gate (#505): identical to the
+            # ``current_bill_summary_enrichment_bill_ids`` semi-join (the trigger
+            # maintains the column from that exact predicate), but reads a cheap
+            # bill column instead of seq-scanning + detoasting ai_enrichment.
+            Bill.has_current_summary.is_(True),
         )
         .options(*options)
         .order_by(*order_by)
@@ -1229,7 +1270,8 @@ def legislator_sponsored_bills_stmt(
     conditions = [
         Sponsorship.legislator_id == legislator_id,
         Bill.session_id == session_id,
-        Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
+        # Precomputed gate (#505) — identical to the semi-join it replaces.
+        Bill.has_current_summary.is_(True),
     ]
     if role is not None:
         conditions.append(Sponsorship.role == role)
@@ -1285,7 +1327,8 @@ def tracked_bills_stmt(user_id: uuid.UUID):
         select(TrackedBill)
         .where(
             TrackedBill.user_id == user_id,
-            TrackedBill.bill_id.in_(current_bill_summary_enrichment_bill_ids()),
+            # Precomputed gate (#505) — identical to the semi-join it replaces.
+            TrackedBill.bill.has(Bill.has_current_summary.is_(True)),
         )
         .options(
             selectinload(TrackedBill.bill).selectinload(Bill.stats),

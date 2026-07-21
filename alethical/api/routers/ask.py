@@ -49,9 +49,6 @@ Sponsorship = schema.Sponsorship
 SponsorshipRole = schema.SponsorshipRole
 bill_list_stmt = schema.bill_list_stmt
 semantic_rag_chunk_stmt = schema.semantic_rag_chunk_stmt
-current_bill_summary_enrichment_bill_ids = (
-    schema.current_bill_summary_enrichment_bill_ids
-)
 
 router = APIRouter()
 
@@ -111,7 +108,8 @@ def _matched_bill_ids_select(session_id, topic_value: str):
     )
     return select(Bill.id).where(
         Bill.session_id == session_id,
-        Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
+        # Precomputed gate (#505) — identical to the semi-join it replaces.
+        Bill.has_current_summary.is_(True),
         or_(
             Bill.id.in_(matching_policy_area_bills),
             Bill.title.ilike(pattern),
