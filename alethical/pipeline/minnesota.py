@@ -1517,18 +1517,25 @@ class MinnesotaIngestionPipeline:
             )
             # MN reuses DOCUMENT_ENGROSSMENT across document tracks: an official and
             # an unofficial engrossment both arrive as "1" (they differ only by
-            # DOCUMENT_TYPE, e.g. "official" vs "ue"), so keying on the engrossment
-            # alone collides on (bill_id, version_code) and the second silently
-            # overwrites the first (#467). Namespace non-official engrossments by
-            # their document type ("ue-1") so each track stays distinct. Official
-            # stays bare (the common case — keeps existing version URLs stable), and
-            # CCR engrossments are letters that never collide, so they stay bare too.
-            # Kept URL-safe (lowercase, no spaces/slashes) for the frontend version
-            # id and the /bills/{bill_id}/versions/{version_code} route.
-            if engrossment and document_type not in ("", "official", "ccr"):
-                version_code = f"{document_type}-{engrossment}"
-            else:
+            # DOCUMENT_TYPE, e.g. "official" vs "ue"), and a conference committee
+            # report commonly carries DOCUMENT_ENGROSSMENT="0" (no engrossment
+            # letter) — the same "0" the introduced official version uses. Keying on
+            # the engrossment alone collides on (bill_id, version_code) and the
+            # second row silently overwrites the first (#467): the unofficial
+            # clobbers the official 1st engrossment, and the CCR clobbers the
+            # introduced text. Namespace every non-official track by its document
+            # type so each stays distinct ("ue-1", "ccr-0", or a bare "ccr" when the
+            # CCR has no engrossment) and a CCR never lands on a bare engrossment
+            # number. Official stays bare (the common case — keeps existing version
+            # URLs stable). Kept URL-safe (lowercase, no spaces/slashes) for the
+            # frontend version id and the /bills/{bill_id}/versions/{version_code}
+            # route.
+            if document_type in ("", "official"):
                 version_code = engrossment or document_type or str(index)
+            else:
+                version_code = (
+                    f"{document_type}-{engrossment}" if engrossment else document_type
+                )
             if not version_code or version_code == "none":
                 version_code = f"version-{index}"
             version = self.db.scalar(
