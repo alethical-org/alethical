@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -58,6 +59,7 @@ class BackfillStats:
     records_created: int = 0
     no_source_match: int = 0
     ambiguous_or_missing_names: int = 0
+    write_errors: int = 0
 
 
 def supabase_database_url() -> str | None:
@@ -185,12 +187,27 @@ def parse_house_votes(
     return votes
 
 
-def get_text(url: str) -> str:
-    response = requests.get(
-        url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS
-    )
-    response.raise_for_status()
-    return response.text
+def get_text(url: str, *, retries: int = 4, backoff: float = 2.0) -> str:
+    # The MN House votes endpoint returns intermittent 500s under rapid requests,
+    # so retry transient (5xx / connection) failures with exponential backoff;
+    # a 4xx still fails fast.
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            response = requests.get(
+                url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS
+            )
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as exc:
+            status = getattr(exc.response, "status_code", None)
+            if status is not None and status < 500:
+                raise
+            last_exc = exc
+            if attempt < retries - 1:
+                time.sleep(backoff * (2**attempt))
+    assert last_exc is not None
+    raise last_exc
 
 
 def senate_pdf_for_page(journal_page: str) -> tuple[str, int]:
@@ -398,15 +415,41 @@ def find_matching_vote(
     return None
 
 
-def backfill_votes(db: Session, *, limit: int | None, dry_run: bool) -> BackfillStats:
-    actions = db.scalars(
+def backfill_votes(
+    db: Session,
+    *,
+    limit: int | None,
+    dry_run: bool,
+    only_missing: bool = False,
+    bill: str | None = None,
+) -> BackfillStats:
+    query = (
         select(BillAction)
         .join(Bill, Bill.id == BillAction.bill_id)
         .where(BillAction.roll_call_text.op("~")(r"^\s*\d+\s*-\s*\d+\s*$"))
-        .order_by(
-            Bill.file_type.asc(), Bill.file_number.asc(), BillAction.action_number.asc()
+    )
+    # Single-bill filter (e.g. "HF1141") for targeted re-ingest / verification.
+    if bill:
+        match = re.match(r"^\s*([HS]F)\s*0*(\d+)\s*$", bill, flags=re.I)
+        if not match:
+            raise SystemExit(f"--bill must look like 'HF1141', got: {bill!r}")
+        query = query.where(
+            Bill.file_type == match.group(1).upper(),
+            Bill.file_number == int(match.group(2)),
         )
-        .limit(limit)
+    # Incremental mode: skip roll-call actions that already have a vote event, so
+    # a re-run only fills the gap (keeps the corpus current without re-fetching
+    # and rewriting the events that are already ingested).
+    if only_missing:
+        query = query.where(
+            ~select(VoteEvent.id)
+            .where(VoteEvent.bill_action_id == BillAction.id)
+            .exists()
+        )
+    actions = db.scalars(
+        query.order_by(
+            Bill.file_type.asc(), Bill.file_number.asc(), BillAction.action_number.asc()
+        ).limit(limit)
     ).all()
     stats = {
         "actions_seen": 0,
@@ -414,6 +457,7 @@ def backfill_votes(db: Session, *, limit: int | None, dry_run: bool) -> Backfill
         "records_created": 0,
         "no_source_match": 0,
         "ambiguous_or_missing_names": 0,
+        "write_errors": 0,
     }
     house_cache: dict[str, list[ParsedVote]] = {}
     senate_cache: dict[str, str] = {}
@@ -491,71 +535,87 @@ def backfill_votes(db: Session, *, limit: int | None, dry_run: bool) -> Backfill
             )
             continue
 
-        db.execute(
-            delete(VoteRecord).where(
-                VoteRecord.vote_event_id.in_(
-                    select(VoteEvent.id).where(VoteEvent.bill_action_id == action.id)
-                )
-            )
-        )
-        db.execute(delete(VoteEvent).where(VoteEvent.bill_action_id == action.id))
-        event = VoteEvent(
-            bill_id=bill.id,
-            bill_action_id=action.id,
-            chamber_id=chamber.id,
-            motion_text=parsed_vote.motion_text or action.action_text,
-            result_text=action.action_text,
-            occurred_at=parsed_vote.occurred_at or action.action_at,
-            official_url=parsed_vote.official_url,
-            yes_count=yes_count,
-            no_count=no_count,
-        )
-        db.add(event)
-        db.flush()
-        stats["events_created"] += 1
-
-        if chamber.id not in legislator_indexes:
-            legislator_indexes[chamber.id] = build_legislator_index(db, chamber.id)
-        index = legislator_indexes[chamber.id]
-        sort_order = 0
-        seen_legislator_ids: set[Any] = set()
-        for vote_value, names in [
-            (VoteValue.yes, parsed_vote.affirmative_names),
-            (VoteValue.no, parsed_vote.negative_names),
-        ]:
-            for name in names:
-                legislator = resolve_name(name, index)
-                if legislator is None:
-                    stats["ambiguous_or_missing_names"] += 1
-                    continue
-                if legislator.id in seen_legislator_ids:
-                    stats["ambiguous_or_missing_names"] += 1
-                    continue
-                seen_legislator_ids.add(legislator.id)
-                sort_order += 1
-                db.add(
-                    VoteRecord(
-                        vote_event_id=event.id,
-                        legislator_id=legislator.id,
-                        vote_value=vote_value,
-                        sort_order=sort_order,
+        # Commit per action and isolate write failures: one bad action rolls back
+        # only itself (leaving it to be retried on a re-run) instead of crashing
+        # the whole backfill and losing every event created so far.
+        local_records = 0
+        local_ambiguous = 0
+        try:
+            db.execute(
+                delete(VoteRecord).where(
+                    VoteRecord.vote_event_id.in_(
+                        select(VoteEvent.id).where(
+                            VoteEvent.bill_action_id == action.id
+                        )
                     )
                 )
-                stats["records_created"] += 1
-
-        bill_stats = db.scalar(select(BillStats).where(BillStats.bill_id == bill.id))
-        if bill_stats is not None:
-            bill_stats.vote_event_count = (
-                db.scalar(
-                    select(func.count())
-                    .select_from(VoteEvent)
-                    .where(VoteEvent.bill_id == bill.id)
-                )
-                or 0
             )
+            db.execute(delete(VoteEvent).where(VoteEvent.bill_action_id == action.id))
+            event = VoteEvent(
+                bill_id=bill.id,
+                bill_action_id=action.id,
+                chamber_id=chamber.id,
+                motion_text=parsed_vote.motion_text or action.action_text,
+                result_text=action.action_text,
+                occurred_at=parsed_vote.occurred_at or action.action_at,
+                official_url=parsed_vote.official_url,
+                yes_count=yes_count,
+                no_count=no_count,
+            )
+            db.add(event)
+            db.flush()
 
-    if not dry_run:
-        db.commit()
+            if chamber.id not in legislator_indexes:
+                legislator_indexes[chamber.id] = build_legislator_index(db, chamber.id)
+            index = legislator_indexes[chamber.id]
+            sort_order = 0
+            seen_legislator_ids: set[Any] = set()
+            for vote_value, names in [
+                (VoteValue.yes, parsed_vote.affirmative_names),
+                (VoteValue.no, parsed_vote.negative_names),
+            ]:
+                for name in names:
+                    legislator = resolve_name(name, index)
+                    if legislator is None or legislator.id in seen_legislator_ids:
+                        local_ambiguous += 1
+                        continue
+                    seen_legislator_ids.add(legislator.id)
+                    sort_order += 1
+                    db.add(
+                        VoteRecord(
+                            vote_event_id=event.id,
+                            legislator_id=legislator.id,
+                            vote_value=vote_value,
+                            sort_order=sort_order,
+                        )
+                    )
+                    local_records += 1
+
+            bill_stats = db.scalar(
+                select(BillStats).where(BillStats.bill_id == bill.id)
+            )
+            if bill_stats is not None:
+                bill_stats.vote_event_count = (
+                    db.scalar(
+                        select(func.count())
+                        .select_from(VoteEvent)
+                        .where(VoteEvent.bill_id == bill.id)
+                    )
+                    or 0
+                )
+            db.commit()
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            stats["write_errors"] += 1
+            print(
+                f"write error: {bill.bill_key} action {action.action_number}: {type(exc).__name__}: {exc}"
+            )
+            continue
+
+        stats["events_created"] += 1
+        stats["records_created"] += local_records
+        stats["ambiguous_or_missing_names"] += local_ambiguous
+
     return BackfillStats(**stats)
 
 
@@ -571,6 +631,16 @@ def main() -> None:
     )
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--only-missing",
+        action="store_true",
+        help="Only process roll-call actions that have no vote event yet.",
+    )
+    parser.add_argument(
+        "--bill",
+        default=None,
+        help="Restrict to a single bill, e.g. 'HF1141' (for targeted re-ingest).",
+    )
     args = parser.parse_args()
     if not args.database_url:
         raise SystemExit("DATABASE_URL or Supabase env vars are required")
@@ -580,7 +650,13 @@ def main() -> None:
         connect_args=NO_PREPARED_STATEMENTS,
     )
     with Session(engine) as db:
-        stats = backfill_votes(db, limit=args.limit, dry_run=args.dry_run)
+        stats = backfill_votes(
+            db,
+            limit=args.limit,
+            dry_run=args.dry_run,
+            only_missing=args.only_missing,
+            bill=args.bill,
+        )
         print(stats)
 
 
