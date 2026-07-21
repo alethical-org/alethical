@@ -67,7 +67,6 @@ Sponsorship = schema.Sponsorship
 SponsorshipRole = schema.SponsorshipRole
 bill_detail_stmt = schema.bill_detail_stmt
 bill_list_stmt = schema.bill_list_stmt
-bill_status_key_expr = schema.bill_status_key_expr
 find_my_legislator_stmt = schema.find_my_legislator_stmt
 legislator_directory_stmt = schema.legislator_directory_stmt
 legislator_profile_stmt = schema.legislator_profile_stmt
@@ -337,9 +336,10 @@ def district_for_match(db: Session, match: DistrictMatch | None):
 def status_filter_clause(status: str):
     """Filter bills to a single status, matching the list-card badge exactly.
 
-    Classifies each bill with ``bill_status_key_expr`` — the same cascade the
-    displayed badge uses — and keeps only the bills whose derived key equals the
-    selected status. Because every bill maps to exactly one status, the six
+    Reads the precomputed ``Bill.status_key`` column (#505), which the DB trigger
+    maintains from the exact ``bill_status_key_expr`` cascade the displayed badge
+    uses, and keeps only the bills whose key equals the selected status. Because
+    every bill maps to exactly one status, the six
     filters are mutually exclusive and their counts sum to the session total
     (the prior per-status OR-substring match double-counted any bill whose
     latest-action text hit two stages, e.g. "Introduction and first reading,
@@ -347,7 +347,10 @@ def status_filter_clause(status: str):
     unrecognized status matches nothing, which is correct — it has no bills.
     """
     normalized = status.strip().lower().replace(" ", "_")
-    return bill_status_key_expr() == normalized
+    # Read the precomputed status_key column (#505) rather than recomputing the
+    # lower()/ILIKE cascade per row. The DB trigger maintains it from the exact
+    # ``bill_status_key_expr`` cascade, so the classification is identical.
+    return Bill.status_key == normalized
 
 
 @router.get("/meta", response_model=DetailResponse)
