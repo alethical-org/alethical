@@ -26,6 +26,17 @@ import { useAuth } from '../../providers/AuthProvider';
 import { useBill, useSessions } from '../../hooks/useAppQueries';
 import { Bill, BillAction, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../components/search/searchPieces';
+import {
+  authorDisplayName,
+  chamberBillLabel,
+  chiefAuthor,
+  coAuthorCount,
+  formatNiceDate,
+  isKnownDistrict,
+  isLaw,
+  partyFull,
+  readLabel,
+} from '../../lib/billDetail';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
 // Bill Detail — mobile-first, single scrolling page (docs/mockups/bill-detail-mobile).
@@ -72,32 +83,9 @@ function statusTone(status: string): Tone {
   return 'neutral';
 }
 
-function billLabelFromIdentifier(identifier: string): string {
-  const prefix = identifier.trim().slice(0, 2).toUpperCase();
-  if (prefix === 'SF') return 'SENATE BILL';
-  if (prefix === 'HF') return 'HOUSE BILL';
-  return 'BILL';
-}
-
-function partySpelledOut(party?: string): string {
-  const p = (party ?? '').toUpperCase();
-  if (p === 'DFL') return 'Democratic–Farmer–Labor';
-  if (p === 'R' || p === 'REPUBLICAN') return 'Republican';
-  if (p === 'I' || p === 'IND' || p === 'INDEPENDENT') return 'Independent';
-  return party ? party : 'Independent';
-}
-
-// The facts-card status date: honest about what we have. Signed/enacted bills that
-// carry an explicit "effective" action label read EFFECTIVE; everything else reads
-// LATEST ACTION. We never invent an effective date the record doesn't state.
-function statusDate(bill: Bill): { label: string; value: string } | null {
-  const actionText = bill.latestActionText?.trim();
-  const date = bill.updatedAt && bill.updatedAt !== 'Unknown' ? bill.updatedAt : '';
-  const value = actionText || date;
-  if (!value) return null;
-  const effective = statusTone(bill.status) === 'green' && /effective/i.test(actionText ?? '');
-  return { label: effective ? 'EFFECTIVE' : 'LATEST ACTION', value };
-}
+// Chamber label, party spelled out, effective/latest-action date, and chief-author
+// display all come from the shared lib/billDetail helpers (parity with the web
+// FactsRail); no mobile-local duplicates.
 
 type Dot = 'green' | 'red' | 'vote' | 'scheduled' | 'plain';
 
@@ -400,10 +388,33 @@ function BillDetailMobileScreen() {
     if (!bill) return null;
     const now = bill.updatedAt && bill.updatedAt !== 'Unknown' ? new Date(bill.updatedAt) : null;
     const tone = statusTone(bill.status);
-    const chief = (bill.sponsors ?? []).find((s) => s.role === 'chief_author');
+    // Mirror the shipped web FactsRail (lib/billDetail): honest chief-author +
+    // effective-date + issues wiring, reusing shared helpers.
+    const chief = chiefAuthor(bill);
     const keyPoints = bill.aiAnalysis?.keyPoints ?? [];
-    const lede = bill.aiAnalysis?.summary?.trim() ?? '';
-    const dateInfo = statusDate(bill);
+    // The key-point bullets ARE the plain-language summary; the standalone summary
+    // paragraph is shown only as a fallback when there are no bullets (drops the
+    // redundant prose the design removed).
+    const summary = bill.aiAnalysis?.summary?.trim() ?? '';
+    const citations = bill.citations ?? [];
+    const issues = (bill.topics?.length ? bill.topics : (bill.aiAnalysis?.policyAreas ?? [])).slice(
+      0,
+      6,
+    );
+    const coauthors = coAuthorCount(bill);
+    const law = isLaw(bill.status);
+    // Signed → EFFECTIVE {date}; otherwise LATEST ACTION {text · date}. Never the
+    // literal "Effective date" status string, and never a "· Unknown" date suffix.
+    const niceDate =
+      bill.updatedAt && bill.updatedAt !== 'Unknown' ? formatNiceDate(bill.updatedAt) : '';
+    const dateLabel = law ? 'EFFECTIVE' : 'LATEST ACTION';
+    const dateValue = law
+      ? niceDate
+      : bill.latestActionText
+        ? `${bill.latestActionText}${niceDate ? ` · ${niceDate}` : ''}`
+        : niceDate;
+    const overviewUrl = bill.officialLinks?.[0]?.url;
+    const readUrl = bill.versions?.[0]?.url ?? overviewUrl;
     // Newest-first timeline (API returns chronological; reverse for display).
     const actions = [...bill.actions].reverse().map((a) => {
       const upcoming = a.date ? isUpcoming(a.date, now) : false;
@@ -411,7 +422,22 @@ function BillDetailMobileScreen() {
       return { ...a, upcoming, dot, isVote };
     });
     const hasVotes = bill.votes.length > 0;
-    return { tone, chief, keyPoints, lede, dateInfo, actions, hasVotes };
+    return {
+      tone,
+      chief,
+      keyPoints,
+      summary,
+      citations,
+      issues,
+      coauthors,
+      law,
+      dateLabel,
+      dateValue,
+      overviewUrl,
+      readUrl,
+      actions,
+      hasVotes,
+    };
   }, [bill]);
 
   const shellProps = {
@@ -506,7 +532,8 @@ function BillDetailMobileScreen() {
               <Text accessibilityRole="header" style={styles.h2}>
                 Key points
               </Text>
-              {vm.lede ? <Text style={styles.lede}>{vm.lede}</Text> : null}
+              {/* The cited bullets ARE the plain-language summary; fall back to the
+                  summary paragraph only when there are no bullets (item 1). */}
               {vm.keyPoints.length > 0 ? (
                 <View style={styles.points}>
                   {vm.keyPoints.map((point, i) => (
@@ -516,36 +543,55 @@ function BillDetailMobileScreen() {
                     </View>
                   ))}
                 </View>
+              ) : vm.summary ? (
+                <Text style={styles.lede}>{vm.summary}</Text>
+              ) : null}
+
+              {/* CITED SECTIONS strip (renders when the record carries citations;
+                  empty until traceable key-point citations ship, #377). */}
+              {vm.citations.length > 0 ? (
+                <View style={styles.citedStrip}>
+                  <View style={styles.citedLabelRow}>
+                    <Text style={styles.citedLabel}>CITED SECTIONS</Text>
+                    <CircleCheck />
+                  </View>
+                  <View style={styles.citedChips}>
+                    {vm.citations.map((c, i) => (
+                      <View key={`${c.id}-${i}`} style={styles.citedChip}>
+                        <Text style={styles.citedChipText}>{c.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
               ) : null}
 
               {/* Facts card */}
               <View style={styles.factsCard}>
-                {vm.dateInfo ? (
+                {vm.dateValue ? (
                   <View style={styles.factsBlock}>
-                    <Text style={styles.factsLabel}>{vm.dateInfo.label}</Text>
-                    <Text style={styles.factsValue}>{vm.dateInfo.value}</Text>
+                    <Text style={styles.factsLabel}>{vm.dateLabel}</Text>
+                    <Text style={styles.factsValue}>{vm.dateValue}</Text>
                   </View>
                 ) : null}
 
                 <View style={[styles.factsBlock, styles.factsDivider]}>
-                  <Text style={styles.factsLabel}>{billLabelFromIdentifier(bill.identifier)}</Text>
+                  <Text style={styles.factsLabel}>{chamberBillLabel(bill.identifier)}</Text>
                   <View style={styles.codeBadgeWrap}>
                     <Text style={styles.codeBadge}>{bill.identifier}</Text>
                   </View>
                   <View style={styles.factsLinks}>
-                    {bill.officialLinks.length > 0 ? (
+                    {vm.overviewUrl ? (
                       <TextLink
-                        label={vm.tone === 'green' ? 'Read the full law →' : 'Read the bill text →'}
-                        onPress={() => openExternal(bill.officialLinks[0].url)}
+                        label="Bill overview →"
+                        onPress={() => openExternal(vm.overviewUrl as string)}
                       />
                     ) : null}
-                    {bill.officialLinks.slice(1).map((link) => (
+                    {vm.readUrl ? (
                       <TextLink
-                        key={link.id}
-                        label={`${link.label} →`}
-                        onPress={() => openExternal(link.url)}
+                        label={`${readLabel(bill.status)} →`}
+                        onPress={() => openExternal(vm.readUrl as string)}
                       />
-                    ))}
+                    ) : null}
                   </View>
                 </View>
 
@@ -553,14 +599,14 @@ function BillDetailMobileScreen() {
                   <View style={[styles.factsBlock, styles.factsDivider]}>
                     <View style={styles.factsHeaderRow}>
                       <Text style={styles.factsLabel}>CHIEF AUTHOR</Text>
-                      {typeof bill.coAuthorCount === 'number' && bill.coAuthorCount > 0 ? (
-                        <Text style={styles.coauthors}>+{bill.coAuthorCount} co-authors</Text>
+                      {vm.coauthors > 0 ? (
+                        <Text style={styles.coauthors}>+{vm.coauthors} co-authors</Text>
                       ) : null}
                     </View>
                     {vm.chief.legislatorId ? (
                       <View style={styles.authorNameRow}>
                         <TextLink
-                          label={`${vm.chief.name} →`}
+                          label={`${authorDisplayName(vm.chief.name, vm.chief.chamber)} →`}
                           size={19}
                           onPress={() =>
                             navigation.navigate('LegislatorProfile', {
@@ -570,28 +616,37 @@ function BillDetailMobileScreen() {
                         />
                       </View>
                     ) : (
-                      <Text style={styles.authorNamePlain}>{vm.chief.name}</Text>
+                      <Text style={styles.authorNamePlain}>
+                        {authorDisplayName(vm.chief.name, vm.chief.chamber)}
+                      </Text>
                     )}
-                    <View style={styles.factsRows}>
-                      <View style={styles.factsKvRow}>
-                        <Text style={styles.factsKvKey}>Party</Text>
-                        <Text style={styles.factsKvVal}>{partySpelledOut(vm.chief.party)}</Text>
+                    {/* Party/District shown only when known — unknown values (party
+                        null, "S-unknown" district) are a backend join gap (#302),
+                        not shown as a wrong fallback. */}
+                    {vm.chief.party || isKnownDistrict(vm.chief.district) ? (
+                      <View style={styles.factsRows}>
+                        {vm.chief.party ? (
+                          <View style={styles.factsKvRow}>
+                            <Text style={styles.factsKvKey}>Party</Text>
+                            <Text style={styles.factsKvVal}>{partyFull(vm.chief.party)}</Text>
+                          </View>
+                        ) : null}
+                        {isKnownDistrict(vm.chief.district) ? (
+                          <View style={styles.factsKvRow}>
+                            <Text style={styles.factsKvKey}>District</Text>
+                            <Text style={styles.factsKvVal}>{vm.chief.district}</Text>
+                          </View>
+                        ) : null}
                       </View>
-                      {vm.chief.district ? (
-                        <View style={styles.factsKvRow}>
-                          <Text style={styles.factsKvKey}>District</Text>
-                          <Text style={styles.factsKvVal}>{vm.chief.district}</Text>
-                        </View>
-                      ) : null}
-                    </View>
+                    ) : null}
                   </View>
                 ) : null}
 
-                {bill.topics.length > 0 ? (
+                {vm.issues.length > 0 ? (
                   <View style={[styles.factsBlock, styles.factsDivider]}>
                     <Text style={styles.factsLabel}>ISSUES</Text>
                     <View style={styles.issueRow}>
-                      {bill.topics.slice(0, 6).map((topic) => (
+                      {vm.issues.map((topic) => (
                         <View key={topic} style={styles.issueChip}>
                           <Text style={styles.issueChipText}>{titleCaseIssue(topic)}</Text>
                         </View>
@@ -602,7 +657,7 @@ function BillDetailMobileScreen() {
               </View>
 
               {/* Ask about this bill */}
-              <AskCard placeholder="Ask a question about this bill" onAsk={goAsk} />
+              <AskCard placeholder={`Ask a question about ${bill.identifier}`} onAsk={goAsk} />
             </Section>
 
             {/* 4 — Actions */}
@@ -1381,6 +1436,33 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.medium,
     lineHeight: 28,
     color: '#2c322c',
+  },
+
+  // cited sections strip (mono label + green check, then purple § chips)
+  citedStrip: { marginTop: 22 },
+  citedLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  citedLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.7,
+    color: t.colors.text.faint,
+  },
+  citedChips: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  citedChip: {
+    backgroundColor: t.colors.purple.tint,
+    borderWidth: 1,
+    borderColor: t.colors.purple.border,
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+  citedChipText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.2,
+    color: t.colors.purple.base,
   },
 
   // facts card
