@@ -63,9 +63,9 @@ export function SearchLegislatorsScreen() {
   const hasIndependent = allLegislators.some((legislator) => legislator.party === 'I');
   const partyOptions = [
     { label: 'All parties', value: 'All' },
-    { label: 'DFL', value: 'DFL' },
-    { label: 'R', value: 'R' },
-    ...(hasIndependent ? [{ label: 'I', value: 'I' }] : []),
+    { label: 'Democratic-Farmer-Labor', value: 'DFL' },
+    { label: 'Republican', value: 'R' },
+    ...(hasIndependent ? [{ label: 'Independent', value: 'I' }] : []),
   ];
   const partyLabel = partyOptions.find((option) => option.value === party)?.label ?? 'All parties';
 
