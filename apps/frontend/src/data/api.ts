@@ -847,7 +847,13 @@ function cleanOfficeAddress(value?: string | null) {
         line !== '*' &&
         !/^e-?mail:/i.test(line) &&
         !/^email updates:/i.test(line) &&
-        !/^click to subscribe/i.test(line),
+        !/^click to subscribe/i.test(line) &&
+        // Redundant with the "Capitol Office" label, the separate phone field, and
+        // the newsletter CTA the source page appends to the address blob.
+        !/^capitol office$/i.test(line) &&
+        !/^subscribe to (my )?newsletter/i.test(line) &&
+        !/^meeting request:/i.test(line) &&
+        !/^[\d\s().+-]{7,}$/.test(line),
     );
   const unique = lines.filter((line, index) => lines.indexOf(line) === index);
   return unique.join('\n') || undefined;

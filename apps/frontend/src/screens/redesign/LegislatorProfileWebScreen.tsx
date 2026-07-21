@@ -131,17 +131,19 @@ export function LegislatorProfileWebScreen() {
   }
 
   const chamberWord = legislator.chamber; // "House" | "Senate"
+  const displayName = officialName(legislator.name, chamberWord);
   const partyLabel = partyFull(legislator.party);
   const districtLine = `${chamberWord} District ${legislator.district}`;
   const shareUrl =
     isWeb && typeof window !== 'undefined'
       ? `${window.location.origin}/legislators/${encodeURIComponent(legislator.id)}`
       : `https://alethical.com/legislators/${encodeURIComponent(legislator.id)}`;
-  const shareTitle = `${legislator.name} — ${partyLabel}, ${districtLine}`;
+  const shareTitle = `${displayName} — ${partyLabel}, ${districtLine}`;
 
   const hero = (
     <Hero
       legislator={legislator}
+      displayName={displayName}
       districtLine={districtLine}
       partyLabel={partyLabel}
       shareUrl={shareUrl}
@@ -215,7 +217,7 @@ export function LegislatorProfileWebScreen() {
           </View>
         </View>
 
-        <RoadmapZone legislatorName={legislator.name} onClaim={() => setClaimOpen(true)} />
+        <RoadmapZone legislatorName={displayName} onClaim={() => setClaimOpen(true)} />
       </View>
 
       {/* RIGHT COLUMN — contact / source of record */}
@@ -251,7 +253,7 @@ export function LegislatorProfileWebScreen() {
   );
 
   const overlay = claimOpen ? (
-    <ClaimModal legislatorName={legislator.name} onClose={() => setClaimOpen(false)} />
+    <ClaimModal legislatorName={displayName} onClose={() => setClaimOpen(false)} />
   ) : null;
 
   return shell(body, hero, overlay);
@@ -259,15 +261,17 @@ export function LegislatorProfileWebScreen() {
 
 // Build the member's chief-author list URL on the Revisor (the official source
 // the "See more" hands off to). The Revisor keys the list on the member's chamber
-// profile id (House: /profile/{id}; Senate: member_bio.html?mem_id={id}), which we
-// read out of profile_url. Falls back to the official profile page when the id
-// can't be parsed, so the link always resolves.
+// id, which we read out of profile_url — House: house.mn.gov/members/profile/{id};
+// Senate: senate.leg.state.mn.us/members/member_bio.php?leg_id={id}. Both confirmed
+// to resolve to the member's real chief-author list. Falls back to the official
+// profile page when the id can't be parsed, so the link always resolves.
 function chiefAuthorListUrl(legislator: Legislator): string {
   const url = legislator.profileUrl ?? '';
   const body = legislator.chamber === 'Senate' ? 'Senate' : 'House';
-  const houseId = url.match(/\/profile\/(\d+)/)?.[1];
-  const senateId = url.match(/mem_id=(\d+)/)?.[1];
-  const legid = body === 'House' ? houseId : senateId;
+  const legid =
+    body === 'House'
+      ? url.match(/\/profile\/(\d+)/)?.[1]
+      : url.match(/(?:leg_id|mem_id)=(\d+)/)?.[1];
   if (!legid) return legislator.profileUrl ?? 'https://www.revisor.mn.gov/bills/';
   return (
     'https://www.revisor.mn.gov/revisor/pages/search_status/status_result.php' +
@@ -275,9 +279,20 @@ function chiefAuthorListUrl(legislator: Legislator): string {
   );
 }
 
+// Normalize a member's name to the official title form the design uses
+// ("Sen. Omar Fateh" / "Rep. Patty Acomb"): strip any existing title prefix
+// (the source is inconsistent — "Senator Omar Fateh", "Patty Acomb") and prefix
+// the chamber-appropriate abbreviation.
+function officialName(name: string, chamber: string): string {
+  const bare = name.replace(/^(sen\.|senator|rep\.|representative)\s+/i, '').trim();
+  const title = chamber === 'Senate' ? 'Sen.' : chamber === 'House' ? 'Rep.' : '';
+  return title ? `${title} ${bare}` : bare;
+}
+
 // --- Hero: breadcrumb + eyebrow + portrait + identity + Share ---
 function Hero({
   legislator,
+  displayName,
   districtLine,
   partyLabel,
   shareUrl,
@@ -286,6 +301,7 @@ function Hero({
   isDesktop,
 }: {
   legislator: Legislator;
+  displayName: string;
   districtLine: string;
   partyLabel: string;
   shareUrl: string;
@@ -299,10 +315,10 @@ function Hero({
       <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
       <View style={[styles.heroRow, !isDesktop && styles.heroRowMobile]}>
         <View style={styles.identityRow}>
-          <Portrait uri={legislator.photoUrl} name={legislator.name} />
+          <Portrait uri={legislator.photoUrl} name={displayName} />
           <View style={styles.identityText}>
             <Text style={[styles.h1, !isDesktop && styles.h1Mobile]} accessibilityRole="header">
-              {legislator.name}
+              {displayName}
             </Text>
             <View style={styles.metaRow}>
               <Text style={styles.metaText}>{districtLine}</Text>
@@ -620,19 +636,15 @@ function RoadmapZone({ legislatorName, onClaim }: { legislatorName: string; onCl
         <View style={styles.dashedCard}>
           <Text style={styles.roadmapH3}>Why the votes?</Text>
           <Text style={styles.roadmapBody}>
-            See a roll call and wonder why {shortNameFor(legislatorName)} voted that way? Once
-            claimed, a legislator will have the option to explain any vote they cast — right here,
-            in their own words, alongside the record.
+            See a roll call and wonder why {legislatorName} voted that way? Once claimed, a
+            legislator will have the option to explain any vote they cast — right here, in their own
+            words, alongside the record.
           </Text>
           <VoteExplanationPreview />
         </View>
       </View>
     </View>
   );
-}
-
-function shortNameFor(name: string): string {
-  return name;
 }
 
 function ClaimButton({ onPress }: { onPress: () => void }) {
