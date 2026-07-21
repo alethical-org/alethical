@@ -288,6 +288,7 @@ interface ApiRepresentativeLookupPayload {
 interface ApiBillVersionPayload {
   version_code: string;
   version_name?: string | null;
+  document_date?: string | null;
   html_url?: string | null;
   pdf_url?: string | null;
   is_current: boolean;
@@ -506,6 +507,69 @@ function formatUpdatedAt(date?: string | null) {
 
 function formatOptionalDate(date?: string | null) {
   return date ? date.slice(0, 10) : '';
+}
+
+function ordinal(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${n}th`;
+  }
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
+function engrossmentLabel(sequence: number, unofficial: boolean): string {
+  if (sequence === 0) {
+    return 'As introduced';
+  }
+  return `${ordinal(sequence)} ${unofficial ? 'unofficial engrossment' : 'engrossment'}`;
+}
+
+// Turn a Minnesota version code/name into a reader-friendly label (#433).
+// Sampled across production, versions arrive in two shapes:
+//   - friendly:  "HF 1 4th Engrossment - 94th Legislature (2025 - 2026)"
+//                "SF 856 1st Unofficial Engrossment - ...", "HF 31 Introduction - ..."
+//   - raw code:  "2026.0-HF4138-5", "2025.0-UES0334-1" (YYYY.N-{PREFIX}{file}-{seq})
+// version_code carries the engrossment sequence ("0", "1", ...) or "current".
+// (MN's text_versions have no separate "session law" entry, so enacted bills
+// simply end at their highest engrossment — there is no chapter label to derive.)
+function versionDisplayName(code: string, name?: string | null): string {
+  const raw = (name ?? '').trim();
+
+  // Friendly form: the descriptor sits between the file id and the Legislature suffix.
+  const friendly = raw.match(/^(?:HF|SF)\s+\d+\s+(.+?)\s+-\s+\d+\w*\s+Legislature/i);
+  if (friendly) {
+    const descriptor = friendly[1].trim();
+    if (/^introduction$/i.test(descriptor)) {
+      return 'As introduced';
+    }
+    return descriptor.replace(/Engrossment/gi, 'engrossment').replace(/Unofficial/gi, 'unofficial');
+  }
+
+  // Raw internal code form: YYYY.N-{PREFIX}{number}-{sequence}.
+  const codeForm = raw.match(/^\d{4}\.\d+-([A-Za-z]+)\d+-(\d+)$/);
+  if (codeForm) {
+    return engrossmentLabel(Number(codeForm[2]), codeForm[1].toUpperCase() === 'UES');
+  }
+
+  // Fall back to the numeric version_code as an engrossment sequence.
+  const trimmedCode = code.trim();
+  if (/^\d+$/.test(trimmedCode)) {
+    return engrossmentLabel(Number(trimmedCode), false);
+  }
+  if (trimmedCode.toLowerCase() === 'current') {
+    return 'Current version';
+  }
+
+  return raw || trimmedCode || 'Bill version';
 }
 
 function usefulActionDescription(action: ApiBillActionPayload) {
@@ -774,9 +838,9 @@ function mapBillDetail(
       .filter((action) => action.date || action.description.length > 12),
     versions: (payload.versions ?? []).map((version) => ({
       id: `${payload.id}-version-${version.version_code}`,
-      label: version.version_name ?? version.version_code,
-      date: version.is_current ? 'Current version' : '',
-      summary: version.version_code,
+      label: versionDisplayName(version.version_code, version.version_name),
+      date: formatOptionalDate(version.document_date),
+      summary: '',
       url: version.html_url ?? version.pdf_url ?? payload.official_url ?? '',
     })),
     votes: votes.map((vote) => ({

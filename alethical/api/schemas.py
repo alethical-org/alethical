@@ -108,6 +108,7 @@ class BillActionPayload(BaseModel):
 class BillVersionPayload(BaseModel):
     version_code: str
     version_name: str | None = None
+    document_date: datetime | None = None
     html_url: str | None = None
     pdf_url: str | None = None
     is_current: bool
