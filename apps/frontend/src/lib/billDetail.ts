@@ -1,4 +1,11 @@
-import { Bill, BillAction, IndividualVote, Legislator, VoteEvent } from '../data/types';
+import {
+  Bill,
+  BillAction,
+  BillVersion,
+  IndividualVote,
+  Legislator,
+  VoteEvent,
+} from '../data/types';
 
 // Shared logic for the redesign Bill Detail page (screens/redesign/BillDetailScreen).
 // Kept framework-free (pure functions) so it is unit-testable and reused by the tab
@@ -307,4 +314,45 @@ export function rollIndexForAction(action: BillAction, votes: VoteEvent[]): numb
   if (!tally) return null;
   const i = votes.findIndex((v) => `${v.breakdown.yes}-${v.breakdown.no}` === tally);
   return i >= 0 ? i : null;
+}
+
+// --- Versions tab ordering (spec §Versions) ---
+
+// The bill's actual introduction date, taken from the earliest "Introduction and
+// first reading" action across chambers. The introduced text version's own
+// document_date is unreliable — the source feed sometimes stamps it with a later
+// revision date (HF 1141's introduced row arrived dated months after the fact) —
+// so "As introduced" binds to this action date instead.
+export function introductionDate(actions: BillAction[]): string | null {
+  const dates = actions
+    .filter((a) => /^introduction and first reading/i.test(a.description))
+    .map((a) => a.date)
+    .filter((d): d is string => !!d)
+    .sort(); // ISO YYYY-MM-DD sorts chronologically
+  return dates[0] ?? null;
+}
+
+// Order the Versions tab strictly newest-first by each version's date, de-duplicated
+// by friendly label (the feed sometimes emits two rows for one stage — e.g. the
+// "current" pointer and the "-0" file both read "As introduced"). Binds the real
+// introduction date onto "As introduced" first so it lands as the oldest row.
+export function orderBillVersions(versions: BillVersion[], actions: BillAction[]): BillVersion[] {
+  const intro = introductionDate(actions);
+  const dated = intro
+    ? versions.map((v) => (/^as introduced$/i.test(v.label) ? { ...v, date: intro } : v))
+    : versions;
+
+  const seen = new Set<string>();
+  const unique = dated.filter((v) => {
+    const key = v.label.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return [...unique].sort((a, b) => {
+    const da = parseActionDate(a.date)?.getTime() ?? -Infinity;
+    const db = parseActionDate(b.date)?.getTime() ?? -Infinity;
+    return db - da; // newest first; undated rows sink to the bottom
+  });
 }

@@ -562,6 +562,8 @@ function engrossmentLabel(sequence: number, unofficial: boolean): string {
 //   - raw code:  "2026.0-HF4138-5", "2025.0-UES0334-1", "2026.0-UEH4138-1"
 //                (YYYY.N-{PREFIX}{file}-{seq}; PREFIX is SF/HF for official
 //                engrossments, UES/UEH for unofficial — Senate/House)
+//   - CCR code:  "2026.0-CCRHF1141A" (a conference-committee report; the CCR
+//                segment has no trailing "-seq", so it never matched below)
 // version_code carries the engrossment sequence ("0", "1", ...) or "current".
 // MN's text_versions have no separate session-law entry, so the API synthesizes
 // one for enacted bills with version_code "session-law" and a name that already
@@ -573,6 +575,13 @@ function versionDisplayName(code: string, name?: string | null): string {
   // "Session Law — Chapter N" label the CHAPTER chip keys off; pass it through.
   if (code.trim().toLowerCase() === 'session-law') {
     return raw || 'Session Law';
+  }
+
+  // Conference-committee report: the raw code carries a "CCR" segment
+  // (e.g. "2026.0-CCRHF1141A") and MN emits no friendly descriptor for it, so it
+  // would otherwise fall through to the raw code. Match CCR as its own token.
+  if (/(?:^|[^A-Za-z])CCR/i.test(raw) || /(?:^|[^A-Za-z])CCR/i.test(code)) {
+    return 'Conference committee report';
   }
 
   // Friendly form: the descriptor sits between the file id and the Legislature suffix.
