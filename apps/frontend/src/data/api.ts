@@ -97,6 +97,7 @@ interface ApiBillListItemPayload {
   is_omnibus?: boolean;
   chief_sponsors: ApiSponsorPayload[];
   co_author_count?: number;
+  companion?: ApiCompanionPayload | null;
   stats?: ApiBillStatsPayload | null;
   ai_analysis?: ApiAiAnalysisPayload | null;
 }
@@ -251,6 +252,8 @@ interface ApiCurrentServicePayload {
   office_address?: string | null;
   profile_url?: string | null;
   photo_url?: string | null;
+  elected?: string | null;
+  term?: string | null;
 }
 
 interface ApiLegislatorStatsPayload {
@@ -899,6 +902,8 @@ function mapLegislator(
     officeAddress: cleanOfficeAddress(service?.office_address),
     profileUrl: service?.profile_url ?? undefined,
     photoUrl: service?.photo_url ?? undefined,
+    elected: service?.elected ?? undefined,
+    term: service?.term ?? undefined,
     committees,
     committeeAssignments,
     focusAreas,
@@ -966,6 +971,14 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
     topics: [],
     chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
     coAuthorCount: payload.co_author_count ?? 0,
+    companion: payload.companion
+      ? {
+          id: payload.companion.id,
+          identifier: payload.companion.code,
+          chamber: toChamber(payload.companion.code.split(' ')[0]),
+          status: statusLabel(payload.companion.status_key, payload.companion.status),
+        }
+      : null,
     sponsors: payload.chief_sponsors.map(mapSponsor),
     progress: defaultProgress(),
     actionCount: payload.stats?.action_count ?? 0,

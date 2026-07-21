@@ -71,7 +71,15 @@ export function LegislatorProfileWebScreen() {
     else Linking.openURL(url).catch(() => {});
   };
   const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
+  const openBillVotes = (billId: string) =>
+    navigation.navigate('BillDetail', { billId, tab: 'votes' });
   const openLegislator = (id: string) => navigation.push('LegislatorProfile', { legislatorId: id });
+  const openAsk = (q: string) => navigation.navigate('Ask', { q: q || undefined });
+  // Starter chips for the Ask box, derived from the issues THIS member works on
+  // (their chief bills' policy areas). Phrased as topic questions the grounded
+  // router actually answers (topic_bills) — never person- or vote-scoped, which
+  // would refuse (grounded-answers rule 2; no vote chips pre-v1.1).
+  const askChips = buildAskChips(chiefBills);
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
@@ -202,6 +210,8 @@ export function LegislatorProfileWebScreen() {
                     bill={bill}
                     legislatorId={legislator.id}
                     onPress={() => openBill(bill.id)}
+                    onViewVotes={() => openBillVotes(bill.id)}
+                    onOpenBill={openBill}
                     onOpenLegislator={openLegislator}
                   />
                 ))}
@@ -248,6 +258,28 @@ export function LegislatorProfileWebScreen() {
             ) : null}
           </View>
         </View>
+
+        {legislator.elected || legislator.term ? (
+          <View style={styles.card}>
+            <Text style={[styles.h3, styles.h3Spaced]}>Legislative Service</Text>
+            <View style={styles.serviceStack}>
+              {legislator.elected ? (
+                <Text style={styles.serviceRow}>
+                  <Text style={styles.serviceLabel}>Elected: </Text>
+                  {legislator.elected}
+                </Text>
+              ) : null}
+              {legislator.term ? (
+                <Text style={styles.serviceRow}>
+                  <Text style={styles.serviceLabel}>Term: </Text>
+                  {legislator.term}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        <AskCard displayName={displayName} chips={askChips} onAsk={openAsk} />
       </View>
     </View>
   );
@@ -405,16 +437,32 @@ function CommitteeRow({ name, role }: { name: string; role: string | null }) {
   );
 }
 
+// Trim an AI summary to its first sentence — the card leads with a single
+// plain-language line, not the full statute-referencing paragraph.
+function firstSentence(text: string): string {
+  const t = (text ?? '').trim();
+  if (!t) return '';
+  const m = t.match(/^.*?[.!?](?=\s|$)/);
+  return (m ? m[0] : t).trim();
+}
+
 // --- Chief-authored bill card ---
+// The card body (badge → summary) is the press target that opens the bill; the
+// chip row below holds its own links (topics, companion, view votes) as separate
+// pressables, so those don't fight the card's press (RN-Web nested-press).
 function ChiefBillCard({
   bill,
   legislatorId,
   onPress,
+  onViewVotes,
+  onOpenBill,
   onOpenLegislator,
 }: {
   bill: Bill;
   legislatorId: string;
   onPress: () => void;
+  onViewVotes: () => void;
+  onOpenBill: (id: string) => void;
   onOpenLegislator: (id: string) => void;
 }) {
   const [hovered, hover] = useHover();
@@ -422,7 +470,7 @@ function ChiefBillCard({
   const filled = stage.index + 1;
   const label = stageLabel(bill.status);
   const title = bill.aiAnalysis?.shortTitle ?? bill.title;
-  const summary = bill.aiAnalysis?.summary ?? '';
+  const summary = firstSentence(bill.aiAnalysis?.summary ?? '');
   const topics = bill.aiAnalysis?.policyAreas ?? [];
   const coAuthors = coAuthorCount(bill);
   // Co-chief authors = the OTHER chief sponsors on this bill (grounded from
@@ -431,75 +479,220 @@ function ChiefBillCard({
     (sponsor) => sponsor.role === 'chief_author' && sponsor.legislatorId !== legislatorId,
   );
   const movedDate = formatMonoDate(bill.updatedAt);
+  const companion = bill.companion;
+  const hasVotes = (bill.rollCallCount ?? 0) > 0;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${bill.identifier}: ${title}`}
-      onPress={onPress}
-      {...hover}
-      style={[styles.billCard, hovered && styles.billCardHover]}
-    >
-      <View style={styles.billTopRow}>
-        <View style={styles.codeBadge}>
-          <Text style={styles.codeBadgeText}>{bill.identifier}</Text>
+    <View style={[styles.billCard, hovered && styles.billCardHover]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${bill.identifier}: ${title}`}
+        onPress={onPress}
+        {...hover}
+      >
+        <View style={styles.billTopRow}>
+          <View style={styles.codeBadge}>
+            <Text style={styles.codeBadgeText}>{bill.identifier}</Text>
+          </View>
+          <Text style={styles.billStatus}>{label}</Text>
+          <View style={styles.progressRow}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <View
+                key={i}
+                style={[
+                  styles.progressSeg,
+                  i < filled
+                    ? stage.tone === 'vetoed'
+                      ? styles.progressSegVetoed
+                      : styles.progressSegFilled
+                    : styles.progressSegEmpty,
+                ]}
+              />
+            ))}
+          </View>
+          {movedDate ? <Text style={styles.movedText}>LAST MOVED {movedDate}</Text> : null}
         </View>
-        <Text style={styles.billStatus}>{label}</Text>
-        <View style={styles.progressRow}>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <View
-              key={i}
-              style={[
-                styles.progressSeg,
-                i < filled
-                  ? stage.tone === 'vetoed'
-                    ? styles.progressSegVetoed
-                    : styles.progressSegFilled
-                  : styles.progressSegEmpty,
-              ]}
-            />
-          ))}
-        </View>
-        {movedDate ? <Text style={styles.movedText}>LAST MOVED {movedDate}</Text> : null}
-      </View>
-      <Text style={styles.billTitle}>{title}</Text>
-      {summary ? <Text style={styles.billSummary}>{summary}</Text> : null}
-      {coChiefs.length > 0 || coAuthors > 0 ? (
-        <Text style={styles.coauthorLine}>
-          {coChiefs.length > 0 ? (
-            <>
-              {coChiefs.length === 1 ? 'Co-chief author: ' : 'Co-chief authors: '}
-              {coChiefs.map((sponsor, index) => (
-                <Text key={sponsor.legislatorId ?? sponsor.name}>
-                  {index > 0 ? ', ' : ''}
-                  <Text
-                    style={styles.coauthorLink}
-                    onPress={
-                      sponsor.legislatorId
-                        ? () => onOpenLegislator(sponsor.legislatorId!)
-                        : undefined
-                    }
-                  >
-                    {sponsor.name}
+        <Text style={styles.billTitle}>{title}</Text>
+        {summary ? <Text style={styles.billSummary}>{summary}</Text> : null}
+        {coChiefs.length > 0 || coAuthors > 0 ? (
+          <Text style={styles.coauthorLine}>
+            {coChiefs.length > 0 ? (
+              <>
+                {coChiefs.length === 1 ? 'Co-chief author: ' : 'Co-chief authors: '}
+                {coChiefs.map((sponsor, index) => (
+                  <Text key={sponsor.legislatorId ?? sponsor.name}>
+                    {index > 0 ? ', ' : ''}
+                    <Text
+                      style={styles.coauthorLink}
+                      onPress={
+                        sponsor.legislatorId
+                          ? () => onOpenLegislator(sponsor.legislatorId!)
+                          : undefined
+                      }
+                    >
+                      {sponsor.name}
+                    </Text>
                   </Text>
-                </Text>
-              ))}
-              {coAuthors > 0 ? `   +${coAuthors} co-authors` : ''}
-            </>
-          ) : (
-            `+${coAuthors} co-authors`
-          )}
-        </Text>
-      ) : null}
-      {topics.length > 0 ? (
+                ))}
+                {coAuthors > 0 ? `   +${coAuthors} co-authors` : ''}
+              </>
+            ) : (
+              `+${coAuthors} co-authors`
+            )}
+          </Text>
+        ) : null}
+      </Pressable>
+      {topics.length > 0 || companion || hasVotes ? (
         <View style={styles.topicRow}>
           {topics.slice(0, 3).map((topic) => (
             <View key={topic} style={styles.topicChip}>
               <Text style={styles.topicChipText}>{topic.toUpperCase()}</Text>
             </View>
           ))}
+          {companion ? (
+            <LinkChip
+              label={`COMPANION ${companion.identifier} · ${(companion.status || '').toUpperCase()}`}
+              onPress={() => onOpenBill(companion.id)}
+              icon="companion"
+            />
+          ) : null}
+          {hasVotes ? <LinkChip label="VIEW VOTES" onPress={onViewVotes} icon="votes" /> : null}
         </View>
       ) : null}
+    </View>
+  );
+}
+
+// Outline chip that links out from a bill card (companion bill / view votes).
+function LinkChip({
+  label,
+  onPress,
+  icon,
+}: {
+  label: string;
+  onPress: () => void;
+  icon: 'companion' | 'votes';
+}) {
+  const [hovered, hover] = useHover();
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      onPress={onPress}
+      {...hover}
+      style={[styles.linkChip, hovered && styles.linkChipHover]}
+    >
+      <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+        {icon === 'companion' ? (
+          <Path
+            d="M4 8 H17 M13.5 4.5 L17 8 L13.5 11.5 M20 16 H7 M10.5 12.5 L7 16 L10.5 19.5"
+            stroke={t.colors.brand.deep}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : (
+          <Path
+            d="M5 20 V10 M12 20 V4 M19 20 V14"
+            stroke={t.colors.brand.deep}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        )}
+      </Svg>
+      <Text style={styles.linkChipText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+// Starter chips for the Ask box, built from the issues THIS member works on
+// (their chief bills' policy areas), phrased as topic questions the grounded
+// router actually answers (topic_bills). Never person-scoped or vote-phrased —
+// those refuse today (grounded-answers rule 2; no vote chips pre-v1.1). Padded
+// with known-answerable defaults so a thin record still yields real chips.
+function buildAskChips(bills: Bill[]): string[] {
+  const areas: string[] = [];
+  for (const bill of bills) {
+    for (const area of bill.aiAnalysis?.policyAreas ?? []) {
+      const clean = area.trim();
+      if (clean && !areas.some((a) => a.toLowerCase() === clean.toLowerCase())) areas.push(clean);
+    }
+  }
+  const chips = areas.slice(0, 3).map((a) => `What bills address ${a.toLowerCase()} this session?`);
+  const fallbacks = [
+    'What bills address education this session?',
+    'What bills address taxes this session?',
+    'What bills address public safety this session?',
+  ];
+  for (const f of fallbacks) {
+    if (chips.length >= 3) break;
+    if (!chips.some((c) => c.toLowerCase() === f.toLowerCase())) chips.push(f);
+  }
+  return chips.slice(0, 3);
+}
+
+// --- Ask box (right rail) ---
+// Honest deviation from the mock's person-scoped chips: the box + chips route to
+// the shipped grounded Ask (bill/topic), which cites the public record. The
+// mock's literal "what bills has this legislator led / how did they vote" chips
+// refuse today (no person-scoped answer path — that's #484) so they can't ship.
+function AskCard({
+  displayName,
+  chips,
+  onAsk,
+}: {
+  displayName: string;
+  chips: string[];
+  onAsk: (q: string) => void;
+}) {
+  const [value, setValue] = useState('');
+  const [focused, setFocused] = useState(false);
+  const submit = () => onAsk(value.trim());
+  return (
+    <View style={styles.card}>
+      <Text style={styles.h3}>Ask about {displayName}’s issues</Text>
+      <Text style={styles.askSubtext}>No account needed — answers cite the public record.</Text>
+      <View style={[styles.askField, focused && styles.askFieldFocused]}>
+        <TextInput
+          value={value}
+          onChangeText={setValue}
+          onSubmitEditing={submit}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder="Ask about a bill or issue"
+          placeholderTextColor={t.colors.text.muted}
+          accessibilityLabel={`Ask about ${displayName}’s issues`}
+          style={[styles.askInput, isWeb ? ({ outlineStyle: 'none' } as object) : null]}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ask"
+          onPress={submit}
+          style={styles.askButton}
+        >
+          <Text style={styles.askButtonText}>Ask</Text>
+        </Pressable>
+      </View>
+      <View style={styles.askChipRow}>
+        {chips.map((chip) => (
+          <AskChip key={chip} label={chip} onPress={() => onAsk(chip)} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function AskChip({ label, onPress }: { label: string; onPress: () => void }) {
+  const [hovered, hover] = useHover();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      {...hover}
+      style={[styles.askChip, hovered && styles.askChipHover]}
+    >
+      <Text style={[styles.askChipText, hovered && styles.askChipTextHover]}>{label}</Text>
     </Pressable>
   );
 }
@@ -1373,6 +1566,92 @@ const styles = StyleSheet.create({
     color: t.colors.brand.deep,
   },
   sourceLinkHover: { color: t.colors.brand.forest },
+  // --- Legislative Service ---
+  serviceStack: { gap: 12 },
+  serviceRow: { fontFamily: t.typography.body, fontSize: 17, color: '#1a201d' },
+  serviceLabel: { fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
+  // --- Bill-card link chips (companion / view votes) ---
+  linkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink16,
+    borderRadius: t.radii.sm,
+  },
+  linkChipHover: { borderColor: t.colors.brand.base },
+  linkChipText: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.4,
+    color: t.colors.brand.deep,
+  },
+  // --- Ask box (right rail) ---
+  askSubtext: {
+    marginTop: 8,
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    color: t.colors.text.faint,
+  },
+  askField: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    borderRadius: t.radii.md,
+    paddingVertical: 5,
+    paddingRight: 5,
+    paddingLeft: 18,
+  },
+  askFieldFocused: {
+    borderColor: t.colors.purple.base,
+    ...(isWeb ? { boxShadow: '0 0 0 4px rgba(91,48,214,0.14)' } : {}),
+  },
+  askInput: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: 'transparent',
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    color: t.colors.text.primary,
+    paddingVertical: 13,
+  },
+  askButton: {
+    backgroundColor: t.colors.purple.base,
+    borderRadius: 9,
+    paddingVertical: 13,
+    paddingHorizontal: 26,
+  },
+  askButtonText: {
+    fontFamily: t.typography.ui,
+    fontSize: 16,
+    fontWeight: t.fontWeights.bold,
+    color: '#ffffff',
+  },
+  askChipRow: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  askChip: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink12,
+    borderRadius: t.radii.pill,
+    paddingVertical: 9,
+    paddingHorizontal: 15,
+  },
+  askChipHover: { borderColor: t.colors.purple.base },
+  askChipText: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    fontWeight: t.fontWeights.medium,
+    color: t.colors.text.secondary,
+  },
+  askChipTextHover: { color: t.colors.purple.base },
   // --- Roadmap ---
   roadmap: {
     marginTop: 28,
