@@ -118,6 +118,38 @@ def parse_service_history(html_text: str, current_chamber_type: str) -> ServiceH
     return ServiceHistory(periods=periods, term=term)
 
 
+# House "Biographical Information" fields, in the order they read as a bio. Senate
+# member_bio pages carry none of these (only Legislative Assistant/Elected/Term),
+# so biography is House-only (issue #499's Senate-source question is deferred).
+_BIO_FIELDS = ("Occupation", "Education", "Family")
+_BIO_FIELD_RES = {
+    field_name: re.compile(rf"<strong>\s*{field_name}:\s*</strong>([^<]*)", re.I)
+    for field_name in _BIO_FIELDS
+}
+
+
+def parse_biography(html_text: str, current_chamber_type: str) -> str | None:
+    """Build a plain-language biography paragraph from a House member's
+    "Biographical Information" fields (occupation, education, family), joined
+    deterministically as sentences with no invented connective claims
+    (grounded-neutrality). Returns None for Senate (no biographical text on the
+    source page) or when no fields are present."""
+    if current_chamber_type != ChamberType.house.value:
+        return None
+    block = _service_block(html_text, current_chamber_type)
+    sentences: list[str] = []
+    for field_name in _BIO_FIELDS:
+        match = _BIO_FIELD_RES[field_name].search(block)
+        if not match:
+            continue
+        value = html.unescape(match.group(1)).strip().rstrip(".").strip()
+        if not value:
+            continue
+        # Capitalize the first character; keep the source text otherwise verbatim.
+        sentences.append(value[0].upper() + value[1:] + ".")
+    return " ".join(sentences) or None
+
+
 # ── Backfill ────────────────────────────────────────────────────────────────
 
 
@@ -215,6 +247,7 @@ def backfill(
         "rows": 0,
         "skipped_existing": 0,
         "no_data": 0,
+        "bios_written": 0,
         "fetch_errors": 0,
         "write_errors": 0,
     }
@@ -243,10 +276,15 @@ def backfill(
             print(f"NO DATA    {target.full_name} ({target.profile_url})")
             continue
 
+        biography = parse_biography(page, target.current_chamber_type)
         print(_describe(target, history))
+        if biography:
+            print(f"    Biography: {biography}")
 
         if dry_run:
             stats["rows"] += len(history.periods)
+            if biography:
+                stats["bios_written"] += 1
             continue
 
         try:
@@ -272,6 +310,14 @@ def backfill(
                         term_number=history.term if is_current else None,
                     )
                 )
+            # Populate the empty biography column from the same bio (House-only).
+            # Additive: set only when currently blank, so a future hand-edited or
+            # claimed-profile biography is never clobbered.
+            if biography:
+                legislator = db.get(Legislator, target.legislator_id)
+                if legislator is not None and not (legislator.biography or "").strip():
+                    legislator.biography = biography
+                    stats["bios_written"] += 1
             db.commit()
             stats["written"] += 1
             stats["rows"] += len(history.periods)

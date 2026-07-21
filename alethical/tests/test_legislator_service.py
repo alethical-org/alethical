@@ -8,7 +8,10 @@ real tag structure and tab whitespace — because a prior ingestion bug shipped 
 
 from __future__ import annotations
 
-from alethical.pipeline.legislator_service import parse_service_history
+from alethical.pipeline.legislator_service import (
+    parse_biography,
+    parse_service_history,
+)
 
 # ── Senate, multi-chamber: Sen. Steve Green (mem_id 1251) — House then Senate.
 # Verbatim from senate.mn/members/member_bio.html?mem_id=1251.
@@ -64,6 +67,7 @@ HOUSE_SINGLE_CHAMBER = """
             <h4>Biographical Information:</h4>
             <ul class="list-group p-0">
                 <li class="list-group-item border-0 p-0 pl-3"><strong>Occupation:</strong> Business owner</li>
+                <li class="list-group-item border-0 p-0 pl-3"><strong>Education:</strong> B.A., University of Minnesota; M.A., Hamline University</li>
                 <li class="list-group-item border-0 p-0 pl-3"><strong>Elected:</strong> 2022</li>
                 <li class="list-group-item border-0 p-0 pl-3">
                     <strong>Term:</strong> 2nd
@@ -130,6 +134,21 @@ def test_house_long_serving_reads_high_term():
     assert period.chamber_type == "house"
     assert period.initial_year == 2008
     assert history.term == 9
+
+
+def test_house_biography_joins_fields_into_prose():
+    bio = parse_biography(HOUSE_SINGLE_CHAMBER, "house")
+    assert bio == (
+        "Business owner. "
+        "B.A., University of Minnesota; M.A., Hamline University. "
+        "Married, spouse Doug, 6 children."
+    )
+
+
+def test_senate_biography_is_none():
+    # Senate member_bio pages carry no biographical fields — House-only (#499).
+    assert parse_biography(SENATE_MULTI_CHAMBER, "senate") is None
+    assert parse_biography(SENATE_SINGLE_CHAMBER, "senate") is None
 
 
 def test_missing_block_returns_empty_without_crashing():
