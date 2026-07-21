@@ -310,6 +310,8 @@ class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     photo_url: Mapped[Optional[str]] = mapped_column(Text)
     profile_url: Mapped[Optional[str]] = mapped_column(Text)
     office_address: Mapped[Optional[str]] = mapped_column(Text)
+    elected: Mapped[Optional[str]] = mapped_column(Text)
+    term: Mapped[Optional[str]] = mapped_column(String(20))
     start_date: Mapped[Optional[date]] = mapped_column(Date)
     end_date: Mapped[Optional[date]] = mapped_column(Date)
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -1222,6 +1224,7 @@ def legislator_sponsored_bills_stmt(
             selectinload(Bill.stats),
             selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
             selectinload(Bill.enrichments),
+            selectinload(Bill.companion_bill).selectinload(Bill.actions),
         )
         .order_by(Bill.file_number.asc(), Bill.id.asc())
     )

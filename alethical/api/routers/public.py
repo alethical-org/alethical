@@ -987,7 +987,15 @@ def legislator_bills(
         limit=limit,
         offset=offset,
     )
-    data = [bill_list_item(row).model_dump(exclude_none=True) for row in rows]
+    co_author_counts = bill_co_author_counts(db, [row.id for row in rows])
+    data = [
+        bill_list_item(
+            row,
+            co_author_count=co_author_counts.get(str(row.id), 0),
+            include_companion=True,
+        ).model_dump(exclude_none=True)
+        for row in rows
+    ]
     return CollectionResponse(
         data=data,
         page={

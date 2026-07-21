@@ -3113,3 +3113,164 @@ def test_bills_list_reports_co_author_count_by_role(client):
     items = {item["id"]: item for item in response.json()["data"]}
     assert bill_key in items
     assert items[bill_key]["co_author_count"] == 3
+
+
+def test_current_service_exposes_elected_and_term(client):
+    """The Legislator Profile's Legislative Service card reads elected/term off
+    the current service period, so the detail payload serializes both (#484).
+    Mutates a real current period, then restores it in a finally block."""
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        period = db.scalar(
+            select(schema.LegislatorServicePeriod).where(
+                schema.LegislatorServicePeriod.is_current.is_(True)
+            )
+        )
+        assert period is not None, "fixture must include a current service period"
+        legislator_id = str(period.legislator_id)
+        original = (period.elected, period.term)
+        period.elected = "2020, re-elected 2022"
+        period.term = "2nd"
+        db.commit()
+    try:
+        payload = client.get(
+            f"/api/v1/legislators/{legislator_id}",
+            params={"include": "current_service"},
+        ).json()["data"]
+        current_service = payload["current_service"]
+        assert current_service["elected"] == "2020, re-elected 2022"
+        assert current_service["term"] == "2nd"
+    finally:
+        with Session(get_engine()) as db:
+            restore = db.scalar(
+                select(schema.LegislatorServicePeriod).where(
+                    schema.LegislatorServicePeriod.legislator_id == legislator_id,
+                    schema.LegislatorServicePeriod.is_current.is_(True),
+                )
+            )
+            restore.elected, restore.term = original
+            db.commit()
+
+
+def test_legislator_bills_carry_co_author_count_and_companion(client):
+    """Each /legislators/{id}/bills item carries the real co_author_count and,
+    when the bill has a linked companion, a companion {id, code, status_key}
+    object — the data the web Legislator Profile bill cards render (#484). Built
+    in an isolated non-current fixture session so it pollutes no other list."""
+    schema = load_schema()
+    slug = "test-legislator-bills-fixture"
+    hf_key = f"{slug}-HF7011"
+    sf_key = f"{slug}-SF7012"
+    with Session(get_engine()) as db:
+        base = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        house = db.scalar(select(schema.Chamber).where(schema.Chamber.slug == "house"))
+        senate = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "senate")
+        )
+        assert base is not None and house is not None and senate is not None
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == slug
+            )
+        )
+        if session_row is None:
+            session_row = schema.LegislativeSession(
+                jurisdiction_id=base.jurisdiction_id,
+                slug=slug,
+                session_number=9997,
+                session_type=schema.SessionType.regular,
+                year_start=2996,
+                year_end=2997,
+                name="Legislator bills fixture session",
+                is_current=False,
+            )
+            db.add(session_row)
+            db.flush()
+        if db.scalar(select(schema.Bill).where(schema.Bill.bill_key == hf_key)) is None:
+            companion = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=senate.id,
+                bill_key=sf_key,
+                file_type="SF",
+                file_number=7012,
+                title="Companion fixture",
+                current_status="Introduction and first reading",
+                official_url="https://example.test/sf7012",
+                is_omnibus=False,
+            )
+            db.add(companion)
+            db.flush()
+            bill = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=house.id,
+                bill_key=hf_key,
+                file_type="HF",
+                file_number=7011,
+                title="Legislator bills fixture",
+                current_status="Introduction and first reading",
+                official_url="https://example.test/hf7011",
+                is_omnibus=False,
+                companion_bill_id=companion.id,
+            )
+            db.add(bill)
+            db.flush()
+            companion.companion_bill_id = bill.id
+            for enriched in (bill, companion):
+                db.add(
+                    schema.AIEnrichment(
+                        bill_id=enriched.id,
+                        enrichment_type=schema.EnrichmentType.bill_summary,
+                        model_name="test-fixture",
+                        content_json={"summary": "Fixture."},
+                        is_current=True,
+                    )
+                )
+            roles = [schema.SponsorshipRole.chief_author] + [
+                schema.SponsorshipRole.co_author
+            ] * 3
+            legislators = db.scalars(select(schema.Legislator).limit(len(roles))).all()
+            assert len(legislators) >= len(roles)
+            for order, (role, legislator) in enumerate(zip(roles, legislators)):
+                db.add(
+                    schema.Sponsorship(
+                        bill_id=bill.id,
+                        legislator_id=legislator.id,
+                        role=role,
+                        source_order=order,
+                    )
+                )
+            db.commit()
+        chief = db.scalar(
+            select(schema.Legislator)
+            .join(
+                schema.Sponsorship,
+                schema.Sponsorship.legislator_id == schema.Legislator.id,
+            )
+            .where(
+                schema.Sponsorship.bill_id
+                == select(schema.Bill.id)
+                .where(schema.Bill.bill_key == hf_key)
+                .scalar_subquery(),
+                schema.Sponsorship.role == schema.SponsorshipRole.chief_author,
+            )
+        )
+        chief_id = str(chief.id)
+
+    response = client.get(
+        f"/api/v1/legislators/{chief_id}/bills",
+        params={"session": slug, "limit": 100},
+    )
+    assert response.status_code == 200
+    items = {item["id"]: item for item in response.json()["data"]}
+    assert hf_key in items
+    # Real co-author count (3 co_author-role sponsorships), not the 0 default.
+    assert items[hf_key]["co_author_count"] == 3
+    # The linked companion serializes as a URL-addressable {id, code, status_key}.
+    companion_payload = items[hf_key]["companion"]
+    assert companion_payload["id"] == sf_key
+    assert companion_payload["code"] == "SF 7012"
+    assert "status_key" in companion_payload
