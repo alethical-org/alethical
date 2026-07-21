@@ -81,6 +81,13 @@ On web, `react-native-web` maps RN accessibility props (`accessibilityLabel`, `a
 - **No affordance lives only in hover.** There is no hover on touch, so resting states must stand
   on their own; hover/focus glows are enhancements, never the only signal (learned the hard way in
   the nav-dropdown work, [#171](https://github.com/alethical-org/alethical/pull/171)).
+- **A field never crops its placeholder or value.** Every input/textarea (search, Ask, finder,
+  forms) shows its placeholder and typed text in full — never visually clipped or ellipsized.
+  Prefer a placeholder concise enough to fit one line at the field's width; when the text genuinely
+  needs more than one line, the field wraps and grows vertically to show all of it rather than
+  holding a fixed single-line height that crops line 2. The action button (Ask/Search/Find) stays
+  vertically centered as the field grows, or sits full-width below on mobile per the stacked-field
+  rule (learned on the home hero Ask field, [#468](https://github.com/alethical-org/alethical/pull/468)).
 - **State lives in the URL.** Filters, tabs, pagination, and expanded panels are URL-addressable, not
   buried in component state — this is also `grounded-answers.md` rule 5 (anything linked-to must be
   URL-addressable). Same principle, restated for design.
