@@ -55,6 +55,7 @@ export function useBills(
   session?: string,
   filters: BillListFilters = {},
   pagination: ListPagination = {},
+  options: { enabled?: boolean } = {},
 ) {
   return useQuery({
     queryKey: [
@@ -67,6 +68,7 @@ export function useBills(
     ],
     queryFn: () => listBillsFromApi(query, session, filters, pagination),
     placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
   });
 }
 
@@ -91,11 +93,12 @@ export function useMeta() {
   });
 }
 
-export function useBill(billId: string) {
+export function useBill(billId: string, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['bill', billId],
     queryFn: () => getBillFromApi(billId),
     retry: false,
+    enabled: options.enabled ?? true,
   });
 }
 
