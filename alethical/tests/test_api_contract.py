@@ -1753,7 +1753,10 @@ def _seed_session_law_bills(schema) -> str:
         # is deliberately different from a plausible session year to prove the
         # Laws URL takes its year from the filing date, not the session.
         enacted_key = f"{ENACTED_VERSION_SESSION_SLUG}-HF9801"
-        if db.scalar(select(schema.Bill).where(schema.Bill.bill_key == enacted_key)) is None:
+        if (
+            db.scalar(select(schema.Bill).where(schema.Bill.bill_key == enacted_key))
+            is None
+        ):
             enacted = schema.Bill(
                 session_id=session_row.id,
                 chamber_id=chamber.id,
@@ -1797,7 +1800,10 @@ def _seed_session_law_bills(schema) -> str:
 
         # Non-enacted bill: stalled with no chapter action.
         pending_key = f"{ENACTED_VERSION_SESSION_SLUG}-HF9802"
-        if db.scalar(select(schema.Bill).where(schema.Bill.bill_key == pending_key)) is None:
+        if (
+            db.scalar(select(schema.Bill).where(schema.Bill.bill_key == pending_key))
+            is None
+        ):
             pending = schema.Bill(
                 session_id=session_row.id,
                 chamber_id=chamber.id,
@@ -1835,13 +1841,13 @@ def test_enacted_bill_exposes_session_law_version(client):
 
     _seed_session_law_bills(load_schema())
 
-    enacted = client.get(
-        "/api/v1/bills/test-session-law-fixture-HF9801/versions"
-    )
+    enacted = client.get("/api/v1/bills/test-session-law-fixture-HF9801/versions")
     assert enacted.status_code == 200
     versions = enacted.json()["data"]
     session_law = [v for v in versions if v["version_code"] == "session-law"]
-    assert len(session_law) == 1, "enacted bill must expose exactly one session-law version"
+    assert len(session_law) == 1, (
+        "enacted bill must expose exactly one session-law version"
+    )
     sl = session_law[0]
     # Label must contain "Session Law" (fires the chip) and "Chapter 45" (chip number).
     assert "Session Law" in sl["version_name"]
@@ -1862,18 +1868,13 @@ def test_enacted_bill_exposes_session_law_version(client):
     )
     assert detail.status_code == 200
     assert any(
-        v["version_code"] == "session-law"
-        for v in detail.json()["data"]["versions"]
+        v["version_code"] == "session-law" for v in detail.json()["data"]["versions"]
     )
 
     # A non-enacted bill has no session-law version.
-    pending = client.get(
-        "/api/v1/bills/test-session-law-fixture-HF9802/versions"
-    )
+    pending = client.get("/api/v1/bills/test-session-law-fixture-HF9802/versions")
     assert pending.status_code == 200
-    assert all(
-        v["version_code"] != "session-law" for v in pending.json()["data"]
-    )
+    assert all(v["version_code"] != "session-law" for v in pending.json()["data"])
 
 
 def test_supporting_public_resources_and_saved_places(client, auth_headers):
