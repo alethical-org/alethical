@@ -329,6 +329,72 @@ export function readLabel(status: string): string {
   return isLaw(status) ? 'Read the full law' : 'Read the bill text';
 }
 
+// First sentence of a block of prose (used for card teasers).
+export function firstSentence(text: string | null | undefined): string {
+  const s = (text ?? '').trim();
+  if (!s) return '';
+  const m = s.match(/^.*?[.!?](?=\s|$)/);
+  return (m ? m[0] : s).trim();
+}
+
+// Present an AI bill summary as a clean, plain-language line: drop the leading
+// bill-code / "The bill" preamble (the identifier already shows in the amber
+// badge) and remove Minnesota Statutes citations, which read as legalese in a
+// short summary (grounded-answers: bill summaries are plain-language, with no
+// bill-number prefix and no statute citations). Conservative by design — it
+// strips only those two things rather than re-authoring the sentence, so it
+// can't introduce a claim the source didn't make. Pass `firstSentenceOnly` for
+// one-line teasers (e.g. the legislator profile's chief-authored bill cards).
+export function plainBillSummary(
+  text: string | null | undefined,
+  opts: { firstSentenceOnly?: boolean } = {},
+): string {
+  let s = (text ?? '').trim();
+  if (!s) return '';
+  if (opts.firstSentenceOnly) s = firstSentence(s);
+
+  // 1. Remove Minnesota Statutes citations, absorbing a leading connective
+  //    ("in / to / under / of / by amending / amends …") so a clause like
+  //    "amends Minnesota Statutes …, section 297A.67, subdivision 40, to
+  //    exempt …" collapses to "to exempt …".
+  s = s.replace(
+    /(?:\b(?:in|to|under|of|by amending|amending|amends|amend|the)\s+)*Minnesota Statutes\b(?:,?\s*\d{4})?(?:,?\s*(?:sections?|chapters?)\s+[\dA-Za-z.]+(?:\s+to\s+[\dA-Za-z.]+)?(?:,?\s*subdivisions?\s+[\dA-Za-z.]+)?(?:,?\s*paragraphs?\s+\([^)]*\))?)*/gi,
+    ' ',
+  );
+  // Bare "section 297A.67, subdivision 40" without a "Minnesota Statutes" lead.
+  s = s.replace(
+    /,?\s*\b(?:sections?|chapters?)\s+\d[\dA-Za-z.]*(?:,?\s*subdivisions?\s+[\dA-Za-z.]+)?/gi,
+    ' ',
+  );
+
+  // 2. Drop a leading bill-code preamble: optional "The/This bill|act", then an
+  //    optional "HF/SF [No.] ####" code. Run the code strip twice so a
+  //    "The bill HF 577 appropriates …" (code between "bill" and the verb) is
+  //    fully removed once the "The bill" lead is gone.
+  s = s.replace(/^\s*(?:the|this)\s+(?:bill|act|legislation)\s+/i, '');
+  for (let i = 0; i < 2; i++) {
+    s = s.replace(
+      /^\s*(?:h\.?\s?f\.?|s\.?\s?f\.?|h\.?\s?r\.?|s\.?\s?r\.?)\s*(?:no\.?\s*)?\d+\s*/i,
+      '',
+    );
+  }
+
+  // 3. Clean artifacts the strips can leave, then collapse whitespace.
+  s = s
+    .replace(/\bamend(?:s|ing)?\s+to\b/gi, 'to') // "amends to exempt" → "to exempt"
+    .replace(/^\s*(?:,|;|:|\bto\b)\s+/i, '') // orphaned leading connective
+    .replace(/\s+([,.;:])/g, '$1')
+    .replace(/,\s*,/g, ',')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[\s,;:]+/, '')
+    .trim();
+
+  // 4. Capitalize the leading word (the verb now heads the sentence).
+  if (s) s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s;
+}
+
 // The chief author sponsor (role chief_author), else the first sponsor.
 export function chiefAuthor(bill: Bill) {
   const sponsors = bill.sponsors ?? [];

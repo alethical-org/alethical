@@ -25,8 +25,10 @@ import {
   coAuthorCount,
   formatMonoDate,
   partyFull,
+  plainBillSummary,
   stageLabel,
 } from '../../lib/billDetail';
+import { buildAskChips, splitOfficeAddress } from '../../lib/legislatorProfile';
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { Skeleton } from '../../components/Skeleton';
@@ -40,10 +42,12 @@ import { Skeleton } from '../../components/Skeleton';
 // Grounded-answers notes: the "Legislative Service" card renders the member's
 // ordered election history + current-chamber term, ingested from the official
 // bios into legislator_election_history (issue #486); it shows only when real
-// data is present. The design's "Ask about this legislator" card is still NOT
-// built — there is no legislator-scoped Ask answer path in v1 (person-scoped Ask
-// is v1.1, and its chips would refuse — grounded-answers rule 2). The roadmap
-// zone is static, non-committal, and clearly not-live.
+// data is present. The "Ask about this legislator" card ships with the mock's
+// heading + personalized placeholder, but its starter chips stay topic-scoped and
+// answerable — the mock's literal person/vote chips would refuse or deflect today
+// (no person-scoped Ask answer path; that's #484), and grounded-answers rule 2
+// forbids chips that lead to a refusal. The roadmap zone is static, non-committal,
+// and clearly not-live.
 
 const CURRENT_SESSION_LABEL = '94th Legislature (2025–2026)';
 const PAST_SESSIONS = ['93rd Legislature (2023–2024)', '92nd Legislature (2021–2022)'];
@@ -164,6 +168,9 @@ export function LegislatorProfileWebScreen() {
   const committees = legislator.committeeAssignments ?? [];
   const service = legislator.legislativeService;
   const seeMoreUrl = chiefAuthorListUrl(legislator);
+  // The office blob can lead with a leadership title rather than an address line;
+  // peel it off so it gets its own labeled row (never inlined into the address).
+  const office = legislator.officeAddress ? splitOfficeAddress(legislator.officeAddress) : null;
 
   const body = (
     <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
@@ -232,10 +239,16 @@ export function LegislatorProfileWebScreen() {
         <View style={styles.card}>
           <Text style={[styles.h3, styles.h3Spaced]}>Contact</Text>
           <View style={styles.contactStack}>
-            {legislator.officeAddress ? (
+            {office?.leadership ? (
+              <View>
+                <Text style={styles.contactLabel}>LEADERSHIP</Text>
+                <Text style={styles.contactValue}>{office.leadership}</Text>
+              </View>
+            ) : null}
+            {office?.address ? (
               <View>
                 <Text style={styles.contactLabel}>CAPITOL OFFICE</Text>
-                <Text style={styles.contactValue}>{legislator.officeAddress}</Text>
+                <Text style={styles.contactValue}>{office.address}</Text>
               </View>
             ) : null}
             {legislator.phone ? (
@@ -316,6 +329,16 @@ function officialName(name: string, chamber: string): string {
   const bare = name.replace(/^(sen\.|senator|rep\.|representative)\s+/i, '').trim();
   const title = chamber === 'Senate' ? 'Sen.' : chamber === 'House' ? 'Rep.' : '';
   return title ? `${title} ${bare}` : bare;
+}
+
+// Short form of an official name for inline copy: title + last name only
+// ("Rep. Patty Acomb" → "Rep. Acomb"). Used in the Ask placeholder.
+function shortOfficialName(displayName: string): string {
+  const parts = displayName.trim().split(/\s+/);
+  if (parts.length <= 1) return displayName;
+  const title = /^(rep\.|sen\.)$/i.test(parts[0]) ? parts[0] : '';
+  const last = parts[parts.length - 1];
+  return title ? `${title} ${last}` : last;
 }
 
 // --- Hero: breadcrumb + eyebrow + portrait + identity + Share ---
@@ -434,15 +457,6 @@ function CommitteeRow({ name, role }: { name: string; role: string | null }) {
   );
 }
 
-// Trim an AI summary to its first sentence — the card leads with a single
-// plain-language line, not the full statute-referencing paragraph.
-function firstSentence(text: string): string {
-  const t = (text ?? '').trim();
-  if (!t) return '';
-  const m = t.match(/^.*?[.!?](?=\s|$)/);
-  return (m ? m[0] : t).trim();
-}
-
 // --- Chief-authored bill card ---
 // The card body (badge → summary) is the press target that opens the bill; the
 // chip row below holds its own links (topics, companion, view votes) as separate
@@ -467,7 +481,7 @@ function ChiefBillCard({
   const filled = stage.index + 1;
   const label = stageLabel(bill.status);
   const title = bill.aiAnalysis?.shortTitle ?? bill.title;
-  const summary = firstSentence(bill.aiAnalysis?.summary ?? '');
+  const summary = plainBillSummary(bill.aiAnalysis?.summary, { firstSentenceOnly: true });
   const topics = bill.aiAnalysis?.policyAreas ?? [];
   const coAuthors = coAuthorCount(bill);
   // Co-chief authors = the OTHER chief sponsors on this bill (grounded from
@@ -602,37 +616,15 @@ function LinkChip({
   );
 }
 
-// Starter chips for the Ask box, built from the issues THIS member works on
-// (their chief bills' policy areas), phrased as topic questions the grounded
-// router actually answers (topic_bills). Never person-scoped or vote-phrased —
-// those refuse today (grounded-answers rule 2; no vote chips pre-v1.1). Padded
-// with known-answerable defaults so a thin record still yields real chips.
-function buildAskChips(bills: Bill[]): string[] {
-  const areas: string[] = [];
-  for (const bill of bills) {
-    for (const area of bill.aiAnalysis?.policyAreas ?? []) {
-      const clean = area.trim();
-      if (clean && !areas.some((a) => a.toLowerCase() === clean.toLowerCase())) areas.push(clean);
-    }
-  }
-  const chips = areas.slice(0, 3).map((a) => `What bills address ${a.toLowerCase()} this session?`);
-  const fallbacks = [
-    'What bills address education this session?',
-    'What bills address taxes this session?',
-    'What bills address public safety this session?',
-  ];
-  for (const f of fallbacks) {
-    if (chips.length >= 3) break;
-    if (!chips.some((c) => c.toLowerCase() === f.toLowerCase())) chips.push(f);
-  }
-  return chips.slice(0, 3);
-}
-
 // --- Ask box (right rail) ---
-// Honest deviation from the mock's person-scoped chips: the box + chips route to
-// the shipped grounded Ask (bill/topic), which cites the public record. The
-// mock's literal "what bills has this legislator led / how did they vote" chips
-// refuse today (no person-scoped answer path — that's #484) so they can't ship.
+// Heading + placeholder match the mock ("Ask about this legislator" / "Ask about
+// {Rep./Sen. Lastname}'s record"). Honest deviation on the chips: the box + chips
+// route to the shipped grounded Ask (bill/topic), which cites the public record.
+// The mock's literal person/vote chips ("what bills has this legislator led / how
+// did they vote / which committees") refuse or deflect today — there is no
+// person-scoped answer path (#484), so shipping them would violate grounded-
+// answers rule 2 (chips must never lead to a refusal). Until #484 lands the chips
+// stay topic-scoped and answerable.
 function AskCard({
   displayName,
   chips,
@@ -645,9 +637,10 @@ function AskCard({
   const [value, setValue] = useState('');
   const [focused, setFocused] = useState(false);
   const submit = () => onAsk(value.trim());
+  const shortName = shortOfficialName(displayName);
   return (
     <View style={styles.card}>
-      <Text style={styles.h3}>Ask about {displayName}’s issues</Text>
+      <Text style={styles.h3}>Ask about this legislator</Text>
       <Text style={styles.askSubtext}>No account needed — answers cite the public record.</Text>
       <View style={[styles.askField, focused && styles.askFieldFocused]}>
         <TextInput
@@ -656,9 +649,9 @@ function AskCard({
           onSubmitEditing={submit}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder="Ask about a bill or issue"
+          placeholder={`Ask about ${shortName}’s record`}
           placeholderTextColor={t.colors.text.muted}
-          accessibilityLabel={`Ask about ${displayName}’s issues`}
+          accessibilityLabel={`Ask about ${shortName}’s record`}
           style={[styles.askInput, isWeb ? ({ outlineStyle: 'none' } as object) : null]}
         />
         <Pressable
