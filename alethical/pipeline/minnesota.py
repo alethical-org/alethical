@@ -23,7 +23,9 @@ from alethical.pipeline.roster_pdf import (
     parse_roster_pdf,
 )
 from alethical.pipeline.sessions import (
+    CURRENT_SESSION_END_DATE,
     CURRENT_SESSION_SLUG,
+    CURRENT_SESSION_START_DATE,
     DEFAULT_SESSION_CODE,
     parse_session_code,
 )
@@ -731,6 +733,12 @@ class MinnesotaIngestionPipeline:
             )
             self.db.add(current_session)
             self.db.flush()
+
+        # Idempotently ensure the biennium date range (#343): heals a session row
+        # ingested before these columns were populated, so a re-ingest never
+        # leaves them silently null.
+        current_session.start_date = CURRENT_SESSION_START_DATE
+        current_session.end_date = CURRENT_SESSION_END_DATE
         return {
             "jurisdiction": minnesota,
             "chambers": chambers,

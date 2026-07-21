@@ -31,6 +31,33 @@ def test_health_and_meta_endpoints(client):
     assert payload["data"]["data_as_of"]
 
 
+def test_current_session_has_start_and_end_dates(client):
+    """The current LegislativeSession carries its real biennium date range, not a
+    silent null (#343). Guards against the #328-class 'declared but never written'
+    date-column gap for legislative_session.start_date/end_date."""
+    schema = load_schema()
+    from alethical.pipeline.sessions import (
+        CURRENT_SESSION_END_DATE,
+        CURRENT_SESSION_SLUG,
+        CURRENT_SESSION_START_DATE,
+    )
+
+    with Session(get_engine()) as db:
+        row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == CURRENT_SESSION_SLUG
+            )
+        )
+        assert row.start_date is not None
+        assert row.end_date is not None
+        # Compare instants (tz-aware): the column is timestamptz and the driver may
+        # return it in a non-UTC session timezone, so .date() would be off by a day.
+        assert row.start_date == CURRENT_SESSION_START_DATE
+        assert row.end_date == CURRENT_SESSION_END_DATE
+        # Sanity: the range is ordered and spans the 2025-2026 biennium.
+        assert row.start_date < row.end_date
+
+
 def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
     client, auth_headers
 ):
