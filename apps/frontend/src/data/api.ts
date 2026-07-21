@@ -8,6 +8,7 @@ import {
   Chamber,
   ChatSession,
   Citation,
+  LegislativeService,
   Legislator,
   RepresentativeLookupInput,
   RepresentativeLookupResult,
@@ -277,8 +278,20 @@ interface ApiLegislatorListItemPayload {
   stats?: ApiLegislatorStatsPayload | null;
 }
 
+interface ApiElectionPeriodPayload {
+  chamber: string;
+  initial_year: number;
+  reelection_years: number[];
+}
+
+interface ApiServiceHistoryPayload {
+  term?: number | null;
+  periods: ApiElectionPeriodPayload[];
+}
+
 interface ApiLegislatorDetailPayload extends ApiLegislatorListItemPayload {
   biography?: string | null;
+  service_history?: ApiServiceHistoryPayload | null;
 }
 
 interface ApiRepresentativeLookupPayload {
@@ -862,6 +875,27 @@ function cleanOfficeAddress(value?: string | null) {
   return unique.join('\n') || undefined;
 }
 
+// Shape the API's ordered election history into the design's per-chamber lines
+// ("Elected to the House: 2012, re-elected 2014…") + current-chamber term
+// ("1st"). Returns null when the bio carried no history (issue #486).
+function mapServiceHistory(payload?: ApiServiceHistoryPayload | null): LegislativeService | null {
+  if (!payload || payload.periods.length === 0) {
+    return null;
+  }
+  const lines = payload.periods.map((period) => {
+    const chamber = toLegislatorChamber(period.chamber);
+    const elected =
+      period.reelection_years.length > 0
+        ? `${period.initial_year}, re-elected ${period.reelection_years.join(', ')}`
+        : `${period.initial_year}`;
+    return { chamber, label: `Elected to the ${chamber}`, elected };
+  });
+  return {
+    lines,
+    term: payload.term != null ? ordinal(payload.term) : null,
+  };
+}
+
 function mapLegislator(
   payload: ApiLegislatorListItemPayload | ApiLegislatorDetailPayload,
 ): Legislator {
@@ -907,19 +941,11 @@ function mapLegislator(
     committees,
     committeeAssignments,
     focusAreas,
-    serviceHistory: service
-      ? [
-          {
-            id: `${payload.id}-current-service`,
-            startYear: 2025,
-            endYear: null,
-            chamber,
-            district,
-            party,
-            role: legislatorRole(payload),
-          },
-        ]
-      : [],
+    // Legislative Service history now comes from the scraped bio (issue #486);
+    // the old fabricated single "2025–present" entry is gone.
+    serviceHistory: [],
+    legislativeService:
+      'service_history' in payload ? mapServiceHistory(payload.service_history) : null,
     questionPrompts: [
       `Summarize ${displayName}'s authored bills this session.`,
       `What committees or policy areas are connected to ${displayName}?`,
@@ -1509,7 +1535,7 @@ export async function lookupRepresentativeFromApi(
 
 export async function getLegislatorFromApi(legislatorId: string): Promise<Legislator | null> {
   const response = await publicApiRequest<DetailResponse<ApiLegislatorDetailPayload>>(
-    `/legislators/${encodeURIComponent(legislatorId)}?include=current_service,committees,stats`,
+    `/legislators/${encodeURIComponent(legislatorId)}?include=current_service,committees,stats,service_history`,
   );
 
   return mapLegislator(response.data);

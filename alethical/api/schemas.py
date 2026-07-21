@@ -194,6 +194,26 @@ class CurrentServicePayload(BaseModel):
     term: str | None = None
 
 
+class ElectionPeriodPayload(BaseModel):
+    """One chamber tenure from a member's Legislative Service history: the
+    chamber elected to, the first election year, and any re-election years for
+    that tenure (Senate bios list them; House bios carry only the initial
+    year)."""
+
+    chamber: str
+    initial_year: int
+    reelection_years: list[int] = []
+
+
+class ServiceHistoryPayload(BaseModel):
+    """Ordered per-chamber election history plus the current-chamber term.
+    ``periods`` is chronological (earliest first); ``term`` counts the current
+    chamber only."""
+
+    term: int | None = None
+    periods: list[ElectionPeriodPayload]
+
+
 class CommitteePayload(BaseModel):
     name: str
     role: str | None = None
@@ -216,6 +236,7 @@ class LegislatorDetailPayload(BaseModel):
     current_service: CurrentServicePayload | None = None
     committees: list[CommitteePayload] | None = None
     stats: LegislatorStatsPayload | None = None
+    service_history: ServiceHistoryPayload | None = None
 
 
 class SearchResultsPayload(BaseModel):

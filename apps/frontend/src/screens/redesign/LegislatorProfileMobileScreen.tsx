@@ -533,6 +533,7 @@ export function LegislatorProfileMobileScreen() {
   const hasRealBio =
     leg?.bio && leg.bio !== 'Live legislator profile loaded from the backend.' ? leg.bio : null;
   const committees = leg?.committeeAssignments ?? [];
+  const service = leg?.legislativeService;
 
   return (
     <PageBackground>
@@ -634,6 +635,33 @@ export function LegislatorProfileMobileScreen() {
                       {committees.map((c) => (
                         <CommitteeRow key={c.name} name={c.name} role={c.role} />
                       ))}
+                    </View>
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {/* LEGISLATIVE SERVICE (issue #486) — renders only with real data */}
+            {service && service.lines.length > 0 ? (
+              <View style={styles.section}>
+                <View style={styles.column}>
+                  <View style={styles.card}>
+                    <Text accessibilityRole="header" style={styles.cardTitle}>
+                      Legislative Service
+                    </Text>
+                    <View style={styles.serviceList}>
+                      {service.lines.map((line, index) => (
+                        <Text key={`${line.label}-${index}`} style={styles.serviceLine}>
+                          <Text style={styles.serviceLabel}>{line.label}: </Text>
+                          {line.elected}
+                        </Text>
+                      ))}
+                      {service.term ? (
+                        <Text style={styles.serviceLine}>
+                          <Text style={styles.serviceLabel}>Term: </Text>
+                          {service.term}
+                        </Text>
+                      ) : null}
                     </View>
                   </View>
                 </View>
@@ -1177,6 +1205,16 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     marginBottom: 12,
   },
+
+  // legislative service (issue #486)
+  serviceList: { marginTop: 16, gap: 10 },
+  serviceLine: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.subhead,
+    lineHeight: 26,
+    color: t.colors.text.secondary,
+  },
+  serviceLabel: { fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
 
   // committees
   committeeList: { marginTop: 16, gap: 13 },
