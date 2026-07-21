@@ -246,8 +246,43 @@ def current_bill_summary_enrichment(enrichments):
     return enrichment
 
 
+def ai_citation_payloads(content, official_url) -> list[api_schemas.AICitationPayload]:
+    """Build resolvable per-key-point citations (#377) from the enrichment's
+    already-grounded `key_point_citations`. Each targets the bill's official
+    source URL (grounded-answers rule 5 — the location must resolve); a bill
+    without an official URL yields no citations rather than a dead link."""
+    raw = content.get("key_point_citations")
+    if not isinstance(raw, list) or not official_url:
+        return []
+    citations: list[api_schemas.AICitationPayload] = []
+    for index, entry in enumerate(raw):
+        if not isinstance(entry, dict):
+            continue
+        section_id = entry.get("section_id")
+        label = entry.get("label")
+        quote = entry.get("quote")
+        if not (
+            isinstance(section_id, str)
+            and isinstance(label, str)
+            and isinstance(quote, str)
+            and section_id.strip()
+            and label.strip()
+            and quote.strip()
+        ):
+            continue
+        citations.append(
+            api_schemas.AICitationPayload(
+                id=f"{section_id.strip()}-{index}",
+                label=label.strip(),
+                url=official_url,
+                excerpt=quote.strip(),
+            )
+        )
+    return citations
+
+
 def ai_analysis_payload_for_enrichment(
-    enrichment,
+    enrichment, official_url=None
 ) -> api_schemas.AIAnalysisPayload | None:
     if enrichment is None:
         return None
@@ -280,12 +315,15 @@ def ai_analysis_payload_for_enrichment(
             if isinstance(policy_areas, list)
             else []
         ),
+        citations=ai_citation_payloads(content, official_url),
     )
 
 
-def ai_analysis_payload(enrichments) -> api_schemas.AIAnalysisPayload | None:
+def ai_analysis_payload(
+    enrichments, official_url=None
+) -> api_schemas.AIAnalysisPayload | None:
     return ai_analysis_payload_for_enrichment(
-        current_bill_summary_enrichment(enrichments)
+        current_bill_summary_enrichment(enrichments), official_url
     )
 
 

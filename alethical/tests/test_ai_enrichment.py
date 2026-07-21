@@ -62,6 +62,17 @@ def _cleanup(db: Session, bill_id) -> None:
     db.execute(
         delete(schema.AIEnrichment).where(schema.AIEnrichment.bill_id == bill_id)
     )
+    version_ids = list(
+        db.scalars(
+            select(schema.BillVersion.id).where(schema.BillVersion.bill_id == bill_id)
+        )
+    )
+    if version_ids:
+        db.execute(
+            delete(schema.BillVersionSection).where(
+                schema.BillVersionSection.bill_version_id.in_(version_ids)
+            )
+        )
     db.execute(delete(schema.BillVersion).where(schema.BillVersion.bill_id == bill_id))
     db.execute(delete(schema.Bill).where(schema.Bill.id == bill_id))
     db.commit()
@@ -252,3 +263,145 @@ def test_titles_only_prepare_skips_bills_that_already_have_a_short_title(
     finally:
         with _session() as db:
             _cleanup(db, bill_id)
+
+
+def _make_bill_with_sections(
+    db: Session, *, bill_key: str, file_number: int, sections: list[tuple[str, str]]
+):
+    """Create a bill + current version + BillVersionSection rows. `sections` is
+    an ordered list of (section_id_text, raw_text). Returns (bill_id, version_id)."""
+    session_id = db.scalar(select(schema.LegislativeSession.id))
+    chamber_id = db.scalar(select(schema.Chamber.id))
+    assert session_id is not None and chamber_id is not None
+    bill = schema.Bill(
+        session_id=session_id,
+        chamber_id=chamber_id,
+        bill_key=bill_key,
+        file_type="HF",
+        file_number=file_number,
+        title="Traceable citations test bill",
+        description="Test bill for #377 key-point anchors",
+        current_status="Referred to committee",
+        official_url="https://www.revisor.mn.gov/bills/test",
+    )
+    db.add(bill)
+    db.flush()
+    version = schema.BillVersion(
+        bill_id=bill.id,
+        version_code="test-v1",
+        sequence_number=0,
+        is_current=True,
+    )
+    db.add(version)
+    db.flush()
+    for order, (section_id_text, raw_text) in enumerate(sections):
+        db.add(
+            schema.BillVersionSection(
+                bill_version_id=version.id,
+                section_id_text=section_id_text,
+                source_order=order,
+                section_heading=f"Section {section_id_text}",
+                raw_text=raw_text,
+            )
+        )
+    db.commit()
+    return bill.id, version.id
+
+
+def test_resolve_key_point_citations_grounds_and_cites_anchorable_subset() -> None:
+    with _session() as db:
+        bill_id, version_id = _make_bill_with_sections(
+            db,
+            bill_key="test-2025-HF999010",
+            file_number=999010,
+            sections=[
+                (
+                    "1.1",
+                    "The commissioner shall establish a grant program for schools.",
+                ),
+                ("2.1", "Each district must submit an annual report by January 15."),
+            ],
+        )
+    try:
+        content = {
+            "key_points": [
+                "Creates a school grant program.",  # S1, valid quote
+                "Requires an annual district report.",  # S2, valid quote
+                "Imposes a fine on late filers.",  # bad anchor S9 → dropped
+                "Paraphrased point with no matching quote.",  # quote not in excerpt
+            ],
+            "key_point_citations": [
+                {
+                    "point": "Creates a school grant program.",
+                    "section_id": "S1",
+                    "quote": "establish a grant program for schools",
+                },
+                {
+                    "point": "Requires an annual district report.",
+                    "section_id": "S2",
+                    "quote": "submit an annual report by January 15",
+                },
+                {
+                    "point": "Imposes a fine on late filers.",
+                    "section_id": "S9",  # not a supplied anchor → dropped
+                    "quote": "submit an annual report",
+                },
+                {
+                    "point": "Paraphrased point with no matching quote.",
+                    "section_id": "S1",
+                    "quote": "this text is nowhere in the bill",  # verbatim check fails
+                },
+            ],
+        }
+        with _session() as db:
+            stats = ai_enrichment.resolve_key_point_citations(db, version_id, content)
+
+        assert stats == {"points": 4, "anchored": 2, "dropped": 2}
+        # All key points are preserved for display; only the two grounded ones
+        # get a citation (unanchorable points show without a marker).
+        assert content["key_points"] == [
+            "Creates a school grant program.",
+            "Requires an annual district report.",
+            "Imposes a fine on late filers.",
+            "Paraphrased point with no matching quote.",
+        ]
+        resolved = content["key_point_citations"]
+        assert len(resolved) == 2
+        # Anchor token resolved to the section identifier + a display label.
+        assert resolved[0]["section_id"] == "1.1"
+        assert resolved[0]["label"] == "Section 1.1"
+        assert resolved[0]["quote"] == "establish a grant program for schools"
+        assert resolved[1]["section_id"] == "2.1"
+    finally:
+        with _session() as db:
+            _cleanup(db, bill_id)
+
+
+def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
+    from alethical.api import serializers
+
+    content = {
+        "key_point_citations": [
+            {"section_id": "1.1", "label": "Section 1.1", "quote": "a grant program"},
+            {"section_id": "2.1", "label": "Section 2.1", "quote": "an annual report"},
+        ]
+    }
+    url = "https://www.revisor.mn.gov/bills/test"
+    citations = serializers.ai_citation_payloads(content, url)
+    assert [c.model_dump() for c in citations] == [
+        {
+            "id": "1.1-0",
+            "label": "Section 1.1",
+            "url": url,
+            "excerpt": "a grant program",
+        },
+        {
+            "id": "2.1-1",
+            "label": "Section 2.1",
+            "url": url,
+            "excerpt": "an annual report",
+        },
+    ]
+    # No resolvable official URL → no dead-link citations (grounded-answers rule 5).
+    assert serializers.ai_citation_payloads(content, None) == []
+    assert serializers.ai_citation_payloads({}, url) == []

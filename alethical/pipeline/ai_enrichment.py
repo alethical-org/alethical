@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -110,6 +111,25 @@ SUMMARY_SCHEMA: dict[str, Any] = {
             },
         },
         "source_notes": {"type": "array", "items": {"type": "string"}},
+        # Per-key-point source anchors (#377): each key point must be tied to a
+        # supplied excerpt so the bill page can show a traceable citation marker.
+        # `section_id` is the [S#] token from the bracketed excerpt the point was
+        # drawn from; `quote` is a short verbatim span copied from that excerpt.
+        # Unanchorable points are dropped at apply time (never invented) — see
+        # resolve_key_point_citations.
+        "key_point_citations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "point": {"type": "string"},
+                    "section_id": {"type": "string"},
+                    "quote": {"type": "string"},
+                },
+                "required": ["point", "section_id", "quote"],
+            },
+        },
     },
     "required": [
         "short_title",
@@ -135,6 +155,7 @@ SUMMARY_SCHEMA: dict[str, Any] = {
         "recommendations",
         "alternative_policy_approaches",
         "source_notes",
+        "key_point_citations",
     ],
 }
 
@@ -152,7 +173,9 @@ SHORT_TITLE_SCHEMA: dict[str, Any] = {
 
 SYSTEM_PROMPT = """You write careful, source-grounded legislative analysis for Alethical.
 
-Return JSON matching the provided schema. Base the analysis only on the supplied bill metadata and bill text excerpts. Do not invent vote outcomes, author motives, public opinion, fiscal scores, or legal effects not supported by the text. If a field cannot be supported, use cautious language or an empty array. Keep wording neutral and make both benefits and concerns conditional when the bill text does not prove real-world outcomes. Also produce `short_title`: a neutral, descriptive headline-case title (about 4-8 words, at most 70 characters) that states plainly what the bill does, with no editorializing or advocacy."""
+Return JSON matching the provided schema. Base the analysis only on the supplied bill metadata and bill text excerpts. Do not invent vote outcomes, author motives, public opinion, fiscal scores, or legal effects not supported by the text. If a field cannot be supported, use cautious language or an empty array. Keep wording neutral and make both benefits and concerns conditional when the bill text does not prove real-world outcomes. Also produce `short_title`: a neutral, descriptive headline-case title (about 4-8 words, at most 70 characters) that states plainly what the bill does, with no editorializing or advocacy.
+
+Each bill text excerpt is prefixed with a bracketed anchor token like `[S1]`, `[S2]`. For every entry in `key_points`, add exactly one matching entry to `key_point_citations` whose `point` repeats that key point verbatim, whose `section_id` is the anchor token (e.g. `S3`) of the single excerpt it is most directly drawn from, and whose `quote` is a short verbatim span (a phrase or sentence, at most ~30 words) copied exactly from that excerpt's text. Only use anchor tokens that actually appear in the supplied excerpts, and only quote text that appears verbatim there. If a key point cannot be tied to a specific supplied excerpt, omit that key point entirely rather than guessing an anchor."""
 
 
 SHORT_TITLE_SYSTEM_PROMPT = """You write short, neutral, plain-language titles for Minnesota bills for Alethical.
@@ -195,7 +218,36 @@ def current_bill_version(db: Session, bill_id: Any) -> Any | None:
     )
 
 
-def bill_text_sections(db: Session, version: Any) -> list[tuple[str, str, str]]:
+@dataclass(frozen=True)
+class SectionAnchor:
+    """One bill-text excerpt fed to the model, with the ordinal anchor token the
+    model cites (`S1`, `S2`, …) and the `BillVersionSection.section_id_text` it
+    resolves to (None when the excerpt has no linked section — then a key point
+    citing it is unanchorable and gets dropped). #377."""
+
+    anchor_id: str
+    label: str
+    text: str
+    source_hash: str
+    section_id_text: str | None
+
+
+def _section_label(section: Any) -> str:
+    return " ".join(
+        item
+        for item in [
+            section.article_number,
+            section.article_heading,
+            section.section_heading or section.section_id_text,
+        ]
+        if item
+    )
+
+
+def section_anchors(db: Session, version: Any) -> list[SectionAnchor]:
+    """Ordered bill-text excerpts for the prompt, each tagged with a stable
+    ordinal anchor token. Deterministic ordering so the same list rebuilds at
+    apply time and the `S#` tokens the model cited resolve back to sections."""
     rag_rows = db.execute(
         select(RagSectionDocument, BillVersionSection)
         .outerjoin(
@@ -210,8 +262,16 @@ def bill_text_sections(db: Session, version: Any) -> list[tuple[str, str, str]]:
     ).all()
     if rag_rows:
         return [
-            (row.citation_label, row.clean_text, row.source_hash)
-            for row, _section in rag_rows
+            SectionAnchor(
+                anchor_id=f"S{index + 1}",
+                label=row.citation_label,
+                text=row.clean_text,
+                source_hash=row.source_hash,
+                section_id_text=(
+                    section.section_id_text if section is not None else None
+                ),
+            )
+            for index, (row, section) in enumerate(rag_rows)
         ]
 
     section_rows = db.scalars(
@@ -220,21 +280,17 @@ def bill_text_sections(db: Session, version: Any) -> list[tuple[str, str, str]]:
         .order_by(BillVersionSection.source_order.asc())
     ).all()
     return [
-        (
-            " ".join(
-                item
-                for item in [
-                    section.article_number,
-                    section.article_heading,
-                    section.section_heading or section.section_id_text,
-                ]
-                if item
+        SectionAnchor(
+            anchor_id=f"S{index + 1}",
+            label=_section_label(section),
+            text=section.raw_text,
+            source_hash=(
+                section.source_hash
+                or hashlib.sha256(section.raw_text.encode("utf-8")).hexdigest()
             ),
-            section.raw_text,
-            section.source_hash
-            or hashlib.sha256(section.raw_text.encode("utf-8")).hexdigest(),
+            section_id_text=section.section_id_text,
         )
-        for section in section_rows
+        for index, section in enumerate(section_rows)
     ]
 
 
@@ -252,9 +308,9 @@ def chief_sponsor_names(bill: Any) -> list[str]:
 def bill_prompt(
     db: Session, bill: Any, version: Any, *, max_input_chars: int
 ) -> tuple[str, str, bool]:
-    sections = bill_text_sections(db, version)
+    sections = section_anchors(db, version)
     version_hash = source_hash(
-        [bill.bill_key, str(version.id), *[item[2] for item in sections]]
+        [bill.bill_key, str(version.id), *[item.source_hash for item in sections]]
     )
     metadata = {
         "bill_key": bill.bill_key,
@@ -272,8 +328,8 @@ def bill_prompt(
 
     remaining = max_input_chars
     text_blocks: list[str] = []
-    for citation, text, _hash in sections:
-        block = f"[{citation}]\n{text.strip()}"
+    for anchor in sections:
+        block = f"[{anchor.anchor_id}] {anchor.label}\n{anchor.text.strip()}"
         if len(block) > remaining:
             if remaining > 500:
                 text_blocks.append(block[:remaining])
@@ -291,6 +347,93 @@ def bill_prompt(
         "Bill text excerpts:\n" + "\n\n---\n\n".join(text_blocks)
     )
     return prompt, version_hash, truncated
+
+
+def _normalize_for_match(value: str) -> str:
+    return " ".join(value.split()).casefold()
+
+
+def _chip_label(anchor: SectionAnchor) -> str:
+    """Concise citation-chip label. Prefer the curated section/heading label; if
+    it is too long for a pill, extract the "…Sec. N" citation prefix (dropping a
+    trailing statute heading) before truncating. Never expose the internal
+    `section_id_text` key (e.g. "laws.0.1.0"), which is not human-readable."""
+    label = (anchor.label or "").strip()
+    if not label:
+        return "Cited section"
+    if len(label) <= 48:
+        return label
+    match = re.match(r"^(.*?\bSec(?:tion)?\.?\s+[\w.\-]+)\.?", label)
+    if match and len(match.group(1)) <= 60:
+        return match.group(1).strip()
+    return label[:46].rstrip() + "…"
+
+
+def resolve_key_point_citations(
+    db: Session, version_id: uuid.UUID, content: dict[str, Any]
+) -> dict[str, int]:
+    """Ground the model's `key_point_citations` against the bill's sections
+    (grounded-answers rules 1 & 4): keep only citations whose `section_id` is a
+    real supplied anchor that resolves to a `BillVersionSection` AND whose
+    `quote` appears verbatim in that excerpt. Rewrites content in place so each
+    surviving citation carries the resolved `section_id` (the section identifier)
+    plus a display `label`. `key_points` is left intact — an unanchorable point
+    is shown without a citation marker (flagged, never invented), not dropped, so
+    the summary stays complete. Returns {points, anchored, dropped}, where
+    anchored/dropped count key points that did / didn't get a citation."""
+    raw = content.get("key_point_citations")
+    original_points = [
+        item for item in (content.get("key_points") or []) if isinstance(item, str)
+    ]
+    if not isinstance(raw, list):
+        raw = []
+
+    version = db.get(BillVersion, version_id)
+    anchors = {a.anchor_id: a for a in section_anchors(db, version)} if version else {}
+
+    resolved: list[dict[str, Any]] = []
+    anchored_points: list[str] = []
+    seen_points: set[str] = set()
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        point = entry.get("point")
+        section_id = entry.get("section_id")
+        quote = entry.get("quote")
+        if not (
+            isinstance(point, str)
+            and isinstance(section_id, str)
+            and isinstance(quote, str)
+            and point.strip()
+            and quote.strip()
+        ):
+            continue
+        anchor = anchors.get(section_id.strip())
+        if anchor is None or not anchor.section_id_text:
+            continue
+        if _normalize_for_match(quote) not in _normalize_for_match(anchor.text):
+            continue
+        resolved.append(
+            {
+                "point": point.strip(),
+                "section_id": anchor.section_id_text,
+                "label": _chip_label(anchor),
+                "quote": quote.strip(),
+            }
+        )
+        if point.strip() not in seen_points:
+            seen_points.add(point.strip())
+            anchored_points.append(point.strip())
+
+    content["key_point_citations"] = resolved
+    # Leave key_points untouched: an unanchorable point still displays, just
+    # without a citation chip (flagged, never invented). Only the anchorable
+    # subset carries a resolved citation.
+    return {
+        "points": len(original_points),
+        "anchored": len(seen_points),
+        "dropped": len(original_points) - len(seen_points),
+    }
 
 
 def bills_for_batch(
@@ -686,6 +829,8 @@ def apply_output(args: argparse.Namespace) -> None:
     )
     applied = 0
     failed = 0
+    citation_points = 0
+    citation_anchored = 0
     with Session(engine) as db:
         for line in output_path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
@@ -741,12 +886,18 @@ def apply_output(args: argparse.Namespace) -> None:
                 applied += 1
                 continue
 
+            bill_version_id = uuid.UUID(item.bill_version_id)
+            # Ground per-key-point citations against the bill's sections before
+            # persisting (#377): unanchorable points are dropped, never invented.
+            stats = resolve_key_point_citations(db, bill_version_id, content)
+            citation_points += stats["points"]
+            citation_anchored += stats["anchored"]
+
             content["_meta"] = {
                 "model": item.model,
                 "source_version_hash": item.source_version_hash,
                 "openai_batch_id": args.batch_id,
             }
-            bill_version_id = uuid.UUID(item.bill_version_id)
 
             db.execute(
                 update(AIEnrichment)
@@ -785,11 +936,15 @@ def apply_output(args: argparse.Namespace) -> None:
             db.rollback()
         else:
             db.commit()
-    print(
-        json.dumps(
-            {"applied": applied, "failed": failed, "dry_run": args.dry_run}, indent=2
-        )
-    )
+    summary: dict[str, Any] = {
+        "applied": applied,
+        "failed": failed,
+        "dry_run": args.dry_run,
+    }
+    if not merge:
+        summary["key_points"] = citation_points
+        summary["key_points_anchored"] = citation_anchored
+    print(json.dumps(summary, indent=2))
 
 
 def build_parser() -> argparse.ArgumentParser:

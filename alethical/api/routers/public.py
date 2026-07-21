@@ -650,7 +650,9 @@ def bill_detail(
         "tracking": tracking_payload(row.tracked_by).model_dump()
         if "tracking" in include_set and current_user
         else None,
-        "ai_analysis": ai_analysis_payload_for_enrichment(ai_enrichment),
+        "ai_analysis": ai_analysis_payload_for_enrichment(
+            ai_enrichment, row.official_url
+        ),
         "ai_summary": ai_enrichment.content_json if ai_enrichment else None,
     }
     if "all_sponsors" in include_set:
