@@ -1350,8 +1350,13 @@ const styles = StyleSheet.create({
     gap: 16,
     flexWrap: 'wrap',
     marginBottom: 20,
+    // RN-Web makes every View its own stacking context (position:relative,
+    // z-index:0), so the session dropdown (inside sessionWrap here) can't escape
+    // above the sibling bill list on z-index alone — this header row must sit
+    // above billStack for the menu to overlay the first card.
+    zIndex: 30,
   },
-  billStack: { gap: 18 },
+  billStack: { gap: 18, zIndex: 0 },
   billCard: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
