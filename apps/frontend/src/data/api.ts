@@ -625,6 +625,14 @@ function versionDisplayName(code: string, name?: string | null): string {
 // action_description with a null action_at).
 const DATE_ONLY = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
 
+// A trailing "referred to" / "re-refer to" clause (with an optional leading
+// "and" / comma) that dangles mid-phrase when the source carried no committee
+// name — e.g. "Introduction and first reading, referred to" or "…and re-refer
+// to". The committee is named in action_description when present (appended to
+// complete the phrase); when absent, this clause is stripped so no row ends on
+// "referred to" with nothing after it.
+const TRAILING_REFERRAL = /[,\s]*(?:and\s+)?(?:re-?)?refer(?:red)?\s+to\s*$/i;
+
 function isoFromSlashDate(value: string): string {
   const m = value.trim().match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (!m) return '';
@@ -672,6 +680,23 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     title = 'Presented to the Governor';
   } else if (low === 'chapter number') {
     return null; // redundant with the "Signed into law · Chapter N" milestone
+  } else if (/^effective date\b/i.test(low)) {
+    // The effective date's value lives in action_description. A real date goes
+    // in the date column (via the isoFromSlashDate fallback above); non-date
+    // text ("various dates", "the day following final enactment") has no date,
+    // so fold it into the title — otherwise the row is a bare label with an
+    // empty date column (and gets floated to the top by the timeline sort).
+    if (desc && !date) title = `Effective date: ${desc}`;
+  } else if (TRAILING_REFERRAL.test(text)) {
+    // Complete a dangling "…referred to" with its committee (action_description)
+    // when present; strip the fragment when the source has none. A bare
+    // "Referred to" with no target left over is dropped as meaningless.
+    if (desc) {
+      title = `${text} ${desc}`;
+    } else {
+      title = text.replace(TRAILING_REFERRAL, '').trim();
+      if (!title) return null;
+    }
   } else if (detailIsConnectorTarget(text, desc)) {
     title = `${text} ${desc}`; // "See" / "See Also" cross-references (#440)
   }
