@@ -418,10 +418,11 @@ function NoVotes({
           </Svg>
         </View>
         <Text accessibilityRole="header" style={styles.emptyTitle}>
-          No floor votes yet
+          No recorded roll-call votes
         </Text>
         <Text style={styles.emptyBody}>
-          {identifier} is in committee. Roll calls appear here when a chamber votes.
+          We don’t have recorded roll-call votes to show for {identifier}. When a chamber’s recorded
+          vote is available, it appears here.
         </Text>
         <Pressable
           accessibilityRole="button"
