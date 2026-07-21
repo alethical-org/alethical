@@ -37,6 +37,7 @@ import {
   isKnownDistrict,
   isLaw,
   MemberVote,
+  orderBillVersions,
   partyFull,
   PartyBlock,
   readLabel,
@@ -782,7 +783,7 @@ function BillDetailMobileScreen() {
               </Text>
               {bill.versions.length > 0 ? (
                 <View style={styles.versionList}>
-                  {bill.versions.map((v, i) => (
+                  {orderBillVersions(bill.versions, bill.actions).map((v, i) => (
                     <VersionRow
                       key={`${v.id}-${i}`}
                       label={v.label}
