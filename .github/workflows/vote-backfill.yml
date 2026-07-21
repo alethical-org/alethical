@@ -1,0 +1,54 @@
+name: Backfill roll-call votes
+
+# Keeps the corpus current (grounded-answers.md rule 7): pulls newly-recorded
+# House/Senate roll-call votes into vote_event/vote_record. --only-missing makes
+# each run cheap and idempotent (it fetches sources only for roll-call actions
+# that have no vote event yet), and the ingest is additive + money-free (only
+# free public revisor / house.mn.gov / senate.mn sources). Runs off-peak to be
+# polite to the .gov sources.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 09:00 UTC daily (~3-4am America/Chicago — off-peak for the MN .gov sources)
+    - cron: "0 9 * * *"
+
+concurrency:
+  group: production-vote-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    # Build the production URL from the same Supabase inputs the app/migrations
+    # use (supabase_database_url), so there is no separate DATABASE_URL copy of
+    # the password to rotate out of date (mirrors migrate.yml).
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Install poppler (pdftotext, for Senate journal PDFs)
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Check database secrets are set
+        run: test -n "$SUPABASE_PROJECT_URL" && test -n "$SUPABASE_DB_PASSWORD"
+
+      - name: Backfill missing roll-call votes
+        run: uv run python -m alethical.pipeline.votes --only-missing --write
