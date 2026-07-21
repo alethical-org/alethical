@@ -20,6 +20,7 @@ const TABS: Array<{ key: DetailTab; label: string }> = [
 // button at its right end opening an anchored popover.
 export function BillHeader({
   title,
+  fullTitle,
   eyebrow,
   omnibus,
   shareUrl,
@@ -28,6 +29,9 @@ export function BillHeader({
   onSelectTab,
 }: {
   title: string;
+  // Full official statutory title ("A bill for an act relating to…"). The H1 shows
+  // the concise plain-language `title`; the statutory text stays one hover away.
+  fullTitle: string;
   eyebrow: string;
   omnibus: boolean;
   shareUrl: string;
@@ -36,9 +40,23 @@ export function BillHeader({
   onSelectTab: (tab: DetailTab) => void;
 }) {
   const { isMobile } = useResponsive();
+  // Keep the authoritative statutory title reachable as a hover tooltip on web.
+  // RN-Web doesn't forward the DOM `title` attribute, so set it on the host node.
+  const headingRef = useRef<any>(null);
+  useEffect(() => {
+    const node = headingRef.current;
+    if (isWeb && node && typeof node.setAttribute === 'function') {
+      node.setAttribute('title', fullTitle);
+    }
+  }, [fullTitle]);
   return (
     <View>
-      <Text accessibilityRole="header" style={[styles.h1, isMobile && styles.h1Mobile]}>
+      <Text
+        ref={headingRef}
+        accessibilityRole="header"
+        accessibilityLabel={fullTitle}
+        style={[styles.h1, isMobile && styles.h1Mobile]}
+      >
         {title}
       </Text>
       <View style={styles.eyebrowRow}>
