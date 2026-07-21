@@ -960,10 +960,11 @@ class MinnesotaIngestionPipeline:
     # violate the referencing table's own unique key, so dedup_columns names the
     # rest of that key: a source row whose (target_id, *dedup) already exists on
     # the target is dropped instead of repointed. Kept in sync with the live
-    # production FK set — including evidence_document, a representative-evidence
-    # table applied to prod out-of-band (#288) and not yet in the repo schema, so
-    # it is repointed only where present. service_period + stats are dropped (the
-    # target keeps its own real-district ones), so they are not listed here.
+    # production FK set — including columns from the representative-evidence
+    # feature applied to prod out-of-band (#288) and not yet in the repo schema
+    # (evidence_document, chat_session.subject_legislator_id), which are repointed
+    # only where the column actually exists. service_period + stats are dropped
+    # (the target keeps its own real-district ones), so they are not listed here.
     _LEGISLATOR_FK_REPOINTS = (
         # (table, fk_column, dedup_columns)  -- dedup = the rest of the unique key
         ("sponsorship", "legislator_id", ("bill_id", "role")),
@@ -984,7 +985,7 @@ class MinnesotaIngestionPipeline:
         ``source``. Returns the number of sponsorships moved. Idempotent."""
         moved = 0
         for table, column, dedup in self._LEGISLATOR_FK_REPOINTS:
-            if not self._table_exists(table):
+            if not self._column_exists(table, column):
                 continue
             count = self._repoint(table, column, dedup, source.id, target.id)
             if table == "sponsorship":
@@ -1001,9 +1002,20 @@ class MinnesotaIngestionPipeline:
         self.db.flush()
         return moved
 
-    def _table_exists(self, table: str) -> bool:
+    def _column_exists(self, table: str, column: str) -> bool:
+        """Whether public.<table>.<column> exists. Some FK columns
+        (evidence_document, chat_session.subject_legislator_id) live only in the
+        out-of-band prod schema (#288), so the merge repoints them only where the
+        column is actually present — a no-op on the repo's canonical schema."""
         return (
-            self.db.scalar(text("SELECT to_regclass(:t)"), {"t": f"public.{table}"})
+            self.db.scalar(
+                text(
+                    "SELECT 1 FROM information_schema.columns "
+                    "WHERE table_schema='public' AND table_name=:t "
+                    "AND column_name=:c"
+                ),
+                {"t": table, "c": column},
+            )
             is not None
         )
 
