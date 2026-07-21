@@ -126,6 +126,16 @@ class AIAnalysisPayload(BaseModel):
     policy_areas: list[str]
 
 
+class CompanionBillPayload(BaseModel):
+    """The House/Senate companion of a bill. `id` is the companion's bill_key,
+    so the frontend links to its detail page at /bills/{id} (#293)."""
+
+    id: str
+    code: str
+    status: str | None = None
+    status_key: str | None = None
+
+
 class BillDetailPayload(BaseModel):
     id: str
     title: str
@@ -134,6 +144,7 @@ class BillDetailPayload(BaseModel):
     status_key: str | None = None
     latest_action_at: datetime | None = None
     official_url: str | None = None
+    companion: CompanionBillPayload | None = None
     chief_sponsors: list[SponsorSummary]
     all_sponsors: list[SponsorSummary] | None = None
     progress: list[BillProgressStep] | None = None

@@ -91,6 +91,15 @@ export interface BillAIAnalysis {
   policyAreas: string[];
 }
 
+export interface BillCompanion {
+  /** The companion's bill key (e.g. "94-2025-HF2431"); links to /bills/{id}. */
+  id: string;
+  /** Display code, e.g. "HF 2431". */
+  identifier: string;
+  chamber: Chamber;
+  status: string;
+}
+
 export interface Bill {
   id: string;
   identifier: string;
@@ -101,6 +110,10 @@ export interface Bill {
    *  the derived `status` label. Undefined when the source has no action text. */
   latestActionText?: string;
   isOmnibus?: boolean;
+  /** The House/Senate companion bill, when the pair is linked. `id` is the
+   *  companion's bill key, so a "Companion → {chamber} ({identifier})" row can
+   *  link to /bills/{id}. Undefined when unlinked or not served (#293). */
+  companion?: BillCompanion | null;
   updatedAt: string;
   sessionLabel: string;
   topics: string[];

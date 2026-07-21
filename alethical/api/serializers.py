@@ -316,6 +316,20 @@ def bill_list_item(
     )
 
 
+def companion_payload(bill) -> api_schemas.CompanionBillPayload | None:
+    """Serialize a bill's House/Senate companion, or None if unlinked. `id` is
+    the companion's bill_key so the frontend can link to /bills/{id} (#293)."""
+    companion = getattr(bill, "companion_bill", None)
+    if companion is None:
+        return None
+    return api_schemas.CompanionBillPayload(
+        id=companion.bill_key,
+        code=f"{companion.file_type} {companion.file_number}",
+        status=companion.current_status,
+        status_key=bill_status_key(companion),
+    )
+
+
 def district_payload(district) -> api_schemas.DistrictPayload:
     return api_schemas.DistrictPayload(
         id=str(district.id), code=district.code, label=district.label

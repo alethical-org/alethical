@@ -329,6 +329,44 @@ def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     assert "action_at" in action_payload[0]
 
 
+def test_bill_detail_serves_companion_bill(client):
+    """#293: when a bill is linked to its House/Senate companion, the detail
+    payload serves companion {id, code, status}. `id` is the companion's bill
+    key, so the companion is URL-addressable at /bills/{id} (grounded-answers
+    rule 5). An unlinked bill omits the field entirely."""
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        bill = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+        )
+        companion = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF2483")
+        )
+        bill.companion_bill_id = companion.id
+        companion.companion_bill_id = bill.id
+        db.commit()
+        companion_key, companion_code = (
+            companion.bill_key,
+            (f"{companion.file_type} {companion.file_number}"),
+        )
+    try:
+        detail = client.get("/api/v1/bills/94-2025-SF1832").json()["data"]
+        assert detail["companion"]["id"] == companion_key
+        assert detail["companion"]["code"] == companion_code
+        assert "status" in detail["companion"]
+        # The companion id is URL-addressable to its own bill detail page, and
+        # the link is served symmetrically from the companion's side too.
+        companion_detail = client.get(f"/api/v1/bills/{companion_key}")
+        assert companion_detail.status_code == 200
+        assert companion_detail.json()["data"]["companion"]["id"] == "94-2025-SF1832"
+    finally:
+        with Session(get_engine()) as db:
+            for key in ("94-2025-SF1832", "94-2025-SF2483"):
+                row = db.scalar(select(schema.Bill).where(schema.Bill.bill_key == key))
+                row.companion_bill_id = None
+            db.commit()
+
+
 def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
     detail_response = client.get(
         "/api/v1/bills/94-2025-SF1832",

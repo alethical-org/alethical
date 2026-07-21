@@ -994,6 +994,10 @@ def bill_detail_stmt(bill_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
         .selectinload(Legislator.service_periods)
         .selectinload(LegislatorServicePeriod.district),
         selectinload(Bill.actions),
+        # Companion bill (+ its actions) so the detail payload can serve the
+        # companion's code/status without a lazy load; status_key derives from
+        # the companion's actions (#293).
+        selectinload(Bill.companion_bill).selectinload(Bill.actions),
         selectinload(Bill.vote_events)
         .selectinload(VoteEvent.records)
         .selectinload(VoteRecord.legislator),
