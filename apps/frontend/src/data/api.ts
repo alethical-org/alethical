@@ -572,14 +572,24 @@ function versionDisplayName(code: string, name?: string | null): string {
   return raw || trimmedCode || 'Bill version';
 }
 
+// The action's canonical label is action_text (e.g. "Author added", "Third
+// reading Passed as amended", "Referred to"). action_description carries a
+// supplementary detail — a name list for author/conferee rows, a filing date,
+// or a cross-reference target — so it must NOT replace the label. Preferring it
+// (the old `description || text`) surfaced bare surname lists as if they were
+// legislative steps (#430). Use action_text as the label; only the
+// cross-reference connectors ("See", "See Also") need their target appended to
+// stay meaningful.
 function usefulActionDescription(action: ApiBillActionPayload) {
-  const description = action.action_description?.trim();
   const text = action.action_text?.trim();
-  const value = description || text;
-  if (!value || value.toLowerCase() === 'updated unknown') {
+  const detail = action.action_description?.trim();
+  if (!text || text.toLowerCase() === 'updated unknown') {
     return '';
   }
-  return value;
+  if (detail && /^see( also)?$/i.test(text)) {
+    return `${text} ${detail}`;
+  }
+  return text;
 }
 
 function normalizeBillIdForApi(billId: string) {
@@ -835,7 +845,12 @@ function mapBillDetail(
         date: formatOptionalDate(action.action_at),
         description: usefulActionDescription(action),
       }))
-      .filter((action) => action.date || action.description.length > 12),
+      // Keep every action that has a real label. The old `length > 12` cutoff
+      // was tuned to the payload text; against the canonical action_text it
+      // would wrongly drop short but genuine undated steps ("Referred to",
+      // "See"). usefulActionDescription already blanks empty / "updated unknown"
+      // rows, so a non-empty check is the right guard.
+      .filter((action) => action.description.length > 0),
     versions: (payload.versions ?? []).map((version) => ({
       id: `${payload.id}-version-${version.version_code}`,
       label: versionDisplayName(version.version_code, version.version_name),
