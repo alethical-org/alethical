@@ -207,9 +207,11 @@ export function SearchLegislatorsScreen() {
               <View key={legislator.id} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
                 <LegislatorResultCard
                   legislator={legislator}
-                  // Legislator profile is an old-design page — cards stay
-                  // visible but don't route anywhere until its new design ships.
-                  onPress={() => {}}
+                  onPress={() =>
+                    navigation.navigate('LegislatorProfile', {
+                      legislatorId: legislator.id,
+                    })
+                  }
                 />
               </View>
             ))}
