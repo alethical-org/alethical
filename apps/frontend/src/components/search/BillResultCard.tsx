@@ -3,6 +3,7 @@ import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } fr
 import Svg, { Path } from 'react-native-svg';
 
 import { Bill } from '../../data/types';
+import { usePrefetchBill } from '../../hooks/useAppQueries';
 import { titleCaseIssue } from '../../lib/issues';
 import { theme as t } from '../../theme/tokens';
 
@@ -94,6 +95,10 @@ export function BillResultCard({
   onRollCalls,
 }: BillResultCardProps) {
   const [hovered, setHovered] = useState(false);
+  const prefetchBill = usePrefetchBill();
+  // Warm the bill-detail cache the instant the card shows navigation intent so
+  // the detail page opens without its "Loading bill…" spinner.
+  const warm = () => prefetchBill(bill.id);
   // Full statutory title as a web hover tooltip. RN-Web drops the `title` prop, so
   // set it on the DOM node directly; aria-label carries it for screen readers.
   const titleRef = useRef<Text>(null);
@@ -123,7 +128,11 @@ export function BillResultCard({
     <Pressable
       accessibilityRole="link"
       onPress={onPress}
-      onHoverIn={() => setHovered(true)}
+      onPressIn={warm}
+      onHoverIn={() => {
+        setHovered(true);
+        warm();
+      }}
       onHoverOut={() => setHovered(false)}
       style={[styles.card, hovered && styles.cardHover]}
     >

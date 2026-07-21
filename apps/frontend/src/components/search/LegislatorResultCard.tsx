@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Legislator } from '../../data/types';
+import { usePrefetchLegislator } from '../../hooks/useAppQueries';
 import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
@@ -44,6 +45,10 @@ function authoredCount(data: LegislatorCardData): number {
 
 export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCardProps) {
   const [hovered, setHovered] = useState(false);
+  const prefetchLegislator = usePrefetchLegislator();
+  // Warm the profile cache on navigation intent so the profile opens without its
+  // "Loading legislator…" spinner.
+  const warm = () => prefetchLegislator(legislator.id);
   const committees = legislator.committees ?? [];
   const shown = committees.slice(0, 2);
   const extra = committees.length - shown.length;
@@ -53,7 +58,11 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
     <Pressable
       accessibilityRole="link"
       onPress={onPress}
-      onHoverIn={() => setHovered(true)}
+      onPressIn={warm}
+      onHoverIn={() => {
+        setHovered(true);
+        warm();
+      }}
       onHoverOut={() => setHovered(false)}
       style={[styles.card, hovered && styles.cardHover]}
     >

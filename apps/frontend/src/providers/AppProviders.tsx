@@ -11,7 +11,13 @@ export function AppProviders({ children }: PropsWithChildren) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 30_000,
+            // Data we've already fetched (a bill, a legislator, a filtered list)
+            // stays "fresh" for 5 min and lingers in memory for 30 min, so
+            // reopening a page you just viewed — or navigating Back — is instant
+            // instead of re-hitting the API. Mutations (track, chat) invalidate
+            // their own keys explicitly, so this never serves stale writes.
+            staleTime: 5 * 60_000,
+            gcTime: 30 * 60_000,
             refetchOnWindowFocus: false,
           },
         },
