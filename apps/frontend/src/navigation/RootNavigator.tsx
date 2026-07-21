@@ -15,30 +15,69 @@ import {
   UserCircle,
   type LucideIcon,
 } from 'lucide-react-native';
-import { ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ComponentProps, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AccountScreen } from '../screens/AccountScreen';
-import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
-import { BillDetailScreen } from '../screens/redesign/BillDetailScreen';
-import { ChatSessionScreen } from '../screens/ChatSessionScreen';
-import { ChatScreen } from '../screens/ChatScreen';
-import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
-import { HomeScreen } from '../screens/HomeScreen';
 import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
-import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
-import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
-import { SearchBillsScreen } from '../screens/redesign/SearchBillsScreen';
-import { SearchLegislatorsScreen } from '../screens/redesign/SearchLegislatorsScreen';
-import { SearchScreen } from '../screens/SearchScreen';
-import { TrackedScreen } from '../screens/TrackedScreen';
-import { VoteDetailScreen } from '../screens/VoteDetailScreen';
+import type { HomeScreen } from '../screens/HomeScreen';
 import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
 import { MainTabParamList, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { theme } from '../theme/tokens';
+
+// Non-landing screens are code-split into their own async chunks so a cold
+// first load / deep link doesn't download every screen's code before first
+// paint. The landing home (HomeSignedOutScreen) and nav chrome stay eager.
+const AccountScreen = lazy(() =>
+  import('../screens/AccountScreen').then((m) => ({ default: m.AccountScreen })),
+);
+const AskAnswerScreen = lazy(() =>
+  import('../screens/redesign/AskAnswerScreen').then((m) => ({ default: m.AskAnswerScreen })),
+);
+const BillDetailScreen = lazy(() =>
+  import('../screens/redesign/BillDetailScreen').then((m) => ({ default: m.BillDetailScreen })),
+);
+const ChatScreen = lazy(() =>
+  import('../screens/ChatScreen').then((m) => ({ default: m.ChatScreen })),
+);
+const ChatSessionScreen = lazy(() =>
+  import('../screens/ChatSessionScreen').then((m) => ({ default: m.ChatSessionScreen })),
+);
+const FindMyLegislatorScreen = lazy(() =>
+  import('../screens/FindMyLegislatorScreen').then((m) => ({
+    default: m.FindMyLegislatorScreen,
+  })),
+);
+const LegislatorProfileScreen = lazy(() =>
+  import('../screens/LegislatorProfileScreen').then((m) => ({
+    default: m.LegislatorProfileScreen,
+  })),
+);
+const PrivacyScreen = lazy(() =>
+  import('../screens/LegalScreens').then((m) => ({ default: m.PrivacyScreen })),
+);
+const TermsScreen = lazy(() =>
+  import('../screens/LegalScreens').then((m) => ({ default: m.TermsScreen })),
+);
+const SearchBillsScreen = lazy(() =>
+  import('../screens/redesign/SearchBillsScreen').then((m) => ({ default: m.SearchBillsScreen })),
+);
+const SearchLegislatorsScreen = lazy(() =>
+  import('../screens/redesign/SearchLegislatorsScreen').then((m) => ({
+    default: m.SearchLegislatorsScreen,
+  })),
+);
+const SearchScreen = lazy(() =>
+  import('../screens/SearchScreen').then((m) => ({ default: m.SearchScreen })),
+);
+const TrackedScreen = lazy(() =>
+  import('../screens/TrackedScreen').then((m) => ({ default: m.TrackedScreen })),
+);
+const VoteDetailScreen = lazy(() =>
+  import('../screens/VoteDetailScreen').then((m) => ({ default: m.VoteDetailScreen })),
+);
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -293,6 +332,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  suspenseFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.paper,
+  },
   headerLeftContainer: {
     paddingLeft: theme.spacing.lg,
     paddingRight: theme.spacing.md,
@@ -538,95 +583,103 @@ export function RootNavigator() {
       <View style={isDesktop ? styles.globalShell : styles.globalShellMobile}>
         {isDesktop && !isSignedOutHome ? <DesktopRail activeRouteName={activeRailRoute} /> : null}
         <View style={styles.globalContent}>
-          <Stack.Navigator
-            screenOptions={({ navigation }) => ({
-              headerShown: !isDesktop,
-              headerBackVisible: false,
-              headerTitleAlign: 'left',
-              headerShadowVisible: false,
-              headerStyle: {
-                backgroundColor: theme.colors.surface,
-              },
-              headerTintColor: theme.colors.ink,
-              headerLeft: () =>
-                navigation.canGoBack() ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Go back"
-                    hitSlop={10}
-                    onPress={() => navigation.goBack()}
-                    style={({ pressed }) => [
-                      styles.headerBackButton,
-                      pressed && styles.headerBackButtonPressed,
-                    ]}
-                  >
-                    <ArrowLeft color={theme.colors.ink} size={32} strokeWidth={2.4} />
-                  </Pressable>
-                ) : null,
-              headerLeftContainerStyle: styles.headerLeftContainer,
-              headerTitleContainerStyle: styles.headerTitleContainer,
-              headerTitleStyle: {
-                color: theme.colors.ink,
-                fontFamily: theme.typography.title,
-                fontSize: 22,
-              },
-              contentStyle: {
-                backgroundColor: theme.colors.paper,
-              },
-            })}
+          <Suspense
+            fallback={
+              <View style={styles.suspenseFallback}>
+                <ActivityIndicator size="large" color={theme.colors.accent} />
+              </View>
+            }
           >
-            <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
-            <Stack.Screen
-              name="Ask"
-              component={AskAnswerScreen}
-              options={{ headerShown: false, title: 'Ask' }}
-            />
-            <Stack.Screen
-              name="BillDetail"
-              component={BillDetailScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="LegislatorProfile"
-              component={LegislatorProfileScreen}
-              options={{ headerShown: false, title: 'Legislator' }}
-            />
-            <Stack.Screen
-              name="FindMyLegislator"
-              component={FindMyLegislatorScreen}
-              options={{ title: 'Find My Legislator' }}
-            />
-            <Stack.Screen
-              name="Bills"
-              component={SearchBillsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Legislators"
-              component={SearchLegislatorsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Privacy"
-              component={PrivacyScreen}
-              options={{ title: 'Privacy Policy' }}
-            />
-            <Stack.Screen
-              name="Terms"
-              component={TermsScreen}
-              options={{ title: 'Terms of Service' }}
-            />
-            <Stack.Screen
-              name="VoteDetail"
-              component={VoteDetailScreen}
-              options={{ title: 'Vote Detail' }}
-            />
-            <Stack.Screen
-              name="ChatSession"
-              component={ChatSessionScreen}
-              options={{ title: 'Chat' }}
-            />
-          </Stack.Navigator>
+            <Stack.Navigator
+              screenOptions={({ navigation }) => ({
+                headerShown: !isDesktop,
+                headerBackVisible: false,
+                headerTitleAlign: 'left',
+                headerShadowVisible: false,
+                headerStyle: {
+                  backgroundColor: theme.colors.surface,
+                },
+                headerTintColor: theme.colors.ink,
+                headerLeft: () =>
+                  navigation.canGoBack() ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Go back"
+                      hitSlop={10}
+                      onPress={() => navigation.goBack()}
+                      style={({ pressed }) => [
+                        styles.headerBackButton,
+                        pressed && styles.headerBackButtonPressed,
+                      ]}
+                    >
+                      <ArrowLeft color={theme.colors.ink} size={32} strokeWidth={2.4} />
+                    </Pressable>
+                  ) : null,
+                headerLeftContainerStyle: styles.headerLeftContainer,
+                headerTitleContainerStyle: styles.headerTitleContainer,
+                headerTitleStyle: {
+                  color: theme.colors.ink,
+                  fontFamily: theme.typography.title,
+                  fontSize: 22,
+                },
+                contentStyle: {
+                  backgroundColor: theme.colors.paper,
+                },
+              })}
+            >
+              <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
+              <Stack.Screen
+                name="Ask"
+                component={AskAnswerScreen}
+                options={{ headerShown: false, title: 'Ask' }}
+              />
+              <Stack.Screen
+                name="BillDetail"
+                component={BillDetailScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="LegislatorProfile"
+                component={LegislatorProfileScreen}
+                options={{ headerShown: false, title: 'Legislator' }}
+              />
+              <Stack.Screen
+                name="FindMyLegislator"
+                component={FindMyLegislatorScreen}
+                options={{ title: 'Find My Legislator' }}
+              />
+              <Stack.Screen
+                name="Bills"
+                component={SearchBillsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Legislators"
+                component={SearchLegislatorsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Privacy"
+                component={PrivacyScreen}
+                options={{ title: 'Privacy Policy' }}
+              />
+              <Stack.Screen
+                name="Terms"
+                component={TermsScreen}
+                options={{ title: 'Terms of Service' }}
+              />
+              <Stack.Screen
+                name="VoteDetail"
+                component={VoteDetailScreen}
+                options={{ title: 'Vote Detail' }}
+              />
+              <Stack.Screen
+                name="ChatSession"
+                component={ChatSessionScreen}
+                options={{ title: 'Chat' }}
+              />
+            </Stack.Navigator>
+          </Suspense>
         </View>
       </View>
     </NavigationContainer>
