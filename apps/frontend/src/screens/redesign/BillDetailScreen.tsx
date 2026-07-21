@@ -793,7 +793,7 @@ function BillDetailMobileScreen() {
                     <VersionRow
                       key={`${v.id}-${i}`}
                       label={v.label}
-                      date={v.date}
+                      date={formatMonoDate(v.date)}
                       isLaw={vm.tone === 'green' && /session law|chapter/i.test(v.label)}
                       onPress={v.url ? () => openExternal(v.url) : undefined}
                     />
@@ -1071,7 +1071,7 @@ function ActionRow({
         <View style={[styles.actionDot, dotStyle]} />
       </View>
       <View style={styles.actionBody}>
-        {action.date ? <Text style={styles.actionDate}>{action.date.toUpperCase()}</Text> : null}
+        {action.date ? <Text style={styles.actionDate}>{formatMonoDate(action.date)}</Text> : null}
         <View style={styles.actionTitleRow}>
           <Text style={[styles.actionTitle, action.upcoming && { color: t.colors.text.faint }]}>
             {action.description}
