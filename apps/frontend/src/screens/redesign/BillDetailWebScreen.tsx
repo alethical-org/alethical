@@ -14,10 +14,11 @@ import { SummaryTab } from '../../components/billDetail/SummaryTab';
 import { ActionsTab } from '../../components/billDetail/ActionsTab';
 import { VotesTab } from '../../components/billDetail/VotesTab';
 import { VersionsTab } from '../../components/billDetail/VersionsTab';
+import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { Skeleton } from '../../components/Skeleton';
 
 const isWeb = Platform.OS === 'web';
-const TABS: DetailTab[] = ['summary', 'actions', 'votes', 'versions'];
+const TABS: DetailTab[] = ['summary', 'actions', 'votes', 'versions', 'fulltext'];
 
 // Web Bill Detail (design_handoff_bill_profile_web). Tabbed two-column layout —
 // plain-language summary first, official record deeper in. Tab lives in the URL
@@ -33,6 +34,9 @@ export function BillDetailWebScreen() {
   const activeTab: DetailTab = TABS.includes(tabParam) ? tabParam : 'summary';
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
+  // Section a citation chip asked to jump to; consumed by the Full Text tab
+  // after it mounts (inactive tabs are unmounted on web).
+  const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
@@ -140,6 +144,10 @@ export function BillDetailWebScreen() {
         onOpenBill={openBill}
         isDesktop={isDesktop}
         updatedLabel={updatedLabel}
+        onCitationPress={(sectionId: string) => {
+          setPendingAnchor(sectionId);
+          selectTab('fulltext');
+        }}
       />
     );
   } else if (activeTab === 'actions') {
@@ -157,8 +165,17 @@ export function BillDetailWebScreen() {
         updatedLabel={updatedLabel}
       />
     );
-  } else {
+  } else if (activeTab === 'versions') {
     body = <VersionsTab bill={bill} onOpenUrl={openUrl} updatedLabel={updatedLabel} />;
+  } else if (activeTab === 'fulltext') {
+    body = (
+      <FullTextTab
+        bill={bill}
+        targetSectionId={pendingAnchor}
+        onAnchorConsumed={() => setPendingAnchor(null)}
+        updatedLabel={updatedLabel}
+      />
+    );
   }
 
   return shell(body, hero);

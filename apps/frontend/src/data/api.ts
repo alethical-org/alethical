@@ -315,6 +315,16 @@ interface ApiBillVersionPayload {
   is_current: boolean;
 }
 
+interface ApiBillVersionTextPayload {
+  version_code: string;
+  sections: Array<{
+    section_id: string;
+    heading?: string | null;
+    article_heading?: string | null;
+    text: string;
+  }>;
+}
+
 interface ApiTopicPayload {
   slug: string;
   name: string;
@@ -358,6 +368,7 @@ interface ApiAiCitationPayload {
   label: string;
   url: string;
   excerpt: string;
+  section_id: string;
 }
 
 interface ApiAiAnalysisPayload {
@@ -832,6 +843,7 @@ function citationsFromAnalysis(analysis: ApiAiAnalysisPayload | null | undefined
       label: c.label.trim(),
       excerpt: c.excerpt.trim(),
       url: c.url,
+      sectionId: typeof c.section_id === 'string' ? c.section_id.trim() : '',
     }));
 }
 
@@ -1075,6 +1087,8 @@ function mapBillDetail(
       summary: '',
       url: version.html_url ?? version.pdf_url ?? payload.official_url ?? '',
       isCurrentPointer: version.version_code.trim().toLowerCase() === 'current',
+      versionCode: version.version_code,
+      isCurrent: version.is_current ?? false,
     })),
     votes: votes.map((vote) => ({
       id: vote.id,
@@ -1141,6 +1155,9 @@ function mapCitation(
     fullText: citation.full_text ?? citation.excerpt,
     highlightText: citation.highlight_text ?? citation.excerpt ?? excerpt,
     url: citation.url ?? '',
+    // Chat citations don't carry a statute-section anchor (Full Text is a
+    // bill-detail feature); empty so it never resolves to a Full Text section.
+    sectionId: '',
   };
 }
 
@@ -1468,6 +1485,29 @@ export async function getBillFromApi(
   ]);
 
   return mapBillDetail(detailResponse.data, votesResponse.data);
+}
+
+export interface BillVersionSectionText {
+  sectionId: string;
+  heading: string | null;
+  articleHeading: string | null;
+  text: string;
+}
+
+export async function fetchBillVersionText(
+  billId: string,
+  versionCode: string,
+): Promise<BillVersionSectionText[]> {
+  const apiBillId = normalizeBillIdForApi(billId);
+  const response = await publicApiRequest<DetailResponse<ApiBillVersionTextPayload>>(
+    `/bills/${encodeURIComponent(apiBillId)}/versions/${encodeURIComponent(versionCode)}/text?format=structured`,
+  );
+  return (response.data.sections ?? []).map((section) => ({
+    sectionId: section.section_id,
+    heading: section.heading ?? null,
+    articleHeading: section.article_heading ?? null,
+    text: section.text,
+  }));
 }
 
 // The API paginates the legislator list (max 100 per page) and has no party

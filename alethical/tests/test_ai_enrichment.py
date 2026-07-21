@@ -394,12 +394,14 @@ def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
             "label": "Section 1.1",
             "url": url,
             "excerpt": "a grant program",
+            "section_id": "1.1",
         },
         {
             "id": "2.1-1",
             "label": "Section 2.1",
             "url": url,
             "excerpt": "an annual report",
+            "section_id": "2.1",
         },
     ]
     # No resolvable official URL → no dead-link citations (grounded-answers rule 5).

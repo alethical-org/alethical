@@ -4,6 +4,7 @@ import {
   askFromApi,
   createChatSessionFromApi,
   BillListFilters,
+  fetchBillVersionText,
   getBillFromApi,
   getChatSessionFromApi,
   getCurrentUserFromApi,
@@ -99,6 +100,15 @@ export function useBill(billId: string, options: { enabled?: boolean } = {}) {
     queryFn: () => getBillFromApi(billId),
     retry: false,
     enabled: options.enabled ?? true,
+  });
+}
+
+export function useBillVersionText(billId?: string, versionCode?: string) {
+  return useQuery({
+    queryKey: ['bill-version-text', billId, versionCode],
+    queryFn: () => fetchBillVersionText(billId!, versionCode!),
+    retry: false,
+    enabled: !!billId && !!versionCode,
   });
 }
 

@@ -21,7 +21,7 @@ export type RootStackParamList = {
   Legislators: undefined;
   BillDetail: {
     billId: string;
-    tab?: 'summary' | 'actions' | 'versions' | 'votes';
+    tab?: 'summary' | 'actions' | 'versions' | 'votes' | 'fulltext';
     // Intent-preserving track flow: a signed-out user who taps Track is sent
     // through sign-in and back to /bills/{id}?track=1; on return the screen
     // auto-completes the track and clears the param (grounded-answers.md rule 5).
