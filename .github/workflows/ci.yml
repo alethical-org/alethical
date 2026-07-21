@@ -77,6 +77,21 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # Guard against multiple Alembic heads: when two branches each add a
+      # migration off the same parent, `alembic upgrade head` (incl. the prod
+      # migrate-on-merge) fails. Catch it here at PR time — three such
+      # collisions happened during #486 (#500/#508 vs #489) and only surfaced
+      # in manual checks. DB-free (reads the migration scripts).
+      - name: Check single migration head
+        run: |
+          heads=$(uv run alembic heads 2>/dev/null | grep -c '(head)')
+          echo "alembic heads: $heads"
+          if [ "$heads" -ne 1 ]; then
+            echo "::error::Multiple Alembic heads — rebase your migration to chain after the current head so prod migrate-on-merge doesn't break."
+            uv run alembic heads
+            exit 1
+          fi
+
       - name: Lint backend
         run: uvx ruff check alethical scripts
 
