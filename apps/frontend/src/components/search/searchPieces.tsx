@@ -254,9 +254,12 @@ function HeroSearchButton({ onPress, full }: { onPress: () => void; full?: boole
 export function ChamberSegmented({
   value,
   onChange,
+  onHoverOption,
 }: {
   value: ChamberFilter;
   onChange: (value: ChamberFilter) => void;
+  /** Fires on hover of a chamber option — used to prefetch its filtered list. */
+  onHoverOption?: (value: ChamberFilter) => void;
 }) {
   return (
     <View style={styles.segmented}>
@@ -268,6 +271,7 @@ export function ChamberSegmented({
             label={option}
             active={active}
             onPress={() => onChange(option)}
+            onHoverIn={onHoverOption ? () => onHoverOption(option) : undefined}
           />
         );
       })}
@@ -279,10 +283,12 @@ function SegmentButton({
   label,
   active,
   onPress,
+  onHoverIn,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
+  onHoverIn?: () => void;
 }) {
   const [hovered, hover] = useHover();
   return (
@@ -291,6 +297,10 @@ function SegmentButton({
       accessibilityState={{ selected: active }}
       onPress={onPress}
       {...hover}
+      onHoverIn={() => {
+        hover.onHoverIn();
+        onHoverIn?.();
+      }}
       style={[styles.segmentBtn, active && styles.segmentBtnActive]}
     >
       <Text
@@ -471,11 +481,14 @@ export function FilterPill({
   count,
   active,
   onPress,
+  onHoverIn,
 }: {
   label: string;
   count?: number;
   active: boolean;
   onPress: () => void;
+  /** Fires on hover — used to prefetch the filtered list for this pill. */
+  onHoverIn?: () => void;
 }) {
   const [hovered, hover] = useHover();
   return (
@@ -485,6 +498,10 @@ export function FilterPill({
       accessibilityLabel={typeof count === 'number' ? `${label}, ${count} bills` : label}
       onPress={onPress}
       {...hover}
+      onHoverIn={() => {
+        hover.onHoverIn();
+        onHoverIn?.();
+      }}
       style={[styles.pill, active ? styles.pillActive : hovered && styles.filterHover]}
     >
       <Text
