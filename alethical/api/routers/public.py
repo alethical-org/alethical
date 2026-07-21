@@ -303,6 +303,103 @@ def canonical_legislator_for_placeholder(db: Session, legislator, session_id):
     )
 
 
+def member_name_by_legislator(db: Session, legislator_ids) -> dict[str, str]:
+    """Full name per legislator id, batched in one query for a whole roll call
+    (no per-member N+1). Feeds the /votes per-member records (#83)."""
+    ids = list(legislator_ids)
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(Legislator.id, Legislator.full_name).where(Legislator.id.in_(ids))
+    ).all()
+    return {str(legislator_id): full_name for legislator_id, full_name in rows}
+
+
+def member_party_by_legislator(db: Session, legislator_ids) -> dict[str, str | None]:
+    """Current/latest party per legislator id, batched in one query for a whole
+    roll call (no per-member N+1). Picks each legislator's current period, else
+    the most recent one (ORDER BY is_current DESC, start_date DESC NULLS LAST),
+    via DISTINCT ON. Party is served raw (prod has 'DFL', 'R', and a stray
+    'Republican'). Feeds the /votes per-member records (#83)."""
+    ids = list(legislator_ids)
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(
+            LegislatorServicePeriod.legislator_id,
+            LegislatorServicePeriod.party,
+        )
+        .where(LegislatorServicePeriod.legislator_id.in_(ids))
+        .distinct(LegislatorServicePeriod.legislator_id)
+        .order_by(
+            LegislatorServicePeriod.legislator_id,
+            LegislatorServicePeriod.is_current.desc(),
+            LegislatorServicePeriod.start_date.desc().nullslast(),
+        )
+    ).all()
+    return {str(legislator_id): party for legislator_id, party in rows}
+
+
+def resolve_sponsor_party_district(
+    db: Session, sponsorships, session_id
+) -> dict[str, dict]:
+    """Real party + district for author-keyed sponsor placeholder rows.
+
+    Bill sponsors are stored on the numeric-keyed bill-author Legislator row,
+    whose own service period carries a null party and a "*-unknown" placeholder
+    district (#291). The real party/district live on the member's roster row,
+    linked by the roster external_key *ending with* the author key — the same
+    suffix relationship canonical_legislator_for_placeholder() and
+    authored_bill_counts() resolve. Join each author sponsor to its roster row's
+    current service period (party) and district (label, else code) for the bill's
+    session, one query for the whole sponsor list (no per-sponsor N+1). Returns
+    {author_legislator_id: {"party": ..., "district": ...}}. Sponsors whose own
+    row already carries a real district produce no entry, so sponsor_payloads
+    falls back to their own service period (correct today)."""
+    author_ids = {
+        sponsorship.legislator.id
+        for sponsorship in sponsorships
+        if sponsorship.legislator
+    }
+    if not author_ids:
+        return {}
+    author = aliased(Legislator)
+    roster = aliased(Legislator)
+    rows = db.execute(
+        select(
+            author.id,
+            LegislatorServicePeriod.party,
+            District.label,
+            District.code,
+        )
+        .select_from(author)
+        .join(
+            roster,
+            and_(
+                roster.jurisdiction_id == author.jurisdiction_id,
+                author.external_key.isnot(None),
+                roster.id != author.id,
+                roster.external_key.ilike(func.concat("%", author.external_key)),
+            ),
+        )
+        .join(
+            LegislatorServicePeriod,
+            LegislatorServicePeriod.legislator_id == roster.id,
+        )
+        .join(District, District.id == LegislatorServicePeriod.district_id)
+        .where(
+            author.id.in_(author_ids),
+            LegislatorServicePeriod.session_id == session_id,
+            LegislatorServicePeriod.is_current.is_(True),
+            District.code.not_like("%-unknown"),
+        )
+    ).all()
+    resolved: dict[str, dict] = {}
+    for author_id, party, label, code in rows:
+        resolved.setdefault(str(author_id), {"party": party, "district": label or code})
+    return resolved
+
+
 def tracking_user_id(include_set: set[str], current_user):
     if "tracking" not in include_set:
         return None
@@ -564,6 +661,11 @@ def bill_detail(
         ai_enrichment = current_bill_summary_enrichment(row.enrichments)
     if "ai_analysis" in include_set and ai_enrichment is None:
         raise HTTPException(status_code=404, detail="bill enrichment not found")
+    # Resolve real party/district for author-keyed sponsor placeholder rows once
+    # for both the chief and all-sponsor lists (#291 two-row topology).
+    resolved_sponsors = resolve_sponsor_party_district(
+        db, row.chief_sponsorships + row.sponsorships, row.session_id
+    )
     payload = {
         "id": row.bill_key,
         "title": row.title,
@@ -575,7 +677,9 @@ def bill_detail(
         "chief_sponsors": [
             item.model_dump()
             for item in sponsor_payloads(
-                row.chief_sponsorships, session_id=row.session_id
+                row.chief_sponsorships,
+                session_id=row.session_id,
+                resolved=resolved_sponsors,
             )
         ],
         "tracking": tracking_payload(row.tracked_by).model_dump()
@@ -587,7 +691,11 @@ def bill_detail(
     if "all_sponsors" in include_set:
         payload["all_sponsors"] = [
             item.model_dump()
-            for item in sponsor_payloads(row.sponsorships, session_id=row.session_id)
+            for item in sponsor_payloads(
+                row.sponsorships,
+                session_id=row.session_id,
+                resolved=resolved_sponsors,
+            )
         ]
     if "progress" in include_set:
         payload["progress"] = [item.model_dump() for item in bill_progress_payload(row)]
@@ -739,6 +847,15 @@ def bill_votes(
     response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
     bill_row = get_bill_by_key(db, bill_id)
     row = db.scalar(bill_detail_stmt(bill_row.id))
+    # Resolve each voter's name + party once for the whole roll call, batched
+    # across every vote event, so party-grouped attribution renders (#83).
+    voter_ids = {
+        record.legislator_id
+        for vote_event in row.vote_events
+        for record in vote_event.records
+    }
+    names = member_name_by_legislator(db, voter_ids)
+    parties = member_party_by_legislator(db, voter_ids)
     data = [
         {
             "id": str(vote_event.id),
@@ -757,6 +874,8 @@ def bill_votes(
             "records": [
                 {
                     "legislator_id": str(record.legislator_id),
+                    "legislator_name": names.get(str(record.legislator_id)),
+                    "party": parties.get(str(record.legislator_id)),
                     "vote_value": record.vote_value.value,
                 }
                 for record in vote_event.records

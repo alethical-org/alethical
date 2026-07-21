@@ -3,6 +3,7 @@ import {
   AskAnswer,
   AskAnswerBill,
   Bill,
+  BillAction,
   BillSponsor,
   Chamber,
   ChatSession,
@@ -228,6 +229,7 @@ interface ApiBillActionPayload {
   action_group?: string | null;
   action_description?: string | null;
   action_at?: string | null;
+  roll_call_text?: string | null;
 }
 
 interface ApiDistrictPayload {
@@ -332,6 +334,8 @@ interface ApiAiAnalysisPayload {
 
 interface ApiBillVoteRecordPayload {
   legislator_id: string;
+  legislator_name?: string | null;
+  party?: string | null;
   vote_value: string;
 }
 
@@ -580,16 +584,86 @@ function versionDisplayName(code: string, name?: string | null): string {
 // legislative steps (#430). Use action_text as the label; only the
 // cross-reference connectors ("See", "See Also") need their target appended to
 // stay meaningful.
-function usefulActionDescription(action: ApiBillActionPayload) {
-  const text = action.action_text?.trim();
-  const detail = action.action_description?.trim();
-  if (!text || text.toLowerCase() === 'updated unknown') {
-    return '';
+// A bare MM/DD/YY(YY) date (enacted-milestone rows carry their date in
+// action_description with a null action_at).
+const DATE_ONLY = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
+
+function isoFromSlashDate(value: string): string {
+  const m = value.trim().match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (!m) return '';
+  const [, mm, dd, yyRaw] = m;
+  const yy = yyRaw.length === 2 ? `20${yyRaw}` : yyRaw;
+  return `${yy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+}
+
+// Turn one raw source action into a clean timeline row, or null to drop it. The
+// label is action_text (#430/#440 — never the detail payload, which is a name list
+// / date / cross-ref). Beyond that: fold author-add name lists into the title,
+// extract the embedded date on enacted-milestone rows (null action_at), give the
+// signing row a plain "Signed into law · Chapter N" title, and carry the tally.
+function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction | null {
+  const text = (action.action_text ?? '').trim();
+  const desc = (action.action_description ?? '').trim();
+  const low = text.toLowerCase();
+  if (!text || low === 'updated unknown') return null;
+
+  let title = text;
+  let date = formatOptionalDate(action.action_at);
+  if (!date && desc) {
+    const iso = isoFromSlashDate(desc);
+    if (iso) date = iso;
   }
-  if (detail && /^see( also)?$/i.test(text)) {
-    return `${text} ${detail}`;
+
+  if (/authors?\s+added/i.test(low)) {
+    title = desc
+      ? `Authors added: ${desc
+          .split(/[;,]/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .join(', ')}`
+      : 'Authors added';
+  } else if (/chief author added/i.test(low)) {
+    title = desc ? `Chief author added: ${desc}` : text;
+  } else if (/chief author stricken/i.test(low)) {
+    title = desc ? `Chief author changed to co-author: ${desc}` : 'Chief author changed';
+  } else if (/secretary of state/i.test(low) && /chapter\s+\d+/i.test(desc)) {
+    const ch = desc.match(/chapter\s+(\d+)/i);
+    title = ch ? `Signed into law · Chapter ${ch[1]}` : 'Signed into law';
+  } else if (/governor.*approval|governor approval/i.test(low)) {
+    title = 'Signed by the Governor';
+  } else if (/present(ed|ment)/i.test(low) && /governor|date/i.test(low)) {
+    title = 'Presented to the Governor';
+  } else if (low === 'chapter number') {
+    return null; // redundant with the "Signed into law · Chapter N" milestone
+  } else if (detailIsConnectorTarget(text, desc)) {
+    title = `${text} ${desc}`; // "See" / "See Also" cross-references (#440)
   }
-  return text;
+
+  title = title.trim();
+  if (!title || DATE_ONLY.test(title)) return null;
+
+  return {
+    id: `${billId}-action-${action.action_number}`,
+    date,
+    description: title,
+    tally: action.roll_call_text?.trim() || undefined,
+  };
+}
+
+function detailIsConnectorTarget(text: string, detail: string): boolean {
+  return !!detail && /^see( also)?$/i.test(text);
+}
+
+// Collapse exact duplicate rows (same clean title + date) the feed emits for one
+// milestone (e.g. "Presentment date" and "Presented to Governor").
+function dedupeActions(actions: BillAction[]): BillAction[] {
+  const seen = new Set<string>();
+  return actions.filter((a) => {
+    const key = `${a.description.toLowerCase()}|${a.date}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function normalizeBillIdForApi(billId: string) {
@@ -839,18 +913,11 @@ function mapBillDetail(
     briefing: emptyBriefing(),
     aiAnalysis: aiAnalysisFromPayload(payload.ai_analysis),
     questionPrompts: [],
-    actions: (payload.actions ?? [])
-      .map((action) => ({
-        id: `${payload.id}-action-${action.action_number}`,
-        date: formatOptionalDate(action.action_at),
-        description: usefulActionDescription(action),
-      }))
-      // Keep every action that has a real label. The old `length > 12` cutoff
-      // was tuned to the payload text; against the canonical action_text it
-      // would wrongly drop short but genuine undated steps ("Referred to",
-      // "See"). usefulActionDescription already blanks empty / "updated unknown"
-      // rows, so a non-empty check is the right guard.
-      .filter((action) => action.description.length > 0),
+    actions: dedupeActions(
+      (payload.actions ?? [])
+        .map((action) => mapBillAction(action, payload.id))
+        .filter((action): action is BillAction => action !== null),
+    ),
     versions: (payload.versions ?? []).map((version) => ({
       id: `${payload.id}-version-${version.version_code}`,
       label: versionDisplayName(version.version_code, version.version_name),
@@ -863,6 +930,7 @@ function mapBillDetail(
       motion: vote.motion_text ?? 'Vote',
       date: formatOptionalDate(vote.occurred_at),
       result: vote.result_text ?? 'Result unavailable',
+      officialUrl: vote.official_url ?? undefined,
       breakdown: {
         yes: vote.yes_count ?? 0,
         no: vote.no_count ?? 0,
@@ -870,8 +938,12 @@ function mapBillDetail(
         // it; today these columns are 0, so nothing "didn't vote" is claimed (#83).
         absent: (vote.absent_count ?? 0) + (vote.excused_count ?? 0) + (vote.present_count ?? 0),
       },
+      // Per-member records carry name + party inline (the /legislators list doesn't
+      // serve party), so the roster grid groups by party without a second lookup.
       votes: (vote.records ?? []).map((record) => ({
         legislatorId: record.legislator_id,
+        name: record.legislator_name ?? undefined,
+        party: record.party ?? undefined,
         vote: record.vote_value === 'yes' ? 'YES' : record.vote_value === 'no' ? 'NO' : 'ABSENT',
       })),
     })),

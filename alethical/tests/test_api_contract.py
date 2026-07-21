@@ -555,6 +555,257 @@ def test_bill_votes_returns_per_member_records_summing_to_the_tally(client):
             db.commit()
 
 
+def test_bill_votes_records_carry_legislator_name_and_party(client):
+    """Each /votes record carries the voter's full_name and current-period party
+    (#435 fidelity), resolved batched across the whole roll. Party is served raw
+    ('DFL'/'R'); legislator_name is the Legislator.full_name."""
+    schema = load_schema()
+    from datetime import datetime, timezone
+
+    created: dict[str, object] = {}
+    try:
+        with Session(get_engine()) as db:
+            bill = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+            )
+            session_row = db.scalar(
+                select(schema.LegislativeSession).where(
+                    schema.LegislativeSession.slug == "94-2025-regular"
+                )
+            )
+            chamber = db.scalar(
+                select(schema.Chamber).where(schema.Chamber.slug == "senate")
+            )
+            assert bill and session_row and chamber
+
+            district = schema.District(
+                jurisdiction_id=chamber.jurisdiction_id,
+                chamber_id=chamber.id,
+                code="VOTE-PARTY-TEST",
+                label="District Vote Party Test",
+            )
+            db.add(district)
+            db.flush()
+            voter = schema.Legislator(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="vote-party-test-member",
+                external_key="vote-party-test-member",
+                full_name="Votia Partytest",
+                sort_name="Partytest, Votia",
+            )
+            db.add(voter)
+            db.flush()
+            db.add(
+                schema.LegislatorServicePeriod(
+                    legislator_id=voter.id,
+                    session_id=session_row.id,
+                    chamber_id=chamber.id,
+                    district_id=district.id,
+                    party="DFL",
+                    is_current=True,
+                )
+            )
+            event = schema.VoteEvent(
+                bill_id=bill.id,
+                chamber_id=chamber.id,
+                motion_text="Third reading, final passage",
+                result_text="Passed",
+                occurred_at=datetime(2025, 5, 30, tzinfo=timezone.utc),
+                yes_count=1,
+                no_count=0,
+            )
+            db.add(event)
+            db.flush()
+            db.add(
+                schema.VoteRecord(
+                    vote_event_id=event.id,
+                    legislator_id=voter.id,
+                    vote_value=schema.VoteValue.yes,
+                )
+            )
+            db.commit()
+            created = {
+                "event": event.id,
+                "voter": voter.id,
+                "district": district.id,
+            }
+
+        response = client.get("/api/v1/bills/94-2025-SF1832/votes")
+        assert response.status_code == 200
+        roll = next(
+            v for v in response.json()["data"] if v["id"] == str(created["event"])
+        )
+        record = next(
+            r for r in roll["records"] if r["legislator_id"] == str(created["voter"])
+        )
+        # Additive fields (#435 kept legislator_id + vote_value).
+        assert record["vote_value"] == "yes"
+        assert record["legislator_name"] == "Votia Partytest"
+        assert record["party"] == "DFL"
+    finally:
+        with Session(get_engine()) as db:
+            if created:
+                for rec in db.scalars(
+                    select(schema.VoteRecord).where(
+                        schema.VoteRecord.vote_event_id == created["event"]
+                    )
+                ).all():
+                    db.delete(rec)
+                db.delete(db.get(schema.VoteEvent, created["event"]))
+                for sp in db.scalars(
+                    select(schema.LegislatorServicePeriod).where(
+                        schema.LegislatorServicePeriod.legislator_id == created["voter"]
+                    )
+                ).all():
+                    db.delete(sp)
+                db.delete(db.get(schema.Legislator, created["voter"]))
+                db.delete(db.get(schema.District, created["district"]))
+                db.commit()
+
+
+def test_bill_detail_resolves_sponsor_party_and_district_from_roster_row(client):
+    """chief_sponsors and all_sponsors resolve the real party + district for the
+    two-row placeholder topology (#291): sponsors are stored on the numeric-keyed
+    author row (null party, "*-unknown" district), but the response must show the
+    roster row's party and district (label), reached by the external_key suffix
+    join — never null / "-unknown"."""
+    from sqlalchemy import delete
+
+    schema = load_schema()
+    author_key = "sponsorresolve999key"
+    roster_key = f"https://www.senate.mn/members/profile/{author_key}"
+
+    created: dict[str, object] = {}
+    try:
+        with Session(get_engine()) as db:
+            session_row = db.scalar(
+                select(schema.LegislativeSession).where(
+                    schema.LegislativeSession.slug == "94-2025-regular"
+                )
+            )
+            chamber = db.scalar(
+                select(schema.Chamber).where(schema.Chamber.slug == "senate")
+            )
+            bill = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+            )
+            assert session_row and chamber and bill
+
+            real_district = schema.District(
+                jurisdiction_id=chamber.jurisdiction_id,
+                chamber_id=chamber.id,
+                code="S999",
+                label="District 51",
+            )
+            unknown_district = schema.District(
+                jurisdiction_id=chamber.jurisdiction_id,
+                chamber_id=chamber.id,
+                code="S999-unknown",
+                label="District S999 (unknown)",
+            )
+            db.add_all([real_district, unknown_district])
+            db.flush()
+            roster = schema.Legislator(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="sponsor-resolve-roster",
+                external_key=roster_key,
+                full_name="Sponsoria Resolvia",
+                sort_name="Resolvia, Sponsoria",
+            )
+            author = schema.Legislator(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="sponsor-resolve-author",
+                external_key=author_key,
+                full_name="Resolvia, S.",
+                sort_name="Resolvia, S.",
+            )
+            db.add_all([roster, author])
+            db.flush()
+            db.add_all(
+                [
+                    schema.LegislatorServicePeriod(
+                        legislator_id=roster.id,
+                        session_id=session_row.id,
+                        chamber_id=chamber.id,
+                        district_id=real_district.id,
+                        party="DFL",
+                        is_current=True,
+                    ),
+                    schema.LegislatorServicePeriod(
+                        legislator_id=author.id,
+                        session_id=session_row.id,
+                        chamber_id=chamber.id,
+                        district_id=unknown_district.id,
+                        is_current=True,
+                    ),
+                    schema.Sponsorship(
+                        bill_id=bill.id,
+                        legislator_id=author.id,
+                        role=schema.SponsorshipRole.chief_author,
+                        source_order=99,
+                        source_chamber="senate",
+                    ),
+                ]
+            )
+            db.commit()
+            created = {
+                "roster": roster.id,
+                "author": author.id,
+                "real_district": real_district.id,
+                "unknown_district": unknown_district.id,
+                "bill": bill.id,
+            }
+
+        response = client.get(
+            "/api/v1/bills/94-2025-SF1832", params={"include": "all_sponsors"}
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        sponsor = next(
+            s
+            for s in data["all_sponsors"]
+            if s["legislator_id"] == str(created["author"])
+        )
+        # The author placeholder row's own period is null party / "-unknown"
+        # district; the resolved values must come from the roster row.
+        assert sponsor["party"] == "DFL"
+        assert sponsor["district"] == "District 51"
+        assert sponsor["district"] != "S999-unknown"
+        # Same sponsor is chief here, so chief_sponsors carries it identically.
+        chief = next(
+            s
+            for s in data["chief_sponsors"]
+            if s["legislator_id"] == str(created["author"])
+        )
+        assert chief["party"] == "DFL"
+        assert chief["district"] == "District 51"
+    finally:
+        with Session(get_engine()) as db:
+            if created:
+                leg_ids = [created["roster"], created["author"]]
+                db.execute(
+                    delete(schema.Sponsorship).where(
+                        schema.Sponsorship.legislator_id.in_(leg_ids)
+                    )
+                )
+                db.execute(
+                    delete(schema.LegislatorServicePeriod).where(
+                        schema.LegislatorServicePeriod.legislator_id.in_(leg_ids)
+                    )
+                )
+                db.execute(
+                    delete(schema.Legislator).where(schema.Legislator.id.in_(leg_ids))
+                )
+                db.execute(
+                    delete(schema.District).where(
+                        schema.District.id.in_(
+                            [created["real_district"], created["unknown_district"]]
+                        )
+                    )
+                )
+                db.commit()
+
+
 def test_representative_lookup_maps_service_district_codes_to_legislators(client):
     response = client.post(
         "/api/v1/representative-lookups",

@@ -21,6 +21,8 @@ export interface BillAction {
   id: string;
   date: string;
   description: string;
+  /** Roll-call tally for recorded-vote actions (e.g. "62-0"), from roll_call_text. */
+  tally?: string;
 }
 
 export interface BillVersion {
@@ -40,6 +42,10 @@ export interface VoteBreakdown {
 export interface IndividualVote {
   legislatorId: string;
   vote: 'YES' | 'NO' | 'ABSENT';
+  /** Member name + party carried inline on the roll-call record (the /legislators
+   *  list doesn't serve party), so the roster groups by party without a join. */
+  name?: string;
+  party?: string;
 }
 
 export interface VoteEvent {
@@ -49,6 +55,8 @@ export interface VoteEvent {
   result: string;
   breakdown: VoteBreakdown;
   votes: IndividualVote[];
+  /** Official roll-call record URL (revisor), when served. */
+  officialUrl?: string;
 }
 
 export interface BillSponsor {
