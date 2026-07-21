@@ -2390,6 +2390,10 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.tint.t50,
   },
   teaserBlur: {
+    // Decorative frosted backdrop behind the overlay; absolute so the overlay
+    // content (which stacks vertically on mobile) defines the card's height and
+    // nothing clips (the web card was horizontal, so its fixed height fit).
+    ...(StyleSheet.absoluteFillObject as object),
     flexDirection: 'row',
     gap: 12,
     padding: 18,
@@ -2403,11 +2407,10 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.base,
   },
   teaserOverlay: {
-    ...(StyleSheet.absoluteFillObject as object),
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 18,
+    paddingVertical: 22,
     paddingHorizontal: 22,
     backgroundColor: t.colors.alpha.white90,
   },
