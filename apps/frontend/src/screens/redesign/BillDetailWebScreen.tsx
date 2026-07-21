@@ -128,7 +128,8 @@ export function BillDetailWebScreen() {
 
   const hero = (
     <BillHeader
-      title={bill.title}
+      title={bill.aiAnalysis?.shortTitle ?? bill.title}
+      fullTitle={bill.title}
       eyebrow={eyebrow}
       omnibus={!!bill.isOmnibus}
       shareUrl={shareUrl}
