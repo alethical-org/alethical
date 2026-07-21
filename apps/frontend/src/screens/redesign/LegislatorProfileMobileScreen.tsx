@@ -18,6 +18,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { theme as t } from '../../theme/tokens';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Footer, PageBackground, TopNav } from '../../theme/primitives';
+import { Skeleton } from '../../components/Skeleton';
 import { coAuthorCount, formatMonoDate, partyFull } from '../../lib/billDetail';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
@@ -539,9 +540,23 @@ export function LegislatorProfileMobileScreen() {
         <TopNav {...shellProps} />
 
         {legQuery.isLoading ? (
-          <View style={styles.stateBox}>
-            <ActivityIndicator color={t.colors.brand.base} />
-            <Text style={styles.stateText}>Loading legislator…</Text>
+          <View accessible accessibilityLabel="Loading legislator">
+            {/* hero skeleton (breadcrumb · eyebrow · portrait + name · meta) */}
+            <View style={styles.heroOuter}>
+              <View style={styles.column}>
+                <Skeleton width={110} height={16} style={styles.skGap20} />
+                <Skeleton width={150} height={12} />
+                <View style={styles.skHeroIdentity}>
+                  <Skeleton width={88} height={104} radius={14} />
+                  <Skeleton width="55%" height={26} radius={8} />
+                </View>
+                <Skeleton width={210} height={14} style={styles.skGap16} />
+              </View>
+            </View>
+            {/* first card skeleton */}
+            <View style={styles.column}>
+              <Skeleton width="100%" height={200} radius={t.radii.card} style={styles.skGap8} />
+            </View>
           </View>
         ) : legQuery.isError || !leg ? (
           <View style={styles.stateBox}>
@@ -1016,6 +1031,11 @@ export function LegislatorProfileMobileScreen() {
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   column: { width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center', paddingHorizontal: 20 },
+  // skeleton loading state (mirrors hero + first card)
+  skGap8: { marginTop: 8 },
+  skGap16: { marginTop: 16 },
+  skGap20: { marginBottom: 20 },
+  skHeroIdentity: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 16 },
 
   stateBox: { paddingVertical: 60, alignItems: 'center', gap: 12 },
   stateText: {

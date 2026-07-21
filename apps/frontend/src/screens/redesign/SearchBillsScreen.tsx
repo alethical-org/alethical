@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
@@ -35,6 +35,10 @@ import {
   SESSION_LABEL_FALLBACK,
   formatSessionLabel,
 } from '../../components/search/searchPieces';
+import { Skeleton } from '../../components/Skeleton';
+
+// Placeholder card rows shown while the first page of bills loads.
+const SKELETON_ROWS = [0, 1, 2, 3, 4];
 
 // Search Bills (docs/mockups/search-bills). Server-paginated bill discovery over
 // the current session with chamber / status / session / omnibus filters + policy
@@ -341,9 +345,10 @@ export function SearchBillsScreen() {
       />
 
       {billsQuery.isLoading ? (
-        <View style={styles.stateBox}>
-          <ActivityIndicator color={t.colors.brand.base} />
-          <Text style={styles.stateText}>Loading bills…</Text>
+        <View style={styles.list} accessible accessibilityLabel="Loading bills">
+          {SKELETON_ROWS.map((i) => (
+            <Skeleton key={i} width="100%" height={148} radius={t.radii.card} />
+          ))}
         </View>
       ) : billsQuery.isError ? (
         <View style={styles.stateBox}>

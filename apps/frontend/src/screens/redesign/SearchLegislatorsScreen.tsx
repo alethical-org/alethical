@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
@@ -20,6 +20,10 @@ import {
   SESSION_LABEL_FALLBACK,
   formatSessionLabel,
 } from '../../components/search/searchPieces';
+import { Skeleton } from '../../components/Skeleton';
+
+// Placeholder cards shown while the first page of legislators loads.
+const SKELETON_CARDS = [0, 1, 2, 3, 4, 5];
 
 // Search Legislators (docs/mockups/search-legislators). Name / district / party
 // search over the current session with chamber + party + session filters and a
@@ -188,9 +192,12 @@ export function SearchLegislatorsScreen() {
       />
 
       {legislatorsQuery.isLoading ? (
-        <View style={styles.stateBox}>
-          <ActivityIndicator color={t.colors.brand.base} />
-          <Text style={styles.stateText}>Loading legislators…</Text>
+        <View style={styles.grid} accessible accessibilityLabel="Loading legislators">
+          {SKELETON_CARDS.map((i) => (
+            <View key={i} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
+              <Skeleton width="100%" height={132} radius={t.radii.card} />
+            </View>
+          ))}
         </View>
       ) : legislatorsQuery.isError ? (
         <View style={styles.stateBox}>
