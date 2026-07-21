@@ -1197,16 +1197,27 @@ def legislator_profile_stmt(legislator_id: uuid.UUID, session_id: uuid.UUID):
     )
 
 
-def legislator_sponsored_bills_stmt(legislator_id: uuid.UUID, session_id: uuid.UUID):
-    """Load one legislator's sponsored bills for a session with list-card fields."""
+def legislator_sponsored_bills_stmt(
+    legislator_id: uuid.UUID,
+    session_id: uuid.UUID,
+    role: "SponsorshipRole | None" = None,
+):
+    """Load one legislator's sponsored bills for a session with list-card fields.
+
+    When ``role`` is given, restrict to sponsorships of that role (e.g.
+    ``SponsorshipRole.chief_author`` for the chief-authored profile section).
+    """
+    conditions = [
+        Sponsorship.legislator_id == legislator_id,
+        Bill.session_id == session_id,
+        Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
+    ]
+    if role is not None:
+        conditions.append(Sponsorship.role == role)
     return (
         select(Bill)
         .join(Sponsorship, Sponsorship.bill_id == Bill.id)
-        .where(
-            Sponsorship.legislator_id == legislator_id,
-            Bill.session_id == session_id,
-            Bill.id.in_(current_bill_summary_enrichment_bill_ids()),
-        )
+        .where(*conditions)
         .options(
             selectinload(Bill.stats),
             selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),

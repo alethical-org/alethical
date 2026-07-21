@@ -928,15 +928,26 @@ def legislator_detail(
 def legislator_bills(
     legislator_id: str,
     session: str | None = None,
+    role: str | None = None,
     limit: int = Query(default=20, ge=0, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
     session_row = get_session_by_slug(db, session)
     legislator = get_legislator_by_id(db, legislator_id)
+    role_filter: SponsorshipRole | None = None
+    if role is not None:
+        try:
+            role_filter = SponsorshipRole(role)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422, detail=f"Unknown role: {role}"
+            ) from exc
     rows, has_more = paginated_scalars(
         db,
-        legislator_sponsored_bills_stmt(legislator.id, session_row.id),
+        legislator_sponsored_bills_stmt(
+            legislator.id, session_row.id, role=role_filter
+        ),
         limit=limit,
         offset=offset,
     )
