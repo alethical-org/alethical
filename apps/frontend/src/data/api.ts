@@ -316,6 +316,7 @@ interface ApiBillDetailPayload {
   status_key?: string | null;
   latest_action_at?: string | null;
   official_url?: string | null;
+  is_omnibus?: boolean | null;
   chief_sponsors: ApiSponsorPayload[];
   all_sponsors?: ApiSponsorPayload[] | null;
   progress?: ApiBillProgressStepPayload[] | null;
@@ -912,6 +913,7 @@ function mapBillDetail(
     title: payload.title,
     chamber: toChamber(fileType),
     status: statusLabel(payload.status_key, payload.current_status),
+    isOmnibus: payload.is_omnibus ?? false,
     companion: payload.companion
       ? {
           id: payload.companion.id,
