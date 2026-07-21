@@ -601,28 +601,25 @@ function HomeSignedOutDesktop() {
   // Auto-grow the ask textarea (web): reset to content height so it grows AND
   // shrinks, capped at ASK_MAX_HEIGHT (then RN-Web scrolls it). RN-Web's own
   // onContentSizeChange can't shrink (it reads scrollHeight of the pinned box),
-  // so drive the DOM node directly. Re-runs on typed or chip-inserted text and
-  // on the mobile/desktop breakpoint (wrapping changes).
+  // so drive the DOM node directly. Re-runs on typed or chip-inserted text.
+  //
+  // The empty field is sized to its PLACEHOLDER, never pinned to one line: in
+  // the hero's split layout the field is only ~half the container wide, so the
+  // placeholder wraps to two lines and a one-line pin would clip "or name"
+  // (universal rule — a placeholder is never cropped). scrollHeight ignores the
+  // placeholder, so mirror it into the value only while measuring; Math.max
+  // keeps a placeholder that does fit on one line at ASK_MIN_HEIGHT.
   useLayoutEffect(() => {
     if (!isWeb) return;
     const el = askInputRef.current as unknown as HTMLTextAreaElement | null;
     if (!el || typeof el.scrollHeight !== 'number') return;
     const empty = !askValue;
-    if (empty && !isMobile) {
-      // Desktop empty: pin one line. The wide field fits the placeholder, and
-      // measuring it would only inflate the resting height.
-      el.style.height = `${ASK_MIN_HEIGHT}px`;
-      return;
-    }
-    // Mobile empty: the placeholder wraps to two lines on a phone, so size the
-    // field to show all of it rather than clipping. scrollHeight ignores the
-    // placeholder, so mirror it into the value only while measuring.
     if (empty) el.value = ASK_PLACEHOLDER;
     el.style.height = 'auto';
     const next = Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT);
     if (empty) el.value = '';
     el.style.height = `${next}px`;
-  }, [askValue, isMobile]);
+  }, [askValue]);
 
   const signIn = () => void signInWithGoogle();
   // Ask routes to the answer page (#217): topic questions render a cited bill
