@@ -39,6 +39,7 @@ from alethical.api.serializers import (
     current_service_payload,
     district_payload,
     legislator_list_item,
+    service_history_payload,
     sponsor_payloads,
     tracking_payload,
 )
@@ -962,6 +963,10 @@ def legislator_detail(
             {"name": membership.committee.name, "role": membership.role}
             for membership in row.committee_memberships
         ]
+    if "service_history" in include_set:
+        service_history = service_history_payload(row.election_history)
+        if service_history:
+            payload["service_history"] = service_history.model_dump()
     return DetailResponse(
         data={key: value for key, value in payload.items() if value is not None}
     )

@@ -47,6 +47,7 @@ Jurisdiction = schema.Jurisdiction
 LegislativeSession = schema.LegislativeSession
 Legislator = schema.Legislator
 LegislatorServicePeriod = schema.LegislatorServicePeriod
+LegislatorElectionHistory = schema.LegislatorElectionHistory
 LegislatorStats = schema.LegislatorStats
 NotificationChannel = schema.NotificationChannel
 NotificationFrequency = schema.NotificationFrequency
@@ -288,6 +289,51 @@ def ingest_member_profiles(session: Session, refs: dict[str, Any]) -> list[Any]:
         )
         created.append(legislator)
     return created
+
+
+def ingest_election_history(
+    session: Session, refs: dict[str, Any], members: list[Any]
+) -> None:
+    """Seed Legislative Service history (issue #486) for the sample member
+    profiles: the House member gets a single-chamber tenure; the Senate member
+    gets a multi-chamber (House → Senate) history so both render paths are
+    exercised locally. ``members`` is [house_legislator, senate_legislator] as
+    returned by ingest_member_profiles."""
+    house = refs["chambers"]["house"]
+    senate = refs["chambers"]["senate"]
+    # [(legislator, [(chamber, initial_year, reelection_years, is_current, term)])]
+    histories = [
+        (members[0], [(house, 2022, [], True, 2)]),
+        (
+            members[1],
+            [
+                (house, 2012, [2014, 2016, 2018, 2020], False, None),
+                (senate, 2022, [], True, 1),
+            ],
+        ),
+    ]
+    for legislator, periods in histories:
+        existing = session.scalar(
+            select(LegislatorElectionHistory.id).where(
+                LegislatorElectionHistory.legislator_id == legislator.id
+            )
+        )
+        if existing:
+            continue
+        for index, (chamber, initial_year, reelections, is_current, term) in enumerate(
+            periods
+        ):
+            session.add(
+                LegislatorElectionHistory(
+                    legislator_id=legislator.id,
+                    chamber_id=chamber.id,
+                    period_sequence=index + 1,
+                    initial_year=initial_year,
+                    reelection_years=reelections,
+                    is_current_chamber=is_current,
+                    term_number=term,
+                )
+            )
 
 
 def ingest_roster_demo_matches(session: Session, refs: dict[str, Any]) -> list[Any]:
@@ -819,7 +865,8 @@ def main() -> None:
     engine = create_engine(database_url, echo=False)
     with Session(engine) as session:
         refs = seed_reference_data(session)
-        ingest_member_profiles(session, refs)
+        members = ingest_member_profiles(session, refs)
+        ingest_election_history(session, refs, members)
         ingest_roster_demo_matches(session, refs)
 
         bill_files = [

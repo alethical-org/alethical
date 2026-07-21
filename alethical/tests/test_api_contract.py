@@ -559,6 +559,46 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     assert lookup_payload["senate_legislator"] is not None
 
 
+def test_legislator_detail_returns_ordered_service_history(client):
+    """The detail endpoint exposes the full ordered Legislative Service history
+    (issue #486), not just current_service: one chamber-qualified election line
+    per tenure in chronological order, with the term counting the current
+    chamber alone. The sample data seeds a multi-chamber (House → Senate) member
+    and a single-chamber House member."""
+    directory = client.get(
+        "/api/v1/legislators", params={"session": "94-2025-regular"}
+    ).json()["data"]
+
+    histories = []
+    for item in directory:
+        payload = client.get(
+            f"/api/v1/legislators/{item['id']}",
+            params={"session": "94-2025-regular", "include": "service_history"},
+        ).json()["data"]
+        if "service_history" in payload:
+            histories.append(payload["service_history"])
+
+    multi = [h for h in histories if len(h["periods"]) == 2]
+    single = [h for h in histories if len(h["periods"]) == 1]
+    assert multi, "expected at least one multi-chamber member"
+    assert single, "expected at least one single-chamber member"
+
+    house_then_senate = multi[0]
+    assert [p["chamber"] for p in house_then_senate["periods"]] == ["house", "senate"]
+    house_period, senate_period = house_then_senate["periods"]
+    assert house_period["initial_year"] == 2012
+    assert house_period["reelection_years"] == [2014, 2016, 2018, 2020]
+    assert senate_period["initial_year"] == 2022
+    assert senate_period["reelection_years"] == []
+    # Term counts the current (Senate) chamber only — the House terms are not
+    # summed in.
+    assert house_then_senate["term"] == 1
+
+    only_house = single[0]
+    assert only_house["periods"][0]["chamber"] == "house"
+    assert only_house["term"] == 2
+
+
 def test_legislator_list_includes_current_committee_names(client):
     """The /legislators list item carries current committee names (#296) so the
     directory card can show committee chips without a per-row detail fetch."""

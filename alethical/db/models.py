@@ -272,6 +272,10 @@ class Legislator(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     service_periods: Mapped[list["LegislatorServicePeriod"]] = relationship(
         back_populates="legislator"
     )
+    election_history: Mapped[list["LegislatorElectionHistory"]] = relationship(
+        back_populates="legislator",
+        order_by="LegislatorElectionHistory.period_sequence",
+    )
     committee_memberships: Mapped[list["CommitteeMembership"]] = relationship(
         back_populates="legislator"
     )
@@ -336,6 +340,45 @@ class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "district_id",
         ),
     )
+
+
+class LegislatorElectionHistory(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A member's Legislative Service history, scraped from the official bio
+    pages (issue #486). One row per chamber tenure, ordered chronologically by
+    ``period_sequence`` (earliest first): a member who served in the House then
+    moved to the Senate gets two rows. This is distinct from
+    ``legislator_service_period`` (one per ingested session, keyed on
+    session/chamber/district) — historical prior-chamber tenures have no
+    ingested session or district, so they live here instead.
+
+    ``initial_year`` is the first election to that chamber; ``reelection_years``
+    is the ordered list of subsequent election years for the same tenure (the
+    Senate bio lists them; the House bio does not, so House rows carry only the
+    initial year). ``term_number`` counts the CURRENT chamber only and is set
+    solely on the ``is_current_chamber`` row — never summed across chambers."""
+
+    __tablename__ = "legislator_election_history"
+
+    legislator_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislator.id"), nullable=False, index=True
+    )
+    chamber_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("chamber.id"), nullable=False
+    )
+    period_sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    initial_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    reelection_years: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default="[]"
+    )
+    is_current_chamber: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    term_number: Mapped[Optional[int]] = mapped_column(Integer)
+
+    legislator: Mapped["Legislator"] = relationship(back_populates="election_history")
+    chamber: Mapped["Chamber"] = relationship()
+
+    __table_args__ = (UniqueConstraint("legislator_id", "period_sequence"),)
 
 
 class Committee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -1252,6 +1295,9 @@ def legislator_profile_stmt(legislator_id: uuid.UUID, session_id: uuid.UUID):
             ).selectinload(CommitteeMembership.committee),
             selectinload(
                 Legislator.stats.and_(LegislatorStats.session_id == session_id)
+            ),
+            selectinload(Legislator.election_history).selectinload(
+                LegislatorElectionHistory.chamber
             ),
         )
     )

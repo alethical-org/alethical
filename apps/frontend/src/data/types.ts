@@ -153,6 +153,23 @@ export interface ServicePeriod {
   role: string;
 }
 
+/** One chamber tenure in a member's Legislative Service history (issue #486),
+ *  formatted for display. `elected` is the ready-to-render year string
+ *  ("2012, re-elected 2014, 2016"); `label` names the chamber elected to. */
+export interface ElectionServiceLine {
+  chamber: Chamber;
+  label: string;
+  elected: string;
+}
+
+/** A member's Legislative Service: the ordered per-chamber election lines
+ *  (earliest first) plus the current-chamber term ordinal ("1st"). Null when the
+ *  bio carried no parseable history. */
+export interface LegislativeService {
+  lines: ElectionServiceLine[];
+  term: string | null;
+}
+
 export interface CommitteeAssignment {
   name: string;
   /** Leadership role on the committee (e.g. "Chair", "Vice Chair", "Co-Chair",
@@ -176,11 +193,6 @@ export interface Legislator {
   /** Official portrait URL (senate.mn / lrl.mn.gov headshot). Undefined for the
    *  handful of members without a scraped photo — render an initials fallback. */
   photoUrl?: string;
-  /** Verbatim "Elected:" value from the official member page (e.g. "2020,
-   *  re-elected 2022"); undefined until the bio backfill populates it. */
-  elected?: string;
-  /** Verbatim "Term:" value from the official member page (e.g. "2nd"). */
-  term?: string;
   committees: string[];
   /** Committees with their leadership role preserved, for the profile's badge
    *  rows. `committees` keeps the flattened name-only strings for older screens.
@@ -188,6 +200,10 @@ export interface Legislator {
   committeeAssignments?: CommitteeAssignment[];
   focusAreas: string[];
   serviceHistory: ServicePeriod[];
+  /** Ordered Legislative Service history from the official bio (issue #486).
+   *  Only the live API detail mapper populates it; undefined on list items and
+   *  where the bio carried no history. */
+  legislativeService?: LegislativeService | null;
   questionPrompts: string[];
   sponsoredBillIds: string[];
   voteEventRefs: Array<{ billId: string; voteEventId: string }>;

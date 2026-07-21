@@ -37,12 +37,13 @@ import { Skeleton } from '../../components/Skeleton';
 // "On the roadmap" zone. Chamber-parameterized from member data; the two design
 // files are one layout with chamber differences applied.
 //
-// Grounded-answers notes: the design's "Ask about this legislator" card and the
-// "Legislative Service" (elected years / term) card are intentionally NOT built —
-// there is no legislator-scoped Ask answer path in v1 (person-scoped Ask is v1.1,
-// and its chips would refuse — grounded-answers rule 2), and the corpus carries no
-// election-year/term data (0/206 service periods have dates). The roadmap zone is
-// static, non-committal, and clearly not-live.
+// Grounded-answers notes: the "Legislative Service" card renders the member's
+// ordered election history + current-chamber term, ingested from the official
+// bios into legislator_election_history (issue #486); it shows only when real
+// data is present. The design's "Ask about this legislator" card is still NOT
+// built — there is no legislator-scoped Ask answer path in v1 (person-scoped Ask
+// is v1.1, and its chips would refuse — grounded-answers rule 2). The roadmap
+// zone is static, non-committal, and clearly not-live.
 
 const CURRENT_SESSION_LABEL = '94th Legislature (2025–2026)';
 const PAST_SESSIONS = ['93rd Legislature (2023–2024)', '92nd Legislature (2021–2022)'];
@@ -161,6 +162,7 @@ export function LegislatorProfileWebScreen() {
       ? legislator.bio
       : null;
   const committees = legislator.committeeAssignments ?? [];
+  const service = legislator.legislativeService;
   const seeMoreUrl = chiefAuthorListUrl(legislator);
 
   const body = (
@@ -254,20 +256,20 @@ export function LegislatorProfileWebScreen() {
           </View>
         </View>
 
-        {legislator.elected || legislator.term ? (
+        {service && service.lines.length > 0 ? (
           <View style={styles.card}>
             <Text style={[styles.h3, styles.h3Spaced]}>Legislative Service</Text>
             <View style={styles.serviceStack}>
-              {legislator.elected ? (
-                <Text style={styles.serviceRow}>
-                  <Text style={styles.serviceLabel}>Elected: </Text>
-                  {legislator.elected}
+              {service.lines.map((line, index) => (
+                <Text key={`${line.label}-${index}`} style={styles.serviceRow}>
+                  <Text style={styles.serviceLabel}>{line.label}: </Text>
+                  {line.elected}
                 </Text>
-              ) : null}
-              {legislator.term ? (
+              ))}
+              {service.term ? (
                 <Text style={styles.serviceRow}>
                   <Text style={styles.serviceLabel}>Term: </Text>
-                  {legislator.term}
+                  {service.term}
                 </Text>
               ) : null}
             </View>

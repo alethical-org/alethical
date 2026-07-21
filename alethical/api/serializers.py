@@ -390,6 +390,34 @@ def current_service_payload(service_period) -> api_schemas.CurrentServicePayload
     )
 
 
+def service_history_payload(
+    election_history,
+) -> api_schemas.ServiceHistoryPayload | None:
+    """Serialize a member's ordered Legislative Service history (issue #486).
+    ``election_history`` rows arrive ordered by ``period_sequence`` (the
+    relationship's order_by). The term counts the current chamber only, so it is
+    read from the single ``is_current_chamber`` row."""
+    if not election_history:
+        return None
+    term = next(
+        (row.term_number for row in election_history if row.is_current_chamber),
+        None,
+    )
+    return api_schemas.ServiceHistoryPayload(
+        term=term,
+        periods=[
+            api_schemas.ElectionPeriodPayload(
+                chamber=row.chamber.chamber_type.value
+                if hasattr(row.chamber.chamber_type, "value")
+                else str(row.chamber.chamber_type),
+                initial_year=row.initial_year,
+                reelection_years=list(row.reelection_years or []),
+            )
+            for row in election_history
+        ],
+    )
+
+
 def legislator_stats_payload(
     stats_rows,
     *,
