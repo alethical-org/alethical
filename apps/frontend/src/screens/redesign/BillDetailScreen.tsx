@@ -67,6 +67,8 @@ const AMBER_TEXT = t.colors.omnibus.text; // #8f5a12
 const CODE_BADGE_FILL = '#fbe7bd';
 const CODE_BADGE_BORDER = '#eccf86';
 const GHOST_AMBER_BORDER = '#e3c17f';
+// Breadcrumb grey (palette.ink500) — no semantic text alias maps to it.
+const BREADCRUMB_GREY = '#4b524b';
 
 // Section ids for the sticky jump chips + scroll-spy.
 const SECTIONS = [
@@ -503,6 +505,7 @@ function BillDetailMobileScreen() {
             <View style={styles.headerOuter}>
               {isWeb ? <View pointerEvents="none" style={styles.headerDots} /> : null}
               <View style={styles.column}>
+                <Breadcrumb onPress={() => navigation.navigate('Bills')} />
                 <Text
                   accessibilityRole="header"
                   accessibilityLabel={bill.title}
@@ -901,6 +904,33 @@ function BillDetailMobileScreen() {
 }
 
 // --- sub-components ---------------------------------------------------------
+
+// "‹ All bills" back-link — first element in the header, above the title. The whole
+// link darkens from grey to ink on press/hover. Links back to the Search Bills screen.
+function Breadcrumb({ onPress }: { onPress: () => void }) {
+  const [hovered, hover] = useHover();
+  const color = hovered ? t.colors.ink : BREADCRUMB_GREY;
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel="All bills"
+      onPress={onPress}
+      {...hover}
+      style={styles.breadcrumb}
+    >
+      <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M15 6 L9 12 L15 18"
+          stroke={color}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+      <Text style={[styles.breadcrumbLabel, { color }]}>All bills</Text>
+    </Pressable>
+  );
+}
 
 function ShareButton({ onPress }: { onPress: () => void }) {
   const [hovered, hover] = useHover();
@@ -1625,7 +1655,21 @@ const styles = StyleSheet.create({
   column: { width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center', paddingHorizontal: 20 },
 
   // header
-  headerOuter: { position: 'relative', paddingTop: 8, paddingBottom: 18 },
+  // paddingTop bumped 8 → 26 so the header no longer hugs the nav (~26px nav →
+  // breadcrumb). Breadcrumb adds ~20px down to the title via its own marginBottom.
+  headerOuter: { position: 'relative', paddingTop: 26, paddingBottom: 18 },
+  breadcrumb: {
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+  },
+  breadcrumbLabel: {
+    fontFamily: t.typography.ui,
+    fontSize: 15,
+    fontWeight: t.fontWeights.semibold,
+  },
   headerDots: {
     ...(StyleSheet.absoluteFillObject as object),
     ...(isWeb

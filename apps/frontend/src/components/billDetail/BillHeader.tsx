@@ -27,6 +27,7 @@ export function BillHeader({
   shareTitle,
   activeTab,
   onSelectTab,
+  onAllBills,
 }: {
   title: string;
   // Full official statutory title ("A bill for an act relating to…"). The H1 shows
@@ -38,6 +39,7 @@ export function BillHeader({
   shareTitle: string;
   activeTab: DetailTab;
   onSelectTab: (tab: DetailTab) => void;
+  onAllBills: () => void;
 }) {
   const { isMobile } = useResponsive();
   // Keep the authoritative statutory title reachable as a hover tooltip on web.
@@ -51,6 +53,7 @@ export function BillHeader({
   }, [fullTitle]);
   return (
     <View>
+      <Breadcrumb onPress={onAllBills} isMobile={isMobile} />
       <Text
         ref={headingRef}
         accessibilityRole="header"
@@ -78,6 +81,35 @@ export function BillHeader({
         <SharePopover url={shareUrl} title={shareTitle} />
       </View>
     </View>
+  );
+}
+
+// "‹ All bills" back-link — first element in the header, above the title. Whole
+// link darkens from grey to ink on hover. Links back to the Search Bills screen.
+function Breadcrumb({ onPress, isMobile }: { onPress: () => void; isMobile: boolean }) {
+  const [hovered, hover] = useHover();
+  const color = hovered ? t.colors.ink : BREADCRUMB_GREY;
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel="All bills"
+      onPress={onPress}
+      {...hover}
+      style={styles.breadcrumb}
+    >
+      <Svg width={isMobile ? 17 : 18} height={isMobile ? 17 : 18} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M15 6 L9 12 L15 18"
+          stroke={color}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+      <Text style={[styles.breadcrumbLabel, isMobile && styles.breadcrumbLabelMobile, { color }]}>
+        All bills
+      </Text>
+    </Pressable>
   );
 }
 
@@ -332,7 +364,27 @@ function SocialButton({
   );
 }
 
+// Breadcrumb grey (palette.ink500) — no semantic text alias maps to it, so it's a
+// local const like the other bespoke header colors.
+const BREADCRUMB_GREY = '#4b524b';
+
 const styles = StyleSheet.create({
+  // ~8px added on top of SearchPageShell's 36px hero paddingTop → ~44px from the
+  // nav to the breadcrumb, and ~20px down to the title.
+  breadcrumb: {
+    marginTop: 8,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+  },
+  breadcrumbLabel: {
+    fontFamily: t.typography.ui,
+    fontSize: 16,
+    fontWeight: t.fontWeights.semibold,
+  },
+  breadcrumbLabelMobile: { fontSize: 15 },
   h1: {
     fontFamily: t.typography.title,
     fontSize: 42,

@@ -136,6 +136,7 @@ export function BillDetailWebScreen() {
       shareTitle={shareTitle}
       activeTab={activeTab}
       onSelectTab={selectTab}
+      onAllBills={() => navigation.navigate('Bills')}
     />
   );
 
