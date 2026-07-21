@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
@@ -14,6 +14,7 @@ import { SummaryTab } from '../../components/billDetail/SummaryTab';
 import { ActionsTab } from '../../components/billDetail/ActionsTab';
 import { VotesTab } from '../../components/billDetail/VotesTab';
 import { VersionsTab } from '../../components/billDetail/VersionsTab';
+import { Skeleton } from '../../components/Skeleton';
 
 const isWeb = Platform.OS === 'web';
 const TABS: DetailTab[] = ['summary', 'actions', 'votes', 'versions'];
@@ -90,13 +91,7 @@ export function BillDetailWebScreen() {
   );
 
   if (billQuery.isLoading) {
-    return shell(
-      <View style={styles.stateBox}>
-        <ActivityIndicator color={t.colors.brand.base} />
-        <Text style={styles.stateText}>Loading bill…</Text>
-      </View>,
-      null,
-    );
+    return shell(<BillBodySkeleton isDesktop={isDesktop} />, <BillHeroSkeleton />);
   }
 
   if (billQuery.isError || !bill) {
@@ -169,7 +164,58 @@ export function BillDetailWebScreen() {
   return shell(body, hero);
 }
 
+// Loading skeletons — mirror the hero band (breadcrumb · title · eyebrow · tabs)
+// and the tabbed body (main summary column + sidebar card), rendered inside the
+// same SearchPageShell so the nav + back link appear instantly.
+function BillHeroSkeleton() {
+  return (
+    <View accessible accessibilityLabel="Loading bill">
+      <Skeleton width={90} height={16} style={styles.skHeroCrumb} />
+      <Skeleton width="80%" height={40} radius={8} />
+      <Skeleton width="52%" height={40} radius={8} style={styles.skGap8} />
+      <Skeleton width={180} height={13} style={styles.skGap16} />
+      <View style={styles.skTabRow}>
+        <Skeleton width={70} height={16} />
+        <Skeleton width={60} height={16} />
+        <Skeleton width={52} height={16} />
+        <Skeleton width={68} height={16} />
+      </View>
+    </View>
+  );
+}
+
+function BillBodySkeleton({ isDesktop }: { isDesktop: boolean }) {
+  return (
+    <View style={[styles.skGrid, isDesktop && styles.skGridDesktop]}>
+      <View style={styles.skMainCol}>
+        <Skeleton width={160} height={26} radius={8} />
+        <View style={styles.skLines}>
+          <Skeleton width="100%" height={14} />
+          <Skeleton width="97%" height={14} />
+          <Skeleton width="92%" height={14} />
+          <Skeleton width="95%" height={14} />
+        </View>
+        <Skeleton width="100%" height={160} radius={t.radii.card} style={styles.skGap20} />
+      </View>
+      <View style={styles.skSideCol}>
+        <Skeleton width="100%" height={220} radius={t.radii.card} />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  // skeleton loading state
+  skHeroCrumb: { marginTop: 8, marginBottom: 20 },
+  skGap8: { marginTop: 8 },
+  skGap16: { marginTop: 16 },
+  skGap20: { marginTop: 20 },
+  skTabRow: { flexDirection: 'row', gap: 34, marginTop: 30, flexWrap: 'wrap' },
+  skGrid: { gap: 24 },
+  skGridDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
+  skMainCol: { flex: 2, gap: 6, minWidth: 0 },
+  skSideCol: { flex: 1, minWidth: 0 },
+  skLines: { marginTop: 8, gap: 12 },
   stateBox: { paddingVertical: 64, alignItems: 'center', justifyContent: 'center', gap: 12 },
   stateText: {
     fontFamily: t.typography.body,

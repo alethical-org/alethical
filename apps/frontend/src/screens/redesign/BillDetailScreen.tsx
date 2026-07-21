@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Linking,
   Modal,
   NativeScrollEvent,
@@ -45,6 +44,7 @@ import {
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
+import { Skeleton } from '../../components/Skeleton';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
 // Bill Detail — mobile-first, single scrolling page (docs/mockups/bill-detail-mobile).
@@ -478,9 +478,29 @@ function BillDetailMobileScreen() {
         <TopNav {...shellProps} />
 
         {billQuery.isLoading ? (
-          <View style={styles.stateBox}>
-            <ActivityIndicator color={t.colors.brand.base} />
-            <Text style={styles.stateText}>Loading bill…</Text>
+          <View accessible accessibilityLabel="Loading bill">
+            {/* header skeleton (breadcrumb · title · status · eyebrow) */}
+            <View style={styles.headerOuter}>
+              <View style={styles.column}>
+                <Skeleton width={88} height={16} style={styles.skGap20} />
+                <Skeleton width="92%" height={30} radius={8} />
+                <Skeleton width="66%" height={30} radius={8} style={styles.skGap8} />
+                <View style={styles.skStatusRow}>
+                  <Skeleton width={128} height={28} radius={t.radii.pill} />
+                </View>
+                <Skeleton width={150} height={12} style={styles.skGap14} />
+              </View>
+            </View>
+            {/* first content section skeleton (heading · lines · card) */}
+            <View style={styles.column}>
+              <Skeleton width={130} height={22} radius={8} style={styles.skGap24} />
+              <View style={styles.skLines}>
+                <Skeleton width="100%" height={14} />
+                <Skeleton width="96%" height={14} />
+                <Skeleton width="88%" height={14} />
+              </View>
+              <Skeleton width="100%" height={140} radius={t.radii.card} style={styles.skGap24} />
+            </View>
           </View>
         ) : billQuery.isError || !bill || !vm ? (
           <View style={styles.stateBox}>
@@ -1632,6 +1652,13 @@ const COLUMN_MAX = 640;
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
+  // skeleton loading state (mirrors header + first content section)
+  skGap8: { marginTop: 8 },
+  skGap14: { marginTop: 14 },
+  skGap20: { marginBottom: 20 },
+  skGap24: { marginTop: 24 },
+  skStatusRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  skLines: { marginTop: 16, gap: 12 },
   stateBox: { paddingVertical: 80, paddingHorizontal: 20, alignItems: 'center', gap: 14 },
   stateText: {
     fontFamily: t.typography.body,

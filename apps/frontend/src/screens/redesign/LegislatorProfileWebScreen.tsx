@@ -29,6 +29,7 @@ import {
 } from '../../lib/billDetail';
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
+import { Skeleton } from '../../components/Skeleton';
 
 // Web Legislator Profile (docs/mockups/legislator-profile-web). Aggregates a
 // member's public record — identity, committees (with leadership), chief-authored
@@ -118,13 +119,7 @@ export function LegislatorProfileWebScreen() {
   );
 
   if (legislatorQuery.isLoading) {
-    return shell(
-      <View style={styles.stateBox}>
-        <ActivityIndicator color={t.colors.brand.base} />
-        <Text style={styles.stateText}>Loading legislator…</Text>
-      </View>,
-      null,
-    );
+    return shell(<LegislatorBodySkeleton isDesktop={isDesktop} />, <LegislatorHeroSkeleton />);
   }
 
   if (legislatorQuery.isError || !legislator) {
@@ -1187,7 +1182,45 @@ const BREADCRUMB_GREY = '#4b524b';
 const CODE_BADGE_FILL = t.colors.omnibus.fill;
 const CODE_BADGE_BORDER = t.colors.omnibus.border;
 
+// Loading skeletons — mirror the hero (breadcrumb · portrait + identity) and the
+// two-column body (record cards + contact sidebar), rendered inside the same
+// SearchPageShell so the nav + back link appear instantly.
+function LegislatorHeroSkeleton() {
+  return (
+    <View accessible accessibilityLabel="Loading legislator">
+      <Skeleton width={110} height={16} style={styles.skHeroCrumb} />
+      <Skeleton width={150} height={12} style={styles.skGap14} />
+      <View style={styles.skIdentityRow}>
+        <Skeleton width={128} height={146} radius={t.radii.card} />
+        <View style={styles.skIdentityText}>
+          <Skeleton width={260} height={32} radius={8} />
+          <Skeleton width={200} height={16} style={styles.skGap14} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function LegislatorBodySkeleton({ isDesktop }: { isDesktop: boolean }) {
+  return (
+    <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
+      <View style={styles.leftColumn}>
+        <Skeleton width="100%" height={180} radius={t.radii.card} />
+        <Skeleton width="100%" height={240} radius={t.radii.card} />
+      </View>
+      <View style={styles.rightColumn}>
+        <Skeleton width="100%" height={220} radius={t.radii.card} />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  // skeleton loading state
+  skHeroCrumb: { marginTop: 8, marginBottom: 18 },
+  skGap14: { marginTop: 14 },
+  skIdentityRow: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 20 },
+  skIdentityText: { gap: 4, minWidth: 0, flexShrink: 1 },
   stateBox: { paddingVertical: 64, alignItems: 'center', justifyContent: 'center', gap: 12 },
   stateBoxSmall: { paddingVertical: 28, alignItems: 'center' },
   stateText: {
