@@ -328,7 +328,11 @@ def ai_analysis_payload(
 
 
 def bill_list_item(
-    bill, *, include_tracking: bool = False, co_author_count: int = 0
+    bill,
+    *,
+    include_tracking: bool = False,
+    co_author_count: int = 0,
+    include_companion: bool = False,
 ) -> api_schemas.BillListItem:
     return api_schemas.BillListItem(
         id=bill.bill_key,
@@ -342,6 +346,7 @@ def bill_list_item(
         is_omnibus=bill.is_omnibus,
         chief_sponsors=sponsor_payloads(bill.chief_sponsorships),
         co_author_count=co_author_count,
+        companion=companion_payload(bill) if include_companion else None,
         stats=bill_stats_payload(bill.stats),
         tracked=tracking_payload(bill.tracked_by) if include_tracking else None,
         ai_analysis=ai_analysis_payload(bill.enrichments),
@@ -380,6 +385,8 @@ def current_service_payload(service_period) -> api_schemas.CurrentServicePayload
         office_address=service_period.office_address,
         profile_url=service_period.profile_url,
         photo_url=service_period.photo_url,
+        elected=service_period.elected,
+        term=service_period.term,
     )
 
 

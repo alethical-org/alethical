@@ -90,6 +90,7 @@ class BillListItem(BaseModel):
     is_omnibus: bool = False
     chief_sponsors: list[SponsorSummary]
     co_author_count: int = 0
+    companion: CompanionBillPayload | None = None
     stats: BillStatsPayload | None = None
     tracked: TrackingState | None = None
     ai_analysis: AIAnalysisPayload | None = None
@@ -189,6 +190,8 @@ class CurrentServicePayload(BaseModel):
     office_address: str | None = None
     profile_url: str | None = None
     photo_url: str | None = None
+    elected: str | None = None
+    term: str | None = None
 
 
 class CommitteePayload(BaseModel):
