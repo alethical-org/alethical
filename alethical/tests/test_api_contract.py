@@ -1704,6 +1704,179 @@ def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(
     assert assistant_message["citations"] == []
 
 
+ENACTED_VERSION_SESSION_SLUG = "test-session-law-fixture"
+
+
+def _seed_session_law_bills(schema) -> str:
+    """Seed one enacted bill (a "Chapter number" action + a "Secretary of State"
+    filing action) and one non-enacted bill into an isolated session, so the
+    session-law version derivation (#438) can be exercised without leaking into
+    the shared list other tests query. The enacted bill also gets a real
+    engrossment BillVersion so the test can confirm the synthetic session-law
+    entry is appended after the genuine text versions."""
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    from alethical.db.session import get_session_factory
+
+    with get_session_factory()() as db:
+        base_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        chamber = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "house")
+        )
+        assert base_session is not None and chamber is not None
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == ENACTED_VERSION_SESSION_SLUG
+            )
+        )
+        if session_row is None:
+            session_row = schema.LegislativeSession(
+                jurisdiction_id=base_session.jurisdiction_id,
+                slug=ENACTED_VERSION_SESSION_SLUG,
+                session_number=9989,
+                session_type=schema.SessionType.regular,
+                year_start=2989,
+                year_end=2990,
+                name="Session-law fixture session",
+                is_current=False,
+            )
+            db.add(session_row)
+            db.flush()
+
+        # Enacted bill: Laws of Minnesota 2026, Chapter 45. The filing year (2026)
+        # is deliberately different from a plausible session year to prove the
+        # Laws URL takes its year from the filing date, not the session.
+        enacted_key = f"{ENACTED_VERSION_SESSION_SLUG}-HF9801"
+        if (
+            db.scalar(select(schema.Bill).where(schema.Bill.bill_key == enacted_key))
+            is None
+        ):
+            enacted = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=chamber.id,
+                bill_key=enacted_key,
+                file_type="HF",
+                file_number=9801,
+                title="Session-law fixture enacted bill",
+                description="Fixture enacted bill",
+                current_status="Chapter number",
+                official_url="https://www.revisor.mn.gov/bills/94/2026/0/HF/9801/versions/",
+                is_omnibus=False,
+            )
+            db.add(enacted)
+            db.flush()
+            db.add(
+                schema.BillVersion(
+                    bill_id=enacted.id,
+                    version_code="0",
+                    version_name="HF 9801 3rd Engrossment - 94th Legislature (2025 - 2026)",
+                    sequence_number=1,
+                    document_date=datetime(2026, 2, 1, tzinfo=timezone.utc),
+                    html_url="https://www.revisor.mn.gov/bills/94/2026/0/HF/9801/versions/0/",
+                    is_current=True,
+                )
+            )
+            for num, text, desc in (
+                (1, "Introduction and first reading, referred to", ""),
+                (2, "Chapter number", "45"),
+                (3, "Secretary of State", "Chapter 45 03/01/26"),
+                (4, "Secretary of State, Filed", "03/01/2026"),
+            ):
+                db.add(
+                    schema.BillAction(
+                        bill_id=enacted.id,
+                        action_number=num,
+                        action_group="Action",
+                        action_text=text,
+                        action_description=desc or None,
+                    )
+                )
+
+        # Non-enacted bill: stalled with no chapter action.
+        pending_key = f"{ENACTED_VERSION_SESSION_SLUG}-HF9802"
+        if (
+            db.scalar(select(schema.Bill).where(schema.Bill.bill_key == pending_key))
+            is None
+        ):
+            pending = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=chamber.id,
+                bill_key=pending_key,
+                file_type="HF",
+                file_number=9802,
+                title="Session-law fixture pending bill",
+                description="Fixture non-enacted bill",
+                current_status="Laid on table",
+                official_url="https://www.revisor.mn.gov/bills/94/2026/0/HF/9802/versions/",
+                is_omnibus=False,
+            )
+            db.add(pending)
+            db.flush()
+            db.add(
+                schema.BillVersion(
+                    bill_id=pending.id,
+                    version_code="0",
+                    version_name="HF 9802 Introduction - 94th Legislature (2025 - 2026)",
+                    sequence_number=1,
+                    document_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                    html_url="https://www.revisor.mn.gov/bills/94/2026/0/HF/9802/versions/0/",
+                    is_current=True,
+                )
+            )
+        db.commit()
+    return ENACTED_VERSION_SESSION_SLUG
+
+
+def test_enacted_bill_exposes_session_law_version(client):
+    """An enacted bill surfaces a synthesized "Session Law" version carrying the
+    real Laws of Minnesota chapter (from its already-ingested actions), and a
+    non-enacted bill does not (#438, grounded-answers rule 7)."""
+    from alethical.db.schema import load_schema
+
+    _seed_session_law_bills(load_schema())
+
+    enacted = client.get("/api/v1/bills/test-session-law-fixture-HF9801/versions")
+    assert enacted.status_code == 200
+    versions = enacted.json()["data"]
+    session_law = [v for v in versions if v["version_code"] == "session-law"]
+    assert len(session_law) == 1, (
+        "enacted bill must expose exactly one session-law version"
+    )
+    sl = session_law[0]
+    # Label must contain "Session Law" (fires the chip) and "Chapter 45" (chip number).
+    assert "Session Law" in sl["version_name"]
+    assert "Chapter 45" in sl["version_name"]
+    # Laws URL year comes from the filing date (2026), not the session; official.
+    assert sl["html_url"] == (
+        "https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/45/"
+    )
+    assert sl["document_date"] is not None
+    # The synthetic version is appended after the genuine engrossment.
+    assert versions[-1]["version_code"] == "session-law"
+    assert any(v["version_code"] == "0" for v in versions)
+
+    # Same result through the bill-detail include path the frontend uses.
+    detail = client.get(
+        "/api/v1/bills/test-session-law-fixture-HF9801",
+        params={"include": "versions"},
+    )
+    assert detail.status_code == 200
+    assert any(
+        v["version_code"] == "session-law" for v in detail.json()["data"]["versions"]
+    )
+
+    # A non-enacted bill has no session-law version.
+    pending = client.get("/api/v1/bills/test-session-law-fixture-HF9802/versions")
+    assert pending.status_code == 200
+    assert all(v["version_code"] != "session-law" for v in pending.json()["data"])
+
+
 def test_supporting_public_resources_and_saved_places(client, auth_headers):
     sessions_response = client.get("/api/v1/sessions")
     assert sessions_response.status_code == 200

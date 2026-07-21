@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import re
 
-from typing import Literal
+from datetime import datetime, timezone
+from typing import Any, Literal
 from uuid import UUID
 
 import requests
@@ -634,6 +635,101 @@ def bills(
     )
 
 
+# A signed Minnesota bill's Laws-of-Minnesota chapter lives in its actions, not
+# in any text version: Revisor's text_versions stop at the highest engrossment
+# and carry no session-law entry. Two actions hold what we need — a
+# "Chapter number" action whose description is the chapter (e.g. "45"), and a
+# "Secretary of State" action carrying the filing date ("Chapter 45 03/01/26").
+_CHAPTER_ACTION_TEXT = "chapter number"
+_SECRETARY_ACTION_TEXTS = ("secretary of state, filed", "secretary of state")
+# Extracts MM/DD/YY or MM/DD/YYYY from a Secretary-of-State action description.
+_FILING_DATE_RE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{2,4})")
+# The bill's Revisor URL encodes /bills/{session_number}/{year}/{session_type}/…;
+# the session_type segment (0 = regular) also indexes the Laws volume.
+_BILL_SESSION_TYPE_RE = re.compile(r"/bills/\d+/\d+/(\d+)/")
+
+
+def session_law_version(bill_row) -> dict[str, Any] | None:
+    """Synthesize a "Session Law" version for an enacted bill from its already-
+    ingested actions, or None if the bill never became law (grounded-answers
+    rule 7 — only enacted bills carry this).
+
+    Derived at serialization time rather than stored, so the ``bill_version``
+    table, the one-current-version invariant (#285/#287), and RAG retrieval are
+    all untouched. The Laws-of-Minnesota chapter is genuine primary-source data
+    (rule 9): the number comes from the "Chapter number" action, and the Laws
+    volume year from the "Secretary of State" filing date — which can differ
+    from the bill's session year (a 2025-session bill signed in 2026 is Laws
+    2026), so we never take the year from the session.
+    """
+    actions = list(bill_row.actions or [])
+
+    chapter = next(
+        (
+            desc
+            for action in actions
+            if (action.action_text or "").strip().lower() == _CHAPTER_ACTION_TEXT
+            and (desc := (action.action_description or "").strip()).isdigit()
+        ),
+        None,
+    )
+    if chapter is None:
+        return None
+
+    filing_date: datetime | None = None
+    for action in actions:
+        if (action.action_text or "").strip().lower() in _SECRETARY_ACTION_TEXTS:
+            match = _FILING_DATE_RE.search(action.action_description or "")
+            if match:
+                month, day, year = (int(part) for part in match.groups())
+                if year < 100:
+                    year += 2000
+                filing_date = datetime(year, month, day, tzinfo=timezone.utc)
+                break
+
+    # "Read the full law" links straight to the official Laws chapter page. We
+    # emit it only when the filing year is known; a chapter number alone can't
+    # locate the right yearly volume, and a wrong citation is worse than none
+    # (rule 1). The session-type segment comes from the bill's own Revisor URL.
+    html_url = None
+    if filing_date is not None:
+        type_match = _BILL_SESSION_TYPE_RE.search(bill_row.official_url or "")
+        session_type = type_match.group(1) if type_match else "0"
+        html_url = (
+            f"https://www.revisor.mn.gov/laws/{filing_date.year}/{session_type}"
+            f"/Session+Law/Chapter/{chapter}/"
+        )
+
+    return {
+        "version_code": "session-law",
+        "version_name": f"Session Law — Chapter {chapter}",
+        "document_date": filing_date,
+        "html_url": html_url,
+        "pdf_url": None,
+        "is_current": False,
+    }
+
+
+def bill_version_payloads(bill_row) -> list[dict[str, Any]]:
+    """Serialize a bill's versions, appending a synthesized "Session Law"
+    version (the final "this is now law" entry) for enacted bills (#438)."""
+    payloads = [
+        {
+            "version_code": version.version_code,
+            "version_name": version.version_name,
+            "document_date": version.document_date,
+            "html_url": version.html_url,
+            "pdf_url": version.pdf_url,
+            "is_current": version.is_current,
+        }
+        for version in bill_row.versions
+    ]
+    session_law = session_law_version(bill_row)
+    if session_law is not None:
+        payloads.append(session_law)
+    return payloads
+
+
 @router.get("/bills/{bill_id}", response_model=DetailResponse)
 def bill_detail(
     bill_id: str,
@@ -713,17 +809,7 @@ def bill_detail(
             for action in row.actions
         ]
     if "versions" in include_set:
-        payload["versions"] = [
-            {
-                "version_code": version.version_code,
-                "version_name": version.version_name,
-                "document_date": version.document_date,
-                "html_url": version.html_url,
-                "pdf_url": version.pdf_url,
-                "is_current": version.is_current,
-            }
-            for version in row.versions
-        ]
+        payload["versions"] = bill_version_payloads(row)
     return DetailResponse(
         data={key: value for key, value in payload.items() if value is not None}
     )
@@ -754,17 +840,7 @@ def bill_actions(bill_id: str, db: Session = Depends(get_db)):
 def bill_versions(bill_id: str, db: Session = Depends(get_db)):
     bill_row = get_bill_by_key(db, bill_id)
     row = db.scalar(bill_detail_stmt(bill_row.id))
-    data = [
-        {
-            "version_code": version.version_code,
-            "version_name": version.version_name,
-            "document_date": version.document_date,
-            "html_url": version.html_url,
-            "pdf_url": version.pdf_url,
-            "is_current": version.is_current,
-        }
-        for version in row.versions
-    ]
+    data = bill_version_payloads(row)
     return CollectionResponse(
         data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
     )

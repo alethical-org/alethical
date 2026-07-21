@@ -545,10 +545,17 @@ function engrossmentLabel(sequence: number, unofficial: boolean): string {
 //                (YYYY.N-{PREFIX}{file}-{seq}; PREFIX is SF/HF for official
 //                engrossments, UES/UEH for unofficial — Senate/House)
 // version_code carries the engrossment sequence ("0", "1", ...) or "current".
-// (MN's text_versions have no separate "session law" entry, so enacted bills
-// simply end at their highest engrossment — there is no chapter label to derive.)
+// MN's text_versions have no separate session-law entry, so the API synthesizes
+// one for enacted bills with version_code "session-law" and a name that already
+// reads "Session Law — Chapter N" (#438); the branch below just guards it.
 function versionDisplayName(code: string, name?: string | null): string {
   const raw = (name ?? '').trim();
+
+  // Synthesized session-law version (#438): the name already carries the
+  // "Session Law — Chapter N" label the CHAPTER chip keys off; pass it through.
+  if (code.trim().toLowerCase() === 'session-law') {
+    return raw || 'Session Law';
+  }
 
   // Friendly form: the descriptor sits between the file id and the Legislature suffix.
   const friendly = raw.match(/^(?:HF|SF)\s+\d+\s+(.+?)\s+-\s+\d+\w*\s+Legislature/i);
