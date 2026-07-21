@@ -23,19 +23,25 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
-import { useBill, useSessions } from '../../hooks/useAppQueries';
-import { Bill, BillAction, VoteEvent } from '../../data/types';
+import { useBill, useLegislators, useSessions } from '../../hooks/useAppQueries';
+import { Bill, BillAction, Legislator, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../components/search/searchPieces';
 import {
   authorDisplayName,
+  buildPartyBlocks,
   chamberBillLabel,
   chiefAuthor,
   coAuthorCount,
+  formatMonoDate,
   formatNiceDate,
   isKnownDistrict,
   isLaw,
+  MemberVote,
   partyFull,
+  PartyBlock,
   readLabel,
+  rollPassed,
+  validateRoll,
 } from '../../lib/billDetail';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
@@ -43,12 +49,13 @@ import { BillDetailWebScreen } from './BillDetailWebScreen';
 // Re-expressed in RN from the .dc.html literal values; support.js not ported.
 //
 // Data honesty (grounded-answers.md rules 1/4): the mock hardcodes party rosters
-// and fabricates per-member votes. The API maps citations, questionPrompts, and
-// per-member votes to empty (see api.ts mapBillDetail), and member-level rendering
-// is deferred (#83). So this build shows only what the record truthfully carries:
-// the roll-call tally + result + proportion bar (no member grid, no crossover, no
-// fabricated party split), no per-point cited-sections strip (#377), no companion
-// (#293). Those sections fill in when their backends ship.
+// and fabricates per-member votes; this build shows only what the record truthfully
+// carries. Per-member roll-call votes + party now ship (#435/#443 → api.ts
+// mapBillDetail), so the Votes section renders the real party-grouped member grid,
+// crossover dots, and party splits from that data — degrading to the tally + result
+// + proportion bar on rolls the corpus has no per-member records for. Still absent:
+// the per-point cited-sections strip (#377) and companion (#293), which fill in when
+// their backends ship.
 
 const isWeb = Platform.OS === 'web';
 
@@ -270,6 +277,16 @@ function BillDetailMobileScreen() {
   const billQuery = useBill(billId);
   const bill = billQuery.data;
 
+  // Per-member roll-call records carry name + party inline, so the roster grid
+  // groups by party without a join; the legislators map is a fallback for any
+  // record missing party (mirrors the shipped web BillDetailWebScreen).
+  const legislatorsQuery = useLegislators();
+  const legislatorsById = useMemo(() => {
+    const map = new Map<string, Legislator>();
+    (legislatorsQuery.data ?? []).forEach((leg) => map.set(leg.id, leg));
+    return map;
+  }, [legislatorsQuery.data]);
+
   const sessionsQuery = useSessions();
   const currentSession =
     sessionsQuery.data?.find((item) => item.isCurrent) ?? sessionsQuery.data?.[0];
@@ -381,6 +398,12 @@ function BillDetailMobileScreen() {
   // --- ask ---
   const goAsk = (q?: string) => {
     navigation.navigate('Ask', q ? { q } : undefined);
+  };
+
+  // Roll-call member chips link to the member's profile (grounded-answers rule 5 —
+  // URL-addressable). Continue-with-Google on the signed-out teaser starts sign-in.
+  const openLegislator = (legislatorId: string) => {
+    navigation.navigate('LegislatorProfile', { legislatorId });
   };
 
   // --- derived view model (only when the bill is loaded) ---
@@ -690,20 +713,15 @@ function BillDetailMobileScreen() {
                 Votes
               </Text>
               {vm.hasVotes ? (
-                <>
-                  <Text style={styles.intro}>
-                    Each recorded <Text style={styles.introStrong}>roll call</Text> and how it
-                    resolved.
-                  </Text>
-                  <View style={styles.rollList}>
-                    {bill.votes.map((v) => (
-                      <RollCard key={v.id} vote={v} />
-                    ))}
-                  </View>
-                  {/* Member-by-member breakdown is deferred (#83): the record's
-                      per-member votes aren't rendered in-app yet, so we show the
-                      tally + result only rather than fabricate a member grid. */}
-                </>
+                <MobileVotesSection
+                  bill={bill}
+                  legislatorsById={legislatorsById}
+                  chiefParty={vm.chief?.party}
+                  signedIn={isSignedIn}
+                  onOpenLegislator={openLegislator}
+                  onOpenUrl={openExternal}
+                  onContinueSignIn={() => void signInWithGoogle()}
+                />
               ) : (
                 <View style={styles.noVotes}>
                   <View style={styles.noVotesIcon}>
@@ -721,9 +739,24 @@ function BillDetailMobileScreen() {
                     No floor votes yet
                   </Text>
                   <Text style={styles.noVotesBody}>
-                    {bill.identifier} hasn’t had a recorded roll-call vote. Roll calls appear here
-                    when a chamber votes.
+                    {bill.identifier} is in committee. Roll calls appear here when a chamber votes.
                   </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => goAsk()}
+                    style={styles.noVotesAsk}
+                  >
+                    <Text style={styles.noVotesAskText}>Ask about this bill</Text>
+                    <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                      <Path
+                        d="M6 12 H18 M13 7 L18 12 L13 17"
+                        stroke={t.colors.white}
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                  </Pressable>
                 </View>
               )}
             </Section>
@@ -849,11 +882,12 @@ function BillDetailMobileScreen() {
         </View>
       </BottomSheet>
 
-      {/* NOTE: the design's "your legislators voted" sign-in bottom sheet is
-          intentionally not built yet — it advertises per-member roll-call reveal,
-          which is deferred (#83). Adding it would advertise an unshippable
-          capability (grounded-answers.md rule 2). Sign-in stays available via the
-          top nav. Wire this sheet + the votes teaser together when #83 ships. */}
+      {/* NOTE: the signed-out "See how your legislators voted" teaser lives in the
+          Votes section (MobileVotesSection). Its "Continue with Google" starts sign-in
+          directly (signInWithGoogle) rather than opening a dedicated bottom sheet.
+          Per-district personalization — showing a signed-in user THEIR members' votes —
+          isn't wired yet, so the teaser is hidden once signed in rather than replaced
+          with a personalized block (no unshippable capability advertised). */}
     </PageBackground>
   );
 }
@@ -1013,45 +1047,430 @@ function ActionRow({
   );
 }
 
-function RollCard({ vote }: { vote: VoteEvent }) {
-  const yes = vote.breakdown.yes;
-  const no = vote.breakdown.no;
-  const total = yes + no + (vote.breakdown.absent || 0);
-  const passed = /pass|adopt|prevail|agreed/i.test(vote.result);
+type RollFilter = 'all' | 'yes' | 'no' | 'abs';
+
+// Votes section — roll-call cards as one-open-at-a-time accordions with party-grouped
+// member grids, crossover dots, filter + search, and the signed-out teaser. Mirrors the
+// shipped web VotesTab (components/billDetail/VotesTab) with mobile sizing + a single
+// open roll. Grounded framing (grounded-answers rule 3): describe records, never assert
+// an inferred partisan pattern — the party grouping + crossover legend only frame when
+// per-member data AND the chief author's party are known.
+function MobileVotesSection({
+  bill,
+  legislatorsById,
+  chiefParty,
+  signedIn,
+  onOpenLegislator,
+  onOpenUrl,
+  onContinueSignIn,
+}: {
+  bill: Bill;
+  legislatorsById: Map<string, Legislator>;
+  chiefParty: string | undefined;
+  signedIn: boolean;
+  onOpenLegislator: (legislatorId: string) => void;
+  onOpenUrl: (url: string) => void;
+  onContinueSignIn: () => void;
+}) {
+  // One roll open at a time on mobile (spec §Votes — roll accordion). Seed the first
+  // roll open so the member grid is discoverable without a tap.
+  const [openRoll, setOpenRoll] = useState<number>(0);
+  const [howToOpen, setHowToOpen] = useState(false);
+
+  const hasMemberData = bill.votes.some((v) => v.votes.length > 0);
+  const partyKnown = !!chiefParty && chiefParty.trim() !== '';
+  const framed = hasMemberData && partyKnown;
+  const chief = partyFull(chiefParty);
+
+  return (
+    <View>
+      <Text style={styles.intro}>
+        Each recorded <Text style={styles.introStrong}>roll call</Text> lists how members voted.
+      </Text>
+
+      {framed ? (
+        <View style={styles.howTo}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: howToOpen }}
+            onPress={() => setHowToOpen((v) => !v)}
+            style={styles.howToHead}
+          >
+            <Text style={styles.howToTitle}>How to read a roll call</Text>
+            <Chevron up={howToOpen} color={t.colors.text.muted} />
+          </Pressable>
+          {howToOpen ? (
+            <View style={styles.howToBody}>
+              <Text style={styles.howToText}>
+                The chief author is a <Text style={styles.introStrong}>{chief}</Text> legislator.
+                Each roll call below groups members by party, with each block’s Yes–No split.
+              </Text>
+              <View style={styles.crossLegend}>
+                <View style={styles.crossDotInline} />
+                <Text style={styles.crossLegendText}>
+                  marks members who voted against their party’s majority
+                </Text>
+              </View>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      <View style={styles.rollList}>
+        {bill.votes.map((vote, i) => (
+          <MobileRollCard
+            key={vote.id}
+            vote={vote}
+            open={openRoll === i}
+            legislatorsById={legislatorsById}
+            onToggle={() => setOpenRoll((cur) => (cur === i ? -1 : i))}
+            onOpenLegislator={onOpenLegislator}
+            onOpenUrl={onOpenUrl}
+          />
+        ))}
+      </View>
+
+      {!signedIn ? <YourLegislatorsTeaser onContinue={onContinueSignIn} /> : null}
+
+      <Text style={styles.sourceLine}>
+        Source: Minnesota Legislature · roll-call records · revisor.mn.gov
+      </Text>
+    </View>
+  );
+}
+
+function MobileRollCard({
+  vote,
+  open,
+  legislatorsById,
+  onToggle,
+  onOpenLegislator,
+  onOpenUrl,
+}: {
+  vote: VoteEvent;
+  open: boolean;
+  legislatorsById: Map<string, Legislator>;
+  onToggle: () => void;
+  onOpenLegislator: (legislatorId: string) => void;
+  onOpenUrl: (url: string) => void;
+}) {
+  const [filter, setFilter] = useState<RollFilter>('all');
+  const [search, setSearch] = useState('');
+  const { focused, focusProps } = useFieldFocus();
+
+  const passed = rollPassed(vote.result);
   const failed = /fail|not adopt|reject|lost/i.test(vote.result);
-  const yesPct = total > 0 ? Math.round((yes / total) * 100) : 0;
-  const noPct = total > 0 ? Math.round((no / total) * 100) : 0;
+  const { yes, no, absent } = vote.breakdown;
+  const total = yes + no + absent;
+  const barYes = total > 0 ? (yes / total) * 100 : 0;
+  const barNo = total > 0 ? (no / total) * 100 : 0;
+  const hasMembers = vote.votes.length > 0;
+
+  const blocks = useMemo(
+    () => (hasMembers ? buildPartyBlocks(vote.votes, legislatorsById) : []),
+    [vote.votes, legislatorsById, hasMembers],
+  );
+  if (hasMembers) validateRoll(blocks, yes, no);
+
+  const q = search.trim().toLowerCase();
+  const matchTab = (m: MemberVote) =>
+    filter === 'all'
+      ? true
+      : filter === 'yes'
+        ? m.vote === 'YES'
+        : filter === 'no'
+          ? m.vote === 'NO'
+          : m.vote === 'ABSENT';
+  const matchQ = (m: MemberVote) => !q || m.name.toLowerCase().includes(q);
+
   return (
     <View style={styles.rollCard}>
-      <View style={styles.rollHeaderRow}>
-        <View style={styles.rollHeaderLeft}>
-          <Text style={styles.rollMotion}>{vote.motion}</Text>
-          {vote.date ? <Text style={styles.rollMeta}>{vote.date.toUpperCase()}</Text> : null}
+      <Pressable
+        accessibilityRole={hasMembers ? 'button' : undefined}
+        accessibilityState={hasMembers ? { expanded: open } : undefined}
+        accessibilityLabel={
+          hasMembers
+            ? `${vote.motion}. ${yes} yes, ${no} no, ${passed ? 'passed' : failed ? 'failed' : vote.result}. ${open ? 'Hide' : 'Show'} member votes.`
+            : undefined
+        }
+        onPress={hasMembers ? onToggle : undefined}
+        disabled={!hasMembers}
+      >
+        <View style={styles.rollHeaderRow}>
+          <View style={styles.rollHeaderLeft}>
+            <Text style={styles.rollMotion}>{vote.motion}</Text>
+          </View>
+          <View style={styles.rollTallyCol}>
+            <Text style={styles.rollTally}>
+              {yes}–{no}
+            </Text>
+            {absent > 0 ? <Text style={styles.rollAbsent}>{absent} didn’t vote</Text> : null}
+          </View>
         </View>
-        <Text style={styles.rollTally}>
-          {yes}–{no}
-        </Text>
+        <View style={styles.rollBadgeRow}>
+          {passed ? (
+            <View style={styles.passedPill}>
+              <Text style={styles.passedPillText}>PASSED</Text>
+            </View>
+          ) : failed ? (
+            <View style={styles.failedPill}>
+              <Text style={styles.failedPillText}>FAILED</Text>
+            </View>
+          ) : vote.result ? (
+            <View style={styles.resultPill}>
+              <Text style={styles.resultPillText}>{vote.result.toUpperCase()}</Text>
+            </View>
+          ) : null}
+          {hasMembers ? (
+            <View style={styles.seeWho}>
+              <Text style={styles.seeWhoText}>{open ? 'Hide members' : 'See who voted'}</Text>
+              <Chevron up={open} color={t.colors.brand.deep} />
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+
+      {/* meta: date + official-record link — outside the toggle so the link isn't
+          an interactive element nested inside the accordion button. */}
+      {vote.date || vote.officialUrl ? (
+        <View style={styles.rollMetaRow}>
+          {vote.date ? <Text style={styles.rollMeta}>{formatMonoDate(vote.date)}</Text> : null}
+          {vote.date && vote.officialUrl ? <Text style={styles.rollMeta}> · </Text> : null}
+          {vote.officialUrl ? <RecordLink url={vote.officialUrl} onOpen={onOpenUrl} /> : null}
+        </View>
+      ) : null}
+
+      {/* proportion bar — full-chamber denominator, so a non-unanimous roll shows the
+          missing members as a neutral remainder rather than a fully-filled bar. */}
+      <View style={styles.rollBar}>
+        <View style={[styles.rollBarYes, { flexGrow: barYes }]} />
+        <View style={[styles.rollBarNo, { flexGrow: barNo }]} />
+        {absent > 0 ? <View style={styles.rollBarRest} /> : null}
       </View>
-      <View style={styles.rollBarRow}>
-        {passed ? (
-          <View style={styles.passedPill}>
-            <Text style={styles.passedPillText}>PASSED</Text>
+
+      {open && hasMembers ? (
+        <View style={styles.expand}>
+          <View style={styles.segmented}>
+            <FilterSeg
+              label={`All ${total}`}
+              active={filter === 'all'}
+              onPress={() => setFilter('all')}
+            />
+            <FilterSeg
+              label={`Yes ${yes}`}
+              active={filter === 'yes'}
+              onPress={() => setFilter('yes')}
+            />
+            <FilterSeg
+              label={`No ${no}`}
+              active={filter === 'no'}
+              onPress={() => setFilter('no')}
+            />
+            {absent > 0 ? (
+              <FilterSeg
+                label={`Didn’t vote ${absent}`}
+                active={filter === 'abs'}
+                onPress={() => setFilter('abs')}
+              />
+            ) : null}
           </View>
-        ) : failed ? (
-          <View style={styles.failedPill}>
-            <Text style={styles.failedPillText}>FAILED</Text>
+          <View style={[styles.searchField, ...fieldFocusRing(focused)]}>
+            <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+              <Circle cx={11} cy={11} r={6.5} stroke={t.colors.text.muted} strokeWidth={2} />
+              <Path
+                d="M16 16 L20 20"
+                stroke={t.colors.text.muted}
+                strokeWidth={2}
+                strokeLinecap="round"
+              />
+            </Svg>
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              onFocus={focusProps.onFocus}
+              onBlur={focusProps.onBlur}
+              // The placeholder is the field's accessible name — no separate label
+              // (that would make screen readers announce placeholder AND label).
+              placeholder="Find a legislator"
+              placeholderTextColor={t.colors.text.faint}
+              style={[styles.searchInput, fieldOutlineReset]}
+            />
           </View>
-        ) : vote.result ? (
-          <View style={styles.resultPill}>
-            <Text style={styles.resultPillText}>{vote.result.toUpperCase()}</Text>
+
+          <View style={styles.blocks}>
+            {blocks.map((block) => (
+              <PartyBlockView
+                key={block.party}
+                block={block}
+                filtered={block.members.filter((m) => matchTab(m) && matchQ(m))}
+                onOpenLegislator={onOpenLegislator}
+              />
+            ))}
           </View>
-        ) : null}
-        <View style={styles.rollBar}>
-          <View style={[styles.rollBarYes, { flexGrow: yesPct }]} />
-          <View style={[styles.rollBarNo, { flexGrow: noPct }]} />
         </View>
+      ) : null}
+    </View>
+  );
+}
+
+function PartyBlockView({
+  block,
+  filtered,
+  onOpenLegislator,
+}: {
+  block: PartyBlock;
+  filtered: MemberVote[];
+  onOpenLegislator: (legislatorId: string) => void;
+}) {
+  return (
+    <View>
+      <View style={styles.blockHead}>
+        <Text style={styles.blockLabel}>{block.label}</Text>
+        <Text style={styles.blockMeta}>{block.seats}</Text>
+        <Text style={styles.blockMeta}>·</Text>
+        <Text style={styles.blockSplit}>
+          <Text style={styles.blockYes}>{block.yes} Yes</Text>
+          <Text style={styles.blockMeta}> · </Text>
+          <Text style={styles.blockNo}>{block.no} No</Text>
+        </Text>
+        {block.absent > 0 ? (
+          <Text style={styles.blockMeta}>· {block.absent} didn’t vote</Text>
+        ) : null}
+      </View>
+      {filtered.length ? (
+        <View style={styles.chips}>
+          {filtered.map((m) => (
+            <MemberChip
+              key={m.legislatorId}
+              member={m}
+              onPress={() => onOpenLegislator(m.legislatorId)}
+            />
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.blockEmpty}>No members in this group.</Text>
+      )}
+    </View>
+  );
+}
+
+function MemberChip({ member, onPress }: { member: MemberVote; onPress: () => void }) {
+  const yea = member.vote === 'YES';
+  const nay = member.vote === 'NO';
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`${member.name}, voted ${member.vote.toLowerCase()}${member.crossover ? ', crossed party lines' : ''}`}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        yea ? styles.chipYes : nay ? styles.chipNo : styles.chipAbs,
+        pressed && styles.chipPressed,
+      ]}
+    >
+      <Text
+        style={[
+          styles.chipMark,
+          yea ? styles.chipYesText : nay ? styles.chipNoText : styles.chipAbsText,
+        ]}
+      >
+        {yea ? '✓' : nay ? '✕' : '–'}
+      </Text>
+      <Text
+        style={[
+          styles.chipName,
+          yea ? styles.chipYesText : nay ? styles.chipNoText : styles.chipAbsText,
+        ]}
+      >
+        {member.name}
+      </Text>
+      {member.crossover ? <View style={styles.crossDot} /> : null}
+    </Pressable>
+  );
+}
+
+function FilterSeg({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.seg,
+        active && styles.segActive,
+        pressed && !active && styles.segPressed,
+      ]}
+    >
+      <Text style={[styles.segText, active && styles.segTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function RecordLink({ url, onOpen }: { url: string; onOpen: (url: string) => void }) {
+  return (
+    <Pressable accessibilityRole="link" onPress={() => onOpen(url)}>
+      {({ pressed }) => (
+        <Text style={[styles.recordLink, pressed && styles.recordLinkPressed]}>
+          Official record →
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
+function YourLegislatorsTeaser({ onContinue }: { onContinue: () => void }) {
+  return (
+    <View style={styles.teaser}>
+      <View aria-hidden style={styles.teaserBlur}>
+        <View style={styles.teaserGhost} />
+        <View style={styles.teaserGhost} />
+      </View>
+      <View style={styles.teaserOverlay}>
+        <Text style={styles.teaserTitle}>See how your legislators voted</Text>
+        <Text style={styles.teaserSub}>
+          Save your district once — every roll call gets personal.
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onContinue}
+          style={({ pressed }) => [styles.googleBtn, pressed && styles.googleBtnPressed]}
+        >
+          <GoogleG />
+          <Text style={styles.googleText}>Continue with Google</Text>
+        </Pressable>
       </View>
     </View>
+  );
+}
+
+function GoogleG() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24">
+      <Path
+        fill="#4285F4"
+        d="M23.06 12.25c0-.86-.07-1.5-.22-2.16H12v3.92h6.31c-.13 1.05-.81 2.63-2.34 3.69l-.02.14 3.4 2.63.24.02c2.16-2 3.47-4.94 3.47-8.26z"
+      />
+      <Path
+        fill="#34A853"
+        d="M12 23.5c3.09 0 5.68-1.02 7.58-2.77l-3.62-2.8c-.96.68-2.26 1.15-3.96 1.15-3.03 0-5.6-2-6.51-4.76l-.13.01-3.53 2.73-.05.13C3.6 20.8 7.5 23.5 12 23.5z"
+      />
+      <Path
+        fill="#FBBC05"
+        d="M5.49 14.32A7.09 7.09 0 0 1 5.11 12c0-.81.15-1.59.37-2.32l-.01-.16L1.9 6.75l-.11.05A11.44 11.44 0 0 0 .5 12c0 1.85.44 3.6 1.29 5.2l3.7-2.88z"
+      />
+      <Path
+        fill="#EA4335"
+        d="M12 4.92c2.15 0 3.6.93 4.42 1.7l3.23-3.15C17.67 1.6 15.09.5 12 .5 7.5.5 3.6 3.2 1.79 6.8l3.69 2.88C6.4 6.92 8.97 4.92 12 4.92z"
+      />
+    </Svg>
   );
 }
 
@@ -1722,7 +2141,38 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
-  rollBarRow: { marginTop: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rollTallyCol: { alignItems: 'flex-end' },
+  rollAbsent: {
+    marginTop: 2,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.label,
+    color: t.colors.text.muted,
+  },
+  rollBadgeRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  seeWho: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  seeWhoText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.4,
+    color: t.colors.brand.deep,
+  },
+  rollMetaRow: { marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  recordLink: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: 0.5,
+    color: t.colors.text.green,
+  },
+  recordLinkPressed: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
   passedPill: {
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -1767,7 +2217,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   rollBar: {
-    flex: 1,
+    marginTop: 12,
     flexDirection: 'row',
     height: 9,
     borderRadius: 5,
@@ -1776,6 +2226,226 @@ const styles = StyleSheet.create({
   },
   rollBarYes: { backgroundColor: t.colors.brand.base },
   rollBarNo: { backgroundColor: t.colors.status.vetoedStep },
+  rollBarRest: { flexGrow: 1, minWidth: 6, backgroundColor: t.colors.status.progressEmpty },
+
+  // how to read a roll call (collapsible, framed only)
+  howTo: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 12,
+    backgroundColor: t.colors.surfaces.s200,
+  },
+  howToHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  howToTitle: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.secondary,
+  },
+  howToBody: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    gap: 9,
+  },
+  howToText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    color: t.colors.text.faint,
+  },
+  crossLegend: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  crossLegendText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    color: t.colors.text.muted,
+    flex: 1,
+  },
+  crossDotInline: { width: 7, height: 7, borderRadius: 4, backgroundColor: t.colors.omnibus.text },
+
+  // expanded member grid
+  expand: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: t.colors.alpha.ink08,
+  },
+  segmented: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 4,
+    backgroundColor: '#eef0f1',
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 11,
+    flexWrap: 'wrap',
+    alignSelf: 'flex-start',
+  },
+  seg: { borderRadius: 7, paddingVertical: 7, paddingHorizontal: 12 },
+  segActive: { backgroundColor: t.colors.text.primary },
+  segPressed: { backgroundColor: t.colors.alpha.ink08 },
+  segText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.text.secondary,
+  },
+  segTextActive: { color: t.colors.white, fontWeight: t.fontWeights.bold },
+  searchField: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    borderRadius: t.radii.md,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+  },
+  searchInput: {
+    flex: 1,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    color: t.colors.text.primary,
+  },
+  blocks: { marginTop: 22, gap: 26 },
+  blockHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: t.colors.alpha.ink08,
+  },
+  blockLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.9,
+    color: t.colors.text.primary,
+  },
+  blockMeta: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.muted,
+  },
+  blockSplit: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+  },
+  blockYes: { color: t.colors.brand.deep },
+  blockNo: { color: t.colors.dangerRamp.r600 },
+  blockEmpty: {
+    marginTop: 12,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    color: t.colors.text.muted,
+  },
+  chips: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    borderRadius: t.radii.pill,
+    borderWidth: 1,
+  },
+  chipPressed: { opacity: 0.6 },
+  chipYes: { backgroundColor: '#e9faf1', borderColor: t.colors.tint.border },
+  chipNo: { backgroundColor: '#fdecec', borderColor: '#f5c6c4' },
+  chipAbs: { backgroundColor: '#f4f5f4', borderColor: t.colors.alpha.ink08 },
+  chipMark: { fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.heavy },
+  chipName: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.semibold,
+  },
+  chipYesText: { color: t.colors.brand.deep },
+  chipNoText: { color: t.colors.dangerRamp.r600 },
+  chipAbsText: { color: t.colors.text.muted },
+  crossDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: t.colors.omnibus.text },
+
+  // signed-out teaser
+  teaser: {
+    marginTop: 28,
+    borderWidth: 1,
+    borderColor: t.colors.tint.t300,
+    borderRadius: t.radii.xl,
+    overflow: 'hidden',
+    backgroundColor: t.colors.tint.t50,
+  },
+  teaserBlur: {
+    // Decorative frosted backdrop behind the overlay; absolute so the overlay
+    // content (which stacks vertically on mobile) defines the card's height and
+    // nothing clips (the web card was horizontal, so its fixed height fit).
+    ...(StyleSheet.absoluteFillObject as object),
+    flexDirection: 'row',
+    gap: 12,
+    padding: 18,
+    ...(isWeb ? ({ filter: 'blur(6px)' } as object) : null),
+    opacity: 0.55,
+  },
+  teaserGhost: {
+    flex: 1,
+    height: 44,
+    borderRadius: t.radii.md,
+    backgroundColor: t.colors.surfaces.base,
+  },
+  teaserOverlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 22,
+    paddingHorizontal: 22,
+    backgroundColor: t.colors.alpha.white90,
+  },
+  teaserTitle: {
+    fontFamily: t.typography.title,
+    fontSize: t.fontSizes.subheadLg,
+    fontWeight: t.fontWeights.heavy,
+    color: t.colors.text.primary,
+    textAlign: 'center',
+  },
+  teaserSub: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    color: t.colors.text.secondary,
+    textAlign: 'center',
+  },
+  googleBtn: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink18,
+    borderRadius: t.radii.md,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+  },
+  googleBtnPressed: { backgroundColor: t.colors.surfaces.s200 },
+  googleText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.text.primary,
+  },
 
   // no votes
   noVotes: {
@@ -1813,6 +2483,22 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     color: t.colors.text.muted,
     textAlign: 'center',
+  },
+  noVotesAsk: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: t.colors.purple.base,
+    borderRadius: t.radii.md,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+  },
+  noVotesAskText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.body,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.white,
   },
 
   // versions
