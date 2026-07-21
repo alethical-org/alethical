@@ -188,6 +188,7 @@ class CurrentServicePayload(BaseModel):
     phone: str | None = None
     office_address: str | None = None
     profile_url: str | None = None
+    photo_url: str | None = None
 
 
 class CommitteePayload(BaseModel):

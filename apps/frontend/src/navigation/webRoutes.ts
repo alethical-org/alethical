@@ -96,9 +96,9 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     }
   }
 
-  // Bill detail resolves to the redesigned mobile Bill Detail screen
-  // (docs/mockups/bill-detail-mobile). Legislator detail and chat sessions are
-  // still old-design — redirect those to the new list page (or Home).
+  // Bill detail and legislator detail resolve to their redesigned profile
+  // screens (docs/mockups/bill-detail-*, legislator-profile-web). Chat sessions
+  // are still old-design — redirect those to Home.
   if (segments.length === 2 && segments[0] === 'bills') {
     return {
       kind: 'bill',
@@ -109,7 +109,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments.length === 2 && segments[0] === 'legislators') {
-    return { kind: 'legislators' };
+    return { kind: 'legislator', legislatorId: decodeURIComponent(segments[1]) };
   }
 
   if (segments.length === 3 && segments[0] === 'chat' && segments[1] === 'sessions') {

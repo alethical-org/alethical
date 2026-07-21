@@ -18,11 +18,20 @@ import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
 import { theme } from '../theme/tokens';
 import { useResponsive } from '../hooks/useResponsive';
+import { LegislatorProfileWebScreen } from './redesign/LegislatorProfileWebScreen';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LegislatorProfile'>;
 const SPONSORED_BILLS_PAGE_SIZE = 20;
 
-export function LegislatorProfileScreen({ route, navigation }: Props) {
+// Responsive dispatcher (same pattern as BillDetailScreen): the redesigned web
+// Legislator Profile on desktop; the existing screen remains the mobile fallback
+// until a mobile redesign lands (design_handoff_legislator_profile_mobile).
+export function LegislatorProfileScreen(props: Props) {
+  const { isDesktop } = useResponsive();
+  return isDesktop ? <LegislatorProfileWebScreen /> : <LegislatorProfileMobileScreen {...props} />;
+}
+
+function LegislatorProfileMobileScreen({ route, navigation }: Props) {
   const { isDesktop } = useResponsive();
   const { isSignedIn, signInWithGoogle, user } = useAuth();
   const [billPage, setBillPage] = useState(0);

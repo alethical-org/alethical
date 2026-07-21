@@ -1044,6 +1044,74 @@ def test_legislator_sponsored_bills_cover_empty_and_card_payload_shapes(client):
         )
 
 
+def test_current_service_exposes_photo_url(client):
+    """The legislator detail's current_service carries the official portrait URL
+    so the profile hero can render the member's photo (it lives on the service
+    period in the DB and must be serialized, not dropped)."""
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        service = db.scalar(
+            select(schema.LegislatorServicePeriod).where(
+                schema.LegislatorServicePeriod.is_current.is_(True),
+                schema.LegislatorServicePeriod.photo_url.is_not(None),
+            )
+        )
+        assert service is not None, (
+            "seed must provide a service period with a photo_url"
+        )
+        legislator_id = str(service.legislator_id)
+        expected_photo = service.photo_url
+
+    payload = client.get(
+        f"/api/v1/legislators/{legislator_id}",
+        params={"include": "current_service"},
+    ).json()["data"]
+    assert payload["current_service"]["photo_url"] == expected_photo
+
+
+def test_legislator_bills_role_filter_returns_chief_authored_only(client):
+    """?role=chief_author restricts the authored-bills list to bills the member
+    chief-authored — the contract behind the profile's 'Chief-Authored Bills'
+    section (the unfiltered endpoint also returns co-authored bills)."""
+    directory = client.get("/api/v1/legislators", params={"limit": 100}).json()["data"]
+
+    # Locate a legislator who chief-authors at least one bill the endpoint returns.
+    target_id = None
+    expected_chief_ids: set[str] = set()
+    for entry in directory:
+        all_bills = client.get(f"/api/v1/legislators/{entry['id']}/bills").json()[
+            "data"
+        ]
+        chief_here = {
+            bill["id"]
+            for bill in all_bills
+            if entry["id"] in {s["legislator_id"] for s in bill["chief_sponsors"]}
+        }
+        if chief_here:
+            target_id = entry["id"]
+            expected_chief_ids = chief_here
+            all_count = len(all_bills)
+            break
+
+    assert target_id is not None, "seed must give some member a chief-authored bill"
+
+    chief_response = client.get(
+        f"/api/v1/legislators/{target_id}/bills", params={"role": "chief_author"}
+    )
+    assert chief_response.status_code == 200
+    chief_data = chief_response.json()["data"]
+    assert {bill["id"] for bill in chief_data} == expected_chief_ids
+    for bill in chief_data:
+        chief_ids = {s["legislator_id"] for s in bill["chief_sponsors"]}
+        assert target_id in chief_ids
+    assert len(chief_data) <= all_count
+
+    bad_role = client.get(
+        f"/api/v1/legislators/{target_id}/bills", params={"role": "not-a-role"}
+    )
+    assert bad_role.status_code == 422
+
+
 def test_legislator_directory_authored_count_uses_live_sponsorships(client):
     """The directory (and detail) authored-bill count is computed live from
     Sponsorship on the legislator's own id, not the stored LegislatorStats.

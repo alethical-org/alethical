@@ -153,6 +153,13 @@ export interface ServicePeriod {
   role: string;
 }
 
+export interface CommitteeAssignment {
+  name: string;
+  /** Leadership role on the committee (e.g. "Chair", "Vice Chair", "Co-Chair",
+   *  "Ranking Minority Member"); null for a plain member. */
+  role: string | null;
+}
+
 export interface Legislator {
   id: string;
   name: string;
@@ -166,7 +173,14 @@ export interface Legislator {
   phone?: string;
   officeAddress?: string;
   profileUrl?: string;
+  /** Official portrait URL (senate.mn / lrl.mn.gov headshot). Undefined for the
+   *  handful of members without a scraped photo — render an initials fallback. */
+  photoUrl?: string;
   committees: string[];
+  /** Committees with their leadership role preserved, for the profile's badge
+   *  rows. `committees` keeps the flattened name-only strings for older screens.
+   *  Optional: only the live API mapper populates it (mock data omits it). */
+  committeeAssignments?: CommitteeAssignment[];
   focusAreas: string[];
   serviceHistory: ServicePeriod[];
   questionPrompts: string[];

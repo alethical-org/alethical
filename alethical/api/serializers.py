@@ -379,6 +379,7 @@ def current_service_payload(service_period) -> api_schemas.CurrentServicePayload
         phone=service_period.phone,
         office_address=service_period.office_address,
         profile_url=service_period.profile_url,
+        photo_url=service_period.photo_url,
     )
 
 

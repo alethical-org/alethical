@@ -121,7 +121,14 @@ export function useLegislator(legislatorId: string) {
 
 export function useLegislatorBills(legislatorId: string, pagination: ListPagination = {}) {
   return useQuery({
-    queryKey: ['legislator-bills', legislatorId, pagination.limit ?? 20, pagination.offset ?? 0],
+    queryKey: [
+      'legislator-bills',
+      legislatorId,
+      pagination.limit ?? 20,
+      pagination.offset ?? 0,
+      pagination.role ?? 'all',
+      pagination.session ?? 'current',
+    ],
     queryFn: () => getLegislatorBillsFromApi(legislatorId, pagination),
     retry: false,
     placeholderData: keepPreviousData,

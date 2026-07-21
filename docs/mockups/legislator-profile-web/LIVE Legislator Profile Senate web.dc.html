@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  a[data-tlink]:hover{color:#0f7a45 !important;text-decoration:underline !important;}
+  /* a11y: keyboard focus ring — WCAG 2.4.7 + 1.4.11 (visible on light & dark) */
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[tabindex]:focus-visible,[role="button"]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}
+  [data-glow-field]:focus-within{border-color:#5b30d6 !important;box-shadow:0 0 0 4px rgba(91,48,214,0.14) !important;}
+  [data-glow-field] input:focus-visible,[data-glow-field] textarea:focus-visible{outline:none !important;}
+  @keyframes ovFade{from{opacity:0;}to{opacity:1;}}
+  @keyframes cardPop{from{opacity:0;transform:translateY(10px) scale(0.98);}to{opacity:1;transform:none;}}
+</style>
+<script src="image-slot.js"></script>
+</helmet>
+<div style="width:1600px;min-height:1120px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;position:relative;overflow:hidden;">
+
+  <!-- HERO WRAPPER -->
+  <div style="position:relative;padding:0;background:linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%);">
+
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px);background-size:30px 30px;pointer-events:none;-webkit-mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);"></div>
+    
+
+    <!-- NAV (signed in) -->
+    <nav data-screen-label="Nav" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:26px 56px 0;">
+      <a href="#" style="display:flex;align-items:center;gap:16px;text-decoration:none;">
+        <svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex:none;">
+          <rect x="15" y="29" width="7.5" height="21" rx="3.75" fill="#11150f"></rect>
+          <rect x="28.25" y="15" width="7.5" height="35" rx="3.75" fill="#11150f"></rect>
+          <rect x="41.5" y="35" width="7.5" height="15" rx="3.75" fill="#11150f"></rect>
+        </svg>
+        <span style="font-weight:600;font-size:25px;letter-spacing:0.16em;color:#11150f;">ALETHICAL</span>
+      </a>
+      <div style="display:flex;align-items:center;gap:30px;">
+        <div style="display:flex;align-items:center;gap:34px;">
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Search<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Track<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">About<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:11px;padding:12px 20px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;color:#11150f;font-size:17px;font-weight:600;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">
+          <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;box-shadow:0 0 0 3px rgba(45,212,126,0.18);"></span>
+          Jordan Reyes
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </nav>
+
+    <!-- HERO BODY -->
+    <div style="position:relative;padding:48px 56px 0;">
+      <a href="LIVE Search Legislators.dc.html" style="display:inline-flex;align-items:center;gap:9px;color:#4b524b;text-decoration:none;font-size:16px;font-weight:600;" style-hover="color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>All legislators</a>
+      <div style="margin-top:24px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:0.2em;color:#149d5b;">LEGISLATOR PROFILE</div>
+
+      <div style="margin-top:14px;display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:24px;">
+          <div style="flex:none;width:128px;height:146px;border-radius:18px;overflow:hidden;border:1px solid rgba(17,21,15,0.1);box-shadow:0 8px 24px rgba(17,21,15,0.06);background:#eef0f1;">
+            <img src="uploads/62FatehOmar.jpg" alt="Sen. Omar Fateh" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" />
+          </div>
+          <div>
+          <h1 style="margin:0;font-size:64px;line-height:1.0;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Sen. Omar Fateh</h1>
+          <div style="margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <span style="font-size:22px;color:#6b716b;">Minneapolis</span>
+            <span style="width:5px;height:5px;border-radius:50%;background:#c3c9c4;display:inline-block;"></span>
+            <span style="font-size:22px;color:#6b716b;">Senate District 62</span>
+            <span style="padding:5px 13px;background:#e4f8ee;border:1px solid #bfeacf;border-radius:999px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;letter-spacing:0.06em;color:#149d5b;">Democratic-Farmer-Labor</span>
+          </div>
+          </div>
+        </div>
+        <div style="flex:none;position:relative;z-index:60;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button onClick="{{ openShare }}" aria-haspopup="true" aria-expanded="{{ shareOpen }}" style="flex:none;display:inline-flex;align-items:center;gap:11px;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:16px 24px;font-family:'Libre Franklin',sans-serif;font-size:18px;font-weight:600;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="18" cy="5" r="2.8" stroke="currentColor" stroke-width="2"></circle><circle cx="6" cy="12" r="2.8" stroke="currentColor" stroke-width="2"></circle><circle cx="18" cy="19" r="2.8" stroke="currentColor" stroke-width="2"></circle><path d="M8.5 10.8 L15.5 6.4 M8.5 13.2 L15.5 17.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+            Share
+          </button>
+          <sc-if value="{{ shareOpen }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeShare }}" style="position:fixed;inset:0;z-index:0;"></div>
+          <div role="dialog" aria-label="Share this legislator" style="position:absolute;top:calc(100% + 12px);right:0;z-index:1;width:366px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 24px 60px rgba(17,21,15,0.2);padding:20px 20px 22px;animation:cardPop 0.16s ease;text-align:left;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <span style="font-size:17px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Share this legislator</span>
+              <button onClick="{{ closeShare }}" aria-label="Close" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:8px;cursor:pointer;color:#6f756f;" style-hover="background:#f1f1f4;color:#11150f;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+            </div>
+            <div style="margin-top:14px;display:flex;align-items:center;gap:8px;background:#f7f9f8;border:1px solid rgba(17,21,15,0.1);border-radius:11px;padding:5px 5px 5px 14px;">
+              <input readonly value="{{ share.url }}" aria-label="Legislator link" style="flex:1;min-width:0;background:transparent;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:13px;color:#4f5651;" />
+              <sc-if value="{{ notCopied }}" hint-placeholder-val="{{ true }}"><button onClick="{{ copyLink }}" style="flex:none;display:inline-flex;align-items:center;gap:6px;background:#2ed47e;color:#06231a;border:none;border-radius:8px;padding:10px 16px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;" style-hover="background:#28bf71;">Copy</button></sc-if>
+              <sc-if value="{{ copied }}" hint-placeholder-val="{{ false }}"><span style="flex:none;display:inline-flex;align-items:center;gap:6px;background:#2ed47e;color:#06231a;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:700;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#06231a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>Copied</span></sc-if>
+            </div>
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(17,21,15,0.08);">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">SHARE TO</div>
+              <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+                <a href="{{ share.linkedin }}" target="_blank" rel="noopener" aria-label="Share on LinkedIn" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"></path></svg></a>
+                <a href="{{ share.x }}" target="_blank" rel="noopener" aria-label="Share on X" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg></a>
+                <a href="{{ share.facebook }}" target="_blank" rel="noopener" aria-label="Share on Facebook" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.6H6.61v3.56h3.07V22h3.68v-9.14h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z"></path></svg></a>
+                <a href="{{ share.instagram }}" target="_blank" rel="noopener" aria-label="Share on Instagram" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5.4" stroke="currentColor" stroke-width="2"></rect><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"></circle><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"></circle></svg></a>
+                <a href="{{ share.email }}" aria-label="Share by email" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.4" stroke="currentColor" stroke-width="2"></rect><path d="M4 7.5 L12 13 L20 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+              </div>
+            </div>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="height:64px;"></div>
+  </div>
+
+  <!-- BODY: TWO COLUMNS -->
+  <div data-screen-label="Profile body" style="position:relative;background:#ffffff;padding:56px 56px 8px;display:grid;grid-template-columns:1.5fr 1fr;gap:28px;align-items:start;">
+
+    <!-- LEFT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:24px;min-width:0;">
+
+      <!-- Profile -->
+      <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:16px;padding:32px 34px;box-shadow:0 8px 24px rgba(17,21,15,0.06);">
+        <h2 style="margin:0;font-size:30px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Biography</h2>
+        <p style="margin:16px 0 0;font-size:20px;line-height:1.55;color:#4f5651;">Represents south Minneapolis and focuses on higher education, human services, and economic opportunity.</p>
+      </div>
+
+      <!-- Committees -->
+      <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:16px;padding:32px 34px;box-shadow:0 8px 24px rgba(17,21,15,0.06);">
+        <h2 style="margin:0 0 20px;font-size:30px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Committees</h2>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;"></span>
+            <span style="font-size:20px;color:#1a201d;">Higher Education</span>
+            <span style="padding:3px 10px;background:#e4f8ee;border:1px solid #bfeacf;border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.09em;color:#149d5b;">CHAIR</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;"></span>
+            <span style="font-size:20px;color:#1a201d;">Human Services</span>
+            <span style="padding:3px 10px;background:#e4f8ee;border:1px solid #bfeacf;border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.09em;color:#149d5b;">VICE CHAIR</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;"></span>
+            <span style="font-size:20px;color:#1a201d;">Health and Human Services</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;"></span>
+            <span style="font-size:20px;color:#1a201d;">State and Local Government</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Authored Bills -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 20px;">
+          <h2 style="margin:0;font-size:30px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Chief-Authored Bills</h2>
+          <div style="position:relative;z-index:40;">
+            <button onClick="{{ toggleSession }}" aria-haspopup="true" aria-expanded="{{ sessionOpen }}" style="display:inline-flex;align-items:center;gap:10px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:11px 16px;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">94th Legislature (2025–2026)<svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <sc-if value="{{ sessionOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ closeSession }}" style="position:fixed;inset:0;z-index:0;"></div>
+            <div role="menu" style="position:absolute;top:calc(100% + 10px);right:0;z-index:1;width:344px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:14px;box-shadow:0 24px 60px rgba(17,21,15,0.2);padding:8px;animation:cardPop 0.16s ease;">
+              <button onClick="{{ closeSession }}" style="display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;background:#f1faf4;border:none;border-radius:10px;padding:12px 14px;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;color:#149d5b;cursor:pointer;text-align:left;">94th Legislature (2025–2026)<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="#149d5b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;font-size:15px;font-weight:500;color:#6f756f;">93rd Legislature (2023–2024)<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#6f756f" stroke-width="2"></rect><path d="M8 11 V8 a4 4 0 0 1 8 0 v3" stroke="#6f756f" stroke-width="2" stroke-linecap="round"></path></svg></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;font-size:15px;font-weight:500;color:#6f756f;">92nd Legislature (2021–2022)<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#6f756f" stroke-width="2"></rect><path d="M8 11 V8 a4 4 0 0 1 8 0 v3" stroke="#6f756f" stroke-width="2" stroke-linecap="round"></path></svg></div>
+              <div style="margin-top:4px;padding:10px 14px 6px;border-top:1px solid rgba(17,21,15,0.08);font-size:13px;line-height:1.45;color:#6f756f;">Past-session archives — including retired legislators — are on the roadmap.</div>
+            </div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:18px;">
+
+          <!-- SF 2483 -->
+          <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:16px;padding:26px 32px;box-shadow:0 8px 24px rgba(17,21,15,0.06);">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;">
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                  <span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:6px 12px;border-radius:7px;">SF 2483</span>
+                  <span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#4f5651;white-space:nowrap;">Passed Senate</span>
+                  <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="width:30px;height:7px;border-radius:4px;background:#2ed47e;display:inline-block;"></span>
+                    <span style="width:30px;height:7px;border-radius:4px;background:#2ed47e;display:inline-block;"></span>
+                    <span style="width:30px;height:7px;border-radius:4px;background:#2ed47e;display:inline-block;"></span>
+                    <span style="width:30px;height:7px;border-radius:4px;background:#2ed47e;display:inline-block;"></span>
+                    <span style="width:30px;height:7px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span>
+                  </div>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.05em;color:#6f756f;">LAST MOVED MAR 18, 2026</span>
+                </div>
+                <h3 style="margin:14px 0 0;font-size:26px;font-weight:700;letter-spacing:-0.01em;color:#11150f;line-height:1.2;">Higher education omnibus</h3>
+                <p style="margin:12px 0 0;font-size:18px;line-height:1.5;color:#4f5651;text-wrap:pretty;">Sets Minnesota’s two-year budget for public colleges and universities and expands student financial aid.</p>
+                <p style="margin:10px 0 0;font-size:15px;color:#6f756f;">+18 co-authors</p>
+                <div style="margin-top:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#4f5651;">EDUCATION</span>
+                  <span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#4f5651;">BUDGET</span>
+                  <a href="Bill Votes.dc.html" style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.03em;color:#149d5b;text-decoration:none;white-space:nowrap;" style-hover="border-color:#2ed47e;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M4 8 H17 M13.5 4.5 L17 8 L13.5 11.5 M20 16 H7 M10.5 12.5 L7 16 L10.5 19.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>COMPANION HF 2073 · IN COMMITTEE</a><a href="Bill Votes.dc.html#votes" style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.03em;color:#149d5b;text-decoration:none;white-space:nowrap;" style-hover="border-color:#2ed47e;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 20 V10 M12 20 V4 M19 20 V14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>VIEW VOTES</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SF 1832 -->
+          <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:16px;padding:26px 32px;box-shadow:0 8px 24px rgba(17,21,15,0.06);">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;">
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                  <span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:6px 12px;border-radius:7px;">SF 1832</span>
+                  <span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#4f5651;white-space:nowrap;">In Committee</span>
+                  <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="width:30px;height:7px;border-radius:4px;background:#2ed47e;display:inline-block;"></span>
+                    <span style="width:30px;height:7px;border-radius:4px;background:#2ed47e;display:inline-block;"></span>
+                    <span style="width:30px;height:7px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span>
+                    <span style="width:30px;height:7px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span>
+                    <span style="width:30px;height:7px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span>
+                  </div>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.05em;color:#6f756f;">LAST MOVED MAR 19, 2026</span>
+                </div>
+                <h3 style="margin:14px 0 0;font-size:26px;font-weight:700;letter-spacing:-0.01em;color:#11150f;line-height:1.2;">Jobs, Labor, and Economic Development omnibus</h3>
+                <p style="margin:12px 0 0;font-size:18px;line-height:1.5;color:#4f5651;text-wrap:pretty;">Funds workforce training, labor enforcement, and economic-development programs, and updates wage and workplace rules.</p>
+                <p style="margin:10px 0 0;font-size:15px;color:#6f756f;">Co-chief author: <a data-tlink="1" href="Legislator Profile.dc.html" style="color:#149d5b;font-weight:700;text-decoration:none;" style-hover="color:#0f7a45;">Sen. Champion</a><span style="margin-left:18px;">+9 co-authors</span></p>
+                <div style="margin-top:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#4f5651;">JOBS</span>
+                  <span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#4f5651;">LABOR</span>
+                  <span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#4f5651;">BUDGET</span>
+                  <a href="Bill Votes.dc.html" style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.03em;color:#149d5b;text-decoration:none;white-space:nowrap;" style-hover="border-color:#2ed47e;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M4 8 H17 M13.5 4.5 L17 8 L13.5 11.5 M20 16 H7 M10.5 12.5 L7 16 L10.5 19.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>COMPANION HF 1976 · IN COMMITTEE</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <a href="#" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:15px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:14px;color:#11150f;font-size:16px;font-weight:700;text-decoration:none;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">See more<span aria-hidden="true" style="font-weight:400;">→</span></a>
+
+        </div>
+      </div>
+
+      <!-- ON THE ROADMAP -->
+      <div data-screen-label="On the roadmap" style="margin-top:28px;padding-top:32px;border-top:1px solid rgba(17,21,15,0.08);">
+        <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">ON THE ROADMAP</span>
+        <p style="margin:12px 0 20px;font-size:17px;line-height:1.5;color:#6b716b;">Features we plan to build.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
+
+          <!-- Claim this profile -->
+          <div data-screen-label="Claim profile" style="background:#fbfcfd;border:1px dashed rgba(17,21,15,0.22);border-radius:16px;padding:32px 34px;">
+            <h3 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Claim this profile</h3>
+            <p style="margin:12px 0 0;font-size:18px;line-height:1.55;color:#4f5651;">Are you Sen. Omar Fateh? Claiming links you to this existing record, so you can manage your biography, write up the bills you’ve worked on, and add your own context. Verified against official legislative records.</p>
+            <button onClick="{{ openClaim }}" style="margin-top:18px;display:inline-flex;align-items:center;gap:9px;background:#2ed47e;color:#06231a;border:1px solid #2ed47e;border-radius:12px;padding:13px 22px;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:700;cursor:pointer;" style-hover="background:#28bf71;border-color:#28bf71;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3 L20 6 V11 c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10 V6 Z" stroke="#06231a" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12 L11 14.5 L15.5 9.5" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Claim this profile</button>
+          </div>
+
+          <!-- Why the votes? -->
+          <div data-screen-label="Vote explanations" style="background:#fbfcfd;border:1px dashed rgba(17,21,15,0.22);border-radius:16px;padding:32px 34px;">
+            <h3 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Why the votes?</h3>
+            <p style="margin:12px 0 0;font-size:18px;line-height:1.55;color:#4f5651;">See a roll call and wonder why Sen. Fateh voted that way? Once claimed, a legislator will have the option to explain any vote they cast — right here, in their own words, alongside the record.</p>
+            <div style="margin-top:20px;display:flex;align-items:flex-start;gap:14px;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:12px;padding:16px 18px;opacity:0.7;">
+              <span style="flex:none;width:30px;height:30px;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;color:#149d5b;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;margin-top:1px;">✓</span>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <span style="font-size:17px;font-weight:700;color:#149d5b;">Voted Yes</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:4px 9px;border-radius:6px;">SF 2483</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.05em;color:#6f756f;">MAY 18, 2026 · SENATE</span>
+                </div>
+                <div style="margin-top:11px;display:flex;flex-direction:column;gap:7px;">
+                  <span style="height:9px;border-radius:5px;background:#eef0f1;width:100%;display:block;"></span>
+                  <span style="height:9px;border-radius:5px;background:#eef0f1;width:72%;display:block;"></span>
+                </div>
+                <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.1em;color:#6f756f;">LEGISLATOR’S EXPLANATION</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:24px;min-width:0;">
+
+      <!-- Contact -->
+      <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:16px;padding:30px 32px;box-shadow:0 8px 24px rgba(17,21,15,0.06);">
+        <h2 style="margin:0 0 18px;font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Contact</h2>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">CAPITOL OFFICE</div>
+            <div style="margin-top:6px;font-size:16px;line-height:1.5;color:#1a201d;">Minnesota Senate Bldg., Room 3219<br>95 University Ave W.<br>St. Paul, MN 55155</div>
+          </div>
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">PHONE</div>
+            <div style="margin-top:6px;font-size:16px;color:#1a201d;">651-296-4261</div>
+          </div>
+          <a href="https://www.senate.mn/members/member_bio.html?mem_id=1247" target="_blank" rel="noopener noreferrer" style="font-size:16px;font-weight:700;color:#149d5b;text-decoration:none;" style-hover="color:#0f7a45;">Official Senate profile →</a>
+        </div>
+      </div>
+
+      <!-- Legislative Service -->
+      <sc-if value="{{ showServiceHistory }}" hint-placeholder-val="{{ true }}">
+      <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:16px;padding:30px 32px;box-shadow:0 8px 24px rgba(17,21,15,0.06);">
+        <h2 style="margin:0 0 18px;font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Legislative Service</h2>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="font-size:17px;color:#1a201d;"><span style="font-weight:700;color:#11150f;">Elected:</span> 2020, re-elected 2022</div>
+          <div style="font-size:17px;color:#1a201d;"><span style="font-weight:700;color:#11150f;">Term:</span> 2nd</div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- Ask about this legislator -->
+      <sc-if value="{{ showAsk }}" hint-placeholder-val="{{ true }}">
+      <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:16px;padding:30px 32px;box-shadow:0 10px 30px rgba(17,21,15,0.08),0 2px 8px rgba(17,21,15,0.05);">
+        <h2 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Ask about this legislator</h2>
+        <p style="margin:8px 0 0;font-size:17px;color:#6b716b;">No account needed — answers cite the public record.</p>
+        <div data-glow-field style="margin-top:16px;display:flex;align-items:center;gap:12px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:12px;padding:5px 5px 5px 18px;transition:border-color .18s ease, box-shadow .18s ease;">
+          <input placeholder="Ask about Sen. Fateh’s record" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:16px;padding:13px 2px;" />
+          <a href="#" style="flex:none;display:inline-flex;align-items:center;background:#5b30d6;color:#ffffff;border-radius:9px;padding:13px 26px;font-size:16px;font-weight:700;text-decoration:none;" style-hover="background:#4a26b0;color:#ffffff;">Ask</a>
+        </div>
+        <div style="margin-top:14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+          <a href="#" style="font-size:14px;font-weight:500;color:#4f5651;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:999px;padding:9px 15px;text-decoration:none;" style-hover="border-color:#5b30d6;color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,0.14),0 0 16px rgba(91,48,214,0.4);">What bills has this legislator led this session?</a>
+          <a href="#" style="font-size:14px;font-weight:500;color:#4f5651;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:999px;padding:9px 15px;text-decoration:none;" style-hover="border-color:#5b30d6;color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,0.14),0 0 16px rgba(91,48,214,0.4);">How has this legislator voted on higher education?</a>
+          <a href="#" style="font-size:14px;font-weight:500;color:#4f5651;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:999px;padding:9px 15px;text-decoration:none;" style-hover="border-color:#5b30d6;color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,0.14),0 0 16px rgba(91,48,214,0.4);">What committees does this legislator serve on?</a>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+
+  </div>
+
+  <div style="height:64px;background:#ffffff;"></div>
+
+  <!-- FOOTER -->
+  <footer data-screen-label="Footer" style="position:relative;background:#0a0e0c;color:#ffffff;padding:56px 56px 44px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:48px;flex-wrap:wrap;">
+      <div style="max-width:480px;">
+        <p style="margin:0;font-size:21px;line-height:1.4;font-weight:300;letter-spacing:-0.01em;color:#eef1ef;">We hold these truths to be self-evident.<br><span style="color:#3de08a;">Alethical makes them accessible.</span></p>
+      </div>
+      <div style="display:flex;align-items:center;gap:34px;">
+        <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Privacy Policy</a>
+        <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Terms of Use</a>
+      </div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.1em;color:#7c847f;">© 2026 ALETHICAL · BUILT IN MINNESOTA</div>
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.14em;color:#3de08a;">TRUTH, UNCONCEALED</div>
+    </div>
+  </footer>
+
+  <!-- CLAIM MODAL -->
+  <sc-if value="{{ claimOpen }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Claim profile overlay" style="position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:rgba(10,14,12,0.55);padding:40px;animation:ovFade 0.16s ease;">
+    <div role="dialog" aria-label="Claim this profile" style="width:540px;max-width:100%;background:#ffffff;border-radius:20px;padding:34px 34px 32px;box-shadow:0 30px 80px rgba(10,14,12,0.4);position:relative;animation:cardPop 0.2s ease;">
+      <button onClick="{{ closeClaim }}" aria-label="Close" style="position:absolute;top:18px;right:18px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:9px;cursor:pointer;color:#6f756f;" style-hover="background:#f1f1f4;color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+      <span style="width:52px;height:52px;border-radius:14px;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3 L20 6 V11 c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10 V6 Z" stroke="#149d5b" stroke-width="2" stroke-linejoin="round"/><path d="M8.5 12 L11 14.5 L15.5 9.5" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div style="margin-top:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <h3 style="margin:0;font-size:27px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Claim your profile</h3>
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;background:#f1f1f4;border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.1em;color:#6f756f;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="12" cy="12" r="9" stroke="#6f756f" stroke-width="2"></circle><path d="M12 7 V12 L15.5 14" stroke="#6f756f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>ON THE ROADMAP</span>
+      </div>
+      <p style="margin:10px 0 0;font-size:17px;line-height:1.5;color:#4f5651;">You’re claiming the profile Alethical already keeps for <strong style="color:#11150f;">Sen. Omar Fateh</strong>. Claiming links you to this existing record.</p>
+      <div style="margin-top:22px;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:flex-start;gap:13px;">
+          <span style="flex:none;width:26px;height:26px;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;margin-top:1px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#149d5b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div style="min-width:0;"><div style="font-size:17px;font-weight:700;color:#11150f;">Manage your biography</div><div style="margin-top:2px;font-size:15px;line-height:1.45;color:#6b716b;">Add or refine the bio shown at the top of this profile.</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:13px;">
+          <span style="flex:none;width:26px;height:26px;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;margin-top:1px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#149d5b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div style="min-width:0;"><div style="font-size:17px;font-weight:700;color:#11150f;">Write up your bills</div><div style="margin-top:2px;font-size:15px;line-height:1.45;color:#6b716b;">Explain the bills you’ve worked on in your own words, alongside the record.</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:13px;">
+          <span style="flex:none;width:26px;height:26px;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;margin-top:1px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#149d5b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div style="min-width:0;"><div style="font-size:17px;font-weight:700;color:#11150f;">Add your own context</div><div style="margin-top:2px;font-size:15px;line-height:1.45;color:#6b716b;">Give constituents your perspective — without changing the public facts.</div></div>
+        </div>
+      </div>
+      <div style="margin-top:20px;display:flex;align-items:flex-start;gap:10px;background:#f7f9f8;border:1px solid rgba(17,21,15,0.08);border-radius:12px;padding:13px 15px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none;margin-top:1px;"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#6f756f" stroke-width="2"></rect><path d="M8 11 V8 a4 4 0 0 1 8 0 v3" stroke="#6f756f" stroke-width="2" stroke-linecap="round"></path></svg>
+        <div style="font-size:14px;line-height:1.5;color:#4f5651;">We verify every claim against official legislative records before your additions go live.</div>
+      </div>
+      <button onClick="{{ closeClaim }}" style="margin-top:22px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:9px;background:#2ed47e;color:#06231a;border:1px solid #2ed47e;border-radius:12px;padding:15px;font-family:'Libre Franklin',sans-serif;font-size:17px;font-weight:700;cursor:pointer;" style-hover="background:#28bf71;border-color:#28bf71;">Start verification</button>
+      <button onClick="{{ closeClaim }}" style="margin-top:10px;width:100%;background:transparent;border:none;color:#6f756f;font-size:15px;font-weight:600;cursor:pointer;padding:6px;font-family:'Libre Franklin',sans-serif;" style-hover="color:#11150f;">Maybe later</button>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showServiceHistory&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;},&quot;showAsk&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;}}">
+class Component extends DCLogic {
+  state = {
+    tracked: { sf1832: true, sf2483: true }, shareOpen: false, copied: false, claimOpen: false, sessionOpen: false
+  };
+  renderVals() {
+    const t = this.state.tracked;
+    const toggle = (k) => this.setState(s => ({ tracked: { ...s.tracked, [k]: !s.tracked[k] } }));
+
+    // share (copy link + social) — deep link to the legislator
+    const shareUrl = 'https://alethical.com/legislators/omar-fateh';
+    const shareTitle = 'Sen. Omar Fateh — Democratic-Farmer-Labor, Senate District 62';
+    const enc = encodeURIComponent;
+    const share = {
+      url: shareUrl, title: shareTitle,
+      x: 'https://twitter.com/intent/tweet?text=' + enc(shareTitle + ' · Alethical') + '&url=' + enc(shareUrl),
+      facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + enc(shareUrl),
+      instagram: 'https://www.instagram.com/',
+      linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + enc(shareUrl),
+      email: 'mailto:?subject=' + enc(shareTitle) + '&body=' + enc(shareTitle + '\n\n' + shareUrl + '\n\nvia Alethical'),
+    };
+    const openShare = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ shareOpen: true, copied: false }); };
+    const closeShare = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ shareOpen: false }); };
+    const copyLink = (e) => { if (e && e.preventDefault) e.preventDefault(); try { if (navigator.clipboard) navigator.clipboard.writeText(shareUrl); } catch (_) {} if (this._cpT) clearTimeout(this._cpT); this._cpT = setTimeout(() => this.setState({ copied: false }), 1900); this.setState({ copied: true }); };
+
+    // claim profile (Zillow-style: claim the EXISTING record) + session filter
+    const openClaim = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ claimOpen: true, sessionOpen: false }); };
+    const closeClaim = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ claimOpen: false }); };
+    const toggleSession = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ sessionOpen: !s.sessionOpen })); };
+    const closeSession = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ sessionOpen: false }); };
+
+    return {
+      share, openShare, closeShare, copyLink,
+      shareOpen: this.state.shareOpen, copied: this.state.copied, notCopied: !this.state.copied,
+      openClaim, closeClaim, claimOpen: this.state.claimOpen,
+      toggleSession, closeSession, sessionOpen: this.state.sessionOpen,
+      showServiceHistory: this.props.showServiceHistory ?? true,
+      showAsk: this.props.showAsk ?? true,
+      sf1832Tracked: !!t.sf1832, sf1832Untracked: !t.sf1832,
+      sf2483Tracked: !!t.sf2483, sf2483Untracked: !t.sf2483,
+      toggleSf1832: () => toggle('sf1832'),
+      toggleSf2483: () => toggle('sf2483'),
+    };
+  }
+}
+</script>
+</body>
+</html>
