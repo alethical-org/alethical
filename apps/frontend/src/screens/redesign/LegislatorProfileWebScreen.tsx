@@ -1640,8 +1640,18 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: '#ffffff',
   },
-  askChipRow: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  askChipRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: 9,
+  },
   askChip: {
+    // Cap at the row width so a long generated chip (e.g. "…retirement and
+    // social security…") wraps its text to a second line instead of overflowing
+    // the card, rather than sizing to its single-line intrinsic width.
+    maxWidth: '100%',
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink12,
