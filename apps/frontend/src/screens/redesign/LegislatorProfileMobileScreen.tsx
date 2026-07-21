@@ -19,7 +19,8 @@ import { theme as t } from '../../theme/tokens';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { Skeleton } from '../../components/Skeleton';
-import { coAuthorCount, formatMonoDate, partyFull } from '../../lib/billDetail';
+import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
+import { buildAskChips, splitOfficeAddress } from '../../lib/legislatorProfile';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import { useLegislator, useLegislatorBills, useSessions } from '../../hooks/useAppQueries';
@@ -278,15 +279,6 @@ function CommitteeRow({ name, role }: { name: string; role?: string | null }) {
 }
 
 // ── chief-authored bill card ──────────────────────────────────────────────────
-// The design's bill card shows a single plain-language sentence (not the full
-// multi-paragraph AI summary, and not clipped statute legalese). Take the first
-// sentence of the AI summary, keeping its terminal period.
-function firstSentence(text: string | undefined): string | undefined {
-  if (!text) return undefined;
-  const trimmed = text.trim();
-  const match = trimmed.match(/^.*?[.!?](?=\s|$)/);
-  return (match ? match[0] : trimmed).trim();
-}
 
 // "94th Legislature (2025 - 2026) Regular Session" → "94th Legislature (2025–2026)"
 // (en-dash the year range, drop the "Regular Session" suffix), per the design.
@@ -313,7 +305,8 @@ function BillCardView({
 }) {
   const filled = statusSegments(bill.status);
   const tags = bill.aiAnalysis?.policyAreas ?? [];
-  const summary = firstSentence(bill.aiAnalysis?.summary ?? undefined);
+  const summary =
+    plainBillSummary(bill.aiAnalysis?.summary, { firstSentenceOnly: true }) || undefined;
   // Plain-language short title as the heading, not the statutory run-on (#459).
   const cardTitle = bill.aiAnalysis?.shortTitle ?? bill.title;
   const coAuthors = coAuthorCount(bill);
@@ -405,14 +398,17 @@ function BillCardView({
 // Stacked (mobile): full-width field, full-width Ask button below, then starter
 // chips. Hands off to the one-shot Ask answer flow (grounded-answers §9: the
 // router produces an answer page, never opens chat directly).
-function AskCard({ shortName, onAsk }: { shortName: string; onAsk: (q?: string) => void }) {
+function AskCard({
+  shortName,
+  chips,
+  onAsk,
+}: {
+  shortName: string;
+  chips: string[];
+  onAsk: (q?: string) => void;
+}) {
   const { focused, focusProps } = useFieldFocus();
   const [q, setQ] = useState('');
-  const chips = [
-    `What bills has ${shortName} led this session?`,
-    `What committees does ${shortName} serve on?`,
-    `How has ${shortName} voted this session?`,
-  ];
   return (
     <View style={styles.askCard}>
       <Text accessibilityRole="header" style={styles.askTitle}>
@@ -534,6 +530,9 @@ export function LegislatorProfileMobileScreen() {
     leg?.bio && leg.bio !== 'Live legislator profile loaded from the backend.' ? leg.bio : null;
   const committees = leg?.committeeAssignments ?? [];
   const service = leg?.legislativeService;
+  // Peel a leading leadership title out of the office blob into its own labeled
+  // row (never inline it into the mailing address) — mirrors the web profile.
+  const office = leg?.officeAddress ? splitOfficeAddress(leg.officeAddress) : null;
 
   return (
     <PageBackground>
@@ -677,10 +676,16 @@ export function LegislatorProfileMobileScreen() {
                       Contact
                     </Text>
                     <View style={styles.contactList}>
-                      {leg.officeAddress ? (
+                      {office?.leadership ? (
+                        <View>
+                          <Text style={styles.contactLabel}>LEADERSHIP</Text>
+                          <Text style={styles.contactValue}>{office.leadership}</Text>
+                        </View>
+                      ) : null}
+                      {office?.address ? (
                         <View>
                           <Text style={styles.contactLabel}>CAPITOL OFFICE</Text>
-                          <Text style={styles.contactValue}>{leg.officeAddress}</Text>
+                          <Text style={styles.contactValue}>{office.address}</Text>
                         </View>
                       ) : null}
                       {leg.phone ? (
@@ -819,6 +824,7 @@ export function LegislatorProfileMobileScreen() {
               <View style={styles.column}>
                 <AskCard
                   shortName={leg.shortName}
+                  chips={buildAskChips(allBills)}
                   onAsk={(q) => navigation.navigate('Ask', q ? { q } : undefined)}
                 />
               </View>

@@ -28,6 +28,7 @@ import {
   plainBillSummary,
   stageLabel,
 } from '../../lib/billDetail';
+import { buildAskChips, splitOfficeAddress } from '../../lib/legislatorProfile';
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { Skeleton } from '../../components/Skeleton';
@@ -330,26 +331,6 @@ function officialName(name: string, chamber: string): string {
   return title ? `${title} ${bare}` : bare;
 }
 
-// The House member-page office blob (already de-cruffed in the API mapper) can
-// lead with a leadership title — "Assistant Republican Leader", "DFL Deputy
-// Floor Leader", "Speaker of the House" — instead of an address line. Peel a
-// leading title off so it renders in its own labeled row, never as line one of
-// the mailing address. A title carries no digits (address lines do: room number,
-// ZIP) and is short, which keeps a real address line from matching.
-function splitOfficeAddress(value: string): { leadership: string | null; address: string } {
-  const lines = value.split('\n');
-  const first = (lines[0] ?? '').trim();
-  const looksLikeTitle =
-    first.length > 0 &&
-    first.length <= 60 &&
-    !/\d/.test(first) &&
-    (/\b(leader|whip)\b/i.test(first) || /^(speaker|president)\b/i.test(first));
-  if (looksLikeTitle) {
-    return { leadership: first, address: lines.slice(1).join('\n').trim() };
-  }
-  return { leadership: null, address: value };
-}
-
 // Short form of an official name for inline copy: title + last name only
 // ("Rep. Patty Acomb" → "Rep. Acomb"). Used in the Ask placeholder.
 function shortOfficialName(displayName: string): string {
@@ -633,32 +614,6 @@ function LinkChip({
       <Text style={styles.linkChipText}>{label}</Text>
     </Pressable>
   );
-}
-
-// Starter chips for the Ask box, built from the issues THIS member works on
-// (their chief bills' policy areas), phrased as topic questions the grounded
-// router actually answers (topic_bills). Never person-scoped or vote-phrased —
-// those refuse today (grounded-answers rule 2; no vote chips pre-v1.1). Padded
-// with known-answerable defaults so a thin record still yields real chips.
-function buildAskChips(bills: Bill[]): string[] {
-  const areas: string[] = [];
-  for (const bill of bills) {
-    for (const area of bill.aiAnalysis?.policyAreas ?? []) {
-      const clean = area.trim();
-      if (clean && !areas.some((a) => a.toLowerCase() === clean.toLowerCase())) areas.push(clean);
-    }
-  }
-  const chips = areas.slice(0, 3).map((a) => `What bills address ${a.toLowerCase()} this session?`);
-  const fallbacks = [
-    'What bills address education this session?',
-    'What bills address taxes this session?',
-    'What bills address public safety this session?',
-  ];
-  for (const f of fallbacks) {
-    if (chips.length >= 3) break;
-    if (!chips.some((c) => c.toLowerCase() === f.toLowerCase())) chips.push(f);
-  }
-  return chips.slice(0, 3);
 }
 
 // --- Ask box (right rail) ---
