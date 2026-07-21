@@ -155,9 +155,11 @@ def parse_house_bio(html_text: str) -> ParsedBio:
                 if value:
                     fields[key] = value
 
-    sentences = [
-        f"{field}: {fields[field]}." for field in HOUSE_BIO_FIELDS if fields.get(field)
-    ]
+    # Label-free prose to match the profile design (e.g. "Business owner. B.A.,
+    # …. Married, spouse Doug, 6 children."), not "Occupation: … Education: …".
+    # Values stay VERBATIM from the source — only the field labels are dropped,
+    # so nothing is fabricated (grounded-neutrality).
+    sentences = [f"{fields[field]}." for field in HOUSE_BIO_FIELDS if fields.get(field)]
     biography = " ".join(sentences) or None
     return ParsedBio(elected=elected, term=term, biography=biography)
 
