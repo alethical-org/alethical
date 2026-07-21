@@ -9,14 +9,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
+import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Footer, PageBackground, TopNav } from '../../theme/primitives';
-import { partyFull } from '../../lib/billDetail';
+import { coAuthorCount, formatMonoDate, partyFull } from '../../lib/billDetail';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import { useLegislator, useLegislatorBills, useSessions } from '../../hooks/useAppQueries';
@@ -275,14 +277,51 @@ function CommitteeRow({ name, role }: { name: string; role?: string | null }) {
 }
 
 // ── chief-authored bill card ──────────────────────────────────────────────────
-function BillCardView({ bill, onOpen }: { bill: Bill; onOpen: () => void }) {
+// The design's bill card shows a single plain-language sentence (not the full
+// multi-paragraph AI summary, and not clipped statute legalese). Take the first
+// sentence of the AI summary, keeping its terminal period.
+function firstSentence(text: string | undefined): string | undefined {
+  if (!text) return undefined;
+  const trimmed = text.trim();
+  const match = trimmed.match(/^.*?[.!?](?=\s|$)/);
+  return (match ? match[0] : trimmed).trim();
+}
+
+// "94th Legislature (2025 - 2026) Regular Session" → "94th Legislature (2025–2026)"
+// (en-dash the year range, drop the "Regular Session" suffix), per the design.
+function formatSessionChip(name: string | undefined): string {
+  if (!name) return 'Current session';
+  return name
+    .replace(/\s*-\s*/, '–')
+    .replace(/\s+Regular Session\s*$/i, '')
+    .trim();
+}
+
+function BillCardView({
+  bill,
+  legislatorId,
+  onOpen,
+  onVotes,
+  onOpenLegislator,
+}: {
+  bill: Bill;
+  legislatorId: string;
+  onOpen: () => void;
+  onVotes: () => void;
+  onOpenLegislator: (id: string) => void;
+}) {
   const filled = statusSegments(bill.status);
   const tags = bill.aiAnalysis?.policyAreas ?? [];
-  const summary = bill.aiAnalysis?.summary ?? undefined;
+  const summary = firstSentence(bill.aiAnalysis?.summary ?? undefined);
   // Plain-language short title as the heading, not the statutory run-on (#459).
   const cardTitle = bill.aiAnalysis?.shortTitle ?? bill.title;
-  const coAuthorCount = bill.coAuthorCount ?? 0;
-  const coText = coAuthorCount > 0 ? `+${coAuthorCount} co-authors` : 'No co-authors';
+  const coAuthors = coAuthorCount(bill);
+  // Co-chief authors = the OTHER chief sponsors on this bill (grounded from
+  // chief_sponsors), shown as "Co-chief author: …" like the design.
+  const coChiefs = (bill.sponsors ?? []).filter(
+    (s) => s.role === 'chief_author' && s.legislatorId !== legislatorId,
+  );
+  const movedDate = formatMonoDate(bill.updatedAt);
   return (
     <Pressable accessibilityRole="link" onPress={onOpen} style={styles.billCard}>
       <View style={styles.billTopRow}>
@@ -297,25 +336,53 @@ function BillCardView({ bill, onOpen }: { bill: Bill; onOpen: () => void }) {
           />
         ))}
       </View>
-      {bill.updatedAt ? (
-        <Text style={styles.lastMoved}>LAST MOVED {bill.updatedAt.toUpperCase()}</Text>
-      ) : null}
+      {movedDate ? <Text style={styles.lastMoved}>LAST MOVED {movedDate}</Text> : null}
       <Text style={styles.billTitle}>{cardTitle}</Text>
-      {summary ? (
-        <Text style={styles.billSummary} numberOfLines={3}>
-          {summary}
+      {summary ? <Text style={styles.billSummary}>{summary}</Text> : null}
+      {coChiefs.length > 0 || coAuthors > 0 ? (
+        <Text style={styles.coAuthor}>
+          {coChiefs.length > 0 ? (
+            <>
+              {coChiefs.length === 1 ? 'Co-chief author: ' : 'Co-chief authors: '}
+              {coChiefs.map((s, i) => (
+                <Text key={s.legislatorId ?? s.name}>
+                  {i > 0 ? ', ' : ''}
+                  <Text
+                    style={styles.coAuthorLink}
+                    onPress={s.legislatorId ? () => onOpenLegislator(s.legislatorId!) : undefined}
+                  >
+                    {s.name}
+                  </Text>
+                </Text>
+              ))}
+              {coAuthors > 0 ? `   +${coAuthors} co-authors` : ''}
+            </>
+          ) : (
+            `+${coAuthors} co-authors`
+          )}
         </Text>
       ) : null}
-      <Text style={styles.coAuthor}>{coText}</Text>
-      {(tags.length > 0 || bill.rollCallCount > 0) && (
+      {tags.length > 0 || bill.companion || bill.rollCallCount > 0 ? (
         <View style={styles.tagRow}>
           {tags.slice(0, 3).map((tag) => (
             <View key={tag} style={styles.tag}>
               <Text style={styles.tagText}>{tag.toUpperCase()}</Text>
             </View>
           ))}
+          {bill.companion ? (
+            <View style={styles.companionChip}>
+              <Text style={styles.companionChipText}>
+                COMPANION {bill.companion.identifier} · {bill.companion.status.toUpperCase()}
+              </Text>
+            </View>
+          ) : null}
           {bill.rollCallCount > 0 ? (
-            <View style={styles.voteChip}>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="View votes"
+              onPress={onVotes}
+              style={styles.voteChip}
+            >
               <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
                 <Path
                   d="M5 20 V10 M12 20 V4 M19 20 V14"
@@ -325,11 +392,66 @@ function BillCardView({ bill, onOpen }: { bill: Bill; onOpen: () => void }) {
                 />
               </Svg>
               <Text style={styles.voteChipText}>VIEW VOTES</Text>
-            </View>
+            </Pressable>
           ) : null}
         </View>
-      )}
+      ) : null}
     </Pressable>
+  );
+}
+
+// ── Ask about this legislator ─────────────────────────────────────────────────
+// Stacked (mobile): full-width field, full-width Ask button below, then starter
+// chips. Hands off to the one-shot Ask answer flow (grounded-answers §9: the
+// router produces an answer page, never opens chat directly).
+function AskCard({ shortName, onAsk }: { shortName: string; onAsk: (q?: string) => void }) {
+  const { focused, focusProps } = useFieldFocus();
+  const [q, setQ] = useState('');
+  const chips = [
+    `What bills has ${shortName} led this session?`,
+    `What committees does ${shortName} serve on?`,
+    `How has ${shortName} voted this session?`,
+  ];
+  return (
+    <View style={styles.askCard}>
+      <Text accessibilityRole="header" style={styles.askTitle}>
+        Ask about this legislator
+      </Text>
+      <Text style={styles.askSub}>No account needed — answers cite the public record.</Text>
+      <View style={[styles.askField, ...fieldFocusRing(focused)]}>
+        <TextInput
+          value={q}
+          onChangeText={setQ}
+          onFocus={focusProps.onFocus}
+          onBlur={focusProps.onBlur}
+          onSubmitEditing={() => onAsk(q.trim() || undefined)}
+          returnKeyType="search"
+          placeholder={`Ask about ${shortName}’s record`}
+          placeholderTextColor={t.colors.text.faint}
+          style={[styles.askInput, fieldOutlineReset]}
+        />
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Ask"
+        onPress={() => onAsk(q.trim() || undefined)}
+        style={styles.askBtn}
+      >
+        <Text style={styles.askBtnText}>Ask</Text>
+      </Pressable>
+      <View style={styles.askChips}>
+        {chips.map((chip) => (
+          <Pressable
+            key={chip}
+            accessibilityRole="button"
+            onPress={() => onAsk(chip)}
+            style={styles.askChip}
+          >
+            <Text style={styles.askChipText}>{chip}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -549,7 +671,7 @@ export function LegislatorProfileMobileScreen() {
                     style={styles.sessionBtn}
                   >
                     <Text style={styles.sessionBtnText}>
-                      {currentSession?.name ?? 'Current session'}
+                      {formatSessionChip(currentSession?.name)}
                     </Text>
                     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                       <Path
@@ -571,7 +693,7 @@ export function LegislatorProfileMobileScreen() {
                       <View style={styles.popover} accessibilityRole="menu">
                         <View style={styles.popoverActive}>
                           <Text style={styles.popoverActiveText}>
-                            {currentSession?.name ?? 'Current session'}
+                            {formatSessionChip(currentSession?.name)}
                           </Text>
                           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                             <Path
@@ -617,7 +739,7 @@ export function LegislatorProfileMobileScreen() {
                   </View>
                 ) : allBills.length === 0 ? (
                   <Text style={styles.emptyBills}>
-                    No chief-authored bills in {currentSession?.name ?? 'this session'}.
+                    No chief-authored bills in {formatSessionChip(currentSession?.name)}.
                   </Text>
                 ) : (
                   <View style={styles.billList}>
@@ -625,7 +747,14 @@ export function LegislatorProfileMobileScreen() {
                       <BillCardView
                         key={bill.id}
                         bill={bill}
+                        legislatorId={legislatorId}
                         onOpen={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                        onVotes={() =>
+                          navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
+                        }
+                        onOpenLegislator={(id) =>
+                          navigation.navigate('LegislatorProfile', { legislatorId: id })
+                        }
                       />
                     ))}
                     {allBills.length > 2 && !showAllBills ? (
@@ -639,6 +768,16 @@ export function LegislatorProfileMobileScreen() {
                     ) : null}
                   </View>
                 )}
+              </View>
+            </View>
+
+            {/* ASK ABOUT THIS LEGISLATOR */}
+            <View style={styles.section}>
+              <View style={styles.column}>
+                <AskCard
+                  shortName={leg.shortName}
+                  onAsk={(q) => navigation.navigate('Ask', q ? { q } : undefined)}
+                />
               </View>
             </View>
 
@@ -678,6 +817,25 @@ export function LegislatorProfileMobileScreen() {
                       legislator will have the option to explain any vote they cast — right here, in
                       their own words, alongside the record.
                     </Text>
+                    {/* Ghosted sample-vote preview — a dimmed illustration of the explanation
+                        layer, clearly not a live record. */}
+                    <View style={styles.votePreview}>
+                      <View style={styles.votePreviewCheck}>
+                        <Text style={styles.votePreviewCheckText}>✓</Text>
+                      </View>
+                      <View style={styles.votePreviewBody}>
+                        <View style={styles.votePreviewTopRow}>
+                          <Text style={styles.votePreviewVoted}>Voted Yes</Text>
+                          <Text style={styles.votePreviewCode}>HF 0000</Text>
+                        </View>
+                        <Text style={styles.votePreviewMeta}>MMM 0, 2026 · {leg.chamber}</Text>
+                        <View style={styles.votePreviewLines}>
+                          <View style={[styles.votePreviewLine, { width: '100%' }]} />
+                          <View style={[styles.votePreviewLine, { width: '70%' }]} />
+                        </View>
+                        <Text style={styles.votePreviewLabel}>LEGISLATOR’S EXPLANATION</Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -1521,5 +1679,165 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.faint,
+  },
+
+  // co-author link + companion chip
+  coAuthorLink: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
+  companionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink16,
+    borderRadius: 8,
+  },
+  companionChipText: {
+    fontFamily: t.typography.mono,
+    fontSize: 10,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.3,
+    color: t.colors.brand.deep,
+  },
+
+  // ghosted sample-vote preview (Why the votes?)
+  votePreview: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 12,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    opacity: 0.7,
+  },
+  votePreviewCheck: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: t.colors.tint.t150,
+    borderWidth: 1,
+    borderColor: t.colors.tint.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  votePreviewCheckText: {
+    fontSize: 14,
+    fontWeight: t.fontWeights.heavy,
+    color: t.colors.brand.deep,
+  },
+  votePreviewBody: { flex: 1, minWidth: 0 },
+  votePreviewTopRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },
+  votePreviewVoted: {
+    fontFamily: t.typography.ui,
+    fontSize: 15,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.brand.deep,
+  },
+  votePreviewCode: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.4,
+    color: AMBER_TEXT,
+    backgroundColor: CODE_BADGE_FILL,
+    borderWidth: 1,
+    borderColor: CODE_BADGE_BORDER,
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    overflow: 'hidden',
+  },
+  votePreviewMeta: {
+    marginTop: 6,
+    fontFamily: t.typography.mono,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    color: t.colors.text.faint,
+  },
+  votePreviewLines: { marginTop: 10, gap: 6 },
+  votePreviewLine: { height: 9, borderRadius: 5, backgroundColor: t.colors.surfaces.s300 },
+  votePreviewLabel: {
+    marginTop: 11,
+    fontFamily: t.typography.mono,
+    fontSize: 10,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1,
+    color: t.colors.text.faint,
+  },
+
+  // ask card
+  askCard: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 18,
+    padding: 22,
+    ...(t.shadows.card as object),
+  },
+  askTitle: {
+    fontFamily: t.typography.title,
+    fontSize: t.fontSizes.h3,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.22,
+    color: t.colors.text.primary,
+  },
+  askSub: {
+    marginTop: 8,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    color: t.colors.text.muted,
+  },
+  askField: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+  },
+  askInput: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    color: t.colors.text.primary,
+    paddingVertical: 13,
+  },
+  askBtn: {
+    marginTop: 10,
+    backgroundColor: t.colors.purple.base,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  askBtnText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.subhead,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.white,
+  },
+  askChips: { marginTop: 14, gap: 8 },
+  askChip: {
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink12,
+    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+  },
+  askChipText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.medium,
+    color: t.colors.text.secondary,
   },
 });
