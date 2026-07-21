@@ -119,6 +119,30 @@ export function useLegislator(legislatorId: string) {
   });
 }
 
+// Warm the detail-page cache on navigation intent (card hover / press-in) so the
+// bill or legislator is already loading — usually loaded — by the time the user
+// clicks, replacing the full-page "Loading…" spinner with an instant open. Keys
+// and query fns match useBill / useLegislator exactly, so the prefetched entry is
+// the one the detail screen reads; prefetchQuery honors the default staleTime, so
+// hovering a whole list fetches each target at most once per freshness window.
+export function usePrefetchBill() {
+  const queryClient = useQueryClient();
+  return (billId: string) =>
+    void queryClient.prefetchQuery({
+      queryKey: ['bill', billId],
+      queryFn: () => getBillFromApi(billId),
+    });
+}
+
+export function usePrefetchLegislator() {
+  const queryClient = useQueryClient();
+  return (legislatorId: string) =>
+    void queryClient.prefetchQuery({
+      queryKey: ['legislator', legislatorId],
+      queryFn: () => getLegislatorFromApi(legislatorId),
+    });
+}
+
 export function useLegislatorBills(legislatorId: string, pagination: ListPagination = {}) {
   return useQuery({
     queryKey: [
