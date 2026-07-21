@@ -51,4 +51,6 @@ jobs:
         run: test -n "$SUPABASE_PROJECT_URL" && test -n "$SUPABASE_DB_PASSWORD"
 
       - name: Backfill missing roll-call votes
-        run: uv run python -m alethical.pipeline.votes --only-missing --write
+        # votes.py writes by default; --dry-run is the opt-out (there is no
+        # --write flag). --only-missing limits it to un-ingested roll calls.
+        run: uv run python -m alethical.pipeline.votes --only-missing
