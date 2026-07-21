@@ -38,6 +38,10 @@ export interface BillVersion {
   date: string;
   summary: string;
   url: string;
+  /** True for the API's `version_code="current"` alias row — a pointer at whichever
+   *  version is current, carrying a stale "last-touched" date rather than a real
+   *  posting date. Dedup in orderBillVersions prefers the real record over it. */
+  isCurrentPointer?: boolean;
 }
 
 export interface VoteBreakdown {

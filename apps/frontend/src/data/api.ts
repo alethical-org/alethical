@@ -1074,6 +1074,7 @@ function mapBillDetail(
       date: formatOptionalDate(version.document_date),
       summary: '',
       url: version.html_url ?? version.pdf_url ?? payload.official_url ?? '',
+      isCurrentPointer: version.version_code.trim().toLowerCase() === 'current',
     })),
     votes: votes.map((vote) => ({
       id: vote.id,

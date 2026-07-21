@@ -439,27 +439,46 @@ export function introductionDate(actions: BillAction[]): string | null {
 
 // Order the Versions tab strictly newest-first by each version's date, de-duplicated
 // by friendly label (the feed sometimes emits two rows for one stage — e.g. the
-// "current" pointer and the "-0" file both read "As introduced"). Binds the real
-// introduction date onto "As introduced" first so it lands as the oldest row.
+// "current" alias pointer and the real engrossment file both read "1st unofficial
+// engrossment"). Binds the real introduction date onto "As introduced" first so it
+// lands as the oldest row.
+//
+// Dedup keeps ONE row per label, preferring the real record over the API's
+// `version_code="current"` alias pointer: the pointer's document_date is a stale
+// "last-touched" stamp, not the real posting date, so keeping it renders the wrong
+// date and sorts the row too high (#475). Only when a label has no real row does
+// the pointer survive — it's then the sole representation of that text. Among
+// equally-preferred rows, the earliest date wins (the real posting date).
 export function orderBillVersions(versions: BillVersion[], actions: BillAction[]): BillVersion[] {
   const intro = introductionDate(actions);
   const dated = intro
     ? versions.map((v) => (/^as introduced$/i.test(v.label) ? { ...v, date: intro } : v))
     : versions;
 
-  const seen = new Set<string>();
-  const unique = dated.filter((v) => {
+  const best = new Map<string, BillVersion>();
+  for (const v of dated) {
     const key = v.label.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+    const incumbent = best.get(key);
+    best.set(key, incumbent ? preferredVersion(v, incumbent) : v);
+  }
 
-  return [...unique].sort((a, b) => {
+  return [...best.values()].sort((a, b) => {
     const da = parseActionDate(a.date)?.getTime() ?? -Infinity;
     const db = parseActionDate(b.date)?.getTime() ?? -Infinity;
     return db - da; // newest first; undated rows sink to the bottom
   });
+}
+
+// Pick the row to keep between two same-label versions: a real record beats the
+// "current" alias pointer; otherwise the earliest-dated row wins (its date is the
+// real posting date, and undated rows lose so a dated real row is kept).
+function preferredVersion(a: BillVersion, b: BillVersion): BillVersion {
+  if (!!a.isCurrentPointer !== !!b.isCurrentPointer) {
+    return a.isCurrentPointer ? b : a;
+  }
+  const ta = parseActionDate(a.date)?.getTime() ?? Infinity;
+  const tb = parseActionDate(b.date)?.getTime() ?? Infinity;
+  return ta <= tb ? a : b;
 }
 
 // A neutral track marker for versions that aren't official engrossments, so the
