@@ -589,7 +589,7 @@ export function RootNavigator() {
             <Stack.Screen
               name="LegislatorProfile"
               component={LegislatorProfileScreen}
-              options={{ title: 'Legislator' }}
+              options={{ headerShown: false, title: 'Legislator' }}
             />
             <Stack.Screen
               name="FindMyLegislator"
