@@ -265,7 +265,7 @@ export function BillDetailScreen() {
 function BillDetailMobileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { isSignedIn, signInWithGoogle } = useAuth();
+  const { signInWithGoogle } = useAuth();
   const { isMobile } = useResponsive();
 
   const params: Record<string, unknown> = route.params ?? {};
@@ -401,7 +401,7 @@ function BillDetailMobileScreen() {
   };
 
   // Roll-call member chips link to the member's profile (grounded-answers rule 5 —
-  // URL-addressable). Continue-with-Google on the signed-out teaser starts sign-in.
+  // URL-addressable).
   const openLegislator = (legislatorId: string) => {
     navigation.navigate('LegislatorProfile', { legislatorId });
   };
@@ -728,10 +728,8 @@ function BillDetailMobileScreen() {
                   bill={bill}
                   legislatorsById={legislatorsById}
                   chiefParty={vm.chief?.party}
-                  signedIn={isSignedIn}
                   onOpenLegislator={openLegislator}
                   onOpenUrl={openExternal}
-                  onContinueSignIn={() => void signInWithGoogle()}
                 />
               ) : (
                 <View style={styles.noVotes}>
@@ -893,12 +891,9 @@ function BillDetailMobileScreen() {
         </View>
       </BottomSheet>
 
-      {/* NOTE: the signed-out "See how your legislators voted" teaser lives in the
-          Votes section (MobileVotesSection). Its "Continue with Google" starts sign-in
-          directly (signInWithGoogle) rather than opening a dedicated bottom sheet.
-          Per-district personalization — showing a signed-in user THEIR members' votes —
-          isn't wired yet, so the teaser is hidden once signed in rather than replaced
-          with a personalized block (no unshippable capability advertised). */}
+      {/* NOTE: the Votes section has no sign-in / "see how your legislators voted"
+          promotion. Per-district personalization isn't wired yet, so we don't advertise
+          it (no unshippable capability). Sign-in stays available via the top nav. */}
     </PageBackground>
   );
 }
@@ -1061,7 +1056,7 @@ function ActionRow({
 type RollFilter = 'all' | 'yes' | 'no' | 'abs';
 
 // Votes section — roll-call cards as one-open-at-a-time accordions with party-grouped
-// member grids, crossover dots, filter + search, and the signed-out teaser. Mirrors the
+// member grids, crossover dots, and filter + search. Mirrors the
 // shipped web VotesTab (components/billDetail/VotesTab) with mobile sizing + a single
 // open roll. Grounded framing (grounded-answers rule 3): describe records, never assert
 // an inferred partisan pattern — the party grouping + crossover legend only frame when
@@ -1070,18 +1065,14 @@ function MobileVotesSection({
   bill,
   legislatorsById,
   chiefParty,
-  signedIn,
   onOpenLegislator,
   onOpenUrl,
-  onContinueSignIn,
 }: {
   bill: Bill;
   legislatorsById: Map<string, Legislator>;
   chiefParty: string | undefined;
-  signedIn: boolean;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenUrl: (url: string) => void;
-  onContinueSignIn: () => void;
 }) {
   // One roll open at a time on mobile (spec §Votes — roll accordion). Seed the first
   // roll open so the member grid is discoverable without a tap.
@@ -1140,8 +1131,6 @@ function MobileVotesSection({
           />
         ))}
       </View>
-
-      {!signedIn ? <YourLegislatorsTeaser onContinue={onContinueSignIn} /> : null}
 
       <Text style={styles.sourceLine}>
         Source: Minnesota Legislature · roll-call records · revisor.mn.gov
@@ -1434,54 +1423,6 @@ function RecordLink({ url, onOpen }: { url: string; onOpen: (url: string) => voi
         </Text>
       )}
     </Pressable>
-  );
-}
-
-function YourLegislatorsTeaser({ onContinue }: { onContinue: () => void }) {
-  return (
-    <View style={styles.teaser}>
-      <View aria-hidden style={styles.teaserBlur}>
-        <View style={styles.teaserGhost} />
-        <View style={styles.teaserGhost} />
-      </View>
-      <View style={styles.teaserOverlay}>
-        <Text style={styles.teaserTitle}>See how your legislators voted</Text>
-        <Text style={styles.teaserSub}>
-          Save your district once — every roll call gets personal.
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onContinue}
-          style={({ pressed }) => [styles.googleBtn, pressed && styles.googleBtnPressed]}
-        >
-          <GoogleG />
-          <Text style={styles.googleText}>Continue with Google</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function GoogleG() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24">
-      <Path
-        fill="#4285F4"
-        d="M23.06 12.25c0-.86-.07-1.5-.22-2.16H12v3.92h6.31c-.13 1.05-.81 2.63-2.34 3.69l-.02.14 3.4 2.63.24.02c2.16-2 3.47-4.94 3.47-8.26z"
-      />
-      <Path
-        fill="#34A853"
-        d="M12 23.5c3.09 0 5.68-1.02 7.58-2.77l-3.62-2.8c-.96.68-2.26 1.15-3.96 1.15-3.03 0-5.6-2-6.51-4.76l-.13.01-3.53 2.73-.05.13C3.6 20.8 7.5 23.5 12 23.5z"
-      />
-      <Path
-        fill="#FBBC05"
-        d="M5.49 14.32A7.09 7.09 0 0 1 5.11 12c0-.81.15-1.59.37-2.32l-.01-.16L1.9 6.75l-.11.05A11.44 11.44 0 0 0 .5 12c0 1.85.44 3.6 1.29 5.2l3.7-2.88z"
-      />
-      <Path
-        fill="#EA4335"
-        d="M12 4.92c2.15 0 3.6.93 4.42 1.7l3.23-3.15C17.67 1.6 15.09.5 12 .5 7.5.5 3.6 3.2 1.79 6.8l3.69 2.88C6.4 6.92 8.97 4.92 12 4.92z"
-      />
-    </Svg>
   );
 }
 
@@ -2390,73 +2331,6 @@ const styles = StyleSheet.create({
   chipNoText: { color: t.colors.dangerRamp.r600 },
   chipAbsText: { color: t.colors.text.muted },
   crossDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: t.colors.omnibus.text },
-
-  // signed-out teaser
-  teaser: {
-    marginTop: 28,
-    borderWidth: 1,
-    borderColor: t.colors.tint.t300,
-    borderRadius: t.radii.xl,
-    overflow: 'hidden',
-    backgroundColor: t.colors.tint.t50,
-  },
-  teaserBlur: {
-    // Decorative frosted backdrop behind the overlay; absolute so the overlay
-    // content (which stacks vertically on mobile) defines the card's height and
-    // nothing clips (the web card was horizontal, so its fixed height fit).
-    ...(StyleSheet.absoluteFillObject as object),
-    flexDirection: 'row',
-    gap: 12,
-    padding: 18,
-    ...(isWeb ? ({ filter: 'blur(6px)' } as object) : null),
-    opacity: 0.55,
-  },
-  teaserGhost: {
-    flex: 1,
-    height: 44,
-    borderRadius: t.radii.md,
-    backgroundColor: t.colors.surfaces.base,
-  },
-  teaserOverlay: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 22,
-    paddingHorizontal: 22,
-    backgroundColor: t.colors.alpha.white90,
-  },
-  teaserTitle: {
-    fontFamily: t.typography.title,
-    fontSize: t.fontSizes.subheadLg,
-    fontWeight: t.fontWeights.heavy,
-    color: t.colors.text.primary,
-    textAlign: 'center',
-  },
-  teaserSub: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    color: t.colors.text.secondary,
-    textAlign: 'center',
-  },
-  googleBtn: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink18,
-    borderRadius: t.radii.md,
-    paddingVertical: 11,
-    paddingHorizontal: 20,
-  },
-  googleBtnPressed: { backgroundColor: t.colors.surfaces.s200 },
-  googleText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.primary,
-  },
 
   // no votes
   noVotes: {

@@ -24,10 +24,7 @@ type RollFilter = 'all' | 'yes' | 'no' | 'abs';
 export function VotesTab({
   bill,
   legislatorsById,
-  signedIn,
-  showYourLegislators,
   chiefParty,
-  onOpenSignIn,
   onOpenLegislator,
   onOpenUrl,
   onAsk,
@@ -35,10 +32,7 @@ export function VotesTab({
 }: {
   bill: Bill;
   legislatorsById: Map<string, Legislator>;
-  signedIn: boolean;
-  showYourLegislators: boolean;
   chiefParty: string | undefined;
-  onOpenSignIn: () => void;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenUrl: (url: string) => void;
   onAsk: () => void;
@@ -96,10 +90,6 @@ export function VotesTab({
           />
         ))}
       </View>
-
-      {showYourLegislators && !signedIn ? (
-        <YourLegislatorsTeaser onContinue={onOpenSignIn} />
-      ) : null}
 
       <SourceLine
         text={`Source: Minnesota Legislature · roll-call records · revisor.mn.gov · ${updatedLabel}`}
@@ -403,35 +393,6 @@ function FilterSeg({
   );
 }
 
-function YourLegislatorsTeaser({ onContinue }: { onContinue: () => void }) {
-  const [hovered, hover] = useHover();
-  return (
-    <View style={styles.teaser}>
-      <View aria-hidden style={styles.teaserBlur}>
-        <View style={styles.teaserGhost} />
-        <View style={styles.teaserGhost} />
-      </View>
-      <View style={styles.teaserOverlay}>
-        <View style={styles.teaserCopy}>
-          <Text style={styles.teaserTitle}>See how your legislators voted</Text>
-          <Text style={styles.teaserSub}>
-            Save your district once — every roll call gets personal.
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onContinue}
-          {...hover}
-          style={[styles.googleBtn, hovered && styles.googleBtnHover]}
-        >
-          <GoogleG />
-          <Text style={styles.googleText}>Continue with Google</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 function NoVotes({
   identifier,
   onAsk,
@@ -484,29 +445,6 @@ function NoVotes({
         text={`Source: Minnesota Legislature · roll-call records · revisor.mn.gov · ${updatedLabel}`}
       />
     </View>
-  );
-}
-
-function GoogleG() {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24">
-      <Path
-        fill="#4285F4"
-        d="M23.06 12.25c0-.86-.07-1.5-.22-2.16H12v3.92h6.31c-.13 1.05-.81 2.63-2.34 3.69l-.02.14 3.4 2.63.24.02c2.16-2 3.47-4.94 3.47-8.26z"
-      />
-      <Path
-        fill="#34A853"
-        d="M12 23.5c3.09 0 5.68-1.02 7.58-2.77l-3.62-2.8c-.96.68-2.26 1.15-3.96 1.15-3.03 0-5.6-2-6.51-4.76l-.13.01-3.53 2.73-.05.13C3.6 20.8 7.5 23.5 12 23.5z"
-      />
-      <Path
-        fill="#FBBC05"
-        d="M5.49 14.32A7.09 7.09 0 0 1 5.11 12c0-.81.15-1.59.37-2.32l-.01-.16L1.9 6.75l-.11.05A11.44 11.44 0 0 0 .5 12c0 1.85.44 3.6 1.29 5.2l3.7-2.88z"
-      />
-      <Path
-        fill="#EA4335"
-        d="M12 4.92c2.15 0 3.6.93 4.42 1.7l3.23-3.15C17.67 1.6 15.09.5 12 .5 7.5.5 3.6 3.2 1.79 6.8l3.69 2.88C6.4 6.92 8.97 4.92 12 4.92z"
-      />
-    </Svg>
   );
 }
 
@@ -749,72 +687,6 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,
     color: t.colors.text.muted,
-  },
-  // your legislators teaser
-  teaser: {
-    marginTop: 40,
-    position: 'relative',
-    minHeight: 100,
-    borderWidth: 1,
-    borderColor: t.colors.tint.t300,
-    borderRadius: t.radii.xl,
-    overflow: 'hidden',
-    backgroundColor: t.colors.tint.t50,
-  },
-  teaserBlur: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 20,
-    ...(isWeb ? ({ filter: 'blur(7px)' } as object) : null),
-    opacity: 0.6,
-  },
-  teaserGhost: {
-    flex: 1,
-    height: 56,
-    borderRadius: t.radii.md,
-    backgroundColor: t.colors.surfaces.base,
-  },
-  teaserOverlay: {
-    ...(StyleSheet.absoluteFillObject as object),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 24,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    backgroundColor: t.colors.alpha.white90,
-    flexWrap: 'wrap',
-  },
-  teaserCopy: { minWidth: 0, flexShrink: 1 },
-  teaserTitle: {
-    fontFamily: t.typography.title,
-    fontSize: t.fontSizes.h4,
-    fontWeight: t.fontWeights.heavy,
-    color: t.colors.text.primary,
-  },
-  teaserSub: {
-    marginTop: 4,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    color: t.colors.text.secondary,
-  },
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink18,
-    borderRadius: t.radii.md,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-  },
-  googleBtnHover: { backgroundColor: t.colors.surfaces.s200 },
-  googleText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.primary,
   },
   // empty state
   emptyCard: {

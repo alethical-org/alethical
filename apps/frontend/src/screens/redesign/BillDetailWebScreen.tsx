@@ -15,7 +15,6 @@ import { SummaryTab } from '../../components/billDetail/SummaryTab';
 import { ActionsTab } from '../../components/billDetail/ActionsTab';
 import { VotesTab } from '../../components/billDetail/VotesTab';
 import { VersionsTab } from '../../components/billDetail/VersionsTab';
-import { VotesSignInModal } from '../../components/billDetail/VotesSignInModal';
 
 const isWeb = Platform.OS === 'web';
 const TABS: DetailTab[] = ['summary', 'actions', 'votes', 'versions'];
@@ -26,7 +25,7 @@ const TABS: DetailTab[] = ['summary', 'actions', 'votes', 'versions'];
 export function BillDetailWebScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { isSignedIn, signInWithGoogle } = useAuth();
+  const { signInWithGoogle } = useAuth();
   const { isDesktop } = useResponsive();
 
   const billId = String(route.params?.billId ?? '');
@@ -34,7 +33,6 @@ export function BillDetailWebScreen() {
   const activeTab: DetailTab = TABS.includes(tabParam) ? tabParam : 'summary';
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [signInOpen, setSignInOpen] = useState(false);
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
@@ -92,16 +90,6 @@ export function BillDetailWebScreen() {
       onAsk={() => navigation.navigate('Ask')}
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}
-      overlay={
-        <VotesSignInModal
-          visible={signInOpen}
-          onClose={() => setSignInOpen(false)}
-          onContinue={() => {
-            setSignInOpen(false);
-            void signInWithGoogle();
-          }}
-        />
-      }
       hero={hero}
     >
       {children}
@@ -173,10 +161,7 @@ export function BillDetailWebScreen() {
       <VotesTab
         bill={bill}
         legislatorsById={legislatorsById}
-        signedIn={isSignedIn}
-        showYourLegislators
         chiefParty={author?.party}
-        onOpenSignIn={() => setSignInOpen(true)}
         onOpenLegislator={openLegislator}
         onOpenUrl={openUrl}
         onAsk={() => askAboutBill('')}
