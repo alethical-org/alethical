@@ -92,6 +92,41 @@ def paginated_scalars(db: Session, stmt, *, limit: int, offset: int):
     return rows[:limit], len(rows) > limit
 
 
+def paginated_scalars_with_total(db: Session, stmt, *, limit: int, offset: int):
+    """Fetch a page of entities *and* the full filtered total in one round trip.
+
+    Appends ``count(*) OVER ()`` as a trailing column so the total for the whole
+    filtered set rides back with the page rows -- avoiding a separate
+    ``COUNT(*)`` query, which re-evaluates the same (potentially expensive)
+    WHERE and costs an extra cross-region round trip. On the Search Bills page,
+    where every filter-chip tap fires a fresh request, dropping that second
+    round trip measurably cuts the per-tap latency (#492).
+
+    Returns ``(rows, has_more, total)``. The entity stays the first result
+    column, so ``selectinload`` eager-loads still fire exactly as before.
+    """
+    if limit == 0:
+        total = db.scalar(
+            select(func.count()).select_from(stmt.order_by(None).subquery())
+        )
+        return [], False, total
+    windowed = stmt.add_columns(func.count().over()).offset(offset).limit(limit + 1)
+    result = db.execute(windowed).all()
+    if not result:
+        # An empty page (e.g. offset past the end, or a genuinely zero-result
+        # filter) carries no window row to read the count from, so fall back to
+        # a standalone COUNT for a correct total. Rare and cheap -- the common
+        # path (rows present) stays a single round trip.
+        total = db.scalar(
+            select(func.count()).select_from(stmt.order_by(None).subquery())
+        )
+        return [], False, total
+    rows = [row[0] for row in result[:limit]]
+    has_more = len(result) > limit
+    total = result[0][1]
+    return rows, has_more, total
+
+
 def authored_bill_counts(db: Session, legislator_ids) -> dict[str, tuple[int, int]]:
     """Live authored-bill counts (total, chief) for the given rows, counted
     directly from Sponsorship in one grouped query -- no per-row N+1. Returns
@@ -480,8 +515,9 @@ def bills(
         stmt = stmt.where(Bill.id.in_(matching_policy_area_bills))
     if omnibus is not None:
         stmt = stmt.where(Bill.is_omnibus.is_(omnibus))
-    total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
-    rows, has_more = paginated_scalars(db, stmt, limit=limit, offset=offset)
+    rows, has_more, total = paginated_scalars_with_total(
+        db, stmt, limit=limit, offset=offset
+    )
     co_author_counts = bill_co_author_counts(db, [row.id for row in rows])
     data = [
         bill_list_item(
