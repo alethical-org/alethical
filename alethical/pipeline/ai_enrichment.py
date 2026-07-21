@@ -936,6 +936,13 @@ def apply_output(args: argparse.Namespace) -> None:
             db.rollback()
         else:
             db.commit()
+            # Policy areas just changed, so refresh the precomputed /policy-areas
+            # issue-chip counts (#501) that the endpoint reads instead of the live
+            # ~278ms rollup. Zero-cost -- derived from the enrichments we just wrote.
+            from alethical.pipeline.policy_area_counts import refresh_all_counts
+
+            refresh_all_counts(db)
+            db.commit()
     summary: dict[str, Any] = {
         "applied": applied,
         "failed": failed,

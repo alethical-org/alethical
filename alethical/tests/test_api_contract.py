@@ -3139,6 +3139,48 @@ def test_policy_areas_roll_up_synonyms_to_canonical_issues(client):
     )
     assert {b["file_number"] for b in taxation.json()["data"]} == {90211}
 
+    # --- Precompute path (#501) ------------------------------------------------
+    # Everything above ran through the endpoint's live fallback (the
+    # policy_area_count table is empty until a refresh). Refresh it and prove the
+    # precomputed table is byte-identical to the live rollup, and that the endpoint
+    # serves the same payload from the table as it did from the live query.
+    from sqlalchemy import select as _select, text as _text
+
+    from alethical.db.schema import load_schema
+    from alethical.db.session import get_session_factory
+    from alethical.pipeline.policy_area_counts import (
+        compute_policy_area_counts,
+        refresh_session_counts,
+    )
+
+    schema = load_schema()
+    with get_session_factory()() as db:
+        session_row = db.scalar(
+            _select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == slug
+            )
+        )
+        live = compute_policy_area_counts(db, session_row.id)
+        refresh_session_counts(db, session_row.id)
+        db.commit()
+        stored = db.execute(
+            _text(
+                "SELECT canonical_name, bill_count FROM policy_area_count "
+                "WHERE session_id = :sid ::uuid "
+                "ORDER BY bill_count DESC, canonical_name ASC"
+            ),
+            {"sid": str(session_row.id)},
+        ).all()
+    assert live  # the fixture produced canonical counts to precompute
+    # Byte-identical: same canonical issues, same counts, same order.
+    assert [(name, count) for name, count in stored] == live
+
+    # The endpoint now reads the table (not the live fallback) and returns the
+    # identical payload — the chip count can never diverge from the live rollup.
+    precomputed = client.get("/api/v1/policy-areas", params={"session": slug})
+    assert precomputed.status_code == 200
+    assert precomputed.json()["data"] == areas.json()["data"]
+
 
 def test_bills_list_reports_co_author_count_by_role(client):
     """The /bills list item exposes co_author_count — a count of co_author-role
