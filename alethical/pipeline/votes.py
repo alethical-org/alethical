@@ -403,15 +403,23 @@ def resolve_name(
 def find_matching_vote(
     votes: list[ParsedVote], action: Any, yes_count: int, no_count: int
 ) -> ParsedVote | None:
-    matches = [
+    tally_matches = [
         vote
         for vote in votes
-        if vote.yes_count == yes_count
-        and vote.no_count == no_count
-        and (not action.journal_page or vote.journal_page == action.journal_page)
+        if vote.yes_count == yes_count and vote.no_count == no_count
     ]
-    if len(matches) == 1:
-        return matches[0]
+    # A unique yes/no tally already identifies the roll call, so accept it even
+    # when the action's journal-page label differs from the vote's (the House
+    # source often records it a page off). Only fall back to the journal page to
+    # break a genuine tie when several votes share the same tally.
+    if len(tally_matches) == 1:
+        return tally_matches[0]
+    if action.journal_page:
+        page_matches = [
+            vote for vote in tally_matches if vote.journal_page == action.journal_page
+        ]
+        if len(page_matches) == 1:
+            return page_matches[0]
     return None
 
 
