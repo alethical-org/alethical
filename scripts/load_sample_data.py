@@ -403,6 +403,14 @@ def ingest_bill_payload(
         bill.description = canonical.get("description")
         bill.official_url = bill_text["source_url"]
 
+    latest_version_date = max(
+        (
+            parse_fixture_datetime(version.get("date_insert"))
+            for version in canonical.get("text_versions", [])
+            if version.get("date_insert")
+        ),
+        default=None,
+    )
     latest_version = session.scalar(
         select(BillVersion).where(
             BillVersion.bill_id == bill.id, BillVersion.is_current.is_(True)
@@ -420,6 +428,7 @@ def ingest_bill_payload(
         )
         session.add(latest_version)
         session.flush()
+    latest_version.document_date = latest_version_date
 
     session.execute(delete(BillAction).where(BillAction.bill_id == bill.id))
     session.execute(delete(Sponsorship).where(Sponsorship.bill_id == bill.id))

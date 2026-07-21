@@ -609,6 +609,7 @@ def bill_detail(
             {
                 "version_code": version.version_code,
                 "version_name": version.version_name,
+                "document_date": version.document_date,
                 "html_url": version.html_url,
                 "pdf_url": version.pdf_url,
                 "is_current": version.is_current,
@@ -649,6 +650,7 @@ def bill_versions(bill_id: str, db: Session = Depends(get_db)):
         {
             "version_code": version.version_code,
             "version_name": version.version_name,
+            "document_date": version.document_date,
             "html_url": version.html_url,
             "pdf_url": version.pdf_url,
             "is_current": version.is_current,
@@ -674,6 +676,7 @@ def bill_version_detail(bill_id: str, version_code: str, db: Session = Depends(g
         data={
             "version_code": version.version_code,
             "version_name": version.version_name,
+            "document_date": version.document_date,
             "html_url": version.html_url,
             "pdf_url": version.pdf_url,
             "is_current": version.is_current,

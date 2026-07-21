@@ -1361,6 +1361,11 @@ def test_supporting_public_resources_and_saved_places(client, auth_headers):
     versions_payload = versions_response.json()["data"]
     assert len(versions_payload) >= 1
     version_code = versions_payload[0]["version_code"]
+    # document_date is serialized (#433) so the frontend can show each version's
+    # real date; the SF1832 fixture supplies a parseable date_insert, so it is
+    # present here rather than null.
+    assert "document_date" in versions_payload[0]
+    assert versions_payload[0]["document_date"] is not None
 
     version_text_response = client.get(
         f"/api/v1/bills/94-2025-SF1832/versions/{version_code}/text",
