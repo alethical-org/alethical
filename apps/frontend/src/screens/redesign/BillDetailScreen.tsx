@@ -37,6 +37,7 @@ import {
   isKnownDistrict,
   isLaw,
   MemberVote,
+  orderActionsForTimeline,
   orderBillVersions,
   partyFull,
   PartyBlock,
@@ -441,8 +442,9 @@ function BillDetailMobileScreen() {
         : niceDate;
     const overviewUrl = bill.officialLinks?.[0]?.url;
     const readUrl = bill.versions?.[0]?.url ?? overviewUrl;
-    // Newest-first timeline (API returns chronological; reverse for display).
-    const actions = [...bill.actions].reverse().map((a) => {
+    // Newest-first timeline. Dateless rows are slotted next to their sequence
+    // neighbors (not stranded at top/bottom) — shared with the web ActionsTab.
+    const actions = orderActionsForTimeline(bill.actions).map((a) => {
       const upcoming = a.date ? isUpcoming(a.date, now) : false;
       const { dot, isVote } = classifyAction(a, upcoming);
       return { ...a, upcoming, dot, isVote };

@@ -709,6 +709,7 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     date,
     description: title,
     tally: action.roll_call_text?.trim() || undefined,
+    actionNumber: action.action_number,
   };
 }
 

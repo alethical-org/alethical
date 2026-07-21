@@ -412,7 +412,14 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chamber: Mapped["Chamber"] = relationship(back_populates="bills")
     companion_bill: Mapped[Optional["Bill"]] = relationship(remote_side="Bill.id")
     versions: Mapped[list["BillVersion"]] = relationship(back_populates="bill")
-    actions: Mapped[list["BillAction"]] = relationship(back_populates="bill")
+    actions: Mapped[list["BillAction"]] = relationship(
+        back_populates="bill",
+        # Deterministic source order: grouped by chamber, ascending action_number
+        # within each chamber (action_number is per-chamber). Consumers rely on
+        # this to place dateless actions next to their sequence neighbors on the
+        # timeline; without it Postgres returns an undefined physical order.
+        order_by=lambda: (BillAction.chamber_id, BillAction.action_number),
+    )
     sponsorships: Mapped[list["Sponsorship"]] = relationship(back_populates="bill")
     chief_sponsorships: Mapped[list["Sponsorship"]] = relationship(
         primaryjoin=lambda: and_(

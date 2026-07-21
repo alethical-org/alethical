@@ -145,6 +145,59 @@ export function parseActionDate(value: string | undefined | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+// Order actions newest-first for the Actions timeline, keeping DATELESS rows
+// adjacent to their sequence neighbors instead of stranding them at the top or
+// bottom. Used by both the web (ActionsTab) and mobile (BillDetailScreen)
+// timelines so they stay in sync.
+//
+// The API delivers actions grouped by chamber, each group ascending by
+// action_number (backend Bill.actions order_by). action_number is per-chamber,
+// so a DROP in actionNumber marks a new chamber. Dated rows sort by their own
+// date. A dateless row inherits the date of the nearest dated row that PRECEDES
+// it in its chamber's sequence (or the nearest FOLLOWING one, if it leads the
+// chamber) — e.g. a "conference committee discharged" step or the "Effective
+// date" milestone lands in the right day-cluster rather than at the epoch floor.
+// The inherited date is used ONLY for ordering; the row's date column stays
+// blank — we never fabricate a displayed date. A hair (+1ms) lifts a dateless
+// row just above its same-day cluster, matching reverse-chron order (it happened
+// after the dated row it follows). Rows with equal keys keep source order.
+export function orderActionsForTimeline<T extends BillAction>(actions: T[]): T[] {
+  const n = actions.length;
+  const times = actions.map((a) => parseActionDate(a.date)?.getTime() ?? null);
+  const key = new Array<number>(n).fill(NaN);
+
+  // Forward pass: carry the last real date seen within the current chamber.
+  let lastDated: number | null = null;
+  let prevNum = Number.NEGATIVE_INFINITY;
+  for (let i = 0; i < n; i++) {
+    const num = actions[i].actionNumber ?? i;
+    if (num < prevNum) lastDated = null; // action_number dropped → new chamber
+    prevNum = num;
+    if (times[i] != null) {
+      key[i] = times[i]!;
+      lastDated = times[i]!;
+    } else if (lastDated != null) {
+      key[i] = lastDated + 1; // just above its day-cluster (it happened after)
+    }
+  }
+  // Backward pass: a dateless row leading its chamber (no dated row precedes it)
+  // borrows the nearest FOLLOWING date, minus a hair (it happened before it).
+  let nextDated: number | null = null;
+  let nextNum = Number.POSITIVE_INFINITY;
+  for (let i = n - 1; i >= 0; i--) {
+    const num = actions[i].actionNumber ?? i;
+    if (num > nextNum) nextDated = null; // walking back into an earlier chamber
+    nextNum = num;
+    if (times[i] != null) nextDated = times[i]!;
+    else if (Number.isNaN(key[i])) key[i] = nextDated != null ? nextDated - 1 : 0;
+  }
+
+  return actions
+    .map((a, i) => ({ a, i, k: key[i] }))
+    .sort((x, y) => y.k - x.k || x.i - y.i) // newest first; stable by source order
+    .map((e) => e.a);
+}
+
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 // Uppercase mono date for the timeline / meta ("MAY 30, 2025"). Falls back to the

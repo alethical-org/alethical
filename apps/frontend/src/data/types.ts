@@ -23,6 +23,13 @@ export interface BillAction {
   description: string;
   /** Roll-call tally for recorded-vote actions (e.g. "62-0"), from roll_call_text. */
   tally?: string;
+  /**
+   * Source action_number (per-chamber, ascending). The API returns actions
+   * grouped by chamber in this order, so a DROP in actionNumber marks a chamber
+   * boundary — the timeline uses it to place dateless rows next to their
+   * sequence neighbors instead of stranding them (see orderActionsForTimeline).
+   */
+  actionNumber?: number;
 }
 
 export interface BillVersion {
