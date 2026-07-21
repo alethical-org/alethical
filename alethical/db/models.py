@@ -311,7 +311,9 @@ class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     profile_url: Mapped[Optional[str]] = mapped_column(Text)
     office_address: Mapped[Optional[str]] = mapped_column(Text)
     elected: Mapped[Optional[str]] = mapped_column(Text)
-    term: Mapped[Optional[str]] = mapped_column(String(20))
+    # Text, not a short varchar: some members carry an annotation, e.g.
+    # "3rd (non-consecutive)", which overflows a tight width.
+    term: Mapped[Optional[str]] = mapped_column(Text)
     start_date: Mapped[Optional[date]] = mapped_column(Date)
     end_date: Mapped[Optional[date]] = mapped_column(Date)
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
