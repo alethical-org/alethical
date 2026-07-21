@@ -8,9 +8,13 @@ For each CURRENT legislator service period, fetch its stored ``profile_url``
 * ``elected`` -- verbatim value after "Elected:" (e.g. "2020, re-elected 2022").
 * ``term`` -- verbatim value after "Term:" (e.g. "2nd").
 * biography -- House: a clean prose bio assembled from the VERBATIM
-  Occupation / Education / Family biographical fields. Senate: the page's
-  descriptive Biographical Details prose if present. Grounded-answers: only
-  what the page states -- no facts are invented, and missing content stays null.
+  Occupation / Education / Family biographical fields on the House profile page.
+  Senate: the official ``member_bio`` pages carry NO biographical prose, so the
+  bio is sourced from the Minnesota Legislative Reference Library legislator
+  record (``lrl.mn.gov/legdb/fulldetail?id={leg_id}``, keyed by the same
+  ``leg_id`` embedded in the Senate ``profile_url``), assembled from its VERBATIM
+  Occupation / Education fields. Grounded-answers: only what the source states --
+  no facts are invented, and missing content stays null.
 
 ``elected`` / ``term`` are written onto the current LegislatorServicePeriod;
 ``biography`` onto the Legislator. Per-record commit, idempotent, robust to a
@@ -55,6 +59,11 @@ USER_AGENT = "Alethical Bio Backfill/0.1"
 # bio (Elected/Term are captured separately into their own columns). Kept
 # explicit and small so the bio is predictable and stays grounded.
 HOUSE_BIO_FIELDS = ("Occupation", "Education", "Family")
+
+# The Senate member_bio pages carry no biographical prose, so Senate bios come
+# from the Legislative Reference Library legislator record, keyed by the same
+# numeric leg_id embedded in the Senate profile_url (member_bio.php?leg_id=...).
+LRL_BIO_URL = "https://www.lrl.mn.gov/legdb/fulldetail?id={leg_id}"
 
 
 @dataclass(frozen=True)
@@ -191,23 +200,66 @@ def parse_house_bio(html_text: str) -> ParsedBio:
 
 
 def parse_senate_bio(html_text: str) -> ParsedBio:
+    # The Senate member_bio page supplies Elected/Term; it carries NO
+    # biographical prose (verified live -- only Legislative Assistant / Elected /
+    # Term), so the Senate biography is sourced separately from the LRL record
+    # (see parse_lrl_bio). Biography stays None here (grounded-answers: never
+    # fabricate a bio the page does not show).
     elected = extract_labeled(html_text, "Elected")
     term = extract_labeled(html_text, "Term")
+    return ParsedBio(elected=elected, term=term, biography=None)
 
-    # The Senate "Biographical Details" prose is frequently commented out or
-    # absent; parse it only when the section is genuinely present and carries
-    # text (grounded-answers: never fabricate a bio the page does not show).
-    biography = None
-    detail_match = re.search(
-        r"<h4>\s*Biographical Details:\s*</h4>\s*(.*?)</div>",
-        html_text,
+
+def _as_sentence(value: str) -> str:
+    """Trailing-punctuation-normalized clause: strip stray ``; , .`` then one dot.
+
+    Keeps the source value VERBATIM (only trailing separators are normalized) so
+    a field like ``"M.D.;"`` reads as ``"M.D."`` rather than ``"M.D.;."``."""
+    return value.rstrip(" ;,.") + "."
+
+
+def parse_lrl_bio(html_text: str) -> str | None:
+    """Assemble a label-free prose bio from the LRL record's Occupation/Education.
+
+    The Legislative Reference Library legislator record renders these as
+    ``<strong>Occupation (when first elected): </strong> <span>value</span>`` and
+    a single ``LabelEducation`` span whose entries are ``<br />``-separated. Only
+    the field labels are dropped and the entry/trailing separators normalized --
+    every displayed value is VERBATIM from the source (grounded-neutrality)."""
+    cleaned = strip_comments(html_text)
+
+    occupation = None
+    occ_match = re.search(
+        r"Occupation \(when first elected\):\s*</span>\s*<span[^>]*>(.*?)</span>",
+        cleaned,
         flags=re.I | re.S,
     )
-    if detail_match:
-        text = normalize_space(detail_match.group(1))
-        if text:
-            biography = text
-    return ParsedBio(elected=elected, term=term, biography=biography)
+    if occ_match:
+        occupation = normalize_space(occ_match.group(1)) or None
+
+    education_entries: list[str] = []
+    edu_match = re.search(
+        r'<span id="[^"]*LabelEducation"[^>]*>(.*?)</span>',
+        cleaned,
+        flags=re.I | re.S,
+    )
+    if edu_match:
+        # Split BEFORE normalize_space (which folds <br> into spaces) so each
+        # school stays its own clause instead of a run-together semicolon soup.
+        for raw_entry in re.split(r"<br\s*/?>", edu_match.group(1), flags=re.I):
+            entry = normalize_space(raw_entry)
+            if entry:
+                education_entries.append(entry)
+
+    sentences = [_as_sentence(occupation)] if occupation else []
+    sentences += [_as_sentence(entry) for entry in education_entries]
+    return " ".join(sentences) or None
+
+
+def leg_id_from_url(profile_url: str) -> str | None:
+    """Extract the numeric ``leg_id`` from a Senate member_bio profile_url."""
+    match = re.search(r"leg_id=(\d+)", profile_url or "")
+    return match.group(1) if match else None
 
 
 def parse_bio(html_text: str, profile_url: str, chamber_slug: str) -> ParsedBio:
@@ -218,7 +270,7 @@ def parse_bio(html_text: str, profile_url: str, chamber_slug: str) -> ParsedBio:
 
 
 def current_service_rows(
-    db: Session, *, only_missing: bool, legislator: str | None
+    db: Session, *, only_missing: bool, legislator: str | None, chamber: str | None
 ) -> list[tuple[LegislatorServicePeriod, Legislator, str]]:
     stmt = (
         select(LegislatorServicePeriod, Legislator, Chamber.slug)
@@ -235,6 +287,8 @@ def current_service_rows(
             LegislatorServicePeriod.elected.is_(None),
             LegislatorServicePeriod.term.is_(None),
         )
+    if chamber:
+        stmt = stmt.where(Chamber.slug == chamber)
     if legislator:
         stmt = stmt.where(_legislator_filter(legislator))
     return [
@@ -261,9 +315,12 @@ def backfill(
     only_missing: bool,
     limit: int | None,
     legislator: str | None,
+    chamber: str | None,
 ) -> BackfillStats:
     stats = BackfillStats()
-    rows = current_service_rows(db, only_missing=only_missing, legislator=legislator)
+    rows = current_service_rows(
+        db, only_missing=only_missing, legislator=legislator, chamber=chamber
+    )
     if limit is not None:
         rows = rows[:limit]
 
@@ -285,6 +342,26 @@ def backfill(
         stats.profiles_fetched += 1
 
         parsed = parse_bio(html_text, profile_url, chamber_slug)
+
+        # Senate bios live on the LRL record, not the member_bio page. Fetch it
+        # separately (keyed by the profile_url's leg_id) so a member_bio quirk
+        # never suppresses an available Senate bio.
+        biography = parsed.biography
+        if chamber_slug == "senate":
+            leg_id = leg_id_from_url(profile_url)
+            if leg_id:
+                lrl_url = LRL_BIO_URL.format(leg_id=leg_id)
+                try:
+                    biography = parse_lrl_bio(fetch_text(sess, lrl_url))
+                except Exception as exc:  # noqa: BLE001
+                    stats.fetch_errors += 1
+                    print(
+                        f"lrl fetch error: {legislator_row.full_name} {lrl_url}: {exc}"
+                    )
+        parsed = ParsedBio(
+            elected=parsed.elected, term=parsed.term, biography=biography
+        )
+
         if parsed.elected:
             stats.elected_parsed += 1
         if parsed.term:
@@ -343,6 +420,12 @@ def main() -> None:
         default=None,
         help="Restrict to one legislator by id (UUID) or name substring.",
     )
+    parser.add_argument(
+        "--chamber",
+        default=None,
+        choices=("house", "senate"),
+        help="Restrict to one chamber (e.g. senate for the LRL bio backfill).",
+    )
     args = parser.parse_args()
 
     if not args.dry_run and not args.write:
@@ -363,6 +446,7 @@ def main() -> None:
             only_missing=args.only_missing,
             limit=args.limit,
             legislator=args.legislator,
+            chamber=args.chamber,
         )
     print(stats)
 
