@@ -130,6 +130,28 @@ def extract_labeled(html_text: str, label: str) -> str | None:
     return value or None
 
 
+def bio_sentence(label: str, value: str) -> str:
+    """Turn a verbatim ``<Label>: value`` field into one label-free sentence.
+
+    Handles two source quirks seen on House member pages without inventing any
+    content (grounded-neutrality — only case and punctuation are touched):
+
+    * A redundant leading label embedded in the value itself. Ned Carroll's
+      Family ``<li>`` renders as ``<strong>Family:</strong> Family: married, 3
+      children.`` -- the ``Family:`` prefix would be duplicated once we drop the
+      visible labels, so strip it and capitalize the now-leading word so the
+      value still reads as a sentence. This fires only for the abnormal
+      embedded-label case, leaving cleanly-authored values (which start with a
+      capital already) untouched.
+    * A value that already ends in a period; collapse so appending our own
+      cannot produce ``..``.
+    """
+    stripped = re.sub(rf"^{re.escape(label)}\s*:\s*", "", value, flags=re.I)
+    if stripped and stripped != value:
+        stripped = stripped[0].upper() + stripped[1:]
+    return re.sub(r"\.+$", ".", f"{stripped.strip()}.")
+
+
 def parse_house_bio(html_text: str) -> ParsedBio:
     elected = extract_labeled(html_text, "Elected")
     term = extract_labeled(html_text, "Term")
@@ -159,7 +181,11 @@ def parse_house_bio(html_text: str) -> ParsedBio:
     # …. Married, spouse Doug, 6 children."), not "Occupation: … Education: …".
     # Values stay VERBATIM from the source — only the field labels are dropped,
     # so nothing is fabricated (grounded-neutrality).
-    sentences = [f"{fields[field]}." for field in HOUSE_BIO_FIELDS if fields.get(field)]
+    sentences = [
+        bio_sentence(field, fields[field])
+        for field in HOUSE_BIO_FIELDS
+        if fields.get(field)
+    ]
     biography = " ".join(sentences) or None
     return ParsedBio(elected=elected, term=term, biography=biography)
 
