@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme as t } from '../../theme/tokens';
-import { Bill, VoteEvent } from '../../data/types';
+import { Bill, BillAction, VoteEvent } from '../../data/types';
 import {
   DotKind,
   dotKind,
@@ -62,6 +62,17 @@ const GLOSSARY: Array<{ term: string; match: RegExp; def: string }> = [
   },
 ];
 
+// Reverse-chron sort key. Dated rows use their date; a dateless row normally
+// sinks to the epoch floor (bottom). The one exception is the "Effective date"
+// milestone: an omnibus bill whose sections take effect on "various dates"
+// carries no single date, yet it is the bill's final state — so it sorts to the
+// top rather than being pinned, dateless, at the bottom.
+function sortTime(a: BillAction): number {
+  const t = parseActionDate(a.date)?.getTime();
+  if (t != null) return t;
+  return /^effective date\b/i.test(a.description || '') ? Number.MAX_SAFE_INTEGER : 0;
+}
+
 type Row = {
   id: string;
   date: string;
@@ -93,11 +104,7 @@ export function ActionsTab({
   const now = new Date();
 
   const rows: Row[] = [...bill.actions]
-    .sort((a, b) => {
-      const da = parseActionDate(a.date)?.getTime() ?? 0;
-      const db = parseActionDate(b.date)?.getTime() ?? 0;
-      return db - da; // newest first
-    })
+    .sort((a, b) => sortTime(b) - sortTime(a)) // newest first
     .map((a) => {
       const rollIdx = rollIndexForAction(a, bill.votes);
       const d = parseActionDate(a.date);
