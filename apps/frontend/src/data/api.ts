@@ -325,11 +325,20 @@ interface ApiBillProgressStepPayload {
   current?: boolean;
 }
 
+interface ApiAiCitationPayload {
+  id: string;
+  label: string;
+  url: string;
+  excerpt: string;
+}
+
 interface ApiAiAnalysisPayload {
   short_title?: string | null;
   summary?: string | null;
   key_points?: string[] | null;
   policy_areas?: string[] | null;
+  // Per-key-point source anchors (#377); empty until the corpus is re-enriched.
+  citations?: ApiAiCitationPayload[] | null;
 }
 
 interface ApiBillVoteRecordPayload {
@@ -727,6 +736,32 @@ function aiAnalysisFromPayload(
   };
 }
 
+// Per-key-point source citations (#377): resolved server-side to the section
+// they were drawn from, each with a quoted excerpt and a resolvable URL. Powers
+// the "Cited Sections" strip (mobile) / "From the bill" cards (web).
+function citationsFromAnalysis(analysis: ApiAiAnalysisPayload | null | undefined): Citation[] {
+  if (!analysis || !Array.isArray(analysis.citations)) {
+    return [];
+  }
+  return analysis.citations
+    .filter(
+      (c): c is ApiAiCitationPayload =>
+        Boolean(c) &&
+        typeof c.id === 'string' &&
+        typeof c.label === 'string' &&
+        typeof c.url === 'string' &&
+        typeof c.excerpt === 'string' &&
+        c.label.trim().length > 0 &&
+        c.url.trim().length > 0,
+    )
+    .map((c) => ({
+      id: c.id,
+      label: c.label.trim(),
+      excerpt: c.excerpt.trim(),
+      url: c.url,
+    }));
+}
+
 function shortName(fullName: string) {
   return fullName.replace(/^(Rep\.|Representative|Sen\.|Senator)\s+/i, '').trim();
 }
@@ -947,7 +982,7 @@ function mapBillDetail(
         vote: record.vote_value === 'yes' ? 'YES' : record.vote_value === 'no' ? 'NO' : 'ABSENT',
       })),
     })),
-    citations: [],
+    citations: citationsFromAnalysis(payload.ai_analysis),
     officialLinks: payload.official_url
       ? [{ id: `${payload.id}-official`, label: 'Official bill page', url: payload.official_url }]
       : [],

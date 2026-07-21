@@ -358,6 +358,9 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
             "Economic Development",
             "Labor Policy",
         ],
+        # No key_point_citations in this fixture's content_json → no per-point
+        # citations (#377). Populated only after the corpus is re-enriched.
+        "citations": [],
     }
     assert "confidence" not in detail_payload["ai_analysis"]
     assert "truncated_source" not in detail_payload["ai_analysis"]

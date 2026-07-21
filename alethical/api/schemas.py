@@ -119,11 +119,21 @@ class TopicPayload(BaseModel):
     name: str
 
 
+class AICitationPayload(BaseModel):
+    id: str
+    label: str
+    url: str
+    excerpt: str
+
+
 class AIAnalysisPayload(BaseModel):
     short_title: str | None = None
     summary: str | None = None
     key_points: list[str]
     policy_areas: list[str]
+    # Per-key-point source anchors resolved from the enrichment (#377). Empty
+    # for pre-re-enrichment summaries or bills without a resolvable official URL.
+    citations: list[AICitationPayload] = []
 
 
 class BillDetailPayload(BaseModel):
