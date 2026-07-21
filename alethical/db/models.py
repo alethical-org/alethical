@@ -984,8 +984,20 @@ class LegislatorStats(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("legislator_id", "session_id"),)
 
 
-def bill_detail_stmt(bill_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
-    """Load one bill detail page without per-row lazy loads."""
+def bill_detail_stmt(
+    bill_id: uuid.UUID,
+    user_id: Optional[uuid.UUID] = None,
+    load_votes: bool = True,
+):
+    """Load one bill detail page without per-row lazy loads.
+
+    ``load_votes`` controls whether the roll-call tree
+    (``vote_events -> records -> legislator``) is eager-loaded. It defaults to
+    ``True`` so the ``/votes`` endpoint (the only caller that reads that tree)
+    keeps its behavior. The ``/bills/{id}`` detail payload never reads
+    ``vote_events``, so it passes ``load_votes=False`` to drop three
+    cross-region round trips it doesn't need.
+    """
     options = [
         selectinload(Bill.versions),
         selectinload(Bill.sponsorships)
@@ -1009,11 +1021,14 @@ def bill_detail_stmt(bill_id: uuid.UUID, user_id: Optional[uuid.UUID] = None):
         # companion's code/status without a lazy load; status_key derives from
         # the companion's actions (#293).
         selectinload(Bill.companion_bill).selectinload(Bill.actions),
-        selectinload(Bill.vote_events)
-        .selectinload(VoteEvent.records)
-        .selectinload(VoteRecord.legislator),
         selectinload(Bill.enrichments),
     ]
+    if load_votes:
+        options.append(
+            selectinload(Bill.vote_events)
+            .selectinload(VoteEvent.records)
+            .selectinload(VoteRecord.legislator)
+        )
     if user_id is not None:
         options.append(
             selectinload(Bill.tracked_by.and_(TrackedBill.user_id == user_id))
