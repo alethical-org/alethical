@@ -246,9 +246,11 @@ function RollCard({
                 onChangeText={setSearch}
                 onFocus={focusProps.onFocus}
                 onBlur={focusProps.onBlur}
+                // The descriptive placeholder is the field's accessible name — no
+                // separate accessibilityLabel (that would make screen readers
+                // announce both the placeholder and the label).
                 placeholder="Find a legislator"
                 placeholderTextColor={t.colors.text.faint}
-                accessibilityLabel="Find a legislator in this roll call"
                 style={[styles.searchInput, fieldOutlineReset]}
               />
             </View>
