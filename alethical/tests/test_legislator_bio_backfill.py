@@ -11,7 +11,7 @@ that used a fabricated source format, #328).
 
 from alethical.pipeline.legislator_bio_backfill import (
     bio_sentence,
-    leg_id_from_url,
+    lrl_id_from_profile_url,
     parse_house_bio,
     parse_lrl_bio,
     parse_senate_bio,
@@ -175,6 +175,38 @@ def test_lrl_bio_empty_stays_none():
     assert parse_lrl_bio(LRL_EMPTY) is None
 
 
+# LRL renders a missing occupation as the literal sentinel "None listed" (real
+# shape from Sen. Omar Fateh, id 15511): it must be dropped, not shown as bio.
+LRL_NONE_LISTED_OCCUPATION = """
+                                    <span id="ctl00_Main_ListView_bio_ctrl0_Label16" class="font-weight-bold">Occupation (when first elected): </span>
+                                    <span id="ctl00_Main_ListView_bio_ctrl0_Label2">None listed</span>
+                                    <span id="ctl00_Main_ListView_bio_ctrl0_LabelEducation">George Mason University<br />George Mason University; M.P.A.; Public Administration<br /></span>
+"""
+
+# A record whose ONLY content is the sentinel → no bio at all (Sen. Keri
+# Heintzeman, id 15646: "None listed" occupation, empty education).
+LRL_ALL_SENTINEL = """
+                                    <span id="ctl00_Main_ListView_bio_ctrl0_Label16" class="font-weight-bold">Occupation (when first elected): </span>
+                                    <span id="ctl00_Main_ListView_bio_ctrl0_Label2">None listed</span>
+                                    <span id="ctl00_Main_ListView_bio_ctrl0_LabelEducation"></span>
+"""
+
+
+def test_lrl_bio_drops_none_listed_occupation_sentinel():
+    bio = parse_lrl_bio(LRL_NONE_LISTED_OCCUPATION)
+    # The "None listed" occupation is dropped; only the real education remains.
+    assert bio == (
+        "George Mason University. "
+        "George Mason University; M.P.A.; Public Administration."
+    )
+    assert "None listed" not in bio
+
+
+def test_lrl_bio_all_sentinel_stays_none():
+    # No real content anywhere → null (grounded: absence is not bio text).
+    assert parse_lrl_bio(LRL_ALL_SENTINEL) is None
+
+
 def test_senate_member_bio_has_elected_term_but_no_biography():
     parsed = parse_senate_bio(strip_comments(SENATE_MEMBER_BIO))
     assert parsed.elected == "2006, re-elected 2012, 2016, 2020, 2022"
@@ -182,8 +214,9 @@ def test_senate_member_bio_has_elected_term_but_no_biography():
     assert parsed.biography is None
 
 
-def test_leg_id_extracted_from_senate_profile_url():
-    url = "http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=15245"
-    assert leg_id_from_url(url) == "15245"
-    assert leg_id_from_url("https://www.house.mn.gov/members/profile/15610") is None
-    assert leg_id_from_url("") is None
+def test_lrl_id_extracted_from_both_chamber_profile_urls():
+    senate_url = "http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=15245"
+    house_url = "https://www.house.mn.gov/members/profile/15610"
+    assert lrl_id_from_profile_url(senate_url) == "15245"
+    assert lrl_id_from_profile_url(house_url) == "15610"
+    assert lrl_id_from_profile_url("") is None
