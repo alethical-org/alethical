@@ -128,22 +128,26 @@ export function isKnownDistrict(district: string | undefined): boolean {
 // Format a sponsor's district for the rail's CHIEF AUTHOR card. The served value is
 // the district *label* ("District 51" / "District 15B"); the design shows the
 // chamber district code — "SD 51" for a senator, the bare "15B" for a House member
-// (House districts already carry the A/B letter, Senate districts are numeric). A
-// represented city/area name ("Bloomington (SD 51)") is not in the corpus yet — the
-// District row has no city and the Legislator has no hometown field — so the interim
-// value is the code alone; wrap it as "{City} (SD 51)" once a city is ingested.
-// Falls back to the raw label when no code can be parsed, so nothing ever breaks.
+// (House districts already carry the A/B letter, Senate districts are numeric). When
+// the member's represented city is ingested (#551) it wraps the code as
+// "Bloomington (SD 51)" / "Kenyon (15B)"; absent a city, the code alone is shown, so
+// the card never displays a guessed city (grounded-answers). Falls back to the raw
+// label when no code can be parsed, so nothing ever breaks.
 export function formatAuthorDistrict(
   district: string | undefined,
   chamber: string | undefined,
+  city?: string | undefined,
 ): string {
   const label = (district || '').trim();
   const match = label.match(/(\d+[A-Za-z]?)/);
   if (!match) return label;
   const code = match[1].toUpperCase();
-  if (chamber === 'Senate') return `SD ${code}`;
-  if (chamber === 'House') return code;
-  return label;
+  let formatted: string;
+  if (chamber === 'Senate') formatted = `SD ${code}`;
+  else if (chamber === 'House') formatted = code;
+  else return label;
+  const trimmedCity = (city || '').trim();
+  return trimmedCity ? `${trimmedCity} (${formatted})` : formatted;
 }
 
 // Parse a date string that may be ISO ("2025-05-30"), a display date

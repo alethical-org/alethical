@@ -319,6 +319,10 @@ class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Text, not a short varchar: some members carry an annotation, e.g.
     # "3rd (non-consecutive)", which overflows a tight width.
     term: Mapped[Optional[str]] = mapped_column(Text)
+    # The member's current city of residence ("Bloomington"), ingested from the
+    # official LRL legislator record (#551). Powers the Bill Profile author card's
+    # "{City} (SD 51)" line; stays null when the source states no residence.
+    represented_city: Mapped[Optional[str]] = mapped_column(String(120))
     start_date: Mapped[Optional[date]] = mapped_column(Date)
     end_date: Mapped[Optional[date]] = mapped_column(Date)
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

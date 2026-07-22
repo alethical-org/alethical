@@ -83,6 +83,10 @@ export interface BillSponsor {
   chamber?: Chamber;
   party?: string;
   district?: string;
+  /** Current city of residence ("Bloomington"), ingested from the official LRL
+   *  record (#551). Renders the author card's "{City} (SD 51)"; undefined when
+   *  the source states no residence, so the card shows the code alone. */
+  representedCity?: string;
 }
 
 export interface BillProgressStep {
