@@ -47,7 +47,7 @@ distinct from AI-generated analysis (`docs/v1-scope.md` § Frontend Expectations
 
 | Filter | Control | API param |
 |---|---|---|
-| Keyword / bill number | search input | `q` (title/description today; + bill number via [#134](https://github.com/alethical-org/alethical/issues/134)) |
+| Keyword / bill number | search input | `q` — matches title/description by word: exact, common word-forms (plurals/-ing/-ed), and typo-tolerant, ranked best-match-first with title matches weighted over description ([#573](https://github.com/alethical-org/alethical/issues/573)). A bill number ("SF 334", "334") is an exclusive ID lookup, not free text ([#134](https://github.com/alethical-org/alethical/issues/134)/[#569](https://github.com/alethical-org/alethical/pull/569)) |
 | Chamber | segmented All / House / Senate | `chamber` |
 | Status | dropdown: All / Introduced / In Committee / Passed House / Passed Senate / Signed into Law / Vetoed | `status` |
 | Session / year | dropdown | `session` |
@@ -136,6 +136,7 @@ Everything else on this screen runs on the current API.
 
 ## Out of scope for this screen
 
+- **Meaning-based search and natural-language questions — Grounded Ask's job, not this box.** The search box matches the *words* you type (now word-form- and typo-tolerant, [#573](https://github.com/alethical-org/alethical/issues/573)); finding bills by *concept* when the words differ (e.g. "school money" → a bill that says "fund") or answering a full question ("what bills help teachers?", "how did my rep vote on housing?") is `docs/grounded-ask-spec.md` (§3.1 natural-language Ask box, §4.1 router intents). This is why there is deliberately no "Ask AI instead" cross-sell from a failed search (see Empty / no-results state above; `.claude/rules/grounded-answers.md` rule 2).
 - Browse-by-policy-area side rail — [#130](https://github.com/alethical-org/alethical/issues/130) (v1.1).
 - User-facing sort control and author filter (data supports both; not needed to launch).
 - Bill export.
