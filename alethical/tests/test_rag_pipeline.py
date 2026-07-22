@@ -14,6 +14,7 @@ from alethical.pipeline.oban_workers import (
     RagBackfillChunkWorker,
     RagBackfillWorker,
 )
+from alethical.pipeline import rag_ingest
 from alethical.pipeline.rag_ingest import (
     DEFAULT_RAG_MODEL,
     FALLBACK_EMBEDDING_MODEL,
@@ -178,6 +179,38 @@ def test_fallback_embeddings_are_labeled_distinctly_and_rebuilt_when_keyed(
             db, [bill_key], dry_run=True, rag_model=DEFAULT_RAG_MODEL
         )
         assert keyed["rag_results"][0]["status"] == "would_build"
+
+
+def test_effective_embedding_model_fails_loud_in_production_without_key(
+    monkeypatch,
+) -> None:
+    """No OPENAI_API_KEY + production must raise, not resolve to the hash label (#105)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is required"):
+        rag_ingest.effective_embedding_model(DEFAULT_RAG_MODEL)
+
+
+def test_build_embeddings_fails_loud_in_production_without_key(monkeypatch) -> None:
+    """The vectorizer choke point refuses the hash fallback in production (#105)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    with pytest.raises(RuntimeError, match="deterministic hash fallback"):
+        rag_ingest._build_embeddings(
+            ["some text"], model=DEFAULT_RAG_MODEL, batch_size=1
+        )
+
+
+def test_hash_fallback_still_works_off_production(monkeypatch) -> None:
+    """Keyless local/test dev still gets the deterministic fallback (label + vectors)."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
+    assert (
+        rag_ingest.effective_embedding_model(DEFAULT_RAG_MODEL)
+        == FALLBACK_EMBEDDING_MODEL
+    )
+    vectors = rag_ingest._build_embeddings(["x"], model=DEFAULT_RAG_MODEL, batch_size=1)
+    assert len(vectors) == 1 and len(vectors[0]) == rag_ingest.VECTOR_DIMENSIONS
 
 
 class _FakeMinnesotaIngestionPipeline:
