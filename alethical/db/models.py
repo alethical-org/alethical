@@ -1269,13 +1269,17 @@ def bill_list_stmt(
     else:
         order_by = recency_order
     if text_query:
-        # Relevance-first for a keyword search: the best trigram match against
-        # title or description leads, with the chosen ``sort`` breaking ties.
-        relevance = func.greatest(
-            func.word_similarity(text_query, Bill.title),
-            func.word_similarity(text_query, func.coalesce(Bill.description, "")),
+        # Relevance-first for a keyword search. A match in the *title* (the bill's
+        # subject) outranks a match only in the description: e.g. a health-policy
+        # bill titled "relating to health…" beats a capital-investment bill that
+        # merely mentions "health care facility" in its description. Title
+        # similarity leads, description similarity breaks title ties, then the
+        # chosen ``sort`` breaks the rest (#573).
+        title_relevance = func.word_similarity(text_query, Bill.title)
+        description_relevance = func.word_similarity(
+            text_query, func.coalesce(Bill.description, "")
         )
-        order_by = (relevance.desc(), *order_by)
+        order_by = (title_relevance.desc(), description_relevance.desc(), *order_by)
     return (
         select(Bill)
         .where(
