@@ -53,46 +53,580 @@ export function stageLabel(status: string): string {
   return status || 'Introduced';
 }
 
-// --- Actions: dot taxonomy (spec §Dot taxonomy — by what the action DOES) ---
-// green = consequential legal state-change (signed / effective / enacted);
-// red = failed vote or not-adopted amendment / veto;
-// vote = a recorded roll-call vote (has a tally / is a passage/reading vote);
-// plain = procedural step (introduced, referral, committee report, presented).
-export type DotKind = 'green' | 'red' | 'vote' | 'plain';
+// ===========================================================================
+// Actions timeline: normalize raw Minnesota Revisor status records into the
+// design's curated, plain-language timeline (spec: NEXT-bill-detail-spec.md
+// §Actions tab; issue #552). buildActionTimeline() is the single entry point;
+// it is pure and framework-free so it can be unit-verified and (later) shared
+// with mobile. All raw-phrasing knowledge lives in the ACTION_RULES table so
+// titles stay consistent across bills.
+// ===========================================================================
 
-export function dotKind(description: string, hasTally: boolean): DotKind {
-  const s = (description || '').toLowerCase();
-  if (s.includes('veto')) return 'red';
-  if (
-    s.includes('not adopted') ||
-    s.includes('failed') ||
-    s.includes('rejected') ||
-    s.includes('lost')
-  )
-    return 'red';
-  if (
-    s.includes('signed') ||
-    s.includes('effective') ||
-    s.includes('enacted') ||
-    s.includes('chapter') ||
-    s.includes('became law')
-  )
-    return 'green';
-  if (hasTally) return 'vote';
-  // Floor passage / reading / concurrence / repassage are recorded roll-call votes
-  // in MN practice (black dot). Amendment "adopted" is often a voice vote — leave
-  // it procedural unless it carries a tally (handled above).
-  if (
-    s.includes('third reading') ||
-    s.includes('read the third') ||
-    s.includes('final passage') ||
-    s.includes('repass') ||
-    s.includes('concur') ||
-    /\bpassed\b/.test(s) ||
-    s.includes('was passed')
-  )
-    return 'vote';
+export type TimelineDot = 'green' | 'red' | 'vote' | 'plain' | 'scheduled';
+
+type EventKind =
+  | 'signing' // governor approval / secretary of state / chapter — collapsed to one
+  | 'passage' // a chamber's floor passage / repassage (recorded vote when tallied)
+  | 'reading' // bare "third reading" — folded into its passage cluster
+  | 'effective' // statutory effective date (may be future → scheduled)
+  | 'veto'
+  | 'notAdopted'
+  | 'motionFailed'
+  | 'authorAdd' // "Author(s) added: …" — collapsed into one muted group row
+  | 'chiefAuthor' // chief-author change — stays its own normal row (never grouped)
+  | 'procedural'; // everything else (introduced, referral, committee report, motions…)
+
+// A term shown in the timeline that the plain-language key should gloss. The
+// key is built from the terms actually present (point 7), so every gloss below
+// only appears when a row surfaces it.
+const GLOSS: Record<string, string> = {
+  Introduced: "a bill's formal introduction, by title, then assignment to a committee.",
+  Referred: 'assigned to a committee for review.',
+  're-referred': 'sent to another committee for more review.',
+  'Committee report': 'a committee recommends what should happen to the bill.',
+  'Second reading': 'a procedural step placing a bill on general orders for a floor vote.',
+  'Third reading': 'the final floor vote to pass a bill in a chamber.',
+  'Amended on the floor': 'the full chamber changed the bill text during a floor session.',
+  Substituted: "a chamber took up the other chamber's companion bill in place of its own.",
+  Recalled: 'the chamber pulled a bill back from the floor to send it to committee again.',
+  Concurred: "one chamber accepted the other chamber's changes, avoiding a conference.",
+  'Conference committee':
+    'a small group from both chambers that reconciles the differing House and Senate versions.',
+  Repassed: 'passed again after the two chambers reconciled their amendments.',
+  'Presented to the Governor': 'the finished bill was delivered to the Governor to sign or veto.',
+  'Signed by the Governor':
+    'the Governor approved the bill; it becomes law as a numbered chapter of the session laws.',
+  'Effective date': 'when the new law starts to apply.',
+  Veto: 'the Governor rejected the bill; an override needs a two-thirds vote in each chamber.',
+};
+
+type Classified = { kind: EventKind; title: string };
+
+// Ordered clerk-phrasing → plain-language rules. First match wins, so put the
+// specific patterns before the general ones. `text` is the raw action_text;
+// `desc` the raw action_description (a name list, committee name, date, or
+// cross-reference). Rules return the plain-language title and the event kind;
+// the plain-language key is derived separately (terms in GLOSS whose word
+// appears in a shown title), so rules carry no gloss tags.
+type Rule = {
+  test: (low: string, desc: string) => boolean;
+  build: (text: string, desc: string) => Classified;
+};
+
+// Split a raw author name-list ("Dippel, Zeleznikar, and Bakeberg") into names,
+// re-joining a trailing initial that a comma split off ("Lee, K." must stay one
+// name, not become "Lee" + "K.").
+function splitNames(desc: string): string[] {
+  const parts = desc
+    .replace(/\band\b/gi, ',')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const out: string[] = [];
+  for (const p of parts) {
+    if (/^[A-Z]\.?$/.test(p) && out.length) out[out.length - 1] += `, ${p}`;
+    else out.push(p);
+  }
+  return out;
+}
+
+const ACTION_RULES: Rule[] = [
+  {
+    test: (l) => l.includes('veto'),
+    build: () => ({ kind: 'veto', title: 'Vetoed by the Governor' }),
+  },
+  // --- Signing (all three source rows collapse into one enacted row) ---
+  {
+    test: (l) => /governor'?s? (?:action )?approval|governor approval/.test(l),
+    build: () => ({ kind: 'signing', title: 'Signed by the Governor' }),
+  },
+  {
+    test: (l) => l.includes('secretary of state'),
+    build: () => ({ kind: 'signing', title: 'Filed with the Secretary of State' }),
+  },
+  {
+    test: (l) => l === 'chapter number',
+    build: () => ({ kind: 'signing', title: 'Signed into law' }),
+  },
+  {
+    test: (l) => /present(?:ed|ment)/.test(l),
+    build: () => ({
+      kind: 'procedural',
+      title: 'Presented to the Governor',
+    }),
+  },
+  {
+    test: (l) => l.startsWith('effective date'),
+    build: (_t, desc) => {
+      const isDate = /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(desc);
+      const title = desc && !isDate ? `Effective date — ${desc}` : 'Effective date';
+      return { kind: 'effective', title };
+    },
+  },
+  // --- Floor passage / repassage (recorded vote when it carries a tally) ---
+  {
+    test: (l) =>
+      /bill was (?:re)?passed/.test(l) ||
+      /third reading.*passed/.test(l) ||
+      /\brepassed?\b/.test(l) ||
+      /adopted .*report.*(?:and )?repassed/.test(l),
+    build: (text) => {
+      const asAmended = /as amended/i.test(text);
+      const repass = /\brepass/i.test(text);
+      return {
+        kind: 'passage',
+        // Chamber is filled in later from the tally size ("Passed the House …").
+        title: `${repass ? 'Repassed' : 'Passed'}, third reading${asAmended ? ', as amended' : ''}`,
+      };
+    },
+  },
+  {
+    // Bare "third reading" — folded into the adjacent passage cluster.
+    test: (l) => /^third reading/.test(l),
+    build: (text) => ({
+      kind: 'reading',
+      title: /as amended/i.test(text) ? 'Third reading, as amended' : 'Third reading',
+    }),
+  },
+  // --- Authors ---
+  {
+    test: (l) => /chief author (?:stricken|changed|added)/.test(l),
+    build: (text, desc) => {
+      const low = text.toLowerCase();
+      if (low.includes('stricken'))
+        return {
+          kind: 'chiefAuthor',
+          title: desc ? `Chief author changed to ${desc}` : 'Chief author changed',
+        };
+      return {
+        kind: 'chiefAuthor',
+        title: desc ? `Chief author changed to ${desc}` : 'Chief author changed',
+      };
+    },
+  },
+  {
+    test: (l) => /authors?\s+added/.test(l),
+    build: (_t, desc) => ({
+      kind: 'authorAdd',
+      title: desc ? `Co-author added — ${splitNames(desc).join(', ')}` : 'Co-author added',
+    }),
+  },
+  // --- Committee / referral / calendar ---
+  {
+    test: (l) => /motion to recall and re-?refer/.test(l),
+    build: () => ({
+      kind: 'procedural',
+      title: 'Recalled and sent back to committee',
+    }),
+  },
+  {
+    test: (l) => /comm(?:ittee)? report/.test(l),
+    build: (text) => {
+      const asAmended = /amend/i.test(text);
+      const reRefer = /re-?refer/i.test(text);
+      const subst = /subst|substitut/i.test(text);
+      let title = 'Committee report — recommends passing';
+      if (asAmended) title += ', as amended';
+      if (reRefer) title += ', then referred to another committee';
+      if (subst) title = 'Committee report — companion bill substituted, sent to the floor';
+      return { kind: 'procedural', title };
+    },
+  },
+  {
+    test: (l) => /re-?refer/.test(l),
+    build: () => ({
+      kind: 'procedural',
+      title: 'Re-referred to another committee',
+    }),
+  },
+  {
+    test: (l) => /introduction and first reading/.test(l),
+    build: () => ({
+      kind: 'procedural',
+      title: 'Introduced and referred to a committee',
+    }),
+  },
+  {
+    test: (l) => /^first reading|^introduced/.test(l),
+    build: () => ({ kind: 'procedural', title: 'Introduced' }),
+  },
+  {
+    test: (l) => /^referred to/.test(l),
+    build: () => ({ kind: 'procedural', title: 'Referred to a committee' }),
+  },
+  {
+    test: (l) => /^second reading/.test(l),
+    build: () => ({ kind: 'procedural', title: 'Second reading' }),
+  },
+  // --- Floor amendments ---
+  {
+    test: (l) => /special order:?\s*amended|^amended$|^amendments? (?:offered|adopted)/.test(l),
+    build: (text) => ({
+      kind: 'procedural',
+      title: /offered/i.test(text) ? 'Amendments offered on the floor' : 'Amended on the floor',
+    }),
+  },
+  // --- Between-chamber reconciliation ---
+  {
+    test: (l) =>
+      /not concur|refuses? to concur|not identical/.test(l) && /conference|substitut/.test(l),
+    build: () => ({
+      kind: 'procedural',
+      title: 'Declined the other chamber’s changes — conference committee requested',
+    }),
+  },
+  {
+    test: (l) => /bills? not identical.*substitut/.test(l),
+    build: () => ({
+      kind: 'procedural',
+      title: 'Companion bill substituted for this file',
+    }),
+  },
+  {
+    test: (l) => /concur/.test(l),
+    build: () => ({
+      kind: 'procedural',
+      title: 'Concurred — accepted the other chamber’s changes',
+    }),
+  },
+  {
+    test: (l) => /conference committee|accedes|\bcc report\b|\bhcc\b|conferees/.test(l),
+    build: (text) => {
+      const low = text.toLowerCase();
+      let title = 'Conference committee step';
+      if (/conferees/.test(low)) title = 'Conference committee members named';
+      else if (/accedes/.test(low)) title = 'Agreed to a conference committee';
+      else if (/report/.test(low)) title = 'Conference committee report';
+      return { kind: 'procedural', title };
+    },
+  },
+  {
+    test: (l) => /returned from (house|senate)/.test(l),
+    build: (text) => {
+      const from = /senate/i.test(text) ? 'Senate' : 'House';
+      return {
+        kind: 'procedural',
+        title: `Returned from the ${from} with amendments`,
+      };
+    },
+  },
+  {
+    test: (l) => /received from (house|senate)/.test(l),
+    build: (text) => {
+      const from = /house/i.test(text) ? 'House' : 'Senate';
+      return { kind: 'procedural', title: `Received from the ${from}` };
+    },
+  },
+  // --- Calendar / floor scheduling ---
+  {
+    test: (l) =>
+      /rule 1\.21|placed on calendar|general (?:orders|register)|calendar for the day/.test(l),
+    build: () => ({
+      kind: 'procedural',
+      title: 'Placed on the calendar for a floor vote',
+    }),
+  },
+  // --- Motions ---
+  {
+    test: (l) =>
+      /motion.*(?:not prevail|failed|lost|rejected)|(?:not prevail|failed|lost|rejected).*motion/.test(
+        l,
+      ),
+    build: () => ({ kind: 'motionFailed', title: 'Motion failed' }),
+  },
+  {
+    test: (l) => /motion for reconsideration/.test(l),
+    build: (_t, desc) => ({
+      kind: 'procedural',
+      title: desc ? `Motion to reconsider the ${desc}` : 'Motion to reconsider',
+    }),
+  },
+  {
+    test: (l) => /motion prevailed|motion adopted|motion to/.test(l),
+    build: () => ({ kind: 'procedural', title: 'Motion adopted' }),
+  },
+  {
+    test: (l) => /not adopted/.test(l),
+    build: () => ({ kind: 'notAdopted', title: 'Amendment not adopted' }),
+  },
+];
+
+// Humanize an unmatched raw label defensively: strip clerk prefixes/codes so a
+// row never leaks "Comm report:" / "Rule 45" / "subst." even without a rule.
+function humanizeFallback(text: string): string {
+  let s = text
+    .replace(/^comm(?:ittee)?\s+report:?\s*/i, 'Committee report — ')
+    .replace(/\brule\s+\d+[.\d]*[- ]?/gi, '')
+    .replace(/\bsubst\.?\b/gi, 'substituted')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  if (s) s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s || text;
+}
+
+function classify(text: string, desc: string): Classified {
+  const low = (text || '').toLowerCase();
+  for (const rule of ACTION_RULES) {
+    if (rule.test(low, desc || '')) return rule.build(text, desc || '');
+  }
+  return { kind: 'procedural', title: humanizeFallback(text) };
+}
+
+// House ≈ 134 seats, Senate 67 — a full-chamber floor-passage tally is decisive:
+// total > 100 → House, otherwise Senate. Committee/motion counts never label a
+// row, so this is only ever asked of a recorded passage vote (point 3).
+function chamberFromTally(tally: string | undefined): 'House' | 'Senate' | undefined {
+  if (!tally) return undefined;
+  const m = tally.match(/(\d+)\D+(\d+)/);
+  if (!m) return undefined;
+  const total = Number(m[1]) + Number(m[2]);
+  if (total > 100) return 'House';
+  if (total > 0) return 'Senate';
+  return undefined;
+}
+
+export interface TimelineRow {
+  id: string;
+  date: string; // display date ("MAY 12, 2026"), or '' when the source had none
+  dateRange?: string; // author groups spanning multiple days
+  title: string;
+  dot: TimelineDot;
+  muted: boolean; // author-group treatment (quiet annotation, not a milestone)
+  tally?: string; // en-dashed "134–0"; only real passage votes carry one
+  authors?: string[]; // collapsed co-author names (author-group rows)
+  showVotes: boolean;
+  rollIdx: number | null;
+}
+
+type Norm = Classified & {
+  idx: number;
+  actionNumber: number;
+  block: number; // chamber block (increments when action_number drops)
+  rawDate: string;
+  tally?: string;
+  chapter?: string;
+  authors?: string[];
+  endDate?: string;
+};
+
+// Build the curated Actions timeline (newest first) from the raw feed.
+// Pipeline: classify each row → collapse (authors, passage clusters, signing)
+// → dedupe identical cross-chamber rows → order newest-first (dateless rows
+// inherit a neighbor's date, never a fabricated displayed date) → render rows.
+export function buildActionTimeline(
+  actions: BillAction[],
+  votes: VoteEvent[],
+  now: Date,
+): { rows: TimelineRow[]; glossary: Array<{ term: string; def: string }> } {
+  // 1. Classify, preserving source order (chamber-grouped, ascending #). A DROP
+  //    in action_number marks a new chamber, tracked as `block`.
+  let block = 0;
+  let prevNum = Number.NEGATIVE_INFINITY;
+  const norm: Norm[] = actions.map((a, idx) => {
+    const text = a.actionText ?? a.description ?? '';
+    const desc = a.actionDescription ?? '';
+    const c = classify(text, desc);
+    const num = a.actionNumber ?? idx;
+    if (num < prevNum) block += 1;
+    prevNum = num;
+    const chapMatch = desc.match(/chapter\s+(\d+)/i) || (/^\d+$/.test(desc) ? [null, desc] : null);
+    return {
+      ...c,
+      idx,
+      actionNumber: num,
+      block,
+      rawDate: a.date || '',
+      tally: a.tally,
+      chapter: c.kind === 'signing' && chapMatch ? (chapMatch[1] as string) : undefined,
+    };
+  });
+
+  // 2a. Collapse contiguous author-add runs into one group row (point 4). A run
+  //     is broken by any non-authorAdd row OR a chamber-block change (so a chief-
+  //     author change never folds in, and a run never spans two chambers). A
+  //     single add stays a one-name row.
+  const grouped: Norm[] = [];
+  for (let i = 0; i < norm.length; i++) {
+    const item = norm[i];
+    if (item.kind !== 'authorAdd') {
+      grouped.push(item);
+      continue;
+    }
+    const names: string[] = [];
+    const startDate = item.rawDate;
+    let endDate = item.rawDate;
+    let j = i;
+    // A run must be consecutive by action_number: a GAP means a real row sat
+    // between the adds (even one the API dropped, e.g. a committee report with
+    // no committee name), so the two adds are NOT contiguous and must not merge.
+    let expectNum = item.actionNumber;
+    while (
+      j < norm.length &&
+      norm[j].kind === 'authorAdd' &&
+      norm[j].block === item.block &&
+      norm[j].actionNumber === expectNum
+    ) {
+      const nm = (actions[norm[j].idx].actionDescription ?? '').trim();
+      if (nm) names.push(...splitNames(nm));
+      endDate = norm[j].rawDate || endDate;
+      expectNum = norm[j].actionNumber + 1;
+      j++;
+    }
+    grouped.push({ ...item, authors: names, rawDate: startDate, endDate });
+    i = j - 1;
+  }
+
+  // 2b. Collapse floor-passage clusters (point 2): all reading / passage rows in
+  //     the same chamber block on the same date become ONE passage row, keeping
+  //     the recorded tally and labeling the chamber from it. (Not source-adjacent
+  //     — a no-roll "House…repassed bill" summary and its tallied companion sit
+  //     apart in the feed but are the same event.)
+  const passKey = (r: Norm) => `${r.block}|${r.rawDate}`;
+  const passRep = new Map<string, Norm>();
+  for (const item of grouped) {
+    if (item.kind !== 'passage' && item.kind !== 'reading') continue;
+    const key = passKey(item);
+    const prev = passRep.get(key);
+    const tally = item.tally || prev?.tally;
+    const repass = /repass/i.test(item.title) || /repass/i.test(prev?.title ?? '');
+    const amended = /as amended/i.test(item.title) || /as amended/i.test(prev?.title ?? '');
+    const chamber = chamberFromTally(tally);
+    const verb = repass ? 'Repassed' : 'Passed';
+    // Keep the earliest source row as the anchor (order/idx), prefer a tallied base.
+    const base = prev && prev.idx < item.idx ? prev : item;
+    passRep.set(key, {
+      ...base,
+      kind: 'passage',
+      title: `${verb}${chamber ? ` the ${chamber}` : ''}, third reading${amended ? ', as amended' : ''}`,
+      tally,
+    });
+  }
+  const emitted = new Set<string>();
+  const collapsedPassage: Norm[] = [];
+  for (const item of grouped) {
+    if (item.kind === 'passage' || item.kind === 'reading') {
+      const key = passKey(item);
+      if (!emitted.has(key)) {
+        emitted.add(key);
+        collapsedPassage.push(passRep.get(key)!);
+      }
+      continue;
+    }
+    collapsedPassage.push(item);
+  }
+
+  // 2c. Collapse ALL signing rows (they recur once per chamber journal) into a
+  //     single enacted row "Signed by the Governor · Chapter N" (point 2).
+  const signings = collapsedPassage.filter((r) => r.kind === 'signing');
+  const merged = collapsedPassage.filter((r) => r.kind !== 'signing');
+  if (signings.length) {
+    const chapter = signings.map((s) => s.chapter).find(Boolean);
+    // Anchor to the latest signing date (the governor-approval moment).
+    const anchor = signings.reduce((a, b) =>
+      (parseActionDate(b.rawDate)?.getTime() ?? 0) > (parseActionDate(a.rawDate)?.getTime() ?? 0)
+        ? b
+        : a,
+    );
+    merged.push({
+      ...anchor,
+      kind: 'signing',
+      title: chapter ? `Signed by the Governor · Chapter ${chapter}` : 'Signed by the Governor',
+    });
+  }
+
+  // 2d. Dedupe identical (title, date) rows the two chamber journals both record
+  //     — "Presented to the Governor", conference-committee steps, etc. (point 2).
+  const seenRow = new Set<string>();
+  const deduped = merged.filter((r) => {
+    const k = `${r.title}|${r.rawDate}`;
+    if (seenRow.has(k)) return false;
+    seenRow.add(k);
+    return true;
+  });
+
+  // 3. Order newest-first. Dateless rows inherit the nearest dated neighbor in
+  //    their chamber block, exactly like orderActionsForTimeline — used only for
+  //    ordering, never displayed.
+  const withKeys = assignOrderKeys(deduped);
+  withKeys.sort((x, y) => y.key - x.key || x.item.idx - y.item.idx);
+
+  // 4. Render rows.
+  const rows: TimelineRow[] = withKeys.map(({ item }) => {
+    const d = parseActionDate(item.rawDate);
+    const upcoming = !!d && d > now;
+    const hasTally = item.kind === 'passage' && !!item.tally;
+    const rollIdx = hasTally
+      ? rollIndexForAction({ tally: item.tally } as BillAction, votes)
+      : null;
+    return {
+      id: `${item.idx}-${item.actionNumber}`,
+      date: formatMonoDate(item.rawDate),
+      dateRange:
+        item.endDate && item.endDate !== item.rawDate
+          ? `${formatMonoDate(item.rawDate)} – ${formatMonoDate(item.endDate)}`
+          : undefined,
+      title: item.title,
+      dot: dotForRow(item.kind, upcoming, hasTally),
+      muted: item.kind === 'authorAdd',
+      tally: hasTally ? item.tally!.replace(/-/g, '–') : undefined,
+      authors: item.kind === 'authorAdd' ? item.authors : undefined,
+      showVotes: hasTally && !upcoming && rollIdx != null,
+      rollIdx,
+    };
+  });
+
+  // 5. Plain-language key = the glossary terms whose word actually appears in a
+  //    shown title, sorted (point 7 — every glossed term appears in the feed and
+  //    the substring test guarantees no term is glossed that isn't shown).
+  const glossary = Object.keys(GLOSS)
+    .filter((term) => rows.some((r) => r.title.toLowerCase().includes(term.toLowerCase())))
+    .sort((a, b) => a.localeCompare(b))
+    .map((term) => ({ term: term === 're-referred' ? 'Re-referred' : term, def: GLOSS[term] }));
+
+  return { rows, glossary };
+}
+
+function dotForRow(kind: EventKind, upcoming: boolean, hasTally: boolean): TimelineDot {
+  if (upcoming && (kind === 'signing' || kind === 'effective')) return 'scheduled';
+  if (kind === 'signing' || kind === 'effective') return 'green';
+  if (kind === 'veto' || kind === 'notAdopted' || kind === 'motionFailed') return 'red';
+  // Only a passage that carries a recorded tally gets the black vote dot; a
+  // tally-less "repassed" summary line renders procedural (point 6).
+  if (kind === 'passage' && hasTally) return 'vote';
   return 'plain';
+}
+
+// Two-pass date inheritance (chamber-block aware) shared with
+// orderActionsForTimeline — kept local to operate on the collapsed rows.
+function assignOrderKeys<T extends { actionNumber: number; rawDate: string; idx: number }>(
+  items: T[],
+): Array<{ item: T; key: number }> {
+  const n = items.length;
+  const times = items.map((it) => parseActionDate(it.rawDate)?.getTime() ?? null);
+  const key = new Array<number>(n).fill(NaN);
+  let lastDated: number | null = null;
+  let prevNum = Number.NEGATIVE_INFINITY;
+  for (let i = 0; i < n; i++) {
+    const num = items[i].actionNumber;
+    if (num < prevNum) lastDated = null;
+    prevNum = num;
+    if (times[i] != null) {
+      key[i] = times[i]!;
+      lastDated = times[i]!;
+    } else if (lastDated != null) {
+      key[i] = lastDated + 1;
+    }
+  }
+  let nextDated: number | null = null;
+  let nextNum = Number.POSITIVE_INFINITY;
+  for (let i = n - 1; i >= 0; i--) {
+    const num = items[i].actionNumber;
+    if (num > nextNum) nextDated = null;
+    nextNum = num;
+    if (times[i] != null) nextDated = times[i]!;
+    else if (Number.isNaN(key[i])) key[i] = nextDated != null ? nextDated - 1 : 0;
+  }
+  return items.map((item, i) => ({ item, key: key[i] }));
 }
 
 // Human eyebrow "SENATE · 2025–2026 LEGISLATIVE SESSION". The session biennium is
