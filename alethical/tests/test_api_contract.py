@@ -261,6 +261,17 @@ def test_bill_search_supports_bill_number_query(client):
     assert chamber_miss.status_code == 200
     assert "94-2025-SF1832" not in [b["id"] for b in chamber_miss.json()["data"]]
 
+    # A bare number — no chamber prefix — resolves the bill by file_number in
+    # either chamber, so users need not know the HF/SF prefix. Leading zeros are
+    # tolerated the same as the prefixed form.
+    for query in ("1832", " 1832 ", "01832"):
+        bare = client.get(
+            "/api/v1/bills",
+            params={"session": "94-2025-regular", "q": query, "limit": 20},
+        )
+        assert bare.status_code == 200
+        assert "94-2025-SF1832" in [b["id"] for b in bare.json()["data"]], query
+
     # Keyword search is unchanged — a plain word still matches title/description.
     keyword_response = client.get(
         "/api/v1/bills",
@@ -673,6 +684,16 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     assert "legislators" in search_payload
     assert search_payload["bills"]
     assert all(bill["id"].startswith("94-2025-") for bill in search_payload["bills"])
+
+    # The multi-type /search resolves a bill number too — prefixed or bare — so a
+    # user typing just "1832" finds SF1832 without knowing the SF prefix (#134).
+    for number_query in ("SF 1832", "1832"):
+        number_search = client.get(
+            "/api/v1/search", params={"q": number_query, "types": "bills"}
+        )
+        assert number_search.status_code == 200
+        found = [b["id"] for b in number_search.json()["data"]["bills"]]
+        assert "94-2025-SF1832" in found, number_query
 
     lookup_response = client.post(
         "/api/v1/representative-lookups",

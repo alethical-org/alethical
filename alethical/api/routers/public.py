@@ -209,18 +209,22 @@ def current_committee_names(db: Session, legislator_ids) -> dict[str, list[str]]
     return result
 
 
-_BILL_NUMBER_QUERY_RE = re.compile(r"^\s*([A-Za-z]{2})\s*0*(\d+)\s*$")
+_BILL_NUMBER_QUERY_RE = re.compile(r"^\s*([A-Za-z]{2})?\s*0*(\d+)\s*$")
 
 
 def bill_number_clause(q: str):
-    """Match a chamber-prefix + number query ("HF 2904", "HF2904", "SF 1832")
-    against file_type + file_number so bill-number searches resolve (#134).
-    Returns None when the query isn't a bill number, leaving keyword search
-    untouched."""
+    """Match a bill-number query against file_type + file_number so bill-number
+    searches resolve (#134). The chamber prefix is optional: "HF 2904" / "HF2904"
+    / "SF 1832" resolve that chamber's bill, while a bare number ("5209") resolves
+    the bill with that file number in either chamber — users need not know the
+    HF/SF prefix. Returns None when the query isn't a bill number, leaving keyword
+    search untouched."""
     match = _BILL_NUMBER_QUERY_RE.match(q)
     if match is None:
         return None
     file_type, file_number = match.group(1), int(match.group(2))
+    if file_type is None:
+        return Bill.file_number == file_number
     return and_(
         func.lower(Bill.file_type) == file_type.lower(),
         Bill.file_number == file_number,
@@ -1303,9 +1307,11 @@ def search(
     session_row = get_session_by_slug(db, session)
     payload: dict[str, list[dict]] = {"bills": [], "legislators": []}
     if "bills" in type_set:
-        bills_stmt = bill_list_stmt(session_row.id).where(
-            or_(Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%"))
-        )
+        bill_clauses = [Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%")]
+        number_clause = bill_number_clause(q)
+        if number_clause is not None:
+            bill_clauses.append(number_clause)
+        bills_stmt = bill_list_stmt(session_row.id).where(or_(*bill_clauses))
         payload["bills"] = [
             bill_list_item(row).model_dump(exclude_none=True)
             for row in db.scalars(bills_stmt.limit(limit)).all()
