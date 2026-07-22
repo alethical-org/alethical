@@ -345,6 +345,9 @@ interface ApiBillDetailPayload {
   current_status?: string | null;
   status_key?: string | null;
   latest_action_at?: string | null;
+  // Verbatim statutory effective date (e.g. "July 1, 2027"), present only when
+  // the enacted bill text states one unambiguously (#483); absent otherwise.
+  effective_date?: string | null;
   official_url?: string | null;
   is_omnibus?: boolean | null;
   chief_sponsors: ApiSponsorPayload[];
@@ -1080,6 +1083,7 @@ function mapBillDetail(
       : null,
     latestActionText: payload.current_status ?? undefined,
     updatedAt: formatUpdatedAt(payload.latest_action_at),
+    effectiveDate: payload.effective_date ?? undefined,
     sessionLabel: 'Current session',
     topics: (payload.topics ?? []).map((topic) => topic.name),
     chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
