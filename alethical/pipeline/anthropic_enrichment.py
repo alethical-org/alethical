@@ -17,8 +17,12 @@ Two billing paths for the `generate` step (`--provider`, default `api`):
     headless mode (`claude -p ... --output-format json`), which authenticates with
     the Claude *subscription* (Team plan + overage) instead of an API key. Needs no
     API credit — useful when the API account is unfunded. Requires the `claude` CLI
-    on PATH, signed in, and a CLI-recognized `--model` alias (e.g. `sonnet`). Both
-    paths produce the identical output rows, so the downstream `apply` is unchanged.
+    on PATH, a CLI-recognized `--model` alias (e.g. `sonnet`), and a valid
+    subscription login for headless use: set `CLAUDE_CODE_OAUTH_TOKEN` to a token
+    minted by `claude setup-token` (one-time, interactive; ~1-year token). This path
+    strips `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` from the CLI's environment
+    because they outrank the OAuth token in the CLI's auth precedence. Both paths
+    produce the identical output rows, so the downstream `apply` is unchanged.
 
 Flow (mirrors the codex path so it is idempotent and resumable):
   1. `python -m alethical.pipeline.ai_enrichment prepare ...` -> request JSONL + manifest
@@ -163,10 +167,23 @@ def _call_claude_cli(model: str, system: str, user: str) -> dict[str, Any]:
         _CLI_DISALLOWED_TOOLS,
         "--no-session-persistence",
     ]
+    # The CLI authenticates against the subscription via CLAUDE_CODE_OAUTH_TOKEN
+    # (`claude setup-token`), but ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN outrank it
+    # in the CLI's auth precedence — if either is present in the environment the CLI
+    # would silently use the (unfunded) API path and 401. Strip them so this path
+    # always uses the subscription token, which is the whole point of --provider
+    # claude-cli.
+    cli_env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+    }
     last_err: Exception | None = None
     for attempt in range(MAX_ATTEMPTS):
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=300, env=cli_env
+            )
             if proc.returncode != 0:
                 raise RuntimeError(
                     f"claude cli exit {proc.returncode}: {(proc.stderr or '')[:200]}"

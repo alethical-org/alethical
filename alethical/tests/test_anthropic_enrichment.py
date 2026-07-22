@@ -83,10 +83,15 @@ def test_call_claude_cli_returns_validated_content(monkeypatch) -> None:
         stderr = ""
         stdout = json.dumps({"is_error": False, "result": json.dumps(valid)})
 
-    def fake_run(cmd, capture_output, text, timeout):
+    def fake_run(cmd, capture_output, text, timeout, env=None):
         captured["cmd"] = cmd
+        captured["env"] = env
         return FakeProc()
 
+    # API-key vars outrank CLAUDE_CODE_OAUTH_TOKEN in the CLI, so the claude-cli path
+    # must strip them from the subprocess env or it would 401 on the unfunded API.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-should-be-stripped")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "should-be-stripped")
     monkeypatch.setattr(ae.subprocess, "run", fake_run)
     out = ae._call_claude_cli("sonnet", "sys", "user")
     assert out["confidence"] == "high"
@@ -97,6 +102,10 @@ def test_call_claude_cli_returns_validated_content(monkeypatch) -> None:
     assert "--model" in cmd and "sonnet" in cmd
     assert "--output-format" in cmd and "json" in cmd
     assert "--system-prompt" in cmd
+    # The subprocess env drops the API-key vars so the subscription token wins.
+    assert captured["env"] is not None
+    assert "ANTHROPIC_API_KEY" not in captured["env"]
+    assert "ANTHROPIC_AUTH_TOKEN" not in captured["env"]
 
 
 def test_call_claude_cli_raises_on_nonzero_exit(monkeypatch) -> None:
@@ -116,7 +125,9 @@ def test_generate_parser_defaults_to_api_provider_and_accepts_claude_cli() -> No
     parser = ae.build_parser()
     base = ["generate", "--manifest-path", "m", "--jsonl-path", "j"]
     assert parser.parse_args(base).provider == "api"
-    assert parser.parse_args(base + ["--provider", "claude-cli"]).provider == "claude-cli"
+    assert (
+        parser.parse_args(base + ["--provider", "claude-cli"]).provider == "claude-cli"
+    )
 
 
 def _summary_props() -> dict:
