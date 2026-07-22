@@ -22,15 +22,37 @@ VECTOR_DIMENSIONS = 1536
 OPENAI_EMBEDDING_TIMEOUT_SECONDS = 60
 
 
+def _require_openai_key_in_production() -> None:
+    """Fail closed: refuse to fall back to hash vectors against the production DB.
+
+    The deterministic hash fallback exists for tests / local dev without an
+    OPENAI_API_KEY, but on production it would silently poison retrieval with
+    arbitrary vectors (embed a query as noise, or store noise at ingest). Rather
+    than degrade quietly, raise so the misconfiguration is loud (#105). Mirrors
+    the fail-closed check in api/services/auth.py — production is signalled by
+    ALETHICAL_DATABASE_TARGET=production.
+    """
+    if os.environ.get("ALETHICAL_DATABASE_TARGET") == "production":
+        raise RuntimeError(
+            "OPENAI_API_KEY is required when ALETHICAL_DATABASE_TARGET=production. "
+            "Refusing to embed with the deterministic hash fallback, which would "
+            "silently degrade RAG retrieval to noise (#105)."
+        )
+
+
 def effective_embedding_model(requested: str) -> str:
     """The model label matching what _build_embeddings will actually produce.
 
     Returns ``requested`` when OPENAI_API_KEY is set (real OpenAI embeddings),
     else FALLBACK_EMBEDDING_MODEL (deterministic hash). Callers that store or
     filter by embedding_model must use this so stored labels always describe the
-    vectors they sit next to.
+    vectors they sit next to. In production, a missing key fails loud rather than
+    resolving to the fallback label (#105).
     """
-    return requested if os.environ.get("OPENAI_API_KEY") else FALLBACK_EMBEDDING_MODEL
+    if not os.environ.get("OPENAI_API_KEY"):
+        _require_openai_key_in_production()
+        return FALLBACK_EMBEDDING_MODEL
+    return requested
 
 
 def _deterministic_embedding(
@@ -306,6 +328,8 @@ def _build_embeddings(
         # Offline fallback for tests / local dev without an API key. Callers must
         # store these under FALLBACK_EMBEDDING_MODEL (via effective_embedding_model)
         # so retrieval excludes them and a keyed backfill replaces them (#221).
+        # In production, refuse rather than poison retrieval with hash noise (#105).
+        _require_openai_key_in_production()
         return [
             _deterministic_embedding(text, dimensions=VECTOR_DIMENSIONS)
             for text in texts
