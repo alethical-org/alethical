@@ -78,6 +78,20 @@ export function BillDetailWebScreen() {
     }
   };
 
+  // "‹ All bills" is a back affordance: when the search list is the screen
+  // beneath us (the user drilled in from it), pop back so its URL-encoded
+  // filters are restored intact. When we arrived directly (a shared link, no
+  // list below), open a fresh unfiltered list instead. Mirrors #535.
+  const goToBillList = () => {
+    const state = navigation.getState?.();
+    const prev = state?.routes?.[(state.index ?? 1) - 1];
+    if (prev?.name === 'Bills') {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Bills');
+    }
+  };
+
   const shell = (children: React.ReactNode, hero: React.ReactNode) => (
     <SearchPageShell
       openMenu={openMenu}
@@ -128,7 +142,7 @@ export function BillDetailWebScreen() {
       shareTitle={shareTitle}
       activeTab={activeTab}
       onSelectTab={selectTab}
-      onAllBills={() => navigation.navigate('Bills')}
+      onAllBills={goToBillList}
     />
   );
 

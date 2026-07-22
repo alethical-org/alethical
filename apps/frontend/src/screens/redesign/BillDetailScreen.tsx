@@ -377,6 +377,20 @@ function BillDetailMobileScreen() {
     }
   };
 
+  // "‹ All bills" is a back affordance: when the search list is the screen
+  // beneath us (the user drilled in from it), pop back so its URL-encoded
+  // filters are restored intact. When we arrived directly (a shared link, no
+  // list below), open a fresh unfiltered list instead. Mirrors #535.
+  const goToBillList = () => {
+    const state = navigation.getState?.();
+    const prev = state?.routes?.[(state.index ?? 1) - 1];
+    if (prev?.name === 'Bills') {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Bills');
+    }
+  };
+
   // --- share ---
   const shareUrl = bill ? `https://alethical.com/bills/${bill.id}` : 'https://alethical.com';
   // Prefer the concise AI short title for the share text (the statutory title can
@@ -521,7 +535,7 @@ function BillDetailMobileScreen() {
             <Text style={styles.stateText}>
               We couldn’t load this bill right now. Please try again in a moment.
             </Text>
-            <TextLink label="Back to all bills →" onPress={() => navigation.navigate('Bills')} />
+            <TextLink label="Back to all bills →" onPress={goToBillList} />
           </View>
         ) : (
           <>
@@ -529,7 +543,7 @@ function BillDetailMobileScreen() {
             <View style={styles.headerOuter}>
               {isWeb ? <View pointerEvents="none" style={styles.headerDots} /> : null}
               <View style={styles.column}>
-                <Breadcrumb onPress={() => navigation.navigate('Bills')} />
+                <Breadcrumb onPress={goToBillList} />
                 <Text
                   accessibilityRole="header"
                   accessibilityLabel={bill.title}
