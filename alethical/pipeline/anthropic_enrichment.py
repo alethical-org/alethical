@@ -10,10 +10,24 @@ codex-headless path (`codex_enrichment.py`). All three consume the SAME
 `SYSTEM_PROMPT` + `SUMMARY_SCHEMA` baked into the `prepare` request JSONL, so the
 plain-language rule (#520) applies uniformly.
 
+Two billing paths for the `generate` step (`--provider`, default `api`):
+  * `api` — calls the Anthropic API (`api.anthropic.com`) with `ANTHROPIC_API_KEY`.
+    Spends the API account's prepaid credits.
+  * `claude-cli` — the "team plan" path: shells out to the Claude Code CLI in
+    headless mode (`claude -p ... --output-format json`), which authenticates with
+    the Claude *subscription* (Team plan + overage) instead of an API key. Needs no
+    API credit — useful when the API account is unfunded. Requires the `claude` CLI
+    on PATH, a CLI-recognized `--model` alias (e.g. `sonnet`), and a valid
+    subscription login for headless use: set `CLAUDE_CODE_OAUTH_TOKEN` to a token
+    minted by `claude setup-token` (one-time, interactive; ~1-year token). This path
+    strips `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` from the CLI's environment
+    because they outrank the OAuth token in the CLI's auth precedence. Both paths
+    produce the identical output rows, so the downstream `apply` is unchanged.
+
 Flow (mirrors the codex path so it is idempotent and resumable):
   1. `python -m alethical.pipeline.ai_enrichment prepare ...` -> request JSONL + manifest
   2. `python -m alethical.pipeline.anthropic_enrichment generate --manifest-path M
-     --jsonl-path J --run-dir DIR [--model claude-sonnet-5] [--concurrency N]`
+     --jsonl-path J --run-dir DIR [--provider api|claude-cli] [--model ...] [--concurrency N]`
      -> per-bill outputs/<id>.jsonl (skips ones already written) + combined.output.jsonl
   3. `python -m alethical.pipeline.ai_enrichment apply --manifest-path DIR/<...>.codex.manifest.json
      --output-path DIR/combined.output.jsonl [--dry-run]`
@@ -27,6 +41,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -50,6 +65,12 @@ DEFAULT_MODEL = "claude-sonnet-5"
 DEFAULT_MAX_TOKENS = 8192
 DEFAULT_CONCURRENCY = 8
 MAX_ATTEMPTS = 4
+# Team-plan path: the Claude Code CLI binary (overridable for tests / non-PATH installs).
+CLAUDE_CLI_BIN = os.environ.get("ALETHICAL_CLAUDE_CLI", "claude")
+# Tools disallowed for the headless generation call — this is a pure text-to-JSON
+# task, so the model never needs to act; belt-and-suspenders since --system-prompt
+# already replaces the coding-agent default prompt.
+_CLI_DISALLOWED_TOOLS = "Bash Edit Write Read WebFetch WebSearch Glob Grep"
 
 
 def _system_and_user(request: dict[str, Any]) -> tuple[str, str]:
@@ -120,10 +141,79 @@ def _call_anthropic(
     )
 
 
+def _call_claude_cli(model: str, system: str, user: str) -> dict[str, Any]:
+    """Team-plan path: generate one enrichment via the Claude Code CLI in headless
+    mode (`claude -p`), which bills the Claude subscription (Team plan + overage)
+    rather than the Anthropic API — no API credit needed. Same contract as
+    :func:`_call_anthropic` (returns the validated, schema-shaped content dict), so
+    the apply path is unchanged. `model` must be a CLI-recognized alias/id (e.g.
+    "sonnet"); `--system-prompt` replaces the default coding-agent prompt with the
+    enrichment prompt so the model just emits JSON."""
+    schema_note = (
+        "\n\nReturn ONLY a single JSON object matching this schema. No prose, no "
+        "markdown fences:\n" + json.dumps(SUMMARY_SCHEMA)
+    )
+    cmd = [
+        CLAUDE_CLI_BIN,
+        "-p",
+        user,
+        "--model",
+        model,
+        "--system-prompt",
+        system + schema_note,
+        "--output-format",
+        "json",
+        "--disallowed-tools",
+        _CLI_DISALLOWED_TOOLS,
+        "--no-session-persistence",
+    ]
+    # The CLI authenticates against the subscription via CLAUDE_CODE_OAUTH_TOKEN
+    # (`claude setup-token`), but ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN outrank it
+    # in the CLI's auth precedence — if either is present in the environment the CLI
+    # would silently use the (unfunded) API path and 401. Strip them so this path
+    # always uses the subscription token, which is the whole point of --provider
+    # claude-cli.
+    cli_env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+    }
+    last_err: Exception | None = None
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=300, env=cli_env
+            )
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"claude cli exit {proc.returncode}: {(proc.stderr or '')[:200]}"
+                )
+            envelope = json.loads(proc.stdout)
+            if envelope.get("is_error"):
+                raise RuntimeError(
+                    f"claude cli reported error: {str(envelope.get('result'))[:200]}"
+                )
+            text = str(envelope.get("result") or "")
+            content = _extract_json(text)
+            errors = validate_summary_shape(content)
+            if errors:
+                raise ValueError(f"schema errors: {errors[:5]}")
+            return content
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            time.sleep(min(2**attempt, 30))
+    raise RuntimeError(
+        f"claude cli call failed after {MAX_ATTEMPTS} attempts: {last_err}"
+    )
+
+
 def generate(args: argparse.Namespace) -> None:
-    api_key = args.api_key or os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise SystemExit("ANTHROPIC_API_KEY is required")
+    provider = getattr(args, "provider", "api")
+    api_key: str | None = None
+    if provider == "api":
+        api_key = args.api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise SystemExit("ANTHROPIC_API_KEY is required for --provider api")
 
     run_dir = Path(args.run_dir)
     outputs_dir = run_dir / "outputs"
@@ -155,6 +245,7 @@ def generate(args: argparse.Namespace) -> None:
         json.dumps(
             {
                 "run_dir": str(run_dir),
+                "provider": provider,
                 "model": args.model,
                 "model_name": model_name,
                 "total_items": len(items),
@@ -171,7 +262,12 @@ def generate(args: argparse.Namespace) -> None:
 
     def work(item: Any) -> tuple[str, bool, str]:
         system, user = _system_and_user(requests_by_id[item.custom_id])
-        content = _call_anthropic(api_key, args.model, system, user, DEFAULT_MAX_TOKENS)
+        if provider == "claude-cli":
+            content = _call_claude_cli(args.model, system, user)
+        else:
+            content = _call_anthropic(
+                api_key, args.model, system, user, DEFAULT_MAX_TOKENS
+            )
         out_path = outputs_dir / f"{safe_custom_id(item.custom_id)}.jsonl"
         out_path.write_text(
             json.dumps(output_row(item.custom_id, content), ensure_ascii=False) + "\n",
@@ -228,6 +324,17 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--manifest-path", required=True)
     gen.add_argument("--jsonl-path", required=True)
     gen.add_argument("--run-dir", default=".tmp/anthropic-ai-runs/regen")
+    gen.add_argument(
+        "--provider",
+        choices=["api", "claude-cli"],
+        default="api",
+        help=(
+            "Generation billing path. 'api' (default): Anthropic API, spends "
+            "ANTHROPIC_API_KEY credits. 'claude-cli': Claude Code CLI headless, "
+            "bills the Claude subscription (Team plan + overage) — no API credit; "
+            "pass a CLI model alias via --model (e.g. 'sonnet')."
+        ),
+    )
     gen.add_argument("--model", default=DEFAULT_MODEL)
     gen.add_argument(
         "--model-name",
