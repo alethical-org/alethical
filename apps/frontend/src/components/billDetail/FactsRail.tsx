@@ -36,13 +36,16 @@ export function FactsRail({
   const { index, tone } = billStage(bill.status);
   const label = stageLabel(bill.status);
 
-  // Always the honest LATEST ACTION {text · date}. We have no derivable statutory
-  // effective-date field, so we never label a last-action date as EFFECTIVE — that
-  // is wrong whenever the real effective date is in the future (see #455).
-  const dateLabel = 'LATEST ACTION';
-  const dateValue = bill.latestActionText
-    ? `${bill.latestActionText}${bill.updatedAt ? ` · ${formatNiceDate(bill.updatedAt)}` : ''}`
-    : formatNiceDate(bill.updatedAt);
+  // Show EFFECTIVE {date} only when the backend served a statutory effective date
+  // verified verbatim from the enacted bill text (#483). Otherwise the honest
+  // LATEST ACTION {text · date} — we never label a last-action date as EFFECTIVE,
+  // which is wrong whenever the real effective date is in the future (see #455).
+  const dateLabel = bill.effectiveDate ? 'EFFECTIVE' : 'LATEST ACTION';
+  const dateValue = bill.effectiveDate
+    ? bill.effectiveDate
+    : bill.latestActionText
+      ? `${bill.latestActionText}${bill.updatedAt ? ` · ${formatNiceDate(bill.updatedAt)}` : ''}`
+      : formatNiceDate(bill.updatedAt);
 
   const overviewUrl = bill.officialLinks?.[0]?.url;
   const readUrl = bill.versions?.[0]?.url ?? overviewUrl;

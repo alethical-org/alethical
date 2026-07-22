@@ -142,6 +142,10 @@ export interface Bill {
   /** Raw latest-action text (e.g. "Referred to", "Effective date"), distinct from
    *  the derived `status` label. Undefined when the source has no action text. */
   latestActionText?: string;
+  /** Verbatim statutory effective date (e.g. "July 1, 2027"), served only when the
+   *  enacted bill text states one unambiguously (#483). Undefined otherwise — the
+   *  UI then falls back to the honest LATEST ACTION treatment (#455 / #480). */
+  effectiveDate?: string;
   isOmnibus?: boolean;
   /** The House/Senate companion bill, when the pair is linked. `id` is the
    *  companion's bill key, so a "Companion → {chamber} ({identifier})" row can

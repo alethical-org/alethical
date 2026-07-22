@@ -329,6 +329,102 @@ def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     assert "action_at" in action_payload[0]
 
 
+def test_bill_detail_serves_verified_effective_date_only_when_unambiguous(client):
+    """#483: an enacted bill whose current version's sections all state one explicit
+    effective date exposes it as ``effective_date`` (verbatim from the text); a bill
+    with mixed per-section dates omits the field so the UI keeps the honest LATEST
+    ACTION fallback (#455 / #480). Never derived from latest_action_at."""
+    schema = load_schema()
+    created_keys: list[str] = []
+
+    def _make_enacted_bill(key: str, section_texts: list[str]):
+        with Session(get_engine()) as db:
+            seed = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+            )
+            bill = schema.Bill(
+                session_id=seed.session_id,
+                chamber_id=seed.chamber_id,
+                bill_key=key,
+                file_type="HF",
+                file_number=int(key.split("HF")[-1]),
+                title="Effective-date fixture",
+                current_status="Chapter number",
+            )
+            db.add(bill)
+            db.flush()
+            version = schema.BillVersion(
+                bill_id=bill.id,
+                version_code="current",
+                version_name="Current",
+                sequence_number=0,
+                is_current=True,
+            )
+            db.add(version)
+            db.flush()
+            db.add_all(
+                [
+                    schema.BillVersionSection(
+                        bill_version_id=version.id,
+                        section_id_text=f"sec-{i}",
+                        source_order=i,
+                        effective_date_heading="EFFECTIVE DATE.",
+                        raw_text=text,
+                    )
+                    for i, text in enumerate(section_texts)
+                ]
+            )
+            db.commit()
+        created_keys.append(key)
+
+    try:
+        _make_enacted_bill(
+            "94-2099-HF9001",
+            [
+                "This section is effective July 1, 2027.",
+                "This section is effective July 1, 2027, and applies to accounts "
+                "created before, on, or after that date.",
+            ],
+        )
+        _make_enacted_bill(
+            "94-2099-HF9002",
+            [
+                "This section is effective July 1, 2026.",
+                "This section is effective January 1, 2027.",
+            ],
+        )
+
+        clean = client.get("/api/v1/bills/94-2099-HF9001").json()["data"]
+        assert clean["effective_date"] == "July 1, 2027"
+
+        mixed = client.get("/api/v1/bills/94-2099-HF9002").json()["data"]
+        assert "effective_date" not in mixed
+    finally:
+        with Session(get_engine()) as db:
+            for key in created_keys:
+                bill = db.scalar(select(schema.Bill).where(schema.Bill.bill_key == key))
+                if bill is None:
+                    continue
+                version_ids = db.scalars(
+                    select(schema.BillVersion.id).where(
+                        schema.BillVersion.bill_id == bill.id
+                    )
+                ).all()
+                if version_ids:
+                    db.execute(
+                        delete(schema.BillVersionSection).where(
+                            schema.BillVersionSection.bill_version_id.in_(version_ids)
+                        )
+                    )
+                    db.execute(
+                        delete(schema.BillVersion).where(
+                            schema.BillVersion.bill_id == bill.id
+                        )
+                    )
+                db.delete(bill)
+            db.commit()
+
+
 def test_bill_detail_omits_vote_tree_but_votes_endpoint_still_serves_it(client):
     """The detail payload does not eager-load the roll-call tree
     (vote_events -> records -> legislator) because it never renders votes — those

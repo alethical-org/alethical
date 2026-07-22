@@ -618,6 +618,89 @@ def session_law_version(bill_row) -> dict[str, Any] | None:
     }
 
 
+# A statutory effective date is only shown when the enacted bill's own text
+# states one unambiguously (grounded-answers rule 9). MN bills specify effective
+# dates section-by-section ("This section is effective July 1, 2027."), never for
+# the whole act, so a bill has a single verified effective date ONLY when every
+# section carries an explicit clause and they all name the SAME calendar date.
+# A #483 spike over all enacted bills confirmed this holds for ~8% (e.g. HF 4138
+# -> July 1, 2027); the rest legitimately have per-section dates, silent sections
+# that fall to the statutory default, or conditional language, and get None so
+# the UI keeps the honest "LATEST ACTION" fallback (#455 / #480) rather than a
+# guessed date. "The day following final enactment" and conditional clauses are
+# deliberately excluded — resolving them needs the enactment date / a legal call.
+_EFFECTIVE_SENTENCE_RE = re.compile(
+    r"this (?:section|article|subdivision|paragraph)\b[^.]*?\beffective\b[^.]*?\.",
+    re.IGNORECASE,
+)
+_EFFECTIVE_DATE_RE = re.compile(
+    r"\b(January|February|March|April|May|June|July|August|September|October"
+    r"|November|December)\s+(\d{1,2}),\s+((?:19|20)\d{2})\b"
+)
+_EFFECTIVE_CONDITIONAL_RE = re.compile(
+    r"\b(?:if |contingent|provided that|only if|upon (?:the )?|the day after)\b",
+    re.IGNORECASE,
+)
+
+
+def effective_date_from_sections(
+    sections: list[tuple[str | None, str | None]],
+) -> str | None:
+    """Resolve one verbatim effective date from a version's sections, or None.
+
+    ``sections`` is ``(effective_date_heading, raw_text)`` per section, in any
+    order. Returns a date string (e.g. "July 1, 2027") only when every section
+    carries an explicit effective clause and they all name one identical calendar
+    date; any silent section, differing date, "day following final enactment", or
+    conditional clause yields None. Pure/DB-free so it is unit-testable.
+    """
+    if not sections:
+        return None
+    clause_texts = [raw for (heading, raw) in sections if (heading or "").strip()]
+    # Every section must carry an explicit clause; a silent section would fall to
+    # the statutory default (a different date), making the bill genuinely mixed.
+    if not clause_texts or len(clause_texts) != len(sections):
+        return None
+    dates: set[str] = set()
+    for raw in clause_texts:
+        flattened = re.sub(r"\s+", " ", raw or "")
+        clauses = _EFFECTIVE_SENTENCE_RE.findall(flattened)
+        if not clauses:
+            return None  # a clause section we cannot parse -> not unambiguous
+        for clause in clauses:
+            if (
+                "day following final enactment" in clause.lower()
+                or _EFFECTIVE_CONDITIONAL_RE.search(clause)
+            ):
+                return None
+            matches = _EFFECTIVE_DATE_RE.findall(clause)
+            if len(matches) != 1:
+                return None  # zero or multiple dates in one clause -> ambiguous
+            month, day, year = matches[0]
+            dates.add(f"{month} {int(day)}, {year}")
+    return next(iter(dates)) if len(dates) == 1 else None
+
+
+def verified_effective_date(db: Session, bill_row) -> str | None:
+    """The enacted bill's statutory effective date, verbatim, or None.
+
+    Runs :func:`effective_date_from_sections` over the current version's sections,
+    but only for enacted bills; otherwise the caller keeps the honest LATEST
+    ACTION treatment (#483 / #455 / #480).
+    """
+    if bill_status_key(bill_row) != "signed_into_law":
+        return None
+    current = next((v for v in (bill_row.versions or []) if v.is_current), None)
+    if current is None:
+        return None
+    rows = db.execute(
+        select(
+            BillVersionSection.effective_date_heading, BillVersionSection.raw_text
+        ).where(BillVersionSection.bill_version_id == current.id)
+    ).all()
+    return effective_date_from_sections([(r[0], r[1]) for r in rows])
+
+
 def bill_version_payloads(bill_row) -> list[dict[str, Any]]:
     """Serialize a bill's versions, appending a synthesized "Session Law"
     version (the final "this is now law" entry) for enacted bills (#438)."""
@@ -676,6 +759,10 @@ def bill_detail(
         "current_status": row.current_status,
         "status_key": bill_status_key(row),
         "latest_action_at": row.latest_action_at,
+        # Verbatim statutory effective date, present only when the enacted text
+        # states one unambiguously; otherwise absent -> UI shows LATEST ACTION
+        # (#483). Never derived from latest_action_at (the #455 bug).
+        "effective_date": verified_effective_date(db, row),
         "official_url": row.official_url,
         "is_omnibus": row.is_omnibus,
         "companion": (
