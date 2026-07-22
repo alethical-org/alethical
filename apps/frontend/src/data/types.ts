@@ -23,6 +23,15 @@ export interface BillAction {
   id: string;
   date: string;
   description: string;
+  /**
+   * Raw source label / detail, carried through unchanged from the feed. The web
+   * Actions timeline (buildActionTimeline) normalizes these into curated
+   * plain-language rows, so it works from the source phrasing rather than the
+   * already-cooked `description`. `description` stays the display label used by
+   * the mobile timeline (unchanged).
+   */
+  actionText?: string;
+  actionDescription?: string;
   /** Roll-call tally for recorded-vote actions (e.g. "62-0"), from roll_call_text. */
   tally?: string;
   /**

@@ -742,6 +742,10 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     id: `${billId}-action-${action.action_number}`,
     date,
     description: title,
+    // Raw source fields for the web timeline's plain-language normalization
+    // (buildActionTimeline); the cooked `description` above is unchanged.
+    actionText: text,
+    actionDescription: desc || undefined,
     tally: action.roll_call_text?.trim() || undefined,
     actionNumber: action.action_number,
   };
