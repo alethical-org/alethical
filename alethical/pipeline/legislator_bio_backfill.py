@@ -83,6 +83,7 @@ class BackfillStats:
     no_profile_url: int = 0
     fetch_errors: int = 0
     written: int = 0
+    cleared: int = 0
 
 
 def normalize_space(value: str) -> str:
@@ -218,6 +219,20 @@ def _as_sentence(value: str) -> str:
     return value.rstrip(" ;,.") + "."
 
 
+# The LRL record uses these literal strings to mean "the member reported no
+# value" -- they are data-absence sentinels, NOT biographical content, so they
+# must never surface as a bio (grounded-neutrality: absence is null, not text).
+_LRL_ABSENCE_SENTINELS = {"none listed", "not listed", "none", "n/a", "na", "unknown"}
+
+
+def _lrl_value(raw_html: str) -> str | None:
+    """Normalized VERBATIM value, or None if empty or a data-absence sentinel."""
+    value = normalize_space(raw_html)
+    if not value or value.strip().lower().rstrip(".") in _LRL_ABSENCE_SENTINELS:
+        return None
+    return value
+
+
 def parse_lrl_bio(html_text: str) -> str | None:
     """Assemble a label-free prose bio from the LRL record's Occupation/Education.
 
@@ -225,7 +240,9 @@ def parse_lrl_bio(html_text: str) -> str | None:
     ``<strong>Occupation (when first elected): </strong> <span>value</span>`` and
     a single ``LabelEducation`` span whose entries are ``<br />``-separated. Only
     the field labels are dropped and the entry/trailing separators normalized --
-    every displayed value is VERBATIM from the source (grounded-neutrality)."""
+    every displayed value is VERBATIM from the source (grounded-neutrality).
+    ``None listed`` and similar data-absence sentinels are treated as null so
+    they never surface as bio text."""
     cleaned = strip_comments(html_text)
 
     occupation = None
@@ -235,7 +252,7 @@ def parse_lrl_bio(html_text: str) -> str | None:
         flags=re.I | re.S,
     )
     if occ_match:
-        occupation = normalize_space(occ_match.group(1)) or None
+        occupation = _lrl_value(occ_match.group(1))
 
     education_entries: list[str] = []
     edu_match = re.search(
@@ -247,7 +264,7 @@ def parse_lrl_bio(html_text: str) -> str | None:
         # Split BEFORE normalize_space (which folds <br> into spaces) so each
         # school stays its own clause instead of a run-together semicolon soup.
         for raw_entry in re.split(r"<br\s*/?>", edu_match.group(1), flags=re.I):
-            entry = normalize_space(raw_entry)
+            entry = _lrl_value(raw_entry)
             if entry:
                 education_entries.append(entry)
 
@@ -256,9 +273,15 @@ def parse_lrl_bio(html_text: str) -> str | None:
     return " ".join(sentences) or None
 
 
-def leg_id_from_url(profile_url: str) -> str | None:
-    """Extract the numeric ``leg_id`` from a Senate member_bio profile_url."""
-    match = re.search(r"leg_id=(\d+)", profile_url or "")
+def lrl_id_from_profile_url(profile_url: str) -> str | None:
+    """Extract the numeric LRL legislator id from a member profile_url.
+
+    The same id keys the LRL record for both chambers -- the Senate url carries
+    it as ``member_bio.php?leg_id={id}`` and the House url as
+    ``/members/profile/{id}`` (House profile id == LRL id, verified 133/133)."""
+    match = re.search(r"leg_id=(\d+)", profile_url or "") or re.search(
+        r"/profile/(\d+)", profile_url or ""
+    )
     return match.group(1) if match else None
 
 
@@ -343,16 +366,19 @@ def backfill(
 
         parsed = parse_bio(html_text, profile_url, chamber_slug)
 
-        # Senate bios live on the LRL record, not the member_bio page. Fetch it
-        # separately (keyed by the profile_url's leg_id) so a member_bio quirk
-        # never suppresses an available Senate bio.
+        # Fall back to the LRL record when the member page carries no bio: for
+        # the Senate that is always (member_bio has no prose); for the House only
+        # the members who left their Biographical Information blank. LRL is keyed
+        # by the same id embedded in the profile_url (House profile id == LRL id).
         biography = parsed.biography
-        if chamber_slug == "senate":
-            leg_id = leg_id_from_url(profile_url)
-            if leg_id:
-                lrl_url = LRL_BIO_URL.format(leg_id=leg_id)
+        lrl_ok = False
+        if biography is None:
+            lrl_id = lrl_id_from_profile_url(profile_url)
+            if lrl_id:
+                lrl_url = LRL_BIO_URL.format(leg_id=lrl_id)
                 try:
                     biography = parse_lrl_bio(fetch_text(sess, lrl_url))
+                    lrl_ok = True
                 except Exception as exc:  # noqa: BLE001
                     stats.fetch_errors += 1
                     print(
@@ -386,6 +412,12 @@ def backfill(
             period.term = parsed.term
             if parsed.biography:
                 legislator_row.biography = parsed.biography
+            elif lrl_ok and legislator_row.biography is not None:
+                # LRL is the authoritative bio source and successfully returned
+                # nothing (e.g. an occupation of "None listed") -- clear a stale
+                # value so a data-absence sentinel never lingers on the profile.
+                legislator_row.biography = None
+                stats.cleared += 1
             db.commit()
             stats.written += 1
         except Exception as exc:  # noqa: BLE001
