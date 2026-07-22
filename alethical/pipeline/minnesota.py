@@ -1569,6 +1569,35 @@ class MinnesotaIngestionPipeline:
                 version.source_artifact_id = html_artifact.id
                 latest_version = version
 
+        # Drop the stale "current" placeholder once real text versions exist (#531).
+        # The empty-fetch fallback below synthesizes a version_code="current" row
+        # when the Revisor hasn't posted text yet; a later ingest adds the real rows
+        # but previously never removed the placeholder, leaving a phantom version
+        # alongside the real ones on the Versions tab. Scoped strictly to the
+        # "current" code and only when *this* fetch carries real versions — never a
+        # blanket "delete versions absent from the fetch", which would wipe real rows
+        # on a transiently-incomplete fetch. The placeholder is text-empty by
+        # construction (created precisely because text was absent), so it carries no
+        # section/RAG/enrichment dependents; if it somehow does, leave it for the
+        # coordinated one-time cleanup (#531) rather than cascade-deleting from here.
+        if canonical.get("text_versions"):
+            stale_current = self.db.scalar(
+                select(BillVersion).where(
+                    BillVersion.bill_id == bill.id,
+                    BillVersion.version_code == "current",
+                )
+            )
+            if stale_current is not None:
+                dependent_sections = self.db.scalar(
+                    select(func.count())
+                    .select_from(BillVersionSection)
+                    .where(BillVersionSection.bill_version_id == stale_current.id)
+                )
+                if not dependent_sections:
+                    self.db.execute(
+                        delete(BillVersion).where(BillVersion.id == stale_current.id)
+                    )
+
         if latest_version is None:
             latest_version = self.db.scalar(
                 select(BillVersion)
