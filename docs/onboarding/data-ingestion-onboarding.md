@@ -3,9 +3,9 @@
 > Practical map of every data source Alethical pulls from, how each is fetched
 > and parsed, how the pipeline is orchestrated, and what you need installed.
 > Verified against the code on 2026-07-03. Companion design docs:
-> [ingestion-pipeline-system-design.md](ingestion-pipeline-system-design.md),
-> [rag-ingestion-system-design.md](rag-ingestion-system-design.md),
-> [db-schema-system-design.md](db-schema-system-design.md).
+> [ingestion-pipeline-system-design.md](../ingestion-pipeline-system-design.md),
+> [rag-ingestion-system-design.md](../rag-ingestion-system-design.md),
+> [db-schema-system-design.md](../db-schema-system-design.md).
 
 ## TL;DR mental model
 
@@ -19,9 +19,9 @@ Everything is orchestrated through an **Oban (Postgres-backed) job queue driven
 from a CLI** — there is **no scheduler/cron**; a human runs the pipeline. All
 batch ingestion is **dry-run by default** and **idempotent**.
 
-Code: [`alethical/pipeline/`](../alethical/pipeline) (batch) ·
-[`alethical/api/`](../alethical/api) (query-time) ·
-[`scripts/`](../scripts) (one-shot loaders). Config: [`.env.example`](../.env.example).
+Code: [`alethical/pipeline/`](../../alethical/pipeline) (batch) ·
+[`alethical/api/`](../../alethical/api) (query-time) ·
+[`scripts/`](../../scripts) (one-shot loaders). Config: [`.env.example`](../../.env.example).
 
 ## Pipeline flow (one page)
 
@@ -76,18 +76,18 @@ offline (tests / no key) they fall back to a deterministic SHA-256 hash — see 
 **E & F — OpenAI** section. All flows are functional.
 
 > Downloadable version of this diagram (for slides / offline):
-> [SVG](data-ingestion-pipeline.svg) · [PNG](data-ingestion-pipeline.png).
+> [SVG](../data-ingestion-pipeline.svg) · [PNG](../data-ingestion-pipeline.png).
 
 ## The source map
 
 | # | Domain | Source | Protocol / Format | Auth | Code |
 |---|--------|--------|-------------------|------|------|
-| A | Bills, actions, sponsors, versions, text | MN Revisor | HTTP `GET`, XML + HTML | none | [minnesota.py](../alethical/pipeline/minnesota.py) |
-| B | Legislator roster & profiles, committees | Joint directory + House/Senate member pages | HTTP `GET`, HTML (regex) | none | [minnesota.py](../alethical/pipeline/minnesota.py), [committee_memberships.py](../alethical/pipeline/committee_memberships.py) |
-| C | Roll-call votes | House vote pages + Senate journal API→PDF | HTTP `GET`, HTML + JSON + PDF | none | [votes.py](../alethical/pipeline/votes.py) |
-| D | District lookup (Find My Legislator) | US Census geocoder + MN LCC-GIS | HTTP `GET`, JSON/GeoJSON | none | [representative_lookup.py](../alethical/api/services/representative_lookup.py) |
-| E | AI bill summaries | OpenAI Batch API | HTTPS, JSON | `OPENAI_API_KEY` | [ai_enrichment.py](../alethical/pipeline/ai_enrichment.py) |
-| F | RAG chat synthesis | OpenAI Responses API | HTTPS `POST`, JSON | `OPENAI_API_KEY` | [me.py](../alethical/api/routers/me.py) |
+| A | Bills, actions, sponsors, versions, text | MN Revisor | HTTP `GET`, XML + HTML | none | [minnesota.py](../../alethical/pipeline/minnesota.py) |
+| B | Legislator roster & profiles, committees | Joint directory + House/Senate member pages | HTTP `GET`, HTML (regex) | none | [minnesota.py](../../alethical/pipeline/minnesota.py), [committee_memberships.py](../../alethical/pipeline/committee_memberships.py) |
+| C | Roll-call votes | House vote pages + Senate journal API→PDF | HTTP `GET`, HTML + JSON + PDF | none | [votes.py](../../alethical/pipeline/votes.py) |
+| D | District lookup (Find My Legislator) | US Census geocoder + MN LCC-GIS | HTTP `GET`, JSON/GeoJSON | none | [representative_lookup.py](../../alethical/api/services/representative_lookup.py) |
+| E | AI bill summaries | OpenAI Batch API | HTTPS, JSON | `OPENAI_API_KEY` | [ai_enrichment.py](../../alethical/pipeline/ai_enrichment.py) |
+| F | RAG chat synthesis | OpenAI Responses API | HTTPS `POST`, JSON | `OPENAI_API_KEY` | [me.py](../../alethical/api/routers/me.py) |
 | G | Map tiles | OpenStreetMap | HTTP tiles | none | frontend `MapPinPicker.tsx` |
 
 **Timeframe scope:** hardcoded to the **94th Legislature, 2025 regular session** —
@@ -135,8 +135,8 @@ Reference URL shapes: `https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/` �
   (`https://www.house.mn.gov/hinfo/leginfo/memroster.pdf`, linked as the "All
   Members Roster" from both `senate.mn` and `house.mn.gov`) is the canonical
   authority for **who currently holds each seat**. `reconcile_current_members`
-  ([roster_pdf.py](../alethical/pipeline/roster_pdf.py) +
-  [minnesota.py](../alethical/pipeline/minnesota.py)) parses it and sets
+  ([roster_pdf.py](../../alethical/pipeline/roster_pdf.py) +
+  [minnesota.py](../../alethical/pipeline/minnesota.py)) parses it and sets
   `is_current = False` on any current member the PDF no longer lists (vacated,
   or the seat is now held by someone else). Rows are never deleted. Run it via
   `just reconcile-roster` (dry-run) / `just reconcile-roster apply=true`, or
@@ -144,7 +144,7 @@ Reference URL shapes: `https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/` �
   roster load also runs it when passed `--reconcile-roster`. **Re-run at each new
   biennium (~every 2 years, against the new `--session-slug`) and whenever a
   member leaves mid-session.** Spec:
-  [legislator-roster-canonical-membership-spec.md](legislator-roster-canonical-membership-spec.md).
+  [legislator-roster-canonical-membership-spec.md](../legislator-roster-canonical-membership-spec.md).
 
 ## C — Roll-call votes (chamber-specific)
 
@@ -210,7 +210,7 @@ chunks. Query-time, via `POST /api/v1/me/chat-sessions/{id}/messages`.
 ## Orchestration — Oban job queue + CLI
 
 All batch ingestion flows through an **Oban** Postgres-backed queue
-([oban.py](../alethical/pipeline/oban.py), config [oban.toml](../oban.toml)). Two
+([oban.py](../../alethical/pipeline/oban.py), config [oban.toml](../../oban.toml)). Two
 DB **targets**: `local` (Docker Compose Postgres) and `production` (Supabase).
 
 CLI: `uv run python -m alethical.pipeline.oban --target {local|production} {install|enqueue <kind>|drain <queue>}`
@@ -228,7 +228,7 @@ CLI: `uv run python -m alethical.pipeline.oban --target {local|production} {inst
 
 **Safety:** jobs are `--dry-run` by default — pass `--write --allow-writes` to
 persist. A **task-key dedupe** prevents duplicate concurrent jobs. Typical run
-(via [justfile](../justfile) wrappers):
+(via [justfile](../../justfile) wrappers):
 
 ```bash
 just pipeline local --dry-run                 # preview
@@ -264,8 +264,8 @@ just pipeline local --write --allow-writes     # commit after review
 
 - **Secrets/env:** `OPENAI_API_KEY` is the only external credential (AI/chat only;
   all gov scraping works without it). DB via `DATABASE_URL` or Supabase vars. See
-  [`.env.example`](../.env.example) for every variable, grouped by source, and
-  [`CONTRIBUTING.md`](../CONTRIBUTING.md) for setup.
+  [`.env.example`](../../.env.example) for every variable, grouped by source, and
+  [`CONTRIBUTING.md`](../../CONTRIBUTING.md) for setup.
 - **System deps:** `uv`, Postgres **with pgvector**, and **`pdftotext`
   (poppler-utils)** for Senate votes; the `codex` CLI only for the Codex backend.
 

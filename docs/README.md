@@ -2,6 +2,13 @@
 
 Project documentation lives here so the repository root stays focused on runnable code and configuration.
 
+## Onboarding & Education
+
+Start here if you're new, or reaching for the "how does this actually work / how is it paid for" reference. These grow as the system does.
+
+- [AI models & billing](onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
+- [Data ingestion onboarding guide](onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
+
 ## Product And Design
 
 - [V1 scope](v1-scope.md)
@@ -18,7 +25,6 @@ Project documentation lives here so the repository root stays focused on runnabl
 - [Database schema system design](db-schema-system-design.md)
 - [Ingestion pipeline system design](ingestion-pipeline-system-design.md)
 - [RAG ingestion system design](rag-ingestion-system-design.md)
-- [Data ingestion onboarding guide](data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
 - [Schema query validation](schema-query-validation.md)
 
 ## Local Development
