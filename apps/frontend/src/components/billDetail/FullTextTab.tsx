@@ -17,6 +17,18 @@ const HIGHLIGHT_MS = 2500;
 // shared ?tab=fulltext#ft-<id> URL scrolls to it on load (grounded-answers rule
 // 5 — the location is URL-addressable). The same component renders on web and
 // on the mobile single-scroll page.
+
+// Statute source text carries long runs of blank lines between subdivision
+// headnotes and their bodies; collapse them to a single paragraph break (and
+// drop trailing spaces) so the rendered section reads cleanly instead of with
+// large vertical gaps.
+function cleanSectionText(raw: string): string {
+  return raw
+    .replace(/[ \t]+$/gm, '')
+    .replace(/\n{2,}/g, '\n\n')
+    .trim();
+}
+
 export function FullTextTab({
   bill,
   targetSectionId,
@@ -160,7 +172,7 @@ export function FullTextTab({
                   <Text style={styles.labelChipText}>{label}</Text>
                 </View>
               </View>
-              <Text style={styles.bodyText}>{section.text}</Text>
+              <Text style={styles.bodyText}>{cleanSectionText(section.text)}</Text>
             </View>
           );
         })}
