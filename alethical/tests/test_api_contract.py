@@ -775,6 +775,34 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     assert lookup_payload["senate_legislator"] is not None
 
 
+def test_bill_search_matches_inflected_word_roots(client):
+    """Root-word keyword matching (#571): a search whose word shares a root with
+    the bill text resolves, even when neither is a substring of the other,
+    mirroring the reported "plumbing" → "plumbers" failure. SF 1832's title says
+    "...jobs; establishing a biennial..."; searching "establishes" (root
+    "establish") must find it even though raw ``ILIKE %establishes%`` — the old
+    behavior — matches nothing (neither string is a substring of the other)."""
+    session = {"session": "94-2025-regular"}
+
+    roots = client.get("/api/v1/bills", params={**session, "q": "establishes"})
+    assert roots.status_code == 200
+    assert 1832 in [b["file_number"] for b in roots.json()["data"]]
+
+    # Words match order-independently: the title has "jobs" before
+    # "establishing", so the reversed "establishing jobs" — which the old
+    # contiguous-substring match missed — still resolves.
+    multi = client.get("/api/v1/bills", params={**session, "q": "establishing jobs"})
+    assert multi.status_code == 200
+    assert 1832 in [b["file_number"] for b in multi.json()["data"]]
+
+    # The multi-type /search endpoint uses the same normalization.
+    combined = client.get(
+        "/api/v1/search", params={"q": "establishes", "types": "bills"}
+    )
+    assert combined.status_code == 200
+    assert 1832 in [b["file_number"] for b in combined.json()["data"]["bills"]]
+
+
 def test_legislator_detail_returns_ordered_service_history(client):
     """The detail endpoint exposes the full ordered Legislative Service history
     (issue #486), not just current_service: one chamber-qualified election line

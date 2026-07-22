@@ -17,6 +17,7 @@ import {
   useToggleTrackedBill,
   useTrackedBills,
 } from '../../hooks/useAppQueries';
+import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { BillResultCard } from '../../components/search/BillResultCard';
 import { ReturnToast } from '../../components/search/ReturnToast';
 import { SignInModal } from '../../components/search/SignInModal';
@@ -181,6 +182,11 @@ export function SearchBillsScreen() {
   const submitSearch = () => {
     updateFilters({ q: queryInput.trim() || undefined });
   };
+
+  // Search as the user types: push the debounced draft into the URL so results
+  // update without pressing Enter or the Search button (which still submit
+  // immediately via submitSearch).
+  useDebouncedSearchCommit(queryInput, query, (value) => updateFilters({ q: value || undefined }));
 
   // Mirror the prior Clear: reset keyword/chamber/status/issue/omnibus/page but
   // keep the chosen session.
