@@ -263,14 +263,17 @@ def test_bill_search_supports_bill_number_query(client):
 
     # A bare number — no chamber prefix — resolves the bill by file_number in
     # either chamber, so users need not know the HF/SF prefix. Leading zeros are
-    # tolerated the same as the prefixed form.
+    # tolerated the same as the prefixed form. It resolves ONLY by file number:
+    # exactly the one seeded SF1832, not any text that happens to contain "1832".
     for query in ("1832", " 1832 ", "01832"):
         bare = client.get(
             "/api/v1/bills",
             params={"session": "94-2025-regular", "q": query, "limit": 20},
         )
         assert bare.status_code == 200
-        assert "94-2025-SF1832" in [b["id"] for b in bare.json()["data"]], query
+        bare_payload = bare.json()
+        assert [b["id"] for b in bare_payload["data"]] == ["94-2025-SF1832"], query
+        assert bare_payload["page"]["total"] == 1, query
 
     # Keyword search is unchanged — a plain word still matches title/description.
     keyword_response = client.get(
@@ -279,6 +282,69 @@ def test_bill_search_supports_bill_number_query(client):
     )
     assert keyword_response.status_code == 200
     assert keyword_response.json()["data"]
+
+
+def test_bill_number_query_is_an_id_lookup_not_free_text(client):
+    """A numeric query is a bill-ID lookup, so it must NOT also match bills that
+    merely mention the digits in their title/description (#134). Regression for
+    "334" returning 9 bills — most with no 334 in their badge — because the number
+    clause was OR'd with the title/description substring search. Seed a target
+    bill numbered 424242 and a decoy that references "424242" only in its text;
+    searching the bare number must return the target alone."""
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        seed = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+        )
+        session_id, chamber_id = seed.session_id, seed.chamber_id
+    keys = ["94-2025-SF424242", "94-2025-HF424243"]
+    try:
+        with Session(get_engine()) as db:
+            db.add_all(
+                [
+                    schema.Bill(
+                        session_id=session_id,
+                        chamber_id=chamber_id,
+                        bill_key="94-2025-SF424242",
+                        file_type="SF",
+                        file_number=424242,
+                        title="Bill-number lookup target",
+                        description="A wholly unrelated appropriations measure.",
+                        current_status="Introduced",
+                        # List surfaces gate on this denormalized flag (#505);
+                        # set it so the fixture bills appear in search results.
+                        has_current_summary=True,
+                    ),
+                    schema.Bill(
+                        session_id=session_id,
+                        chamber_id=chamber_id,
+                        bill_key="94-2025-HF424243",
+                        file_type="HF",
+                        file_number=424243,
+                        title="Decoy that only mentions 424242 in prose",
+                        description="Amends section 424242 of statute; not that bill.",
+                        current_status="Introduced",
+                        has_current_summary=True,
+                    ),
+                ]
+            )
+            db.commit()
+
+        for endpoint, extract in (
+            ("/api/v1/bills", lambda p: [b["id"] for b in p["data"]]),
+            ("/api/v1/search", lambda p: [b["id"] for b in p["data"]["bills"]]),
+        ):
+            resp = client.get(
+                endpoint,
+                params={"session": "94-2025-regular", "q": "424242", "limit": 20},
+            )
+            assert resp.status_code == 200
+            ids = extract(resp.json())
+            assert ids == ["94-2025-SF424242"], (endpoint, ids)
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(delete(schema.Bill).where(schema.Bill.bill_key.in_(keys)))
+            db.commit()
 
 
 def test_legislator_list_supports_offset_pagination_and_total(client):

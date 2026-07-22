@@ -488,11 +488,17 @@ def bills(
         sort=sort,
     )
     if q:
-        keyword_clauses = [Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%")]
         number_clause = bill_number_clause(q)
         if number_clause is not None:
-            keyword_clauses.append(number_clause)
-        stmt = stmt.where(or_(*keyword_clauses))
+            # A bill-number query ("SF334", "334") is an ID lookup, not free text.
+            # Match file_type/file_number exclusively so a bare number resolves the
+            # bill by its badge and doesn't also pull in every bill that merely
+            # mentions the digits in its title or description (#134).
+            stmt = stmt.where(number_clause)
+        else:
+            stmt = stmt.where(
+                or_(Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%"))
+            )
     if chamber:
         stmt = stmt.where(Bill.chamber.has(Chamber.slug == chamber.strip().lower()))
     if status:
@@ -1307,11 +1313,14 @@ def search(
     session_row = get_session_by_slug(db, session)
     payload: dict[str, list[dict]] = {"bills": [], "legislators": []}
     if "bills" in type_set:
-        bill_clauses = [Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%")]
         number_clause = bill_number_clause(q)
         if number_clause is not None:
-            bill_clauses.append(number_clause)
-        bills_stmt = bill_list_stmt(session_row.id).where(or_(*bill_clauses))
+            # Bill-number query → exclusive ID lookup, not free text (see /bills).
+            bills_stmt = bill_list_stmt(session_row.id).where(number_clause)
+        else:
+            bills_stmt = bill_list_stmt(session_row.id).where(
+                or_(Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%"))
+            )
         payload["bills"] = [
             bill_list_item(row).model_dump(exclude_none=True)
             for row in db.scalars(bills_stmt.limit(limit)).all()
