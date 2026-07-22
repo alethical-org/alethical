@@ -9,6 +9,7 @@ import {
   chamberBillLabel,
   chiefAuthor,
   coAuthorCount,
+  formatAuthorDistrict,
   formatNiceDate,
   isKnownDistrict,
   partyFull,
@@ -143,7 +144,9 @@ export function FactsRail({
             {isKnownDistrict(author.district) ? (
               <View style={styles.authorFieldRow}>
                 <Text style={styles.authorFieldLabel}>District</Text>
-                <Text style={styles.authorFieldValue}>{author.district}</Text>
+                <Text style={styles.authorFieldValue}>
+                  {formatAuthorDistrict(author.district, author.chamber)}
+                </Text>
               </View>
             ) : null}
           </View>

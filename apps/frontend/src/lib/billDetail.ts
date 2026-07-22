@@ -125,6 +125,27 @@ export function isKnownDistrict(district: string | undefined): boolean {
   return !!district && !/unknown/i.test(district);
 }
 
+// Format a sponsor's district for the rail's CHIEF AUTHOR card. The served value is
+// the district *label* ("District 51" / "District 15B"); the design shows the
+// chamber district code — "SD 51" for a senator, the bare "15B" for a House member
+// (House districts already carry the A/B letter, Senate districts are numeric). A
+// represented city/area name ("Bloomington (SD 51)") is not in the corpus yet — the
+// District row has no city and the Legislator has no hometown field — so the interim
+// value is the code alone; wrap it as "{City} (SD 51)" once a city is ingested.
+// Falls back to the raw label when no code can be parsed, so nothing ever breaks.
+export function formatAuthorDistrict(
+  district: string | undefined,
+  chamber: string | undefined,
+): string {
+  const label = (district || '').trim();
+  const match = label.match(/(\d+[A-Za-z]?)/);
+  if (!match) return label;
+  const code = match[1].toUpperCase();
+  if (chamber === 'Senate') return `SD ${code}`;
+  if (chamber === 'House') return code;
+  return label;
+}
+
 // Parse a date string that may be ISO ("2025-05-30"), a display date
 // ("MAY 30, 2025" / "May 30, 2025"), or empty. Returns null when unparseable.
 export function parseActionDate(value: string | undefined | null): Date | null {
@@ -393,6 +414,21 @@ export function plainBillSummary(
   // 4. Capitalize the leading word (the verb now heads the sentence).
   if (s) s = s.charAt(0).toUpperCase() + s.slice(1);
   return s;
+}
+
+// Clean AI key points for display the same way plainBillSummary cleans a summary:
+// strip Minnesota Statutes citations and any bill-number prefix so no key point
+// reads as a bare "Amends Minnesota Statutes 2024, section 120B.123 …" line
+// (grounded-answers: key points are plain-language statements of what the bill
+// does — extends rule 9 beyond the summary). A point that is ONLY a citation has no
+// plain-language effect left once the citation is stripped, so it collapses to
+// empty and is dropped — we never fabricate the effect the source didn't state.
+// The durable fix is at ingestion (the enrichment prompt); this is the interim
+// display cleaner, mirroring plainBillSummary's role for summaries.
+export function plainKeyPoints(points: string[] | undefined): string[] {
+  return (points ?? [])
+    .map((point) => plainBillSummary(point))
+    .filter((point) => /[a-z]/i.test(point));
 }
 
 // The chief author sponsor (role chief_author), else the first sponsor.

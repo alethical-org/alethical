@@ -4,6 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
+import { plainKeyPoints } from '../../lib/billDetail';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { FactsRail } from './FactsRail';
 import { SourceLine } from './SourceLine';
@@ -38,7 +39,7 @@ export function SummaryTab({
   // Jump to a cited statute section in the Full Text tab. No-op if absent.
   onCitationPress?: (sectionId: string) => void;
 }) {
-  const keyPoints = bill.aiAnalysis?.keyPoints ?? [];
+  const keyPoints = plainKeyPoints(bill.aiAnalysis?.keyPoints);
   const summary = bill.aiAnalysis?.summary ?? '';
   const citations = bill.citations ?? [];
 
