@@ -9,6 +9,8 @@ export interface Citation {
   fullText?: string;
   highlightText?: string;
   url: string;
+  /** Statute section this key point cites, keyed to a Full Text section (#377). */
+  sectionId: string;
 }
 
 export interface OfficialLink {
@@ -42,6 +44,10 @@ export interface BillVersion {
    *  version is current, carrying a stale "last-touched" date rather than a real
    *  posting date. Dedup in orderBillVersions prefers the real record over it. */
   isCurrentPointer?: boolean;
+  /** Revisor version_code (e.g. "1", "e1"); addresses the version's text endpoint. */
+  versionCode: string;
+  /** Whether this is the bill's current/latest version. */
+  isCurrent: boolean;
 }
 
 export interface VoteBreakdown {

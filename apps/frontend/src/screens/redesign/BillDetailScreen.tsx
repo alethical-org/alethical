@@ -45,6 +45,7 @@ import {
   versionTrackTag,
 } from '../../lib/billDetail';
 import { Skeleton } from '../../components/Skeleton';
+import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
 // Bill Detail — mobile-first, single scrolling page (docs/mockups/bill-detail-mobile).
@@ -77,6 +78,7 @@ const SECTIONS = [
   { id: 'actions', label: 'Actions' },
   { id: 'votes', label: 'Votes' },
   { id: 'versions', label: 'Versions' },
+  { id: 'fulltext', label: 'Full Text' },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]['id'];
 
@@ -300,8 +302,11 @@ function BillDetailMobileScreen() {
     actions: 0,
     votes: 0,
     versions: 0,
+    fulltext: 0,
   });
   const [active, setActive] = useState<SectionId>('summary');
+  // Section a cited-section chip asked to jump to; consumed by FullTextTab.
+  const [ftAnchor, setFtAnchor] = useState<string | null>(null);
   const didInitialJump = useRef(false);
 
   const onSectionLayout = useCallback((id: SectionId, y: number) => {
@@ -594,9 +599,22 @@ function BillDetailMobileScreen() {
                   </View>
                   <View style={styles.citedChips}>
                     {vm.citations.map((c, i) => (
-                      <View key={`${c.id}-${i}`} style={styles.citedChip}>
+                      <Pressable
+                        key={`${c.id}-${i}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Jump to ${c.label} in Full Text`}
+                        disabled={!c.sectionId}
+                        onPress={() => {
+                          setFtAnchor(c.sectionId);
+                          jumpTo('fulltext');
+                        }}
+                        style={({ pressed }) => [
+                          styles.citedChip,
+                          pressed && styles.citedChipPressed,
+                        ]}
+                      >
                         <Text style={styles.citedChipText}>{c.label}</Text>
-                      </View>
+                      </Pressable>
                     ))}
                   </View>
                 </View>
@@ -785,7 +803,7 @@ function BillDetailMobileScreen() {
             </Section>
 
             {/* 6 — Versions */}
-            <Section id="versions" onLayout={onSectionLayout} style={styles.lastSection}>
+            <Section id="versions" onLayout={onSectionLayout}>
               <Text accessibilityRole="header" style={styles.h2}>
                 Versions
               </Text>
@@ -809,6 +827,23 @@ function BillDetailMobileScreen() {
                 <Text style={styles.emptyLine}>No published versions yet.</Text>
               )}
               <Text style={styles.sourceLine}>Source: Minnesota Legislature · revisor.mn.gov</Text>
+            </Section>
+
+            {/* 7 — Full Text */}
+            <Section id="fulltext" onLayout={onSectionLayout} style={styles.lastSection}>
+              <Text accessibilityRole="header" style={styles.h2}>
+                Full Text
+              </Text>
+              <FullTextTab
+                bill={bill}
+                targetSectionId={ftAnchor}
+                onAnchorConsumed={() => setFtAnchor(null)}
+                updatedLabel={
+                  bill.updatedAt && bill.updatedAt !== 'Unknown'
+                    ? `Updated ${formatNiceDate(bill.updatedAt)}`
+                    : 'Minnesota Legislature'
+                }
+              />
             </Section>
 
             <Footer
@@ -1890,6 +1925,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 11,
   },
+  citedChipPressed: { opacity: 0.6 },
   citedChipText: {
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.meta,

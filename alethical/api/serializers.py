@@ -276,6 +276,7 @@ def ai_citation_payloads(content, official_url) -> list[api_schemas.AICitationPa
                 label=label.strip(),
                 url=official_url,
                 excerpt=quote.strip(),
+                section_id=section_id.strip(),
             )
         )
     return citations

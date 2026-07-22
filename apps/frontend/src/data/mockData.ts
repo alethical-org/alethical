@@ -143,6 +143,7 @@ const billCitation = (id: string, label: string, excerpt: string, url: string): 
   label,
   excerpt,
   url,
+  sectionId: '',
 });
 
 const bills: Bill[] = [
@@ -200,6 +201,8 @@ const bills: Bill[] = [
         date: '2026-02-12',
         summary: 'Initial omnibus draft covering workforce and economic development programs.',
         url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/1832/versions/0/',
+        versionCode: '0',
+        isCurrent: false,
       },
       {
         id: 'ver-sf1832-2',
@@ -207,6 +210,8 @@ const bills: Bill[] = [
         date: '2026-03-15',
         summary: 'Adds updated appropriations and reporting language.',
         url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/1832/versions/latest/',
+        versionCode: '2',
+        isCurrent: true,
       },
     ],
     votes: [
@@ -295,6 +300,8 @@ const bills: Bill[] = [
         date: '2026-02-19',
         summary: 'Initial higher education omnibus draft.',
         url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/2483/versions/0/',
+        versionCode: '0',
+        isCurrent: false,
       },
       {
         id: 'ver-sf2483-1',
@@ -302,6 +309,8 @@ const bills: Bill[] = [
         date: '2026-03-12',
         summary: 'Adds scholarship and reporting changes.',
         url: 'https://www.revisor.mn.gov/bills/94/2025/0/SF/2483/versions/latest/',
+        versionCode: '1',
+        isCurrent: true,
       },
     ],
     votes: [],
@@ -376,6 +385,8 @@ const bills: Bill[] = [
         date: '2026-02-09',
         summary: 'Creates the initial appropriation for forensic interview training scholarships.',
         url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/',
+        versionCode: '0',
+        isCurrent: true,
       },
     ],
     votes: [
@@ -450,6 +461,8 @@ const bills: Bill[] = [
         date: '2026-02-22',
         summary: 'Introduces an infrastructure grant framework for affordable housing sites.',
         url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/2380/versions/latest/',
+        versionCode: '0',
+        isCurrent: true,
       },
     ],
     votes: [],

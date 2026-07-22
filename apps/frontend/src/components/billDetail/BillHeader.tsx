@@ -6,13 +6,14 @@ import { theme as t } from '../../theme/tokens';
 import { useResponsive } from '../../hooks/useResponsive';
 import { isWeb, useHover } from './interactions';
 
-export type DetailTab = 'summary' | 'actions' | 'votes' | 'versions';
+export type DetailTab = 'summary' | 'actions' | 'votes' | 'versions' | 'fulltext';
 
 const TABS: Array<{ key: DetailTab; label: string }> = [
   { key: 'summary', label: 'Summary' },
   { key: 'actions', label: 'Actions' },
   { key: 'votes', label: 'Votes' },
   { key: 'versions', label: 'Versions' },
+  { key: 'fulltext', label: 'Full Text' },
 ];
 
 // Bill header — stable across tabs (spec §Header — title-first). H1 title (hero) +

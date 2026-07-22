@@ -125,6 +125,7 @@ class AICitationPayload(BaseModel):
     label: str
     url: str
     excerpt: str
+    section_id: str
 
 
 class AIAnalysisPayload(BaseModel):

@@ -25,6 +25,7 @@ export function SummaryTab({
   onOpenBill,
   isDesktop,
   updatedLabel,
+  onCitationPress,
 }: {
   bill: Bill;
   showAsk: boolean;
@@ -34,6 +35,8 @@ export function SummaryTab({
   onOpenBill: (billId: string) => void;
   isDesktop: boolean;
   updatedLabel: string;
+  // Jump to a cited statute section in the Full Text tab. No-op if absent.
+  onCitationPress?: (sectionId: string) => void;
 }) {
   const keyPoints = bill.aiAnalysis?.keyPoints ?? [];
   const summary = bill.aiAnalysis?.summary ?? '';
@@ -89,14 +92,16 @@ export function SummaryTab({
               </View>
               <View style={styles.excerpts}>
                 {citations.map((c) => (
-                  <View key={c.id} style={styles.excerptCard}>
-                    <View style={styles.excerptChipRow}>
-                      <View style={styles.excerptChip}>
-                        <Text style={styles.excerptChipText}>{c.label}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.excerptQuote}>{c.excerpt}</Text>
-                  </View>
+                  <CitationCard
+                    key={c.id}
+                    label={c.label}
+                    excerpt={c.excerpt}
+                    onPress={
+                      onCitationPress && c.sectionId
+                        ? () => onCitationPress(c.sectionId)
+                        : undefined
+                    }
+                  />
                 ))}
               </View>
             </>
@@ -196,6 +201,39 @@ function AskModule({
   );
 }
 
+// "From the bill" citation card. When onPress is provided it becomes a button
+// that jumps to the cited section in the Full Text tab; otherwise it stays a
+// static card (the prop is absent).
+function CitationCard({
+  label,
+  excerpt,
+  onPress,
+}: {
+  label: string;
+  excerpt: string;
+  onPress?: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  const pressable = !!onPress;
+  return (
+    <Pressable
+      accessibilityRole={pressable ? 'button' : undefined}
+      accessibilityLabel={pressable ? `Jump to ${label} in Full Text` : undefined}
+      onPress={onPress}
+      disabled={!pressable}
+      {...(pressable ? hover : {})}
+      style={[styles.excerptCard, pressable && hovered && styles.excerptCardHover]}
+    >
+      <View style={styles.excerptChipRow}>
+        <View style={styles.excerptChip}>
+          <Text style={styles.excerptChipText}>{label}</Text>
+        </View>
+      </View>
+      <Text style={styles.excerptQuote}>{excerpt}</Text>
+    </Pressable>
+  );
+}
+
 function AskChip({ label, onPress }: { label: string; onPress: () => void }) {
   const [hovered, hover] = useHover();
   return (
@@ -278,6 +316,10 @@ const styles = StyleSheet.create({
     borderRadius: t.radii.lg,
     paddingVertical: 14,
     paddingHorizontal: 16,
+  },
+  excerptCardHover: {
+    borderColor: t.colors.purple.border,
+    backgroundColor: t.colors.purple.tint,
   },
   excerptChipRow: { flexDirection: 'row' },
   excerptChip: {
