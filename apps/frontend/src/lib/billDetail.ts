@@ -1,4 +1,5 @@
 import { Bill, BillAction, BillVersion, IndividualVote, VoteEvent } from '../data/types';
+import { normalizeMotion } from './motionNormalize';
 
 // Shared logic for the redesign Bill Detail page (screens/redesign/BillDetailScreen).
 // Kept framework-free (pure functions) so it is unit-testable and reused by the tab
@@ -558,6 +559,23 @@ export function buildActionTimeline(
     const rollIdx = hasTally
       ? rollIndexForAction({ tally: item.tally } as BillAction, votes)
       : null;
+    // A passage row that maps to a recorded VoteEvent is titled via the SHARED
+    // motionNormalize map (owned by the Votes tab, #557) so a given roll call
+    // reads identically in both places (#560). Mirror the Votes card's exact
+    // "{Chamber} · {title}" form — which also keeps the chamber label point 3
+    // (#552) requires. Fall back to the tally-size chamber when the DB chamber
+    // is absent. Unmatched passages keep the local ACTION_RULES title.
+    let title = item.title;
+    if (item.kind === 'passage' && rollIdx != null && votes[rollIdx]) {
+      const v = votes[rollIdx];
+      const norm = normalizeMotion({
+        motionText: v.motion,
+        resultText: v.result,
+        chamber: v.chamber,
+      });
+      const chamber = v.chamber ?? chamberFromTally(item.tally);
+      title = chamber ? `${chamber} · ${norm.title}` : norm.title;
+    }
     return {
       id: `${item.idx}-${item.actionNumber}`,
       date: formatMonoDate(item.rawDate),
@@ -565,7 +583,7 @@ export function buildActionTimeline(
         item.endDate && item.endDate !== item.rawDate
           ? `${formatMonoDate(item.rawDate)} – ${formatMonoDate(item.endDate)}`
           : undefined,
-      title: item.title,
+      title,
       dot: dotForRow(item.kind, upcoming, hasTally),
       muted: item.kind === 'authorAdd',
       tally: hasTally ? item.tally!.replace(/-/g, '–') : undefined,
