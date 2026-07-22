@@ -7,7 +7,7 @@ type WebRouteTarget =
   | { kind: 'bill'; billId: string; tab?: string; track?: boolean }
   | { kind: 'legislator'; legislatorId: string }
   | { kind: 'bills'; params: Record<string, string> }
-  | { kind: 'legislators' }
+  | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator' }
   | { kind: 'privacy' }
   | { kind: 'terms' }
@@ -55,6 +55,22 @@ function billsFilterParams(searchParams: URLSearchParams): Record<string, string
   return params;
 }
 
+// URL-addressable Search Legislators filters — same shape as Bills so a filtered
+// roster is shareable, reload-safe, and survives the browser Back button after
+// visiting a legislator profile.
+const LEGISLATORS_FILTER_PARAMS = ['q', 'chamber', 'party', 'session', 'page'] as const;
+
+function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, string> {
+  const params: Record<string, string> = {};
+  for (const key of LEGISLATORS_FILTER_PARAMS) {
+    const value = searchParams.get(key);
+    if (value) {
+      params[key] = value;
+    }
+  }
+  return params;
+}
+
 export function targetFromPathname(pathname: string): WebRouteTarget {
   const normalized = normalizePathname(pathname);
   const searchParams = searchParamsFromPathname(pathname);
@@ -69,7 +85,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       return { kind: 'bills', params: billsFilterParams(searchParams) };
     }
     if (segments[0] === 'legislators') {
-      return { kind: 'legislators' };
+      return { kind: 'legislators', params: legislatorsFilterParams(searchParams) };
     }
     if (segments[0] === 'ask') {
       return { kind: 'ask', params: { q: searchParams.get('q') ?? undefined } };
@@ -183,8 +199,17 @@ export function pathnameFromNavigationState(
       const query = params.toString();
       return query ? `/bills?${query}` : '/bills';
     }
-    case 'Legislators':
-      return '/legislators';
+    case 'Legislators': {
+      const params = new URLSearchParams();
+      for (const key of LEGISLATORS_FILTER_PARAMS) {
+        const value = (activeRoute.params as Record<string, unknown> | undefined)?.[key];
+        if (value) {
+          params.set(key, String(value));
+        }
+      }
+      const query = params.toString();
+      return query ? `/legislators?${query}` : '/legislators';
+    }
     case 'Tracked':
       return '/tracked';
     case 'Chat':
@@ -310,7 +335,7 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
       };
     case 'legislators':
       return {
-        routes: [homeTabs, { name: 'Legislators' }],
+        routes: [homeTabs, { name: 'Legislators', params: target.params }],
         index: 1,
       };
     case 'privacy':
