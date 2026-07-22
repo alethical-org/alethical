@@ -1,20 +1,30 @@
-"""Tests for the verified statutory effective-date extractor (#483).
+"""Tests for the verified statutory effective-date extractor (#483 / #562).
 
 Grounded-answers rule 9: a bill's EFFECTIVE {date} label may only show a date the
-enacted text states unambiguously. These cases use real clause language sampled
-from the production corpus; the extractor must return a single verbatim date only
-when every section agrees on one explicit calendar date, and None otherwise (so
-the UI keeps the honest LATEST ACTION fallback of #455 / #480).
+enacted text states unambiguously. These cases use real clause language and real
+action shapes sampled from the production corpus. Tier A: the extractor returns a
+single verbatim date only when every section agrees on one explicit calendar date.
+Tier B (#562): a bill whose every section is "the day following final enactment"
+shows the Revisor's own published "Effective date" action, cross-checked to fall
+just after the governor-signature date. Anything else -> None (the UI keeps the
+honest LATEST ACTION fallback of #455 / #480).
 """
 
 from types import SimpleNamespace
 
 from alethical.api.routers.public import (
+    effective_date_day_following_enactment,
     effective_date_from_sections,
+    governor_approval_date,
+    revisor_effective_date_action,
     verified_effective_date,
 )
 
 H = "EFFECTIVE DATE."  # the parsed heading label (the date lives in raw_text)
+
+
+def _action(text, description):
+    return SimpleNamespace(action_text=text, action_description=description)
 
 
 def test_hf4138_single_explicit_date():
@@ -122,3 +132,116 @@ def test_verified_effective_date_gates_on_enacted():
 def test_verified_effective_date_none_without_current_version():
     bill = _bill("Chapter number", [SimpleNamespace(id=1, is_current=False)])
     assert verified_effective_date(db=None, bill_row=bill) is None
+
+
+# --- Tier B: "the day following final enactment" (#562) ---------------------
+
+
+def test_day_following_shape_true_when_all_sections_match():
+    # HF 4987 shape: single section, pure "day following final enactment".
+    sections = [
+        (
+            H,
+            "... is designated as a memorial highway. This section is effective "
+            "the day following final enactment.",
+        )
+    ]
+    assert effective_date_day_following_enactment(sections) is True
+
+
+def test_day_following_shape_true_multi_section():
+    sections = [
+        (H, "This section is effective the day following final enactment."),
+        (
+            H,
+            "The commissioner shall act. This section is effective the day "
+            "following final enactment.",
+        ),
+    ]
+    assert effective_date_day_following_enactment(sections) is True
+
+
+def test_day_following_shape_false_when_a_section_is_silent():
+    # A silent section falls to the statutory default -> genuinely mixed, not Tier B.
+    sections = [
+        (H, "This section is effective the day following final enactment."),
+        (None, "Amended statute text with no effective clause."),
+    ]
+    assert effective_date_day_following_enactment(sections) is False
+
+
+def test_day_following_shape_false_when_mixed_with_explicit_date():
+    # HF 4591 shape: some sections dated, some day-following -> mixed, not Tier B.
+    sections = [
+        (H, "This section is effective the day following final enactment."),
+        (H, "This section is effective February 1, 2028."),
+    ]
+    assert effective_date_day_following_enactment(sections) is False
+
+
+def test_day_following_shape_false_for_tier_a_bill():
+    sections = [(H, "This section is effective July 1, 2027.")]
+    assert effective_date_day_following_enactment(sections) is False
+
+
+def test_day_following_shape_false_when_no_parseable_clause():
+    sections = [(H, "Total Appropriation $ 162,111,000 from the general fund.")]
+    assert effective_date_day_following_enactment(sections) is False
+
+
+def test_day_following_shape_false_for_empty():
+    assert effective_date_day_following_enactment([]) is False
+
+
+def test_revisor_effective_date_single_clean_date():
+    # SF 3623 shape.
+    date = revisor_effective_date_action([_action("Effective date", "03/28/2026")])
+    assert (date.year, date.month, date.day) == (2026, 3, 28)
+
+
+def test_revisor_effective_date_two_digit_year():
+    date = revisor_effective_date_action([_action("Effective date", "05/09/25")])
+    assert (date.year, date.month, date.day) == (2025, 5, 9)
+
+
+def test_revisor_effective_date_various_dates_returns_none():
+    # HF 1163 shape: one date AND a "various dates" marker -> genuinely mixed.
+    actions = [
+        _action("Effective date", "05/07/25"),
+        _action("Effective date", "various dates"),
+    ]
+    assert revisor_effective_date_action(actions) is None
+
+
+def test_revisor_effective_date_none_when_no_action():
+    assert revisor_effective_date_action([_action("Chapter number", "111")]) is None
+
+
+def test_revisor_effective_date_malformed_year_rejected():
+    assert (
+        revisor_effective_date_action([_action("Effective date", "05/27/226")]) is None
+    )
+
+
+def test_governor_approval_single_date():
+    actions = [
+        _action("Presented to Governor", "05/12/2026"),
+        _action("Governor approval", "05/14/2026"),
+        _action("Governor's action Approval", "05/14/26"),  # same event, agrees
+    ]
+    approval = governor_approval_date(actions)
+    assert (approval.year, approval.month, approval.day) == (2026, 5, 14)
+
+
+def test_governor_approval_none_when_conflicting():
+    # A malformed year and a good one disagree -> refuse to guess.
+    actions = [
+        _action("Governor approval", "05/27/2026"),
+        _action("Governor's action Approval", "05/28/26"),
+    ]
+    assert governor_approval_date(actions) is None
+
+
+def test_governor_approval_none_when_absent():
+    # A bill that became law without signature carries no approval action.
+    assert governor_approval_date([_action("Chapter number", "42")]) is None
