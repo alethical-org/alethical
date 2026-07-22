@@ -252,16 +252,25 @@ bars). Header is identical on every tab (no shift); other tabs don't repeat
 status since Summary is the default landing tab. Bill code lives in the rail BILL
 section. Deep-link removed.
 
-## Chief author display (web rail)
-Fields are **labeled** "Party" and "District":
+## Chief author display (web rail + mobile — matched)
+The block is an aligned **label → value** list (grey label left, value right),
+consistent across web and mobile:
+- **{Senator|Representative}** → the member **name** (the only green link, + arrow).
+  The honorific is spelled out **in full** and is the grey **row label** for the
+  name (styled like the Party label) — never "Sen."/"Rep."/"House Rep." here. Only
+  the name (+ arrow) is green/clickable. Unknown chamber falls back to the label
+  "Author" so the name row is never mislabeled.
 - **Party** spelled out (DFL → "Democratic–Farmer–Labor", R → "Republican",
   I/Ind → "Independent"; Independent is the fallback so an edge-case member never
   breaks the label).
-- **District** place-led, code in parens ("Minneapolis (SD 62)"; bare number =
-  Senate SD, number+letter = House e.g. "44A").
+- **{Senate|House} District** → **"{City} ({number})"** (e.g. "Minneapolis (62)",
+  "Winona (26A)"). The chamber is taught by the **label** ("Senate District" /
+  "House District"), so the value drops the "SD" prefix; Senate is a bare number,
+  House carries the A/B letter. No separate chamber/role row — the honorific and
+  district labels already carry the chamber. Falls back to the raw value when a
+  code can't be parsed (never mis-labels a chamber).
 Co-authors sit **top-right of the CHIEF AUTHOR section header** ("+N co-authors"),
-de-prioritized and away from the author's name/party/district. (Mobile author
-display deferred with the rest of the mobile pass.)
+de-prioritized and away from the author's name/party/district.
 
 ## Rail "THIS BILL" section (identity + official links)
 Section label is chamber-specific: **"SENATE BILL" / "HOUSE BILL"** (teaches
@@ -427,9 +436,10 @@ top bar on mobile) — NOT buried in a menu — and stays reachable from every t
   Actions timeline (which carries pipeline position for in-progress bills). Rail now leads
   with the date only — EFFECTIVE (signed) / LATEST ACTION (in progress/vetoed). Status stays
   the top header pill; effective date stays in the rail (not promoted to the header).
-- **Chief author matched to web:** labeled **Party** / **District** fields (grey label + ink
-  value); **co-authors detached** to the top-right of the CHIEF AUTHOR header ("+N
-  co-authors"), away from the name/party/district.
+- **Chief author matched to web:** aligned **label → value** rows (grey label + ink value) —
+  honorific label (**Senator/Representative**) → green name link, **Party**, and
+  **{Senate|House} District** → "{City} ({number})"; **co-authors detached** to the top-right
+  of the CHIEF AUTHOR header ("+N co-authors"), away from the name/party/district.
 - **Ask field = white** (border-defined, matches web/home — not grey) and restructured to a
   **full-width field with a full-width Ask button BELOW** (mirrors home-mobile hero) so the
   placeholder never truncates in the narrow column. Description unified to the concise "No

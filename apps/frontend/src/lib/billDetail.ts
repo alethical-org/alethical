@@ -661,13 +661,30 @@ export function bienniumEyebrow(chamber: string, billId: string): string {
   return `${ch} · LEGISLATIVE SESSION`;
 }
 
-// Prefix a bare author surname with the chamber title (Sen./Rep.), matching the
-// design's "Sen. Omar Fateh" treatment. Left untouched if a title is already there.
-export function authorDisplayName(name: string, chamber: string | undefined): string {
-  const n = (name || '').trim();
-  if (!n || /^(sen\.|rep\.|senator|representative)\b/i.test(n)) return n;
-  const title = chamber === 'Senate' ? 'Sen.' : chamber === 'House' ? 'Rep.' : '';
-  return title ? `${title} ${n}` : n;
+// The chief-author block renders the honorific as the grey ROW LABEL for the name
+// (spelled out in full — never "Sen."/"Rep." here), so this returns the label text.
+// Falls back to a neutral "Author" when the chamber is unknown, so the name row is
+// never mislabeled with a chamber it doesn't have.
+export function authorTitleLabel(chamber: string | undefined): string {
+  if (chamber === 'Senate') return 'Senator';
+  if (chamber === 'House') return 'Representative';
+  return 'Author';
+}
+
+// The name is the row *value* and the only green link, so strip any honorific the
+// served name may already carry ("Sen. Omar Fateh" -> "Omar Fateh") — the title
+// lives in the label now.
+export function authorNameOnly(name: string): string {
+  return (name || '').trim().replace(/^(sen\.|rep\.|senator|representative)\.?\s+/i, '');
+}
+
+// The district row spells out the chamber in its LABEL ("Senate District" /
+// "House District"), so the chamber is taught in plain words there rather than as an
+// "SD" prefix on the value. Neutral "District" when the chamber is unknown.
+export function districtRowLabel(chamber: string | undefined): string {
+  if (chamber === 'Senate') return 'Senate District';
+  if (chamber === 'House') return 'House District';
+  return 'District';
 }
 
 // The bill-author sponsorship rows carry a placeholder district ("S-unknown" /
@@ -677,29 +694,25 @@ export function isKnownDistrict(district: string | undefined): boolean {
   return !!district && !/unknown/i.test(district);
 }
 
-// Format a sponsor's district for the rail's CHIEF AUTHOR card. The served value is
-// the district *label* ("District 51" / "District 15B"); the design shows the
-// chamber district code — "SD 51" for a senator, the bare "15B" for a House member
-// (House districts already carry the A/B letter, Senate districts are numeric). When
-// the member's represented city is ingested (#551) it wraps the code as
-// "Bloomington (SD 51)" / "Kenyon (15B)"; absent a city, the code alone is shown, so
-// the card never displays a guessed city (grounded-answers). Falls back to the raw
-// label when no code can be parsed, so nothing ever breaks.
+// Format the district *value* for the CHIEF AUTHOR block. The chamber is carried by
+// the row label (districtRowLabel), so the value is just the bare district number —
+// "62" for a senator, "26A" for a House member (House codes carry the A/B letter,
+// Senate codes are numeric). When the member's represented city is ingested (#551)
+// it reads "Minneapolis (62)" / "Winona (26A)"; absent a city, the code alone is
+// shown, so the block never displays a guessed city (grounded-answers). The served
+// value is the district *label* ("District 51" / "SD 51" / "District 15B"); the
+// number is parsed out. Falls back to the raw label when no code can be parsed, so
+// an already-formatted or unexpected value is never mangled.
 export function formatAuthorDistrict(
   district: string | undefined,
-  chamber: string | undefined,
   city?: string | undefined,
 ): string {
   const label = (district || '').trim();
   const match = label.match(/(\d+[A-Za-z]?)/);
   if (!match) return label;
   const code = match[1].toUpperCase();
-  let formatted: string;
-  if (chamber === 'Senate') formatted = `SD ${code}`;
-  else if (chamber === 'House') formatted = code;
-  else return label;
   const trimmedCity = (city || '').trim();
-  return trimmedCity ? `${trimmedCity} (${formatted})` : formatted;
+  return trimmedCity ? `${trimmedCity} (${code})` : code;
 }
 
 // Parse a date string that may be ISO ("2025-05-30"), a display date

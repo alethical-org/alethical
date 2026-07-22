@@ -26,11 +26,14 @@ import { useBill, useSessions } from '../../hooks/useAppQueries';
 import { Bill, BillAction, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../components/search/searchPieces';
 import {
-  authorDisplayName,
+  authorNameOnly,
+  authorTitleLabel,
   buildPartyBlocks,
   chamberBillLabel,
   chiefAuthor,
   coAuthorCount,
+  districtRowLabel,
+  formatAuthorDistrict,
   formatMonoDate,
   formatNiceDate,
   isKnownDistrict,
@@ -715,42 +718,47 @@ function BillDetailMobileScreen() {
                         <Text style={styles.coauthors}>+{vm.coauthors} co-authors</Text>
                       ) : null}
                     </View>
-                    {vm.chief.legislatorId ? (
-                      <View style={styles.authorNameRow}>
-                        <TextLink
-                          label={`${authorDisplayName(vm.chief.name, vm.chief.chamber)} →`}
-                          size={19}
-                          onPress={() =>
-                            navigation.navigate('LegislatorProfile', {
-                              legislatorId: vm.chief!.legislatorId,
-                            })
-                          }
-                        />
+                    {/* Aligned label -> value rows. Honorific is the grey label,
+                        only the name + arrow is the green link; party and district
+                        match. Party/District rows shown only when known — unknown
+                        values (party null, "S-unknown" district) are a backend join
+                        gap (#302), not shown as a wrong fallback. */}
+                    <View style={styles.factsRows}>
+                      <View style={styles.factsKvRow}>
+                        <Text style={styles.factsKvKey}>{authorTitleLabel(vm.chief.chamber)}</Text>
+                        {vm.chief.legislatorId ? (
+                          <TextLink
+                            label={`${authorNameOnly(vm.chief.name)} →`}
+                            size={t.fontSizes.body}
+                            onPress={() =>
+                              navigation.navigate('LegislatorProfile', {
+                                legislatorId: vm.chief!.legislatorId,
+                              })
+                            }
+                          />
+                        ) : (
+                          <Text style={styles.authorNamePlain}>
+                            {authorNameOnly(vm.chief.name)}
+                          </Text>
+                        )}
                       </View>
-                    ) : (
-                      <Text style={styles.authorNamePlain}>
-                        {authorDisplayName(vm.chief.name, vm.chief.chamber)}
-                      </Text>
-                    )}
-                    {/* Party/District shown only when known — unknown values (party
-                        null, "S-unknown" district) are a backend join gap (#302),
-                        not shown as a wrong fallback. */}
-                    {vm.chief.party || isKnownDistrict(vm.chief.district) ? (
-                      <View style={styles.factsRows}>
-                        {vm.chief.party ? (
-                          <View style={styles.factsKvRow}>
-                            <Text style={styles.factsKvKey}>Party</Text>
-                            <Text style={styles.factsKvVal}>{partyFull(vm.chief.party)}</Text>
-                          </View>
-                        ) : null}
-                        {isKnownDistrict(vm.chief.district) ? (
-                          <View style={styles.factsKvRow}>
-                            <Text style={styles.factsKvKey}>District</Text>
-                            <Text style={styles.factsKvVal}>{vm.chief.district}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    ) : null}
+                      {vm.chief.party ? (
+                        <View style={styles.factsKvRow}>
+                          <Text style={styles.factsKvKey}>Party</Text>
+                          <Text style={styles.factsKvVal}>{partyFull(vm.chief.party)}</Text>
+                        </View>
+                      ) : null}
+                      {isKnownDistrict(vm.chief.district) ? (
+                        <View style={styles.factsKvRow}>
+                          <Text style={styles.factsKvKey}>
+                            {districtRowLabel(vm.chief.chamber)}
+                          </Text>
+                          <Text style={styles.factsKvVal}>
+                            {formatAuthorDistrict(vm.chief.district, vm.chief.representedCity)}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
                 ) : null}
 
@@ -2045,21 +2053,21 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.small,
     color: t.colors.text.faint,
   },
-  authorNameRow: { marginTop: 11, flexDirection: 'row' },
   authorNamePlain: {
-    marginTop: 11,
-    fontFamily: t.typography.title,
-    fontSize: t.fontSizes.subheadLg,
-    fontWeight: t.fontWeights.bold,
+    flex: 1,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
-  factsRows: { marginTop: 10, gap: 7 },
-  factsKvRow: { flexDirection: 'row', gap: 12 },
+  factsRows: { marginTop: 11, gap: 8 },
+  factsKvRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   factsKvKey: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     color: t.colors.text.faint,
-    minWidth: 64,
+    minWidth: 120,
+    flexShrink: 0,
   },
   factsKvVal: {
     flex: 1,

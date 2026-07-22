@@ -4,11 +4,13 @@ import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
 import { titleCaseIssue } from '../../lib/issues';
 import {
-  authorDisplayName,
+  authorNameOnly,
+  authorTitleLabel,
   billStage,
   chamberBillLabel,
   chiefAuthor,
   coAuthorCount,
+  districtRowLabel,
   formatAuthorDistrict,
   formatNiceDate,
   isKnownDistrict,
@@ -124,20 +126,20 @@ export function FactsRail({
             <Text style={styles.sectionLabel}>CHIEF AUTHOR</Text>
             {coauthors > 0 ? <Text style={styles.coauthors}>+{coauthors} co-authors</Text> : null}
           </View>
-          <View style={styles.authorName}>
-            {author.legislatorId ? (
-              <TextLink
-                label={`${authorDisplayName(author.name, author.chamber)} →`}
-                large
-                onPress={() => onOpenLegislator(author.legislatorId as string)}
-              />
-            ) : (
-              <Text style={styles.authorNamePlain}>
-                {authorDisplayName(author.name, author.chamber)}
-              </Text>
-            )}
-          </View>
           <View style={styles.authorFields}>
+            {/* Name row: honorific is the grey label, only the name + arrow is the
+                green link. */}
+            <View style={styles.authorFieldRow}>
+              <Text style={styles.authorFieldLabel}>{authorTitleLabel(author.chamber)}</Text>
+              {author.legislatorId ? (
+                <TextLink
+                  label={`${authorNameOnly(author.name)} →`}
+                  onPress={() => onOpenLegislator(author.legislatorId as string)}
+                />
+              ) : (
+                <Text style={styles.authorNamePlain}>{authorNameOnly(author.name)}</Text>
+              )}
+            </View>
             {author.party ? (
               <View style={styles.authorFieldRow}>
                 <Text style={styles.authorFieldLabel}>Party</Text>
@@ -146,9 +148,9 @@ export function FactsRail({
             ) : null}
             {isKnownDistrict(author.district) ? (
               <View style={styles.authorFieldRow}>
-                <Text style={styles.authorFieldLabel}>District</Text>
+                <Text style={styles.authorFieldLabel}>{districtRowLabel(author.chamber)}</Text>
                 <Text style={styles.authorFieldValue}>
-                  {formatAuthorDistrict(author.district, author.chamber, author.representedCity)}
+                  {formatAuthorDistrict(author.district, author.representedCity)}
                 </Text>
               </View>
             ) : null}
@@ -284,20 +286,21 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.label,
     color: t.colors.text.muted,
   },
-  authorName: { marginTop: 11 },
   authorNamePlain: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
+    fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
+    flex: 1,
   },
-  authorFields: { marginTop: 10, gap: 6 },
-  authorFieldRow: { flexDirection: 'row', gap: 10 },
+  authorFields: { marginTop: 12, gap: 9 },
+  authorFieldRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   authorFieldLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,
     color: t.colors.text.muted,
-    minWidth: 52,
+    minWidth: 116,
+    flexShrink: 0,
   },
   authorFieldValue: {
     fontFamily: t.typography.body,
