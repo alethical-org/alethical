@@ -315,9 +315,7 @@ def chamber_slug_by_id(db: Session, chamber_ids) -> dict[str, str | None]:
     ids = {cid for cid in chamber_ids if cid is not None}
     if not ids:
         return {}
-    rows = db.execute(
-        select(Chamber.id, Chamber.slug).where(Chamber.id.in_(ids))
-    ).all()
+    rows = db.execute(select(Chamber.id, Chamber.slug).where(Chamber.id.in_(ids))).all()
     return {str(chamber_id): slug for chamber_id, slug in rows}
 
 
