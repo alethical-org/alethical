@@ -117,8 +117,9 @@ function classifyAction(a: BillAction, upcoming: boolean): { dot: Dot; isVote: b
   return { dot: 'plain', isVote: false };
 }
 
-// upcoming = actionDate parses to a date after the last-updated stamp. The action
-// dates arrive pre-formatted; parse leniently and treat unparseable as not-upcoming.
+// upcoming = actionDate parses to a date after `now` (the real current date; see
+// caller). The action dates arrive pre-formatted; parse leniently and treat
+// unparseable as not-upcoming.
 function isUpcoming(dateStr: string, now: Date | null): boolean {
   if (!now) return false;
   const d = new Date(dateStr);
@@ -408,7 +409,12 @@ function BillDetailMobileScreen() {
   // --- derived view model (only when the bill is loaded) ---
   const vm = useMemo(() => {
     if (!bill) return null;
-    const now = bill.updatedAt && bill.updatedAt !== 'Unknown' ? new Date(bill.updatedAt) : null;
+    // Anchor "upcoming" to the real current date, NOT bill.updatedAt (the corpus
+    // last-refresh stamp). A real-past action has happened and is never scheduled;
+    // using updatedAt mis-flagged already-past enacted milestones (signing, filing)
+    // as SCHEDULED whenever the corpus lagged those dates (see #537). Mirrors the
+    // shipped web ActionsTab.
+    const now = new Date();
     const tone = statusTone(bill.status);
     // Mirror the shipped web FactsRail (lib/billDetail): honest chief-author +
     // effective-date + issues wiring, reusing shared helpers.
