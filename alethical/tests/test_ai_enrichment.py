@@ -407,3 +407,27 @@ def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
     # No resolvable official URL → no dead-link citations (grounded-answers rule 5).
     assert serializers.ai_citation_payloads(content, None) == []
     assert serializers.ai_citation_payloads({}, url) == []
+
+
+def test_prompt_and_schema_require_plain_language_summaries_and_key_points() -> None:
+    """Durable enforcement of grounded-answers rule 9 at the enrichment source
+    (#520): the generation prompt and schema must instruct plain-language
+    summaries and key points with no bill-number prefix and no statute citations,
+    while explicitly exempting the verbatim citation `quote` field so grounding
+    stays intact. A regression here would let legalese back into the corpus."""
+    prompt = ai_enrichment.SYSTEM_PROMPT
+    assert "plain-language statements of what the bill does" in prompt
+    # The three display fields are named as the scope of the plain-language rule.
+    for field in ("`summary`", "`plain_language_summary`", "`key_points`"):
+        assert field in prompt
+    # No bill-number/"The bill" preamble; no raw statute citations.
+    assert "Do NOT begin any of them with the bill number" in prompt
+    assert "Do NOT include raw statute citations" in prompt
+    # The verbatim citation quote is explicitly exempt (grounding must survive).
+    assert "copied verbatim from the supplied excerpt" in prompt
+
+    props = ai_enrichment.SUMMARY_SCHEMA["properties"]
+    for field in ("summary", "plain_language_summary", "key_points"):
+        desc = props[field].get("description", "")
+        assert "Plain-language" in desc
+        assert "statute citation" in desc

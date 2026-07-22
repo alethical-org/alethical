@@ -53,14 +53,39 @@ SUMMARY_SCHEMA: dict[str, Any] = {
         "short_title": {"type": "string"},
         "what": {"type": "string"},
         "why": {"type": "string"},
-        "summary": {"type": "string"},
-        "plain_language_summary": {"type": "string"},
+        "summary": {
+            "type": "string",
+            "description": (
+                "Plain-language statement of what the bill does. No leading bill "
+                "number or 'The bill …' preamble, and no raw statute citations "
+                "(e.g. 'Minnesota Statutes, section 297A.67, subdivision 40'); "
+                "describe the effect instead."
+            ),
+        },
+        "plain_language_summary": {
+            "type": "string",
+            "description": (
+                "Plain-language statement of what the bill does. No leading bill "
+                "number or 'The bill …' preamble, and no raw statute citations; "
+                "describe the effect instead."
+            ),
+        },
         "key_changes": {"type": "array", "items": {"type": "string"}},
         "who_affected": {"type": "array", "items": {"type": "string"}},
         "supporters_may_say": {"type": "array", "items": {"type": "string"}},
         "concerns_may_raise": {"type": "array", "items": {"type": "string"}},
         "quick_summary": {"type": "string"},
-        "key_points": {"type": "array", "items": {"type": "string"}},
+        "key_points": {
+            "type": "array",
+            "description": (
+                "Plain-language bullets, each stating a concrete effect of the "
+                "bill. No leading bill number or 'The bill …' preamble, and no "
+                "raw statute citations; never a bullet that is only a citation "
+                "(e.g. 'Amends Minnesota Statutes 2024, section 120B.123, "
+                "subdivision 5.')."
+            ),
+            "items": {"type": "string"},
+        },
         "key_talking_points": {"type": "array", "items": {"type": "string"}},
         "policy_areas": {"type": "array", "items": {"type": "string"}},
         "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
@@ -180,6 +205,11 @@ SHORT_TITLE_SCHEMA: dict[str, Any] = {
 SYSTEM_PROMPT = """You write careful, source-grounded legislative analysis for Alethical.
 
 Return JSON matching the provided schema. Base the analysis only on the supplied bill metadata and bill text excerpts. Do not invent vote outcomes, author motives, public opinion, fiscal scores, or legal effects not supported by the text. If a field cannot be supported, use cautious language or an empty array. Keep wording neutral and make both benefits and concerns conditional when the bill text does not prove real-world outcomes. Also produce `short_title`: a neutral, descriptive headline-case title (about 4-8 words, at most 70 characters) that states plainly what the bill does, with no editorializing or advocacy.
+
+Write `summary`, `plain_language_summary`, and every entry in `key_points` as plain-language statements of what the bill does, the way you would explain it to a member of the public. Two hard rules for these three fields:
+- Do NOT begin any of them with the bill number or a "The bill …" / "This act …" preamble — the bill identifier is displayed separately, so start with the action itself.
+- Do NOT include raw statute citations — no "Minnesota Statutes", no "section 297A.67", "subdivision 40", or "chapter 626" style references. Describe the effect instead. For example, write "Exempts baby products from the state sales tax" rather than "Amends Minnesota Statutes 2024, section 297A.67, subdivision 40, to exempt certain baby products". Every `key_points` entry must state a concrete effect of the bill; never emit a key point that is only a statute citation (for example, never "Amends Minnesota Statutes 2024, section 120B.123, subdivision 5.").
+These two rules apply ONLY to `summary`, `plain_language_summary`, and `key_points`. They do NOT apply to the `quote` field in `key_point_citations`, which must still be copied verbatim from the supplied excerpt (statute references and all) so the citation stays grounded.
 
 Each bill text excerpt is prefixed with a bracketed anchor token like `[S1]`, `[S2]`. For every entry in `key_points`, add exactly one matching entry to `key_point_citations` whose `point` repeats that key point verbatim, whose `section_id` is the anchor token (e.g. `S3`) of the single excerpt it is most directly drawn from, and whose `quote` is a short verbatim span (a phrase or sentence, at most ~30 words) copied exactly from that excerpt's text. Only use anchor tokens that actually appear in the supplied excerpts, and only quote text that appears verbatim there. If a key point cannot be tied to a specific supplied excerpt, omit that key point entirely rather than guessing an anchor.
 
