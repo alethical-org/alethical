@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
 import { IaItem, MenuKey } from '../../navigation/ia';
@@ -39,17 +39,39 @@ function matchesParty(filter: PartyFilter, stored: string): boolean {
 
 export function SearchLegislatorsScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const { signInWithGoogle } = useAuth();
   const { isDesktop } = useResponsive();
 
+  // URL-addressable filter state, mirroring Search Bills: filters live in the
+  // /legislators query string so a filtered roster is shareable, reload-safe,
+  // and survives the browser Back button after visiting a legislator profile.
+  // The route params are the single source of truth; only the search-box draft
+  // and open-menu/dropdown state are local.
+  const params: Record<string, unknown> = route.params ?? {};
+  const query = typeof params.q === 'string' ? params.q : '';
+  const chamber: ChamberFilter =
+    params.chamber === 'House' || params.chamber === 'Senate' ? params.chamber : 'All';
+  const party: PartyFilter =
+    params.party === 'DFL' || params.party === 'R' || params.party === 'I' ? params.party : 'All';
+  const session = typeof params.session === 'string' ? params.session : '';
+  const page = Math.max(1, Number.parseInt(String(params.page ?? ''), 10) || 1);
+
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [openFilter, setOpenFilter] = useState<'party' | 'session' | null>(null);
-  const [queryInput, setQueryInput] = useState('');
-  const [query, setQuery] = useState('');
-  const [chamber, setChamber] = useState<ChamberFilter>('All');
-  const [party, setParty] = useState<PartyFilter>('All');
-  const [session, setSession] = useState('');
-  const [page, setPage] = useState(1);
+  const [queryInput, setQueryInput] = useState(query);
+
+  // Keep the search-box draft in sync when the URL query changes externally
+  // (e.g. Back/Forward, a shared link, or Clear filters).
+  useEffect(() => {
+    setQueryInput(query);
+  }, [query]);
+
+  // Merge a filter change into the URL. Any filter change resets to page 1
+  // unless the patch sets page itself; undefined removes a param (→ default).
+  const updateFilters = (patch: Record<string, string | undefined>) => {
+    navigation.setParams({ page: undefined, ...patch });
+  };
 
   const sessionsQuery = useSessions();
   const currentSession =
@@ -86,19 +108,14 @@ export function SearchLegislatorsScreen() {
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const resetToFirstPage = () => setPage(1);
-
   const submitSearch = () => {
-    setQuery(queryInput.trim());
-    resetToFirstPage();
+    updateFilters({ q: queryInput.trim() || undefined });
   };
 
+  // Mirror the prior Clear: reset keyword/chamber/party/page but keep the
+  // chosen session (matches Search Bills clearFilters).
   const clearFilters = () => {
-    setQueryInput('');
-    setQuery('');
-    setChamber('All');
-    setParty('All');
-    resetToFirstPage();
+    updateFilters({ q: undefined, chamber: undefined, party: undefined });
   };
 
   const handleNavigate = (item: IaItem) => {
@@ -124,10 +141,7 @@ export function SearchLegislatorsScreen() {
     <View style={styles.filterRow}>
       <ChamberSegmented
         value={chamber}
-        onChange={(value) => {
-          setChamber(value);
-          resetToFirstPage();
-        }}
+        onChange={(value) => updateFilters({ chamber: value === 'All' ? undefined : value })}
       />
       <FilterDropdown
         label={partyLabel}
@@ -136,10 +150,7 @@ export function SearchLegislatorsScreen() {
         selectedValue={party}
         open={openFilter === 'party'}
         onOpenChange={(next) => setOpenFilter(next ? 'party' : null)}
-        onSelect={(value) => {
-          setParty(value as PartyFilter);
-          resetToFirstPage();
-        }}
+        onSelect={(value) => updateFilters({ party: value === 'All' ? undefined : value })}
       />
       <FilterDropdown
         label={sessionLabel}
@@ -151,10 +162,7 @@ export function SearchLegislatorsScreen() {
         selectedValue={sessionSlug}
         open={openFilter === 'session'}
         onOpenChange={(next) => setOpenFilter(next ? 'session' : null)}
-        onSelect={(value) => {
-          setSession(value);
-          resetToFirstPage();
-        }}
+        onSelect={(value) => updateFilters({ session: value || undefined })}
       />
     </View>
   );
@@ -228,8 +236,10 @@ export function SearchLegislatorsScreen() {
             totalPages={totalPages}
             hasPrev={safePage > 1}
             hasNext={safePage < totalPages}
-            onPrev={() => setPage(Math.max(1, safePage - 1))}
-            onNext={() => setPage(safePage + 1)}
+            onPrev={() =>
+              navigation.setParams({ page: safePage > 2 ? String(safePage - 1) : undefined })
+            }
+            onNext={() => navigation.setParams({ page: String(safePage + 1) })}
           />
         </>
       )}

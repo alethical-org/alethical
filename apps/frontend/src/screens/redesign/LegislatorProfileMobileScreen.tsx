@@ -501,6 +501,20 @@ export function LegislatorProfileMobileScreen() {
     }
   };
 
+  // "← All legislators" is a back affordance: when the search list is the screen
+  // beneath us (the user drilled in from it), pop back so its URL-encoded filters
+  // are restored intact. When we arrived directly (a shared link, no list below),
+  // open a fresh unfiltered list instead.
+  const goToLegislatorList = () => {
+    const state = navigation.getState?.();
+    const prev = state?.routes?.[(state.index ?? 1) - 1];
+    if (prev?.name === 'Legislators') {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Legislators');
+    }
+  };
+
   const shellProps = {
     variant: 'page' as const,
     openMenu,
@@ -561,17 +575,14 @@ export function LegislatorProfileMobileScreen() {
         ) : legQuery.isError || !leg ? (
           <View style={styles.stateBox}>
             <Text style={styles.stateText}>We couldn’t load this legislator.</Text>
-            <TextLink
-              label="All legislators →"
-              onPress={() => navigation.navigate('Legislators')}
-            />
+            <TextLink label="All legislators →" onPress={goToLegislatorList} />
           </View>
         ) : (
           <>
             {/* HERO */}
             <View style={styles.heroOuter}>
               <View style={styles.column}>
-                <Breadcrumb onPress={() => navigation.navigate('Legislators')} />
+                <Breadcrumb onPress={goToLegislatorList} />
                 <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
                 <View style={styles.heroIdentity}>
                   <View style={styles.portrait}>

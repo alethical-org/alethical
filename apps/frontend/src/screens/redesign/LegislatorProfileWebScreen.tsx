@@ -106,6 +106,20 @@ export function LegislatorProfileWebScreen() {
     }
   };
 
+  // "← All legislators" is a back affordance: when the search list is the screen
+  // beneath us (the user drilled in from it), pop back so its URL-encoded filters
+  // are restored intact. When we arrived directly (a shared link, no list below),
+  // open a fresh unfiltered list instead.
+  const goToLegislatorList = () => {
+    const state = navigation.getState?.();
+    const prev = state?.routes?.[(state.index ?? 1) - 1];
+    if (prev?.name === 'Legislators') {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Legislators');
+    }
+  };
+
   const shell = (children: React.ReactNode, hero: React.ReactNode, overlay?: React.ReactNode) => (
     <SearchPageShell
       openMenu={openMenu}
@@ -156,7 +170,7 @@ export function LegislatorProfileWebScreen() {
       partyLabel={partyLabel}
       shareUrl={shareUrl}
       shareTitle={shareTitle}
-      onAllLegislators={() => navigation.navigate('Legislators')}
+      onAllLegislators={goToLegislatorList}
       isDesktop={isDesktop}
     />
   );
