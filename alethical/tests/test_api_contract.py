@@ -398,6 +398,10 @@ def test_bill_detail_omits_vote_tree_but_votes_endpoint_still_serves_it(client):
         assert votes_response.status_code == 200
         roll = next(v for v in votes_response.json()["data"] if v["id"] == event_id)
         assert len(roll["records"]) == 2
+        # Chamber is served from vote_event.chamber_id (SF1832 is a Senate bill),
+        # so the Votes tab can label the roll and normalize honorifics without
+        # inferring chamber from the tally total.
+        assert roll["chamber"] == "senate"
     finally:
         with Session(get_engine()) as db:
             db.execute(

@@ -9,11 +9,12 @@ import {
   buildPartyBlocks,
   formatMonoDate,
   MemberVote,
+  parseActionDate,
   partyFull,
   PartyBlock,
-  rollPassed,
   validateRoll,
 } from '../../lib/billDetail';
+import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { SourceLine } from './SourceLine';
 import { isWeb, useHover } from './interactions';
 
@@ -39,7 +40,35 @@ export function VotesTab({
   // Independent toggles: web seeds the first roll open (spec §Independent toggles).
   const [openRolls, setOpenRolls] = useState<Record<number, boolean>>({ 0: true });
 
-  if (!bill.votes.length) {
+  // Show ONLY outcome-determining roll calls (final passage, repassage,
+  // concurrence, veto override, conference-report adoption, de-facto kill votes).
+  // Purely administrative / scheduling motions (suspension of rules, take from
+  // table, calendar headers, etc.) are hidden — they remain in the Actions
+  // timeline. Order newest roll call first (occurred_at is 100% populated in
+  // prod, so date sorting is reliable). See lib/motionNormalize.ts for the
+  // classifier validated against every production roll call.
+  const rolls = useMemo(() => {
+    return bill.votes
+      .map((vote) => ({
+        vote,
+        norm: normalizeMotion({
+          motionText: vote.motion,
+          resultText: vote.result,
+          chamber: vote.chamber,
+        }),
+      }))
+      .filter((r) => r.norm.outcomeDetermining)
+      .sort(
+        (a, b) =>
+          (parseActionDate(b.vote.date)?.getTime() ?? 0) -
+          (parseActionDate(a.vote.date)?.getTime() ?? 0),
+      );
+  }, [bill.votes]);
+
+  // A bill with no recorded roll calls — OR only administrative motions (all
+  // filtered out above) — shows the honest "no recorded roll-call votes" empty
+  // state (grounded-answers: an honest no-matches is a first-class response).
+  if (!rolls.length) {
     return <NoVotes identifier={bill.identifier} onAsk={onAsk} updatedLabel={updatedLabel} />;
   }
 
@@ -48,7 +77,7 @@ export function VotesTab({
   // it (and show the crossover legend) when that data is present AND the chief
   // author's party is actually known. Otherwise keep a neutral one-liner so we
   // never claim, e.g., "Republicans opposed it" on a unanimous or unknown-party roll.
-  const hasMemberData = bill.votes.some((v) => v.votes.length > 0);
+  const hasMemberData = rolls.some((r) => r.vote.votes.length > 0);
   const partyKnown = !!chiefParty && chiefParty.trim() !== '';
   const framed = hasMemberData && partyKnown;
   const chief = partyFull(chiefParty);
@@ -76,10 +105,11 @@ export function VotesTab({
       )}
 
       <View style={styles.rolls}>
-        {bill.votes.map((vote, i) => (
+        {rolls.map(({ vote, norm }, i) => (
           <RollCard
             key={vote.id}
             vote={vote}
+            norm={norm}
             open={!!openRolls[i]}
             onToggle={() => setOpenRolls((s) => ({ ...s, [i]: !s[i] }))}
             onOpenLegislator={onOpenLegislator}
@@ -97,12 +127,14 @@ export function VotesTab({
 
 function RollCard({
   vote,
+  norm,
   open,
   onToggle,
   onOpenLegislator,
   onOpenUrl,
 }: {
   vote: VoteEvent;
+  norm: NormalizedMotion;
   open: boolean;
   onToggle: () => void;
   onOpenLegislator: (legislatorId: string) => void;
@@ -113,16 +145,25 @@ function RollCard({
   const [search, setSearch] = useState('');
   const { focused, focusProps } = useFieldFocus();
 
-  const passed = rollPassed(vote.result);
+  const passed = norm.passed;
+  const chamberLabel = vote.chamber ?? '';
   const { yes, no, absent } = vote.breakdown;
   const total = yes + no + absent;
   const barYes = total > 0 ? (yes / total) * 100 : 0;
   const barNo = total > 0 ? (no / total) * 100 : 0;
   const hasMembers = vote.votes.length > 0;
 
+  // Consistent per-member honorific (Sen./Rep.) from THIS roll call's chamber,
+  // applied before grouping so the alphabetical sort no longer floats bare-named
+  // members to the top of a block (the "first chip drops its title" bug).
   const blocks = useMemo(
-    () => (hasMembers ? buildPartyBlocks(vote.votes) : []),
-    [vote.votes, hasMembers],
+    () =>
+      hasMembers
+        ? buildPartyBlocks(
+            vote.votes.map((v) => ({ ...v, name: normalizeMemberName(v.name, vote.chamber) })),
+          )
+        : [],
+    [vote.votes, vote.chamber, hasMembers],
   );
   if (hasMembers) validateRoll(blocks, yes, no);
 
@@ -147,7 +188,11 @@ function RollCard({
         style={styles.cardHead}
       >
         <View style={styles.cardHeadMain}>
-          <Text style={styles.motion}>{vote.motion}</Text>
+          <Text style={styles.motion}>
+            {chamberLabel ? <Text style={styles.motionChamber}>{chamberLabel} · </Text> : null}
+            {norm.title}
+          </Text>
+          {norm.subline ? <Text style={styles.subline}>{norm.subline}</Text> : null}
         </View>
         <View style={styles.cardHeadRight}>
           <View style={styles.badgeSlot}>
@@ -491,6 +536,18 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.subhead,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
+  },
+  // Chamber prefix on the title ("Senate · Final passage") — the same weight as
+  // the title but in the muted brand tone so House/Senate reads at a glance and
+  // tallies are never ambiguous between chambers.
+  motionChamber: { color: t.colors.text.muted },
+  // "What this vote decided" — one plain line under the normalized title.
+  subline: {
+    marginTop: 5,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 20,
+    color: t.colors.text.faint,
   },
   meta: {
     marginTop: 6,

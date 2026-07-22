@@ -70,6 +70,9 @@ export interface VoteEvent {
   motion: string;
   date: string;
   result: string;
+  /** Definitive chamber of this roll call, from the DB (never inferred from tallies).
+   *  Powers the card's chamber label and consistent per-member honorifics. */
+  chamber?: Chamber;
   breakdown: VoteBreakdown;
   votes: IndividualVote[];
   /** Official roll-call record URL (revisor), when served. */

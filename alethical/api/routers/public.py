@@ -306,6 +306,21 @@ def member_party_by_legislator(db: Session, legislator_ids) -> dict[str, str | N
     return {str(legislator_id): party for legislator_id, party in rows}
 
 
+def chamber_slug_by_id(db: Session, chamber_ids) -> dict[str, str | None]:
+    """Chamber slug ("house"/"senate") per chamber id, batched for a whole roll
+    call. VoteEvent.chamber_id is NOT NULL, so every roll call resolves to a
+    definitive chamber — the reliable signal for the Votes tab's chamber label
+    and consistent per-member honorifics (Sen./Rep.), far safer than inferring
+    chamber from the tally total (a sparse House roll can total < 100)."""
+    ids = {cid for cid in chamber_ids if cid is not None}
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(Chamber.id, Chamber.slug).where(Chamber.id.in_(ids))
+    ).all()
+    return {str(chamber_id): slug for chamber_id, slug in rows}
+
+
 def tracking_user_id(include_set: set[str], current_user):
     if "tracking" not in include_set:
         return None
@@ -832,11 +847,16 @@ def bill_votes(
     }
     names = member_name_by_legislator(db, voter_ids)
     parties = member_party_by_legislator(db, voter_ids)
+    chambers = chamber_slug_by_id(
+        db, {vote_event.chamber_id for vote_event in row.vote_events}
+    )
     data = [
         {
             "id": str(vote_event.id),
             "motion_text": vote_event.motion_text,
             "result_text": vote_event.result_text,
+            # Definitive chamber for this roll call (never inferred from tallies).
+            "chamber": chambers.get(str(vote_event.chamber_id)),
             "yes_count": vote_event.yes_count,
             "no_count": vote_event.no_count,
             "absent_count": vote_event.absent_count,

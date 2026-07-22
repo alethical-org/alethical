@@ -391,6 +391,8 @@ interface ApiBillVotePayload {
   id: string;
   motion_text?: string | null;
   result_text?: string | null;
+  /** Definitive chamber of this roll call ("house"/"senate"), from vote_event.chamber_id. */
+  chamber?: string | null;
   yes_count?: number | null;
   no_count?: number | null;
   absent_count?: number | null;
@@ -1095,6 +1097,7 @@ function mapBillDetail(
       motion: vote.motion_text ?? 'Vote',
       date: formatOptionalDate(vote.occurred_at),
       result: vote.result_text ?? 'Result unavailable',
+      chamber: toOptionalChamber(vote.chamber),
       officialUrl: vote.official_url ?? undefined,
       breakdown: {
         yes: vote.yes_count ?? 0,
