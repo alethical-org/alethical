@@ -469,69 +469,90 @@ def test_reingest_with_new_version_code_keeps_one_current(seed_database: None) -
         assert all_codes == {"current", "0"}
 
 
-# A bill's text versions in the real MN shape: an official AND an unofficial
-# engrossment both carry DOCUMENT_ENGROSSMENT="1" (they differ only by
-# DOCUMENT_TYPE, "official" vs "ue"), plus a conference report whose engrossment
-# is the letter "A". Values taken from HF 1141's live status XML (#467).
+# A bill's text versions in the real MN shape, taken verbatim from HF 2438's live
+# status XML (#467). It exhibits BOTH collision shapes at once:
+#   - shape 1: the official 1st engrossment and the unofficial 1st engrossment
+#     both carry DOCUMENT_ENGROSSMENT="1" (they differ only by DOCUMENT_TYPE,
+#     "official" vs "ue").
+#   - shape 2: the conference committee report has NO engrossment letter, so it
+#     arrives as DOCUMENT_ENGROSSMENT="0" — the same "0" the introduced official
+#     version uses.
+# Keying the version on the engrossment alone collapses each pair onto one row,
+# silently dropping the official 1st engrossment and the introduced text.
 ENGROSSMENT_COLLISION_VERSIONS = [
     {
         "document_type": "official",
         "document_engrossment": "0",
-        "document_name": "Introduced",
-        "date_insert": "2025-02-18 13:27:54",
+        "document_name": "2025.0-HF2438-0",
+        "date_insert": "2025-03-17 09:00:39",
     },
     {
         "document_type": "official",
         "document_engrossment": "1",
-        "document_name": "1st Engrossment",
-        "date_insert": "2026-04-20 13:16:41",
-    },
-    {
-        "document_type": "ue",
-        "document_engrossment": "1",
-        "document_name": "1st Unofficial Engrossment",
-        "date_insert": "2026-05-07 16:53:43",
-    },
-    {
-        "document_type": "ccr",
-        "document_engrossment": "A",
-        "document_name": "Conference Committee Report",
-        "date_insert": "2026-05-12 22:05:51",
+        "document_name": "2025.0-HF2438-1",
+        "date_insert": "2025-04-21 12:41:57",
     },
     {
         "document_type": "official",
         "document_engrossment": "2",
-        "document_name": "2nd Engrossment",
-        "date_insert": "2026-04-27 13:08:18",
+        "document_name": "2025.0-HF2438-2",
+        "date_insert": "2025-04-24 09:28:48",
+    },
+    {
+        "document_type": "official",
+        "document_engrossment": "3",
+        "document_name": "2025.0-HF2438-3",
+        "date_insert": "2025-04-28 18:25:39",
+    },
+    {
+        "document_type": "ue",
+        "document_engrossment": "1",
+        "document_name": "2025.0-ueh2438-1",
+        "date_insert": "2025-05-01 19:21:17",
+    },
+    {
+        "document_type": "ccr",
+        "document_engrossment": "0",
+        "document_name": "2026.0-ccrhf2438",
+        "date_insert": "2026-05-17 21:01:39",
+    },
+    {
+        "document_type": "official",
+        "document_engrossment": "4",
+        "document_name": "2025.0-HF2438-4",
+        "date_insert": "2026-05-18 17:02:17",
     },
 ]
 
 
-def test_official_and_unofficial_first_engrossment_coexist(
+def test_official_unofficial_and_ccr_versions_never_collide(
     seed_database: None,
 ) -> None:
-    """#467 regression: MN reuses DOCUMENT_ENGROSSMENT="1" for BOTH the official
-    and the unofficial 1st engrossment (they differ only by DOCUMENT_TYPE). Keying
-    the version on the engrossment alone collided at version_code="1", so the
-    official 1st engrossment was silently overwritten by the unofficial one. Each
-    track must land as its own row with a distinct, URL-safe version_code, and CCR
-    (letter engrossment, never collided) stays bare."""
+    """#467 regression, both collision shapes. MN reuses DOCUMENT_ENGROSSMENT
+    across document tracks: the official and unofficial 1st engrossments both
+    arrive as "1" (shape 1), and a conference committee report with no engrossment
+    letter arrives as "0" — the same "0" the introduced official version uses
+    (shape 2). Keying the version on the engrossment alone collided both pairs, so
+    the official 1st engrossment (overwritten by the unofficial) and the introduced
+    text (overwritten by the CCR) were silently dropped. Every non-official track
+    must land as its own row with a distinct, URL-safe version_code, and a CCR must
+    never land on a bare engrossment number."""
     with Session(get_engine()) as session:
         pipeline = MinnesotaIngestionPipeline(session)
         refs = pipeline.seed_reference_data()
-        run = pipeline.start_run("bill", "94-2025-HF1141")
+        run = pipeline.start_run("bill", "94-2025-HF2438")
         artifact = pipeline.record_artifact(
             run,
             ArtifactType.html,
-            "https://example.test/hf1141.html",
+            "https://example.test/hf2438.html",
             "<html></html>",
         )
         bill = Bill(
             session_id=refs["session"].id,
             chamber_id=refs["chambers"]["house"].id,
-            bill_key="94-2025-HF1141",
+            bill_key="94-2025-HF2438",
             file_type="HF",
-            file_number=1141,
+            file_number=2438,
             title="Engrossment collision regression bill",
         )
         session.add(bill)
@@ -551,21 +572,30 @@ def test_official_and_unofficial_first_engrossment_coexist(
                 select(BillVersion).where(BillVersion.bill_id == bill.id)
             ).all()
         }
-        # Official 0/1/2 stay bare; the unofficial 1st engrossment is namespaced
-        # to "ue-1"; CCR stays bare ("a"). Official-1 and unofficial-1 coexist.
-        assert set(versions) == {"0", "1", "ue-1", "a", "2"}
+        # Official 0-4 stay bare (stable URLs); the unofficial 1st engrossment is
+        # namespaced to "ue-1"; the CCR is namespaced to "ccr-0" (never bare "0").
+        # All seven source versions coexist — nothing overwrites anything.
+        assert set(versions) == {"0", "1", "2", "3", "4", "ue-1", "ccr-0"}
         # version_code stays URL-safe for the frontend id + the
         # /bills/{bill_id}/versions/{version_code} route.
         for code in versions:
             assert code == code.lower()
             assert " " not in code and "/" not in code
-        # The official 1st engrossment (04/20/2026) is no longer overwritten by
-        # the unofficial one (05/07/2026); each keeps its own date.
+        # Shape 1: the official 1st engrossment (04/21/2025) is no longer
+        # overwritten by the unofficial one (05/01/2025); each keeps its own date.
         assert versions["1"].document_date == datetime(
-            2026, 4, 20, 13, 16, 41, tzinfo=UTC
+            2025, 4, 21, 12, 41, 57, tzinfo=UTC
         )
         assert versions["ue-1"].document_date == datetime(
-            2026, 5, 7, 16, 53, 43, tzinfo=UTC
+            2025, 5, 1, 19, 21, 17, tzinfo=UTC
+        )
+        # Shape 2: the introduced text (03/17/2025) is no longer overwritten by the
+        # conference report (05/17/2026); each keeps its own row and date.
+        assert versions["0"].document_date == datetime(
+            2025, 3, 17, 9, 0, 39, tzinfo=UTC
+        )
+        assert versions["ccr-0"].document_date == datetime(
+            2026, 5, 17, 21, 1, 39, tzinfo=UTC
         )
 
 
