@@ -20,6 +20,9 @@ concurrency:
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     # Build the production URL from the same Supabase inputs the app uses
     # (alembic env.py -> database_url_for_target), so there is no separate
     # DATABASE_URL copy of the password to rotate out of date (#288).
@@ -49,3 +52,25 @@ jobs:
 
       - name: Run Alembic migrations
         run: uv run python -m alembic -c alembic.ini upgrade head
+
+      # Make a failed prod migration loud instead of a silent side-workflow (#522):
+      # a post-merge failure (bad secret, connection, a migration that errors on
+      # real data) leaves prod schema BEHIND the deployed code, which can 500
+      # endpoints reading new columns. On failure, open a GitHub issue (or comment
+      # on the existing open one) using the built-in token — no external service
+      # or secret required.
+      - name: Open an alert issue if the migration failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          title="Production database migration failed"
+          body="Production Alembic migration failed on commit $SHA. Run: $RUN_URL — prod schema may be BEHIND the deployed code (can 500 endpoints reading new columns). Fix: from a fresh worktree off origin/main run 'ALETHICAL_DATABASE_TARGET=production uv run alembic upgrade head', then confirm 'alembic current' is at head. Auto-filed by .github/workflows/migrate.yml."
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Migration failed again on $SHA — $RUN_URL"
+          else
+            gh issue create --title "🚨 $title" --label backend --body "$body"
+          fi
