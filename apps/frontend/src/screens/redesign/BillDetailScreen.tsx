@@ -37,13 +37,14 @@ import {
   MemberVote,
   orderActionsForTimeline,
   orderBillVersions,
+  parseActionDate,
   partyFull,
   PartyBlock,
   readLabel,
-  rollPassed,
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
+import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton } from '../../components/Skeleton';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
@@ -452,7 +453,28 @@ function BillDetailMobileScreen() {
       const { dot, isVote } = classifyAction(a, upcoming);
       return { ...a, upcoming, dot, isVote };
     });
-    const hasVotes = bill.votes.length > 0;
+    // Show only outcome-determining roll calls (final passage, repassage,
+    // concurrence, veto override, conference-report adoption, de-facto kill
+    // votes), newest first — the same shared classifier + order the web Votes
+    // tab uses (lib/motionNormalize.ts), so a given motion reads identically on
+    // both. Administrative/scheduling motions are hidden (they remain in the
+    // Actions timeline); a bill left with none falls through to the empty state.
+    const rolls = bill.votes
+      .map((vote) => ({
+        vote,
+        norm: normalizeMotion({
+          motionText: vote.motion,
+          resultText: vote.result,
+          chamber: vote.chamber,
+        }),
+      }))
+      .filter((r) => r.norm.outcomeDetermining)
+      .sort(
+        (a, b) =>
+          (parseActionDate(b.vote.date)?.getTime() ?? 0) -
+          (parseActionDate(a.vote.date)?.getTime() ?? 0),
+      );
+    const hasVotes = rolls.length > 0;
     return {
       tone,
       chief,
@@ -466,6 +488,7 @@ function BillDetailMobileScreen() {
       overviewUrl,
       readUrl,
       actions,
+      rolls,
       hasVotes,
     };
   }, [bill]);
@@ -766,7 +789,7 @@ function BillDetailMobileScreen() {
               </Text>
               {vm.hasVotes ? (
                 <MobileVotesSection
-                  bill={bill}
+                  rolls={vm.rolls}
                   chiefParty={vm.chief?.party}
                   onOpenLegislator={openLegislator}
                   onOpenUrl={openExternal}
@@ -1147,12 +1170,12 @@ type RollFilter = 'all' | 'yes' | 'no' | 'abs';
 // an inferred partisan pattern — the party grouping + crossover legend only frame when
 // per-member data AND the chief author's party are known.
 function MobileVotesSection({
-  bill,
+  rolls,
   chiefParty,
   onOpenLegislator,
   onOpenUrl,
 }: {
-  bill: Bill;
+  rolls: { vote: VoteEvent; norm: NormalizedMotion }[];
   chiefParty: string | undefined;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenUrl: (url: string) => void;
@@ -1162,7 +1185,7 @@ function MobileVotesSection({
   const [openRoll, setOpenRoll] = useState<number>(0);
   const [howToOpen, setHowToOpen] = useState(false);
 
-  const hasMemberData = bill.votes.some((v) => v.votes.length > 0);
+  const hasMemberData = rolls.some((r) => r.vote.votes.length > 0);
   const partyKnown = !!chiefParty && chiefParty.trim() !== '';
   const framed = hasMemberData && partyKnown;
   const chief = partyFull(chiefParty);
@@ -1202,10 +1225,11 @@ function MobileVotesSection({
       ) : null}
 
       <View style={styles.rollList}>
-        {bill.votes.map((vote, i) => (
+        {rolls.map(({ vote, norm }, i) => (
           <MobileRollCard
             key={vote.id}
             vote={vote}
+            norm={norm}
             open={openRoll === i}
             onToggle={() => setOpenRoll((cur) => (cur === i ? -1 : i))}
             onOpenLegislator={onOpenLegislator}
@@ -1223,12 +1247,14 @@ function MobileVotesSection({
 
 function MobileRollCard({
   vote,
+  norm,
   open,
   onToggle,
   onOpenLegislator,
   onOpenUrl,
 }: {
   vote: VoteEvent;
+  norm: NormalizedMotion;
   open: boolean;
   onToggle: () => void;
   onOpenLegislator: (legislatorId: string) => void;
@@ -1238,17 +1264,24 @@ function MobileRollCard({
   const [search, setSearch] = useState('');
   const { focused, focusProps } = useFieldFocus();
 
-  const passed = rollPassed(vote.result);
-  const failed = /fail|not adopt|reject|lost/i.test(vote.result);
+  const passed = norm.passed;
+  const chamberLabel = vote.chamber ?? '';
   const { yes, no, absent } = vote.breakdown;
   const total = yes + no + absent;
   const barYes = total > 0 ? (yes / total) * 100 : 0;
   const barNo = total > 0 ? (no / total) * 100 : 0;
   const hasMembers = vote.votes.length > 0;
 
+  // Consistent per-member honorific (Sen./Rep.) from this roll's chamber, applied
+  // before grouping so bare names no longer sort above "Senator "-prefixed ones.
   const blocks = useMemo(
-    () => (hasMembers ? buildPartyBlocks(vote.votes) : []),
-    [vote.votes, hasMembers],
+    () =>
+      hasMembers
+        ? buildPartyBlocks(
+            vote.votes.map((v) => ({ ...v, name: normalizeMemberName(v.name, vote.chamber) })),
+          )
+        : [],
+    [vote.votes, vote.chamber, hasMembers],
   );
   if (hasMembers) validateRoll(blocks, yes, no);
 
@@ -1270,7 +1303,7 @@ function MobileRollCard({
         accessibilityState={hasMembers ? { expanded: open } : undefined}
         accessibilityLabel={
           hasMembers
-            ? `${vote.motion}. ${yes} yes, ${no} no, ${passed ? 'passed' : failed ? 'failed' : vote.result}. ${open ? 'Hide' : 'Show'} member votes.`
+            ? `${chamberLabel} ${norm.title}. ${yes} yes, ${no} no, ${passed ? 'passed' : 'failed'}. ${open ? 'Hide' : 'Show'} member votes.`
             : undefined
         }
         onPress={hasMembers ? onToggle : undefined}
@@ -1278,7 +1311,13 @@ function MobileRollCard({
       >
         <View style={styles.rollHeaderRow}>
           <View style={styles.rollHeaderLeft}>
-            <Text style={styles.rollMotion}>{vote.motion}</Text>
+            <Text style={styles.rollMotion}>
+              {chamberLabel ? (
+                <Text style={styles.rollMotionChamber}>{chamberLabel} · </Text>
+              ) : null}
+              {norm.title}
+            </Text>
+            {norm.subline ? <Text style={styles.rollSubline}>{norm.subline}</Text> : null}
           </View>
           <View style={styles.rollTallyCol}>
             <Text style={styles.rollTally}>
@@ -1292,15 +1331,11 @@ function MobileRollCard({
             <View style={styles.passedPill}>
               <Text style={styles.passedPillText}>PASSED</Text>
             </View>
-          ) : failed ? (
+          ) : (
             <View style={styles.failedPill}>
               <Text style={styles.failedPillText}>FAILED</Text>
             </View>
-          ) : vote.result ? (
-            <View style={styles.resultPill}>
-              <Text style={styles.resultPillText}>{vote.result.toUpperCase()}</Text>
-            </View>
-          ) : null}
+          )}
           {hasMembers ? (
             <View style={styles.seeWho}>
               <Text style={styles.seeWhoText}>{open ? 'Hide members' : 'See who voted'}</Text>
@@ -2187,6 +2222,14 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     color: t.colors.text.primary,
   },
+  rollMotionChamber: { color: t.colors.text.muted },
+  rollSubline: {
+    marginTop: 4,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 19,
+    color: t.colors.text.faint,
+  },
   rollMeta: {
     marginTop: 4,
     fontFamily: t.typography.mono,
@@ -2261,19 +2304,6 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.7,
     color: t.colors.status.vetoedText,
-  },
-  resultPill: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 7,
-    backgroundColor: t.colors.surfaces.s400,
-  },
-  resultPillText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.5,
-    color: t.colors.text.secondary,
   },
   rollBar: {
     marginTop: 12,
