@@ -29,6 +29,12 @@
       "student aid",
       "appropriations"
     ],
+    "question_prompts": [
+      "How is student financial aid changing?",
+      "What must colleges report under this bill?",
+      "How does the sexual misconduct grievance process change?",
+      "Which institutions does the oversight apply to?"
+    ],
     "confidence": "high",
     "truncated_source": false
   }

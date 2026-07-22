@@ -494,11 +494,40 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
         # No key_point_citations in this fixture's content_json → no per-point
         # citations (#377). Populated only after the corpus is re-enriched.
         "citations": [],
+        # No question_prompts in this fixture → empty, so the frontend falls
+        # back to its generic Ask chips (#550).
+        "question_prompts": [],
     }
     assert "confidence" not in detail_payload["ai_analysis"]
     assert "truncated_source" not in detail_payload["ai_analysis"]
     assert detail_payload["ai_summary"]["confidence"] == "high"
     assert detail_payload["ai_summary"]["truncated_source"] is False
+
+
+def test_bill_detail_serves_question_prompts_with_fallback(client):
+    """The bill page's Ask card sources its chips from ai_analysis.question_prompts
+    (#550, grounded-answers rule 2): a re-enriched bill serves its generated
+    questions, while a bill without them serves an empty list so the frontend
+    falls back to its safe generic chips. The chips are the display text only —
+    the frontend scopes them to the bill before hitting /ask."""
+    # SF2483's fixture carries question_prompts → served verbatim.
+    enriched = client.get(
+        "/api/v1/bills/94-2025-SF2483", params={"include": "ai_analysis"}
+    )
+    assert enriched.status_code == 200
+    assert enriched.json()["data"]["ai_analysis"]["question_prompts"] == [
+        "How is student financial aid changing?",
+        "What must colleges report under this bill?",
+        "How does the sexual misconduct grievance process change?",
+        "Which institutions does the oversight apply to?",
+    ]
+
+    # SF1832's fixture has no question_prompts → empty list (generic fallback).
+    plain = client.get(
+        "/api/v1/bills/94-2025-SF1832", params={"include": "ai_analysis"}
+    )
+    assert plain.status_code == 200
+    assert plain.json()["data"]["ai_analysis"]["question_prompts"] == []
 
 
 def test_legislator_directory_profile_search_and_lookup_cover_user_story(client):

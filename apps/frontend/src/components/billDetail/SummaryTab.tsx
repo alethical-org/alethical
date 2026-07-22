@@ -42,6 +42,7 @@ export function SummaryTab({
   const keyPoints = plainKeyPoints(bill.aiAnalysis?.keyPoints);
   const summary = bill.aiAnalysis?.summary ?? '';
   const citations = bill.citations ?? [];
+  const askPrompts = (bill.questionPrompts ?? []).filter((p) => p.trim().length > 0);
 
   return (
     <View>
@@ -111,9 +112,11 @@ export function SummaryTab({
           {showAsk ? (
             <AskModule
               identifier={bill.identifier}
-              chips={
-                bill.questionPrompts?.length ? bill.questionPrompts.slice(0, 3) : DEFAULT_ASK_CHIPS
-              }
+              // First generated prompt seeds the placeholder (bill-specific);
+              // the next three become chips. Generic fallback when the bill has
+              // no generated prompts yet (pre-re-enrichment).
+              placeholder={askPrompts.length ? askPrompts[0] : undefined}
+              chips={askPrompts.length > 1 ? askPrompts.slice(1, 4) : DEFAULT_ASK_CHIPS}
               onAsk={onAsk}
             />
           ) : null}
@@ -151,10 +154,12 @@ const DEFAULT_ASK_CHIPS = [
 
 function AskModule({
   identifier,
+  placeholder,
   chips,
   onAsk,
 }: {
   identifier: string;
+  placeholder?: string;
   chips: string[];
   onAsk: (question: string) => void;
 }) {
@@ -163,6 +168,11 @@ function AskModule({
   const [btnHovered, btnHover] = useHover();
 
   const submit = () => onAsk(value.trim());
+
+  // System-suggested chips scope the query to this bill so the /ask bill_text
+  // path resolves it via the HF/SF regex — a chip can never dead-end in a
+  // refusal (grounded-answers rule 2). The user's own typed text is left as-is.
+  const askChip = (chip: string) => onAsk(`${identifier}: ${chip}`);
 
   return (
     <View style={styles.askCard}>
@@ -178,7 +188,7 @@ function AskModule({
           onBlur={focusProps.onBlur}
           onSubmitEditing={submit}
           returnKeyType="search"
-          placeholder={`Ask a question about ${identifier}`}
+          placeholder={placeholder ?? `Ask a question about ${identifier}`}
           placeholderTextColor={t.colors.text.faint}
           style={[styles.askInput, fieldOutlineReset]}
         />
@@ -194,7 +204,7 @@ function AskModule({
       {chips.length ? (
         <View style={styles.askChips}>
           {chips.map((chip) => (
-            <AskChip key={chip} label={chip} onPress={() => onAsk(chip)} />
+            <AskChip key={chip} label={chip} onPress={() => askChip(chip)} />
           ))}
         </View>
       ) : null}

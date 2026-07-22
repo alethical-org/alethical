@@ -137,6 +137,10 @@ class AIAnalysisPayload(BaseModel):
     # Per-key-point source anchors resolved from the enrichment (#377). Empty
     # for pre-re-enrichment summaries or bills without a resolvable official URL.
     citations: list[AICitationPayload] = []
+    # System-suggested Ask chips for the bill page (#550): short questions
+    # answerable purely from this bill's text (grounded-answers rule 2). Empty
+    # until the corpus is re-enriched; the frontend falls back to generic chips.
+    question_prompts: list[str] = []
 
 
 class CompanionBillPayload(BaseModel):
