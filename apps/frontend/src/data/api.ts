@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+
+import { captureRead, RumInteraction } from '../lib/rum';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -455,8 +457,16 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
   return (await response.json()) as T;
 }
 
-async function publicApiRequest<T>(path: string): Promise<T> {
-  const response = await fetch(publicApiUrl(path), {
+async function publicApiRequest<T>(
+  path: string,
+  rum?: { interaction: RumInteraction },
+): Promise<T> {
+  const url = publicApiUrl(path);
+  // Measure request duration around the actual network round trip + parse, so
+  // an optional RUM beacon can record real-user read-surface latency (#516).
+  // captureRead is a no-op unless EXPO_PUBLIC_RUM_ENABLED is on.
+  const start = Date.now();
+  const response = await fetch(url, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -468,7 +478,11 @@ async function publicApiRequest<T>(path: string): Promise<T> {
     throw new Error(text || `API request failed with ${response.status}`);
   }
 
-  return (await response.json()) as T;
+  const body = (await response.json()) as T;
+  if (rum) {
+    captureRead(rum.interaction, { url, response, durationMs: Date.now() - start });
+  }
+  return body;
 }
 
 async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
@@ -1415,8 +1429,19 @@ export async function listBillsFromApi(
     params.set('sort', filters.sort);
   }
 
+  // Distinguish the two core read interactions (#516): an unfiltered load is
+  // the bills list; any query/chamber/status/policy-area/omnibus filter is a
+  // filter-chip apply. A sort change alone is still the list, not a filter.
+  const hasActiveFilter = Boolean(
+    query?.trim() ||
+      filters.chamber ||
+      filters.status?.trim() ||
+      filters.policyArea?.trim() ||
+      filters.omnibus !== undefined,
+  );
   const response = await publicApiRequest<PageResponse<ApiBillListItemPayload>>(
     `/bills?${params.toString()}`,
+    { interaction: hasActiveFilter ? 'bills_filter' : 'bills_list' },
   );
 
   return {

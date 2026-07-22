@@ -8,7 +8,7 @@ from uuid import UUID
 
 import requests
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import and_, case, func, or_, select, text
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,7 @@ from alethical.api.schemas import (
     DetailResponse,
     MetaPayload,
     RepresentativeLookupRequest,
+    RumEventRequest,
 )
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
@@ -65,6 +66,7 @@ Jurisdiction = schema.Jurisdiction
 LegislativeSession = schema.LegislativeSession
 Legislator = schema.Legislator
 LegislatorServicePeriod = schema.LegislatorServicePeriod
+RumLatencyEvent = schema.RumLatencyEvent
 Sponsorship = schema.Sponsorship
 SponsorshipRole = schema.SponsorshipRole
 bill_detail_stmt = schema.bill_detail_stmt
@@ -1184,6 +1186,66 @@ def representative_lookup(
         else None,
     }
     return DetailResponse(data=payload)
+
+
+# Real-user-monitoring (RUM) beacon sink (#516). Records one anonymous latency
+# measurement per sampled read-surface interaction (bills-list load / filter
+# apply first). Privacy: timing + coarse dimensions only — no PII, no IP, no
+# precise location, no user id is ever stored (the payload's exact shape is
+# pinned by RumEventRequest, which forbids extra fields). Collection is off by
+# default on the client (EXPO_PUBLIC_RUM_ENABLED); this endpoint accepts events
+# whenever it's flipped on. Abuse guards: per-client rate limit + a small
+# max-body-size cap so a client can't flood or bloat the events table.
+_RUM_MAX_BODY_BYTES = 2048
+
+
+def _reject_oversized_rum_body(request: Request) -> None:
+    """Reject a RUM beacon whose declared body exceeds the small cap before it is
+    parsed. A valid event is a few hundred bytes; anything larger is malformed or
+    abusive. Missing/invalid Content-Length falls through to Pydantic validation,
+    which forbids extra fields and bounds every value."""
+    raw_length = request.headers.get("content-length")
+    if raw_length is None:
+        return
+    try:
+        length = int(raw_length)
+    except ValueError:
+        return
+    if length > _RUM_MAX_BODY_BYTES:
+        raise problem_exception(
+            413,
+            "Payload Too Large",
+            "RUM event payload is too large.",
+            type_slug="rum-payload-too-large",
+        )
+
+
+@router.post("/rum", status_code=202)
+def rum_event(
+    event: RumEventRequest,
+    db: Session = Depends(get_db),
+    _size_ok: None = Depends(_reject_oversized_rum_body),
+    _rate_limited: None = Depends(rate_limit("rum_limiter", "rum")),
+):
+    """Accept and store one anonymous read-surface latency measurement.
+
+    Returns 202 (accepted) with no body — the client fires this as a
+    fire-and-forget beacon and never reads a response. Validation
+    (RumEventRequest) rejects malformed/oversized events with 422/413 before any
+    write."""
+    db.add(
+        RumLatencyEvent(
+            interaction=event.interaction,
+            duration_ms=event.duration_ms,
+            ttfb_ms=event.ttfb_ms,
+            cache_status=event.cache_status,
+            device_class=event.device_class,
+            cold=event.cold,
+            coarse_geo=event.coarse_geo,
+        )
+    )
+    db.commit()
+    return Response(status_code=202)
 
 
 @router.get("/search", response_model=DetailResponse)

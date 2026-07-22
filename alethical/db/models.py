@@ -1092,6 +1092,55 @@ class LegislatorStats(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("legislator_id", "session_id"),)
 
 
+class RumLatencyEvent(UUIDPrimaryKeyMixin, Base):
+    """A single real-user-monitoring (RUM) latency measurement for a read-surface
+    interaction — bills-list load / filter-chip apply first (#516).
+
+    Append-only and deliberately anonymous: it stores *timing + coarse
+    dimensions only*, never PII. No IP, no precise location, no user id, no user
+    agent. ``coarse_geo`` is the visitor's IANA timezone (e.g. "America/Chicago")
+    — a rough region signal, not a location. Collection is off by default and
+    only turns on when the client's ``EXPO_PUBLIC_RUM_ENABLED`` flag is flipped,
+    and the client samples a small fraction of loads, so write volume is bounded.
+
+    No ``TimestampMixin``: an event never updates, so it carries only
+    ``created_at`` (the server-stamped receive time used for time-range readout).
+    """
+
+    __tablename__ = "rum_latency_event"
+
+    # Which read interaction was measured. A plain string (not a PG enum) so new
+    # instrumented surfaces don't need an enum migration; the API validates the
+    # value against a known set before writing.
+    interaction: Mapped[str] = mapped_column(String(32), nullable=False)
+    # Total client-measured request duration in milliseconds.
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Time-to-first-byte in milliseconds when the platform exposes it (web
+    # PerformanceResourceTiming), else null.
+    ttfb_ms: Mapped[Optional[int]] = mapped_column(Integer)
+    # CDN cache outcome derived from the response ("hit" / "miss" / "unknown").
+    cache_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Device class: "mobile" / "desktop".
+    device_class: Mapped[str] = mapped_column(String(16), nullable=False)
+    # First measured read of the app session (cold) vs a later one (warm).
+    cold: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # Coarse geo signal: the visitor's IANA timezone. Rough region only, nullable.
+    coarse_geo: Mapped[Optional[str]] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Readout queries slice p50/p75/p95 by dimension over a time range, so index
+    # the dimensions and the receive time together.
+    __table_args__ = (
+        Index(
+            "ix_rum_latency_event_interaction_created",
+            "interaction",
+            "created_at",
+        ),
+    )
+
+
 def bill_detail_stmt(
     bill_id: uuid.UUID,
     user_id: Optional[uuid.UUID] = None,
