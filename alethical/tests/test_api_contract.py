@@ -924,6 +924,40 @@ def test_bill_search_matches_inflected_word_roots(client):
     assert 1832 in [b["file_number"] for b in combined.json()["data"]["bills"]]
 
 
+def test_bill_search_tolerates_typos_and_ranks_by_relevance(client):
+    """Fuzzy trigram matching + relevance ranking (#573). A misspelled query still
+    resolves via the pg_trgm ``%>`` word-similarity branch, and the closest match
+    is ordered first. SF 1832's title says "...establishing a biennial..."; the
+    typo "establishng" (a dropped letter) has word_similarity ~0.75 > the 0.6
+    threshold, so it matches even though no substring or stemmed root does — the
+    core "don't return 0 results for a typo" win."""
+    session = {"session": "94-2025-regular"}
+
+    typo = client.get("/api/v1/bills", params={**session, "q": "establishng"})
+    assert typo.status_code == 200
+    assert 1832 in [b["file_number"] for b in typo.json()["data"]]
+
+    # A word too dissimilar to anything (no shared trigrams) still returns
+    # nothing — fuzzy matching broadens recall without matching everything.
+    noise = client.get("/api/v1/bills", params={**session, "q": "zebraquux"})
+    assert noise.status_code == 200
+    assert noise.json()["data"] == []
+
+    # Relevance ranking: "higher education" is SF 2483's exact subject, so it
+    # ranks first ahead of any weaker fuzzy match on the same query.
+    ranked = client.get("/api/v1/bills", params={**session, "q": "higher education"})
+    assert ranked.status_code == 200
+    ranked_numbers = [b["file_number"] for b in ranked.json()["data"]]
+    assert ranked_numbers and ranked_numbers[0] == 2483
+
+    # Fuzzy matching reaches /search too.
+    combined = client.get(
+        "/api/v1/search", params={"q": "establishng", "types": "bills"}
+    )
+    assert combined.status_code == 200
+    assert 1832 in [b["file_number"] for b in combined.json()["data"]["bills"]]
+
+
 def test_legislator_detail_returns_ordered_service_history(client):
     """The detail endpoint exposes the full ordered Legislative Service history
     (issue #486), not just current_service: one chamber-qualified election line

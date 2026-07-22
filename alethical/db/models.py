@@ -1225,6 +1225,7 @@ def bill_list_stmt(
     session_id: uuid.UUID,
     user_id: Optional[uuid.UUID] = None,
     sort: str = "latest_action",
+    text_query: Optional[str] = None,
 ):
     """Load a bill list page with stats, chief-sponsor preview, and optional tracked state.
 
@@ -1233,6 +1234,11 @@ def bill_list_stmt(
     (signed → vetoed → passed senate → passed house → in committee → proposed),
     tie-broken by most-recent activity; ``"introduced"`` orders by introduction
     date descending (most recently introduced first), tie-broken by file number.
+
+    ``text_query`` (search only) ranks the closest keyword match first: when set,
+    trigram word-similarity of the query against title/description becomes the
+    primary sort, with ``sort`` as the tie-break. Browsing (no query) is
+    unaffected — the endpoints pass it only for a free-text search (#573).
     """
     options = [
         selectinload(Bill.stats),
@@ -1262,6 +1268,14 @@ def bill_list_stmt(
         )
     else:
         order_by = recency_order
+    if text_query:
+        # Relevance-first for a keyword search: the best trigram match against
+        # title or description leads, with the chosen ``sort`` breaking ties.
+        relevance = func.greatest(
+            func.word_similarity(text_query, Bill.title),
+            func.word_similarity(text_query, func.coalesce(Bill.description, "")),
+        )
+        order_by = (relevance.desc(), *order_by)
     return (
         select(Bill)
         .where(

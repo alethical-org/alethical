@@ -231,15 +231,17 @@ def bill_number_clause(q: str):
     )
 
 
-# Keyword search normalization (#571). A raw ``ILIKE %q%`` is a contiguous
+# Keyword search normalization (#571, #573). A raw ``ILIKE %q%`` is a contiguous
 # substring match, so "plumbing" finds nothing when the text says "plumbers"
 # even though both share the root "plumb", and "school funding" only matches when
 # those two words are adjacent. We instead (a) split the query into words and
-# require each to match at least one column (order-independent), and (b) match a
+# require each to match at least one column (order-independent), (b) match a
 # conservatively stemmed root of each word as well, so inflected variants
-# (plurals, -ing/-ed/-er) resolve to the same stem. Every clause is ORed against
-# the raw word too, so the match set is a strict superset of the old behavior —
-# no result that matched before can disappear.
+# (plurals, -ing/-ed/-er) resolve to the same stem, and (c) match a trigram
+# word-similarity ("%>") branch so a misspelling ("plumbign") still resolves via
+# the pg_trgm GIN indexes (0011). Every clause is ORed against the raw word too,
+# so the match set is a strict superset of the old behavior — no result that
+# matched before can disappear.
 
 # Common English inflectional suffixes, longest first. Stripped only when the
 # word is long enough (>= _MIN_STEM_WORD) and the remaining root stays
@@ -247,6 +249,11 @@ def bill_number_clause(q: str):
 _INFLECTION_SUFFIXES = ("ings", "ing", "ers", "er", "ies", "es", "ed", "s")
 _MIN_STEM_WORD = 5
 _MIN_ROOT_LEN = 4
+# Only add the fuzzy trigram branch for words this long: short words have too few
+# trigrams for word-similarity to be meaningful (it would over-match), and a
+# typo in a 3-letter word is cheap to just retype. Longer words are where a
+# misspelling actually costs the user a "0 results".
+_MIN_FUZZY_WORD = 5
 
 
 def _stem_root(word: str) -> str | None:
@@ -271,8 +278,9 @@ def _like_escape(value: str) -> str:
 
 def keyword_search_clause(columns, q: str):
     """Case-insensitive keyword match over ``columns`` for query ``q``. Each word
-    in ``q`` must match at least one column (as a raw substring or via its
-    stemmed root); all words must match (AND). Returns None for an empty query."""
+    in ``q`` must match at least one column — as a raw substring, via its stemmed
+    root, or (for longer words) via trigram word-similarity so typos still
+    resolve. All words must match (AND). Returns None for an empty query."""
     words = [word for word in q.split() if word]
     if not words:
         return None
@@ -282,15 +290,15 @@ def keyword_search_clause(columns, q: str):
         root = _stem_root(word)
         if root is not None:
             patterns.append(f"%{_like_escape(root)}%")
-        per_word.append(
-            or_(
-                *[
-                    col.ilike(pattern, escape="\\")
-                    for col in columns
-                    for pattern in patterns
-                ]
-            )
-        )
+        clauses = [
+            col.ilike(pattern, escape="\\") for col in columns for pattern in patterns
+        ]
+        if len(word) >= _MIN_FUZZY_WORD:
+            # ``col %> word`` is ``word_similarity(word, col) > threshold`` — a
+            # trigram fuzzy match served by the pg_trgm GIN index (0011). It
+            # catches misspellings the substring/root branches miss.
+            clauses.extend(col.op("%>")(word) for col in columns)
+        per_word.append(or_(*clauses))
     return and_(*per_word)
 
 
@@ -545,13 +553,16 @@ def bills(
         if current_user is None and "tracking" not in include_set
         else PRIVATE_CACHE_CONTROL
     )
+    number_clause = bill_number_clause(q) if q else None
+    # Relevance-rank only a free-text search — never a bill-number ID lookup.
+    text_query = q if (q and number_clause is None) else None
     stmt = bill_list_stmt(
         session_row.id,
         user_id=tracking_user_id(include_set, current_user),
         sort=sort,
+        text_query=text_query,
     )
     if q:
-        number_clause = bill_number_clause(q)
         if number_clause is not None:
             # A bill-number query ("SF334", "334") is an ID lookup, not free text.
             # Match file_type/file_number exclusively so a bare number resolves the
@@ -1549,7 +1560,9 @@ def search(
     payload: dict[str, list[dict]] = {"bills": [], "legislators": []}
     if "bills" in type_set:
         number_clause = bill_number_clause(q)
-        bills_stmt = bill_list_stmt(session_row.id)
+        # Relevance-rank a free-text search; a bill-number lookup stays exact.
+        text_query = q if number_clause is None else None
+        bills_stmt = bill_list_stmt(session_row.id, text_query=text_query)
         if number_clause is not None:
             # Bill-number query → exclusive ID lookup, not free text (see /bills).
             bills_stmt = bills_stmt.where(number_clause)
