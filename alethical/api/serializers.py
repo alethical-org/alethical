@@ -292,6 +292,7 @@ def ai_analysis_payload_for_enrichment(
     summary = content.get("summary")
     key_points = content.get("key_points")
     policy_areas = content.get("policy_areas")
+    question_prompts = content.get("question_prompts")
     return api_schemas.AIAnalysisPayload(
         short_title=short_title.strip()
         if isinstance(short_title, str) and short_title.strip()
@@ -317,6 +318,17 @@ def ai_analysis_payload_for_enrichment(
             else []
         ),
         citations=ai_citation_payloads(content, official_url),
+        # Bill-specific Ask chips (#550), served as-is; empty for un-re-enriched
+        # summaries so the frontend keeps its safe generic fallback.
+        question_prompts=(
+            [
+                item.strip()
+                for item in question_prompts
+                if isinstance(item, str) and item.strip()
+            ]
+            if isinstance(question_prompts, list)
+            else []
+        ),
     )
 
 

@@ -378,6 +378,8 @@ interface ApiAiAnalysisPayload {
   policy_areas?: string[] | null;
   // Per-key-point source anchors (#377); empty until the corpus is re-enriched.
   citations?: ApiAiCitationPayload[] | null;
+  // Bill-specific Ask chips (#550); empty until the corpus is re-enriched.
+  question_prompts?: string[] | null;
 }
 
 interface ApiBillVoteRecordPayload {
@@ -820,6 +822,18 @@ function aiAnalysisFromPayload(
   };
 }
 
+// Bill-specific Ask chips (#550): short questions the enrichment generated to be
+// answerable purely from this bill's text. Empty until the corpus is re-enriched,
+// which is when the SummaryTab falls back to its generic chips.
+function questionPromptsFromPayload(analysis: ApiAiAnalysisPayload | null | undefined): string[] {
+  if (!analysis || !Array.isArray(analysis.question_prompts)) {
+    return [];
+  }
+  return analysis.question_prompts
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .map((item) => item.trim());
+}
+
 // Per-key-point source citations (#377): resolved server-side to the section
 // they were drawn from, each with a quoted excerpt and a resolvable URL. Powers
 // the "Cited Sections" strip (mobile) / "From the bill" cards (web).
@@ -1020,7 +1034,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
     rollCallCount: payload.stats?.vote_event_count ?? 0,
     briefing: emptyBriefing(),
     aiAnalysis: aiAnalysisFromPayload(payload.ai_analysis),
-    questionPrompts: [],
+    questionPrompts: questionPromptsFromPayload(payload.ai_analysis),
     actions: [],
     versions: [],
     votes: [],
@@ -1074,7 +1088,7 @@ function mapBillDetail(
     rollCallCount: votes.length,
     briefing: emptyBriefing(),
     aiAnalysis: aiAnalysisFromPayload(payload.ai_analysis),
-    questionPrompts: [],
+    questionPrompts: questionPromptsFromPayload(payload.ai_analysis),
     actions: dedupeActions(
       (payload.actions ?? [])
         .map((action) => mapBillAction(action, payload.id))

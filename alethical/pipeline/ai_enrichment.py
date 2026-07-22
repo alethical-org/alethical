@@ -130,6 +130,11 @@ SUMMARY_SCHEMA: dict[str, Any] = {
                 "required": ["point", "section_id", "quote"],
             },
         },
+        # System-suggested Ask chips for the bill page (#550). Short, natural
+        # reader questions that are answerable *purely* from the supplied bill
+        # text, so a chip can never lead to a refusal (grounded-answers rule 2).
+        # The bill identifier is attached by the product, so questions omit it.
+        "question_prompts": {"type": "array", "items": {"type": "string"}},
     },
     "required": [
         "short_title",
@@ -156,6 +161,7 @@ SUMMARY_SCHEMA: dict[str, Any] = {
         "alternative_policy_approaches",
         "source_notes",
         "key_point_citations",
+        "question_prompts",
     ],
 }
 
@@ -175,7 +181,9 @@ SYSTEM_PROMPT = """You write careful, source-grounded legislative analysis for A
 
 Return JSON matching the provided schema. Base the analysis only on the supplied bill metadata and bill text excerpts. Do not invent vote outcomes, author motives, public opinion, fiscal scores, or legal effects not supported by the text. If a field cannot be supported, use cautious language or an empty array. Keep wording neutral and make both benefits and concerns conditional when the bill text does not prove real-world outcomes. Also produce `short_title`: a neutral, descriptive headline-case title (about 4-8 words, at most 70 characters) that states plainly what the bill does, with no editorializing or advocacy.
 
-Each bill text excerpt is prefixed with a bracketed anchor token like `[S1]`, `[S2]`. For every entry in `key_points`, add exactly one matching entry to `key_point_citations` whose `point` repeats that key point verbatim, whose `section_id` is the anchor token (e.g. `S3`) of the single excerpt it is most directly drawn from, and whose `quote` is a short verbatim span (a phrase or sentence, at most ~30 words) copied exactly from that excerpt's text. Only use anchor tokens that actually appear in the supplied excerpts, and only quote text that appears verbatim there. If a key point cannot be tied to a specific supplied excerpt, omit that key point entirely rather than guessing an anchor."""
+Each bill text excerpt is prefixed with a bracketed anchor token like `[S1]`, `[S2]`. For every entry in `key_points`, add exactly one matching entry to `key_point_citations` whose `point` repeats that key point verbatim, whose `section_id` is the anchor token (e.g. `S3`) of the single excerpt it is most directly drawn from, and whose `quote` is a short verbatim span (a phrase or sentence, at most ~30 words) copied exactly from that excerpt's text. Only use anchor tokens that actually appear in the supplied excerpts, and only quote text that appears verbatim there. If a key point cannot be tied to a specific supplied excerpt, omit that key point entirely rather than guessing an anchor.
+
+Also produce `question_prompts`: 3 to 4 short, natural questions a member of the public would ask about this bill, each fully answerable from the supplied bill text alone. Phrase them the way a curious reader would speak (for example "Who has to complete the training?" or "When do the new requirements take effect?"), not as yes/no or opinion questions. Never ask about anything the supplied text does not settle — votes, sponsors' motives, dollar costs, or real-world outcomes are off limits. Do NOT put the bill number in the question (the product attaches it). Keep each under about 12 words, neutral, and distinct from the others. If the text is too thin to support a specific question, return fewer rather than inventing one."""
 
 
 SHORT_TITLE_SYSTEM_PROMPT = """You write short, neutral, plain-language titles for Minnesota bills for Alethical.
