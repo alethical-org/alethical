@@ -29,14 +29,22 @@ export function VersionsTab({
       <View style={styles.rows}>
         {orderBillVersions(bill.versions, bill.actions).map((v) => {
           const law = /session law|chapter|final law/i.test(v.label);
+          const chapter = law ? extractChapter(v.summary) || extractChapter(v.label) : null;
+          const tag = law ? null : versionTrackTag(v.label);
           return (
             <VersionRow
               key={v.id}
-              name={v.label}
+              // The chapter shows once, in the CHAPTER chip — strip it from the title so
+              // an enacted row reads "Session Law", not "Session Law — Chapter N" twice.
+              name={chapter ? stripChapterSuffix(v.label) : v.label}
               date={formatMonoDate(v.date)}
               law={law}
-              chapter={law ? extractChapter(v.summary) || extractChapter(v.label) : null}
-              tag={law ? null : versionTrackTag(v.label)}
+              chapter={chapter}
+              tag={tag}
+              // Unofficial engrossments fold in amendments between numbered drafts, so by
+              // date they can sit out of numeric order — a faint "working draft" note
+              // explains the apparent jump without changing the date-descending order.
+              hint={tag === 'UNOFFICIAL' ? 'working draft' : null}
               linkLabel={law ? 'Read the full law' : 'Read the bill text'}
               onPress={() => (v.url ? onOpenUrl(v.url) : undefined)}
             />
@@ -55,12 +63,21 @@ function extractChapter(text: string | undefined): string | null {
   return m ? `CHAPTER ${m[1]}` : null;
 }
 
+// Drop a trailing "— Chapter N" (em/en dash or hyphen) from a Session Law title so the
+// chapter isn't shown twice — it lives in the CHAPTER chip. Falls back to "Session Law"
+// if stripping leaves nothing (display only; never re-authors the source record).
+function stripChapterSuffix(label: string): string {
+  const stripped = label.replace(/\s*[—–-]?\s*chapter\s+\d+\s*$/i, '').trim();
+  return stripped || 'Session Law';
+}
+
 function VersionRow({
   name,
   date,
   law,
   chapter,
   tag,
+  hint,
   linkLabel,
   onPress,
 }: {
@@ -69,6 +86,7 @@ function VersionRow({
   law: boolean;
   chapter: string | null;
   tag: 'UNOFFICIAL' | 'CONFERENCE' | null;
+  hint: string | null;
   linkLabel: string;
   onPress: () => void;
 }) {
@@ -93,7 +111,13 @@ function VersionRow({
             </View>
           ) : null}
         </View>
-        {date ? <Text style={styles.rowDate}>{date}</Text> : null}
+        {date || hint ? (
+          <Text style={styles.rowDate}>
+            {date}
+            {date && hint ? '  ·  ' : ''}
+            {hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
+          </Text>
+        ) : null}
       </View>
       <Text style={styles.rowLink}>{linkLabel} →</Text>
     </Pressable>
@@ -165,6 +189,13 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.label,
     letterSpacing: 0.5,
     color: t.colors.text.muted,
+  },
+  // Faint clarifier ("working draft") on unofficial engrossments — same meta line
+  // as the date, dimmer than the date so it reads as an aside, not a second label.
+  rowHint: {
+    fontStyle: 'italic',
+    color: t.colors.text.faint,
+    letterSpacing: 0.3,
   },
   rowLink: {
     fontFamily: t.typography.ui,
