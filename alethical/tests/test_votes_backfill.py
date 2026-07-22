@@ -6,12 +6,26 @@ parser is exercised against the shapes it actually meets in production.
 
 from __future__ import annotations
 
+import uuid
+
+from sqlalchemy.orm import Session
+
+from alethical.db.models import (
+    Legislator,
+    LegislativeSession,
+    LegislatorServicePeriod,
+    SessionType,
+)
+from alethical.db.session import get_engine
+from alethical.pipeline.minnesota import MinnesotaIngestionPipeline
 from alethical.pipeline.votes import (
+    build_legislator_index,
     leading_chamber,
     looks_like_bill_number,
     parse_house_votes,
     parse_senate_vote_from_pdf,
     parse_senate_vote_scoped,
+    resolve_name,
 )
 
 
@@ -154,3 +168,58 @@ def test_parse_senate_vote_scoped_returns_none_when_bill_absent():
         "https://example/journal.pdf",
     )
     assert parsed is None
+
+
+def test_build_legislator_index_includes_departed_session_members(
+    seed_database: None,
+) -> None:
+    # Roll calls are historical: a member who served this session and then
+    # departed (is_current=False) still cast votes and must resolve. The index
+    # is scoped by session, not is_current (cause C: Hortman/Vang Her/Schomacker).
+    with Session(get_engine()) as db:
+        pipeline = MinnesotaIngestionPipeline(db)
+        refs = pipeline.seed_reference_data()
+        house = refs["chambers"]["house"]
+        session = LegislativeSession(
+            jurisdiction_id=refs["jurisdiction"].id,
+            slug=f"test-{uuid.uuid4().hex[:12]}",
+            session_number=99,
+            session_type=SessionType.regular,
+            year_start=2099,
+            year_end=2100,
+            name="Vote index test session",
+            is_current=False,
+        )
+        db.add(session)
+        db.flush()
+
+        for full_name, district_code, is_current in [
+            ("Ada Current", "10A", True),
+            ("Bo Departed", "11A", False),
+        ]:
+            district = pipeline.upsert_district(refs, house, district_code)
+            legislator = Legislator(
+                jurisdiction_id=refs["jurisdiction"].id,
+                slug=f"{full_name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}",
+                external_key=f"key-{uuid.uuid4().hex}",
+                full_name=full_name,
+                sort_name=f"{full_name.split()[1]}, {full_name.split()[0]}",
+            )
+            db.add(legislator)
+            db.flush()
+            db.add(
+                LegislatorServicePeriod(
+                    legislator_id=legislator.id,
+                    session_id=session.id,
+                    chamber_id=house.id,
+                    district_id=district.id,
+                    period_sequence=1,
+                    is_current=is_current,
+                )
+            )
+        db.flush()
+
+        index = build_legislator_index(db, house.id, session.id)
+        # The departed member resolves just like the current one.
+        assert resolve_name("Departed", index) is not None
+        assert resolve_name("Current", index) is not None

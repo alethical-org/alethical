@@ -489,8 +489,12 @@ def legislator_keys(full_name: str, sort_name: str) -> set[tuple[str, tuple[str,
 
 
 def build_legislator_index(
-    db: Session, chamber_id: Any
+    db: Session, chamber_id: Any, session_id: Any
 ) -> dict[tuple[str, tuple[str, ...]], list[Any]]:
+    # Scope by the vote's session, not is_current: roll calls are historical, so
+    # a member who served this session and later departed (resigned, died, lost
+    # the seat) still cast real votes that must resolve. Filtering on is_current
+    # dropped Hortman, Vang Her, and Schomacker, losing ~1 in 8 House records.
     rows = db.scalars(
         select(Legislator)
         .join(
@@ -499,7 +503,7 @@ def build_legislator_index(
         )
         .where(
             LegislatorServicePeriod.chamber_id == chamber_id,
-            LegislatorServicePeriod.is_current.is_(True),
+            LegislatorServicePeriod.session_id == session_id,
         )
     ).all()
     index: dict[tuple[str, tuple[str, ...]], list[Any]] = {}
@@ -592,7 +596,9 @@ def backfill_votes(
     }
     house_cache: dict[str, list[ParsedVote]] = {}
     senate_cache: dict[str, str] = {}
-    legislator_indexes: dict[Any, dict[tuple[str, tuple[str, ...]], list[Any]]] = {}
+    legislator_indexes: dict[
+        tuple[Any, Any], dict[tuple[str, tuple[str, ...]], list[Any]]
+    ] = {}
 
     for action in actions:
         stats["actions_seen"] += 1
@@ -729,9 +735,12 @@ def backfill_votes(
             db.add(event)
             db.flush()
 
-            if chamber.id not in legislator_indexes:
-                legislator_indexes[chamber.id] = build_legislator_index(db, chamber.id)
-            index = legislator_indexes[chamber.id]
+            index_key = (chamber.id, bill.session_id)
+            if index_key not in legislator_indexes:
+                legislator_indexes[index_key] = build_legislator_index(
+                    db, chamber.id, bill.session_id
+                )
+            index = legislator_indexes[index_key]
             sort_order = 0
             seen_legislator_ids: set[Any] = set()
             for vote_value, names in [
