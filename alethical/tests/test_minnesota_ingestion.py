@@ -406,10 +406,13 @@ def test_reference_upserts_skip_advisory_lock_when_rows_exist(
 
 
 def test_reingest_with_new_version_code_keeps_one_current(seed_database: None) -> None:
-    """#285 regression: a refresh that introduces a new version_code — the real
-    engrossment code, when the prior ingest stored the "current" fallback — must
-    leave exactly one is_current version per bill, not double the flag. The old
-    version is retained (superseded) but demoted."""
+    """#285/#531 regression: a refresh that introduces a real engrossment code,
+    when the prior ingest stored only the "current" fallback, must leave exactly
+    one is_current version per bill (not double the flag). Per #531 the text-empty
+    "current" placeholder is now dropped once real versions exist, so it no longer
+    lingers as a phantom row on the Versions tab — the guard is scoped strictly to
+    version_code="current" (the synthetic empty-fetch fallback), so real superseded
+    versions are still retained and demoted."""
     with Session(get_engine()) as session:
         pipeline = MinnesotaIngestionPipeline(session)
         refs = pipeline.seed_reference_data()
@@ -466,7 +469,77 @@ def test_reingest_with_new_version_code_keeps_one_current(seed_database: None) -
                 select(BillVersion).where(BillVersion.bill_id == bill.id)
             ).all()
         }
-        assert all_codes == {"current", "0"}
+        # #531: the text-empty "current" placeholder is dropped once the real
+        # engrossment ("0") arrives — no phantom row survives.
+        assert all_codes == {"0"}
+
+
+def test_current_placeholder_guard_is_scoped(seed_database: None) -> None:
+    """#531: the drop-stale-"current" guard must be narrow. A re-ingest that is
+    still text-empty keeps the single "current" fallback (a bill genuinely lacking
+    published text still shows its one placeholder), and a real superseded version
+    code is never dropped — only version_code="current" is."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        run = pipeline.start_run("bill", "94-2025-HF7777")
+        artifact = pipeline.record_artifact(
+            run,
+            ArtifactType.html,
+            "https://example.test/hf7777.html",
+            "<html></html>",
+        )
+        bill = Bill(
+            session_id=refs["session"].id,
+            chamber_id=refs["chambers"]["house"].id,
+            bill_key="94-2025-HF7777",
+            file_type="HF",
+            file_number=7777,
+            title="Scoped-guard regression bill",
+        )
+        session.add(bill)
+        session.flush()
+        bill_text: dict = {"sections": [], "articles": []}
+
+        # Two empty ingests in a row: the "current" fallback must persist (the bill
+        # still has no published text), not get dropped by the guard.
+        pipeline.upsert_versions_and_sections(
+            bill, {"text_versions": []}, bill_text, artifact
+        )
+        pipeline.upsert_versions_and_sections(
+            bill, {"text_versions": []}, bill_text, artifact
+        )
+        session.flush()
+        codes = {
+            v.version_code
+            for v in session.scalars(
+                select(BillVersion).where(BillVersion.bill_id == bill.id)
+            ).all()
+        }
+        assert codes == {"current"}
+
+        # Now real text arrives across two engrossments, then a refresh drops the
+        # first: the superseded real "0" is retained (guard is scoped to "current"
+        # only), and the "current" placeholder is gone.
+        pipeline.upsert_versions_and_sections(
+            bill,
+            {
+                "text_versions": [
+                    {"document_engrossment": "0", "document_name": "Introduced"},
+                    {"document_engrossment": "1", "document_name": "1st engrossment"},
+                ]
+            },
+            bill_text,
+            artifact,
+        )
+        session.flush()
+        codes = {
+            v.version_code
+            for v in session.scalars(
+                select(BillVersion).where(BillVersion.bill_id == bill.id)
+            ).all()
+        }
+        assert codes == {"0", "1"}
 
 
 # A bill's text versions in the real MN shape, taken verbatim from HF 2438's live
