@@ -77,6 +77,7 @@ interface ApiSponsorPayload {
   chamber?: string | null;
   party?: string | null;
   district?: string | null;
+  represented_city?: string | null;
 }
 
 interface ApiBillStatsPayload {
@@ -524,6 +525,7 @@ function mapSponsor(payload: ApiSponsorPayload): BillSponsor {
     chamber: toOptionalChamber(payload.chamber ?? payload.source_chamber),
     party: payload.party ?? undefined,
     district: payload.district ?? undefined,
+    representedCity: payload.represented_city ?? undefined,
   };
 }
 

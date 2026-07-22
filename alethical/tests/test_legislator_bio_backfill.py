@@ -14,6 +14,7 @@ from alethical.pipeline.legislator_bio_backfill import (
     lrl_id_from_profile_url,
     parse_house_bio,
     parse_lrl_bio,
+    parse_lrl_city,
     parse_senate_bio,
     strip_comments,
 )
@@ -212,6 +213,41 @@ def test_senate_member_bio_has_elected_term_but_no_biography():
     assert parsed.elected == "2006, re-elected 2012, 2016, 2020, 2022"
     assert parsed.term == "5th"
     assert parsed.biography is None
+
+
+# ── City of residence (issue #551): the LRL "Terms" block lists one Residence
+# per term, NEWEST FIRST, so ctrl0 is the current term. Verbatim shape from
+# lrl.mn.gov/legdb/fulldetail (Sen. Melissa H. Wiklund, id 15389, SD 51).
+
+LRL_RESIDENCE_MULTI_TERM = """
+    <div> <b>Elected: </b> <span id="ctl00_Main_ListView_termdata_ctrl0_Label_elected">11/8/2022</span> </div>
+    <div> <b>Residence: </b> <span id="ctl00_Main_ListView_termdata_ctrl0_Labelresidence">Bloomington</span> </div>
+    <div> <b>Elected: </b> <span id="ctl00_Main_ListView_termdata_ctrl1_Label_elected">11/6/2018</span> </div>
+    <div> <b>Residence: </b> <span id="ctl00_Main_ListView_termdata_ctrl1_Labelresidence">Richfield</span> </div>
+"""
+
+# A member with no Residence field at all → null (grounded: absence stays null).
+LRL_NO_RESIDENCE = """
+    <div> <b>Elected: </b> <span id="ctl00_Main_ListView_termdata_ctrl0_Label_elected">11/8/2022</span> </div>
+"""
+
+# A Residence rendered as the data-absence sentinel → dropped, never shown.
+LRL_RESIDENCE_SENTINEL = """
+    <div> <b>Residence: </b> <span id="ctl00_Main_ListView_termdata_ctrl0_Labelresidence">None listed</span> </div>
+"""
+
+
+def test_lrl_city_takes_current_term_residence():
+    # Newest term first: the current residence wins, not a prior-term city.
+    assert parse_lrl_city(LRL_RESIDENCE_MULTI_TERM) == "Bloomington"
+
+
+def test_lrl_city_missing_stays_none():
+    assert parse_lrl_city(LRL_NO_RESIDENCE) is None
+
+
+def test_lrl_city_sentinel_stays_none():
+    assert parse_lrl_city(LRL_RESIDENCE_SENTINEL) is None
 
 
 def test_lrl_id_extracted_from_both_chamber_profile_urls():

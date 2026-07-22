@@ -62,6 +62,7 @@ class SponsorSummary(BaseModel):
     chamber: str | None = None
     party: str | None = None
     district: str | None = None
+    represented_city: str | None = None
 
 
 class BillProgressStep(BaseModel):

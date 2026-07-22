@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Backfill legislator elected/term and biography from official member pages.
+"""Backfill legislator elected/term, biography, and city of residence from
+official member pages.
 
 For each CURRENT legislator service period, fetch its stored ``profile_url``
 (the official House ``.../members/profile/{id}`` or Senate
@@ -13,13 +14,20 @@ For each CURRENT legislator service period, fetch its stored ``profile_url``
   bio is sourced from the Minnesota Legislative Reference Library legislator
   record (``lrl.mn.gov/legdb/fulldetail?id={leg_id}``, keyed by the same
   ``leg_id`` embedded in the Senate ``profile_url``), assembled from its VERBATIM
-  Occupation / Education fields. Grounded-answers: only what the source states --
-  no facts are invented, and missing content stays null.
+  Occupation / Education fields.
+* represented_city -- the member's CURRENT city of residence, read from the LRL
+  record's newest term (``Residence:`` field). Sourced from the LRL for EVERY
+  member (House profile id == LRL id), so the one record serves both chambers.
+  Grounded-answers: this is a real residence the source states, never a city
+  guessed from the bio's high-school or workplace mention.
 
-``elected`` / ``term`` are written onto the current LegislatorServicePeriod;
-``biography`` onto the Legislator. Per-record commit, idempotent, robust to a
-member page missing any field. Mirrors the flags/structure of
-``alethical/pipeline/votes.py``.
+Grounded-answers throughout: only what the source states -- no facts are
+invented, and missing content stays null.
+
+``elected`` / ``term`` / ``represented_city`` are written onto the current
+LegislatorServicePeriod; ``biography`` onto the Legislator. Per-record commit,
+idempotent, robust to a member page missing any field. Mirrors the flags/
+structure of ``alethical/pipeline/votes.py``.
 
 Run money-free (no LLM / paid APIs) against production with:
 
@@ -37,7 +45,7 @@ import time
 from dataclasses import dataclass
 
 import requests
-from sqlalchemy import create_engine, select
+from sqlalchemy import and_, create_engine, or_, select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
@@ -80,6 +88,7 @@ class BackfillStats:
     elected_parsed: int = 0
     term_parsed: int = 0
     biography_parsed: int = 0
+    city_parsed: int = 0
     no_profile_url: int = 0
     fetch_errors: int = 0
     written: int = 0
@@ -273,6 +282,22 @@ def parse_lrl_bio(html_text: str) -> str | None:
     return " ".join(sentences) or None
 
 
+def parse_lrl_city(html_text: str) -> str | None:
+    """The member's CURRENT city of residence from the LRL record.
+
+    The LRL "Terms" block lists one Residence per term, newest first, as
+    ``<b>Residence: </b> <span id="...termdata_ctrl0_Labelresidence">Bloomington
+    </span>`` -- ``ctrl0`` is the current term. We take the FIRST such value so
+    the city tracks the member's present district (grounded-answers: a real
+    residence the source states). An empty value or data-absence sentinel stays
+    null (reuses the same guard as the bio fields)."""
+    cleaned = strip_comments(html_text)
+    match = re.search(r"Labelresidence[^>]*>(.*?)</span>", cleaned, flags=re.I | re.S)
+    if not match:
+        return None
+    return _lrl_value(match.group(1))
+
+
 def lrl_id_from_profile_url(profile_url: str) -> str | None:
     """Extract the numeric LRL legislator id from a member profile_url.
 
@@ -306,9 +331,17 @@ def current_service_rows(
         .order_by(Chamber.slug, Legislator.sort_name)
     )
     if only_missing:
+        # A row is "missing" if its elected+term were never captured OR its city
+        # is still null (the newer represented_city field, #551) -- so a
+        # city-only re-run picks up members whose elected/term already landed.
         stmt = stmt.where(
-            LegislatorServicePeriod.elected.is_(None),
-            LegislatorServicePeriod.term.is_(None),
+            or_(
+                and_(
+                    LegislatorServicePeriod.elected.is_(None),
+                    LegislatorServicePeriod.term.is_(None),
+                ),
+                LegislatorServicePeriod.represented_city.is_(None),
+            )
         )
     if chamber:
         stmt = stmt.where(Chamber.slug == chamber)
@@ -366,24 +399,27 @@ def backfill(
 
         parsed = parse_bio(html_text, profile_url, chamber_slug)
 
-        # Fall back to the LRL record when the member page carries no bio: for
-        # the Senate that is always (member_bio has no prose); for the House only
-        # the members who left their Biographical Information blank. LRL is keyed
-        # by the same id embedded in the profile_url (House profile id == LRL id).
+        # The LRL record supplies the current city of residence for EVERY member,
+        # and doubles as the bio fallback when the member page carries none (the
+        # Senate always; the House only where Biographical Information is blank).
+        # LRL is keyed by the same id embedded in the profile_url (House profile
+        # id == LRL id), so fetch it once and read both the city (always) and the
+        # bio (only if still missing) from that single response.
         biography = parsed.biography
+        city: str | None = None
         lrl_ok = False
-        if biography is None:
-            lrl_id = lrl_id_from_profile_url(profile_url)
-            if lrl_id:
-                lrl_url = LRL_BIO_URL.format(leg_id=lrl_id)
-                try:
-                    biography = parse_lrl_bio(fetch_text(sess, lrl_url))
-                    lrl_ok = True
-                except Exception as exc:  # noqa: BLE001
-                    stats.fetch_errors += 1
-                    print(
-                        f"lrl fetch error: {legislator_row.full_name} {lrl_url}: {exc}"
-                    )
+        lrl_id = lrl_id_from_profile_url(profile_url)
+        if lrl_id:
+            lrl_url = LRL_BIO_URL.format(leg_id=lrl_id)
+            try:
+                lrl_html = fetch_text(sess, lrl_url)
+                city = parse_lrl_city(lrl_html)
+                if biography is None:
+                    biography = parse_lrl_bio(lrl_html)
+                lrl_ok = True
+            except Exception as exc:  # noqa: BLE001
+                stats.fetch_errors += 1
+                print(f"lrl fetch error: {legislator_row.full_name} {lrl_url}: {exc}")
         parsed = ParsedBio(
             elected=parsed.elected, term=parsed.term, biography=biography
         )
@@ -394,10 +430,12 @@ def backfill(
             stats.term_parsed += 1
         if parsed.biography:
             stats.biography_parsed += 1
+        if city:
+            stats.city_parsed += 1
 
         print(
             f"[{chamber_slug}] {legislator_row.full_name}: "
-            f"elected={parsed.elected!r} term={parsed.term!r}"
+            f"elected={parsed.elected!r} term={parsed.term!r} city={city!r}"
         )
         if parsed.biography:
             print(f"    bio: {parsed.biography}")
@@ -410,6 +448,11 @@ def backfill(
         try:
             period.elected = parsed.elected
             period.term = parsed.term
+            # Only touch the city when LRL actually answered, so a transient LRL
+            # fetch failure never wipes a previously-ingested value (elected/term
+            # come from the member page, which already succeeded above).
+            if lrl_ok:
+                period.represented_city = city
             if parsed.biography:
                 legislator_row.biography = parsed.biography
             elif lrl_ok and legislator_row.biography is not None:
@@ -444,7 +487,8 @@ def main() -> None:
     parser.add_argument(
         "--only-missing",
         action="store_true",
-        help="Only service periods whose elected AND term are still null.",
+        help="Only rows still missing data: elected+term never captured, or "
+        "represented_city (#551) still null.",
     )
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(

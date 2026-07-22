@@ -62,6 +62,9 @@ def sponsor_payloads(
                 else sponsorship.source_chamber,
                 party=service_period.party if service_period else None,
                 district=district,
+                represented_city=service_period.represented_city
+                if service_period
+                else None,
             )
         )
     return payloads

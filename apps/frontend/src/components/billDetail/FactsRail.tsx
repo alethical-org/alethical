@@ -145,7 +145,7 @@ export function FactsRail({
               <View style={styles.authorFieldRow}>
                 <Text style={styles.authorFieldLabel}>District</Text>
                 <Text style={styles.authorFieldValue}>
-                  {formatAuthorDistrict(author.district, author.chamber)}
+                  {formatAuthorDistrict(author.district, author.chamber, author.representedCity)}
                 </Text>
               </View>
             ) : null}
