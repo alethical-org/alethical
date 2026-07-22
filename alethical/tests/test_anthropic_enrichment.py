@@ -69,6 +69,56 @@ def test_call_anthropic_returns_validated_content(monkeypatch) -> None:
     assert calls["has_system"] is True
 
 
+def test_call_claude_cli_returns_validated_content(monkeypatch) -> None:
+    """The team-plan path parses the Claude Code CLI's `--output-format json`
+    envelope (result field), validates the schema, and returns the content. The CLI
+    subprocess is mocked so this needs no subscription/CLI/network."""
+    valid = {key: _placeholder(spec) for key, spec in _summary_props().items()}
+    valid["confidence"] = "high"
+
+    captured: dict = {}
+
+    class FakeProc:
+        returncode = 0
+        stderr = ""
+        stdout = json.dumps({"is_error": False, "result": json.dumps(valid)})
+
+    def fake_run(cmd, capture_output, text, timeout):
+        captured["cmd"] = cmd
+        return FakeProc()
+
+    monkeypatch.setattr(ae.subprocess, "run", fake_run)
+    out = ae._call_claude_cli("sonnet", "sys", "user")
+    assert out["confidence"] == "high"
+    # The command shells out to the CLI in headless JSON mode with our prompts.
+    cmd = captured["cmd"]
+    assert cmd[0] == ae.CLAUDE_CLI_BIN
+    assert "-p" in cmd and "user" in cmd
+    assert "--model" in cmd and "sonnet" in cmd
+    assert "--output-format" in cmd and "json" in cmd
+    assert "--system-prompt" in cmd
+
+
+def test_call_claude_cli_raises_on_nonzero_exit(monkeypatch) -> None:
+    class FakeProc:
+        returncode = 1
+        stderr = "not logged in"
+        stdout = ""
+
+    monkeypatch.setattr(ae.subprocess, "run", lambda *a, **k: FakeProc())
+    # Retries then raises — patch sleep so the test is instant.
+    monkeypatch.setattr(ae.time, "sleep", lambda *_: None)
+    with pytest.raises(RuntimeError, match="claude cli"):
+        ae._call_claude_cli("sonnet", "sys", "user")
+
+
+def test_generate_parser_defaults_to_api_provider_and_accepts_claude_cli() -> None:
+    parser = ae.build_parser()
+    base = ["generate", "--manifest-path", "m", "--jsonl-path", "j"]
+    assert parser.parse_args(base).provider == "api"
+    assert parser.parse_args(base + ["--provider", "claude-cli"]).provider == "claude-cli"
+
+
 def _summary_props() -> dict:
     return ae.SUMMARY_SCHEMA["properties"]
 
