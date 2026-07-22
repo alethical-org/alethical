@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal
 from uuid import UUID
 
@@ -632,13 +632,29 @@ def session_law_version(bill_row) -> dict[str, Any] | None:
 # states one unambiguously (grounded-answers rule 9). MN bills specify effective
 # dates section-by-section ("This section is effective July 1, 2027."), never for
 # the whole act, so a bill has a single verified effective date ONLY when every
-# section carries an explicit clause and they all name the SAME calendar date.
-# A #483 spike over all enacted bills confirmed this holds for ~8% (e.g. HF 4138
-# -> July 1, 2027); the rest legitimately have per-section dates, silent sections
-# that fall to the statutory default, or conditional language, and get None so
-# the UI keeps the honest "LATEST ACTION" fallback (#455 / #480) rather than a
-# guessed date. "The day following final enactment" and conditional clauses are
-# deliberately excluded — resolving them needs the enactment date / a legal call.
+# section carries an explicit clause and they all resolve to the SAME date. Two
+# clause shapes are groundable, both confirmed by the #483 spike over all enacted
+# bills:
+#   Tier A (#483/#561, ~8%): every section names the SAME explicit calendar date
+#     (e.g. HF 4138 -> July 1, 2027). Handled by effective_date_from_sections().
+#   Tier B (#562, ~15%): every section is "effective the day following final
+#     enactment" — no calendar date in the text to read. MN Revisor publishes the
+#     resolved date directly as an "Effective date" bill action, so we take THAT
+#     authoritative value (rule 9) rather than compute it: the naive
+#     "governor-signature + 1 day" is wrong in practice (HF 4987 signed 5/14 is
+#     effective 5/16, tracking the 5/15 filing, not 5/15), and no single offset
+#     fits every bill. To ship it we require two independent signals to agree —
+#     the section text is uniformly "day following final enactment" (guards out
+#     mixed bills whose Effective-date action is just a July 1 / Aug 1 statutory
+#     default, e.g. HF 4138) AND the Effective-date action is one clean date
+#     falling just after the governor-signature date (its "various dates" flags a
+#     genuinely mixed bill; the signature window rejects a stray typo year like
+#     SF 1552's "03/18/2024"). Handled by effective_date_day_following_enactment()
+#     + revisor_effective_date_action() + governor_approval_date().
+# Everything else — differing per-section dates, a silent section that falls to
+# the statutory default, or conditional/contingent language — is genuinely
+# ambiguous and gets None, so the UI keeps the honest "LATEST ACTION" fallback
+# (#455 / #480) rather than a guessed date.
 _EFFECTIVE_SENTENCE_RE = re.compile(
     r"this (?:section|article|subdivision|paragraph)\b[^.]*?\beffective\b[^.]*?\.",
     re.IGNORECASE,
@@ -691,11 +707,145 @@ def effective_date_from_sections(
     return next(iter(dates)) if len(dates) == 1 else None
 
 
+_DAY_FOLLOWING_PHRASE = "day following final enactment"
+# MN Revisor records the governor signing ("final enactment", Minn. Stat. 645.01
+# subd. 2) under either label, and the resolved effective date as an "Effective
+# date" action; all carry an MM/DD/YY[YY] date in their description. A "Presented
+# to Governor" or "Secretary of State, Filed" action is a DIFFERENT event.
+_GOVERNOR_APPROVAL_ACTION_TEXTS = ("governor approval", "governor's action approval")
+_EFFECTIVE_DATE_ACTION_TEXT = "effective date"
+_ACTION_DATE_RE = _FILING_DATE_RE  # MM/DD/YY or MM/DD/YYYY inside a description
+# A Tier-B effective date must fall within a few days after the governor signed
+# (the signing, or its 1-day-later Secretary-of-State filing, +1). This window
+# both corroborates the Revisor date and rejects a stray/typo year (e.g. SF 1552's
+# "03/18/2024" against a 2025 signing) that would ship a wrong statutory date.
+_ENACTMENT_EFFECTIVE_WINDOW_DAYS = 7
+_MONTH_NAMES = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
+
+
+def _parse_action_date(description: str | None) -> date | None:
+    """Parse an MM/DD/YY[YY] date from an action description, or None.
+
+    Rejects a 2-digit year by adding 2000 and any year outside 2000-2099 (a
+    malformed source value such as "05/27/226"), so a bad parse never becomes a
+    trusted date.
+    """
+    match = _ACTION_DATE_RE.search(description or "")
+    if not match:
+        return None
+    month, day, year = (int(part) for part in match.groups())
+    if year < 100:
+        year += 2000
+    if not (2000 <= year <= 2099):
+        return None
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None  # impossible day (e.g. 02/30)
+
+
+def effective_date_day_following_enactment(
+    sections: list[tuple[str | None, str | None]],
+) -> bool:
+    """True iff every section's effective clause is "the day following final
+    enactment" and nothing else — the Tier-B shape (#562).
+
+    Same gate as :func:`effective_date_from_sections`: every section must carry an
+    explicit, parseable effective clause. Returns False if any clause also names an
+    explicit calendar date or uses conditional language (that bill is genuinely
+    mixed/ambiguous), or if any section is silent. Pure/DB-free — the concrete date
+    is taken from the Revisor "Effective date" action, never guessed from text.
+    """
+    if not sections:
+        return False
+    clause_texts = [raw for (heading, raw) in sections if (heading or "").strip()]
+    if not clause_texts or len(clause_texts) != len(sections):
+        return False
+    for raw in clause_texts:
+        flattened = re.sub(r"\s+", " ", raw or "")
+        clauses = _EFFECTIVE_SENTENCE_RE.findall(flattened)
+        if not clauses:
+            return False  # a clause section we cannot parse -> not unambiguous
+        for clause in clauses:
+            lowered = clause.lower()
+            if _DAY_FOLLOWING_PHRASE not in lowered:
+                return False  # some other effective shape -> not pure Tier B
+            # A "day following" clause that ALSO carries a calendar date or a
+            # conditional trigger is ambiguous, not the clean Tier-B case.
+            if _EFFECTIVE_DATE_RE.search(clause) or _EFFECTIVE_CONDITIONAL_RE.search(
+                clause
+            ):
+                return False
+    return True
+
+
+def governor_approval_date(actions) -> date | None:
+    """The date the governor signed the bill, from its actions, or None.
+
+    Grounded-critical (rule 9): returns a date only when the approval actions
+    resolve to exactly one plausible calendar date. Zero approval actions (a bill
+    that became law without signature, or a veto override) or conflicting/malformed
+    dates yield None so the caller falls back rather than assert a wrong anchor.
+    """
+    dates: set[date] = set()
+    for action in actions or []:
+        text = (action.action_text or "").strip().lower()
+        if text in _GOVERNOR_APPROVAL_ACTION_TEXTS:
+            parsed = _parse_action_date(action.action_description)
+            if parsed is not None:
+                dates.add(parsed)
+    return next(iter(dates)) if len(dates) == 1 else None
+
+
+def revisor_effective_date_action(actions) -> date | None:
+    """The Revisor-published effective date from the bill's "Effective date"
+    actions, or None.
+
+    Returns a date only when the bill carries exactly one clean effective date:
+    any "various dates" marker (a genuinely mixed bill) or more than one distinct
+    parsed date yields None, so the caller falls back rather than assert one of
+    several dates as the whole-act effective date.
+    """
+    saw_action = False
+    dates: set[date] = set()
+    for action in actions or []:
+        if (action.action_text or "").strip().lower() != _EFFECTIVE_DATE_ACTION_TEXT:
+            continue
+        saw_action = True
+        description = (action.action_description or "").strip()
+        if "various" in description.lower():
+            return None  # Revisor flags a genuinely mixed bill
+        parsed = _parse_action_date(description)
+        if parsed is not None:
+            dates.add(parsed)
+    if not saw_action:
+        return None
+    return next(iter(dates)) if len(dates) == 1 else None
+
+
 def verified_effective_date(db: Session, bill_row) -> str | None:
     """The enacted bill's statutory effective date, verbatim, or None.
 
-    Runs :func:`effective_date_from_sections` over the current version's sections,
-    but only for enacted bills; otherwise the caller keeps the honest LATEST
+    For enacted bills only, in order of certainty:
+      * Tier A (#483/#561): every section names one identical explicit date.
+      * Tier B (#562): every section is "effective the day following final
+        enactment" AND the Revisor's own "Effective date" action is a single clean
+        date falling within a week after the governor-signature date (Minn. Stat.
+        645.01) — the authoritative published date, cross-checked, never computed.
+    Anything still ambiguous returns None so the caller keeps the honest LATEST
     ACTION treatment (#483 / #455 / #480).
     """
     if bill_status_key(bill_row) != "signed_into_law":
@@ -708,7 +858,27 @@ def verified_effective_date(db: Session, bill_row) -> str | None:
             BillVersionSection.effective_date_heading, BillVersionSection.raw_text
         ).where(BillVersionSection.bill_version_id == current.id)
     ).all()
-    return effective_date_from_sections([(r[0], r[1]) for r in rows])
+    sections = [(r[0], r[1]) for r in rows]
+
+    tier_a = effective_date_from_sections(sections)
+    if tier_a is not None:
+        return tier_a
+
+    if effective_date_day_following_enactment(sections):
+        actions = bill_row.actions or []
+        effective = revisor_effective_date_action(actions)
+        approval = governor_approval_date(actions)
+        if (
+            effective is not None
+            and approval is not None
+            and approval
+            < effective
+            <= approval + timedelta(days=_ENACTMENT_EFFECTIVE_WINDOW_DAYS)
+        ):
+            return (
+                f"{_MONTH_NAMES[effective.month - 1]} {effective.day}, {effective.year}"
+            )
+    return None
 
 
 def bill_version_payloads(bill_row) -> list[dict[str, Any]]:
