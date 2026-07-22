@@ -288,6 +288,7 @@ function SegmentButton({
   label: string;
   active: boolean;
   onPress: () => void;
+  /** Fires the prefetch on hover (web) and touch-down (mobile — see onPressIn). */
   onHoverIn?: () => void;
 }) {
   const [hovered, hover] = useHover();
@@ -301,6 +302,11 @@ function SegmentButton({
         hover.onHoverIn();
         onHoverIn?.();
       }}
+      // Touch has no hover, so fire the same prefetch on touch-down (~100–200ms
+      // before onPress completes) — the subsequent tap is a cache hit on mobile
+      // too (#517). prefetchQuery honors staleTime, so a preceding hover on
+      // desktop makes this a no-op, not a duplicate request.
+      onPressIn={onHoverIn}
       style={[styles.segmentBtn, active && styles.segmentBtnActive]}
     >
       <Text
@@ -487,7 +493,7 @@ export function FilterPill({
   count?: number;
   active: boolean;
   onPress: () => void;
-  /** Fires on hover — used to prefetch the filtered list for this pill. */
+  /** Fires on hover (web) and touch-down (mobile) — prefetches this pill's list. */
   onHoverIn?: () => void;
 }) {
   const [hovered, hover] = useHover();
@@ -502,6 +508,9 @@ export function FilterPill({
         hover.onHoverIn();
         onHoverIn?.();
       }}
+      // Touch has no hover, so fire the same prefetch on touch-down so the tap is
+      // a cache hit on mobile too (#517); staleTime dedupes the desktop case.
+      onPressIn={onHoverIn}
       style={[styles.pill, active ? styles.pillActive : hovered && styles.filterHover]}
     >
       <Text
