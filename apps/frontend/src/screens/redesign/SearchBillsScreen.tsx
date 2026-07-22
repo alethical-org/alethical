@@ -130,10 +130,14 @@ export function SearchBillsScreen() {
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   });
-  // Warm the cache for a filter the user is hovering over (web only — no hover
-  // on touch). Tapping a chip keeps the other active filters and resets to
-  // page 1, so prefetch the current filters with just this override applied at
-  // offset 0 — an exact key match for what useBills reads after the tap (#492).
+  // Warm the cache for a filter the user is hovering over (web) or touching
+  // down on (mobile, via the chips' onPressIn — #517). Tapping a chip keeps the
+  // other active filters and resets to page 1, so prefetch the current filters
+  // with just this override applied at offset 0 — an exact key match for what
+  // useBills reads after the tap (#492).
+  // The "prefetch likely-next filters on mount" option in #517 is intentionally
+  // deferred: it risks over-fetching, so it should be driven by #516 (RUM) field
+  // data before we decide whether/how aggressively to do it.
   const prefetchBills = usePrefetchBills();
   const prefetchFilter = (override: Partial<BillListFilters>) =>
     prefetchBills(
