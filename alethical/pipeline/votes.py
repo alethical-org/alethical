@@ -9,6 +9,7 @@ import tempfile
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
@@ -60,6 +61,7 @@ class BackfillStats:
     no_source_match: int = 0
     ambiguous_or_missing_names: int = 0
     write_errors: int = 0
+    cross_chamber_mirror: int = 0
 
 
 def supabase_database_url() -> str | None:
@@ -107,6 +109,23 @@ def compact_bill_number(value: str) -> str:
     return f"{match.group(1).upper()}F{int(match.group(2))}"
 
 
+def looks_like_bill_number(value: str) -> bool:
+    """True when a heading is itself a bill file number (e.g. 'H.F. NO. 2115'),
+    as opposed to a motion label ('TO CONSIDER FIRST FOR CALENDAR')."""
+    cleaned = value.replace(".", " ")
+    return bool(re.search(r"\b[HS]\s*F(?:\s*NO\s*)?\s*0*\d+\b", cleaned, flags=re.I))
+
+
+def leading_chamber(action_text: str | None) -> str | None:
+    """The chamber named as the acting body at the start of an action, e.g.
+    'Senate adopted conference committee report, bill repassed' -> 'senate'.
+    Returns None when the text does not open with a chamber name."""
+    if not action_text:
+        return None
+    match = re.match(r"\s*(House|Senate)\b", action_text, flags=re.I)
+    return match.group(1).lower() if match else None
+
+
 def extract_td_names(table_html: str) -> list[str]:
     names = [
         strip_tags(item)
@@ -150,7 +169,14 @@ def parse_house_votes(
             if re.search(r"<H3>.*?</H3>", block, flags=re.I | re.S)
             else ""
         )
-        if compact_bill_number(heading) != compact_expected:
+        # The page is fetched per bill number, so every block belongs to this
+        # bill -- including motion votes (e.g. "TO CONSIDER FIRST FOR CALENDAR")
+        # whose H3 heading is the motion label rather than the bill number. Skip
+        # a block only when its heading is a *different* bill number.
+        if (
+            looks_like_bill_number(heading)
+            and compact_bill_number(heading) != compact_expected
+        ):
             continue
         count_match = re.search(
             r"<H3>\s*(\d+)\s+YEA\s+and\s+(\d+)\s+Nay\s*</H3>", block, flags=re.I
@@ -251,6 +277,55 @@ def pdf_pages_text(pdf_url: str, first_page: int, last_page: int) -> str:
         return result.stdout
 
 
+SENATE_JOURNAL_LIST_URL = (
+    "https://www.senate.mn/journals/journal_list.php?display_ls_year=94"
+)
+
+
+@lru_cache(maxsize=1)
+def senate_journal_index() -> dict[str, str]:
+    """Map each session day 'YYYYMMDD' to its Senate journal PDF URL.
+
+    Used to recover the journal for a roll-call action whose JOURNAL_PAGE is
+    empty at the Revisor source: the day's journal is located by the action
+    date instead.
+    """
+    html_text = get_text(SENATE_JOURNAL_LIST_URL)
+    index: dict[str, str] = {}
+    for href in re.findall(r'href="([^"]*\.pdf)"', html_text, flags=re.I):
+        name = href.rsplit("/", 1)[-1]
+        match = re.match(r"(\d{8})", name)
+        if not match:
+            continue
+        path = re.sub(r"/{2,}", "/", href)
+        url = path if path.startswith("http") else f"https://www.senate.mn{path}"
+        index.setdefault(match.group(1), url)
+    return index
+
+
+def senate_pdf_for_date(action_at: datetime | None) -> str | None:
+    if action_at is None:
+        return None
+    return senate_journal_index().get(action_at.strftime("%Y%m%d"))
+
+
+def pdf_full_text(pdf_url: str) -> str:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pdf_path = Path(temp_dir) / "journal.pdf"
+        response = requests.get(
+            pdf_url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS
+        )
+        response.raise_for_status()
+        pdf_path.write_bytes(response.content)
+        result = subprocess.run(
+            ["pdftotext", str(pdf_path), "-"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout
+
+
 def names_between(text: str, start: int, end_pattern: str) -> tuple[list[str], int]:
     end_match = re.search(end_pattern, text[start:], flags=re.I)
     end = start + end_match.start() if end_match else len(text)
@@ -292,14 +367,22 @@ def parse_senate_vote_from_pdf(
         for line in prefix.splitlines()[-8:]
         if normalize_space(line)
     ]
-    motion_text = next(
-        (
-            line
-            for line in reversed(motion_lines)
-            if "question was taken" not in line.lower()
-        ),
-        None,
-    )
+    # The "The question was taken on <X>." line right before the roll call names
+    # what this vote decided (e.g. "the final passage of S.F. No. 856"). Prefer
+    # it: falling back to an earlier line can quote a *prior* vote's outcome
+    # ("The motion did not prevail.") as this vote's motion.
+    motion_text: str | None = None
+    for line in reversed(motion_lines):
+        if re.search(r"question was taken on", line, flags=re.I):
+            stripped = (
+                re.sub(r"^.*question was taken on(?:\s+the)?\s+", "", line, flags=re.I)
+                .strip()
+                .rstrip(".")
+            )
+            motion_text = (stripped[:1].upper() + stripped[1:]) if stripped else line
+            break
+    if motion_text is None and motion_lines:
+        motion_text = motion_lines[-1]
 
     affirmative_marker = re.search(
         r"Those who voted in the affirmative were:",
@@ -336,6 +419,45 @@ def parse_senate_vote_from_pdf(
         negative_names=negative_names,
         official_url=official_url,
     )
+
+
+def parse_senate_vote_scoped(
+    text: str,
+    file_type: str,
+    file_number: int,
+    yes_count: int,
+    no_count: int,
+    official_url: str,
+) -> ParsedVote | None:
+    """Find one bill's roll call inside a full-day Senate journal.
+
+    A full day's journal holds many roll calls, so match the count line whose
+    preceding text references this bill (e.g. 'H.F. No. 3615'), then hand the
+    slice from there to the standard per-page parser.
+    """
+    letter = file_type[0].upper()
+    bill_pattern = re.compile(
+        rf"{letter}\.?\s*F\.?\s*No\.?\s*0*{file_number}\b", flags=re.I
+    )
+    count_pattern = re.compile(
+        rf"The roll was called, and there were yeas\s+{yes_count}\s+and nays\s+{no_count}\b",
+        flags=re.I,
+    )
+    for count_match in count_pattern.finditer(text):
+        window_start = max(0, count_match.start() - 2500)
+        bill_hits = list(bill_pattern.finditer(text, window_start, count_match.start()))
+        if bill_hits:
+            # Slice from this bill's reference (immediately before its own count
+            # line) so the per-page parser locks onto this roll call rather than
+            # an earlier bill's identically-tallied one.
+            return parse_senate_vote_from_pdf(
+                text[bill_hits[-1].start() :],
+                yes_count,
+                no_count,
+                None,
+                official_url,
+            )
+    return None
 
 
 def vote_name_key(name: str) -> tuple[str, tuple[str, ...]]:
@@ -466,6 +588,7 @@ def backfill_votes(
         "no_source_match": 0,
         "ambiguous_or_missing_names": 0,
         "write_errors": 0,
+        "cross_chamber_mirror": 0,
     }
     house_cache: dict[str, list[ParsedVote]] = {}
     senate_cache: dict[str, str] = {}
@@ -482,6 +605,16 @@ def backfill_votes(
                 continue
             yes_count, no_count = counts
 
+            # Cross-chamber mirror: one chamber's journal records the other
+            # chamber's conference-committee repassage as an action on this bill
+            # (e.g. "Senate adopted conference committee report, bill repassed"
+            # under the House side). The member-level roll call is ingested from
+            # the acting chamber's own action, so skip the mirror -- ingesting it
+            # would double-count an already-recorded roll call.
+            if leading_chamber(action.action_text) not in (None, chamber.slug):
+                stats["cross_chamber_mirror"] += 1
+                continue
+
             parsed_vote: ParsedVote | None = None
             if chamber.slug == "house":
                 bill_number = house_bill_number(bill.file_type, bill.file_number)
@@ -495,18 +628,41 @@ def backfill_votes(
                 )
             elif chamber.slug == "senate" and action.journal_page:
                 pdf_url, internal_page = senate_pdf_for_page(action.journal_page)
-                text_key = f"{pdf_url}#{internal_page}"
-                if text_key not in senate_cache:
-                    senate_cache[text_key] = pdf_pages_text(
-                        pdf_url, internal_page, internal_page + 1
+                # A roll call can straddle a page boundary: the "yeas .. nays .."
+                # count line sometimes sits at the foot of the page before the
+                # one JOURNAL_PAGE points at. Try the exact page first (preserves
+                # existing matches), then widen backward one page if needed.
+                for first_page in (internal_page, max(1, internal_page - 1)):
+                    text_key = f"{pdf_url}#{first_page}-{internal_page + 1}"
+                    if text_key not in senate_cache:
+                        senate_cache[text_key] = pdf_pages_text(
+                            pdf_url, first_page, internal_page + 1
+                        )
+                    parsed_vote = parse_senate_vote_from_pdf(
+                        senate_cache[text_key],
+                        yes_count,
+                        no_count,
+                        action.journal_page,
+                        f"{pdf_url}#page={internal_page}",
                     )
-                parsed_vote = parse_senate_vote_from_pdf(
-                    senate_cache[text_key],
-                    yes_count,
-                    no_count,
-                    action.journal_page,
-                    f"{pdf_url}#page={internal_page}",
-                )
+                    if parsed_vote is not None:
+                        break
+            elif chamber.slug == "senate":
+                # JOURNAL_PAGE is empty at the Revisor source for a few Senate
+                # roll calls. Recover the day's journal by the action date and
+                # locate this bill's roll call within the full-day text.
+                pdf_url = senate_pdf_for_date(action.action_at)
+                if pdf_url:
+                    if pdf_url not in senate_cache:
+                        senate_cache[pdf_url] = pdf_full_text(pdf_url)
+                    parsed_vote = parse_senate_vote_scoped(
+                        senate_cache[pdf_url],
+                        bill.file_type,
+                        bill.file_number,
+                        yes_count,
+                        no_count,
+                        pdf_url,
+                    )
         except Exception as exc:  # noqa: BLE001
             stats["no_source_match"] += 1
             bill_key = getattr(
