@@ -231,6 +231,69 @@ def bill_number_clause(q: str):
     )
 
 
+# Keyword search normalization (#571). A raw ``ILIKE %q%`` is a contiguous
+# substring match, so "plumbing" finds nothing when the text says "plumbers"
+# even though both share the root "plumb", and "school funding" only matches when
+# those two words are adjacent. We instead (a) split the query into words and
+# require each to match at least one column (order-independent), and (b) match a
+# conservatively stemmed root of each word as well, so inflected variants
+# (plurals, -ing/-ed/-er) resolve to the same stem. Every clause is ORed against
+# the raw word too, so the match set is a strict superset of the old behavior —
+# no result that matched before can disappear.
+
+# Common English inflectional suffixes, longest first. Stripped only when the
+# word is long enough (>= _MIN_STEM_WORD) and the remaining root stays
+# meaningful (>= _MIN_ROOT_LEN), so short words ("tax", "art") are left alone.
+_INFLECTION_SUFFIXES = ("ings", "ing", "ers", "er", "ies", "es", "ed", "s")
+_MIN_STEM_WORD = 5
+_MIN_ROOT_LEN = 4
+
+
+def _stem_root(word: str) -> str | None:
+    """Return a conservatively stemmed root for ``word``, or None when no safe
+    stem applies. Used only to broaden matching (never to replace the raw word),
+    so an over-eager stem can add a few extra matches but can't hide one."""
+    lowered = word.lower()
+    if len(lowered) < _MIN_STEM_WORD:
+        return None
+    for suffix in _INFLECTION_SUFFIXES:
+        if lowered.endswith(suffix):
+            root = lowered[: -len(suffix)]
+            if len(root) >= _MIN_ROOT_LEN:
+                return root
+    return None
+
+
+def _like_escape(value: str) -> str:
+    """Escape LIKE wildcards so a user's literal % or _ isn't treated as one."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def keyword_search_clause(columns, q: str):
+    """Case-insensitive keyword match over ``columns`` for query ``q``. Each word
+    in ``q`` must match at least one column (as a raw substring or via its
+    stemmed root); all words must match (AND). Returns None for an empty query."""
+    words = [word for word in q.split() if word]
+    if not words:
+        return None
+    per_word = []
+    for word in words:
+        patterns = [f"%{_like_escape(word)}%"]
+        root = _stem_root(word)
+        if root is not None:
+            patterns.append(f"%{_like_escape(root)}%")
+        per_word.append(
+            or_(
+                *[
+                    col.ilike(pattern, escape="\\")
+                    for col in columns
+                    for pattern in patterns
+                ]
+            )
+        )
+    return and_(*per_word)
+
+
 def latest_ingested_at(db: Session):
     """Newest succeeded-ingestion finish time — the "Data as of" provenance
     timestamp shown on the bill search screen and Ask answer pages (#134)."""
@@ -496,9 +559,9 @@ def bills(
             # mentions the digits in its title or description (#134).
             stmt = stmt.where(number_clause)
         else:
-            stmt = stmt.where(
-                or_(Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%"))
-            )
+            keyword_clause = keyword_search_clause([Bill.title, Bill.description], q)
+            if keyword_clause is not None:
+                stmt = stmt.where(keyword_clause)
     if chamber:
         stmt = stmt.where(Bill.chamber.has(Chamber.slug == chamber.strip().lower()))
     if status:
@@ -1161,7 +1224,9 @@ def legislators(
     session_row = get_session_by_slug(db, session)
     stmt = legislator_directory_stmt(session_row.id)
     if q:
-        stmt = stmt.where(Legislator.full_name.ilike(f"%{q}%"))
+        name_clause = keyword_search_clause([Legislator.full_name], q)
+        if name_clause is not None:
+            stmt = stmt.where(name_clause)
     if chamber:
         stmt = stmt.where(
             LegislatorServicePeriod.chamber.has(Chamber.slug == chamber.strip().lower())
@@ -1484,21 +1549,23 @@ def search(
     payload: dict[str, list[dict]] = {"bills": [], "legislators": []}
     if "bills" in type_set:
         number_clause = bill_number_clause(q)
+        bills_stmt = bill_list_stmt(session_row.id)
         if number_clause is not None:
             # Bill-number query → exclusive ID lookup, not free text (see /bills).
-            bills_stmt = bill_list_stmt(session_row.id).where(number_clause)
+            bills_stmt = bills_stmt.where(number_clause)
         else:
-            bills_stmt = bill_list_stmt(session_row.id).where(
-                or_(Bill.title.ilike(f"%{q}%"), Bill.description.ilike(f"%{q}%"))
-            )
+            keyword_clause = keyword_search_clause([Bill.title, Bill.description], q)
+            if keyword_clause is not None:
+                bills_stmt = bills_stmt.where(keyword_clause)
         payload["bills"] = [
             bill_list_item(row).model_dump(exclude_none=True)
             for row in db.scalars(bills_stmt.limit(limit)).all()
         ]
     if "legislators" in type_set:
-        legislators_stmt = legislator_directory_stmt(session_row.id).where(
-            Legislator.full_name.ilike(f"%{q}%")
-        )
+        legislators_stmt = legislator_directory_stmt(session_row.id)
+        name_clause = keyword_search_clause([Legislator.full_name], q)
+        if name_clause is not None:
+            legislators_stmt = legislators_stmt.where(name_clause)
         legislator_rows = db.scalars(legislators_stmt.limit(limit)).all()
         counts = authored_bill_counts(db, [row.id for row in legislator_rows])
         payload["legislators"] = [
