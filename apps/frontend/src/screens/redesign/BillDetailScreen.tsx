@@ -210,14 +210,19 @@ function CircleCheck() {
 }
 
 // A tap/press-glowing text link (green, per the design's inline-link treatment).
+// With `arrow`, a trailing "→" (U+2192) is appended in the link's own font at its
+// size but weight 400 (the label stays 700) — a decorative, aria-hidden span so
+// screen readers announce the label alone.
 function TextLink({
   label,
   onPress,
   size = 17,
+  arrow,
 }: {
   label: string;
   onPress: () => void;
   size?: number;
+  arrow?: boolean;
 }) {
   const [hovered, hover] = useHover();
   return (
@@ -230,6 +235,11 @@ function TextLink({
         ]}
       >
         {label}
+        {arrow ? (
+          <Text aria-hidden style={styles.linkArrow}>
+            {' →'}
+          </Text>
+        ) : null}
       </Text>
     </Pressable>
   );
@@ -686,28 +696,36 @@ function BillDetailMobileScreen() {
                   <View style={styles.factsLinks}>
                     {vm.overviewUrl ? (
                       <TextLink
-                        label="Bill overview →"
+                        label="Bill overview"
+                        arrow
                         onPress={() => openExternal(vm.overviewUrl as string)}
                       />
                     ) : null}
                     {vm.readUrl ? (
                       <TextLink
-                        label={`${readLabel(bill.status)} →`}
+                        label={readLabel(bill.status)}
+                        arrow
                         onPress={() => openExternal(vm.readUrl as string)}
                       />
                     ) : null}
-                    {/* Companion bill (#293): the paired House/Senate file. Links to
-                        the companion's bill page (URL-addressable, grounded-answers
-                        rule 5); shown only when the pair is linked. */}
-                    {bill.companion ? (
+                  </View>
+                  {/* Companion bill (#293): the paired House/Senate file. A grey
+                      label + green value row (matching web) — the arrow sits at the
+                      END of the value, never after "Companion". Links to the
+                      companion's bill page (URL-addressable, grounded-answers rule 5);
+                      shown only when the pair is linked. */}
+                  {bill.companion ? (
+                    <View style={styles.companionRow}>
+                      <Text style={styles.factsKvKey}>Companion</Text>
                       <TextLink
-                        label={`Companion → ${bill.companion.chamber} (${bill.companion.identifier})`}
+                        label={`${bill.companion.chamber} (${bill.companion.identifier})`}
+                        arrow
                         onPress={() =>
                           navigation.navigate('BillDetail', { billId: bill.companion!.id })
                         }
                       />
-                    ) : null}
-                  </View>
+                    </View>
+                  ) : null}
                 </View>
 
                 {vm.chief ? (
@@ -728,8 +746,8 @@ function BillDetailMobileScreen() {
                         <Text style={styles.factsKvKey}>{authorTitleLabel(vm.chief.chamber)}</Text>
                         {vm.chief.legislatorId ? (
                           <TextLink
-                            label={`${authorNameOnly(vm.chief.name)} →`}
-                            size={t.fontSizes.body}
+                            label={authorNameOnly(vm.chief.name)}
+                            arrow
                             onPress={() =>
                               navigation.navigate('LegislatorProfile', {
                                 legislatorId: vm.chief!.legislatorId,
@@ -2048,6 +2066,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   factsLinks: { marginTop: 14, gap: 12, alignItems: 'flex-start' },
+  companionRow: { marginTop: 12, flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   coauthors: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.small,
@@ -2100,6 +2119,7 @@ const styles = StyleSheet.create({
       ? ({ transitionProperty: 'color', transitionDuration: '0.15s' } as object)
       : null),
   },
+  linkArrow: { fontWeight: t.fontWeights.regular },
 
   // ask card
   askCard: {
