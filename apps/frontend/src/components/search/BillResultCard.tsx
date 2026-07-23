@@ -249,7 +249,7 @@ export function BillResultCard({
               style={styles.rollCalls}
             >
               <Text style={styles.rollCallsText}>
-                {bill.rollCallCount} roll {bill.rollCallCount === 1 ? 'call' : 'calls'}
+                {bill.rollCallCount} {bill.rollCallCount === 1 ? 'vote' : 'votes'}
               </Text>
             </Pressable>
           ) : null}
