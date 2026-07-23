@@ -63,11 +63,16 @@ const palette = {
   amber: '#9a7b1f',
   progressEmpty: '#e2e5e4',
   // omnibus indicator pill (docs/mockups/search-bills omnibus amber).
-  // Text darkened from the mockup's #a76a1a to clear WCAG AA (4.5:1): #8f5a12 on
-  // the #fbf1e2 fill is 5.16:1; #a76a1a was 3.98:1, short for 11px text.
+  // Text is #8f5a12 (not the mockup's #a76a1a) to clear WCAG AA: 5.77:1 on white /
+  // 5.16:1 on the #fbf1e2 fill; #a76a1a was 3.98:1 on fill and 4.45:1 on white,
+  // short of AA for small text (docs/design-principles.md §3, accessibility
+  // overrides the spec). omnibusFill/Border/Text also back the SOLID bill-code
+  // badge; omnibusGhostBorder is the lighter border for the GHOSTED omnibus TAG
+  // (transparent fill), used site-wide so all omnibus tags read identically.
   omnibusFill: '#fbf1e2',
   omnibusBorder: '#f0d6a8',
   omnibusText: '#8f5a12',
+  omnibusGhostBorder: '#e3c17f',
 };
 
 // --- Alpha ramps (ink for borders/overlays, green for glows, white) ---
@@ -184,11 +189,13 @@ export const theme = {
       amber: palette.amber,
       progressEmpty: palette.progressEmpty,
     },
-    // omnibus indicator pill on bill cards
+    // omnibus indicator pill on bill cards. fill/border/text = SOLID amber (also
+    // the bill-code badge); ghostBorder = the GHOSTED omnibus TAG's lighter border.
     omnibus: {
       fill: palette.omnibusFill,
       border: palette.omnibusBorder,
       text: palette.omnibusText,
+      ghostBorder: palette.omnibusGhostBorder,
     },
     footerBg: palette.ink900,
     alpha,

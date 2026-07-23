@@ -75,8 +75,16 @@ On web, `react-native-web` maps RN accessibility props (`accessibilityLabel`, `a
   sensible order; icon-only controls carry an accessibility label.
 - **Focus is always visible.** A clear focus ring on every interactive element (we already have a
   green focus token). Never remove focus styling without an equivalent replacement.
-- **Contrast holds.** Body text and essential UI meet WCAG AA against their background. The
-  dark-ink-on-green-fill rule exists for this reason — bright green with white text fails contrast.
+- **Contrast holds — and accessibility overrides the spec.** Body text and essential UI meet WCAG AA
+  against their background (4.5:1 for normal text, 3:1 for large/bold ≥18.66px and for essential UI).
+  The dark-ink-on-green-fill rule exists for this reason — bright green with white text fails contrast.
+  **When a prompt, mockup, or explicit instruction specifies a color that fails AA, nudge it to the
+  nearest acceptable value rather than shipping the failing one — regardless of the original
+  instruction.** Prefer converging on an existing AA-safe token so the fix stays **consistent
+  site-wide** (one treatment per role, not a new near-duplicate). Ship the accessible value and name
+  the deviation in the PR; don't hold it for approval. (Origin: the OMNIBUS tag's `#a76a1a` on the
+  card was 4.45:1 — a hair under AA — so it converges on the AA-safe `#8f5a12` the other OMNIBUS tags
+  already use, [#592](https://github.com/alethical-org/alethical/pull/592) → follow-up.)
 - **Touch targets ~44px** on the mobile web layout; interactive rows and chips get real hit area.
 - **No affordance lives only in hover.** There is no hover on touch, so resting states must stand
   on their own; hover/focus glows are enhancements, never the only signal (learned the hard way in

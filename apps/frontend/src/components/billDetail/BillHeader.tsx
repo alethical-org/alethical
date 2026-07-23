@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: t.colors.omnibus.border,
+    borderColor: t.colors.omnibus.ghostBorder,
     borderRadius: t.radii.sm,
   },
   omnibusText: {

@@ -72,7 +72,7 @@ const isWeb = Platform.OS === 'web';
 const AMBER_TEXT = t.colors.omnibus.text; // #8f5a12
 const CODE_BADGE_FILL = '#fbe7bd';
 const CODE_BADGE_BORDER = '#eccf86';
-const GHOST_AMBER_BORDER = '#e3c17f';
+const GHOST_AMBER_BORDER = t.colors.omnibus.ghostBorder; // #e3c17f — shared ghosted omnibus border
 // Breadcrumb grey (palette.ink500) — no semantic text alias maps to it.
 const BREADCRUMB_GREY = '#4b524b';
 
