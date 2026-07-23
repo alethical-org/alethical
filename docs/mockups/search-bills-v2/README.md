@@ -16,12 +16,15 @@ Pre-build findings (2026-07-23), confirmed against production:
   `policy_area`); done additively — `policy_area` is now repeatable and the
   alias sets union (OR across issues). Live-verified: Health 1,571 + Education
   1,508 → union 2,883.
-- **"Passed both chambers" (8th status) is NOT shipped.** Status is classified
-  from `Bill.current_status` text, which mis-attributes chamber (production:
-  `passed_senate` is structurally 0, `passed_house` is a catch-all). "Passed
-  both" is only reliably detectable via action-history chamber signals, which
-  needs a status-classifier overhaul (high blast radius) — filed and staffed as
-  its own backend issue. This screen ships the **7** statuses the data backs.
+- **"Passed both chambers" (8th status) — now shipped (#607/#612).** At build
+  time this screen shipped only **7** statuses: status was classified from
+  `Bill.current_status` text, which mis-attributes chamber (production had
+  `passed_senate` structurally 0 and `passed_house` as a catch-all), so "Passed
+  both chambers" wasn't reliably detectable. That was filed as #607 and fixed
+  shortly after: the classifier now reads chamber-stamped `bill_action` history,
+  and the 8th status is live (prod counts: `passed_senate` 0→23,
+  `passed_both_chambers` 10, `passed_house` 216→88, mutually exclusive, summing
+  to the session total). All 8 statuses now ship.
 - Tokens live in `apps/frontend/src/theme/tokens.ts`; primitives in
   `theme/primitives.tsx`. Amber = code/omnibus identity only (never status).
 - The Track button is a roadmap placeholder (inert dashed on web, omitted on
