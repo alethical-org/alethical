@@ -535,7 +535,7 @@ def bills(
     q: str | None = None,
     chamber: str | None = None,
     status: str | None = None,
-    policy_area: str | None = None,
+    policy_area: list[str] | None = Query(default=None),
     omnibus: bool | None = None,
     include: str | None = None,
     sort: Literal["latest_action", "progress", "introduced"] = "latest_action",
@@ -579,13 +579,20 @@ def bills(
     if status:
         stmt = stmt.where(status_filter_clause(status))
     if policy_area:
-        # Match any raw policy area that rolls up to the selected canonical issue
+        # Match any raw policy area that rolls up to a selected canonical issue
         # (alethical/api/issue_taxonomy.py) — so "Health" catches "healthcare",
         # "public health", etc. Case-folded whole-element match via unnest (a
         # whole-array cast + ILIKE would over-match and, with sort=progress, time
         # out to a 502). aliases_for falls back to the value itself for an
         # unmapped issue. Measured ~270ms on the production corpus.
-        policy_area_aliases = aliases_for(policy_area)
+        #
+        # Multi-select is OR *across* issues: unioning each selected issue's
+        # aliases into one match set returns bills tagged ANY of them (the
+        # existing IN already OR'd the aliases *within* one issue). Duplicate
+        # aliases across issues fold away in the set.
+        policy_area_aliases = sorted(
+            {alias for issue in policy_area for alias in aliases_for(issue)}
+        )
         element = func.jsonb_array_elements_text(
             AIEnrichment.content_json["policy_areas"]
         ).table_valued("value")

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  a{color:#149d5b;}
+  a:hover{color:#11832b;}
+  @keyframes toastLife{0%{opacity:0;transform:translateY(8px);}8%{opacity:1;transform:translateY(0);}82%{opacity:1;}100%{opacity:0;}}
+  @keyframes ovFade{from{opacity:0;}to{opacity:1;}}
+  @keyframes cardPop{from{opacity:0;transform:translateY(10px) scale(0.98);}to{opacity:1;transform:none;}}
+  @keyframes chipIn{from{opacity:0;transform:scale(0.9);}to{opacity:1;transform:none;}}
+  a[data-tlink]:hover{color:#0f7a45 !important;text-decoration:underline !important;}
+  [data-glow-field]:focus-within{border-color:#5b30d6 !important;box-shadow:0 0 0 4px rgba(91,48,214,0.14) !important;}
+  /* a11y: keyboard focus ring — WCAG 2.4.7 + 1.4.11 (visible on light & dark) */
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[tabindex]:focus-visible,[role="button"]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}
+  [data-glow-field] input:focus-visible,[data-glow-field] textarea:focus-visible{outline:none !important;}
+</style>
+</helmet>
+<div style="width:1600px;min-height:1120px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;position:relative;display:flex;flex-direction:column;">
+
+  <!-- HERO / GRADIENT -->
+  <div style="position:relative;background:linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%);overflow:visible;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px);background-size:30px 30px;pointer-events:none;-webkit-mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);"></div>
+
+    <!-- NAV -->
+    <nav data-screen-label="Nav" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:26px 56px 0;">
+      <a href="LIVE Home Signed Out.dc.html" style="display:flex;align-items:center;gap:16px;text-decoration:none;">
+        <svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex:none;">
+          <rect x="15" y="29" width="7.5" height="21" rx="3.75" fill="#11150f"></rect>
+          <rect x="28.25" y="15" width="7.5" height="35" rx="3.75" fill="#11150f"></rect>
+          <rect x="41.5" y="35" width="7.5" height="15" rx="3.75" fill="#11150f"></rect>
+        </svg>
+        <span style="font-weight:600;font-size:25px;letter-spacing:0.16em;color:#11150f;">ALETHICAL</span>
+      </a>
+      <div style="display:flex;align-items:center;gap:30px;">
+        <div style="display:flex;align-items:center;gap:34px;">
+          <a data-tlink="1" href="LIVE Bill Search v2.dc.html" style="color:#149d5b;text-decoration:none;font-size:18px;font-weight:700;">Search</a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Track<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">About<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </div>
+        <sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}"><a href="#account" style="display:inline-flex;align-items:center;justify-content:center;padding:13px 26px;background:#2ed47e;border:1px solid #2ed47e;border-radius:12px;color:#06231a;text-decoration:none;font-size:18px;font-weight:600;" style-hover="background:#28bf71;border-color:#28bf71;">Sign in</a></sc-if><sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}"><div style="display:inline-flex;align-items:center;gap:11px;padding:12px 20px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;color:#11150f;font-size:17px;font-weight:600;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">
+          <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;box-shadow:0 0 0 3px rgba(45,212,126,0.18);"></span>
+          Jordan Reyes
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div></sc-if>
+      </div>
+    </nav>
+
+    <!-- HERO CONTENT -->
+    <div data-screen-label="Search header" style="position:relative;padding:40px 56px 44px;">
+      <div style="max-width:1400px;margin:0 auto;">
+        <div style="display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap;">
+          <h1 style="margin:0;font-size:58px;line-height:0.98;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Search bills</h1>
+        </div>
+
+        <!-- SEARCH BAR (single query, filters as you type) -->
+        <div data-glow-field onClick="{{ focusInput }}" style="margin-top:28px;display:flex;align-items:center;gap:14px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:14px;padding:4px 20px;box-shadow:0 12px 34px rgba(17,21,15,0.07);transition:border-color .18s ease, box-shadow .18s ease;cursor:text;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="11" cy="11" r="7" stroke="#6f756f" stroke-width="2"/><path d="M16.5 16.5 L21 21" stroke="#6f756f" stroke-width="2" stroke-linecap="round"/></svg>
+          <input value="{{ query }}" onChange="{{ onQuery }}" ref="{{ inputRef }}" placeholder="Search by keyword or bill number" aria-label="Search bills" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:18px;padding:16px 0;" />
+          <sc-if value="{{ hasText }}" hint-placeholder-val="{{ false }}"><button onClick="{{ clearQuery }}" aria-label="Clear search" style="flex:none;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:rgba(17,21,15,0.06);border:none;border-radius:50%;cursor:pointer;color:#4f5651;" style-hover="background:rgba(17,21,15,0.12);color:#11150f;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></sc-if>
+        </div>
+        <p style="margin:10px 2px 0;font-size:14px;color:#6f756f;">Results update as you type. Bills match <strong style="color:#4f5651;font-weight:700;">every</strong> word — try a keyword or a bill number.</p>
+
+        <!-- FILTER CONTROLS -->
+        <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:fixed;inset:0;z-index:30;"></div></sc-if>
+        <div data-screen-label="Filters" style="margin-top:22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="display:inline-flex;align-items:center;gap:4px;padding:4px;background:#eef0f1;border:1px solid rgba(17,21,15,0.1);border-radius:12px;">
+            <sc-for list="{{ chambers }}" as="ch" hint-placeholder-count="3">
+              <sc-if value="{{ ch.activeFilter }}" hint-placeholder-val="{{ false }}"><button onClick="{{ ch.select }}" style="border:none;background:#11150f;color:#ffffff;border-radius:9px;padding:9px 20px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">{{ ch.label }}</button></sc-if>
+              <sc-if value="{{ ch.activeDefault }}" hint-placeholder-val="{{ true }}"><button onClick="{{ ch.select }}" style="border:none;background:#ffffff;color:#11150f;border-radius:9px;padding:9px 20px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 1px 2px rgba(17,21,15,0.14);">{{ ch.label }}</button></sc-if>
+              <sc-if value="{{ ch.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ ch.select }}" style="border:none;background:transparent;color:#4f5651;border-radius:9px;padding:9px 20px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;cursor:pointer;" style-hover="border-color:#5b30d6;color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,0.14);">{{ ch.label }}</button></sc-if>
+            </sc-for>
+          </div>
+
+          <div style="position:relative;z-index:40;">
+            <sc-if value="{{ statusActive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ toggleStatusMenu }}" style="display:inline-flex;align-items:center;gap:10px;background:#11150f;border:1px solid #11150f;border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#ffffff;cursor:pointer;">{{ statusLabel }}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></sc-if>
+            <sc-if value="{{ statusDefault }}" hint-placeholder-val="{{ true }}"><button onClick="{{ toggleStatusMenu }}" style="display:inline-flex;align-items:center;gap:10px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#5b30d6;color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,0.14);">{{ statusLabel }}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></sc-if>
+            <sc-if value="{{ menuStatusOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:calc(100% + 8px);left:0;min-width:260px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:12px;box-shadow:0 16px 40px rgba(17,21,15,0.16);padding:6px;z-index:1;">
+              <sc-for list="{{ statusOptions }}" as="opt" hint-placeholder-count="8">
+                <sc-if value="{{ opt.active }}" hint-placeholder-val="{{ false }}"><button onClick="{{ opt.select }}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:none;background:#f2f3f5;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#11150f;cursor:pointer;text-align:left;">{{ opt.label }}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="#11150f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></sc-if>
+                <sc-if value="{{ opt.inactive }}" hint-placeholder-val="{{ true }}"><button onClick="{{ opt.select }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border:none;background:transparent;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:500;color:#11150f;cursor:pointer;text-align:left;" style-hover="background:#f2f3f5;">{{ opt.label }}</button></sc-if>
+              </sc-for>
+            </div>
+            </sc-if>
+          </div>
+
+          <div style="position:relative;z-index:40;">
+            <sc-if value="{{ sessionActive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ toggleSessionMenu }}" style="display:inline-flex;align-items:center;gap:10px;background:#11150f;border:1px solid #11150f;border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#ffffff;cursor:pointer;">{{ sessionLabel }}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></sc-if>
+            <sc-if value="{{ sessionDefault }}" hint-placeholder-val="{{ true }}"><button onClick="{{ toggleSessionMenu }}" style="display:inline-flex;align-items:center;gap:10px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#5b30d6;color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,0.14);">{{ sessionLabel }}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></sc-if>
+            <sc-if value="{{ menuSessionOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:calc(100% + 8px);left:0;min-width:380px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:12px;box-shadow:0 16px 40px rgba(17,21,15,0.16);padding:6px;z-index:1;">
+              <sc-for list="{{ sessionOptions }}" as="opt" hint-placeholder-count="3">
+                <sc-if value="{{ opt.active }}" hint-placeholder-val="{{ false }}"><button onClick="{{ opt.select }}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:none;background:#f2f3f5;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#11150f;cursor:pointer;text-align:left;">{{ opt.label }}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="#11150f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></sc-if>
+                <sc-if value="{{ opt.inactive }}" hint-placeholder-val="{{ true }}"><button onClick="{{ opt.select }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border:none;background:transparent;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:500;color:#11150f;cursor:pointer;text-align:left;" style-hover="background:#f2f3f5;">{{ opt.label }}</button></sc-if>
+              </sc-for>
+            </div>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ omnibusOn }}" hint-placeholder-val="{{ false }}"><button onClick="{{ toggleOmnibus }}" style="display:inline-flex;align-items:center;gap:9px;background:#11150f;border:1px solid #11150f;border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#ffffff;cursor:pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Omnibus only</button></sc-if>
+          <sc-if value="{{ omnibusOff }}" hint-placeholder-val="{{ true }}"><button onClick="{{ toggleOmnibus }}" style="display:inline-flex;align-items:center;gap:9px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:11px 18px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#5b30d6;color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,0.14);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Omnibus only</button></sc-if>
+        </div>
+
+        <!-- POLICY PILLS -->
+        <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">ISSUES</span>
+          <sc-for list="{{ policies }}" as="p" hint-placeholder-count="12">
+            <sc-if value="{{ p.activeFilter }}" hint-placeholder-val="{{ false }}"><button onClick="{{ p.select }}" style="display:inline-flex;align-items:center;gap:8px;background:#11150f;border:1px solid #11150f;border-radius:11px;padding:9px 15px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#ffffff;cursor:pointer;">{{ p.label }}<span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:rgba(255,255,255,0.55);">{{ p.count }}</span></button></sc-if>
+            <sc-if value="{{ p.inactive }}" hint-placeholder-val="{{ true }}"><button onClick="{{ p.select }}" style="display:inline-flex;align-items:center;gap:8px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:9px 15px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#5b30d6;color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,0.14);">{{ p.label }}<span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#6f756f;">{{ p.count }}</span></button></sc-if>
+          </sc-for>
+          <sc-if value="{{ issueToggle.collapsed }}" hint-placeholder-val="{{ true }}"><button onClick="{{ issueToggle.toggle }}" style="display:inline-flex;align-items:center;background:transparent;border:1px dashed rgba(20,157,91,0.55);border-radius:11px;padding:9px 15px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#149d5b;cursor:pointer;" style-hover="border-color:#149d5b;color:#11832b;">{{ issueToggle.moreLabel }}</button></sc-if>
+          <sc-if value="{{ issueToggle.expanded }}" hint-placeholder-val="{{ false }}"><button onClick="{{ issueToggle.toggle }}" style="display:inline-flex;align-items:center;background:transparent;border:1px solid rgba(20,157,91,0.55);border-radius:11px;padding:9px 15px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#149d5b;cursor:pointer;" style-hover="border-color:#149d5b;color:#11832b;">Show fewer</button></sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div data-screen-label="Results" style="position:relative;background:#ffffff;padding:36px 56px 8px;flex:1;">
+    <div style="max-width:1400px;margin:0 auto;">
+
+      <!-- ACTIVE FILTER BAR (persistent; removable chips = keyword ∩ issue ∩ …) -->
+      <sc-if value="{{ hasActiveFilters }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Active filters" style="margin-bottom:22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">FILTERS</span>
+        <sc-for list="{{ chips }}" as="c" hint-placeholder-count="2">
+          <span style="display:inline-flex;align-items:center;gap:9px;padding:8px 8px 8px 14px;background:{{ c.bg }};border:1px solid {{ c.bd }};border-radius:999px;font-size:13px;font-weight:600;color:{{ c.tx }};animation:chipIn 0.14s ease;max-width:100%;white-space:normal;overflow-wrap:anywhere;">{{ c.label }}<button onClick="{{ c.remove }}" aria-label="{{ c.removeLabel }}" style="flex:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;background:rgba(17,21,15,0.06);border:none;border-radius:50%;cursor:pointer;color:{{ c.tx }};" style-hover="background:rgba(17,21,15,0.14);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></span>
+        </sc-for>
+        <button onClick="{{ clearAll }}" style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;background:transparent;border:none;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#4f5651;cursor:pointer;" style-hover="color:#11150f;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Clear all</button>
+      </div>
+      </sc-if>
+
+      <!-- RESULTS HEADER STRIP -->
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid rgba(17,21,15,0.09);">
+        <div style="min-width:0;">
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ count }}</span>
+            <span style="font-size:17px;color:#6b716b;">{{ resultNoun }}</span>
+          </div>
+          <div style="margin-top:6px;font-size:15px;color:#6f756f;max-width:900px;">{{ resultSentence }}</div>
+        </div>
+        <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:18px;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.05em;color:#6f756f;white-space:nowrap;">AS OF MAR 21, 2026</span>
+          <div style="position:relative;z-index:40;">
+          <button onClick="{{ toggleSortMenu }}" style="display:inline-flex;align-items:center;gap:9px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:10px 16px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:#5b30d6;color:#5b30d6;box-shadow:0 0 0 3px rgba(91,48,214,0.14);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M7 5 V19 M7 19 L3.5 15.5 M7 19 L10.5 15.5 M15 5 h6 M15 10 h5 M15 15 h4" stroke="#6f756f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ sortButtonLabel }}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <sc-if value="{{ menuSortOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:calc(100% + 8px);right:0;min-width:250px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:12px;box-shadow:0 16px 40px rgba(17,21,15,0.16);padding:6px;z-index:1;">
+            <sc-for list="{{ sortOptions }}" as="opt" hint-placeholder-count="3">
+              <sc-if value="{{ opt.active }}" hint-placeholder-val="{{ false }}"><button onClick="{{ opt.select }}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:none;background:#f2f3f5;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#11150f;cursor:pointer;text-align:left;">{{ opt.label }}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="#11150f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></sc-if>
+              <sc-if value="{{ opt.inactive }}" hint-placeholder-val="{{ true }}"><button onClick="{{ opt.select }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border:none;background:transparent;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:500;color:#11150f;cursor:pointer;text-align:left;" style-hover="background:#f2f3f5;">{{ opt.label }}</button></sc-if>
+              <sc-if value="{{ opt.roadmap }}" hint-placeholder-val="{{ false }}"><div style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:500;color:#6f756f;text-align:left;cursor:default;">{{ opt.label }}<span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#6f756f;border:1px dashed rgba(17,21,15,0.2);border-radius:6px;padding:3px 7px;">ON THE ROADMAP</span></div></sc-if>
+            </sc-for>
+          </div>
+          </sc-if>
+        </div>
+        </div>
+        </sc-if>
+      </div>
+
+      <!-- RESULTS LIST -->
+      <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top:22px;display:flex;flex-direction:column;gap:18px;">
+        <sc-for list="{{ bills }}" as="bill" hint-placeholder-count="5">
+          <div style="position:relative;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:18px;padding:26px 30px;box-shadow:0 8px 24px rgba(17,21,15,0.05);" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+            <a href="LIVE Bill Profile web.dc.html" aria-label="Open {{ bill.code }}" style="position:absolute;inset:0;z-index:1;border-radius:18px;"></a>
+
+            <!-- PRIMARY -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;">
+              <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+                <span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:6px 12px;border-radius:7px;">{{ bill.code }}</span>
+                <sc-if value="{{ bill.omnibus }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:transparent;border:1px solid #e3c17f;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#a76a1a;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>OMNIBUS</span></sc-if>
+                <div style="display:flex;align-items:center;gap:13px;">
+                  <sc-if value="{{ bill.toneGreen }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#149d5b;white-space:nowrap;">{{ bill.statusLabel }}</span></sc-if>
+                  <sc-if value="{{ bill.toneRed }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#d64545;white-space:nowrap;">{{ bill.statusLabel }}</span></sc-if>
+                  <sc-if value="{{ bill.toneNeutral }}" hint-placeholder-val="{{ true }}"><span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#4f5651;white-space:nowrap;">{{ bill.statusLabel }}</span></sc-if>
+                  <div style="display:flex;align-items:center;gap:5px;">
+                    <sc-for list="{{ bill.steps }}" as="st" hint-placeholder-count="5">
+                      <sc-if value="{{ st.isOn }}" hint-placeholder-val="{{ true }}"><span style="width:30px;height:7px;border-radius:4px;background:#2ed47e;display:inline-block;"></span></sc-if>
+                      <sc-if value="{{ st.isOff }}" hint-placeholder-val="{{ false }}"><span style="width:30px;height:7px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span></sc-if>
+                      <sc-if value="{{ st.isRed }}" hint-placeholder-val="{{ false }}"><span style="width:30px;height:7px;border-radius:4px;background:#e5484d;display:inline-block;"></span></sc-if>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+              <sc-if value="{{ bill.untracked }}" hint-placeholder-val="{{ true }}"><button onClick="{{ bill.toggle }}" style="position:relative;z-index:2;flex:none;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:#ffffff;border:1px dashed rgba(17,21,15,0.3);border-radius:12px;color:#4f5651;font-size:14px;font-weight:700;cursor:pointer;font-family:'Libre Franklin',sans-serif;white-space:nowrap;" style-hover="border-color:#11150f;color:#11150f;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 L12 19 M5 12 L19 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Track</button></sc-if>
+              <sc-if value="{{ bill.tracked }}" hint-placeholder-val="{{ false }}"><button onClick="{{ bill.toggle }}" style="position:relative;z-index:2;flex:none;display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:#2ed47e;border:1px solid #2ed47e;border-radius:12px;color:#06231a;font-size:14px;font-weight:700;cursor:pointer;font-family:'Libre Franklin',sans-serif;white-space:nowrap;" style-hover="background:#28bf71;border-color:#28bf71;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="#06231a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Tracking</button></sc-if>
+            </div>
+
+            <!-- TITLE -->
+            <h3 style="margin:18px 0 0;font-size:25px;line-height:1.25;font-weight:800;letter-spacing:-0.01em;color:#11150f;max-width:1040px;">{{ bill.title }}</h3>
+
+            <!-- SUMMARY -->
+            <p style="margin:16px 0 0;font-size:16px;line-height:1.55;color:#4f5651;max-width:1040px;">{{ bill.summary }}</p>
+
+            <!-- SECONDARY META -->
+            <div style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(17,21,15,0.08);display:flex;flex-direction:column;gap:11px;">
+              <div style="font-size:15px;color:#4f5651;"><span style="color:#6f756f;">Chief author:</span> {{ bill.chamberTitle }} <a data-tlink="1" href="LIVE Legislator Profile Senate web.dc.html" style="position:relative;z-index:2;color:#149d5b;font-weight:700;text-decoration:none;" style-hover="color:#0f7a45;">{{ bill.author }} <span aria-hidden="true" style="font-weight:400;">→</span></a></div>
+              <sc-if value="{{ bill.freshnessOnly }}" hint-placeholder-val="{{ false }}"><div style="font-size:15px;color:#4f5651;">Updated <span style="color:#6f756f;">{{ bill.actionDate }}</span></div></sc-if><sc-if value="{{ bill.showAction }}" hint-placeholder-val="{{ true }}"><div style="font-size:15px;color:#4f5651;"><span style="color:#6f756f;">Latest action:</span> <span style="color:#11150f;font-weight:600;">{{ bill.action }}</span> <span style="color:#6f756f;margin-left:8px;">{{ bill.actionDate }}</span></div></sc-if>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <sc-for list="{{ bill.policies }}" as="pol" hint-placeholder-count="3">
+                  <span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#4f5651;">{{ pol }}</span>
+                </sc-for>
+                <sc-if value="{{ bill.hasVotes }}" hint-placeholder-val="{{ false }}"><a href="LIVE Bill Profile web.dc.html#votes" style="position:relative;z-index:2;display:inline-flex;align-items:center;padding:6px 12px;background:#e4f8ee;border:1px solid #bfeacf;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#149d5b;text-decoration:none;" style-hover="border-color:#2ed47e;">{{ bill.rollLabel }}</a></sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- PAGINATION (unfiltered catalog view only) -->
+      <sc-if value="{{ showPagination }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top:28px;display:flex;align-items:center;justify-content:center;gap:16px;">
+        <button style="display:inline-flex;align-items:center;gap:8px;padding:12px 22px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:12px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#b7bdb8;cursor:not-allowed;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 6 L9 12 L15 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Previous</button>
+        <span style="font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#4f5651;">Page <span style="font-weight:800;color:#11150f;">1</span> of 12</span>
+        <button style="display:inline-flex;align-items:center;gap:8px;padding:12px 22px;background:#ffffff;border:1px solid rgba(17,21,15,0.2);border-radius:12px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;color:#11150f;cursor:pointer;" style-hover="border-color:#2ed47e;color:#149d5b;">Next<svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M9 6 L15 12 L9 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      </sc-if>
+      </sc-if>
+
+      <!-- NO RESULTS (intersection empty) -->
+      <sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="No results" style="max-width:860px;margin:34px auto 0;background:#ffffff;border:1px dashed rgba(17,21,15,0.2);border-radius:20px;padding:64px 48px;display:flex;flex-direction:column;align-items:center;text-align:center;">
+        <span style="width:64px;height:64px;border-radius:16px;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#6f756f" stroke-width="2"/><path d="M16.5 16.5 L21 21" stroke="#6f756f" stroke-width="2" stroke-linecap="round"/></svg></span>
+        <h3 style="margin:22px 0 0;font-size:28px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">No bills match all of these filters</h3>
+        <p style="margin:12px 0 0;font-size:17px;line-height:1.5;color:#6b716b;max-width:560px;">That's the overlap of everything you've selected. Remove one above, or clear them all, to widen your search.</p>
+        <button onClick="{{ clearAll }}" style="margin-top:26px;display:inline-flex;align-items:center;gap:9px;padding:14px 26px;background:#11150f;border:1px solid #11150f;border-radius:12px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;cursor:pointer;" style-hover="background:#000000;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Clear all</button>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div style="height:64px;background:#ffffff;"></div>
+
+  <!-- RETURN-AFTER-SIGN-IN TOAST -->
+  <sc-if value="{{ justReturned }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Toast — now tracking" style="position:fixed;left:32px;bottom:32px;z-index:60;display:flex;align-items:center;gap:12px;background:#0a0e0c;color:#ffffff;padding:15px 22px;border-radius:13px;box-shadow:0 16px 40px rgba(17,21,15,0.35);animation:toastLife 3.6s ease forwards;">
+    <span style="width:22px;height:22px;border-radius:50%;background:#2ed47e;display:inline-flex;align-items:center;justify-content:center;flex:none;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#06231a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <span style="font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;">Now tracking <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#3de08a;">{{ toastBill }}</span>.</span>
+  </div>
+  </sc-if>
+
+  <!-- INTENT-PRESERVING SIGN-IN (triggered by Track while signed out) -->
+  <sc-if value="{{ signInActive }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Sign in to track" style="position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(10,14,12,0.55);padding:40px;animation:ovFade 0.16s ease;">
+    <div style="width:470px;max-width:100%;background:#ffffff;border-radius:20px;padding:34px 34px 32px;box-shadow:0 30px 80px rgba(10,14,12,0.4);position:relative;animation:cardPop 0.2s ease;">
+      <button onClick="{{ closeSignIn }}" aria-label="Close" style="position:absolute;top:18px;right:18px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:9px;cursor:pointer;color:#6f756f;" style-hover="background:#f1f1f4;color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+      <span style="width:52px;height:52px;border-radius:14px;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#149d5b" stroke-width="2"/><path d="M8 11 V8 a4 4 0 0 1 8 0 v3" stroke="#149d5b" stroke-width="2" stroke-linecap="round"/></svg></span>
+      <h3 style="margin:20px 0 0;font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Sign in to track {{ signInCode }}</h3>
+      <p style="margin:10px 0 0;font-size:16px;line-height:1.5;color:#6b716b;">Tracking saves this bill to your watchlist and turns on status updates. You'll come right back to your search.</p>
+      <button onClick="{{ completeSignIn }}" style="margin-top:24px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:12px;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.18);border-radius:12px;padding:15px 22px;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(17,21,15,0.06);" style-hover="background:#f7f8fa;border-color:rgba(17,21,15,0.3);">
+        <img src="assets/google-g.png" width="20" height="20" alt="Google" style="display:block;flex:none;" />
+        Continue with Google
+      </button>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- FOOTER -->
+  <footer data-screen-label="Footer" style="position:relative;background:#0a0e0c;color:#ffffff;padding:56px 56px 44px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:48px;flex-wrap:wrap;">
+      <div style="max-width:480px;">
+        <p style="margin:0;font-size:21px;line-height:1.4;font-weight:300;letter-spacing:-0.01em;color:#eef1ef;">We hold these truths to be self-evident.<br><span style="color:#3de08a;">Alethical makes them accessible.</span></p>
+      </div>
+      <div style="display:flex;align-items:center;gap:34px;">
+        <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Privacy Policy</a>
+        <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Terms of Use</a>
+      </div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.1em;color:#7c847f;">© 2026 ALETHICAL · BUILT IN MINNESOTA</div>
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.14em;color:#3de08a;">TRUTH, UNCONCEALED</div>
+    </div>
+  </footer>
+
+  <!-- PREVIEW STATE CONTROLS (mockup artifact, not product UI) -->
+  <div data-screen-label="Preview state controls" style="background:#0a0e0c;padding:0 56px 30px;display:flex;justify-content:center;">
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 16px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:14px;flex-wrap:wrap;justify-content:center;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">PREVIEW · USE CASES</span>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+        <sc-for list="{{ scenarioBtns }}" as="btn" hint-placeholder-count="6">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:7px 12px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;background:transparent;border:none;color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:1740},&quot;showPagination&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;}}">
+class Component extends DCLogic {
+  state = { query: '', chamber: 'All', policies: [], omnibus: false, statusFilter: 'All statuses', sessionFilter: '2025–2026 Legislative Session', sortBy: 'progress', menu: null, tracked: {}, signedIn: false, returned: false, toastShown: false, toastBill: '', signInFor: null };
+
+  renderVals() {
+    const stageIndex = { proposed: 0, committee: 1, house: 2, senate: 3, signed: 4 };
+    const statusMeta = {
+      proposed:  { label: 'Introduced',     tone: 'neutral' },
+      committee: { label: 'In Committee',   tone: 'neutral' },
+      house:     { label: 'Passed House',   tone: 'neutral' },
+      senate:    { label: 'Passed Senate',  tone: 'neutral' },
+      signed:    { label: 'Signed into Law', tone: 'green' },
+      vetoed:    { label: 'Vetoed',         tone: 'red' },
+    };
+    const buildSteps = (key) => key === 'vetoed'
+      ? [0,1,2,3,4].map(i => ({ isOn: i < 4, isOff: false, isRed: i === 4 }))
+      : [0,1,2,3,4].map(i => ({ isOn: i <= stageIndex[key], isOff: i > stageIndex[key], isRed: false }));
+
+    const raw = [
+      { id: 'HF2904', code: 'HF 2904', status: 'committee', title: 'Education Finance and Policy Act', summary: 'Sets the two-year E-12 education budget, raises the per-pupil general-education formula by 4%, and expands funding for special education cross-subsidy relief and school mental-health grants.', author: 'Patti Anderson', coauthors: 42, action: 'Referred to Ways and Means', actionDate: 'Mar 12, 2026', policies: ['Education', 'School Funding', 'Taxation'], rollCalls: 0, omnibus: true },
+      { id: 'SF1832', code: 'SF 1832', status: 'signed', title: 'Paid Family and Medical Leave Amendments', summary: 'Refines the state paid-leave program ahead of launch: clarifies employer premium splits, adds a small-business grant, and aligns the wage-replacement schedule with the unemployment-insurance base.', author: 'Alice Mann', coauthors: 18, action: 'Signed by the Governor', actionDate: 'Feb 28, 2026', policies: ['Labor', 'Health', 'Public Finance'], rollCalls: 3, omnibus: false },
+      { id: 'HF615', code: 'HF 615', status: 'house', title: 'Rural Broadband Expansion Grants', summary: 'Appropriates $120M to the Border-to-Border Broadband fund, prioritizing unserved rural households, and shortens the challenge-process window that lets incumbents contest grant awards.', author: 'Patty Acomb', coauthors: 9, action: 'Referred to the Senate', actionDate: 'Mar 18, 2026', policies: ['Infrastructure', 'Rural Development', 'Technology'], rollCalls: 1, omnibus: false },
+      { id: 'SF2210', code: 'SF 2210', status: 'senate', title: 'Public Safety and Judiciary Omnibus', summary: 'Funds courts, corrections, and public safety for the biennium; adds co-responder mental-health teams, updates use-of-force reporting, and increases county attorney diversion grants.', author: 'Ron Latz', coauthors: 6, action: 'Sent to conference committee', actionDate: 'Mar 15, 2026', policies: ['Public Safety', 'Judiciary', 'Corrections'], rollCalls: 2, omnibus: true },
+      { id: 'HF88', code: 'HF 88', status: 'proposed', title: 'Prohibiting Foreign Ownership of Agricultural Land', summary: 'Bars certain foreign governments and entities from acquiring Minnesota farmland, directs the Department of Agriculture to maintain a public ownership registry, and sets divestment timelines for existing holdings.', author: 'Paul Anderson', coauthors: 3, action: 'Introduced, first reading', actionDate: 'Jan 22, 2026', policies: ['Agriculture', 'Land Use'], rollCalls: 0, omnibus: false },
+      { id: 'SF940', code: 'SF 940', status: 'vetoed', title: 'Motor Vehicle Registration Tax Rebate', summary: 'Would have issued a one-time registration-tax rebate funded by the projected surplus. Passed both chambers on party lines; returned without the Governor\u2019s signature over long-term revenue concerns.', author: 'Jason Rarick', coauthors: 12, action: 'Vetoed by the Governor', actionDate: 'Mar 5, 2026', policies: ['Taxation', 'Transportation'], rollCalls: 4, omnibus: false },
+    ];
+
+    // ---- INTERSECTION FILTERING: a bill must satisfy EVERY active constraint (AND) ----
+    // Keyword search is a SINGLE query string (matches the shipped engine): a whole-query bill-number
+    // shape is an exclusive lookup; otherwise the query splits on whitespace and EVERY word must
+    // match (AND, order-independent) — no phrase/block matching.
+    const rawQuery = (this.state.query || '').trim();
+    const words = rawQuery ? rawQuery.split(/\s+/) : [];
+    const numMatch = rawQuery.match(/^(hf|sf)?\s*0*(\d{1,5})$/i);
+    const isNumberLookup = !!numMatch;
+    const lookupPrefix = (numMatch && numMatch[1]) ? numMatch[1].toLowerCase() : null;
+    const lookupNum = numMatch ? String(parseInt(numMatch[2], 10)) : null;
+    const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const billNumberOf = (code) => { const m = norm(code).match(/(hf|sf)(\d+)/); return m ? { pre: m[1], num: String(parseInt(m[2], 10)) } : null; };
+    const matchWord = (b, w) => {
+      const q = (w || '').toLowerCase();
+      const hay = (b.title + ' ' + b.summary + ' ' + b.code + ' ' + b.policies.join(' ')).toLowerCase();
+      if (hay.indexOf(q) > -1) return true;                                  // forgiving substring
+      const nq = norm(q);
+      if (/[0-9]/.test(q) && nq && norm(b.code).indexOf(nq) > -1) return true; // normalized bill number
+      return false;
+    };
+    const matchKeyword = (b) => {
+      if (!rawQuery) return true;
+      if (isNumberLookup) { const bn = billNumberOf(b.code); if (!bn || bn.num !== lookupNum) return false; return lookupPrefix ? bn.pre === lookupPrefix : true; }
+      return words.every(w => matchWord(b, w));
+    };
+    const relevanceScore = (b) => { if (!rawQuery || isNumberLookup) return 0; let sc = 0; const t = b.title.toLowerCase(), sm = b.summary.toLowerCase(); words.forEach(w => { const q = w.toLowerCase(); if (t.indexOf(q) > -1) sc += 10; else if (sm.indexOf(q) > -1) sc += 3; }); return sc; };
+    const hasQuery = !!rawQuery && !isNumberLookup;
+    const hasText = !!rawQuery;
+    const STATUS_TO_KEY = { 'Signed into Law': 'signed', 'Passed Senate': 'senate', 'Passed House': 'house', 'In Committee': 'committee', 'Introduced': 'proposed', 'Vetoed': 'vetoed' };
+    const matchChamber = (b) => this.state.chamber === 'All' || (this.state.chamber === 'House' ? b.code.indexOf('HF') === 0 : b.code.indexOf('SF') === 0);
+    const selectedIssues = this.state.policies;
+    // Issues are OR within the facet (a bill in ANY selected issue), AND across facets (keyword, chamber, …).
+    const matchPolicy = (b) => selectedIssues.length === 0 || b.policies.some(p => selectedIssues.indexOf(p) > -1);
+    const matchStatus = (b) => { const sf = this.state.statusFilter; if (sf === 'All statuses') return true; if (sf === 'Passed both chambers') return false; return b.status === STATUS_TO_KEY[sf]; };
+    const matchOmnibus = (b) => !this.state.omnibus || b.omnibus;
+    const filtered = raw.filter(b => matchKeyword(b) && matchChamber(b) && matchPolicy(b) && matchStatus(b) && matchOmnibus(b));
+
+    const stageSort = { signed: 0, vetoed: 1, senate: 2, house: 3, committee: 4, proposed: 5 };
+    const sortBy = this.state.sortBy || 'progress';
+    if (sortBy === 'best' && hasQuery) filtered.sort((x, y) => (relevanceScore(y) - relevanceScore(x)) || (stageSort[x.status] - stageSort[y.status]));
+    else if (sortBy === 'action') filtered.sort((x, y) => new Date(y.actionDate).getTime() - new Date(x.actionDate).getTime());
+    else filtered.sort((x, y) => stageSort[x.status] - stageSort[y.status]);
+
+    const signedIn = this.state.returned ? true : this.state.signedIn;
+    const track = (id) => this.setState(s => ({ tracked: { ...s.tracked, [id]: !s.tracked[id] } }));
+    const openSignIn = (id, code) => this.setState({ signInFor: { id, code } });
+
+    const bills = filtered.map(b => {
+      const m = statusMeta[b.status];
+      const on = signedIn && !!this.state.tracked[b.id];
+      return {
+        ...b,
+        statusLabel: m.label,
+        chamberTitle: b.code.indexOf('HF') === 0 ? 'Representative' : 'Senator',
+        toneGreen: m.tone === 'green', toneRed: m.tone === 'red', toneNeutral: m.tone === 'neutral',
+        steps: buildSteps(b.status),
+        hasVotes: b.rollCalls > 0,
+        freshnessOnly: b.status === 'proposed', showAction: b.status !== 'proposed',
+        rollLabel: b.rollCalls === 1 ? '1 vote' : (b.rollCalls + ' votes'),
+        tracked: on, untracked: !on,
+        toggle: (e) => { if (e && e.preventDefault) e.preventDefault(); },
+      };
+    });
+
+    // ---- CHAMBER SEGMENTED + POLICY PILLS (selecting any filter commits the pending typed keyword) ----
+    // BLACK fill = a NON-DEFAULT (actively narrowing) selection. The default "All" reads as a
+    // neutral raised segment, never black — matching Status/Session/Omnibus at their defaults.
+    const chambers = ['All', 'House', 'Senate'].map(c => {
+      const on = this.state.chamber === c, isAll = c === 'All';
+      return {
+        label: c, activeFilter: on && !isAll, activeDefault: on && isAll, inactive: !on,
+        select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ chamber: c }); },
+      };
+    });
+
+    const ISSUES = [
+      ['Government Finance', 2292], ['Health', 1571], ['Education', 1508], ['Infrastructure', 1358],
+      ['Public Safety', 1289], ['State Government', 1244], ['Taxation', 1166], ['Environment & Natural Resources', 1079],
+      ['Transportation', 1060], ['Capital Investment', 1003], ['Human Services', 895], ['Economic Development', 849],
+      ['Consumer Protection', 792], ['Local Government', 740], ['Labor & Employment', 700], ['Justice & Courts', 641],
+      ['Housing', 449], ['Agriculture', 429], ['Arts & Culture', 405], ['Energy & Utilities', 295],
+      ['Elections', 292], ['Veterans & Military', 185], ['Cannabis', 80], ['Civil Rights', 73],
+      ['Immigration', 53], ['Tribal Affairs', 39],
+    ];
+    const COLLAPSED_ISSUES = 12;
+    const issuesExpanded = !!this.state.issuesExpanded;
+    const visibleIssues = issuesExpanded ? ISSUES : ISSUES.slice(0, COLLAPSED_ISSUES);
+    const policies = visibleIssues.map(([label, count]) => {
+      const on = selectedIssues.indexOf(label) > -1;
+      return {
+        label, count: count.toLocaleString('en-US'), activeFilter: on, activeDefault: false, inactive: !on,
+        select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => {
+          const has = s.policies.indexOf(label) > -1;
+          return { policies: has ? s.policies.filter(x => x !== label) : [...s.policies, label] };
+        }); },
+      };
+    });
+    const issueToggle = {
+      expanded: issuesExpanded, collapsed: !issuesExpanded,
+      moreLabel: '+' + (ISSUES.length - COLLAPSED_ISSUES) + ' more',
+      toggle: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ issuesExpanded: !s.issuesExpanded })); },
+    };
+
+    const STATUS_OPTS = ['All statuses', 'Signed into Law', 'Passed both chambers', 'Passed Senate', 'Passed House', 'In Committee', 'Introduced', 'Vetoed'];
+    const statusOptions = STATUS_OPTS.map(label => ({ label, active: this.state.statusFilter === label, inactive: this.state.statusFilter !== label, select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ statusFilter: label, menu: null }); } }));
+    const DEFAULT_SESSION = '2025–2026 Legislative Session';
+    const SESSION_OPTS = ['2025–2026 Legislative Session', '2023–2024 Legislative Session', '2021–2022 Legislative Session'];
+    const sessionOptions = SESSION_OPTS.map(label => ({ label, active: this.state.sessionFilter === label, inactive: this.state.sessionFilter !== label, select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ sessionFilter: label, menu: null }); } }));
+    const toggleStatusMenu = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ menu: s.menu === 'status' ? null : 'status' })); };
+    const toggleSessionMenu = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ menu: s.menu === 'session' ? null : 'session' })); };
+    // ---- SORT (Most tracked is a roadmap option — non-selectable, labeled once per CLAUDE.md) ----
+    const SORT_OPTS = [].concat(hasQuery ? [{ key: 'best', label: 'Best match' }] : [], [{ key: 'progress', label: 'Legislative progress' }, { key: 'action', label: 'Latest action' }, { key: 'tracked', label: 'Most tracked', roadmap: true }]);
+    const curSort = SORT_OPTS.find(o => o.key === sortBy) || SORT_OPTS[0];
+    const sortButtonLabel = 'Sorted by ' + curSort.label.toLowerCase();
+    const sortOptions = SORT_OPTS.map(o => ({ label: o.label, roadmap: !!o.roadmap, active: !o.roadmap && sortBy === o.key, inactive: !o.roadmap && sortBy !== o.key, select: (e) => { if (e && e.preventDefault) e.preventDefault(); if (o.roadmap) return; this.setState({ sortBy: o.key, menu: null }); } }));
+    const toggleSortMenu = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ menu: s.menu === 'sort' ? null : 'sort' })); };
+    const closeMenu = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ menu: null }); };
+
+    // ---- SEARCH INPUT (single query, filters as you type; no commit/button) ----
+    const onQuery = (e) => { const v = e.target.value; this.setState(s => { const wasEmpty = !((s.query || '').trim()); const nowHas = !!v.trim(); let sb = s.sortBy; if (nowHas && wasEmpty && sb !== 'best') sb = 'best'; if (!nowHas && sb === 'best') sb = 'progress'; return { query: v, sortBy: sb }; }); };
+    const clearQuery = (e) => { if (e && e.preventDefault) e.preventDefault(); if (e && e.stopPropagation) e.stopPropagation(); this.setState(s => ({ query: '', sortBy: s.sortBy === 'best' ? 'progress' : s.sortBy })); if (this.__input) this.__input.focus(); };
+    const inputRef = (el) => { this.__input = el; };
+    const focusInput = (e) => { if (this.__input && (!e || !e.target || e.target.tagName !== 'BUTTON')) this.__input.focus(); };
+
+    // ---- ACTIVE FILTER CHIPS (each individually removable → drop keyword without losing issue, etc.) ----
+    // Chip order mirrors the controls above: Keyword, Chamber, Status, Session, Omnibus, Issues.
+    // Category color-coding — muted COOL pastels that complement the warm amber bill-code chip
+    // and deliberately avoid the primary green (reserved for actions) and citation purple.
+    // Omnibus uses a FILLED soft-amber tint here so it matches the other filled chips in this row
+    // (no code badge in the filter row to disambiguate from); ghosted amber stays on the bill cards.
+    const TONE = {
+      keyword: { bg: '#eef0f2', bd: '#d5dade', tx: '#3f4650' }, // slate — the search term
+      chamber: { bg: '#e9f0fb', bd: '#cadcf3', tx: '#345880' }, // blue — where
+      status:  { bg: '#e7f3f1', bd: '#c3e3dd', tx: '#2c6f66' }, // teal — stage
+      session: { bg: '#eeecfb', bd: '#d7d0f4', tx: '#4b3fa8' }, // indigo — when
+      omnibus: { bg: '#fbf1e2', bd: '#f0d6a8', tx: '#a76a1a' }, // filled soft amber — bill type (filter chip; ghosted stays on cards)
+      issue:   { bg: '#e6f2f6', bd: '#c2e0ea', tx: '#2b6377' }, // cyan — topic
+    };
+    const chips = [];
+    const shortSession = this.state.sessionFilter.replace(' Legislative Session', '');
+    if (rawQuery) chips.push({ ...TONE.keyword, label: 'Search: \u201C' + rawQuery + '\u201D', removeLabel: 'Clear search', remove: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ query: '', sortBy: s.sortBy === 'best' ? 'progress' : s.sortBy })); } });
+    if (this.state.chamber !== 'All') chips.push({ ...TONE.chamber, label: 'Chamber: ' + this.state.chamber, removeLabel: 'Remove chamber filter', remove: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ chamber: 'All' }); } });
+    if (this.state.statusFilter !== 'All statuses') chips.push({ ...TONE.status, label: 'Status: ' + this.state.statusFilter, removeLabel: 'Remove status filter', remove: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ statusFilter: 'All statuses' }); } });
+    if (this.state.sessionFilter !== DEFAULT_SESSION) chips.push({ ...TONE.session, label: 'Session: ' + shortSession, removeLabel: 'Reset to the current session', remove: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ sessionFilter: DEFAULT_SESSION }); } });
+    if (this.state.omnibus) chips.push({ ...TONE.omnibus, label: 'Omnibus only', removeLabel: 'Remove omnibus filter', remove: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ omnibus: false }); } });
+    selectedIssues.forEach(iss => chips.push({ ...TONE.issue, label: 'Issue: ' + iss, removeLabel: 'Remove ' + iss + ' issue filter', remove: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ policies: s.policies.filter(x => x !== iss) })); } }));
+    const hasActiveFilters = chips.length > 0;
+
+    // ---- PLAIN-ENGLISH RESULT SENTENCE (states the intersection; count lives in the big number) ----
+    const count = filtered.length;
+    const joinOr = (a) => a.length <= 1 ? (a[0] || '') : a.length === 2 ? (a[0] + ' or ' + a[1]) : (a.slice(0, -1).join(', ') + ', or ' + a[a.length - 1]);
+    const joinAnd = (a) => a.length <= 1 ? (a[0] || '') : a.length === 2 ? (a[0] + ' and ' + a[1]) : (a.slice(0, -1).join(', ') + ', and ' + a[a.length - 1]);
+    const STATUS_PHRASE = { 'Signed into Law': 'signed into law', 'Passed both chambers': 'passed by both chambers', 'Passed Senate': 'passed by the Senate', 'Passed House': 'passed by the House', 'In Committee': 'in committee', 'Introduced': 'introduced', 'Vetoed': 'vetoed' };
+    const segs = [];
+    if (rawQuery) segs.push(isNumberLookup ? ('matching bill ' + rawQuery.toUpperCase()) : ('matching “' + rawQuery + '”'));
+    if (selectedIssues.length) segs.push('tagged ' + (selectedIssues.length > 1 ? 'either ' : '') + joinOr(selectedIssues));
+    if (this.state.chamber !== 'All') segs.push('in the ' + this.state.chamber);
+    if (this.state.statusFilter !== 'All statuses') segs.push(STATUS_PHRASE[this.state.statusFilter] || ('with status \u201C' + this.state.statusFilter + '\u201D'));
+    if (this.state.omnibus) segs.push('that are omnibus');
+    const capFirst = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+    const resultSentence = segs.length ? capFirst(joinAnd(segs)) + ', in the ' + this.state.sessionFilter + '.' : 'In the ' + this.state.sessionFilter + '.';
+
+    // Header count simulates a live 10k-bill catalog: no filters → full catalog; each active filter
+    // narrows the count by a plausible factor (issue share, chamber split, status rarity, keyword,
+    // omnibus). Deterministic per filter set, always ≥ the sample cards shown and 0 when nothing matches.
+    const TOTAL_CATALOG = 10000;
+    const kwHash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 131 + s.charCodeAt(i)) >>> 0; return h; };
+    const ISSUE_SHARE = { Education: 0.14, Infrastructure: 0.10, 'Public Safety': 0.12, Health: 0.13, Taxation: 0.09, Transportation: 0.05, 'Capital Investment': 0.06 };
+    const CHAMBER_F = { All: 1, House: 0.52, Senate: 0.48 };
+    const STATUS_F = { 'All statuses': 1, 'Signed into Law': 0.08, 'Passed both chambers': 0.03, 'Passed Senate': 0.05, 'Passed House': 0.06, 'In Committee': 0.55, 'Introduced': 0.20, 'Vetoed': 0.02 };
+    let simFactor = 1;
+    if (selectedIssues.length) { let s = 0; selectedIssues.forEach(i => { s += (ISSUE_SHARE[i] != null ? ISSUE_SHARE[i] : 0.08); }); simFactor *= Math.min(0.9, s); }
+    simFactor *= (CHAMBER_F[this.state.chamber] != null ? CHAMBER_F[this.state.chamber] : 1);
+    simFactor *= (STATUS_F[this.state.statusFilter] != null ? STATUS_F[this.state.statusFilter] : 1);
+    if (this.state.omnibus) simFactor *= 0.035;
+    if (isNumberLookup) simFactor *= 0.0002; else words.forEach((w) => { simFactor *= (0.02 + (kwHash(w) % 40) / 1000); }); // keyword narrows to ~0.4%–5%
+    const displayCountNum = (count === 0) ? 0 : (isNumberLookup ? count : (!hasActiveFilters ? TOTAL_CATALOG : Math.max(count, Math.round(TOTAL_CATALOG * simFactor))));
+    const displayCount = displayCountNum.toLocaleString('en-US');
+
+    const clearAll = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ query: '', chamber: 'All', policies: [], statusFilter: 'All statuses', sessionFilter: DEFAULT_SESSION, omnibus: false, sortBy: s.sortBy === 'best' ? 'progress' : s.sortBy, menu: null })); };
+
+    // ---- SIGN-IN / TOAST ----
+    const completeSignIn = (e) => { if (e && e.preventDefault) e.preventDefault(); const f = this.state.signInFor; if (!f) return; if (this.__t) clearTimeout(this.__t); this.setState(s => ({ signInFor: null, returned: true, signedIn: true, toastShown: true, toastBill: f.code, tracked: { ...s.tracked, [f.id]: true } })); this.__t = setTimeout(() => this.setState({ toastShown: false }), 3650); };
+    const closeSignIn = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ signInFor: null }); };
+
+    // ---- PREVIEW BAND: use-case scenarios (state-driven, see CLAUDE.md) ----
+    const sig = [(this.state.query || '').trim(), this.state.policies.join(','), this.state.statusFilter, this.state.chamber, this.state.omnibus ? 'omni' : ''].join('|');
+    const scenario = (label, p) => {
+      const iss = p.policies || [];
+      const q = (p.query || '').trim();
+      const target = [q, iss.join(','), p.statusFilter || 'All statuses', p.chamber || 'All', p.omnibus ? 'omni' : ''].join('|');
+      return { label, active: sig === target, inactive: sig !== target, select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ query: q, policies: iss, statusFilter: p.statusFilter || 'All statuses', chamber: p.chamber || 'All', omnibus: !!p.omnibus, sortBy: q ? 'best' : 'progress', menu: null }); } };
+    };
+    const scenarioBtns = [
+      scenario('All bills', {}),
+      scenario('One word', { query: 'broadband' }),
+      scenario('Two words (AND)', { query: 'broadband rural' }),
+      scenario('Word + Issue', { query: 'broadband', policies: ['Infrastructure'] }),
+      scenario('Bill number', { query: 'HF 615' }),
+      scenario('Issue only', { policies: ['Education'] }),
+      scenario('Stacked (3 filters)', { query: 'tax', policies: ['Taxation'], chamber: 'Senate' }),
+      scenario('No results', { query: 'broadband', policies: ['Education'] }),
+    ];
+
+    return {
+      bills, chambers, policies, issueToggle,
+      statusOptions, sessionOptions, toggleStatusMenu, toggleSessionMenu, closeMenu,
+      sortOptions, sortButtonLabel, toggleSortMenu,
+      statusLabel: this.state.statusFilter, sessionLabel: shortSession,
+      statusActive: this.state.statusFilter !== 'All statuses', statusDefault: this.state.statusFilter === 'All statuses',
+      sessionActive: this.state.sessionFilter !== DEFAULT_SESSION, sessionDefault: this.state.sessionFilter === DEFAULT_SESSION,
+      menuStatusOpen: this.state.menu === 'status', menuSessionOpen: this.state.menu === 'session', menuSortOpen: this.state.menu === 'sort', menuOpen: !!this.state.menu,
+      query: this.state.query, onQuery, clearQuery, hasText, focusInput, inputRef,
+      chips, hasActiveFilters, clearAll,
+      count: displayCount, resultNoun: displayCountNum === 1 ? 'bill' : 'bills', resultSentence,
+      hasResults: count > 0, empty: count === 0,
+      omnibusOn: this.state.omnibus, omnibusOff: !this.state.omnibus,
+      toggleOmnibus: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ omnibus: !s.omnibus })); },
+      signedIn, signedOut: !signedIn,
+      justReturned: this.state.returned && this.state.toastShown, toastBill: this.state.toastBill,
+      signInActive: !!this.state.signInFor, signInCode: this.state.signInFor ? this.state.signInFor.code : '',
+      completeSignIn, closeSignIn,
+      scenarioBtns,
+      showPagination: (this.props.showPagination ?? true) && !hasActiveFilters,
+    };
+  }
+}
+</script>
+</body>
+</html>

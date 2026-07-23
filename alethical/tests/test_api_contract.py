@@ -3276,6 +3276,39 @@ def test_bills_policy_area_canonical_filter_under_progress_sort(client):
     )
 
 
+def test_bills_policy_area_multi_select_is_union(client):
+    """Selecting several issues is OR *across* the facet: a bill tagged ANY of
+    them matches (Search Bills v2). Repeating the ``policy_area`` query param
+    unions each issue's alias set, so the multi-issue result is the union of the
+    single-issue results — every returned bill carries at least one selected
+    issue, and the combined count is at least each single-issue count."""
+
+    def issue_query(*issues):
+        response = client.get(
+            "/api/v1/bills",
+            params=[("session", "94-2025-regular"), ("limit", "50")]
+            + [("policy_area", issue) for issue in issues],
+        )
+        assert response.status_code == 200
+        return response.json()["data"]
+
+    education = issue_query("Education")
+    economy = issue_query("Economic Development")
+    union = issue_query("Education", "Economic Development")
+    assert education and economy
+
+    # Every bill in the union carries at least one of the two selected issues.
+    assert all(
+        {"Education", "Economic Development"} & set(bill["ai_analysis"]["policy_areas"])
+        for bill in union
+    )
+    # The union is a superset of each single-issue result (OR, not AND).
+    union_ids = {bill["id"] for bill in union}
+    assert {bill["id"] for bill in education} <= union_ids
+    assert {bill["id"] for bill in economy} <= union_ids
+    assert len(union) >= max(len(education), len(economy))
+
+
 STATUS_FILTER_SESSION_SLUG = "test-status-filter-fixture"
 
 
