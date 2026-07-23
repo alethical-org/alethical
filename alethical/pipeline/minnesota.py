@@ -1672,6 +1672,7 @@ class MinnesotaIngestionPipeline:
                 action_row.action_group = action.get("action_group") or None
                 action_row.action_text = action["action_text"]
                 action_row.action_description = action.get("action_description") or None
+                action_row.committee_name = action.get("committee_name") or None
                 action_row.action_at = parse_datetime(action.get("action_date"))
                 action_row.journal_page = action.get("journal_page") or None
                 action_row.roll_call_text = action.get("roll_call") or None

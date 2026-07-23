@@ -112,6 +112,7 @@ class BillActionPayload(BaseModel):
     action_text: str
     action_group: str | None = None
     action_description: str | None = None
+    committee_name: str | None = None
     action_at: datetime | None = None
     journal_page: str | None = None
     roll_call_text: str | None = None

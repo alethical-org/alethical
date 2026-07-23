@@ -789,6 +789,82 @@ def test_upsert_bill_populates_action_dates(seed_database: None) -> None:
         session.rollback()
 
 
+COMMITTEE_BILL_XML = """<?xml version="1.0"?>
+<BILL>
+  <SESSION_NUMBER>94</SESSION_NUMBER>
+  <SESSION_YEAR>2025</SESSION_YEAR>
+  <FILE_TYPE>HF</FILE_TYPE>
+  <FILE_NUMBER>6666</FILE_NUMBER>
+  <REVISOR_NUMBER>25-6666</REVISOR_NUMBER>
+  <DESCRIPTION>Test committee-name ingestion bill</DESCRIPTION>
+  <ACTIONS>
+    <house>
+      <ACTION>
+        <ACTION_NUMBER>1</ACTION_NUMBER>
+        <ACTION_TEXT>Introduction and first reading, referred to</ACTION_TEXT>
+        <ACTION_DATE>2025-01-10 00:00:00</ACTION_DATE>
+        <COMMITTEE_ID>94012</COMMITTEE_ID>
+        <COMMITTEE_NAME>Higher Education Finance and Policy</COMMITTEE_NAME>
+      </ACTION>
+      <ACTION>
+        <ACTION_NUMBER>2</ACTION_NUMBER>
+        <ACTION_TEXT>Author added</ACTION_TEXT>
+        <ACTION_DATE>2025-01-15 00:00:00</ACTION_DATE>
+      </ACTION>
+    </house>
+  </ACTIONS>
+  <TEXT_VERSION_LIST></TEXT_VERSION_LIST>
+</BILL>
+"""
+
+
+def test_parse_bill_xml_extracts_committee_name() -> None:
+    """#599: the parser must surface <COMMITTEE_NAME> per action so the write
+    path can persist it. A non-referral action carries no committee."""
+    canonical = parse_bill_xml(COMMITTEE_BILL_XML)
+    actions = canonical["actions"]["house"]
+    assert actions[0]["committee_name"] == "Higher Education Finance and Policy"
+    assert actions[0]["committee_id"] == "94012"
+    assert actions[1]["committee_name"] == ""
+
+
+def test_upsert_bill_persists_committee_name(seed_database: None) -> None:
+    """#599 regression: the referral action's committee name reaches bill_action
+    (it used to be dropped on write); a non-referral action stays null."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical = parse_bill_xml(COMMITTEE_BILL_XML)
+        run = pipeline.start_run("bill", canonical["bill_key"])
+        xml_artifact = pipeline.record_artifact(
+            run, ArtifactType.xml, "https://example.test/hf6666.xml", COMMITTEE_BILL_XML
+        )
+        html_artifact = pipeline.record_artifact(
+            run, ArtifactType.html, "https://example.test/hf6666.html", "<html></html>"
+        )
+        bill_text = {
+            "sections": [],
+            "articles": [],
+            "source_url": "https://example.test/hf6666.html",
+        }
+
+        bill = pipeline.upsert_bill(
+            refs, canonical, bill_text, run, xml_artifact, html_artifact
+        )
+        session.flush()
+
+        actions = {
+            a.action_number: a
+            for a in session.scalars(
+                select(BillAction).where(BillAction.bill_id == bill.id)
+            ).all()
+        }
+        assert actions[1].committee_name == "Higher Education Finance and Policy"
+        assert actions[2].committee_name is None  # non-referral action carries none
+
+        session.rollback()
+
+
 def _companion_xml(
     file_type: str, file_number: str, companion_type: str, companion_number: str
 ) -> str:
