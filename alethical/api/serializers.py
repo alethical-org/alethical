@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-
 from alethical.api import schemas as api_schemas
 from alethical.api.issue_taxonomy import canonicalize_areas
 
@@ -70,105 +68,21 @@ def sponsor_payloads(
     return payloads
 
 
-def _roll_call_chamber(roll_call_text: str | None) -> str | None:
-    if not roll_call_text:
-        return None
-    match = re.search(r"(\d+)\s*-\s*(\d+)", roll_call_text)
-    if match is None:
-        return None
-    total = int(match.group(1)) + int(match.group(2))
-    if total > 100:
-        return "house"
-    if total > 0:
-        return "senate"
-    return None
-
-
-def bill_status_key(bill) -> str:
-    actions = list(bill.actions or [])
-    text_values = [
-        " ".join(
-            item
-            for item in [
-                action.action_text,
-                action.action_description,
-                action.roll_call_text,
-            ]
-            if item
-        ).lower()
-        for action in actions
-    ]
-    status_text = (bill.current_status or "").lower()
-    all_text = [status_text, *text_values]
-    if any("veto" in text for text in all_text):
-        return "vetoed"
-    if any(
-        "governor approval" in text
-        or "governor's action approval" in text
-        or "chapter number" in text
-        or "secretary of state" in text
-        or "effective date" in text
-        for text in all_text
-    ):
-        return "signed_into_law"
-    passed_chambers: set[str] = set()
-    for action in actions:
-        action_text = (action.action_text or "").lower()
-        combined = " ".join(
-            item
-            for item in [
-                action.action_text,
-                action.action_description,
-                action.roll_call_text,
-            ]
-            if item
-        ).lower()
-        if "not passed" in combined:
-            continue
-        if not (
-            "bill was passed" in action_text
-            or "third reading passed" in action_text
-            or "repassed" in action_text
-        ):
-            continue
-        explicit_chamber = None
-        if "senate" in combined:
-            explicit_chamber = "senate"
-        elif "house" in combined:
-            explicit_chamber = "house"
-        passed_chambers.add(
-            explicit_chamber or _roll_call_chamber(action.roll_call_text) or ""
-        )
-    passed_chambers.discard("")
-    if "senate" in passed_chambers:
-        return "passed_senate"
-    if "house" in passed_chambers:
-        return "passed_house"
-    if any("passed senate" in text or "senate passed" in text for text in all_text):
-        return "passed_senate"
-    if any(
-        "passed house" in text
-        or "house passed" in text
-        or "bill was passed" in text
-        or "third reading passed" in text
-        for text in all_text
-    ):
-        return "passed_house"
-    if any(
-        "referred" in text
-        or "committee report" in text
-        or "comm report" in text
-        or "second reading" in text
-        for text in all_text
-    ):
-        return "in_committee"
-    return "proposed"
-
-
 def bill_progress_payload(bill) -> list[api_schemas.BillProgressStep]:
-    status_key = bill_status_key(bill)
+    """Linear progress stepper for the bill detail page, read from the
+    precomputed ``status_key`` column (the single source of truth — the DB
+    triggers classify it from the chamber-stamped action history, #607).
+
+    The stepper is a five-station line (Introduced -> In Committee -> Passed
+    House -> Passed Senate -> Signed Into Law). ``passed_both_chambers`` maps to
+    the Passed-Senate station so both passage stations read as reached; ``vetoed``
+    (off the enactment path) sits at Introduced, as before.
+    """
+    status_key = bill.status_key or "proposed"
     if status_key == "vetoed":
         status_key = "proposed"
+    if status_key == "passed_both_chambers":
+        status_key = "passed_senate"
     status_steps = {
         "proposed": 1,
         "in_committee": 2,
@@ -193,30 +107,6 @@ def bill_progress_payload(bill) -> list[api_schemas.BillProgressStep]:
         )
         for key, label in steps
     ]
-
-
-def bill_status_key_from_summary(bill) -> str:
-    status_text = (bill.current_status or "").lower()
-    if "veto" in status_text:
-        return "vetoed"
-    if (
-        "governor" in status_text
-        or "chapter number" in status_text
-        or "secretary of state" in status_text
-        or "effective date" in status_text
-    ):
-        return "signed_into_law"
-    if "senate" in status_text and "pass" in status_text:
-        return "passed_senate"
-    if "pass" in status_text:
-        return "passed_house"
-    if (
-        "referred" in status_text
-        or "committee" in status_text
-        or "second reading" in status_text
-    ):
-        return "in_committee"
-    return "proposed"
 
 
 def bill_stats_payload(stats) -> api_schemas.BillStatsPayload | None:
@@ -357,7 +247,7 @@ def bill_list_item(
         file_number=bill.file_number,
         title=bill.title,
         current_status=bill.current_status,
-        status_key=bill_status_key_from_summary(bill),
+        status_key=bill.status_key,
         latest_action_at=bill.latest_action_at,
         official_url=bill.official_url,
         is_omnibus=bill.is_omnibus,
@@ -395,7 +285,7 @@ def companion_payload(bill) -> api_schemas.CompanionBillPayload | None:
         id=companion.bill_key,
         code=f"{companion.file_type} {companion.file_number}",
         status=companion.current_status,
-        status_key=bill_status_key(companion),
+        status_key=companion.status_key,
     )
 
 

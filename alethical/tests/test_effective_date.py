@@ -121,18 +121,19 @@ def test_normalizes_whitespace_and_day_padding():
     assert effective_date_from_sections(sections) == "August 1, 2026"
 
 
-def _bill(status, versions):
-    return SimpleNamespace(current_status=status, actions=[], versions=versions)
+def _bill(status_key, versions):
+    # verified_effective_date now gates on the precomputed status_key column (#607).
+    return SimpleNamespace(status_key=status_key, actions=[], versions=versions)
 
 
 def test_verified_effective_date_gates_on_enacted():
     # A non-enacted bill returns None even if its current version parsed a date.
-    bill = _bill("Referred to committee", [SimpleNamespace(id=1, is_current=True)])
+    bill = _bill("in_committee", [SimpleNamespace(id=1, is_current=True)])
     assert verified_effective_date(db=None, bill_row=bill) is None
 
 
 def test_verified_effective_date_none_without_current_version():
-    bill = _bill("Chapter number", [SimpleNamespace(id=1, is_current=False)])
+    bill = _bill("signed_into_law", [SimpleNamespace(id=1, is_current=False)])
     assert verified_effective_date(db=None, bill_row=bill) is None
 
 
@@ -314,18 +315,18 @@ def _bill_action(text, description="", roll_call_text=None):
 
 
 def _signed_bill(bill_id, *, is_omnibus=False, actions=()):
-    # "Secretary of State, Filed" is one of the signed_into_law status signals.
+    # bill_effective_dates now gates on the precomputed status_key column (#607).
     return SimpleNamespace(
         id=bill_id,
         is_omnibus=is_omnibus,
-        current_status="Secretary of State, Filed",
+        status_key="signed_into_law",
         actions=list(actions),
     )
 
 
 def test_bill_effective_dates_empty_when_no_signed_bills():
     bill = SimpleNamespace(
-        id=1, is_omnibus=False, current_status="Referred to committee", actions=[]
+        id=1, is_omnibus=False, status_key="in_committee", actions=[]
     )
     # No signed bills -> no DB queries at all.
     assert bill_effective_dates(_FakeDb(), [bill]) == {}

@@ -558,6 +558,7 @@ function statusLabel(statusKey?: string | null, fallback?: string | null) {
     in_committee: 'In Committee',
     passed_house: 'Passed House',
     passed_senate: 'Passed Senate',
+    passed_both_chambers: 'Passed Both Chambers',
     signed_into_law: 'Signed into Law',
     vetoed: 'Vetoed',
   };

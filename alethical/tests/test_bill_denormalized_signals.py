@@ -3,8 +3,8 @@
 These pin the DB-maintained columns (``has_current_summary``, ``status_key``,
 ``status_rank``) to the Python expressions that remain the source of truth
 (``current_bill_summary_enrichment_bill_ids``, ``bill_status_key_expr``,
-``bill_progress_rank``). If the SQL cascade in alembic 0007 ever drifts from the
-Python cascade — in either direction — a test here fails. This is the CI face of
+``bill_progress_rank``). If the SQL cascade in alembic 0007/0014 ever drifts from
+the Python cascade — in either direction — a test here fails. This is the CI face of
 #505's accuracy gate; the corpus byte-identical proof runs the same comparison
 against real production data.
 """
@@ -32,7 +32,12 @@ def _session() -> Session:
 
 
 def _make_bill(
-    db: Session, *, bill_key: str, file_number: int, status: str
+    db: Session,
+    *,
+    bill_key: str,
+    file_number: int,
+    status: str,
+    actions: list[tuple[str | None, str]] | None = None,
 ) -> uuid.UUID:
     bill = Bill(
         session_id=db.scalar(select(schema.LegislativeSession.id)),
@@ -44,6 +49,23 @@ def _make_bill(
         current_status=status,
     )
     db.add(bill)
+    db.flush()
+    for index, (chamber_slug, action_text) in enumerate(actions or []):
+        chamber_id = (
+            db.scalar(
+                select(schema.Chamber.id).where(schema.Chamber.slug == chamber_slug)
+            )
+            if chamber_slug
+            else None
+        )
+        db.add(
+            schema.BillAction(
+                bill_id=bill.id,
+                chamber_id=chamber_id,
+                action_number=index + 1,
+                action_text=action_text,
+            )
+        )
     db.commit()
     return bill.id
 
@@ -77,6 +99,7 @@ def _cleanup(db: Session, bill_id: uuid.UUID) -> None:
     db.execute(
         delete(schema.AIEnrichment).where(schema.AIEnrichment.bill_id == bill_id)
     )
+    db.execute(delete(schema.BillAction).where(schema.BillAction.bill_id == bill_id))
     db.execute(delete(schema.BillVersion).where(schema.BillVersion.bill_id == bill_id))
     db.execute(delete(Bill).where(Bill.id == bill_id))
     db.commit()
@@ -171,33 +194,103 @@ def test_bill_list_ordered_ids_match_old_path(seed_database) -> None:
 
 
 def test_status_cascade_covers_all_branches_and_priority(seed_database) -> None:
-    """Insert synthetic statuses hitting each branch (and priority collisions)
-    and assert the trigger-set columns match the expected classification."""
-    cases = {
-        "Governor vetoed the bill": ("vetoed", 1),
-        "Chapter number": ("signed_into_law", 0),
-        "Sent to Governor": ("signed_into_law", 0),
-        "Filed with Secretary of State": ("signed_into_law", 0),
-        "Effective date": ("signed_into_law", 0),
-        "Senate passed as amended": ("passed_senate", 2),
-        "Bill was passed": ("passed_house", 3),
-        "Referred to committee": ("in_committee", 4),
-        "Second reading": ("in_committee", 4),
-        "Introduced": ("proposed", 5),
-        "": ("proposed", 5),
+    """Insert synthetic bills hitting each branch (and priority collisions) and
+    assert the trigger-set columns match the expected classification.
+
+    Passage (House / Senate / both) and enactment are classified from the
+    chamber-stamped action history (#607): the fixtures seed real ``bill_action``
+    rows and, for the milestone cases, carry a *stale* ``current_status`` that the
+    old text classifier would have mis-read. In-committee vs proposed still reads
+    ``current_status``.
+    """
+    # (label, current_status, actions, (expected_key, expected_rank))
+    cases = [
+        ("veto via status", "Governor vetoed the bill", [], ("vetoed", 1)),
+        (
+            "veto via action",
+            "Laid on table",
+            [("house", "Governor vetoed")],
+            ("vetoed", 1),
+        ),
+        ("signed via status", "Chapter number", [], ("signed_into_law", 0)),
+        # Enacted from the action history despite a broken/stale status string.
+        (
+            "signed via action",
+            "See",
+            [("house", "Chapter number")],
+            ("signed_into_law", 0),
+        ),
+        (
+            "signed secretary",
+            "Filed with Secretary of State",
+            [],
+            ("signed_into_law", 0),
+        ),
+        ("signed effective", "Effective date", [], ("signed_into_law", 0)),
+        (
+            "passed senate only",
+            "Laid on table",
+            [("senate", "Third reading Passed")],
+            ("passed_senate", 3),
+        ),
+        (
+            "passed house only",
+            "Laid on table",
+            [("house", "Bill was passed")],
+            ("passed_house", 4),
+        ),
+        (
+            "passed both chambers (not signed)",
+            "Laid on table",
+            [("house", "Bill was passed"), ("senate", "Third reading Passed")],
+            ("passed_both_chambers", 2),
+        ),
+        # A committee "to pass" report is NOT floor passage.
+        (
+            "committee report not passage",
+            "Committee report, to pass",
+            [],
+            ("in_committee", 5),
+        ),
+        # A "not passed" action must never count as passage.
+        (
+            "not-passed action",
+            "Introduction and first reading",
+            [("house", "Bill was not passed")],
+            ("proposed", 6),
+        ),
+        ("in committee via status", "Referred to committee", [], ("in_committee", 5)),
+        ("second reading", "Second reading", [], ("in_committee", 5)),
+        ("proposed", "Introduced", [], ("proposed", 6)),
+        ("empty status", "", [], ("proposed", 6)),
         # Priority collisions: earlier branch wins.
-        "Governor vetoed after Senate passed": ("vetoed", 1),  # veto > signed/passed
-        "Senate passed, sent to Governor": ("signed_into_law", 0),  # signed > passed
-    }
+        (
+            "veto beats passage",
+            "Laid on table",
+            [("senate", "Third reading Passed"), ("house", "Governor vetoed")],
+            ("vetoed", 1),
+        ),
+        (
+            "signed beats passed-both",
+            "Laid on table",
+            [
+                ("house", "Bill was passed"),
+                ("senate", "Third reading Passed"),
+                ("house", "Chapter number"),
+            ],
+            ("signed_into_law", 0),
+        ),
+    ]
     bill_ids = []
     try:
         with _session() as db:
-            for i, status in enumerate(cases):
+            for i, (_label, status, actions, _expected) in enumerate(cases):
                 bid = _make_bill(
                     db,
                     bill_key=f"denorm-branch-{i}",
                     file_number=900000 + i,
                     status=status,
+                    actions=actions,
                 )
                 bill_ids.append(bid)
             got = {
@@ -208,9 +301,9 @@ def test_status_cascade_covers_all_branches_and_priority(seed_database) -> None:
                     )
                 ).all()
             }
-        for i, (status, expected) in enumerate(cases.items()):
+        for i, (label, _status, _actions, expected) in enumerate(cases):
             assert got[bill_ids[i]] == expected, (
-                f"status={status!r} → {got[bill_ids[i]]}, expected {expected}"
+                f"{label!r} → {got[bill_ids[i]]}, expected {expected}"
             )
     finally:
         with _session() as db:
@@ -218,7 +311,7 @@ def test_status_cascade_covers_all_branches_and_priority(seed_database) -> None:
                 _cleanup(db, bid)
 
 
-def test_status_trigger_recomputes_on_update(seed_database) -> None:
+def test_status_trigger_recomputes_on_status_update(seed_database) -> None:
     bid = None
     try:
         with _session() as db:
@@ -230,6 +323,65 @@ def test_status_trigger_recomputes_on_update(seed_database) -> None:
             db.commit()
             row = db.get(Bill, bid)
             assert (row.status_key, row.status_rank) == ("signed_into_law", 0)
+    finally:
+        if bid:
+            with _session() as db:
+                _cleanup(db, bid)
+
+
+def test_status_recomputes_when_actions_change(seed_database) -> None:
+    """The bill_action trigger keeps status_key current as passage actions are
+    added and removed — the column can't drift from the action history (#607)."""
+    bid = None
+    try:
+        with _session() as db:
+            bid = _make_bill(
+                db,
+                bill_key="denorm-action-sync",
+                file_number=910002,
+                status="Laid on table",
+            )
+            # No actions yet → falls through to proposed.
+            assert db.get(Bill, bid).status_key == "proposed"
+
+            house = db.scalar(
+                select(schema.Chamber.id).where(schema.Chamber.slug == "house")
+            )
+            senate = db.scalar(
+                select(schema.Chamber.id).where(schema.Chamber.slug == "senate")
+            )
+            # House floor passage → passed_house.
+            house_action = schema.BillAction(
+                bill_id=bid,
+                chamber_id=house,
+                action_number=1,
+                action_text="Bill was passed",
+            )
+            db.add(house_action)
+            db.commit()
+            db.expire_all()
+            assert db.get(Bill, bid).status_key == "passed_house"
+
+            # Add Senate passage → passed_both_chambers.
+            db.add(
+                schema.BillAction(
+                    bill_id=bid,
+                    chamber_id=senate,
+                    action_number=1,
+                    action_text="Third reading Passed",
+                )
+            )
+            db.commit()
+            db.expire_all()
+            assert db.get(Bill, bid).status_key == "passed_both_chambers"
+
+            # Remove the House passage → back to passed_senate.
+            db.execute(
+                delete(schema.BillAction).where(schema.BillAction.id == house_action.id)
+            )
+            db.commit()
+            db.expire_all()
+            assert db.get(Bill, bid).status_key == "passed_senate"
     finally:
         if bid:
             with _session() as db:

@@ -74,6 +74,7 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
         "in_committee",
         "passed_house",
         "passed_senate",
+        "passed_both_chambers",
         "signed_into_law",
         "vetoed",
     }
@@ -132,6 +133,7 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
         "in_committee",
         "passed_house",
         "passed_senate",
+        "passed_both_chambers",
         "signed_into_law",
         "vetoed",
     }
@@ -2971,51 +2973,66 @@ def _seed_progress_sort_bills(schema) -> str:
 
     from alethical.db.session import get_session_factory
 
-    # current_status string -> expected status_key (bill_status_key_from_summary),
-    # file_number, latest_action_at. Chosen so each maps unambiguously and the
-    # veto/governor priority (veto wins) is exercised.
+    # (current_status, expected_key, file_number, latest_action_at, actions), where
+    # actions is a list of (chamber_slug | None, action_text). Passage/enacted are
+    # classified from the actions (#607); in_committee vs proposed from
+    # current_status. One bill per stage, plus a same-stage recency pair.
     fixtures = [
         (
             "Governor approval; chapter number 45",
             "signed_into_law",
             90001,
             datetime(2025, 3, 1, tzinfo=timezone.utc),
+            [],
         ),
         (
             "Vetoed by the Governor",
             "vetoed",
             90002,
             datetime(2025, 3, 2, tzinfo=timezone.utc),
+            [],
         ),
         (
-            "Passed the senate on third reading",
+            "Laid on table",
+            "passed_both_chambers",
+            90008,
+            datetime(2025, 3, 5, tzinfo=timezone.utc),
+            [("house", "Bill was passed"), ("senate", "Third reading Passed")],
+        ),
+        (
+            "Laid on table",
             "passed_senate",
             90003,
             datetime(2025, 3, 3, tzinfo=timezone.utc),
+            [("senate", "Third reading Passed")],
         ),
         (
-            "Third reading passed",
+            "Laid on table",
             "passed_house",
             90004,
             datetime(2025, 3, 4, tzinfo=timezone.utc),
+            [("house", "Bill was passed")],
         ),
         (
             "Referred to committee on education",
             "in_committee",
             90005,
             datetime(2025, 1, 10, tzinfo=timezone.utc),
+            [],
         ),
         (
             "Second reading and referred to committee",
             "in_committee",
             90006,
             datetime(2025, 2, 20, tzinfo=timezone.utc),
+            [],
         ),
         (
             "Introduction and first reading",
             "proposed",
             90007,
             datetime(2025, 1, 5, tzinfo=timezone.utc),
+            [],
         ),
     ]
     with get_session_factory()() as db:
@@ -3024,10 +3041,15 @@ def _seed_progress_sort_bills(schema) -> str:
                 schema.LegislativeSession.slug == "94-2025-regular"
             )
         )
-        chamber = db.scalar(
-            select(schema.Chamber).where(schema.Chamber.slug == "house")
-        )
-        assert base_session is not None and chamber is not None
+        chambers = {
+            c.slug: c
+            for c in db.scalars(
+                select(schema.Chamber).where(
+                    schema.Chamber.slug.in_(["house", "senate"])
+                )
+            )
+        }
+        assert base_session is not None and {"house", "senate"} <= set(chambers)
         session_row = db.scalar(
             select(schema.LegislativeSession).where(
                 schema.LegislativeSession.slug == PROGRESS_SORT_SESSION_SLUG
@@ -3046,7 +3068,13 @@ def _seed_progress_sort_bills(schema) -> str:
             )
             db.add(session_row)
             db.flush()
-        for current_status, _expected_key, file_number, latest_action_at in fixtures:
+        for (
+            current_status,
+            _expected_key,
+            file_number,
+            latest_action_at,
+            actions,
+        ) in fixtures:
             bill_key = f"{PROGRESS_SORT_SESSION_SLUG}-HF{file_number}"
             existing = db.scalar(
                 select(schema.Bill).where(schema.Bill.bill_key == bill_key)
@@ -3055,7 +3083,7 @@ def _seed_progress_sort_bills(schema) -> str:
                 continue
             bill = schema.Bill(
                 session_id=session_row.id,
-                chamber_id=chamber.id,
+                chamber_id=chambers["house"].id,
                 bill_key=bill_key,
                 file_type="HF",
                 file_number=file_number,
@@ -3068,6 +3096,15 @@ def _seed_progress_sort_bills(schema) -> str:
             )
             db.add(bill)
             db.flush()
+            for index, (chamber_slug, action_text) in enumerate(actions):
+                db.add(
+                    schema.BillAction(
+                        bill_id=bill.id,
+                        chamber_id=chambers[chamber_slug].id if chamber_slug else None,
+                        action_number=index + 1,
+                        action_text=action_text,
+                    )
+                )
             db.add(
                 schema.AIEnrichment(
                     bill_id=bill.id,
@@ -3095,11 +3132,12 @@ def test_bills_sort_progress_orders_by_stage_then_recency(client):
     keys = [item["status_key"] for item in data]
     file_numbers = [item["file_number"] for item in data]
 
-    # Stage rank: signed -> vetoed -> passed_senate -> passed_house ->
-    # in_committee -> proposed. Ties broken by latest_action_at DESC.
+    # Stage rank: signed -> vetoed -> passed_both_chambers -> passed_senate ->
+    # passed_house -> in_committee -> proposed. Ties broken by latest_action_at DESC.
     assert keys == [
         "signed_into_law",
         "vetoed",
+        "passed_both_chambers",
         "passed_senate",
         "passed_house",
         "in_committee",
@@ -3133,7 +3171,7 @@ def test_bills_sort_default_is_latest_action_unchanged(client):
 
     # Default == explicit latest_action, and both order by latest_action_at DESC.
     assert default_files == latest_files
-    assert default_files == [90004, 90003, 90002, 90001, 90006, 90005, 90007]
+    assert default_files == [90008, 90004, 90003, 90002, 90001, 90006, 90005, 90007]
 
 
 INTRODUCED_SORT_SESSION_SLUG = "test-introduced-sort-fixture"
@@ -3318,10 +3356,14 @@ def _seed_status_filter_bills(schema):
     session, so the status-filter isolation assertions never touch the shared
     ``94-2025-regular`` list. Returns ``(session_slug, {file_number: key})``.
 
-    HF90108's ``current_status`` contains BOTH "introduction" (the old buggy
-    ``proposed`` substring pattern) and "referred to committee", so its badge is
-    ``in_committee``; it must be returned only by the ``in_committee`` filter,
-    never by ``proposed`` ("Introduced") — the exact reported regression.
+    Passage (House / Senate / both chambers) and enactment are classified from
+    the chamber-stamped ``bill_action`` history, not ``current_status`` text
+    (#607), so the passage/enacted fixtures seed real actions and deliberately
+    carry a *stale* ``current_status`` ("Laid on table") that the old text
+    classifier would have mis-badged. HF90108's ``current_status`` contains BOTH
+    "introduction" and "referred to committee", so its badge is ``in_committee``;
+    it must be returned only by the ``in_committee`` filter, never by
+    ``proposed`` ("Introduced") — the exact reported regression.
     """
     from datetime import datetime, timezone
 
@@ -3329,17 +3371,42 @@ def _seed_status_filter_bills(schema):
 
     from alethical.db.session import get_session_factory
 
+    # (current_status, expected_key, file_number, actions) where actions is a
+    # list of (chamber_slug | None, action_text). Passage/enacted come from the
+    # actions; in_committee vs proposed comes from current_status.
     fixtures = [
-        ("Governor approval; chapter number 12", "signed_into_law", 90101),
-        ("Vetoed by the Governor", "vetoed", 90102),
-        ("Passed the senate on third reading", "passed_senate", 90103),
-        ("Third reading passed", "passed_house", 90104),
-        ("Referred to committee on education", "in_committee", 90105),
-        ("Introduction and first reading", "proposed", 90107),
+        # Enacted from current_status text.
+        ("Governor approval; chapter number 12", "signed_into_law", 90101, []),
+        # Enacted from action history despite a broken/stale current_status
+        # (the real HF 2115 case: current_status is a truncated "See").
+        ("See", "signed_into_law", 90109, [("house", "Chapter number")]),
+        ("Vetoed by the Governor", "vetoed", 90102, []),
+        # Passed a single chamber — current_status doesn't say "pass".
+        ("Laid on table", "passed_senate", 90103, [("senate", "Third reading Passed")]),
+        ("Laid on table", "passed_house", 90104, [("house", "Bill was passed")]),
+        # Passed BOTH chambers — the new stage.
+        (
+            "Laid on table",
+            "passed_both_chambers",
+            90106,
+            [("house", "Bill was passed"), ("senate", "Third reading Passed")],
+        ),
+        ("Referred to committee on education", "in_committee", 90105, []),
+        # A committee "to pass" report is NOT floor passage.
+        ("Committee report, to pass as amended", "in_committee", 90110, []),
+        ("Introduction and first reading", "proposed", 90107, []),
         (
             "Introduction and first reading, referred to committee on education",
             "in_committee",
             90108,
+            [],
+        ),
+        # A defeated bill: a "not passed" action must never count as passage.
+        (
+            "Introduction and first reading",
+            "proposed",
+            90111,
+            [("house", "Bill was not passed")],
         ),
     ]
     with get_session_factory()() as db:
@@ -3348,10 +3415,15 @@ def _seed_status_filter_bills(schema):
                 schema.LegislativeSession.slug == "94-2025-regular"
             )
         )
-        chamber = db.scalar(
-            select(schema.Chamber).where(schema.Chamber.slug == "house")
-        )
-        assert base_session is not None and chamber is not None
+        chambers = {
+            c.slug: c
+            for c in db.scalars(
+                select(schema.Chamber).where(
+                    schema.Chamber.slug.in_(["house", "senate"])
+                )
+            )
+        }
+        assert base_session is not None and {"house", "senate"} <= set(chambers)
         session_row = db.scalar(
             select(schema.LegislativeSession).where(
                 schema.LegislativeSession.slug == STATUS_FILTER_SESSION_SLUG
@@ -3370,7 +3442,7 @@ def _seed_status_filter_bills(schema):
             )
             db.add(session_row)
             db.flush()
-        for current_status, _expected_key, file_number in fixtures:
+        for current_status, _expected_key, file_number, actions in fixtures:
             bill_key = f"{STATUS_FILTER_SESSION_SLUG}-HF{file_number}"
             existing = db.scalar(
                 select(schema.Bill).where(schema.Bill.bill_key == bill_key)
@@ -3379,7 +3451,7 @@ def _seed_status_filter_bills(schema):
                 continue
             bill = schema.Bill(
                 session_id=session_row.id,
-                chamber_id=chamber.id,
+                chamber_id=chambers["house"].id,
                 bill_key=bill_key,
                 file_type="HF",
                 file_number=file_number,
@@ -3392,6 +3464,15 @@ def _seed_status_filter_bills(schema):
             )
             db.add(bill)
             db.flush()
+            for index, (chamber_slug, action_text) in enumerate(actions):
+                db.add(
+                    schema.BillAction(
+                        bill_id=bill.id,
+                        chamber_id=chambers[chamber_slug].id if chamber_slug else None,
+                        action_number=index + 1,
+                        action_text=action_text,
+                    )
+                )
             # bill_list_stmt only surfaces bills with a current bill_summary
             # enrichment, so each fixture needs one to appear in the list.
             db.add(
@@ -3404,7 +3485,7 @@ def _seed_status_filter_bills(schema):
                 )
             )
         db.commit()
-    return STATUS_FILTER_SESSION_SLUG, {fn: key for _, key, fn in fixtures}
+    return STATUS_FILTER_SESSION_SLUG, {fn: key for _, key, fn, _ in fixtures}
 
 
 def test_bills_status_filter_isolates_results_to_selected_status(client):
@@ -3425,6 +3506,7 @@ def test_bills_status_filter_isolates_results_to_selected_status(client):
         "in_committee",
         "passed_house",
         "passed_senate",
+        "passed_both_chambers",
         "signed_into_law",
         "vetoed",
     ]

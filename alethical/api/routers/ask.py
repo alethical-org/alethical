@@ -24,7 +24,7 @@ from alethical.api.schemas import (
     DetailResponse,
 )
 from alethical.api.rate_limit import rate_limit
-from alethical.api.serializers import bill_list_item, bill_status_key_from_summary
+from alethical.api.serializers import bill_list_item
 from alethical.api.services.ask_router import (
     AskIntent,
     classify_query,
@@ -57,15 +57,9 @@ _ask_rate_limit = rate_limit("ask_limiter", "ask")
 
 # Display order per docs/grounded-ask-spec.md §4.2 (topic_bills formatter):
 # legislative progress first, then most recent action (tie-broken in
-# _progress_sort_key so a shared ?q= link re-renders identically).
-_PROGRESS_ORDER = {
-    "signed_into_law": 0,
-    "vetoed": 1,
-    "passed_senate": 2,
-    "passed_house": 3,
-    "in_committee": 4,
-    "proposed": 5,
-}
+# _progress_sort_key so a shared ?q= link re-renders identically). The stage rank
+# is the precomputed ``Bill.status_rank`` column (``_STATUS_KEY_RANK``), so this
+# ordering, the sort=progress ordering, and the badge all agree.
 
 # Cap the rendered list; overflow routes to Search pre-filtered to the topic.
 _DISPLAY_LIMIT = 6
@@ -87,7 +81,7 @@ _BILL_REFERENCE_RE = re.compile(r"\b([HS])\.?\s*F\.?\s*0*(\d{1,5})\b", re.IGNORE
 
 
 def _progress_sort_key(bill):
-    rank = _PROGRESS_ORDER.get(bill_status_key_from_summary(bill), len(_PROGRESS_ORDER))
+    rank = bill.status_rank if bill.status_rank is not None else 99
     action_ts = (
         bill.latest_action_at.timestamp() if bill.latest_action_at else float("-inf")
     )
