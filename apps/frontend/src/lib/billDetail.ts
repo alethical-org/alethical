@@ -1000,10 +1000,18 @@ export function plainKeyPoints(points: string[] | undefined): string[] {
     .filter((point) => /[a-z]/i.test(point));
 }
 
-// The chief author sponsor (role chief_author), else the first sponsor.
-export function chiefAuthor(bill: Bill) {
+// The chief author for THIS file's own chamber. A companion-paired bill carries
+// BOTH chambers' authors as its own sponsorship rows (ingest writes the House
+// companion's authors onto the Senate file and vice-versa), so a bill can have two
+// chief_author entries — one per chamber — with no reliable order between them.
+// Scope to the bill's own chamber first, then take the chief_author role (else the
+// first sponsor). Falls back to the full list when no sponsor carries a chamber, so
+// behavior is unchanged for bills without per-sponsor chamber data.
+export function chiefAuthor(bill: Pick<Bill, 'sponsors' | 'chamber'>) {
   const sponsors = bill.sponsors ?? [];
-  return sponsors.find((s) => s.role === 'chief_author') ?? sponsors[0];
+  const ownChamber = bill.chamber ? sponsors.filter((s) => s.chamber === bill.chamber) : [];
+  const pool = ownChamber.length > 0 ? ownChamber : sponsors;
+  return pool.find((s) => s.role === 'chief_author') ?? pool[0];
 }
 
 // Count of co-authors: prefer the served coAuthorCount, else count co_author roles.
