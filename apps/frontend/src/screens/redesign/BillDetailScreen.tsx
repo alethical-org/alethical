@@ -37,6 +37,7 @@ import {
   formatMonoDate,
   formatNiceDate,
   isKnownDistrict,
+  latestActionEntry,
   MemberVote,
   orderActionsForTimeline,
   orderBillVersions,
@@ -465,12 +466,20 @@ function BillDetailMobileScreen() {
     // Never the literal "Effective date" status string, nor a "· Unknown" suffix.
     const niceDate =
       bill.updatedAt && bill.updatedAt !== 'Unknown' ? formatNiceDate(bill.updatedAt) : '';
+    // The action text is the plain-language headline of the newest action (same
+    // latestActionEntry the list card + Actions timeline use), so the rail names
+    // the committee ("Referred to Transportation") instead of the raw clerk string
+    // ("Referred to"). Falls back to the stored status text when a bill has no
+    // action rows (#599 follow-up).
+    const latest = latestActionEntry(bill.actions ?? [], now);
     const dateLabel = bill.effectiveDate ? 'EFFECTIVE' : 'LATEST ACTION';
     const dateValue = bill.effectiveDate
       ? bill.effectiveDate
-      : bill.latestActionText
-        ? `${bill.latestActionText}${niceDate ? ` · ${niceDate}` : ''}`
-        : niceDate;
+      : latest
+        ? `${latest.label}${latest.date ? ` · ${latest.date}` : ''}`
+        : bill.latestActionText
+          ? `${bill.latestActionText}${niceDate ? ` · ${niceDate}` : ''}`
+          : niceDate;
     const overviewUrl = bill.officialLinks?.[0]?.url;
     const readUrl = bill.versions?.[0]?.url ?? overviewUrl;
     // Newest-first timeline. Dateless rows are slotted next to their sequence
