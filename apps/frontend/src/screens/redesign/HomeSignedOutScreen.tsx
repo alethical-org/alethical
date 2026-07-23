@@ -334,7 +334,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 accessibilityRole="link"
                 onPress={() => openExternal(HF4138_STATUS_URL)}
                 {...badgeHover}
-                style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
+                style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
               >
                 <Text
                   style={[
@@ -392,7 +392,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
             accessibilityRole="link"
             onPress={() => openExternal(HF4138_STATUS_URL)}
             {...badgeHover}
-            style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#d5f2e2' }]}
+            style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
           >
             <Text
               style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}
@@ -1743,9 +1743,9 @@ const m = StyleSheet.create({
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   billBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: t.colors.tint.t150,
+    backgroundColor: t.colors.omnibus.fill,
     borderWidth: 1,
-    borderColor: t.colors.tint.border,
+    borderColor: t.colors.omnibus.border,
     borderRadius: t.radii.badge,
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -1755,7 +1755,7 @@ const m = StyleSheet.create({
     fontSize: 15,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.4,
-    color: t.colors.brand.deep,
+    color: t.colors.omnibus.text,
   },
   hotPill: {
     flexDirection: 'row',
@@ -2180,9 +2180,9 @@ const styles = StyleSheet.create({
   },
   billBadgeLg: {
     marginTop: 5,
-    backgroundColor: t.colors.tint.t150,
+    backgroundColor: t.colors.omnibus.fill,
     borderWidth: 1,
-    borderColor: t.colors.tint.border,
+    borderColor: t.colors.omnibus.border,
     borderRadius: 8,
     paddingVertical: 7,
     paddingHorizontal: 13,
@@ -2192,7 +2192,7 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.bodyLg,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.6,
-    color: t.colors.brand.deep,
+    color: t.colors.omnibus.text,
   },
   billMetaCols: { flex: 1, minWidth: 0 },
   billMetaColsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' },
@@ -2480,9 +2480,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   billBadgeSm: {
-    backgroundColor: t.colors.tint.t150,
+    backgroundColor: t.colors.omnibus.fill,
     borderWidth: 1,
-    borderColor: t.colors.tint.border,
+    borderColor: t.colors.omnibus.border,
     borderRadius: 7,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -2492,7 +2492,7 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.6,
-    color: t.colors.brand.deep,
+    color: t.colors.omnibus.text,
   },
   billStatus: {
     fontFamily: t.typography.ui,
