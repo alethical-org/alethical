@@ -34,7 +34,6 @@ from alethical.api.serializers import (
     ai_analysis_payload_for_enrichment,
     bill_list_item,
     bill_progress_payload,
-    bill_status_key,
     companion_payload,
     current_bill_summary_enrichment,
     current_service_payload,
@@ -427,19 +426,18 @@ def district_for_match(db: Session, match: DistrictMatch | None):
 def status_filter_clause(status: str):
     """Filter bills to a single status, matching the list-card badge exactly.
 
-    Reads the precomputed ``Bill.status_key`` column (#505), which the DB trigger
-    maintains from the exact ``bill_status_key_expr`` cascade the displayed badge
+    Reads the precomputed ``Bill.status_key`` column, which the DB triggers
+    maintain from the exact ``bill_status_key_expr`` cascade the displayed badge
     uses, and keeps only the bills whose key equals the selected status. Because
-    every bill maps to exactly one status, the six
-    filters are mutually exclusive and their counts sum to the session total
-    (the prior per-status OR-substring match double-counted any bill whose
-    latest-action text hit two stages, e.g. "Introduction and first reading,
-    referred to committee" landed in both "proposed" and "in_committee"). An
-    unrecognized status matches nothing, which is correct — it has no bills.
+    every bill maps to exactly one status, the filters are mutually exclusive and
+    their counts sum to the session total. An unrecognized status matches
+    nothing, which is correct — it has no bills. "Passed both chambers" (with a
+    space, from the frontend dropdown) normalizes to ``passed_both_chambers``
+    (#607).
     """
     normalized = status.strip().lower().replace(" ", "_")
     # Read the precomputed status_key column (#505) rather than recomputing the
-    # lower()/ILIKE cascade per row. The DB trigger maintains it from the exact
+    # cascade per row. The DB triggers maintain it from the exact
     # ``bill_status_key_expr`` cascade, so the classification is identical.
     return Bill.status_key == normalized
 
@@ -962,7 +960,7 @@ def verified_effective_date(db: Session, bill_row) -> str | None:
     resolve_effective_date. Only enacted bills carry a date; everything else keeps
     the honest LATEST ACTION treatment.
     """
-    if bill_status_key(bill_row) != "signed_into_law":
+    if bill_row.status_key != "signed_into_law":
         return None
     current = next((v for v in (bill_row.versions or []) if v.is_current), None)
     if current is None:
@@ -988,7 +986,7 @@ def bill_effective_dates(db: Session, rows) -> dict[str, str]:
     take effect at different times). Signed bills with no groundable date that are not
     omnibus are omitted — the card then shows no Effective line rather than a guessed
     date. Returns {bill_id: value}."""
-    signed = [row for row in rows if bill_status_key(row) == "signed_into_law"]
+    signed = [row for row in rows if row.status_key == "signed_into_law"]
     if not signed:
         return {}
     # One query: the current version id for each signed bill.
@@ -1085,7 +1083,7 @@ def bill_detail(
         "title": row.title,
         "description": row.description,
         "current_status": row.current_status,
-        "status_key": bill_status_key(row),
+        "status_key": row.status_key,
         "latest_action_at": row.latest_action_at,
         # Verbatim statutory effective date, present only when the enacted text
         # states one unambiguously; otherwise absent -> UI shows LATEST ACTION

@@ -67,14 +67,13 @@ const ISSUE_SEPARATOR = ',';
 
 // Ordered most-progressed first (matching the sort=progress ordering), with the
 // off-path Vetoed state last. Every value maps to a status the /bills filter can
-// actually serve (alethical/api/routers/public.py status_filter_clause). The v2
-// mock lists a "Passed both chambers" option too, but the corpus can't yet
-// classify it reliably (status is derived from current_status text, which
-// mis-attributes chamber) — tracked as its own backend fix; we ship the statuses
-// the data backs.
+// actually serve (alethical/api/routers/public.py status_filter_clause). Passage
+// (House / Senate / both chambers) is classified from the chamber-stamped action
+// history (#607), so "Passed both chambers" now returns a real cohort.
 const STATUS_OPTIONS = [
   { label: 'All statuses', value: '' },
   { label: 'Signed into Law', value: 'signed_into_law' },
+  { label: 'Passed both chambers', value: 'passed_both_chambers' },
   { label: 'Passed Senate', value: 'passed_senate' },
   { label: 'Passed House', value: 'passed_house' },
   { label: 'In Committee', value: 'in_committee' },
@@ -85,6 +84,7 @@ const STATUS_OPTIONS = [
 // Per-status natural phrasing for the plain-English result description (v2 §E).
 const STATUS_PHRASE: Record<string, string> = {
   signed_into_law: 'signed into law',
+  passed_both_chambers: 'passed by both chambers',
   passed_senate: 'passed by the Senate',
   passed_house: 'passed by the House',
   in_committee: 'in committee',

@@ -24,7 +24,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     case,
+    exists,
     func,
+    or_,
     select,
     text,
 )
@@ -447,17 +449,20 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     current_status: Mapped[Optional[str]] = mapped_column(String(200))
     current_status_code: Mapped[Optional[str]] = mapped_column(String(50))
-    # Denormalized per-request signals (#505), maintained by DB triggers (see
-    # alembic 0007) so they can never drift from their source data:
+    # Denormalized per-request signals (#505), maintained by DB triggers so they
+    # can never drift from their source data:
     #   * has_current_summary — true iff a current non-empty bill_summary
     #     enrichment exists; equals ``current_bill_summary_enrichment_bill_ids``.
     #     Lets the list gate read a cheap bill column instead of seq-scanning and
-    #     detoasting the whole ai_enrichment table every request.
+    #     detoasting the whole ai_enrichment table every request (alembic 0007).
     #   * status_key / status_rank — the list-card status classification and its
-    #     progress rank, precomputed from ``current_status`` via the exact cascade
-    #     in ``bill_status_key_expr`` / ``bill_progress_rank`` (the Python source
-    #     of truth). Lets sort=progress and the status filter read a plain indexed
-    #     column instead of a live lower()/ILIKE CASE cascade.
+    #     progress rank, precomputed via the exact cascade in
+    #     ``bill_status_key_expr`` / ``bill_progress_rank`` (the Python source of
+    #     truth). Passage (House/Senate/both chambers) and enactment are read from
+    #     the chamber-stamped ``bill_action`` history, so triggers on both ``bill``
+    #     and ``bill_action`` maintain the columns (alembic 0014, #607). Lets
+    #     sort=progress and the status filter read a plain indexed column instead
+    #     of a live join + CASE cascade.
     has_current_summary: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
@@ -1169,40 +1174,91 @@ def current_bill_summary_enrichment_bill_ids():
 _STATUS_KEY_RANK = {
     "signed_into_law": 0,
     "vetoed": 1,
-    "passed_senate": 2,
-    "passed_house": 3,
-    "in_committee": 4,
-    "proposed": 5,
+    "passed_both_chambers": 2,
+    "passed_senate": 3,
+    "passed_house": 4,
+    "in_committee": 5,
+    "proposed": 6,
 }
+
+# Floor-passage action_text signals (a genuine chamber vote, not a committee
+# "to pass" report and not a defeated "not passed" motion). Chamber comes from
+# ``bill_action.chamber_id`` — the reliable House/Senate signal (#607).
+_PASSAGE_PATTERNS = ("%bill was passed%", "%third reading passed%", "%repassed%")
+# Enacted-into-law signals, cumulative once they appear in the action history
+# (``current_status`` text alone is unreliable — a signed bill can carry a stale
+# or truncated status string, so the milestone is read from the actions).
+_ENACTED_PATTERNS = (
+    "%governor approval%",
+    "%governor's action approval%",
+    "%chapter number%",
+    "%secretary of state%",
+    "%effective date%",
+)
+
+
+def _bill_action_text_exists(patterns):
+    """EXISTS(a bill_action of this bill whose action_text matches any pattern)."""
+    action_text = func.lower(BillAction.action_text)
+    return exists(
+        select(1)
+        .select_from(BillAction)
+        .where(
+            BillAction.bill_id == Bill.id,
+            or_(*[action_text.like(pattern) for pattern in patterns]),
+        )
+    )
+
+
+def _passed_chamber_exists(chamber_slug: str):
+    """EXISTS(a floor-passage action of this bill stamped to ``chamber_slug``)."""
+    action_text = func.lower(BillAction.action_text)
+    return exists(
+        select(1)
+        .select_from(BillAction)
+        .join(Chamber, Chamber.id == BillAction.chamber_id)
+        .where(
+            BillAction.bill_id == Bill.id,
+            Chamber.slug == chamber_slug,
+            or_(*[action_text.like(pattern) for pattern in _PASSAGE_PATTERNS]),
+            ~action_text.like("%not passed%"),
+        )
+    )
 
 
 def bill_status_key_expr():
-    """SQL expression yielding a bill's list-card status key from
-    ``Bill.current_status`` alone.
+    """SQL expression yielding a bill's list-card status key.
 
     The single SQL-side source of truth for status classification, mirroring
-    ``bill_status_key_from_summary`` (alethical/api/serializers.py) — the
-    heuristic the list card's status badge displays. Because the status *filter*
-    (``status_filter_clause``) and the displayed *badge* now derive from the
-    same priority cascade (veto wins over governor), selecting a status returns
-    exactly the bills whose badge matches it: each bill maps to exactly one
-    status, so the six filters are mutually exclusive and their counts sum to
-    the session total. Classifies from ``current_status`` alone, so it needs no
-    join to ``bill_action`` and adds no N+1. Keep this and the serializer twin
-    in sync.
+    ``bill_compute_status_key`` (alembic 0014) exactly — the equivalence is
+    pinned by test_bill_denormalized_signals.py. Cumulative *milestone* signals
+    (vetoed / signed into law / passed a chamber) are read from the bill's
+    chamber-stamped action history, so House vs Senate passage is reliable and a
+    ``passed_both_chambers`` cohort exists; the *current-position* signals
+    (in committee vs proposed) still read the latest ``current_status`` text.
+
+    The priority cascade (veto > signed > passed-both > passed-senate >
+    passed-house > in-committee > proposed) makes each bill map to exactly one
+    status, so the status *filter* (``status_filter_clause``), the displayed
+    *badge*, and sort=progress agree, the filters are mutually exclusive, and
+    their counts sum to the session total. The value is precomputed into
+    ``Bill.status_key`` by DB triggers (on ``bill`` and ``bill_action``), so no
+    query-time join is needed; this expression is used only for the backfill's
+    equivalence check.
     """
     status = func.lower(func.coalesce(Bill.current_status, ""))
+    has_veto = _bill_action_text_exists(("%veto%",)) | status.contains("veto")
+    has_enacted = _bill_action_text_exists(_ENACTED_PATTERNS) | or_(
+        *[status.like(pattern) for pattern in _ENACTED_PATTERNS]
+    )
+    passed_house = _passed_chamber_exists("house")
+    passed_senate = _passed_chamber_exists("senate")
     return case(
-        (status.contains("veto"), "vetoed"),
-        (
-            status.contains("governor")
-            | status.contains("chapter number")
-            | status.contains("secretary of state")
-            | status.contains("effective date"),
-            "signed_into_law",
-        ),
-        (status.contains("senate") & status.contains("pass"), "passed_senate"),
-        (status.contains("pass"), "passed_house"),
+        (has_veto, "vetoed"),
+        (has_enacted, "signed_into_law"),
+        (passed_house & passed_senate, "passed_both_chambers"),
+        (passed_senate, "passed_senate"),
+        (passed_house, "passed_house"),
         (
             status.contains("referred")
             | status.contains("committee")
