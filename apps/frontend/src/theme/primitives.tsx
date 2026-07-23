@@ -516,7 +516,7 @@ export function TopNav({
   const dropdownMenus = MENUS.filter((menu) => menu.key !== 'ask');
   // Mobile flattens every menu's roadmap items into one pill row. Search items keep
   // their bare label; Track-only items collapse into a single "Tracking Features"
-  // pill rather than listing each one. → Issues · Candidates · Tracking Features.
+  // pill rather than listing each one. → Find My Legislator · Candidates · Tracking Features.
   const searchRoadmap = navDropdownItems('search').roadmap;
   const searchRoadmapLabels = new Set(searchRoadmap.map((item) => item.label));
   const trackOnlyRoadmap = navDropdownItems('track').roadmap.filter(
