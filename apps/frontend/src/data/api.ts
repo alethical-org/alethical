@@ -102,6 +102,7 @@ interface ApiBillListItemPayload {
   companion?: ApiCompanionPayload | null;
   stats?: ApiBillStatsPayload | null;
   ai_analysis?: ApiAiAnalysisPayload | null;
+  actions?: ApiBillActionPayload[] | null;
 }
 
 interface ApiPolicyAreaPayload {
@@ -1046,7 +1047,13 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
     briefing: emptyBriefing(),
     aiAnalysis: aiAnalysisFromPayload(payload.ai_analysis),
     questionPrompts: questionPromptsFromPayload(payload.ai_analysis),
-    actions: [],
+    // Full action feed (the list endpoint now ships it) so a result card can
+    // render the same curated latest-action line as the Bill Detail Actions tab.
+    actions: dedupeActions(
+      (payload.actions ?? [])
+        .map((action) => mapBillAction(action, payload.id))
+        .filter((action): action is BillAction => action !== null),
+    ),
     versions: [],
     votes: [],
     citations: [],

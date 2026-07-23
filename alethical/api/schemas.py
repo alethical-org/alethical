@@ -95,6 +95,10 @@ class BillListItem(BaseModel):
     stats: BillStatsPayload | None = None
     tracked: TrackingState | None = None
     ai_analysis: AIAnalysisPayload | None = None
+    # The bill's action feed, so a result card can render the same curated
+    # plain-language latest action as the Bill Detail Actions tab (the card runs
+    # buildActionTimeline over it). Cheap: ~2.9 actions/bill on average.
+    actions: list["BillActionPayload"] | None = None
 
 
 class BillActionPayload(BaseModel):

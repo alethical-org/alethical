@@ -1,11 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Bill, BillSponsor } from '../../data/types';
 import { usePrefetchBill } from '../../hooks/useAppQueries';
 import { useHover } from '../billDetail/interactions';
-import { authorNameOnly, authorTitleLabel, chiefAuthor } from '../../lib/billDetail';
+import {
+  authorNameOnly,
+  authorTitleLabel,
+  chiefAuthor,
+  formatNiceDate,
+  latestActionLabel,
+} from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
 import { theme as t } from '../../theme/tokens';
 
@@ -23,7 +29,7 @@ type BillCardData = Pick<
   | 'status'
   | 'isOmnibus'
   | 'updatedAt'
-  | 'latestActionText'
+  | 'actions'
   | 'chamber'
   | 'sponsors'
   | 'aiAnalysis'
@@ -157,7 +163,17 @@ export function BillResultCard({
   // Senate file shows its Senate chief (not the House companion's author). Co-authors
   // and the count live on the bill profile, not this card.
   const chief = chiefAuthor(bill);
-  const actionDate = bill.updatedAt && bill.updatedAt !== 'Unknown' ? bill.updatedAt : null;
+  // Curated plain-language latest action (matching the bill's Actions tab) in
+  // place of the raw status string, and a humanized date ("May 17, 2026"). `now`
+  // is stable per mount so the memo is too.
+  const now = useMemo(() => new Date(), []);
+  const actionLabel = useMemo(
+    () => latestActionLabel(bill.actions ?? [], now),
+    [bill.actions, now],
+  );
+  const actionDate = formatNiceDate(
+    bill.updatedAt && bill.updatedAt !== 'Unknown' ? bill.updatedAt : null,
+  );
 
   return (
     <Pressable
@@ -220,11 +236,11 @@ export function BillResultCard({
             <Text style={styles.metaText}>Unavailable</Text>
           )}
         </View>
-        {bill.latestActionText || actionDate ? (
+        {actionLabel || actionDate ? (
           <View style={styles.metaRow}>
             <Text style={[styles.metaText, styles.metaLabel]}>Latest action: </Text>
-            {bill.latestActionText ? (
-              <Text style={[styles.metaText, styles.actionValue]}>{bill.latestActionText}</Text>
+            {actionLabel ? (
+              <Text style={[styles.metaText, styles.actionValue]}>{actionLabel}</Text>
             ) : null}
             {actionDate ? (
               <Text style={[styles.metaText, styles.metaLabel, styles.dateGap]}>{actionDate}</Text>
