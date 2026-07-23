@@ -114,7 +114,7 @@ export function SearchFilterPanel({
         <Search color={theme.colors.mutedInk} size={18} strokeWidth={2} />
         <TextInput
           accessibilityLabel="Search bills and legislators"
-          placeholder="Search keyword or bills (e.g. HF 2904, SF 1832)"
+          placeholder="Search keyword or bills"
           placeholderTextColor={theme.colors.mutedInk}
           style={[styles.searchInput, fieldOutlineReset]}
           value={query}

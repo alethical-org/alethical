@@ -496,7 +496,7 @@ export function SearchBillsScreen() {
       hero={
         <SearchHero
           title="Search bills"
-          placeholder="Search by keyword or bill number (e.g. HF 2904, SF 1832)"
+          placeholder="Search by keyword or bill number"
           query={queryInput}
           onQueryChange={setQueryInput}
           onSubmit={submitSearch}
