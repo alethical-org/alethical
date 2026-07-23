@@ -74,7 +74,53 @@ has three steps. Only one costs model money.
 `apply` = file it in the cabinet. Only the writer step is where "which billing rail"
 matters.
 
-## 5. Takeaways for scaling
+**Same output, very different wall-clock — this is the real tradeoff.** The two
+`generate` rails produce identical text, but not at identical speed. The subscription
+CLI path (`--provider claude-cli --model sonnet`) runs bills **one at a time**, so a
+full-corpus regeneration (~10,500 bills) takes **~22 hours**. The API path
+(`--provider api`) submits them as a **batch** and finishes the same work in **~1 hour**
+for roughly the **same total dollar cost**. So the choice is *not* about money — it's
+**already-paid subscription hours (slow, runs unattended overnight) vs. paid API credits
+(fast)**. Rule of thumb: CLI path when there's no deadline and you'd rather not spend
+API credits; API batch when speed matters. Either way it's checkpointed and resumable —
+it skips bills already done, so a paused run costs nothing to restart.
+
+**Which model does the writing:** enrichment runs on **Claude Sonnet with extended
+thinking turned off**. The summary / key-points / suggested-questions task is
+reasoning-light, so thinking would add latency and cost without improving the output —
+Sonnet-no-thinking is the cheapest tier that holds the quality bar for this job.
+
+## 5. The decisions behind retrieval (embedding model + index)
+
+Retrieval is the embedding rail (§2–3). Two decisions, both backed by measured
+evaluation (the gate is [`scripts/retrieval_eval.py`](../../scripts/retrieval_eval.py)),
+make it fast and accurate:
+
+- **Embedding model — kept OpenAI `text-embedding-3-small`, did not switch to Voyage.**
+  We evaluated **Voyage** as an alternative embedding provider. Its free tier caps at
+  **3 requests/minute** — unusable for embedding a ~10k-bill corpus (it would take days
+  and stall), and the paid tier showed no accuracy gain worth a migration.
+  **Net (plain language): the tool that turns bills into searchable "meaning
+  coordinates" stays as-is — OpenAI's small embedding model — because it's cheap, fast,
+  already indexed, and the alternative was slower with no quality win.**
+
+- **Index type — switched pgvector from `ivfflat` to HNSW (#584), a large measured win.**
+  Rebuilding the vector index as **HNSW** cut a semantic-search query from **~8.9 seconds
+  to ~0.19 seconds** (≈47× faster) while *improving* accuracy (**Recall@5 0.90 → 0.95**).
+  **Net (plain language): search now returns almost instantly *and* finds the right bill
+  more often.** Building this index on production needs a specific recipe (concurrent
+  build, session pooler, statement-timeout off) — see
+  [`scripts/build_rag_hnsw_index.py`](../../scripts/build_rag_hnsw_index.py).
+
+**Effective-date extraction is a *deterministic parse*, not an AI job (#598, #561/#572).**
+Worth noting here because it's easy to assume "hard text problem = needs a model": it
+doesn't. Minnesota bills set effective dates **per section**, so there's no single field
+to read. We resolve them in tiers — ~8% carry one explicit date (Tier A), ~14% say "the
+day following final enactment" (Tier B, resolved from the enactment action), and the
+remaining ~77% are genuinely ambiguous and fall back to the latest action date. This
+costs **no model money** — it reads bill text already in our database.
+
+## 6. Takeaways for scaling
 
 - **Any new _text_ feature** (better summaries, new answer types, new suggested-question
   styles) is generation → can use the subscription **or** the API.
