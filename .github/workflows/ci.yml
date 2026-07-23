@@ -101,8 +101,11 @@ jobs:
       - name: Format check backend
         run: uvx ruff@0.15.0 format --check alethical scripts
 
+      # Pin ty like ruff (#614): uvx resolves the latest release, and ty is
+      # pre-1.0 (changes fast), so an unpinned upgrade could break CI repo-wide
+      # with no code change. Bump deliberately.
       - name: Type check backend
-        run: uvx ty check alethical/db
+        run: uvx ty@0.0.63 check alethical/db
 
       - name: Test backend
         run: uv run pytest
