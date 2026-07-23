@@ -231,13 +231,12 @@ export function SearchHero({
   );
 }
 
-// Bills' search helper line: "Results update as you type. Bills match every word
-// — try a keyword or a bill number." ("every" bold, per the v2 spec §A.)
+// Bills' search helper line: "Results update as you type. Bills match every
+// word." ("every" bold, per the v2 spec §A.)
 export function SearchHelperLine() {
   return (
     <Text style={styles.helperText}>
-      Results update as you type. Bills match <Text style={styles.helperStrong}>every</Text> word —
-      try a keyword or a bill number.
+      Results update as you type. Bills match <Text style={styles.helperStrong}>every</Text> word.
     </Text>
   );
 }
