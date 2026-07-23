@@ -251,13 +251,13 @@ export function BillResultCard({
           )}
         </View>
         {actionLabel || actionDate ? (
-          <View style={styles.metaRow}>
-            <Text style={[styles.metaText, styles.metaLabel]}>Latest action: </Text>
+          <View style={[styles.metaRow, styles.actionRow]}>
+            <Text style={[styles.metaText, styles.metaLabel]}>Latest action:</Text>
             {actionLabel ? (
               <Text style={[styles.metaText, styles.actionValue]}>{actionLabel}</Text>
             ) : null}
             {actionDate ? (
-              <Text style={[styles.metaText, styles.metaLabel, styles.dateGap]}>{actionDate}</Text>
+              <Text style={[styles.metaText, styles.metaLabel]}>{actionDate}</Text>
             ) : null}
           </View>
         ) : null}
@@ -395,7 +395,12 @@ const styles = StyleSheet.create({
   authorLinkHover: { color: t.colors.brand.forest }, // #0f7a45
   nameArrow: { fontWeight: t.fontWeights.regular }, // arrow at weight 400 inside the bold link
   actionValue: { color: t.colors.text.primary, fontWeight: t.fontWeights.semibold }, // #11150f / 600
-  dateGap: { marginLeft: 8 }, // ~8px gap between action text and date (replaces the "·" dot)
+  // Latest-action line only (not the shared metaRow, which the Chief-author line
+  // reuses): a flex-wrap row whose column-gap gives the 8px between label/action/date
+  // on the same line but ZERO leading space when the date wraps — so a wrapped date
+  // aligns flush-left under "Latest action:" instead of the ragged indent a
+  // marginLeft would leave. row-gap keeps a small breath between wrapped lines.
+  actionRow: { columnGap: 8, rowGap: 2 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   tag: {
     backgroundColor: t.colors.surfaces.s400,
