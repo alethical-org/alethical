@@ -349,6 +349,7 @@ def bill_list_item(
     include_tracking: bool = False,
     co_author_count: int = 0,
     include_companion: bool = False,
+    effective_date: str | None = None,
 ) -> api_schemas.BillListItem:
     return api_schemas.BillListItem(
         id=bill.bill_key,
@@ -360,6 +361,7 @@ def bill_list_item(
         latest_action_at=bill.latest_action_at,
         official_url=bill.official_url,
         is_omnibus=bill.is_omnibus,
+        effective_date=effective_date,
         chief_sponsors=sponsor_payloads(bill.chief_sponsorships),
         co_author_count=co_author_count,
         companion=companion_payload(bill) if include_companion else None,

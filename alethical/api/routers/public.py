@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal
 from uuid import UUID
@@ -606,11 +607,13 @@ def bills(
         db, stmt, limit=limit, offset=offset
     )
     co_author_counts = bill_co_author_counts(db, [row.id for row in rows])
+    effective_dates = bill_effective_dates(db, rows)
     data = [
         bill_list_item(
             row,
             include_tracking="tracking" in include_set and current_user is not None,
             co_author_count=co_author_counts.get(str(row.id), 0),
+            effective_date=effective_dates.get(str(row.id)),
         )
         for row in rows
     ]
@@ -910,10 +913,13 @@ def revisor_effective_date_action(actions) -> date | None:
     return next(iter(dates)) if len(dates) == 1 else None
 
 
-def verified_effective_date(db: Session, bill_row) -> str | None:
-    """The enacted bill's statutory effective date, verbatim, or None.
-
-    For enacted bills only, in order of certainty:
+def resolve_effective_date(
+    sections: list[tuple[str | None, str | None]], actions
+) -> str | None:
+    """The verbatim statutory effective date from a bill's sections + actions, or
+    None. Pure/DB-free tier logic shared by the detail path (verified_effective_date)
+    and the list path (bill_effective_dates) so the card and the bill page never
+    disagree. Order of certainty:
       * Tier A (#483/#561): every section names one identical explicit date.
       * Tier B (#562): every section is "effective the day following final
         enactment" AND the Revisor's own "Effective date" action is a single clean
@@ -921,6 +927,33 @@ def verified_effective_date(db: Session, bill_row) -> str | None:
         645.01) — the authoritative published date, cross-checked, never computed.
     Anything still ambiguous returns None so the caller keeps the honest LATEST
     ACTION treatment (#483 / #455 / #480).
+    """
+    tier_a = effective_date_from_sections(sections)
+    if tier_a is not None:
+        return tier_a
+
+    if effective_date_day_following_enactment(sections):
+        effective = revisor_effective_date_action(actions or [])
+        approval = governor_approval_date(actions or [])
+        if (
+            effective is not None
+            and approval is not None
+            and approval
+            < effective
+            <= approval + timedelta(days=_ENACTMENT_EFFECTIVE_WINDOW_DAYS)
+        ):
+            return (
+                f"{_MONTH_NAMES[effective.month - 1]} {effective.day}, {effective.year}"
+            )
+    return None
+
+
+def verified_effective_date(db: Session, bill_row) -> str | None:
+    """The enacted bill's statutory effective date, verbatim, or None (detail page).
+
+    Loads the current version's sections and delegates the tier logic to
+    resolve_effective_date. Only enacted bills carry a date; everything else keeps
+    the honest LATEST ACTION treatment.
     """
     if bill_status_key(bill_row) != "signed_into_law":
         return None
@@ -933,26 +966,60 @@ def verified_effective_date(db: Session, bill_row) -> str | None:
         ).where(BillVersionSection.bill_version_id == current.id)
     ).all()
     sections = [(r[0], r[1]) for r in rows]
+    return resolve_effective_date(sections, bill_row.actions or [])
 
-    tier_a = effective_date_from_sections(sections)
-    if tier_a is not None:
-        return tier_a
 
-    if effective_date_day_following_enactment(sections):
-        actions = bill_row.actions or []
-        effective = revisor_effective_date_action(actions)
-        approval = governor_approval_date(actions)
-        if (
-            effective is not None
-            and approval is not None
-            and approval
-            < effective
-            <= approval + timedelta(days=_ENACTMENT_EFFECTIVE_WINDOW_DAYS)
-        ):
-            return (
-                f"{_MONTH_NAMES[effective.month - 1]} {effective.day}, {effective.year}"
+def bill_effective_dates(db: Session, rows) -> dict[str, str]:
+    """Effective-date display value per SIGNED bill on a list page, computed set-wise
+    in at most two grouped queries (no per-row N+1) — the list-endpoint counterpart
+    to verified_effective_date.
+
+    The value is either the verified single statutory date (Tier A/B, the SAME source
+    as the bill-detail page, so the card and the page agree — grounded-answers rule 9)
+    or, when an omnibus bill's provisions don't resolve to one shared date, the plain
+    "various dates" (an omnibus by definition bundles multiple articles that generally
+    take effect at different times). Signed bills with no groundable date that are not
+    omnibus are omitted — the card then shows no Effective line rather than a guessed
+    date. Returns {bill_id: value}."""
+    signed = [row for row in rows if bill_status_key(row) == "signed_into_law"]
+    if not signed:
+        return {}
+    # One query: the current version id for each signed bill.
+    current_version_to_bill = {
+        version_id: bill_id
+        for bill_id, version_id in db.execute(
+            select(BillVersion.bill_id, BillVersion.id).where(
+                BillVersion.bill_id.in_([row.id for row in signed]),
+                BillVersion.is_current.is_(True),
             )
-    return None
+        ).all()
+    }
+    # One query: all sections for those current versions, grouped back per bill.
+    sections_by_bill: dict[Any, list[tuple[str | None, str | None]]] = defaultdict(list)
+    if current_version_to_bill:
+        for version_id, heading, raw_text in db.execute(
+            select(
+                BillVersionSection.bill_version_id,
+                BillVersionSection.effective_date_heading,
+                BillVersionSection.raw_text,
+            ).where(
+                BillVersionSection.bill_version_id.in_(list(current_version_to_bill))
+            )
+        ).all():
+            sections_by_bill[current_version_to_bill[version_id]].append(
+                (heading, raw_text)
+            )
+
+    out: dict[str, str] = {}
+    for row in signed:
+        value = resolve_effective_date(
+            sections_by_bill.get(row.id, []), row.actions or []
+        )
+        if value is None and row.is_omnibus:
+            value = "various dates"
+        if value is not None:
+            out[str(row.id)] = value
+    return out
 
 
 def bill_version_payloads(bill_row) -> list[dict[str, Any]]:
