@@ -796,7 +796,11 @@ const CHIP_TONES: Record<FacetTone, { bg: string; border: string; text: string }
   // the shared omnibus token (not a hardcoded hex) so it matches the code badge
   // and inherits the AA-safe text color (#8f5a12, 5.2:1 — the raw #a76a1a from
   // the mockup is 3.98:1 and fails AA).
-  omnibus: { bg: t.colors.omnibus.fill, border: t.colors.omnibus.border, text: t.colors.omnibus.text },
+  omnibus: {
+    bg: t.colors.omnibus.fill,
+    border: t.colors.omnibus.border,
+    text: t.colors.omnibus.text,
+  },
   issue: { bg: '#e6f2f6', border: '#c2e0ea', text: '#2b6377' },
 };
 
