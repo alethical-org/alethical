@@ -14,6 +14,7 @@ import {
   formatAuthorDistrict,
   formatNiceDate,
   isKnownDistrict,
+  latestActionEntry,
   partyFull,
   readLabel,
   stageLabel,
@@ -42,12 +43,20 @@ export function FactsRail({
   // verified verbatim from the enacted bill text (#483). Otherwise the honest
   // LATEST ACTION {text · date} — we never label a last-action date as EFFECTIVE,
   // which is wrong whenever the real effective date is in the future (see #455).
+  // The action text is the plain-language headline of the newest action (the same
+  // latestActionEntry the list card uses), so the rail names the committee
+  // ("Referred to Transportation") and reads like the Actions timeline, not the
+  // raw clerk string ("Referred to"). Falls back to the stored status text when a
+  // bill has no action rows (#599 follow-up).
+  const latest = latestActionEntry(bill.actions ?? [], new Date());
   const dateLabel = bill.effectiveDate ? 'EFFECTIVE' : 'LATEST ACTION';
   const dateValue = bill.effectiveDate
     ? bill.effectiveDate
-    : bill.latestActionText
-      ? `${bill.latestActionText}${bill.updatedAt ? ` · ${formatNiceDate(bill.updatedAt)}` : ''}`
-      : formatNiceDate(bill.updatedAt);
+    : latest
+      ? `${latest.label}${latest.date ? ` · ${latest.date}` : ''}`
+      : bill.latestActionText
+        ? `${bill.latestActionText}${bill.updatedAt ? ` · ${formatNiceDate(bill.updatedAt)}` : ''}`
+        : formatNiceDate(bill.updatedAt);
 
   const overviewUrl = bill.officialLinks?.[0]?.url;
   const readUrl = bill.versions?.[0]?.url ?? overviewUrl;

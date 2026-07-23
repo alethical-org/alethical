@@ -250,12 +250,24 @@ const ACTION_RULES: Rule[] = [
   },
   {
     test: (l) => /introduction and first reading/.test(l),
-    build: (_t, _d, committee) => ({
-      kind: 'procedural',
-      title: committee
-        ? `Introduced and referred to ${committee}`
-        : 'Introduced and referred to a committee',
-    }),
+    build: (text, _d, committee) => {
+      // The House combines intro + referral in one action ("…first reading,
+      // referred to X"); the Senate files them separately — a bare "Introduction
+      // and first reading" row, then a distinct "Referred to" row. Only name a
+      // referral here when the source actually did one on THIS row (the text says
+      // "referred to", or a committee is attached); otherwise it's just the
+      // introduction, and the separate "Referred to {committee}" row carries the
+      // committee (#599 follow-up — don't invent a referral on the Senate intro).
+      if (!/referred to/i.test(text) && !committee) {
+        return { kind: 'procedural', title: 'Introduced' };
+      }
+      return {
+        kind: 'procedural',
+        title: committee
+          ? `Introduced and referred to ${committee}`
+          : 'Introduced and referred to a committee',
+      };
+    },
   },
   {
     test: (l) => /^first reading|^introduced/.test(l),
