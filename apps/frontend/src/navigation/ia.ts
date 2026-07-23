@@ -111,7 +111,6 @@ export const IA: IaItem[] = [
     availability: 'roadmap',
     authGated: false,
     description: "See an issue's bills — and who authored them",
-    inNavDropdown: true,
   },
   {
     id: 'search-laws',
@@ -171,7 +170,6 @@ export const IA: IaItem[] = [
     availability: 'roadmap',
     authGated: true,
     description: 'Follow an issue — and every bill as it advances',
-    inNavDropdown: true,
   },
   {
     id: 'track-laws',
