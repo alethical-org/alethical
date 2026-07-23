@@ -81,6 +81,21 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
     assert first_bill["ai_analysis"]["key_points"]
     assert first_bill["ai_analysis"]["policy_areas"]
 
+    # The list now ships each bill's action feed so a result card can render the
+    # same curated latest-action line as the Bill Detail Actions tab (#581 line).
+    assert isinstance(first_bill.get("actions", []), list)
+    all_bills_response = client.get(
+        "/api/v1/bills", params={"session": "94-2025-regular", "limit": 100}
+    )
+    sf1832 = next(
+        item
+        for item in all_bills_response.json()["data"]
+        if item["id"] == "94-2025-SF1832"
+    )
+    assert sf1832["actions"], "seeded SF1832 should carry its actions in the list"
+    assert sf1832["actions"][0]["action_text"]
+    assert "action_at" in sf1832["actions"][0]
+
     listed_bill_id = first_bill["id"]
     seed_tracking_response = client.put(
         f"/api/v1/me/tracked-bills/{listed_bill_id}",

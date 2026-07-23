@@ -1244,6 +1244,9 @@ def bill_list_stmt(
         selectinload(Bill.stats),
         selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
         selectinload(Bill.enrichments),
+        # Action feed for the result card's curated latest-action line (one extra
+        # round trip; ~2.9 actions/bill average, so a small payload).
+        selectinload(Bill.actions),
     ]
     if user_id is not None:
         options.append(

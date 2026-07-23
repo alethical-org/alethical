@@ -366,6 +366,19 @@ def bill_list_item(
         stats=bill_stats_payload(bill.stats),
         tracked=tracking_payload(bill.tracked_by) if include_tracking else None,
         ai_analysis=ai_analysis_payload(bill.enrichments),
+        actions=[bill_action_payload(action) for action in bill.actions],
+    )
+
+
+def bill_action_payload(action) -> api_schemas.BillActionPayload:
+    return api_schemas.BillActionPayload(
+        action_number=action.action_number,
+        action_text=action.action_text,
+        action_group=action.action_group,
+        action_description=action.action_description,
+        action_at=action.action_at,
+        journal_page=action.journal_page,
+        roll_call_text=action.roll_call_text,
     )
 
 

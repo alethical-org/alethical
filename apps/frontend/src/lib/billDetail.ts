@@ -65,7 +65,7 @@ export function stageLabel(status: string): string {
 
 export type TimelineDot = 'green' | 'red' | 'vote' | 'plain' | 'scheduled';
 
-type EventKind =
+export type EventKind =
   | 'signing' // governor approval / secretary of state / chapter — collapsed to one
   | 'passage' // a chamber's floor passage / repassage (recorded vote when tallied)
   | 'reading' // bare "third reading" — folded into its passage cluster
@@ -391,6 +391,7 @@ export interface TimelineRow {
   date: string; // display date ("MAY 12, 2026"), or '' when the source had none
   dateRange?: string; // author groups spanning multiple days
   title: string;
+  kind: EventKind; // the classified event kind (lets callers reword per surface)
   dot: TimelineDot;
   muted: boolean; // author-group treatment (quiet annotation, not a milestone)
   tally?: string; // en-dashed "134–0"; only real passage votes carry one
@@ -579,6 +580,7 @@ export function buildActionTimeline(
     return {
       id: `${item.idx}-${item.actionNumber}`,
       date: formatMonoDate(item.rawDate),
+      kind: item.kind,
       dateRange:
         item.endDate && item.endDate !== item.rawDate
           ? `${formatMonoDate(item.rawDate)} – ${formatMonoDate(item.endDate)}`
@@ -602,6 +604,63 @@ export function buildActionTimeline(
     .map((term) => ({ term: term === 're-referred' ? 'Re-referred' : term, def: GLOSS[term] }));
 
   return { rows, glossary };
+}
+
+// Significance of an event kind, for picking a day's headline beat (below).
+// Enacted/veto milestones outrank floor passage, which outranks the procedural
+// steps (amendments, motions, referrals) and author bookkeeping around it.
+const KIND_SIGNIFICANCE: Record<EventKind, number> = {
+  signing: 7,
+  effective: 7,
+  veto: 7,
+  passage: 6,
+  reading: 6,
+  notAdopted: 3,
+  motionFailed: 3,
+  chiefAuthor: 2,
+  procedural: 1,
+  authorAdd: 0,
+};
+
+// The bill's most-recent curated action, worded compactly for a result card's
+// "Latest action:" line. Reuses the exact Actions-tab pipeline
+// (buildActionTimeline) so the card and the tab agree on how an action reads.
+// The tab lists newest-day-first but keeps source order WITHIN a day, so its top
+// row can be an early beat of the newest day (e.g. "Amended on the floor")
+// rather than that day's headline (e.g. the floor passage). The card wants the
+// headline, so it surfaces the most significant beat of the newest day: a
+// passage / signing / veto outranks the procedural steps around it. Passage /
+// signing / veto then get a short milestone phrasing ("Passed by the House",
+// "Signed into law", "Vetoed by the Governor") in place of the tab's longer row
+// title; every other kind keeps the tab's plain-language title. Votes aren't
+// passed (cards don't load them), so passage rows keep their ACTION_RULES title
+// and the chamber comes from the tally size. Returns null with no actions.
+export function latestActionLabel(actions: BillAction[], now: Date): string | null {
+  const { rows } = buildActionTimeline(actions, [], now);
+  if (!rows.length) return null;
+  // Enacted status is terminal and dominates: a signed bill reads as law however
+  // its feed is dated (the "Chapter number" signing row is often dateless, so it
+  // may not fall on the literal newest day). Grounded-answers rule 7 — enacted
+  // law must never read as a pending step ("Co-author added").
+  if (rows.some((r) => r.kind === 'signing')) return 'Signed into law';
+  // Otherwise the newest day's headline beat: within a day the tab keeps source
+  // order, so pick the most significant kind rather than the first-listed one.
+  const newestDay = rows[0].date;
+  const row = rows
+    .filter((r) => r.date === newestDay)
+    .reduce((best, r) => (KIND_SIGNIFICANCE[r.kind] >= KIND_SIGNIFICANCE[best.kind] ? r : best));
+  if (row.kind === 'passage') {
+    const verb = /^repass/i.test(row.title) ? 'Repassed' : 'Passed';
+    const chamber = /\bSenate\b/.test(row.title)
+      ? 'Senate'
+      : /\bHouse\b/.test(row.title)
+        ? 'House'
+        : null;
+    return chamber ? `${verb} by the ${chamber}` : `${verb} on third reading`;
+  }
+  if (row.kind === 'signing') return 'Signed into law';
+  if (row.kind === 'veto') return 'Vetoed by the Governor';
+  return row.title;
 }
 
 function dotForRow(kind: EventKind, upcoming: boolean, hasTally: boolean): TimelineDot {
