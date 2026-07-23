@@ -203,7 +203,10 @@ export type BillSort = 'latest_action' | 'progress' | 'introduced';
 export interface BillListFilters {
   chamber?: Chamber;
   status?: string;
-  policyArea?: string;
+  // Issue filter. Several issues are OR'd server-side (a bill tagged ANY of them
+  // matches — Search Bills v2); each is sent as its own repeated `policy_area`
+  // query param. Empty/omitted → no issue filter (all issues).
+  policyAreas?: string[];
   omnibus?: boolean;
   // Result ordering. Omitted → API default (latest_action). 'progress' orders
   // by legislative stage (signed → … → proposed), tie-broken by recency (#292).
@@ -1446,8 +1449,9 @@ export async function listBillsFromApi(
   if (filters.status?.trim()) {
     params.set('status', filters.status.trim());
   }
-  if (filters.policyArea?.trim()) {
-    params.set('policy_area', filters.policyArea.trim());
+  for (const issue of filters.policyAreas ?? []) {
+    const trimmed = issue.trim();
+    if (trimmed) params.append('policy_area', trimmed);
   }
   if (filters.omnibus !== undefined) {
     params.set('omnibus', String(filters.omnibus));

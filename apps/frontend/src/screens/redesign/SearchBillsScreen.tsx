@@ -20,16 +20,22 @@ import { BillResultCard } from '../../components/search/BillResultCard';
 import {
   ChamberFilter,
   ChamberSegmented,
+  FilterChip,
+  FilterChipRow,
   FilterDropdown,
+  FilterEyebrow,
   FilterPill,
   MoreIssuesPill,
   NoResults,
   OmnibusToggle,
   Pagination,
   ResultsHeader,
+  SearchHelperLine,
   SearchHero,
   SearchPageShell,
   SESSION_LABEL_FALLBACK,
+  SortControl,
+  SortOption,
   formatSessionLabel,
 } from '../../components/search/searchPieces';
 import { Skeleton } from '../../components/Skeleton';
@@ -43,21 +49,29 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
 // per-bill tracking.
 
 const PAGE_SIZE = 10;
-// "issue" is the layperson entry word for a bill's topic (docs/ui-copy-guide.md
-// terminology invariants) — matches the nav's "Issues" menu. The data field and
-// API stay `policy_areas` (grounded-answers rule 3 governs displayed strings only).
-const ALL_ISSUES = 'All issues';
 
 // Issue chips: the AI vocabulary has a long tail (thousands of rare labels), so
 // show the most common inline and reveal the rest of the head via a "More"
 // toggle — capped at the top MAX_ISSUE_CHIPS by bill count rather than listing
-// every value. Counts come from /policy-areas, which folds casing.
+// every value. Counts come from /policy-areas, which folds casing. There is no
+// "All issues" pill — the resting state IS all issues, and removing the last
+// selected issue returns to it (v2 spec §C). Issues multi-select: OR within the
+// facet (a bill in ANY selected issue), AND-intersected with the other facets.
 const INLINE_ISSUE_CHIPS = 12;
 const MAX_ISSUE_CHIPS = 30;
 
+// Multiple selected issues ride the URL as one comma-joined `issue` param
+// (canonical issue names carry no commas, so the round-trip is lossless and the
+// filtered view stays shareable/bookmarkable — grounded-answers rule 5).
+const ISSUE_SEPARATOR = ',';
+
 // Ordered most-progressed first (matching the sort=progress ordering), with the
 // off-path Vetoed state last. Every value maps to a status the /bills filter can
-// actually serve (alethical/api/routers/public.py status_filter_clause).
+// actually serve (alethical/api/routers/public.py status_filter_clause). The v2
+// mock lists a "Passed both chambers" option too, but the corpus can't yet
+// classify it reliably (status is derived from current_status text, which
+// mis-attributes chamber) — tracked as its own backend fix; we ship the statuses
+// the data backs.
 const STATUS_OPTIONS = [
   { label: 'All statuses', value: '' },
   { label: 'Signed into Law', value: 'signed_into_law' },
@@ -67,6 +81,41 @@ const STATUS_OPTIONS = [
   { label: 'Introduced', value: 'proposed' },
   { label: 'Vetoed', value: 'vetoed' },
 ];
+
+// Per-status natural phrasing for the plain-English result description (v2 §E).
+const STATUS_PHRASE: Record<string, string> = {
+  signed_into_law: 'signed into law',
+  passed_senate: 'passed by the Senate',
+  passed_house: 'passed by the House',
+  in_committee: 'in committee',
+  proposed: 'introduced',
+  vetoed: 'vetoed',
+};
+
+// Sort keys map to the API's `sort` param. Relevance leads automatically whenever
+// a keyword query is present (server-side, #573), so "Best match" is offered only
+// then and defaults there. "Most tracked" is a roadmap option — inert, shown once.
+type SortKey = 'best' | 'progress' | 'action';
+const SORT_TO_API: Record<SortKey, 'progress' | 'latest_action'> = {
+  best: 'progress',
+  progress: 'progress',
+  action: 'latest_action',
+};
+
+// A query shaped like a bill number ("HF 2904", "SF2904", "2904") is an exclusive
+// ID lookup — mirrors the server's classifier (public.py bill_number_clause) so
+// the description phrases it as "matching bill HF 2904", not a keyword.
+const BILL_NUMBER_QUERY = /^\s*([A-Za-z]{2})?\s*0*\d+\s*$/;
+
+// "a" → "a"; "a, b" → "a or b" / "a and b"; "a, b, c" → "a, b, or c" / "a, b, and c".
+const joinList = (items: string[], conjunction: 'or' | 'and'): string => {
+  if (items.length <= 1) return items[0] ?? '';
+  if (items.length === 2) return `${items[0]} ${conjunction} ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, ${conjunction} ${items[items.length - 1]}`;
+};
+
+const capitalizeFirst = (value: string): string =>
+  value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 
 export function SearchBillsScreen() {
   const navigation = useNavigation<any>();
@@ -84,12 +133,31 @@ export function SearchBillsScreen() {
     params.chamber === 'House' || params.chamber === 'Senate' ? params.chamber : 'All';
   const status = typeof params.status === 'string' ? params.status : '';
   const session = typeof params.session === 'string' ? params.session : '';
-  const policyArea = typeof params.issue === 'string' && params.issue ? params.issue : ALL_ISSUES;
+  const selectedIssues =
+    typeof params.issue === 'string' && params.issue
+      ? params.issue
+          .split(ISSUE_SEPARATOR)
+          .map((issue) => issue.trim())
+          .filter(Boolean)
+      : [];
   const omnibusOnly = params.omnibus === '1';
   const page = Math.max(1, Number.parseInt(String(params.page ?? ''), 10) || 1);
+  // Sort: an explicit choice rides the URL; absent one, default to best-match
+  // when searching (relevance leads) and legislative progress otherwise. A stale
+  // 'best' with no query falls back to progress.
+  const hasQuery = query.trim().length > 0;
+  const sortParam = typeof params.sort === 'string' ? params.sort : '';
+  const sortKey: SortKey =
+    sortParam === 'best' || sortParam === 'progress' || sortParam === 'action'
+      ? sortParam === 'best' && !hasQuery
+        ? 'progress'
+        : sortParam
+      : hasQuery
+        ? 'best'
+        : 'progress';
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [openFilter, setOpenFilter] = useState<'status' | 'session' | null>(null);
+  const [openFilter, setOpenFilter] = useState<'status' | 'session' | 'sort' | null>(null);
   const [queryInput, setQueryInput] = useState(query);
   const [showAllIssues, setShowAllIssues] = useState(false);
 
@@ -115,11 +183,20 @@ export function SearchBillsScreen() {
   const filters: BillListFilters = {
     chamber: chamber === 'All' ? undefined : chamber,
     status: status || undefined,
-    policyArea: policyArea === ALL_ISSUES ? undefined : policyArea,
+    policyAreas: selectedIssues.length ? selectedIssues : undefined,
     omnibus: omnibusOnly ? true : undefined,
-    // Default sort per Search Bills design-review (2026-07-15): legislative
-    // progress — bills closest to becoming law first (#292).
-    sort: 'progress',
+    sort: SORT_TO_API[sortKey],
+  };
+
+  // Toggle an issue in/out of the selected set and write the comma-joined result
+  // back to the URL (empty → remove the param, returning to all issues).
+  const issuesToParam = (issues: string[]) =>
+    issues.length ? issues.join(ISSUE_SEPARATOR) : undefined;
+  const toggleIssue = (value: string) => {
+    const next = selectedIssues.includes(value)
+      ? selectedIssues.filter((issue) => issue !== value)
+      : [...selectedIssues, value];
+    updateFilters({ issue: issuesToParam(next) });
   };
 
   const billsQuery = useBills(query || undefined, sessionSlug || undefined, filters, {
@@ -151,25 +228,23 @@ export function SearchBillsScreen() {
   const totalPages = total != null ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : undefined;
   const resultCount = total ?? bills.length;
 
-  const policyOptions: Array<{ value: string; label: string; count?: number }> = [
-    { value: ALL_ISSUES, label: ALL_ISSUES },
-    ...(policyAreasQuery.data ?? []).slice(0, MAX_ISSUE_CHIPS).map((area) => ({
+  const policyOptions: Array<{ value: string; label: string; count?: number }> = (
+    policyAreasQuery.data ?? []
+  )
+    .slice(0, MAX_ISSUE_CHIPS)
+    .map((area) => ({
       value: area.name,
       label: titleCaseIssue(area.name),
       count: area.billCount,
-    })),
-  ];
-  // "All issues" always shows; INLINE_ISSUE_CHIPS issue pills show inline, the
-  // rest expand under "More". A selected issue outside the inline set forces the
-  // list open so its active pill stays visible.
-  const selectedIsHidden =
-    policyArea !== ALL_ISSUES &&
-    policyOptions.findIndex((option) => option.value === policyArea) > INLINE_ISSUE_CHIPS;
-  const issuesExpanded = showAllIssues || selectedIsHidden;
+    }));
+  // INLINE_ISSUE_CHIPS issue pills show inline; the rest expand under "More". A
+  // selected issue that's collapsed out of view still shows as a removable chip
+  // in the FILTERS row, so there's no need to force the list open.
+  const issuesExpanded = showAllIssues;
   const visiblePolicyOptions = issuesExpanded
     ? policyOptions
-    : policyOptions.slice(0, INLINE_ISSUE_CHIPS + 1);
-  const hiddenIssueCount = policyOptions.length - (INLINE_ISSUE_CHIPS + 1);
+    : policyOptions.slice(0, INLINE_ISSUE_CHIPS);
+  const hiddenIssueCount = policyOptions.length - INLINE_ISSUE_CHIPS;
 
   const submitSearch = () => {
     updateFilters({ q: queryInput.trim() || undefined });
@@ -192,15 +267,92 @@ export function SearchBillsScreen() {
     });
   };
 
-  const activeFilters: string[] = [sessionLabel];
-  if (chamber !== 'All') activeFilters.push(`Chamber: ${chamber}`);
-  if (status) {
-    const label = STATUS_OPTIONS.find((option) => option.value === status)?.label;
-    if (label) activeFilters.push(label);
+  const statusLabel = STATUS_OPTIONS.find((option) => option.value === status)?.label;
+  const isNumberLookup = hasQuery && BILL_NUMBER_QUERY.test(query);
+  const sessionIsDefault = !session || sessionSlug === currentSession?.slug;
+
+  // Removable, facet-color-coded chips (v2 §D). Fixed order: keyword · chamber ·
+  // status · session (only if non-default) · omnibus · issues (one each).
+  const chips: FilterChip[] = [];
+  if (query) {
+    chips.push({
+      key: 'keyword',
+      tone: 'keyword',
+      label: `Search: “${query}”`,
+      removeLabel: 'Clear search',
+      onRemove: () => updateFilters({ q: undefined }),
+    });
   }
-  if (policyArea !== ALL_ISSUES) activeFilters.push(titleCaseIssue(policyArea));
-  if (omnibusOnly) activeFilters.push('Omnibus only');
-  if (query) activeFilters.push(`“${query}”`);
+  if (chamber !== 'All') {
+    chips.push({
+      key: 'chamber',
+      tone: 'chamber',
+      label: `Chamber: ${chamber}`,
+      removeLabel: 'Remove chamber filter',
+      onRemove: () => updateFilters({ chamber: undefined }),
+    });
+  }
+  if (status && statusLabel) {
+    chips.push({
+      key: 'status',
+      tone: 'status',
+      label: `Status: ${statusLabel}`,
+      removeLabel: 'Remove status filter',
+      onRemove: () => updateFilters({ status: undefined }),
+    });
+  }
+  if (!sessionIsDefault) {
+    chips.push({
+      key: 'session',
+      tone: 'session',
+      label: `Session: ${sessionLabel.replace(' Legislative Session', '')}`,
+      removeLabel: 'Reset to the current session',
+      onRemove: () => updateFilters({ session: undefined }),
+    });
+  }
+  if (omnibusOnly) {
+    chips.push({
+      key: 'omnibus',
+      tone: 'omnibus',
+      label: 'Omnibus only',
+      removeLabel: 'Remove omnibus filter',
+      onRemove: () => updateFilters({ omnibus: undefined }),
+    });
+  }
+  for (const issue of selectedIssues) {
+    chips.push({
+      key: `issue:${issue}`,
+      tone: 'issue',
+      label: `Issue: ${titleCaseIssue(issue)}`,
+      removeLabel: `Remove ${titleCaseIssue(issue)} issue filter`,
+      onRemove: () => toggleIssue(issue),
+    });
+  }
+
+  // Plain-English description of the exact intersection (v2 §E): AND across
+  // facets, "either X, Y, or Z" within issues, per-status phrasing; the session
+  // always closes the sentence.
+  const segments: string[] = [];
+  if (query) {
+    segments.push(
+      isNumberLookup ? `matching bill ${query.trim().toUpperCase()}` : `matching “${query}”`,
+    );
+  }
+  if (selectedIssues.length) {
+    const issueLabels = selectedIssues.map((issue) => titleCaseIssue(issue));
+    segments.push(
+      `tagged ${selectedIssues.length > 1 ? 'either ' : ''}${joinList(issueLabels, 'or')}`,
+    );
+  }
+  if (chamber !== 'All') segments.push(`in the ${chamber}`);
+  if (status && STATUS_PHRASE[status]) segments.push(STATUS_PHRASE[status]);
+  if (omnibusOnly) segments.push('that are omnibus');
+  const resultDescription = segments.length
+    ? `${capitalizeFirst(joinList(segments, 'and'))}, in the ${sessionLabel}.`
+    : `In the ${sessionLabel}.`;
+
+  // Empty-state chip labels (non-removable summary inside the NoResults card).
+  const activeFilters = [sessionLabel, ...chips.map((chip) => chip.label)];
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
@@ -232,10 +384,11 @@ export function SearchBillsScreen() {
           }
         />
         <FilterDropdown
-          label={STATUS_OPTIONS.find((option) => option.value === status)?.label ?? 'All statuses'}
+          label={statusLabel ?? 'All statuses'}
           accessibilityLabel="Filter by status"
           options={STATUS_OPTIONS}
           selectedValue={status}
+          active={!!status}
           open={openFilter === 'status'}
           onOpenChange={(next) => setOpenFilter(next ? 'status' : null)}
           onSelect={(value) => updateFilters({ status: value || undefined })}
@@ -248,6 +401,7 @@ export function SearchBillsScreen() {
             value: item.slug,
           }))}
           selectedValue={sessionSlug}
+          active={!sessionIsDefault}
           open={openFilter === 'session'}
           onOpenChange={(next) => setOpenFilter(next ? 'session' : null)}
           onSelect={(value) => updateFilters({ session: value || undefined })}
@@ -258,23 +412,26 @@ export function SearchBillsScreen() {
         />
       </View>
       <View style={styles.pillRow}>
-        {visiblePolicyOptions.map((option) => (
-          <FilterPill
-            key={option.value}
-            label={option.label}
-            count={option.count}
-            active={policyArea === option.value}
-            onPress={() =>
-              updateFilters({ issue: option.value === ALL_ISSUES ? undefined : option.value })
-            }
-            onHoverIn={() =>
-              prefetchFilter({
-                policyArea: option.value === ALL_ISSUES ? undefined : option.value,
-              })
-            }
-          />
-        ))}
-        {hiddenIssueCount > 0 && !selectedIsHidden ? (
+        <FilterEyebrow label="ISSUES" />
+        {visiblePolicyOptions.map((option) => {
+          const selected = selectedIssues.includes(option.value);
+          const nextIssues = selected
+            ? selectedIssues.filter((issue) => issue !== option.value)
+            : [...selectedIssues, option.value];
+          return (
+            <FilterPill
+              key={option.value}
+              label={option.label}
+              count={option.count}
+              active={selected}
+              onPress={() => toggleIssue(option.value)}
+              onHoverIn={() =>
+                prefetchFilter({ policyAreas: nextIssues.length ? nextIssues : undefined })
+              }
+            />
+          );
+        })}
+        {hiddenIssueCount > 0 ? (
           <MoreIssuesPill
             expanded={issuesExpanded}
             hiddenCount={hiddenIssueCount}
@@ -283,6 +440,25 @@ export function SearchBillsScreen() {
         ) : null}
       </View>
     </>
+  );
+
+  // Sort menu: best-match leads (and is default) only while a query is present;
+  // "Most tracked" is a roadmap option — inert, shown once (grounded-answers /
+  // house rule: never a "coming soon" label, one clear roadmap marker).
+  const sortOptions: SortOption[] = [
+    ...(hasQuery ? [{ key: 'best', label: 'Best match' }] : []),
+    { key: 'progress', label: 'Legislative progress' },
+    { key: 'action', label: 'Latest action' },
+    { key: 'tracked', label: 'Most tracked', roadmap: true },
+  ];
+  const sortControl = (
+    <SortControl
+      options={sortOptions}
+      value={sortKey}
+      onSelect={(key) => updateFilters({ sort: key })}
+      open={openFilter === 'sort'}
+      onOpenChange={(next) => setOpenFilter(next ? 'sort' : null)}
+    />
   );
 
   return (
@@ -303,15 +479,18 @@ export function SearchBillsScreen() {
           onQueryChange={setQueryInput}
           onSubmit={submitSearch}
           variant="bills"
+          helper={<SearchHelperLine />}
           filters={filterRow}
         />
       }
     >
+      <FilterChipRow chips={chips} onClearAll={clearFilters} />
       <ResultsHeader
         count={resultCount}
         noun="bills"
-        sortLabel="Sorted by legislative progress"
+        description={resultDescription}
         dataAsOf={metaQuery.data?.dataAsOf}
+        sortControl={bills.length > 0 ? sortControl : undefined}
       />
 
       {billsQuery.isLoading ? (

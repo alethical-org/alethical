@@ -41,6 +41,7 @@ const BILLS_FILTER_PARAMS = [
   'session',
   'issue',
   'omnibus',
+  'sort',
   'page',
 ] as const;
 
