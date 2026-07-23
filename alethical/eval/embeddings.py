@@ -29,6 +29,9 @@ VOYAGE_TIMEOUT_SECONDS = 120
 # under 3 RPM. Fewer big requests beats many small ones here.
 VOYAGE_BATCH_SIZE = 128
 VOYAGE_MAX_RETRIES = 12
+# The free tier meters by a rolling 60s request window (~3 req/min, measured), so
+# a 429 retry must wait a full window or it just refills the cap.
+RATE_WINDOW_SECONDS = 62
 
 
 @dataclass(frozen=True)
@@ -111,11 +114,15 @@ def _voyage_post_with_retry(headers: dict, body: dict, *, model: str) -> dict:
         if response.status_code == 200:
             return response.json()
         if response.status_code == 429 or response.status_code >= 500:
+            # A 429 means we hit the per-minute REQUEST cap, and a retry is itself
+            # a request — so retrying sooner than the rate window just refills the
+            # window and can never clear it. Wait a full window (Retry-After if
+            # given, else RATE_WINDOW_SECONDS) so the next attempt starts clean.
             retry_after = response.headers.get("Retry-After")
             wait = (
                 int(retry_after)
                 if retry_after and retry_after.isdigit()
-                else min(60, 5 * (2**attempt))
+                else RATE_WINDOW_SECONDS
             )
             last_error = RuntimeError(
                 f"Voyage {response.status_code} (model={model}); retry in {wait}s"
