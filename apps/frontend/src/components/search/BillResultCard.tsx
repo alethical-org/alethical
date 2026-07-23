@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { Bill } from '../../data/types';
+import { Bill, BillSponsor } from '../../data/types';
 import { usePrefetchBill } from '../../hooks/useAppQueries';
+import { useHover } from '../billDetail/interactions';
+import { authorNameOnly, authorTitleLabel, chiefAuthor } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
 import { theme as t } from '../../theme/tokens';
 
@@ -21,11 +23,12 @@ type BillCardData = Pick<
   | 'status'
   | 'isOmnibus'
   | 'updatedAt'
+  | 'latestActionText'
+  | 'chamber'
+  | 'sponsors'
   | 'aiAnalysis'
-  | 'chiefSponsorIds'
   | 'rollCallCount'
-  | 'actions'
-> & { sponsorNames?: string[]; coAuthorCount?: number };
+>;
 
 interface BillResultCardProps {
   bill: BillCardData;
@@ -86,6 +89,40 @@ function OmnibusPill() {
   );
 }
 
+// The chief author's NAME is the only link (green, → arrow), spelled-out honorific
+// sits outside it. stopPropagation keeps the card's own press from firing when the
+// name is tapped. Own hover state so only the name (not the whole card) recolors.
+function ChiefAuthorLink({
+  author,
+  onPress,
+}: {
+  author: BillSponsor;
+  onPress?: (legislatorId: string) => void;
+}) {
+  const [hovered, hover] = useHover();
+  const clickable = Boolean(author.legislatorId && onPress);
+  return (
+    <Pressable
+      accessibilityRole={clickable ? 'link' : undefined}
+      disabled={!clickable}
+      onPress={(e: GestureResponderEvent) => {
+        e.stopPropagation();
+        if (author.legislatorId) onPress?.(author.legislatorId);
+      }}
+      {...hover}
+    >
+      <Text style={[styles.metaText, styles.authorLink, hovered && styles.authorLinkHover]}>
+        {authorNameOnly(author.name)}{' '}
+        {/* Arrow marks the name as a profile link: name's own font/size, weight 400,
+            hidden from screen readers (the link's accessible name is the member's). */}
+        <Text style={styles.nameArrow} aria-hidden>
+          →
+        </Text>
+      </Text>
+    </Pressable>
+  );
+}
+
 export function BillResultCard({
   bill,
   tracked = false,
@@ -116,13 +153,11 @@ export function BillResultCard({
       : tone === 'vetoed'
         ? t.colors.status.vetoedText
         : t.colors.text.secondary;
-  const sponsors = (bill.sponsorNames ?? []).map((name, i) => ({
-    name,
-    legislatorId: bill.chiefSponsorIds[i],
-  }));
-  const latestAction = bill.actions?.[bill.actions.length - 1];
-  const actionDate =
-    latestAction?.date ?? (bill.updatedAt && bill.updatedAt !== 'Unknown' ? bill.updatedAt : null);
+  // Per-file chief author only: chiefAuthor scopes to this file's own chamber, so a
+  // Senate file shows its Senate chief (not the House companion's author). Co-authors
+  // and the count live on the bill profile, not this card.
+  const chief = chiefAuthor(bill);
+  const actionDate = bill.updatedAt && bill.updatedAt !== 'Unknown' ? bill.updatedAt : null;
 
   return (
     <Pressable
@@ -174,40 +209,27 @@ export function BillResultCard({
       <Text style={styles.summary}>{summary}</Text>
 
       <View style={styles.meta}>
-        <View style={styles.authorRow}>
-          <Text style={styles.metaText}>Author: </Text>
-          {sponsors.length > 0 ? (
-            sponsors.map((sponsor, i) => {
-              const clickable = Boolean(sponsor.legislatorId && onSponsorPress);
-              return (
-                <Pressable
-                  key={`${sponsor.legislatorId ?? sponsor.name}-${i}`}
-                  accessibilityRole={clickable ? 'link' : undefined}
-                  disabled={!clickable}
-                  onPress={(e: GestureResponderEvent) => {
-                    e.stopPropagation();
-                    if (sponsor.legislatorId) onSponsorPress?.(sponsor.legislatorId);
-                  }}
-                >
-                  <Text style={[styles.metaText, clickable && styles.authorLink]}>
-                    {sponsor.name}
-                    {i < sponsors.length - 1 ? ', ' : ''}
-                  </Text>
-                </Pressable>
-              );
-            })
+        <View style={styles.metaRow}>
+          <Text style={[styles.metaText, styles.metaLabel]}>Chief author: </Text>
+          {chief ? (
+            <>
+              <Text style={styles.metaText}>{authorTitleLabel(chief.chamber)} </Text>
+              <ChiefAuthorLink author={chief} onPress={onSponsorPress} />
+            </>
           ) : (
             <Text style={styles.metaText}>Unavailable</Text>
           )}
-          {bill.coAuthorCount && bill.coAuthorCount > 0 ? (
-            <Text style={styles.metaText}> · +{bill.coAuthorCount} co-authors</Text>
-          ) : null}
         </View>
-        {actionDate ? (
-          <Text style={styles.metaText}>
-            Latest action{latestAction?.description ? `: ${latestAction.description}` : ''} ·{' '}
-            {actionDate}
-          </Text>
+        {bill.latestActionText || actionDate ? (
+          <View style={styles.metaRow}>
+            <Text style={[styles.metaText, styles.metaLabel]}>Latest action: </Text>
+            {bill.latestActionText ? (
+              <Text style={[styles.metaText, styles.actionValue]}>{bill.latestActionText}</Text>
+            ) : null}
+            {actionDate ? (
+              <Text style={[styles.metaText, styles.metaLabel, styles.dateGap]}>{actionDate}</Text>
+            ) : null}
+          </View>
         ) : null}
         <View style={styles.tagRow}>
           {policyAreas.map((topic) => (
@@ -332,14 +354,23 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     gap: 11,
   },
-  authorRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline' },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline' },
   metaText: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.small,
     lineHeight: 21,
-    color: t.colors.text.secondary,
+    color: t.colors.text.secondary, // #4f5651 — medium tier (honorific / line base)
   },
-  authorLink: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
+  // Muted label tier for both meta labels ("Chief author:" / "Latest action:") and
+  // the latest-action date — lighter than the medium honorific so the label reads
+  // distinct. No exact theme token at this value (sits between text.muted #656c66
+  // and text.faint #70776f); AA-compliant on the card surface (~4.7:1 on white).
+  metaLabel: { color: '#6f756f' },
+  authorLink: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold }, // #149d5b bold
+  authorLinkHover: { color: t.colors.brand.forest }, // #0f7a45
+  nameArrow: { fontWeight: t.fontWeights.regular }, // arrow at weight 400 inside the bold link
+  actionValue: { color: t.colors.text.primary, fontWeight: t.fontWeights.semibold }, // #11150f / 600
+  dateGap: { marginLeft: 8 }, // ~8px gap between action text and date (replaces the "·" dot)
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   tag: {
     backgroundColor: t.colors.surfaces.s400,
