@@ -998,7 +998,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   billPill: {
-    backgroundColor: t.colors.tint.t150,
+    backgroundColor: t.colors.omnibus.fill,
     borderRadius: t.radii.badge,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -1007,7 +1007,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.mono,
     fontSize: 12,
     fontWeight: '700',
-    color: t.colors.brand.deep,
+    color: t.colors.omnibus.text,
   },
   billCard: {
     backgroundColor: t.colors.surfaces.base,
@@ -1030,7 +1030,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   billBadge: {
-    backgroundColor: t.colors.tint.t150,
+    backgroundColor: t.colors.omnibus.fill,
     borderRadius: t.radii.badge,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -1039,7 +1039,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.mono,
     fontSize: 12,
     fontWeight: '700',
-    color: t.colors.brand.deep,
+    color: t.colors.omnibus.text,
   },
   billStatus: {
     fontFamily: t.typography.ui,

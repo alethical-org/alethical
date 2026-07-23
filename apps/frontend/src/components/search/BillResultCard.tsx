@@ -256,9 +256,9 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 14, flexWrap: 'wrap' },
   topSpacer: { flex: 1 },
   badge: {
-    backgroundColor: t.colors.tint.t150,
+    backgroundColor: t.colors.omnibus.fill,
     borderWidth: 1,
-    borderColor: t.colors.tint.border,
+    borderColor: t.colors.omnibus.border,
     borderRadius: t.radii.badge,
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.meta,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.4,
-    color: t.colors.brand.deep,
+    color: t.colors.omnibus.text,
   },
   omnibus: {
     flexDirection: 'row',
