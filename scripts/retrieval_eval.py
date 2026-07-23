@@ -5,7 +5,7 @@ selected by ALETHICAL_DATABASE_TARGET) and reports retrieval metrics.
 
 Stages
 ------
-  baseline   Production behavior: OpenAI vector k-NN via pgvector (ivfflat), plus
+  baseline   Production behavior: OpenAI vector k-NN via pgvector (ivfflat/HNSW), plus
              a Postgres full-text arm and their RRF hybrid. Cheap; needs
              OPENAI_API_KEY for the ~20 query embeddings only. Gives the #255
              distance distribution and the #380 vector-vs-hybrid comparison.
@@ -84,8 +84,12 @@ _VECTOR_JOIN = POOL_JOIN.replace(
 def baseline_vector_candidates(
     db: Session, query_vec: list[float]
 ) -> tuple[list[str], list[float]]:
-    """Top chunks by cosine distance over stored OpenAI vectors (prod ivfflat)."""
+    """Top chunks by cosine distance over stored OpenAI vectors (prod vector index)."""
+    # Set the probe/beam width for whichever vector index is live — ivfflat.probes
+    # (original) and hnsw.ef_search (#584). Each is a harmless no-op for the other
+    # index type, so this works before and after the ivfflat→HNSW swap.
     db.execute(text("SET LOCAL ivfflat.probes = 10"))
+    db.execute(text("SET LOCAL hnsw.ef_search = 100"))
     rows = db.execute(
         text(
             "select b.bill_key, rce.embedding <=> cast(:vec as vector) as distance"

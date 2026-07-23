@@ -289,6 +289,8 @@ def validate_chat_retrieval(session: Session, engine, bill_id) -> SurfaceResult:
     embedding_count = session.scalar(
         select(func.count()).select_from(RagChunkEmbedding)
     )
+    # Accept either vector index type — ivfflat (original) or HNSW (#584). The
+    # check is "a vector index backs retrieval", not a specific implementation.
     vector_index_exists = session.execute(
         text(
             """
@@ -296,7 +298,10 @@ def validate_chat_retrieval(session: Session, engine, bill_id) -> SurfaceResult:
                 SELECT 1
                 FROM pg_indexes
                 WHERE schemaname = current_schema()
-                  AND indexname = 'ix_rag_chunk_embedding_embedding_ivfflat'
+                  AND indexname IN (
+                      'ix_rag_chunk_embedding_embedding_ivfflat',
+                      'ix_rag_chunk_embedding_embedding_hnsw'
+                  )
             )
             """
         )

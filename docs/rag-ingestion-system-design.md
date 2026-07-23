@@ -113,27 +113,27 @@ Acceptance criteria:
 
 ## Retrieval Index
 
-Production uses `pgvector` with an IVFFlat cosine index on `rag_chunk_embedding.embedding`:
+Production uses `pgvector` with an HNSW cosine index on `rag_chunk_embedding.embedding`:
 
-- index name: `ix_rag_chunk_embedding_embedding_ivfflat`
-- index type: `ivfflat`
+- index name: `ix_rag_chunk_embedding_embedding_hnsw`
+- index type: `hnsw`
 - operator class: `vector_cosine_ops`
-- build option: `lists = 50`
+- build options: `m = 16, ef_construction = 64`
 
-This replaced the original HNSW plan because Supabase production could backfill and maintain the IVFFlat index within available maintenance memory, while HNSW index rebuilds were too slow for the current hosted database shape. RAG retrieval still uses the same vector ordering semantics:
+This replaced an earlier IVFFlat index (`lists = 50`). IVFFlat had been chosen when HNSW builds were thought too slow for the hosted database shape, but the IVFFlat index measured poorly on the #399 eval harness — `lists = 50` is far below the ~sqrt(rows) ≈ 300 rule of thumb for ~92k vectors, so each probe scanned a large slice of the table, costing both recall (R@5 0.90 vs 1.00 under exact search) and latency (~9s mean per query). HNSW recovers the recall and cuts latency dramatically (#584). The build-cost obstacle was resolved by building `CREATE INDEX CONCURRENTLY` (no table lock) via the **session pooler** (port 5432, so `SET` persists) with `statement_timeout = 0`, `maintenance_work_mem = 256MB`, and `max_parallel_maintenance_workers = 0` (a single-process build avoids the shared-memory segment that the parallel build can't fit on this instance). See `scripts/build_rag_hnsw_index.py`. RAG retrieval uses the same vector ordering semantics:
 
 ```sql
 ORDER BY embedding <=> :query_embedding
 LIMIT :k
 ```
 
-IVFFlat recall depends on probes. Retrieval sessions should set a non-default probe count before semantic search:
+HNSW recall/latency is tuned by `ef_search` (the search-beam width), which must exceed the query `LIMIT`. Retrieval sessions set it before semantic search:
 
 ```sql
-SET ivfflat.probes = 10;
+SET hnsw.ef_search = 100;
 ```
 
-Use `ivfflat.probes = 5` for lower latency, `10` as the default balanced setting, and `20` when recall matters more than latency.
+Raise `ef_search` for higher recall at some latency cost; lower it for speed. `100` comfortably covers the ≤25-row retrieval limits at negligible latency.
 
 ## Proposed RAG Entities
 
