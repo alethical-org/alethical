@@ -237,6 +237,7 @@ interface ApiBillActionPayload {
   action_text: string;
   action_group?: string | null;
   action_description?: string | null;
+  committee_name?: string | null;
   action_at?: string | null;
   roll_call_text?: string | null;
 }
@@ -690,6 +691,7 @@ function isoFromSlashDate(value: string): string {
 function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction | null {
   const text = (action.action_text ?? '').trim();
   const desc = (action.action_description ?? '').trim();
+  const committee = (action.committee_name ?? '').trim();
   const low = text.toLowerCase();
   if (!text || low === 'updated unknown') return null;
 
@@ -729,11 +731,13 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     // empty date column (and gets floated to the top by the timeline sort).
     if (desc && !date) title = `Effective date: ${desc}`;
   } else if (TRAILING_REFERRAL.test(text)) {
-    // Complete a dangling "…referred to" with its committee (action_description)
-    // when present; strip the fragment when the source has none. A bare
-    // "Referred to" with no target left over is dropped as meaningless.
-    if (desc) {
-      title = `${text} ${desc}`;
+    // Complete a dangling "…referred to" with its committee — the dedicated
+    // committee_name field (#599) when present, else the legacy action_description
+    // fallback; strip the fragment when the source has neither. A bare "Referred
+    // to" with no target left over is dropped as meaningless.
+    const target = committee || desc;
+    if (target) {
+      title = `${text} ${target}`;
     } else {
       title = text.replace(TRAILING_REFERRAL, '').trim();
       if (!title) return null;
@@ -753,6 +757,7 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     // (buildActionTimeline); the cooked `description` above is unchanged.
     actionText: text,
     actionDescription: desc || undefined,
+    committee: committee || undefined,
     tally: action.roll_call_text?.trim() || undefined,
     actionNumber: action.action_number,
   };

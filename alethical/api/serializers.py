@@ -378,6 +378,7 @@ def bill_action_payload(action) -> api_schemas.BillActionPayload:
         action_text=action.action_text,
         action_group=action.action_group,
         action_description=action.action_description,
+        committee_name=action.committee_name,
         action_at=action.action_at,
         journal_page=action.journal_page,
         roll_call_text=action.roll_call_text,

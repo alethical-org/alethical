@@ -111,7 +111,10 @@ type Classified = { kind: EventKind; title: string };
 // appears in a shown title), so rules carry no gloss tags.
 type Rule = {
   test: (low: string, desc: string) => boolean;
-  build: (text: string, desc: string) => Classified;
+  // `committee` is the source's committee_name (#599) when present, else '' —
+  // referral/re-refer rules name it in the title, falling back to the generic
+  // "…a committee" wording when absent. Never inferred.
+  build: (text: string, desc: string, committee: string) => Classified;
 };
 
 // Split a raw author name-list ("Dippel, Zeleznikar, and Bakeberg") into names,
@@ -215,36 +218,43 @@ const ACTION_RULES: Rule[] = [
   // --- Committee / referral / calendar ---
   {
     test: (l) => /motion to recall and re-?refer/.test(l),
-    build: () => ({
+    build: (_t, _d, committee) => ({
       kind: 'procedural',
-      title: 'Recalled and sent back to committee',
+      title: committee
+        ? `Recalled and sent back to ${committee}`
+        : 'Recalled and sent back to committee',
     }),
   },
   {
     test: (l) => /comm(?:ittee)? report/.test(l),
-    build: (text) => {
+    build: (text, _desc, committee) => {
       const asAmended = /amend/i.test(text);
       const reRefer = /re-?refer/i.test(text);
       const subst = /subst|substitut/i.test(text);
       let title = 'Committee report — recommends passing';
       if (asAmended) title += ', as amended';
-      if (reRefer) title += ', then referred to another committee';
+      if (reRefer)
+        title += committee
+          ? `, then referred to ${committee}`
+          : ', then referred to another committee';
       if (subst) title = 'Committee report — companion bill substituted, sent to the floor';
       return { kind: 'procedural', title };
     },
   },
   {
     test: (l) => /re-?refer/.test(l),
-    build: () => ({
+    build: (_t, _d, committee) => ({
       kind: 'procedural',
-      title: 'Re-referred to another committee',
+      title: committee ? `Re-referred to ${committee}` : 'Re-referred to another committee',
     }),
   },
   {
     test: (l) => /introduction and first reading/.test(l),
-    build: () => ({
+    build: (_t, _d, committee) => ({
       kind: 'procedural',
-      title: 'Introduced and referred to a committee',
+      title: committee
+        ? `Introduced and referred to ${committee}`
+        : 'Introduced and referred to a committee',
     }),
   },
   {
@@ -253,7 +263,10 @@ const ACTION_RULES: Rule[] = [
   },
   {
     test: (l) => /^referred to/.test(l),
-    build: () => ({ kind: 'procedural', title: 'Referred to a committee' }),
+    build: (_t, _d, committee) => ({
+      kind: 'procedural',
+      title: committee ? `Referred to ${committee}` : 'Referred to a committee',
+    }),
   },
   {
     test: (l) => /^second reading/.test(l),
@@ -365,10 +378,10 @@ function humanizeFallback(text: string): string {
   return s || text;
 }
 
-function classify(text: string, desc: string): Classified {
+function classify(text: string, desc: string, committee: string): Classified {
   const low = (text || '').toLowerCase();
   for (const rule of ACTION_RULES) {
-    if (rule.test(low, desc || '')) return rule.build(text, desc || '');
+    if (rule.test(low, desc || '')) return rule.build(text, desc || '', committee || '');
   }
   return { kind: 'procedural', title: humanizeFallback(text) };
 }
@@ -427,7 +440,7 @@ export function buildActionTimeline(
   const norm: Norm[] = actions.map((a, idx) => {
     const text = a.actionText ?? a.description ?? '';
     const desc = a.actionDescription ?? '';
-    const c = classify(text, desc);
+    const c = classify(text, desc, a.committee ?? '');
     const num = a.actionNumber ?? idx;
     if (num < prevNum) block += 1;
     prevNum = num;

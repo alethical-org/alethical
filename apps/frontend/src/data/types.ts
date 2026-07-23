@@ -32,6 +32,13 @@ export interface BillAction {
    */
   actionText?: string;
   actionDescription?: string;
+  /**
+   * Committee named by the source on a referral/re-refer action (e.g. "Ways and
+   * Means"), from committee_name. Lets the timeline / card render "Referred to
+   * {committee}" instead of the generic "…a committee" fallback (#599). Only set
+   * when the source actually provided it — never inferred.
+   */
+  committee?: string;
   /** Roll-call tally for recorded-vote actions (e.g. "62-0"), from roll_call_text. */
   tally?: string;
   /**

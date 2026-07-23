@@ -654,6 +654,11 @@ class BillAction(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     action_group: Mapped[Optional[str]] = mapped_column(String(100))
     action_text: Mapped[str] = mapped_column(Text, nullable=False)
     action_description: Mapped[Optional[str]] = mapped_column(Text)
+    # Committee named by the source on a referral/re-refer action (the raw
+    # <COMMITTEE_NAME>, e.g. "Ways and Means"). Distinct from committee_id, which
+    # is our FK to the committee table; the source's COMMITTEE_ID is an opaque
+    # string, so we keep only the display name here (#599).
+    committee_name: Mapped[Optional[str]] = mapped_column(Text)
     action_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     journal_page: Mapped[Optional[str]] = mapped_column(String(50))
     roll_call_text: Mapped[Optional[str]] = mapped_column(String(50))
