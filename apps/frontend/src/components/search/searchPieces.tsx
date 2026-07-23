@@ -207,10 +207,16 @@ export function SearchHero({
             placeholderTextColor={t.colors.text.faint}
             style={[styles.searchInput, fieldOutlineReset]}
           />
-          {!isMobile ? findByAddress : null}
-          {!isMobile ? <HeroSearchButton onPress={onSubmit} /> : null}
+          {/* Bills is as-you-type (SearchHelperLine: "Results update as you
+              type") — no submit button, just a clear (×) once there's text. The
+              legislators variant keeps Find-by-address + the Search button. */}
+          {variant === 'bills' && query.length > 0 ? (
+            <ClearFieldButton onPress={() => onQueryChange('')} />
+          ) : null}
+          {variant === 'legislators' && !isMobile ? findByAddress : null}
+          {variant === 'legislators' && !isMobile ? <HeroSearchButton onPress={onSubmit} /> : null}
         </View>
-        {isMobile ? (
+        {variant === 'legislators' && isMobile ? (
           <View style={styles.searchBarMobileActions}>
             {findByAddress}
             <HeroSearchButton onPress={onSubmit} full />
@@ -262,6 +268,23 @@ function HeroSearchButton({ onPress, full }: { onPress: () => void; full?: boole
       ]}
     >
       <Text style={styles.searchButtonText}>Search</Text>
+    </Pressable>
+  );
+}
+
+// Clear (×) button inside the as-you-type search field — appears only when the
+// field has text and empties it. Neutral ink circle, darkening on hover.
+function ClearFieldButton({ onPress }: { onPress: () => void }) {
+  const [hovered, hover] = useHover();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Clear search"
+      onPress={onPress}
+      {...hover}
+      style={[styles.clearField, hovered && styles.clearFieldHover]}
+    >
+      <X size={13} color={hovered ? t.colors.text.primary : '#4f5651'} strokeWidth={2.6} />
     </Pressable>
   );
 }
@@ -352,7 +375,7 @@ export function FilterDropdown({
   onOpenChange,
 }: {
   label: string;
-  options: Array<{ label: string; value: string }>;
+  options: Array<{ label: string; value: string; disabled?: boolean }>;
   selectedValue: string;
   onSelect: (value: string) => void;
   accessibilityLabel?: string;
@@ -387,7 +410,7 @@ export function FilterDropdown({
   }, [open]);
 
   return (
-    <View ref={wrapRef as never} style={[styles.dropdownWrap, open && styles.dropdownWrapOpen]}>
+    <View ref={wrapRef as never} style={styles.dropdownWrap}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
@@ -404,16 +427,12 @@ export function FilterDropdown({
           style={[
             styles.dropdownTriggerText,
             active && styles.dropdownTriggerTextActive,
-            !active && (hovered || open) && { color: t.colors.brand.deep },
+            !active && (hovered || open) && { color: t.colors.purple.base },
           ]}
         >
           {label}
         </Text>
-        <ChevronDown
-          size={13}
-          color={active ? t.colors.white : hovered || open ? t.colors.brand.deep : '#9aa39e'}
-          strokeWidth={2.2}
-        />
+        <ChevronDown size={13} color={active ? t.colors.white : '#6f756f'} strokeWidth={2.2} />
       </Pressable>
       {open ? (
         <View style={styles.dropdownMenu}>
@@ -422,6 +441,7 @@ export function FilterDropdown({
               key={`${option.value}-${option.label}`}
               label={option.label}
               selected={option.value === selectedValue}
+              disabled={option.disabled}
               onSelect={() => {
                 setOpen(false);
                 onSelect(option.value);
@@ -434,19 +454,34 @@ export function FilterDropdown({
   );
 }
 
-// A single dropdown row. Selected → green-tint fill, green bold label, green
-// check. Hovered (non-selected) → same green-tint fill + green label, matching
-// the app's green hover accent.
+// A single dropdown row. Selected → neutral grey fill (#f2f3f5), dark bold label,
+// black check. Hovered (non-selected) → same neutral fill. (v2 spec §B: the menu
+// uses black/neutral, never green — green is reserved for "action".) A `disabled`
+// row (e.g. a not-yet-loaded prior session) reads muted grey and is inert: no
+// hover, no press, no check.
 function DropdownItem({
   label,
   selected,
+  disabled,
   onSelect,
 }: {
   label: string;
   selected: boolean;
+  disabled?: boolean;
   onSelect: () => void;
 }) {
   const [hovered, hover] = useHover();
+  if (disabled) {
+    return (
+      <View
+        accessibilityRole="menuitem"
+        accessibilityState={{ disabled: true }}
+        style={styles.dropdownItem}
+      >
+        <Text style={[styles.dropdownItemText, styles.dropdownItemTextDisabled]}>{label}</Text>
+      </View>
+    );
+  }
   const highlighted = selected || hovered;
   return (
     <Pressable
@@ -456,13 +491,7 @@ function DropdownItem({
       {...hover}
       style={[styles.dropdownItem, highlighted && styles.dropdownItemHighlight]}
     >
-      <Text
-        style={[
-          styles.dropdownItemText,
-          highlighted && styles.dropdownItemTextHighlight,
-          selected && styles.dropdownItemTextSelected,
-        ]}
-      >
+      <Text style={[styles.dropdownItemText, selected && styles.dropdownItemTextSelected]}>
         {label}
       </Text>
       {selected ? <Text style={styles.dropdownCheck}>✓</Text> : null}
@@ -490,9 +519,7 @@ export function OmnibusToggle({
       <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
         <Path
           d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z"
-          stroke={
-            value ? t.colors.brand.darkest : hovered ? t.colors.brand.deep : t.colors.text.primary
-          }
+          stroke={value ? t.colors.white : hovered ? t.colors.purple.base : t.colors.text.primary}
           strokeWidth={1.7}
           strokeLinejoin="round"
         />
@@ -500,7 +527,7 @@ export function OmnibusToggle({
       <Text
         style={[
           styles.omnibusText,
-          value ? styles.omnibusTextOn : hovered && { color: t.colors.brand.deep },
+          value ? styles.omnibusTextOn : hovered && { color: t.colors.purple.base },
         ]}
       >
         Omnibus only
@@ -544,7 +571,7 @@ export function FilterPill({
       <Text
         style={[
           styles.pillText,
-          active ? styles.pillTextActive : hovered && { color: t.colors.brand.deep },
+          active ? styles.pillTextActive : hovered && { color: t.colors.purple.base },
         ]}
       >
         {label}
@@ -574,7 +601,7 @@ export function MoreIssuesPill({
       accessibilityLabel={expanded ? 'Show fewer issues' : `Show ${hiddenCount} more issues`}
       onPress={onPress}
       {...hover}
-      style={[styles.morePill, hovered && styles.filterHover]}
+      style={[styles.morePill, hovered && styles.morePillHover]}
     >
       <Text style={styles.morePillText}>{expanded ? 'Show fewer' : `+${hiddenCount} more`}</Text>
     </Pressable>
@@ -683,14 +710,16 @@ export function SortControl({
         style={[styles.sortTrigger, (hovered || open) && styles.filterHover]}
       >
         <SortIcon />
-        <Text style={[styles.sortText, (hovered || open) && { color: t.colors.brand.deep }]}>
+        <Text
+          style={[
+            styles.sortText,
+            { color: t.colors.text.primary },
+            (hovered || open) && { color: t.colors.purple.base },
+          ]}
+        >
           Sorted by {(current?.label ?? '').toLowerCase()}
         </Text>
-        <ChevronDown
-          size={13}
-          color={hovered || open ? t.colors.brand.deep : '#6f756f'}
-          strokeWidth={2.2}
-        />
+        <ChevronDown size={13} color="#6f756f" strokeWidth={2.2} />
       </Pressable>
       {open ? (
         <View style={styles.sortMenu}>
@@ -1081,6 +1110,16 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.darkest,
   },
+  clearField: {
+    flex: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(17,21,15,0.06)',
+  },
+  clearFieldHover: { backgroundColor: 'rgba(17,21,15,0.12)' },
   filterSlot: { marginTop: 22, gap: 14 },
   helperRow: { marginTop: 10, paddingHorizontal: 2 },
   helperText: {
@@ -1093,8 +1132,13 @@ const styles = StyleSheet.create({
   },
   helperStrong: { color: '#4f5651', fontWeight: t.fontWeights.bold },
 
-  // shared filter-control hover
-  filterHover: { borderColor: t.colors.brand.base },
+  // Shared filter-control hover/focus: purple border + a 3px purple ring (web).
+  // Purple is the filter-affordance accent (v2 spec) — green is reserved for
+  // "action", so filter controls never glow green on hover.
+  filterHover: {
+    borderColor: t.colors.purple.base,
+    ...(isWeb ? { boxShadow: '0 0 0 3px rgba(91,48,214,0.14)' } : {}),
+  },
 
   // mono eyebrow (ISSUES / FILTERS row labels)
   filterEyebrow: {
@@ -1133,11 +1177,10 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: { color: t.colors.white, fontWeight: t.fontWeights.bold },
 
-  // dropdown
-  dropdownWrap: { position: 'relative', zIndex: 30 },
-  // An open dropdown outranks its sibling filter controls (the other dropdown,
-  // segmented control, omnibus toggle) so its menu is never painted behind them.
-  dropdownWrapOpen: { zIndex: 100 },
+  // dropdown — wrapper z-index:40 + menu (absolute) z-index:1, the shared recipe
+  // every dropdown/menu on this screen uses so it opens in front of the content
+  // below it (v2 spec, root-cause fix).
+  dropdownWrap: { position: 'relative', zIndex: 40 },
   dropdownTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1170,7 +1213,7 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink14,
     borderRadius: 12,
     paddingVertical: 6,
-    zIndex: 50,
+    zIndex: 1,
     ...(t.shadows.panel as object),
   },
   dropdownItem: {
@@ -1182,22 +1225,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minHeight: 44,
   },
-  // #f1faf4 is the design's green-tint row fill (per the .dc.html ref); the
-  // nearest token is greenTint50 (#f2f9f5), close but not exact.
-  dropdownItemHighlight: { backgroundColor: '#f1faf4' },
+  // Neutral grey highlight (#f2f3f5) for selected + hovered rows — the menu reads
+  // black/neutral, never green (green is "action" only, v2 spec §B).
+  dropdownItemHighlight: { backgroundColor: '#f2f3f5' },
   dropdownItemText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.medium,
     color: t.colors.text.primary,
   },
-  dropdownItemTextHighlight: { color: t.colors.brand.deep },
+  // A not-yet-available (disabled) row, e.g. a prior session whose data isn't
+  // loaded: muted grey, inert.
+  dropdownItemTextDisabled: { color: '#6f756f', fontWeight: t.fontWeights.medium },
   dropdownItemTextSelected: { fontWeight: t.fontWeights.bold },
   dropdownCheck: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.deep,
+    color: t.colors.text.primary,
   },
 
   // omnibus
@@ -1213,14 +1258,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     minHeight: 44,
   },
-  omnibusOn: { backgroundColor: t.colors.brand.base, borderColor: t.colors.brand.base },
+  // Active (on): solid black fill + white text/icon, identical to the active
+  // chamber / status controls (v2 spec §B) — never green.
+  omnibusOn: { backgroundColor: t.colors.ink, borderColor: t.colors.ink },
   omnibusText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
-  omnibusTextOn: { color: t.colors.brand.darkest, fontWeight: t.fontWeights.bold },
+  omnibusTextOn: { color: t.colors.white, fontWeight: t.fontWeights.bold },
 
   // policy pill
   pill: {
@@ -1235,21 +1282,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     minHeight: 40,
   },
-  pillActive: { backgroundColor: t.colors.brand.base, borderColor: t.colors.brand.base },
+  // Selected issue pill: solid black fill + white label, count in translucent
+  // white (v2 spec §C) — never green.
+  pillActive: { backgroundColor: t.colors.ink, borderColor: t.colors.ink },
   pillText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.meta,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
-  pillTextActive: { color: t.colors.brand.darkest, fontWeight: t.fontWeights.bold },
+  pillTextActive: { color: t.colors.white, fontWeight: t.fontWeights.bold },
   pillCount: {
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.label,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.faint,
   },
-  pillCountActive: { color: '#0b7a45' },
+  pillCountActive: { color: 'rgba(255,255,255,0.55)' },
   morePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1268,6 +1317,10 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
     color: t.colors.brand.deep,
   },
+  // The "+N more" issue toggle keeps the design's green dashed treatment (it's an
+  // additive "reveal" action, not a filter control) — so it hovers green, not the
+  // purple of the filter controls.
+  morePillHover: { borderColor: t.colors.brand.base },
 
   // results header
   resultsHeader: {
@@ -1279,6 +1332,13 @@ const styles = StyleSheet.create({
     paddingBottom: 22,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.09)',
+    // react-native-web stamps position:relative + z-index:0 on every View, so the
+    // sort control's z-index:40 wrapper is trapped inside this header's stacking
+    // context and, being an earlier sibling, would paint UNDER the result-card
+    // list (also z-index:0). Lifting the header above the list lets the open sort
+    // menu overlay the cards below (root-cause-2 fix; the HTML mock avoids this
+    // because plain divs are position:static).
+    zIndex: 40,
   },
   resultsHeaderMain: { minWidth: 0, flexShrink: 1, gap: 6 },
   resultsCountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' },
