@@ -37,7 +37,7 @@ stack: every filter you add trims the list down more.
   end state.
 - **Session** — which legislative session (e.g. the 2025–2026 session).
 - **Omnibus only** — show just the big, bundled "omnibus" bills.
-- **Topics / issue areas** — pick from tagged subjects like Health, Education,
+- **Issues / topic areas** — pick from tagged subjects like Health, Education,
   Taxes. Each shows a live count of how many bills fall under it. You can **pick
   several at once**, and you'll see bills in *any* of them — choose Health and
   Education and you get bills about either one.
@@ -82,8 +82,8 @@ Above the list you always see:
 - **Chief author** — the lead legislator, clickable to their profile.
 - **The latest action and its date** — e.g. "Referred to Ways and Means · Mar 12, 2026".
 - **Effective date** — for bills that became law, when the law takes effect.
-- **Topic tags** for the bill.
-- **A roll-call link** when there were recorded votes, taking you straight to how
+- **Issue tags** for the bill.
+- **A votes link** when there were recorded votes, taking you straight to how
   everyone voted.
 
 Tap a card to open the full bill; results are split into pages with Previous / Next.
