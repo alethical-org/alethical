@@ -1,0 +1,165 @@
+{
+  "description": "Labeled MN-bill retrieval eval set. Labels assigned by human/keyword reading of bill titles+summaries, NOT by vector search (#399/#400/#380). Each query resolves to exactly one bill (or its House/Senate companion pair). Read-only against production; only bills with has_current_summary, an official_url, and membership in the current legislative session were considered.",
+  "queries": [
+    {
+      "question": "What's in the new social media law for kids?",
+      "expected_bill_key": "94-2026-HF4138",
+      "accept_companion": true,
+      "companion_bill_key": "94-2026-SF4696",
+      "phrasing_type": "colloquial",
+      "why_this_bill": "Only 2026 bill establishing requirements for social media platforms' minor accounts + enforcement (new chapter 325M). Canonical acceptance test; distinct from the many 2025 social-media proposals."
+    },
+    {
+      "question": "Is there a bill making data brokers register with the state?",
+      "expected_bill_key": "94-2026-HF4456",
+      "accept_companion": false,
+      "companion_bill_key": null,
+      "phrasing_type": "colloquial",
+      "why_this_bill": "Title is uniquely 'requiring data brokers to register with the attorney general' with an account, enforcement, and civil penalties. No companion in corpus."
+    },
+    {
+      "question": "Which bill would put a special tax on the big social media companies?",
+      "expected_bill_key": "94-2025-HF3117",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF3197",
+      "phrasing_type": "colloquial",
+      "why_this_bill": "Only bill titled 'establishing an excise tax on certain social media platform businesses' (new chapter 295) — a tax mechanism, distinct from all the consumer-protection social-media bills."
+    },
+    {
+      "question": "Is there a proposal to make social media apps show a mental health warning and time-use reminders?",
+      "expected_bill_key": "94-2025-HF1289",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF1807",
+      "phrasing_type": "colloquial",
+      "why_this_bill": "Uniquely 'requiring social media platforms to post a mental health warning label and timer notifications' (amends 325M.34). The warning-label + timer combination is distinctive."
+    },
+    {
+      "question": "Did someone file a bill to punish cities for flying the wrong Minnesota state flag?",
+      "expected_bill_key": "94-2026-HF5077",
+      "accept_companion": true,
+      "companion_bill_key": "94-2026-SF5233",
+      "phrasing_type": "colloquial",
+      "why_this_bill": "Uniquely 'reduction to local government aid to a county or city that uses the incorrect state flag' (new chapter 477A) — a one-of-a-kind mechanism."
+    },
+    {
+      "question": "Is there a bill letting renters fix problems themselves and take it out of the rent?",
+      "expected_bill_key": "94-2026-HF4835",
+      "accept_companion": true,
+      "companion_bill_key": "94-2026-SF4105",
+      "phrasing_type": "colloquial",
+      "why_this_bill": "Uniquely 'providing tenants with a right to repair violations in a residential rental unit ... permitting a tenant to make deductions from rent'. The repair-and-deduct mechanism is distinctive to this bill."
+    },
+    {
+      "question": "Is there a bill about the contract terms libraries have to accept for ebooks and audiobooks?",
+      "expected_bill_key": "94-2026-HF3698",
+      "accept_companion": true,
+      "companion_bill_key": "94-2026-SF3685",
+      "phrasing_type": "colloquial",
+      "why_this_bill": "Uniquely 'prohibiting certain terms in libraries' electronic book and digital audiobook license agreements or contracts'. The library ebook-license angle is distinctive."
+    },
+    {
+      "question": "Is there a bill to keep certain sex offenders off social media?",
+      "expected_bill_key": "94-2025-HF2648",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF2908",
+      "phrasing_type": "colloquial",
+      "why_this_bill": "Uniquely 'prohibiting certain sex offenders from accessing social media platforms' (amends 243.055) — a public-safety mechanism distinct from the consumer-protection social-media bills."
+    },
+    {
+      "question": "What is the Minnesota Age-Appropriate Design Code Act?",
+      "expected_bill_key": "94-2026-HF4511",
+      "accept_companion": true,
+      "companion_bill_key": "94-2026-SF4574",
+      "phrasing_type": "named_act",
+      "why_this_bill": "Title verbatim names 'creating the Minnesota Age-Appropriate Design Code Act' — a distinctive named act (children's online privacy / high-privacy defaults)."
+    },
+    {
+      "question": "What does the reproductive health equity grant fund bill do?",
+      "expected_bill_key": "94-2025-HF1278",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF1890",
+      "phrasing_type": "named_act",
+      "why_this_bill": "Title verbatim 'establishing the reproductive health equity grant fund' ($30M for abortion-care access). Distinct from the separate 'sexual and reproductive health services grants' bill (HF1319)."
+    },
+    {
+      "question": "What is a nonopioid directive and which bill authorizes it?",
+      "expected_bill_key": "94-2025-HF1379",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF1814",
+      "phrasing_type": "exact_term",
+      "why_this_bill": "Uniquely 'authorizing the use of nonopioid directives' (a patient directive not to be administered opioids; amends 145C.01). Distinct from the nonopioid *coverage* bills HF1806/HF1807."
+    },
+    {
+      "question": "Which bill increases the criminal penalties for swatting?",
+      "expected_bill_key": "94-2025-HF3209",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF3372",
+      "phrasing_type": "exact_term",
+      "why_this_bill": "Uniquely 'increasing criminal penalties for swatting' (amends 609.78). 'Swatting' is a distinctive verbatim term appearing in only this bill/companion."
+    },
+    {
+      "question": "Which bill would put sports betting to voters as a constitutional amendment tied to horse tracks and tribes?",
+      "expected_bill_key": "94-2025-HF3337",
+      "accept_companion": false,
+      "companion_bill_key": null,
+      "phrasing_type": "exact_term",
+      "why_this_bill": "The only sports-betting bill that 'proposing an amendment to the Minnesota Constitution ... authorizing sports betting if conducted by a horse racing track or Indian Tribe' — a distinct constitutional-amendment route versus the statutory-licensing sports-betting bills."
+    },
+    {
+      "question": "Is there a bill banning step therapy for insulin?",
+      "expected_bill_key": "94-2025-HF743",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF2071",
+      "phrasing_type": "exact_term",
+      "why_this_bill": "Uniquely 'prohibiting the use of step therapy protocol for insulin drugs' (amends 256B.0625, subd 13f). 'Step therapy' + insulin is the distinctive verbatim term."
+    },
+    {
+      "question": "Which bill amends Minnesota Statutes section 121A.73 to restrict phone use in schools?",
+      "expected_bill_key": "94-2025-HF2516",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF508",
+      "phrasing_type": "statute_cite",
+      "why_this_bill": "The dedicated bill 'restricting cell phone use in schools; amending ... section 121A.73'. (A broad K-12 omnibus, SF3870, also touches 121A.73, but this is the single-purpose cell-phone bill the question describes.)"
+    },
+    {
+      "question": "Which bill amends section 504B.245 to stop landlords from using rent-setting algorithms trained on competitor data?",
+      "expected_bill_key": "94-2025-HF1142",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF2087",
+      "phrasing_type": "statute_cite",
+      "why_this_bill": "Only bill amending 504B.245 for this purpose: 'prohibiting the use of tenant screening software that uses nonpublic competitor data to set rent' (algorithmic rent price-fixing)."
+    },
+    {
+      "question": "is ther a bill to ban led amunition for huntin?",
+      "expected_bill_key": "94-2025-HF2501",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF1595",
+      "phrasing_type": "typo",
+      "why_this_bill": "Uniquely 'prohibiting the use of lead ammunition when hunting; prohibiting ... lead tackle; establishing a nontoxic ammunition performance standard'. Distinctive lead-ammo/tackle ban."
+    },
+    {
+      "question": "wut bill makes companies list whats in tampons and menstral products?",
+      "expected_bill_key": "94-2026-HF4516",
+      "accept_companion": true,
+      "companion_bill_key": "94-2026-SF4601",
+      "phrasing_type": "typo",
+      "why_this_bill": "Uniquely 'requiring ingredient disclosure for menstrual products' (new chapter 325E). Distinct from the 2025 bill banning arsenic/chemicals in menstrual products (HF2983)."
+    },
+    {
+      "question": "is there money in a bill for the world juniors hockey tournment?",
+      "expected_bill_key": "94-2025-HF1007",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF1061",
+      "phrasing_type": "typo",
+      "why_this_bill": "Uniquely 'appropriating money for the World Junior Hockey Championships' ($5M grant to Explore Minnesota). A one-of-a-kind, highly specific appropriation."
+    },
+    {
+      "question": "whats the bill that funds the helmets to hardhats program?",
+      "expected_bill_key": "94-2025-HF1004",
+      "accept_companion": true,
+      "companion_bill_key": "94-2025-SF1756",
+      "phrasing_type": "informal",
+      "why_this_bill": "Uniquely 'appropriating money for the Minnesota Helmets to Hardhats program' (grant to Building Strong Communities). 'Helmets to Hardhats' is a distinctive named program."
+    }
+  ]
+}
