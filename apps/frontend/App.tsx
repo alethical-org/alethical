@@ -48,9 +48,28 @@ export default function App() {
       document.head.appendChild(link);
     };
 
+    // App-wide keyboard focus ring (WCAG 2.4.7, Focus Visible). Every focusable
+    // Pressable renders as a role/tabindex element, so one :focus-visible rule
+    // covers all controls (buttons, links, pills, dropdowns, chips, toggles)
+    // without touching each component. :focus-visible = keyboard focus only, so
+    // the ring never flashes on mouse click. Text fields are excluded — they
+    // carry their own purple focus ring (see theme/fieldFocus.ts), so an outline
+    // would double it. Spec: docs/mockups/search-bills-v2/README.md, "Reusable
+    // conventions" (2px solid #7c5cff, offset 2px).
+    const ensureFocusStyles = () => {
+      if (document.getElementById('alethical-focus-visible')) {
+        return;
+      }
+      const style = document.createElement('style');
+      style.id = 'alethical-focus-visible';
+      style.textContent = `a:focus-visible,button:focus-visible,[role="button"]:focus-visible,[role="link"]:focus-visible,[tabindex]:not(input):not(textarea):not(select):focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}`;
+      document.head.appendChild(style);
+    };
+
     ensureManifest();
     ensureThemeColor();
     ensureFonts();
+    ensureFocusStyles();
 
     if (process.env.NODE_ENV !== 'production') {
       void navigator.serviceWorker?.getRegistrations().then((registrations) => {
