@@ -792,8 +792,11 @@ const CHIP_TONES: Record<FacetTone, { bg: string; border: string; text: string }
   status: { bg: '#e7f3f1', border: '#c3e3dd', text: '#2c6f66' },
   session: { bg: '#eeecfb', border: '#d7d0f4', text: '#4b3fa8' },
   // Filled soft amber here (no code badge in this row to disambiguate from);
-  // ghosted amber stays on the bill cards (amber = code/omnibus identity).
-  omnibus: { bg: '#fbf1e2', border: '#f0d6a8', text: '#a76a1a' },
+  // ghosted amber stays on the bill cards (amber = code/omnibus identity). Uses
+  // the shared omnibus token (not a hardcoded hex) so it matches the code badge
+  // and inherits the AA-safe text color (#8f5a12, 5.2:1 — the raw #a76a1a from
+  // the mockup is 3.98:1 and fails AA).
+  omnibus: { bg: t.colors.omnibus.fill, border: t.colors.omnibus.border, text: t.colors.omnibus.text },
   issue: { bg: '#e6f2f6', border: '#c2e0ea', text: '#2b6377' },
 };
 
