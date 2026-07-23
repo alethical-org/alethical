@@ -92,5 +92,6 @@ Tap a card to open the full bill; results are split into pages with Previous / N
 
 ## When nothing matches
 
-You get a calm "No bills match your search" message, a recap of the filters you had
-on, and a one-tap way to clear them and start over.
+You get a calm message — **"No bills match your search"** followed by **"Try
+broadening or clearing them."** — a recap of the filters you had on (shown as tags),
+and a **"Clear filters"** button to wipe them and start over.
