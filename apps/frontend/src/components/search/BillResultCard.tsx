@@ -42,6 +42,9 @@ interface BillResultCardProps {
   onPress?: () => void;
   onSponsorPress?: (legislatorId: string) => void;
   onRollCalls?: () => void;
+  // Whether to show the (inert) roadmap Track button in the top row. Search hides
+  // it on the mobile-web layout; defaults on so other surfaces are unchanged.
+  showTrackButton?: boolean;
 }
 
 type Tone = 'neutral' | 'green' | 'vetoed';
@@ -134,6 +137,7 @@ export function BillResultCard({
   onPress,
   onSponsorPress,
   onRollCalls,
+  showTrackButton = true,
 }: BillResultCardProps) {
   const [hovered, setHovered] = useState(false);
   const prefetchBill = usePrefetchBill();
@@ -193,7 +197,7 @@ export function BillResultCard({
         <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
         <ProgressBar index={index} tone={tone} />
         <View style={styles.topSpacer} />
-        <RoadmapTrackButton />
+        {showTrackButton ? <RoadmapTrackButton /> : null}
       </View>
 
       <Text
