@@ -154,6 +154,7 @@ export function SearchHero({
   onSubmit,
   variant,
   onFindByAddress,
+  helper,
   filters,
 }: {
   title: string;
@@ -163,6 +164,8 @@ export function SearchHero({
   onSubmit: () => void;
   variant: 'bills' | 'legislators';
   onFindByAddress?: () => void;
+  /** Optional helper line below the field (e.g. bills' "match every word" hint). */
+  helper?: ReactNode;
   filters: ReactNode;
 }) {
   const { isMobile } = useResponsive();
@@ -215,8 +218,21 @@ export function SearchHero({
         ) : null}
       </View>
 
+      {helper ? <View style={styles.helperRow}>{helper}</View> : null}
+
       <View style={styles.filterSlot}>{filters}</View>
     </View>
+  );
+}
+
+// Bills' search helper line: "Results update as you type. Bills match every word
+// — try a keyword or a bill number." ("every" bold, per the v2 spec §A.)
+export function SearchHelperLine() {
+  return (
+    <Text style={styles.helperText}>
+      Results update as you type. Bills match <Text style={styles.helperStrong}>every</Text> word —
+      try a keyword or a bill number.
+    </Text>
   );
 }
 
@@ -331,6 +347,7 @@ export function FilterDropdown({
   selectedValue,
   onSelect,
   accessibilityLabel,
+  active,
   open: controlledOpen,
   onOpenChange,
 }: {
@@ -339,6 +356,9 @@ export function FilterDropdown({
   selectedValue: string;
   onSelect: (value: string) => void;
   accessibilityLabel?: string;
+  /** Non-default (actively narrowing) → black fill / white label; default reads
+   *  neutral. (v2 spec §B: "non-default controls read black".) */
+  active?: boolean;
   /** Controlled open state; omit to let the dropdown manage its own. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -374,16 +394,24 @@ export function FilterDropdown({
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(!open)}
         {...hover}
-        style={[styles.dropdownTrigger, (hovered || open) && styles.filterHover]}
+        style={[
+          styles.dropdownTrigger,
+          active && styles.dropdownTriggerActive,
+          !active && (hovered || open) && styles.filterHover,
+        ]}
       >
         <Text
-          style={[styles.dropdownTriggerText, (hovered || open) && { color: t.colors.brand.deep }]}
+          style={[
+            styles.dropdownTriggerText,
+            active && styles.dropdownTriggerTextActive,
+            !active && (hovered || open) && { color: t.colors.brand.deep },
+          ]}
         >
           {label}
         </Text>
         <ChevronDown
           size={13}
-          color={hovered || open ? t.colors.brand.deep : '#9aa39e'}
+          color={active ? t.colors.white : hovered || open ? t.colors.brand.deep : '#9aa39e'}
           strokeWidth={2.2}
         />
       </Pressable>
@@ -553,33 +581,260 @@ export function MoreIssuesPill({
   );
 }
 
-// --- Results header: count + noun, sort label, and "AS OF {date}" ---
+// --- Results header: count + noun + plain-English filter description, plus the
+//     "AS OF {date}" meta and the interactive sort control. ---
 export function ResultsHeader({
   count,
   noun,
-  sortLabel,
+  description,
   dataAsOf,
+  sortControl,
+  sortLabel,
 }: {
   count: number;
   noun: string;
-  sortLabel: string;
+  /** Plain-English description of the active filter intersection (v2 §E). */
+  description?: string;
   dataAsOf: string | null | undefined;
+  /** Interactive sort control (Search Bills v2). Takes precedence over sortLabel. */
+  sortControl?: ReactNode;
+  /** Static "Sorted by …" label — the fallback for screens with no sort control
+   *  yet (Search Legislators). Omit both to hide the meta row (e.g. no results). */
+  sortLabel?: string;
 }) {
   const asOf = formatAsOf(dataAsOf);
+  const meta = sortControl ?? (sortLabel ? <StaticSortLabel label={sortLabel} /> : null);
   return (
     <View style={styles.resultsHeader}>
-      <View style={styles.resultsCountRow}>
-        <Text style={styles.resultsCount}>{count.toLocaleString('en-US')}</Text>
-        <Text style={styles.resultsNoun}>{noun}</Text>
-      </View>
-      <View style={styles.resultsMetaRow}>
-        <View style={styles.sortRow}>
-          <SortIcon />
-          <Text style={styles.sortText}>{sortLabel}</Text>
+      <View style={styles.resultsHeaderMain}>
+        <View style={styles.resultsCountRow}>
+          <Text style={styles.resultsCount}>{count.toLocaleString('en-US')}</Text>
+          <Text style={styles.resultsNoun}>{noun}</Text>
         </View>
-        {asOf ? <Text style={styles.asOfText}>{asOf}</Text> : null}
+        {description ? <Text style={styles.resultsDescription}>{description}</Text> : null}
       </View>
+      {meta ? (
+        <View style={styles.resultsMetaRow}>
+          {asOf ? <Text style={styles.asOfText}>{asOf}</Text> : null}
+          {meta}
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+function StaticSortLabel({ label }: { label: string }) {
+  return (
+    <View style={styles.sortRow}>
+      <SortIcon />
+      <Text style={styles.sortText}>{label}</Text>
+    </View>
+  );
+}
+
+// --- Sort control: menu of orderings. "Most tracked" is a roadmap option —
+//     shown once, inert, labeled "ON THE ROADMAP" (never selectable). Closes on
+//     outside click via a document listener (web), never a click-away overlay. ---
+export type SortOption = {
+  key: string;
+  label: string;
+  /** Roadmap-only: rendered inert with an "ON THE ROADMAP" tag. */
+  roadmap?: boolean;
+};
+
+export function SortControl({
+  options,
+  value,
+  onSelect,
+  open,
+  onOpenChange,
+}: {
+  options: SortOption[];
+  value: string;
+  onSelect: (key: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [hovered, hover] = useHover();
+  const wrapRef = useRef<unknown>(null);
+  const current = options.find((option) => option.key === value) ?? options[0];
+
+  useEffect(() => {
+    if (!isWeb || !open) return;
+    const handlePointerDown = (event: Event) => {
+      const node = wrapRef.current as HTMLElement | null;
+      const target = event.target as Node | null;
+      if (node && target && node.contains(target)) return;
+      onOpenChange(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  return (
+    <View ref={wrapRef as never} style={styles.sortWrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Sort results"
+        accessibilityState={{ expanded: open }}
+        onPress={() => onOpenChange(!open)}
+        {...hover}
+        style={[styles.sortTrigger, (hovered || open) && styles.filterHover]}
+      >
+        <SortIcon />
+        <Text style={[styles.sortText, (hovered || open) && { color: t.colors.brand.deep }]}>
+          Sorted by {(current?.label ?? '').toLowerCase()}
+        </Text>
+        <ChevronDown
+          size={13}
+          color={hovered || open ? t.colors.brand.deep : '#6f756f'}
+          strokeWidth={2.2}
+        />
+      </Pressable>
+      {open ? (
+        <View style={styles.sortMenu}>
+          {options.map((option) => (
+            <SortMenuItem
+              key={option.key}
+              option={option}
+              selected={!option.roadmap && option.key === value}
+              onSelect={() => {
+                if (option.roadmap) return;
+                onOpenChange(false);
+                onSelect(option.key);
+              }}
+            />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function SortMenuItem({
+  option,
+  selected,
+  onSelect,
+}: {
+  option: SortOption;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  if (option.roadmap) {
+    return (
+      <View style={styles.sortItemRoadmap}>
+        <Text style={styles.sortItemRoadmapText}>{option.label}</Text>
+        <View style={styles.roadmapTag}>
+          <Text style={styles.roadmapTagText}>ON THE ROADMAP</Text>
+        </View>
+      </View>
+    );
+  }
+  const highlighted = selected || hovered;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onSelect}
+      {...hover}
+      style={[styles.sortItem, highlighted && styles.sortItemHighlight]}
+    >
+      <Text style={[styles.sortItemText, selected && styles.sortItemTextSelected]}>
+        {option.label}
+      </Text>
+      {selected ? <Text style={styles.dropdownCheck}>✓</Text> : null}
+    </Pressable>
+  );
+}
+
+// --- Active-filter chip row (v2 §D): mono "FILTERS" eyebrow + removable,
+//     facet-color-coded chips + a "Clear all" that keeps the session. ---
+export type FacetTone = 'keyword' | 'chamber' | 'status' | 'session' | 'omnibus' | 'issue';
+
+export type FilterChip = {
+  /** Stable key (facet + value). */
+  key: string;
+  tone: FacetTone;
+  label: string;
+  removeLabel: string;
+  onRemove: () => void;
+};
+
+export function FilterChipRow({
+  chips,
+  onClearAll,
+}: {
+  chips: FilterChip[];
+  onClearAll: () => void;
+}) {
+  if (chips.length === 0) return null;
+  return (
+    <View style={styles.chipRow}>
+      <FilterEyebrow label="FILTERS" />
+      {chips.map((chip) => (
+        <ActiveFilterChip key={chip.key} chip={chip} />
+      ))}
+      <ClearAllButton onPress={onClearAll} />
+    </View>
+  );
+}
+
+// Mono eyebrow shared by the FILTERS chip row and the ISSUES pill row.
+export function FilterEyebrow({ label }: { label: string }) {
+  return <Text style={styles.filterEyebrow}>{label}</Text>;
+}
+
+const CHIP_TONES: Record<FacetTone, { bg: string; border: string; text: string }> = {
+  keyword: { bg: '#eef0f2', border: '#d5dade', text: '#3f4650' },
+  chamber: { bg: '#e9f0fb', border: '#cadcf3', text: '#345880' },
+  status: { bg: '#e7f3f1', border: '#c3e3dd', text: '#2c6f66' },
+  session: { bg: '#eeecfb', border: '#d7d0f4', text: '#4b3fa8' },
+  // Filled soft amber here (no code badge in this row to disambiguate from);
+  // ghosted amber stays on the bill cards (amber = code/omnibus identity).
+  omnibus: { bg: '#fbf1e2', border: '#f0d6a8', text: '#a76a1a' },
+  issue: { bg: '#e6f2f6', border: '#c2e0ea', text: '#2b6377' },
+};
+
+function ActiveFilterChip({ chip }: { chip: FilterChip }) {
+  const [hovered, hover] = useHover();
+  const tone = CHIP_TONES[chip.tone];
+  return (
+    <View style={[styles.chip, { backgroundColor: tone.bg, borderColor: tone.border }]}>
+      <Text style={[styles.chipLabel, { color: tone.text }]}>{chip.label}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={chip.removeLabel}
+        onPress={chip.onRemove}
+        {...hover}
+        style={[styles.chipRemove, hovered && styles.chipRemoveHover]}
+      >
+        <X size={11} color={tone.text} strokeWidth={2.6} />
+      </Pressable>
+    </View>
+  );
+}
+
+function ClearAllButton({ onPress }: { onPress: () => void }) {
+  const [hovered, hover] = useHover();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Clear all filters"
+      onPress={onPress}
+      {...hover}
+      style={styles.clearAllBtn}
+    >
+      <X
+        size={13}
+        color={hovered ? t.colors.text.primary : t.colors.text.secondary}
+        strokeWidth={2.2}
+      />
+      <Text style={[styles.clearAllText, hovered && { color: t.colors.text.primary }]}>
+        Clear all
+      </Text>
+    </Pressable>
   );
 }
 
@@ -820,9 +1075,25 @@ const styles = StyleSheet.create({
     color: t.colors.brand.darkest,
   },
   filterSlot: { marginTop: 22, gap: 14 },
+  helperRow: { marginTop: 10, paddingHorizontal: 2 },
+  helperText: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    color: '#6f756f',
+  },
+  helperStrong: { color: '#4f5651', fontWeight: t.fontWeights.bold },
 
   // shared filter-control hover
   filterHover: { borderColor: t.colors.brand.base },
+
+  // mono eyebrow (ISSUES / FILTERS row labels)
+  filterEyebrow: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.3,
+    color: '#6f756f',
+  },
 
   // chamber segmented
   segmented: {
@@ -869,12 +1140,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     minHeight: 44,
   },
+  // Non-default (actively narrowing) dropdown: black fill / white label, matching
+  // the chamber-active and omnibus-on controls (v2 spec §B).
+  dropdownTriggerActive: { backgroundColor: t.colors.ink, borderColor: t.colors.ink },
   dropdownTriggerText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
+  dropdownTriggerTextActive: { color: t.colors.white, fontWeight: t.fontWeights.bold },
   dropdownMenu: {
     position: 'absolute',
     top: 50,
@@ -995,7 +1270,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.09)',
   },
-  resultsCountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
+  resultsHeaderMain: { minWidth: 0, flexShrink: 1, gap: 6 },
+  resultsCountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' },
   resultsCount: {
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.h2,
@@ -1008,7 +1284,14 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.lg,
     color: t.colors.text.muted,
   },
-  resultsMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 22 },
+  resultsDescription: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    color: '#6f756f',
+    maxWidth: 900,
+  },
+  resultsMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 18 },
   sortRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sortText: {
     fontFamily: t.typography.ui,
@@ -1021,6 +1304,131 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.label,
     letterSpacing: 0.6,
     color: t.colors.text.faint,
+  },
+
+  // sort control (trigger + menu)
+  sortWrap: { position: 'relative', zIndex: 40 },
+  sortTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink16,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minHeight: 44,
+  },
+  sortMenu: {
+    position: 'absolute',
+    top: 52,
+    right: 0,
+    minWidth: 250,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink12,
+    borderRadius: 12,
+    padding: 6,
+    zIndex: 1,
+    ...(t.shadows.panel as object),
+  },
+  sortItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    minHeight: 42,
+  },
+  sortItemHighlight: { backgroundColor: '#f2f3f5' },
+  sortItemText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.medium,
+    color: t.colors.text.primary,
+  },
+  sortItemTextSelected: { fontWeight: t.fontWeights.bold },
+  sortItemRoadmap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    minHeight: 42,
+  },
+  sortItemRoadmapText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.medium,
+    color: '#6f756f',
+  },
+  roadmapTag: {
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink20,
+    borderStyle: 'dashed',
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+  },
+  roadmapTagText: {
+    fontFamily: t.typography.mono,
+    fontSize: 10,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.8,
+    color: '#6f756f',
+  },
+
+  // active-filter chip row
+  chipRow: {
+    marginBottom: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingLeft: 14,
+    paddingRight: 8,
+    maxWidth: '100%',
+  },
+  chipLabel: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.semibold,
+    flexShrink: 1,
+  },
+  chipRemove: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(17,21,15,0.06)',
+  },
+  chipRemoveHover: { backgroundColor: 'rgba(17,21,15,0.14)' },
+  clearAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  clearAllText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.secondary,
   },
 
   // no results
