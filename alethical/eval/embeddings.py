@@ -23,11 +23,11 @@ from alethical.pipeline.rag_ingest import _openai_embeddings
 
 VOYAGE_EMBEDDINGS_URL = "https://api.voyageai.com/v1/embeddings"
 VOYAGE_TIMEOUT_SECONDS = 120
-# Voyage accepts up to 128 inputs per request, but the free tier's per-minute
-# token cap is the real limit — a 128-chunk batch (~27K tokens) can exceed it and
-# 429. 32 chunks (~7K tokens) stays under a typical free-tier TPM; raise on a paid
-# tier for throughput.
-VOYAGE_BATCH_SIZE = 32
+# Voyage's free tier is limited by REQUESTS/minute (~3 RPM), not tokens, at these
+# sizes — so pack each request full (max 128 inputs, well under the per-request
+# token cap) to minimize request count, and pace ~20s between requests to stay
+# under 3 RPM. Fewer big requests beats many small ones here.
+VOYAGE_BATCH_SIZE = 128
 VOYAGE_MAX_RETRIES = 6
 
 
