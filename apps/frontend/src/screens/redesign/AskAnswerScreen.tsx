@@ -11,19 +11,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Plus } from 'lucide-react-native';
-
 import { theme } from '../../theme/tokens';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { RootScreenProps } from '../../navigation/types';
 import { useAuth } from '../../providers/AuthProvider';
-import {
-  useAskAnswer,
-  useLegislators,
-  useToggleTrackedBill,
-  useTrackedBills,
-} from '../../hooks/useAppQueries';
+import { useAskAnswer, useLegislators } from '../../hooks/useAppQueries';
+import { RoadmapTrackButton } from '../../components/RoadmapTrackButton';
 import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
 const t = theme;
@@ -128,17 +122,7 @@ function FollowUpChips({
   );
 }
 
-function AnswerBillCard({
-  bill,
-  tracked,
-  onOpen,
-  onTrack,
-}: {
-  bill: AskAnswerBill;
-  tracked: boolean;
-  onOpen: () => void;
-  onTrack: () => void;
-}) {
+function AnswerBillCard({ bill, onOpen }: { bill: AskAnswerBill; onOpen: () => void }) {
   return (
     <View style={[styles.billCard, t.shadows.card as object]}>
       <View style={styles.billCardTop}>
@@ -150,18 +134,9 @@ function AnswerBillCard({
             {bill.status}
           </Text>
         </View>
-        {/* Signed out always shows "+ Track" (tapping starts sign-in); the
-            affirmed state never renders signed-out (docs/grounded-ask-spec.md
-            §9.2, Track-button states). */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={tracked ? `Tracking ${bill.identifier}` : `Track ${bill.identifier}`}
-          style={styles.trackButton}
-          onPress={onTrack}
-        >
-          <Plus size={13} color={t.colors.surfaces.base} strokeWidth={3} />
-          <Text style={styles.trackButtonText}>{tracked ? 'Tracking' : 'Track'}</Text>
-        </Pressable>
+        {/* Bill tracking is a not-yet-live roadmap feature — inert dashed preview
+            button, consistent site-wide (docs/grounded-ask-spec.md §9.2). */}
+        <RoadmapTrackButton />
       </View>
       <Text style={styles.billTitle}>{bill.title}</Text>
       {bill.summary ? <Text style={styles.billSummary}>{bill.summary}</Text> : null}
@@ -246,18 +221,12 @@ function AnswerLegislatorRow({
 
 export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const question = route.params?.q?.trim() ?? '';
-  const { isSignedIn, signInWithGoogle, user } = useAuth();
+  const { signInWithGoogle } = useAuth();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [retryValue, setRetryValue] = useState(question);
   const [copied, setCopied] = useState(false);
 
   const askQuery = useAskAnswer(question);
-  const trackedQuery = useTrackedBills(user?.id);
-  const toggleTrackedBill = useToggleTrackedBill(user?.id);
-  const trackedIds = useMemo(
-    () => new Set((trackedQuery.data ?? []).map((bill) => bill.id)),
-    [trackedQuery.data],
-  );
 
   // §4.6 — the placeholder's "name" entry point. A query that resolves to a
   // single legislator name is records navigation, so redirect to that profile
@@ -370,15 +339,6 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     }
   };
 
-  const handleTrack = (billId: string) => {
-    // Sign-in isn't available yet (no post-login experience shipped), so
-    // Track stays a visible no-op rather than starting Google sign-in.
-    if (!isSignedIn) {
-      return;
-    }
-    toggleTrackedBill.mutate(billId);
-  };
-
   const copyLink = async () => {
     try {
       if (isWeb && typeof window !== 'undefined' && navigator.clipboard) {
@@ -486,11 +446,9 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 <View style={styles.cardsColumn}>
                   <AnswerBillCard
                     bill={resolvedBill}
-                    tracked={isSignedIn && trackedIds.has(resolvedBill.id)}
                     // Bill detail is an old-design page — stays visible but
                     // doesn't route anywhere until its new design ships.
                     onOpen={() => {}}
-                    onTrack={() => handleTrack(resolvedBill.id)}
                   />
                   <Pressable
                     accessibilityRole="link"
@@ -513,13 +471,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   </Text>
                   <View style={styles.cardsColumn}>
                     {shownBills.map((bill) => (
-                      <AnswerBillCard
-                        key={bill.id}
-                        bill={bill}
-                        tracked={isSignedIn && trackedIds.has(bill.id)}
-                        onOpen={() => {}}
-                        onTrack={() => handleTrack(bill.id)}
-                      />
+                      <AnswerBillCard key={bill.id} bill={bill} onOpen={() => {}} />
                     ))}
                   </View>
                 </>
@@ -563,14 +515,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   ))}
                 </View>
               ) : null}
-              {answeringBill ? (
-                <AnswerBillCard
-                  bill={answeringBill}
-                  tracked={isSignedIn && trackedIds.has(answeringBill.id)}
-                  onOpen={() => {}}
-                  onTrack={() => handleTrack(answeringBill.id)}
-                />
-              ) : null}
+              {answeringBill ? <AnswerBillCard bill={answeringBill} onOpen={() => {}} /> : null}
               <FollowUpChips
                 chips={billTextChips(answeringBill?.policyAreas?.[0])}
                 onAsk={askFollowUp}
@@ -689,13 +634,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               </Text>
               <View style={styles.cardsColumn}>
                 {shownBills.map((bill) => (
-                  <AnswerBillCard
-                    key={bill.id}
-                    bill={bill}
-                    tracked={isSignedIn && trackedIds.has(bill.id)}
-                    onOpen={() => {}}
-                    onTrack={() => handleTrack(bill.id)}
-                  />
+                  <AnswerBillCard key={bill.id} bill={bill} onOpen={() => {}} />
                 ))}
               </View>
               {answer.totalMatches > shownBills.length ? (
@@ -1045,21 +984,6 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.ui,
     fontSize: 13,
     fontWeight: '600',
-  },
-  trackButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: t.colors.footerBg,
-    borderRadius: t.radii.md,
-    paddingHorizontal: t.spacing.sm,
-    paddingVertical: 6,
-  },
-  trackButtonText: {
-    fontFamily: t.typography.ui,
-    fontSize: 12,
-    fontWeight: '700',
-    color: t.colors.surfaces.base,
   },
   billTitle: {
     fontFamily: t.typography.body,

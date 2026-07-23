@@ -98,15 +98,16 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   Puts "how everyone voted" one click from search.
 
 **Actions**
-- **Track button — auth-gated**, mirroring the answer/bill rail cards (`docs/mvp-redesign-plan.md`
-  "Track stays auth-gated"; states owned by grounded-ask §9.2). Not a plain toggle:
-  - Signed out: shows only "+ Track". Clicking triggers **intent-preserving sign-in**
-    ("Sign in to track HF 2904"); after auth the user returns to this search with that
-    bill's button affirmed. The affirmed state **never renders signed-out**.
-  - Signed in: toggles "+ Track" ↔ "✓ Tracking".
-  - Return-from-sign-in should land back on this search (its filter/scroll state
-    preserved — `frontend-screen-system-design.md` line ~107; full URL restore is #135),
-    not a generic dashboard.
+- **Track button — roadmap preview (inert), decided Jul 2026.** Bill tracking is a
+  not-yet-live roadmap feature, so the Track button renders as a de-emphasized **dashed**
+  preview control — white fill, dashed `rgba(17,21,15,0.3)` border, muted `#4f5651` label
+  with a leading "+", hovering to `#11150f` — via the shared `RoadmapTrackButton`
+  component, used identically on the answer/bill rail cards and home. It is
+  `aria-disabled`, does **nothing** on click (no sign-in, no toggle, no page change), and
+  has **no** affirmed "✓ Tracking" state. No "coming soon" label — the dashed treatment +
+  the nav's roadmap entry carry that. The live auth-gated flow (intent-preserving sign-in
+  → return-to-search with the button affirmed) is **deferred until tracking ships**;
+  states owned by grounded-ask §9.2 (Answer page — Track button note).
 - **Card link → bill Overview** (`/bills/:billId`), the detail screen (not yet redesigned;
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a

@@ -914,7 +914,6 @@ function HomeSignedOutDesktop() {
                           // pages — cards stay visible but don't route
                           // anywhere until their new designs ship.
                           onPress={() => {}}
-                          onToggleTrack={() => {}}
                           onSponsorPress={() => {}}
                           onRollCalls={() => {}}
                         />
@@ -931,7 +930,6 @@ function HomeSignedOutDesktop() {
                           key={bill.id}
                           bill={bill}
                           onPress={() => {}}
-                          onToggleTrack={() => {}}
                           onSponsorPress={() => {}}
                           onRollCalls={() => {}}
                         />
