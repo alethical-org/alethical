@@ -4,6 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { Bill, BillSponsor } from '../../data/types';
 import { usePrefetchBill } from '../../hooks/useAppQueries';
+import { RoadmapTrackButton } from '../RoadmapTrackButton';
 import { useHover } from '../billDetail/interactions';
 import {
   authorNameOnly,
@@ -38,9 +39,7 @@ type BillCardData = Pick<
 
 interface BillResultCardProps {
   bill: BillCardData;
-  tracked?: boolean;
   onPress?: () => void;
-  onToggleTrack?: () => void;
   onSponsorPress?: (legislatorId: string) => void;
   onRollCalls?: () => void;
 }
@@ -131,9 +130,7 @@ function ChiefAuthorLink({
 
 export function BillResultCard({
   bill,
-  tracked = false,
   onPress,
-  onToggleTrack,
   onSponsorPress,
   onRollCalls,
 }: BillResultCardProps) {
@@ -195,19 +192,7 @@ export function BillResultCard({
         <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
         <ProgressBar index={index} tone={tone} />
         <View style={styles.topSpacer} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={tracked ? 'Tracking bill' : 'Track bill'}
-          onPress={(e: GestureResponderEvent) => {
-            e.stopPropagation();
-            onToggleTrack?.();
-          }}
-          style={[styles.trackBtn, tracked ? styles.trackBtnOn : styles.trackBtnOff]}
-        >
-          <Text style={tracked ? styles.trackTextOn : styles.trackTextOff}>
-            {tracked ? '✓ Tracking' : '+ Track'}
-          </Text>
-        </Pressable>
+        <RoadmapTrackButton />
       </View>
 
       <Text
@@ -334,21 +319,6 @@ const styles = StyleSheet.create({
   },
   progress: { flexDirection: 'row', gap: 4 },
   progressStep: { width: 30, height: 7, borderRadius: 4 },
-  trackBtn: { borderRadius: t.radii.sm, paddingVertical: 9, paddingHorizontal: 15 },
-  trackBtnOff: { backgroundColor: t.colors.ink },
-  trackBtnOn: { backgroundColor: t.colors.brand.base },
-  trackTextOff: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.white,
-  },
-  trackTextOn: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.onGreen,
-  },
   title: {
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.h2,

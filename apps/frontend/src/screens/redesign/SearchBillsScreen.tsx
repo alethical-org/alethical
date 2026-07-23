@@ -6,7 +6,6 @@ import { theme as t } from '../../theme/tokens';
 import { BillListFilters } from '../../data/api';
 import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
-import { trackSignInReturnTo } from '../../navigation/webRoutes';
 import { useAuth } from '../../providers/AuthProvider';
 import {
   useBills,
@@ -14,13 +13,9 @@ import {
   usePolicyAreas,
   usePrefetchBills,
   useSessions,
-  useToggleTrackedBill,
-  useTrackedBills,
 } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { BillResultCard } from '../../components/search/BillResultCard';
-import { ReturnToast } from '../../components/search/ReturnToast';
-import { SignInModal } from '../../components/search/SignInModal';
 import {
   ChamberFilter,
   ChamberSegmented,
@@ -75,7 +70,7 @@ const STATUS_OPTIONS = [
 export function SearchBillsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { isSignedIn, user, signInWithGoogle } = useAuth();
+  const { signInWithGoogle } = useAuth();
 
   // URL-addressable filter state (issue #135): the filters live in the /bills
   // query string so a filtered view is shareable, bookmarkable, reload-safe, and
@@ -95,8 +90,6 @@ export function SearchBillsScreen() {
   const [openFilter, setOpenFilter] = useState<'status' | 'session' | null>(null);
   const [queryInput, setQueryInput] = useState(query);
   const [showAllIssues, setShowAllIssues] = useState(false);
-  const [signInBill, setSignInBill] = useState<{ id: string; code: string } | null>(null);
-  const [toast, setToast] = useState<{ code: string } | null>(null);
 
   // Keep the search-box draft in sync when the URL query changes externally
   // (e.g. Back/Forward, a shared link, or Clear filters).
@@ -149,10 +142,7 @@ export function SearchBillsScreen() {
     );
   const metaQuery = useMeta();
   const policyAreasQuery = usePolicyAreas(sessionSlug || undefined);
-  const trackedQuery = useTrackedBills(user?.id);
-  const toggleTrack = useToggleTrackedBill(user?.id);
 
-  const trackedSet = new Set((trackedQuery.data ?? []).map((bill) => bill.id));
   const bills = billsQuery.data?.data ?? [];
   const total = billsQuery.data?.page.total ?? null;
   const hasMore = billsQuery.data?.page.hasMore ?? false;
@@ -209,23 +199,6 @@ export function SearchBillsScreen() {
   if (policyArea !== ALL_ISSUES) activeFilters.push(titleCaseIssue(policyArea));
   if (omnibusOnly) activeFilters.push('Omnibus only');
   if (query) activeFilters.push(`“${query}”`);
-
-  const handleToggleTrack = (bill: { id: string; identifier: string }) => {
-    // Sign-in isn't available yet (no post-login experience shipped), so
-    // Track stays a visible no-op rather than opening the sign-in modal.
-    if (!isSignedIn) {
-      return;
-    }
-    const wasTracked = trackedSet.has(bill.id);
-    toggleTrack.mutate(bill.id);
-    if (!wasTracked) setToast({ code: bill.identifier });
-  };
-
-  const handleContinueSignIn = () => {
-    if (!signInBill) return;
-    void signInWithGoogle(trackSignInReturnTo(signInBill.id));
-    setSignInBill(null);
-  };
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
@@ -320,21 +293,6 @@ export function SearchBillsScreen() {
       onAsk={() => navigation.navigate('Ask')}
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}
-      overlay={
-        <>
-          <SignInModal
-            visible={signInBill !== null}
-            billCode={signInBill?.code ?? ''}
-            onClose={() => setSignInBill(null)}
-            onContinue={handleContinueSignIn}
-          />
-          <ReturnToast
-            visible={toast !== null}
-            billCode={toast?.code ?? ''}
-            onDismiss={() => setToast(null)}
-          />
-        </>
-      }
       hero={
         <SearchHero
           title="Search bills"
@@ -375,13 +333,11 @@ export function SearchBillsScreen() {
               <BillResultCard
                 key={bill.id}
                 bill={bill}
-                tracked={trackedSet.has(bill.id)}
                 // Bill detail now ships as the redesigned mobile screen, so the
                 // card routes there (and roll-calls deep-link to its Votes
                 // section). Legislator profile is still old-design — sponsor
                 // taps stay a no-op until that screen's redesign ships.
                 onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                onToggleTrack={() => handleToggleTrack(bill)}
                 onSponsorPress={() => {}}
                 onRollCalls={() =>
                   navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
