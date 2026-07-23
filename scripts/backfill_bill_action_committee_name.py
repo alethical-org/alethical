@@ -23,17 +23,18 @@ The XML source_url comes from the bill's own actions' source_artifact (the exact
 URL the ingest fetched); a bill whose actions have no recorded XML artifact is
 skipped and reported (we never guess a URL).
 
-Usage:
+Usage (run from the repo root; PYTHONPATH=. so `alethical` imports when the
+script is invoked as a file):
     # dry run (default) — reports how many rows would change, writes nothing
-    ALETHICAL_DATABASE_TARGET=production uv run \
+    ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run \
         python scripts/backfill_bill_action_committee_name.py
 
     # scoped live check — one bill first, then read it back before the full run
-    ALETHICAL_DATABASE_TARGET=production uv run \
+    ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run \
         python scripts/backfill_bill_action_committee_name.py --apply --bill-key 94-2025-HF10
 
     # full apply
-    ALETHICAL_DATABASE_TARGET=production uv run \
+    ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run \
         python scripts/backfill_bill_action_committee_name.py --apply
 """
 

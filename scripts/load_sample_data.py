@@ -585,6 +585,7 @@ def ingest_bill_payload(
                     action_group=action.get("action_group"),
                     action_text=action["action_text"],
                     action_description=action.get("action_description"),
+                    committee_name=action.get("committee_name") or None,
                     action_at=parse_fixture_datetime(action.get("action_date")),
                     journal_page=action.get("journal_page"),
                     roll_call_text=action.get("roll_call"),

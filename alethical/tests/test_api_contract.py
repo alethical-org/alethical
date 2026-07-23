@@ -421,6 +421,26 @@ def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     assert "action_at" in action_payload[0]
 
 
+def test_bill_action_endpoints_expose_committee_name(client):
+    """#599: both action payloads (detail ?include=actions and /actions) carry
+    committee_name so the Search card and Actions timeline can name the committee.
+    SF1832's fixture has a "Ways and Means" referral; every action exposes the
+    field (null where the source named no committee — never inferred)."""
+
+    def named(actions):
+        return {a["committee_name"] for a in actions if a.get("committee_name")}
+
+    detail = client.get(
+        "/api/v1/bills/94-2025-SF1832", params={"include": "actions"}
+    ).json()["data"]["actions"]
+    assert all("committee_name" in a for a in detail)
+    assert "Ways and Means" in named(detail)
+
+    endpoint = client.get("/api/v1/bills/94-2025-SF1832/actions").json()["data"]
+    assert all("committee_name" in a for a in endpoint)
+    assert "Ways and Means" in named(endpoint)
+
+
 def test_bill_detail_serves_verified_effective_date_only_when_unambiguous(client):
     """#483: an enacted bill whose current version's sections all state one explicit
     effective date exposes it as ``effective_date`` (verbatim from the text); a bill
