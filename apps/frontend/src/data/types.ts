@@ -148,8 +148,8 @@ export interface Bill {
   effectiveDate?: string;
   isOmnibus?: boolean;
   /** The House/Senate companion bill, when the pair is linked. `id` is the
-   *  companion's bill key, so a "Companion → {chamber} ({identifier})" row can
-   *  link to /bills/{id}. Undefined when unlinked or not served (#293). */
+   *  companion's bill key, so a "Companion" label + "{chamber} ({identifier})"
+   *  value row can link to /bills/{id}. Undefined when unlinked or not served (#293). */
   companion?: BillCompanion | null;
   updatedAt: string;
   sessionLabel: string;
