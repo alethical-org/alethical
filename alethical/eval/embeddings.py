@@ -28,7 +28,7 @@ VOYAGE_TIMEOUT_SECONDS = 120
 # token cap) to minimize request count, and pace ~20s between requests to stay
 # under 3 RPM. Fewer big requests beats many small ones here.
 VOYAGE_BATCH_SIZE = 128
-VOYAGE_MAX_RETRIES = 6
+VOYAGE_MAX_RETRIES = 12
 
 
 @dataclass(frozen=True)
