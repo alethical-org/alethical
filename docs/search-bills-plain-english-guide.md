@@ -37,7 +37,7 @@ stack: every filter you add trims the list down more.
   end state.
 - **Session** — which legislative session (e.g. the 2025–2026 session).
 - **Omnibus only** — show just the big, bundled "omnibus" bills.
-- **Issues / topic areas** — pick from tagged subjects like Health, Education,
+- **Issues** — pick from tagged issues like Health, Education,
   Taxes. Each shows a live count of how many bills fall under it. You can **pick
   several at once**, and you'll see bills in *any* of them — choose Health and
   Education and you get bills about either one.
