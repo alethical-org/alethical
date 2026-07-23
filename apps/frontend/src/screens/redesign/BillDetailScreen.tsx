@@ -2119,7 +2119,10 @@ const styles = StyleSheet.create({
       ? ({ transitionProperty: 'color', transitionDuration: '0.15s' } as object)
       : null),
   },
-  linkArrow: { fontWeight: t.fontWeights.regular },
+  // The "→" (U+2192) comes from an OS fallback font (Libre Franklin omits the
+  // glyph), whose baseline sits low against the link letters — nudge it up so it
+  // optically centers on the text to its left.
+  linkArrow: { fontWeight: t.fontWeights.regular, position: 'relative', top: -2 },
 
   // ask card
   askCard: {
