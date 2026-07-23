@@ -1079,7 +1079,10 @@ const styles = StyleSheet.create({
   helperText: {
     fontFamily: t.typography.body,
     fontSize: 14,
-    color: '#6f756f',
+    // #6f756f (the site's AA-safe muted grey on WHITE, 4.7:1) dips to 4.3:1 on
+    // the hero's faintly-tinted gradient — below AA. #686e68 is a hair darker
+    // and clears AA on the darkest gradient stop (4.8:1) while reading identically.
+    color: '#686e68',
   },
   helperStrong: { color: '#4f5651', fontWeight: t.fontWeights.bold },
 
