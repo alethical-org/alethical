@@ -18,13 +18,6 @@ import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
 
-// GHOSTED amber for the OMNIBUS tag — deliberately less prominent than the SOLID
-// amber code badge (same hue, transparent fill) so identity (the bill code) reads
-// stronger than the secondary omnibus marker. Matches the ghosted-amber omnibus
-// tags on the bill detail screens (GHOST_AMBER_BORDER #e3c17f).
-const GHOST_AMBER_BORDER = '#e3c17f';
-const GHOST_AMBER_TEXT = '#a76a1a';
-
 // Bill card for the redesigned Search Bills screen (docs/mockups/search-bills).
 // The whole card links to the bill detail; Track / author / roll-calls sit above
 // it (stopPropagation) so they stay independently clickable.
@@ -92,7 +85,7 @@ function OmnibusPill() {
       <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
         <Path
           d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z"
-          stroke={GHOST_AMBER_TEXT}
+          stroke={t.colors.omnibus.text}
           strokeWidth={1.9}
           strokeLinejoin="round"
         />
@@ -307,7 +300,7 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: GHOST_AMBER_BORDER,
+    borderColor: t.colors.omnibus.ghostBorder,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -317,7 +310,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.88,
-    color: GHOST_AMBER_TEXT,
+    color: t.colors.omnibus.text,
   },
   statusLabel: {
     fontFamily: t.typography.ui,
