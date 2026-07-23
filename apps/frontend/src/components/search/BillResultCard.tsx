@@ -4,6 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { Bill, BillSponsor } from '../../data/types';
 import { usePrefetchBill } from '../../hooks/useAppQueries';
+import { useResponsive } from '../../hooks/useResponsive';
 import { RoadmapTrackButton } from '../RoadmapTrackButton';
 import { useHover } from '../billDetail/interactions';
 import {
@@ -140,6 +141,7 @@ export function BillResultCard({
   showTrackButton = true,
 }: BillResultCardProps) {
   const [hovered, setHovered] = useState(false);
+  const { isMobile } = useResponsive();
   const prefetchBill = usePrefetchBill();
   // Warm the bill-detail cache the instant the card shows navigation intent so
   // the detail page opens without its "Loading bill…" spinner.
@@ -191,16 +193,36 @@ export function BillResultCard({
       onHoverOut={() => setHovered(false)}
       style={[styles.card, hovered && styles.cardHover]}
     >
-      <View style={styles.topRow}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{bill.identifier}</Text>
+      {isMobile ? (
+        // Mobile: a stable two-row header on EVERY card — row 1 identity (code
+        // badge + optional OMNIBUS tag), row 2 the status/progress unit — so the
+        // progress bar sits in the same place whether or not an omnibus tag is
+        // present, instead of reflowing card-to-card. Track is already hidden on
+        // the mobile-web card (showTrackButton=false, #596).
+        <View style={styles.headerMobile}>
+          <View style={styles.headerRow}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{bill.identifier}</Text>
+            </View>
+            {bill.isOmnibus ? <OmnibusPill /> : null}
+          </View>
+          <View style={styles.headerRow}>
+            <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
+            <ProgressBar index={index} tone={tone} />
+          </View>
         </View>
-        {bill.isOmnibus ? <OmnibusPill /> : null}
-        <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
-        <ProgressBar index={index} tone={tone} />
-        <View style={styles.topSpacer} />
-        {showTrackButton ? <RoadmapTrackButton /> : null}
-      </View>
+      ) : (
+        <View style={styles.topRow}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{bill.identifier}</Text>
+          </View>
+          {bill.isOmnibus ? <OmnibusPill /> : null}
+          <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
+          <ProgressBar index={index} tone={tone} />
+          <View style={styles.topSpacer} />
+          {showTrackButton ? <RoadmapTrackButton /> : null}
+        </View>
+      )}
 
       <Text
         ref={titleRef}
@@ -291,6 +313,10 @@ const styles = StyleSheet.create({
   },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 14, flexWrap: 'wrap' },
   topSpacer: { flex: 1 },
+  // Mobile header: two stacked rows (identity, then status/progress) with a
+  // steady ~11px vertical gap between them.
+  headerMobile: { gap: 11 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   badge: {
     backgroundColor: t.colors.omnibus.fill,
     borderWidth: 1,
