@@ -455,7 +455,11 @@ def _bill_text_answer(
     )
     model = effective_embedding_model(DEFAULT_RAG_MODEL)
     embedding = build_query_embedding(content)
-    db.execute(text("SET LOCAL ivfflat.probes = 10"))
+    # HNSW ANN search tuning (#584). ef_search is the search-beam width; it must
+    # exceed the retrieval LIMIT (25 here) for good recall — 100 gives headroom at
+    # negligible latency. (Was ivfflat.probes=10; the ivfflat index was replaced by
+    # HNSW, which recovered recall and cut ~9s search latency.)
+    db.execute(text("SET LOCAL hnsw.ef_search = 100"))
 
     resolved = (
         _resolve_bill(db, session_row.id, content)

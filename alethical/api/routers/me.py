@@ -558,7 +558,10 @@ def create_chat_message(
         raise HTTPException(status_code=404, detail="bill not found")
 
     embedding = build_query_embedding(request.content)
-    db.execute(text("SET LOCAL ivfflat.probes = 10"))
+    # HNSW ANN search tuning (#584); replaces the ivfflat.probes setting after the
+    # ivfflat index was swapped for HNSW. ef_search=100 exceeds the retrieval LIMIT
+    # for good recall at negligible latency.
+    db.execute(text("SET LOCAL hnsw.ef_search = 100"))
     # Filter retrieval to chunks embedded with the same model the query vector
     # was just built with (real model when keyed, hash fallback when not — #221),
     # so cosine distance is meaningful. Chunks stored under any other model are
