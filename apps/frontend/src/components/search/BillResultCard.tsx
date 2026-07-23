@@ -18,6 +18,13 @@ import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
 
+// GHOSTED amber for the OMNIBUS tag — deliberately less prominent than the SOLID
+// amber code badge (same hue, transparent fill) so identity (the bill code) reads
+// stronger than the secondary omnibus marker. Matches the ghosted-amber omnibus
+// tags on the bill detail screens (GHOST_AMBER_BORDER #e3c17f).
+const GHOST_AMBER_BORDER = '#e3c17f';
+const GHOST_AMBER_TEXT = '#a76a1a';
+
 // Bill card for the redesigned Search Bills screen (docs/mockups/search-bills).
 // The whole card links to the bill detail; Track / author / roll-calls sit above
 // it (stopPropagation) so they stay independently clickable.
@@ -76,15 +83,16 @@ function ProgressBar({ index, tone }: { index: number; tone: Tone }) {
   );
 }
 
-// Prominent OMNIBUS indicator: amber pill with a small capitol/gavel glyph, shown
-// in the card's top row (after the code badge) only for omnibus bills.
+// Ghosted OMNIBUS indicator: transparent amber pill with a small capitol/gavel
+// glyph, shown in the card's top row (after the code badge) only for omnibus
+// bills — deliberately less prominent than the solid amber code badge.
 function OmnibusPill() {
   return (
     <View style={styles.omnibus} accessibilityRole="text" accessibilityLabel="Omnibus bill">
       <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
         <Path
           d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z"
-          stroke={t.colors.omnibus.text}
+          stroke={GHOST_AMBER_TEXT}
           strokeWidth={1.9}
           strokeLinejoin="round"
         />
@@ -297,9 +305,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: t.colors.omnibus.fill,
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: t.colors.omnibus.border,
+    borderColor: GHOST_AMBER_BORDER,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -309,7 +317,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.88,
-    color: t.colors.omnibus.text,
+    color: GHOST_AMBER_TEXT,
   },
   statusLabel: {
     fontFamily: t.typography.ui,
