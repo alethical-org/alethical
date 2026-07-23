@@ -1291,7 +1291,17 @@ const styles = StyleSheet.create({
     color: '#6f756f',
     maxWidth: 900,
   },
-  resultsMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 18 },
+  // flexShrink + maxWidth keep the meta row inside the viewport on mobile so the
+  // "AS OF …" stamp and the sort control wrap onto separate lines instead of the
+  // control overflowing (and being clipped) off the right edge.
+  resultsMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 18,
+    flexShrink: 1,
+    maxWidth: '100%',
+  },
   sortRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sortText: {
     fontFamily: t.typography.ui,
