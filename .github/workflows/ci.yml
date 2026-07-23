@@ -92,11 +92,14 @@ jobs:
             exit 1
           fi
 
+      # Pin ruff: uvx resolves the latest release, so a new ruff (0.16.0 expanded
+      # the default rule set) turned green CI red repo-wide with no code change.
+      # Pin to a known-good version; bump deliberately when adopting new rules.
       - name: Lint backend
-        run: uvx ruff check alethical scripts
+        run: uvx ruff@0.15.0 check alethical scripts
 
       - name: Format check backend
-        run: uvx ruff format --check alethical scripts
+        run: uvx ruff@0.15.0 format --check alethical scripts
 
       - name: Type check backend
         run: uvx ty check alethical/db
