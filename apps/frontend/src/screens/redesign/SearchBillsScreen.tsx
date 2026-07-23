@@ -15,6 +15,7 @@ import {
   useSessions,
 } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
+import { useResponsive } from '../../hooks/useResponsive';
 import { BillResultCard } from '../../components/search/BillResultCard';
 import {
   ChamberFilter,
@@ -71,6 +72,7 @@ export function SearchBillsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { signInWithGoogle } = useAuth();
+  const { isDesktop } = useResponsive();
 
   // URL-addressable filter state (issue #135): the filters live in the /bills
   // query string so a filtered view is shareable, bookmarkable, reload-safe, and
@@ -333,6 +335,9 @@ export function SearchBillsScreen() {
               <BillResultCard
                 key={bill.id}
                 bill={bill}
+                // Track button is roadmap-only for now; hide it on the mobile-web
+                // layout to keep the card's top row uncluttered (desktop keeps it).
+                showTrackButton={isDesktop}
                 // Bill detail now ships as the redesigned mobile screen, so the
                 // card routes there (and roll-calls deep-link to its Votes
                 // section).
