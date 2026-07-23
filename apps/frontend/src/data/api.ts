@@ -97,6 +97,7 @@ interface ApiBillListItemPayload {
   latest_action_at?: string | null;
   official_url?: string | null;
   is_omnibus?: boolean;
+  effective_date?: string | null;
   chief_sponsors: ApiSponsorPayload[];
   co_author_count?: number;
   companion?: ApiCompanionPayload | null;
@@ -1026,6 +1027,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
     status: statusLabel(payload.status_key, payload.current_status),
     latestActionText: payload.current_status ?? undefined,
     isOmnibus: payload.is_omnibus ?? false,
+    effectiveDate: payload.effective_date ?? undefined,
     updatedAt: formatUpdatedAt(payload.latest_action_at),
     sessionLabel: 'Current session',
     topics: [],

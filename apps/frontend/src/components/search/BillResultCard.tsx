@@ -11,7 +11,7 @@ import {
   authorTitleLabel,
   chiefAuthor,
   formatNiceDate,
-  latestActionLabel,
+  latestActionEntry,
 } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
 import { theme as t } from '../../theme/tokens';
@@ -29,7 +29,7 @@ type BillCardData = Pick<
   | 'title'
   | 'status'
   | 'isOmnibus'
-  | 'updatedAt'
+  | 'effectiveDate'
   | 'actions'
   | 'chamber'
   | 'sponsors'
@@ -166,16 +166,18 @@ export function BillResultCard({
   // and the count live on the bill profile, not this card.
   const chief = chiefAuthor(bill);
   // Curated plain-language latest action (matching the bill's Actions tab) in
-  // place of the raw status string, and a humanized date ("May 17, 2026"). `now`
-  // is stable per mount so the memo is too.
+  // place of the raw status string, paired with the humanized date of that SAME
+  // action ("May 27, 2026") — not the bill's generic timestamp. `now` is stable
+  // per mount so the memo is too.
   const now = useMemo(() => new Date(), []);
-  const actionLabel = useMemo(
-    () => latestActionLabel(bill.actions ?? [], now),
-    [bill.actions, now],
-  );
-  const actionDate = formatNiceDate(
-    bill.updatedAt && bill.updatedAt !== 'Unknown' ? bill.updatedAt : null,
-  );
+  const action = useMemo(() => latestActionEntry(bill.actions ?? [], now), [bill.actions, now]);
+  const actionLabel = action?.label ?? null;
+  const actionDate = action?.date ?? null;
+  // Signed laws carry a forward-looking Effective line: the verified statutory date
+  // ("Aug 1, 2026", humanized to match) or "various dates" for an omnibus. The
+  // backend sets effectiveDate only for enacted bills with a groundable value, so
+  // its mere presence gates the line (grounded-answers rule 9).
+  const effectiveDate = bill.effectiveDate ? formatNiceDate(bill.effectiveDate) : null;
 
   return (
     <Pressable
@@ -235,6 +237,12 @@ export function BillResultCard({
             {actionDate ? (
               <Text style={[styles.metaText, styles.metaLabel, styles.dateGap]}>{actionDate}</Text>
             ) : null}
+          </View>
+        ) : null}
+        {effectiveDate ? (
+          <View style={styles.metaRow}>
+            <Text style={[styles.metaText, styles.metaLabel]}>Effective: </Text>
+            <Text style={[styles.metaText, styles.actionValue]}>{effectiveDate}</Text>
           </View>
         ) : null}
         <View style={styles.tagRow}>

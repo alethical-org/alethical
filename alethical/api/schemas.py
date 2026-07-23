@@ -89,6 +89,12 @@ class BillListItem(BaseModel):
     latest_action_at: datetime | None = None
     official_url: str | None = None
     is_omnibus: bool = False
+    # The enacted bill's verified statutory effective date (Tier A/B — same source
+    # as the bill-detail page) or "various dates" for an omnibus whose provisions
+    # don't resolve to one shared date. Set only for signed laws with a groundable
+    # value; absent otherwise, so the result card shows no Effective line rather
+    # than a guessed date (grounded-answers rule 9). See public.bill_effective_dates.
+    effective_date: str | None = None
     chief_sponsors: list[SponsorSummary]
     co_author_count: int = 0
     companion: CompanionBillPayload | None = None
