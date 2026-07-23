@@ -335,10 +335,11 @@ export function SearchBillsScreen() {
                 bill={bill}
                 // Bill detail now ships as the redesigned mobile screen, so the
                 // card routes there (and roll-calls deep-link to its Votes
-                // section). Legislator profile is still old-design — sponsor
-                // taps stay a no-op until that screen's redesign ships.
+                // section).
                 onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                onSponsorPress={() => {}}
+                onSponsorPress={(legislatorId) =>
+                  navigation.navigate('LegislatorProfile', { legislatorId })
+                }
                 onRollCalls={() =>
                   navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
                 }
