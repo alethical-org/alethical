@@ -65,6 +65,11 @@ const MAX_ISSUE_CHIPS = 30;
 // filtered view stays shareable/bookmarkable — grounded-answers rule 5).
 const ISSUE_SEPARATOR = ',';
 
+// Prior bienniums shown in the session dropdown as greyed-out, unclickable rows
+// (their bills aren't ingested yet). Newest first; only the loaded current
+// session is selectable.
+const PRIOR_SESSION_LABELS = ['2023–2024 Legislative Session', '2021–2022 Legislative Session'];
+
 // Ordered most-progressed first (matching the sort=progress ordering), with the
 // off-path Vetoed state last. Every value maps to a status the /bills filter can
 // actually serve (alethical/api/routers/public.py status_filter_clause). Passage
@@ -179,6 +184,24 @@ export function SearchBillsScreen() {
   const sessionSlug = session || currentSession?.slug || '';
   const sessionName = sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name;
   const sessionLabel = sessionName ? formatSessionLabel(sessionName) : SESSION_LABEL_FALLBACK;
+
+  // Session dropdown options. Only the loaded (current-biennium) session is
+  // selectable; the two prior bienniums are shown as greyed-out, unclickable rows
+  // because their bills aren't ingested yet (no roadmap tag — just an inert
+  // placeholder). Guarded so a prior isn't duplicated if it ever loads for real.
+  const loadedSessionOptions = (sessionsQuery.data ?? []).map((item) => ({
+    label: formatSessionLabel(item.name),
+    value: item.slug,
+  }));
+  const loadedSessionLabels = new Set(loadedSessionOptions.map((option) => option.label));
+  const sessionOptions = [
+    ...loadedSessionOptions,
+    ...PRIOR_SESSION_LABELS.filter((label) => !loadedSessionLabels.has(label)).map((label) => ({
+      label,
+      value: `__prior:${label}`,
+      disabled: true,
+    })),
+  ];
 
   const filters: BillListFilters = {
     chamber: chamber === 'All' ? undefined : chamber,
@@ -394,12 +417,11 @@ export function SearchBillsScreen() {
           onSelect={(value) => updateFilters({ status: value || undefined })}
         />
         <FilterDropdown
-          label={sessionLabel}
+          // Facet chip shows just the years ("2025–2026"); the full "{years}
+          // Legislative Session" wording appears only inside the dropdown options.
+          label={sessionLabel.replace(' Legislative Session', '')}
           accessibilityLabel="Filter by session"
-          options={(sessionsQuery.data ?? []).map((item) => ({
-            label: formatSessionLabel(item.name),
-            value: item.slug,
-          }))}
+          options={sessionOptions}
           selectedValue={sessionSlug}
           active={!sessionIsDefault}
           open={openFilter === 'session'}
