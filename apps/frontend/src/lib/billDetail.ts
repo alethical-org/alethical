@@ -1086,8 +1086,11 @@ export function plainBillSummary(
 // does — extends rule 9 beyond the summary). A point that is ONLY a citation has no
 // plain-language effect left once the citation is stripped, so it collapses to
 // empty and is dropped — we never fabricate the effect the source didn't state.
-// The durable fix is at ingestion (the enrichment prompt); this is the interim
-// display cleaner, mirroring plainBillSummary's role for summaries.
+// The durable fix at ingestion landed in July 2026 (#520 — the full corpus was
+// re-enriched to plain language at source); this cleaner is retained as
+// defense-in-depth, mirroring plainBillSummary's role for summaries: it no-ops on
+// the now-clean text and still catches the ~0.9% residual statutory-reference points
+// and any future bill shown before its enrichment runs.
 export function plainKeyPoints(points: string[] | undefined): string[] {
   return (points ?? [])
     .map((point) => plainBillSummary(point))
