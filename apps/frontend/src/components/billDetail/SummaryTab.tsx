@@ -4,7 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
-import { plainKeyPoints } from '../../lib/billDetail';
+import { askCardPrompts, plainKeyPoints, scopedChipQuery } from '../../lib/billDetail';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { FactsRail } from './FactsRail';
 import { SourceLine } from './SourceLine';
@@ -42,7 +42,7 @@ export function SummaryTab({
   const keyPoints = plainKeyPoints(bill.aiAnalysis?.keyPoints);
   const summary = bill.aiAnalysis?.summary ?? '';
   const citations = bill.citations ?? [];
-  const askPrompts = (bill.questionPrompts ?? []).filter((p) => p.trim().length > 0);
+  const { placeholder: askPlaceholder, chips: askChipList } = askCardPrompts(bill.questionPrompts);
 
   return (
     <View>
@@ -112,11 +112,8 @@ export function SummaryTab({
           {showAsk ? (
             <AskModule
               identifier={bill.identifier}
-              // First generated prompt seeds the placeholder (bill-specific);
-              // the next three become chips. Generic fallback when the bill has
-              // no generated prompts yet (pre-re-enrichment).
-              placeholder={askPrompts.length ? askPrompts[0] : undefined}
-              chips={askPrompts.length > 1 ? askPrompts.slice(1, 4) : DEFAULT_ASK_CHIPS}
+              placeholder={askPlaceholder}
+              chips={askChipList}
               onAsk={onAsk}
             />
           ) : null}
@@ -144,14 +141,6 @@ export function SummaryTab({
   );
 }
 
-// Safe, bill-scoped suggestions that route to Ask and can't lead to a refusal
-// (grounded-answers rule 2) — used when the bill has no served question prompts.
-const DEFAULT_ASK_CHIPS = [
-  'What does this bill do?',
-  'When does it take effect?',
-  'Who does it affect?',
-];
-
 function AskModule({
   identifier,
   placeholder,
@@ -169,10 +158,7 @@ function AskModule({
 
   const submit = () => onAsk(value.trim());
 
-  // System-suggested chips scope the query to this bill so the /ask bill_text
-  // path resolves it via the HF/SF regex — a chip can never dead-end in a
-  // refusal (grounded-answers rule 2). The user's own typed text is left as-is.
-  const askChip = (chip: string) => onAsk(`${identifier}: ${chip}`);
+  const askChip = (chip: string) => onAsk(scopedChipQuery(identifier, chip));
 
   return (
     <View style={styles.askCard}>

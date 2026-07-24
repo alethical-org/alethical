@@ -27,6 +27,7 @@ import { Bill, BillAction, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../components/search/searchPieces';
 import {
   authorNameOnly,
+  askCardPrompts,
   authorTitleLabel,
   buildPartyBlocks,
   chamberBillLabel,
@@ -45,6 +46,7 @@ import {
   partyFull,
   PartyBlock,
   readLabel,
+  scopedChipQuery,
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
@@ -804,7 +806,11 @@ function BillDetailMobileScreen() {
               </View>
 
               {/* Ask about this bill */}
-              <AskCard placeholder={`Ask a question about ${bill.identifier}`} onAsk={goAsk} />
+              <AskCard
+                identifier={bill.identifier}
+                questionPrompts={bill.questionPrompts}
+                onAsk={goAsk}
+              />
             </Section>
 
             {/* 4 — Actions */}
@@ -1647,9 +1653,20 @@ function VersionRow({
   );
 }
 
-function AskCard({ placeholder, onAsk }: { placeholder: string; onAsk: (q?: string) => void }) {
+function AskCard({
+  identifier,
+  questionPrompts,
+  onAsk,
+}: {
+  identifier: string;
+  questionPrompts: string[] | undefined;
+  onAsk: (q?: string) => void;
+}) {
   const { focused, focusProps } = useFieldFocus();
   const [q, setQ] = useState('');
+  // Bill-specific placeholder + chips from the served question_prompts, shared
+  // with the web SummaryTab so the chip set is identical on both surfaces (#627).
+  const { placeholder, chips } = askCardPrompts(questionPrompts);
   return (
     <View style={styles.askCard}>
       <Text accessibilityRole="header" style={styles.askTitle}>
@@ -1664,7 +1681,7 @@ function AskCard({ placeholder, onAsk }: { placeholder: string; onAsk: (q?: stri
           onBlur={focusProps.onBlur}
           onSubmitEditing={() => onAsk(q.trim() || undefined)}
           returnKeyType="search"
-          placeholder={placeholder}
+          placeholder={placeholder ?? `Ask a question about ${identifier}`}
           placeholderTextColor={t.colors.text.faint}
           style={[styles.askInput, fieldOutlineReset]}
         />
@@ -1677,6 +1694,23 @@ function AskCard({ placeholder, onAsk }: { placeholder: string; onAsk: (q?: stri
       >
         <Text style={styles.askBtnText}>Ask</Text>
       </Pressable>
+      {/* System-suggested chips scope to this bill (`${id}: ${chip}`) so the
+          /ask bill_text path always resolves — a chip can never refuse
+          (grounded-answers rule 2). Scoping lives in scopedChipQuery. */}
+      {chips.length ? (
+        <View style={styles.askChips}>
+          {chips.map((chip) => (
+            <Pressable
+              key={chip}
+              accessibilityRole="button"
+              onPress={() => onAsk(scopedChipQuery(identifier, chip))}
+              style={styles.askChip}
+            >
+              <Text style={styles.askChipText}>{chip}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -2187,6 +2221,24 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.subhead,
     fontWeight: t.fontWeights.bold,
     color: t.colors.white,
+  },
+  askChips: { marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 9 },
+  askChip: {
+    // Bill-specific prompts are full sentences; cap the pill at the card width
+    // so a long chip wraps to two lines instead of overflowing a narrow phone.
+    maxWidth: '100%',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink12,
+    borderRadius: t.radii.pill,
+  },
+  askChipText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.medium,
+    color: t.colors.text.secondary,
   },
 
   // actions
