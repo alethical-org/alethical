@@ -1097,6 +1097,38 @@ export function plainKeyPoints(points: string[] | undefined): string[] {
     .filter((point) => /[a-z]/i.test(point));
 }
 
+// Safe, bill-scoped Ask suggestions that route to /ask and can't lead to a
+// refusal (grounded-answers rule 2) — used when a bill has no served
+// question_prompts yet (pre-re-enrichment).
+export const DEFAULT_ASK_CHIPS = [
+  'What does this bill do?',
+  'When does it take effect?',
+  'Who does it affect?',
+];
+
+// Derive the "Ask about this bill" card's placeholder + chips from a bill's
+// generated question_prompts. The first prompt seeds the placeholder
+// (bill-specific); the next three become chips; falls back to DEFAULT_ASK_CHIPS
+// when the bill has none. Single source for web (SummaryTab) and mobile
+// (BillDetailScreen) so the chip set stays identical on both surfaces.
+export function askCardPrompts(questionPrompts: string[] | undefined): {
+  placeholder: string | undefined;
+  chips: string[];
+} {
+  const prompts = (questionPrompts ?? []).filter((p) => p.trim().length > 0);
+  return {
+    placeholder: prompts.length ? prompts[0] : undefined,
+    chips: prompts.length > 1 ? prompts.slice(1, 4) : DEFAULT_ASK_CHIPS,
+  };
+}
+
+// Scope a system-suggested chip to its bill so the /ask bill_text path resolves
+// it via the HF/SF regex — a chip can never dead-end in a refusal
+// (grounded-answers rule 2). The user's own typed text is left as-is.
+export function scopedChipQuery(identifier: string, chip: string): string {
+  return `${identifier}: ${chip}`;
+}
+
 // The chief author for THIS file's own chamber. A companion-paired bill carries
 // BOTH chambers' authors as its own sponsorship rows (ingest writes the House
 // companion's authors onto the Senate file and vice-versa), so a bill can have two
