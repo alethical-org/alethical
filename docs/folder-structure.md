@@ -52,7 +52,7 @@ docs/
 ├── onboarding/                  Learning how it works (existing folder, +1 file)
 │   ├── ai-models-and-billing.md
 │   ├── data-ingestion-onboarding.md
-│   └── search-bills-plain-english-guide.md   ← moved in
+│   └── search-bills-guide.md                 ← moved in
 │
 ├── assets/                      Images and diagrams (existing folder, +3 files)
 │   ├── grounded-ask-hero.png
@@ -86,7 +86,7 @@ Four placements are worth stating rather than assuming:
 - **`legislator-roster-canonical-membership-spec.md` → architecture.** It specifies a
   pipeline module (`roster_pdf.py`) and its reconciliation, so it sits with the ingestion
   designs. If `architecture/` later grows a `data/` subfolder, this moves there first.
-- **`search-bills-plain-english-guide.md` → onboarding.** Written for non-engineers, which
+- **`search-bills-guide.md` → onboarding.** Written for non-engineers, which
   is what that folder is for; `README.md` already lists it under Onboarding & Education.
 
 **`mockups/` stays at the docs root** rather than nesting under `design/`. It is referenced
