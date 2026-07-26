@@ -1,5 +1,16 @@
 # Workflow-overhead audit — the skill layer (14 skills, layers 1 + 3) — 2026-07-26
 
+> **Addendum, 2026-07-26 (later the same day): the scheduling recommendation below is countermanded.**
+> This record twice proposes a scheduled runner as the structural fix for the observation backlog —
+> in "Found, not fixed" item 1 and watch item 2. Eugene decided the opposite: **all scheduled tasks
+> and routines were removed and every process run is manual, on request**, until the right frequency
+> is understood. `monthly-issue-triage`, `workflow-overhead-audit-monthly` and the
+> `weekly-observation-review` this audit armed are all gone; `~/.claude/scheduled-tasks/` is
+> deliberately empty. Read those two items as *findings about the backlog*, which stand, and ignore
+> their remedy. A growing OPEN backlog is now an accepted consequence of manual cadence, not a defect
+> to engineer around — and the reasoning was sound: two of those jobs had silently never fired while
+> a memory claimed they ran monthly, which is worse than having none. Do not offer to re-arm them.
+
 **Net:** the fourteen reusable instruction packs turned out to be in good shape — twelve are kept exactly as they are. One was genuinely broken: a borrowed 73,000-character document, written for a different tool, whose instructions actively contradicted how this setup works. It is now a 5,900-character working skill with the original preserved intact beside it. Three other things that *looked* like duplication were investigated and proved to be deliberate, well-built design; they were left alone, and finding that out was most of the work.
 
 Layer: **1 + 3 together** — the skill population spans both (7 repo skills, 7 personal), and auditing either half alone would miss the global-vs-repo placement question that only appears when you look at both. Diff base: `2026-07-26-memory-system.md` (same day, layer 4).
