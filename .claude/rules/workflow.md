@@ -12,7 +12,7 @@ Machine-facing counterparts of the human conventions in `CONTRIBUTING.md`. Follo
 
 4. **Route knowledge at birth.** Decisions → the relevant spec in `docs/`. Tasks and deferred work → GitHub issues, filed at the moment of discovery with: what it is · what exists today · why deferred · what unblocks it · **a milestone, an issue type, a topic label, and its board fields (Epic, Priority, LOE, Status)** (see the categorization rule just below) assigned at filing, not later (then cross-link the issue number back into the doc that spawned it). Product invariants → `.claude/rules/`. Team workflow norms → `CONTRIBUTING.md`. Chat is a scratchpad, never a system of record.
 
-   The same applies to *existing* issues: when work you ship or a decision you record changes one — done, half-done, re-scoped, obsolete — update or close it in the same session. Monthly triage is the backstop, not the mechanism.
+   The same applies to *existing* issues: when work you ship or a decision you record changes one — done, half-done, re-scoped, obsolete — update or close it in the same session. A periodic manual triage pass is the backstop, not the mechanism.
 
    **Categorize every issue at creation — the Roadmap board (org `alethical-org` Project #1 "Alethical Roadmap") is the source of truth.** An uncategorized issue is the exception to fix, never the norm. The full 8-axis scheme (Type · Milestone · Epic + Platform Track · Priority · LOE · topic labels · `research` label · Status), the two-step create-then-set-board-fields gotcha, the uncategorized-item sweep command, and the keep-the-board-current lifecycle rules all live in the skill **`file-github-issue`** — invoke it before `gh issue create`, when moving an item's Status, and when sweeping the board at session start.
 
