@@ -15,7 +15,7 @@
 >    you can't answer) and 6 (copy claims match shipped capability). Usable where it resolves to
 >    the Votes tab, which now genuinely shows per-member votes.
 > 2. **"Sovereignty restoration engine, not a civic info tool"** is a larger positioning than the
->    deliberately modest product definition (`docs/v1-scope.md`, Product Definition: "not trying to be a full
+>    deliberately modest product definition (`docs/product-scope.md`, Product Definition: "not trying to be a full
 >    political accountability platform yet… a reliable legislative data and analysis product").
 >    Voice can lead the product, but capability copy still tracks what is shipped.
 >

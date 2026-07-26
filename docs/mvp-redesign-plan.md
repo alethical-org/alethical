@@ -1,14 +1,14 @@
 # Alethical MVP redesign — decisions & open items
 
 Running tracker for the IA + design-direction redesign (new top-nav IA + green
-aesthetic + Ask AI as hero). Companion to `docs/v1-scope.md`. MVP only for now;
+aesthetic + Ask AI as hero). Companion to `docs/product-scope.md`. MVP only for now;
 roadmap noted for direction.
 
 ## Locked decisions
 
 - **MVP client = web only.** The MVP ships a responsive web app (desktop + mobile
   web). Native iOS and Android apps are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91));
-  see `docs/v1-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
+  see `docs/product-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
 - **IA:** top nav `Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
@@ -180,7 +180,7 @@ roadmap noted for direction.
    bold-sans display), old theme as default so nothing breaks.
 2. **Backend track (parallel, no design dependency):** swap the Ask AI embedding stub
    for a real model + answer generation; ingestion data-quality/validation per
-   v1-scope rubrics. The anonymous Ask AI teaser depends on this landing.
+   product-scope rubrics. The anonymous Ask AI teaser depends on this landing.
 3. **Frontend track:** Option 1 (marketing hero, real primitives, placeholder copy,
    example-question chips, interim Ask → sign-in) → Option 3 (migrate app onto new IA +
    flip green tokens; includes the Search split) → Option 4 (real Ask AI demo + live
@@ -237,7 +237,7 @@ Backend track (start now — long pole, no design dependency)
 - [ ] **Ask AI un-stub:** replace `demo-minilm-1536` / `_deterministic_embedding` in
   `pipeline/rag_ingest.py` with a real embedding model + real answer generation
 - [ ] Anonymous Ask guardrails: rate-limit by IP/device + cache; cap at one free answer (O8)
-- [ ] Ingestion data-quality + machine-readable validation reports (per v1-scope rubrics)
+- [ ] Ingestion data-quality + machine-readable validation reports (per product-scope rubrics)
 
 Frontend track (after Phase 0; parallel with backend track)
 - [ ] Top-nav shell driven by the registry (desktop + mobile web)
@@ -273,13 +273,13 @@ Frontend track (after Phase 0; parallel with backend track)
 - **Track → Legislators** = "follow a legislator" (activity notifications).
 - **Optimistic local tracking pre-auth** — track before sign-in, persist on auth;
   higher conversion, more work.
-- **Note:** Candidates + News & Media go beyond v1-scope's stated boundaries (campaign +
+- **Note:** Candidates + News & Media go beyond product-scope's stated boundaries (campaign +
   social are explicitly out of scope there) — a conscious future mission expansion;
   keep out of the MVP data model so it doesn't leak scope.
 
-## Applied v1-scope amendment (rationale)
+## Applied product-scope amendment (rationale)
 
-`docs/v1-scope.md` § "AI and RAG Chat → In Scope" previously read
+`docs/product-scope.md` § "AI and RAG Chat → In Scope" previously read
 **"Signed-in-only grounded question answering."** The locked hero funnel deviates
 from that, so this PR amended it to:
 
@@ -292,5 +292,5 @@ from that, so this PR amended it to:
 Rationale: the cited-answer moment is the product's core proof ("Truth, Unconcealed");
 gating it before the visitor experiences it suppresses adoption. The stateless one-shot
 preserves the doc's real intent (sessions belong to signed-in users). Applied in this PR
-alongside the plan-doc introduction (the Product Definition summary at `v1-scope.md:26`
+alongside the plan-doc introduction (the Product Definition summary at `product-scope.md:26`
 was updated to match).

@@ -137,7 +137,7 @@ export const IA: IaItem[] = [
     menu: 'search',
     availability: 'roadmap',
     authGated: false,
-    note: 'Roadmap: "In the news", YouTube legislative sessions. Beyond current v1-scope boundary.',
+    note: 'Roadmap: "In the news", YouTube legislative sessions. Beyond current product-scope boundary.',
   },
 
   // Track — personalized, signed-in ("your space"). Auth-gated.
