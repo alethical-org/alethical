@@ -37,6 +37,8 @@ Word count would have said 2,662 for `MEMORY.md` and understated by **~40%** —
 
 `MEMORY.md`'s share of this repo's always-loaded context: **24.6% → 14.0%** (77,423 → 67,868 bytes; 19,355 → 16,967 est. tok).
 
+**Denominator caveat, worth stating because it changes the picture.** Those figures count always-loaded *files* only. Cross-checked against the same-day `/doctor` pass, which measured the resident **skill listing** too: the true always-resident total was ~21k est. tok, dropping to ~19.2k once that pass disabled two bundled plugins. So `MEMORY.md`'s real share was nearer 23% → 12%. Two lessons folded into step 2: **count the skill listing**, and prefer `claude plugin details <name>` over chars ÷ 4 for it — the tool reports `~715 tok` for `superpowers` where the chars-based estimate said 616, so this record's byte-based savings are a sound **floor** and the true saving is somewhat larger than 2,388.
+
 **Ceiling:** 9,493 chars vs the ~40,000-char line — **far under, before and after.** As on layer 3, the automatic trigger never fired; every verdict here rests on evidence.
 
 Corpus totals: 245,931 → 236,813 bytes across 78 → 77 files. (`du` reports 384 KB — that's disk blocks on 4 KB allocation, not content; use `wc -c`.)
@@ -111,6 +113,8 @@ Design points that came from testing it, not from sketching it:
 - **One-minute quiet period.** If any memory file was written in the last minute a session may be mid-burst, so it defers to the next run rather than splitting one logical change across two commits.
 - **Commit always, push best-effort.** History is safe locally the moment it commits, so a network or credential failure must not resemble data loss. A failed push retries once behind `pull --rebase --autostash` — which is exactly what losing a race with a session's `CLAUDE.md` push looks like — and otherwise logs `WARN … will retry next run`.
 - **Verified paths:** clean tree → silent no-op; recent write → skip with nothing staged and the change intact; elapsed → commit with a generated subject, then push (all three confirmed, plus a clean `launchctl kickstart` run proving it executes under launchd with exit 0 and no stderr).
+
+**`~/.claude/settings.json` joined the same arrangement later the same day**, prompted by the `/doctor` session: its `enabledPlugins` decides which skills exist at all, so it was the last always-loaded input with no history — a change there could alter behaviour with nothing to diff or revert. Two checks before moving it, both of which could have stopped it: its only secrets-scan match is the *deny rule* `Bash(gh secret:*)` (a permission pattern, not a credential), and an app write through the symlink **preserves** the symlink rather than replacing it with a regular file — the temp-file+rename behaviour that would have silently orphaned the repo copy while the live file drifted. It is job-owned rather than session-owned, because preference toggles and plugin commands write it without any session narrating the change.
 
 Health check, and the off switch — turning it off loses nothing already committed and memory keeps working, it just stops gaining history:
 
