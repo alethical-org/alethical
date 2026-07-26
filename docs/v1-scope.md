@@ -4,7 +4,7 @@ Status: discussion draft
 
 ## Goal
 
-Rebuild Alethical from scratch as a trustworthy Minnesota legislative intelligence platform with a clean data model, reliable ingestion, a scalable backend, and a responsive web product. V1 ships web only; native iOS and Android apps are post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91)). The backend APIs, auth model, and design system stay client-agnostic so mobile can follow without a rewrite.
+Rebuild Alethical from scratch as a trustworthy Minnesota legislative intelligence platform with a clean data model, reliable ingestion, a scalable backend, and a responsive web product. The first release ships web only; native iOS and Android apps are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91), milestone `v9 tbd`). The backend APIs, auth model, and design system stay client-agnostic so mobile can follow without a rewrite.
 
 V1 should optimize for:
 
@@ -43,7 +43,7 @@ Every generated summary, extracted field, and chat answer should be traceable to
 
 ### 4. Shared Platform, Client-Agnostic Backend
 
-The MVP ships one client: a responsive web app. The backend APIs, auth model, and domain concepts stay client-agnostic so that post-MVP iOS and Android apps ([#91](https://github.com/alethical-org/alethical/issues/91)) can consume the same platform without a rewrite.
+One client ships first: a responsive web app. The backend APIs, auth model, and domain concepts stay client-agnostic so native iOS and Android apps ([#91](https://github.com/alethical-org/alethical/issues/91)) can consume the same platform without a rewrite whenever they are built.
 
 ### 5. AI as a Layer, Not the Source of Truth
 
@@ -369,7 +369,7 @@ V1 ships a single client:
 
 - Responsive web app (desktop and mobile-web breakpoints)
 
-Native iOS and Android apps are **out of scope for the MVP** and deferred to post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91)). See "Post-MVP: iOS and Android" below.
+Native iOS and Android apps are **not built yet** ([#91](https://github.com/alethical-org/alethical/issues/91)). See "Native iOS and Android" below.
 
 ### Product Surfaces In Scope
 
@@ -389,9 +389,9 @@ Native iOS and Android apps are **out of scope for the MVP** and deferred to pos
 - Full core functionality
 - Primary admin and operational surface in early v1
 
-### Post-MVP: iOS and Android
+### Native iOS and Android — not built yet
 
-Native iOS and Android apps are deferred to post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91)). The frontend is already an Expo/React Native codebase capable of targeting all three platforms, and styling is centralized in `theme/tokens.ts`, so mobile can be added without a rewrite. When the native apps ship they will:
+Native iOS and Android apps are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91)). The frontend is already an Expo/React Native codebase capable of targeting all three platforms, and styling is centralized in `theme/tokens.ts`, so mobile can be added without a rewrite. When the native apps ship they will:
 
 - Share the mobile app architecture with common backend APIs
 - Cover the core read and track flows: browse, search, bill detail, legislator profile, tracked bills, chat
@@ -406,7 +406,7 @@ Native iOS and Android apps are deferred to post-MVP ([#91](https://github.com/a
 
 ### Out of Scope
 
-- Native iOS and Android apps (post-MVP — see above)
+- Native iOS and Android apps (not built yet — see above)
 - Distinct feature sets by platform
 - Tablet-specific custom product surfaces
 - Heavy native-only features on first release
@@ -467,7 +467,7 @@ Recommended major components:
 - Queue for async jobs
 - Shared auth system
 - Web client
-- Mobile clients (post-MVP — [#91](https://github.com/alethical-org/alethical/issues/91))
+- Mobile clients (not built yet — [#91](https://github.com/alethical-org/alethical/issues/91))
 
 This keeps the system simple enough to ship while still separating concerns.
 
@@ -490,7 +490,7 @@ The last things we should cut are:
 
 ## Explicitly Out of Scope for V1
 
-- Native iOS and Android apps (deferred to post-MVP — [#91](https://github.com/alethical-org/alethical/issues/91))
+- Native iOS and Android apps (not built yet — [#91](https://github.com/alethical-org/alethical/issues/91))
 - Campaign promise tracking
 - Promise-vs-vote scoring
 - Corruption, fraud, or conflict-of-interest detection
@@ -503,7 +503,7 @@ The last things we should cut are:
 - Dedicated data warehouse
 - Full enterprise admin and permissions
 
-> **Candidates vs. promise tracking:** candidate *profiles, search, and tracking* are a planned post-v1 direction (Elections milestone — [#147](https://github.com/alethical-org/alethical/issues/147) profiles/search, [#148](https://github.com/alethical-org/alethical/issues/148) tracking). What stays out of scope above is *campaign/candidate promise tracking and promise-vs-vote scoring* specifically — the accountability-scoring features, not candidate data surfaces.
+> **Candidates vs. promise tracking:** candidate *profiles, search, and tracking* are a planned direction, not built yet ([#147](https://github.com/alethical-org/alethical/issues/147) profiles/search and [#148](https://github.com/alethical-org/alethical/issues/148) tracking, both on the `v8 candidates` milestone — there is no `Elections` milestone, despite what an earlier version of this line said). What stays out of scope above is *campaign/candidate promise tracking and promise-vs-vote scoring* specifically — the accountability-scoring features, not candidate data surfaces.
 
 ## V1 Success Criteria
 
@@ -532,5 +532,5 @@ Use this document to make scope decisions first. After that, produce:
 1. A system architecture document
 2. A domain model and schema draft
 3. An ingestion architecture spec
-4. A client platform plan for the responsive web app (with iOS and Android as post-MVP targets — [#91](https://github.com/alethical-org/alethical/issues/91))
+4. A client platform plan for the responsive web app (with iOS and Android as later targets — [#91](https://github.com/alethical-org/alethical/issues/91))
 5. A chat and retrieval design

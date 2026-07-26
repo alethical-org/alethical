@@ -6,16 +6,18 @@
 >
 > **Unreconciled conflicts to resolve before applying broadly:**
 > 1. **"See What They Voted" as the primary hero / signed-out nav CTA** collides with v1 scope.
->    Per-legislator, vote-by-vote answers are **v1-deflected** (`docs/grounded-ask-spec.md` §4.5,
->    Vote deflection) and member-level roll-call rendering is **v1.1** ([#83](https://github.com/alethical-org/alethical/issues/83)).
->    What v1 actually ships is tallies + official-record links on a bill's Votes tab. A dominant
->    "See What They Voted" CTA promises a per-legislator voting-record experience the v1 product
->    does not deliver — grounded-answers rules 2 (never advertise what you can't answer) and 6
->    (copy claims match shipped capability). Usable only where it resolves to the Votes tab.
+>    Per-legislator, vote-by-vote answers are **deflected today** (`docs/grounded-ask-spec.md` §4.5,
+>    Vote deflection); member-level roll-call rendering **has since shipped** ([#83](https://github.com/alethical-org/alethical/issues/83), closed Jul 21 2026 —
+>    the Votes tab renders the party-grouped per-member grid). So the product does now show every
+>    member's vote on a bill page; what it still lacks is a *conversational* per-legislator vote answer. A dominant
+>    "See What They Voted" CTA still promises a *conversational* per-legislator voting-record
+>    experience the Ask surface does not deliver — grounded-answers rules 2 (never advertise what
+>    you can't answer) and 6 (copy claims match shipped capability). Usable where it resolves to
+>    the Votes tab, which now genuinely shows per-member votes.
 > 2. **"Sovereignty restoration engine, not a civic info tool"** is a larger positioning than the
->    deliberately modest v1 (`docs/v1-scope.md`, Product Definition: "not trying to be a full
+>    deliberately modest product definition (`docs/v1-scope.md`, Product Definition: "not trying to be a full
 >    political accountability platform yet… a reliable legislative data and analysis product").
->    Voice can lead the product, but capability copy still tracks v1.
+>    Voice can lead the product, but capability copy still tracks what is shipped.
 >
 > **Resolved:** "plain English" / "plain language" is **accepted** (Jul 9, 2026) — it matches the
 > decided hero subhead (`docs/grounded-ask-spec.md` §1, Goal) and is no longer a kill-list entry.

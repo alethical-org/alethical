@@ -1,20 +1,31 @@
 # Alethical Frontend Screen System Design
 
-Status: v1 design draft
+Status: **partly superseded — read the note below before building from this.**
 
-> **MVP scope:** V1 ships a **responsive web app only**. Native iOS and Android are
-> post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91); see
-> `docs/v1-scope.md` § Frontend Scope). The iOS/Android and native "Mobile" guidance in
-> this doc describes those post-MVP client targets — for the MVP it informs the web app's
+> **What is still live here:** the per-screen anatomy as *original design intent*, the
+> **Bill Detail Content Rules** (which AI briefing blocks the bill page shows by default,
+> and which are chat-only — this is their only home), and the Implementation Guidance at
+> the end.
+>
+> **What has been superseded:** the navigation model and screen inventory. The shipped IA
+> is the typed registry in `apps/frontend/src/navigation/ia.ts`, with decisions recorded in
+> `docs/mvp-redesign-plan.md` § Locked decisions — including the top-nav shell (this doc
+> predates it and describes a tab-based mobile shell) and the Search split into `/bills` +
+> `/legislators`. Per-screen truth now lives in the screen specs
+> (`docs/bill-search-screen-spec.md`) and the mockup bundles under `docs/mockups/`. Visual,
+> interaction and accessibility rules are in `docs/design-principles.md`.
+>
+> Native iOS and Android are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91));
+> the web app ships today. The "Mobile" guidance below therefore informs the web app's
 > mobile-web (small-viewport) layout, not a separate native app.
 
 ## Goal
 
-Define the v1 screen system for the shared React Native codebase. The MVP target is:
+Define the screen system for the shared React Native codebase. The shipping target is:
 
 - Web (responsive: desktop + mobile-web breakpoints)
 
-with iOS and Android as post-MVP targets on the same codebase. The goal is one coherent
+with iOS and Android as later targets on the same codebase. The goal is one coherent
 product across platforms, not three unrelated apps.
 
 ## What Good Means
@@ -255,10 +266,10 @@ Tabs:
 
 ## 3. Global Search
 
-> **Superseded for v1:** the combined Bills + Legislators search below is being split
+> **Superseded:** the combined Bills + Legislators search below is being split
 > into two dedicated screens (`docs/mvp-redesign-plan.md` § Search page split). The bill
-> search screen is specified in `docs/bill-search-screen-spec.md`, which is authoritative
-> for v1; the legislator screen follows separately. The layout here is retained as
+> search screen is specified in `docs/bill-search-screen-spec.md`, which is authoritative;
+> the legislator screen follows separately. The layout here is retained as
 > historical context.
 
 ### Pagination Behavior
@@ -302,8 +313,8 @@ The Bills column uses server-backed pagination. Each page request sends the acti
 
 ## 4. Bill List
 
-> **See `docs/bill-search-screen-spec.md`** for the authoritative v1 bill search screen.
-> The Sort control and Export button sketched below are not in v1 scope (order is fixed
+> **See `docs/bill-search-screen-spec.md`** for the authoritative bill search screen.
+> The Sort control and Export button sketched below are not built (order is fixed
 > to latest legislative action); this section predates the current build.
 
 ### Mobile
@@ -885,73 +896,24 @@ We could not load this data right now.
 - web uses denser multi-pane layouts for research and operations
 - mobile uses a clear tab-plus-stack structure
 - AI never replaces official bill or vote data
-- all core v1 features are reachable from primary navigation
+- all core features are reachable from primary navigation
 - signed-in value is obvious but public browsing remains first-class
 
-## Validation Against V1 Scope
+## Implementation Guidance
 
-Status: pass
-
-Covered surfaces:
-
-- public home and search
-- bill list and filtering
-- bill detail
-- legislator directory
-- legislator profile
-- find my legislator
-- user account
-- tracked bills
-- chat
-- web operational surface
-
-## Scope Trim Check
-
-The screen inventory is mostly aligned with v1, but these items should be treated carefully to avoid bloat.
-
-### Keep In Core V1
-
-- home
-- global search
-- bill list
-- bill detail
-- legislator directory
-- legislator profile
-- find my legislator
-- tracked bills
-- chat session list and detail
-- account
-- saved places
-- notification settings
-
-### Reasonable Secondary V1
-
-- vote detail
-- web admin and operations
-
-These are still consistent with v1, but they do not all need equal implementation depth at launch.
-
-### Do Not Treat As Launch-Critical
-
-- a full in-app bill-text reading surface
-- a separate notification history screen
-- an elaborate account settings area beyond sign-out, saved places, and notification preferences
-- heavy multi-pane web experiences on every screen
-- deep committee or vote analytics views beyond straightforward record display
-
-### Implementation Guidance
+Durable direction on depth and emphasis — these are product calls, not sequencing:
 
 - do not make full bill text a primary in-app reading mode
 - use bill detail to explain the bill in plain language, show key sections, and link out to the official source
 - ship vote detail as a drilled-in subview, not a top-level feature area
 - keep the web admin surface utilitarian and internal, not product-polished
-- if time gets tight, cut depth before cutting the core public bill and legislator flows
+- when depth and breadth compete, cut depth before cutting the core public bill and legislator flows
 
-## Recommended Next Step
-
-Turn this into:
-
-1. a route map for React Navigation
-2. a component inventory
-3. a design token system
-4. high-fidelity wireframes for mobile and desktop
+*Removed from this section (Jul 26 2026): a completed "Validation Against V1 Scope"
+checklist (status: pass — a finished exercise, not a standing requirement); three
+"Keep In Core V1 / Reasonable Secondary V1 / Do Not Treat As Launch-Critical" tier
+lists, which sorted screens into release buckets and read as permission rather than
+direction (`.claude/rules/workflow.md` rule 13 — a milestone does not gate work); and a
+"Recommended Next Step" list whose four items have all shipped (`ia.ts`, the component
+primitives, `theme/tokens.ts`, and the mockup bundles). The emphasis calls above are what
+survived, because they still say something about the product.*

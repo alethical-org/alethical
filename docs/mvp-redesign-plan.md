@@ -7,7 +7,7 @@ roadmap noted for direction.
 ## Locked decisions
 
 - **MVP client = web only.** The MVP ships a responsive web app (desktop + mobile
-  web). Native iOS and Android apps are deferred to post-MVP ([#91](https://github.com/alethical-org/alethical/issues/91));
+  web). Native iOS and Android apps are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91));
   see `docs/v1-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
@@ -80,7 +80,7 @@ roadmap noted for direction.
   cleanly. Codified in the `design-build` skill (Responsive & touch). styling is fully centralized in `theme/tokens.ts` with zero
   hardcoded hex across the 24 screen/component files, so the green flip is a token-set
   swap, not a code migration. The MVP flip targets web; because the codebase is shared
-  Expo/React Native, the same swap will re-skin the post-MVP iOS/Android clients for free.
+  Expo/React Native, the same swap will re-skin the native iOS/Android clients for free whenever they are built.
 - **Menu = typed registry:** codified in `apps/frontend/src/navigation/ia.ts`. Each
   item → `{ label, path, menu, availability: mvp|roadmap, authGated }`. MVP rendered;
   roadmap declared-but-hidden — except the curated "ON THE ROADMAP" items shown greyed
@@ -251,7 +251,7 @@ Frontend track (after Phase 0; parallel with backend track)
 - [ ] About static pages (About Us / Trust & Integrity / Contact Us); Trust page as real brand copy
 - [ ] Account menu + nav-after-sign-in; move Privacy/Terms into footer
 - [ ] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect
-- [x] Green token flip (web; re-skins the post-MVP iOS/Android clients for free via shared tokens) — [#136](https://github.com/alethical-org/alethical/issues/136); landed with the signed-out home ship (PR #67)
+- [x] Green token flip (web; re-skins the native iOS/Android clients for free via shared tokens) — [#136](https://github.com/alethical-org/alethical/issues/136); landed with the signed-out home ship (PR #67)
 - [ ] Upgrade Ask hero to the one-free-answer funnel when the backend un-stub is live
       — *partially delivered by PR #227 (topic → bills answers live from the hero);
       still missing: the one-free-answer cap + rate limiting (O8, #98) and the

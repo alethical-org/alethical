@@ -65,7 +65,7 @@ flowchart LR
     OSM["OpenStreetMap tiles"]
   end
 
-  CL["Clients<br/>Web (iOS · Android post-MVP)"] --> API
+  CL["Clients<br/>Web (iOS · Android not built yet)"] --> API
   API -->|"Find My Legislator"| GEO --> GIS
   API -->|"chat"| OAI
   CL -->|"map tiles"| OSM

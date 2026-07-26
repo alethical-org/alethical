@@ -72,8 +72,8 @@ alethical://auth/callback
 
 ## iOS Builds
 
-> **Post-MVP.** The MVP ships the web app only (see `docs/v1-scope.md` § Frontend Scope).
-> This workflow covers the post-MVP iOS client ([#91](https://github.com/alethical-org/alethical/issues/91)) and current simulator/TestFlight QA — it is not part of the MVP release path.
+> **Not shipped.** The web app is the client that ships today (see `docs/v1-scope.md` § Frontend Scope).
+> This workflow covers the native iOS client ([#91](https://github.com/alethical-org/alethical/issues/91), not built yet) plus the simulator/TestFlight QA that works now.
 
 The iOS workflow uses Expo EAS from `apps/frontend`. Local QA without an iPhone uses an iOS Simulator build; sharing with testers uses TestFlight after Apple Developer Program access is available.
 

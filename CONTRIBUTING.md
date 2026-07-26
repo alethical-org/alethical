@@ -140,10 +140,20 @@ An open issue should mean "still needs doing." Three habits keep that true:
 Each question about a piece of work has exactly one home — nothing is tracked in
 two places:
 
-- **Which release/phase?** → the **milestone** (`v0 hardening`, `v1`, `v1.1`,
-  `v2`, `Elections`). We group work with milestones rather than title prefixes, so
-  the Milestones tab shows real progress bars. The milestone is the single source
-  of truth for phase — there is no separate scope label.
+- **Which release/phase?** → the **milestone**. Current milestones are
+  `v0 hardening`, `v1`, `v2`, `v8 candidates`, and `v9 tbd` — check the
+  Milestones tab rather than trusting this list, which goes stale. We group work
+  with milestones rather than title prefixes, so the tab shows real progress
+  bars, and there is no separate scope label.
+
+  **A milestone groups and reports work — it does not decide whether the work
+  gets done now.** A higher number is not a "later" instruction: if an issue
+  supports what we're building today, it gets picked up today regardless of its
+  bucket, and re-milestoned if the bucket no longer reflects reality. (The
+  machine-facing form of this is `.claude/rules/workflow.md` rule 13.) Docs and
+  issues should say what a piece of work is *blocked on*, never that it's
+  off-limits because of its milestone — a blocker can be checked, a bucket
+  can't.
 - **What kind of work?** → the native **Type** (`Bug` / `Feature` / `Task`). A
   documentation task is a `Task` in the `documentation` area, not its own type.
 - **Which area?** → a **topic label** (`frontend`, `backend`, `data`, `ops`,

@@ -17,12 +17,12 @@ distinct from AI-generated analysis (`docs/v1-scope.md` § Frontend Expectations
 - Route `/bills`; detail `/bills/:billId`. Redirect `/search` → `/bills`
   (`docs/mvp-redesign-plan.md` route table).
 - **URL-addressable filters** — tracked in [#135](https://github.com/alethical-org/alethical/issues/135), split by milestone to keep v1 lean:
-  - **v1 (inbound read):** the screen reads an inbound filter param on load (e.g.
+  - **Shipped (inbound read):** the screen reads an inbound filter param on load (e.g.
     `?policy=education`) and applies it. Required because the Ask `bills-list` answer's
     "See all N {topic} bills in Search →" overflow ([#79](https://github.com/alethical-org/alethical/issues/79),
     grounded-ask §9.1) is cross-page navigation and can only target URL state
     (`.claude/rules/grounded-answers.md` #5). This slice lands with #79.
-  - **v1.1 (full serialization):** all filters serialize *out* to the URL
+  - **Not built yet (full serialization):** all filters serialize *out* to the URL
     (`/bills?q=&chamber=&status=&policy=&omnibus=&session=&page=`) so reload, share, and
     back/forward reproduce the exact search. `webRoutes.ts` already serializes chat
     params — the same pattern extends here.
@@ -138,8 +138,8 @@ Everything else on this screen runs on the current API.
 ## Out of scope for this screen
 
 - **Meaning-based search and natural-language questions — Grounded Ask's job, not this box.** The search box matches the *words* you type (now word-form- and typo-tolerant, [#573](https://github.com/alethical-org/alethical/issues/573)); finding bills by *concept* when the words differ (e.g. "school money" → a bill that says "fund") or answering a full question ("what bills help teachers?", "how did my rep vote on housing?") is `docs/grounded-ask-spec.md` (§3.1 natural-language Ask box, §4.1 router intents). This is why there is deliberately no "Ask AI instead" cross-sell from a failed search (see Empty / no-results state above; `.claude/rules/grounded-answers.md` rule 2).
-- Browse-by-policy-area side rail — [#130](https://github.com/alethical-org/alethical/issues/130) (v1.1).
-- User-facing sort control and author filter (data supports both; not needed to launch).
+- Browse-by-policy-area side rail — [#130](https://github.com/alethical-org/alethical/issues/130), since **shipped** (closed Jul 24 2026); this section predates it.
+- User-facing sort control and author filter (data supports both; not built).
 - Bill export.
 
 ## Aesthetic
@@ -150,4 +150,4 @@ Design intent and the visual/interaction/accessibility rules are in `docs/design
 `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` are the implemented styling source of
 truth. The green token flip has **landed** (PR [#67](https://github.com/alethical-org/alethical/pull/67)),
 so this screen is both designed and built against the green tokens/primitives.
-(`docs/aesthetics.md` is the retired Newsprint identity, kept for history only.)
+(`docs/archive/aesthetics.md` is the retired Newsprint identity, kept for history only.)
