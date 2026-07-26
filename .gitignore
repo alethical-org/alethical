@@ -15,6 +15,13 @@ __pycache__/
 .vscode/
 .codex/
 
+# Per-machine Claude Code state that must never reach this PUBLIC repo.
+# Previously ignored only via one contributor's ~/.gitignore_global and
+# .git/info/exclude — neither travels with a clone, so a fresh checkout on
+# another machine would treat these as ordinary untracked files.
+**/.claude/settings.local.json
+**/.claude/worktrees/
+
 # task-observer (global ~/.claude skill) writes session logs to the project root
 skill-observations/
 skill-updates/
