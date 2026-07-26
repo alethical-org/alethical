@@ -130,10 +130,12 @@ An open issue should mean "still needs doing." Three habits keep that true:
   when a change re-scopes or re-phases work, *search* the open issues for ones
   still describing the old scope and update them in the same change — don't let
   the tracker promise a plan that no longer exists.
-- **Triage monthly.** Once a month, skim the open issues and ask of each: is this
-  still true? Close anything already shipped (add a one-line note pointing at the
-  PR), and re-scope anything half-done to just the remaining work. A scheduled
-  agent posts a "candidates to close" report to help — but a human decides.
+- **Triage periodically.** Every so often, skim the open issues and ask of each: is
+  this still true? Close anything already shipped (add a one-line note pointing at
+  the PR), and re-scope anything half-done to just the remaining work. This is a
+  manual pass — there is deliberately no scheduled agent doing it (all recurring
+  process tasks were removed in July 2026 until we understand how often they're
+  genuinely needed), so it happens when someone runs it.
 
 ### Categorizing an issue
 
