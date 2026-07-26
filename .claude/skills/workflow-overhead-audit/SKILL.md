@@ -1,6 +1,6 @@
 ---
 name: workflow-overhead-audit
-description: Use to re-check whether every gate in the Claude working pipeline still earns its cost — hooks, skills, rules, conventions, CI — when asked to "audit workflow overhead", "check process friction", or "are all these checks still worth it" — this audit is manual and runs only when Eugene asks, never on a schedule and never offered as one. Maps the pipeline for a task type (default: design handoff → live site), costs each gate, scores it against evidence of what it actually caught, and outputs keep/trim/merge/restructure/drop verdicts diffed against the previous audit's table.
+description: Use to re-check whether every gate in the Claude working pipeline still earns its cost — hooks, skills, rules, conventions, CI — when asked to "audit workflow overhead", "check process friction", or "are all these checks still worth it", and ad hoc whenever a session's own work makes a pass worthwhile — but never on a schedule, and never propose scheduling one. Maps the pipeline for a task type (default: design handoff → live site), costs each gate, scores it against evidence of what it actually caught, and outputs keep/trim/merge/restructure/drop verdicts diffed against the previous audit's table.
 ---
 
 # Workflow-overhead audit
