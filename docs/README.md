@@ -17,7 +17,7 @@ it paid for" reference. These grow as the system does.
 
 - [AI models & billing](onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
 - [Data ingestion onboarding guide](onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
-- [How Search works (plain English)](search-bills-plain-english-guide.md) — what each filter and result field means, written for non-engineers
+- [How Search works (plain English)](search-bills-guide.md) — what each filter and result field means, written for non-engineers
 
 ## Product And Design
 
