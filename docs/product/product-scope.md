@@ -623,6 +623,6 @@ Still genuinely undecided:
 
 *(A "Proposed Next Step" section listing five documents to produce was removed on
 2026-07-26: all five exist — `docs/architecture/backend-api-system-design.md`,
-`docs/architecture/db-schema-system-design.md`, `docs/architecture/ingestion-pipeline-system-design.md`,
-`docs/architecture/frontend-screen-system-design.md`, and `docs/architecture/rag-ingestion-system-design.md` /
+`docs/architecture/db-schema-system-design.md`, `docs/architecture/layer-1-source-ingestion-system-design.md`,
+`docs/architecture/frontend-screen-system-design.md`, and `docs/architecture/layer-2-rag-ingestion-system-design.md` /
 `docs/product/grounded-ask-spec.md`.)*

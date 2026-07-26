@@ -20,9 +20,9 @@ docs/
 │   ├── backend-api-system-design.md
 │   ├── db-schema-system-design.md
 │   ├── data-model-relationships.html
-│   ├── ingestion-pipeline-system-design.md
+│   ├── layer-1-source-ingestion-system-design.md
 │   ├── data-ingestion-pipeline.svg
-│   ├── rag-ingestion-system-design.md
+│   ├── layer-2-rag-ingestion-system-design.md
 │   ├── frontend-screen-system-design.md
 │   └── legislator-roster-canonical-membership-spec.md
 │

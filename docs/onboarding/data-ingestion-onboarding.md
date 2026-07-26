@@ -3,8 +3,8 @@
 > Practical map of every data source Alethical pulls from, how each is fetched
 > and parsed, how the pipeline is orchestrated, and what you need installed.
 > Verified against the code on 2026-07-03. Companion design docs:
-> [ingestion-pipeline-system-design.md](../architecture/ingestion-pipeline-system-design.md),
-> [rag-ingestion-system-design.md](../architecture/rag-ingestion-system-design.md),
+> [layer-1-source-ingestion-system-design.md](../architecture/layer-1-source-ingestion-system-design.md),
+> [layer-2-rag-ingestion-system-design.md](../architecture/layer-2-rag-ingestion-system-design.md),
 > [db-schema-system-design.md](../architecture/db-schema-system-design.md).
 
 ## TL;DR mental model
