@@ -21,7 +21,7 @@ docs/
 │   ├── db-schema-system-design.md
 │   ├── data-model-relationships.html
 │   ├── layer-1-source-ingestion-system-design.md
-│   ├── data-ingestion-pipeline.svg
+│   ├── layers-1-2-ingestion-pipeline.svg
 │   ├── layer-2-rag-ingestion-system-design.md
 │   ├── frontend-screen-system-design.md
 │   └── legislator-roster-canonical-membership-spec.md
