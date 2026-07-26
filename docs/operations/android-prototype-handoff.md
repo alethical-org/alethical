@@ -1,6 +1,6 @@
 # Android Prototype Handoff
 
-> **Not shipped.** The web app is the client that ships today (see `docs/product-scope.md` § Frontend Scope).
+> **Not shipped.** The web app is the client that ships today (see `docs/product/product-scope.md` § Frontend Scope).
 > This Android build is a prototype ahead of [#91](https://github.com/alethical-org/alethical/issues/91).
 
 This branch contains the Expo/React Native Android prototype for the Alethical mobile app. The Android native project under `apps/frontend/android` is generated locally and is not the durable source of truth for MR review.

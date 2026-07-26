@@ -361,7 +361,7 @@ class AskSessionRef(BaseModel):
 
 
 class AskTopicBillsAnswer(BaseModel):
-    """Cited topic → bills answer (docs/grounded-ask-spec.md §4.2, topic_bills).
+    """Cited topic → bills answer (docs/product/grounded-ask-spec.md §4.2, topic_bills).
 
     ``total_matches == 0`` is the NO MATCHES state — in scope, just empty —
     never rendered as a normal answer (§4.5).
@@ -376,7 +376,7 @@ class AskTopicBillsAnswer(BaseModel):
 
 class AskLegislatorBillRef(BaseModel):
     """A matched bill a legislator is on the record for — the citation backing
-    an authorship count (docs/grounded-ask-spec.md §4.2, topic_legislators)."""
+    an authorship count (docs/product/grounded-ask-spec.md §4.2, topic_legislators)."""
 
     id: str
     file_type: str
@@ -397,7 +397,7 @@ class AskLegislatorRow(BaseModel):
 
 
 class AskTopicLegislatorsAnswer(BaseModel):
-    """Authorship-framed legislator list (docs/grounded-ask-spec.md §4.2/§4.3).
+    """Authorship-framed legislator list (docs/product/grounded-ask-spec.md §4.2/§4.3).
 
     ``total_matches`` counts legislators; ``total_bills`` counts the underlying
     topic bills (the "See all N bills in Search" overflow, §9.1). Zero matches
@@ -413,7 +413,7 @@ class AskTopicLegislatorsAnswer(BaseModel):
 
 
 class AskVoteDeflectionAnswer(BaseModel):
-    """v1 honest vote deflection (docs/grounded-ask-spec.md §4.5 / §9.4, Vote
+    """v1 honest vote deflection (docs/product/grounded-ask-spec.md §4.5 / §9.4, Vote
     deflection). Never a generated vote answer.
 
     No tallies or vote positions live here — those are records on the bill's
@@ -430,7 +430,7 @@ class AskVoteDeflectionAnswer(BaseModel):
 
 
 class AskCitation(BaseModel):
-    """One retrieved passage backing a bill_text answer (docs/grounded-ask-spec.md
+    """One retrieved passage backing a bill_text answer (docs/product/grounded-ask-spec.md
     §9.4, citation card). ``url`` is the official source and is never absent —
     no citation without a resolvable URL (grounded rule 1)."""
 
@@ -441,7 +441,7 @@ class AskCitation(BaseModel):
 
 
 class AskBillTextAnswer(BaseModel):
-    """Single-bill RAG prose answer with citations (docs/grounded-ask-spec.md
+    """Single-bill RAG prose answer with citations (docs/product/grounded-ask-spec.md
     §4.1 / §9.4, bill_text). Always scoped to one resolved bill; a weak or empty
     retrieval refuses (no answer body) rather than stretches (§4.5)."""
 

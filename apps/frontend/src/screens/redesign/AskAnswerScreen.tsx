@@ -135,7 +135,7 @@ function AnswerBillCard({ bill, onOpen }: { bill: AskAnswerBill; onOpen: () => v
           </Text>
         </View>
         {/* Bill tracking is a not-yet-live roadmap feature — inert dashed preview
-            button, consistent site-wide (docs/grounded-ask-spec.md §9.2). */}
+            button, consistent site-wide (docs/product/grounded-ask-spec.md §9.2). */}
         <RoadmapTrackButton />
       </View>
       <Text style={styles.billTitle}>{bill.title}</Text>
@@ -365,7 +365,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           />
         </View>
         <Container style={styles.body}>
-          {/* Retry path: the persistent Ask bar (docs/grounded-ask-spec.md §9.1). */}
+          {/* Retry path: the persistent Ask bar (docs/product/grounded-ask-spec.md §9.1). */}
           <View style={styles.askBar}>
             <TextInput
               style={styles.askInput}
@@ -436,7 +436,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 </View>
               </View>
               <Text style={styles.question}>{question}</Text>
-              {/* Fixed deflection copy owned by the layout (docs/grounded-ask-spec.md
+              {/* Fixed deflection copy owned by the layout (docs/product/grounded-ask-spec.md
                   §9.4) — .claude/rules/grounded-answers.md rules 3 & 4. */}
               <Text style={styles.introLine}>
                 Vote-by-vote answers will land right here. Until then, every roll call on this bill
@@ -562,7 +562,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               <Text style={styles.eyebrow}>ANSWER</Text>
               <Text style={styles.question}>{question}</Text>
               {/* Fixed framing copy owned by the layout, never LLM output
-                  (docs/grounded-ask-spec.md §4.3; .claude/rules/grounded-answers.md rule 3). */}
+                  (docs/product/grounded-ask-spec.md §4.3; .claude/rules/grounded-answers.md rule 3). */}
               <Text style={styles.framingNote}>
                 “Support” shown as what the public record shows: bills authored or co-authored on
                 this topic — not inferred opinions.

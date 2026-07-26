@@ -28,7 +28,7 @@ Not for: a **finalized** design ready to build (→ `design-build`), proofing a 
 
 **Resolving which bundle to review.** If the invocation names a bundle (a path or page name), use it. Otherwise — including a bare `/design-review` with no other arguments — default to the **most recently downloaded bundle in `~/Downloads`**, so the skill can be invoked with nothing else and still know what to review. Find the newest candidate with `ls -td ~/Downloads/*/ ~/Downloads/*.zip 2>/dev/null | head` (a Claude Design bundle is a folder — or a `.zip` of one — holding `README.md` + a `.dc.html` + `screenshots/`); unzip a `.zip` first. If the newest item isn't a design bundle, fall back to the newest one that is. Confirm in one line which bundle you picked and what page it's for, then frame it (step 0). This pass reads the bundle in place for feedback — it does not land it in-repo (that's `design-build`'s job once the design finalizes).
 
-**0. Frame it.** Identify the page, the preview-band state(s) shown (reference frames only by Claude Design's own band labels — never invented names, per the `claude-design-prompt-rules` memory), its place in the IA and `docs/mvp-redesign-plan.md`, and pull the governing spec (`docs/product-scope.md`, `docs/grounded-ask-spec.md`, the relevant issues/milestone). State in one line what this screen is and is for.
+**0. Frame it.** Identify the page, the preview-band state(s) shown (reference frames only by Claude Design's own band labels — never invented names, per the `claude-design-prompt-rules` memory), its place in the IA and `docs/product/mvp-redesign-plan.md`, and pull the governing spec (`docs/product/product-scope.md`, `docs/product/grounded-ask-spec.md`, the relevant issues/milestone). State in one line what this screen is and is for.
 
 **1. Ground every element.** Walk *each discrete element* — every field, chip, badge, count, filter, card, CTA, empty state, suggested question — and tag it:
 - ✅ **backed today** (cite the source: bill field, API, spec §, issue)
@@ -58,7 +58,7 @@ Each recommendation gets a plain-language **Net** (per `eugene-workflow-preferen
 
 **5. Interview on genuine gaps only** — batched, ≤4, each with a recommended default (`design-intake` style). Only for gaps the repo/spec didn't answer.
 
-**6. Route the outcome.** Settled design decisions → `docs/mvp-redesign-plan.md`. Capability/data gaps that need work → a GitHub issue filed at discovery (`.claude/rules/workflow.md` rule 4). Once the design finalizes, the build runs through `design-intake` → `design-build`.
+**6. Route the outcome.** Settled design decisions → `docs/product/mvp-redesign-plan.md`. Capability/data gaps that need work → a GitHub issue filed at discovery (`.claude/rules/workflow.md` rule 4). Once the design finalizes, the build runs through `design-intake` → `design-build`.
 
 ## What's assessable up front vs. only on the live build
 
@@ -84,4 +84,4 @@ Implementing or editing the mockup (this pass only produces feedback) · sending
 
 ## References
 
-`.claude/rules/grounded-answers.md` (the invariants step 1 enforces) · `docs/mvp-redesign-plan.md` (decisions land here) · `docs/grounded-ask-spec.md` · `docs/product-scope.md` · `docs/ui-copy-guide.md` · the `claude-design-prompt-rules` and `eugene-workflow-preferences` memories · sibling skills `design-intake`, `design-build`, `design-audit`.
+`.claude/rules/grounded-answers.md` (the invariants step 1 enforces) · `docs/product/mvp-redesign-plan.md` (decisions land here) · `docs/product/grounded-ask-spec.md` · `docs/product/product-scope.md` · `docs/design/ui-copy-guide.md` · the `claude-design-prompt-rules` and `eugene-workflow-preferences` memories · sibling skills `design-intake`, `design-build`, `design-audit`.

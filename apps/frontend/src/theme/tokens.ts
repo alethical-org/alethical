@@ -65,7 +65,7 @@ const palette = {
   // omnibus indicator pill (docs/mockups/search-bills omnibus amber).
   // Text is #8f5a12 (not the mockup's #a76a1a) to clear WCAG AA: 5.77:1 on white /
   // 5.16:1 on the #fbf1e2 fill; #a76a1a was 3.98:1 on fill and 4.45:1 on white,
-  // short of AA for small text (docs/design-principles.md §3, accessibility
+  // short of AA for small text (docs/design/design-principles.md §3, accessibility
   // overrides the spec). omnibusFill/Border/Text also back the SOLID bill-code
   // badge; omnibusGhostBorder is the lighter border for the GHOSTED omnibus TAG
   // (transparent fill), used site-wide so all omnibus tags read identically.

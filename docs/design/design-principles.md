@@ -8,15 +8,15 @@
 > starts on-brand instead of drifting to a generic default. (2) A **reference for building and
 > reviewing** screens in the RN/Expo codebase.
 >
-> **Scope — visual & interaction only.** Voice and copy are owned by `docs/ui-copy-guide.md`;
+> **Scope — visual & interaction only.** Voice and copy are owned by `docs/design/ui-copy-guide.md`;
 > what a screen may *claim* is owned by `.claude/rules/grounded-answers.md` (a line must be true
 > before it can be on-brand). Exact token values are owned by `apps/frontend/src/theme/tokens.ts`
 > — this doc describes *character and intent*, never a parallel value sheet (it would drift; per
-> `docs/mvp-redesign-plan.md`, generate a value sheet from the file if one is ever needed).
+> `docs/product/mvp-redesign-plan.md`, generate a value sheet from the file if one is ever needed).
 >
 > **Sources of truth:** `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` (implemented
 > system) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page's values/states/copy) ·
-> `docs/mvp-redesign-plan.md` (redesign decisions). MVP is **responsive web** (desktop + mobile
+> `docs/product/mvp-redesign-plan.md` (redesign decisions). MVP is **responsive web** (desktop + mobile
 > web); native is deferred ([#91](https://github.com/alethical-org/alethical/issues/91)).
 
 ## 1. What Alethical should feel like
@@ -131,8 +131,8 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 ## References
 
 `apps/frontend/src/theme/tokens.ts` · `apps/frontend/src/theme/primitives.tsx` ·
-`docs/mvp-redesign-plan.md` (redesign decisions) · `docs/ui-copy-guide.md` (voice/copy) ·
-`.claude/rules/grounded-answers.md` (what a surface may claim) · `docs/grounded-ask-spec.md`
+`docs/product/mvp-redesign-plan.md` (redesign decisions) · `docs/design/ui-copy-guide.md` (voice/copy) ·
+`.claude/rules/grounded-answers.md` (what a surface may claim) · `docs/product/grounded-ask-spec.md`
 (Ask surfaces) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page) ·
 `docs/archive/aesthetics.md` (retired Newsprint identity, historical).
 

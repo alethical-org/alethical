@@ -3,7 +3,7 @@
 > 2026-03-21**, and what was changed to get there. It is not a live spec and is not
 > re-run — nothing reads it, and the schema has moved on since.
 >
-> **Sources of truth now:** `docs/db-schema-system-design.md` for the schema's design
+> **Sources of truth now:** `docs/architecture/db-schema-system-design.md` for the schema's design
 > intent and its validation rubric · the runtime validator and its machine-readable
 > output (linked below) for whether the rubric passes *today* · `alembic/versions/`
 > for what the schema actually is. Kept for the record of the March 2026 pass.

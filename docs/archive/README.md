@@ -15,8 +15,8 @@ on. This directory is the compromise, and the status header is what makes it wor
 
 | Doc | What it was | Superseded by |
 |---|---|---|
-| [`aesthetics.md`](aesthetics.md) | The **Newsprint** visual identity — sharp corners, serif type, ink/paper/editorial-red palette | `docs/design-principles.md` (green system intent) + `apps/frontend/src/theme/tokens.ts` (implemented values) |
-| [`schema-query-validation.md`](schema-query-validation.md) | A point-in-time report that the schema passed its query rubric on 2026-03-21 | `docs/db-schema-system-design.md` (the rubric) + `scripts/validate_query_rubric.py` (whether it passes today) |
+| [`aesthetics.md`](aesthetics.md) | The **Newsprint** visual identity — sharp corners, serif type, ink/paper/editorial-red palette | `docs/design/design-principles.md` (green system intent) + `apps/frontend/src/theme/tokens.ts` (implemented values) |
+| [`schema-query-validation.md`](schema-query-validation.md) | A point-in-time report that the schema passed its query rubric on 2026-03-21 | `docs/architecture/db-schema-system-design.md` (the rubric) + `scripts/validate_query_rubric.py` (whether it passes today) |
 
 Adding to this directory: move the file with `git mv`, add a status header naming
 what replaced it, fix its relative links (one directory deeper now), repoint

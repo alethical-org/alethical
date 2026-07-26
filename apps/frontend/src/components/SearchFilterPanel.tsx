@@ -23,7 +23,7 @@ import { Card } from './Card';
 
 export type ChamberFilter = 'All' | 'House' | 'Senate';
 
-// Displayed label uses "issues" — the layperson term (docs/ui-copy-guide.md),
+// Displayed label uses "issues" — the layperson term (docs/design/ui-copy-guide.md),
 // matching Search Bills. Identifier stays ALL_POLICIES (rule 3: display only).
 const ALL_POLICIES = 'All issues';
 const ALL_STATUSES = 'All Statuses';

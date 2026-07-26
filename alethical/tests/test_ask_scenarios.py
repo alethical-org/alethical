@@ -123,7 +123,7 @@ def _assert_cite_or_refuse(answer: dict, kind: str) -> None:
             assert items == []
             return
         assert items, "a non-zero match count must render at least one citation"
-        # Per docs/grounded-ask-spec.md §4.2 (topic_legislators), the citation
+        # Per docs/product/grounded-ask-spec.md §4.2 (topic_legislators), the citation
         # backing an authorship count *is the bill itself* — the profile URL is a
         # supplementary link. So every rendered row must carry at least one bill
         # reference that resolves by bill key.
@@ -246,7 +246,7 @@ def test_interim_intents_return_no_ungrounded_answer(client, monkeypatch, intent
 
 
 def test_bill_text_answer_cites_the_resolved_bill(client, monkeypatch):
-    """Scenario 1 (docs/grounded-ask-spec.md §4.1 / §9.4, bill_text): a question
+    """Scenario 1 (docs/product/grounded-ask-spec.md §4.1 / §9.4, bill_text): a question
     naming a bill resolves it, retrieves its passages, and answers in prose with
     citations that each resolve to an official URL (grounded rule 1)."""
     _mock_llm_intent(monkeypatch, "bill_text")
@@ -264,7 +264,7 @@ def test_bill_text_answer_cites_the_resolved_bill(client, monkeypatch):
 
 
 def test_bill_text_resolves_a_bill_by_fuzzy_title(client, monkeypatch):
-    """Scenario 1 (docs/grounded-ask-spec.md §4.1, bill_text): a question with no
+    """Scenario 1 (docs/product/grounded-ask-spec.md §4.1, bill_text): a question with no
     HF/SF number resolves via a single confident title match ("higher education"
     → SF 2483) and answers with citations — proving you don't need the number."""
     _mock_llm_intent(monkeypatch, "bill_text")
@@ -313,7 +313,7 @@ def test_bill_text_degrades_to_topic_bills_when_ambiguous(client, monkeypatch):
 def test_vote_deflection_resolves_named_bill_and_degrades_otherwise(
     client, monkeypatch
 ):
-    """Scenario 4 v1 (docs/grounded-ask-spec.md §4.5 / §9.4, Vote deflection): a
+    """Scenario 4 v1 (docs/product/grounded-ask-spec.md §4.5 / §9.4, Vote deflection): a
     vote question is an honest deflection, never a vote answer. When it names a
     resolvable bill (HF/SF number) the body carries that bill's card so the
     frontend can deep-link its Votes tab (§9.3); when no bill resolves it

@@ -3,9 +3,9 @@
 > Practical map of every data source Alethical pulls from, how each is fetched
 > and parsed, how the pipeline is orchestrated, and what you need installed.
 > Verified against the code on 2026-07-03. Companion design docs:
-> [ingestion-pipeline-system-design.md](../ingestion-pipeline-system-design.md),
-> [rag-ingestion-system-design.md](../rag-ingestion-system-design.md),
-> [db-schema-system-design.md](../db-schema-system-design.md).
+> [ingestion-pipeline-system-design.md](../architecture/ingestion-pipeline-system-design.md),
+> [rag-ingestion-system-design.md](../architecture/rag-ingestion-system-design.md),
+> [db-schema-system-design.md](../architecture/db-schema-system-design.md).
 
 ## TL;DR mental model
 
@@ -76,7 +76,7 @@ offline (tests / no key) they fall back to a deterministic SHA-256 hash — see 
 **E & F — OpenAI** section. All flows are functional.
 
 > Downloadable version of this diagram (for slides / offline):
-> [SVG](../data-ingestion-pipeline.svg) · [PNG](../data-ingestion-pipeline.png).
+> [SVG](../assets/data-ingestion-pipeline.svg) · [PNG](../assets/data-ingestion-pipeline.png).
 
 ## The source map
 
@@ -144,7 +144,7 @@ Reference URL shapes: `https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/` �
   roster load also runs it when passed `--reconcile-roster`. **Re-run at each new
   biennium (~every 2 years, against the new `--session-slug`) and whenever a
   member leaves mid-session.** Spec:
-  [legislator-roster-canonical-membership-spec.md](../legislator-roster-canonical-membership-spec.md).
+  [legislator-roster-canonical-membership-spec.md](../architecture/legislator-roster-canonical-membership-spec.md).
 
 ## C — Roll-call votes (chamber-specific)
 
