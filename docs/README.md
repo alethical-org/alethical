@@ -37,8 +37,8 @@ it paid for" reference. These grow as the system does.
 
 - [Backend API system design](architecture/backend-api-system-design.md) — REST conventions, namespace layout, and the endpoint inventory
 - [Database schema system design](architecture/db-schema-system-design.md) — table groups, modeling decisions, and the query rubric
-- [Ingestion pipeline system design](architecture/ingestion-pipeline-system-design.md) — sources, the seven pipeline stages, and enrichment status
-- [RAG ingestion system design](architecture/rag-ingestion-system-design.md) — cleaning, chunking, and the retrieval index
+- [Ingestion layer 1 — source ingestion](architecture/layer-1-source-ingestion-system-design.md) — official sources → canonical records: the seven pipeline stages and enrichment status
+- [Ingestion layer 2 — RAG ingestion](architecture/layer-2-rag-ingestion-system-design.md) — canonical records → retrieval chunks: cleaning, chunking, and the retrieval index
 - [Canonical legislator membership spec](architecture/legislator-roster-canonical-membership-spec.md) — reconciling the roster PDF into current-member state
 - [Research](research/) — retrieval-strategy and persona findings behind deferred RAG upgrades
 
