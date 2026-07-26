@@ -4,9 +4,7 @@ Status: draft for engineering review
 Owner: Eugene
 Related surfaces: signed-out home (hero), chat
 
-![Signed-out hero with Ask box and the three shipped sample question chips](../assets/grounded-ask-hero.png)
-
-*The mock reflects the **live** surface: the three chips map 1:1 to the shipped answer paths (bill text · topic → bills · topic → legislators), and the Ask box shows the current placeholder copy (§2). The vote chip is **not built yet** — see §2, Build order.*
+The signed-out hero ships three sample question chips that map 1:1 to the shipped answer paths (bill text · topic → bills · topic → legislators), with the Ask box showing the current placeholder copy (§2). There is no vote chip — the vote path is not built yet (see §2, Build order).
 
 ## 1. Goal and the promise this build protects
 
