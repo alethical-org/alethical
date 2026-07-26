@@ -19,7 +19,9 @@ docs/
 ├── architecture/          How the system is built
 │   ├── backend-api-system-design.md
 │   ├── db-schema-system-design.md
+│   ├── data-model-relationships.html
 │   ├── ingestion-pipeline-system-design.md
+│   ├── data-ingestion-pipeline.svg
 │   ├── rag-ingestion-system-design.md
 │   ├── frontend-screen-system-design.md
 │   └── legislator-roster-canonical-membership-spec.md
@@ -40,10 +42,8 @@ docs/
 │   ├── data-ingestion-onboarding.md
 │   └── search-bills-guide.md
 │
-├── assets/                Images and diagrams
 ├── mockups/               Design bundles
-├── research/              Research findings
-└── archive/               Superseded docs, kept for the record
+└── research/              Research findings
 ```
 
 ## Why the folders are what they are
@@ -51,7 +51,7 @@ docs/
 Each folder answers one question, and that is what lets someone find a doc by guessing:
 *what are we building* (product) · *how is it built* (architecture) · *how should it look*
 (design) · *how do I run it* (operations) · *how do I learn it* (onboarding). The remaining
-four hold non-prose material and history: `assets/`, `mockups/`, `research/`, and `archive/`.
+two hold non-prose material: `mockups/` and `research/`.
 
 Four placements aren't obvious, so they're stated:
 
