@@ -76,7 +76,7 @@ offline (tests / no key) they fall back to a deterministic SHA-256 hash — see 
 **E & F — OpenAI** section. All flows are functional.
 
 > Downloadable version of this diagram (for slides / offline):
-> [SVG](../architecture/data-ingestion-pipeline.svg).
+> [SVG](../architecture/layers-1-2-ingestion-pipeline.svg).
 
 ## The two ingestion layers (and where the design depth lives)
 
