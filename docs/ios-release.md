@@ -1,6 +1,6 @@
 # iOS Release Workflow
 
-> **Post-MVP.** The MVP ships the web app only (see `docs/v1-scope.md` § Frontend Scope).
+> **Not shipped.** The web app is the client that ships today (see `docs/v1-scope.md` § Frontend Scope).
 > This workflow covers the native iOS client ([#91](https://github.com/alethical-org/alethical/issues/91), not built yet) plus the simulator/TestFlight QA that works today. The web app is what ships now.
 
 The frontend is an Expo React Native app in `apps/frontend`. iOS builds should stay Expo-managed unless a future native customization requires committing an `ios/` directory.

@@ -6,7 +6,7 @@ Status: discussion draft
 
 Define a production-oriented ingestion pipeline for Alethical v1 that can reliably pull Minnesota legislative data from official sources, normalize it into a canonical domain model, retain provenance, and publish data that is usable by:
 
-- the web client (and post-MVP iOS and Android clients — [#91](https://github.com/alethical-org/alethical/issues/91))
+- the web client (and native iOS and Android clients when built — [#91](https://github.com/alethical-org/alethical/issues/91))
 - search
 - bill comparison
 - RAG chat
@@ -304,7 +304,7 @@ Consumers:
 
 - product APIs
 - web client
-- mobile clients (post-MVP)
+- mobile clients (not built yet)
 - notification jobs
 - retrieval service
 
@@ -463,7 +463,7 @@ Observed results from the generated report:
 - text parsing for all version variants and engrossments
 - resilient handling of HTML template changes across sessions
 
-## Recommended V1 Build Order
+## Recommended Build Order
 
 1. Revisor bill discovery and XML ingestion
 2. Revisor bill text version ingestion
@@ -476,7 +476,7 @@ Observed results from the generated report:
 9. Vote-detail adapters
 10. District lookup adapter
 
-## Out of Scope for the First Ingestion Milestone
+## Out of Scope for Ingestion
 
 - federal ingestion
 - campaign website scraping

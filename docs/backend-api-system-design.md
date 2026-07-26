@@ -1,12 +1,12 @@
 # Alethical Backend API System Design
 
-Status: v1 design draft
+Status: design reference — endpoint inventory spot-verified against `alethical/api/routers/` Jul 2026
 
 ## Goal
 
 Design a REST API for Alethical v1 that:
 
-- serves the MVP web client from one backend, and stays client-agnostic so post-MVP iOS and Android ([#91](https://github.com/alethical-org/alethical/issues/91)) can consume the same API
+- serves the web client from one backend, and stays client-agnostic so native iOS and Android ([#91](https://github.com/alethical-org/alethical/issues/91)) can consume the same API when built
 - follows resource-oriented REST conventions
 - maps cleanly to the current domain and database model
 - gives the frontend economical access to every core user story
@@ -88,7 +88,7 @@ The API is acceptable only if it satisfies all of these:
 
 ### 1. User Story Coverage
 
-Every v1 user story must have a direct API path.
+Every user story below must have a direct API path.
 
 ### 2. Economic Frontend Access
 
@@ -159,7 +159,7 @@ Why this split:
 
 ### Media Type
 
-- JSON only for v1
+- JSON only
 
 ### Casing
 
@@ -241,9 +241,9 @@ Use cursor pagination for growing collections:
 - chat sessions
 - chat messages
 
-#### V1 bill-list pagination
+#### Bill-list pagination — offset, deliberately
 
-The first production implementation for bill-card lists uses offset pagination instead of opaque cursors. This is intentional for the current V1 surfaces because the affected lists are read-only, have stable sort orders, and need a minimal fix for users who could only see the first 20 bills.
+The first production implementation for bill-card lists uses offset pagination instead of opaque cursors. This is intentional for the current surfaces because the affected lists are read-only, have stable sort orders, and need a minimal fix for users who could only see the first 20 bills.
 
 Applies to:
 
@@ -285,7 +285,7 @@ Signed-in endpoints should default to non-shared caching.
 
 ## Auth Model
 
-The backend should not own passwords in v1.
+The backend does not own passwords.
 
 Recommended approach:
 
@@ -653,7 +653,7 @@ Purpose:
 
 Purpose:
 
-- manage email-first v1 notifications
+- manage email-first notifications
 
 #### `GET /api/v1/me/notification-events`
 
