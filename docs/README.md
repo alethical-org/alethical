@@ -49,3 +49,7 @@ it paid for" reference. These grow as the system does.
 ## Archive
 
 - [Archived docs](archive/) — superseded designs and point-in-time reports, kept for the record. Not sources of truth; each carries a header saying what replaced it.
+
+## About this folder
+
+- [How `docs/` is organized](folder-structure.md) — where a new doc goes, and the proposed grouping of these files into purpose folders (**proposed, not yet executed**)
