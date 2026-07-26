@@ -6,7 +6,7 @@ Status: first prototype loop
 
 Define what "good quality" means for Alethical's RAG ingestion pipeline, then shape the pipeline so bill text can be transformed from source-faithful canonical records into retrieval-safe chunks with strong provenance.
 
-This document is intentionally separate from the source ingestion design. The source ingestion pipeline answers:
+This document is intentionally separate from the source ingestion design (`docs/architecture/ingestion-pipeline-system-design.md`). That pipeline answers:
 
 - what did the legislature publish
 - when did it publish it

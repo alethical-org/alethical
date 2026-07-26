@@ -294,6 +294,8 @@ Derived outputs:
 - chunked bill text for embeddings
 - retrieval metadata for chat citations
 
+The retrieval derivations — cleaned section documents, chunks, embeddings, and the retrieval index — are specified in their own doc, `docs/architecture/rag-ingestion-system-design.md`. This pipeline produces the canonical bill text and versions that the RAG pipeline consumes; it does not itself define the chunking, cleaning, or index.
+
 ### Stage 7. Publication
 
 Purpose:
@@ -345,18 +347,17 @@ Responsibility:
 
 ## Derived Layer
 
-Tables:
+Tables (as implemented in `alethical/db/models.py`):
 
-- `bill_search_document`
-- `legislator_search_document`
-- `bill_text_chunk`
-- `embedding`
-- `ai_enrichment`
-- `tracking_event`
+- `bill_stats`, `legislator_stats`, `policy_area_count` — precomputed aggregates for fast product reads
+- `ai_enrichment` — model-generated summaries and key points (see "AI Enrichment Status" below)
+- `rag_section_document`, `rag_chunk`, `rag_chunk_embedding` — retrieval artifacts, **specified in `docs/architecture/rag-ingestion-system-design.md`**, not here
 
 Responsibility:
 
 - fast product reads and retrieval
+
+Search is Postgres FTS over the canonical tables plus these stats aggregates — there is no separate search-document table.
 
 ## Prototype Findings
 
