@@ -13,7 +13,7 @@
  * surface is a one-line change here instead of edits scattered across the
  * routing switch.
  *
- * See docs/product/mvp-redesign-plan.md for decisions and the migration steps.
+ * See docs/product-and-onboarding/mvp-redesign-plan.md for decisions and the migration steps.
  */
 
 export type MenuKey = 'ask' | 'search' | 'track' | 'about';

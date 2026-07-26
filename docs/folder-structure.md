@@ -10,11 +10,14 @@ docs/
 ├── README.md              the index
 ├── folder-structure.md    this doc
 │
-├── product/               What we're building, and what we deliberately aren't
+├── product-and-onboarding/ What we're building (and won't), plus how to learn how it works
 │   ├── product-scope.md
 │   ├── grounded-ask-spec.md
 │   ├── bill-search-screen-spec.md
-│   └── mvp-redesign-plan.md
+│   ├── mvp-redesign-plan.md
+│   ├── ai-models-and-billing.md
+│   ├── data-ingestion-onboarding.md
+│   └── search-bills-guide.md
 │
 ├── architecture/          How the system is built
 │   ├── backend-api-system-design.md
@@ -37,28 +40,23 @@ docs/
 │   ├── android-prototype-handoff.md
 │   └── local-dev-windows.md
 │
-├── onboarding/            Learning how it works
-│   ├── ai-models-and-billing.md
-│   ├── data-ingestion-onboarding.md
-│   └── search-bills-guide.md
-│
 ├── mockups/               Design bundles
 └── research/              Research findings
 ```
 
 ## Why the folders are what they are
 
-Each folder answers one question, and that is what lets someone find a doc by guessing:
-*what are we building* (product) · *how is it built* (architecture) · *how should it look*
-(design) · *how do I run it* (operations) · *how do I learn it* (onboarding). The remaining
-two hold non-prose material: `mockups/` and `research/`.
+Each folder answers a question, and that is what lets someone find a doc by guessing:
+*what are we building and how do I learn it* (product-and-onboarding) · *how is it built*
+(architecture) · *how should it look* (design) · *how do I run it* (operations). The
+remaining two hold non-prose material: `mockups/` and `research/`.
 
 Four placements aren't obvious, so they're stated:
 
 - **`frontend-screen-system-design.md` is architecture, not design** — it is a system design
   for the screen layer; the visual rules live in `design/design-principles.md`. Its one
-  product-content section (Bill Detail Content Rules) is a candidate to move to `product/` on
-  its own.
+  product-content section (Bill Detail Content Rules) is a candidate to move to
+  `product-and-onboarding/` on its own.
 - **`bill-search-screen-spec.md` is product, not design** — a screen spec defines behavior
   and acceptance; the visual is the mockup bundle in `mockups/`.
 - **`legislator-roster-canonical-membership-spec.md` is architecture** — it specifies a

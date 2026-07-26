@@ -1,7 +1,7 @@
 # Bill search screen spec
 
-Status: v1 build spec. Companion to `docs/product/mvp-redesign-plan.md` (§ "Search page split")
-and `docs/product/grounded-ask-spec.md` (the Ask answer pages link into this screen). Durable
+Status: v1 build spec. Companion to `docs/product-and-onboarding/mvp-redesign-plan.md` (§ "Search page split")
+and `docs/product-and-onboarding/grounded-ask-spec.md` (the Ask answer pages link into this screen). Durable
 answer/citation invariants live in `.claude/rules/grounded-answers.md`.
 
 ## Goal
@@ -10,12 +10,12 @@ Split the combined Bills + Legislators search into two dedicated screens. This s
 covers the **bill search screen** (`/bills`); the legislator screen follows separately.
 Search is "the library" — query/filter-forward, public, no auth. The screen surfaces
 more of the legislative record we already ingest, and keeps official data visually
-distinct from AI-generated analysis (`docs/product/product-scope.md` § Frontend Expectations).
+distinct from AI-generated analysis (`docs/product-and-onboarding/product-scope.md` § Frontend Expectations).
 
 ## Route and URL-addressable state
 
 - Route `/bills`; detail `/bills/:billId`. Redirect `/search` → `/bills`
-  (`docs/product/mvp-redesign-plan.md` route table).
+  (`docs/product-and-onboarding/mvp-redesign-plan.md` route table).
 - **URL-addressable filters** — tracked in [#135](https://github.com/alethical-org/alethical/issues/135), split by milestone to keep v1 lean:
   - **Shipped (inbound read):** the screen reads an inbound filter param on load (e.g.
     `?policy=education`) and applies it. Required because the Ask `bills-list` answer's
@@ -137,7 +137,7 @@ Everything else on this screen runs on the current API.
 
 ## Out of scope for this screen
 
-- **Meaning-based search and natural-language questions — Grounded Ask's job, not this box.** The search box matches the *words* you type (now word-form- and typo-tolerant, [#573](https://github.com/alethical-org/alethical/issues/573)); finding bills by *concept* when the words differ (e.g. "school money" → a bill that says "fund") or answering a full question ("what bills help teachers?", "how did my rep vote on housing?") is `docs/product/grounded-ask-spec.md` (§3.1 natural-language Ask box, §4.1 router intents). This is why there is deliberately no "Ask AI instead" cross-sell from a failed search (see Empty / no-results state above; `.claude/rules/grounded-answers.md` rule 2).
+- **Meaning-based search and natural-language questions — Grounded Ask's job, not this box.** The search box matches the *words* you type (now word-form- and typo-tolerant, [#573](https://github.com/alethical-org/alethical/issues/573)); finding bills by *concept* when the words differ (e.g. "school money" → a bill that says "fund") or answering a full question ("what bills help teachers?", "how did my rep vote on housing?") is `docs/product-and-onboarding/grounded-ask-spec.md` (§3.1 natural-language Ask box, §4.1 router intents). This is why there is deliberately no "Ask AI instead" cross-sell from a failed search (see Empty / no-results state above; `.claude/rules/grounded-answers.md` rule 2).
 - Browse-by-policy-area side rail — [#130](https://github.com/alethical-org/alethical/issues/130), since **shipped** (closed Jul 24 2026); this section predates it.
 - User-facing sort control and author filter (data supports both; not built).
 - Bill export.
@@ -145,7 +145,7 @@ Everything else on this screen runs on the current API.
 ## Aesthetic
 
 Design against the **green / rounded / soft-shadow / bold-sans** direction
-(`docs/product/mvp-redesign-plan.md` § Locked decisions; final visual mockups in Claude Design).
+(`docs/product-and-onboarding/mvp-redesign-plan.md` § Locked decisions; final visual mockups in Claude Design).
 Design intent and the visual/interaction/accessibility rules are in `docs/design/design-principles.md`;
 `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` are the implemented styling source of
 truth. The green token flip has **landed** (PR [#67](https://github.com/alethical-org/alethical/pull/67)),

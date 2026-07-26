@@ -1,6 +1,6 @@
 > **Repo context** (added on landing, 2026-07-15). Tracked design reference for the
 > **signed-out home** page on **mobile web** — the v3 mobile mock, phone counterpart to the
-> desktop `home-signed-out-v2` bundle. Plan: `docs/product/mvp-redesign-plan.md`; the signed-out home
+> desktop `home-signed-out-v2` bundle. Plan: `docs/product-and-onboarding/mvp-redesign-plan.md`; the signed-out home
 > ships in `apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx` (already responsive —
 > mobile was previously *derived*, PRs #163/#203; this bundle reconciles that mobile layout to
 > an explicit hifi mock). Tokens live in `apps/frontend/src/theme/tokens.ts` +

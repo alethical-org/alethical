@@ -1529,7 +1529,7 @@ def semantic_rag_chunk_stmt(
     ``max_distance`` gates the retrieval-relevance threshold: when set, only
     chunks within that cosine distance of the query are returned, so a weak
     match yields nothing (the caller refuses rather than stretches — the Ask
-    cite-or-refuse guardrail, docs/product/grounded-ask-spec.md §4.5). Left ``None`` for
+    cite-or-refuse guardrail, docs/product-and-onboarding/grounded-ask-spec.md §4.5). Left ``None`` for
     callers like bill-scoped chat that always want the nearest neighbours.
 
     ``current_version_only`` (default True) scopes retrieval to each bill's

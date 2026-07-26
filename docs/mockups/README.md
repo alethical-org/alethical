@@ -11,4 +11,4 @@ refined during the build. Navigation reconciles against `apps/frontend/src/navig
 (the registry is source of truth for IA). Mockups are fixed-width desktop comps;
 responsive/mobile behavior is derived during the build.
 
-See `docs/product/mvp-redesign-plan.md` for the full plan.
+See `docs/product-and-onboarding/mvp-redesign-plan.md` for the full plan.

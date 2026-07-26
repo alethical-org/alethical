@@ -2,7 +2,7 @@
 
 **What this is.** The *why* beneath Alethical — the beliefs that should hold even as
 features, copy, and design change around them. It sits above the operational docs:
-[product scope](product/product-scope.md) says *what we build and won't build*,
+[product scope](product-and-onboarding/product-scope.md) says *what we build and won't build*,
 [design principles](design/design-principles.md) says *how it looks and behaves*, and
 the [UI copy guide](design/ui-copy-guide.md) says *how it sounds*. Those are rules and
 tactics; this is the direction they answer to.
@@ -24,7 +24,7 @@ the government's record was theirs all along, and that they can finally read it.
 
 That recognition — not any single feature — is what we are building toward. It is the
 horizon, not a claim about today. What we ship at any given moment is a reliable
-Minnesota legislative data and analysis product ([scope](product/product-scope.md)); the
+Minnesota legislative data and analysis product ([scope](product-and-onboarding/product-scope.md)); the
 philosophy points the compass, and the principle *say only what we can do* keeps every
 concrete promise honest.
 
