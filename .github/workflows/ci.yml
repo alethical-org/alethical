@@ -145,3 +145,21 @@ jobs:
 
       - name: Build frontend
         run: pnpm run build
+
+  # Runs on every PR with no path filter — a broken doc reference is usually
+  # introduced by a docs-only or rules-only change, which the backend and
+  # frontend jobs above skip. That gap let a rename (#652) merge a dead index
+  # link. Pure stdlib, so no dependency install is needed.
+  doc-references:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check doc references resolve
+        run: python scripts/check_doc_references.py
