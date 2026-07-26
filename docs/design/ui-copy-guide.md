@@ -1,6 +1,7 @@
 > **Status — stored Jul 9, 2026. Proposed voice/tone guide, not yet reconciled with shipped copy.**
 > This is the acquisition/product voice direction. It governs *how* copy sounds; it does **not**
-> override *what* copy may claim. Where this guide and the grounded-answer invariants
+> override *what* copy may claim. It is the tactical expression of the durable beliefs in
+> [`docs/philosophy.md`](../philosophy.md) — read the philosophy for the *why*, this guide for the *how*. Where this guide and the grounded-answer invariants
 > (`.claude/rules/grounded-answers.md`) conflict, the invariants win — a copy line must be true
 > before it can be on-voice.
 >

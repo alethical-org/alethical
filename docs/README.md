@@ -10,6 +10,10 @@ but never that work is off-limits because of which milestone it sits in. If you 
 a doc gating work by version, that is a bug in the doc (`.claude/rules/workflow.md`
 rule 13). Milestone claims in particular go stale: check the tracker, not the prose.
 
+## Start Here
+
+- [Philosophy](philosophy.md) — the *why* beneath Alethical: the beliefs the product, design, and copy all answer to. Read this before the specs.
+
 ## Onboarding & Education
 
 Start here if you're new, or reaching for the "how does this actually work / how is
