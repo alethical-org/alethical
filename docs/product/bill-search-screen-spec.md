@@ -150,4 +150,3 @@ Design intent and the visual/interaction/accessibility rules are in `docs/design
 `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` are the implemented styling source of
 truth. The green token flip has **landed** (PR [#67](https://github.com/alethical-org/alethical/pull/67)),
 so this screen is both designed and built against the green tokens/primitives.
-(`docs/archive/aesthetics.md` is the retired Newsprint identity, kept for history only.)

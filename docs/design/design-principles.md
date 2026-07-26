@@ -2,7 +2,7 @@
 
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
-> green design-system doc that `docs/archive/aesthetics.md` (retired Newsprint) was holding a place for.
+> single source of truth for the green system, which replaced the earlier Newsprint identity.
 >
 > **Two jobs.** (1) A **brief to hand to Claude Design** at the start of any mockup so its output
 > starts on-brand instead of drifting to a generic default. (2) A **reference for building and
@@ -133,8 +133,7 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 `apps/frontend/src/theme/tokens.ts` · `apps/frontend/src/theme/primitives.tsx` ·
 `docs/product/mvp-redesign-plan.md` (redesign decisions) · `docs/design/ui-copy-guide.md` (voice/copy) ·
 `.claude/rules/grounded-answers.md` (what a surface may claim) · `docs/product/grounded-ask-spec.md`
-(Ask surfaces) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page) ·
-`docs/archive/aesthetics.md` (retired Newsprint identity, historical).
+(Ask surfaces) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page).
 
 ---
 

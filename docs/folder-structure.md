@@ -83,5 +83,9 @@ Two things keep the folder honest:
   change — including the `../` depth on relative links, which changes when a file moves
   between folders. Run it locally with `python scripts/check_doc_references.py`.
 
-When a doc stops describing how things work, move it to `archive/` with a status header
-rather than deleting it (see `docs/archive/README.md`).
+When a doc stops describing how things work, delete it. `docs/` shows only what is
+present and current; retired specs and point-in-time reports are not kept here. The
+decision, measurement, or design a deleted doc recorded lives on in `git` history (and,
+where it still matters, in whatever superseded it — the live spec, a `.claude/rules/`
+invariant, or a GitHub issue). Before deleting, repoint or remove any inbound references
+so `scripts/check_doc_references.py` stays green.
