@@ -277,20 +277,11 @@ Frontend track (after Phase 0; parallel with backend track)
   social are explicitly out of scope there) — a conscious future mission expansion;
   keep out of the MVP data model so it doesn't leak scope.
 
-## Applied product-scope amendment (rationale)
+## Why anonymous visitors get one cited answer
 
-`docs/product/product-scope.md` § "AI and RAG Chat → In Scope" previously read
-**"Signed-in-only grounded question answering."** The locked hero funnel deviates
-from that, so this PR amended it to:
-
-> Grounded question answering over Minnesota legislative data. Persistent chat
-> sessions (history, follow-ups, saved context) are signed-in only. Anonymous
-> visitors may receive a single stateless, rate-limited, cited answer as a
-> conversion teaser — no session is persisted, and follow-ups, history, and
-> tracking require sign-in.
-
-Rationale: the cited-answer moment is the product's core proof ("Truth, Unconcealed");
-gating it before the visitor experiences it suppresses adoption. The stateless one-shot
-preserves the doc's real intent (sessions belong to signed-in users). Applied in this PR
-alongside the plan-doc introduction (the Product Definition summary at `product-scope.md:26`
-was updated to match).
+`docs/product/product-scope.md` § "AI and RAG Chat" lets anonymous visitors receive a
+single stateless, rate-limited, cited answer, while persistent chat (history, follow-ups,
+saved context) stays signed-in only. The reason: the cited-answer moment is the product's
+core proof ("Truth, Unconcealed"), so gating it before a visitor experiences it suppresses
+adoption. The stateless one-shot keeps the "sessions belong to signed-in users" intent
+without hiding the proof behind sign-in.

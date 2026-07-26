@@ -555,11 +555,6 @@ them costs more than any feature gains:
 and citations · legislator committee and historical data depth · notification breadth ·
 bill comparison UI.
 
-(This replaces a "cut in this order if timeline or budget tightens" list. The ordering was
-written against a fixed launch date that no longer governs, but the underlying judgment —
-what is load-bearing versus what is enhancement — still holds, so it is kept as a
-priorities statement.)
-
 ## Permanent non-goals — the consolidated list
 
 The single answer to "will Alethical ever do X?" Everything here is a deliberate boundary,
@@ -590,7 +585,7 @@ recommendation surface · admin tooling depth.
 > *promise tracking and promise-vs-vote scoring* — the accountability-scoring features,
 > not candidate data surfaces.
 
-> **Candidates vs. promise tracking:** candidate *profiles, search, and tracking* are a planned direction, not built yet ([#147](https://github.com/alethical-org/alethical/issues/147) profiles/search and [#148](https://github.com/alethical-org/alethical/issues/148) tracking, both on the `v8 candidates` milestone — there is no `Elections` milestone, despite what an earlier version of this line said). What stays out of scope above is *campaign/candidate promise tracking and promise-vs-vote scoring* specifically — the accountability-scoring features, not candidate data surfaces.
+> **Candidates vs. promise tracking:** candidate *profiles, search, and tracking* are a planned direction, not built yet ([#147](https://github.com/alethical-org/alethical/issues/147) profiles/search and [#148](https://github.com/alethical-org/alethical/issues/148) tracking, both on the `v8 candidates` milestone). What stays out of scope above is *campaign/candidate promise tracking and promise-vs-vote scoring* specifically — the accountability-scoring features, not candidate data surfaces.
 
 ## Success criteria
 

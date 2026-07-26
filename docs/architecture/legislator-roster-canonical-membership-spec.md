@@ -2,24 +2,11 @@
 
 **Status:** implemented (July 2026). Owning session: `legislator-roster-pdf-reconcile`.
 
-**Net:** Our "Search legislators" list showed people who had left office (e.g. Sen. Justin Eichorn) because the data loader could *add* members but never *remove* ones who left. This change makes the Minnesota Legislature's official printable roster PDF the authority for **who is currently in office**, and adds a reconciliation step that switches off (`is_current = False`) any member the official roster no longer lists. The existing web scrape still supplies each member's details (photo, email, committees, and the profile URL our answer citations require).
+**Net:** The Minnesota Legislature's official printable roster PDF is the authority for **who is currently in office**. A reconciliation step switches off (`is_current = False`) any member the roster no longer lists, so a legislator who leaves mid-biennium (resignation, death, expulsion) doesn't linger in the "Search legislators" directory beside their successor. The web scrape still supplies each member's details (photo, email, committees, and the profile URL our answer citations require); the PDF is canonical only for *membership*.
 
-## Problem
+## Why reconciliation is needed
 
-`MinnesotaIngestionPipeline.ingest_roster()` (`alethical/pipeline/minnesota.py`) scrapes the HTML roster at `leg.mn.gov/leg/legislators`, then for each member scrapes their profile page and upserts a `Legislator` + a `LegislatorServicePeriod` with `is_current = True`. It only ever *adds or updates* members present in the source. **There is no deactivation step.** When a member leaves mid-biennium (resignation, death, expulsion), nothing flips their service period off, so they linger in the directory forever — even after their successor is ingested into the same seat.
-
-Verified against production (session `94-2025-regular`, July 2026): the directory returned **206** current members (136 House + 70 Senate) versus the correct **200** (133 House + 67 Senate). Six departed members were still `is_current = True`:
-
-| Seat | Stale (still current in DB) | Official roster now |
-|------|------------------------------|---------------------|
-| senate 06 | Justin D. Eichorn | Keri Heintzeman |
-| senate 29 | Bruce Douglas Anderson | Michael W. Holmstrom |
-| senate 47 | Nicole Mitchell | Amanda Hemmingsen-Jaeger |
-| house 34B | Melissa Hortman | Xp Lee |
-| house 64A | Kaohly Vang Her | Meg Luger-Nikolai |
-| house 21A | Joe Schomacker | *(seat vacant)* |
-
-In every case the successor was already present and current; the departed member simply sat alongside them.
+`MinnesotaIngestionPipeline.ingest_roster()` (`alethical/pipeline/minnesota.py`) scrapes the HTML roster at `leg.mn.gov/leg/legislators` and upserts each member with `is_current = True`, but it only ever *adds or updates* members present in the source — there is no deactivation step. So when a member leaves mid-biennium, nothing flips their service period off, and they remain in the directory even after their successor is ingested into the same seat. The roster PDF closes that gap: it is the definitive list of who currently holds each seat, so reconciling the directory against it deactivates anyone no longer serving.
 
 ## Canonical source
 
