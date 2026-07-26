@@ -625,4 +625,4 @@ Still genuinely undecided:
 2026-07-26: all five exist — `docs/architecture/backend-api-system-design.md`,
 `docs/architecture/db-schema-system-design.md`, `docs/architecture/layer-1-source-ingestion-system-design.md`,
 `docs/architecture/frontend-screen-system-design.md`, and `docs/architecture/layer-2-rag-ingestion-system-design.md` /
-`docs/product/grounded-ask-spec.md`.)*
+`docs/product-and-onboarding/grounded-ask-spec.md`.)*

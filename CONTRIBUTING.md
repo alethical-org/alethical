@@ -193,7 +193,7 @@ guides, READMEs — not just files named `*-spec.md`.
 
 When you cite a spec section anywhere — a doc, an issue, a PR body or comment —
 give the full file name and say what the section covers:
-"`docs/product/grounded-ask-spec.md` §9 (Answer page UI — v1 states)", not "the spec §9".
+"`docs/product-and-onboarding/grounded-ask-spec.md` §9 (Answer page UI — v1 states)", not "the spec §9".
 Someone new reading the sentence in isolation should know exactly what's being
 referred to without opening anything. Once the full form has appeared, later
 mentions in the same document can shorten. Likewise, link issues and PRs with

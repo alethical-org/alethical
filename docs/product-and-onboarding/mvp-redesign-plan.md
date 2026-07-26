@@ -1,14 +1,14 @@
 # Alethical MVP redesign — decisions & open items
 
 Running tracker for the IA + design-direction redesign (new top-nav IA + green
-aesthetic + Ask AI as hero). Companion to `docs/product/product-scope.md`. MVP only for now;
+aesthetic + Ask AI as hero). Companion to `docs/product-and-onboarding/product-scope.md`. MVP only for now;
 roadmap noted for direction.
 
 ## Locked decisions
 
 - **MVP client = web only.** The MVP ships a responsive web app (desktop + mobile
   web). Native iOS and Android apps are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91));
-  see `docs/product/product-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
+  see `docs/product-and-onboarding/product-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
 - **IA:** top nav `Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
@@ -58,7 +58,7 @@ roadmap noted for direction.
      reference). `tokens.ts` is itself the token sheet; don't hand-maintain a
      parallel human-readable one — generate it from the file if ever needed.
   3. **Final copy strings verbatim** — for the Ask surface these live in
-     `docs/product/grounded-ask-spec.md` §9.4 (layout-owned fixed copy), kept in sync as
+     `docs/product-and-onboarding/grounded-ask-spec.md` §9.4 (layout-owned fixed copy), kept in sync as
      mocks refine. When mock copy and the spec diverge, reconcile the spec
      deliberately — the spec is the source of truth, not the mock.
 
@@ -67,7 +67,7 @@ roadmap noted for direction.
   markup can't be lifted into components, and web-specific CSS can actively mislead.
   Engineers implement in the RN codebase from tokens + spec; the spec is the
   contract, the mock is the visual. Screenshot sets should cover every spec'd state
-  (e.g. the five Answer-page states in `docs/product/grounded-ask-spec.md` §9.1, "The
+  (e.g. the five Answer-page states in `docs/product-and-onboarding/grounded-ask-spec.md` §9.1, "The
   states"), not just the happy path — the states are the contract, and mocks tend
   to show only the golden screen.
 - **Mobile is derived in-build, not separately designed (2026-07-12):** the Claude-design
@@ -87,7 +87,7 @@ roadmap noted for direction.
   in the menus (see the roadmap-items bullet above).
 - **Track stays auth-gated.**
 - **Search page split:** the current combined Bills+Legislators search becomes two
-  dedicated pages. Bill search screen specified in `docs/product/bill-search-screen-spec.md`
+  dedicated pages. Bill search screen specified in `docs/product-and-onboarding/bill-search-screen-spec.md`
   (three small backend deltas tracked in [#134](https://github.com/alethical-org/alethical/issues/134); browse rail deferred to [#130](https://github.com/alethical-org/alethical/issues/130)).
 - **Sign-out UX / account menu:** "Sign in" button is *replaced* by an account menu
   (avatar ▾) when signed in — not a Sign-in→Sign-out toggle. Menu = Account, Tracked,
@@ -279,7 +279,7 @@ Frontend track (after Phase 0; parallel with backend track)
 
 ## Why anonymous visitors get one cited answer
 
-`docs/product/product-scope.md` § "AI and RAG Chat" lets anonymous visitors receive a
+`docs/product-and-onboarding/product-scope.md` § "AI and RAG Chat" lets anonymous visitors receive a
 single stateless, rate-limited, cited answer, while persistent chat (history, follow-ups,
 saved context) stays signed-in only. The reason: the cited-answer moment is the product's
 core proof ("Truth, Unconcealed"), so gating it before a visitor experiences it suppresses

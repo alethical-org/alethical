@@ -55,7 +55,7 @@ router = APIRouter()
 # Both Ask endpoints make an OpenAI classify call, so they share one budget (#98).
 _ask_rate_limit = rate_limit("ask_limiter", "ask")
 
-# Display order per docs/product/grounded-ask-spec.md §4.2 (topic_bills formatter):
+# Display order per docs/product-and-onboarding/grounded-ask-spec.md §4.2 (topic_bills formatter):
 # legislative progress first, then most recent action (tie-broken in
 # _progress_sort_key so a shared ?q= link re-renders identically). The stage rank
 # is the precomputed ``Bill.status_rank`` column (``_STATUS_KEY_RANK``), so this
@@ -70,7 +70,7 @@ _MIN_TOPIC_LENGTH = 3
 
 # Only chief/co-authorship counts toward the authored/co-authored numbers.
 # The `sponsor` role and committee-target rows are held out until the §5.3
-# spike confirms their semantics (docs/product/grounded-ask-spec.md §4.2).
+# spike confirms their semantics (docs/product-and-onboarding/grounded-ask-spec.md §4.2).
 _AUTHORSHIP_ROLES = (SponsorshipRole.chief_author, SponsorshipRole.co_author)
 
 # A House/Senate file citation in free text: "HF 2136", "H.F. 2136", "SF1832",
@@ -341,7 +341,7 @@ def _bill_title_phrase(content: str) -> str | None:
 
 def _resolve_bill_by_title(db: Session, session_id, content: str):
     """Fuzzy title/description match, but only a *single* confident match
-    resolves (docs/product/grounded-ask-spec.md §4.1, v1 fuzzy title match). An ambiguous
+    resolves (docs/product-and-onboarding/grounded-ask-spec.md §4.1, v1 fuzzy title match). An ambiguous
     phrase (2+ matches) or none returns ``None`` so the caller refuses rather
     than risk answering about the wrong bill — the worst failure (grounded rule
     1). Requires ``official_url`` so the answer is always citable."""
@@ -362,7 +362,7 @@ def _resolve_bill_by_title(db: Session, session_id, content: str):
 
 
 # bill_text RAG retrieval: how many of the resolved bill's passages to feed the
-# synthesizer (docs/product/grounded-ask-spec.md §4.1 / §9.4). No cosine-distance gate —
+# synthesizer (docs/product-and-onboarding/grounded-ask-spec.md §4.1 / §9.4). No cosine-distance gate —
 # once the bill is *resolved* by number/title, retrieval is scoped to that bill,
 # so its top passages ARE the answer material; the synthesis prompt says "the
 # bill doesn't address that" when a specific question isn't covered. An earlier
@@ -374,7 +374,7 @@ _BILL_TEXT_CHUNK_LIMIT = 4
 
 
 # Content-based (semantic) bill resolution — the third resolution step, when
-# HF/SF-number and title matching both fail (docs/product/grounded-ask-spec.md §4.1, the
+# HF/SF-number and title matching both fail (docs/product-and-onboarding/grounded-ask-spec.md §4.1, the
 # semantic half of fuzzy resolution; #266). Semantic search surfaces the top
 # candidate bills, then the LLM picks the single best (or none): reasoning
 # separates a real-but-loose match from a nonsense one, and the enacted bill from
@@ -435,7 +435,7 @@ def _resolve_bill_by_content(db: Session, session_id, model: str, content, embed
 def _bill_text_answer(
     db: Session, content: str
 ) -> AskBillTextAnswer | AskTopicBillsAnswer | None:
-    """Scenario 1 single-bill RAG answer (docs/product/grounded-ask-spec.md §4.1 / §9.4).
+    """Scenario 1 single-bill RAG answer (docs/product-and-onboarding/grounded-ask-spec.md §4.1 / §9.4).
 
     Resolve one bill — by HF/SF number, then title, then semantic content match
     (#266) — retrieve its passages, and synthesize a cited prose answer, reusing
@@ -506,7 +506,7 @@ def _bill_text_answer(
 def _vote_deflection_answer(
     db: Session, content: str, topic: str | None
 ) -> AskVoteDeflectionAnswer:
-    """Scenario 4 v1 honest deflection (docs/product/grounded-ask-spec.md §4.5 / §9.4).
+    """Scenario 4 v1 honest deflection (docs/product-and-onboarding/grounded-ask-spec.md §4.5 / §9.4).
 
     Never a vote answer. If the ask names a resolvable bill, carry its card so
     the frontend can deep-link the Votes tab (§9.3); otherwise degrade to the
@@ -575,7 +575,7 @@ def ask(
     topic_bills degrade, never a vote answer) and bill_text (the §4.1 single-bill
     RAG answer, or a refuse when the bill doesn't resolve / has no relevant
     text). Anonymous by design — every v1 answer path is signed-out-accessible
-    (docs/product/grounded-ask-spec.md §9.1). refuse returns no answer body.
+    (docs/product-and-onboarding/grounded-ask-spec.md §9.1). refuse returns no answer body.
     """
     content = request.content.strip()
     if not content:

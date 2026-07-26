@@ -6,7 +6,7 @@ Companion to `README.md` (the per-page design spec) and `search-legislators.dc.h
 
 ## Provenance
 LIVE handoff from Claude Design (2026-07-15), incorporating the design-review change
-requests recorded in `docs/product/mvp-redesign-plan.md` → "Search Bills / Search Legislators —
+requests recorded in `docs/product-and-onboarding/mvp-redesign-plan.md` → "Search Bills / Search Legislators —
 design-review decisions (2026-07-15)".
 
 ## Grounding decisions already baked into this spec

@@ -19,17 +19,17 @@ rule 13). Milestone claims in particular go stale: check the tracker, not the pr
 Start here if you're new, or reaching for the "how does this actually work / how is
 it paid for" reference. These grow as the system does.
 
-- [AI models & billing](onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
-- [Data ingestion onboarding guide](onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
-- [How Search works (plain English)](onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
+- [AI models & billing](product-and-onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
+- [Data ingestion onboarding guide](product-and-onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
+- [How Search works (plain English)](product-and-onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
 
 ## Product And Design
 
-- [Scope](product/product-scope.md) — what the product is, its core principles, and what it deliberately does not do
-- [Grounded Ask build spec](product/grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
-- [MVP redesign plan](product/mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
+- [Scope](product-and-onboarding/product-scope.md) — what the product is, its core principles, and what it deliberately does not do
+- [Grounded Ask build spec](product-and-onboarding/grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
+- [MVP redesign plan](product-and-onboarding/mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
 - [Frontend screen system design](architecture/frontend-screen-system-design.md) — the original 16-screen plan; content rules and empty/error states still apply
-- [Bill search screen spec](product/bill-search-screen-spec.md) — the bill search screen (`/bills`)
+- [Bill search screen spec](product-and-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Design principles](design/design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
 - [UI copy guide](design/ui-copy-guide.md) — voice and tone; note its own header on what is still unreconciled
 
