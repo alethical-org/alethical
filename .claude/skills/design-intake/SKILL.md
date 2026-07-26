@@ -33,7 +33,7 @@ One gate, once: for design tasks this skill **is** the intake/brainstorming step
 
 **Build / change (from a mockup):**
 - Which **state(s)** change — and is the spec/screenshot for *that state* available? Ask for the specific state, not the whole bundle.
-- Copy / naming / grounded-answers invariants touched? (`docs/ui-copy-guide.md`, `.claude/rules/grounded-answers.md`.)
+- Copy / naming / grounded-answers invariants touched? (`docs/design/ui-copy-guide.md`, `.claude/rules/grounded-answers.md`.)
 - Any data/backend dependency, and the interim behavior if it isn't built yet?
 - Acceptance criteria (what "done" looks like) and any held/deferred items.
 
@@ -51,4 +51,4 @@ Interrogating for repo-discoverable facts · asking low-value questions · gatin
 
 ## References
 
-`.claude/skills/design-build/SKILL.md` (the build workflow this feeds) · `.claude/skills/design-review/SKILL.md` (the pre-build mockup evaluation that precedes intake) · `.claude/rules/coding-discipline.md` rule 1 (surface real ambiguity; don't gate routine work) · `docs/mvp-redesign-plan.md`. Origin: retro on the nav-dropdown hover fix ([#171](https://github.com/alethical-org/alethical/pull/171)).
+`.claude/skills/design-build/SKILL.md` (the build workflow this feeds) · `.claude/skills/design-review/SKILL.md` (the pre-build mockup evaluation that precedes intake) · `.claude/rules/coding-discipline.md` rule 1 (surface real ambiguity; don't gate routine work) · `docs/product/mvp-redesign-plan.md`. Origin: retro on the nav-dropdown hover fix ([#171](https://github.com/alethical-org/alethical/pull/171)).

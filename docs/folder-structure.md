@@ -1,21 +1,23 @@
 # How `docs/` is organized
 
-> **Status: proposed, 2026-07-26 — not yet executed.** No files have moved. This doc
-> describes the target layout and what it costs; once the moves land, the "Proposed" note
-> goes away and what remains is the durable answer to *"where does a new doc go?"*
+> **Status: executed, 2026-07-26.** The layout below is live — `docs/` root now holds only
+> `README.md` and this file. What remains is the durable answer to *"where does a new doc
+> go?"* (see the last section).
 
-**Net:** `docs/` has 19 loose Markdown files at its top level plus five folders, so finding
-anything means scanning a wall of filenames. The fix is to group them into six purpose
-folders and leave only `README.md` at the root. The grouping is not invented for this
-change — it is the five sections `docs/README.md` already uses, with its combined "Product
-And Design" split in two (each half has enough in it to stand alone). So the mental model is
-already in place and only the filesystem is out of step with it.
+**Net:** `docs/` used to have 18 loose Markdown files at its top level plus five folders, so
+finding anything meant scanning a wall of filenames. They are now grouped into six purpose
+folders with only `README.md` at the root. The grouping is not invented — it is the five
+sections `docs/README.md` already used, with its combined "Product And Design" split in two
+(each half has enough in it to stand alone), so the mental model was already in place and
+only the filesystem was out of step with it.
 
-**The one real cost:** 38 files in the repo carry references to these docs, including both
-`.claude/rules/` files and two design skills. Every move breaks a path. That is mechanical to fix and
-verifiable (a script rewrites the paths, a link check proves none dangle), but it is one
-large diff, and a stale pointer in an always-loaded rule is worse than a stale doc link — so
-the verification below is the part that matters, not the moves.
+**What it cost, and how it was made safe:** ~38 files across the repo carried references to
+these docs — including both `.claude/rules/` files and two design skills — and every move
+broke a path. That churn was handled mechanically (a script rewrote the paths) and then
+proven: `scripts/check_doc_references.py` failed until every pointer resolved. It caught 7
+relative links the mechanical pass missed — code links in the ingestion design doc whose
+`../` depth changed when the file moved one level deeper — which is exactly the class of
+error a hand check misses and the reason the checker was built first.
 
 ## Proposed layout
 

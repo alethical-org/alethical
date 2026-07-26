@@ -627,7 +627,7 @@ Still genuinely undecided:
   richer tooling is listed under "Not built yet — admin and operations."
 
 *(A "Proposed Next Step" section listing five documents to produce was removed on
-2026-07-26: all five exist — `docs/backend-api-system-design.md`,
-`docs/db-schema-system-design.md`, `docs/ingestion-pipeline-system-design.md`,
-`docs/frontend-screen-system-design.md`, and `docs/rag-ingestion-system-design.md` /
-`docs/grounded-ask-spec.md`.)*
+2026-07-26: all five exist — `docs/architecture/backend-api-system-design.md`,
+`docs/architecture/db-schema-system-design.md`, `docs/architecture/ingestion-pipeline-system-design.md`,
+`docs/architecture/frontend-screen-system-design.md`, and `docs/architecture/rag-ingestion-system-design.md` /
+`docs/product/grounded-ask-spec.md`.)*

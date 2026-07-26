@@ -25,7 +25,7 @@ class AskIntent(str, Enum):
     """The answer path that should handle an Ask query.
 
     The five intents mirror the answer scenarios in
-    ``docs/grounded-ask-spec.md`` §4.1 (Question router) 1:1.
+    ``docs/product/grounded-ask-spec.md`` §4.1 (Question router) 1:1.
     """
 
     BILL_TEXT = "bill_text"  # scenario 1 — single-bill RAG answer with citations
@@ -38,7 +38,7 @@ class AskIntent(str, Enum):
 # Whether acting on an intent requires auth. Classification itself is
 # anonymous; this lets the caller gate the next step without re-deriving policy.
 # All five v1 answer paths are anonymous — auth gates only the follow-up
-# composer on the answer page (docs/grounded-ask-spec.md §9.1).
+# composer on the answer page (docs/product/grounded-ask-spec.md §9.1).
 INTENT_AUTH_REQUIRED: dict[AskIntent, bool] = {
     AskIntent.BILL_TEXT: False,
     AskIntent.TOPIC_BILLS: False,
@@ -74,7 +74,7 @@ ROUTER_SYSTEM_PROMPT = (
 
 
 # (question, intent) pairs steering the boundary cases. Broad cross-bill
-# questions route to topic_bills, never a prose answer (docs/grounded-ask-spec.md
+# questions route to topic_bills, never a prose answer (docs/product/grounded-ask-spec.md
 # §2 scenario 1; cross-bill synthesis is #87).
 FEW_SHOT_EXAMPLES: list[tuple[str, AskIntent]] = [
     ("What's in the cannabis legalization bill?", AskIntent.BILL_TEXT),
@@ -92,7 +92,7 @@ FEW_SHOT_EXAMPLES: list[tuple[str, AskIntent]] = [
 
 
 # JSON schema forcing one known label. ``confidence`` is logging-only;
-# ``topic`` feeds the topic answer paths (docs/grounded-ask-spec.md §4.2).
+# ``topic`` feeds the topic answer paths (docs/product/grounded-ask-spec.md §4.2).
 # OpenAI strict mode requires every property to be listed in ``required`` — so
 # the optional fields are nullable and required (the model returns null when
 # they don't apply), not omitted. Guarded by test_ask_response_schema_is_strict.
@@ -343,7 +343,7 @@ def pick_bill_from_candidates(
     question: str, candidates: list[tuple[str, str, str | None, str | None]]
 ) -> str | None:
     """Ask the LLM which single bill a question is about, from a short candidate
-    list (docs/grounded-ask-spec.md §4.1 semantic resolution; #266). Each
+    list (docs/product/grounded-ask-spec.md §4.1 semantic resolution; #266). Each
     candidate is ``(bill_key, title, status, summary)``. Returns the chosen
     ``bill_key`` (guaranteed to be one of the candidates) or ``None`` — no key,
     no OpenAI key, or an unusable response all yield ``None`` so the caller

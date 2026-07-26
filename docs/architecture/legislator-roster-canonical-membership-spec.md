@@ -60,7 +60,7 @@ reconcile_current_members(session_slug=CURRENT_SESSION_SLUG, *, roster_members=N
    - No PDF entry for `(chamber, district)` → **deactivate** (seat vacant or gone).
    - PDF entry exists and its last-name tokens are a contiguous suffix of the DB member's normalized name tokens → **keep**.
    - Otherwise (seat now held by someone else) → **deactivate**.
-5. Deactivations set `is_current = False` (never delete — identity rows, service history, and bill authorship are preserved per `docs/db-schema-system-design.md` identity/time-varying split).
+5. Deactivations set `is_current = False` (never delete — identity rows, service history, and bill authorship are preserved per `docs/architecture/db-schema-system-design.md` identity/time-varying split).
 6. Emit a `ReconcileReport`: `kept`, `deactivated` (with names/seats), `missing` (PDF seats with no kept DB match — signals the HTML scrape needs to run to add a new member), `pdf_total`.
 7. `dry_run=True` computes and returns the report **without** writing (used to preview a production run).
 

@@ -1,21 +1,21 @@
 # Alethical MVP redesign — decisions & open items
 
 Running tracker for the IA + design-direction redesign (new top-nav IA + green
-aesthetic + Ask AI as hero). Companion to `docs/product-scope.md`. MVP only for now;
+aesthetic + Ask AI as hero). Companion to `docs/product/product-scope.md`. MVP only for now;
 roadmap noted for direction.
 
 ## Locked decisions
 
 - **MVP client = web only.** The MVP ships a responsive web app (desktop + mobile
   web). Native iOS and Android apps are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91));
-  see `docs/product-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
+  see `docs/product/product-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
 - **IA:** top nav `Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
   subsections. Search and Track share one entity taxonomy. **The AI-answer feature is
   named "Grounded Ask" (feature / badge) and "✦ Ask" (the action, sparkle + verb) —
   never "Ask AI"** (ratified 2026-07-12, matching the v2 home design and
-  `docs/ui-copy-guide.md`). **It is page-aware (resolves O10):** on the signed-out home
+  `docs/design/ui-copy-guide.md`). **It is page-aware (resolves O10):** on the signed-out home
   there is no standalone top-level ask entry — the hero *is* the ask surface, and
   Search → Bills carries a **"Grounded Ask"** badge instead. On every non-home page the
   nav restores a top-level **✦ Ask** entry
@@ -58,7 +58,7 @@ roadmap noted for direction.
      reference). `tokens.ts` is itself the token sheet; don't hand-maintain a
      parallel human-readable one — generate it from the file if ever needed.
   3. **Final copy strings verbatim** — for the Ask surface these live in
-     `docs/grounded-ask-spec.md` §9.4 (layout-owned fixed copy), kept in sync as
+     `docs/product/grounded-ask-spec.md` §9.4 (layout-owned fixed copy), kept in sync as
      mocks refine. When mock copy and the spec diverge, reconcile the spec
      deliberately — the spec is the source of truth, not the mock.
 
@@ -67,7 +67,7 @@ roadmap noted for direction.
   markup can't be lifted into components, and web-specific CSS can actively mislead.
   Engineers implement in the RN codebase from tokens + spec; the spec is the
   contract, the mock is the visual. Screenshot sets should cover every spec'd state
-  (e.g. the five Answer-page states in `docs/grounded-ask-spec.md` §9.1, "The
+  (e.g. the five Answer-page states in `docs/product/grounded-ask-spec.md` §9.1, "The
   states"), not just the happy path — the states are the contract, and mocks tend
   to show only the golden screen.
 - **Mobile is derived in-build, not separately designed (2026-07-12):** the Claude-design
@@ -87,7 +87,7 @@ roadmap noted for direction.
   in the menus (see the roadmap-items bullet above).
 - **Track stays auth-gated.**
 - **Search page split:** the current combined Bills+Legislators search becomes two
-  dedicated pages. Bill search screen specified in `docs/bill-search-screen-spec.md`
+  dedicated pages. Bill search screen specified in `docs/product/bill-search-screen-spec.md`
   (three small backend deltas tracked in [#134](https://github.com/alethical-org/alethical/issues/134); browse rail deferred to [#130](https://github.com/alethical-org/alethical/issues/130)).
 - **Sign-out UX / account menu:** "Sign in" button is *replaced* by an account menu
   (avatar ▾) when signed in — not a Sign-in→Sign-out toggle. Menu = Account, Tracked,
@@ -279,7 +279,7 @@ Frontend track (after Phase 0; parallel with backend track)
 
 ## Applied product-scope amendment (rationale)
 
-`docs/product-scope.md` § "AI and RAG Chat → In Scope" previously read
+`docs/product/product-scope.md` § "AI and RAG Chat → In Scope" previously read
 **"Signed-in-only grounded question answering."** The locked hero funnel deviates
 from that, so this PR amended it to:
 

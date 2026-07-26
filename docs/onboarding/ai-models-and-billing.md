@@ -136,5 +136,5 @@ costs **no model money** — it reads bill text already in our database.
 
 - [Data ingestion onboarding guide](data-ingestion-onboarding.md) — where the bill
   text (that enrichment reads) and the embeddings (that retrieval uses) come from.
-- [RAG ingestion system design](../rag-ingestion-system-design.md) — the embedding /
+- [RAG ingestion system design](../architecture/rag-ingestion-system-design.md) — the embedding /
   retrieval pipeline in depth.

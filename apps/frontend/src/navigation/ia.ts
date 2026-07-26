@@ -2,7 +2,7 @@
  * Phase-0 IA contract — single source of truth for the new top-nav information
  * architecture (✦ Ask · Search · Track · About · auth).
  *
- * The ask entry is PAGE-AWARE (O10, ratified 2026-07-12 — docs/ui-copy-guide.md
+ * The ask entry is PAGE-AWARE (O10, ratified 2026-07-12 — docs/design/ui-copy-guide.md
  * § Feature naming): on the signed-out home the hero IS the ask surface, so the
  * nav shows no ask entry (Search → Bills carries the "Grounded Ask" badge);
  * every non-home page restores "✦ Ask" as a top-level entry.
@@ -13,7 +13,7 @@
  * surface is a one-line change here instead of edits scattered across the
  * routing switch.
  *
- * See docs/mvp-redesign-plan.md for decisions and the migration steps.
+ * See docs/product/mvp-redesign-plan.md for decisions and the migration steps.
  */
 
 export type MenuKey = 'ask' | 'search' | 'track' | 'about';

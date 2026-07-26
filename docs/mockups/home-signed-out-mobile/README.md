@@ -1,12 +1,12 @@
 > **Repo context** (added on landing, 2026-07-15). Tracked design reference for the
 > **signed-out home** page on **mobile web** — the v3 mobile mock, phone counterpart to the
-> desktop `home-signed-out-v2` bundle. Plan: `docs/mvp-redesign-plan.md`; the signed-out home
+> desktop `home-signed-out-v2` bundle. Plan: `docs/product/mvp-redesign-plan.md`; the signed-out home
 > ships in `apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx` (already responsive —
 > mobile was previously *derived*, PRs #163/#203; this bundle reconciles that mobile layout to
 > an explicit hifi mock). Tokens live in `apps/frontend/src/theme/tokens.ts` +
 > `theme/primitives.tsx`. This bundle is the *values + state + copy* reference, **not code to
 > port** — `support.js` was dropped on landing (see "About the Design Files"). **Feature
-> naming:** "Grounded Ask" (badge) / "✦ Ask" (nav), never "Ask AI" (`docs/ui-copy-guide.md`).
+> naming:** "Grounded Ask" (badge) / "✦ Ask" (nav), never "Ask AI" (`docs/design/ui-copy-guide.md`).
 > **Held static (marketing sample content):** the In-the-News and Bill-Activity cards render
 > real bill IDs but their live data-wiring follows the `NEXT-home-spec.md` selection rules —
 > match whatever the desktop home already does; do not newly wire or "fix" static sample

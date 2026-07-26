@@ -9,11 +9,11 @@ Status: **partly superseded — read the note below before building from this.**
 >
 > **What has been superseded:** the navigation model and screen inventory. The shipped IA
 > is the typed registry in `apps/frontend/src/navigation/ia.ts`, with decisions recorded in
-> `docs/mvp-redesign-plan.md` § Locked decisions — including the top-nav shell (this doc
+> `docs/product/mvp-redesign-plan.md` § Locked decisions — including the top-nav shell (this doc
 > predates it and describes a tab-based mobile shell) and the Search split into `/bills` +
 > `/legislators`. Per-screen truth now lives in the screen specs
-> (`docs/bill-search-screen-spec.md`) and the mockup bundles under `docs/mockups/`. Visual,
-> interaction and accessibility rules are in `docs/design-principles.md`.
+> (`docs/product/bill-search-screen-spec.md`) and the mockup bundles under `docs/mockups/`. Visual,
+> interaction and accessibility rules are in `docs/design/design-principles.md`.
 >
 > Native iOS and Android are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91));
 > the web app ships today. The "Mobile" guidance below therefore informs the web app's
@@ -267,8 +267,8 @@ Tabs:
 ## 3. Global Search
 
 > **Superseded:** the combined Bills + Legislators search below is being split
-> into two dedicated screens (`docs/mvp-redesign-plan.md` § Search page split). The bill
-> search screen is specified in `docs/bill-search-screen-spec.md`, which is authoritative;
+> into two dedicated screens (`docs/product/mvp-redesign-plan.md` § Search page split). The bill
+> search screen is specified in `docs/product/bill-search-screen-spec.md`, which is authoritative;
 > the legislator screen follows separately. The layout here is retained as
 > historical context.
 
@@ -313,7 +313,7 @@ The Bills column uses server-backed pagination. Each page request sends the acti
 
 ## 4. Bill List
 
-> **See `docs/bill-search-screen-spec.md`** for the authoritative bill search screen.
+> **See `docs/product/bill-search-screen-spec.md`** for the authoritative bill search screen.
 > The Sort control and Export button sketched below are not built (order is fixed
 > to latest legislative action); this section predates the current build.
 

@@ -6,7 +6,7 @@
 >
 > **Unreconciled conflicts to resolve before applying broadly:**
 > 1. **"See What They Voted" as the primary hero / signed-out nav CTA** collides with v1 scope.
->    Per-legislator, vote-by-vote answers are **deflected today** (`docs/grounded-ask-spec.md` §4.5,
+>    Per-legislator, vote-by-vote answers are **deflected today** (`docs/product/grounded-ask-spec.md` §4.5,
 >    Vote deflection); member-level roll-call rendering **has since shipped** ([#83](https://github.com/alethical-org/alethical/issues/83), closed Jul 21 2026 —
 >    the Votes tab renders the party-grouped per-member grid). So the product does now show every
 >    member's vote on a bill page; what it still lacks is a *conversational* per-legislator vote answer. A dominant
@@ -15,16 +15,16 @@
 >    you can't answer) and 6 (copy claims match shipped capability). Usable where it resolves to
 >    the Votes tab, which now genuinely shows per-member votes.
 > 2. **"Sovereignty restoration engine, not a civic info tool"** is a larger positioning than the
->    deliberately modest product definition (`docs/product-scope.md`, Product Definition: "not trying to be a full
+>    deliberately modest product definition (`docs/product/product-scope.md`, Product Definition: "not trying to be a full
 >    political accountability platform yet… a reliable legislative data and analysis product").
 >    Voice can lead the product, but capability copy still tracks what is shipped.
 >
 > **Resolved:** "plain English" / "plain language" is **accepted** (Jul 9, 2026) — it matches the
-> decided hero subhead (`docs/grounded-ask-spec.md` §1, Goal) and is no longer a kill-list entry.
+> decided hero subhead (`docs/product/grounded-ask-spec.md` §1, Goal) and is no longer a kill-list entry.
 > The **"Grounded Ask"** (feature / badge) / **"Ask"** (action verb, rendered **"✦ Ask"** in nav)
 > naming — and the kill of **"Ask AI"** — is **accepted** (Jul 12, 2026), ratified by the v2 home
 > design (Search → Bills "Grounded Ask" badge) and Eugene's decision. Reverses the interim "Ask AI"
-> wording in the earlier O10 record (`docs/mvp-redesign-plan.md`, now corrected).
+> wording in the earlier O10 record (`docs/product/mvp-redesign-plan.md`, now corrected).
 >
 > Terminology invariants that also bind this guide: author / co-author, never sponsor / co-sponsor,
 > in user-facing copy (`.claude/rules/grounded-answers.md` rule 3); "issue," not "topic" — and, for a
@@ -89,4 +89,4 @@ Use typographer's punctuation in all user-facing copy. It is the quality-publish
 - **Ellipsis — the single glyph `…` (U+2026), never three periods `...`** — for genuine omission inside a quotation and for loading/progress states ("Loading…"). **Do *not* trail input-field placeholders with `…`** — a placeholder states its prompt plainly (e.g. "Ask about bills or legislators by issue or name"). This deliberately overrides the generic "placeholders end with …" web guideline.
 - **Dashes — em dash `—` for a break in thought**, matching existing copy's spacing.
 
-Displayed strings only. **Code — identifiers, comments, JSON keys, test fixtures — keeps straight ASCII punctuation.** This is `docs/design-principles.md` §2 (typography) at the character level; the `design-audit` review checks it on shipped screens.
+Displayed strings only. **Code — identifiers, comments, JSON keys, test fixtures — keeps straight ASCII punctuation.** This is `docs/design/design-principles.md` §2 (typography) at the character level; the `design-audit` review checks it on shipped screens.

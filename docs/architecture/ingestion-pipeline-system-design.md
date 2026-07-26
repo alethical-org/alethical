@@ -360,15 +360,15 @@ Responsibility:
 
 ## Prototype Findings
 
-The original source-ingestion prototype has been retired. Its validated parsing behavior was promoted into [`alethical/pipeline/minnesota.py`](../alethical/pipeline/minnesota.py).
+The original source-ingestion prototype has been retired. Its validated parsing behavior was promoted into [`alethical/pipeline/minnesota.py`](../../alethical/pipeline/minnesota.py).
 
 Generated sample outputs:
 
-- [bill-hf2136.json](../alethical/tests/fixtures/bill-hf2136.json)
-- [legislator-roster.json](../alethical/tests/fixtures/legislator-roster.json)
-- [house-member-15518.json](../alethical/tests/fixtures/house-member-15518.json)
-- [senate-member-10002.json](../alethical/tests/fixtures/senate-member-10002.json)
-- [validation-report.json](../alethical/tests/fixtures/validation-report.json)
+- [bill-hf2136.json](../../alethical/tests/fixtures/bill-hf2136.json)
+- [legislator-roster.json](../../alethical/tests/fixtures/legislator-roster.json)
+- [house-member-15518.json](../../alethical/tests/fixtures/house-member-15518.json)
+- [senate-member-10002.json](../../alethical/tests/fixtures/senate-member-10002.json)
+- [validation-report.json](../../alethical/tests/fixtures/validation-report.json)
 
 ### Prototype Result 1. Revisor Bill XML Is Strong Enough To Be The Canonical Bill Spine
 
@@ -632,7 +632,7 @@ Both backends use the same prompt/schema and the same final apply path.
 
 ## OpenAI Batch API Backend
 
-The Batch API implementation lives in [`alethical.pipeline.ai_enrichment`](../alethical/pipeline/ai_enrichment.py). It uses the Responses endpoint with structured JSON output and keeps the 24-hour asynchronous boundary explicit.
+The Batch API implementation lives in [`alethical.pipeline.ai_enrichment`](../../alethical/pipeline/ai_enrichment.py). It uses the Responses endpoint with structured JSON output and keeps the 24-hour asynchronous boundary explicit.
 
 Prepare a batch JSONL file and manifest:
 
