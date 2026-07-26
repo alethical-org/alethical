@@ -78,6 +78,33 @@ offline (tests / no key) they fall back to a deterministic SHA-256 hash — see 
 > Downloadable version of this diagram (for slides / offline):
 > [SVG](../architecture/data-ingestion-pipeline.svg).
 
+## The two ingestion layers (and where the design depth lives)
+
+The flow above spans **two ingestion pipelines**, and this guide is weighted toward the
+first. Each has its own design doc; read those for the "why" and the quality bars this
+operational guide doesn't repeat.
+
+- **Layer 1 — source ingestion** (official sources → canonical records). Everything below
+  in this guide — the source map, the per-source fetch/parse sections, roster
+  reconciliation, orchestration, and provenance — is layer 1. Design doc:
+  [`layer-1-source-ingestion-system-design.md`](../architecture/layer-1-source-ingestion-system-design.md)
+  (the seven pipeline stages, source-authority split, and enrichment status).
+
+- **Layer 2 — RAG ingestion** (canonical records → retrieval chunks for chat). Layer 2
+  consumes layer 1's canonical bill text and turns it into cleaned, citation-safe chunks
+  with embeddings. This guide covers only its operational edges — section-based chunking
+  (~220-word target), `text-embedding-3-small` with a hash fallback (see **E & F —
+  OpenAI**), the `bill-sync-chunk` worker, and `backfill_rag_bulk.py`. The parts it does
+  **not** cover — the cleaning transforms (amendment-marker rewriting, whitespace/table
+  normalization), the fidelity/cleanliness/legibility quality gates, the validation report,
+  and the HNSW retrieval index — live in
+  [`layer-2-rag-ingestion-system-design.md`](../architecture/layer-2-rag-ingestion-system-design.md).
+
+Two adjacent AI uses are **not** layer 2 and are easy to conflate with it: **AI enrichment**
+(bill summaries → `ai_enrichment`, section E) is a separate derivation from canonical data,
+and **RAG chat synthesis** (section F) is query-time retrieval, not ingestion. Layer 2 is
+specifically the ingestion that *builds the retrieval corpus* those depend on.
+
 ## The source map
 
 | # | Domain | Source | Protocol / Format | Auth | Code |
