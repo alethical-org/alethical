@@ -7,9 +7,20 @@
 > is understood. `monthly-issue-triage`, `workflow-overhead-audit-monthly` and the
 > `weekly-observation-review` this audit armed are all gone; `~/.claude/scheduled-tasks/` is
 > deliberately empty. Read those two items as *findings about the backlog*, which stand, and ignore
-> their remedy. A growing OPEN backlog is now an accepted consequence of manual cadence, not a defect
-> to engineer around — and the reasoning was sound: two of those jobs had silently never fired while
-> a memory claimed they ran monthly, which is worse than having none. Do not offer to re-arm them.
+> their remedy — the reasoning was sound: two of those jobs had silently never fired while a memory
+> claimed they ran monthly, which is worse than having none. Do not offer to re-arm them.
+>
+> **The rule is about clocks, not autonomy** (clarified the same day, after a first reading of it here
+> was too broad): running a review or an audit **ad hoc, because a session's work called for it, is
+> not gated** — only arming something that fires on its own later is. So the backlog is not "accepted";
+> it gets drained whenever a session is in the area. Watch item 2 should be read as *does the backlog
+> get drained when someone is in there*, not *does it acquire a runner*.
+>
+> **Outcome of the first such drain, same day:** all 15 OPEN entries were triaged against the actual
+> files. **Only 4 were real work** — five had already been implemented and never marked (three said
+> "applied in this session" in their own text while still reading OPEN), three were superseded, three
+> were partial. The log was overstating its debt roughly threefold because the apply step and the
+> mark-done step were separate actions, and the second kept getting skipped. Both are now one step.
 
 **Net:** the fourteen reusable instruction packs turned out to be in good shape — twelve are kept exactly as they are. One was genuinely broken: a borrowed 73,000-character document, written for a different tool, whose instructions actively contradicted how this setup works. It is now a 5,900-character working skill with the original preserved intact beside it. Three other things that *looked* like duplication were investigated and proved to be deliberate, well-built design; they were left alone, and finding that out was most of the work.
 
