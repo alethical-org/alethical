@@ -1,4 +1,4 @@
-> **Status — superseded in production, Jul 2026.** This document describes the retired
+> **Status — superseded in production, Jul 2026; archived here Jul 26 2026.** This document describes the retired
 > **Newsprint** style (sharp corners, Playfair/Lora serif, ink `#111` / paper `#F9F9F7` /
 > editorial-red `#CC0000`). The **green token flip has landed**: `apps/frontend/src/theme/tokens.ts`
 > now implements the green / rounded / soft-shadow / bold-sans system (Libre Franklin +

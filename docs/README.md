@@ -1,32 +1,52 @@
 # Alethical Docs
 
-Project documentation lives here so the repository root stays focused on runnable code and configuration.
+Project documentation lives here so the repository root stays focused on runnable
+code and configuration.
+
+**How to read these.** Specs describe the system we intend and the decisions behind
+it; **GitHub issues and the Roadmap board carry sequencing.** So a doc may tell you
+something is *shipped*, *not built yet and waiting on X*, or *a permanent non-goal* —
+but never that work is off-limits because of which milestone it sits in. If you find
+a doc gating work by version, that is a bug in the doc (`.claude/rules/workflow.md`
+rule 13). Milestone claims in particular go stale: check the tracker, not the prose.
 
 ## Onboarding & Education
 
-Start here if you're new, or reaching for the "how does this actually work / how is it paid for" reference. These grow as the system does.
+Start here if you're new, or reaching for the "how does this actually work / how is
+it paid for" reference. These grow as the system does.
 
 - [AI models & billing](onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
 - [Data ingestion onboarding guide](onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
+- [How Search works (plain English)](search-bills-plain-english-guide.md) — what each filter and result field means, written for non-engineers
 
 ## Product And Design
 
-- [V1 scope](v1-scope.md)
-- [Initial product notes](product-notes.md)
-- [MVP redesign plan](mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker
-- [Frontend screen system design](frontend-screen-system-design.md)
-- [Bill search screen spec](bill-search-screen-spec.md) — v1 bill search (`/bills`)
+- [Scope](v1-scope.md) — what the product is, its core principles, and what it deliberately does not do
+- [Grounded Ask build spec](grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
+- [MVP redesign plan](mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
+- [Frontend screen system design](frontend-screen-system-design.md) — the original 16-screen plan; content rules and empty/error states still apply
+- [Bill search screen spec](bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Design principles](design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
-- [Visual design style](aesthetics.md) — retired Newsprint identity (historical); superseded by design principles + green tokens
+- [UI copy guide](ui-copy-guide.md) — voice and tone; note its own header on what is still unreconciled
+- [Initial product notes](product-notes.md) — raw notes from the earliest product conversations (historical; describes a different product)
 
 ## Backend And Data
 
-- [Backend API system design](backend-api-system-design.md)
-- [Database schema system design](db-schema-system-design.md)
-- [Ingestion pipeline system design](ingestion-pipeline-system-design.md)
-- [RAG ingestion system design](rag-ingestion-system-design.md)
-- [Schema query validation](schema-query-validation.md)
+- [Backend API system design](backend-api-system-design.md) — REST conventions, namespace layout, and the endpoint inventory
+- [Database schema system design](db-schema-system-design.md) — table groups, modeling decisions, and the query rubric
+- [Ingestion pipeline system design](ingestion-pipeline-system-design.md) — sources, the seven pipeline stages, and enrichment status
+- [RAG ingestion system design](rag-ingestion-system-design.md) — cleaning, chunking, and the retrieval index
+- [Canonical legislator membership spec](legislator-roster-canonical-membership-spec.md) — reconciling the roster PDF into current-member state
+- [Research](research/) — retrieval-strategy and persona findings behind deferred RAG upgrades
 
-## Local Development
+## Operations
 
+- [Deployment](deployment.md) — Railway (backend), Vercel (frontend), Supabase auth URLs
+- [API CDN setup](api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
+- [iOS release workflow](ios-release.md) — simulator QA, TestFlight, and ad hoc builds
+- [Android prototype handoff](android-prototype-handoff.md) — the Expo/RN Android build path
 - [Windows local development notes](local-dev-windows.md)
+
+## Archive
+
+- [Archived docs](archive/) — superseded designs and point-in-time reports, kept for the record. Not sources of truth; each carries a header saying what replaced it.

@@ -1,11 +1,21 @@
+> **Status — historical, archived Jul 26 2026.** This is a point-in-time validation
+> report: it records that the schema and query layer passed the rubric **as of
+> 2026-03-21**, and what was changed to get there. It is not a live spec and is not
+> re-run — nothing reads it, and the schema has moved on since.
+>
+> **Sources of truth now:** `docs/db-schema-system-design.md` for the schema's design
+> intent and its validation rubric · the runtime validator and its machine-readable
+> output (linked below) for whether the rubric passes *today* · `alembic/versions/`
+> for what the schema actually is. Kept for the record of the March 2026 pass.
+
 # Alethical Schema Query Validation
 
 Date: 2026-03-21
 
 Validation sources:
 
-- runtime validator: [`scripts/validate_query_rubric.py`](../scripts/validate_query_rubric.py)
-- machine-readable output: [`alethical/tests/fixtures/schema-query-validation.json`](../alethical/tests/fixtures/schema-query-validation.json)
+- runtime validator: [`scripts/validate_query_rubric.py`](../../scripts/validate_query_rubric.py)
+- machine-readable output: [`alethical/tests/fixtures/schema-query-validation.json`](../../alethical/tests/fixtures/schema-query-validation.json)
 
 ## Outcome
 
