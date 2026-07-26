@@ -36,6 +36,8 @@ Not for: a **finalized** design ready to build (→ `design-build`), proofing a 
 - 🔴 **can't honor** (no data / no capability / out of scope)
 - ⚠️ **grounded-answers violation** (cite the rule)
 
+   Then check the **wording** of the states a mockup usually leaves as lorem or omits entirely — empty states, error messages, loading and refusal text. Grounding says whether an element *can* exist; this asks whether its copy says something a real person would understand, in this product's vocabulary (`copy-uses-issue-not-topic`: "issue", not "topic"; author/co-author per `.claude/rules/grounded-answers.md` rule 3). A screen whose happy path is perfect and whose empty state reads "No results" is not finished.
+
 Verify data claims against what's **ingested and fresh**, not what's theoretically possible. No verdict from memory — check the field/API/issue.
 
 **2. Apply the `design-audit` rubric statically.** Run the accessibility + interaction rubric (the `design-audit` skill's pinned Web Interface Guidelines + WCAG snapshot) against everything a static design reveals — see the split below. Flag what the still image can prove; note the few checks that must wait for the live build so they carry into `design-build`'s verify step.
