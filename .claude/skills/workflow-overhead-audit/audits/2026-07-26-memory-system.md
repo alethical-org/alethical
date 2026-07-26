@@ -80,20 +80,47 @@ Every index line was machine-checked before rewriting: for each, the distinctive
 
 - **Loss check:** 76 pointers before → 76 after; set difference empty in both directions; no duplicate pointer; every file on disk indexed; every pointer resolving. All 3 index-only facts written into their target files **before** the index line was shortened.
 - **Fact check (rule 5 / rule 9, primary sources):** every repo path cited across all 77 memory files was existence-tested — **zero stale paths**; the apparent misses were regex artifacts (`~/`-prefixed skill paths, GitHub URL fragments). All four effective-date helpers confirmed in `public.py`. Issue states confirmed via `gh`: #598 merged, #364 closed, #502 open. Every **rule-N citation** across the corpus (24× rule 10, plus rules 1–9 and 13) checked against the current 13-rule `workflow.md` and the 9-rule `grounded-answers.md` — all resolve correctly, including the three that cite `grounded-answers` rather than `workflow`. Today's rule-10 restructure (#631) is already recorded accurately in `autonomous-small-prs`.
-- **Revertability:** full directory copy at `~/.claude/projects/-Users-eug-code-Alethical/memory-backup-2026-07-26-audit/`, verified byte-identical with `diff -rq` before any edit. Restore: `cp -Rp memory-backup-2026-07-26-audit/. memory/`. No memory content is quoted in this record — this repo is public and memory files carry personal detail.
+- **Revertability:** a full directory copy was taken before any edit, verified byte-identical with `diff -rq`. **Superseded the same day by real version control** (below): the pre-audit state is committed as `tool-settings@6c46762` and this audit's changes as `e5c5672`, so the restore path is now `git revert e5c5672` and the loose backup folder has been deleted rather than left to rot as a stale shadow. No memory content is quoted in this record — this repo is public and memory files carry personal detail.
 - **Not touched:** the three `.claude/rules/` files and `~/.claude/CLAUDE.md` (all audited earlier today, #630/#631/#633); the three live sibling worktrees and `redesign/design-system`'s unpushed work.
 
-## For Eugene — one call worth making
+## Versioning — recommended, approved, and done the same day
 
-**Recommendation: version the memory directory in `~/Code/tool-settings`, the private repo.** Layer 3 became applicable in-pass precisely because `~/.claude/CLAUDE.md` moved there; the memory system is the last always-loaded content with no history, which is why this audit needed a hand-rolled backup. Churn is not the obstacle — only 3 of 78 files changed on the busiest day observed, the rest days old, so this behaves like settings, not like the ~850 MB of session transcripts it currently sits beside.
+Eugene approved it and asked how it would be kept current going forward. Both memory directories (Alethical, 77 files; CommercialDeals, 3) are now symlinks into `~/Code/tool-settings`, the private `euglopi/tool-settings` repo — the same arrangement as `~/.claude/CLAUDE.md`, so there is still exactly one copy of each file. **Layer 4's verdicts are therefore applied in-pass from now on, on the same grounds as layer 3.**
 
-The reason it is your call and not mine: `tool-settings/README.md` explicitly lists `~/.claude/projects/` as *"machine state, not settings"*, and that bundling of transcripts with memory is the line this would redraw — plus git history is effectively permanent, and these files carry personal detail (they must never go near this public repo). Steps, if you want it:
+Three details worth recording, each established by test rather than assumption:
+
+1. **Writing through a symlinked *directory* works.** The known restriction — Edit/Write refuse to write to a path that *is* a symlink, which is why `CLAUDE.md` must be edited at its real path — does not apply here: the symlink is the parent directory and the memory files themselves are ordinary files. Verified with both tools before the move; a created file lands as a regular file in the real directory. Had this failed, versioning would have broken memory writing outright, so it was the gating check.
+2. **The pre-audit state was committed first, deliberately.** `6c46762` is the memory corpus as it stood before this audit; `e5c5672` is the audit itself as a reviewable 11-file diff. That ordering means git history now carries what the hand-rolled backup carried, so `git revert e5c5672` restores the pre-audit state and the loose backup folder could be deleted instead of becoming the stale shadow `workflow.md` rule 3 warns about.
+3. **Session transcripts stayed put.** Only the `memory/` subdirectories moved, so the ~850 MB of `*.jsonl` beside them never enters git and no ignore rule is needed. The README's old "machine state, not settings" exclusion bundled transcripts with memory; that bundling was the actual error, and it is now corrected there.
+
+### Keeping it current — two committers, disjoint paths
+
+The reconciliation problem is real: memory files are written by the auto-memory system as a *side effect*, at unpredictable moments, from any of ~10 parallel sessions. No session owns the write, so without a mechanism the repo would look version-controlled while its history silently stopped covering reality — worse than not tracking it, because it invites confidence in a restore path that isn't there.
+
+| Path | Committed by | When |
+|---|---|---|
+| `claude/CLAUDE.md` | the session that edited it, `git add` **path-scoped** | immediately, message says what changed and why |
+| `claude/projects/**/memory/` | `bin/commit-memory.sh` via launchd (`com.eug.tool-settings-memory`) | every 15 min, only when something actually changed |
+
+**This preserves Eugene's earlier decision rather than reversing it.** He had explicitly chosen per-edit commits over scheduled auto-commit for `CLAUDE.md`, so each commit ties to a real reason instead of producing "auto-commit" noise (recorded in the `commit-claude-md-edits-immediately` memory). That reasoning still holds where it applies — a `CLAUDE.md` edit is a decision, with an owner who can explain it — and it is left untouched. It simply cannot apply to memory files, where there is no owning session and often no moment worth narrating; the real choice there is auto-commit or no history at all. His objection is honoured in the two ways that were actually available: the job **makes no commit on a quiet day** (it is change-triggered, not a daily heartbeat), and each subject **names the memories touched** — `Memory: update effective-date-extractability, retire karpathy-global-install-deferred` — so the log reads without opening diffs.
+
+Design points that came from testing it, not from sketching it:
+
+- **Single writer, atomic lock.** macOS has no `flock`, so the guard is `mkdir` on `/tmp/tool-settings-memory.lock`, with a >10-minute staleness check to clear a lock orphaned by `kill -9`.
+- **Detect before staging.** It checks `git status --porcelain` and only stages once it has decided to commit, so a concurrent session commit cannot sweep half-staged memory files into a message about something else.
+- **One-minute quiet period.** If any memory file was written in the last minute a session may be mid-burst, so it defers to the next run rather than splitting one logical change across two commits.
+- **Commit always, push best-effort.** History is safe locally the moment it commits, so a network or credential failure must not resemble data loss. A failed push retries once behind `pull --rebase --autostash` — which is exactly what losing a race with a session's `CLAUDE.md` push looks like — and otherwise logs `WARN … will retry next run`.
+- **Verified paths:** clean tree → silent no-op; recent write → skip with nothing staged and the change intact; elapsed → commit with a generated subject, then push (all three confirmed, plus a clean `launchctl kickstart` run proving it executes under launchd with exit 0 and no stderr).
+
+Health check, and the off switch — turning it off loses nothing already committed and memory keeps working, it just stops gaining history:
 
 ```bash
-cd ~/Code/tool-settings && mkdir -p claude/projects/-Users-eug-code-Alethical && mv ~/.claude/projects/-Users-eug-code-Alethical/memory claude/projects/-Users-eug-code-Alethical/memory && ln -s ~/Code/tool-settings/claude/projects/-Users-eug-code-Alethical/memory ~/.claude/projects/-Users-eug-code-Alethical/memory && printf 'projects/*/[0-9a-f]*.jsonl\n' >> .gitignore && git add -A && git commit -m "Track Alethical Claude memory files" && git push
+tail ~/Library/Logs/tool-settings-memory.log
 ```
 
-Then delete the backup directory and add a row to the README table. Note the Edit/Write tools refuse to write through a symlink, so future sessions must target the real path under `tool-settings`.
+```bash
+launchctl bootout gui/$UID ~/Library/LaunchAgents/com.eug.tool-settings-memory.plist
+```
 
 ## Headline
 
@@ -101,4 +128,4 @@ Then delete the backup directory and add a row to the README table. Note the Edi
 
 The most useful artifact is the pair of checks that found it, both now cheap to repeat: **(1)** match each index hook's distinctive tokens against the file it points at — an index-only fact means the resident layer is doing the lazy layer's job; **(2)** verify a big memory against its *skill* twin before trimming it, which this time argued for **keeping** a 20,469-char file, because the skill had the lessons but not the provenance.
 
-Next audit: watch items — (1) whether index lines creep back over ~150 chars, the direct regrowth signal, and whether new detail again lands in the index instead of a file; (2) whether the memory directory got versioned, which would make layer 4 fully applicable in-pass; (3) `autonomous-small-prs` — whether it stays history or starts accreting operational detail that belongs in `when-to-act-without-approval`; (4) layer 3's own watch items, untested here (model/effort re-accretion, `CLAUDE.md` anecdote count past 4).
+Next audit: watch items — (1) whether index lines creep back over ~150 chars, the direct regrowth signal, and whether new detail again lands in the index instead of a file; (2) whether the launchd committer is still healthy — `tail ~/Library/Logs/tool-settings-memory.log` and confirm `git log` on `claude/projects/` is not weeks behind the files, since a silently-dead job leaves the repo looking versioned while the history stops; (3) `autonomous-small-prs` — whether it stays history or starts accreting operational detail that belongs in `when-to-act-without-approval`; (4) layer 3's own watch items, untested here (model/effort re-accretion, `CLAUDE.md` anecdote count past 4).
