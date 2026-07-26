@@ -10,7 +10,7 @@ Split the combined Bills + Legislators search into two dedicated screens. This s
 covers the **bill search screen** (`/bills`); the legislator screen follows separately.
 Search is "the library" — query/filter-forward, public, no auth. The screen surfaces
 more of the legislative record we already ingest, and keeps official data visually
-distinct from AI-generated analysis (`docs/v1-scope.md` § Frontend Expectations).
+distinct from AI-generated analysis (`docs/product-scope.md` § Frontend Expectations).
 
 ## Route and URL-addressable state
 

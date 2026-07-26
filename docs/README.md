@@ -21,14 +21,13 @@ it paid for" reference. These grow as the system does.
 
 ## Product And Design
 
-- [Scope](v1-scope.md) — what the product is, its core principles, and what it deliberately does not do
+- [Scope](product-scope.md) — what the product is, its core principles, and what it deliberately does not do
 - [Grounded Ask build spec](grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
 - [MVP redesign plan](mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
 - [Frontend screen system design](frontend-screen-system-design.md) — the original 16-screen plan; content rules and empty/error states still apply
 - [Bill search screen spec](bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Design principles](design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
 - [UI copy guide](ui-copy-guide.md) — voice and tone; note its own header on what is still unreconciled
-- [Initial product notes](product-notes.md) — raw notes from the earliest product conversations (historical; describes a different product)
 
 ## Backend And Data
 
