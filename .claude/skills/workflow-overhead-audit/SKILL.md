@@ -65,9 +65,13 @@ Verdicts for layers 1–2 are applied in the same pass (`.claude/rules/workflow.
 
    **When the audited gate is `workflow.md` rule 10, it is also this skill's own apply-mandate** — rewriting the clause that authorizes the rewrite is allowed, but weakening it by accident is the failure to avoid. Preserve in meaning: the audit-verdict apply grant, the low-risk-PR merge default, the additive/reversible/verified-migration auto-merge carve-out, and the paid-run authorization (which `~/.claude/CLAUDE.md`'s cheaper-and-faster-frontier rule cross-references by name). After any rule-10 edit, re-read those four and confirm each still says what it said.
 
-## Cadence
+## Cadence — manual, on request only
 
-Two triggers, not a fixed clock. **Event:** after adding or materially changing a gate, or whenever process friction annoys. **Periodic backstop:** monthly while the process layer is churning fast (as in mid-2026), dropping back to quarterly once it settles. Never run it blind — an audit without fresh evidence (new gates, new incidents) just restates the last table, so **any scheduled runner must self-skip when no gate has changed since the most recent `audits/` record** (compare `git log` on the gate files and merged PRs touching `.claude/`, `.github/workflows/`, and `CONTRIBUTING.md` against that record's date; run only if something moved).
+**This audit runs when Eugene asks for it. Never start one unprompted, and never offer to schedule it** (decided 2026-07-26: every scheduled task and routine was removed — including this skill's own monthly runner — and all process runs are manual until the right frequency is understood; `~/.claude/scheduled-tasks/` is deliberately empty). What you *may* do is **say** that a run looks worthwhile and why, then wait.
+
+**When it looks worthwhile:** after adding or materially changing a gate, whenever process friction annoys, or when a long stretch has passed with real churn in the process layer.
+
+**Never run it blind, even when asked** — an audit without fresh evidence (new gates, new incidents) just restates the last table. Check first whether anything actually moved since the most recent `audits/` record, across **both homes**: `git log` on the repo's `.claude/`, `.github/workflows/` and `CONTRIBUTING.md`, plus `git -C ~/Code/tool-settings log -- claude/CLAUDE.md claude/settings.json claude/projects` for layers 3–4. If nothing moved, say so and stop rather than producing a restatement. **Always give `--since` an explicit time** — `--since="<date> 00:00"` — because a bare date silently means "that date at the current time of day" and hides everything committed earlier that day.
 
 ## Anti-patterns
 
