@@ -99,10 +99,11 @@ reconciling that later costs more than the export ever saved.
 
 ## What CI checks
 
-On every PR (`.github/workflows/ci.yml`), path-filtered to what changed:
+On every PR (`.github/workflows/ci.yml`):
 
-- **Backend:** `ruff check`, `ty check`, and `pytest` against a real Postgres
-- **Frontend:** `tsc --noEmit` and a production build
+- **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
+- **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, and a production build
+- **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
 
 ## Deployment — why PRs matter
 

@@ -125,21 +125,29 @@ they were called when audited, and rewriting them would falsify the record.
 
 ## How to execute it safely
 
-The moves are trivial; the reference rewrite is where this goes wrong. Order matters:
+The moves are trivial; the reference rewrite is where this goes wrong. The safeguard now
+exists: **`scripts/check_doc_references.py` runs on every PR** and fails the build if any
+`docs/...` path or any relative link inside `docs/` points at a missing file. So the move is
+no longer verified by hand once — it is verified automatically, on this change and every
+change after it. Order matters:
 
 1. `git mv` every file so history follows (never delete-and-recreate).
 2. Rewrite references by **path**, handling all three forms above, including adding `../`
    to intra-`docs/` relative links that now cross a directory boundary.
-3. **Verify every relative link resolves** with a script that walks each Markdown link
-   target and stats it — the same check used on the `v1-scope.md` → `product-scope.md`
-   rename, which is what caught nothing being broken there.
-4. **Grep for surviving bare filenames** (`grounded-ask-spec.md` without a path) — these
-   appear in prose and are the form a path-based rewrite misses.
-5. Update `docs/README.md`'s index to the new paths, and confirm no root-level `.md` remains
+3. Update `docs/README.md`'s index to the new paths, and confirm no root-level `.md` remains
    except `README.md` and this file.
-6. Check whether any moved path is referenced from **code** (`ia.ts` carried one such
-   reference during the last rename) — a moved doc path in a comment is still a stale
-   pointer, and a frontend file in the diff means CI runs the full frontend job.
+4. **Run `python scripts/check_doc_references.py` and get a clean exit** before pushing — it
+   validates both explicit `docs/...` paths (anywhere in the repo, including the always-loaded
+   rule files and backend code) and relative links inside `docs/`. This is the check that
+   would have caught the #652 dead link; the CI job makes passing it mandatory.
+5. Because `scripts/**` and a `docs/` code reference may be in the diff, the backend and
+   frontend jobs can also run — that is fine, and `ia.ts` carried one such doc reference
+   during the last rename, so grep code paths too.
+
+One reference form the checker cannot reach: a `docs/...` path written into a **GitHub issue
+or PR body**. Those are not files in the repo, so a rename leaves them stale and no script
+fixes them. Low harm (they are historical records), but do not assume "checker green" means
+literally every mention is current.
 
 Do it as **one commit**: a half-moved tree with some references updated is worse than either
 end state, and a single mechanical commit is cleanly revertable.
