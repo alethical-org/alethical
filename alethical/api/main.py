@@ -11,6 +11,7 @@ from alethical.api.problems import http_exception_handler, validation_exception_
 from alethical.api.rate_limit import (
     DEFAULT_ASK_PER_MINUTE,
     DEFAULT_LOOKUP_PER_MINUTE,
+    DEFAULT_RUM_PER_MINUTE,
     limiter_from_env,
 )
 from alethical.api.routers.ask import router as ask_router
@@ -36,6 +37,10 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Expose the CDN cache-diagnostic headers so the browser RUM client can
+        # read the cache hit/miss of a cross-origin read (#516). These carry no
+        # PII — they only describe how the edge served the response.
+        expose_headers=["cf-cache-status", "age"],
     )
 
     @app.middleware("http")
@@ -69,6 +74,9 @@ def create_app() -> FastAPI:
     )
     app.state.lookup_limiter = limiter_from_env(
         "ALETHICAL_LOOKUP_RATE_PER_MIN", DEFAULT_LOOKUP_PER_MINUTE
+    )
+    app.state.rum_limiter = limiter_from_env(
+        "ALETHICAL_RUM_RATE_PER_MIN", DEFAULT_RUM_PER_MINUTE
     )
 
     @app.get("/healthz")

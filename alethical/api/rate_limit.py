@@ -22,6 +22,10 @@ from alethical.api.problems import problem_exception
 
 DEFAULT_ASK_PER_MINUTE = 20
 DEFAULT_LOOKUP_PER_MINUTE = 10
+# RUM beacons (#516) are cheap DB inserts, but bound them per client so a
+# misbehaving or malicious client can't flood the events table. The client also
+# samples a small fraction of loads, so a real user sends far fewer than this.
+DEFAULT_RUM_PER_MINUTE = 60
 _WINDOW_SECONDS = 60.0
 
 

@@ -1,9 +1,38 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+# Real-user-monitoring (RUM) read-surface latency beacon (#516). The client
+# instruments the core read interactions and posts one of these per sampled
+# load. It is deliberately anonymous — timing + coarse dimensions only, never
+# PII. ``extra="forbid"`` + tight bounds reject malformed / oversized events, so
+# the payload can only ever be these few small fields (privacy + abuse guard).
+RumInteraction = Literal["bills_list", "bills_filter"]
+
+
+class RumEventRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Which instrumented read interaction this measures.
+    interaction: RumInteraction
+    # Total client-measured request duration (ms). Bounded to a sane range so a
+    # garbage or overflowing value is rejected rather than stored.
+    duration_ms: int = Field(ge=0, le=600_000)
+    # Time-to-first-byte (ms) when the platform exposes it, else omitted.
+    ttfb_ms: int | None = Field(default=None, ge=0, le=600_000)
+    # CDN cache outcome derived from the response.
+    cache_status: Literal["hit", "miss", "unknown"] = "unknown"
+    # Device class.
+    device_class: Literal["mobile", "desktop"]
+    # First measured read of the app session (cold) vs a later one (warm).
+    cold: bool
+    # Coarse geo: the visitor's IANA timezone (e.g. "America/Chicago"). Rough
+    # region only — never precise location. Length-capped; optional.
+    coarse_geo: str | None = Field(default=None, max_length=64)
 
 
 class PageInfo(BaseModel):
