@@ -38,7 +38,8 @@ docs/
 │   ├── api-cdn-setup.md
 │   ├── ios-release.md
 │   ├── android-prototype-handoff.md
-│   └── local-dev-windows.md
+│   ├── local-dev-windows.md
+│   └── repo-and-service-settings.md
 │
 ├── mockups/               Design bundles
 └── research/              Research findings

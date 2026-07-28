@@ -148,7 +148,9 @@ and ignore that schedule entirely.
   nothing had ever been watching. Check
   [the alerts page](https://github.com/alethical-org/alethical/security/dependabot)
   when you're in a bump PR anyway; that is the only cadence this repo has, since
-  nothing here runs on a timer.
+  nothing here runs on a timer. While you're there, glance over
+  `docs/operations/repo-and-service-settings.md` — the settings it lists can't be
+  checked by CI, and this PR is the one recurring moment anyone looks at them.
 - **Automatic security fixes are off**, deliberately. Left on, they opened nine
   separate unreviewed PRs in four minutes, one of them a major version bump under
   the API. The prerequisite for turning them back on is a `groups` entry with
