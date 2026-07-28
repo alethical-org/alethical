@@ -14,29 +14,30 @@ rule 13). Milestone claims in particular go stale: check the tracker, not the pr
 
 - [Philosophy](philosophy.md) — the *why* beneath Alethical: the beliefs the product, design, and copy all answer to. Read this before the specs.
 
-## Onboarding & Education
+## Product & Onboarding
 
-Start here if you're new, or reaching for the "how does this actually work / how is
-it paid for" reference. These grow as the system does.
+What we're building and what we deliberately aren't, plus the guides for learning how it
+works. The specs come first; the last three are the "how does this actually work / how is it
+paid for" references, and are the place to start if you're new.
 
-- [AI models & billing](product-and-onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
-- [Data ingestion onboarding guide](product-and-onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
-- [How Search works (plain English)](product-and-onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
+- [Scope](product-onboarding/product-scope.md) — what the product is, its core principles, and what it deliberately does not do
+- [Grounded Ask build spec](product-onboarding/grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
+- [MVP redesign plan](product-onboarding/mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
+- [Bill search screen spec](product-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
+- [Data ingestion onboarding guide](product-onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
+- [AI models & billing](product-onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
+- [How Search works (plain English)](product-onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
 
-## Product And Design
+## Design
 
-- [Scope](product-and-onboarding/product-scope.md) — what the product is, its core principles, and what it deliberately does not do
-- [Grounded Ask build spec](product-and-onboarding/grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
-- [MVP redesign plan](product-and-onboarding/mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
-- [Frontend screen system design](architecture/frontend-screen-system-design.md) — the original 16-screen plan; content rules and empty/error states still apply
-- [Bill search screen spec](product-and-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Design principles](design/design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
 - [UI copy guide](design/ui-copy-guide.md) — voice and tone; note its own header on what is still unreconciled
 
-## Backend And Data
+## Architecture
 
 - [Backend API system design](architecture/backend-api-system-design.md) — REST conventions, namespace layout, and the endpoint inventory
 - [Database schema system design](architecture/db-schema-system-design.md) — table groups, modeling decisions, and the query rubric
+- [Frontend screen system design](architecture/frontend-screen-system-design.md) — the original 16-screen plan; content rules and empty/error states still apply
 - [Ingestion layer 1 — source ingestion](architecture/layer-1-source-ingestion-system-design.md) — official sources → canonical records: the seven pipeline stages and enrichment status
 - [Ingestion layer 2 — RAG ingestion](architecture/layer-2-rag-ingestion-system-design.md) — canonical records → retrieval chunks: cleaning, chunking, and the retrieval index
 - [Canonical legislator membership spec](architecture/legislator-roster-canonical-membership-spec.md) — reconciling the roster PDF into current-member state
@@ -52,4 +53,4 @@ it paid for" reference. These grow as the system does.
 
 ## About this folder
 
-- [How `docs/` is organized](folder-structure.md) — where a new doc goes, and the proposed grouping of these files into purpose folders (**proposed, not yet executed**)
+- [How `docs/` is organized](folder-structure.md) — the folder layout and where a new doc goes

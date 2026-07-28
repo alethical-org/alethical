@@ -21,7 +21,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BillDetail'>;
 
 // The URL uses a lowercase tab slug; the UI uses the capitalized label. Keeping
 // the tab URL-addressable (e.g. /bills/{id}?tab=votes) is a grounded-answer
-// requirement (grounded-answers.md rule 5; docs/product-and-onboarding/grounded-ask-spec.md §9.3).
+// requirement (grounded-answers.md rule 5; docs/product-onboarding/grounded-ask-spec.md §9.3).
 const TAB_SLUGS: Record<DetailTab, 'summary' | 'actions' | 'versions' | 'votes'> = {
   Summary: 'summary',
   Actions: 'actions',

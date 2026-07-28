@@ -12,11 +12,11 @@
 > what a screen may *claim* is owned by `.claude/rules/grounded-answers.md` (a line must be true
 > before it can be on-brand). Exact token values are owned by `apps/frontend/src/theme/tokens.ts`
 > — this doc describes *character and intent*, never a parallel value sheet (it would drift; per
-> `docs/product-and-onboarding/mvp-redesign-plan.md`, generate a value sheet from the file if one is ever needed).
+> `docs/product-onboarding/mvp-redesign-plan.md`, generate a value sheet from the file if one is ever needed).
 >
 > **Sources of truth:** `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` (implemented
 > system) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page's values/states/copy) ·
-> `docs/product-and-onboarding/mvp-redesign-plan.md` (redesign decisions). MVP is **responsive web** (desktop + mobile
+> `docs/product-onboarding/mvp-redesign-plan.md` (redesign decisions). MVP is **responsive web** (desktop + mobile
 > web); native is deferred ([#91](https://github.com/alethical-org/alethical/issues/91)).
 
 ## 1. What Alethical should feel like
@@ -131,8 +131,8 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 ## References
 
 `apps/frontend/src/theme/tokens.ts` · `apps/frontend/src/theme/primitives.tsx` ·
-`docs/product-and-onboarding/mvp-redesign-plan.md` (redesign decisions) · `docs/design/ui-copy-guide.md` (voice/copy) ·
-`.claude/rules/grounded-answers.md` (what a surface may claim) · `docs/product-and-onboarding/grounded-ask-spec.md`
+`docs/product-onboarding/mvp-redesign-plan.md` (redesign decisions) · `docs/design/ui-copy-guide.md` (voice/copy) ·
+`.claude/rules/grounded-answers.md` (what a surface may claim) · `docs/product-onboarding/grounded-ask-spec.md`
 (Ask surfaces) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page).
 
 ---

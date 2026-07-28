@@ -2017,7 +2017,7 @@ def test_ask_classify_llm_intents(client, monkeypatch):
     monkeypatch.setattr("alethical.api.services.ask_router.requests.post", fake_post)
 
     # All five v1 intents are anonymous; auth gates only the follow-up
-    # composer on the answer page (docs/product-and-onboarding/grounded-ask-spec.md §9.1).
+    # composer on the answer page (docs/product-onboarding/grounded-ask-spec.md §9.1).
     bill_text = client.post(
         "/api/v1/ask/classify",
         json={"content": "What's in the cannabis legalization bill?"},
