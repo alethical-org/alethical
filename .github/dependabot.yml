@@ -14,11 +14,16 @@
 # unseen. All three ecosystems are watched now (docs/philosophy.md principle 9,
 # "Prevent, don't just fix" — an alert someone has to read is not prevention).
 #
-# Each ecosystem groups into a single monthly PR, so a batch is one review
-# rather than nine. Dependabot's separate *security* updates ignore this
-# schedule and fire on an alert; they are currently disabled, and the
-# prerequisite for turning them back on is a security-updates group here so a
-# batch arrives as one PR (see #691).
+# Each ecosystem carries two groups, and the second one is easy to leave out.
+# A `groups` block applies to *scheduled version updates only* unless it says
+# otherwise, so the monthly sweep groups but alert-driven security updates
+# still open one PR per advisory. That is what produced nine PRs in four
+# minutes and got automatic security fixes switched off (#691). The
+# `applies-to: security-updates` twin makes a batch of alerts arrive as one
+# reviewable PR instead, and adding it is what allowed that setting to be
+# turned back on (docs/operations/repo-and-service-settings.md, GitHub
+# repository table). Deleting either twin silently restores the old
+# one-PR-per-advisory behaviour, so keep them paired.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -27,6 +32,10 @@ updates:
       interval: monthly
     groups:
       workflow-actions:
+        patterns:
+          - "*"
+      workflow-actions-security:
+        applies-to: security-updates
         patterns:
           - "*"
     open-pull-requests-limit: 2
@@ -46,6 +55,10 @@ updates:
       python-dependencies:
         patterns:
           - "*"
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     open-pull-requests-limit: 2
     commit-message:
       prefix: chore
@@ -61,6 +74,10 @@ updates:
       interval: monthly
     groups:
       javascript-dependencies:
+        patterns:
+          - "*"
+      javascript-security:
+        applies-to: security-updates
         patterns:
           - "*"
     open-pull-requests-limit: 2
