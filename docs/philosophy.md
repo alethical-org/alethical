@@ -87,6 +87,22 @@ We would rather be a narrow product that is completely reliable than a broad one
 occasionally wrong. Depth over breadth: do one jurisdiction, one job, completely, before
 reaching for the next. Restraint is how a truth product earns the right to be believed.
 
+### 9. Prevent, don't just fix
+
+> Intellectuals solve problems; geniuses prevent them.
+>
+> — Widely attributed to Einstein, though no primary source records him saying it. We keep
+> the line because it is true, and keep the caveat because principle 1 applies to us too.
+
+A fix restores what was working. Prevention removes the reason it broke. So when something
+fails, the first question is not *how do we repair this* but *what would stop it happening
+at all* — and when nothing has failed yet, ask it anyway. Reporting a problem to a human is
+the last resort, not the design: an alert we have to read, a check someone has to remember,
+a log nobody opens are all a failure we chose to keep and monitor. Prefer the change that
+makes the failure impossible, and use notice-and-repair only for what prevention can't
+reach. In a product whose value is being trustworthy, the errors that never happen are the
+ones the reader never has to forgive.
+
 ---
 
 ## The test for anything we make
