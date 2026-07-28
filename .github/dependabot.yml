@@ -1,0 +1,25 @@
+# Watch the reusable actions our workflows borrow, so a retired runtime shows up
+# as a pull request instead of a warning nobody reads. Background: every action
+# was still asking for Node 20 months after GitHub switched it off (#674); the
+# only reason nothing broke was a temporary force-migration onto Node 24. That
+# was found by hand, and Node 24 will be retired the same way in its turn.
+#
+# Scoped to github-actions on purpose. Python and npm dependencies are pinned in
+# uv.lock / pnpm-lock.yaml and bumped deliberately (CI also pins ruff and ty for
+# exactly that reason), so adding those ecosystems here would be noise.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    # One grouped PR per month rather than six separate ones. Actions in
+    # .github/workflows/ are independent of each other, so they can be reviewed
+    # and merged together.
+    groups:
+      workflow-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: ci
