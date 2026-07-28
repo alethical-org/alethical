@@ -43,7 +43,7 @@ Put the genuine unknowns to the user in one `AskUserQuestion` call (≤ 4 questi
 
 ## 4. Restate, then hand off
 
-State the sharpened task in one line — scope · deliverable · acceptance · assets needed (usually none; they're in-repo) — then continue with `design-build` (build/change) or `superpowers:systematic-debugging` (bug).
+State the sharpened task in one line — scope · deliverable · acceptance · assets needed (usually none; they're in-repo) — then continue with `design-build` (build/change) or `systematic-debugging` (bug).
 
 ## Anti-patterns
 
