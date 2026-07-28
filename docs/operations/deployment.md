@@ -72,7 +72,7 @@ alethical://auth/callback
 
 ## iOS Builds
 
-> **Not shipped.** The web app is the client that ships today (see `docs/product-and-onboarding/product-scope.md` § Frontend Scope).
+> **Not shipped.** The web app is the client that ships today (see `docs/product-onboarding/product-scope.md` § Frontend Scope).
 > This workflow covers the native iOS client ([#91](https://github.com/alethical-org/alethical/issues/91), not built yet) plus the simulator/TestFlight QA that works now.
 
 The iOS workflow uses Expo EAS from `apps/frontend`. Local QA without an iPhone uses an iOS Simulator build; sharing with testers uses TestFlight after Apple Developer Program access is available.

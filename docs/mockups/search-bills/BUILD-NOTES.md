@@ -6,7 +6,7 @@ with `../search-legislators/`.
 
 ## Provenance
 LIVE handoff from Claude Design (2026-07-15), incorporating the design-review change
-requests recorded in `docs/product-and-onboarding/mvp-redesign-plan.md` → "Search Bills / Search Legislators —
+requests recorded in `docs/product-onboarding/mvp-redesign-plan.md` → "Search Bills / Search Legislators —
 design-review decisions (2026-07-15)".
 
 ## Grounding decisions already baked into this spec
@@ -31,7 +31,7 @@ design-review decisions (2026-07-15)".
   last in the meta row; the build shows a single prominent OMNIBUS pill in the card's top
   row, immediately after the bill pill and before the status word (one indicator only, no
   meta-row duplicate). Requires `is_omnibus` on the `/bills` list item. See
-  `docs/product-and-onboarding/bill-search-screen-spec.md` (Bill result card → Primary → Omnibus pill).
+  `docs/product-onboarding/bill-search-screen-spec.md` (Bill result card → Primary → Omnibus pill).
 
 ## Invariants
 - User-facing copy verbatim from the spec; "issue" not "topic".
