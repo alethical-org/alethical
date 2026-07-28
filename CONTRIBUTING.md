@@ -168,6 +168,13 @@ Pushes to `main` auto-deploy: the backend (Railway) and web frontend (Vercel),
 and database migrations can run against production. Treat `main` as production
 and land everything through reviewed PRs.
 
+Since 2026-07-28 this is enforced, not just a convention: `main` requires a PR
+and the four `ci.yml` checks, and rejects force pushes and deletion. Approvals
+are set to **zero**, so you can still merge your own work — the rule blocks
+pushing straight to `main`, not shipping. Details and the reason behind each
+value: `docs/operations/repo-and-service-settings.md` § "Branch protection on
+`main`".
+
 ## Issue tracker hygiene
 
 An open issue should mean "still needs doing." Three habits keep that true:
