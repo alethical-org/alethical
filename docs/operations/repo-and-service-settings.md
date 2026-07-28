@@ -83,16 +83,41 @@ Linked rather than duplicated:
 
 ## Keeping this current
 
-There is no timer on this, by design. Two triggers instead:
+**This file is checked, not trusted.** `scripts/check_repo_settings.py` reads the
+intended value out of the tables above and compares each one against the live API.
+`.github/workflows/repo-settings-drift.yml` runs it on **every pull request**, on
+every push to `main`, and monthly as a backstop.
 
-- **When you change one of these settings**, change the row in the same session. A
-  row that disagrees with reality is worse than no row, because it reads as verified.
+So the tables are the source of truth in a literal sense: change a setting without
+changing its row and the next PR goes red, naming the setting, what the doc claims,
+and what the live value actually is. Run it yourself any time:
+
+```bash
+GH_TOKEN=$(gh auth token) python3 scripts/check_repo_settings.py
+```
+
+**Why every PR and not just monthly.** A monthly-only check leaves up to a month of
+silent drift, and it prompts the wrong person — whoever happens to open the repo
+weeks later, rather than the session that made the change while the reason is still
+in their head. Running on every PR means a setting change and its row land together.
+The monthly run only exists to catch a setting changed straight in the GitHub UI,
+where there is no PR to check.
+
+**It is deliberately not a required status check.** Drift is caused by whoever
+changed a setting; blocking an unrelated PR would punish the wrong session. It goes
+red visibly instead.
+
+**Unverified is not the same as passing.** The default token GitHub Actions provides
+has no administration scope, so the security rows and branch protection come back as
+`UNVERIFIED` and are reported and counted, never quietly treated as fine. Adding a
+`REPO_SETTINGS_TOKEN` secret — a fine-grained personal access token with
+`administration:read` on this repo — makes those rows checkable too. Everything else
+is checked either way.
+
+Two habits still matter, because no script covers them:
+
+- **Add a row when you add a setting.** The check can only compare what is written
+  down; a setting with no row is invisible to it.
 - **When a Dependabot bump PR arrives** (monthly, grouped), you are already in the
-  right context — glance over this table then. That is the only recurring prompt this
-  file gets, and `CONTRIBUTING.md` § "Keeping the workflow actions current" says so
-  from the other direction.
-
-The better version of this file is a script that reads the live settings and fails CI
-on drift, which would make it self-enforcing rather than self-reported. The blocker is
-token scope: the endpoints that matter most, including branch protection and the
-Dependabot toggles, need admin rights that CI's default token does not have.
+  right context — read this table then. `CONTRIBUTING.md` § "Keeping the workflow
+  actions current" says the same from the other direction.
