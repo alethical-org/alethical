@@ -12,5 +12,37 @@ overrides:
   "@react-navigation/routers": 7.5.3
   "@supabase/phoenix": 0.4.1
   "@expo/xcpretty": 4.4.3
-  brace-expansion: 5.0.5
-  "minimatch@3.1.5>brace-expansion": 2.0.2
+
+  # Security overrides for Dependabot alerts (#691). Every package below is
+  # build tooling — none of it reaches a browser, which was measured against the
+  # web export's source maps rather than assumed. They are patched anyway so the
+  # alert list stays readable: 49 permanent alerts is how a genuinely shipped
+  # one gets missed.
+  #
+  # These are overrides rather than direct bumps because every one is a
+  # transitive dependency we do not declare, and upstream has not moved:
+  # eas-cli@21.4.0, the newest release, still pins the vulnerable joi, ajv,
+  # diff, minimatch, yaml and uuid. Each override stays inside the parent's
+  # existing major version. Remove any of them once its parent ships the fix.
+  #
+  # Six alerts are deliberately left unpatched, all equally browser-unreachable:
+  # tar 7.5.21 and brace-expansion 5.0.8 fall under the 7-day minimumReleaseAge
+  # set above (published Jul 21 and Jul 23), so pnpm refuses them until Jul 30;
+  # uuid, ts-deepmerge, diff and @xmldom/xmldom would need major-version jumps
+  # underneath eas-cli, xcode and @expo/plist, which risks the native iOS and
+  # Android build that CI never exercises, for no browser-facing gain.
+  "@babel/core": 7.29.6 # 85 Babel plugins — arbitrary file read via sourceMappingURL
+  ajv: 8.18.0 # eas-cli — ReDoS via the $data option
+  brace-expansion: 5.0.7 # via minimatch — DoS via exponential expansion
+  form-data: 4.0.6 # eas-cli — CRLF injection in multipart field names
+  joi: 17.13.4 # eas-cli — uncaught RangeError on deeply nested input
+  "js-yaml@3": 3.15.0 # @oclif/core, istanbul — quadratic-complexity DoS
+  "js-yaml@4": 4.3.0 # @expo/xcpretty — quadratic-complexity DoS
+  "minimatch@5": 5.1.8 # eas-cli, filelist — three ReDoS advisories
+  "minimatch@3.1.5>brace-expansion": 2.1.2 # the 2.x line of the same DoS
+  node-forge: 1.4.0 # eas-cli held 1.3.1; dedupes onto the copy already present
+  postcss: 8.5.18 # @expo/metro-config — build-time CSS only, never our output
+  shell-quote: 1.9.0 # react-devtools-core — the CVE-2026-9277 critical
+  "ws@7": 7.5.11 # metro, react-native dev server
+  "ws@8": 8.21.0 # @expo/cli and @supabase/realtime-js (which never imports it)
+  yaml: 2.8.4 # eas-cli held 2.6.0; dedupes onto metro-config's copy
