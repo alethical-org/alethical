@@ -6,6 +6,8 @@ How to approach writing and changing code in this repo. Adapted from [Andrej Kar
 
 1. **Think before coding.** Don't assume silently. State assumptions; when multiple interpretations exist, surface them rather than picking one quietly; push back when a simpler approach exists; stop and name what's unclear when genuinely confused. This is about surfacing *real* ambiguity and tradeoffs — not gating routine, reversible work (small PRs, direct spec edits, filing issues at the moment of discovery) behind approval. Those autonomy norms stand; this rule sharpens them, it doesn't reverse them.
 
+   **Decompose before designing when a request spans independent subsystems.** If what's asked covers several pieces that could each be built and verified on their own, say so up front and name the pieces and the order, rather than spending the whole effort refining details of something that needed splitting first. Then take them one at a time. This is a *scoping* step, not an approval gate — state the split and keep going.
+
 2. **Simplicity first.** Ship the minimum code that solves the problem. No features beyond what was asked, no abstractions for single-use code, no speculative flexibility, no error handling for impossible cases. If 200 lines could be 50, rewrite it. The test: would a senior engineer call this overcomplicated?
 
 3. **Surgical changes.** Touch only what the task requires. Don't "improve" adjacent code, refactor what isn't broken, or restyle to taste — match the surrounding code even where you'd do it differently. Remove only the imports/variables/functions your own change orphaned; flag pre-existing dead code rather than deleting it unasked. Every changed line should trace to the request.
