@@ -105,6 +105,47 @@ On every PR (`.github/workflows/ci.yml`):
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, and a production build
 - **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
 
+### Keeping the workflow actions current
+
+Our workflows are assembled from reusable steps borrowed from other repos — the
+`uses:` lines in `.github/workflows/`. Each borrowed step declares which Node.js
+version it runs on, and GitHub retires those on a rolling basis: Node 12, then
+16, then 20, and Node 24 will follow. When a retirement lands, every workflow
+asking for the dead version fails at the same time. Two of ours (`migrate.yml`,
+`railway-deploy.yml`) only run on pushes to `main`, so that failure surfaces
+during a real deploy rather than on a PR check.
+
+This already happened once. Every workflow was still asking for Node 20 months
+after GitHub switched it off ([#674](https://github.com/alethical-org/alethical/issues/674));
+nothing broke only because GitHub was temporarily forcing the steps onto Node 24,
+and it was caught by someone reading a warning in a run log.
+
+`.github/dependabot.yml` now checks those steps monthly and opens one grouped PR
+labeled `ci`. It only opens PRs — normal CI still gates them. When one arrives:
+
+- **Read the release notes for every major bump before merging.** A major version
+  can change a default without failing. Two of ours did: `astral-sh/setup-uv` v9
+  stopped trimming its saved cache, and `actions/setup-node` v5 started caching
+  automatically. [#677](https://github.com/alethical-org/alethical/pull/677) is
+  the worked example of what that review looks like.
+- **`astral-sh/setup-uv` is pinned to an exact release on purpose** (`@v9.0.0`,
+  not `@v9`). Upstream stopped publishing floating major tags as supply-chain
+  hardening, so `@v9` does not resolve. The `prune-cache: true` beside it is also
+  deliberate, holding the pre-v9 cache size. Don't "simplify" either.
+- **The tell that a retirement is underway** is a run-log line reading
+  `Node.js NN is deprecated. The following actions target Node.js NN but are being
+  forced to run on Node.js NN+4`. If you see it, the grace period has already started.
+
+Monthly is deliberate, and it does not slow security fixes down. Dependabot has
+two independent mechanisms: *version updates*, which follow the schedule in
+`.github/dependabot.yml`, and *security updates*, which are triggered by a
+Dependabot alert as soon as an advisory lands and ignore that schedule entirely.
+Both alerts and automatic security fixes are enabled on this repo, so a
+known-vulnerable step gets a PR within hours while routine catch-up bumps stay on
+the monthly cadence. One caveat worth knowing: GitHub only raises alerts for
+actions referenced by version number, not by commit hash — all six of ours use
+version numbers.
+
 ## Deployment — why PRs matter
 
 Pushes to `main` auto-deploy: the backend (Railway) and web frontend (Vercel),

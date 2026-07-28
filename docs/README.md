@@ -45,7 +45,7 @@ paid for" references, and are the place to start if you're new.
 
 ## Operations
 
-- [Deployment](operations/deployment.md) — Railway (backend), Vercel (frontend), Supabase auth URLs
+- [Deployment](operations/deployment.md) — the five GitHub Actions workflows, Railway (backend), Vercel (frontend), Supabase auth URLs
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [iOS release workflow](operations/ios-release.md) — simulator QA, TestFlight, and ad hoc builds
 - [Android prototype handoff](operations/android-prototype-handoff.md) — the Expo/RN Android build path

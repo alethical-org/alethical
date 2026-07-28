@@ -5,6 +5,26 @@ Alethical deploys as two services:
 - Frontend: Expo web static export on Vercel.
 - Backend: FastAPI web service on Railway.
 
+## Workflows at a glance
+
+Five GitHub Actions workflows in `.github/workflows/`. Which ones a PR can prove
+matters: two of them never run on a PR, so a change to them is only verified
+after merge.
+
+| Workflow             | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
+| -------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- |
+| `ci.yml`             | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                       | Yes                              |
+| `migrate.yml`        | push to `main` touching migrations, models, `alembic.ini`, deps, or itself | Applies Alembic migrations to the production database; opens an alert issue on failure | No                               |
+| `railway-deploy.yml` | push to `main` touching backend paths or itself                            | Deploys the API to Railway production                                                  | No                               |
+| `vercel-deploy.yml`  | push to `main` touching frontend paths or itself                           | Deploys the web frontend to Vercel production                                          | No                               |
+| `vote-backfill.yml`  | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
+
+Each of the three deploy/migrate workflows lists its own file in its `push`
+paths, so changing one of them triggers it on merge. That is the intended
+post-merge verification. For why the borrowed steps inside them need periodic
+bumping, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md) § "Keeping the workflow
+actions current".
+
 ## Backend on Railway
 
 Use the repository `railway.json` config from the repo root. It configures a service named `alethical-api` using the RAILPACK builder, with a healthcheck against `/healthz` and an automatic restart policy.
