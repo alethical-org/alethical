@@ -90,11 +90,7 @@ every push to `main`, and monthly as a backstop.
 
 So the tables are the source of truth in a literal sense: change a setting without
 changing its row and the next PR goes red, naming the setting, what the doc claims,
-and what the live value actually is. Run it yourself any time:
-
-```bash
-GH_TOKEN=$(gh auth token) python3 scripts/check_repo_settings.py
-```
+and what the live value actually is.
 
 **Why every PR and not just monthly.** A monthly-only check leaves up to a month of
 silent drift, and it prompts the wrong person — whoever happens to open the repo
@@ -107,12 +103,22 @@ where there is no PR to check.
 changed a setting; blocking an unrelated PR would punish the wrong session. It goes
 red visibly instead.
 
-**Unverified is not the same as passing.** The default token GitHub Actions provides
-has no administration scope, so the security rows and branch protection come back as
-`UNVERIFIED` and are reported and counted, never quietly treated as fine. Adding a
-`REPO_SETTINGS_TOKEN` secret — a fine-grained personal access token with
-`administration:read` on this repo — makes those rows checkable too. Everything else
-is checked either way.
+**Unverified is not the same as passing**, and right now most rows are unverified in
+CI. Measured on the run that introduced this check: with the default token GitHub
+Actions provides, **1 of 10 rows is checkable** (visibility) and the other 9 report
+`UNVERIFIED` — every merge-method, secret-scanning, Dependabot, and branch-protection
+row. They are reported and counted separately, never quietly treated as fine, so the
+job is honest rather than useful.
+
+What makes it useful is a **`REPO_SETTINGS_TOKEN` secret**: a fine-grained personal
+access token with `administration:read` on this repo. With one, all 14 rows are
+checked. Until then the CI job is close to a placeholder, and the real coverage comes
+from running the script by hand — which does check everything, because your own `gh`
+token has the scope:
+
+```bash
+GH_TOKEN=$(gh auth token) python3 scripts/check_repo_settings.py
+```
 
 Two habits still matter, because no script covers them:
 
