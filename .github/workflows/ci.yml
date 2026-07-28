@@ -1,5 +1,12 @@
 name: CI
 
+# Do NOT add a `paths:` filter to `pull_request` below. The `changes`,
+# `doc-references`, `backend`, and `frontend` jobs are required status checks on
+# `main`. Filtering at the workflow level would stop this workflow from running at
+# all on unrelated PRs, so those checks would never report and every such PR would
+# block forever. Filter per job instead — as `backend` and `frontend` already do
+# via `dorny/paths-filter` — because a job skipped by `if:` reports `skipped`,
+# which GitHub counts as a passing required check.
 on:
   pull_request:
   push:
