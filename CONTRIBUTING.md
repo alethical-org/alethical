@@ -151,10 +151,14 @@ and ignore that schedule entirely.
   nothing here runs on a timer. While you're there, glance over
   `docs/operations/repo-and-service-settings.md` — the settings it lists can't be
   checked by CI, and this PR is the one recurring moment anyone looks at them.
-- **Automatic security fixes are off**, deliberately. Left on, they opened nine
-  separate unreviewed PRs in four minutes, one of them a major version bump under
-  the API. The prerequisite for turning them back on is a `groups` entry with
-  `applies-to: security-updates` so a batch arrives as one reviewable PR.
+- **Automatic security fixes are on.** They were switched off in July 2026 after
+  opening nine separate unreviewed PRs in four minutes, one of them a major version
+  bump under the API, and switched back on the same month once the cause was fixed.
+  The cause was not the bot: a `groups` block covers *version* updates only unless
+  it says `applies-to: security-updates`, so grouped monthly sweeps still produced
+  one PR per advisory. Each ecosystem now carries both groups, so a batch of alerts
+  arrives as a single reviewable PR. Nothing self-merges — CI still has to pass and
+  a person still clicks merge.
 - One caveat: GitHub only raises alerts for actions referenced by version number,
   not by commit hash. All six of ours use version numbers.
 
