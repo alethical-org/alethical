@@ -53,4 +53,12 @@ jobs:
       - name: Backfill missing roll-call votes
         # votes.py writes by default; --dry-run is the opt-out (there is no
         # --write flag). --only-missing limits it to un-ingested roll calls.
+        #
+        # DO NOT drop --only-missing here. It is the reason this scheduled run
+        # against production is additive: votes.py deletes and re-creates the
+        # vote_event / vote_record rows for every action it processes, and
+        # --only-missing filters to actions that have no vote event yet, so
+        # those deletes match zero rows. Without it, the daily cron becomes an
+        # unattended destructive rewrite of every already-ingested roll call.
+        # Run a full re-ingest by hand instead (with --dry-run first).
         run: uv run python -m alethical.pipeline.votes --only-missing
