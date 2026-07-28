@@ -13,7 +13,7 @@ A terse design prompt ("the dropdown hover doesn't work") is usually *answerable
 
 Interview **only** for gaps that change *what you do* or *how fast*. If you can already state the **scope**, the **expected vs. actual** (bug) or the **target state + acceptance** (change), and you know **where the spec/assets are**, skip the questions, restate the task in one line, and proceed. Interrogating for things the repo answers — or for low-stakes details — is the anti-goal. Most prompts pass the gate; the interview is the exception, not the toll booth.
 
-One gate, once: for design tasks this skill **is** the intake/brainstorming step — don't stack a generic start-of-task gate (e.g. `superpowers:brainstorming`) on top of it. Run this, then hand off.
+One gate, once: for design tasks this skill **is** the intake step — don't stack another start-of-task gate on top of it (the general form of that rule now lives in `~/.claude/CLAUDE.md`, "Reach for a skill before improvising"). Run this, then hand off.
 
 ## 1. Self-answer from the repo first (never ask what you can check)
 
