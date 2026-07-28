@@ -103,6 +103,15 @@ jobs:
             exit 1
           fi
 
+      # Guard against imports that only work by accident: a package our code
+      # imports but pyproject.toml never declares survives on some other
+      # dependency happening to require it, then breaks when that dependency
+      # stops. numpy did exactly this — undeclared, arriving via supabase, and
+      # deleted by an unrelated bump (#693) that turned the whole suite red
+      # (#701). DB-free (parses imports, reads pyproject.toml).
+      - name: Check dependencies are declared
+        run: uv run python3 scripts/check_declared_dependencies.py
+
       # Pin ruff: uvx resolves the latest release, so a new ruff (0.16.0 expanded
       # the default rule set) turned green CI red repo-wide with no code change.
       # Pin to a known-good version; bump deliberately when adopting new rules.
