@@ -120,8 +120,10 @@ after GitHub switched it off ([#674](https://github.com/alethical-org/alethical/
 nothing broke only because GitHub was temporarily forcing the steps onto Node 24,
 and it was caught by someone reading a warning in a run log.
 
-`.github/dependabot.yml` now checks those steps monthly and opens one grouped PR
-labeled `ci`. It only opens PRs — normal CI still gates them. When one arrives:
+`.github/dependabot.yml` now checks monthly and opens one grouped PR per
+ecosystem — the workflow steps (labeled `ci`), the Python dependencies
+(`backend`), and the JavaScript dependencies (`frontend`). It only opens PRs —
+normal CI still gates them. When one arrives:
 
 - **Read the release notes for every major bump before merging.** A major version
   can change a default without failing. Two of ours did: `astral-sh/setup-uv` v9
@@ -136,15 +138,23 @@ labeled `ci`. It only opens PRs — normal CI still gates them. When one arrives
   `Node.js NN is deprecated. The following actions target Node.js NN but are being
   forced to run on Node.js NN+4`. If you see it, the grace period has already started.
 
-Monthly is deliberate, and it does not slow security fixes down. Dependabot has
-two independent mechanisms: *version updates*, which follow the schedule in
-`.github/dependabot.yml`, and *security updates*, which are triggered by a
-Dependabot alert as soon as an advisory lands and ignore that schedule entirely.
-Both alerts and automatic security fixes are enabled on this repo, so a
-known-vulnerable step gets a PR within hours while routine catch-up bumps stay on
-the monthly cadence. One caveat worth knowing: GitHub only raises alerts for
-actions referenced by version number, not by commit hash — all six of ours use
-version numbers.
+Monthly is deliberate. Dependabot has two independent mechanisms: *version
+updates*, which follow the schedule in `.github/dependabot.yml`, and *security
+updates*, which are triggered by a Dependabot alert as soon as an advisory lands
+and ignore that schedule entirely.
+
+- **Alerts are on.** Turning them on for the first time in July 2026 returned 70
+  open alerts ([#691](https://github.com/alethical-org/alethical/issues/691)) —
+  nothing had ever been watching. Check
+  [the alerts page](https://github.com/alethical-org/alethical/security/dependabot)
+  when you're in a bump PR anyway; that is the only cadence this repo has, since
+  nothing here runs on a timer.
+- **Automatic security fixes are off**, deliberately. Left on, they opened nine
+  separate unreviewed PRs in four minutes, one of them a major version bump under
+  the API. The prerequisite for turning them back on is a `groups` entry with
+  `applies-to: security-updates` so a batch arrives as one reviewable PR.
+- One caveat: GitHub only raises alerts for actions referenced by version number,
+  not by commit hash. All six of ours use version numbers.
 
 ## Deployment — why PRs matter
 

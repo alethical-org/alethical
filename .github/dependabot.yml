@@ -1,21 +1,30 @@
-# Watch the reusable actions our workflows borrow, so a retired runtime shows up
-# as a pull request instead of a warning nobody reads. Background: every action
-# was still asking for Node 20 months after GitHub switched it off (#674); the
-# only reason nothing broke was a temporary force-migration onto Node 24. That
-# was found by hand, and Node 24 will be retired the same way in its turn.
+# Watch our dependencies so a retirement or a known vulnerability shows up as a
+# pull request instead of a warning nobody reads.
 #
-# Scoped to github-actions on purpose. Python and npm dependencies are pinned in
-# uv.lock / pnpm-lock.yaml and bumped deliberately (CI also pins ruff and ty for
-# exactly that reason), so adding those ecosystems here would be noise.
+# Background, both halves found the same week (July 2026):
+#   - Every workflow action was still asking for Node 20 months after GitHub
+#     switched it off (#674). Nothing broke only because of a temporary
+#     force-migration onto Node 24, and it was caught by hand.
+#   - Turning Dependabot alerts on for the first time returned 70 open alerts
+#     (#691), 21 of them backend. Nothing had ever been watching.
+#
+# This file's first version covered github-actions only, on the reasoning that
+# Python and JS dependencies were "bumped deliberately." That reasoning was
+# wrong: nothing was bumping them at all, which is how 70 alerts accumulated
+# unseen. All three ecosystems are watched now (docs/philosophy.md principle 9,
+# "Prevent, don't just fix" — an alert someone has to read is not prevention).
+#
+# Each ecosystem groups into a single monthly PR, so a batch is one review
+# rather than nine. Dependabot's separate *security* updates ignore this
+# schedule and fire on an alert; they are currently disabled, and the
+# prerequisite for turning them back on is a security-updates group here so a
+# batch arrives as one PR (see #691).
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: monthly
-    # One grouped PR per month rather than six separate ones. Actions in
-    # .github/workflows/ are independent of each other, so they can be reviewed
-    # and merged together.
     groups:
       workflow-actions:
         patterns:
@@ -25,3 +34,37 @@ updates:
       prefix: ci
     labels:
       - ci
+
+  # astral-sh/setup-uv is pinned to an exact release in the workflows because
+  # upstream stopped publishing floating major tags; Dependabot follows exact
+  # tags, so that pin is covered here rather than left to go stale by hand.
+  - package-ecosystem: uv
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore
+    labels:
+      - backend
+
+  # Covers the pnpm workspace from the root lockfile. Note that most of the
+  # July 2026 npm alerts were transitive under Expo's build tooling, which a
+  # version update cannot reach directly — those clear when Expo itself moves.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      javascript-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore
+    labels:
+      - frontend
