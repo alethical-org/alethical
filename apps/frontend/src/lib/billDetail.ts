@@ -80,7 +80,7 @@ export type EventKind =
   | 'veto'
   | 'notAdopted'
   | 'motionFailed'
-  | 'authorAdd' // "Author(s) added: …" — collapsed into one muted group row
+  | 'authorAdd' // "Author(s) added: …" — collapsed into one grouped row
   | 'chiefAuthor' // chief-author change — stays its own normal row (never grouped)
   | 'procedural'; // everything else (introduced, referral, committee report, motions…)
 
@@ -109,6 +109,35 @@ const GLOSS: Record<string, string> = {
 };
 
 type Classified = { kind: EventKind; title: string };
+
+// The source writes a referral as a phrase plus a separate value: the text ends on
+// "referred to" / "re-referred to" and the committee arrives in committee_name.
+// Shared with the API mapping (data/api.ts), which applies the same completion to
+// the mobile timeline's labels — one regex so the two can't drift apart.
+export const TRAILING_REFERRAL = /[,\s]*(?:and\s+)?(?:re-?)?refer(?:red)?\s+to\s*$/i;
+
+// Same shape, different verb: a deadline or interim-disposition return hands the
+// bill back to a committee named in committee_name ("Rule 47, returned to").
+export const TRAILING_RETURN = /[,\s]*(?:bill\s+)?return(?:ed)?\s+to\s*$/i;
+
+// STANDING RULE: no action row ends on a preposition. Every rule above that builds
+// a title from a phrase plus a value spells out its own fallback, and this is the
+// net under all of them (including the raw-label fallback): a dangling title takes
+// the source's committee when there is one, and otherwise loses the clause that was
+// waiting on a value — never the preposition on its own.
+const TRAILING_PREPOSITION = /[,\s]+(?:to|for|with|from|by|of|in|on|and)\s*$/i;
+
+function completeDanglingTitle(title: string, committee: string): string {
+  if (!TRAILING_PREPOSITION.test(title)) return title;
+  if (committee) return `${title} ${committee}`;
+  const withoutPreposition = title.replace(TRAILING_PREPOSITION, '');
+  const lastClause = withoutPreposition.lastIndexOf(',');
+  const kept =
+    lastClause > 0
+      ? withoutPreposition.slice(0, lastClause)
+      : withoutPreposition.replace(/\s+\S+$/, '');
+  return kept.trim() || withoutPreposition.trim();
+}
 
 // Ordered clerk-phrasing → plain-language rules. First match wins, so put the
 // specific patterns before the general ones. `text` is the raw action_text;
@@ -281,10 +310,49 @@ const ACTION_RULES: Rule[] = [
     build: () => ({ kind: 'procedural', title: 'Introduced' }),
   },
   {
-    test: (l) => /^referred to/.test(l),
+    // The other chamber takes up this file: first reading there, then a referral
+    // to one of ITS committees. The source names the committee in committee_name,
+    // not in the text, so without this rule the row fell through to the raw label
+    // and stopped dead on "…referred to". The sibling "referred for comparison"
+    // wording carries no committee and is deliberately left to the fallback.
+    test: (l) => /^(?:senate|house) file first reading,\s*referred to\s*$/.test(l),
+    build: (text, _d, committee) => {
+      const phrase = text.trim().replace(TRAILING_REFERRAL, '');
+      return {
+        kind: 'procedural',
+        title: committee ? `${phrase}, referred to ${committee}` : phrase,
+      };
+    },
+  },
+  {
+    // Sent to the Chief Clerk to be compared against the companion file. Must sit
+    // ahead of the referral rule below: the companion it is compared WITH is not
+    // in the record, and this is not a committee referral, so it must not read as
+    // one ("Referred to a committee" is what it used to say).
+    test: (l) => /^referred to chief clerk/.test(l),
+    build: () => ({
+      kind: 'procedural',
+      title: 'Referred to the Chief Clerk for comparison',
+    }),
+  },
+  {
+    // Any referral whose text ends on "referred to" — a bare "Referred to", and
+    // also the ones that carry a rule or resolution prefix ("Rule 47, referred
+    // to", "Pursuant to Senate Concurrent Resolution No. 6, referred to"). The
+    // prefix is clerk bookkeeping; what happened is the referral.
+    test: (l) => /^referred to|referred to\s*$/.test(l),
     build: (_t, _d, committee) => ({
       kind: 'procedural',
       title: committee ? `Referred to ${committee}` : 'Referred to a committee',
+    }),
+  },
+  {
+    // Interim disposition and deadline returns ("Rule 47, returned to", "House
+    // rule 4.20, interim disposition of bills, returned to").
+    test: (l) => /returned to\s*$/.test(l),
+    build: (_t, _d, committee) => ({
+      kind: 'procedural',
+      title: committee ? `Returned to ${committee}` : 'Returned to committee',
     }),
   },
   {
@@ -399,10 +467,14 @@ function humanizeFallback(text: string): string {
 
 function classify(text: string, desc: string, committee: string): Classified {
   const low = (text || '').toLowerCase();
-  for (const rule of ACTION_RULES) {
-    if (rule.test(low, desc || '')) return rule.build(text, desc || '', committee || '');
-  }
-  return { kind: 'procedural', title: humanizeFallback(text) };
+  const matched = ACTION_RULES.find((rule) => rule.test(low, desc || ''));
+  const classified: Classified = matched
+    ? matched.build(text, desc || '', committee || '')
+    : { kind: 'procedural', title: humanizeFallback(text) };
+  return {
+    ...classified,
+    title: completeDanglingTitle(classified.title, committee || ''),
+  };
 }
 
 // House ≈ 134 seats, Senate 67 — a full-chamber floor-passage tally is decisive:
@@ -425,7 +497,6 @@ export interface TimelineRow {
   title: string;
   kind: EventKind; // the classified event kind (lets callers reword per surface)
   dot: TimelineDot;
-  muted: boolean; // author-group treatment (quiet annotation, not a milestone)
   tally?: string; // en-dashed "134–0"; only real passage votes carry one
   authors?: string[]; // collapsed co-author names (author-group rows)
   showVotes: boolean;
@@ -743,7 +814,6 @@ export function buildActionTimeline(
           : undefined,
       title,
       dot: dotForRow(item.kind, upcoming, hasTally),
-      muted: item.kind === 'authorAdd',
       tally: hasTally ? item.tally!.replace(/-/g, '–') : undefined,
       authors: item.kind === 'authorAdd' ? item.authors : undefined,
       showVotes: hasTally && !upcoming && rollIdx != null,

@@ -57,6 +57,7 @@ import {
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton } from '../../components/Skeleton';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
+import { billSourceText } from '../../components/billDetail/SourceLine';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
 // Bill Detail — mobile-first, single scrolling page (docs/mockups/bill-detail-mobile).
@@ -565,6 +566,9 @@ function BillDetailMobileScreen() {
       actions,
       rolls,
       hasVotes,
+      // ONE last-updated stamp for the whole page, shown by every source line
+      // (billSourceText drops the segment when the bill carries no date).
+      updatedLabel: niceDate ? `Updated ${niceDate}` : '',
     };
   }, [bill]);
 
@@ -906,6 +910,7 @@ function BillDetailMobileScreen() {
                   chiefParty={vm.chief?.party}
                   onOpenLegislator={openLegislator}
                   onOpenUrl={openExternal}
+                  updatedLabel={vm.updatedLabel}
                 />
               ) : (
                 <View style={styles.noVotes}>
@@ -971,7 +976,7 @@ function BillDetailMobileScreen() {
               ) : (
                 <Text style={styles.emptyLine}>No published versions yet.</Text>
               )}
-              <Text style={styles.sourceLine}>Source: Minnesota Legislature · revisor.mn.gov</Text>
+              <Text style={styles.sourceLine}>{billSourceText(vm.updatedLabel)}</Text>
             </Section>
 
             {/* 7 — Bill Text */}
@@ -983,11 +988,7 @@ function BillDetailMobileScreen() {
                 bill={bill}
                 targetSectionId={ftAnchor}
                 onAnchorConsumed={() => setFtAnchor(null)}
-                updatedLabel={
-                  bill.updatedAt && bill.updatedAt !== 'Unknown'
-                    ? `Updated ${formatNiceDate(bill.updatedAt)}`
-                    : 'Minnesota Legislature'
-                }
+                updatedLabel={vm.updatedLabel}
               />
             </Section>
 
@@ -1297,11 +1298,13 @@ function MobileVotesSection({
   chiefParty,
   onOpenLegislator,
   onOpenUrl,
+  updatedLabel,
 }: {
   rolls: { vote: VoteEvent; norm: NormalizedMotion }[];
   chiefParty: string | undefined;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenUrl: (url: string) => void;
+  updatedLabel: string;
 }) {
   // One roll open at a time on mobile (spec §Votes — roll accordion). Seed the first
   // roll open so the member grid is discoverable without a tap.
@@ -1361,9 +1364,7 @@ function MobileVotesSection({
         ))}
       </View>
 
-      <Text style={styles.sourceLine}>
-        Source: Minnesota Legislature · roll-call records · revisor.mn.gov
-      </Text>
+      <Text style={styles.sourceLine}>{billSourceText(updatedLabel)}</Text>
     </View>
   );
 }

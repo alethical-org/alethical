@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { TRAILING_REFERRAL, TRAILING_RETURN } from '../lib/billDetail';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -689,8 +690,8 @@ const DATE_ONLY = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
 // name — e.g. "Introduction and first reading, referred to" or "…and re-refer
 // to". The committee is named in action_description when present (appended to
 // complete the phrase); when absent, this clause is stripped so no row ends on
-// "referred to" with nothing after it.
-const TRAILING_REFERRAL = /[,\s]*(?:and\s+)?(?:re-?)?refer(?:red)?\s+to\s*$/i;
+// "referred to" with nothing after it. Shared with the web timeline's normalizer
+// (lib/billDetail.ts), which applies the same rule to its own titles.
 
 function isoFromSlashDate(value: string): string {
   const m = value.trim().match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
@@ -747,16 +748,16 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     // so fold it into the title — otherwise the row is a bare label with an
     // empty date column (and gets floated to the top by the timeline sort).
     if (desc && !date) title = `Effective date: ${desc}`;
-  } else if (TRAILING_REFERRAL.test(text)) {
-    // Complete a dangling "…referred to" with its committee — the dedicated
-    // committee_name field (#599) when present, else the legacy action_description
-    // fallback; strip the fragment when the source has neither. A bare "Referred
-    // to" with no target left over is dropped as meaningless.
+  } else if (TRAILING_REFERRAL.test(text) || TRAILING_RETURN.test(text)) {
+    // Complete a dangling "…referred to" / "…returned to" with its committee — the
+    // dedicated committee_name field (#599) when present, else the legacy
+    // action_description fallback; strip the fragment when the source has neither.
+    // A bare "Referred to" with no target left over is dropped as meaningless.
     const target = committee || desc;
     if (target) {
       title = `${text} ${target}`;
     } else {
-      title = text.replace(TRAILING_REFERRAL, '').trim();
+      title = text.replace(TRAILING_REFERRAL, '').replace(TRAILING_RETURN, '').trim();
       if (!title) return null;
     }
   } else if (detailIsConnectorTarget(text, desc)) {
