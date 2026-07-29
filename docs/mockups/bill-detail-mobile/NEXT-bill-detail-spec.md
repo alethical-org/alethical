@@ -436,15 +436,30 @@ top bar on mobile) — NOT buried in a menu — and stays reachable from every t
   Actions timeline (which carries pipeline position for in-progress bills). Rail now leads
   with the date only — EFFECTIVE (signed) / LATEST ACTION (in progress/vetoed). Status stays
   the top header pill; effective date stays in the rail (not promoted to the header).
-  **"signed → EFFECTIVE" is conditional, not automatic:** a signed bill shows EFFECTIVE
-  only when its enacted text resolves to ONE date for the whole act — every section names
-  the same date (Tier A), every section is "the day following final enactment" (Tier B), or
-  no section names a date so Minn. Stat. 645.02 supplies one (Tier C, #706). About half of
-  enacted MN bills genuinely take effect on different dates section by section (SF 334 /
-  2026 ch. 120: 1 of 14 sections on May 28, 2026, the other 13 on Aug 1, 2026); those keep
-  LATEST ACTION, because naming one of several dates as the act's would be wrong (#455 /
-  #480, grounded-answers rule 9). The Actions timeline still shows the Revisor's own
-  "Effective date" row for them — that is a record surface, not a claim about the whole act.
+  **"signed → EFFECTIVE" is conditional, not automatic**, and it has THREE states (#715):
+  - **One date.** The enacted text resolves to one date for the whole act — every section
+    names the same date (Tier A), every section is "the day following final enactment"
+    (Tier B), or no section names a date so Minn. Stat. 645.02 supplies one (Tier C, #706).
+    EFFECTIVE {date}; the Actions timeline carries one row, "Law effective". 68 of the 131
+    enacted bills in production.
+  - **Phased.** The law's own text proves two or more distinct dates — 43 of the 131, so
+    this is the common case, not an edge case. The label stays EFFECTIVE and the value is
+    the EARLIEST date the law states about itself, written "From {date}", under the caption
+    "Phased — some sections later · See dates →" linking to the Actions tab. Leading with
+    the earliest is what makes "later" true by construction, with no per-law logic. When
+    even the earliest is not provable (a stated date falling after a Minn. Stat. 645.02
+    default, so an undated section may start first — 4 bills) the value is "Various dates".
+    The timeline gets one row per STATED date, newest first, and the sections that state
+    nothing get an undated grey note naming both candidates rather than a row.
+  - **No data.** Nothing groundable in the source: LATEST ACTION, as before (20 bills).
+
+  **A date is never inferred.** The Minn. Stat. 645.02 default is Aug 1 normally but July 1
+  for an act carrying appropriation items, and no textual signal reproduces the Revisor's
+  own answer — so guessing would MANUFACTURE phasing on a law that has none (HF 2130: 24
+  sections, 4 stating Aug 1, 2025 and 20 silent, one clean published Aug 1, 2025). Where the
+  bill text and the Revisor's published date disagree, the TEXT WINS: the published value is
+  the earliest for SF 334, the latest for HF 3827, and "various dates" for 38 of the 48 it
+  cannot summarize (#455 / #480, grounded-answers rule 9).
 - **Chief author matched to web:** aligned **label → value** rows (grey label + ink value) —
   honorific label (**Senator/Representative**) → green name link, **Party**, and
   **{Senate|House} District** → "{City} ({number})"; **co-authors detached** to the top-right

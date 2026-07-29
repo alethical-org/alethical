@@ -33,6 +33,7 @@ export function SummaryTab({
   isDesktop,
   updatedLabel,
   onCitationPress,
+  onJumpToActions,
 }: {
   bill: Bill;
   showAsk: boolean;
@@ -44,6 +45,8 @@ export function SummaryTab({
   updatedLabel: string;
   // Jump to a cited statute section in the Bill Text tab. No-op if absent.
   onCitationPress?: (sectionId: string) => void;
+  // Open the Actions tab — the rail's "See dates" target for a phased law (#715).
+  onJumpToActions: () => void;
 }) {
   const keyPoints = plainKeyPoints(bill.aiAnalysis?.keyPoints);
   const summary = bill.aiAnalysis?.summary ?? '';
@@ -138,6 +141,7 @@ export function SummaryTab({
             onOpenUrl={onOpenUrl}
             onOpenLegislator={onOpenLegislator}
             onOpenBill={onOpenBill}
+            onJumpToActions={onJumpToActions}
           />
         </View>
       </View>

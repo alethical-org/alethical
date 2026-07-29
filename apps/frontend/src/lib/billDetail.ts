@@ -1,4 +1,11 @@
-import { Bill, BillAction, BillVersion, IndividualVote, VoteEvent } from '../data/types';
+import {
+  Bill,
+  BillAction,
+  BillVersion,
+  EffectiveSchedule,
+  IndividualVote,
+  VoteEvent,
+} from '../data/types';
 import { normalizeMotion } from './motionNormalize';
 
 // Shared logic for the redesign Bill Detail page (screens/redesign/BillDetailScreen).
@@ -423,6 +430,12 @@ export interface TimelineRow {
   authors?: string[]; // collapsed co-author names (author-group rows)
   showVotes: boolean;
   rollIdx: number | null;
+  /** Sub-line under the title — how many sections start on this row's date (#715). */
+  meta?: string;
+  /** Quiet UNDATED note about the sections that state no date (#715). It carries no
+   *  dot and no date of its own, because placing it on a day would mean picking one
+   *  of the two Minn. Stat. 645.02 candidates. */
+  note?: string;
 }
 
 type Norm = Classified & {
@@ -434,7 +447,112 @@ type Norm = Classified & {
   chapter?: string;
   authors?: string[];
   endDate?: string;
+  meta?: string;
+  note?: string;
 };
+
+/** Fixed UI copy for a phased law's rail caption. Owned by the layout, never
+ *  generated — and true by construction: the value is the EARLIEST date the law
+ *  states, so every other section necessarily starts later (#715). */
+export const PHASED_CAPTION = 'Phased — some sections later';
+
+// The rail's EFFECTIVE value for a signed law, or null when it falls back to the
+// honest LATEST ACTION treatment. Shared by the web facts rail and the mobile
+// status card so the two platforms cannot drift. "From {date}" leads with the
+// earliest date a phased law states about itself; "Various dates" covers the
+// laws where even that is not provable (a stated date falling after one of the
+// two Minn. Stat. 645.02 candidates, so an undated section may start first).
+export function effectiveRailValue(bill: Bill): { value: string; phased: boolean } | null {
+  const schedule = bill.effectiveSchedule;
+  if (schedule?.kind === 'phased') {
+    return {
+      value: schedule.value ? `From ${formatNiceDate(schedule.value)}` : 'Various dates',
+      phased: true,
+    };
+  }
+  const single = schedule?.value ?? bill.effectiveDate;
+  return single ? { value: formatNiceDate(single), phased: false } : null;
+}
+
+// The two Minn. Stat. 645.02 candidates read as prose in the undated note: the
+// shared year is stated once ("July 1 or Aug 1, 2026"). Both candidates always
+// fall in the same year by construction, so the year only ever needs saying once.
+function candidatePhrase(candidates: string[]): string | null {
+  if (candidates.length !== 2) return null;
+  const first = candidates[0].replace(/,\s*\d{4}$/, '');
+  return `${first} or ${formatNiceDate(candidates[1])}`;
+}
+
+/** One effective-date entry for the Actions timeline, newest first (#715).
+ *  Shared by the web timeline and the mobile list so both platforms show the same
+ *  rows, titles and note — they render the same data, never their own copy. */
+export interface EffectiveTimelineEntry {
+  /** Display date ("May 28, 2026"); both platforms format it themselves. */
+  date: string;
+  title: string;
+  /** Sub-line counting the sections that state THIS date (phased laws only). */
+  meta?: string;
+  /** The undated note, on the oldest row only. */
+  note?: string;
+}
+
+// A single-date law gets one "Law effective" row and no per-section meta line:
+// every section shares the date, so there is nothing to count. A phased law gets
+// one row per date it states about itself, the oldest labelled "First provisions
+// effective" — that row is the anchor the undated note hangs off. Every count
+// here comes from sections that state their OWN date; none rests on an inferred
+// one, and the counts need not sum to the total (a section can carry a clause
+// that states only a coverage window, which is neither a date nor silence).
+export function effectiveTimelineEntries(schedule: EffectiveSchedule): EffectiveTimelineEntry[] {
+  const oldest = schedule.rows.length - 1;
+  const phrase = candidatePhrase(schedule.defaultCandidates);
+  return schedule.rows.map((row, i) => ({
+    date: row.date,
+    title:
+      schedule.kind === 'single'
+        ? 'Law effective'
+        : i === oldest
+          ? 'First provisions effective'
+          : 'More provisions effective',
+    meta:
+      schedule.kind === 'single'
+        ? undefined
+        : `${row.sections} of ${schedule.totalSections} sections${
+            // NOT "the day after the Governor signed": "final enactment" runs from
+            // the Secretary of State filing, which trails the signature on 5 of the
+            // 128 enacted bills in the corpus (HF 4987 was signed May 14, filed May
+            // 15, effective May 16), so the signing wording would be a day out.
+            row.fromEnactment ? ', the day after the law was filed with the state' : ''
+          }`,
+    // "N of the M sections", never "the other N": the two differ whenever a
+    // section states only a coverage window, and "the other" would then be false.
+    note:
+      schedule.kind === 'phased' && i === oldest && schedule.undatedSections > 0 && phrase
+        ? `${schedule.undatedSections} of the ${schedule.totalSections} sections state ` +
+          `no date. Under state law they start ${phrase}.`
+        : undefined,
+  }));
+}
+
+// The same entries, wrapped for the web timeline's ordering pipeline. Real dates,
+// so they sort newest-first and pick up the SCHEDULED treatment like any action.
+function effectiveNormRows(schedule: EffectiveSchedule, existing: Norm[]): Norm[] {
+  const entries = effectiveTimelineEntries(schedule);
+  const baseIdx = existing.reduce((max, r) => Math.max(max, r.idx), 0) + 1;
+  const block = existing.reduce((max, r) => Math.max(max, r.block), 0);
+  const actionNumber = existing.reduce((max, r) => Math.max(max, r.actionNumber), 0) + 1;
+  const oldest = entries.length - 1;
+  return entries.map((entry, i) => ({
+    kind: 'effective' as EventKind,
+    title: entry.title,
+    idx: baseIdx + (oldest - i),
+    actionNumber,
+    block,
+    rawDate: entry.date,
+    meta: entry.meta,
+    note: entry.note,
+  }));
+}
 
 // Build the curated Actions timeline (newest first) from the raw feed.
 // Pipeline: classify each row → collapse (authors, passage clusters, signing)
@@ -444,6 +562,7 @@ export function buildActionTimeline(
   actions: BillAction[],
   votes: VoteEvent[],
   now: Date,
+  schedule?: EffectiveSchedule,
 ): { rows: TimelineRow[]; glossary: Array<{ term: string; def: string }> } {
   // 1. Classify, preserving source order (chamber-grouped, ascending #). A DROP
   //    in action_number marks a new chamber, tracked as `block`.
@@ -571,13 +690,25 @@ export function buildActionTimeline(
     return true;
   });
 
+  // 2e. Replace the source's single "Effective date" row with the resolved
+  //     schedule (#715). That row carries the Revisor's published date, which is
+  //     unreliable for a law whose sections start on different days — it prints
+  //     the earliest for SF 334 and the latest for HF 3827, either way reading as
+  //     the whole law's date. The bill text wins, so the source row is dropped and
+  //     one row per date the law states about ITSELF takes its place. Dates are
+  //     real, so these rows pick up the existing newest-first ordering and the
+  //     SCHEDULED treatment (dashed dot, grey title, badge) with no new logic.
+  const scheduled = schedule
+    ? [...deduped.filter((r) => r.kind !== 'effective'), ...effectiveNormRows(schedule, deduped)]
+    : deduped;
+
   // 3. Order newest-first. Dateless rows inherit the nearest dated neighbor in
   //    their chamber block, exactly like orderActionsForTimeline — used only for
   //    ordering, never displayed.
-  const withKeys = assignOrderKeys(deduped);
+  const withKeys = assignOrderKeys(scheduled);
   withKeys.sort((x, y) => y.key - x.key || x.item.idx - y.item.idx);
 
-  // 4. Render rows.
+  // 4. Render rows. Schedule rows carry their own title/meta/note already.
   const rows: TimelineRow[] = withKeys.map(({ item }) => {
     const d = parseActionDate(item.rawDate);
     const upcoming = !!d && d > now;
@@ -617,6 +748,8 @@ export function buildActionTimeline(
       authors: item.kind === 'authorAdd' ? item.authors : undefined,
       showVotes: hasTally && !upcoming && rollIdx != null,
       rollIdx,
+      meta: item.meta,
+      note: item.note,
     };
   });
 

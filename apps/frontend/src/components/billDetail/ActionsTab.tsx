@@ -28,8 +28,8 @@ export function ActionsTab({
   // only if genuinely still in the future. Anchoring to the Updated stamp
   // mislabeled already-past enacted milestones (#537/#541).
   const { rows, glossary } = useMemo(
-    () => buildActionTimeline(bill.actions, bill.votes, new Date()),
-    [bill.actions, bill.votes],
+    () => buildActionTimeline(bill.actions, bill.votes, new Date(), bill.effectiveSchedule),
+    [bill.actions, bill.votes, bill.effectiveSchedule],
   );
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -124,6 +124,15 @@ function Row({
             </View>
           ) : null}
         </View>
+        {row.meta ? <Text style={styles.rowMeta}>{row.meta}</Text> : null}
+        {/* The sections that state no date. Deliberately UNDATED — no dot and
+            nothing in the date column — because placing it on a day would mean
+            picking one of the two Minn. Stat. 645.02 candidates (#715). */}
+        {row.note ? (
+          <View style={styles.undatedNote}>
+            <Text style={styles.undatedNoteText}>{row.note}</Text>
+          </View>
+        ) : null}
         {row.showVotes ? <ViewVotesLink onPress={() => onViewVotes(row.rollIdx ?? 0)} /> : null}
       </View>
     </View>
@@ -307,6 +316,30 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
     flexShrink: 1,
+  },
+  // How many sections start on this row's date — only ever a count read off the
+  // sections that STATE that date, never one resting on an inferred date (#715).
+  rowMeta: {
+    marginTop: 4,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    color: t.colors.text.muted,
+  },
+  // Quiet, deliberately undated note about the sections that state no date.
+  undatedNote: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#f7f9f8',
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 10,
+  },
+  undatedNoteText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 22,
+    color: t.colors.text.secondary,
   },
   // Muted co-author annotation: smaller, grey, not a milestone beat (point 4).
   authorTitle: {

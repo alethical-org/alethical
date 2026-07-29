@@ -131,6 +131,38 @@ export interface BillAIAnalysis {
   policyAreas: string[];
 }
 
+/** One date a law states about itself, and how many of its sections start then. */
+export interface EffectiveScheduleRow {
+  /** Display date ("May 28, 2026") — the same shape the rail value uses. */
+  date: string;
+  /** Sections that state THIS date. Never a count that rests on an inferred date. */
+  sections: number;
+  /** True when the sections said "the day following final enactment" rather than
+   *  naming a calendar date, which the timeline row explains in words. */
+  fromEnactment: boolean;
+}
+
+/** What a signed law shows for EFFECTIVE (#715).
+ *
+ *  `single` — every section shares one date (the rail shows it; the timeline gets
+ *  one "Law effective" row). `phased` — the law's own text proves two or more
+ *  dates, so the rail leads with the earliest (`value`) and the timeline gets one
+ *  row per stated date. A phased law whose earliest is NOT provable has a null
+ *  `value` and reads "Various dates" instead. */
+export interface EffectiveSchedule {
+  kind: 'single' | 'phased';
+  value: string | null;
+  /** Newest first, like every other row on the Actions timeline. */
+  rows: EffectiveScheduleRow[];
+  totalSections: number;
+  /** Sections stating no date at all, which take one of `defaultCandidates`. Plus
+   *  the sections in `rows` this need not equal `totalSections`: a section can
+   *  state only a coverage window, which is neither a start date nor silence. */
+  undatedSections: number;
+  /** The two dates Minn. Stat. 645.02 allows a section that states none. */
+  defaultCandidates: string[];
+}
+
 export interface BillCompanion {
   /** The companion's bill key (e.g. "94-2025-HF2431"); links to /bills/{id}. */
   id: string;
@@ -153,6 +185,10 @@ export interface Bill {
    *  enacted bill text states one unambiguously (#483). Undefined otherwise — the
    *  UI then falls back to the honest LATEST ACTION treatment (#455 / #480). */
   effectiveDate?: string;
+  /** The full EFFECTIVE story for a signed law, shared by the facts rail and the
+   *  Actions timeline so they can never disagree (#715). Undefined for anything
+   *  that keeps the LATEST ACTION fallback. */
+  effectiveSchedule?: EffectiveSchedule;
   isOmnibus?: boolean;
   /** The House/Senate companion bill, when the pair is linked. `id` is the
    *  companion's bill key, so a "Companion" label + "{chamber} ({identifier})"

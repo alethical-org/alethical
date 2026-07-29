@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import re
-
-from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from collections import Counter, defaultdict
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
 
 import requests
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import and_, case, func, or_, select, text
 from sqlalchemy.orm import Session
@@ -23,13 +21,6 @@ from alethical.api.schemas import (
     MetaPayload,
     RepresentativeLookupRequest,
 )
-from alethical.api.services.representative_lookup import (
-    DistrictMatch,
-    RepresentativeLookupNotFound,
-    RepresentativeLookupService,
-    RepresentativeLookupUpstreamError,
-    get_representative_lookup_service,
-)
 from alethical.api.serializers import (
     ai_analysis_payload_for_enrichment,
     bill_list_item,
@@ -42,6 +33,13 @@ from alethical.api.serializers import (
     service_history_payload,
     sponsor_payloads,
     tracking_payload,
+)
+from alethical.api.services.representative_lookup import (
+    DistrictMatch,
+    RepresentativeLookupNotFound,
+    RepresentativeLookupService,
+    RepresentativeLookupUpstreamError,
+    get_representative_lookup_service,
 )
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
@@ -684,7 +682,7 @@ def session_law_version(bill_row) -> dict[str, Any] | None:
                 month, day, year = (int(part) for part in match.groups())
                 if year < 100:
                     year += 2000
-                filing_date = datetime(year, month, day, tzinfo=timezone.utc)
+                filing_date = datetime(year, month, day, tzinfo=UTC)
                 break
 
     # "Read the full law" links straight to the official Laws chapter page. We
@@ -785,7 +783,7 @@ def effective_date_from_sections(
         return None
     dates: set[str] = set()
     for raw in clause_texts:
-        flattened = re.sub(r"\s+", " ", raw or "")
+        flattened = normalize_section_text(raw)
         clauses = _EFFECTIVE_SENTENCE_RE.findall(flattened)
         if not clauses:
             return None  # a clause section we cannot parse -> not unambiguous
@@ -871,7 +869,7 @@ def effective_date_day_following_enactment(
     if not clause_texts or len(clause_texts) != len(sections):
         return False
     for raw in clause_texts:
-        flattened = re.sub(r"\s+", " ", raw or "")
+        flattened = normalize_section_text(raw)
         clauses = _EFFECTIVE_SENTENCE_RE.findall(flattened)
         if not clauses:
             return False  # a clause section we cannot parse -> not unambiguous
@@ -906,7 +904,7 @@ def effective_date_all_sections_silent(
     for heading, raw in sections:
         if (heading or "").strip():
             return False
-        flattened = re.sub(r"\s+", " ", raw or "")
+        flattened = normalize_section_text(raw)
         if _EFFECTIVE_SENTENCE_RE.search(flattened):
             return False
     return True
@@ -1022,6 +1020,247 @@ def resolve_effective_date(
     return None
 
 
+# A law whose sections start on DIFFERENT days is the common case, not the edge
+# case: 45 of the 131 enacted bills in production prove two or more distinct
+# effective moments from their own text. The three tiers above all require the
+# sections to be UNABLE to disagree, so every one of those 45 falls through to
+# None and the UI prints the honest-but-useless LATEST ACTION line, which merely
+# restates the "Signed into Law" stage label above it. This block resolves that
+# fourth shape — PHASED — under one hard constraint: every date shown must come
+# from the law's own text, never from a date we inferred.
+#
+# What we deliberately do NOT compute, and why (measured over the corpus, Jul
+# 2026): a section that states no date falls to the Minn. Stat. 645.02 default,
+# which is Aug 1 normally but July 1 for "an appropriation act or an act having
+# appropriation items". Deciding which applies is a legal classification, and no
+# textual signal reproduces the Revisor's own answer: the best of five candidate
+# signals (an APPROPRIATION section heading) scored 34/35 against the Revisor's
+# published dates, barely beating "always guess Aug 1" on a positive class of 3,
+# and it erred in BOTH directions (HF 3875 appropriates with no such heading;
+# HF 2184 / HF 2551 / HF 3741 / SF 3958 carry "is appropriated" yet the Revisor
+# published Aug 1). A wrong guess does not merely print a wrong day — it
+# MANUFACTURES phasing on a law that has none: HF 2130 has 24 sections, 4 stating
+# Aug 1, 2025 and 20 silent, and the Revisor publishes one clean Aug 1, 2025, so
+# guessing July would split a single-date law in two. So the undated sections get
+# a plain note naming BOTH candidates and no timeline row of their own.
+#
+# The rail therefore leads with the EARLIEST date the law states about itself
+# ("From May 28, 2026"), which makes the caption's "some sections later" true by
+# construction rather than by per-law logic — the reworded caption is a
+# structural fix, not a copy tweak. Where even the earliest is not provable
+# (a stated date that falls after one of the two candidate defaults, so an
+# undated section might start first — 5 of the 45), the value is the plain
+# "Various dates", the same words the search cards already use.
+#
+# Two parsing rules earn their strictness:
+#   * Only the Revisor's canonical sentence shape counts ("This section is
+#     effective ..."). Matching "effective" loosely reads dates out of the
+#     STATUTE BEING AMENDED and reports them as the bill's own — it surfaced an
+#     April 1, 1996 date on HF 2115 and a January 1, 2014 date on SF 4476, both
+#     current-biennium bills. That is silent wrongness of the worst kind.
+#   * "Effective retroactively from {date}" is NOT an effective date. The law
+#     took effect on enactment and merely APPLIES to earlier events, so SF 3637's
+#     "retroactively from July 1, 2025" must never print as its start date.
+# Where the bill text and the Revisor's published date disagree, the TEXT WINS —
+# the published value is unreliable in both directions (it gives the earliest
+# date for SF 334, the latest for HF 3827, and "various dates" for 38 of the 48
+# it cannot summarize). HF 4138 (text July 1, 2027 vs published July 1, 2026)
+# and SF 1552 (published year typo "03/18/2024" against a 2025 signing) are the
+# reference cases: do not "fix" this parser back toward the published value.
+_STRICT_EFFECTIVE_RE = re.compile(
+    r"(?:^|(?<=[.;] ))(?:This|These)\s+"
+    r"(?:section|sections|article|articles|subdivision|subdivisions|paragraph"
+    r"|paragraphs)\s+(?:is|are)\s+effective\b([^.]*)\.",
+    re.IGNORECASE,
+)
+_EFFECTIVE_RETROACTIVE_RE = re.compile(r"\bretroactive", re.IGNORECASE)
+# An APPLICABILITY tail says what the law covers, not when it starts, and the two
+# routinely disagree: SF 3720 is "effective the day following final enactment and
+# applies to dates of injury on or after October 1, 2024", so reading the whole
+# clause hands back a 2024 start date for a 2026 law. Everything from the first
+# marker on is cut before any date is read — which also correctly leaves a clause
+# that states ONLY coverage ("effective for taxable years beginning after
+# December 31, 2024", HF 2446) with no start date at all, rather than printing the
+# tax-year boundary as the day the section begins.
+_APPLICABILITY_TAIL_RE = re.compile(
+    r"\b(?:and\s+)?applies\b|\bfor\s+(?:taxable|fiscal|calendar|assessment)\s+years?\b"
+    r"|\bfor\s+(?:dates?|reports?|aids?|claims?|grants?|revenue|refunds?|orders?)\b",
+    re.IGNORECASE,
+)
+# The Revisor publishes amendments as a redline: "deleted text begin 2025deleted
+# text end 2026" means the date is 2026, but reading it verbatim yields 2025 — the
+# very language the amendment REMOVES. HF 3022 carries exactly that shape. Every
+# clause is normalized through this before any date is read, so no surface can
+# report struck-through text as current law.
+_DELETED_TEXT_RE = re.compile(
+    r"deleted text begin.*?deleted text end", re.IGNORECASE | re.DOTALL
+)
+_NEW_TEXT_MARKER_RE = re.compile(r"new text (?:begin|end)", re.IGNORECASE)
+
+
+def normalize_section_text(raw: str | None) -> str:
+    """A section's text with the Revisor's redline markup resolved and whitespace
+    flattened — struck-through language dropped, inserted language kept."""
+    flattened = re.sub(r"\s+", " ", raw or "")
+    flattened = _DELETED_TEXT_RE.sub(" ", flattened)
+    flattened = _NEW_TEXT_MARKER_RE.sub(" ", flattened)
+    return re.sub(r"\s+", " ", flattened).strip()
+
+
+def effective_clause_date(tail: str, day_following: date | None) -> date | None:
+    """The date one canonical effective clause states, or None when it states none.
+
+    ``tail`` is the text after "... is effective". Returns None for a retroactive
+    or conditional clause, for a clause that names only a coverage window, and for
+    one naming several dates — in each case the section has no single provable
+    start date and the caller counts it unresolved.
+    """
+    head = _APPLICABILITY_TAIL_RE.split(tail, maxsplit=1)[0]
+    if _EFFECTIVE_RETROACTIVE_RE.search(head) or _EFFECTIVE_CONDITIONAL_RE.search(head):
+        return None
+    matches = _EFFECTIVE_DATE_RE.findall(head)
+    if len(matches) == 1:
+        month, day, year = matches[0]
+        return date(int(year), _MONTH_NAMES.index(month) + 1, int(day))
+    if not matches and _DAY_FOLLOWING_PHRASE in head.lower():
+        return day_following
+    return None
+
+
+def day_following_final_enactment(actions) -> date | None:
+    """The date a "day following final enactment" section starts, or None.
+
+    It is the Secretary of State FILING date plus one day, which reproduced the
+    Revisor's own published date on all 18 enacted bills where it could be checked.
+    The governor-signature date plus one day does not: HF 4987 was signed 5/14,
+    filed 5/15, and is effective 5/16. Returns None unless the filing actions
+    resolve to exactly one date, so a conflicting or malformed source never
+    becomes a printed date (grounded-answers rule 9).
+    """
+    dates: set[date] = set()
+    for action in actions or []:
+        if (action.action_text or "").strip().lower().startswith("secretary of state"):
+            parsed = _parse_action_date(action.action_description)
+            if parsed is not None:
+                dates.add(parsed)
+    if len(dates) != 1:
+        return None
+    return next(iter(dates)) + timedelta(days=1)
+
+
+def section_effective_dates(
+    sections: list[tuple[str | None, str | None]], actions
+) -> tuple[Counter[date], int, int]:
+    """Per-section effective dates from the sections' own canonical clauses.
+
+    Returns ``(stated, undated, unresolved)`` — how many sections state each
+    resolved date, how many state nothing at all, and how many carry a clause we
+    will not resolve (a conditional trigger, a retroactive application, or an
+    unparseable shape). Pure/DB-free so it is unit-testable.
+
+    A date falling BEFORE the law was enacted counts as unresolved, never as a
+    start date: a law cannot begin before it exists, so such a clause is
+    describing retroactive reach. HF 3022 was signed in May 2025 and carries a
+    section "effective August 1, 2024"; leading its rail with "From Aug 1, 2024"
+    would date the law nine months before the governor signed it.
+    """
+    day_following = day_following_final_enactment(actions)
+    enactment = governor_approval_date(actions)
+    stated: Counter[date] = Counter()
+    undated = 0
+    unresolved = 0
+    for heading, raw in sections:
+        tails = [
+            m.group(1)
+            for m in _STRICT_EFFECTIVE_RE.finditer(normalize_section_text(raw))
+        ]
+        if not tails:
+            # An "EFFECTIVE DATE." heading with no canonical clause means the
+            # source carries a date we did not parse — not a silent section.
+            if (heading or "").strip():
+                unresolved += 1
+            else:
+                undated += 1
+            continue
+        resolved = {
+            value
+            for tail in tails
+            if (value := effective_clause_date(tail, day_following)) is not None
+            and (enactment is None or value >= enactment)
+        }
+        # One section naming several dates cannot be attributed to one of them.
+        if len(resolved) == 1:
+            stated[next(iter(resolved))] += 1
+        else:
+            unresolved += 1
+    return stated, undated, unresolved
+
+
+def resolve_phased_effective_dates(
+    sections: list[tuple[str | None, str | None]], actions
+) -> dict[str, Any] | None:
+    """The PHASED payload for a law whose sections start on different days, or None.
+
+    None means the law is not PROVABLY phased — either it resolves to one date
+    through Tier A/B/C above, or its stated date could coincide with the statutory
+    default its undated sections take, so we cannot assert a split (HF 2130).
+    Mutually exclusive with resolve_effective_date by construction: each tier there
+    requires uniformity across the sections, which a phased law never has.
+    """
+    if not sections:
+        return None
+    approval = governor_approval_date(actions or [])
+    if approval is None:
+        return None  # no anchor for the statutory candidates -> stay on fallback
+    stated, undated, unresolved = section_effective_dates(sections, actions)
+    if not stated:
+        return None
+    candidates = statutory_default_effective_dates(approval)
+    phased = len(stated) > 1 or (
+        undated > 0 and any(value not in candidates for value in stated)
+    )
+    if not phased:
+        return None
+    ordered = sorted(stated)
+    earliest = ordered[0]
+    # The earliest is only provable when no undated section could start sooner.
+    earliest_provable = undated == 0 or earliest < min(candidates)
+    day_following = day_following_final_enactment(actions)
+    return {
+        "value": _format_effective_date(earliest) if earliest_provable else None,
+        # Newest first, matching every other row on the Actions timeline. Dates
+        # carry the same display form as `value` so both platforms parse one shape.
+        "rows": [
+            {
+                "date": _format_effective_date(value),
+                "sections": stated[value],
+                "from_enactment": value == day_following,
+            }
+            for value in reversed(ordered)
+        ],
+        "total_sections": len(sections),
+        "undated_sections": undated,
+        "default_candidates": [
+            _format_effective_date(value) for value in sorted(candidates)
+        ],
+    }
+
+
+def _current_version_sections(
+    db: Session, bill_row
+) -> list[tuple[str | None, str | None]] | None:
+    """The current version's (effective-date heading, raw text) per section, or None."""
+    current = next((v for v in (bill_row.versions or []) if v.is_current), None)
+    if current is None:
+        return None
+    rows = db.execute(
+        select(
+            BillVersionSection.effective_date_heading, BillVersionSection.raw_text
+        ).where(BillVersionSection.bill_version_id == current.id)
+    ).all()
+    return [(r[0], r[1]) for r in rows]
+
+
 def verified_effective_date(db: Session, bill_row) -> str | None:
     """The enacted bill's statutory effective date, verbatim, or None (detail page).
 
@@ -1031,16 +1270,44 @@ def verified_effective_date(db: Session, bill_row) -> str | None:
     """
     if bill_row.status_key != "signed_into_law":
         return None
-    current = next((v for v in (bill_row.versions or []) if v.is_current), None)
-    if current is None:
+    sections = _current_version_sections(db, bill_row)
+    if sections is None:
         return None
-    rows = db.execute(
-        select(
-            BillVersionSection.effective_date_heading, BillVersionSection.raw_text
-        ).where(BillVersionSection.bill_version_id == current.id)
-    ).all()
-    sections = [(r[0], r[1]) for r in rows]
     return resolve_effective_date(sections, bill_row.actions or [])
+
+
+def effective_schedule_payload(db: Session, bill_row) -> dict[str, Any] | None:
+    """What the bill page shows for EFFECTIVE, as one payload for both platforms.
+
+    ``kind`` is "single" when every section shares one date (Tier A/B/C) and
+    "phased" when the law's own text proves two or more. Absent (None) means the
+    honest LATEST ACTION fallback: an in-progress or vetoed bill, or a signed law
+    whose source carries no groundable effective-date information at all.
+    """
+    if bill_row.status_key != "signed_into_law":
+        return None
+    sections = _current_version_sections(db, bill_row)
+    if sections is None:
+        return None
+    actions = bill_row.actions or []
+    single = resolve_effective_date(sections, actions)
+    if single is not None:
+        return {
+            "kind": "single",
+            "value": single,
+            # One row, which the timeline labels "Law effective" with no per-section
+            # meta line — every section shares this date, so there is nothing to count.
+            "rows": [
+                {"date": single, "sections": len(sections), "from_enactment": False}
+            ],
+            "total_sections": len(sections),
+            "undated_sections": 0,
+            "default_candidates": [],
+        }
+    phased = resolve_phased_effective_dates(sections, actions)
+    if phased is None:
+        return None
+    return {"kind": "phased", **phased}
 
 
 def bill_effective_dates(db: Session, rows) -> dict[str, str]:
@@ -1147,6 +1414,9 @@ def bill_detail(
         ai_enrichment = current_bill_summary_enrichment(row.enrichments)
     if "ai_analysis" in include_set and ai_enrichment is None:
         raise HTTPException(status_code=404, detail="bill enrichment not found")
+    # Both effective-date fields come from ONE resolve so the rail's value and the
+    # timeline's rows can never disagree, and the sections load only once.
+    schedule = effective_schedule_payload(db, row)
     payload = {
         "id": row.bill_key,
         "title": row.title,
@@ -1157,7 +1427,13 @@ def bill_detail(
         # Verbatim statutory effective date, present only when the enacted text
         # states one unambiguously; otherwise absent -> UI shows LATEST ACTION
         # (#483). Never derived from latest_action_at (the #455 bug).
-        "effective_date": verified_effective_date(db, row),
+        "effective_date": (
+            schedule["value"] if schedule and schedule["kind"] == "single" else None
+        ),
+        # The full EFFECTIVE story for the rail and the Actions timeline: one shared
+        # date for a single-date law, or one row per date a phased law states about
+        # itself plus the count of sections that state nothing (#715).
+        "effective_schedule": schedule,
         "official_url": row.official_url,
         "is_omnibus": row.is_omnibus,
         "companion": (

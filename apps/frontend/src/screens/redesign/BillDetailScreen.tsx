@@ -35,6 +35,8 @@ import {
   citationChipLabel,
   coAuthorCount,
   districtRowLabel,
+  effectiveRailValue,
+  effectiveTimelineEntries,
   formatAuthorDistrict,
   formatMonoDate,
   formatNiceDate,
@@ -46,6 +48,7 @@ import {
   parseActionDate,
   partyFull,
   PartyBlock,
+  PHASED_CAPTION,
   readLabel,
   scopedChipQuery,
   validateRoll,
@@ -477,20 +480,49 @@ function BillDetailMobileScreen() {
     // the committee ("Referred to Transportation") instead of the raw clerk string
     // ("Referred to"). Falls back to the stored status text when a bill has no
     // action rows (#599 follow-up).
+    // A law whose sections start on different days keeps the EFFECTIVE label and
+    // leads with the earliest date it states about itself, plus the one muted
+    // caption. Identical logic and copy to the web facts rail — both call the
+    // shared effectiveRailValue so the two platforms cannot drift (#715).
     const latest = latestActionEntry(bill.actions ?? [], now);
-    const dateLabel = bill.effectiveDate ? 'EFFECTIVE' : 'LATEST ACTION';
-    const dateValue = bill.effectiveDate
-      ? formatNiceDate(bill.effectiveDate)
-      : latest
+    const effective = effectiveRailValue(bill);
+    const dateLabel = effective ? 'EFFECTIVE' : 'LATEST ACTION';
+    const dateValue =
+      effective?.value ??
+      (latest
         ? `${latest.label}${latest.date ? ` · ${latest.date}` : ''}`
         : bill.latestActionText
           ? `${bill.latestActionText}${niceDate ? ` · ${niceDate}` : ''}`
-          : niceDate;
+          : niceDate);
     const overviewUrl = bill.officialLinks?.[0]?.url;
     const readUrl = bill.versions?.[0]?.url ?? overviewUrl;
     // Newest-first timeline. Dateless rows are slotted next to their sequence
     // neighbors (not stranded at top/bottom) — shared with the web ActionsTab.
-    const actions = orderActionsForTimeline(bill.actions).map((a) => {
+    // The source's own "Effective date" row carries the Revisor's published date,
+    // which reads as the whole law's date even when only some sections start then.
+    // Drop it and emit one row per date the law states about ITSELF, from the same
+    // shared entries the web timeline uses (#715). "…effective" titles keep the
+    // existing green/SCHEDULED dot rules with no new logic.
+    const scheduleEntries = bill.effectiveSchedule
+      ? effectiveTimelineEntries(bill.effectiveSchedule)
+      : [];
+    // Match on the RAW source label, the same field the backend keys the Revisor's
+    // published row off ("Effective date"), so the two cannot drift apart.
+    const sourceActions = scheduleEntries.length
+      ? bill.actions.filter(
+          (a) => !/^effective date/i.test((a.actionText ?? a.description ?? '').trim()),
+        )
+      : bill.actions;
+    const actions = orderActionsForTimeline([
+      ...sourceActions,
+      ...scheduleEntries.map((entry, i) => ({
+        id: `effective-${i}`,
+        date: entry.date,
+        description: entry.title,
+        meta: entry.meta,
+        note: entry.note,
+      })),
+    ]).map((a) => {
       const upcoming = a.date ? isUpcoming(a.date, now) : false;
       const { dot, isVote } = classifyAction(a, upcoming);
       return { ...a, upcoming, dot, isVote };
@@ -527,6 +559,7 @@ function BillDetailMobileScreen() {
       coauthors,
       dateLabel,
       dateValue,
+      datePhased: effective?.phased ?? false,
       overviewUrl,
       readUrl,
       actions,
@@ -700,6 +733,25 @@ function BillDetailMobileScreen() {
                   <View style={styles.factsBlock}>
                     <Text style={styles.factsLabel}>{vm.dateLabel}</Text>
                     <Text style={styles.factsValue}>{vm.dateValue}</Text>
+                    {/* Phased law: one muted caption pointing at Actions. Tapping
+                        it scrolls to the Actions section and sets that jump chip
+                        active, exactly as tapping the chip does (#715). */}
+                    {vm.datePhased ? (
+                      <Text style={styles.phasedCaption}>
+                        {PHASED_CAPTION}
+                        <Text>{' · '}</Text>
+                        <Text
+                          accessibilityRole="link"
+                          onPress={() => jumpTo('actions')}
+                          style={styles.phasedLink}
+                        >
+                          {'See dates\u00A0'}
+                          <Text aria-hidden style={styles.phasedArrow}>
+                            →
+                          </Text>
+                        </Text>
+                      </Text>
+                    ) : null}
                   </View>
                 ) : null}
 
@@ -1170,7 +1222,8 @@ function ActionRow({
   action,
   onViewVotes,
 }: {
-  action: BillAction & { upcoming: boolean; dot: Dot };
+  // `meta` / `note` only ever ride on the synthesized effective-date rows (#715).
+  action: BillAction & { upcoming: boolean; dot: Dot; meta?: string; note?: string };
   onViewVotes?: () => void;
 }) {
   const dotStyle = (() => {
@@ -1214,6 +1267,15 @@ function ActionRow({
             </View>
           ) : null}
         </View>
+        {action.meta ? <Text style={styles.actionMeta}>{action.meta}</Text> : null}
+        {/* The sections that state no date. Deliberately UNDATED — no dot and
+            nothing in the date column — because placing it on a day would mean
+            picking one of the two Minn. Stat. 645.02 candidates (#715). */}
+        {action.note ? (
+          <View style={styles.undatedNote}>
+            <Text style={styles.undatedNoteText}>{action.note}</Text>
+          </View>
+        ) : null}
         {onViewVotes ? <TextLink label="View votes →" size={15} onPress={onViewVotes} /> : null}
       </View>
     </View>
@@ -2263,6 +2325,39 @@ const styles = StyleSheet.create({
   },
   timeline: { marginTop: 26 },
   actionRow: { flexDirection: 'row', gap: 14 },
+  // How many sections start on this row's date — only ever counted off sections
+  // that STATE that date, never a count resting on an inferred date (#715).
+  actionMeta: {
+    marginTop: 4,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    color: t.colors.text.muted,
+  },
+  undatedNote: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#f7f9f8',
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 10,
+  },
+  undatedNoteText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 22,
+    color: t.colors.text.secondary,
+  },
+  // Phased caption — mobile's larger 15px type; WRAPS rather than truncating.
+  phasedCaption: {
+    marginTop: 7,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    lineHeight: 23,
+    color: t.colors.text.muted,
+  },
+  phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.green },
+  phasedArrow: { fontWeight: t.fontWeights.regular },
   actionRail: { width: 24, alignItems: 'center' },
   actionRailLine: {
     position: 'absolute',
