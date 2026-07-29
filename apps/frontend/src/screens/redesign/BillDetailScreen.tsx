@@ -57,7 +57,6 @@ import {
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton } from '../../components/Skeleton';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
-import { billSourceText } from '../../components/billDetail/SourceLine';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
 // Bill Detail — mobile-first, single scrolling page (docs/mockups/bill-detail-mobile).
@@ -526,8 +525,9 @@ function BillDetailMobileScreen() {
       actionGlossary,
       rolls,
       hasVotes,
-      // ONE last-updated stamp for the whole page, shown by every source line
-      // (billSourceText drops the segment when the bill carries no date).
+      // The page's one last-updated stamp, for the single source line closing the
+      // whole scroll at the foot of Bill Text (billSourceText drops the segment
+      // when the bill carries no date).
       updatedLabel: niceDate ? `Updated ${niceDate}` : '',
     };
   }, [bill]);
@@ -851,7 +851,6 @@ function BillDetailMobileScreen() {
               ) : (
                 <Text style={styles.emptyLine}>No recorded actions yet.</Text>
               )}
-              <Text style={styles.sourceLine}>{billSourceText(vm.updatedLabel)}</Text>
             </Section>
 
             {/* 5 — Votes */}
@@ -865,7 +864,6 @@ function BillDetailMobileScreen() {
                   chiefParty={vm.chief?.party}
                   onOpenLegislator={openLegislator}
                   onOpenUrl={openExternal}
-                  updatedLabel={vm.updatedLabel}
                 />
               ) : (
                 <View style={styles.noVotes}>
@@ -931,7 +929,6 @@ function BillDetailMobileScreen() {
               ) : (
                 <Text style={styles.emptyLine}>No published versions yet.</Text>
               )}
-              <Text style={styles.sourceLine}>{billSourceText(vm.updatedLabel)}</Text>
             </Section>
 
             {/* 7 — Bill Text */}
@@ -1359,13 +1356,11 @@ function MobileVotesSection({
   chiefParty,
   onOpenLegislator,
   onOpenUrl,
-  updatedLabel,
 }: {
   rolls: { vote: VoteEvent; norm: NormalizedMotion }[];
   chiefParty: string | undefined;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenUrl: (url: string) => void;
-  updatedLabel: string;
 }) {
   // One roll open at a time on mobile (spec §Votes — roll accordion). Seed the first
   // roll open so the member grid is discoverable without a tap.
@@ -1424,8 +1419,6 @@ function MobileVotesSection({
           />
         ))}
       </View>
-
-      <Text style={styles.sourceLine}>{billSourceText(updatedLabel)}</Text>
     </View>
   );
 }
@@ -2922,12 +2915,6 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.deep,
-  },
-  sourceLine: {
-    marginTop: 24,
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.label,
-    color: t.colors.text.faint,
   },
 
   // bottom sheet
