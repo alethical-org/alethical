@@ -741,18 +741,23 @@ function assignOrderKeys<T extends { actionNumber: number; rawDate: string; idx:
   return items.map((item, i) => ({ item, key: key[i] }));
 }
 
-// Human eyebrow "SENATE · 2025–2026 LEGISLATIVE SESSION". The session biennium is
-// derived from the bill id's year segment (94-2025-SF334 → 2025 → 2025–2026), since
-// the detail payload carries no session label ("legislative" kept — educational).
-export function bienniumEyebrow(chamber: string, billId: string): string {
+// Web eyebrow "2025–2026 LEGISLATIVE SESSION". The session biennium is derived from
+// the bill id's year segment (94-2025-SF334 → 2025 → 2025–2026), since the detail
+// payload carries no session label ("legislative" kept — educational).
+//
+// No chamber prefix: on web the rail already states it three times (the "SENATE
+// BILL" section label, the SF/HF code badge, and the Senator / Senate District
+// rows), so a fourth statement is redundant. Mobile has no rail and so keeps the
+// full "SENATE · 2025–2026 LEGISLATIVE SESSION" form, built inline in
+// screens/redesign/BillDetailScreen — deliberately not shared with this helper.
+export function bienniumEyebrow(billId: string): string {
   const m = (billId || '').match(/^\d+-(\d{4})-/);
   const year = m ? Number(m[1]) : NaN;
-  const ch = (chamber || '').toUpperCase();
   if (!Number.isNaN(year)) {
     const start = year % 2 === 1 ? year : year - 1;
-    return `${ch} · ${start}–${start + 1} LEGISLATIVE SESSION`;
+    return `${start}–${start + 1} LEGISLATIVE SESSION`;
   }
-  return `${ch} · LEGISLATIVE SESSION`;
+  return 'LEGISLATIVE SESSION';
 }
 
 // The chief-author block renders the honorific as the grey ROW LABEL for the name
@@ -1095,6 +1100,123 @@ export function plainKeyPoints(points: string[] | undefined): string[] {
   return (points ?? [])
     .map((point) => plainBillSummary(point))
     .filter((point) => /[a-z]/i.test(point));
+}
+
+// "From the bill" citation chip label — one format on every surface:
+//
+//     Sec. 4 · License classes          (heading present)
+//     Art. 1, Sec. 2 · Appropriations   (article-structured / omnibus bill)
+//     Sec. 14                           (no usable heading — number alone)
+//
+// The stored label is the ingest-time citation_label ("SF 334, Sec. 2." /
+// "SF 334, Section 1." / "SF 334, Sec. 14. TRANSFER."), so this drops the bill
+// code (the page is about one bill and the code already sits in the rail's amber
+// badge), always abbreviates to "Sec.", drops the terminal period (a chip is a
+// label, not a sentence), and downcases the shouted statutory heading to a
+// sentence-case topic. The durable fix is at source (_chip_label in
+// alethical/pipeline/ai_enrichment.py emits this shape); this mirrors
+// plainBillSummary's role — it no-ops on an already-clean label and still fixes
+// every bill enriched before that change.
+export function citationChipLabel(label: string): string {
+  let s = (label ?? '').trim();
+  if (!s) return '';
+
+  // Already canonical (the shape _chip_label now stores at source) — leave it be,
+  // so this cleaner no-ops rather than re-formatting its own output.
+  if (/^(?:Art\. [\w.-]+, )?Sec\. [\w.-]+(?: · \S.*)?$/.test(s)) return s;
+
+  // Drop a leading bill code ("SF 334, " / "H.F. No. 12 — ").
+  s = s.replace(
+    /^\s*(?:h\.?\s?f\.?|s\.?\s?f\.?|h\.?\s?r\.?|s\.?\s?r\.?)\s*(?:no\.?\s*)?\d+\s*[,:—-]?\s*/i,
+    '',
+  );
+
+  // Article prefix, when the bill is article-structured: "ARTICLE 1," → "Art. 1,".
+  let article = '';
+  const art = s.match(/^\s*art(?:icle)?\.?\s+([\w.]+?)\.?\s*[,:]?\s*/i);
+  if (art) {
+    article = `Art. ${art[1]}, `;
+    s = s.slice(art[0].length);
+    // An article HEADING can sit between the article number and the section
+    // ("ARTICLE 1, EDUCATION FINANCE, Sec. 2. …") — drop everything up to the
+    // section token; the section's own heading is the topic we show.
+    const secAt = s.search(/\bsec(?:tion)?\.?\s+[\w.-]/i);
+    if (secAt > 0) s = s.slice(secAt);
+  }
+
+  // Section number, then whatever follows is the statutory heading.
+  const sec = s.match(/^\s*sec(?:tion)?\.?\s+([\w.-]+?)\.?(?:\s+(.*))?$/i);
+  if (!sec) {
+    // Not a recognizable "Sec. N" label — show it as-is, minus a trailing period.
+    return `${article}${s.replace(/\.\s*$/, '')}`.trim();
+  }
+
+  const number = `Sec. ${sec[1]}`;
+  const topic = sentenceCaseHeading(sec[2] ?? '');
+  // No dangling middot when a section has no usable heading.
+  return topic ? `${article}${number} · ${topic}` : `${article}${number}`;
+}
+
+// Turn a shouted statutory heading into a short sentence-case topic: "TRANSFER."
+// → "Transfer". Only re-cases and trims — never re-authors, so the chip can't
+// claim something the source heading didn't say. An ALL-CAPS heading downcases
+// whole; a heading that already carries mixed case is left alone (its own
+// capitalization is the author's).
+function sentenceCaseHeading(raw: string): string {
+  let s = (raw ?? '').trim().replace(/[.;:,\s]+$/, '');
+  if (!s) return '';
+  // A heading that is only punctuation/digits carries no topic.
+  if (!/[a-z]/i.test(s)) return '';
+  if (s === s.toUpperCase()) {
+    s = s.toLowerCase();
+  }
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// "From the bill" excerpt, for display. The italic type and the green left rule
+// already read as a quotation, so the excerpt carries no quotation marks; and it
+// never ends unpunctuated, which reads as a rendering bug rather than a quote
+// ("…consists of the following members"). Where the source was cut, close with a
+// single ellipsis character (U+2026), never three periods.
+//
+// Only the wrapping quotes and the closing mark are touched — the source's
+// internal punctuation and capitalization pass through verbatim, so this can
+// never introduce a claim the bill text didn't make (grounded-answers rule 1).
+export function citationExcerpt(excerpt: string): string {
+  let s = (excerpt ?? '').trim();
+  if (!s) return '';
+
+  // Wrapping quotes (curly or straight, single or double), possibly doubled up.
+  // Only ever a pair the model added AROUND the excerpt — a statutory definition
+  // opens with the defined term in quotes ('"Child" means an individual …') and a
+  // list can close on one, so a pair whose interior holds another quote mark is
+  // the bill's own punctuation and must survive verbatim. Stripping those left
+  // unbalanced quotes behind and swallowed the source's final period.
+  for (let i = 0; i < 2; i++) {
+    const m = s.match(/^["“'‘]([^"“”'‘’]*)["”'’]$/s);
+    if (!m) break;
+    s = m[1].trim();
+  }
+
+  // Collapse an ASCII "..." (or a longer run of dots) to the single glyph — but
+  // only where it marks an elision. A dot run attached to a dollar sign is the
+  // bill's own blank-fill for an amount it left undecided ("…is appropriated:
+  // $......."), and a run after a space is a table leader; both are source text,
+  // so collapsing them would rewrite the bill rather than mark our own cut.
+  // (A preceding dot must block it too, or the match just starts one dot later and
+  // eats the rest of a blank-fill run.)
+  s = s.replace(/([^$\d\s.])\.{3,}\s*$/, '$1…');
+  // A trailing comma / semicolon / colon / dash marks a cut mid-clause.
+  s = s.replace(/[,;:]\s*$/, '…').replace(/\s*[—–-]\s*$/, '…');
+
+  // Anything still ending without a terminal mark was cut mid-sentence. A closing
+  // quote mark can sit after the period ('… or "Tribal governments."'), so look
+  // past one before deciding the excerpt was cut off.
+  if (!/[.!?…]["”'’]?$/.test(s)) s = `${s}…`;
+  // The ellipsis is the only terminal mark it carries, so drop a comma or
+  // semicolon the source left immediately before it ("until June 30,…").
+  s = s.replace(/[,;:]\s*…$/, '…');
+  return s;
 }
 
 // Safe, bill-scoped Ask suggestions that route to /ask and can't lead to a

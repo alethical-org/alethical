@@ -12,9 +12,9 @@ import { SourceLine } from './SourceLine';
 const SCROLL_MARGIN = { scrollMarginTop: 80 } as object;
 const HIGHLIGHT_MS = 2500;
 
-// Full Text tab — renders the current bill version's statute sections. Cited-
+// Bill Text tab — renders the current bill version's statute sections. Cited-
 // section chips (Summary) deep-link here and highlight the matched section; a
-// shared ?tab=fulltext#ft-<id> URL scrolls to it on load (grounded-answers rule
+// shared ?tab=text#ft-<id> URL scrolls to it on load (grounded-answers rule
 // 5 — the location is URL-addressable). The same component renders on web and
 // on the mobile single-scroll page.
 
@@ -71,7 +71,7 @@ export function FullTextTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, targetSectionId]);
 
-  // Shared-link jump: a ?tab=fulltext#ft-<id> (or #section-<id>) URL scrolls to
+  // Shared-link jump: a ?tab=text#ft-<id> (or #section-<id>) URL scrolls to
   // that section once on load. Runs only when no in-app anchor is pending.
   useEffect(() => {
     if (!ready || targetSectionId) return;
@@ -101,7 +101,7 @@ export function FullTextTab({
   if (!version || !versionCode) {
     return (
       <View>
-        <Text style={styles.stateText}>Full text is not available for this bill yet.</Text>
+        <Text style={styles.stateText}>Bill text is not available for this bill yet.</Text>
         {source}
       </View>
     );

@@ -18,7 +18,11 @@ import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { Skeleton } from '../../components/Skeleton';
 
 const isWeb = Platform.OS === 'web';
-const TABS: DetailTab[] = ['summary', 'actions', 'votes', 'versions', 'fulltext'];
+const TABS: DetailTab[] = ['summary', 'actions', 'votes', 'text', 'versions'];
+// Links shared before the Bill Text tab was renamed carry ?tab=fulltext; keep
+// resolving them to the same tab so every already-shared URL still lands
+// (grounded-answers rule 5 — a linked location must stay reachable).
+const LEGACY_TAB_PARAMS: Record<string, DetailTab> = { fulltext: 'text' };
 
 // Web Bill Detail (design_handoff_bill_profile_web). Tabbed two-column layout —
 // plain-language summary first, official record deeper in. Tab lives in the URL
@@ -31,10 +35,12 @@ export function BillDetailWebScreen() {
 
   const billId = String(route.params?.billId ?? '');
   const tabParam = route.params?.tab;
-  const activeTab: DetailTab = TABS.includes(tabParam) ? tabParam : 'summary';
+  const activeTab: DetailTab = TABS.includes(tabParam)
+    ? tabParam
+    : (LEGACY_TAB_PARAMS[tabParam] ?? 'summary');
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  // Section a citation chip asked to jump to; consumed by the Full Text tab
+  // Section a citation chip asked to jump to; consumed by the Bill Text tab
   // after it mounts (inactive tabs are unmounted on web).
   const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
 
@@ -123,7 +129,7 @@ export function BillDetailWebScreen() {
     );
   }
 
-  const eyebrow = bienniumEyebrow(bill.chamber, bill.id);
+  const eyebrow = bienniumEyebrow(bill.id);
   const shareUrl = `https://alethical.com/bills/${bill.id}`;
   const shareTitle = `${bill.identifier} — ${bill.title}`;
   const updatedLabel =
@@ -160,7 +166,7 @@ export function BillDetailWebScreen() {
         updatedLabel={updatedLabel}
         onCitationPress={(sectionId: string) => {
           setPendingAnchor(sectionId);
-          selectTab('fulltext');
+          selectTab('text');
         }}
       />
     );
@@ -181,7 +187,7 @@ export function BillDetailWebScreen() {
     );
   } else if (activeTab === 'versions') {
     body = <VersionsTab bill={bill} onOpenUrl={openUrl} updatedLabel={updatedLabel} />;
-  } else if (activeTab === 'fulltext') {
+  } else if (activeTab === 'text') {
     body = (
       <FullTextTab
         bill={bill}

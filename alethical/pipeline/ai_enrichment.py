@@ -78,12 +78,14 @@ SUMMARY_SCHEMA: dict[str, Any] = {
         "key_points": {
             "type": "array",
             "description": (
-                "Plain-language bullets, each stating a concrete effect of the "
-                "bill. No leading bill number or 'The bill …' preamble, and no "
-                "raw statute citations; never a bullet that is only a citation "
-                "(e.g. 'Amends Minnesota Statutes 2024, section 120B.123, "
-                "subdivision 5.')."
+                "Plain-language bullets, AT MOST SIX, each stating a concrete "
+                "effect of the bill. No leading bill number or 'The bill …' "
+                "preamble, and no raw statute citations; never a bullet that is "
+                "only a citation (e.g. 'Amends Minnesota Statutes 2024, section "
+                "120B.123, subdivision 5.'). Merge to fit six — never drop the "
+                "bill's later substance to make room."
             ),
+            "maxItems": 6,
             "items": {"type": "string"},
         },
         "key_talking_points": {"type": "array", "items": {"type": "string"}},
@@ -211,7 +213,14 @@ Write `summary`, `plain_language_summary`, and every entry in `key_points` as pl
 - Do NOT include raw statute citations — no "Minnesota Statutes", no "section 297A.67", "subdivision 40", or "chapter 626" style references. Describe the effect instead. For example, write "Exempts baby products from the state sales tax" rather than "Amends Minnesota Statutes 2024, section 297A.67, subdivision 40, to exempt certain baby products". Every `key_points` entry must state a concrete effect of the bill; never emit a key point that is only a statute citation (for example, never "Amends Minnesota Statutes 2024, section 120B.123, subdivision 5.").
 These two rules apply ONLY to `summary`, `plain_language_summary`, and `key_points`. They do NOT apply to the `quote` field in `key_point_citations`, which must still be copied verbatim from the supplied excerpt (statute references and all) so the citation stays grounded.
 
-Each bill text excerpt is prefixed with a bracketed anchor token like `[S1]`, `[S2]`. For every entry in `key_points`, add exactly one matching entry to `key_point_citations` whose `point` repeats that key point verbatim, whose `section_id` is the anchor token (e.g. `S3`) of the single excerpt it is most directly drawn from, and whose `quote` is a short verbatim span (a phrase or sentence, at most ~30 words) copied exactly from that excerpt's text. Only use anchor tokens that actually appear in the supplied excerpts, and only quote text that appears verbatim there. If a key point cannot be tied to a specific supplied excerpt, omit that key point entirely rather than guessing an anchor.
+`key_points` holds AT MOST SIX bullets, ordered BY SUBJECT rather than by section number: first what the bill creates or establishes, then when those bodies or duties must act, then the money. Sequential section order is not the goal — a section 1 that transfers money belongs with the money, not in first place. To fit six, MERGE; never truncate the list and never drop the bill's later substance:
+- Merge bullets that differ only in which body, fund, or agency they name. Two bullets giving the same appointment and first-meeting deadlines for two different bodies are ONE bullet naming both.
+- Merge every appropriation and transfer into ONE money bullet naming the amounts, rather than one bullet per appropriation.
+- Drop any bullet that restates a figure another bullet already carries. Where a mechanism and a single year's number are the same fact at two scales, keep the mechanism and fold the number into it.
+
+Each bill text excerpt is prefixed with a bracketed anchor token like `[S1]`, `[S2]`. Add an entry to `key_point_citations` only for those key points that need verbatim proof — do NOT pair a citation to every bullet. Each entry's `point` repeats its key point verbatim, its `section_id` is the anchor token (e.g. `S3`) of the single excerpt it is most directly drawn from, and its `quote` is a short verbatim span (a phrase or sentence, at most ~30 words) copied exactly from that excerpt's text. Only use anchor tokens that actually appear in the supplied excerpts, and only quote text that appears verbatim there.
+
+A `quote` must read as a finished quotation, because it is displayed on its own: quote a COMPLETE clause and end it at the source's own sentence-ending period. Never stop mid-clause on no punctuation at all (for example, never end at "consists of the following members"). Where you must cut the source short, end the quote with a single ellipsis character "…" and no other terminal mark — never three periods. Add no quotation marks of your own; the display supplies the quotation styling.
 
 Also produce `question_prompts`: 3 to 4 short, natural questions a member of the public would ask about this bill, each fully answerable from the supplied bill text alone. Phrase them the way a curious reader would speak (for example "Who has to complete the training?" or "When do the new requirements take effect?"), not as yes/no or opinion questions. Never ask about anything the supplied text does not settle — votes, sponsors' motives, dollar costs, or real-world outcomes are off limits. Do NOT put the bill number in the question (the product attaches it). Keep each under about 12 words, neutral, and distinct from the others. If the text is too thin to support a specific question, return fewer rather than inventing one."""
 
@@ -391,20 +400,108 @@ def _normalize_for_match(value: str) -> str:
     return " ".join(value.split()).casefold()
 
 
+def _quote_body(quote: str) -> str:
+    """The part of a quote that must appear verbatim in the source section. The
+    prompt asks for a closing "…" where the source was cut short, and that glyph
+    is ours, not the bill's — so strip it (and any wrapping quote marks the model
+    added anyway) before the grounding match, or every correctly-elided quote
+    would fail verification and lose its citation.
+
+    Only a pair the model added AROUND the excerpt is stripped. A statutory
+    definition opens with the defined term in quotes ('"Child" means an individual
+    …') and a list can close on one, so a pair whose interior holds another quote
+    mark is the bill's own punctuation: stripping it left unbalanced quotes behind
+    and swallowed the source's final period."""
+    body = (quote or "").strip()
+    for _ in range(2):
+        stripped = re.fullmatch(r"[\"“'‘]([^\"“”'‘’]*)[\"”'’]", body, re.S)
+        if not stripped:
+            break
+        body = stripped.group(1).strip()
+    # Only an elision marker is stripped. A dot run attached to a dollar sign is
+    # the bill's own blank-fill for an amount it left undecided ("appropriated:
+    # $......."), and a run after a space is a table leader — both are source text.
+    # (A preceding dot blocks the match too, or the engine would just start one dot
+    # later and eat the rest of a blank-fill run.)
+    return re.sub(r"(?:…|(?<![$\d\s.])\.{3,})\s*$", "", body).strip()
+
+
+_CHIP_MAX_TOPIC = 40
+
+
+def _chip_topic(raw: str) -> str:
+    """Short sentence-case topic from a section's own statutory heading:
+    "TRANSFER." -> "Transfer". Only re-cases and trims — never re-authors, so the
+    chip can never claim something the heading did not say. A heading that
+    already carries mixed case keeps its own capitalization."""
+    topic = (raw or "").strip().strip(".;:, ")
+    if not topic or not re.search(r"[A-Za-z]", topic):
+        return ""
+    if topic == topic.upper():
+        topic = topic.lower()
+    topic = topic[0].upper() + topic[1:]
+    if len(topic) > _CHIP_MAX_TOPIC:
+        topic = topic[: _CHIP_MAX_TOPIC - 1].rstrip(" ,;:") + "…"
+    return topic
+
+
 def _chip_label(anchor: SectionAnchor) -> str:
-    """Concise citation-chip label. Prefer the curated section/heading label; if
-    it is too long for a pill, extract the "…Sec. N" citation prefix (dropping a
-    trailing statute heading) before truncating. Never expose the internal
-    `section_id_text` key (e.g. "laws.0.1.0"), which is not human-readable."""
+    """Citation-chip label in the product's one canonical format:
+
+        Sec. 4 · License classes          (heading present)
+        Art. 1, Sec. 2 · Appropriations   (article-structured / omnibus bill)
+        Sec. 14                           (no usable heading — number alone)
+
+    Built from the curated `anchor.label` ("SF 334, Sec. 2." / "SF 334, Section
+    1." / "SF 334, Sec. 14. TRANSFER."). The bill code is dropped — the chip only
+    ever renders on that bill's own page, where the code already sits in the rail
+    badge — "Section" always abbreviates to "Sec.", and there is no terminal
+    period, because a chip is a label and not a sentence. Never exposes the
+    internal `section_id_text` key (e.g. "laws.0.1.0"), which is not
+    human-readable.
+
+    The frontend mirrors this in `citationChipLabel`
+    (apps/frontend/src/lib/billDetail.ts) so bills enriched before this change
+    still display the canonical shape; that cleaner no-ops on this output."""
     label = (anchor.label or "").strip()
     if not label:
         return "Cited section"
-    if len(label) <= 48:
-        return label
-    match = re.match(r"^(.*?\bSec(?:tion)?\.?\s+[\w.\-]+)\.?", label)
-    if match and len(match.group(1)) <= 60:
-        return match.group(1).strip()
-    return label[:46].rstrip() + "…"
+
+    # Drop a leading bill code ("SF 334, " / "H.F. No. 12 — ").
+    label = re.sub(
+        r"^\s*(?:h\.?\s?f\.?|s\.?\s?f\.?|h\.?\s?r\.?|s\.?\s?r\.?)"
+        r"\s*(?:no\.?\s*)?\d+\s*[,:—-]?\s*",
+        "",
+        label,
+        flags=re.IGNORECASE,
+    )
+
+    # Article prefix on an article-structured bill: "ARTICLE 1," -> "Art. 1, ".
+    prefix = ""
+    article = re.match(r"^\s*art(?:icle)?\.?\s+([\w.]+?)\.?\s*[,:]?\s*", label, re.I)
+    if article:
+        prefix = f"Art. {article.group(1)}, "
+        label = label[article.end() :]
+        # An article HEADING can sit between the article number and the section
+        # ("ARTICLE 1, EDUCATION FINANCE, Sec. 2. …") — drop it; the section's
+        # own heading is the topic we show.
+        section_at = re.search(r"\bsec(?:tion)?\.?\s+[\w.\-]", label, re.I)
+        if section_at and section_at.start() > 0:
+            label = label[section_at.start() :]
+
+    section = re.match(
+        r"^\s*sec(?:tion)?\.?\s+([\w.\-]+?)\.?(?:\s+(.*))?$", label, re.S | re.I
+    )
+    if not section:
+        # Not a recognizable "Sec. N" label — pass it through, minus a trailing
+        # period, truncating only if it would overflow the pill.
+        fallback = f"{prefix}{label.rstrip('. ')}".strip()
+        return fallback if len(fallback) <= 48 else fallback[:47].rstrip() + "…"
+
+    number = f"{prefix}Sec. {section.group(1)}"
+    topic = _chip_topic(section.group(2) or "")
+    # No dangling middot when a section has no usable heading.
+    return f"{number} · {topic}" if topic else number
 
 
 def resolve_key_point_citations(
@@ -449,14 +546,27 @@ def resolve_key_point_citations(
         anchor = anchors.get(section_id.strip())
         if anchor is None or not anchor.section_id_text:
             continue
-        if _normalize_for_match(quote) not in _normalize_for_match(anchor.text):
+        body = _quote_body(quote)
+        if not body or _normalize_for_match(body) not in _normalize_for_match(
+            anchor.text
+        ):
             continue
+        # Store the quote without the model's own wrapping quote marks (the
+        # display supplies the quotation styling) and never unpunctuated: a
+        # complete clause keeps the source's terminal mark, and anything cut
+        # short closes with the single "…" glyph, because a quote that just stops
+        # reads as a rendering bug rather than a quotation.
+        # A closing quote mark can sit after the terminal period ('… or "Tribal
+        # governments."'), so look past one before deciding the quote was cut off.
+        stored = (
+            body if re.search(r"[.!?][\"”'’]?$", body) else f"{body.rstrip(',;:-—– ')}…"
+        )
         resolved.append(
             {
                 "point": point.strip(),
                 "section_id": anchor.section_id_text,
                 "label": _chip_label(anchor),
-                "quote": quote.strip(),
+                "quote": stored,
             }
         )
         if point.strip() not in seen_points:

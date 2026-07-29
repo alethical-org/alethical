@@ -4,7 +4,13 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
-import { askCardPrompts, plainKeyPoints, scopedChipQuery } from '../../lib/billDetail';
+import {
+  askCardPrompts,
+  citationChipLabel,
+  citationExcerpt,
+  plainKeyPoints,
+  scopedChipQuery,
+} from '../../lib/billDetail';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { FactsRail } from './FactsRail';
 import { SourceLine } from './SourceLine';
@@ -36,7 +42,7 @@ export function SummaryTab({
   onOpenBill: (billId: string) => void;
   isDesktop: boolean;
   updatedLabel: string;
-  // Jump to a cited statute section in the Full Text tab. No-op if absent.
+  // Jump to a cited statute section in the Bill Text tab. No-op if absent.
   onCitationPress?: (sectionId: string) => void;
 }) {
   const keyPoints = plainKeyPoints(bill.aiAnalysis?.keyPoints);
@@ -199,8 +205,14 @@ function AskModule({
 }
 
 // "From the bill" citation card. When onPress is provided it becomes a button
-// that jumps to the cited section in the Full Text tab; otherwise it stays a
+// that jumps to the cited section in the Bill Text tab; otherwise it stays a
 // static card (the prop is absent).
+//
+// The chip reads "Sec. 4 · License classes →" — one format on every surface
+// (citationChipLabel). The trailing arrow is the U+2192 text glyph in the chip's
+// own JetBrains Mono at its font size, weight 400, aria-hidden so the label is
+// announced alone: a fixed-size SVG icon renders as a stub sitting high near the
+// cap line instead of optically centred on the label.
 function CitationCard({
   label,
   excerpt,
@@ -212,10 +224,11 @@ function CitationCard({
 }) {
   const [hovered, hover] = useHover();
   const pressable = !!onPress;
+  const chipLabel = citationChipLabel(label);
   return (
     <Pressable
       accessibilityRole={pressable ? 'button' : undefined}
-      accessibilityLabel={pressable ? `Jump to ${label} in Full Text` : undefined}
+      accessibilityLabel={pressable ? `Jump to ${chipLabel} in Bill Text` : undefined}
       onPress={onPress}
       disabled={!pressable}
       {...(pressable ? hover : {})}
@@ -223,10 +236,15 @@ function CitationCard({
     >
       <View style={styles.excerptChipRow}>
         <View style={styles.excerptChip}>
-          <Text style={styles.excerptChipText}>{label}</Text>
+          <Text style={styles.excerptChipText}>
+            {chipLabel}
+            <Text aria-hidden style={styles.excerptChipArrow}>
+              {' →'}
+            </Text>
+          </Text>
         </View>
       </View>
-      <Text style={styles.excerptQuote}>{excerpt}</Text>
+      <Text style={styles.excerptQuote}>{citationExcerpt(excerpt)}</Text>
     </Pressable>
   );
 }
@@ -334,6 +352,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     color: t.colors.purple.base,
   },
+  // Decorative "→": the chip's own font and size, weight 400 so it reads lighter
+  // than the 700 label.
+  excerptChipArrow: { fontWeight: t.fontWeights.regular },
   excerptQuote: {
     marginTop: 9,
     paddingLeft: 12,

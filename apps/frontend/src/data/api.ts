@@ -1200,8 +1200,8 @@ function mapCitation(
     fullText: citation.full_text ?? citation.excerpt,
     highlightText: citation.highlight_text ?? citation.excerpt ?? excerpt,
     url: citation.url ?? '',
-    // Chat citations don't carry a statute-section anchor (Full Text is a
-    // bill-detail feature); empty so it never resolves to a Full Text section.
+    // Chat citations don't carry a statute-section anchor (Bill Text is a
+    // bill-detail feature); empty so it never resolves to a Bill Text section.
     sectionId: '',
   };
 }
