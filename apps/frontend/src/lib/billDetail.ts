@@ -307,8 +307,16 @@ const ACTION_RULES: Rule[] = [
     // PR #736 fixed the bare "See" in this same builder from the mobile side, and
     // this rule replaces it — adding the two clerk variants it did not cover and
     // spacing file numbers the way the rest of the product writes them.)
+    //
+    // On 50 rows the description ALREADY opens with its own "See" ("See First
+    // Special Session, HF3"), so composing the title straight from it printed "See
+    // also See First Special Session, HF 3". Drop that leading connector before
+    // composing — one "See also" per row, never two.
     test: (l, desc) => !!desc && (/^see\b/.test(l) || /^\(non-revisor companion\)/.test(l)),
-    build: (_t, desc) => ({ kind: 'procedural', title: `See also ${spaceFileNumbers(desc)}` }),
+    build: (_t, desc) => ({
+      kind: 'procedural',
+      title: `See also ${spaceFileNumbers(desc.replace(/^see(\s+also)?\s+/i, ''))}`,
+    }),
   },
   // --- Committee / referral / calendar ---
   {
