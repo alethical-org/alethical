@@ -42,10 +42,11 @@ export function formatSessionLabel(name: string): string {
 
 export const SESSION_LABEL_FALLBACK = '2025–2026 Legislative Session';
 
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-// "2026-03-21" -> "AS OF MAR 21, 2026" (the results header's mono meta). Returns
-// null for a missing/unparseable value so the chip is simply omitted.
+// "2026-03-21" -> "as of Mar 21, 2026". Ordinary prose that trails the unit noun
+// on the count line — it replaced a standalone uppercase mono "AS OF …" stamp.
+// Returns null for a missing/unparseable value so the phrase is simply omitted.
 function formatAsOf(dataAsOf: string | null | undefined): string | null {
   if (!dataAsOf) return null;
   const match = dataAsOf.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -53,7 +54,7 @@ function formatAsOf(dataAsOf: string | null | undefined): string | null {
   const [, year, month, day] = match;
   const monthIndex = Number(month) - 1;
   if (monthIndex < 0 || monthIndex > 11) return null;
-  return `AS OF ${MONTHS[monthIndex]} ${Number(day)}, ${year}`;
+  return `as of ${MONTHS[monthIndex]} ${Number(day)}, ${year}`;
 }
 
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
@@ -231,12 +232,15 @@ export function SearchHero({
   );
 }
 
-// Bills' search helper line: "Results update as you type. Bills match every
-// word." ("every" bold, per the v2 spec §A.)
+// Bills' search helper line: "Results update as you type — bills match every
+// word" ("every" bold, no terminal period). One line, and no "try a keyword or a
+// bill number" tail — the field's own placeholder ("Search by keyword or bill
+// number") already says that directly above it.
 export function SearchHelperLine() {
+  const { isMobile } = useResponsive();
   return (
-    <Text style={styles.helperText}>
-      Results update as you type. Bills match <Text style={styles.helperStrong}>every</Text> word.
+    <Text style={[styles.helperText, isMobile && styles.helperTextMobile]}>
+      Results update as you type — bills match <Text style={styles.helperStrong}>every</Text> word
     </Text>
   );
 }
@@ -607,20 +611,21 @@ export function MoreIssuesPill({
   );
 }
 
-// --- Results header: count + noun + plain-English filter description, plus the
-//     "AS OF {date}" meta and the interactive sort control. ---
+// --- Results header: one prose count line ("10,000 bills as of Mar 21, 2026")
+//     plus the sort control. There is deliberately no prose description of the
+//     active facets — the removable chip row above already names every one of
+//     them, and its closing session clause duplicated the session dropdown that
+//     is always visible in the filter controls. ---
 export function ResultsHeader({
   count,
   noun,
-  description,
   dataAsOf,
   sortControl,
   sortLabel,
 }: {
   count: number;
+  /** Singular unit noun ("bill"); pluralized unless the count is exactly 1. */
   noun: string;
-  /** Plain-English description of the active filter intersection (v2 §E). */
-  description?: string;
   dataAsOf: string | null | undefined;
   /** Interactive sort control (Search Bills v2). Takes precedence over sortLabel. */
   sortControl?: ReactNode;
@@ -628,22 +633,30 @@ export function ResultsHeader({
    *  yet (Search Legislators). Omit both to hide the meta row (e.g. no results). */
   sortLabel?: string;
 }) {
+  const { isMobile } = useResponsive();
   const asOf = formatAsOf(dataAsOf);
+  const unit = count === 1 ? noun : `${noun}s`;
   const meta = sortControl ?? (sortLabel ? <StaticSortLabel label={sortLabel} /> : null);
   return (
-    <View style={styles.resultsHeader}>
+    <View style={[styles.resultsHeader, isMobile && styles.resultsHeaderMobile]}>
       <View style={styles.resultsHeaderMain}>
-        <View style={styles.resultsCountRow}>
-          <Text style={styles.resultsCount}>{count.toLocaleString('en-US')}</Text>
-          <Text style={styles.resultsNoun}>{noun}</Text>
+        <View style={[styles.resultsCountRow, isMobile && styles.resultsCountRowMobile]}>
+          <Text style={[styles.resultsCount, isMobile && styles.resultsCountMobile]}>
+            {count.toLocaleString('en-US')}
+          </Text>
+          {/* The date is nested INSIDE the unit-noun span, one word space apart. A
+              third flex child would inherit the row's gap and read as a double
+              space; a middot or any other separator glyph is wrong here. */}
+          <Text style={[styles.resultsNoun, isMobile && styles.resultsNounMobile]}>
+            {asOf ? `${unit} ` : unit}
+            {asOf ? (
+              <Text style={[styles.resultsAsOf, isMobile && styles.resultsAsOfMobile]}>{asOf}</Text>
+            ) : null}
+          </Text>
         </View>
-        {description ? <Text style={styles.resultsDescription}>{description}</Text> : null}
       </View>
       {meta ? (
-        <View style={styles.resultsMetaRow}>
-          {asOf ? <Text style={styles.asOfText}>{asOf}</Text> : null}
-          {meta}
-        </View>
+        <View style={[styles.resultsMetaRow, isMobile && styles.resultsMetaRowMobile]}>{meta}</View>
       ) : null}
     </View>
   );
@@ -777,8 +790,8 @@ function SortMenuItem({
   );
 }
 
-// --- Active-filter chip row (v2 §D): mono "FILTERS" eyebrow + removable,
-//     facet-color-coded chips + a "Clear all" that keeps the session. ---
+// --- Active-filter chip row (v2 §D): removable, facet-color-coded chips + a
+//     "Clear all" pill that keeps the session. ---
 export type FacetTone = 'keyword' | 'chamber' | 'status' | 'session' | 'omnibus' | 'issue';
 
 export type FilterChip = {
@@ -799,8 +812,12 @@ export function FilterChipRow({
 }) {
   if (chips.length === 0) return null;
   return (
-    <View style={styles.chipRow}>
-      <FilterEyebrow label="FILTERS" />
+    // The row starts with its first chip: the mono "FILTERS" label was redundant
+    // (every chip self-labels — "Issue: Health", "Chamber: House") and it ate
+    // ~90px of the first row, wrapping the chips earlier. role="group" plus the
+    // group label replace it semantically, so screen readers still announce the
+    // set rather than a bare run of buttons.
+    <View role="group" accessibilityLabel="Active filters" style={styles.chipRow}>
       {chips.map((chip) => (
         <ActiveFilterChip key={chip.key} chip={chip} />
       ))}
@@ -809,9 +826,15 @@ export function FilterChipRow({
   );
 }
 
-// Mono eyebrow shared by the FILTERS chip row and the ISSUES pill row.
+// Mono section heading above the ISSUES pill row — on its own line, never an
+// inline gutter label beside the first pill (inline, it indented row 1 only,
+// leaving a ragged left edge and fitting one fewer pill on that row). Now the
+// only mono label on the screen, so it has to read as a section heading.
 export function FilterEyebrow({ label }: { label: string }) {
-  return <Text style={styles.filterEyebrow}>{label}</Text>;
+  const { isMobile } = useResponsive();
+  return (
+    <Text style={[styles.filterEyebrow, isMobile && styles.filterEyebrowMobile]}>{label}</Text>
+  );
 }
 
 const CHIP_TONES: Record<FacetTone, { bg: string; border: string; text: string }> = {
@@ -851,7 +874,12 @@ function ActiveFilterChip({ chip }: { chip: FilterChip }) {
   );
 }
 
+// Clear all terminates the filter-chip row, so it's a filled black pill, never a
+// borderless text button: black (#11150f) is this product's active/affirmative
+// control fill, matching the active chamber / status / issue controls. Never
+// green, never grey.
 function ClearAllButton({ onPress }: { onPress: () => void }) {
+  const { isMobile } = useResponsive();
   const [hovered, hover] = useHover();
   return (
     <Pressable
@@ -859,16 +887,16 @@ function ClearAllButton({ onPress }: { onPress: () => void }) {
       accessibilityLabel="Clear all filters"
       onPress={onPress}
       {...hover}
-      style={styles.clearAllBtn}
+      style={[
+        styles.clearAllBtn,
+        isMobile ? styles.clearAllBtnMobile : styles.clearAllBtnWeb,
+        !isMobile && hovered && styles.clearAllBtnHover,
+      ]}
     >
-      <X
-        size={13}
-        color={hovered ? t.colors.text.primary : t.colors.text.secondary}
-        strokeWidth={2.2}
-      />
-      <Text style={[styles.clearAllText, hovered && { color: t.colors.text.primary }]}>
-        Clear all
-      </Text>
+      {/* Leading ✕, decorative: the Pressable's accessibilityLabel is the button's
+          accessible name, so the glyph adds nothing for a screen reader. */}
+      <X size={isMobile ? 16 : 13} color={t.colors.white} strokeWidth={2.2} />
+      <Text style={[styles.clearAllText, isMobile && styles.clearAllTextMobile]}>Clear all</Text>
     </Pressable>
   );
 }
@@ -902,10 +930,14 @@ export function NoResults({
   const noun = variant === 'bills' ? 'bills' : 'legislators';
   const heading =
     variant === 'bills' ? 'No bills match your search' : 'No legislators match your search';
+  // A multi-sentence body paragraph, so it keeps normal punctuation (unlike the
+  // one-line captions and readouts on this screen, which take no terminal
+  // period). Without a `total` to quote, the fallback used to be the fragment
+  // "Try broadening or clearing them." — "them" with no antecedent.
   const body =
     typeof total === 'number'
       ? `Your filters returned 0 of ${total.toLocaleString('en-US')} ${noun}. Try broadening or clearing them.`
-      : 'Try broadening or clearing them.';
+      : 'That’s the overlap of everything you’ve selected. Remove one above, or clear them all, to widen your search.';
   return (
     <View style={styles.noResults}>
       <View style={styles.noResultsIcon}>
@@ -1119,7 +1151,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(17,21,15,0.06)',
   },
   clearFieldHover: { backgroundColor: 'rgba(17,21,15,0.12)' },
-  filterSlot: { marginTop: 22, gap: 14 },
+  // 18px between the filter controls and the ISSUES section heading below them.
+  // (Search Legislators puts a single child in this slot, so the gap is inert there.)
+  filterSlot: { marginTop: 22, gap: 18 },
   helperRow: { marginTop: 10, paddingHorizontal: 2 },
   helperText: {
     fontFamily: t.typography.body,
@@ -1129,6 +1163,7 @@ const styles = StyleSheet.create({
     // and clears AA on the darkest gradient stop (4.8:1) while reading identically.
     color: '#686e68',
   },
+  helperTextMobile: { fontSize: 16 },
   helperStrong: { color: '#4f5651', fontWeight: t.fontWeights.bold },
 
   // Shared filter-control hover/focus: purple border + a 3px purple ring (web).
@@ -1139,14 +1174,15 @@ const styles = StyleSheet.create({
     ...(isWeb ? { boxShadow: '0 0 0 3px rgba(91,48,214,0.14)' } : {}),
   },
 
-  // mono eyebrow (ISSUES / FILTERS row labels)
+  // mono section heading above the ISSUES pill row (0.12em tracking at each size)
   filterEyebrow: {
     fontFamily: t.typography.mono,
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.3,
+    letterSpacing: 1.32,
     color: '#6f756f',
   },
+  filterEyebrowMobile: { fontSize: 13, letterSpacing: 1.56 },
 
   // chamber segmented
   segmented: {
@@ -1339,30 +1375,47 @@ const styles = StyleSheet.create({
     // because plain divs are position:static).
     zIndex: 40,
   },
-  resultsHeaderMain: { minWidth: 0, flexShrink: 1, gap: 6 },
+  // Mobile stacks the strip: the count line, then the sort control on its OWN
+  // row, left-aligned 18px below it. Sharing the count's row and hanging off the
+  // right edge read as scattered in a narrow column. Web deliberately keeps the
+  // sort control on the RIGHT of one wide row — nothing bunches up there.
+  resultsHeaderMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    flexWrap: 'nowrap',
+    gap: 18,
+  },
+  resultsHeaderMain: { minWidth: 0, flexShrink: 1 },
+  // baseline + wrap so a narrow phone drops the trailing "as of {date}" onto its
+  // own line instead of truncating it.
   resultsCountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' },
+  resultsCountRowMobile: { gap: 8 },
   resultsCount: {
     fontFamily: t.typography.title,
-    fontSize: t.fontSizes.h2,
+    fontSize: 26,
     fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.25,
+    letterSpacing: -0.26,
     color: t.colors.text.primary,
   },
+  resultsCountMobile: { fontSize: 34, letterSpacing: -0.68 },
   resultsNoun: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.lg,
-    color: t.colors.text.muted,
+    fontSize: 17,
+    // #6b716b, 5.0:1 on the white results section (AA).
+    color: '#6b716b',
   },
-  resultsDescription: {
+  resultsNounMobile: { fontSize: 18 },
+  // "as of {date}" trails the unit noun as ordinary prose, so it takes the body
+  // face with no mono, no letter-spacing and no separator glyph. #6f756f is
+  // 4.7:1 on the white results section (AA).
+  resultsAsOf: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 21,
+    fontSize: 14,
     color: '#6f756f',
-    maxWidth: 900,
   },
-  // flexShrink + maxWidth keep the meta row inside the viewport on mobile so the
-  // "AS OF …" stamp and the sort control wrap onto separate lines instead of the
-  // control overflowing (and being clipped) off the right edge.
+  resultsAsOfMobile: { fontSize: 15 },
+  // flexShrink + maxWidth keep the sort control inside the viewport rather than
+  // overflowing (and being clipped) off the right edge.
   resultsMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1371,18 +1424,13 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     maxWidth: '100%',
   },
+  resultsMetaRowMobile: { alignSelf: 'flex-start' },
   sortRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sortText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.secondary,
-  },
-  asOfText: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.label,
-    letterSpacing: 0.6,
-    color: t.colors.text.faint,
   },
 
   // sort control (trigger + menu)
@@ -1496,19 +1544,29 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(17,21,15,0.06)',
   },
   chipRemoveHover: { backgroundColor: 'rgba(17,21,15,0.14)' },
+  // Filled black pill (#11150f = t.colors.ink), white label, leading ✕.
   clearAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
+    backgroundColor: t.colors.ink,
+    borderRadius: 999,
+  },
+  clearAllBtnWeb: {
+    borderWidth: 1,
+    borderColor: t.colors.ink,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
+  clearAllBtnMobile: { paddingVertical: 9, paddingHorizontal: 13 },
+  clearAllBtnHover: { backgroundColor: '#000000', borderColor: '#000000' },
   clearAllText: {
     fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.meta,
+    fontSize: 13,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.text.secondary,
+    color: t.colors.white,
   },
+  clearAllTextMobile: { fontSize: 16 },
 
   // no results
   noResults: {
