@@ -200,7 +200,8 @@ export function SearchLegislatorsScreen() {
     >
       <ResultsHeader
         count={filtered.length}
-        noun="legislators"
+        // Singular; ResultsHeader pluralizes it, so one result reads "1 legislator".
+        noun="legislator"
         sortLabel="Sorted by name (A–Z)"
         dataAsOf={metaQuery.data?.dataAsOf}
       />

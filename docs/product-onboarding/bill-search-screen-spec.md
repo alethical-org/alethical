@@ -33,15 +33,58 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
    Search legislators →" to the other split screen. No coverage claims in the subhead:
    search only surfaces AI-summarized bills, so copy may not say "every Minnesota bill"
    (`.claude/rules/grounded-answers.md` #6).
-2. **Search bar** — placeholder "Search by keyword or bill number (e.g. HF 2904, SF 1832)".
-   The bill-number example depends on number search shipping ([#134](https://github.com/alethical-org/alethical/issues/134)); if that slips, drop the example.
-3. **Filter row** — every filter is real and applies server-side (see below).
-4. **Results header** — total count · fixed "Sorted by latest action" label ·
-   "Data as of {date}" provenance strip.
-5. **Single full-width results column** of bill cards (the "library" list; no side rail
+2. **Search bar** — placeholder "Search by keyword or bill number". The example bill
+   numbers the first draft carried were dropped once number search shipped
+   ([#134](https://github.com/alethical-org/alethical/issues/134)): the plain placeholder
+   already names both inputs.
+   Below the field, one helper line, no terminal period, "every" bold:
+   "Results update as you type — bills match **every** word". It does not repeat "try a
+   keyword or a bill number" — the placeholder directly above already says that.
+3. **Filter row** — every filter is real and applies server-side (see below). The issue
+   pills sit under their own mono "ISSUES" section heading, on its own line above the
+   pills so every pill row starts at the container's left edge.
+4. **Active-filter chip row** — one removable, facet-colour-coded chip per active filter,
+   ending in a filled black "Clear all" pill. No mono "FILTERS" label: the chips
+   self-label ("Chamber: House"), so the row carries `role="group"` +
+   `aria-label="Active filters"` for screen readers instead.
+5. **Results header** — one prose count line, "{N} bills as of {date}" (singular "1 bill"
+   at one result; the date trails the unit noun in the same span, one word space apart, no
+   separator glyph) · the sort control. Deliberately **no** prose description of the active
+   facets: the chip row above already names every one of them, and the session clause that
+   closed that sentence duplicated the always-visible session dropdown. The provenance date
+   is ordinary prose, not a standalone uppercase mono "AS OF …" stamp.
+   Sort sits on the **right** of the header strip on web; on mobile it moves to its own
+   left-aligned row 18px below the count line, where a right-hung control read as scattered
+   in a narrow column.
+6. **Single full-width results column** of bill cards (the "library" list; no side rail
    in v1 — browse-by-policy-area rail deferred to [#130](https://github.com/alethical-org/alethical/issues/130)).
-6. **Pagination** — Previous · "Page N of M" · Next (server-backed `limit`/`offset`,
+7. **Pagination** — Previous · "Page N of M" · Next (server-backed `limit`/`offset`,
    advances on `has_more`; must not slice a bounded list locally).
+
+## Copy punctuation on this screen
+
+One-line captions, helper lines, chip / badge / button labels and value+unit readouts take
+**no terminal period**, and a unit noun after a number stays lowercase ("10,000 bills",
+never "10,000 Bills"). Multi-sentence body paragraphs keep normal punctuation — the
+no-results explainer below is the reference case.
+
+## Menus must open in front of the results
+
+Every menu on this screen — status filter, session filter, sort — uses one recipe, because
+this class of bug has shipped twice (the Legislator Profile session filter, and this
+screen's sort menu opening *behind* the first result card):
+
+- the trigger's positioned wrapper: `position: relative; z-index: 40`
+- the menu itself: `position: absolute; z-index: 1` inside that wrapper
+- rows and cards below must not create a competing stacking context — no gratuitous
+  `position: relative` + `z-index`, `transform`, or `opacity` on the results list (a plain
+  `box-shadow` is fine; it creates no stacking context)
+- if a menu ever has to escape an `overflow: hidden` ancestor, portal it to the body rather
+  than only raising `z-index`
+
+react-native-web stamps `position: relative` + `z-index: 0` on *every* View, so the results
+header itself carries `z-index: 40` — otherwise the sort control's wrapper is trapped in the
+header's stacking context and, as an earlier sibling, paints under the card list.
 
 ## Filters (all backed by today's API)
 
@@ -119,10 +162,12 @@ card, not a dashboard.
 
 ## Empty / no-results state
 
-Calm no-results state: "No bills match your search", a recap of active filters, and a
-"Clear filters" action. No "Ask AI instead" cross-sell — a failed keyword search routed
-into Ask could end in a refusal, which `.claude/rules/grounded-answers.md` #2 forbids
-inviting.
+Calm no-results state: "No bills match your search", then the explainer "That's the overlap
+of everything you've selected. Remove one above, or clear them all, to widen your search.",
+a recap of active filters, and a "Clear filters" action. That explainer is a multi-sentence
+body paragraph, so it keeps its normal punctuation. No "Ask AI instead" cross-sell — a
+failed keyword search routed into Ask could end in a refusal, which
+`.claude/rules/grounded-answers.md` #2 forbids inviting.
 
 ## Backend deltas required ([#134](https://github.com/alethical-org/alethical/issues/134))
 

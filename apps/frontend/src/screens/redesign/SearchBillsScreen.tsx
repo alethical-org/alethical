@@ -86,17 +86,6 @@ const STATUS_OPTIONS = [
   { label: 'Vetoed', value: 'vetoed' },
 ];
 
-// Per-status natural phrasing for the plain-English result description (v2 §E).
-const STATUS_PHRASE: Record<string, string> = {
-  signed_into_law: 'signed into law',
-  passed_both_chambers: 'passed by both chambers',
-  passed_senate: 'passed by the Senate',
-  passed_house: 'passed by the House',
-  in_committee: 'in committee',
-  proposed: 'introduced',
-  vetoed: 'vetoed',
-};
-
 // Sort keys map to the API's `sort` param. Relevance leads automatically whenever
 // a keyword query is present (server-side, #573), so "Best match" is offered only
 // then and defaults there. "Most tracked" is a roadmap option — inert, shown once.
@@ -106,21 +95,6 @@ const SORT_TO_API: Record<SortKey, 'progress' | 'latest_action'> = {
   progress: 'progress',
   action: 'latest_action',
 };
-
-// A query shaped like a bill number ("HF 2904", "SF2904", "2904") is an exclusive
-// ID lookup — mirrors the server's classifier (public.py bill_number_clause) so
-// the description phrases it as "matching bill HF 2904", not a keyword.
-const BILL_NUMBER_QUERY = /^\s*([A-Za-z]{2})?\s*0*\d+\s*$/;
-
-// "a" → "a"; "a, b" → "a or b" / "a and b"; "a, b, c" → "a, b, or c" / "a, b, and c".
-const joinList = (items: string[], conjunction: 'or' | 'and'): string => {
-  if (items.length <= 1) return items[0] ?? '';
-  if (items.length === 2) return `${items[0]} ${conjunction} ${items[1]}`;
-  return `${items.slice(0, -1).join(', ')}, ${conjunction} ${items[items.length - 1]}`;
-};
-
-const capitalizeFirst = (value: string): string =>
-  value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 
 export function SearchBillsScreen() {
   const navigation = useNavigation<any>();
@@ -262,7 +236,7 @@ export function SearchBillsScreen() {
     }));
   // INLINE_ISSUE_CHIPS issue pills show inline; the rest expand under "More". A
   // selected issue that's collapsed out of view still shows as a removable chip
-  // in the FILTERS row, so there's no need to force the list open.
+  // in the active-filter row, so there's no need to force the list open.
   const issuesExpanded = showAllIssues;
   const visiblePolicyOptions = issuesExpanded
     ? policyOptions
@@ -291,7 +265,6 @@ export function SearchBillsScreen() {
   };
 
   const statusLabel = STATUS_OPTIONS.find((option) => option.value === status)?.label;
-  const isNumberLookup = hasQuery && BILL_NUMBER_QUERY.test(query);
   const sessionIsDefault = !session || sessionSlug === currentSession?.slug;
 
   // Removable, facet-color-coded chips (v2 §D). Fixed order: keyword · chamber ·
@@ -352,27 +325,10 @@ export function SearchBillsScreen() {
     });
   }
 
-  // Plain-English description of the exact intersection (v2 §E): AND across
-  // facets, "either X, Y, or Z" within issues, per-status phrasing; the session
-  // always closes the sentence.
-  const segments: string[] = [];
-  if (query) {
-    segments.push(
-      isNumberLookup ? `matching bill ${query.trim().toUpperCase()}` : `matching “${query}”`,
-    );
-  }
-  if (selectedIssues.length) {
-    const issueLabels = selectedIssues.map((issue) => titleCaseIssue(issue));
-    segments.push(
-      `tagged ${selectedIssues.length > 1 ? 'either ' : ''}${joinList(issueLabels, 'or')}`,
-    );
-  }
-  if (chamber !== 'All') segments.push(`in the ${chamber}`);
-  if (status && STATUS_PHRASE[status]) segments.push(STATUS_PHRASE[status]);
-  if (omnibusOnly) segments.push('that are omnibus');
-  const resultDescription = segments.length
-    ? `${capitalizeFirst(joinList(segments, 'and'))}, in the ${sessionLabel}.`
-    : `In the ${sessionLabel}.`;
+  // There is deliberately no prose description of the active facets under the
+  // count: the removable chip row above names every one of them, and the clause
+  // that closed the sentence ("in the 2025–2026 Legislative Session") duplicated
+  // the session dropdown that is always visible in the filter controls.
 
   // Empty-state chip labels (non-removable summary inside the NoResults card).
   const activeFilters = [sessionLabel, ...chips.map((chip) => chip.label)];
@@ -433,33 +389,38 @@ export function SearchBillsScreen() {
           onChange={(value) => updateFilters({ omnibus: value ? '1' : undefined })}
         />
       </View>
-      <View style={styles.pillRow}>
+      {/* ISSUES heading on its own line above the pills, so every pill row starts
+          at the container's left edge. The label separates the 26-issue taxonomy
+          from the chamber / status / session / omnibus controls above it. */}
+      <View style={styles.issuesBlock}>
         <FilterEyebrow label="ISSUES" />
-        {visiblePolicyOptions.map((option) => {
-          const selected = selectedIssues.includes(option.value);
-          const nextIssues = selected
-            ? selectedIssues.filter((issue) => issue !== option.value)
-            : [...selectedIssues, option.value];
-          return (
-            <FilterPill
-              key={option.value}
-              label={option.label}
-              count={option.count}
-              active={selected}
-              onPress={() => toggleIssue(option.value)}
-              onHoverIn={() =>
-                prefetchFilter({ policyAreas: nextIssues.length ? nextIssues : undefined })
-              }
+        <View style={styles.pillRow}>
+          {visiblePolicyOptions.map((option) => {
+            const selected = selectedIssues.includes(option.value);
+            const nextIssues = selected
+              ? selectedIssues.filter((issue) => issue !== option.value)
+              : [...selectedIssues, option.value];
+            return (
+              <FilterPill
+                key={option.value}
+                label={option.label}
+                count={option.count}
+                active={selected}
+                onPress={() => toggleIssue(option.value)}
+                onHoverIn={() =>
+                  prefetchFilter({ policyAreas: nextIssues.length ? nextIssues : undefined })
+                }
+              />
+            );
+          })}
+          {hiddenIssueCount > 0 ? (
+            <MoreIssuesPill
+              expanded={issuesExpanded}
+              hiddenCount={hiddenIssueCount}
+              onPress={() => setShowAllIssues((value) => !value)}
             />
-          );
-        })}
-        {hiddenIssueCount > 0 ? (
-          <MoreIssuesPill
-            expanded={issuesExpanded}
-            hiddenCount={hiddenIssueCount}
-            onPress={() => setShowAllIssues((value) => !value)}
-          />
-        ) : null}
+          ) : null}
+        </View>
       </View>
     </>
   );
@@ -509,8 +470,8 @@ export function SearchBillsScreen() {
       <FilterChipRow chips={chips} onClearAll={clearFilters} />
       <ResultsHeader
         count={resultCount}
-        noun="bills"
-        description={resultDescription}
+        // Singular; ResultsHeader pluralizes it, so one result reads "1 bill".
+        noun="bill"
         dataAsOf={metaQuery.data?.dataAsOf}
         sortControl={bills.length > 0 ? sortControl : undefined}
       />
@@ -567,10 +528,13 @@ export function SearchBillsScreen() {
 }
 
 const styles = StyleSheet.create({
-  // The filter row (with its dropdown menus) sits above the policy pill row so an
+  // The filter row (with its dropdown menus) sits above the issues block so an
   // open menu overlays the pills instead of being painted behind them.
   filterRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12, zIndex: 2 },
-  pillRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, zIndex: 1 },
+  // 10px from the ISSUES heading down to the pill row; the 18px above the heading
+  // comes from the hero's filter-slot gap (searchPieces `filterSlot`).
+  issuesBlock: { gap: 10, zIndex: 1 },
+  pillRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   list: { marginTop: 22, gap: 18 },
   stateBox: {
     paddingVertical: 64,
