@@ -330,9 +330,6 @@ export function SearchBillsScreen() {
   // that closed the sentence ("in the 2025–2026 Legislative Session") duplicated
   // the session dropdown that is always visible in the filter controls.
 
-  // Empty-state chip labels (non-removable summary inside the NoResults card).
-  const activeFilters = [sessionLabel, ...chips.map((chip) => chip.label)];
-
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
       case 'search-bills':
@@ -489,7 +486,14 @@ export function SearchBillsScreen() {
           </Text>
         </View>
       ) : bills.length === 0 ? (
-        <NoResults variant="bills" activeFilters={activeFilters} onClear={clearFilters} />
+        <NoResults
+          variant="bills"
+          // The chip row already counts the active filters, so the empty state's
+          // copy branches off it without needing anything new.
+          filterCount={chips.length}
+          query={query}
+          onClear={clearFilters}
+        />
       ) : (
         <>
           <View style={styles.list}>

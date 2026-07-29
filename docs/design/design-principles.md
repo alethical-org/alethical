@@ -56,6 +56,31 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 - **Shape.** Softly rounded, never sharp and never pill-everything: cards and inputs ~12px radius,
   small chips/badges smaller, full pills only for genuinely pill-shaped controls. Rounded = approachable
   and modern; restrained radius = still serious.
+  **On a filtering surface, radius carries meaning and is not a taste call.** A **full pill (999px)**
+  belongs to the *applied-filter* layer — the active-filter chips and any "Clear all" that acts on
+  them. A **rounded rect (11–12px)** belongs to the controls you use to *build* a query — segmented
+  chamber control, status and session dropdowns, the Omnibus toggle, the ISSUES chips, sort. One
+  action also gets one label, one fill, and one shape wherever it appears: the Search Bills empty
+  state repeats the chip row's "Clear all" verbatim, as a black pill, because both are on screen at
+  once and two names for one action make the user wonder whether one of them spares their search text
+  ([#720](https://github.com/alethical-org/alethical/pull/720)).
+- **Optical centering for icon + label buttons.** Our icons are drawn on a 24-unit viewBox with the
+  marks inset to roughly the middle 50% (the ✕ runs 6,6 → 18,18; chevrons 6 → 18; the plus 5 → 19), so
+  at our 13–17px sizes an icon carries ~3px of empty box on its outer side. Symmetric padding then
+  renders the content ~3px off-centre, because the eye reads that empty box as extra padding while the
+  text label sits flush against its own box. Correct the **container, never the glyph** — tightening
+  the viewBox (e.g. to `5 5 14 14`) fixes the geometry but renders the mark ~40% larger, so it reads
+  heavier than the label. The rule, by icon position:
+  - **Leading icon + label** → trim 3px off the **left** (`padding: 8px 14px 8px 11px`).
+  - **Label + trailing icon** → trim 3px off the **right** (`padding: 11px 15px 11px 18px`).
+  - **Both a leading and a trailing icon** (icon + label + chevron) → **no change**; the insets cancel.
+  - **Icon-only controls** (close ✕, hamburger, social glyphs, bare chevrons) → **no change**;
+    symmetric padding is correct with no label.
+
+  Build new buttons this way. It applies to auth-gated controls (account nav, Sign out,
+  Track/Tracking, Continue with Google) as soon as sign-in ships; they were skipped on the first
+  sweep only because they are not on the live signed-out site
+  ([#720](https://github.com/alethical-org/alethical/pull/720)).
 - **Elevation.** Soft, low-spread shadows for gentle lift — the page feels like paper with light
   depth, not a stack of floating glass. Reserve the heavy multi-layer shadow for true overlays
   (nav dropdown, modals).

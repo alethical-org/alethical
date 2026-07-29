@@ -49,7 +49,7 @@ stack: every filter you add trims the list down more.
 Every filter you turn on shows up as a little removable tag near the top:
 
 - Tap the **✕** on any tag to drop just that one filter — the rest stay put.
-- **Clear filters** wipes them all in one go (your chosen session stays).
+- **Clear all** wipes them all in one go (your chosen session stays).
 
 So you can experiment freely without losing your place.
 
@@ -92,6 +92,17 @@ Tap a card to open the full bill; results are split into pages with Previous / N
 
 ## When nothing matches
 
-You get a calm message — **"No bills match your search"** followed by **"Try
-broadening or clearing them."** — a recap of the filters you had on (shown as tags),
-and a **"Clear filters"** button to wipe them and start over.
+You get a calm message that fits what you actually did, and a **"Clear all"** button
+to wipe your filters and start over:
+
+- If you had **two or more filters on**, it says **"No bills match all of these
+  filters"** and suggests removing some above, or clearing them all.
+- If the only thing you did was **type a search**, it repeats your words back —
+  **"No bills match 'porpoise'"** — and suggests fewer or different words, or a
+  spelling check.
+- If the only thing you did was **pick one filter** (an issue, a chamber, a status,
+  omnibus-only), it says **"No bills match that filter"** and suggests trying a
+  different one.
+
+Your filter tags stay visible just above the message, so you can drop one without
+starting over.

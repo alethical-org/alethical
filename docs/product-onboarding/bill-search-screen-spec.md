@@ -162,11 +162,36 @@ card, not a dashboard.
 
 ## Empty / no-results state
 
-Calm no-results state: "No bills match your search", then the explainer "That's the overlap
-of everything you've selected. Remove one above, or clear them all, to widen your search.",
-a recap of active filters, and a "Clear filters" action. That explainer is a multi-sentence
-body paragraph, so it keeps its normal punctuation. No "Ask AI instead" cross-sell — a
-failed keyword search routed into Ask could end in a refusal, which
+Calm no-results state, in four parts and nothing else: the icon, a heading, one line of copy,
+and one button. No recap of the active filters — the real, removable chips sit ~90px above in
+facet colour with working ✕ buttons, so a non-interactive echo below invites a click that does
+nothing, sits *below* the line telling you to remove filters *above*, and disagreed with the
+real row (it listed the legislative session, which is always active and can only be changed,
+never cleared).
+
+The copy **branches on how many filters are active**, because one generic message is wrong in
+the most common zero-result state — a typo'd search with nothing else applied — where it names
+a filter stack the user never built. The count is already computed for the chip row. None of
+the three states takes a terminal period.
+
+| Active filters | Heading | Subtitle |
+| --- | --- | --- |
+| 2 or more | No bills match all of these filters | Remove filters above, or clear them all, to widen your search |
+| 1, the search term | No bills match “{query}” | Try fewer or different words, or check the spelling |
+| 1, a single facet (issue / chamber / status / omnibus) | No bills match that filter | Try a different one, or clear it to see every bill |
+
+"All of these filters" names the actual cause — the **intersection**. Not "your search" (points
+at the query when the filter stack is usually the culprit), not "your filtered search"
+(product-speak, names no cause), not "all of these search filters" ("search filters" is two
+words doing one word's job, and the query *is* one of the chips). The 2+ subtitle says "filters"
+plural on purpose: with several stacked, removing one often still returns zero, so a singular
+instruction sets the user up to fail on the first try. The query heading takes
+`overflow-wrap: anywhere` so a long search term cannot overflow the card.
+
+The button is the same **black pill labelled "Clear all"** as the chip row's, because it is the
+same action and both are on screen at once (shape and label conventions:
+`docs/design/design-principles.md` §2, The green visual system — Shape). No "Ask AI instead"
+cross-sell — a failed keyword search routed into Ask could end in a refusal, which
 `.claude/rules/grounded-answers.md` #2 forbids inviting.
 
 ## Backend deltas required ([#134](https://github.com/alethical-org/alethical/issues/134))
