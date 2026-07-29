@@ -713,13 +713,14 @@ def session_law_version(bill_row) -> dict[str, Any] | None:
 # A statutory effective date is only shown when the enacted bill's own text
 # states one unambiguously (grounded-answers rule 9). MN bills specify effective
 # dates section-by-section ("This section is effective July 1, 2027."), never for
-# the whole act, so a bill has a single verified effective date ONLY when every
-# section carries an explicit clause and they all resolve to the SAME date. Two
-# clause shapes are groundable, both confirmed by the #483 spike over all enacted
-# bills:
+# the whole act, so a bill has a single verified effective date ONLY when its
+# sections cannot disagree: either every section carries an explicit clause that
+# resolves to the SAME date, or no section carries one at all and the whole act
+# falls to the statutory default. Three shapes are groundable, all confirmed
+# against the Revisor's published dates over every enacted bill in the corpus:
 #   Tier A (#483/#561, ~8%): every section names the SAME explicit calendar date
 #     (e.g. HF 4138 -> July 1, 2027). Handled by effective_date_from_sections().
-#   Tier B (#562, ~15%): every section is "effective the day following final
+#   Tier B (#562, ~14%): every section is "effective the day following final
 #     enactment" — no calendar date in the text to read. MN Revisor publishes the
 #     resolved date directly as an "Effective date" bill action, so we take THAT
 #     authoritative value (rule 9) rather than compute it: the naive
@@ -733,10 +734,23 @@ def session_law_version(bill_row) -> dict[str, Any] | None:
 #     genuinely mixed bill; the signature window rejects a stray typo year like
 #     SF 1552's "03/18/2024"). Handled by effective_date_day_following_enactment()
 #     + revisor_effective_date_action() + governor_approval_date().
-# Everything else — differing per-section dates, a silent section that falls to
-# the statutory default, or conditional/contingent language — is genuinely
-# ambiguous and gets None, so the UI keeps the honest "LATEST ACTION" fallback
-# (#455 / #480) rather than a guessed date.
+#   Tier C (#706, ~30%): NO section states an effective date, so Minn. Stat.
+#     645.02 sets one date for the whole act — Aug 1 next following final
+#     enactment, or July 1 for an act carrying appropriation items. Same
+#     two-signal shape as Tier B: the text must be uniformly silent AND the
+#     Revisor's own "Effective date" action must be a single clean date equal to
+#     one of those two statutory defaults, so we publish the Revisor's value and
+#     never have to classify an act as appropriating money ourselves. Verified
+#     over the 40 uniformly-silent enacted bills in prod: 39 agree exactly, and
+#     the 1 that does not is flagged "various dates" by the Revisor and falls
+#     back. Handled by effective_date_all_sections_silent() +
+#     statutory_default_effective_dates().
+# Everything else — differing per-section dates, SOME sections silent while
+# others state a date (e.g. SF 334 / 2026 ch. 120: 1 of 14 sections is effective
+# the day following enactment, the other 13 fall to Aug 1), or
+# conditional/contingent language — is genuinely ambiguous and gets None, so the
+# UI keeps the honest "LATEST ACTION" fallback (#455 / #480) rather than assert
+# one of several dates as the whole act's.
 _EFFECTIVE_SENTENCE_RE = re.compile(
     r"this (?:section|article|subdivision|paragraph)\b[^.]*?\beffective\b[^.]*?\.",
     re.IGNORECASE,
@@ -874,6 +888,50 @@ def effective_date_day_following_enactment(
     return True
 
 
+def effective_date_all_sections_silent(
+    sections: list[tuple[str | None, str | None]],
+) -> bool:
+    """True iff NO section states an effective date — the Tier-C shape (#706).
+
+    The inverse gate of :func:`effective_date_from_sections`: no section may carry
+    an "EFFECTIVE DATE" heading, and no section's text may contain an effective
+    clause sentence. Both are required because either signal alone can be absent —
+    a heading with unparsed text, or a clause the source did not head. When both
+    are clear, the act specifies no date anywhere, so Minn. Stat. 645.02 supplies
+    one date for the whole act. Pure/DB-free; the concrete date still comes from
+    the Revisor's published "Effective date" action, never guessed.
+    """
+    if not sections:
+        return False
+    for heading, raw in sections:
+        if (heading or "").strip():
+            return False
+        flattened = re.sub(r"\s+", " ", raw or "")
+        if _EFFECTIVE_SENTENCE_RE.search(flattened):
+            return False
+    return True
+
+
+def statutory_default_effective_dates(enactment: date) -> set[date]:
+    """The two dates Minn. Stat. 645.02 allows an act that specifies none itself.
+
+    An act takes effect "August 1 next following its final enactment", or July 1
+    for "an appropriation act or an act having appropriation items". Both are
+    returned so the caller can accept whichever the Revisor published, rather than
+    us classifying an act as appropriating money — a judgment the Revisor has
+    already made and recorded. "Next following" rolls to the next year when the
+    act was enacted on or after that date.
+    """
+    return {
+        date(
+            enactment.year + (1 if enactment >= date(enactment.year, month, 1) else 0),
+            month,
+            1,
+        )
+        for month in (7, 8)
+    }
+
+
 def governor_approval_date(actions) -> date | None:
     """The date the governor signed the bill, from its actions, or None.
 
@@ -918,6 +976,11 @@ def revisor_effective_date_action(actions) -> date | None:
     return next(iter(dates)) if len(dates) == 1 else None
 
 
+def _format_effective_date(value: date) -> str:
+    """Format as e.g. July 1, 2027 — the display form every tier returns."""
+    return f"{_MONTH_NAMES[value.month - 1]} {value.day}, {value.year}"
+
+
 def resolve_effective_date(
     sections: list[tuple[str | None, str | None]], actions
 ) -> str | None:
@@ -930,6 +993,10 @@ def resolve_effective_date(
         enactment" AND the Revisor's own "Effective date" action is a single clean
         date falling within a week after the governor-signature date (Minn. Stat.
         645.01) — the authoritative published date, cross-checked, never computed.
+      * Tier C (#706): no section states a date at all AND the Revisor's
+        "Effective date" action is a single clean date equal to a Minn. Stat.
+        645.02 default (Aug 1, or July 1 for an act with appropriation items) —
+        again the published value, cross-checked against the statute.
     Anything still ambiguous returns None so the caller keeps the honest LATEST
     ACTION treatment (#483 / #455 / #480).
     """
@@ -937,19 +1004,21 @@ def resolve_effective_date(
     if tier_a is not None:
         return tier_a
 
+    revisor = revisor_effective_date_action(actions or [])
+    approval = governor_approval_date(actions or [])
+    if revisor is None or approval is None:
+        return None
+
     if effective_date_day_following_enactment(sections):
-        effective = revisor_effective_date_action(actions or [])
-        approval = governor_approval_date(actions or [])
         if (
-            effective is not None
-            and approval is not None
-            and approval
-            < effective
+            approval
+            < revisor
             <= approval + timedelta(days=_ENACTMENT_EFFECTIVE_WINDOW_DAYS)
         ):
-            return (
-                f"{_MONTH_NAMES[effective.month - 1]} {effective.day}, {effective.year}"
-            )
+            return _format_effective_date(revisor)
+    elif effective_date_all_sections_silent(sections):
+        if revisor in statutory_default_effective_dates(approval):
+            return _format_effective_date(revisor)
     return None
 
 
@@ -979,7 +1048,7 @@ def bill_effective_dates(db: Session, rows) -> dict[str, str]:
     in at most two grouped queries (no per-row N+1) — the list-endpoint counterpart
     to verified_effective_date.
 
-    The value is either the verified single statutory date (Tier A/B, the SAME source
+    The value is either the verified single statutory date (Tier A/B/C, the SAME source
     as the bill-detail page, so the card and the page agree — grounded-answers rule 9)
     or, when an omnibus bill's provisions don't resolve to one shared date, the plain
     "various dates" (an omnibus by definition bundles multiple articles that generally

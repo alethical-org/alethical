@@ -161,8 +161,10 @@ controls. The two genuine build flags ARE props: `showAskModule`, `showYourLegis
 
 ## Data logic (design-side source of intent)
 See `NEXT-bill-detail-spec.md` for the authoritative rules. Key ones:
-- **Status → date label:** signed → **EFFECTIVE {date}**; not-yet-law (committee/vetoed) →
-  **LATEST ACTION {…}**.
+- **Status → date label:** signed → **EFFECTIVE {date}** *only when the act resolves to one
+  date for the whole bill*; not-yet-law (committee/vetoed), and any signed bill whose sections
+  take effect on different dates, → **LATEST ACTION {…}**. See the spec's "Mobile refinement
+  pass 2" note for the three tiers and why the mixed case cannot show a date.
 - **Dot taxonomy** and **SCHEDULED** future actions — explicit rules above / in spec.
 - **Crossover = voting against your OWN party's majority on THAT vote** — derive per vote from
   real party + member data; the crossover dots and each block's Yes–No split MUST come from the

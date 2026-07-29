@@ -112,13 +112,15 @@ make it fast and accurate:
   build, session pooler, statement-timeout off) — see
   [`scripts/build_rag_hnsw_index.py`](../../scripts/build_rag_hnsw_index.py).
 
-**Effective-date extraction is a *deterministic parse*, not an AI job (#598, #561/#572).**
-Worth noting here because it's easy to assume "hard text problem = needs a model": it
-doesn't. Minnesota bills set effective dates **per section**, so there's no single field
-to read. We resolve them in tiers — ~8% carry one explicit date (Tier A), ~14% say "the
-day following final enactment" (Tier B, resolved from the enactment action), and the
-remaining ~77% are genuinely ambiguous and fall back to the latest action date. This
-costs **no model money** — it reads bill text already in our database.
+**Effective-date extraction is a *deterministic parse*, not an AI job (#598, #561/#572,
+#706).** Worth noting here because it's easy to assume "hard text problem = needs a
+model": it doesn't. Minnesota bills set effective dates **per section**, so there's no
+single field to read. We resolve them in tiers — ~8% carry one explicit date (Tier A),
+~14% say "the day following final enactment" (Tier B, resolved from the enactment
+action), ~30% state no date at all so the whole act falls to the Minn. Stat. 645.02
+default (Tier C, Aug 1 or July 1 after signing), and the remaining ~49% genuinely take
+effect on different dates section by section and fall back to the latest action date.
+This costs **no model money** — it reads bill text already in our database.
 
 ## 6. Takeaways for scaling
 
