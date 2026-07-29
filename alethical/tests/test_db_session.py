@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import os
 from urllib.parse import unquote, urlparse
 
 import pytest
 
 from alethical.db.session import (
     database_url_for_target,
+    load_dotenv_if_present,
     supabase_database_url,
 )
+from alethical.tests.local_database_guard import assert_local_database
 
 # Env vars supabase_database_url() reads directly. Tests must control all of
 # them so a developer's local .env (loaded at import time by load_dotenv_if_present)
@@ -119,3 +122,57 @@ def test_database_url_for_target_explicit_url_takes_precedence() -> None:
     # Even with production target, an explicit URL should win and not touch env.
     explicit = "postgresql+psycopg://user:pw@host:5432/db"
     assert database_url_for_target("production", explicit_url=explicit) == explicit
+
+
+# The conftest guard that keeps this suite off production (#716). Covered here
+# because a broken guard is invisible: the suite stays green either way, and the
+# only symptom is the next fixture row landing in Supabase.
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql+psycopg://alethical:alethical@localhost:54329/alethical",
+        "postgresql+psycopg://alethical:alethical@127.0.0.1:5432/alethical",
+    ],
+)
+def test_local_database_guard_allows_local_hosts(url: str) -> None:
+    assert_local_database(url)
+
+
+def test_local_database_guard_rejects_remote_host() -> None:
+    with pytest.raises(pytest.UsageError, match="pooler.supabase.com"):
+        assert_local_database(
+            "postgresql+psycopg://postgres.abcdefghij:hunter2"
+            "@aws-1-us-east-2.pooler.supabase.com:6543/postgres"
+        )
+
+
+def test_local_database_guard_rejects_production_target() -> None:
+    with pytest.raises(pytest.UsageError, match="ALETHICAL_DATABASE_TARGET"):
+        assert_local_database(
+            "postgresql+psycopg://alethical:alethical@localhost:54329/alethical",
+            target="production",
+        )
+
+
+def test_dotenv_strips_inline_comment_but_keeps_quoted_hash(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #231: .env.example ships comments after values, so `cp .env.example .env`
+    # used to fold the comment into the value.
+    (tmp_path / ".env").write_text(
+        "ALETHICAL_TEST_TARGET=local          # local | production\n"
+        'ALETHICAL_TEST_PASSWORD="p@ss #word"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("ALETHICAL_TEST_TARGET", raising=False)
+    monkeypatch.delenv("ALETHICAL_TEST_PASSWORD", raising=False)
+
+    load_dotenv_if_present()
+    try:
+        assert os.environ["ALETHICAL_TEST_TARGET"] == "local"
+        assert os.environ["ALETHICAL_TEST_PASSWORD"] == "p@ss #word"
+    finally:
+        # The loader writes straight to os.environ, which monkeypatch can't undo.
+        os.environ.pop("ALETHICAL_TEST_TARGET", None)
+        os.environ.pop("ALETHICAL_TEST_PASSWORD", None)

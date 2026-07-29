@@ -2245,36 +2245,17 @@ def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(
     from alethical.db.session import get_session_factory
 
     schema = load_schema()
+    # Seeded by scripts/load_sample_data.py, not created here. This test used to
+    # add and commit the row itself, which wrote it into whatever DATABASE_URL
+    # resolved to -- and once wrote it into production (#716).
     missing_chunks_bill_key = "94-2025-HF9901"
     with get_session_factory()() as db:
-        session_row = db.scalar(
-            select(schema.LegislativeSession).where(
-                schema.LegislativeSession.slug == "94-2025-regular"
-            )
-        )
-        chamber = db.scalar(
-            select(schema.Chamber).where(schema.Chamber.slug == "house")
-        )
-        assert session_row is not None
-        assert chamber is not None
         bill = db.scalar(
             select(schema.Bill).where(schema.Bill.bill_key == missing_chunks_bill_key)
         )
-        if bill is None:
-            db.add(
-                schema.Bill(
-                    session_id=session_row.id,
-                    chamber_id=chamber.id,
-                    bill_key=missing_chunks_bill_key,
-                    file_type="HF",
-                    file_number=9901,
-                    title="No chunks test bill",
-                    description="Fixture bill with no RAG chunks",
-                    official_url="https://example.test/hf9901",
-                    is_omnibus=False,
-                )
-            )
-            db.commit()
+    assert bill is not None, (
+        f"{missing_chunks_bill_key} must be seeded by scripts/load_sample_data.py"
+    )
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     create_session_response = client.post(

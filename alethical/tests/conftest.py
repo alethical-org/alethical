@@ -8,10 +8,18 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from alethical.db.session import get_database_url
+from alethical.tests.local_database_guard import assert_local_database
+
 ROOT = Path(__file__).resolve().parents[2]
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
-)
+# Resolve the URL the same way the app does, so the guard below checks the
+# database the tests will actually write to -- get_database_url() also applies
+# .env and normalizes the driver prefix, which reading os.environ here did not.
+DATABASE_URL = get_database_url()
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    assert_local_database(DATABASE_URL, os.environ.get("ALETHICAL_DATABASE_TARGET"))
 
 
 @pytest.fixture(scope="session", autouse=True)
