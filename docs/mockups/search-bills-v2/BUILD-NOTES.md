@@ -46,7 +46,7 @@ this screen", "Menus must open in front of the results").
 The helper line's specified colour is `#6f756f`. On white that is 4.7:1 (AA), but the hero
 sits on a faintly tinted gradient whose darkest stop (`#f4f5f7`) drops it to 4.3:1 — below
 AA. The build uses `#686e68`, which clears AA on that stop (4.8:1) and reads identically.
-Accessibility wins over the literal token (`~/.claude` house rule; `docs/design-principles.md`).
+Accessibility wins over the literal token (`docs/design/design-principles.md`).
 
 ## Illustrative-only values
 
