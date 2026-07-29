@@ -685,6 +685,97 @@ def test_prompt_consolidates_key_points_with_six_as_a_target_not_a_quota() -> No
     assert "do NOT pair a citation to every bullet" in prompt
 
 
+def _prepare_args(tmp_path, *, bill_key: str, min_key_points: int | None):
+    return SimpleNamespace(
+        database_url=get_database_url(),
+        output_dir=str(tmp_path),
+        model="gpt-5.2",
+        session=None,
+        bill_key=bill_key,
+        limit=None,
+        max_input_chars=60_000,
+        force=False,
+        only_missing_current=False,
+        titles_only=False,
+        min_key_points=min_key_points,
+    )
+
+
+def _prepared_item_count(tmp_path, sub: str) -> int:
+    run_dir = tmp_path / sub
+    manifest_path = next(run_dir.glob("ai-enrichment-*.manifest.json"))
+    return len(json.loads(manifest_path.read_text(encoding="utf-8"))["items"])
+
+
+def test_prepare_min_key_points_selects_only_the_over_target_bills(tmp_path) -> None:
+    """`--min-key-points N` is the screen for a re-consolidation run (#723): it
+    enqueues only bills whose CURRENT summary already carries at least N key
+    points, so a run targeting the over-six bills never pays to redo the bills
+    that are already consolidated. Model-agnostic — it screens on what the bill
+    displays today (these fixtures are `gpt-4o-mini`, the run is Claude)."""
+    long_content = {
+        "summary": "Does eight distinct things.",
+        "key_points": [f"point {index}" for index in range(8)],
+        "policy_areas": [],
+    }
+    short_content = {
+        "summary": "Does six things.",
+        "key_points": [f"point {index}" for index in range(6)],
+        "policy_areas": [],
+    }
+    with _session() as db:
+        long_bill_id, _ = _make_bill_with_summary(
+            db, bill_key="test-2025-HF999010", file_number=999010, content=long_content
+        )
+        short_bill_id, _ = _make_bill_with_summary(
+            db, bill_key="test-2025-HF999011", file_number=999011, content=short_content
+        )
+        # A bill with sections but NO enrichment: nothing to re-consolidate.
+        bare_bill_id, _ = _make_bill_with_sections(
+            db,
+            bill_key="test-2025-HF999012",
+            file_number=999012,
+            sections=[("1.1", "Some bill text.")],
+        )
+    try:
+        # Eight points -> in scope at the "more than six" screen.
+        ai_enrichment.prepare_batch(
+            _prepare_args(
+                tmp_path / "over", bill_key="test-2025-HF999010", min_key_points=7
+            )
+        )
+        assert _prepared_item_count(tmp_path, "over") == 1
+
+        # Exactly six -> already consolidated, so not re-run.
+        ai_enrichment.prepare_batch(
+            _prepare_args(
+                tmp_path / "at", bill_key="test-2025-HF999011", min_key_points=7
+            )
+        )
+        assert _prepared_item_count(tmp_path, "at") == 0
+
+        # No current summary -> skipped, not treated as zero points.
+        ai_enrichment.prepare_batch(
+            _prepare_args(
+                tmp_path / "bare", bill_key="test-2025-HF999012", min_key_points=7
+            )
+        )
+        assert _prepared_item_count(tmp_path, "bare") == 0
+
+        # Without the flag the six-point bill is enqueued as before — the screen is
+        # opt-in and changes nothing for existing callers.
+        ai_enrichment.prepare_batch(
+            _prepare_args(
+                tmp_path / "unset", bill_key="test-2025-HF999011", min_key_points=None
+            )
+        )
+        assert _prepared_item_count(tmp_path, "unset") == 1
+    finally:
+        with _session() as db:
+            for bill_id in (long_bill_id, short_bill_id, bare_bill_id):
+                _cleanup(db, bill_id)
+
+
 def test_key_points_schema_ceiling_is_a_runaway_guard_not_the_target() -> None:
     """`maxItems` is enforced by strict Structured Outputs, and the model satisfies
     it by TRUNCATING the tail rather than merging — verified against /v1/responses,
