@@ -489,14 +489,21 @@ top bar on mobile) — NOT buried in a menu — and stays reachable from every t
   clause + the color word — the dot reads brownish, so naming it "amber" invited a mismatch).
   **"Your legislators"
   card/teaser moved BELOW the roll cards** (content leads; personalization/CTA follows).
-- **Source line — SUPERSEDED.** This screen originally consolidated to ONE line at the very
-  bottom (under Versions), on the reasoning that a single scroll needs one page-level citation.
-  [#734](https://github.com/alethical-org/alethical/pull/734) reversed that: the line is now one
-  shared string (`billSourceText` in `components/billDetail/SourceLine.tsx`) closing **every**
-  record section — Actions, Votes, Versions, Bill Text — identical on mobile and web, because a
-  reader who lands mid-scroll on a Votes tally should not have to reach the bottom of the page
-  to see where the record came from. Actions was the last section without one and got it in
-  [#559](https://github.com/alethical-org/alethical/issues/559).
+- **Source line — ONE per platform, and on mobile that means ONE for the whole page.** Mobile is a
+  single scroll, so it carries exactly one line, at the foot of the LAST section (Bill Text);
+  Actions, Votes and Versions carry none. Web is tabbed, so each tab carries its own — a reader
+  there only ever sees one at a time too. Same shared string either way (`billSourceText` in
+  `components/billDetail/SourceLine.tsx`), so the wording cannot drift.
+
+  This bullet has been rewritten twice, so the reasoning is worth stating plainly: a provenance
+  footer is a property of the PAGE, not of each section. Repeating it after Actions, then again
+  after Votes, then again after Versions reads as three separate citations for three separate
+  sources, which is exactly the confusion `SourceLine.tsx`'s own comment warns about — and on a
+  phone all four land in one continuous scroll, so the repetition is visible in a way it never is
+  on web. History: this screen shipped with one line at the bottom; [#734](https://github.com/alethical-org/alethical/pull/734)
+  spread it to Votes and Versions and [#559](https://github.com/alethical-org/alethical/issues/559)
+  added Actions; Eugene reverted mobile to one line on Jul 29 2026. Web was never changed and is
+  not affected.
 - **Copy:** "legislative session" RESTORED on this screen (educational) — eyebrow reads
   "{CHAMBER} · 2025–2026 LEGISLATIVE SESSION". Rule reversed in CLAUDE.md; other screens to
   follow separately.
