@@ -23,12 +23,13 @@ import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import { useBill, useSessions } from '../../hooks/useAppQueries';
-import { Bill, BillAction, VoteEvent } from '../../data/types';
+import { Bill, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../components/search/searchPieces';
 import {
   authorNameOnly,
   askCardPrompts,
   authorTitleLabel,
+  buildActionTimeline,
   buildPartyBlocks,
   chamberBillLabel,
   chiefAuthor,
@@ -36,14 +37,12 @@ import {
   coAuthorCount,
   districtRowLabel,
   effectiveRailValue,
-  effectiveTimelineEntries,
   formatAuthorDistrict,
   formatMonoDate,
   formatNiceDate,
   isKnownDistrict,
   latestActionEntry,
   MemberVote,
-  orderActionsForTimeline,
   orderBillVersions,
   parseActionDate,
   partyFull,
@@ -51,6 +50,7 @@ import {
   PHASED_CAPTION,
   readLabel,
   scopedChipQuery,
+  TimelineRow,
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
@@ -112,31 +112,9 @@ function statusTone(status: string): Tone {
 // display all come from the shared lib/billDetail helpers (parity with the web
 // FactsRail); no mobile-local duplicates.
 
-type Dot = 'green' | 'red' | 'vote' | 'scheduled' | 'plain';
-
-// Dot taxonomy by what the action DOES, not by example (spec §Dot taxonomy).
-// Derived from the description text since BillAction carries no kind field.
-function classifyAction(a: BillAction, upcoming: boolean): { dot: Dot; isVote: boolean } {
-  if (upcoming) return { dot: 'scheduled', isVote: false };
-  const d = a.description.toLowerCase();
-  const isVote =
-    /\b(vote|roll call|third reading|repassed|concurred|passed the (house|senate)|passed (house|senate))\b/.test(
-      d,
-    );
-  if (/\b(veto|failed|not adopted|rejected)\b/.test(d)) return { dot: 'red', isVote: false };
-  if (/\b(signed|effective|enacted|chapter|became law)\b/.test(d)) return { dot: 'green', isVote };
-  if (isVote) return { dot: 'vote', isVote: true };
-  return { dot: 'plain', isVote: false };
-}
-
-// upcoming = actionDate parses to a date after `now` (the real current date; see
-// caller). The action dates arrive pre-formatted; parse leniently and treat
-// unparseable as not-upcoming.
-function isUpcoming(dateStr: string, now: Date | null): boolean {
-  if (!now) return false;
-  const d = new Date(dateStr);
-  return !Number.isNaN(d.getTime()) && d.getTime() > now.getTime();
-}
+// The dot taxonomy, the SCHEDULED test and every action title now come from the
+// shared buildActionTimeline (lib/billDetail) rather than mobile-local regexes, so
+// the two platforms cannot drift apart (#559).
 
 // --- small presentational pieces -------------------------------------------
 
@@ -497,37 +475,18 @@ function BillDetailMobileScreen() {
           : niceDate);
     const overviewUrl = bill.officialLinks?.[0]?.url;
     const readUrl = bill.versions?.[0]?.url ?? overviewUrl;
-    // Newest-first timeline. Dateless rows are slotted next to their sequence
-    // neighbors (not stranded at top/bottom) — shared with the web ActionsTab.
-    // The source's own "Effective date" row carries the Revisor's published date,
-    // which reads as the whole law's date even when only some sections start then.
-    // Drop it and emit one row per date the law states about ITSELF, from the same
-    // shared entries the web timeline uses (#715). "…effective" titles keep the
-    // existing green/SCHEDULED dot rules with no new logic.
-    const scheduleEntries = bill.effectiveSchedule
-      ? effectiveTimelineEntries(bill.effectiveSchedule)
-      : [];
-    // Match on the RAW source label, the same field the backend keys the Revisor's
-    // published row off ("Effective date"), so the two cannot drift apart.
-    const sourceActions = scheduleEntries.length
-      ? bill.actions.filter(
-          (a) => !/^effective date/i.test((a.actionText ?? a.description ?? '').trim()),
-        )
-      : bill.actions;
-    const actions = orderActionsForTimeline([
-      ...sourceActions,
-      ...scheduleEntries.map((entry, i) => ({
-        id: `effective-${i}`,
-        date: entry.date,
-        description: entry.title,
-        meta: entry.meta,
-        note: entry.note,
-      })),
-    ]).map((a) => {
-      const upcoming = a.date ? isUpcoming(a.date, now) : false;
-      const { dot, isVote } = classifyAction(a, upcoming);
-      return { ...a, upcoming, dot, isVote };
-    });
+    // The curated, newest-first timeline — the SAME shared builder the web Actions
+    // tab calls (#559), so a given record reads identically on a phone and a laptop.
+    // Everything the mobile screen used to do itself now lives in there: plain-
+    // language titles, collapsed co-author runs and floor-passage clusters, deduped
+    // cross-chamber rows, chamber-labelled tallies, the resolved effective-date
+    // schedule rows (#715), and the glossary of terms actually shown.
+    const { rows: actionRows, glossary: actionGlossary } = buildActionTimeline(
+      bill.actions,
+      bill.votes,
+      now,
+      bill.effectiveSchedule,
+    );
     // Show only outcome-determining roll calls (final passage, repassage,
     // concurrence, veto override, conference-report adoption, de-facto kill
     // votes), newest first — the same shared classifier + order the web Votes
@@ -563,7 +522,8 @@ function BillDetailMobileScreen() {
       datePhased: effective?.phased ?? false,
       overviewUrl,
       readUrl,
-      actions,
+      actionRows,
+      actionGlossary,
       rolls,
       hasVotes,
       // ONE last-updated stamp for the whole page, shown by every source line
@@ -882,21 +842,16 @@ function BillDetailMobileScreen() {
               </Text>
               <Text style={styles.intro}>Every official step this bill has taken.</Text>
               <ActionLegend />
-              {vm.actions.length > 0 ? (
-                <View style={styles.timeline}>
-                  {/* action_number isn't unique in the source data, so a.id can
-                      collide — index-suffix the key to keep it stable + unique. */}
-                  {vm.actions.map((a, i) => (
-                    <ActionRow
-                      key={`${a.id}-${i}`}
-                      action={a}
-                      onViewVotes={a.isVote && vm.hasVotes ? () => jumpTo('votes') : undefined}
-                    />
-                  ))}
-                </View>
+              {vm.actionRows.length > 0 ? (
+                <MobileActionsTimeline
+                  rows={vm.actionRows}
+                  glossary={vm.actionGlossary}
+                  onViewVotes={vm.hasVotes ? () => jumpTo('votes') : undefined}
+                />
               ) : (
                 <Text style={styles.emptyLine}>No recorded actions yet.</Text>
               )}
+              <Text style={styles.sourceLine}>{billSourceText(vm.updatedLabel)}</Text>
             </Section>
 
             {/* 5 — Votes */}
@@ -1221,16 +1176,79 @@ function ActionLegend() {
   );
 }
 
-function ActionRow({
-  action,
+// Up to this many co-author names show before the group row collapses the rest
+// behind a "+N more" toggle — same cap as the web Actions tab.
+const NAME_CAP = 3;
+
+// The curated timeline plus its plain-language key, in mobile's single-column
+// sizing. Every row already arrived cooked from buildActionTimeline; this only
+// owns the layout and the per-group "+N more" open/closed state.
+function MobileActionsTimeline({
+  rows,
+  glossary,
   onViewVotes,
 }: {
-  // `meta` / `note` only ever ride on the synthesized effective-date rows (#715).
-  action: BillAction & { upcoming: boolean; dot: Dot; meta?: string; note?: string };
+  rows: TimelineRow[];
+  glossary: Array<{ term: string; def: string }>;
   onViewVotes?: () => void;
 }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  return (
+    <>
+      <View style={styles.timeline}>
+        {rows.map((row) => (
+          <ActionRow
+            key={row.id}
+            row={row}
+            expanded={expanded.has(row.id)}
+            onToggle={() => toggle(row.id)}
+            onViewVotes={row.showVotes ? onViewVotes : undefined}
+          />
+        ))}
+      </View>
+      {glossary.length ? (
+        <View style={styles.actionKeyBox}>
+          <Text style={styles.actionKeyLabel}>PLAIN-LANGUAGE KEY</Text>
+          <View style={styles.actionKeyList}>
+            {glossary.map((g) => (
+              <Text key={g.term} style={styles.actionKeyItem}>
+                <Text style={styles.actionKeyTerm}>{g.term}</Text>
+                <Text> — {g.def}</Text>
+              </Text>
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+function ActionRow({
+  row,
+  expanded,
+  onToggle,
+  onViewVotes,
+}: {
+  row: TimelineRow;
+  expanded: boolean;
+  onToggle: () => void;
+  onViewVotes?: () => void;
+}) {
+  // A row's title is grey for exactly ONE reason: the step hasn't happened yet.
+  // Same rule and same token as the web tab (#734) — a past step dimmed by type
+  // would read as pending.
+  const scheduled = row.dot === 'scheduled';
+  const names = row.authors ?? [];
   const dotStyle = (() => {
-    switch (action.dot) {
+    switch (row.dot) {
       case 'green':
         return { backgroundColor: t.colors.brand.base };
       case 'red':
@@ -1259,29 +1277,72 @@ function ActionRow({
         <View style={[styles.actionDot, dotStyle]} />
       </View>
       <View style={styles.actionBody}>
-        {action.date ? <Text style={styles.actionDate}>{formatMonoDate(action.date)}</Text> : null}
+        {/* An author group spanning several days states both ends; every other row
+            states its one date. Already display-formatted by the shared builder. */}
+        {row.dateRange || row.date ? (
+          <Text style={styles.actionDate}>{row.dateRange || row.date}</Text>
+        ) : null}
         <View style={styles.actionTitleRow}>
-          <Text style={[styles.actionTitle, action.upcoming && { color: t.colors.text.faint }]}>
-            {action.description}
-          </Text>
-          {action.upcoming ? (
+          {names.length ? (
+            <ActionAuthorTitle names={names} expanded={expanded} onToggle={onToggle} />
+          ) : (
+            <Text style={[styles.actionTitle, scheduled && styles.actionTitleScheduled]}>
+              {row.title}
+            </Text>
+          )}
+          {row.tally ? (
+            <View style={styles.actionTally}>
+              <Text style={styles.actionTallyText}>{row.tally}</Text>
+            </View>
+          ) : null}
+          {scheduled ? (
             <View style={styles.scheduledBadge}>
               <Text style={styles.scheduledBadgeText}>SCHEDULED</Text>
             </View>
           ) : null}
         </View>
-        {action.meta ? <Text style={styles.actionMeta}>{action.meta}</Text> : null}
+        {row.meta ? <Text style={styles.actionMeta}>{row.meta}</Text> : null}
         {/* The sections that state no date. Deliberately UNDATED — no dot and
             nothing in the date column — because placing it on a day would mean
             picking one of the two Minn. Stat. 645.02 candidates (#715). */}
-        {action.note ? (
+        {row.note ? (
           <View style={styles.undatedNote}>
-            <Text style={styles.undatedNoteText}>{action.note}</Text>
+            <Text style={styles.undatedNoteText}>{row.note}</Text>
           </View>
         ) : null}
         {onViewVotes ? <TextLink label="View votes →" size={15} onPress={onViewVotes} /> : null}
       </View>
     </View>
+  );
+}
+
+// A collapsed co-author group: "N co-authors added — name, name, name +M more".
+// Names past NAME_CAP hide behind an in-place toggle. It reads in the same weight
+// and ink as any other row that has happened — the collapsing is what keeps it
+// quiet, not a dimmer treatment.
+function ActionAuthorTitle({
+  names,
+  expanded,
+  onToggle,
+}: {
+  names: string[];
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  if (names.length < 2) {
+    return <Text style={styles.actionTitle}>Co-author added — {names[0] ?? ''}</Text>;
+  }
+  const hidden = Math.max(0, names.length - NAME_CAP);
+  const shown = expanded ? names : names.slice(0, NAME_CAP);
+  return (
+    <Text style={styles.actionTitle}>
+      {names.length} co-authors added — {shown.join(', ')}
+      {hidden > 0 ? (
+        <Text onPress={onToggle} style={styles.actionMoreLink}>
+          {expanded ? '  show less' : `  +${hidden} more`}
+        </Text>
+      ) : null}
+    </Text>
   );
 }
 
@@ -2398,6 +2459,47 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     flexShrink: 1,
   },
+  // The ONE reason a title is grey: it hasn't happened yet. Same token as the web
+  // tab so the rule cannot drift between the two platforms (#559).
+  actionTitleScheduled: { color: t.colors.text.muted },
+  actionMoreLink: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.green,
+  },
+  actionTally: {
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+    backgroundColor: t.colors.surfaces.s400,
+    borderRadius: t.radii.badge,
+  },
+  actionTallyText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  // Plain-language key — one definition per line (mobile is a single column), and
+  // separated from the timeline by WHITESPACE rather than the web tab's hairline:
+  // a border here collides with the vertical timeline line running down beside it
+  // (NEXT-bill-detail-spec.md §Actions).
+  actionKeyBox: { marginTop: 18 },
+  actionKeyLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.4,
+    color: t.colors.text.muted,
+  },
+  actionKeyList: { marginTop: 12, gap: 9 },
+  actionKeyItem: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    color: t.colors.text.secondary,
+  },
+  actionKeyTerm: { fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
   scheduledBadge: {
     paddingVertical: 3,
     paddingHorizontal: 9,

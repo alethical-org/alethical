@@ -489,8 +489,14 @@ top bar on mobile) — NOT buried in a menu — and stays reachable from every t
   clause + the color word — the dot reads brownish, so naming it "amber" invited a mismatch).
   **"Your legislators"
   card/teaser moved BELOW the roll cards** (content leads; personalization/CTA follows).
-- **Source line consolidated to ONE** at the very bottom (under Versions); the per-section
-  Votes source was removed — mobile is a single scroll, so one page-level citation covers it.
+- **Source line — SUPERSEDED.** This screen originally consolidated to ONE line at the very
+  bottom (under Versions), on the reasoning that a single scroll needs one page-level citation.
+  [#734](https://github.com/alethical-org/alethical/pull/734) reversed that: the line is now one
+  shared string (`billSourceText` in `components/billDetail/SourceLine.tsx`) closing **every**
+  record section — Actions, Votes, Versions, Bill Text — identical on mobile and web, because a
+  reader who lands mid-scroll on a Votes tally should not have to reach the bottom of the page
+  to see where the record came from. Actions was the last section without one and got it in
+  [#559](https://github.com/alethical-org/alethical/issues/559).
 - **Copy:** "legislative session" RESTORED on this screen (educational) — eyebrow reads
   "{CHAMBER} · 2025–2026 LEGISLATIVE SESSION". Rule reversed in CLAUDE.md; other screens to
   follow separately.
