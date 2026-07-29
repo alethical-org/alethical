@@ -3155,6 +3155,148 @@ def test_bills_sort_default_is_latest_action_unchanged(client):
     assert default_files == [90008, 90004, 90003, 90002, 90001, 90006, 90005, 90007]
 
 
+SEARCH_SORT_SESSION_SLUG = "test-search-sort-fixture"
+
+
+def _seed_search_sort_bills(schema) -> str:
+    """Idempotently seed three listed bills that all match the keyword "transit"
+    but whose relevance, legislative-stage and recency orders are deliberately
+    three DIFFERENT orders, into a dedicated isolated session. Returns its slug.
+
+    Only HF 91001 carries "transit" in its *title*, so it wins on relevance; HF
+    91002 is the only enacted one, so it wins on progress; HF 91003 has the most
+    recent action, so it wins on latest_action. Any sort that silently ranks by
+    relevance first therefore returns HF 91001 for all three options."""
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    from alethical.db.session import get_session_factory
+
+    # (file_number, title, description, current_status, latest_action_at)
+    fixtures = [
+        (
+            91001,
+            "Transit funding for metropolitan routes",
+            "Appropriates money for route operations.",
+            "Introduction and first reading",
+            datetime(2025, 1, 1, tzinfo=timezone.utc),
+        ),
+        (
+            91002,
+            "Metropolitan council appropriations",
+            "Provides transit operating aid.",
+            "Governor approval; chapter number 46",
+            datetime(2025, 2, 1, tzinfo=timezone.utc),
+        ),
+        (
+            91003,
+            "Highway construction standards",
+            "Adjusts transit corridor planning.",
+            "Introduction and first reading",
+            datetime(2025, 3, 1, tzinfo=timezone.utc),
+        ),
+    ]
+    with get_session_factory()() as db:
+        base_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        house = db.scalar(select(schema.Chamber).where(schema.Chamber.slug == "house"))
+        assert base_session is not None and house is not None
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == SEARCH_SORT_SESSION_SLUG
+            )
+        )
+        if session_row is None:
+            session_row = schema.LegislativeSession(
+                jurisdiction_id=base_session.jurisdiction_id,
+                slug=SEARCH_SORT_SESSION_SLUG,
+                session_number=9995,
+                session_type=schema.SessionType.regular,
+                year_start=2995,
+                year_end=2996,
+                name="Search-sort fixture session",
+                is_current=False,
+            )
+            db.add(session_row)
+            db.flush()
+        for (
+            file_number,
+            title,
+            description,
+            current_status,
+            latest_action_at,
+        ) in fixtures:
+            bill_key = f"{SEARCH_SORT_SESSION_SLUG}-HF{file_number}"
+            if db.scalar(select(schema.Bill).where(schema.Bill.bill_key == bill_key)):
+                continue
+            bill = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=house.id,
+                bill_key=bill_key,
+                file_type="HF",
+                file_number=file_number,
+                title=title,
+                description=description,
+                current_status=current_status,
+                latest_action_at=latest_action_at,
+                official_url=f"https://example.test/hf{file_number}",
+                is_omnibus=False,
+            )
+            db.add(bill)
+            db.flush()
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=bill.id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={"summary": "Fixture summary."},
+                    is_current=True,
+                )
+            )
+        db.commit()
+    return SEARCH_SORT_SESSION_SLUG
+
+
+def test_bills_search_sort_options_each_reorder_results(client):
+    """Every Search Bills sort option must actually change the order of a keyword
+    search. Relevance used to be prepended to *every* ordering, so "Best match"
+    and "Legislative progress" were byte-identical and "Latest action" only
+    reshuffled relevance ties — three menu items, one result list. Relevance is
+    now scoped to sort=relevance ("Best match")."""
+    from alethical.db.schema import load_schema
+
+    session_slug = _seed_search_sort_bills(load_schema())
+    search = {"session": session_slug, "q": "transit", "limit": 100}
+
+    def files(**extra):
+        response = client.get("/api/v1/bills", params={**search, **extra})
+        assert response.status_code == 200
+        return [item["file_number"] for item in response.json()["data"]]
+
+    relevance = files(sort="relevance")
+    progress = files(sort="progress")
+    latest = files(sort="latest_action")
+
+    # All three fixtures match the keyword, so each sort ranks the same 3 bills.
+    assert {*relevance} == {*progress} == {*latest} == {91001, 91002, 91003}
+    # Each option leads with the bill its label promises: closest keyword match
+    # (title hit), furthest along (the enacted one), most recent action.
+    assert relevance[0] == 91001
+    assert progress[0] == 91002
+    assert latest[0] == 91003
+    # ...and the stage / recency sorts are fully deterministic (no trigram input).
+    assert progress == [91002, 91003, 91001]
+    assert latest == [91003, 91002, 91001]
+
+    # No explicit sort + a free-text query still leads with the closest match, so
+    # the #573 relevance ranking stays the search default for every API caller.
+    assert files() == relevance
+
+
 INTRODUCED_SORT_SESSION_SLUG = "test-introduced-sort-fixture"
 
 

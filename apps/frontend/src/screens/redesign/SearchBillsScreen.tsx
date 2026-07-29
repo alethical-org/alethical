@@ -86,12 +86,14 @@ const STATUS_OPTIONS = [
   { label: 'Vetoed', value: 'vetoed' },
 ];
 
-// Sort keys map to the API's `sort` param. Relevance leads automatically whenever
-// a keyword query is present (server-side, #573), so "Best match" is offered only
-// then and defaults there. "Most tracked" is a roadmap option — inert, shown once.
+// Sort keys map to the API's `sort` param. "Best match" (sort=relevance) ranks by
+// keyword closeness (#573) tie-broken by progress, so it is offered only while a
+// query is present and defaults there; the other two order by stage and by recency
+// with no relevance ahead of them, so each option really does reorder the results.
+// "Most tracked" is a roadmap option — inert, shown once.
 type SortKey = 'best' | 'progress' | 'action';
-const SORT_TO_API: Record<SortKey, 'progress' | 'latest_action'> = {
-  best: 'progress',
+const SORT_TO_API: Record<SortKey, 'relevance' | 'progress' | 'latest_action'> = {
+  best: 'relevance',
   progress: 'progress',
   action: 'latest_action',
 };
