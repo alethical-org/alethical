@@ -2480,13 +2480,11 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
-  // Plain-language key — one definition per line (mobile is a single column).
-  actionKeyBox: {
-    marginTop: 8,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink08,
-  },
+  // Plain-language key — one definition per line (mobile is a single column), and
+  // separated from the timeline by WHITESPACE rather than the web tab's hairline:
+  // a border here collides with the vertical timeline line running down beside it
+  // (NEXT-bill-detail-spec.md §Actions).
+  actionKeyBox: { marginTop: 18 },
   actionKeyLabel: {
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.caption,
