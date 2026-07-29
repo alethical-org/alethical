@@ -4,13 +4,13 @@ import os
 from urllib.parse import unquote, urlparse
 
 import pytest
-from conftest import assert_local_database
 
 from alethical.db.session import (
     database_url_for_target,
     load_dotenv_if_present,
     supabase_database_url,
 )
+from alethical.tests.local_database_guard import assert_local_database
 
 # Env vars supabase_database_url() reads directly. Tests must control all of
 # them so a developer's local .env (loaded at import time by load_dotenv_if_present)
