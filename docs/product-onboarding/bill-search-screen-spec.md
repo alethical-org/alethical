@@ -100,9 +100,12 @@ header's stacking context and, as an earlier sibling, paints under the card list
 
 Each sort option must genuinely reorder the results, so keyword relevance is applied
 **only** to `sort=relevance` ("Best match"). The API originally prepended relevance to
-*every* ordering whenever a query was present, which made "Best match" and "Legislative
-progress" byte-identical and left "Latest action" reshuffling relevance ties — three menu
-items, one list. Omitting `sort` on a free-text search still ranks best-match-first, so
+*every* ordering whenever a query was present ([#726](https://github.com/alethical-org/alethical/pull/726)), with two consequences: "Best match" and
+"Legislative progress" were **byte-identical on every query** (the frontend also mapped its
+`best` key to `sort=progress`, so they sent the same request), and "Latest action" only
+reordered *within* bands of equal relevance — measured on the production corpus that ranged
+from no visible change at all ("social media minors", a bill-number lookup) to one swapped
+pair ("guns"). Omitting `sort` on a free-text search still ranks best-match-first, so
 relevance stays the search default for every API caller ([#573](https://github.com/alethical-org/alethical/issues/573)).
 
 No author filter in v1 — possible on the ingested data, but out of scope for this screen.
