@@ -163,6 +163,17 @@ function spaceFileNumbers(value: string): string {
   });
 }
 
+// The cross-reference target, ready to sit after "See also". 50 production rows put
+// the verb in the value as well as the label — action_text "See" with
+// action_description "See First Special Session, HF5" — so prepending blindly gave
+// "See also See First Special Session, HF 5". Drop a leading See / See Also from the
+// target; everything after it is quoted as the source wrote it, including the one
+// row whose source misspells "First" as "Frist" (theirs to fix, not ours to
+// silently re-author).
+function crossReferenceTarget(desc: string): string {
+  return spaceFileNumbers(desc.trim().replace(/^see(\s+also)?[\s,:.-]*/i, ''));
+}
+
 // Split a raw author name-list ("Dippel, Zeleznikar, and Bakeberg") into names,
 // re-joining a trailing initial that a comma split off ("Lee, K." must stay one
 // name, not become "Lee" + "K.").
@@ -307,8 +318,17 @@ const ACTION_RULES: Rule[] = [
     // PR #736 fixed the bare "See" in this same builder from the mobile side, and
     // this rule replaces it — adding the two clerk variants it did not cover and
     // spacing file numbers the way the rest of the product writes them.)
-    test: (l, desc) => !!desc && (/^see\b/.test(l) || /^\(non-revisor companion\)/.test(l)),
-    build: (_t, desc) => ({ kind: 'procedural', title: `See also ${spaceFileNumbers(desc)}` }),
+    // The test requires a target that survives crossReferenceTarget, so a row whose
+    // description is nothing but the verb falls through to the raw-label fallback
+    // rather than becoming a bare "See also" — which would be the very defect this
+    // rule exists to remove. No production row does that today.
+    test: (l, desc) =>
+      !!crossReferenceTarget(desc || '') &&
+      (/^see\b/.test(l) || /^\(non-revisor companion\)/.test(l)),
+    build: (_t, desc) => ({
+      kind: 'procedural',
+      title: `See also ${crossReferenceTarget(desc)}`,
+    }),
   },
   // --- Committee / referral / calendar ---
   {
