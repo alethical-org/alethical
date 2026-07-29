@@ -454,6 +454,25 @@ const ACTION_RULES: Rule[] = [
     test: (l) => /not adopted/.test(l),
     build: () => ({ kind: 'notAdopted', title: 'Amendment not adopted' }),
   },
+  // --- Cross-reference ---
+  // The source writes a bare "See" / "See Also" and puts the target it points at
+  // (the enacted chapter and section the bill's language ended up in, or a
+  // companion) in action_description. Left alone the row is a verb pointing at
+  // nothing — the same defect as a title ending on a preposition, which
+  // TRAILING_PREPOSITION doesn't catch because "see" isn't one. The API mapping
+  // already completes this row (data/api.ts, detailIsConnectorTarget); this is the
+  // same completion for the curated timeline, so the pointer survives on both
+  // surfaces. The target is quoted as the source states it, never re-interpreted:
+  // "See" is a pointer, and saying where the text was enacted would assert more
+  // than the record does. A row with no target keeps the bare label rather than
+  // inventing one; the corpus has none today (1,155 of 1,155 carry a target).
+  {
+    test: (l) => /^see(\s+also)?$/.test(l.trim()),
+    build: (_t, desc) => ({
+      kind: 'procedural',
+      title: desc ? `See ${desc}` : 'See',
+    }),
+  },
 ];
 
 // Humanize an unmatched raw label defensively: strip clerk prefixes/codes so a
