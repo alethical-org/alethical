@@ -154,6 +154,15 @@ type Rule = {
   build: (text: string, desc: string, committee: string) => Classified;
 };
 
+// "HF719" → "HF 719", so a cross-referenced file reads the way the rest of the
+// product writes a bill number. Leaves any surrounding words alone ("First Special
+// Session, SF17" → "First Special Session, SF 17").
+function spaceFileNumbers(value: string): string {
+  return value.trim().replace(/\b(HF|SF)\s*0*(\d+)/gi, (_m, prefix, digits) => {
+    return `${prefix.toUpperCase()} ${digits}`;
+  });
+}
+
 // Split a raw author name-list ("Dippel, Zeleznikar, and Bakeberg") into names,
 // re-joining a trailing initial that a comma split off ("Lee, K." must stay one
 // name, not become "Lee" + "K.").
@@ -252,6 +261,55 @@ const ACTION_RULES: Rule[] = [
       title: desc ? `Co-author added — ${splitNames(desc).join(', ')}` : 'Co-author added',
     }),
   },
+  {
+    // The mirror of "Authors added": a name comes OFF the bill. The name is in
+    // action_description on all 298 production rows, and the clerk's "stricken"
+    // dropped it entirely before this rule existed (the row read a bare "Author
+    // stricken", which also gave no hint that anything was removed).
+    //
+    // Deliberately NOT kind 'authorAdd': that kind is what the run-collapse step
+    // merges into one "N co-authors added" row, so a removal tagged with it gets
+    // swallowed by the adds either side of it and the removed name is then listed
+    // as ADDED. A removal is its own row, always.
+    test: (l) => /^authors?\s+stricken/.test(l),
+    build: (_t, desc) => ({
+      kind: 'procedural',
+      title: desc ? `Co-author removed — ${splitNames(desc).join(', ')}` : 'Co-author removed',
+    }),
+  },
+  {
+    // "Author changed" carries a clerk sentence in action_description ("Hollins be
+    // shown as Chief Author", "Franson made chief author", "Bahner be shown as
+    // second author"). Take the name verbatim from the front of that sentence and
+    // say what changed; the row printed a bare "Author changed" before, dropping
+    // the name the record held (15 production rows).
+    test: (l) => /^authors?\s+changed/.test(l),
+    build: (_t, desc) => {
+      const name = desc.match(/^(.+?)\s+(?:be\s+shown\s+as|shown\s+as|made)\s+/i)?.[1] ?? desc;
+      if (!name) return { kind: 'chiefAuthor', title: 'Author changed' };
+      return /chief\s+author/i.test(desc)
+        ? { kind: 'chiefAuthor', title: `Chief author changed to ${name}` }
+        : { kind: 'chiefAuthor', title: `Author order changed — ${name}` };
+    },
+  },
+  // --- Cross-references ---
+  {
+    // The source's pointer rows: a bare "See" / "See Also", plus the clerk variants
+    // "See Senate file in House" and "(Non-revisor companion)". What is pointed at
+    // sits in action_description on all 1,227 production rows, yet the timeline
+    // printed just "See", which tells a reader nothing and does not even hint that
+    // there is another file to look at.
+    //
+    // The target is quoted as the source states it and never re-interpreted: 682
+    // rows name a file, 465 a special-session file, and 65 an enacted chapter and
+    // section ("Chapter 36, Article 4., Section 8."). Saying where the language
+    // "ended up" would assert more than the record does. (That reading is #559's:
+    // PR #736 fixed the bare "See" in this same builder from the mobile side, and
+    // this rule replaces it — adding the two clerk variants it did not cover and
+    // spacing file numbers the way the rest of the product writes them.)
+    test: (l, desc) => !!desc && (/^see\b/.test(l) || /^\(non-revisor companion\)/.test(l)),
+    build: (_t, desc) => ({ kind: 'procedural', title: `See also ${spaceFileNumbers(desc)}` }),
+  },
   // --- Committee / referral / calendar ---
   {
     test: (l) => /motion to recall and re-?refer/.test(l),
@@ -311,17 +369,21 @@ const ACTION_RULES: Rule[] = [
     build: () => ({ kind: 'procedural', title: 'Introduced' }),
   },
   {
-    // The other chamber takes up this file: first reading there, then a referral
-    // to one of ITS committees. The source names the committee in committee_name,
-    // not in the text, so without this rule the row fell through to the raw label
-    // and stopped dead on "…referred to". The sibling "referred for comparison"
-    // wording carries no committee and is deliberately left to the fallback.
-    test: (l) => /^(?:senate|house) file first reading,\s*referred to\s*$/.test(l),
+    // The other chamber takes up this file: first reading there, then either a
+    // referral to one of ITS committees (the committee arrives in committee_name,
+    // not in the text) or a hand-off for comparison against the companion. Reads
+    // "First reading of the Senate file, …" rather than the clerk's noun-pile
+    // "Senate file first reading" (36 + 33 production rows).
+    test: (l) => /^(?:senate|house) file first reading/.test(l),
     build: (text, _d, committee) => {
-      const phrase = text.trim().replace(TRAILING_REFERRAL, '');
+      const chamber = /^senate/i.test(text.trim()) ? 'Senate' : 'House';
+      const opening = `First reading of the ${chamber} file`;
+      if (/referred for comparison/i.test(text)) {
+        return { kind: 'procedural', title: `${opening}, sent for comparison` };
+      }
       return {
         kind: 'procedural',
-        title: committee ? `${phrase}, referred to ${committee}` : phrase,
+        title: committee ? `${opening}, referred to ${committee}` : opening,
       };
     },
   },
@@ -371,6 +433,78 @@ const ACTION_RULES: Rule[] = [
       title: /offered/i.test(text) ? 'Amendments offered on the floor' : 'Amended on the floor',
     }),
   },
+  {
+    // "Special Order: Rule 45 amendment stricken" (14 rows). The raw-label fallback
+    // strips the rule number and left "Special Order: amendment stricken".
+    test: (l) => /^special order.*amendment.*stricken/.test(l),
+    build: () => ({ kind: 'procedural', title: 'Floor amendment removed' }),
+  },
+  {
+    // A bare "Special Order" (87 rows) told the reader nothing. It is the chamber
+    // moving a bill ahead of the regular calendar to be taken up on the floor.
+    test: (l) => /^special order$/.test(l),
+    build: () => ({ kind: 'procedural', title: 'Moved up for a floor vote' }),
+  },
+  // --- Set aside / taken back up ---
+  {
+    // "Laid on table" / "Bill laid on table in House" (41 rows). "On the table" is
+    // legislative idiom for parked, and reads to everyone else as the opposite of
+    // what it means (a bill "on the table" sounds like it is being discussed).
+    test: (l) => /^(?:bill |motion )?laid on (?:the )?table/.test(l),
+    build: (text) => ({
+      kind: 'procedural',
+      title: /^motion/i.test(text.trim()) ? 'Motion set aside' : 'Set aside',
+    }),
+  },
+  {
+    test: (l) => /^taken from (?:the )?table/.test(l),
+    build: () => ({ kind: 'procedural', title: 'Taken back up' }),
+  },
+  {
+    // "HF indefinitely postponed" (36 rows). The source names no file number here,
+    // so the row says which chamber's companion without inventing a number.
+    //
+    // Stays 'procedural', NOT 'notAdopted': the red dot means "not adopted" in the
+    // legend, and this happened to the COMPANION file. A red dot here would read as
+    // this bill having been killed.
+    test: (l) => /^(hf|sf) indefinitely postponed/.test(l),
+    build: (text) => ({
+      kind: 'procedural',
+      title: `${/^hf/i.test(text.trim()) ? 'House' : 'Senate'} companion bill set aside indefinitely`,
+    }),
+  },
+  {
+    // "HF substituted in committee" (96 rows) with the file in action_description:
+    // the companion took this file's place, so the committee worked from that one.
+    test: (l, desc) => !!desc && /^(hf|sf) substituted in committee/.test(l),
+    build: (_t, desc) => ({
+      kind: 'procedural',
+      title: `Replaced in committee by companion ${spaceFileNumbers(desc)}`,
+    }),
+  },
+  // --- Procedural objections and suspended rules ---
+  {
+    // "ruled well taken" means the chair agreed with the objection; "not well
+    // taken" means the chair disagreed. Neither reads as English (14 rows).
+    test: (l) => /point of order/.test(l),
+    build: (text) => ({
+      kind: 'procedural',
+      title: /not well taken/i.test(text)
+        ? 'Procedural objection raised and overruled'
+        : 'Procedural objection raised and upheld',
+    }),
+  },
+  {
+    // "Urgency declared rules suspended" / "Rules suspended, urgency declared" (4).
+    test: (l) => /urgency declared|rules suspended/.test(l),
+    build: () => ({ kind: 'procedural', title: 'Normal rules set aside to move quickly' }),
+  },
+  {
+    // "Rule 12.10:  report of votes in committee" (6 rows). The raw-label fallback
+    // stripped the rule number and left a title starting with a colon.
+    test: (l) => /report of votes in committee/.test(l),
+    build: () => ({ kind: 'procedural', title: 'Committee vote record filed' }),
+  },
   // --- Between-chamber reconciliation ---
   {
     test: (l) =>
@@ -381,7 +515,11 @@ const ACTION_RULES: Rule[] = [
     }),
   },
   {
-    test: (l) => /bills? not identical.*substitut/.test(l),
+    // Covers the "Bills identical, SF substituted on General Register" wording too
+    // (28 rows), which printed raw clerk text — "General Register" is the Senate's
+    // floor queue and means nothing to a reader. The identical / not-identical
+    // distinction is clerk bookkeeping; what happened is the substitution.
+    test: (l) => /bills? (?:not )?identical.*substitut/.test(l),
     build: () => ({
       kind: 'procedural',
       title: 'Companion bill substituted for this file',
@@ -454,25 +592,10 @@ const ACTION_RULES: Rule[] = [
     test: (l) => /not adopted/.test(l),
     build: () => ({ kind: 'notAdopted', title: 'Amendment not adopted' }),
   },
-  // --- Cross-reference ---
-  // The source writes a bare "See" / "See Also" and puts the target it points at
-  // (the enacted chapter and section the bill's language ended up in, or a
-  // companion) in action_description. Left alone the row is a verb pointing at
-  // nothing — the same defect as a title ending on a preposition, which
-  // TRAILING_PREPOSITION doesn't catch because "see" isn't one. The API mapping
-  // already completes this row (data/api.ts, detailIsConnectorTarget); this is the
-  // same completion for the curated timeline, so the pointer survives on both
-  // surfaces. The target is quoted as the source states it, never re-interpreted:
-  // "See" is a pointer, and saying where the text was enacted would assert more
-  // than the record does. A row with no target keeps the bare label rather than
-  // inventing one; the corpus has none today (1,155 of 1,155 carry a target).
-  {
-    test: (l) => /^see(\s+also)?$/.test(l.trim()),
-    build: (_t, desc) => ({
-      kind: 'procedural',
-      title: desc ? `See ${desc}` : 'See',
-    }),
-  },
+  // The bare "See" / "See Also" rule that #736 added here is gone: the broader
+  // cross-reference rule further up (search "Cross-references") now matches those
+  // rows first, so this one was unreachable. Two rules for one input is how a rules
+  // list starts lying about what it does — its reasoning is carried up there.
 ];
 
 // Humanize an unmatched raw label defensively: strip clerk prefixes/codes so a
@@ -483,6 +606,11 @@ function humanizeFallback(text: string): string {
     .replace(/\brule\s+\d+[.\d]*[- ]?/gi, '')
     .replace(/\bsubst\.?\b/gi, 'substituted')
     .replace(/\s{2,}/g, ' ')
+    // Stripping a leading rule number leaves the punctuation that followed it, so a
+    // row could open on ":" or "," ("Rule 12.10: report of votes" → ": report of
+    // votes"). Drop any leading punctuation the strip orphaned.
+    .replace(/^[\s,;:.—-]+/, '')
+    .replace(/\s+([,;:])/g, '$1')
     .trim();
   if (s) s = s.charAt(0).toUpperCase() + s.slice(1);
   return s || text;
