@@ -612,7 +612,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.text.primary,
     borderRadius: t.radii.md,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    // Trailing chevron, so 3px less on the right (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 16,
+    paddingRight: 13,
   },
   seeWhoOpen: { backgroundColor: t.colors.surfaces.base },
   seeWhoText: {
@@ -788,7 +790,9 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.purple.base,
     borderRadius: t.radii.md,
     paddingVertical: 14,
-    paddingHorizontal: 26,
+    // Trailing arrow glyph, so 3px less on the right (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 26,
+    paddingRight: 23,
   },
   askCtaHover: { backgroundColor: '#4a26b0' },
   askCtaText: {

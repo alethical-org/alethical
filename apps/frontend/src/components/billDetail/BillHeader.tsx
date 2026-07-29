@@ -266,7 +266,11 @@ function SharePopover({ url, title }: { url: string; title: string }) {
                 accessibilityLabel="Bill link"
                 style={[styles.shareUrlInput, isWeb ? ({ outlineStyle: 'none' } as object) : null]}
               />
-              <Pressable accessibilityRole="button" onPress={copy} style={styles.shareCopyBtn}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={copy}
+                style={[styles.shareCopyBtn, copied && styles.shareCopyBtnCopied]}
+              >
                 {copied ? (
                   <>
                     <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
@@ -482,7 +486,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    // Leading share glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 17,
+    paddingRight: 20,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink16,
@@ -574,6 +580,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
+  // Copied state adds a leading checkmark glyph, so 3px less on the left
+  // (docs/design/design-principles.md §2, Optical centering). The plain "Copy"
+  // text state has no icon, so the base style stays untrimmed for it.
+  shareCopyBtnCopied: { paddingLeft: 13 },
   shareCopyText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,

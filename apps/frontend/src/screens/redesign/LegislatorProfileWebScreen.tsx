@@ -1515,7 +1515,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink16,
     borderRadius: t.radii.md,
     paddingVertical: 11,
-    paddingHorizontal: 16,
+    // Trailing chevron, so 3px less on the right (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 16,
+    paddingRight: 13,
   },
   sessionBtnHover: { borderColor: t.colors.alpha.ink32, backgroundColor: t.colors.surfaces.s200 },
   sessionBtnText: {
@@ -1556,7 +1558,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1faf4',
     borderRadius: 10,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    // Trailing checkmark, so 3px less on the right (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 14,
+    paddingRight: 11,
   },
   sessionActiveText: {
     fontFamily: t.typography.ui,
@@ -1623,7 +1627,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
     paddingVertical: 6,
-    paddingHorizontal: 12,
+    // Leading companion/votes glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 9,
+    paddingRight: 12,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink16,
@@ -1768,7 +1774,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.brand.base,
     borderRadius: t.radii.md,
     paddingVertical: 13,
-    paddingHorizontal: 22,
+    // Leading shield glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 19,
+    paddingRight: 22,
   },
   claimBtnHover: { backgroundColor: '#28bf71', borderColor: '#28bf71' },
   claimBtnText: {
@@ -1976,7 +1984,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingVertical: 16,
-    paddingHorizontal: 24,
+    // Leading share glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 21,
+    paddingRight: 24,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink16,

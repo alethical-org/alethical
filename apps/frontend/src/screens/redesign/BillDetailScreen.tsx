@@ -1920,7 +1920,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink16,
     borderRadius: 10,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    // Leading share glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 11,
+    paddingRight: 14,
     minHeight: 44,
   },
   shareBtnText: {
@@ -2440,7 +2442,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    // Trailing chevron, so 3px less on the right (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 14,
+    paddingRight: 11,
   },
   howToTitle: {
     fontFamily: t.typography.ui,
@@ -2623,7 +2627,9 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.purple.base,
     borderRadius: t.radii.md,
     paddingVertical: 12,
-    paddingHorizontal: 22,
+    // Trailing arrow glyph, so 3px less on the right (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 22,
+    paddingRight: 19,
   },
   noVotesAskText: {
     fontFamily: t.typography.ui,

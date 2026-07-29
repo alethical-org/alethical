@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TextStyle,
   View,
   ViewStyle,
 } from 'react-native';
@@ -915,29 +916,65 @@ function SortIcon() {
   );
 }
 
-// --- Empty state: dashed card, active-filter chips (bills), black Clear button ---
+// --- Empty state: dashed card (icon · heading · one line of copy · one button) ---
+//
+// The bills card deliberately does NOT echo the active filters as a chip row. The
+// real, removable chips sit ~90px above in facet colour with working ✕ buttons; a
+// non-interactive lookalike below invites a click that does nothing, sits *below*
+// the line telling you to remove filters *above*, and disagreed with the real row
+// (it added the legislative session, which is always active and can only be
+// changed, never cleared).
 export function NoResults({
   variant,
   total,
-  activeFilters,
+  filterCount,
+  query,
   onClear,
 }: {
   variant: 'bills' | 'legislators';
   total?: number | null;
-  activeFilters?: string[];
+  /** Bills only: how many removable filter chips are active. Drives the copy. */
+  filterCount?: number;
+  /** Bills only: the search term, when one is active. */
+  query?: string;
   onClear: () => void;
 }) {
   const noun = variant === 'bills' ? 'bills' : 'legislators';
-  const heading =
-    variant === 'bills' ? 'No bills match your search' : 'No legislators match your search';
-  // A multi-sentence body paragraph, so it keeps normal punctuation (unlike the
-  // one-line captions and readouts on this screen, which take no terminal
-  // period). Without a `total` to quote, the fallback used to be the fragment
-  // "Try broadening or clearing them." — "them" with no antecedent.
-  const body =
-    typeof total === 'number'
-      ? `Your filters returned 0 of ${total.toLocaleString('en-US')} ${noun}. Try broadening or clearing them.`
-      : 'That’s the overlap of everything you’ve selected. Remove one above, or clear them all, to widen your search.';
+  // Bills copy branches on the filter stack, because one generic message is wrong
+  // in the most common zero-result state — a typo'd search with nothing else
+  // applied — where it names a filter stack the user never built. None of the
+  // three takes a terminal period. Legislators keeps its existing copy.
+  //
+  // A count of 0 is practically unreachable (no filters returns every bill), so it
+  // falls through to the multi-filter wording rather than earning a fourth state.
+  const onlyFilterIsQuery = filterCount === 1 && !!query;
+  const onlyFilterIsFacet = filterCount === 1 && !query;
+  let heading: string;
+  let body: string;
+  if (variant === 'legislators') {
+    heading = 'No legislators match your search';
+    // A multi-sentence body paragraph, so it keeps normal punctuation (unlike the
+    // one-line captions and readouts on this screen, which take no terminal
+    // period). Without a `total` to quote, the fallback used to be the fragment
+    // "Try broadening or clearing them." — "them" with no antecedent.
+    body =
+      typeof total === 'number'
+        ? `Your filters returned 0 of ${total.toLocaleString('en-US')} ${noun}. Try broadening or clearing them.`
+        : 'That’s the overlap of everything you’ve selected. Remove one above, or clear them all, to widen your search.';
+  } else if (onlyFilterIsQuery) {
+    // Curly quotes, matching the keyword chip's own label.
+    heading = `No bills match “${query}”`;
+    body = 'Try fewer or different words, or check the spelling';
+  } else if (onlyFilterIsFacet) {
+    heading = 'No bills match that filter';
+    body = 'Try a different one, or clear it to see every bill';
+  } else {
+    // "all of these filters" names the actual cause: the intersection. Plural
+    // "filters" in the subtitle is deliberate — with several stacked, removing one
+    // often still returns zero, so a singular instruction sets the user up to fail.
+    heading = 'No bills match all of these filters';
+    body = 'Remove filters above, or clear them all, to widen your search';
+  }
   return (
     <View style={styles.noResults}>
       <View style={styles.noResultsIcon}>
@@ -960,35 +997,49 @@ export function NoResults({
           )}
         </Svg>
       </View>
-      <Text accessibilityRole="header" style={styles.noResultsHeading}>
+      <Text
+        accessibilityRole="header"
+        style={[styles.noResultsHeading, variant === 'bills' && WRAP_ANYWHERE]}
+      >
         {heading}
       </Text>
       <Text style={styles.noResultsBody}>{body}</Text>
-      {activeFilters && activeFilters.length > 0 ? (
-        <View style={styles.noResultsChips}>
-          {activeFilters.map((filter) => (
-            <View key={filter} style={styles.noResultsChip}>
-              <Text style={styles.noResultsChipText}>{filter}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-      <ClearFiltersButton onPress={onClear} />
+      <ClearButton variant={variant} onPress={onClear} />
     </View>
   );
 }
 
-function ClearFiltersButton({ onPress }: { onPress: () => void }) {
+// The bills heading can quote the user's search term, so it needs to break inside
+// a word rather than let a long unbroken string overflow the card. RN has no style
+// key for it; RN-Web passes unknown properties straight through to CSS.
+const WRAP_ANYWHERE = { overflowWrap: 'anywhere' } as unknown as TextStyle;
+
+// Bills: the same action as the chip row's "Clear all", and in the zero state both
+// are on screen at once — so it takes the same name and the same pill shape
+// (999px). Shape is a convention here: PILL = the applied-filter layer (the active
+// chips and any Clear all acting on them); ROUNDED-RECT (11–12px) = the controls
+// you use to *build* a query (chamber, status, session, omnibus, issues, sort).
+// Black, not green: green is reserved for forward actions (Sign in, Track, Copy).
+// Legislators keeps its own label and rounded-rect until that card is revisited.
+function ClearButton({
+  variant,
+  onPress,
+}: {
+  variant: 'bills' | 'legislators';
+  onPress: () => void;
+}) {
   const [hovered, hover] = useHover();
+  const isBills = variant === 'bills';
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={isBills ? 'Clear all filters' : undefined}
       onPress={onPress}
       {...hover}
-      style={[styles.clearBtn, hovered && { backgroundColor: '#000000' }]}
+      style={[styles.clearBtn, isBills && styles.clearBtnPill, hovered && styles.clearBtnHover]}
     >
       <X size={15} color={t.colors.white} strokeWidth={2.2} />
-      <Text style={styles.clearBtnText}>Clear filters</Text>
+      <Text style={styles.clearBtnText}>{isBills ? 'Clear all' : 'Clear filters'}</Text>
     </Pressable>
   );
 }
@@ -1046,7 +1097,11 @@ function PageButton({
       disabled={disabled}
       onPress={onPress}
       {...hover}
-      style={[styles.pageBtn, disabled ? styles.pageBtnDisabled : hovered && styles.pageBtnHover]}
+      style={[
+        styles.pageBtn,
+        direction === 'prev' ? styles.pageBtnPrev : styles.pageBtnNext,
+        disabled ? styles.pageBtnDisabled : hovered && styles.pageBtnHover,
+      ]}
     >
       {direction === 'prev' ? <Icon size={15} color={color} strokeWidth={2.2} /> : null}
       <Text style={[styles.pageBtnText, { color }]}>
@@ -1118,7 +1173,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 10,
+    // Leading pin glyph, so 3px less on the left (see `clearBtn`).
+    paddingLeft: 7,
+    paddingRight: 10,
     minHeight: 44,
   },
   findByAddressText: {
@@ -1225,7 +1282,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink16,
     borderRadius: 12,
     paddingVertical: 11,
-    paddingHorizontal: 18,
+    // Trailing chevron, so 3px less on the right (see `clearBtn`).
+    paddingLeft: 18,
+    paddingRight: 15,
     minHeight: 44,
   },
   // Non-default (actively narrowing) dropdown: black fill / white label, matching
@@ -1290,7 +1349,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink16,
     borderRadius: 12,
     paddingVertical: 11,
-    paddingHorizontal: 18,
+    // Leading scales glyph, so 3px less on the left (see `clearBtn`).
+    paddingLeft: 15,
+    paddingRight: 18,
     minHeight: 44,
   },
   // Active (on): solid black fill + white text/icon, identical to the active
@@ -1552,13 +1613,17 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.ink,
     borderRadius: 999,
   },
+  // Leading-icon optical centering: 3px less on the left than the right (see the
+  // note on `clearBtn`). Measured before the fix: left edge to ✕ was 18px while
+  // "all" to the right edge was 15.5px, on identical 14px padding.
   clearAllBtnWeb: {
     borderWidth: 1,
     borderColor: t.colors.ink,
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingLeft: 11,
+    paddingRight: 14,
   },
-  clearAllBtnMobile: { paddingVertical: 9, paddingHorizontal: 13 },
+  clearAllBtnMobile: { paddingVertical: 9, paddingLeft: 10, paddingRight: 13 },
   clearAllBtnHover: { backgroundColor: '#000000', borderColor: '#000000' },
   clearAllText: {
     fontFamily: t.typography.ui,
@@ -1608,28 +1673,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
     textAlign: 'center',
   },
-  noResultsChips: {
-    marginTop: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  noResultsChip: {
-    backgroundColor: '#f6f8f7',
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink12,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  noResultsChipText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.secondary,
-  },
   clearBtn: {
     marginTop: 26,
     flexDirection: 'row',
@@ -1638,8 +1681,15 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.ink,
     borderRadius: 12,
     paddingVertical: 14,
-    paddingHorizontal: 26,
+    // Leading-icon optical centering: 26px on the right, 3px less on the left.
+    // Our icons sit on a 24-unit viewBox with the mark inset to the middle ~50%,
+    // so the glyph carries ~3px of empty box on its outer side; symmetric padding
+    // then reads ~3px off-centre against a label that sits flush to its own box.
+    paddingLeft: 23,
+    paddingRight: 26,
   },
+  clearBtnPill: { borderRadius: 999 },
+  clearBtnHover: { backgroundColor: '#000000' },
   clearBtnText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.body,
@@ -1668,6 +1718,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     minHeight: 44,
   },
+  // Optical centering (see `clearBtn`): Previous carries a leading chevron, Next a
+  // trailing one, so each trims 3px on the side its glyph sits.
+  pageBtnPrev: { paddingLeft: 19 },
+  pageBtnNext: { paddingRight: 19 },
   pageBtnHover: { borderColor: t.colors.brand.base },
   pageBtnDisabled: { borderColor: t.colors.alpha.ink12 },
   pageBtnText: {
