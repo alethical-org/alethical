@@ -584,18 +584,26 @@ def test_prompt_and_schema_require_plain_language_summaries_and_key_points() -> 
         assert "statute citation" in desc
 
 
-def test_prompt_and_schema_cap_key_points_at_six_by_merging() -> None:
-    """A bill shows AT MOST SIX key points, and over-long lists are MERGED down
-    rather than truncated — cutting the tail would silently drop the bill's later
-    substance (live SF 334 rendered ten bullets, several of them the same fact
-    twice). Ordering is by subject, not by section number: what the bill creates,
-    then when those bodies must act, then the money."""
-    assert ai_enrichment.SUMMARY_SCHEMA["properties"]["key_points"]["maxItems"] == 6
-
+def test_prompt_consolidates_key_points_with_six_as_a_target_not_a_quota() -> None:
+    """The rule is CONSOLIDATION; the count is whatever consolidating produces.
+    Six is a target, not a quota — a narrow bill returns fewer, and a genuine
+    omnibus with eight distinct subjects left after every merge returns eight.
+    Ordering is by subject, not by section number: what the bill creates, then
+    when those bodies must act, then the money."""
     prompt = ai_enrichment.SYSTEM_PROMPT
-    assert "AT MOST SIX" in prompt
-    # Merge, never truncate.
-    assert "MERGE; never truncate the list" in prompt
+
+    # Consolidation is the rule, and it decides the count.
+    assert "`key_points` is CONSOLIDATED" in prompt
+    assert (
+        "However many bullets remain after consolidating is the right number" in prompt
+    )
+    assert "six is a TARGET, not a quota" in prompt
+    # Neither failure mode: padding up to six, or dropping substance down to six.
+    assert "Do NOT pad to reach six" in prompt
+    assert (
+        "Do NOT drop, truncate, or compress away the bill's later substance" in prompt
+    )
+    assert "return eight" in prompt
     # The three merge rules: same fact for two bodies, appropriations, restatements.
     assert "differ only in which body, fund, or agency they name" in prompt
     assert "Merge every appropriation and transfer into ONE money bullet" in prompt
@@ -604,3 +612,23 @@ def test_prompt_and_schema_cap_key_points_at_six_by_merging() -> None:
     assert "ordered BY SUBJECT rather than by section number" in prompt
     # Only the points needing verbatim proof get a card.
     assert "do NOT pair a citation to every bullet" in prompt
+
+
+def test_key_points_schema_ceiling_is_a_runaway_guard_not_the_target() -> None:
+    """`maxItems` is enforced by strict Structured Outputs, and the model satisfies
+    it by TRUNCATING the tail rather than merging — verified against /v1/responses,
+    where a 12-item request came back as the first 6 with the rest silently dropped.
+    So the schema ceiling must sit well ABOVE the ~6 target: a ceiling at the target
+    would mechanically do the one thing the consolidation rule forbids, which is
+    drop the bill's later substance. It exists only to stop the pathological case
+    (one production bill carried 59 key points)."""
+    ceiling = ai_enrichment.SUMMARY_SCHEMA["properties"]["key_points"]["maxItems"]
+    # Comfortably above six, so ordinary bills are shaped by the prompt, not clipped.
+    assert ceiling >= 10, "a ceiling near the target truncates instead of merging"
+    # Still bounded — the guard has to actually guard.
+    assert ceiling <= 20
+
+    # The target lives in the prompt and the description, never as the ceiling.
+    desc = ai_enrichment.SUMMARY_SCHEMA["properties"]["key_points"]["description"]
+    assert "AIM FOR ABOUT SIX" in desc
+    assert "target" in desc and "not a quota" in desc
