@@ -211,24 +211,25 @@ This is a practical HATEOAS-lite approach, not a full hypermedia system.
 
 ### Error Format
 
-Use RFC 7807 style problem details:
+Use RFC 7807 style problem details. As shipped (verified against production, Jul 29 2026 — `GET /api/v1/bills?sort=bad`):
 
 ```json
 {
   "type": "https://api.alethical.com/problems/validation-error",
-  "title": "Invalid query parameter",
-  "status": 400,
-  "detail": "sort must be one of latest_action_at, file_number",
-  "instance": "/api/v1/bills?sort=bad",
-  "request_id": "req_123",
+  "title": "Validation Error",
+  "status": 422,
+  "detail": "Request validation failed",
+  "instance": "/api/v1/bills",
   "errors": [
     {
-      "field": "sort",
-      "message": "unsupported value"
+      "field": "query.sort",
+      "message": "Input should be 'relevance', 'latest_action', 'progress' or 'introduced'"
     }
   ]
 }
 ```
+
+Note the shipped shape differs from this section's original sketch: a bad query parameter is **422** (FastAPI validation), not 400; `title` is the generic `"Validation Error"` with the specifics in `errors[]`; `field` is namespaced (`query.sort`); and there is no `request_id` member.
 
 ### Pagination
 
@@ -270,8 +271,7 @@ Examples:
 - `?session=94-2025-regular`
 - `?q=education`
 - `?chamber=senate`
-- `?sort=latest_action_at`
-- `?order=desc`
+- `?sort=relevance` — also `latest_action` (the no-query default), `progress`, `introduced`. Each ordering is self-contained (direction included), so there is **no** separate `order` param; `relevance` is best-keyword-match-first and is what a free-text `q` resolves to when `sort` is omitted. See `docs/product-onboarding/bill-search-screen-spec.md` (Filters — Sort order) for why relevance is scoped to its own value.
 
 ### Caching
 
@@ -597,10 +597,9 @@ Purpose:
 
 - tracked bills screen
 
-Filters:
+Filters (**planned, none built yet** — the shipped endpoint takes no query parameters and returns every tracked bill in one page, ordered by `tracked_bills_stmt` in `alethical/db/models.py`):
 
-- `sort=updated_at|latest_action_at`
-- `order`
+- `sort` — would follow the `/bills` values (`relevance` / `latest_action` / `progress` / `introduced`), not the `updated_at|latest_action_at` sketched here
 - `limit`
 - `cursor`
 
