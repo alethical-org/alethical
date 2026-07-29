@@ -534,7 +534,7 @@ def bills(
     policy_area: list[str] | None = Query(default=None),
     omnibus: bool | None = None,
     include: str | None = None,
-    sort: Literal["latest_action", "progress", "introduced"] = "latest_action",
+    sort: Literal["relevance", "latest_action", "progress", "introduced"] | None = None,
     limit: int = Query(default=20, ge=0, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -552,11 +552,19 @@ def bills(
     )
     number_clause = bill_number_clause(q) if q else None
     # Relevance-rank only a free-text search — never a bill-number ID lookup.
-    text_query = q if (q and number_clause is None) else None
+    free_text = q if (q and number_clause is None) else None
+    # Relevance is opt-in via sort=relevance ("Best match"), so an explicit
+    # progress / latest_action / introduced sort genuinely reorders the results.
+    # Prepending relevance to every sort made all three Search Bills options
+    # return one identical ordering (#573 shipped the ranking; the sort control
+    # needs it scoped to its own option). No sort given + a free-text query still
+    # leads with the closest match, so the ranking stays the search default.
+    effective_sort = sort or ("relevance" if free_text else "latest_action")
+    text_query = free_text if effective_sort == "relevance" else None
     stmt = bill_list_stmt(
         session_row.id,
         user_id=tracking_user_id(include_set, current_user),
-        sort=sort,
+        sort=effective_sort,
         text_query=text_query,
     )
     if q:

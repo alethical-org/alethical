@@ -198,7 +198,7 @@ export interface LegislativeSession {
   isCurrent: boolean;
 }
 
-export type BillSort = 'latest_action' | 'progress' | 'introduced';
+export type BillSort = 'relevance' | 'latest_action' | 'progress' | 'introduced';
 
 export interface BillListFilters {
   chamber?: Chamber;
@@ -208,10 +208,12 @@ export interface BillListFilters {
   // query param. Empty/omitted → no issue filter (all issues).
   policyAreas?: string[];
   omnibus?: boolean;
-  // Result ordering. Omitted → API default (latest_action). 'progress' orders
-  // by legislative stage (signed → … → proposed), tie-broken by recency (#292).
-  // 'introduced' orders by real introduction date desc (most recently introduced
-  // first) — the date-backed sort the mobile home Bill Activity uses.
+  // Result ordering. Omitted → API default (relevance for a free-text search,
+  // latest_action otherwise). 'relevance' is Search Bills' "Best match": closest
+  // keyword match first, tie-broken by progress. 'progress' orders by legislative
+  // stage (signed → … → proposed), tie-broken by recency (#292). 'introduced'
+  // orders by real introduction date desc (most recently introduced first) — the
+  // date-backed sort the mobile home Bill Activity uses.
   sort?: BillSort;
 }
 

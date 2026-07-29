@@ -96,10 +96,16 @@ header's stacking context and, as an earlier sibling, paints under the card list
 | Session / year | dropdown | `session` |
 | Omnibus | toggle "Omnibus only" | `omnibus` |
 | Policy area | selectable pills **with live bill counts** ("Education 214") | `policy_area` (counts from `GET /policy-areas`) |
+| Sort order | "Sorted by" dropdown: Best match (offered, and the default, only while a keyword query is present) / Legislative progress / Latest action, plus an inert "Most tracked" roadmap row | `sort` — `relevance` / `progress` / `latest_action` |
 
-No author filter and no user-facing sort control in v1 (order is fixed to latest
-legislative action — hence the fixed "Sorted by latest action" label). Both are
-possible on the ingested data but out of scope for this screen.
+Each sort option must genuinely reorder the results, so keyword relevance is applied
+**only** to `sort=relevance` ("Best match"). The API originally prepended relevance to
+*every* ordering whenever a query was present, which made "Best match" and "Legislative
+progress" byte-identical and left "Latest action" reshuffling relevance ties — three menu
+items, one list. Omitting `sort` on a free-text search still ranks best-match-first, so
+relevance stays the search default for every API caller ([#573](https://github.com/alethical-org/alethical/issues/573)).
+
+No author filter in v1 — possible on the ingested data, but out of scope for this screen.
 
 ## Bill result card
 
@@ -209,7 +215,7 @@ Everything else on this screen runs on the current API.
 
 - **Meaning-based search and natural-language questions — Grounded Ask's job, not this box.** The search box matches the *words* you type (now word-form- and typo-tolerant, [#573](https://github.com/alethical-org/alethical/issues/573)); finding bills by *concept* when the words differ (e.g. "school money" → a bill that says "fund") or answering a full question ("what bills help teachers?", "how did my rep vote on housing?") is `docs/product-onboarding/grounded-ask-spec.md` (§3.1 natural-language Ask box, §4.1 router intents). This is why there is deliberately no "Ask AI instead" cross-sell from a failed search (see Empty / no-results state above; `.claude/rules/grounded-answers.md` rule 2).
 - Browse-by-policy-area side rail — [#130](https://github.com/alethical-org/alethical/issues/130), since **shipped** (closed Jul 24 2026); this section predates it.
-- User-facing sort control and author filter (data supports both; not built).
+- Author filter (data supports it; not built). The user-facing sort control **shipped** in [#610](https://github.com/alethical-org/alethical/issues/610) — see the Filters table above.
 - Bill export.
 
 ## Aesthetic
