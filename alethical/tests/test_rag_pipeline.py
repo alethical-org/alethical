@@ -516,7 +516,6 @@ def test_semantic_retrieval_excludes_non_current_versions() -> None:
                 bill_version_id=version.id,
                 citation_label=label,
                 clean_text="text",
-                search_text="text",
                 cleaning_version="v0.1",
                 source_hash=f"hash-{code}",
                 word_count=1,

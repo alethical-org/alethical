@@ -634,7 +634,6 @@ def ingest_bill_payload(
             bill_version_section_id=section_lookup[section_doc["section_id"]].id,
             citation_label=section_doc["citation_label"],
             clean_text=section_doc["clean_text"],
-            search_text=section_doc["search_text"],
             cleaning_version=section_doc["cleaning_version"],
             source_hash=section_doc["source_hash"],
             word_count=len(section_doc["clean_text"].split()),

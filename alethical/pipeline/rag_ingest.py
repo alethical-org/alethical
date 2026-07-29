@@ -80,9 +80,7 @@ def _deterministic_embedding(
     return [value / norm for value in values]
 
 
-def _chunk_payloads(
-    file_type: str, file_number: int, bill: Any, section: Any
-) -> dict[str, Any]:
+def _chunk_payloads(file_type: str, file_number: int, section: Any) -> dict[str, Any]:
     article_meta = {
         "article_id": section.article_id_text or "",
         "article_number": section.article_number or "",
@@ -107,15 +105,11 @@ def _chunk_payloads(
     )
     chunk_texts = rag_text.chunk_paragraphs(paragraphs, chunk_prefix)
 
-    section_prefix = rag_text.full_section_prefix(
-        file_type, file_number, bill.title or "", article_meta, section_payload
-    )
     return {
         "bill_version_section_id": section.id,
         "section_id_text": section.section_id_text,
         "citation_label": ", ".join(citation_parts),
         "clean_text": clean_text,
-        "search_text": f"{section_prefix}\n\n{clean_text}".strip(),
         "source_hash": section_source_hash,
         "word_count": rag_text.word_count(clean_text),
         "chunks": [
@@ -354,7 +348,6 @@ def _upsert_rag_section_with_chunks(
             bill_version_section_id=section_id,
             citation_label=section_payload["citation_label"],
             clean_text=section_payload["clean_text"],
-            search_text=section_payload["search_text"],
             cleaning_version=rag_text.CLEANING_VERSION,
             source_hash=section_payload["source_hash"],
             word_count=section_payload["word_count"],
@@ -369,7 +362,6 @@ def _upsert_rag_section_with_chunks(
                 "bill_id": bill_id,
                 "citation_label": section_payload["citation_label"],
                 "clean_text": section_payload["clean_text"],
-                "search_text": section_payload["search_text"],
                 "source_hash": section_payload["source_hash"],
                 "word_count": section_payload["word_count"],
             },
@@ -483,7 +475,7 @@ def build_rag_rows_for_bill_keys(
             continue
 
         prepared_sections = [
-            _chunk_payloads(str(bill.file_type), bill.file_number, bill, section)
+            _chunk_payloads(str(bill.file_type), bill.file_number, section)
             for section in sections
         ]
         summary["bills_processed"] += 1
