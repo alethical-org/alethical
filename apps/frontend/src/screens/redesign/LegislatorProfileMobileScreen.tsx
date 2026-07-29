@@ -1181,7 +1181,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink16,
     borderRadius: 10,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    // Leading share glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 11,
+    paddingRight: 14,
   },
   shareBtnText: {
     fontFamily: t.typography.ui,
@@ -1294,7 +1296,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink16,
     borderRadius: 11,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    // Trailing chevron, so 3px less on the right (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 14,
+    paddingRight: 11,
   },
   sessionBtnText: {
     fontFamily: t.typography.ui,
@@ -1456,7 +1460,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingVertical: 6,
-    paddingHorizontal: 11,
+    // Leading vote-tally glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 8,
+    paddingRight: 11,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink16,
@@ -1540,7 +1546,9 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.brand.base,
     borderRadius: 12,
     paddingVertical: 13,
-    paddingHorizontal: 20,
+    // Leading shield glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
+    paddingLeft: 17,
+    paddingRight: 20,
   },
   claimBtnText: {
     fontFamily: t.typography.ui,

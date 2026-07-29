@@ -77,6 +77,19 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   - **Icon-only controls** (close ✕, hamburger, social glyphs, bare chevrons) → **no change**;
     symmetric padding is correct with no label.
 
+  Three cases the rule deliberately does **not** reach, found while sweeping:
+  - **A button with no horizontal padding at all** (breadcrumbs, bare text+chevron rows) — there is
+    nothing to trim, and adding a negative margin would pull the glyph outside the content column.
+  - **A full-width button that centres its content** (`justifyContent: 'center'`, no side padding) —
+    the group is centred as a block, so the error is half as large (~1.5px) and the correction would
+    be padding on the side *away* from the icon rather than a trim. Left alone until it's measured.
+  - **An icon inside its own tile** (the mega-menu rows' 40×40 icon square, the capability cards'
+    48×48 tile, the version rows' 38×38 box) — the tile already centres the glyph, so the inset
+    never reaches the button's edge.
+
+  A control whose icon appears in **only one state** (the share popover's Copy → Copied) trims in
+  that state only, via a sibling style, so the text-only state stays centred.
+
   Build new buttons this way. It applies to auth-gated controls (account nav, Sign out,
   Track/Tracking, Continue with Google) as soon as sign-in ships; they were skipped on the first
   sweep only because they are not on the live signed-out site
