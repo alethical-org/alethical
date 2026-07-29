@@ -928,3 +928,85 @@ def test_upsert_bill_links_companion_symmetrically(seed_database: None) -> None:
         assert hf.companion_bill_id == sf.id
 
         session.rollback()
+
+
+GUTTED_BILL_XML = """<?xml version="1.0"?>
+<BILL>
+  <SESSION_NUMBER>94</SESSION_NUMBER>
+  <SESSION_YEAR>2025</SESSION_YEAR>
+  <FILE_TYPE>SF</FILE_TYPE>
+  <FILE_NUMBER>5001</FILE_NUMBER>
+  <REVISOR_NUMBER>25-5001</REVISOR_NUMBER>
+  <DESCRIPTION>Human Services Systems Modernization Advisory Council</DESCRIPTION>
+  <ACTIONS>
+    <senate>
+      <ACTION>
+        <ACTION_NUMBER>1</ACTION_NUMBER>
+        <ACTION_TEXT>Introduction and first reading</ACTION_TEXT>
+        <ACTION_DATE>2025-01-10 00:00:00</ACTION_DATE>
+      </ACTION>
+    </senate>
+  </ACTIONS>
+  <TEXT_VERSION_LIST></TEXT_VERSION_LIST>
+</BILL>
+"""
+
+
+def test_upsert_bill_refreshes_title_on_reingest(seed_database: None) -> None:
+    """#708 regression: title must be refreshed on every run, not written once
+    when the row is created. MN bills get gutted and replaced mid-session (SF 334
+    was introduced as an education bill and enacted as a human-services one), so a
+    create-only title left the page headline stuck on the introduced subject
+    forever. A parse miss must keep the stored title rather than blanking it back
+    to the bill key or the short description."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical = parse_bill_xml(GUTTED_BILL_XML)
+        key = canonical["bill_key"]
+
+        def _ingest(title_text: str) -> Bill:
+            run = pipeline.start_run("bill", str(key))
+            xml_artifact = pipeline.record_artifact(
+                run,
+                ArtifactType.xml,
+                f"https://example.test/{key}.xml",
+                GUTTED_BILL_XML,
+            )
+            html_artifact = pipeline.record_artifact(
+                run,
+                ArtifactType.html,
+                f"https://example.test/{key}.html",
+                "<html></html>",
+            )
+            bill_text = {
+                "sections": [],
+                "articles": [],
+                "source_url": f"https://example.test/{key}.html",
+                "bill_title_text": title_text,
+            }
+            bill = pipeline.upsert_bill(
+                refs, canonical, bill_text, run, xml_artifact, html_artifact
+            )
+            session.flush()
+            return bill
+
+        introduced = "A bill for an act relating to education; modifying the Read Act."
+        bill = _ingest(introduced)
+        bill_id = bill.id
+        assert bill.title == introduced
+
+        # The bill is gutted and replaced: the current version's title is now a
+        # different subject entirely. The stored title must follow it, on the same
+        # row (a refresh, not a second Bill).
+        enacted = "A bill for an act relating to state government; creating a council."
+        bill = _ingest(enacted)
+        assert bill.id == bill_id
+        assert bill.title == enacted
+
+        # A run whose title parse comes up empty keeps the good stored title
+        # instead of falling back to the bill key or the short description.
+        bill = _ingest("")
+        assert bill.title == enacted
+
+        session.rollback()
