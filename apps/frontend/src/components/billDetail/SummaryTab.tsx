@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { theme as t } from '../../theme/tokens';
+import { theme as t, prefersReducedMotion } from '../../theme/tokens';
 import { Bill } from '../../data/types';
 import {
   askCardPrompts,
@@ -19,6 +19,16 @@ import { isWeb, useHover } from './interactions';
 // Sticky sidebar is web-only (RN has no 'sticky' position) — applied inline so it
 // stays out of StyleSheet.create's typed position union.
 const STICKY_RAIL = { position: 'sticky', top: 24 } as object;
+
+// Citation-card hover/focus easing. Web-only, and dropped under reduced motion
+// (#193) so the lift lands instantly rather than animating.
+const CARD_TRANSITION = isWeb
+  ? ({
+      transitionProperty: 'background-color, border-color, box-shadow',
+      transitionDuration: '0.15s',
+      transitionTimingFunction: 'ease',
+    } as object)
+  : null;
 
 // Summary tab — two columns on desktop (1.4fr content / 1fr rail), stacked on
 // narrow. Left: key points (the plain-language summary) → From the bill excerpts →
@@ -230,8 +240,10 @@ function CitationCard({
   onPress?: () => void;
 }) {
   const [hovered, hover] = useHover();
+  const { focused, focusProps } = useFieldFocus();
   const pressable = !!onPress;
   const chipLabel = citationChipLabel(label, sectionTopic);
+  const lifted = pressable && (hovered || focused);
   return (
     <Pressable
       accessibilityRole={pressable ? 'button' : undefined}
@@ -239,7 +251,12 @@ function CitationCard({
       onPress={onPress}
       disabled={!pressable}
       {...(pressable ? hover : {})}
-      style={[styles.excerptCard, pressable && hovered && styles.excerptCardHover]}
+      {...(pressable ? focusProps : {})}
+      style={[
+        styles.excerptCard,
+        pressable && !prefersReducedMotion() ? CARD_TRANSITION : null,
+        lifted && styles.excerptCardLift,
+      ]}
     >
       <View style={styles.excerptChipRow}>
         <View style={styles.excerptChip}>
@@ -339,9 +356,22 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
-  excerptCardHover: {
-    borderColor: t.colors.purple.border,
-    backgroundColor: t.colors.purple.tint,
+  // Hover AND keyboard focus: the surface LIFTS off the page's grey (#f7f9f8 →
+  // white) and the colour is carried by the border + one tight ring. It must not
+  // tint, because the purple tint it used to take is the same fill the section
+  // chip inside the card uses — so the chip dissolved into the card at the exact
+  // moment you were about to click through it, leaving only its 1px border.
+  //
+  // The rule this sets, anywhere a filled chip or badge sits inside a card
+  // (citation cards, bill cards with the amber code badge, result rows with facet
+  // chips): the container's hover moves along the NEUTRAL axis, never into the
+  // chip's own colour family. Ring matches askChipHover below.
+  excerptCardLift: {
+    backgroundColor: t.colors.white,
+    borderColor: t.colors.purple.base,
+    ...(isWeb
+      ? { boxShadow: '0 0 0 3px rgba(91,48,214,0.14)' }
+      : (t.shadows.focusPurple as object)),
   },
   excerptChipRow: { flexDirection: 'row', maxWidth: '100%' },
   excerptChip: {
