@@ -138,6 +138,13 @@ class AICitationPayload(BaseModel):
     url: str
     excerpt: str
     section_id: str
+    # Short topic from the cited section's own heading ("License classes"), served
+    # separately from `label` so the client composes the chip once. The stored
+    # label's shape varies by when the bill was enriched, so concatenating here
+    # would double up a topic it already carries; the client normalizes the label
+    # and appends this only when the result has none. Empty when the section has no
+    # heading worth showing, which renders the number alone.
+    section_topic: str = ""
 
 
 class AIAnalysisPayload(BaseModel):

@@ -546,6 +546,7 @@ def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
             "url": url,
             "excerpt": "a grant program",
             "section_id": "1.1",
+            "section_topic": "",
         },
         {
             "id": "2.1-1",
@@ -553,7 +554,17 @@ def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
             "url": url,
             "excerpt": "an annual report",
             "section_id": "2.1",
+            "section_topic": "",
         },
+    ]
+    # A served topic rides alongside the label rather than being concatenated into
+    # it: the stored label's shape varies by when the bill was enriched, so the
+    # client normalizes the label and appends the topic only if none survives.
+    topics = {"1.1": "License classes", "9.9": "Ignored — no such citation"}
+    with_topics = serializers.ai_citation_payloads(content, url, topics)
+    assert [(c.label, c.section_topic) for c in with_topics] == [
+        ("Section 1.1", "License classes"),
+        ("Section 2.1", ""),
     ]
     # No resolvable official URL → no dead-link citations (grounded-answers rule 5).
     assert serializers.ai_citation_payloads(content, None) == []
@@ -582,6 +593,66 @@ def test_prompt_and_schema_require_plain_language_summaries_and_key_points() -> 
         desc = props[field].get("description", "")
         assert "Plain-language" in desc
         assert "statute citation" in desc
+
+
+def test_section_chip_topic_reads_both_heading_columns() -> None:
+    """A citation chip's topic comes from the cited section's own heading, and which
+    column holds it depends on what the section does:
+
+      * free-standing law  -> section_heading = "Sec. 14. TRANSFER."
+      * statute create/amend -> section_heading = "Sec. 2." (bare), and the topic is
+        on the cite line: cite_heading = "[16E.40] ADVISORY COUNCIL."
+
+    Reading only section_heading is why most chips rendered a number and no topic
+    (on SF 334 sections 1-4 are the statute-creating kind). Consulting both takes
+    corpus coverage from 22.0% of sections to 40.2%, measured against production.
+    """
+    from alethical.api.serializers import section_chip_topic as topic
+
+    # Free-standing law: the section's own heading, shouted, downcased.
+    assert topic("Sec. 14. TRANSFER.", None) == "Transfer"
+    assert topic("Section 1. REPEALER.", None) == "Repealer"
+    # Statute create/amend: falls through to the cite heading, bracketed number
+    # dropped (a raw statute citation never reaches display copy — grounded-answers
+    # rule 9).
+    assert topic("Sec. 2.", "[16E.40] HUMAN SERVICES SYSTEMS MODERNIZATION FUND.") == (
+        "Human services systems modernization fund"
+    )
+    # A cite heading can carry the number bare rather than bracketed.
+    assert topic("Sec. 9.", "174.56 REPORT ON TRUNK HIGHWAY PERFORMANCE") == (
+        "Report on trunk highway performance"
+    )
+    # A compound heading keeps its first clause, the heading's own primary term.
+    assert topic("Sec. 7. APPROPRIATION; COUNTY IT SYSTEMS UPDATES.", None) == (
+        "Appropriation"
+    )
+    # Mixed case is the drafter's own and is preserved.
+    assert topic("Sec. 5. Office of Higher Education", None) == (
+        "Office of Higher Education"
+    )
+    # No topic anywhere -> "" so the chip renders the number alone, never a
+    # dangling middot.
+    assert topic("Sec. 3.", None) == ""
+    assert topic("Sec. 3.", "[16A.10]") == ""
+    assert topic(None, None) == ""
+
+    # The Revisor marks amendments with literal words inline. Such a heading is
+    # dropped, not cleaned: choosing which words survive would restate the law.
+    assert (
+        topic(
+            "Sec. 4.",
+            "174.56 REPORT ON deleted text begin MAJOR PROJECTS,deleted text end "
+            "TRUNK HIGHWAY PERFORMANCE",
+        )
+        == ""
+    )
+    assert topic("Sec. 4. new text begin GRANTS new text end", None) == ""
+
+    # Too long to sit on a chip -> dropped rather than truncated, because a cut-off
+    # phrase reads as broken while the number alone is a designed state.
+    assert topic(f"Sec. 8. {'A' * 61}", None) == ""
+    # At the limit it is kept, and an all-caps heading downcases whole.
+    assert topic(f"Sec. 8. {'A' * 60}", None) == "A" + "a" * 59
 
 
 def test_prompt_consolidates_key_points_with_six_as_a_target_not_a_quota() -> None:

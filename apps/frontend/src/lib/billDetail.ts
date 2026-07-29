@@ -1250,13 +1250,26 @@ export function plainKeyPoints(points: string[] | undefined): string[] {
 // alethical/pipeline/ai_enrichment.py emits this shape); this mirrors
 // plainBillSummary's role — it no-ops on an already-clean label and still fixes
 // every bill enriched before that change.
-export function citationChipLabel(label: string): string {
+export function citationChipLabel(label: string, sectionTopic?: string): string {
+  const withTopic = (out: string) => {
+    // The served topic fills in only what normalizing the label didn't already
+    // produce. Composing here rather than server-side is what keeps one
+    // normalizer: the stored label's shape varies by when the bill was enriched
+    // ("SF 334, Sec. 14. TRANSFER." vs "Sec. 14 · Transfer"), so appending on the
+    // server doubled the topic onto labels that already carried it.
+    const topic = (sectionTopic ?? '').trim();
+    if (!topic || out.includes(' · ') || !/^(?:Art\. [\w.-]+, )?Sec\. [\w.-]+$/.test(out)) {
+      return out;
+    }
+    return `${out} · ${topic}`;
+  };
+
   let s = (label ?? '').trim();
   if (!s) return '';
 
   // Already canonical (the shape _chip_label now stores at source) — leave it be,
   // so this cleaner no-ops rather than re-formatting its own output.
-  if (/^(?:Art\. [\w.-]+, )?Sec\. [\w.-]+(?: · \S.*)?$/.test(s)) return s;
+  if (/^(?:Art\. [\w.-]+, )?Sec\. [\w.-]+(?: · \S.*)?$/.test(s)) return withTopic(s);
 
   // Drop a leading bill code ("SF 334, " / "H.F. No. 12 — ").
   s = s.replace(
@@ -1287,7 +1300,7 @@ export function citationChipLabel(label: string): string {
   const number = `Sec. ${sec[1]}`;
   const topic = sentenceCaseHeading(sec[2] ?? '');
   // No dangling middot when a section has no usable heading.
-  return topic ? `${article}${number} · ${topic}` : `${article}${number}`;
+  return topic ? `${article}${number} · ${topic}` : withTopic(`${article}${number}`);
 }
 
 // Turn a shouted statutory heading into a short sentence-case topic: "TRANSFER."

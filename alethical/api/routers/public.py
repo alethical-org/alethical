@@ -30,6 +30,7 @@ from alethical.api.serializers import (
     current_service_payload,
     district_payload,
     legislator_list_item,
+    section_chip_topic,
     service_history_payload,
     sponsor_payloads,
     tracking_payload,
@@ -1269,6 +1270,38 @@ def _current_version_sections(
     return [(r[0], r[1]) for r in rows]
 
 
+def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
+    """section_id_text -> short chip topic, for the current version's sections.
+
+    Fills in the "· Topic" half of the Summary tab's citation chips at request time,
+    so every already-enriched bill gets one rather than only the bills a future
+    re-enrichment happens to touch (the stored label carries the number alone for
+    the statute-amending sections, which are most of the cited ones).
+
+    Three short text columns for one version's sections — the detail route already
+    reads this table for the effective-date schedule, and citations only render on
+    this endpoint (the list serializer passes no official_url, so it emits none).
+    """
+    current = next((v for v in (bill_row.versions or []) if v.is_current), None)
+    if current is None:
+        return {}
+    rows = db.execute(
+        select(
+            BillVersionSection.section_id_text,
+            BillVersionSection.section_heading,
+            BillVersionSection.cite_heading,
+        ).where(BillVersionSection.bill_version_id == current.id)
+    ).all()
+    topics: dict[str, str] = {}
+    for section_id_text, section_heading, cite_heading in rows:
+        if not section_id_text:
+            continue
+        topic = section_chip_topic(section_heading, cite_heading)
+        if topic:
+            topics[section_id_text] = topic
+    return topics
+
+
 def verified_effective_date(db: Session, bill_row) -> str | None:
     """The enacted bill's statutory effective date, verbatim, or None (detail page).
 
@@ -1460,7 +1493,7 @@ def bill_detail(
         if "tracking" in include_set and current_user
         else None,
         "ai_analysis": ai_analysis_payload_for_enrichment(
-            ai_enrichment, row.official_url
+            ai_enrichment, row.official_url, _citation_section_topics(db, row)
         ),
         "ai_summary": ai_enrichment.content_json if ai_enrichment else None,
     }

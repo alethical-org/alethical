@@ -106,6 +106,7 @@ export function SummaryTab({
                   <CitationCard
                     key={c.id}
                     label={c.label}
+                    sectionTopic={c.sectionTopic}
                     excerpt={c.excerpt}
                     onPress={
                       onCitationPress && c.sectionId
@@ -219,16 +220,18 @@ function AskModule({
 // cap line instead of optically centred on the label.
 function CitationCard({
   label,
+  sectionTopic,
   excerpt,
   onPress,
 }: {
   label: string;
+  sectionTopic?: string;
   excerpt: string;
   onPress?: () => void;
 }) {
   const [hovered, hover] = useHover();
   const pressable = !!onPress;
-  const chipLabel = citationChipLabel(label);
+  const chipLabel = citationChipLabel(label, sectionTopic);
   return (
     <Pressable
       accessibilityRole={pressable ? 'button' : undefined}
@@ -340,8 +343,12 @@ const styles = StyleSheet.create({
     borderColor: t.colors.purple.border,
     backgroundColor: t.colors.purple.tint,
   },
-  excerptChipRow: { flexDirection: 'row' },
+  excerptChipRow: { flexDirection: 'row', maxWidth: '100%' },
   excerptChip: {
+    // Same reason as the mobile chip: the topic can make the label longer than a
+    // narrow card, so let it stop at the card and wrap rather than run past it.
+    maxWidth: '100%',
+    flexShrink: 1,
     backgroundColor: t.colors.purple.tint,
     borderWidth: 1,
     borderColor: t.colors.purple.border,
@@ -358,7 +365,21 @@ const styles = StyleSheet.create({
   },
   // Decorative "→": the chip's own font and size, weight 400 so it reads lighter
   // than the 700 label.
-  excerptChipArrow: { fontWeight: t.fontWeights.regular },
+  //
+  // Nudged up 2.6px (0.2 × the 13px font size) because the glyph is not actually
+  // JetBrains Mono's. Measured: in JetBrains Mono every glyph shares one advance
+  // (digit 48.0, letter 48.0 at 80px) but "→" comes out 48.16 — the font has no
+  // U+2192, so the browser substitutes it from a fallback. That fallback centres
+  // the arrow on the maths axis (0.175em above the baseline) while digits and
+  // capitals centre at 0.375em, leaving it 0.2em low against its own label.
+  // `position: relative` + `top`, not `transform`: CSS ignores transforms on
+  // inline boxes, and splitting the arrow out of the text flow would break
+  // wrapping. Same root cause as the missing arrow in Libre Franklin.
+  excerptChipArrow: {
+    fontWeight: t.fontWeights.regular,
+    position: 'relative',
+    top: -2.6,
+  },
   excerptQuote: {
     marginTop: 9,
     paddingLeft: 12,

@@ -11,6 +11,11 @@ export interface Citation {
   url: string;
   /** Statute section this key point cites, keyed to a Bill Text section (#377). */
   sectionId: string;
+  /** Short topic from the cited section's own heading ("License classes"), served
+   *  separately from `label` because the stored label's shape varies by when the
+   *  bill was enriched. citationChipLabel appends it only when normalizing the
+   *  label leaves no topic. Empty when the section has none worth showing. */
+  sectionTopic?: string;
 }
 
 export interface OfficialLink {

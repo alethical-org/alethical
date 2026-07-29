@@ -709,7 +709,7 @@ function BillDetailMobileScreen() {
                       <Pressable
                         key={`${c.id}-${i}`}
                         accessibilityRole="button"
-                        accessibilityLabel={`Jump to ${citationChipLabel(c.label)} in Bill Text`}
+                        accessibilityLabel={`Jump to ${citationChipLabel(c.label, c.sectionTopic)} in Bill Text`}
                         disabled={!c.sectionId}
                         onPress={() => {
                           setFtAnchor(c.sectionId);
@@ -720,7 +720,9 @@ function BillDetailMobileScreen() {
                           pressed && styles.citedChipPressed,
                         ]}
                       >
-                        <Text style={styles.citedChipText}>{citationChipLabel(c.label)}</Text>
+                        <Text style={styles.citedChipText}>
+                          {citationChipLabel(c.label, c.sectionTopic)}
+                        </Text>
                       </Pressable>
                     ))}
                   </View>
@@ -2119,6 +2121,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 5,
     paddingHorizontal: 11,
+    // A chip now carries the section's topic, so it can be longer than a phone is
+    // wide ("Sec. 2 · Human services systems modernization advisory council").
+    // Without these it kept its full intrinsic width and the text was clipped off
+    // the right edge; now it stops at the column and wraps to a second line.
+    maxWidth: '100%',
+    flexShrink: 1,
   },
   citedChipPressed: { opacity: 0.6 },
   citedChipText: {
