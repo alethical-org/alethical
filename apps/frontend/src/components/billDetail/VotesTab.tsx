@@ -118,9 +118,7 @@ export function VotesTab({
         ))}
       </View>
 
-      <SourceLine
-        text={`Source: Minnesota Legislature · roll-call records · revisor.mn.gov · ${updatedLabel}`}
-      />
+      <SourceLine updatedLabel={updatedLabel} />
     </View>
   );
 }
@@ -232,13 +230,16 @@ function RollCard({
       </Pressable>
 
       {/* meta: date (when served) + official-record link — outside the toggle button
-          so the link isn't an interactive element nested inside a button. */}
+          so the link isn't an interactive element nested inside a button. ONE Text,
+          so the date and the link share a family, size, line-height and baseline;
+          the link used to sit in its own flex box beside a margin-topped date, which
+          made it ride visibly higher than the date to its left. */}
       {vote.date || vote.officialUrl ? (
-        <View style={styles.metaRow}>
-          {vote.date ? <Text style={styles.meta}>{formatMonoDate(vote.date)}</Text> : null}
-          {vote.date && vote.officialUrl ? <Text style={styles.meta}> · </Text> : null}
+        <Text style={styles.metaLine}>
+          {vote.date ? formatMonoDate(vote.date) : ''}
+          {vote.date && vote.officialUrl ? ' · ' : ''}
           {vote.officialUrl ? <RecordLink url={vote.officialUrl} onOpen={onOpenUrl} /> : null}
-        </View>
+        </Text>
       ) : null}
 
       {/* proportion bar */}
@@ -358,12 +359,33 @@ function PartyBlockView({
   );
 }
 
+// Inline in the meta line, NOT a Pressable: a pressable wrapper is a box with its
+// own height, which is what knocked the link off the date's baseline. Nested Text
+// keeps it on the normal text baseline and inherits the line's metrics — only the
+// colour and weight are its own. The arrow is a text glyph at the link's own size
+// and regular weight (a fixed-size SVG arrow would stub near the cap line); the
+// spelled-out accessibilityLabel is what screen readers announce, so the arrow is
+// never read out. Hover lives on the two web pointer handlers, which Text has no
+// types for (they belong to Pressable, the box we can't use) — hence the cast, the
+// same idiom this file already uses for web-only style values.
 function RecordLink({ url, onOpen }: { url: string; onOpen: (url: string) => void }) {
-  const [hovered, hover] = useHover();
+  const [hovered, setHovered] = useState(false);
+  const hoverProps = isWeb
+    ? ({
+        onPointerEnter: () => setHovered(true),
+        onPointerLeave: () => setHovered(false),
+      } as object)
+    : null;
   return (
-    <Pressable accessibilityRole="link" onPress={() => onOpen(url)} {...hover}>
-      <Text style={[styles.recordLink, hovered && styles.recordLinkHover]}>Official record →</Text>
-    </Pressable>
+    <Text
+      accessibilityRole="link"
+      accessibilityLabel="Official record"
+      onPress={() => onOpen(url)}
+      {...hoverProps}
+      style={[styles.recordLink, hovered && styles.recordLinkHover]}
+    >
+      Official record <Text style={styles.recordArrow}>→</Text>
+    </Text>
   );
 }
 
@@ -482,9 +504,7 @@ function NoVotes({
           </Svg>
         </Pressable>
       </View>
-      <SourceLine
-        text={`Source: Minnesota Legislature · roll-call records · revisor.mn.gov · ${updatedLabel}`}
-      />
+      <SourceLine updatedLabel={updatedLabel} />
     </View>
   );
 }
@@ -497,15 +517,27 @@ const styles = StyleSheet.create({
     color: t.colors.text.faint,
   },
   introStrong: { fontWeight: t.fontWeights.bold, color: t.colors.text.secondary },
-  metaRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  // The date and the official-record link, one line and one baseline.
+  metaLine: {
+    marginTop: 16,
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    lineHeight: 18,
+    letterSpacing: 0.6,
+    color: t.colors.text.muted,
+  },
+  // Same family, size, line-height and letter-spacing as the date beside it —
+  // only the colour and weight differ (kept explicit so native inherits nothing).
   recordLink: {
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.label,
+    lineHeight: 18,
+    letterSpacing: 0.6,
     fontWeight: t.fontWeights.semibold,
-    letterSpacing: 0.5,
     color: t.colors.text.green,
   },
   recordLinkHover: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+  recordArrow: { fontWeight: t.fontWeights.regular },
   crossLegend: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
   crossLegendText: {
     fontFamily: t.typography.body,
@@ -548,13 +580,6 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.small,
     lineHeight: 20,
     color: t.colors.text.faint,
-  },
-  meta: {
-    marginTop: 6,
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.label,
-    letterSpacing: 0.6,
-    color: t.colors.text.muted,
   },
   cardHeadRight: { flexDirection: 'row', alignItems: 'center', gap: 24 },
   badgeSlot: { minWidth: 70 },

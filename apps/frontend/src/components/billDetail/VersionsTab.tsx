@@ -52,7 +52,7 @@ export function VersionsTab({
         })}
       </View>
 
-      <SourceLine text={`Source: Minnesota Legislature · revisor.mn.gov · ${updatedLabel}`} />
+      <SourceLine updatedLabel={updatedLabel} />
     </View>
   );
 }

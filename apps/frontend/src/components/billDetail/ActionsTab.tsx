@@ -7,8 +7,8 @@ import { buildActionTimeline, TimelineDot, TimelineRow } from '../../lib/billDet
 import { SourceLine } from './SourceLine';
 import { useHover } from './interactions';
 
-// Up to this many co-author names show before the muted group row collapses the
-// rest behind a "+N more" toggle (point 4 — a quiet annotation, not a name-wall).
+// Up to this many co-author names show before the group row collapses the rest
+// behind a "+N more" toggle (point 4 — a quiet annotation, not a name-wall).
 const NAME_CAP = 3;
 
 // Actions tab — dot legend + reverse-chronological, plain-language timeline built
@@ -77,9 +77,7 @@ export function ActionsTab({
         </View>
       ) : null}
 
-      <SourceLine
-        text={`Source: Minnesota Legislature · bill status records · revisor.mn.gov · ${updatedLabel}`}
-      />
+      <SourceLine updatedLabel={updatedLabel} />
     </View>
   );
 }
@@ -96,10 +94,15 @@ function Row({
   onViewVotes: (rollIdx: number) => void;
 }) {
   const isGroup = !!row.authors && row.authors.length > 1;
+  // A row's title colour keys off ONE condition: has this happened yet. Grey means
+  // still to come (it pairs with the dashed dot and the SCHEDULED badge), so it can
+  // never also mean "a less interesting kind of action" — a past step dimmed by type
+  // reads as pending. Any future de-emphasis of low-signal rows needs its own tier.
+  const scheduled = row.dot === 'scheduled';
   return (
     <View style={styles.row}>
       <View style={styles.dateCol}>
-        <Text style={[styles.date, row.muted && styles.dateMuted]}>{row.date}</Text>
+        <Text style={styles.date}>{row.date}</Text>
         {row.dateRange ? <Text style={styles.dateRangeEnd}>{rangeEnd(row.dateRange)}</Text> : null}
       </View>
       <View style={styles.dotCol}>
@@ -111,7 +114,7 @@ function Row({
           {row.authors ? (
             <AuthorTitle row={row} expanded={expanded} onToggle={onToggle} isGroup={isGroup} />
           ) : (
-            <Text style={styles.title}>{row.title}</Text>
+            <Text style={[styles.title, scheduled && styles.titleScheduled]}>{row.title}</Text>
           )}
           {row.tally ? (
             <View style={styles.tallyChip}>
@@ -139,8 +142,10 @@ function Row({
   );
 }
 
-// A muted co-author group: "N co-authors added — name, name, name +M more".
-// Names beyond NAME_CAP hide behind an in-place toggle (point 4).
+// A co-author group: "N co-authors added — name, name, name +M more". Names beyond
+// NAME_CAP hide behind an in-place toggle (point 4). It reads in the same weight and
+// ink as every other row that has happened — the collapsing is what keeps it quiet,
+// not a dimmer treatment.
 function AuthorTitle({
   row,
   expanded,
@@ -154,12 +159,12 @@ function AuthorTitle({
 }) {
   const names = row.authors ?? [];
   if (!isGroup) {
-    return <Text style={styles.authorTitle}>Co-author added — {names[0] ?? ''}</Text>;
+    return <Text style={styles.title}>Co-author added — {names[0] ?? ''}</Text>;
   }
   const hidden = Math.max(0, names.length - NAME_CAP);
   const shown = expanded ? names : names.slice(0, NAME_CAP);
   return (
-    <Text style={styles.authorTitle}>
+    <Text style={styles.title}>
       {names.length} co-authors added — {shown.join(', ')}
       {hidden > 0 ? (
         <Text onPress={onToggle} style={styles.moreLink}>
@@ -254,7 +259,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     color: t.colors.text.muted,
   },
-  dateMuted: { color: '#9aa09a' },
   dateRangeEnd: {
     textAlign: 'right',
     marginTop: 2,
@@ -317,6 +321,8 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     flexShrink: 1,
   },
+  // The ONE reason a title is grey: it hasn't happened yet.
+  titleScheduled: { color: t.colors.text.muted },
   // How many sections start on this row's date — only ever a count read off the
   // sections that STATE that date, never one resting on an inferred date (#715).
   rowMeta: {
@@ -340,14 +346,6 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.small,
     lineHeight: 22,
     color: t.colors.text.secondary,
-  },
-  // Muted co-author annotation: smaller, grey, not a milestone beat (point 4).
-  authorTitle: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.regular,
-    color: '#6f756f',
-    flexShrink: 1,
   },
   moreLink: {
     fontFamily: t.typography.ui,

@@ -132,10 +132,13 @@ export function BillDetailWebScreen() {
   const eyebrow = bienniumEyebrow(bill.id);
   const shareUrl = `https://alethical.com/bills/${bill.id}`;
   const shareTitle = `${bill.identifier} — ${bill.title}`;
+  // ONE value for the whole page (every tab's source line shows the same stamp).
+  // Empty when the bill carries no date — billSourceText then drops the segment
+  // instead of repeating "Minnesota Legislature" back at the reader.
   const updatedLabel =
     bill.updatedAt && bill.updatedAt !== 'Unknown'
       ? `Updated ${formatNiceDate(bill.updatedAt)}`
-      : 'Minnesota Legislature';
+      : '';
   const author = chiefAuthor(bill);
 
   const hero = (

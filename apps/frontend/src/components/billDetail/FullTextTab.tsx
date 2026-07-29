@@ -94,9 +94,7 @@ export function FullTextTab({
     return () => clearTimeout(timer);
   }, [highlighted]);
 
-  const source = (
-    <SourceLine text={`Source: Minnesota Legislature · revisor.mn.gov · ${updatedLabel}`} />
-  );
+  const source = <SourceLine updatedLabel={updatedLabel} />;
 
   if (!version || !versionCode) {
     return (
