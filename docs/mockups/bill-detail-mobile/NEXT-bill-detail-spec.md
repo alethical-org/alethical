@@ -436,6 +436,15 @@ top bar on mobile) — NOT buried in a menu — and stays reachable from every t
   Actions timeline (which carries pipeline position for in-progress bills). Rail now leads
   with the date only — EFFECTIVE (signed) / LATEST ACTION (in progress/vetoed). Status stays
   the top header pill; effective date stays in the rail (not promoted to the header).
+  **"signed → EFFECTIVE" is conditional, not automatic:** a signed bill shows EFFECTIVE
+  only when its enacted text resolves to ONE date for the whole act — every section names
+  the same date (Tier A), every section is "the day following final enactment" (Tier B), or
+  no section names a date so Minn. Stat. 645.02 supplies one (Tier C, #706). About half of
+  enacted MN bills genuinely take effect on different dates section by section (SF 334 /
+  2026 ch. 120: 1 of 14 sections on May 28, 2026, the other 13 on Aug 1, 2026); those keep
+  LATEST ACTION, because naming one of several dates as the act's would be wrong (#455 /
+  #480, grounded-answers rule 9). The Actions timeline still shows the Revisor's own
+  "Effective date" row for them — that is a record surface, not a claim about the whole act.
 - **Chief author matched to web:** aligned **label → value** rows (grey label + ink value) —
   honorific label (**Senator/Representative**) → green name link, **Party**, and
   **{Senate|House} District** → "{City} ({number})"; **co-authors detached** to the top-right

@@ -1,4 +1,4 @@
-"""Tests for the verified statutory effective-date extractor (#483 / #562).
+"""Tests for the verified statutory effective-date extractor (#483 / #562 / #706).
 
 Grounded-answers rule 9: a bill's EFFECTIVE {date} label may only show a date the
 enacted text states unambiguously. These cases use real clause language and real
@@ -6,19 +6,25 @@ action shapes sampled from the production corpus. Tier A: the extractor returns 
 single verbatim date only when every section agrees on one explicit calendar date.
 Tier B (#562): a bill whose every section is "the day following final enactment"
 shows the Revisor's own published "Effective date" action, cross-checked to fall
-just after the governor-signature date. Anything else -> None (the UI keeps the
-honest LATEST ACTION fallback of #455 / #480).
+just after the governor-signature date. Tier C (#706): a bill whose sections state
+no date at all falls to the Minn. Stat. 645.02 default for the whole act, again
+taken from the Revisor's published action and cross-checked against the statute's
+two defaults. Anything else -> None (the UI keeps the honest LATEST ACTION
+fallback of #455 / #480).
 """
 
+from datetime import date
 from types import SimpleNamespace
 
 from alethical.api.routers.public import (
     bill_effective_dates,
+    effective_date_all_sections_silent,
     effective_date_day_following_enactment,
     effective_date_from_sections,
     governor_approval_date,
     resolve_effective_date,
     revisor_effective_date_action,
+    statutory_default_effective_dates,
     verified_effective_date,
 )
 
@@ -250,7 +256,129 @@ def test_governor_approval_none_when_absent():
     assert governor_approval_date([_action("Chapter number", "42")]) is None
 
 
-# --- resolve_effective_date: the pure Tier A/B core shared by detail + list -----
+# --- Tier C: no section states a date -> Minn. Stat. 645.02 default (#706) ------
+
+
+def test_all_sections_silent_true_for_uniformly_silent_bill():
+    # HF 286 (2025 Ch. 22) shape: amended statute text, no effective clause anywhere.
+    sections = [
+        (None, "Section 1. Minnesota Statutes 2024, section 299C.62, is amended ..."),
+        ("", "Sec. 2. A local unit of government may conduct a background check ..."),
+    ]
+    assert effective_date_all_sections_silent(sections) is True
+
+
+def test_all_sections_silent_false_when_a_section_states_a_date():
+    # SF 334 (2026 Ch. 120) shape: 1 of 14 sections carries a clause.
+    sections = [
+        (H, "This section is effective the day following final enactment."),
+        (None, "Amended statute text with no effective clause."),
+    ]
+    assert effective_date_all_sections_silent(sections) is False
+
+
+def test_all_sections_silent_false_when_clause_present_without_heading():
+    # Belt-and-braces: an unheaded clause still disqualifies the silent shape.
+    sections = [(None, "... This section is effective July 1, 2027.")]
+    assert effective_date_all_sections_silent(sections) is False
+
+
+def test_all_sections_silent_ignores_substantive_effective_wording():
+    # Real prod text (HF 4075, HF 3298): "effective" in the statute's own substance
+    # is not an effective-date clause for the act.
+    sections = [
+        (
+            None,
+            "the order granting relief becomes effective upon the referee's signature.",
+        ),
+        (None, "a donation of an interest in real property is not effective until ..."),
+    ]
+    assert effective_date_all_sections_silent(sections) is True
+
+
+def test_all_sections_silent_false_for_empty():
+    # A bill whose text we never parsed must not be claimed as silent.
+    assert effective_date_all_sections_silent([]) is False
+
+
+def test_statutory_defaults_are_next_following_july_and_august():
+    # HF 286 signed 05/15/2025 -> Aug 1, 2025 (or July 1, 2025 if appropriating).
+    assert statutory_default_effective_dates(date(2025, 5, 15)) == {
+        date(2025, 7, 1),
+        date(2025, 8, 1),
+    }
+
+
+def test_statutory_defaults_roll_to_next_year_after_the_default_date():
+    # A special-session act signed in September: "next following" is a year out.
+    assert statutory_default_effective_dates(date(2025, 9, 10)) == {
+        date(2026, 7, 1),
+        date(2026, 8, 1),
+    }
+
+
+def test_resolve_effective_date_tier_c_august_default():
+    # HF 286 (2025 Ch. 22): silent text, Revisor publishes 08/01/2025.
+    sections = [(None, "Amended statute text, no effective clause.")]
+    actions = [
+        _action("Governor approval", "05/15/2025"),
+        _action("Effective date", "08/01/2025"),
+    ]
+    assert resolve_effective_date(sections, actions) == "August 1, 2025"
+
+
+def test_resolve_effective_date_tier_c_july_default_for_appropriations():
+    # HF 5074 (2026 Ch. 105) appropriates money: Revisor publishes 07/01/2026, the
+    # 645.02 appropriation default. We accept the Revisor's pick rather than judge
+    # whether the act appropriates.
+    sections = [
+        (None, "Settlement of certain claims against the state; appropriating money.")
+    ]
+    actions = [
+        _action("Governor approval", "05/19/26"),
+        _action("Effective date", "07/01/2026"),
+    ]
+    assert resolve_effective_date(sections, actions) == "July 1, 2026"
+
+
+def test_resolve_effective_date_tier_c_rejects_non_default_date():
+    # Silent text but a Revisor date that is neither statutory default: something
+    # else is going on, so fall back rather than assert it.
+    sections = [(None, "Amended statute text, no effective clause.")]
+    actions = [
+        _action("Governor approval", "05/15/2025"),
+        _action("Effective date", "05/16/2025"),
+    ]
+    assert resolve_effective_date(sections, actions) is None
+
+
+def test_resolve_effective_date_tier_c_rejects_various_dates():
+    # HF 3900 shape: uniformly silent sections, but the Revisor itself flags the act
+    # as taking effect on various dates.
+    sections = [(None, "Amended statute text, no effective clause.")]
+    actions = [
+        _action("Governor approval", "05/26/2026"),
+        _action("Effective date", "Various dates"),
+    ]
+    assert resolve_effective_date(sections, actions) is None
+
+
+def test_resolve_effective_date_sf334_mixed_bill_still_falls_back():
+    # SF 334 (2026 Ch. 120) is the case that must NOT show a date: 1 of 14 sections
+    # is effective the day following enactment (May 28, 2026, which the Revisor
+    # publishes) while the other 13 are silent and fall to Aug 1, 2026. Labeling the
+    # whole act "EFFECTIVE May 28, 2026" would be wrong for 13 of its 14 sections.
+    sections = [(H, "This section is effective the day following final enactment.")] + [
+        (None, "Amended statute text, no effective clause.")
+    ] * 13
+    actions = [
+        _action("Governor approval", "05/27/2026"),
+        _action("Effective date", "05/28/2026"),
+    ]
+    assert resolve_effective_date(sections, actions) is None
+
+
+# --- resolve_effective_date: the pure Tier A/B/C core shared by detail + list ----
 
 
 def test_resolve_effective_date_tier_a():
@@ -367,9 +495,24 @@ def test_bill_effective_dates_omnibus_prefers_verified_over_various():
 
 
 def test_bill_effective_dates_omits_non_omnibus_without_date():
+    # Silent sections AND no actions -> nothing to cross-check Tier C against.
     bill = _signed_bill(3)
     db = _FakeDb([(3, 30)], [(30, None, "Amended statute text, no effective clause.")])
     assert bill_effective_dates(db, [bill]) == {}
+
+
+def test_bill_effective_dates_tier_c_reaches_list_cards():
+    # A card and the bill page must agree, so Tier C flows through the batched
+    # list helper too (grounded-answers rule 9).
+    bill = _signed_bill(
+        6,
+        actions=[
+            _bill_action("Governor approval", "05/15/2025"),
+            _bill_action("Effective date", "08/01/2025"),
+        ],
+    )
+    db = _FakeDb([(6, 60)], [(60, None, "Amended statute text, no effective clause.")])
+    assert bill_effective_dates(db, [bill]) == {"6": "August 1, 2025"}
 
 
 def test_bill_effective_dates_omnibus_various_when_no_current_version():
