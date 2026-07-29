@@ -65,9 +65,21 @@ scannable, cited overview, NOT a prose paragraph duplicated by bullets.
 
 ## Source line (all tabs)
 Every tab ends with one quiet source line — mono grey, `margin-top:52px` +
-hairline top border so it sits subtly on its own: Summary/Versions "Source:
-Minnesota Legislature · revisor.mn.gov"; Actions "…bill status records…"; Votes
-"…roll-call records…". No ↗ arrow after revisor (quieter).
+hairline top border so it sits subtly on its own. Exactly three parts, **identical
+on every tab and on both platforms**: "Source: Minnesota Legislature ·
+revisor.mn.gov · Updated {date}". No ↗ arrow after revisor (quieter).
+
+`{date}` is the bill's one last-updated stamp, not a per-tab value; when a bill has
+no date the third part is dropped rather than filled in. The copy is built by
+`billSourceText` (`components/billDetail/SourceLine.tsx`) rather than written at each
+call site, so it cannot drift tab by tab again.
+
+**SUPERSEDED:** this section used to name a record type per tab — Actions "…bill
+status records…", Votes "…roll-call records…". [#734](https://github.com/alethical-org/alethical/pull/734)
+deleted those. The line is a provenance footer for the *page*, and naming a
+different record type per tab read as if the tabs came from different sources.
+
+## Actions tab
 Full action history timeline (introduced → referrals → readings → passage →
 signing), amendments folded in with outcomes.
 - **Dot legend** (quiet row at top): ● enacted milestone · ● recorded vote (black)
