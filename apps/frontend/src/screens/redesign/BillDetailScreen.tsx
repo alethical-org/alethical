@@ -466,6 +466,9 @@ function BillDetailMobileScreen() {
     // LATEST ACTION {text · date} — we never label a last-action date as EFFECTIVE,
     // which is wrong whenever the real effective date is in the future (see #455).
     // Never the literal "Effective date" status string, nor a "· Unknown" suffix.
+    // The served date is a verbatim statutory string ("August 1, 2025"), so it goes
+    // through formatNiceDate for the rail's abbreviated month — matching the LATEST
+    // ACTION branch, the Actions timeline, and the search card (#711).
     const niceDate =
       bill.updatedAt && bill.updatedAt !== 'Unknown' ? formatNiceDate(bill.updatedAt) : '';
     // The action text is the plain-language headline of the newest action (same
@@ -476,7 +479,7 @@ function BillDetailMobileScreen() {
     const latest = latestActionEntry(bill.actions ?? [], now);
     const dateLabel = bill.effectiveDate ? 'EFFECTIVE' : 'LATEST ACTION';
     const dateValue = bill.effectiveDate
-      ? bill.effectiveDate
+      ? formatNiceDate(bill.effectiveDate)
       : latest
         ? `${latest.label}${latest.date ? ` · ${latest.date}` : ''}`
         : bill.latestActionText

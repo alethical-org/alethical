@@ -47,11 +47,14 @@ export function FactsRail({
   // latestActionEntry the list card uses), so the rail names the committee
   // ("Referred to Transportation") and reads like the Actions timeline, not the
   // raw clerk string ("Referred to"). Falls back to the stored status text when a
-  // bill has no action rows (#599 follow-up).
+  // bill has no action rows (#599 follow-up). The served date is a verbatim
+  // statutory string ("August 1, 2025"), so it goes through formatNiceDate for the
+  // rail's abbreviated month — matching the LATEST ACTION branch below, the Actions
+  // timeline, and the search card, which already formats this same field (#711).
   const latest = latestActionEntry(bill.actions ?? [], new Date());
   const dateLabel = bill.effectiveDate ? 'EFFECTIVE' : 'LATEST ACTION';
   const dateValue = bill.effectiveDate
-    ? bill.effectiveDate
+    ? formatNiceDate(bill.effectiveDate)
     : latest
       ? `${latest.label}${latest.date ? ` · ${latest.date}` : ''}`
       : bill.latestActionText
