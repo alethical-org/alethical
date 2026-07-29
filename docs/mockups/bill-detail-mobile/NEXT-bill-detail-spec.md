@@ -63,21 +63,29 @@ scannable, cited overview, NOT a prose paragraph duplicated by bullets.
 - **Affects statutes REMOVED** from the primary card → roadmap (power-user).
 - Full bill text is NOT embedded; official source links instead.
 
-## Source line (all tabs)
-Every tab ends with one quiet source line — mono grey, `margin-top:52px` +
-hairline top border so it sits subtly on its own. Exactly three parts, **identical
-on every tab and on both platforms**: "Source: Minnesota Legislature ·
-revisor.mn.gov · Updated {date}". No ↗ arrow after revisor (quieter).
+## Source line
+One quiet source line — mono grey, `margin-top:52px` + hairline top border so it
+sits subtly on its own. Exactly three parts, and the **same string everywhere it
+appears**: "Source: Minnesota Legislature · revisor.mn.gov · Updated {date}". No ↗
+arrow after revisor (quieter).
 
-`{date}` is the bill's one last-updated stamp, not a per-tab value; when a bill has
-no date the third part is dropped rather than filled in. The copy is built by
+**Where it appears differs by platform, because a provenance footer belongs to the
+PAGE, not to each section.** On mobile — one continuous scroll — there is exactly
+ONE, at the foot of the last section (Bill Text); Actions, Votes and Versions carry
+none. On web the tabs mean a reader only ever sees one at a time, so each tab closes
+with its own. Full reasoning and history in the §Decisions bullet "Source line — ONE
+per platform" near the end of this file; do not change the placement rule here
+without updating that bullet in the same edit.
+
+`{date}` is the bill's one last-updated stamp, not a per-section value; when a bill
+has no date the third part is dropped rather than filled in. The copy is built by
 `billSourceText` (`components/billDetail/SourceLine.tsx`) rather than written at each
-call site, so it cannot drift tab by tab again.
+call site, so the wording cannot drift between the places it appears.
 
 **SUPERSEDED:** this section used to name a record type per tab — Actions "…bill
 status records…", Votes "…roll-call records…". [#734](https://github.com/alethical-org/alethical/pull/734)
-deleted those. The line is a provenance footer for the *page*, and naming a
-different record type per tab read as if the tabs came from different sources.
+deleted those, because naming a different record type per tab read as if the tabs
+came from different sources.
 
 ## Actions tab
 Full action history timeline (introduced → referrals → readings → passage →
