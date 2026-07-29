@@ -1040,13 +1040,15 @@ function HomeSignedOutDesktop() {
 // the design's card 1 depicts (the mock labeled it "SF 3933", which is a different
 // bill in our corpus). SF 856 is the enacted Office of the Inspector General bill.
 // `effectiveDate` is editorial metadata verified from the enacted primary source
-// (grounded-answers rule 9). Action dates are ingested now (#338), but the
-// statutory effective date still isn't a stored or derivable field: the enactment
-// "Effective date" action carries no parseable date, and the real date can fall in
-// the future (HF 4138 → 2027), so it must come from the enacted text, not the API.
+// (grounded-answers rule 9). The API now derives a statutory effective date for
+// enacted bills whose act resolves to one (#483 / #562 / #706) — HF 4138 is one of
+// them, and `bill.effectiveDate` serves the same July 1, 2027 shown here. SF 856 is
+// NOT: the Revisor flags it "various dates", so its value stays editorial and these
+// literals stay the single source for both cards rather than one card silently
+// switching sources.
 // HF 4138 → 2026 Ch. 111 §§1–2 (325M), both "effective July 1, 2027";
-// SF 856 → 2025 Ch. 92, Minnesota's default effective date (Aug 1 following
-// enactment) for the act's general provisions (some sections stagger).
+// SF 856 → 2026 Ch. 92, Minnesota's default effective date (Aug 1 following the
+// May 14, 2026 signing) for the act's general provisions (some sections stagger).
 const IN_THE_NEWS: { key: string; hotIssue: boolean; effectiveDate?: string }[] = [
   { key: '94-2026-HF4138', hotIssue: true, effectiveDate: 'July 1, 2027' },
   { key: '94-2025-SF856', hotIssue: true, effectiveDate: 'Aug 1, 2026' },
