@@ -9,7 +9,7 @@ export interface Citation {
   fullText?: string;
   highlightText?: string;
   url: string;
-  /** Statute section this key point cites, keyed to a Full Text section (#377). */
+  /** Statute section this key point cites, keyed to a Bill Text section (#377). */
   sectionId: string;
 }
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from types import SimpleNamespace
 
 from sqlalchemy import create_engine, delete, select
@@ -367,11 +368,161 @@ def test_resolve_key_point_citations_grounds_and_cites_anchorable_subset() -> No
         ]
         resolved = content["key_point_citations"]
         assert len(resolved) == 2
-        # Anchor token resolved to the section identifier + a display label.
+        # Anchor token resolved to the section identifier + a display label. The
+        # label always abbreviates to "Sec." and carries no terminal period (a
+        # chip is a label, not a sentence) — see test_chip_label_canonical_format.
         assert resolved[0]["section_id"] == "1.1"
-        assert resolved[0]["label"] == "Section 1.1"
-        assert resolved[0]["quote"] == "establish a grant program for schools"
+        assert resolved[0]["label"] == "Sec. 1.1"
+        # The stored quote never ends unpunctuated: this span is cut short of the
+        # source's period, so it closes with the single "…" glyph.
+        assert resolved[0]["quote"] == "establish a grant program for schools…"
         assert resolved[1]["section_id"] == "2.1"
+    finally:
+        with _session() as db:
+            _cleanup(db, bill_id)
+
+
+def test_chip_label_canonical_format() -> None:
+    """The "From the bill" citation chip has ONE format on every surface:
+
+        Sec. 4 · License classes          (heading present)
+        Art. 1, Sec. 2 · Appropriations   (article-structured / omnibus bill)
+        Sec. 14                           (no usable heading — number alone)
+
+    The bill code is dropped (the chip only renders on that bill's own page,
+    where the code already sits in the rail badge), "Section" always abbreviates
+    to "Sec.", there is no terminal period, and a shouted statutory heading is
+    downcased to a sentence-case topic rather than rendered verbatim. The
+    frontend mirrors this in `citationChipLabel`
+    (apps/frontend/src/lib/billDetail.ts) for bills enriched before this landed."""
+
+    def label(raw: str) -> str:
+        return ai_enrichment._chip_label(
+            ai_enrichment.SectionAnchor(
+                anchor_id="S1",
+                label=raw,
+                text="",
+                source_hash="",
+                section_id_text="x",
+            )
+        )
+
+    # Bill code dropped; "Section" abbreviated; terminal period dropped.
+    assert label("SF 334, Sec. 2.") == "Sec. 2"
+    assert label("SF 334, Section 1.") == "Sec. 1"
+    assert label("H.F. No. 12, Sec. 3.") == "Sec. 3"
+    # Statutory heading downcased to a sentence-case topic.
+    assert label("SF 334, Sec. 14. TRANSFER.") == "Sec. 14 · Transfer"
+    assert label("SF 2483, Sec. 4. LICENSE CLASSES") == "Sec. 4 · License classes"
+    # A heading that already carries mixed case keeps its own capitalization.
+    assert label("SF 1, Sec. 5. Office of Higher Education") == (
+        "Sec. 5 · Office of Higher Education"
+    )
+    # Article-structured (omnibus) bill.
+    assert label("SF 2483, ARTICLE 1, Sec. 2. APPROPRIATIONS.") == (
+        "Art. 1, Sec. 2 · Appropriations"
+    )
+    # An article heading between the article number and the section is dropped —
+    # the section's own heading is the topic shown.
+    assert label("SF 2483, ARTICLE 1, EDUCATION FINANCE, Sec. 2. GRANTS.") == (
+        "Art. 1, Sec. 2 · Grants"
+    )
+    # No usable heading → the number alone, never a dangling middot.
+    assert label("SF 334, Sec. 14") == "Sec. 14"
+    assert label("SF 334, Sec. 14. .") == "Sec. 14"
+    assert "·" not in label("SF 334, Sec. 14")
+    # Never expose the internal, non-human-readable section_id_text key.
+    assert label("") == "Cited section"
+
+
+def test_stored_quote_never_ends_unpunctuated() -> None:
+    """A citation excerpt is displayed on its own, so it must read as a finished
+    quotation: a complete clause keeps the source's own terminal mark, and a span
+    cut short of one closes with the single "…" glyph (U+2026, never three
+    periods). A quote that just stops mid-clause reads as a rendering bug. The
+    model's own wrapping quote marks are stripped — the display supplies the
+    quotation styling (italic type + a green left rule)."""
+    with _session() as db:
+        bill_id, version_id = _make_bill_with_sections(
+            db,
+            bill_key="test-2025-HF999011",
+            file_number=999011,
+            sections=[
+                (
+                    "1.1",
+                    "The council consists of the following members, "
+                    "appointed by the commissioner. "
+                    "The commissioner shall convene the first meeting. "
+                    '"eligible government" means a city or "Tribal governments." '
+                    "The total aid payable is $.......",
+                ),
+            ],
+        )
+    try:
+        cases = [
+            # Cut mid-clause → single ellipsis appended.
+            ("consists of the following members", "consists of the following members…"),
+            # A verbatim trailing comma also marks a cut mid-clause: the comma is
+            # replaced by the ellipsis rather than kept alongside it.
+            (
+                "consists of the following members,",
+                "consists of the following members…",
+            ),
+            # Complete clause ending at the source's own period → left alone.
+            (
+                "The commissioner shall convene the first meeting.",
+                "The commissioner shall convene the first meeting.",
+            ),
+            # The model's own wrapping quotes are stripped, curly or straight.
+            (
+                "“The commissioner shall convene the first meeting.”",
+                "The commissioner shall convene the first meeting.",
+            ),
+            (
+                '"The commissioner shall convene the first meeting."',
+                "The commissioner shall convene the first meeting.",
+            ),
+            # A model-supplied ellipsis survives grounding (the glyph is ours, not
+            # the bill's, so it is stripped before the verbatim match) and is
+            # stored as one glyph — never three periods.
+            ("The commissioner shall convene...", "The commissioner shall convene…"),
+            ("The commissioner shall convene…", "The commissioner shall convene…"),
+            # A statutory DEFINITION opens with the defined term in quotes, and a
+            # list can close on a quoted item — those marks are the bill's own
+            # punctuation, not a wrapper, so they must survive verbatim. Stripping
+            # them left an unbalanced quote behind and swallowed the source's final
+            # period (found against production: 2 of 57,473 stored excerpts).
+            (
+                '"eligible government" means a city or "Tribal governments."',
+                '"eligible government" means a city or "Tribal governments."',
+            ),
+            # The bill's own blank-fill for an amount it left undecided is source
+            # text, not an elision of ours — collapsing it to "…" would rewrite the
+            # bill (found against production: 53 of 57,473 stored excerpts).
+            ("The total aid payable is $.......", "The total aid payable is $......."),
+        ]
+        for quote, want in cases:
+            content = {
+                "key_points": ["A point."],
+                "key_point_citations": [
+                    {"point": "A point.", "section_id": "S1", "quote": quote}
+                ],
+            }
+            with _session() as db:
+                stats = ai_enrichment.resolve_key_point_citations(
+                    db, version_id, content
+                )
+            # Every case stays grounded — the ellipsis/quote-mark handling must not
+            # cost a correctly-elided quote its citation.
+            assert stats["anchored"] == 1, quote
+            stored = content["key_point_citations"][0]["quote"]
+            assert stored == want, quote
+            assert re.search(r"[.!?…][\"”'’]?$", stored), quote
+            # Our own elision is always the single glyph — but the bill's blank-fill
+            # dot run is left verbatim, so only check what we appended.
+            assert not re.search(r"(?<![$\d\s.])\.{3,}\s*$", stored), quote
+            # No wrapping pair left — but a definition's own opening quote stays.
+            assert not re.fullmatch(r"[\"“'‘][^\"“”'‘’]*[\"”'’]", stored), quote
     finally:
         with _session() as db:
             _cleanup(db, bill_id)
@@ -431,3 +582,25 @@ def test_prompt_and_schema_require_plain_language_summaries_and_key_points() -> 
         desc = props[field].get("description", "")
         assert "Plain-language" in desc
         assert "statute citation" in desc
+
+
+def test_prompt_and_schema_cap_key_points_at_six_by_merging() -> None:
+    """A bill shows AT MOST SIX key points, and over-long lists are MERGED down
+    rather than truncated — cutting the tail would silently drop the bill's later
+    substance (live SF 334 rendered ten bullets, several of them the same fact
+    twice). Ordering is by subject, not by section number: what the bill creates,
+    then when those bodies must act, then the money."""
+    assert ai_enrichment.SUMMARY_SCHEMA["properties"]["key_points"]["maxItems"] == 6
+
+    prompt = ai_enrichment.SYSTEM_PROMPT
+    assert "AT MOST SIX" in prompt
+    # Merge, never truncate.
+    assert "MERGE; never truncate the list" in prompt
+    # The three merge rules: same fact for two bodies, appropriations, restatements.
+    assert "differ only in which body, fund, or agency they name" in prompt
+    assert "Merge every appropriation and transfer into ONE money bullet" in prompt
+    assert "restates a figure another bullet already carries" in prompt
+    # Subject order, explicitly not section order.
+    assert "ordered BY SUBJECT rather than by section number" in prompt
+    # Only the points needing verbatim proof get a card.
+    assert "do NOT pair a citation to every bullet" in prompt

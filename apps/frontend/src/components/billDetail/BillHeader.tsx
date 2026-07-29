@@ -6,14 +6,22 @@ import { theme as t } from '../../theme/tokens';
 import { useResponsive } from '../../hooks/useResponsive';
 import { isWeb, useHover } from './interactions';
 
-export type DetailTab = 'summary' | 'actions' | 'votes' | 'versions' | 'fulltext';
+export type DetailTab = 'summary' | 'actions' | 'votes' | 'text' | 'versions';
 
+// "Bill Text" (not "Full Text"): it names what the tab IS and matches the
+// document-link vocabulary the product already uses ("Read the bill text" for a
+// draft, "Read the full law" for an enacted Session Law). "Full Text" described
+// length and collided with Versions, which also holds texts.
+//
+// It sits 4th, ahead of Versions: the summary's citation cards send traffic
+// straight here, so it outranks Versions — which stays last as the deliberately
+// lowest-priority tab.
 const TABS: Array<{ key: DetailTab; label: string }> = [
   { key: 'summary', label: 'Summary' },
   { key: 'actions', label: 'Actions' },
   { key: 'votes', label: 'Votes' },
+  { key: 'text', label: 'Bill Text' },
   { key: 'versions', label: 'Versions' },
-  { key: 'fulltext', label: 'Full Text' },
 ];
 
 // Bill header — stable across tabs (spec §Header — title-first). H1 title (hero) +

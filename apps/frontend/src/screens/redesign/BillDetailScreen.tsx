@@ -32,6 +32,7 @@ import {
   buildPartyBlocks,
   chamberBillLabel,
   chiefAuthor,
+  citationChipLabel,
   coAuthorCount,
   districtRowLabel,
   formatAuthorDistrict,
@@ -85,7 +86,7 @@ const SECTIONS = [
   { id: 'actions', label: 'Actions' },
   { id: 'votes', label: 'Votes' },
   { id: 'versions', label: 'Versions' },
-  { id: 'fulltext', label: 'Full Text' },
+  { id: 'fulltext', label: 'Bill Text' },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]['id'];
 
@@ -675,7 +676,7 @@ function BillDetailMobileScreen() {
                       <Pressable
                         key={`${c.id}-${i}`}
                         accessibilityRole="button"
-                        accessibilityLabel={`Jump to ${c.label} in Full Text`}
+                        accessibilityLabel={`Jump to ${citationChipLabel(c.label)} in Bill Text`}
                         disabled={!c.sectionId}
                         onPress={() => {
                           setFtAnchor(c.sectionId);
@@ -686,7 +687,7 @@ function BillDetailMobileScreen() {
                           pressed && styles.citedChipPressed,
                         ]}
                       >
-                        <Text style={styles.citedChipText}>{c.label}</Text>
+                        <Text style={styles.citedChipText}>{citationChipLabel(c.label)}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -919,10 +920,10 @@ function BillDetailMobileScreen() {
               <Text style={styles.sourceLine}>Source: Minnesota Legislature · revisor.mn.gov</Text>
             </Section>
 
-            {/* 7 — Full Text */}
+            {/* 7 — Bill Text */}
             <Section id="fulltext" onLayout={onSectionLayout} style={styles.lastSection}>
               <Text accessibilityRole="header" style={styles.h2}>
-                Full Text
+                Bill Text
               </Text>
               <FullTextTab
                 bill={bill}
