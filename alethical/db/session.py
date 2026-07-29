@@ -19,6 +19,25 @@ from sqlalchemy.orm import Session, sessionmaker
 NO_PREPARED_STATEMENTS = {"prepare_threshold": None}
 
 
+def _parse_dotenv_value(value: str) -> str:
+    """Read one .env value: quoted verbatim, unquoted up to a trailing comment.
+
+    .env.example ships comments after values, so `cp .env.example .env` used to
+    hand back the comment as part of the value -- ALETHICAL_DATABASE_TARGET came
+    out as "local          # local | production", which made every script that
+    resolves a target refuse to run, and INTERNAL_API_TOKEN came out mangled the
+    same way and failed the internal-token tests (#231). Quoted values keep
+    everything inside the quotes, so a password containing '#' still survives.
+    """
+    value = value.strip()
+    if value[:1] in {'"', "'"}:
+        closing = value.find(value[0], 1)
+        if closing != -1:
+            return value[1:closing]
+        return value
+    return value.split(" #", 1)[0].split("\t#", 1)[0].strip()
+
+
 def load_dotenv_if_present() -> None:
     for parent in (Path.cwd(), *Path.cwd().parents):
         env_path = parent / ".env"
@@ -30,7 +49,7 @@ def load_dotenv_if_present() -> None:
                 continue
             key, value = line.split("=", 1)
             key = key.strip()
-            value = value.strip().strip("\"'")
+            value = _parse_dotenv_value(value)
             if key and key not in os.environ:
                 os.environ[key] = value
         return

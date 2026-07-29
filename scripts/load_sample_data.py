@@ -26,6 +26,9 @@ from alethical.pipeline.sessions import (  # noqa: E402
 )
 
 FIXTURE_ROOT = ROOT / "alethical" / "tests" / "fixtures"
+# Seeded by seed_bill_without_rag_chunks() below; asserted by
+# test_bill_scoped_chat_missing_chunks_returns_grounded_fallback.
+NO_RAG_CHUNKS_BILL_KEY = "94-2025-HF9901"
 ArtifactType = schema.ArtifactType
 AuthIdentity = schema.AuthIdentity
 AIEnrichment = schema.AIEnrichment
@@ -687,6 +690,33 @@ def ingest_bill_payload(
     return bill
 
 
+def seed_bill_without_rag_chunks(session: Session, refs: dict[str, Any]) -> Any:
+    """Seed a bill with no versions, sections or RAG chunks.
+
+    The bill-scoped chat has to fall back to an ungrounded refusal when a bill
+    has no retrieval-ready text, and that needs a bill with none. The test used
+    to add and commit this row itself, which wrote it into whatever DATABASE_URL
+    resolved to -- and once wrote it into production, where it stayed publicly
+    reachable (#716). Seed it here with the rest of the fixtures instead.
+    """
+    bill = session.scalar(select(Bill).where(Bill.bill_key == NO_RAG_CHUNKS_BILL_KEY))
+    if bill is None:
+        bill = Bill(
+            session_id=refs["session"].id,
+            chamber_id=refs["chambers"]["house"].id,
+            bill_key=NO_RAG_CHUNKS_BILL_KEY,
+            file_type="HF",
+            file_number=9901,
+            title="No chunks test bill",
+            description="Fixture bill with no RAG chunks",
+            official_url="https://example.test/hf9901",
+            is_omnibus=False,
+        )
+        session.add(bill)
+        session.flush()
+    return bill
+
+
 def seed_ai_enrichment(
     session: Session, bill: Any, enrichment_fixtures: dict[str, Any]
 ) -> None:
@@ -884,6 +914,8 @@ def main() -> None:
             )
             seed_ai_enrichment(session, bill, enrichment_fixtures)
             bills.append(bill)
+
+        seed_bill_without_rag_chunks(session, refs)
 
         user = seed_user_features(session, bills, refs)
         refresh_legislator_stats(session, refs)
