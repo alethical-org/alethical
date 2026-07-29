@@ -292,13 +292,21 @@ const ACTION_RULES: Rule[] = [
         : { kind: 'chiefAuthor', title: `Author order changed — ${name}` };
     },
   },
-  // --- Cross-references to another file ---
+  // --- Cross-references ---
   {
-    // The source's pointer rows: a bare "See" / "See Also" / "See Senate file in
-    // House" / "(Non-revisor companion)", each with the file it points at in
-    // action_description. 1,227 production rows, every one of them carrying a
-    // target — yet the timeline printed just "See", which tells a reader nothing
-    // and does not even hint that there is another file to look at.
+    // The source's pointer rows: a bare "See" / "See Also", plus the clerk variants
+    // "See Senate file in House" and "(Non-revisor companion)". What is pointed at
+    // sits in action_description on all 1,227 production rows, yet the timeline
+    // printed just "See", which tells a reader nothing and does not even hint that
+    // there is another file to look at.
+    //
+    // The target is quoted as the source states it and never re-interpreted: 682
+    // rows name a file, 465 a special-session file, and 65 an enacted chapter and
+    // section ("Chapter 36, Article 4., Section 8."). Saying where the language
+    // "ended up" would assert more than the record does. (That reading is #559's:
+    // PR #736 fixed the bare "See" in this same builder from the mobile side, and
+    // this rule replaces it — adding the two clerk variants it did not cover and
+    // spacing file numbers the way the rest of the product writes them.)
     test: (l, desc) => !!desc && (/^see\b/.test(l) || /^\(non-revisor companion\)/.test(l)),
     build: (_t, desc) => ({ kind: 'procedural', title: `See also ${spaceFileNumbers(desc)}` }),
   },
@@ -584,25 +592,10 @@ const ACTION_RULES: Rule[] = [
     test: (l) => /not adopted/.test(l),
     build: () => ({ kind: 'notAdopted', title: 'Amendment not adopted' }),
   },
-  // --- Cross-reference ---
-  // The source writes a bare "See" / "See Also" and puts the target it points at
-  // (the enacted chapter and section the bill's language ended up in, or a
-  // companion) in action_description. Left alone the row is a verb pointing at
-  // nothing — the same defect as a title ending on a preposition, which
-  // TRAILING_PREPOSITION doesn't catch because "see" isn't one. The API mapping
-  // already completes this row (data/api.ts, detailIsConnectorTarget); this is the
-  // same completion for the curated timeline, so the pointer survives on both
-  // surfaces. The target is quoted as the source states it, never re-interpreted:
-  // "See" is a pointer, and saying where the text was enacted would assert more
-  // than the record does. A row with no target keeps the bare label rather than
-  // inventing one; the corpus has none today (1,155 of 1,155 carry a target).
-  {
-    test: (l) => /^see(\s+also)?$/.test(l.trim()),
-    build: (_t, desc) => ({
-      kind: 'procedural',
-      title: desc ? `See ${desc}` : 'See',
-    }),
-  },
+  // The bare "See" / "See Also" rule that #736 added here is gone: the broader
+  // cross-reference rule further up (search "Cross-references") now matches those
+  // rows first, so this one was unreachable. Two rules for one input is how a rules
+  // list starts lying about what it does — its reasoning is carried up there.
 ];
 
 // Humanize an unmatched raw label defensively: strip clerk prefixes/codes so a
