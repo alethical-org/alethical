@@ -1097,7 +1097,11 @@ function PageButton({
       disabled={disabled}
       onPress={onPress}
       {...hover}
-      style={[styles.pageBtn, disabled ? styles.pageBtnDisabled : hovered && styles.pageBtnHover]}
+      style={[
+        styles.pageBtn,
+        direction === 'prev' ? styles.pageBtnPrev : styles.pageBtnNext,
+        disabled ? styles.pageBtnDisabled : hovered && styles.pageBtnHover,
+      ]}
     >
       {direction === 'prev' ? <Icon size={15} color={color} strokeWidth={2.2} /> : null}
       <Text style={[styles.pageBtnText, { color }]}>
@@ -1169,7 +1173,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 10,
+    // Leading pin glyph, so 3px less on the left (see `clearBtn`).
+    paddingLeft: 7,
+    paddingRight: 10,
     minHeight: 44,
   },
   findByAddressText: {
@@ -1276,7 +1282,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink16,
     borderRadius: 12,
     paddingVertical: 11,
-    paddingHorizontal: 18,
+    // Trailing chevron, so 3px less on the right (see `clearBtn`).
+    paddingLeft: 18,
+    paddingRight: 15,
     minHeight: 44,
   },
   // Non-default (actively narrowing) dropdown: black fill / white label, matching
@@ -1341,7 +1349,9 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink16,
     borderRadius: 12,
     paddingVertical: 11,
-    paddingHorizontal: 18,
+    // Leading scales glyph, so 3px less on the left (see `clearBtn`).
+    paddingLeft: 15,
+    paddingRight: 18,
     minHeight: 44,
   },
   // Active (on): solid black fill + white text/icon, identical to the active
@@ -1603,13 +1613,17 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.ink,
     borderRadius: 999,
   },
+  // Leading-icon optical centering: 3px less on the left than the right (see the
+  // note on `clearBtn`). Measured before the fix: left edge to ✕ was 18px while
+  // "all" to the right edge was 15.5px, on identical 14px padding.
   clearAllBtnWeb: {
     borderWidth: 1,
     borderColor: t.colors.ink,
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingLeft: 11,
+    paddingRight: 14,
   },
-  clearAllBtnMobile: { paddingVertical: 9, paddingHorizontal: 13 },
+  clearAllBtnMobile: { paddingVertical: 9, paddingLeft: 10, paddingRight: 13 },
   clearAllBtnHover: { backgroundColor: '#000000', borderColor: '#000000' },
   clearAllText: {
     fontFamily: t.typography.ui,
@@ -1704,6 +1718,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     minHeight: 44,
   },
+  // Optical centering (see `clearBtn`): Previous carries a leading chevron, Next a
+  // trailing one, so each trims 3px on the side its glyph sits.
+  pageBtnPrev: { paddingLeft: 19 },
+  pageBtnNext: { paddingRight: 19 },
   pageBtnHover: { borderColor: t.colors.brand.base },
   pageBtnDisabled: { borderColor: t.colors.alpha.ink12 },
   pageBtnText: {
