@@ -1417,6 +1417,10 @@ class MinnesotaIngestionPipeline:
             else None
         )
 
+        # The title parsed from whichever version this run fetched — i.e. the
+        # bill's current text.
+        parsed_title = str(bill_text.get("bill_title_text") or "").strip()
+
         bill = self.db.scalar(
             select(Bill).where(Bill.bill_key == canonical["bill_key"])
         )
@@ -1428,13 +1432,21 @@ class MinnesotaIngestionPipeline:
                 file_type=file_type,
                 file_number=int(str(canonical["file_number"])),
                 title=str(
-                    bill_text.get("bill_title_text")
+                    parsed_title
                     or canonical.get("description")
                     or canonical["bill_key"]
                 ),
             )
             self.db.add(bill)
             self.db.flush()
+        # title is refreshed on every run, not written once at creation: a bill
+        # that is gutted and replaced mid-session takes on an entirely new
+        # subject, and a create-only title kept showing the one it carried at
+        # introduction forever — SF 334's page said "education" while the enacted
+        # law was about human services (#708). On a parse miss keep whatever is
+        # stored; falling back to the bill key or the short description here
+        # would blank out a title that was already right.
+        bill.title = parsed_title or bill.title
         bill.session_id = refs["session"].id
         bill.chamber_id = chamber.id
         bill.revisor_number = str(canonical.get("revisor_number") or "") or None
