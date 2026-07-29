@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { TRAILING_REFERRAL, TRAILING_RETURN } from '../lib/billDetail';
+import { completeDanglingTitle, TRAILING_REFERRAL, TRAILING_RETURN } from '../lib/billDetail';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -764,7 +764,12 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     title = `${text} ${desc}`; // "See" / "See Also" cross-references (#440)
   }
 
-  title = title.trim();
+  // Standing rule, shared with the web timeline: no action row ends on a
+  // preposition. The branches above complete the two referral verbs the source
+  // uses most; this catches the rest ("Referred to Chief Clerk for comparison
+  // with", "Referred by Chair to"), naming the target when the record has one and
+  // otherwise dropping the clause that was waiting on it.
+  title = completeDanglingTitle(title.trim(), committee || desc);
   if (!title || DATE_ONLY.test(title)) return null;
 
   return {

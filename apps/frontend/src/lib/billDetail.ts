@@ -123,13 +123,14 @@ export const TRAILING_RETURN = /[,\s]*(?:bill\s+)?return(?:ed)?\s+to\s*$/i;
 // STANDING RULE: no action row ends on a preposition. Every rule above that builds
 // a title from a phrase plus a value spells out its own fallback, and this is the
 // net under all of them (including the raw-label fallback): a dangling title takes
-// the source's committee when there is one, and otherwise loses the clause that was
-// waiting on a value — never the preposition on its own.
+// the source's value when there is one, and otherwise loses the clause that was
+// waiting on that value — never the preposition on its own. Both normalizers run
+// it: this file's timeline titles, and the API mapping's labels (data/api.ts).
 const TRAILING_PREPOSITION = /[,\s]+(?:to|for|with|from|by|of|in|on|and)\s*$/i;
 
-function completeDanglingTitle(title: string, committee: string): string {
+export function completeDanglingTitle(title: string, target: string): string {
   if (!TRAILING_PREPOSITION.test(title)) return title;
-  if (committee) return `${title} ${committee}`;
+  if (target) return `${title} ${target}`;
   const withoutPreposition = title.replace(TRAILING_PREPOSITION, '');
   const lastClause = withoutPreposition.lastIndexOf(',');
   const kept =
@@ -325,14 +326,17 @@ const ACTION_RULES: Rule[] = [
     },
   },
   {
-    // Sent to the Chief Clerk to be compared against the companion file. Must sit
-    // ahead of the referral rule below: the companion it is compared WITH is not
-    // in the record, and this is not a committee referral, so it must not read as
-    // one ("Referred to a committee" is what it used to say).
+    // Sent to the Chief Clerk to be compared against the companion file, which the
+    // source names in action_description ("SF3210" — present on every one of these
+    // rows in production). Must sit ahead of the referral rule below: this is not a
+    // committee referral and must not read as one ("Referred to a committee" is
+    // what it used to say).
     test: (l) => /^referred to chief clerk/.test(l),
-    build: () => ({
+    build: (_t, desc) => ({
       kind: 'procedural',
-      title: 'Referred to the Chief Clerk for comparison',
+      title: desc
+        ? `Referred to the Chief Clerk for comparison with ${desc}`
+        : 'Referred to the Chief Clerk for comparison',
     }),
   },
   {
