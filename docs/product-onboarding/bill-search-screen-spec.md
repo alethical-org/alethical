@@ -22,10 +22,12 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
     "See all N {topic} bills in Search →" overflow ([#79](https://github.com/alethical-org/alethical/issues/79),
     grounded-ask §9.1) is cross-page navigation and can only target URL state
     (`.claude/rules/grounded-answers.md` #5). This slice lands with #79.
-  - **Not built yet (full serialization):** all filters serialize *out* to the URL
-    (`/bills?q=&chamber=&status=&policy=&omnibus=&session=&page=`) so reload, share, and
-    back/forward reproduce the exact search. `webRoutes.ts` already serializes chat
-    params — the same pattern extends here.
+  - **Shipped (full serialization):** every filter serialises *out* to the URL
+    (`/bills?q=&chamber=&status=&issue=&omnibus=&session=&sort=&page=`) so reload, share,
+    and back/forward reproduce the exact search. #135 closed; the route params are the
+    single source of truth in `SearchBillsScreen.tsx` (only the search-box draft and the
+    issue-list expander stay local). Note the issue param is `issue=` (comma-joined
+    canonical issues), not the `policy=` this spec first sketched.
 
 ## Page anatomy (top → bottom)
 
@@ -90,9 +92,9 @@ header's stacking context and, as an earlier sibling, paints under the card list
 
 | Filter | Control | API param |
 |---|---|---|
-| Keyword / bill number | search input | `q` — matches title/description by word: exact, common word-forms (plurals/-ing/-ed), and typo-tolerant, ranked best-match-first with title matches weighted over description ([#573](https://github.com/alethical-org/alethical/issues/573)). A bill number ("SF 334", "334") is an exclusive ID lookup, not free text ([#134](https://github.com/alethical-org/alethical/issues/134)/[#569](https://github.com/alethical-org/alethical/pull/569)) |
+| Keyword / bill number | search input | `q` — matches title/description by word: exact, common word-forms (plurals/-ing/-ed), and typo-tolerant (fuzzy matching applies to words of 5+ letters). Ranked best-match-first, with title matches weighted over description ([#573](https://github.com/alethical-org/alethical/issues/573)) — but that ranking is `sort=relevance` only, which is where a query defaults; see the Sort order row. A bill number ("SF 334", "334") is an exclusive ID lookup, not free text ([#134](https://github.com/alethical-org/alethical/issues/134)/[#569](https://github.com/alethical-org/alethical/pull/569)) |
 | Chamber | segmented All / House / Senate | `chamber` |
-| Status | dropdown: All / Introduced / In Committee / Passed House / Passed Senate / Signed into Law / Vetoed | `status` |
+| Status | dropdown: All statuses / Signed into Law / Passed both chambers / Passed Senate / Passed House / In Committee / Introduced / Vetoed (most-progressed first, matching `sort=progress`; "Passed both chambers" landed with [#607](https://github.com/alethical-org/alethical/issues/607)) | `status` |
 | Session / year | dropdown | `session` |
 | Omnibus | toggle "Omnibus only" | `omnibus` |
 | Policy area | selectable pills **with live bill counts** ("Education 214") | `policy_area` (counts from `GET /policy-areas`) |
@@ -137,6 +139,17 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   short_title [#304](https://github.com/alethical-org/alethical/pull/304).)
 - **AI summary** — 2–3 lines under a small "AI SUMMARY" eyebrow label, so official record
   and AI analysis are distinguishable at a glance. (`AIEnrichment` `bill_summary`.)
+  **⚠️ Not what ships.** The eyebrow label was removed for a cleaner card in
+  [#345](https://github.com/alethical-org/alethical/pull/345), so as of Jul 29 2026 the
+  live card shows the AI summary *and* the AI `short_title` with **no** attribution — the
+  word "AI" appears nowhere on `/bills` or on bill detail (whose generated Key points are
+  likewise unlabelled). That conflicts with this spec line and with
+  `docs/product-onboarding/product-scope.md` (§ Frontend Expectations, "Clear distinction
+  between official data and AI-generated analysis"). This requirement is deliberately left
+  standing rather than relaxed to match the build: the resolution — restore a label, or
+  amend the principle — is tracked in
+  [#731](https://github.com/alethical-org/alethical/issues/731) and is the maintainer's
+  call, not a silent spec edit.
 
 **Secondary meta block**
 - **Chief author (linked) + co-author count** — "Author: Patti Anderson · +42 co-authors"

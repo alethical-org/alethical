@@ -14,12 +14,16 @@ it finds bills by keyword or bill number. If you have a real *question*
   that mention *both* "school" *and* "funding" — in any order. Adding words narrows
   things down; it never broadens them.
 - **Near-misses still count.** Common word variations match too, so `tax` also finds
-  "taxes" and "taxing", and small typos are forgiven.
-- **Type a bill number to jump straight to it.** Entering something like `HF 2904`
-  (or even just `2904`) takes you right to that one bill instead of doing a keyword
-  search.
+  "taxes" and "taxing". Typos are forgiven in longer words (5 letters or more), so
+  `establishng` still finds "establishing" — but a typo in a short word like `tax`
+  won't match.
+- **A bill number searches for that bill alone.** Entering something like `HF 2904`
+  (or even just `2904`) is treated as looking up that bill by its number, not as
+  keywords, so you get only that bill (`2904` on its own returns both the House and
+  Senate bills with that number). You stay on the results list and tap the card to
+  open it.
 - **Best matches float to the top** when you've searched — the closest, most relevant
-  bills come first.
+  bills come first, unless you change the order with the "sorted by" control below.
 
 *It matches the words you type. It doesn't answer questions or find bills by concept
 when the wording is different — that's Ask.*
@@ -37,10 +41,10 @@ stack: every filter you add trims the list down more.
   end state.
 - **Session** — which legislative session (e.g. the 2025–2026 session).
 - **Omnibus only** — show just the big, bundled "omnibus" bills.
-- **Issues** — pick from tagged issues like Health, Education,
-  Taxes. Each shows a live count of how many bills fall under it. You can **pick
-  several at once**, and you'll see bills in *any* of them — choose Health and
-  Education and you get bills about either one.
+- **Issues** — pick from tagged issues like Health, Education, Taxation. Each shows a
+  live count of how many bills fall under it. You can **pick several at once**, and
+  you'll see bills in *any* of them — choose Health and Education and you get bills
+  about either one.
 
 ---
 
@@ -59,15 +63,16 @@ So you can experiment freely without losing your place.
 
 Above the list you always see:
 
-- **A running count** of how many bills match.
-- **A plain-English sentence** spelling out exactly what you're looking at — for
-  example: *"Matching 'health', tagged either Health or Education, in the House,
-  signed into law, in the 2025–2026 Legislative Session."* No guessing what the list
-  is showing you.
-- **A "sorted by" control** to change the order: **Best match** (when you've searched),
-  **Legislative progress** (how far along a bill is), or **Latest action** (most recent
-  activity first).
-- **A "data as of" date** so you know how current the information is.
+- **A running count** of how many bills match, with the "data as of" date right after
+  it — for example *"420 bills as of Jul 22, 2026"*. What you're narrowing by isn't
+  repeated here as a sentence: the removable tags above already name every filter
+  you've turned on, and the session is always visible in its own dropdown.
+- **A "sorted by" control** to change the order, and each choice really does reorder
+  the list: **Best match** (offered, and the default, only once you've typed a search)
+  puts the closest wording first, **Legislative progress** puts the bills furthest
+  along first, so signed-into-law bills lead, and **Latest action** puts the most
+  recent activity first. **Most tracked** is shown as a planned option and can't be
+  picked yet.
 
 ---
 
@@ -75,9 +80,13 @@ Above the list you always see:
 
 - **Bill code** (like "HF 2904") and its **current stage**, with a small progress
   motif showing how far along it is.
-- **A plain-language summary** of what the bill actually does — written to be readable,
-  not legalese — clearly labeled as an AI summary so it's never confused with the
-  official record.
+- **A plain-language summary** of what the bill actually does, written to be readable
+  rather than legalese. Both this and the headline above it are **written by AI from the
+  bill's own text**, not quoted from the official record. Note that the card carries
+  **no on-screen label saying so** today: the "AI SUMMARY" tag was removed for a cleaner
+  card in [#345](https://github.com/alethical-org/alethical/pull/345), which leaves it
+  indistinguishable from official text at a glance. Tracked as
+  [#731](https://github.com/alethical-org/alethical/issues/731).
 - **An "OMNIBUS" tag** when the bill is one of the big bundled bills.
 - **Chief author** — the lead legislator, clickable to their profile.
 - **The latest action and its date** — e.g. "Referred to Ways and Means · Mar 12, 2026".
