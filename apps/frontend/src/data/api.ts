@@ -391,6 +391,7 @@ interface ApiAiCitationPayload {
   url: string;
   excerpt: string;
   section_id: string;
+  section_topic?: string | null;
 }
 
 interface ApiAiAnalysisPayload {
@@ -892,6 +893,7 @@ function citationsFromAnalysis(analysis: ApiAiAnalysisPayload | null | undefined
       excerpt: c.excerpt.trim(),
       url: c.url,
       sectionId: typeof c.section_id === 'string' ? c.section_id.trim() : '',
+      sectionTopic: typeof c.section_topic === 'string' ? c.section_topic.trim() : '',
     }));
 }
 

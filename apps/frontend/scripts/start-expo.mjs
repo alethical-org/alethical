@@ -25,7 +25,15 @@ if (existsSync(envPath)) {
       .slice(equalsIndex + 1)
       .trim()
       .replace(/^['"]|['"]$/g, '');
-    process.env[key] = value;
+    // Don't clobber a variable the caller already set. `.env` holds the shared
+    // defaults; an explicit `EXPO_PUBLIC_API_URL=… pnpm run web` is the caller
+    // asking for something else (e.g. QA against a local API on another port), and
+    // overwriting it silently sent the app to the `.env` value instead — which
+    // looks like the app ignoring you, since nothing logs the substitution. Same
+    // precedence every dotenv loader uses: real environment wins over the file.
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
   }
 }
 

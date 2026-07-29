@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from alethical.api import schemas as api_schemas
 from alethical.api.issue_taxonomy import canonicalize_areas
 
@@ -139,11 +141,82 @@ def current_bill_summary_enrichment(enrichments):
     return enrichment
 
 
-def ai_citation_payloads(content, official_url) -> list[api_schemas.AICitationPayload]:
+# --- Citation chip topic (the "· License classes" half of "Sec. 4 · License classes")
+#
+# A section's topic lives in one of two columns, depending on what the section does:
+#   * A section creating free-standing law puts it in its own heading:
+#     section_heading = "Sec. 14. TRANSFER."
+#   * A section creating or amending a statute section leaves section_heading as a
+#     bare "Sec. 2." and puts the topic on the cite line instead:
+#     cite_heading = "[16E.40] HUMAN SERVICES SYSTEMS MODERNIZATION ADVISORY COUNCIL."
+# Reading only section_heading is why most chips showed a number and no topic — on
+# SF 334, sections 1-4 are the statute-creating kind. Consulting cite_heading as
+# well takes topic coverage across the corpus from 22.0% of sections to 40.2%
+# (27,045 of 67,237), measured against production.
+
+# "Sec. 14." / "Section 1." / "ARTICLE 1, Sec. 2." — the number is rendered
+# separately, so strip it off before looking for a topic.
+_SEC_PREFIX = re.compile(
+    r"^\s*(?:art(?:icle)?\.?\s+[\w.]+\s*[,:]?\s*)?sec(?:tion)?\.?\s+[\w.\-]+\.?\s*",
+    re.IGNORECASE,
+)
+# A cite heading names its statute section either bracketed ("[16E.40] ADVISORY
+# COUNCIL.") or bare ("174.56 REPORT ON TRUNK HIGHWAY PERFORMANCE"). Either way that
+# number is a raw statute citation, which display copy never carries
+# (.claude/rules/grounded-answers.md rule 9).
+_CITE_NUMBER = re.compile(r"^\s*(?:\[[^\]]*\]|\d+[\dA-Za-z.]*)\s*")
+# The Revisor marks amendments with these words inline, so an amended heading reads
+# "REPORT ON deleted text begin MAJOR HIGHWAY PROJECTS,deleted text end TRUNK
+# HIGHWAY …". It cannot be shown, and it cannot be cleaned either: deciding which
+# words survive the amendment would restate the law. Drop the topic instead — a chip
+# showing the number alone is a designed state, a chip showing markup is a bug.
+_REVISOR_MARKUP = re.compile(
+    r"\b(?:deleted|new)\s+text\s+(?:begin|end)\b", re.IGNORECASE
+)
+# A chip is a label on a card, not a heading. Past this, omit the topic rather than
+# truncate: a cut-off phrase reads as broken, and the number alone is already a
+# designed state. 60 is where corpus coverage flattens — 36.6% of sections at 44,
+# 40.2% at 60, then only 41.5% all the way out at 80 — and it is what keeps the
+# genuinely useful long ones ("Human services systems modernization advisory
+# council", 52) while still dropping the 170-character amended monsters.
+_MAX_TOPIC_CHARS = 60
+
+
+def section_chip_topic(section_heading, cite_heading) -> str:
+    """Short sentence-case topic for a citation chip, or "" when the section has
+    none worth showing. Only re-cases and trims what the source already says — it
+    never re-authors, so a chip cannot claim something the bill's own heading did
+    not (.claude/rules/grounded-answers.md rule 1)."""
+    topic = _SEC_PREFIX.sub("", (section_heading or "").strip())
+    if not re.search(r"[A-Za-z]", topic):
+        topic = _CITE_NUMBER.sub("", (cite_heading or "").strip())
+    topic = topic.strip().strip(".;:, ")
+    if not re.search(r"[A-Za-z]", topic) or _REVISOR_MARKUP.search(topic):
+        return ""
+    # Compound headings ("APPROPRIATION; COUNTY IT SYSTEMS UPDATES") keep their
+    # first clause, which is the heading's own primary term.
+    topic = topic.split(";")[0].strip().strip(".;:, ")
+    if not topic or _REVISOR_MARKUP.search(topic) or len(topic) > _MAX_TOPIC_CHARS:
+        return ""
+    # An ALL-CAPS statutory heading downcases whole; one that already carries mixed
+    # case keeps its own capitalization, which is the drafter's.
+    if topic == topic.upper():
+        topic = topic.lower()
+    return topic[:1].upper() + topic[1:]
+
+
+def ai_citation_payloads(
+    content, official_url, section_topics=None
+) -> list[api_schemas.AICitationPayload]:
     """Build resolvable per-key-point citations (#377) from the enrichment's
     already-grounded `key_point_citations`. Each targets the bill's official
     source URL (grounded-answers rule 5 — the location must resolve); a bill
-    without an official URL yields no citations rather than a dead link."""
+    without an official URL yields no citations rather than a dead link.
+
+    `section_topics` maps section_id_text -> topic and fills in the "· Topic" half
+    of a chip whose stored label carries only a number. Composed here, at request
+    time, rather than baked into the stored label, so every bill gets it now
+    instead of only the ones a future re-enrichment happens to touch."""
     raw = content.get("key_point_citations")
     if not isinstance(raw, list) or not official_url:
         return []
@@ -163,20 +236,22 @@ def ai_citation_payloads(content, official_url) -> list[api_schemas.AICitationPa
             and quote.strip()
         ):
             continue
+        section_id = section_id.strip()
         citations.append(
             api_schemas.AICitationPayload(
-                id=f"{section_id.strip()}-{index}",
+                id=f"{section_id}-{index}",
                 label=label.strip(),
                 url=official_url,
                 excerpt=quote.strip(),
-                section_id=section_id.strip(),
+                section_id=section_id,
+                section_topic=(section_topics or {}).get(section_id, ""),
             )
         )
     return citations
 
 
 def ai_analysis_payload_for_enrichment(
-    enrichment, official_url=None
+    enrichment, official_url=None, section_topics=None
 ) -> api_schemas.AIAnalysisPayload | None:
     if enrichment is None:
         return None
@@ -210,7 +285,7 @@ def ai_analysis_payload_for_enrichment(
             if isinstance(policy_areas, list)
             else []
         ),
-        citations=ai_citation_payloads(content, official_url),
+        citations=ai_citation_payloads(content, official_url, section_topics),
         # Bill-specific Ask chips (#550), served as-is; empty for un-re-enriched
         # summaries so the frontend keeps its safe generic fallback.
         question_prompts=(
