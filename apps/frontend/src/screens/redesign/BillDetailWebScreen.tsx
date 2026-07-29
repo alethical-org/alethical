@@ -162,6 +162,7 @@ export function BillDetailWebScreen() {
           setPendingAnchor(sectionId);
           selectTab('fulltext');
         }}
+        onJumpToActions={() => selectTab('actions')}
       />
     );
   } else if (activeTab === 'actions') {

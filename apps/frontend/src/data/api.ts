@@ -354,6 +354,16 @@ interface ApiBillDetailPayload {
   // Verbatim statutory effective date (e.g. "July 1, 2027"), present only when
   // the enacted bill text states one unambiguously (#483); absent otherwise.
   effective_date?: string | null;
+  // The full EFFECTIVE story for a signed law (#715): one shared date, or one row
+  // per date a phased law states about itself. Absent -> LATEST ACTION fallback.
+  effective_schedule?: {
+    kind: 'single' | 'phased';
+    value: string | null;
+    rows: Array<{ date: string; sections: number; from_enactment: boolean }>;
+    total_sections: number;
+    undated_sections: number;
+    default_candidates: string[];
+  } | null;
   official_url?: string | null;
   is_omnibus?: boolean | null;
   chief_sponsors: ApiSponsorPayload[];
@@ -1102,6 +1112,20 @@ function mapBillDetail(
     latestActionText: payload.current_status ?? undefined,
     updatedAt: formatUpdatedAt(payload.latest_action_at),
     effectiveDate: payload.effective_date ?? undefined,
+    effectiveSchedule: payload.effective_schedule
+      ? {
+          kind: payload.effective_schedule.kind,
+          value: payload.effective_schedule.value,
+          rows: payload.effective_schedule.rows.map((row) => ({
+            date: row.date,
+            sections: row.sections,
+            fromEnactment: row.from_enactment,
+          })),
+          totalSections: payload.effective_schedule.total_sections,
+          undatedSections: payload.effective_schedule.undated_sections,
+          defaultCandidates: payload.effective_schedule.default_candidates,
+        }
+      : undefined,
     sessionLabel: 'Current session',
     topics: (payload.topics ?? []).map((topic) => topic.name),
     chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),

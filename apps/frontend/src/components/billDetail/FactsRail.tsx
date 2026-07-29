@@ -14,8 +14,10 @@ import {
   formatAuthorDistrict,
   formatNiceDate,
   isKnownDistrict,
+  effectiveRailValue,
   latestActionEntry,
   partyFull,
+  PHASED_CAPTION,
   readLabel,
   stageLabel,
 } from '../../lib/billDetail';
@@ -30,11 +32,13 @@ export function FactsRail({
   onOpenUrl,
   onOpenLegislator,
   onOpenBill,
+  onJumpToActions,
 }: {
   bill: Bill;
   onOpenUrl: (url: string) => void;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenBill: (billId: string) => void;
+  onJumpToActions: () => void;
 }) {
   const { index, tone } = billStage(bill.status);
   const label = stageLabel(bill.status);
@@ -51,15 +55,19 @@ export function FactsRail({
   // statutory string ("August 1, 2025"), so it goes through formatNiceDate for the
   // rail's abbreviated month — matching the LATEST ACTION branch below, the Actions
   // timeline, and the search card, which already formats this same field (#711).
+  // A law whose sections start on different days keeps the EFFECTIVE label and
+  // leads with the earliest date it states about itself ("From May 28, 2026"),
+  // plus one muted caption pointing at the Actions timeline for the rest (#715).
   const latest = latestActionEntry(bill.actions ?? [], new Date());
-  const dateLabel = bill.effectiveDate ? 'EFFECTIVE' : 'LATEST ACTION';
-  const dateValue = bill.effectiveDate
-    ? formatNiceDate(bill.effectiveDate)
-    : latest
+  const effective = effectiveRailValue(bill);
+  const dateLabel = effective ? 'EFFECTIVE' : 'LATEST ACTION';
+  const dateValue =
+    effective?.value ??
+    (latest
       ? `${latest.label}${latest.date ? ` · ${latest.date}` : ''}`
       : bill.latestActionText
         ? `${bill.latestActionText}${bill.updatedAt ? ` · ${formatNiceDate(bill.updatedAt)}` : ''}`
-        : formatNiceDate(bill.updatedAt);
+        : formatNiceDate(bill.updatedAt));
 
   const overviewUrl = bill.officialLinks?.[0]?.url;
   const readUrl = bill.versions?.[0]?.url ?? overviewUrl;
@@ -100,6 +108,9 @@ export function FactsRail({
           <>
             <Text style={styles.dateLabel}>{dateLabel}</Text>
             <Text style={styles.dateValue}>{dateValue}</Text>
+            {effective?.phased ? (
+              <PhasedCaption billId={bill.id} onJumpToActions={onJumpToActions} />
+            ) : null}
           </>
         ) : null}
       </View>
@@ -206,6 +217,54 @@ function TextLink({
   );
 }
 
+// The phased law's one muted caption. "See dates" is a REAL anchor on the
+// existing deep-link pattern (/bills/{id}?tab=actions), so the location stays
+// shareable and keyboard-operable (grounded-answers rule 5) — the click is then
+// intercepted to switch tabs in place, because we are already on that page and a
+// raw navigation would reload it. The arrow is the text glyph the product already
+// uses for inline trailing link arrows, aria-hidden so it is never read aloud.
+//
+// The three parts sit in a wrapping ROW, not inside one parent Text: RN-Web
+// renders a NESTED Text as a <span> and silently drops its href, which turned the
+// anchor into a role="link" span with no URL in the markup. Laid out this way the
+// link is a genuine <a href>, and the caption still wraps in the narrow column
+// (between the chunks) rather than truncating.
+function PhasedCaption({
+  billId,
+  onJumpToActions,
+}: {
+  billId: string;
+  onJumpToActions: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  const href = `/bills/${encodeURIComponent(billId)}?tab=actions`;
+  return (
+    <View style={styles.phasedCaptionRow}>
+      <Text style={styles.phasedCaption}>
+        {PHASED_CAPTION}
+        <Text style={styles.phasedSep}>{' · '}</Text>
+      </Text>
+      <Text
+        accessibilityRole="link"
+        {...({ href } as { href: string })}
+        onPress={(event) => {
+          (event as unknown as { preventDefault?: () => void }).preventDefault?.();
+          onJumpToActions();
+        }}
+        {...hover}
+        style={[styles.phasedCaption, styles.phasedLink, hovered && styles.phasedLinkHover]}
+      >
+        {/* Non-breaking space: a plain one lets the arrow orphan onto its own
+            line in the narrow column, leaving a lone "→" under the label. */}
+        {'See dates\u00A0'}
+        <Text aria-hidden style={styles.phasedArrow}>
+          →
+        </Text>
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: t.colors.surfaces.base,
@@ -258,6 +317,18 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
+  // Phased caption — 13px muted, and it WRAPS rather than truncating.
+  phasedCaptionRow: { marginTop: 6, flexDirection: 'row', flexWrap: 'wrap' },
+  phasedCaption: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    lineHeight: 20,
+    color: t.colors.text.muted,
+  },
+  phasedSep: { color: t.colors.text.muted },
+  phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.green },
+  phasedLinkHover: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+  phasedArrow: { fontWeight: t.fontWeights.regular },
   codeRow: { marginTop: 11, flexDirection: 'row' },
   codeBadge: {
     backgroundColor: t.colors.omnibus.fill,
