@@ -78,14 +78,24 @@ SUMMARY_SCHEMA: dict[str, Any] = {
         "key_points": {
             "type": "array",
             "description": (
-                "Plain-language bullets, AT MOST SIX, each stating a concrete "
-                "effect of the bill. No leading bill number or 'The bill …' "
-                "preamble, and no raw statute citations; never a bullet that is "
-                "only a citation (e.g. 'Amends Minnesota Statutes 2024, section "
-                "120B.123, subdivision 5.'). Merge to fit six — never drop the "
-                "bill's later substance to make room."
+                "Plain-language bullets, each stating a concrete effect of the "
+                "bill. AIM FOR ABOUT SIX after consolidating — six is a target, "
+                "not a quota: return fewer when the bill is simple, and more when "
+                "genuinely distinct subjects remain. No leading bill number or "
+                "'The bill …' preamble, and no raw statute citations; never a "
+                "bullet that is only a citation (e.g. 'Amends Minnesota Statutes "
+                "2024, section 120B.123, subdivision 5.')."
             ),
-            "maxItems": 6,
+            # Runaway guard ONLY, deliberately well above the ~6 target. `maxItems`
+            # is enforced by strict Structured Outputs, and the model satisfies it
+            # by TRUNCATING the tail, not by merging (verified against
+            # /v1/responses: a 12-item request returned the first 6 and silently
+            # dropped the rest). So a ceiling AT the target would do the exact
+            # thing the consolidation rule forbids — drop the bill's later
+            # substance. Set high enough that ordinary bills reach it only after
+            # consolidation genuinely failed, while still stopping the pathological
+            # case (one production bill carried 59 key points).
+            "maxItems": 12,
             "items": {"type": "string"},
         },
         "key_talking_points": {"type": "array", "items": {"type": "string"}},
@@ -213,10 +223,16 @@ Write `summary`, `plain_language_summary`, and every entry in `key_points` as pl
 - Do NOT include raw statute citations — no "Minnesota Statutes", no "section 297A.67", "subdivision 40", or "chapter 626" style references. Describe the effect instead. For example, write "Exempts baby products from the state sales tax" rather than "Amends Minnesota Statutes 2024, section 297A.67, subdivision 40, to exempt certain baby products". Every `key_points` entry must state a concrete effect of the bill; never emit a key point that is only a statute citation (for example, never "Amends Minnesota Statutes 2024, section 120B.123, subdivision 5.").
 These two rules apply ONLY to `summary`, `plain_language_summary`, and `key_points`. They do NOT apply to the `quote` field in `key_point_citations`, which must still be copied verbatim from the supplied excerpt (statute references and all) so the citation stays grounded.
 
-`key_points` holds AT MOST SIX bullets, ordered BY SUBJECT rather than by section number: first what the bill creates or establishes, then when those bodies or duties must act, then the money. Sequential section order is not the goal — a section 1 that transfers money belongs with the money, not in first place. To fit six, MERGE; never truncate the list and never drop the bill's later substance:
+`key_points` is CONSOLIDATED, and ordered BY SUBJECT rather than by section number: first what the bill creates or establishes, then when those bodies or duties must act, then the money. Sequential section order is not the goal — a section 1 that transfers money belongs with the money, not in first place. Consolidate by these rules:
 - Merge bullets that differ only in which body, fund, or agency they name. Two bullets giving the same appointment and first-meeting deadlines for two different bodies are ONE bullet naming both.
-- Merge every appropriation and transfer into ONE money bullet naming the amounts, rather than one bullet per appropriation.
+- Merge every appropriation and transfer into ONE money bullet naming the amounts, rather than one bullet per appropriation. Give that bullet the HEADLINE amounts and what each pays for; do not itemise every sub-appropriation, base amount, or availability window, which turns the bullet into a paragraph nobody reads.
+- Keep every bullet to about one sentence. A bullet that needs a semicolon-separated list to fit is doing the work of two bullets, or is itemising detail that belongs in the bill text rather than the summary.
 - Drop any bullet that restates a figure another bullet already carries. Where a mechanism and a single year's number are the same fact at two scales, keep the mechanism and fold the number into it.
+
+However many bullets remain after consolidating is the right number. AIM FOR ABOUT SIX, but six is a TARGET, not a quota — the consolidation rules above decide the count, and the count is whatever they produce:
+- Do NOT pad to reach six. A narrow bill that consolidates to three effects gets three bullets; splitting one effect in two to fill the list is worse than a short list.
+- Do NOT drop, truncate, or compress away the bill's later substance to get down to six. If a genuine omnibus still has eight distinct subjects after every merge above, return eight. Losing what a bill does is a far worse outcome than a list one or two bullets longer than the target, and merging two things that are NOT the same fact makes both unreadable.
+- Only stop merging when the remaining bullets are genuinely different facts. If two bullets can still merge under the rules above, merge them even if you are already at or below six.
 
 Each bill text excerpt is prefixed with a bracketed anchor token like `[S1]`, `[S2]`. Add an entry to `key_point_citations` only for those key points that need verbatim proof — do NOT pair a citation to every bullet. Each entry's `point` repeats its key point verbatim, its `section_id` is the anchor token (e.g. `S3`) of the single excerpt it is most directly drawn from, and its `quote` is a short verbatim span (a phrase or sentence, at most ~30 words) copied exactly from that excerpt's text. Only use anchor tokens that actually appear in the supplied excerpts, and only quote text that appears verbatim there.
 
