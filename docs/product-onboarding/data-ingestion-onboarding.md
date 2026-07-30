@@ -1,5 +1,7 @@
 # Data Ingestion — Full-Stack Onboarding Guide
 
+<!-- describes: alethical/pipeline/*.py -->
+
 > Practical map of every data source Alethical pulls from, how each is fetched
 > and parsed, how the pipeline is orchestrated, and what you need installed.
 > Verified against the code on 2026-07-03. Companion design docs:
