@@ -177,7 +177,28 @@ lives in its own column and why the free backfill
 (`scripts/backfill_bill_section_body_blocks.py`) writes **only** that column —
 never `raw_text`, not even with the same value. Decided while fixing
 [#741](https://github.com/alethical-org/alethical/issues/741) and
-[#752](https://github.com/alethical-org/alethical/issues/752).
+[#752](https://github.com/alethical-org/alethical/issues/752). A fresh ingest fills
+the column itself, so only bills stored before that landed need the backfill.
+
+**`bill_version_section.updated_at` is useless for dating a text change, and
+2026-07-30 is why.** That backfill ran corpus-wide on 30 July 2026 and wrote
+`body_blocks` on all 46,063 sections of every current version. `TimestampMixin`
+bumps `updated_at` on any update, so **every section in the corpus carries that
+date** while its `raw_text` was not touched at all. Anyone tracing who last changed
+a section's text by timestamp will be misled into thinking the whole corpus was
+rewritten that day. To date a *text* change, compare `raw_text` against its hash
+(`source_hash` on the row, or the search document's `source_hash`) — a row whose
+stored hash no longer matches its text has had its text rewritten, whatever the
+timestamp says. Two sections were found in exactly that state, both from the
+duplicate-id data loss in
+[#763](https://github.com/alethical-org/alethical/issues/763).
+
+One trap in that comparison: `bill_version_section.source_hash` holds **either** the
+full 64-character sha256 (`content_hash` in `alethical/pipeline/minnesota.py`) **or**
+its 16-character prefix (`source_hash` in `alethical/pipeline/rag.py`), depending on
+which writer last touched the row. Comparing against only one form reported 2,287
+false mismatches out of 3,000 — which reads exactly like the corpus-wide disaster
+this section exists to prevent.
 
 ## B — Legislators, profiles, committees
 
