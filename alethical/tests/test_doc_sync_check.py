@@ -14,6 +14,7 @@ false. See the script's own docstring for the incident.
 
 from __future__ import annotations
 
+import fnmatch
 import importlib.util
 from pathlib import Path
 
@@ -95,7 +96,30 @@ def test_editing_the_doc_and_saying_so_passes(monkeypatch):
 def test_code_no_doc_describes_is_ignored(monkeypatch):
     # The check must stay quiet on unrelated work, or it becomes noise people
     # learn to click past.
-    assert _run(monkeypatch, ["alethical/pipeline/votes.py", "justfile"], "") == 0
+    #
+    # The files below have to actually be undeclared for this test to mean
+    # anything, and "undeclared" is not a fixed property — a doc can adopt a file
+    # at any time, which silently turns this into a test of the opposite
+    # behaviour. That already happened once: this case used
+    # ``alethical/pipeline/votes.py`` until #791 gave the data-ingestion guide a
+    # ``alethical/pipeline/*.py`` glob, at which point the file WAS described and
+    # the check was right to fail. It went unnoticed because the four commits
+    # merged after #791 were all docs-only, so CI skipped the backend job every
+    # time. So assert the premise first: if a doc adopts these files too, this
+    # fails with the reason rather than with a bare exit-code mismatch.
+    undescribed = ["alethical/db/models.py", "justfile"]
+    couplings = check_doc_sync.declared_couplings()
+    for path in undescribed:
+        owners = [
+            doc
+            for doc, globs in couplings.items()
+            if any(fnmatch.fnmatch(path, glob) for glob in globs)
+        ]
+        assert not owners, (
+            f"{path} is now declared by {owners}, so it no longer exercises the "
+            "no-doc-describes-it case — pick a different file for this test"
+        )
+    assert _run(monkeypatch, undescribed, "") == 0
 
 
 def test_the_search_docs_actually_declare_the_card(monkeypatch):
