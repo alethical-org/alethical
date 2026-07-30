@@ -445,6 +445,30 @@ interface ApiChatMessagePayload {
   created_at: string;
 }
 
+/**
+ * A failed API response, carrying the HTTP status that the message alone loses.
+ *
+ * Callers need to tell a PERMANENT failure from a transient one: a 404 for a bill
+ * that does not exist will never succeed, so retrying it and telling the reader to
+ * "try again in a moment" wastes their time and reads as our site being broken
+ * rather than the link being wrong (#720). Still a plain `Error` carrying the same
+ * message, so anything already catching `Error` is unaffected.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+/** True when the API said the thing does not exist, so there is nothing to retry. */
+export function isNotFoundError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
+}
+
 function apiUrl(path: string) {
   if (!API_BASE_URL) {
     throw new Error('Chat API is not configured for this deployment.');
@@ -474,7 +498,7 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `API request failed with ${response.status}`);
+    throw new ApiError(response.status, text || `API request failed with ${response.status}`);
   }
 
   if (response.status === 204) {
@@ -494,7 +518,7 @@ async function publicApiRequest<T>(path: string): Promise<T> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `API request failed with ${response.status}`);
+    throw new ApiError(response.status, text || `API request failed with ${response.status}`);
   }
 
   return (await response.json()) as T;
@@ -512,7 +536,7 @@ async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `API request failed with ${response.status}`);
+    throw new ApiError(response.status, text || `API request failed with ${response.status}`);
   }
 
   return (await response.json()) as T;
