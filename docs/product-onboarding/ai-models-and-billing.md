@@ -171,6 +171,22 @@ bills (26.7M tokens in, 12.3M out) prices four ways:
 August is a ~$89 mistake only if we stay on live calls; on the bulk lane it is ~$44.
 Doing both — bulk lane, before September — is the cheapest this job will ever be.
 
+**Those output figures are now high, because the job itself got smaller.** The prices
+above are the measured cost of the #723 job *as it was billed*, and they stay accurate
+as a record of what was spent. But [#773](https://github.com/alethical-org/alethical/issues/773)
+then removed 9 fields the summariser was generating that nothing displayed — four of
+them opinions about a bill we are forbidden to show at all
+(`.claude/rules/grounded-answers.md` rule 3). Measured across all 10,517 current
+production enrichments, that is **37.8% of every generated payload, ~1,799 output
+tokens a bill**. So any future run's *output* half is roughly 38% cheaper than these
+numbers, and a full 10,471-bill run saves about **$188** of output at $10/MTok. The
+input half is unchanged.
+
+8 more unread fields are deliberately still generated, because they are produced
+*before* the summary and key points and may be scaffolding the model reasons through
+on the way there. #773 carries that as a separate stage, worth about $81, gated on a
+side-by-side comparison rather than assumed.
+
 **A third saving exists and stacks, and it is worth taking on the fast lane only.**
 [Prompt caching](https://platform.claude.com/docs/en/about-claude/pricing#prompt-caching)
 lets you pay once to keep a repeated block of instructions on hand, then pay about 10% of

@@ -98,56 +98,12 @@ SUMMARY_SCHEMA: dict[str, Any] = {
             "maxItems": 12,
             "items": {"type": "string"},
         },
-        "key_talking_points": {"type": "array", "items": {"type": "string"}},
         "policy_areas": {"type": "array", "items": {"type": "string"}},
         "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+        # Whether the model saw the whole bill or a cut-down copy. Costs ~5 chars
+        # and nothing displays it, but it is the field that tells you *why* a long
+        # bill's key points look thin — check it before blaming anything else.
         "truncated_source": {"type": "boolean"},
-        "potential_benefits": {"type": "array", "items": {"type": "string"}},
-        "potential_concerns": {"type": "array", "items": {"type": "string"}},
-        "detailed_impact_analysis": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "economic": {"type": "array", "items": {"type": "string"}},
-                "social": {"type": "array", "items": {"type": "string"}},
-                "environmental": {"type": "array", "items": {"type": "string"}},
-            },
-            "required": ["economic", "social", "environmental"],
-        },
-        "sentiment_analysis": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "overall_tone": {"type": "string"},
-                "language_assessment": {"type": "string"},
-                "emotional_appeal": {"type": "string"},
-            },
-            "required": ["overall_tone", "language_assessment", "emotional_appeal"],
-        },
-        "bias_detection": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "objectivity_score": {"type": "integer"},
-                "detected_biases": {"type": "array", "items": {"type": "string"}},
-            },
-            "required": ["objectivity_score", "detected_biases"],
-        },
-        "recommendations": {"type": "array", "items": {"type": "string"}},
-        "alternative_policy_approaches": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "additionalProperties": False,
-                "properties": {
-                    "title": {"type": "string"},
-                    "description": {"type": "string"},
-                    "key_differences": {"type": "array", "items": {"type": "string"}},
-                },
-                "required": ["title", "description", "key_differences"],
-            },
-        },
-        "source_notes": {"type": "array", "items": {"type": "string"}},
         # Per-key-point source anchors (#377): each key point must be tied to a
         # supplied excerpt so the bill page can show a traceable citation marker.
         # `section_id` is the [S#] token from the bracketed excerpt the point was
@@ -185,18 +141,9 @@ SUMMARY_SCHEMA: dict[str, Any] = {
         "concerns_may_raise",
         "quick_summary",
         "key_points",
-        "key_talking_points",
         "policy_areas",
         "confidence",
         "truncated_source",
-        "potential_benefits",
-        "potential_concerns",
-        "detailed_impact_analysis",
-        "sentiment_analysis",
-        "bias_detection",
-        "recommendations",
-        "alternative_policy_approaches",
-        "source_notes",
         "key_point_citations",
         "question_prompts",
     ],
