@@ -24,13 +24,29 @@ Two billing paths for the `generate` step (`--provider`, default `api`):
     because they outrank the OAuth token in the CLI's auth precedence. Both paths
     produce the identical output rows, so the downstream `apply` is unchanged.
 
+Two *speed* modes for the `api` path, which is a separate axis from billing:
+  * `generate` — live `POST /v1/messages` from a worker pool. ~1 hour for a
+    3,222-bill run, billed at full list price. Use when someone is waiting.
+  * `batch-submit` + `batch-collect` — Anthropic's Message Batches queue. **50% off
+    both input and output**, best-effort turnaround of up to 24 hours. Use for
+    unattended bulk backfills, where nobody is waiting and half price is the whole
+    point. Both modes send byte-identical call params (:func:`message_params`) and
+    write byte-identical output rows, so `apply` cannot tell which produced a row.
+
 Flow (mirrors the codex path so it is idempotent and resumable):
   1. `python -m alethical.pipeline.ai_enrichment prepare ...` -> request JSONL + manifest
-  2. `python -m alethical.pipeline.anthropic_enrichment generate --manifest-path M
+  2a. LIVE: `python -m alethical.pipeline.anthropic_enrichment generate --manifest-path M
      --jsonl-path J --run-dir DIR [--provider api|claude-cli] [--model ...] [--concurrency N]`
      -> per-bill outputs/<id>.jsonl (skips ones already written) + combined.output.jsonl
+  2b. BATCH: `... batch-submit --manifest-path M --jsonl-path J --run-dir DIR [--dry-run]`
+     -> DIR/batch.json (batch ids + custom-id map), then, once it has ended,
+     `... batch-collect --manifest-path M --run-dir DIR`
+     -> the same per-bill outputs + combined.output.jsonl
   3. `python -m alethical.pipeline.ai_enrichment apply --manifest-path DIR/<...>.codex.manifest.json
      --output-path DIR/combined.output.jsonl [--dry-run]`
+
+Both 2a and 2b skip bills whose output file already exists, so a run can be
+interrupted, resumed, or switched between modes without paying for a bill twice.
 
 The generated output rows use the same shape the apply path already reads
 (`{"custom_id", "response": {"status_code": 200, "body": {"output_text": ...}}}`).
@@ -61,6 +77,11 @@ from alethical.pipeline.codex_enrichment import (
 )
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_BATCHES_URL = "https://api.anthropic.com/v1/messages/batches"
+# Anthropic caps a batch at 100k requests / 256MB. Our enrichment requests run
+# ~33KB each, so a 3,222-bill run is ~106MB in one POST. Chunking keeps each
+# request comfortably small and means a rejected chunk doesn't sink the run.
+DEFAULT_BATCH_CHUNK_SIZE = 1000
 DEFAULT_MODEL = "claude-sonnet-5"
 DEFAULT_MAX_TOKENS = 8192
 DEFAULT_CONCURRENCY = 8
@@ -90,19 +111,31 @@ def _extract_json(text: str) -> dict[str, Any]:
     return json.loads(text[start : end + 1])
 
 
-def _call_anthropic(
-    api_key: str, model: str, system: str, user: str, max_tokens: int
+def message_params(
+    model: str, system: str, user: str, max_tokens: int
 ) -> dict[str, Any]:
+    """The Messages-API body for one bill.
+
+    Shared by the live path and the batch path on purpose: a batch request is the
+    same call with a different envelope, so building it in one place is what makes
+    "the two paths produce identical text" true rather than hoped for.
+    """
     schema_note = (
         "\n\nReturn ONLY a single JSON object matching this schema. No prose, no "
         "markdown fences:\n" + json.dumps(SUMMARY_SCHEMA)
     )
-    payload = {
+    return {
         "model": model,
         "max_tokens": max_tokens,
         "system": system + schema_note,
         "messages": [{"role": "user", "content": user}],
     }
+
+
+def _call_anthropic(
+    api_key: str, model: str, system: str, user: str, max_tokens: int
+) -> dict[str, Any]:
+    payload = message_params(model, system, user, max_tokens)
     last_err: Exception | None = None
     for attempt in range(MAX_ATTEMPTS):
         try:
@@ -215,31 +248,16 @@ def generate(args: argparse.Namespace) -> None:
         if not api_key:
             raise SystemExit("ANTHROPIC_API_KEY is required for --provider api")
 
-    run_dir = Path(args.run_dir)
+    (
+        run_dir,
+        codex_manifest_path,
+        requests_by_id,
+        pending,
+        skipped_done,
+        total_items,
+    ) = _pending_items(args)
     outputs_dir = run_dir / "outputs"
-    outputs_dir.mkdir(parents=True, exist_ok=True)
     model_name = args.model_name or f"claude:{args.model}"
-
-    manifest_path = Path(args.manifest_path)
-    codex_manifest_path = write_codex_manifest(
-        manifest_path,
-        run_dir / f"{manifest_path.stem}.codex.manifest.json",
-        model_name=model_name,
-    )
-    requests_by_id = load_jsonl_requests(Path(args.jsonl_path))
-    items = load_manifest_items(codex_manifest_path)
-
-    pending: list[Any] = []
-    skipped_done = 0
-    for item in items:
-        out_path = outputs_dir / f"{safe_custom_id(item.custom_id)}.jsonl"
-        if out_path.exists():
-            skipped_done += 1
-            continue
-        if item.custom_id in requests_by_id:
-            pending.append(item)
-        if args.limit is not None and len(pending) >= args.limit:
-            break
 
     print(
         json.dumps(
@@ -248,7 +266,7 @@ def generate(args: argparse.Namespace) -> None:
                 "provider": provider,
                 "model": args.model,
                 "model_name": model_name,
-                "total_items": len(items),
+                "total_items": total_items,
                 "skipped_done": skipped_done,
                 "to_generate": len(pending),
                 "concurrency": args.concurrency,
@@ -314,6 +332,254 @@ def generate(args: argparse.Namespace) -> None:
     )
 
 
+def _batch_headers(api_key: str) -> dict[str, str]:
+    return {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+
+
+def _pending_items(
+    args: argparse.Namespace,
+) -> tuple[Path, Path, dict[str, dict[str, Any]], list[Any], int, int]:
+    """Resolve the run directory and the items still needing generation.
+
+    Shared by the live and batch entrypoints so both skip already-written bills
+    the same way — that skip is what makes an interrupted run cost nothing to
+    restart.
+    """
+    run_dir = Path(args.run_dir)
+    outputs_dir = run_dir / "outputs"
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    model_name = args.model_name or f"claude:{args.model}"
+
+    manifest_path = Path(args.manifest_path)
+    codex_manifest_path = write_codex_manifest(
+        manifest_path,
+        run_dir / f"{manifest_path.stem}.codex.manifest.json",
+        model_name=model_name,
+    )
+    requests_by_id = load_jsonl_requests(Path(args.jsonl_path))
+    items = load_manifest_items(codex_manifest_path)
+
+    pending: list[Any] = []
+    skipped_done = 0
+    for item in items:
+        if (outputs_dir / f"{safe_custom_id(item.custom_id)}.jsonl").exists():
+            skipped_done += 1
+            continue
+        if item.custom_id in requests_by_id:
+            pending.append(item)
+        if args.limit is not None and len(pending) >= args.limit:
+            break
+    return (
+        run_dir,
+        codex_manifest_path,
+        requests_by_id,
+        pending,
+        skipped_done,
+        len(items),
+    )
+
+
+def batch_submit(args: argparse.Namespace) -> None:
+    """Hand the pending bills to Anthropic's Message Batches queue.
+
+    Half the price of the live path in exchange for a best-effort turnaround of up
+    to 24 hours. Batch ids are written to ``run_dir/batch.json`` before anything
+    else happens, so a killed terminal never loses a submitted (and billed) job.
+    """
+    api_key = args.api_key or os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key and not args.dry_run:
+        raise SystemExit("ANTHROPIC_API_KEY is required for batch-submit")
+
+    run_dir, _, requests_by_id, pending, skipped_done, total = _pending_items(args)
+    state_path = run_dir / "batch.json"
+    if state_path.exists() and not args.dry_run:
+        raise SystemExit(
+            f"{state_path} already exists — collect it (or delete it) before "
+            "submitting again, so a paid batch is never submitted twice."
+        )
+
+    # Anthropic requires custom_id to match [a-zA-Z0-9_-]{1,64}; our bill keys carry
+    # dots and can be longer, so batches are keyed by position and mapped back.
+    id_map: dict[str, str] = {}
+    payloads: list[dict[str, Any]] = []
+    for index, item in enumerate(pending):
+        batch_id = f"req-{index:06d}"
+        id_map[batch_id] = item.custom_id
+        system, user = _system_and_user(requests_by_id[item.custom_id])
+        payloads.append(
+            {
+                "custom_id": batch_id,
+                "params": message_params(args.model, system, user, DEFAULT_MAX_TOKENS),
+            }
+        )
+
+    chunks = [
+        payloads[start : start + args.chunk_size]
+        for start in range(0, len(payloads), args.chunk_size)
+    ]
+    est_chars = sum(len(json.dumps(p)) for p in payloads)
+    summary = {
+        "run_dir": str(run_dir),
+        "model": args.model,
+        "total_items": total,
+        "skipped_done": skipped_done,
+        "to_submit": len(payloads),
+        "chunks": len(chunks),
+        "estimated_request_bytes": est_chars,
+        # ~4 chars per token is the standard rough conversion; batch input is
+        # billed at half the live rate.
+        "estimated_input_tokens": est_chars // 4,
+    }
+    if args.dry_run:
+        print(json.dumps({**summary, "dry_run": True}, indent=2))
+        return
+
+    batches: list[dict[str, Any]] = []
+    for chunk in chunks:
+        resp = requests.post(
+            ANTHROPIC_BATCHES_URL,
+            headers=_batch_headers(api_key),
+            json={"requests": chunk},
+            timeout=600,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        batches.append({"id": body["id"], "request_count": len(chunk)})
+        # Persist after every accepted chunk: a crash mid-loop must not orphan a
+        # batch that Anthropic is already billing us for.
+        state_path.write_text(
+            json.dumps(
+                {
+                    "model": args.model,
+                    "model_name": args.model_name or f"claude:{args.model}",
+                    "batches": batches,
+                    "custom_id_map": id_map,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+    print(json.dumps({**summary, "batches": batches}, indent=2))
+
+
+def batch_collect(args: argparse.Namespace) -> None:
+    """Poll the submitted batches and write their results as per-bill outputs.
+
+    Writes the same rows the live path writes, so ``apply`` cannot tell which path
+    produced them. Only successful, schema-valid results are written; anything
+    else is reported and left pending for a re-submit.
+    """
+    api_key = args.api_key or os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise SystemExit("ANTHROPIC_API_KEY is required for batch-collect")
+
+    run_dir = Path(args.run_dir)
+    state_path = run_dir / "batch.json"
+    if not state_path.exists():
+        raise SystemExit(f"no {state_path} — run batch-submit first")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    id_map: dict[str, str] = state["custom_id_map"]
+    outputs_dir = run_dir / "outputs"
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+
+    statuses = []
+    for batch in state["batches"]:
+        resp = requests.get(
+            f"{ANTHROPIC_BATCHES_URL}/{batch['id']}",
+            headers=_batch_headers(api_key),
+            timeout=120,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        statuses.append(
+            {
+                "id": batch["id"],
+                "processing_status": body.get("processing_status"),
+                "request_counts": body.get("request_counts"),
+            }
+        )
+
+    unfinished = [s for s in statuses if s["processing_status"] != "ended"]
+    if unfinished:
+        print(json.dumps({"ready": False, "batches": statuses}, indent=2))
+        return
+
+    written = 0
+    problems: list[dict[str, str]] = []
+    for batch in state["batches"]:
+        resp = requests.get(
+            f"{ANTHROPIC_BATCHES_URL}/{batch['id']}/results",
+            headers=_batch_headers(api_key),
+            timeout=1800,
+        )
+        resp.raise_for_status()
+        for line in resp.text.splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            custom_id = id_map.get(row.get("custom_id", ""), "")
+            result = row.get("result") or {}
+            if not custom_id:
+                problems.append(
+                    {"custom_id": row.get("custom_id", ""), "error": "unmapped"}
+                )
+                continue
+            if result.get("type") != "succeeded":
+                problems.append(
+                    {"custom_id": custom_id, "error": str(result.get("type"))}
+                )
+                continue
+            text = "".join(
+                b.get("text", "")
+                for b in (result.get("message") or {}).get("content", [])
+                if b.get("type") == "text"
+            ).strip()
+            try:
+                content = _extract_json(text)
+                errors = validate_summary_shape(content)
+                if errors:
+                    raise ValueError(f"schema errors: {errors[:5]}")
+            except Exception as exc:  # noqa: BLE001
+                problems.append({"custom_id": custom_id, "error": str(exc)[:200]})
+                continue
+            (outputs_dir / f"{safe_custom_id(custom_id)}.jsonl").write_text(
+                json.dumps(output_row(custom_id, content), ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            written += 1
+
+    # Rewrite rather than assume submit left it here: collect is the step someone
+    # runs a day later, often from a different terminal.
+    manifest_path = Path(args.manifest_path)
+    codex_manifest_path = write_codex_manifest(
+        manifest_path,
+        run_dir / f"{manifest_path.stem}.codex.manifest.json",
+        model_name=state["model_name"],
+    )
+    combine = combine_output_files(
+        run_dir=run_dir,
+        manifest_path=codex_manifest_path,
+        output_path=run_dir / "combined.output.jsonl",
+    )
+    print(
+        json.dumps(
+            {
+                "ready": True,
+                "batches": statuses,
+                "written": written,
+                "problems": len(problems),
+                "problem_sample": problems[:10],
+                "combine": combine,
+            },
+            indent=2,
+        )
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate bill AI enrichments with an Anthropic (Claude) model."
@@ -344,6 +610,36 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
     gen.add_argument("--limit", type=int, default=None)
     gen.set_defaults(func=generate)
+
+    sub_cmd = sub.add_parser(
+        "batch-submit",
+        help=(
+            "Submit the prepared batch to Anthropic Message Batches (50%% off, "
+            "best-effort within 24h). Use for unattended bulk runs; use 'generate' "
+            "when you need the result in the next hour."
+        ),
+    )
+    sub_cmd.add_argument("--manifest-path", required=True)
+    sub_cmd.add_argument("--jsonl-path", required=True)
+    sub_cmd.add_argument("--run-dir", default=".tmp/anthropic-ai-runs/regen")
+    sub_cmd.add_argument("--model", default=DEFAULT_MODEL)
+    sub_cmd.add_argument("--model-name", default=None)
+    sub_cmd.add_argument("--limit", type=int, default=None)
+    sub_cmd.add_argument("--chunk-size", type=int, default=DEFAULT_BATCH_CHUNK_SIZE)
+    sub_cmd.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report request count and estimated tokens without submitting or spending.",
+    )
+    sub_cmd.set_defaults(func=batch_submit)
+
+    col = sub.add_parser(
+        "batch-collect",
+        help="Poll submitted batches and write finished results as per-bill outputs.",
+    )
+    col.add_argument("--manifest-path", required=True)
+    col.add_argument("--run-dir", default=".tmp/anthropic-ai-runs/regen")
+    col.set_defaults(func=batch_collect)
     return parser
 
 
