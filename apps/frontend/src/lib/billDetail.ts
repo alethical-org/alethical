@@ -7,6 +7,7 @@ import {
   VoteEvent,
 } from '../data/types';
 import { normalizeMotion } from './motionNormalize';
+import { formatSessionLabel } from './sessionLabel';
 
 // Shared logic for the redesign Bill Detail page (screens/redesign/BillDetailScreen).
 // Kept framework-free (pure functions) so it is unit-testable and reused by the tab
@@ -1267,23 +1268,38 @@ function assignOrderKeys<T extends { actionNumber: number; rawDate: string; idx:
   return items.map((item, i) => ({ item, key: key[i] }));
 }
 
-// Web eyebrow "2025–2026 LEGISLATIVE SESSION". The session biennium is derived from
-// the bill id's year segment (94-2025-SF334 → 2025 → 2025–2026), since the detail
-// payload carries no session label ("legislative" kept — educational).
+// Web eyebrow "2025–2026 LEGISLATIVE SESSION". Built from the session the API serves
+// for the bill (`sessionLabel`), not derived from its id: a special session is its own
+// session, so no arithmetic on the id can name it, and reading the served value means
+// the eyebrow cannot disagree with the session filter (#746). "Legislative" is kept —
+// it is educational.
+//
+// The id fallback stays for the pre-load render and for anything served without a
+// session. It reads the biennium out of the id's year segment
+// (94-2025-SF334 → 2025 → 2025–2026), and now returns "" rather than a bare
+// "LEGISLATIVE SESSION" when it cannot: on `94-2025s1-HF5` the segment is "2025s1", so
+// the old regex missed and every special-session page showed a session eyebrow that
+// named no session at all.
 //
 // No chamber prefix: on web the rail already states it three times (the "SENATE
 // BILL" section label, the SF/HF code badge, and the Senator / Senate District
 // rows), so a fourth statement is redundant. Mobile has no rail and so keeps the
-// full "SENATE · 2025–2026 LEGISLATIVE SESSION" form, built inline in
+// full "SENATE · 2025 FIRST SPECIAL SESSION" form, built inline in
 // screens/redesign/BillDetailScreen — deliberately not shared with this helper.
-export function bienniumEyebrow(billId: string): string {
+export function bienniumEyebrow(billId: string, sessionLabel?: string): string {
+  const served = (sessionLabel || '').trim();
+  if (served && served !== 'Current session') {
+    // "94th Legislature (2025) First Special Session" → "2025 FIRST SPECIAL SESSION";
+    // "94th Legislature (2025 - 2026) Regular Session" → "2025–2026 LEGISLATIVE SESSION".
+    return formatSessionLabel(served).toUpperCase();
+  }
   const m = (billId || '').match(/^\d+-(\d{4})-/);
   const year = m ? Number(m[1]) : NaN;
   if (!Number.isNaN(year)) {
     const start = year % 2 === 1 ? year : year - 1;
     return `${start}–${start + 1} LEGISLATIVE SESSION`;
   }
-  return 'LEGISLATIVE SESSION';
+  return '';
 }
 
 // The chief-author block renders the honorific as the grey ROW LABEL for the name

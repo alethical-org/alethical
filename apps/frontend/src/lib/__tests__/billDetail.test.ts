@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  bienniumEyebrow,
   buildActionTimeline,
   completeDanglingTitle,
   crossReferenceTargets,
@@ -518,5 +519,34 @@ describe('the plain-language key explains the pointer row, without claiming a me
       // And each one says the thing that stops the wrong impression forming.
       expect(copy).toMatch(/does not say how/i);
     }
+  });
+});
+
+describe('bienniumEyebrow names the session the bill is actually from', () => {
+  it('uses the served session name, not arithmetic on the bill id', () => {
+    expect(bienniumEyebrow('94-2025-SF334', '94th Legislature (2025 - 2026) Regular Session')).toBe(
+      '2025–2026 LEGISLATIVE SESSION',
+    );
+  });
+
+  it('names a special session as a special session', () => {
+    // #746: the old version parsed "94-2025s1-HF5" with /^\d+-(\d{4})-/, which misses
+    // because the segment is "2025s1", and fell through to a bare "LEGISLATIVE
+    // SESSION" — a session eyebrow naming no session, on every special-session page.
+    expect(bienniumEyebrow('94-2025s1-HF5', '94th Legislature (2025) First Special Session')).toBe(
+      '2025 FIRST SPECIAL SESSION',
+    );
+  });
+
+  it('falls back to the id while the session is still loading', () => {
+    expect(bienniumEyebrow('94-2026-HF4138')).toBe('2025–2026 LEGISLATIVE SESSION');
+    expect(bienniumEyebrow('94-2025-SF334', 'Current session')).toBe(
+      '2025–2026 LEGISLATIVE SESSION',
+    );
+  });
+
+  it('says nothing rather than naming a session it cannot identify', () => {
+    expect(bienniumEyebrow('', undefined)).toBe('');
+    expect(bienniumEyebrow('94-2025s1-HF5')).toBe('');
   });
 });
