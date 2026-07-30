@@ -108,6 +108,31 @@ Confirmed deliberate: "Presented to the Governor" hollow, "Signed" green —
 consistent across the whole milestone pathway. Amendment outcome rides the
 ADOPTED/NOT ADOPTED PILL, a separate axis from the dot.
 
+### Cross-reference rows link their bill code (EXPLICIT RULE, #745)
+A "See also HF 2446" row names another bill, and where we serve that bill's page
+the code itself is a link to it (`/bills/{bill_key}`) — the timeline is a bill's
+trail, so a pointer we can resolve should be followable, and grounded-answers rule 5
+requires anything linked to be URL-addressable.
+- **The server resolves, not the client.** Only the API holds an index of the
+  corpus, so the bill detail route serves each cross-reference action's targets as
+  `{code, id}` — the same shape as `companion`. The client never parses a file
+  number into a URL itself.
+- **Resolution is scoped to the citing bill's own session**, where a file number is
+  unique. Three cases deliberately DO NOT link, and all three stay plain text:
+  a reference qualified by another session ("First Special Session, HF 5" — the
+  regular session holds a *different* bill with that number, so linking would send
+  a reader confidently to the wrong bill; 465 rows, unblocked by #746), a reference
+  to the citing bill itself, and a reference naming only a chapter and section.
+- **An unresolved reference renders exactly as it does today.** A miss is absent
+  from the payload rather than served empty, so it can never draw a dead link.
+- **The linked code is underlined**, not green alone: mid-sentence there is no
+  position to mark it as a link and no hover on a phone, so colour would be the only
+  cue (WCAG 1.4.1). Standalone links elsewhere on the page keep hover-only
+  underlines. The code inherits the row title's size and weight, so the timeline's
+  rhythm is unchanged.
+- The target text stays quoted as the source states it, link or not — we decline to
+  link, we never re-author.
+
 ### Future / scheduled actions (EXPLICIT RULE)
 - Actions dated AFTER the data snapshot ("now" = the Last-updated date) render as
   **SCHEDULED, not completed**: dashed green-ring dot (vs. filled green), a
