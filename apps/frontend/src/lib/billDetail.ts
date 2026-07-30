@@ -1574,9 +1574,12 @@ export function plainBillSummary(
 // strip Minnesota Statutes citations and any bill-number prefix so no key point
 // reads as a bare "Amends Minnesota Statutes 2024, section 120B.123 …" line
 // (grounded-answers: key points are plain-language statements of what the bill
-// does — extends rule 9 beyond the summary). A point that is ONLY a citation has no
-// plain-language effect left once the citation is stripped, so it collapses to
-// empty and is dropped — we never fabricate the effect the source didn't state.
+// does — extends rule 9 beyond the summary). Where a point is nothing but a citation
+// the cleaner CAN remove — a parenthetical aside, a leading amendatory clause — it
+// collapses to empty and is dropped, rather than having an effect invented for it.
+// A point whose citation is load-bearing prose is left as written, because since
+// #754 the cleaner only strips a citation where removing it cannot break the
+// sentence; "Amends Minnesota Statutes 2024, section 120B.123." survives intact.
 // The durable fix at ingestion landed in July 2026 (#520 — the full corpus was
 // re-enriched to plain language at source); this cleaner is retained as
 // defense-in-depth, mirroring plainBillSummary's role for summaries: it no-ops on

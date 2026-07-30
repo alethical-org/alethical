@@ -189,7 +189,14 @@ export function parseChangeRuns(text: string): TextRun[] {
 
 /** Section text with every marker word removed — for classifying and labelling. */
 export function plainSectionText(text: string): string {
-  return stripMarkers(text.replace(MARKER_PAIR, '$2')).trim();
+  // Collapse here as well as in `stripMarkers`: replacing a marker pair with the
+  // run it wrapped joins the space before the pair to the space inside it, and
+  // `stripMarkers` then sees no marker word left and returns early without
+  // tidying. That left a doubled space in 22 of 2,897 sampled index rows —
+  // "Literacy  incentive aid" (SF 2255, section 10).
+  return stripMarkers(text.replace(MARKER_PAIR, '$2'))
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
 }
 
 /** Which kinds of change a bill's sections actually contain, so the legend only
