@@ -14,6 +14,7 @@ false. See the script's own docstring for the incident.
 
 from __future__ import annotations
 
+import fnmatch
 import importlib.util
 from pathlib import Path
 
@@ -95,7 +96,32 @@ def test_editing_the_doc_and_saying_so_passes(monkeypatch):
 def test_code_no_doc_describes_is_ignored(monkeypatch):
     # The check must stay quiet on unrelated work, or it becomes noise people
     # learn to click past.
-    assert _run(monkeypatch, ["alethical/pipeline/votes.py", "justfile"], "") == 0
+    #
+    # The path is derived, not hardcoded: this test named `alethical/pipeline/votes.py`
+    # until a doc declared `alethical/pipeline/*.py`, at which point it failed on main
+    # for a reason that had nothing to do with the behaviour it pins. Pick something
+    # genuinely undeclared at run time, and say so when nothing is.
+    couplings = check_doc_sync.declared_couplings()
+    candidates = [
+        "justfile",
+        "alethical/tests/conftest.py",
+        "scripts/load_sample_data.py",
+        ".gitignore",
+    ]
+    undeclared = [
+        path
+        for path in candidates
+        if not any(
+            fnmatch.fnmatch(path, glob)
+            for globs in couplings.values()
+            for glob in globs
+        )
+    ]
+    assert undeclared, (
+        "every candidate path is now declared by some doc — pick one that is not, "
+        f"or this test cannot check what it claims to. Couplings: {couplings}"
+    )
+    assert _run(monkeypatch, undeclared, "") == 0
 
 
 def test_the_search_docs_actually_declare_the_card(monkeypatch):
