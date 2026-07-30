@@ -248,7 +248,27 @@ describe('the added-text marks reach the page', () => {
     }
   });
 
-  it('renders an added run as an added run, not as plain law', () => {
+  it('renders REAL added text as an added run, not as plain law', () => {
+    // The added-text path used to be covered only by an invented example, which is
+    // the weakest kind of test in this suite — both spacing bugs it pins were found
+    // by measuring real text, not by examples someone made up. These are real
+    // sections from real bills, and every one of them must produce at least one
+    // underlined run.
+    const added = sections.filter((s) =>
+      blockTexts(blocksOf(s)).some((t) => /new text begin/.test(t)),
+    );
+    expect(added.length).toBeGreaterThan(2);
+    for (const section of added) {
+      const runs = bodyBlockTexts(structuredBody(section)).flatMap((text) => parseChangeRuns(text));
+      expect(
+        runs.some((run) => run.kind === 'added'),
+        withId(section),
+      ).toBe(true);
+      expect(runs.map((run) => run.text).join(''), withId(section)).not.toMatch(MARKER_WORDS);
+    }
+  });
+
+  it('renders a removal and an addition in the same clause', () => {
     const runs = parseChangeRuns(
       'clause deleted text begin (5) deleted text end new text begin (4) new text end , applies.',
     );
