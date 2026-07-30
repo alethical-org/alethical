@@ -130,8 +130,15 @@ requires anything linked to be URL-addressable.
   cue (WCAG 1.4.1). Standalone links elsewhere on the page keep hover-only
   underlines. The code inherits the row title's size and weight, so the timeline's
   rhythm is unchanged.
-- The target text stays quoted as the source states it, link or not — we decline to
-  link, we never re-author.
+- **The target's FACTS stay verbatim; its spelling does not have to.** The file
+  number, chapter, section and date are never re-interpreted, because changing one of
+  those changes what the record says. A plain misspelling in the source's *wording*
+  is corrected (`fixSourceMisspellings`): these rows are labels we author, not
+  quotations — we already rewrite every one of them — so leaving a clerk's typo
+  standing inside our own sentence reads as our sloppiness, not as fidelity.
+  Verbatim quotation is owed by the Bill Text section and by citation excerpts. The
+  list is explicit and audited, not a spell-checker; today it holds one entry,
+  "Frist" → "First" (2 rows, both naming the 2025 First Special Session).
 
 ### Future / scheduled actions (EXPLICIT RULE)
 - Actions dated AFTER the data snapshot ("now" = the Last-updated date) render as
