@@ -1655,7 +1655,10 @@ function AskButton({ onPress }: { onPress: () => void }) {
 const m = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
-  scrollContent: { position: 'relative', paddingBottom: 0 },
+  // flexGrow: 1 fills the window on a short page so the footer lands at the
+  // bottom (styles.footer in theme/primitives.tsx) instead of leaving a band
+  // of background below it.
+  scrollContent: { position: 'relative', paddingBottom: 0, flexGrow: 1 },
   // Hero + Ask each own their masked dot texture; overflow:hidden contains the
   // texture (and its fade) to the section so it never bleeds page-wide.
   heroWrap: { position: 'relative', overflow: 'hidden' },
@@ -2025,7 +2028,10 @@ function ViewAllButton({ onPress }: { onPress: () => void }) {
 const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 0 },
+  // flexGrow: 1 fills the window on a short page so the footer lands at the
+  // bottom (styles.footer in theme/primitives.tsx) instead of leaving a band
+  // of background below it.
+  scrollContent: { paddingBottom: 0, flexGrow: 1 },
 
   // hero
   heroWrap: { position: 'relative' },

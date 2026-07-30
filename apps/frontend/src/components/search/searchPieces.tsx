@@ -1116,14 +1116,21 @@ const styles = StyleSheet.create({
   // scaffold
   root: { flex: 1, position: 'relative' },
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 0 },
+  // flexGrow: 1 makes the content fill the window even when there is little of
+  // it, which is what lets the results panel and the footer below settle at the
+  // bottom instead of stopping mid-screen.
+  scrollContent: { paddingBottom: 0, flexGrow: 1 },
   heroWrap: { position: 'relative', zIndex: 2 },
   heroBody: { paddingTop: 36, paddingBottom: 44 },
+  // The white results panel is what absorbs the leftover height on a short page
+  // (one result, a not-found bill), so the extra space reads as more of the same
+  // panel rather than a grey stripe between the panel and the footer.
   resultsSection: {
     backgroundColor: t.colors.surfaces.base,
     paddingTop: 40,
     paddingBottom: 64,
     zIndex: 1,
+    flexGrow: 1,
   },
 
   // hero

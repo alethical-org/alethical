@@ -550,7 +550,7 @@ export function LegislatorProfileMobileScreen() {
 
   return (
     <PageBackground>
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <TopNav {...shellProps} />
 
         {legQuery.isLoading ? (
@@ -900,13 +900,16 @@ export function LegislatorProfileMobileScreen() {
                 </View>
               </View>
             </View>
-
-            <Footer
-              onPrivacy={() => openExternal('https://www.alethical.com/privacy')}
-              onTerms={() => openExternal('https://www.alethical.com/terms')}
-            />
           </>
         )}
+
+        {/* Outside the state branch on purpose: every state ends with the footer
+            (loading, load error, loaded). On the short states it pins to the
+            bottom of the window — see styles.footer in theme/primitives.tsx. */}
+        <Footer
+          onPrivacy={() => openExternal('https://www.alethical.com/privacy')}
+          onTerms={() => openExternal('https://www.alethical.com/terms')}
+        />
       </ScrollView>
 
       {/* SHARE SHEET */}
@@ -1075,6 +1078,10 @@ export function LegislatorProfileMobileScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
+  // flexGrow: 1 fills the window on a short page so the footer lands at the
+  // bottom (styles.footer in theme/primitives.tsx) instead of leaving a band
+  // of background below it.
+  scrollContent: { flexGrow: 1 },
   column: { width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center', paddingHorizontal: 20 },
   // skeleton loading state (mirrors hero + first card)
   skGap8: { marginTop: 8 },
