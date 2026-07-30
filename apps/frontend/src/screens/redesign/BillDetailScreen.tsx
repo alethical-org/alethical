@@ -2487,7 +2487,9 @@ const styles = StyleSheet.create({
   },
   // A linked bill code inside a "See also" title. Green like every other in-product
   // link, inheriting the title's size and weight so the row's rhythm is unchanged.
-  actionBillCodeLink: { color: t.colors.text.green },
+  // Underlined, because mid-sentence there is no position to mark it as a link and
+  // there is no hover on a phone — colour alone would be the only cue (WCAG 1.4.1).
+  actionBillCodeLink: { color: t.colors.text.green, textDecorationLine: 'underline' },
   actionTally: {
     paddingVertical: 3,
     paddingHorizontal: 9,

@@ -189,9 +189,12 @@ function AuthorTitle({
 }
 
 // A bill code inside a "See also" title, linking to that bill's page (#745). Green
-// like every other in-product link, and underlined on hover so it reads as one even
-// mid-sentence. Nested inside the title <Text>, so it inherits the title's size and
-// weight and the row's line-height is untouched.
+// like every other in-product link, and ALWAYS underlined — unlike the standalone
+// links elsewhere on this page, which earn their hover-only underline from sitting
+// on their own line. Mid-sentence there is no positional cue, so colour would be
+// the only thing marking it as a link (WCAG 1.4.1), and hover does not exist on a
+// phone. Nested inside the title <Text>, so it inherits the title's size and weight
+// and the row's line-height is untouched.
 function BillCodeLink({ code, onPress }: { code: string; onPress: () => void }) {
   const [hovered, hover] = useHover();
   return (
@@ -355,8 +358,8 @@ const styles = StyleSheet.create({
   },
   // The ONE reason a title is grey: it hasn't happened yet.
   titleScheduled: { color: t.colors.text.muted },
-  billCodeLink: { color: t.colors.text.green },
-  billCodeLinkHover: { textDecorationLine: 'underline' },
+  billCodeLink: { color: t.colors.text.green, textDecorationLine: 'underline' },
+  billCodeLinkHover: { color: t.colors.brand.forest },
   // How many sections start on this row's date — only ever a count read off the
   // sections that STATE that date, never one resting on an inferred date (#715).
   rowMeta: {
