@@ -24,7 +24,7 @@ from alethical.api.schemas import (
     DetailResponse,
 )
 from alethical.api.rate_limit import rate_limit
-from alethical.api.serializers import bill_list_item
+from alethical.api.serializers import bill_list_item, current_bill_summary_enrichment
 from alethical.api.services.ask_router import (
     AskIntent,
     classify_query,
@@ -424,7 +424,19 @@ def _resolve_bill_by_content(db: Session, session_id, model: str, content, embed
     catalog = []
     for bill in candidates:
         item = bill_list_item(bill)
-        summary = item.ai_analysis.summary if item.ai_analysis else None
+        # Deliberately the FORMAL summary, not the reader-facing one the display
+        # surfaces switched to in #766. This text is a disambiguation aid for the
+        # LLM choosing between similar bills, not something a person reads, and the
+        # formal phrasing carries the specifics that distinguish near-duplicates
+        # (fund names, exact figures, the statute being amended) which the
+        # plain-language rewrite deliberately drops. Changing what this step reasons
+        # over would move an eval-gated path (grounded-answers rule 1's acceptance
+        # suite; retrieval quality tracked on #400), so it stays pinned and is
+        # changed only behind that eval.
+        enrichment = current_bill_summary_enrichment(bill.enrichments)
+        content = (enrichment.content_json or {}) if enrichment else {}
+        formal = content.get("summary")
+        summary = formal if isinstance(formal, str) and formal.strip() else None
         catalog.append((bill.bill_key, bill.title, item.current_status, summary))
     chosen_key = pick_bill_from_candidates(content, catalog)
     if chosen_key is None:
