@@ -1715,6 +1715,13 @@ def bill_version_text(
                     "heading": section.section_heading,
                     "article_heading": section.article_heading,
                     "text": section.raw_text,
+                    # The same body with the subdivision numbers, added-text
+                    # marks and appropriation-table shape the flat text loses
+                    # (#741). Null until the section has been re-read from the
+                    # Revisor, so a reader falls back to `text`. Both are served:
+                    # blocks run ~1.2x the flat text, which only matters on the
+                    # 51 bills of 10,433 carrying over 100 sections.
+                    "body_blocks": section.body_blocks,
                 }
                 for section in sections
             ],

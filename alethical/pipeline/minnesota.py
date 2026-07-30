@@ -149,13 +149,24 @@ def http_session() -> requests.Session:
     return sess
 
 
-def normalize_space(value: str) -> str:
+def normalize_space(value: str, *, keep_change_markers: bool = False) -> str:
     value = html.unescape(value)
     value = value.replace("\xa0", " ")
     value = re.sub(r"<br\s*/?>", "\n", value, flags=re.I)
     value = re.sub(r"</(p|div|h\d|li|tr|blockquote)>", "\n", value, flags=re.I)
     value = re.sub(r"<[^>]+>", "", value)
-    value = value.replace("new text begin", "").replace("new text end", "")
+    if not keep_change_markers:
+        # The Revisor marks an amendment's added run with screen-reader-only
+        # "new text begin/end" words and its removed run with "deleted text
+        # begin/end". Dropping the added pair while keeping the removed one is
+        # what `BillVersionSection.raw_text` has always stored, and two paid
+        # caches key off that exact text: every section's embedding
+        # (`rag_ingest.py` hashes raw_text) and every bill's AI summary
+        # (`ai_enrichment.source_version_hash` does too). Changing it here would
+        # invalidate both and re-run two corpus-wide paid jobs. So the added
+        # marks are recovered on the structured path instead — see
+        # `parse_section_blocks` and #741 — and this default is left alone.
+        value = value.replace("new text begin", "").replace("new text end", "")
     value = re.sub(r"[ \t]+", " ", value)
     value = re.sub(r"\n{2,}", "\n\n", value)
     return value.strip()
@@ -459,7 +470,249 @@ def parse_bill_xml(xml_text: str) -> dict[str, object]:
     }
 
 
-def parse_bill_section(section_html: str, section_id: str) -> dict[str, str]:
+# --- Structured section body (#741, #752) -----------------------------------
+#
+# `parse_bill_section` flattens a section to one string, which loses three things
+# the Revisor publishes: the subdivision numbers ("Subd. 2."), the marks saying
+# which words a bill ADDS, and the row/column shape of appropriation tables.
+#
+# The flat string stays exactly as it was — see the comment in `normalize_space`
+# for why — and the lost structure is recovered alongside it as an ordered list
+# of blocks, stored in `BillVersionSection.body_blocks`:
+#
+#   {"kind": "heading", "number": "Subd. 4.", "text": "License fee."}
+#   {"kind": "para",    "text": "(a) new text begin A program … new text end"}
+#   {"kind": "table",   "rows": [[{"text": "General Fund"}, {"text": "$"}, …]]}
+#
+# Headings the section already stores in their own columns (`section_number`,
+# `statute_section_number`, `shn`, `effective_date`, `title`) are left out, so a
+# consumer can render every block without checking for duplicates.
+STRUCTURAL_TAG_RE = re.compile(r"<\s*(h[123]|table|p)\b", flags=re.I)
+TABLE_ROW_RE = re.compile(r"<\s*tr\b", flags=re.I)
+TABLE_CELL_RE = re.compile(r"<\s*(td|th)\b", flags=re.I)
+CELL_ALIGN_RE = re.compile(r"text-align\s*:\s*(left|right|center)", flags=re.I)
+# Heading classes whose text is already captured as a column on the section row.
+COLUMN_HEADING_CLASSES = {
+    "section_number",
+    "statute_section_number",
+    "shn",
+    "effective_date",
+    "title",
+}
+# The same headings, for removal from a table cell's text. An appropriation
+# section is one big layout table, so the section heading can sit in the same row
+# as that row's figures; left in the cell it would print a second time under the
+# card's own heading.
+COLUMN_HEADING_RE = re.compile(
+    r"<h[123]\b[^>]*\bclass=[\"'][^\"']*\b(?:"
+    + "|".join(sorted(COLUMN_HEADING_CLASSES))
+    + r")\b[^\"']*[\"'][^>]*>.*?</h[123]>",
+    flags=re.S | re.I,
+)
+
+
+def balanced_element(html_text: str, start: int, tag: str) -> tuple[str, int]:
+    """Return the ``tag`` element opening at ``start``, plus the index after it.
+
+    The tag-name-agnostic sibling of `extract_balanced_div`. Handles the
+    self-closing spacer cells the Revisor emits (``<td/>``) and tolerates an
+    unclosed element by running to the end of the fragment rather than raising —
+    one malformed section must never fail a whole bill's ingest.
+    """
+    pattern = re.compile(rf"<\s*(/?){re.escape(tag)}\b[^>]*?(/?)\s*>", flags=re.I)
+    first = pattern.match(html_text, start)
+    if first is None:
+        return "", start
+    if first.group(2) == "/":
+        return html_text[start : first.end()], first.end()
+    depth = 1
+    for match in pattern.finditer(html_text, first.end()):
+        if match.group(1) == "/":
+            depth -= 1
+            if depth == 0:
+                return html_text[start : match.end()], match.end()
+        elif match.group(2) != "/":
+            depth += 1
+    return html_text[start:], len(html_text)
+
+
+def element_inner(element_html: str) -> str:
+    """The content between an element's open and close tags."""
+    open_end = element_html.find(">")
+    if open_end == -1:
+        return ""
+    close_start = element_html.rfind("<")
+    if close_start <= open_end:
+        return ""
+    return element_html[open_end + 1 : close_start]
+
+
+def _one_line(text: str) -> str:
+    """Fold a block's internal line breaks back into spaces.
+
+    Every newline inside one paragraph, heading or cell came from the source
+    HTML's own indentation between tags, not from the bill: the Revisor's
+    in-paragraph breaks are `<br class="d-none d-md-inline-block">`, which carry
+    no newline through `normalize_space`, and a bare `<br>` never appears inside
+    a `<p>` or `<td>` (checked over both a plain amending bill and a 2 MB omnibus
+    bill). Left in, they would render as line breaks mid-sentence.
+    """
+    return re.sub(r"\s*\n\s*", " ", text).strip()
+
+
+def _append_paragraphs(fragment: str, blocks: list[dict[str, object]]) -> None:
+    """Emit one paragraph block per blank-line-separated run of text."""
+    text = normalize_space(fragment, keep_change_markers=True)
+    for paragraph in re.split(r"\n\s*\n", text):
+        paragraph = _one_line(paragraph)
+        if paragraph:
+            blocks.append({"kind": "para", "text": paragraph})
+
+
+def _append_heading(element_html: str, blocks: list[dict[str, object]]) -> None:
+    open_tag = element_html[: element_html.find(">") + 1]
+    classes = set(extract_attr(open_tag, "class").split())
+    if classes & COLUMN_HEADING_CLASSES:
+        return
+    text = _one_line(normalize_space(element_html, keep_change_markers=True))
+    if not text:
+        return
+    role = "subdivision" if "subd_no" in classes else "headnote"
+    blocks.append({"kind": "heading", "role": role, "text": text})
+
+
+def _parse_table_cells(
+    table_html: str,
+) -> list[list[tuple[str, dict[str, object]]]]:
+    """Each row's cells as (inner HTML, block payload) pairs, in source order."""
+    rows: list[list[tuple[str, dict[str, object]]]] = []
+    position = 0
+    while True:
+        row_match = TABLE_ROW_RE.search(table_html, position)
+        if row_match is None:
+            return rows
+        row_html, position = balanced_element(table_html, row_match.start(), "tr")
+        if not row_html:
+            return rows
+        cells: list[tuple[str, dict[str, object]]] = []
+        cell_position = 0
+        while True:
+            cell_match = TABLE_CELL_RE.search(row_html, cell_position)
+            if cell_match is None:
+                break
+            tag = cell_match.group(1).lower()
+            cell_html, cell_position = balanced_element(
+                row_html, cell_match.start(), tag
+            )
+            if not cell_html:
+                break
+            open_tag = cell_html[: cell_html.find(">") + 1]
+            payload: dict[str, object] = {
+                "text": _one_line(
+                    normalize_space(
+                        COLUMN_HEADING_RE.sub("", cell_html),
+                        keep_change_markers=True,
+                    )
+                )
+            }
+            colspan = extract_attr(open_tag, "colspan")
+            if colspan.isdigit() and int(colspan) > 1:
+                payload["colspan"] = int(colspan)
+            align = CELL_ALIGN_RE.search(extract_attr(open_tag, "style"))
+            if align:
+                payload["align"] = align.group(1).lower()
+            if tag == "th":
+                payload["header"] = True
+            cells.append((element_inner(cell_html), payload))
+        rows.append(cells)
+
+
+def _append_table(table_html: str, blocks: list[dict[str, object]]) -> None:
+    rows = _parse_table_cells(table_html)
+    filled = [cell for row in rows for _inner, cell in row if cell["text"]]
+    if len(filled) <= 1:
+        # A one-cell table is layout, not data: appropriation sections wrap the
+        # section heading in a full-width table row, and rendering that as a
+        # table would print a heading in a one-cell grid. Read its cells for
+        # blocks instead.
+        for row in rows:
+            for inner, _cell in row:
+                _append_blocks(inner, blocks)
+        return
+    kept = [
+        [cell for _inner, cell in row]
+        for row in rows
+        if any(cell["text"] for _inner, cell in row)
+    ]
+    if kept:
+        blocks.append({"kind": "table", "rows": kept})
+
+
+def _append_blocks(fragment: str, blocks: list[dict[str, object]]) -> None:
+    position = 0
+    while True:
+        match = STRUCTURAL_TAG_RE.search(fragment, position)
+        if match is None:
+            _append_paragraphs(fragment[position:], blocks)
+            return
+        _append_paragraphs(fragment[position : match.start()], blocks)
+        tag = match.group(1).lower()
+        element_html, position = balanced_element(fragment, match.start(), tag)
+        if not element_html:
+            _append_paragraphs(fragment[match.start() :], blocks)
+            return
+        if tag == "table":
+            _append_table(element_html, blocks)
+        elif tag == "p":
+            _append_paragraphs(element_html, blocks)
+        else:
+            _append_heading(element_html, blocks)
+
+
+def _merge_subdivision_headings(
+    blocks: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Pair each "Subd. 4." with the headnote that titles it.
+
+    The Revisor publishes the two as siblings — `<h2 class="subd_no">` then
+    `<h3 class="headnote">` — and they occur 1:1 on 84% of sections, so one
+    block carrying both is what a reader sees: "Subd. 4. License fee."
+    """
+    merged: list[dict[str, object]] = []
+    index = 0
+    while index < len(blocks):
+        block = blocks[index]
+        if block.get("kind") != "heading":
+            merged.append(block)
+            index += 1
+            continue
+        role = block.pop("role", "")
+        if role == "subdivision":
+            heading: dict[str, object] = {
+                "kind": "heading",
+                "number": block["text"],
+                "text": "",
+            }
+            following = blocks[index + 1] if index + 1 < len(blocks) else None
+            if following is not None and following.get("role") == "headnote":
+                following.pop("role", None)
+                heading["text"] = following["text"]
+                index += 1
+            merged.append(heading)
+        else:
+            merged.append({"kind": "heading", "number": "", "text": block["text"]})
+        index += 1
+    return merged
+
+
+def parse_section_blocks(section_html: str) -> list[dict[str, object]]:
+    """A section's body as ordered blocks, keeping what flattening destroys."""
+    blocks: list[dict[str, object]] = []
+    _append_blocks(section_html, blocks)
+    return _merge_subdivision_headings(blocks)
+
+
+def parse_bill_section(section_html: str, section_id: str) -> dict[str, object]:
     heading = extract(
         r"""<h2 class=["']section_number["']>(.*?)</h2>""", section_html, flags=re.S
     )
@@ -489,6 +742,7 @@ def parse_bill_section(section_html: str, section_id: str) -> dict[str, str]:
         "cite_heading": cite_heading,
         "effective_date_heading": effective_date,
         "text": text,
+        "blocks": parse_section_blocks(section_html),
     }
 
 
@@ -1655,6 +1909,10 @@ class MinnesotaIngestionPipeline:
             )
             section_row.raw_text = str(section["text"])
             section_row.source_hash = content_hash(str(section["text"]))
+            # The structure the flat text loses (#741, #752). Written alongside,
+            # never instead of, `raw_text` — see the column's comment in
+            # alethical/db/models.py for why that separation is load-bearing.
+            section_row.body_blocks = section.get("blocks") or None
 
     def replace_actions(
         self,

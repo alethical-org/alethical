@@ -15,25 +15,44 @@ Legislature's own edit markers as prose ("coverage for on-site medical clinics; 
 begin or deleted text end"), folded each section's heading into its number badge, and gave a
 21-section bill no navigation at all.
 
-## What the data gives us, and what it doesn't
+## What the data gives us
 
-Everything on this tab is derived from what `/bills/{id}/versions/{code}/text?format=structured`
-already returns per section: `section_id`, `heading`, `article_heading`, `text`. **No part of this
-spec needs a data change or a re-ingest.** Measured over 80 production bills / 1,881 sections:
+Everything on this tab comes from `/bills/{id}/versions/{code}/text?format=structured`, which
+returns per section: `section_id`, `heading`, `article_heading`, `text`, and — since
+[#741](https://github.com/alethical-org/alethical/issues/741) — `body_blocks`.
 
-| what we need | where it actually lives | how often |
+**`body_blocks` is the structure, and it is what the tab reads.** Ingestion used to store a
+section's body as one flat string, which destroyed three things the Revisor publishes: the
+subdivision numbers ("Subd. 2."), the marks saying which words the bill *adds*, and the row/column
+shape of appropriation tables. It now stores the body a second way as well — an ordered list of
+blocks that keeps all three:
+
+```json
+[{"kind": "heading", "number": "Subd. 3.", "text": "Health plan."},
+ {"kind": "para",    "text": "…deleted text begin . deleted text end new text begin ; or new text end"},
+ {"kind": "table",   "rows": [[{"text": "General Fund"}, {"text": "$", "align": "center"}, …]]}]
+```
+
+The flat `text` is **unchanged and still served**, because two paid caches hash it (every section's
+search embedding and every bill's AI summary), so the added-text marks could only reach the page
+through a new field. It is also the fallback: `body_blocks` is null on any section not yet re-read
+from the Revisor, and there the caption can still only be guessed at.
+
+| what we need | with blocks | without blocks (fallback) |
 | --- | --- | --- |
-| section number | `heading` ("Sec. 3.") | ~always |
-| section caption, form A | fused into `heading` ("Sec. 3. APPROPRIATION EXTENSIONS.") | 15% of sections |
-| section caption, form B | loose in `text`, as a bare paragraph | 67% of sections |
-| no caption at all | — | 18% of sections |
-| subdivision number ("Subd. 2.") | **destroyed at ingest** — [#741](https://github.com/alethical-org/alethical/issues/741) | n/a |
-| added-text markers | **destroyed at ingest** — [#741](https://github.com/alethical-org/alethical/issues/741) | n/a |
+| section number | `heading` ("Sec. 3.") | same |
+| section caption, form A | fused into `heading` ("Sec. 3. APPROPRIATION EXTENSIONS.") — 15% of sections | same |
+| section caption, form B | a `heading` block, read | **inferred** from a bare paragraph (`isSubheading`) — 67% of sections |
+| subdivision number ("Subd. 2.") | the heading block's `number` — 59% of sections now show it | destroyed |
+| added-text markers | kept in the block text | destroyed |
+| appropriation table shape | `table` block rows and cells | destroyed |
 
 Form B exists because the Revisor publishes the caption as a sibling `<h3 class="headnote">`, and
-ingestion's heading-strip regex only covers `h1`/`h2`. The caption survives; its subdivision number
-does not. So the caption is currently **inferred** from the flattened text (`isSubheading`), and
-that inference is a stopgap that #741 replaces with real structure.
+the flattening's heading-strip regex only covers `h1`/`h2`: the caption survived as an unlabelled
+paragraph while its number was thrown away. Reading the blocks replaces that guess with the
+Legislature's own words, so 2,801 of 4,767 sampled section titles now read "Subd. 3. Health plan"
+the way the Legislature writes them, where before no subdivision number existed anywhere in the
+corpus.
 
 ## Change markers render as formatting, never as words
 
@@ -63,9 +82,13 @@ marker words land in the stored text as prose.
     native builds run on) does not reliably support.
 
 **The legend is gated on what the bill actually contains.** It names only the treatments present in
-that bill's text: both, removals only, additions only, or nothing at all. This is
-`.claude/rules/grounded-answers.md` rule 6 applied to a legend — while #741 stands, no bill carries
-an addition, so the legend must not promise an underline no reader will ever see.
+that bill's sections: both, removals only, additions only, or nothing at all. This is
+`.claude/rules/grounded-answers.md` rule 6 applied to a legend. The gate is load-bearing in both
+directions: a section read from `body_blocks` can carry additions (2,342 of 4,767 sampled sections
+show both treatments, 2,072 additions only), while a section still on the flat text can only ever
+carry removals, so the same bill page must not promise an underline that half its sections cannot
+show. Feed the gate the same strings the section will render — `blockTexts(body_blocks)` where blocks
+exist, the flat text where they don't.
 
 ## One title per section
 
@@ -83,6 +106,11 @@ Top to bottom inside a section card:
 5. **Body** — subdivision headnotes as 15px/700 lead-in lines; numbered clauses hanging (46px /
    -18px on web, 26px / -14px on mobile, where the web step would eat a sixth of the reading width);
    roman sub-clauses one level deeper, since `(a)` → `(1)` → `(i)` nests.
+
+A caption promoted to the title now carries the subdivision number the Legislature published, so a
+card reads "Subd. 3. Health plan" rather than a bare "Health plan" whose number existed nowhere. The
+promotion rules themselves are unchanged — only the first block is promoted, only when the stored
+heading gave no title, only when it is unchanged text — so a card that was already right stays right.
 
 Rules for a caption used as a heading:
 
@@ -176,6 +204,12 @@ bracket rule the stricter guard broke (#755), the two sections that differed onl
 the struck caption that must not become a title, and a ban on regex lookbehind, which Hermes does
 not reliably support.
 
+**The structured path has its own file, `__tests__/billTextBlocks.test.ts`**, over
+`fixtures/bill-text-body-blocks.json` — 5 real sections carrying the `body_blocks` the API returns.
+It re-checks properties 1, 2 and 3 on that path, adds property 6 below, and pins the three gains:
+the subdivision number reaches the page (and provably could not before), an added run renders as
+added rather than as plain law, and no captured table cell is dropped.
+
 ### The corpus replay, which the tests do not replace
 
 Committed fixtures cannot prove a change is safe across the *whole* corpus, and they cannot run
@@ -194,14 +228,32 @@ bills), then `GET /api/v1/bills/<id>/versions/<code>/text`. Pace requests ~0.7s 
 after the change rather than only counting failures — the doubled-space defect closed in #751
 showed up in 22 of 2,897 sections and in no property assertion.
 
-#740 ran this over 80 bills / 1,881 sections; #751 over 47 bills / 2,897 sections. Layout and jump
-behaviour still need a browser: the index threshold at 1/2/3/21 sections, and the jump landing at
-90px from several starting scroll positions and from both entry points.
+#740 ran this over 80 bills / 1,881 sections; #751 over 47 bills / 2,897 sections.
+
+**#741 ran it over 4,767 sections from 72 bills (including the 12 with the most sections in the
+corpus), on both paths — the flat text and the captured blocks — and added a sixth property: the
+structured body renders every character the flat body renders, so reading blocks can never drop
+wording from the page.** Compare characters with whitespace stripped, not words: keeping the marker
+words splits tokens the flat text had glued together ("(4)," becomes "(4)" then ","), which a
+word-by-word check reports as a difference when it is not a loss. Two traps there, each of which
+produced a false failure:
+
+- **Group index rows by article before checking for duplicates.** Section numbers restart inside each
+  article, so an omnibus bill legitimately has a "Sec. 3" per article.
+- **A handful of bills repeat one section id on their page** (6 of the 12 largest do, all on
+  `laws.0.1.0`). The database's unique `(version, section_id)` constraint keeps only the last, so the
+  product never renders the others — mirror that in the replay or it reports duplicates the tab
+  cannot show. That data loss is itself a bug, tracked separately in
+  [#763](https://github.com/alethical-org/alethical/issues/763).
+
+Layout and jump behaviour still need a browser: the index threshold at 1/2/3/21 sections, and the
+jump landing at 90px from several starting scroll positions and from both entry points.
 
 ## Out of scope for this tab
 
-- Recovering subdivision numbers or added-text markers — [#741](https://github.com/alethical-org/alethical/issues/741),
-  ingestion.
-- Rendering appropriation tables as tables — [#752](https://github.com/alethical-org/alethical/issues/752).
-  Ingestion flattens them to one paragraph per cell, so a budget section currently reads as a column
-  of stray numbers (43 of 1,064 multi-paragraph sections sampled).
+- **Laying out appropriation tables as tables** — [#752](https://github.com/alethical-org/alethical/issues/752).
+  Ingestion now *captures* the rows and cells (`body_blocks`), but the tab still renders one paragraph
+  per cell, so a budget section still reads as a column of stray numbers (43 of 1,064 multi-paragraph
+  sections sampled). One measured constraint for that work: the year headers ("2026", "2027") are
+  published in the appropriation article's *first* section, while the figures they head are in the
+  sections after it, so labelling a money column means carrying the header across sections.

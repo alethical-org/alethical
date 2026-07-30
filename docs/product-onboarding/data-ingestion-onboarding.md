@@ -144,6 +144,35 @@ retries with linear backoff on `429/500/502/503/504`).
 Reference URL shapes: `https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/` ·
 `https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/`
 
+### A section's body is stored twice, and that is deliberate
+
+`bill_version_section` holds each section's body in two columns, written together
+by `parse_bill_section`:
+
+- **`raw_text`** — the flat string, produced by stripping every tag. It loses the
+  subdivision numbers ("Subd. 2."), the marks saying which words the bill *adds*,
+  and the row/column shape of appropriation tables.
+- **`body_blocks`** (JSON) — the same body as an ordered list of blocks that keeps
+  all three: `{"kind": "heading", "number": "Subd. 3.", "text": "Health plan."}`,
+  `{"kind": "para", "text": …}`, `{"kind": "table", "rows": [[cell, …], …]}`. Built
+  by `parse_section_blocks`. Null on any section stored before that existed, so
+  every reader must fall back to `raw_text`.
+
+**Never "fix" `raw_text` to carry the structure instead.** Two paid caches hash it,
+and rewriting it re-runs both corpus-wide jobs:
+
+| cache | where it hashes `raw_text` | what a rewrite costs |
+| --- | --- | --- |
+| every section's search embedding | `rag_ingest.py` — `source_hash(section.raw_text)`; a mismatch re-chunks and re-embeds | paid re-embed of the whole corpus |
+| every bill's AI summary + key points | `ai_enrichment.py` folds the same hash into `source_version_hash`; `should_enqueue` re-runs a bill whose hash moved | paid re-run of the full ~10,400-bill enrichment |
+
+Nothing hashes `body_blocks`, so filling it in is free. That is why the structure
+lives in its own column and why the free backfill
+(`scripts/backfill_bill_section_body_blocks.py`) writes **only** that column —
+never `raw_text`, not even with the same value. Decided while fixing
+[#741](https://github.com/alethical-org/alethical/issues/741) and
+[#752](https://github.com/alethical-org/alethical/issues/752).
+
 ## B — Legislators, profiles, committees
 
 - **Roster (discovery):** `GET https://www.leg.mn.gov/leg/legislators` →

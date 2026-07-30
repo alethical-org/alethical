@@ -6,8 +6,8 @@
 // real sections (fixtures/bill-text-sections.json — provenance in
 // fixtures/README.md). The corpus-wide replay stays a manual check for
 // corpus-wide changes, because it needs live production data and so cannot run
-// in CI; see docs/product-onboarding/bill-text-tab-spec.md § "Verification, and
-// the gap in it".
+// in CI; see docs/product-onboarding/bill-text-tab-spec.md § "Verification" →
+// "The corpus replay, which the tests do not replace".
 //
 // Each property is its own named test so a failure says which rule broke.
 

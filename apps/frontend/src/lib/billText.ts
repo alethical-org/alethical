@@ -12,11 +12,16 @@
 // lost. These helpers turn the words back into formatting, and recover the
 // section/subdivision landmarks the same flattening buried.
 //
-// Known corpus gap: `normalize_space` in alethical/pipeline/minnesota.py drops
-// "new text begin"/"new text end" but keeps the deleted pair, so today only
-// removals are marked in stored text. `parseChangeRuns` handles both kinds, so
-// added text starts underlining on its own once ingestion stops stripping it
-// (issue #741). Nothing here needs to change when it does.
+// Ingestion now also stores the body as ordered BLOCKS alongside that flat
+// string (`body_blocks`, #741), keeping the three things flattening destroys: the
+// subdivision numbers ("Subd. 2."), the marks saying which words the bill ADDS,
+// and the row/column shape of appropriation tables. `parseStructuredBody` reads
+// them; `parseSectionBody` stays as the fallback for a section whose blocks have
+// not been filled in yet, where the caption can only ever be guessed at.
+//
+// The flat string is deliberately left exactly as it was, because two paid caches
+// hash it (every section's search embedding and every bill's AI summary), so the
+// added-text marks reach the page only through the blocks.
 
 /** How a run of section text differs from current law. */
 export type ChangeKind = 'plain' | 'removed' | 'added';
@@ -33,6 +38,25 @@ export interface SectionBlock {
   kind: SectionBlockKind;
   text: string;
 }
+
+/** One cell of a table ingestion captured from the bill's own markup. */
+export interface SourceTableCell {
+  text: string;
+  align?: 'left' | 'right' | 'center';
+  colspan?: number;
+  header?: boolean;
+}
+
+/**
+ * A block of section body as ingestion captured it — the `body_blocks` payload
+ * from `/bills/{id}/versions/{code}/text?format=structured`. A heading carries
+ * the subdivision number the Legislature published ("Subd. 3.") and its title
+ * ("Health plan."), either of which may be empty.
+ */
+export type SourceBlock =
+  | { kind: 'heading'; number?: string | null; text?: string | null }
+  | { kind: 'para'; text: string }
+  | { kind: 'table'; rows: SourceTableCell[][] };
 
 export interface SectionBody {
   /** The "Minnesota Statutes 2024, section 62A.011 … is amended to read:" line,
@@ -352,6 +376,96 @@ export function parseSectionBody(text: string, { hasTitle }: { hasTitle: boolean
   return { leadIn, caption, blocks };
 }
 
+/** "Subd. 3. Health plan." — the number and title the Legislature published,
+ *  joined the way it writes them. Either half may be missing. */
+export function headingLabel(block: { number?: string | null; text?: string | null }): string {
+  return [block.number ?? '', block.text ?? '']
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
+/** Every string a set of blocks renders, for the legend's honesty gate. */
+export function blockTexts(blocks: SourceBlock[]): string[] {
+  const texts: string[] = [];
+  for (const block of blocks) {
+    if (block.kind === 'table') {
+      for (const row of block.rows) for (const cell of row) texts.push(cell.text);
+    } else if (block.kind === 'heading') {
+      texts.push(headingLabel(block));
+    } else {
+      texts.push(block.text);
+    }
+  }
+  return texts;
+}
+
+/**
+ * Classify a section body from the blocks ingestion captured.
+ *
+ * The same shape `parseSectionBody` returns, but every landmark is read rather
+ * than inferred: a subdivision heading is a heading because the Revisor said so,
+ * not because a paragraph looked short enough. The promotion rules are unchanged
+ * — opening amendment clause to `leadIn`, an unmarked opening caption to
+ * `caption`, everything else to the body — so a card that was already right stays
+ * right, and the ones that were guessed now carry their real "Subd. 3." number.
+ *
+ * A captured table is flattened back to one paragraph per cell here, which is
+ * exactly how it renders today. Laying it out as a table is #752.
+ */
+export function parseStructuredBody(
+  blocks: SourceBlock[],
+  { hasTitle }: { hasTitle: boolean },
+): SectionBody {
+  const items = [...blocks];
+
+  let leadIn: string | null = null;
+  const first = items[0];
+  if (!hasTitle && first?.kind === 'para' && isAmendmentClause(plainSectionText(first.text))) {
+    leadIn = first.text;
+    items.shift();
+  }
+
+  // Same rule as the flat path: promote the caption only when it opens the body
+  // and only when it is unchanged text. A struck caption stays in the body so its
+  // strike-through renders — shown as a title, law being deleted would read as
+  // current law.
+  let caption: string | null = null;
+  const opener = items[0];
+  if (!hasTitle && opener?.kind === 'heading') {
+    const label = headingLabel(opener);
+    if (label && !HAS_MARKER.test(label)) {
+      caption = label;
+      items.shift();
+    }
+  }
+
+  const body: SectionBlock[] = [];
+  const pushParagraph = (text: string) => {
+    const plain = plainSectionText(text);
+    if (!plain) return;
+    const previous = body[body.length - 1]?.kind;
+    const nested = previous === 'clause' || previous === 'subclause';
+    let kind: SectionBlockKind = 'para';
+    if (CLAUSE_START.test(plain)) kind = 'clause';
+    else if (nested && ROMAN_CLAUSE_START.test(plain)) kind = 'subclause';
+    body.push({ kind, text });
+  };
+
+  for (const item of items) {
+    if (item.kind === 'heading') {
+      const label = headingLabel(item);
+      if (label) body.push({ kind: 'subheading', text: label });
+    } else if (item.kind === 'table') {
+      for (const row of item.rows) for (const cell of row) pushParagraph(cell.text);
+    } else {
+      pushParagraph(item.text);
+    }
+  }
+
+  return { leadIn, caption, blocks: body };
+}
+
 /**
  * The short label a section index row shows under its number — the same caption
  * the section's own card shows, so a row and its destination read alike.
@@ -362,10 +476,16 @@ export function parseSectionBody(text: string, { hasTitle }: { hasTitle: boolean
  * from its neighbours. Empty only when there is neither (6% of sections), where
  * the number stands alone.
  */
-export function sectionIndexLabel(heading: string | null | undefined, text: string): string {
+export function sectionIndexLabel(
+  heading: string | null | undefined,
+  text: string,
+  sourceBlocks?: SourceBlock[] | null,
+): string {
   const { title } = splitSectionLabel(heading);
   if (title) return title;
-  const { leadIn, caption, blocks } = parseSectionBody(text, { hasTitle: false });
+  const { leadIn, caption, blocks } = sourceBlocks?.length
+    ? parseStructuredBody(sourceBlocks, { hasTitle: false })
+    : parseSectionBody(text, { hasTitle: false });
   const headnote = caption ?? blocks.find((b) => b.kind === 'subheading')?.text;
   if (headnote) return asHeadingCaption(plainSectionText(headnote)) ?? '';
   return condenseStatuteRef(leadIn ?? blocks[0]?.text ?? '') ?? '';

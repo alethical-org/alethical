@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { completeDanglingTitle, TRAILING_REFERRAL, TRAILING_RETURN } from '../lib/billDetail';
+import type { SourceBlock } from '../lib/billText';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -333,6 +334,10 @@ interface ApiBillVersionTextPayload {
     heading?: string | null;
     article_heading?: string | null;
     text: string;
+    // The body as ordered blocks, keeping the subdivision numbers, added-text
+    // marks and table shape that flattening to `text` destroys (#741). Null on a
+    // section not yet re-read from the Revisor, where `text` is all there is.
+    body_blocks?: SourceBlock[] | null;
   }>;
 }
 
@@ -1598,6 +1603,7 @@ export interface BillVersionSectionText {
   heading: string | null;
   articleHeading: string | null;
   text: string;
+  bodyBlocks: SourceBlock[] | null;
 }
 
 export async function fetchBillVersionText(
@@ -1613,6 +1619,7 @@ export async function fetchBillVersionText(
     heading: section.heading ?? null,
     articleHeading: section.article_heading ?? null,
     text: section.text,
+    bodyBlocks: section.body_blocks ?? null,
   }));
 }
 
