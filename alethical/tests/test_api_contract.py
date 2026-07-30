@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pathlib
+
 import pytest
 import requests
 from sqlalchemy import delete, select
@@ -890,6 +892,52 @@ def test_bill_detail_serves_is_omnibus(client):
     # the record — an omnibus bill reads True, matching its list-payload value.
     omnibus_detail = client.get(f"/api/v1/bills/{omnibus[0]['id']}").json()["data"]
     assert omnibus_detail["is_omnibus"] is True
+
+
+def test_display_summary_prefers_plain_language_and_ask_keeps_the_formal_one():
+    """#766: the enrichment writes two summaries. Readers get the plain-language one
+    (grounded-answers rule 9, which said so long before anything read it); the Ask
+    router's bill-disambiguation step keeps the formal one, because that text is an
+    LLM disambiguation aid whose specifics separate near-duplicate bills, and moving
+    it would move an eval-gated path.
+
+    The fallback is what makes this safe on older enrichments: a bill with no
+    plain-language field still shows its formal summary rather than nothing."""
+    from alethical.api.serializers import display_summary
+
+    both = {
+        "summary": "Prohibits landlords from discriminating based on housing choice vouchers.",
+        "plain_language_summary": "Makes it illegal for landlords to refuse Section 8 vouchers.",
+    }
+    assert display_summary(both) == both["plain_language_summary"]
+
+    # Older enrichment, or a generation that produced only the formal field.
+    assert display_summary({"summary": both["summary"]}) == both["summary"], (
+        "must fall back, or pre-#520 bills would display no summary at all"
+    )
+
+    # Blank/whitespace is not a value — fall through rather than serve an empty box.
+    assert (
+        display_summary({"plain_language_summary": "   ", "summary": both["summary"]})
+        == (both["summary"])
+    )
+    assert display_summary({}) is None
+    assert display_summary({"plain_language_summary": "", "summary": ""}) is None
+
+    # The Ask router must NOT go through display_summary. Guard the actual source
+    # line, so switching it later is a deliberate edit and not an accident.
+    ask_source = (
+        pathlib.Path(__file__).resolve().parents[1] / "api" / "routers" / "ask.py"
+    ).read_text()
+    resolve_body = ask_source.split("def _resolve_bill_by_content")[1].split("\ndef ")[
+        0
+    ]
+    assert 'content.get("summary")' in resolve_body, (
+        "the disambiguation catalog must read the FORMAL summary directly"
+    )
+    assert "display_summary" not in resolve_body, (
+        "routing this through display_summary would move an eval-gated path (#766)"
+    )
 
 
 def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):

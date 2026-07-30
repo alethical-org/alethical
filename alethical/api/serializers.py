@@ -250,6 +250,41 @@ def ai_citation_payloads(
     return citations
 
 
+def display_summary(content: dict) -> str | None:
+    """The summary a READER should see: ``plain_language_summary`` when populated,
+    else the formal ``summary``.
+
+    The enrichment writes both, and grounded-answers rule 9 has always said the
+    plain-language one wins — but nothing read it until now, so every surface showed
+    the formal one (#766). Measured across all 10,471 production bills, the two
+    differ on 10,115, and the plain-language field is the better read on every axis
+    the rule names:
+
+    ==========================  =========  ==============
+    across 10,471 bills         ``summary``  ``plain_language_summary``
+    ==========================  =========  ==============
+    statute citations                   81               8
+    raw 7-digit dollar figures        1445             691
+    empty                                0               0
+    average length              482 chars       423 chars
+    ==========================  =========  ==============
+
+    A blind read of a reproducible 20-bill sample scored it plainer on 13, worse on
+    5, level on 2 — "Gives special education teachers four paid workdays each school
+    year" against "provide teachers who serve students with individualized education
+    programs or individualized family services plans four contract days".
+
+    NOT used by the Ask router's bill-disambiguation step, which deliberately keeps
+    reading the formal ``summary`` — see ``_resolve_bill_by_content`` in
+    ``alethical/api/routers/ask.py``.
+    """
+    for key in ("plain_language_summary", "summary"):
+        value = content.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
+
+
 def ai_analysis_payload_for_enrichment(
     enrichment, official_url=None, section_topics=None
 ) -> api_schemas.AIAnalysisPayload | None:
@@ -257,7 +292,7 @@ def ai_analysis_payload_for_enrichment(
         return None
     content = enrichment.content_json or {}
     short_title = content.get("short_title")
-    summary = content.get("summary")
+    summary = display_summary(content)
     key_points = content.get("key_points")
     policy_areas = content.get("policy_areas")
     question_prompts = content.get("question_prompts")
