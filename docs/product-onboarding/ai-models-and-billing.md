@@ -168,9 +168,12 @@ instructions on every call, about 39% of the input. But it only touches *input*,
 bulk lane has already halved that, so the ceiling is roughly **$8 off an $88 run** — less
 in practice, because inside a batch the cache is best-effort. Worth wiring up on the live
 path (~$18 there, and cache reads also stop counting against the per-minute throughput
-limit); not worth adding a new failure mode to a production write for ~$5. Neither the
-bulk lane nor caching is wired up today: the Anthropic runner sends live calls with an
-uncached instruction block.
+limit); not worth adding a new failure mode to a production write for ~$5. Caching is
+therefore not wired up. **The bulk lane is**, as of
+[#784](https://github.com/alethical-org/alethical/pull/784): the Anthropic runner takes
+`batch-submit` / `batch-collect` next to `generate`, and both modes send identical call
+params and write identical output rows, so `apply` cannot tell them apart. Rule of thumb:
+`generate` when someone is waiting, `batch-submit` when nobody is.
 
 **Which model does the writing:** enrichment runs on **Claude Sonnet with extended
 thinking turned off**. The summary / key-points / suggested-questions task is
