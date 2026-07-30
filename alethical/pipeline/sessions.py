@@ -6,12 +6,17 @@ attach to it. Discovery, however, pulls the Revisor bill list *per year*, so the
 session code carries the year and defaults to 2025. Override it (e.g. "0942026")
 to ingest a later year into the same biennium session.
 
+A special session is the exception: it gets its own ``LegislativeSession`` row, since
+its files are numbered from 1 independently of the regular session's (#746).
+``SESSION_DEFINITIONS`` below maps each discovery code to the row it ingests into.
+
 This module is intentionally dependency-free so any pipeline module or CLI can
 import these without pulling in the ORM or a database connection.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 # Default Revisor discovery session code: 94th Legislature, 2025 bill list.
@@ -27,6 +32,91 @@ CURRENT_SESSION_SLUG = "94-2025-regular"
 # (the Senate adjourned after midnight, so the last "legislative day" was 5/17).
 CURRENT_SESSION_START_DATE = datetime(2025, 1, 14, tzinfo=UTC)
 CURRENT_SESSION_END_DATE = datetime(2026, 5, 18, tzinfo=UTC)
+
+# Slug of the 2025 first special session, whose 46 bills are a separate drawer
+# from the biennium's (#746).
+SPECIAL_SESSION_2025_SLUG = "94-2025-special-1"
+
+
+@dataclass(frozen=True)
+class SessionDef:
+    """The ``LegislativeSession`` row that a Revisor session code's bills belong to.
+
+    ``session_type`` is the plain string behind ``db.models.SessionType`` rather than
+    the enum itself, so this module stays importable without the ORM (see the module
+    docstring).
+    """
+
+    slug: str
+    name: str
+    session_number: int
+    session_type: str
+    year_start: int
+    year_end: int
+    start_date: datetime
+    end_date: datetime
+    # Exactly one definition may be current: the API resolves "the current session"
+    # with a single-row read (``select … where is_current``), so a second current row
+    # would make that read pick arbitrarily.
+    is_current: bool
+
+
+# Which session row each Revisor discovery code ingests into. Both years of a
+# biennium share one row (one-drawer, #155); a special session gets its own,
+# because a Legislature numbers its special-session files from 1 all over again,
+# so "HF 5" exists in both and they are different bills (#746).
+#
+# A row is created only when its session is actually ingested, so the session
+# picker never offers a session with no bills behind it (grounded-answers rule 2).
+SESSION_DEFINITIONS: dict[str, SessionDef] = {
+    "0942025": SessionDef(
+        slug=CURRENT_SESSION_SLUG,
+        name="94th Legislature (2025 - 2026) Regular Session",
+        session_number=94,
+        session_type="regular",
+        year_start=2025,
+        year_end=2026,
+        start_date=CURRENT_SESSION_START_DATE,
+        end_date=CURRENT_SESSION_END_DATE,
+        is_current=True,
+    ),
+    "1942025": SessionDef(
+        slug=SPECIAL_SESSION_2025_SLUG,
+        # "First Special Session" rather than "1st": it is what the Revisor's own
+        # cross-reference rows say ("See also First Special Session, HF 5"), so the
+        # session label matches the text pointing at it.
+        name="94th Legislature (2025) First Special Session",
+        session_number=94,
+        session_type="special",
+        year_start=2025,
+        year_end=2025,
+        # Convened 6/9/2025 and adjourned 6/10/2025 — two calendar days, one
+        # legislative day (Minnesota Legislative Reference Library session history,
+        # https://www.lrl.mn.gov/history/sessions).
+        start_date=datetime(2025, 6, 9, tzinfo=UTC),
+        end_date=datetime(2025, 6, 10, tzinfo=UTC),
+        is_current=False,
+    ),
+}
+# The 2026 bill list is the same biennium row, reached by a different discovery code.
+SESSION_DEFINITIONS["0942026"] = SESSION_DEFINITIONS[DEFAULT_SESSION_CODE]
+
+
+def session_definition(session_code: str) -> SessionDef:
+    """The session row ``session_code``'s bills belong to.
+
+    Raises rather than defaulting to the current biennium: filing an unmapped
+    session's bills under the wrong row is the collision #746 was about, and it is
+    invisible once written.
+    """
+    definition = SESSION_DEFINITIONS.get(session_code)
+    if definition is None:
+        known = ", ".join(sorted(SESSION_DEFINITIONS))
+        raise ValueError(
+            f"No legislative session mapped to Revisor session code {session_code!r}. "
+            f"Add one to SESSION_DEFINITIONS (known codes: {known})."
+        )
+    return definition
 
 
 def parse_session_code(session_code: str) -> tuple[int, int]:

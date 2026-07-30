@@ -23,12 +23,11 @@ from alethical.pipeline.roster_pdf import (
     parse_roster_pdf,
 )
 from alethical.pipeline.sessions import (
-    CURRENT_SESSION_END_DATE,
     CURRENT_SESSION_SLUG,
-    CURRENT_SESSION_START_DATE,
     DEFAULT_SESSION_CODE,
     build_bill_key,
     parse_session_code,
+    session_definition,
     special_session_number,
 )
 
@@ -940,11 +939,11 @@ class MinnesotaIngestionPipeline:
     def advisory_xact_lock(self, key: int) -> None:
         self.db.execute(text("select pg_advisory_xact_lock(:key)"), {"key": key})
 
-    def _existing_reference_data(self) -> dict[str, Any] | None:
+    def _existing_reference_data(self, session_slug: str) -> dict[str, Any] | None:
         """Return the reference dict if jurisdiction, all chambers, and the
-        current session already exist; else None. Lets seed_reference_data skip
-        the advisory lock on the common (refresh) path so concurrent chunks do
-        not serialize on it."""
+        session named by ``session_slug`` already exist; else None. Lets
+        seed_reference_data skip the advisory lock on the common (refresh) path so
+        concurrent chunks do not serialize on it."""
         minnesota = self.db.scalar(
             select(Jurisdiction).where(Jurisdiction.slug == "minnesota")
         )
@@ -963,15 +962,24 @@ class MinnesotaIngestionPipeline:
         session = self.db.scalar(
             select(LegislativeSession).where(
                 LegislativeSession.jurisdiction_id == minnesota.id,
-                LegislativeSession.slug == CURRENT_SESSION_SLUG,
+                LegislativeSession.slug == session_slug,
             )
         )
         if session is None:
             return None
         return {"jurisdiction": minnesota, "chambers": chambers, "session": session}
 
-    def seed_reference_data(self) -> dict[str, Any]:
-        existing = self._existing_reference_data()
+    def seed_reference_data(
+        self, session_code: str = DEFAULT_SESSION_CODE
+    ) -> dict[str, Any]:
+        """Jurisdiction, chambers, and the ``LegislativeSession`` row that
+        ``session_code``'s bills belong to, creating whatever is missing.
+
+        The session row is created here rather than up front, so a session only
+        appears in the picker once its bills are actually ingested (#746).
+        """
+        definition = session_definition(session_code)
+        existing = self._existing_reference_data(definition.slug)
         if existing is not None:
             return existing
         # A reference row is missing — seed under the lock. The body below
@@ -1020,35 +1028,35 @@ class MinnesotaIngestionPipeline:
                 self.db.flush()
             chambers[slug] = chamber
 
-        current_session = self.db.scalar(
+        session = self.db.scalar(
             select(LegislativeSession).where(
                 LegislativeSession.jurisdiction_id == minnesota.id,
-                LegislativeSession.slug == CURRENT_SESSION_SLUG,
+                LegislativeSession.slug == definition.slug,
             )
         )
-        if current_session is None:
-            current_session = LegislativeSession(
+        if session is None:
+            session = LegislativeSession(
                 jurisdiction_id=minnesota.id,
-                slug=CURRENT_SESSION_SLUG,
-                session_number=94,
-                session_type=SessionType.regular,
-                year_start=2025,
-                year_end=2026,
-                name="94th Legislature (2025 - 2026) Regular Session",
-                is_current=True,
+                slug=definition.slug,
+                session_number=definition.session_number,
+                session_type=SessionType(definition.session_type),
+                year_start=definition.year_start,
+                year_end=definition.year_end,
+                name=definition.name,
+                is_current=definition.is_current,
             )
-            self.db.add(current_session)
+            self.db.add(session)
             self.db.flush()
 
-        # Idempotently ensure the biennium date range (#343): heals a session row
+        # Idempotently ensure the session's date range (#343): heals a session row
         # ingested before these columns were populated, so a re-ingest never
         # leaves them silently null.
-        current_session.start_date = CURRENT_SESSION_START_DATE
-        current_session.end_date = CURRENT_SESSION_END_DATE
+        session.start_date = definition.start_date
+        session.end_date = definition.end_date
         return {
             "jurisdiction": minnesota,
             "chambers": chambers,
-            "session": current_session,
+            "session": session,
         }
 
     def start_run(self, target_type: str, target_key: str | None = None) -> Any:
@@ -2014,8 +2022,18 @@ class MinnesotaIngestionPipeline:
         stats.vote_event_count = len(bill.vote_events)
 
     def ingest_bills(self, targets: list[BillTarget]) -> dict[str, Any]:
-        refs = self.seed_reference_data()
-        bills = [self.ingest_bill_target(refs, target) for target in targets]
+        # Reference data is resolved per session code, not once per batch: a special
+        # session's bills belong to their own session row (#746). Cached so a batch
+        # sharing one code still costs one lookup, as it always did.
+        refs_by_code: dict[str, dict[str, Any]] = {}
+        bills = []
+        for target in targets:
+            refs = refs_by_code.get(target.session_code)
+            if refs is None:
+                refs = refs_by_code[target.session_code] = self.seed_reference_data(
+                    target.session_code
+                )
+            bills.append(self.ingest_bill_target(refs, target))
         # Refresh stats only for the legislators this batch actually touched (the
         # sponsors of its bills), not the whole jurisdiction — otherwise concurrent
         # chunk workers all contend on the same ~400 legislator_stats rows and hit
@@ -2033,7 +2051,8 @@ class MinnesotaIngestionPipeline:
             if bill_ids
             else set()
         )
-        self.refresh_legislator_stats(refs, legislator_ids=affected_legislator_ids)
+        for refs in refs_by_code.values():
+            self.refresh_legislator_stats(refs, legislator_ids=affected_legislator_ids)
         return {
             "bills_ingested": len(bills),
             "bill_keys": [bill.bill_key for bill in bills],

@@ -186,6 +186,10 @@ class CompanionBillPayload(BaseModel):
 class BillDetailPayload(BaseModel):
     id: str
     title: str
+    # The session this bill belongs to. Served per bill rather than assumed to be
+    # the current one, because a special session is its own session and its bills
+    # would otherwise be labelled with the biennium's years (#746).
+    session: SessionSummary | None = None
     description: str | None = None
     current_status: str | None = None
     status_key: str | None = None

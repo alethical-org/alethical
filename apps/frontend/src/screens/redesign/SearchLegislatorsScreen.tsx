@@ -18,9 +18,8 @@ import {
   ResultsHeader,
   SearchHero,
   SearchPageShell,
-  SESSION_LABEL_FALLBACK,
-  formatSessionLabel,
 } from '../../components/search/searchPieces';
+import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import { Skeleton } from '../../components/Skeleton';
 
 // Placeholder cards shown while the first page of legislators loads.

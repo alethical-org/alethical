@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import pytest
+
 from alethical.pipeline.minnesota import BillSearchResult, parse_bill_xml
 from alethical.pipeline.sessions import (
+    CURRENT_SESSION_SLUG,
     DEFAULT_SESSION_CODE,
+    SESSION_DEFINITIONS,
+    SPECIAL_SESSION_2025_SLUG,
     build_bill_key,
     parse_session_code,
+    session_definition,
     special_session_number,
 )
 
@@ -75,6 +81,34 @@ def test_bill_key_from_status_uri_carries_the_special_session():
         session_code="1942025",
     )
     assert fallback.bill_key == "94-2025s1-HF5"
+
+
+def test_both_biennium_codes_share_one_session_row():
+    """One drawer per biennium (#155): the 2025 and 2026 bill lists are the same
+    session, so neither year may mint a second row."""
+    assert session_definition("0942025").slug == CURRENT_SESSION_SLUG
+    assert session_definition("0942026").slug == CURRENT_SESSION_SLUG
+
+
+def test_the_special_session_is_its_own_row_and_is_not_current():
+    definition = session_definition("1942025")
+    assert definition.slug == SPECIAL_SESSION_2025_SLUG
+    assert definition.slug != CURRENT_SESSION_SLUG
+    assert definition.session_type == "special"
+    assert definition.name == "94th Legislature (2025) First Special Session"
+    # The API reads "the current session" as a single row; a second current row
+    # would make that read pick arbitrarily between the two.
+    assert definition.is_current is False
+    assert {item.slug for item in SESSION_DEFINITIONS.values() if item.is_current} == {
+        session_definition(DEFAULT_SESSION_CODE).slug
+    }
+
+
+def test_an_unmapped_session_code_raises_instead_of_guessing():
+    """Silently filing another session's bills under the current biennium is the
+    collision #746 is about, and it is invisible once written."""
+    with pytest.raises(ValueError, match="0932023"):
+        session_definition("0932023")
 
 
 def test_parse_bill_xml_keys_a_special_session_bill_apart():
