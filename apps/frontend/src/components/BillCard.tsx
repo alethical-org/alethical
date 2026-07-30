@@ -1,6 +1,7 @@
 import { GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Bill } from '../data/types';
+import { plainBillSummary } from '../lib/billDetail';
 import { titleCaseIssue } from '../lib/issues';
 import { theme } from '../theme/tokens';
 import { Card } from './Card';
@@ -34,7 +35,8 @@ export function BillCard({
   onToggleTrack,
   onSponsorPress,
 }: BillCardProps) {
-  const summary = bill.aiAnalysis?.summary ?? bill.title;
+  // Shared cleaner, same as every other summary surface (grounded-answers rule 9).
+  const summary = plainBillSummary(bill.aiAnalysis?.summary) || bill.title;
   const policyAreas = bill.aiAnalysis?.policyAreas ?? [];
   const meta = [
     bill.chamber,

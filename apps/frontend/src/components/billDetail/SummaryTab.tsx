@@ -8,6 +8,7 @@ import {
   askCardPrompts,
   citationChipLabel,
   citationExcerpt,
+  plainBillSummary,
   plainKeyPoints,
   scopedChipQuery,
 } from '../../lib/billDetail';
@@ -59,7 +60,11 @@ export function SummaryTab({
   onJumpToActions: () => void;
 }) {
   const keyPoints = plainKeyPoints(bill.aiAnalysis?.keyPoints);
-  const summary = bill.aiAnalysis?.summary ?? '';
+  // Through the same cleaner the key points already use — the two are one block of
+  // prose to a reader, so cleaning only half of it is the inconsistency this fixes
+  // (grounded-answers rule 9). Full text, not a first sentence: this is the tab
+  // whose job is showing the whole summary.
+  const summary = plainBillSummary(bill.aiAnalysis?.summary);
   const citations = bill.citations ?? [];
   const { placeholder: askPlaceholder, chips: askChipList } = askCardPrompts(bill.questionPrompts);
 

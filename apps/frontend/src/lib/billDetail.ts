@@ -1467,18 +1467,45 @@ export function plainBillSummary(
   if (!s) return '';
   if (opts.firstSentenceOnly) s = firstSentence(s);
 
-  // 1. Remove Minnesota Statutes citations, absorbing a leading connective
-  //    ("in / to / under / of / by amending / amends …") so a clause like
-  //    "amends Minnesota Statutes …, section 297A.67, subdivision 40, to
-  //    exempt …" collapses to "to exempt …".
-  s = s.replace(
-    /(?:\b(?:in|to|under|of|by amending|amending|amends|amend|the)\s+)*Minnesota Statutes\b(?:,?\s*\d{4})?(?:,?\s*(?:sections?|chapters?)\s+[\dA-Za-z.]+(?:\s+to\s+[\dA-Za-z.]+)?(?:,?\s*subdivisions?\s+[\dA-Za-z.]+)?(?:,?\s*paragraphs?\s+\([^)]*\))?)*/gi,
-    ' ',
+  // 1. Remove a statute citation ONLY where removing it cannot break the sentence:
+  //    a leading amendatory clause, or a parenthetical aside. Both are positions
+  //    where the citation is scaffolding, not content.
+  //
+  //    This used to strip citations ANYWHERE in the sentence, which was right for
+  //    the pre-#520 phrasing it was written against ("Amends Minnesota Statutes
+  //    2024, section 120B.123, to require …") and actively wrong for the
+  //    plain-language text the corpus now stores, where a citation left in the prose
+  //    is load-bearing. Replayed against all 10,471 production summaries, the old
+  //    rule damaged 9 of the 10 it touched:
+  //
+  //      "formed under chapter 116A to the definition"  -> "formed under to the definition"
+  //      "like Section 8 vouchers"                      -> "like vouchers"
+  //      "a federal change to section 179 expensing"    -> "a federal change to expensing"
+  //      "Renames … throughout Minnesota Statutes."     -> "Renames … throughout."
+  //      "previously pointed to chapter 119B, but …"    -> "previously pointed to, but …"
+  //
+  //    "Section 8" and "section 179" are the *names* of a housing program and a
+  //    federal tax provision; the others are the object of a preposition the
+  //    sentence still needs. A display cleaner may not re-author a sentence, and
+  //    breaking its grammar is a form of re-authoring — so it now declines these.
+  //    Rule 9's own text anticipates this: the residual citations are "almost all
+  //    recodification/repeal bills whose substance *is* that reference."
+  const withoutLeadClause = s.replace(
+    /^\s*(?:the|this)?\s*(?:bill|act|legislation)?\s*(?:amends?|amending|modifies|modifying)\s+Minnesota Statutes\b(?:,?\s*\d{4})?(?:,?\s*(?:sections?|chapters?)\s+[\dA-Za-z.]+(?:\s+to\s+[\dA-Za-z.]+)?)*(?:,?\s*subdivisions?\s+[\dA-Za-z.]+)*(?:,?\s*paragraphs?\s+\([^)]*\))*,?\s*(?=to\s+\w)/i,
+    '',
   );
-  // Bare "section 297A.67, subdivision 40" without a "Minnesota Statutes" lead.
+  // Whether the clause above was actually removed. Step 3's leading-connective
+  // cleanup is only correct when it was: that "to" is the tail of a clause we cut,
+  // not the reader's own opening word. Stripping it unconditionally turned the key
+  // point "To qualify, the inspector general must have …" into "Qualify, the
+  // inspector general must have …" (found by the corpus replay).
+  const cutLeadClause = withoutLeadClause !== s;
+  s = withoutLeadClause;
+  // A citation kept in parentheses is an aside — "(chapter 127)" — so it and its
+  // brackets come out together and the sentence around them is untouched.
   s = s.replace(
-    /,?\s*\b(?:sections?|chapters?)\s+\d[\dA-Za-z.]*(?:,?\s*subdivisions?\s+[\dA-Za-z.]+)?/gi,
-    ' ',
+    /\s*\((?:Minnesota Statutes\b[^)]*|(?:sections?|chapters?)\s+\d[\dA-Za-z.]*[^)]*)\)/gi,
+    '',
   );
 
   // 2. Drop a leading bill-code preamble: optional "The/This bill|act", then an
@@ -1496,8 +1523,14 @@ export function plainBillSummary(
   // 3. Clean artifacts the strips can leave, then collapse whitespace.
   s = s
     .replace(/\bamend(?:s|ing)?\s+to\b/gi, 'to') // "amends to exempt" → "to exempt"
-    .replace(/^\s*(?:,|;|:|\bto\b)\s+/i, '') // orphaned leading connective
-    .replace(/\s+([,.;:])/g, '$1')
+    // Orphaned leading connective. A leading "to" only counts as orphaned when we
+    // just cut the clause it hung off; punctuation is always safe to drop.
+    .replace(cutLeadClause ? /^\s*(?:,|;|:|\bto\b)\s+/i : /^\s*[,;:]\s+/, '')
+    // Close up space before punctuation — but NOT before a decimal point, or
+    // ", .22 caliber tube feeders" became ",.22 caliber tube feeders" on the two
+    // large-capacity-magazine bills (found by the corpus replay).
+    .replace(/\s+([,;:])/g, '$1')
+    .replace(/\s+\.(?!\d)/g, '.')
     .replace(/,\s*,/g, ',')
     .replace(/\(\s*\)/g, '')
     .replace(/\s{2,}/g, ' ')

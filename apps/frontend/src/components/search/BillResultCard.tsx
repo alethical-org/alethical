@@ -13,6 +13,7 @@ import {
   chiefAuthor,
   formatNiceDate,
   latestActionEntry,
+  plainBillSummary,
 } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
 import { theme as t } from '../../theme/tokens';
@@ -154,7 +155,12 @@ export function BillResultCard({
       (titleRef.current as unknown as HTMLElement).title = bill.title;
     }
   }, [bill.title]);
-  const summary = bill.aiAnalysis?.summary ?? bill.title;
+  // Through the shared cleaner, like every other surface that shows a summary: the
+  // amber code badge above already states the bill number, so a summary opening
+  // with it repeats itself, and a statute citation reads as legalese
+  // (grounded-answers rule 9). No firstSentenceOnly — this card shows the whole
+  // summary, so truncating to one sentence would drop content it means to show.
+  const summary = plainBillSummary(bill.aiAnalysis?.summary) || bill.title;
   const policyAreas = bill.aiAnalysis?.policyAreas ?? [];
   const { index, tone } = billStage(bill.status);
   const statusColor =
