@@ -564,6 +564,9 @@ def ingest_bill_payload(
             cite_heading=section.get("cite_heading"),
             effective_date_heading=section.get("effective_date_heading"),
             raw_text=section["text"],
+            # The structure flattening loses (#741) — subdivision numbers,
+            # added-text marks, table shape. Free here: the same parse produces it.
+            body_blocks=section.get("blocks") or None,
             source_hash=next(
                 (
                     doc["source_hash"]

@@ -600,6 +600,20 @@ class BillVersionSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     cite_heading: Mapped[Optional[str]] = mapped_column(Text)
     effective_date_heading: Mapped[Optional[str]] = mapped_column(Text)
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
+    # The same body as `raw_text`, plus the three things flattening it to one
+    # string destroys: the subdivision numbers ("Subd. 2."), the marks saying
+    # which words the bill ADDS, and the row/column shape of appropriation
+    # tables (#741, #752). An ordered list of {"kind": heading|para|table} blocks
+    # — see `parse_section_blocks` in alethical/pipeline/minnesota.py for the
+    # shape. Null on any section written before that parser existed, so a reader
+    # must fall back to `raw_text`.
+    #
+    # Deliberately a SEPARATE column rather than a rewrite of `raw_text`: two
+    # paid caches hash `raw_text` — every section's embedding (rag_ingest) and
+    # every bill's AI summary (ai_enrichment's source_version_hash) — so
+    # rewriting it would re-run both corpus-wide jobs. Nothing hashes this
+    # column, so filling it costs nothing.
+    body_blocks: Mapped[Optional[list]] = mapped_column(JSONB)
     source_hash: Mapped[Optional[str]] = mapped_column(String(64))
 
     bill_version: Mapped["BillVersion"] = relationship(back_populates="sections")

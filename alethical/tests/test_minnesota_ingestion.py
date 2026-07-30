@@ -22,9 +22,11 @@ from alethical.pipeline.minnesota import (
     LEGISLATOR_LOCK_KEY,
     REFERENCE_DATA_LOCK_KEY,
     MinnesotaIngestionPipeline,
+    parse_bill_section,
     parse_bill_text_html,
     parse_bill_xml,
     parse_datetime,
+    parse_section_blocks,
 )
 
 
@@ -81,6 +83,90 @@ SAMPLE_BILL_HTML = """
   </body>
 </html>
 """
+
+
+# A section as the Revisor actually publishes an amendment: the changed runs are
+# wrapped in screen-reader-only marker spans, the subdivision number is an
+# <h2 class="subd_no"> and its title a sibling <h3 class="headnote">, and an
+# appropriation is a real <table> with a spacer cell holding the dollar sign.
+AMENDING_SECTION_HTML = """
+<div class="bill_section" id="laws.0.1.0">
+  <h2 class="section_number">Sec. 5. </h2>
+  <p class="first">Minnesota Statutes 2024, section 62A.011, subdivision 3, is amended
+    <br class="d-none d-md-inline-block"/>to read:<br class="d-none d-md-inline-block"/></p>
+  <br/>
+  <div class="subd" id="laws.0.1.1">
+    <h2 class="subd_no">Subd. 3.</h2>
+    <h3 class="headnote">Health plan.</h3>
+    <p>Coverage for on-site medical clinics<span class="sr-only">deleted text begin </span>
+      <span class="del" style="text-decoration: line-through">.</span>
+      <span class="sr-only">deleted text end </span>
+      <span class="sr-only">new text begin </span>
+      <ins style="text-decoration: underline">; or</ins>
+      <span class="sr-only">new text end </span></p>
+    <table>
+      <col style="width:50%"/>
+      <tr>
+        <td>General Fund</td>
+        <td style="text-align: center;">$</td>
+        <td style="text-align: right;">652,953,000</td>
+      </tr>
+    </table>
+  </div>
+</div>
+"""
+
+
+def test_section_blocks_keep_the_structure_flattening_destroys() -> None:
+    blocks = parse_section_blocks(AMENDING_SECTION_HTML)
+    kinds = [block["kind"] for block in blocks]
+    assert kinds == ["para", "heading", "para", "table"]
+
+    # The subdivision number and its title arrive as one heading, the way the
+    # Legislature writes them: "Subd. 3. Health plan." (#741).
+    assert blocks[1] == {
+        "kind": "heading",
+        "number": "Subd. 3.",
+        "text": "Health plan.",
+    }
+
+    # BOTH marker kinds survive. Before #741 the added pair was deleted at import,
+    # so inserted wording read as though it were already law.
+    body = str(blocks[2]["text"])
+    assert "deleted text begin . deleted text end" in body
+    assert "new text begin ; or new text end" in body
+
+    # An appropriation keeps its rows and cells, so a reader can tell which figure
+    # belongs to which column (#752).
+    assert blocks[3]["rows"] == [
+        [
+            {"text": "General Fund"},
+            {"text": "$", "align": "center"},
+            {"text": "652,953,000", "align": "right"},
+        ]
+    ]
+
+    # The section heading is already stored in its own column, so it is not
+    # repeated as a block.
+    assert not any("Sec. 5." in str(block.get("text", "")) for block in blocks)
+
+
+def test_flat_section_text_is_unchanged_by_the_block_parser() -> None:
+    """The flat text must stay byte-identical, because two paid caches hash it.
+
+    Every section's search embedding (rag_ingest) and every bill's AI summary
+    (ai_enrichment's source_version_hash) key off `raw_text`. If capturing the
+    structure changed that string, filling in `body_blocks` would silently re-run
+    both corpus-wide paid jobs — which is the whole reason the structure lives in
+    a separate column (#741).
+    """
+    parsed = parse_bill_section(AMENDING_SECTION_HTML, "laws.0.1.0")
+    flat = str(parsed["text"])
+
+    assert "new text begin" not in flat
+    assert "deleted text begin" in flat
+    assert "Subd. 3." not in flat
+    assert flat.startswith("Minnesota Statutes 2024, section 62A.011")
 
 
 def test_bill_parsers_extract_canonical_payloads() -> None:

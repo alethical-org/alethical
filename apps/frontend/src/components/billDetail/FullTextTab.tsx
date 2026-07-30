@@ -7,9 +7,11 @@ import { useBillVersionText } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   asHeadingCaption,
+  blockTexts,
   changeKindsPresent,
   parseChangeRuns,
   parseSectionBody,
+  parseStructuredBody,
   sectionIndexLabel,
   splitSectionLabel,
   TextRun,
@@ -121,27 +123,38 @@ export function FullTextTab({
     () =>
       sections.map((section) => {
         const { number, title } = splitSectionLabel(section.heading);
-        const body = parseSectionBody(section.text ?? '', { hasTitle: !!title });
+        // Read the section's real landmarks where ingestion captured them
+        // (`bodyBlocks`, #741); fall back to inferring them from the flattened
+        // text on any section not yet re-read from the Revisor.
+        const body = section.bodyBlocks?.length
+          ? parseStructuredBody(section.bodyBlocks, { hasTitle: !!title })
+          : parseSectionBody(section.text ?? '', { hasTitle: !!title });
         // The Legislature's caption, wherever it was published: fused into the
-        // stored heading on some bills, loose in the body on others.
+        // stored heading on some bills, a subdivision headnote on others.
         const heading = title ?? asHeadingCaption(body.caption);
         return { section, number, heading, body };
       }),
     [sections],
   );
 
-  // Only claim the treatments this bill actually shows. Ingestion currently
-  // strips the "new text" markers, so most bills carry removals only and the
-  // legend must not promise an underline the reader will never see
-  // (grounded-answers rule 6).
-  const changeKinds = useMemo(() => changeKindsPresent(sections.map((s) => s.text)), [sections]);
+  // Only claim the treatments this bill actually shows (grounded-answers rule 6).
+  // A section re-read from the Revisor carries both marker kinds, so the legend
+  // names the underline too; one still on the flattened text carries removals
+  // only, and must not promise an underline the reader will never see.
+  const changeKinds = useMemo(
+    () =>
+      changeKindsPresent(
+        sections.flatMap((s) => (s.bodyBlocks?.length ? blockTexts(s.bodyBlocks) : [s.text])),
+      ),
+    [sections],
+  );
 
   const indexItems: SectionIndexItem[] = useMemo(
     () =>
       parsed.map(({ section, number }) => ({
         sectionId: section.sectionId,
         number,
-        label: sectionIndexLabel(section.heading, section.text ?? ''),
+        label: sectionIndexLabel(section.heading, section.text ?? '', section.bodyBlocks),
         articleHeading: section.articleHeading,
       })),
     [parsed],
