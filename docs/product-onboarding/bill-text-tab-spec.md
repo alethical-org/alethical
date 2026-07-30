@@ -204,6 +204,12 @@ bracket rule the stricter guard broke (#755), the two sections that differed onl
 the struck caption that must not become a title, and a ban on regex lookbehind, which Hermes does
 not reliably support.
 
+**The structured path has its own file, `__tests__/billTextBlocks.test.ts`**, over
+`fixtures/bill-text-body-blocks.json` — 5 real sections carrying the `body_blocks` the API returns.
+It re-checks properties 1, 2 and 3 on that path, adds property 6 below, and pins the three gains:
+the subdivision number reaches the page (and provably could not before), an added run renders as
+added rather than as plain law, and no captured table cell is dropped.
+
 ### The corpus replay, which the tests do not replace
 
 Committed fixtures cannot prove a change is safe across the *whole* corpus, and they cannot run
