@@ -119,10 +119,25 @@ const STATUTE_REFS: Array<{ pattern: RegExp; format: (m: RegExpMatchArray) => st
 // An initialism ("U.S.C.", "M.S.A.") ends in a period that belongs to the word.
 const INITIALISM_END = /(?:\b[A-Za-z]\.){2,}$/;
 
+// Ingestion strips the Revisor's tags and leaves a space wherever one stood
+// between a word and its punctuation, so a third of sections render "duties ." and
+// "firefighters ; emergency". Closing that gap is presentation only — it moves no
+// word and changes no claim, the same latitude the summary cleaners take
+// (.claude/rules/grounded-answers.md rule 9). Only spaces and tabs, never a line
+// break, so a paragraph that legitimately opens on punctuation is left alone.
+// The durable fix belongs at ingestion (#741); this keeps the page readable until
+// then, and stays as a guard afterwards.
+const SPACE_BEFORE_PUNCTUATION = /[ \t]+([;,.:!?])/g;
+
+/** Tidy the whitespace flattening left behind. Presentation only. */
+function tidySpacing(value: string): string {
+  return value.replace(SPACE_BEFORE_PUNCTUATION, '$1');
+}
+
 /** Drop marker words and tidy the gap they leave behind. */
 function stripMarkers(value: string): string {
   if (!value.includes('text b') && !value.includes('text e')) return value;
-  return value.replace(STRAY_MARKER, '').replace(/[ \t]{2,}/g, ' ');
+  return tidySpacing(value.replace(STRAY_MARKER, '').replace(/[ \t]{2,}/g, ' '));
 }
 
 /**
@@ -150,7 +165,16 @@ export function parseChangeRuns(text: string): TextRun[] {
   }
   push('plain', text.slice(cursor));
 
-  return runs;
+  // The same stray space can straddle two runs — a plain run ending in a space
+  // followed by a struck full stop — where tidying each run in isolation cannot
+  // reach it.
+  for (let i = 0; i < runs.length - 1; i++) {
+    if (/^[;,.:!?]/.test(runs[i + 1].text)) {
+      runs[i].text = runs[i].text.replace(/[ \t]+$/, '');
+    }
+  }
+
+  return runs.filter((run) => run.text !== '');
 }
 
 /** Section text with every marker word removed — for classifying and labelling. */
@@ -235,7 +259,7 @@ export function splitSectionLabel(heading: string | null | undefined): {
 /** Statute source text carries long runs of blank lines between headnotes and
  *  their bodies; collapse them so paragraphs split cleanly. */
 export function cleanSectionText(raw: string): string {
-  return raw
+  return tidySpacing(raw)
     .replace(/[ \t]+$/gm, '')
     .replace(/\n{2,}/g, '\n\n')
     .trim();

@@ -46,6 +46,14 @@ marker words land in the stored text as prose.
   never leak the words, and must never strike the rest of the section either.
 - Each changed run also carries an accessibility label ("removed from current law: …"), because
   strike-through and underline convey the change by presentation alone.
+- **A stray space before punctuation is closed up.** Stripping the Revisor's tags leaves a space
+  wherever one stood between a word and its punctuation, so 560 of 1,881 sampled sections rendered
+  "duties ." or "firefighters ; emergency". The cleaner handles the case inside one run and the case
+  that straddles two (a plain run ending in a space, then a struck full stop). Spaces and tabs only,
+  never a line break, so a paragraph that legitimately opens on punctuation is untouched. This is
+  presentation only — proven over 1,881 sections to change no word, the same latitude
+  `.claude/rules/grounded-answers.md` rule 9 gives the summary cleaners. The durable fix is at
+  ingestion ([#741](https://github.com/alethical-org/alethical/issues/741)); this stays as a guard.
 
 **The legend is gated on what the bill actually contains.** It names only the treatments present in
 that bill's text: both, removals only, additions only, or nothing at all. This is
