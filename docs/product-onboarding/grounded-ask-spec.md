@@ -1,5 +1,7 @@
 # Grounded Ask — Build Spec
 
+<!-- describes: apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, alethical/api/routers/ask.py, alethical/api/services/ask_router.py -->
+
 Status: draft for engineering review
 Owner: Eugene
 Related surfaces: signed-out home (hero), chat

@@ -1,5 +1,7 @@
 # How Search works on Alethical (plain-English guide)
 
+<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/search/searchPieces.tsx, alethical/api/routers/public.py -->
+
 A quick, non-technical walkthrough of the **Search Bills** page — what you type, what
 you can narrow by, and what each result shows. This is the "browse the library" page:
 it finds bills by keyword or bill number. If you have a real *question*
