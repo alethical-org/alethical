@@ -290,10 +290,11 @@ produced a false failure:
 - **Group index rows by article before checking for duplicates.** Section numbers restart inside each
   article, so an omnibus bill legitimately has a "Sec. 3" per article.
 - **A handful of bills repeat one section id on their page** (6 of the 12 largest do, all on
-  `laws.0.1.0`). The database's unique `(version, section_id)` constraint keeps only the last, so the
-  product never renders the others — mirror that in the replay or it reports duplicates the tab
-  cannot show. That data loss is itself a bug, tracked separately in
-  [#763](https://github.com/alethical-org/alethical/issues/763).
+  `laws.0.1.0` — the id the Revisor hands every section that sits outside an article). Both the page
+  and the corpus now carry every one of them, so a replay must expect the repeat rather than
+  de-duplicate it. Until [#763](https://github.com/alethical-org/alethical/issues/763) landed, the
+  corpus kept only the last of each repeated id and the tab never rendered the others; rows are keyed
+  on the section's position now, so all of them are stored and rendered.
 
 Layout and jump behaviour still need a browser: the index threshold at 1/2/3/21 sections, and the
 jump landing at 90px from several starting scroll positions and from both entry points.
@@ -305,6 +306,9 @@ jump landing at 90px from several starting scroll positions and from both entry 
   form pairs each figure with its year in the visible text, so the information is reachable — but it
   is not announced as a table with column headers. Improving that means real table semantics on web,
   which is its own piece of work.
-- **Recovering sections a bill's page loses entirely** — [#763](https://github.com/alethical-org/alethical/issues/763).
-  Where a page repeats one section id, only the last of them is stored, so 6 of the 12 largest bills
-  are missing sections. This tab renders what the corpus has; the gap is at ingest.
+- **Addressing one of two sections that share an id.** Now that a repeated `laws.0.1.0` stores every
+  section rather than only the last ([#763](https://github.com/alethical-org/alethical/issues/763)),
+  a bill can render two sections whose `nativeID` is the same `ft-laws.0.1.0`. A `#ft-` link, and the
+  index rail's scroll-spy, land on whichever the browser finds first. Existing shared links still
+  work — they just cannot distinguish the repeats. Making each repeat separately addressable is its
+  own piece of work, tracked in [#777](https://github.com/alethical-org/alethical/issues/777).
