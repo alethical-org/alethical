@@ -167,9 +167,10 @@ function spaceFileNumbers(value: string): string {
 // the verb in the value as well as the label — action_text "See" with
 // action_description "See First Special Session, HF5" — so prepending blindly gave
 // "See also See First Special Session, HF 5". Drop a leading See / See Also from the
-// target; everything after it is quoted as the source wrote it, including the one
-// row whose source misspells "First" as "Frist" (theirs to fix, not ours to
-// silently re-author).
+// target. Everything after it keeps the source's own FACTS verbatim — the file
+// number, chapter, section and date are never re-interpreted — but a plain
+// misspelling in the source's wording is corrected downstream by
+// fixSourceMisspellings, because this row is a label we author, not a quotation.
 function crossReferenceTarget(desc: string): string {
   return spaceFileNumbers(desc.trim().replace(/^see(\s+also)?[\s,:.-]*/i, ''));
 }
@@ -636,6 +637,33 @@ function humanizeFallback(text: string): string {
   return s || text;
 }
 
+// Plain misspellings in the source, corrected in the titles we author.
+//
+// These rows are NOT a quotation surface — we already rewrite every one of them
+// ("Introduction and first reading" -> "Introduced", "Comm report: To pass as
+// amended" -> "Committee report — recommends passing, as amended"). Leaving a
+// clerk's typo standing inside a sentence we wrote ourselves does not make us
+// faithful to the record; it just reads as our own sloppiness, since a reader has
+// no way to tell whose mistake it is. Verbatim fidelity is owed by the Bill Text
+// tab and by citation excerpts, which quote the statute; it is not owed by a
+// plain-language label.
+//
+// The line this must not cross: correct WORDS, never FACTS. A file number,
+// chapter, section, date or tally stays exactly as the record states it, because
+// changing one of those changes what the record says. "Frist" is not a word, it
+// sits where "First" belongs in a known session name, and there is nothing else it
+// could mean — so no information is lost and no claim is introduced.
+//
+// Deliberately an explicit list rather than a spell-checker: every entry is a
+// misspelling someone has confirmed in production, so it can be audited. Searched
+// the corpus for 17 likely clerk typos; "Frist" is the only one present (2 rows,
+// 94-2025-SF115 and 94-2025-SF1405, both naming the 2025 First Special Session).
+const SOURCE_MISSPELLINGS: [RegExp, string][] = [[/\bFrist\b/g, 'First']];
+
+function fixSourceMisspellings(title: string): string {
+  return SOURCE_MISSPELLINGS.reduce((s, [wrong, right]) => s.replace(wrong, right), title);
+}
+
 function classify(text: string, desc: string, committee: string): Classified {
   const low = (text || '').toLowerCase();
   const matched = ACTION_RULES.find((rule) => rule.test(low, desc || ''));
@@ -644,7 +672,7 @@ function classify(text: string, desc: string, committee: string): Classified {
     : { kind: 'procedural', title: humanizeFallback(text) };
   return {
     ...classified,
-    title: completeDanglingTitle(classified.title, committee || ''),
+    title: fixSourceMisspellings(completeDanglingTitle(classified.title, committee || '')),
   };
 }
 
