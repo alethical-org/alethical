@@ -229,7 +229,7 @@ thinking turned off**. The summary / key-points / suggested-questions task is
 reasoning-light, so thinking would add latency and cost without improving the output —
 Sonnet-no-thinking is the cheapest tier that holds the quality bar for this job.
 
-### 4.3 What a run actually costs, measured — and how to size the next one
+### 4.2 What a run actually costs, measured — and how to size the next one
 
 Everything below is measured, not projected: from the 3,222-bill re-enrichment of
 [#723](https://github.com/alethical-org/alethical/issues/723) (applied Jul 30 2026,
@@ -273,6 +273,44 @@ changed nothing except whether the answer survived.
 a 16,000-token request on a nearly-empty balance while accepting a 1,000-token one, with a
 payment error rather than a quota message. Worth knowing before diagnosing a mid-run stall
 as an outage — raising the ceiling raises the balance a run needs up front.
+
+### 4.3 When a shorter summary is worse, and why paying to re-ask stops working
+
+**Net (plain language): shortening a bill's key points is the right job for most bills
+and the wrong job for a bill whose whole point is a list of amounts. Asking the model
+again fixes some of those; past a point it stops working, and pushing harder in the
+instructions makes it invent totals. Leave the wordy list.**
+
+[#723](https://github.com/alethical-org/alethical/issues/723) shortened the key points on
+3,222 wordy bills. 45 were held back because the shorter version had dropped every dollar
+figure the longer one carried, and
+[#814](https://github.com/alethical-org/alethical/issues/814) worked through those 45.
+Three things came out of it that are expensive to rediscover:
+
+- **"Every dollar figure disappeared" is too blunt a test for whether a summary got
+  worse.** Of the 45, only 5 were bills that spend money and lost the amount they spend.
+  The rest lost a fine attached to one offence, a licence fee, an income cut-off that
+  decides who a rule covers, or a figure the bill itself leaves blank. Dropping those is
+  the shortening working, not failing. 15 of the 45 were safe to publish once each one was
+  read; 30 were not.
+- **Re-asking has a floor.** The same request, unchanged, cleared 76 bills, then 59, then
+  45, then 38 — and the last pass fixed only 7 of 45 for **$3.79**. The bills that survive
+  four rounds are not unlucky; the model keeps making the same call about them, so a fifth
+  round buys almost nothing.
+- **Telling the model harder to keep the amounts made one bill wrong.** A 5-bill test with
+  a sharper instruction fixed 1, left 3 unchanged, and on the fifth produced a total
+  ("roughly $850,000 per year") that appears nowhere in the bill or in the old summary —
+  the model had added the appropriations up itself. A missing figure is a worse summary; an
+  invented one is a false statement about a law, which
+  [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 1
+  forbids outright. **So the instruction was not shipped**, and the 98.6% of bills that
+  already comply were never put at risk.
+
+**The rule to carry away: a bill whose substance IS a table of numbers — an
+appropriations bill, a payment-rate schedule, a tax-bracket table, a fee schedule — is
+allowed to keep a long list of key points.** The six-bullet target exists to stop a
+summary reading like the bill; it was never a reason to delete the numbers a reader came
+for. For those 30 bills the wordy list is the correct answer, so they keep it.
 
 ## 5. The decisions behind retrieval (embedding model + index)
 
