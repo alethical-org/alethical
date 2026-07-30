@@ -96,6 +96,50 @@ provider's discounted batch queue, which is why that one is cheap and slow. Don'
 "batch" as "discount" when comparing the two — the mode/tier tradeoff is worked through
 in [#457](https://github.com/alethical-org/alethical/issues/457).
 
+### 4.1 Where the 50% bulk discount comes from, and who can reach it
+
+**It is not a promotion and it has nothing to do with Claude Code.** The bulk lane is a
+permanent line on the provider's own price list: hand over a large file of requests,
+let the provider run them whenever it has spare capacity within 24 hours, and pay half
+on both the text sent in and the text written out. Anthropic calls it the
+[Message Batches API](https://platform.claude.com/docs/en/about-claude/pricing#batch-processing);
+OpenAI calls it the Batch API. No subscription, plan, or tier unlocks it, and nothing
+about it expires. **Net (plain language): the discount is the price of being willing to
+wait, not a deal anyone negotiated for us.**
+
+**Any route that reaches the provider's bulk lane gets the same 50%; a route that only
+forwards live one-at-a-time calls cannot.** That single rule decides the whole
+comparison:
+
+| Route | Reaches the bulk lane? |
+|---|---|
+| Anthropic API direct (what `anthropic_enrichment.py` uses) | ✅ Yes |
+| OpenAI API direct (what `ai_enrichment.py` already uses) | ✅ Yes |
+| Claude on Google Cloud / Amazon Bedrock | ✅ Yes |
+| Self-hosted LiteLLM proxy | ✅ Yes — it forwards the batch endpoint |
+| Vercel AI Gateway · OpenRouter · Concentrate | ❌ No — live calls only |
+
+So a model-routing service in front of us is not a way to *get* a better rate; at best
+it passes through the provider's price, and in the bulk case it takes the discount away.
+Evaluated in full at
+[#457](https://github.com/alethical-org/alethical/issues/457#issuecomment-5133755600).
+
+**The one real promotion is a different thing, and it has a deadline.** Claude Sonnet 5
+is on introductory pricing of **$2 in / $10 out per million tokens** through
+**August 31, 2026**, after which it returns to **$3 / $15**
+([pricing](https://platform.claude.com/docs/en/about-claude/pricing#claude-sonnet-5-introductory-pricing)).
+That is a 50% increase on every enrichment run from September 1. The
+[#723](https://github.com/alethical-org/alethical/issues/723) re-enrichment of 3,222
+bills prices at **~$176 today and ~$265 after the deadline**; a full-corpus run scales
+the same way. **Net (plain language): any enrichment run we already intend to do is
+meaningfully cheaper if it happens before September.**
+
+**The two savings stack.** Bulk-lane pricing and [prompt
+caching](https://platform.claude.com/docs/en/about-claude/pricing#prompt-caching) (which
+bills a repeated instruction block at 10% after its first write) combine, so the cheapest
+possible enrichment run is bulk lane + cached prefix. Neither is wired up today: the
+Anthropic runner sends live calls with an uncached system block.
+
 **Which model does the writing:** enrichment runs on **Claude Sonnet with extended
 thinking turned off**. The summary / key-points / suggested-questions task is
 reasoning-light, so thinking would add latency and cost without improving the output —
