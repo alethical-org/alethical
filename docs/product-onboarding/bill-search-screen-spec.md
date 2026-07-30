@@ -139,19 +139,26 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   neutral generated headline is scannable while official data still leads on the detail
   page; Phase 1 clamp [#303](https://github.com/alethical-org/alethical/pull/303),
   short_title [#304](https://github.com/alethical-org/alethical/pull/304).)
-- **AI summary** — 2–3 lines under a small "AI SUMMARY" eyebrow label, so official record
-  and AI analysis are distinguishable at a glance. (`AIEnrichment` `bill_summary`.)
-  **⚠️ Not what ships.** The eyebrow label was removed for a cleaner card in
-  [#345](https://github.com/alethical-org/alethical/pull/345), so as of Jul 29 2026 the
-  live card shows the AI summary *and* the AI `short_title` with **no** attribution — the
-  word "AI" appears nowhere on `/bills` or on bill detail (whose generated Key points are
-  likewise unlabelled). That conflicts with this spec line and with
-  `docs/product-onboarding/product-scope.md` (§ Frontend Expectations, "Clear distinction
-  between official data and AI-generated analysis"). This requirement is deliberately left
-  standing rather than relaxed to match the build: the resolution — restore a label, or
-  amend the principle — is tracked in
-  [#731](https://github.com/alethical-org/alethical/issues/731) and is the maintainer's
-  call, not a silent spec edit.
+- **AI summary** — 2–3 lines, no eyebrow label. (`AIEnrichment` `bill_summary`.) This
+  originally specified a small purple "AI SUMMARY" eyebrow so official record and AI
+  analysis were "distinguishable at a glance". That label was removed for a cleaner card in
+  [#345](https://github.com/alethical-org/alethical/pull/345), and **the removal is the
+  settled decision** ([#731](https://github.com/alethical-org/alethical/issues/731), closed
+  Jul 29 2026 as not-planned). Two arguments carried it, and both are worth keeping here
+  because this is the kind of line someone will otherwise "restore" as a bug fix:
+  - Nothing is actually confusable. The bill page names its source in plain sight
+    ("Source: Minnesota Legislature · revisor.mn.gov"), official text sits in its own
+    **Bill Text** section quoted at length, and generated answers must carry a citation or
+    not appear at all (`.claude/rules/grounded-answers.md` #1). A badge adds no separation
+    that the page's structure does not already provide.
+  - A label on every card in a long list is visual weight spent on a distinction the
+    reader is not at risk of getting wrong. The plain-language summary *is* the product's
+    value; annotating it with provenance chrome works against reading it.
+
+  So `docs/product-onboarding/product-scope.md` (§ Frontend Expectations, "Clear
+  distinction between official data and AI-generated analysis") is satisfied **structurally
+  — by named sources, a separate official-text section, and the citation contract — not by
+  per-element badges.** Read it that way before adding provenance chrome to any surface.
 
 **Secondary meta block**
 - **Chief author (linked) + co-author count** — "Author: Patti Anderson · +42 co-authors"

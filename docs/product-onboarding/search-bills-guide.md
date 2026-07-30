@@ -84,11 +84,12 @@ Above the list you always see:
   motif showing how far along it is.
 - **A plain-language summary** of what the bill actually does, written to be readable
   rather than legalese. Both this and the headline above it are **written by AI from the
-  bill's own text**, not quoted from the official record. Note that the card carries
-  **no on-screen label saying so** today: the "AI SUMMARY" tag was removed for a cleaner
-  card in [#345](https://github.com/alethical-org/alethical/pull/345), which leaves it
-  indistinguishable from official text at a glance. Tracked as
-  [#731](https://github.com/alethical-org/alethical/issues/731).
+  bill's own text**, not quoted word for word from the official record. There's no badge
+  on the card saying so, and that's on purpose: the bill's own page names where its
+  information came from, and shows the official wording in its own "Bill Text" section, so
+  you can always get to the real thing. If you want the legal wording of a bill, open the
+  bill and use that section, or follow the source link to the Legislature's own site
+  (revisor.mn.gov).
 - **An "OMNIBUS" tag** when the bill is one of the big bundled bills.
 - **Chief author** — the lead legislator, clickable to their profile.
 - **The latest action and its date** — e.g. "Referred to Ways and Means · Mar 12, 2026".
