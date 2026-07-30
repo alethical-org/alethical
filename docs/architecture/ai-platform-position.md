@@ -156,15 +156,23 @@ regression gets shipped.
 reviews have now suggested different orderings, both reasonable, neither grounded in
 a stated rule. The rule is:
 
-1. **A true dependency forces order.** The only one here: the retention policy
-   (#803) precedes evidence receipts (#801), because a receipt can contain a
-   reader's own question, and building the store first means retrofitting it.
+1. **A true dependency forces order.** One is known **among the items identified
+   today**: the retention policy (#803) precedes evidence receipts (#801), because a
+   receipt can contain a reader's own question, and building the store first means
+   retrofitting it. This is a dependency *graph*, not a fixed count — implementation
+   may surface others, and new evidence is exactly the right reason to revise it.
 2. **Reader-visible failures outrank internal capability.** An error page a reader
    hits today beats a policy document that blocks nothing but item 5.
 3. **Prevention outranks diagnosis.** Freshness gating (#800) stops a confidently
    stale answer reaching a reader; receipts (#801) help explain one after the fact.
    `.claude/rules/grounded-answers.md` rule 7 calls the stale answer the sneakier
-   failure, so the gate goes first.
+   failure, so the gate goes first. **This ranks the work; it is not permission to
+   ship a preventive fix you cannot confirm is working.** Every preventive item
+   carries enough of its own telemetry to prove its behaviour — for #780 that means
+   the normalized failure type, attempts used, elapsed time, and which degradation
+   path was taken, so "retries are absorbing rate limits" is distinguishable from
+   "every call burns three attempts and refuses." Shape of the failure only, never
+   reader-supplied text, until #803 is written.
 4. **Already-measured and bounded work runs in parallel**, not at the end of the
    queue.
 
@@ -194,9 +202,11 @@ Reopening the order needs a new dependency or new evidence, not a new preference
    [#802](https://github.com/alethical-org/alethical/issues/802). Done when RPO and
    RTO are measured from a real restore and the risk is accepted in writing.
 
-Running in parallel because it is already measured and bounded: **prompt caching for
-batch summaries** ([#779](https://github.com/alethical-org/alethical/issues/779)) —
-2,698 identical tokens are re-paid on every summariser call today.
+**Already done, and the precedent for rule 4:** prompt caching for batch summaries
+([#779](https://github.com/alethical-org/alethical/issues/779), closed Jul 30 2026
+via [#785](https://github.com/alethical-org/alethical/pull/785)). It was measured
+(2,698 identical tokens re-paid per summariser call), bounded, and blocked none of
+the safety work, so it shipped alongside rather than queueing behind it.
 
 ## 7. The durable principle
 
