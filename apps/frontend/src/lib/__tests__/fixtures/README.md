@@ -31,6 +31,17 @@ What the selection deliberately includes:
   a Minnesota Rules part, a session law, and a new statute stating its own
   number in brackets.
 
+**No entry here carries an added-text marker, and none ever can.** The `text`
+field is the flat string ingestion stores, and that string deliberately never
+holds `new text begin` / `new text end`: two paid caches hash it (every section's
+search embedding and every bill's AI summary), so keeping the added-text marks
+there would re-run both corpus-wide jobs. The marks reach the page through
+`body_blocks` instead — see `bill-text-body-blocks.json` below, where five real
+sections carry real added text, and `../billTextBlocks.test.ts`, which asserts
+every one of them renders as an underlined run. Do not try to satisfy an
+added-text test from this file; production will never give you a section that
+does it.
+
 ### Refreshing it
 
 The fixture is a snapshot, not a live feed, and it does not need routine
