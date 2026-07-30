@@ -51,6 +51,7 @@ import {
   readLabel,
   scopedChipQuery,
   TimelineRow,
+  titleSegments,
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
@@ -847,6 +848,7 @@ function BillDetailMobileScreen() {
                   rows={vm.actionRows}
                   glossary={vm.actionGlossary}
                   onViewVotes={vm.hasVotes ? () => jumpTo('votes') : undefined}
+                  onOpenBill={(billId) => navigation.navigate('BillDetail', { billId })}
                 />
               ) : (
                 <Text style={styles.emptyLine}>No recorded actions yet.</Text>
@@ -1184,10 +1186,12 @@ function MobileActionsTimeline({
   rows,
   glossary,
   onViewVotes,
+  onOpenBill,
 }: {
   rows: TimelineRow[];
   glossary: Array<{ term: string; def: string }>;
   onViewVotes?: () => void;
+  onOpenBill: (billId: string) => void;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -1208,6 +1212,7 @@ function MobileActionsTimeline({
             expanded={expanded.has(row.id)}
             onToggle={() => toggle(row.id)}
             onViewVotes={row.showVotes ? onViewVotes : undefined}
+            onOpenBill={onOpenBill}
           />
         ))}
       </View>
@@ -1233,11 +1238,13 @@ function ActionRow({
   expanded,
   onToggle,
   onViewVotes,
+  onOpenBill,
 }: {
   row: TimelineRow;
   expanded: boolean;
   onToggle: () => void;
   onViewVotes?: () => void;
+  onOpenBill: (billId: string) => void;
 }) {
   // A row's title is grey for exactly ONE reason: the step hasn't happened yet.
   // Same rule and same token as the web tab (#734) — a past step dimmed by type
@@ -1284,7 +1291,24 @@ function ActionRow({
             <ActionAuthorTitle names={names} expanded={expanded} onToggle={onToggle} />
           ) : (
             <Text style={[styles.actionTitle, scheduled && styles.actionTitleScheduled]}>
-              {row.title}
+              {/* A "See also HF 2446" row links the code to that bill's page. Same
+                  shared segments the web tab uses, so what is tappable cannot
+                  differ between the two surfaces (#745). */}
+              {titleSegments(row).map((seg, i) =>
+                seg.billId ? (
+                  <Text
+                    key={i}
+                    accessibilityRole="link"
+                    accessibilityLabel={`Open ${seg.text}`}
+                    onPress={() => onOpenBill(seg.billId!)}
+                    style={styles.actionBillCodeLink}
+                  >
+                    {seg.text}
+                  </Text>
+                ) : (
+                  <Text key={i}>{seg.text}</Text>
+                ),
+              )}
             </Text>
           )}
           {row.tally ? (
@@ -2461,6 +2485,9 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.green,
   },
+  // A linked bill code inside a "See also" title. Green like every other in-product
+  // link, inheriting the title's size and weight so the row's rhythm is unchanged.
+  actionBillCodeLink: { color: t.colors.text.green },
   actionTally: {
     paddingVertical: 3,
     paddingHorizontal: 9,

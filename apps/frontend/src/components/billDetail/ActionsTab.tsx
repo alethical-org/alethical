@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
-import { buildActionTimeline, TimelineDot, TimelineRow } from '../../lib/billDetail';
+import { buildActionTimeline, TimelineDot, TimelineRow, titleSegments } from '../../lib/billDetail';
 import { SourceLine } from './SourceLine';
 import { useHover } from './interactions';
 
@@ -18,10 +18,12 @@ const NAME_CAP = 3;
 export function ActionsTab({
   bill,
   onViewVotes,
+  onOpenBill,
   updatedLabel,
 }: {
   bill: Bill;
   onViewVotes: (rollIdx: number) => void;
+  onOpenBill?: (billId: string) => void;
   updatedLabel: string;
 }) {
   // "Now" is the real current date, not the corpus stamp: an action is SCHEDULED
@@ -59,6 +61,7 @@ export function ActionsTab({
             expanded={expanded.has(row.id)}
             onToggle={() => toggle(row.id)}
             onViewVotes={onViewVotes}
+            onOpenBill={onOpenBill}
           />
         ))}
       </View>
@@ -87,11 +90,13 @@ function Row({
   expanded,
   onToggle,
   onViewVotes,
+  onOpenBill,
 }: {
   row: TimelineRow;
   expanded: boolean;
   onToggle: () => void;
   onViewVotes: (rollIdx: number) => void;
+  onOpenBill?: (billId: string) => void;
 }) {
   const isGroup = !!row.authors && row.authors.length > 1;
   // A row's title colour keys off ONE condition: has this happened yet. Grey means
@@ -114,7 +119,15 @@ function Row({
           {row.authors ? (
             <AuthorTitle row={row} expanded={expanded} onToggle={onToggle} isGroup={isGroup} />
           ) : (
-            <Text style={[styles.title, scheduled && styles.titleScheduled]}>{row.title}</Text>
+            <Text style={[styles.title, scheduled && styles.titleScheduled]}>
+              {titleSegments(row).map((seg, i) =>
+                seg.billId && onOpenBill ? (
+                  <BillCodeLink key={i} code={seg.text} onPress={() => onOpenBill(seg.billId!)} />
+                ) : (
+                  <Text key={i}>{seg.text}</Text>
+                ),
+              )}
+            </Text>
           )}
           {row.tally ? (
             <View style={styles.tallyChip}>
@@ -171,6 +184,25 @@ function AuthorTitle({
           {expanded ? '  show less' : `  +${hidden} more`}
         </Text>
       ) : null}
+    </Text>
+  );
+}
+
+// A bill code inside a "See also" title, linking to that bill's page (#745). Green
+// like every other in-product link, and underlined on hover so it reads as one even
+// mid-sentence. Nested inside the title <Text>, so it inherits the title's size and
+// weight and the row's line-height is untouched.
+function BillCodeLink({ code, onPress }: { code: string; onPress: () => void }) {
+  const [hovered, hover] = useHover();
+  return (
+    <Text
+      accessibilityRole="link"
+      accessibilityLabel={`Open ${code}`}
+      onPress={onPress}
+      {...hover}
+      style={[styles.billCodeLink, hovered && styles.billCodeLinkHover]}
+    >
+      {code}
     </Text>
   );
 }
@@ -323,6 +355,8 @@ const styles = StyleSheet.create({
   },
   // The ONE reason a title is grey: it hasn't happened yet.
   titleScheduled: { color: t.colors.text.muted },
+  billCodeLink: { color: t.colors.text.green },
+  billCodeLinkHover: { textDecorationLine: 'underline' },
   // How many sections start on this row's date — only ever a count read off the
   // sections that STATE that date, never one resting on an inferred date (#715).
   rowMeta: {
