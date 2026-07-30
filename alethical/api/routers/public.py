@@ -45,6 +45,7 @@ from alethical.api.services.representative_lookup import (
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
 from alethical.pipeline.policy_area_counts import compute_policy_area_counts
+from alethical.pipeline.sessions import SESSION_DEFINITIONS, special_session_number
 
 schema = load_schema()
 Bill = schema.Bill
@@ -1324,15 +1325,141 @@ _CROSS_REFERENCE_LABEL = re.compile(r"^(?:see\b|\(non-revisor companion\))", re.
 # spacing are tolerated, so "HF2446", "HF 2446" and "SF0334" all resolve.
 _FILE_REFERENCE = re.compile(r"\b(HF|SF)\s*0*(\d+)\b", re.I)
 # A description that names a session is naming a DIFFERENT one — the citing bill's
-# own session is never restated. 487 production rows qualify their file this way
+# own session is never restated. 465 production rows qualify their file this way
 # ("First Special Session, HF 5"), and resolving those against the regular session
 # would link to the unrelated regular-session bill that happens to share the number:
 # a confidently wrong link, which is worse than the plain text we render instead.
-# Deliberately broad — any mention of a session disqualifies the row — because the
-# cost of skipping a resolvable reference is a link we don't draw, while the cost of
-# a false match is sending a reader to the wrong bill. Those rows become linkable
-# once the special sessions are ingested (#746).
+#
+# Until #746 those rows were skipped outright, because the bills they name were not
+# in the corpus at all. Now that they are, the row is resolved against the session it
+# NAMES instead — but only when that name maps to exactly one session we hold, and
+# never by falling back to the citing bill's session (see ``_named_special_session``).
 _OTHER_SESSION = re.compile(r"\bsession\b", re.I)
+# The session a description names. Every one of the 465 production rows names a
+# SPECIAL session; none names a different regular one, which makes sense — a regular
+# session is identified by its biennium, and these rows point sideways within one.
+#
+# Both optional groups are genuinely optional in the source data: 48 rows carry a
+# year ("2025 1st Special Session SF3, Chapter 1, …") and 417 do not
+# ("First Special Session, HF 5"), while 5 rows give no ordinal at all
+# ("See Special Session, HF5"). Missing pieces widen the candidate set rather than
+# guessing at one, and a widened set that stays ambiguous is declined.
+_NAMED_SPECIAL_SESSION = re.compile(
+    r"(?:(?P<year>(?:19|20)\d{2})\s+)?"
+    r"(?:(?P<qualifier>[A-Za-z0-9]+)\s+)?"
+    r"special\s+session\b",
+    re.I,
+)
+# Ordinals run to 7th because Minnesota has gone that far: the Revisor's own session
+# code ``7912020`` is the 91st Legislature's 2020 **7th** Special Session
+# (``special_session_number``). Listing the whole real range matters — an ordinal
+# missing from this map is treated as unrecognised and the row is declined, which is
+# the safe outcome, but only if the ones that exist are actually here.
+#
+# "frist" is not a typo of ours: 2 production rows spell it that way ("Frist Special
+# Session, HF9"). Accepting it cannot produce a wrong link, because the uniqueness
+# check still has to pass; refusing it would drop 2 real references over a
+# misspelling in the source feed.
+_SPECIAL_SESSION_ORDINALS = {
+    "first": 1,
+    "1st": 1,
+    "frist": 1,
+    "second": 2,
+    "2nd": 2,
+    "third": 3,
+    "3rd": 3,
+    "fourth": 4,
+    "4th": 4,
+    "fifth": 5,
+    "5th": 5,
+    "sixth": 6,
+    "6th": 6,
+    "seventh": 7,
+    "7th": 7,
+}
+
+
+def _known_special_sessions() -> list[tuple[int, int, int, str]]:
+    """Every special session we can name, as ``(legislature, ordinal, year, slug)``.
+
+    Read from ``SESSION_DEFINITIONS`` rather than from the database so there is one
+    source of truth for what "First Special Session" means, shared with the ingestion
+    that creates these rows. The ordinal is the discovery code's leading digit, which
+    is what ``special_session_number`` decodes.
+    """
+    return sorted(
+        {
+            (
+                definition.session_number,
+                special_session_number(code),
+                definition.year_start,
+                definition.slug,
+            )
+            for code, definition in SESSION_DEFINITIONS.items()
+            if definition.session_type == "special"
+        }
+    )
+
+
+def _named_special_session(description: str, legislature: int) -> str | None | bool:
+    """Which session slug a cross-reference names, if it names one unambiguously.
+
+    Three outcomes, deliberately distinct:
+
+    * ``False`` — the description names no session, so the caller resolves the
+      reference inside the citing bill's own session exactly as before.
+    * a slug — it names exactly one session we hold.
+    * ``None`` — it names a session we cannot pin down to exactly one. The caller
+      skips the row and it renders as plain text.
+
+    The last case is the important one, and it is why this never falls back to the
+    citing bill's session: "First Special Session, HF 5" resolved against the regular
+    session lands a reader on an unrelated tax bill instead of the K-12 education
+    finance bill they asked for (#745, #746). A link we decline to draw costs a
+    reader one click they have to make themselves; a wrong link costs them the truth.
+
+    **Candidates are confined to the citing bill's own Legislature.** A bare "First
+    Special Session" is only meaningful relative to the Legislature doing the citing,
+    and once #359 loads prior bienniums there will be several sessions answering to
+    that name. Confining the search means those can never bleed in; and if one
+    Legislature ever holds two special sessions in different years, an unqualified
+    reference to it becomes ambiguous and is declined rather than guessed.
+    """
+    if not _OTHER_SESSION.search(description):
+        return False
+    match = _NAMED_SPECIAL_SESSION.search(description)
+    if match is None:
+        # Says "session" but not in a shape we recognise. Unknown, so declined.
+        return None
+    year = int(match.group("year")) if match.group("year") else None
+    qualifier = match.group("qualifier")
+    if qualifier is None:
+        ordinal = None
+    elif qualifier.lower() in _SPECIAL_SESSION_ORDINALS:
+        ordinal = _SPECIAL_SESSION_ORDINALS[qualifier.lower()]
+    else:
+        # A word we do not recognise sits where an ordinal would. Treating that as
+        # "no ordinal given" is how a wrong link gets made: "Fourth Special Session"
+        # would fall through to the Legislature's only special session and link the
+        # first one. Unrecognised means declined.
+        #
+        # This is also why the 5 rows reading "See Special Session, HF5" stay plain
+        # text — "See" lands in the qualifier slot. Resolving them would mean the
+        # only special session of that Legislature, which the uniqueness check below
+        # would confirm, but it is not worth a lead-in word list to win 5 rows out of
+        # 465. They keep the behaviour they have today, which is correct, just not
+        # linked.
+        return None
+    candidates = {
+        slug
+        for candidate_legislature, candidate_ordinal, candidate_year, slug in (
+            _known_special_sessions()
+        )
+        if candidate_legislature == legislature
+        and (ordinal is None or candidate_ordinal == ordinal)
+        and (year is None or candidate_year == year)
+    }
+    return candidates.pop() if len(candidates) == 1 else None
 
 
 def action_cross_references(
@@ -1356,37 +1483,72 @@ def action_cross_references(
     production: all 87 distinct resolvable targets carry both fields, so this is not
     a field that shows up on a lucky few.
 
-    Scoped to the citing bill's OWN session, where ``(file_type, file_number)`` is
-    unique: verified against production, 0 colliding pairs across all 10,471 bills
-    of the 94th Legislature, so a reference resolves to exactly one bill or to none.
-    A reference we cannot resolve is simply absent from the result, and the frontend
-    then renders it as plain text — which is why a miss degrades to today's
-    behaviour and can never produce a link that goes nowhere. The 465 rows naming a
-    special-session file resolve to nothing today for exactly that reason; they read
-    as text until that session is ingested ([#746](issue)).
+    Resolved inside ONE session — the one the row names, or the citing bill's own
+    when it names none. Within a single session ``(file_type, file_number)`` is
+    unique (verified against production: 0 colliding pairs across all 10,517 bills),
+    so a reference resolves to exactly one bill or to none. A reference we cannot
+    resolve is simply absent from the result and the frontend renders it as plain
+    text, which is why a miss always degrades to the old behaviour and can never
+    produce a link that goes nowhere.
 
-    TWO queries for the whole bill (targets, then their short titles), and no query
-    at all for the ~93% of bills that carry no cross-reference row, so this cannot
-    become an N+1 on the detail route.
+    **A named session is never silently swapped for the citing bill's.** The 465 rows
+    reading "First Special Session, HF 5" are why: HF 5 exists in both the 2025
+    regular session (a tax bill) and the 2025 first special session (the K-12
+    education finance bill), so resolving the row against the wrong one sends a
+    reader somewhere plausible and wrong. Until #746 those rows were skipped
+    outright because the special session was not in the corpus; now they resolve
+    against it, and anything still unmappable keeps being skipped. See
+    ``_named_special_session`` for how a name is pinned to one session and why an
+    ambiguous one is declined.
+
+    One row can legitimately name files in two different sessions —
+    ``First Special Session, HF18; HF719`` (10 production rows name 2+ files). Each
+    reference carries its own session, and HF 719 has no special-session counterpart,
+    so it stays text rather than resolving to the regular-session bill of that
+    number. A partial link is the correct outcome there, not a bug.
+
+    Still TWO queries for the whole bill (targets, then their short titles) — the
+    session slug is matched inside the same tuple as the file, so a second session
+    costs a join rather than a round trip — and no query at all for the ~93% of bills
+    that carry no cross-reference row, so this cannot become an N+1 on the detail
+    route.
     """
-    per_action: dict[int, list[tuple[str, int]]] = {}
-    for action in bill_row.actions:
-        if not _CROSS_REFERENCE_LABEL.match((action.action_text or "").strip()):
+    # Which actions are cross-references at all, before touching ``bill_row.session``:
+    # that attribute is lazy, and the ~93% of bills with no cross-reference row must
+    # still cost zero queries here.
+    candidates = [
+        (action.action_number, action.action_description or "")
+        for action in bill_row.actions
+        if _CROSS_REFERENCE_LABEL.match((action.action_text or "").strip())
+    ]
+    if not candidates:
+        return None
+    own_slug = bill_row.session.slug
+    legislature = bill_row.session.session_number
+    # Each reference carries the slug of the session it must be looked up in, so one
+    # row's files can never be resolved against a session the row did not name.
+    per_action: dict[int, list[tuple[str, str, int]]] = {}
+    for action_number, description in candidates:
+        named = _named_special_session(description, legislature)
+        if named is None:
+            # Names a session we cannot pin to exactly one row. Stays plain text.
             continue
-        description = action.action_description or ""
-        if _OTHER_SESSION.search(description):
-            continue
+        # ``False`` means no session named, so the citing bill's own session applies.
+        target_slug = own_slug if named is False else named
         refs = [
-            (file_type.upper(), int(digits))
+            (target_slug, file_type.upper(), int(digits))
             for file_type, digits in _FILE_REFERENCE.findall(description)
         ]
         if refs:
-            per_action[action.action_number] = refs
+            per_action[action_number] = refs
     if not per_action:
         return None
     wanted = {ref for refs in per_action.values() for ref in refs}
+    # Still ONE query for every target whichever session each belongs to, because the
+    # slug is matched inside the same tuple as the file: naming another session costs
+    # a join, not a second round trip.
     resolved = {
-        (row.file_type.upper(), row.file_number): row
+        (row.slug, row.file_type.upper(), row.file_number): row
         for row in db.execute(
             select(
                 Bill.id,
@@ -1394,9 +1556,13 @@ def action_cross_references(
                 Bill.file_number,
                 Bill.bill_key,
                 Bill.status_key,
-            ).where(
-                Bill.session_id == bill_row.session_id,
-                tuple_(Bill.file_type, Bill.file_number).in_(wanted),
+                LegislativeSession.slug,
+            )
+            .join(LegislativeSession, Bill.session_id == LegislativeSession.id)
+            .where(
+                tuple_(LegislativeSession.slug, Bill.file_type, Bill.file_number).in_(
+                    wanted
+                )
             )
         )
     }
@@ -1406,18 +1572,18 @@ def action_cross_references(
         links = [
             _cross_reference_link(
                 f"{file_type} {number}",
-                resolved[(file_type, number)],
+                resolved[(slug, file_type, number)],
                 short_titles,
             )
             # Deduplicated in source order: 11 production rows name the same file
             # twice ("HF2115, HF2115"), and one link per target is enough.
-            for file_type, number in dict.fromkeys(refs)
+            for slug, file_type, number in dict.fromkeys(refs)
             # A reference to the citing bill itself is dropped: SF 2372's feed
             # carries "See SF2372", and a link back to the page you are already on
             # is a dead end. The title still quotes the target as the source wrote
             # it — we decline to link it, we do not re-author it.
-            if (file_type, number) in resolved
-            and resolved[(file_type, number)].bill_key != bill_row.bill_key
+            if (slug, file_type, number) in resolved
+            and resolved[(slug, file_type, number)].bill_key != bill_row.bill_key
         ]
         if links:
             out[action_number] = links
