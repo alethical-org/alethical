@@ -107,6 +107,14 @@ class BillListItem(BaseModel):
     actions: list["BillActionPayload"] | None = None
 
 
+class ActionCrossReferencePayload(BaseModel):
+    """A bill a "See also" action points at. ``code`` is what the timeline row
+    displays ("HF 2446"); ``id`` is the target's bill_key, for /bills/{id} (#745)."""
+
+    code: str
+    id: str
+
+
 class BillActionPayload(BaseModel):
     action_number: int
     action_text: str
@@ -116,6 +124,10 @@ class BillActionPayload(BaseModel):
     action_at: datetime | None = None
     journal_page: str | None = None
     roll_call_text: str | None = None
+    # Served by the bill DETAIL route only, where the Actions timeline renders these
+    # as links. The list routes deliberately skip the resolving query — their card
+    # shows one latest-action line, which never carries a link (#745).
+    cross_references: list[ActionCrossReferencePayload] | None = None
 
 
 class BillVersionPayload(BaseModel):

@@ -246,6 +246,7 @@ interface ApiBillActionPayload {
   committee_name?: string | null;
   action_at?: string | null;
   roll_call_text?: string | null;
+  cross_references?: { code: string; id: string }[] | null;
 }
 
 interface ApiDistrictPayload {
@@ -783,6 +784,7 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     committee: committee || undefined,
     tally: action.roll_call_text?.trim() || undefined,
     actionNumber: action.action_number,
+    crossReferences: action.cross_references?.length ? action.cross_references : undefined,
   };
 }
 

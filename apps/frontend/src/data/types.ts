@@ -53,6 +53,14 @@ export interface BillAction {
    * sequence neighbors instead of stranding them (see orderActionsForTimeline).
    */
   actionNumber?: number;
+  /**
+   * Bills this action's target names, already resolved to a bill_key by the API
+   * (detail route only). The Actions timeline renders each `code` as a link to
+   * `/bills/{id}`. Absent when the row names nothing we serve a page for — a
+   * special-session file, or a bare chapter-and-section — in which case the target
+   * stays plain text rather than becoming a link that goes nowhere (#745).
+   */
+  crossReferences?: { code: string; id: string }[];
 }
 
 export interface BillVersion {

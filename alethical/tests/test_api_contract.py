@@ -782,6 +782,101 @@ def test_bill_detail_serves_companion_bill(client):
             db.commit()
 
 
+def test_bill_detail_resolves_cross_reference_actions_to_linkable_bills(client):
+    """#745: a "See also" action names another bill in plain text, and only the
+    server can turn that file number into a bill_key. The detail payload resolves
+    it to {code, id} so the Actions timeline can link it — same shape and same
+    URL-addressability contract as `companion` (grounded-answers rule 5).
+
+    The three things it must NOT do are the point of the test: never resolve a
+    reference qualified by another session (it would land on the unrelated
+    regular-session bill sharing that number — a confidently wrong link, #746),
+    never link a bill to itself, and never emit the field at all on a row that
+    resolves to nothing (so the timeline renders plain text, as it does today)."""
+    schema = load_schema()
+    target_key = "94-2025-SF2483"
+    with Session(get_engine()) as db:
+        bill = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+        )
+        target = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == target_key)
+        )
+        target_code = f"{target.file_type} {target.file_number}"
+        raw = f"{target.file_type}{target.file_number}"
+        base = 9700
+        db.add_all(
+            [
+                # Resolvable: names a file in this bill's own session.
+                schema.BillAction(
+                    bill_id=bill.id,
+                    chamber_id=bill.chamber_id,
+                    action_number=base,
+                    action_text="See",
+                    action_description=raw,
+                ),
+                # Another session — must stay unresolved even though the regular
+                # session does contain a bill with this exact file number.
+                schema.BillAction(
+                    bill_id=bill.id,
+                    chamber_id=bill.chamber_id,
+                    action_number=base + 1,
+                    action_text="See",
+                    action_description=f"First Special Session, {raw}",
+                ),
+                # Points at the citing bill itself — a link to the page you are on.
+                schema.BillAction(
+                    bill_id=bill.id,
+                    chamber_id=bill.chamber_id,
+                    action_number=base + 2,
+                    action_text="See",
+                    action_description=f"{bill.file_type}{bill.file_number}",
+                ),
+                # No file number at all, just an enacted chapter and section.
+                schema.BillAction(
+                    bill_id=bill.id,
+                    chamber_id=bill.chamber_id,
+                    action_number=base + 3,
+                    action_text="See Also",
+                    action_description="Chapter 36, Article 4., Section 8.",
+                ),
+            ]
+        )
+        db.commit()
+    try:
+        actions = client.get(
+            "/api/v1/bills/94-2025-SF1832", params={"include": "actions"}
+        ).json()["data"]["actions"]
+        by_number = {action["action_number"]: action for action in actions}
+
+        # Resolved to the target's bill_key, with the code spaced the way the
+        # timeline renders it.
+        assert by_number[base]["cross_references"] == [
+            {"code": target_code, "id": target_key}
+        ]
+        # And that id really is addressable, which is the whole reason to serve it.
+        assert client.get(f"/api/v1/bills/{target_key}").status_code == 200
+
+        # The three that must resolve to nothing omit the field entirely rather
+        # than serving an empty list or a null.
+        for offset in (1, 2, 3):
+            assert "cross_references" not in by_number[base + offset]
+
+        # An ordinary action is untouched — this field is only ever added.
+        ordinary = [
+            action
+            for number, action in by_number.items()
+            if number < base and "cross_references" in action
+        ]
+        assert ordinary == []
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(
+                delete(schema.BillAction).where(schema.BillAction.action_number >= base)
+            )
+            db.commit()
+
+
 def test_bill_detail_serves_is_omnibus(client):
     """The detail payload exposes is_omnibus so the bill page can render the
     OMNIBUS tag — the list payload already did, but the detail one omitted it,

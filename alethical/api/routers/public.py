@@ -8,7 +8,7 @@ from uuid import UUID
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import and_, case, func, or_, select, text
+from sqlalchemy import and_, case, func, or_, select, text, tuple_
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
@@ -1317,6 +1317,91 @@ def verified_effective_date(db: Session, bill_row) -> str | None:
     return resolve_effective_date(sections, bill_row.actions or [])
 
 
+# A cross-reference action's ``action_text`` is "See" / "See Also" / "(Non-revisor
+# companion)"; its ``action_description`` names where the language went.
+_CROSS_REFERENCE_LABEL = re.compile(r"^(?:see\b|\(non-revisor companion\))", re.I)
+# House/Senate file references inside that description. Leading zeros and any
+# spacing are tolerated, so "HF2446", "HF 2446" and "SF0334" all resolve.
+_FILE_REFERENCE = re.compile(r"\b(HF|SF)\s*0*(\d+)\b", re.I)
+# A description that names a session is naming a DIFFERENT one — the citing bill's
+# own session is never restated. 487 production rows qualify their file this way
+# ("First Special Session, HF 5"), and resolving those against the regular session
+# would link to the unrelated regular-session bill that happens to share the number:
+# a confidently wrong link, which is worse than the plain text we render instead.
+# Deliberately broad — any mention of a session disqualifies the row — because the
+# cost of skipping a resolvable reference is a link we don't draw, while the cost of
+# a false match is sending a reader to the wrong bill. Those rows become linkable
+# once the special sessions are ingested (#746).
+_OTHER_SESSION = re.compile(r"\bsession\b", re.I)
+
+
+def action_cross_references(
+    db: Session, bill_row
+) -> dict[int, list[dict[str, str]]] | None:
+    """The bills a cross-reference action points at, keyed by ``action_number``.
+
+    A "See also HF 2446" row names another bill we very likely serve a page for, so
+    the file number wants to be a link — but turning it into one needs the target's
+    ``bill_key``, and only the server can do that lookup: the browser holds no index
+    of the corpus. Same job and payload shape as ``companion_payload`` — ``code`` is
+    what the row displays, ``id`` is the ``bill_key`` behind ``/bills/{id}`` (#745).
+
+    Scoped to the citing bill's OWN session, where ``(file_type, file_number)`` is
+    unique: verified against production, 0 colliding pairs across all 10,471 bills
+    of the 94th Legislature, so a reference resolves to exactly one bill or to none.
+    A reference we cannot resolve is simply absent from the result, and the frontend
+    then renders it as plain text — which is why a miss degrades to today's
+    behaviour and can never produce a link that goes nowhere. The 465 rows naming a
+    special-session file resolve to nothing today for exactly that reason; they read
+    as text until that session is ingested ([#746](issue)).
+
+    ONE query for the whole bill, and no query at all for the ~93% of bills that
+    carry no cross-reference row, so this cannot become an N+1 on the detail route.
+    """
+    per_action: dict[int, list[tuple[str, int]]] = {}
+    for action in bill_row.actions:
+        if not _CROSS_REFERENCE_LABEL.match((action.action_text or "").strip()):
+            continue
+        description = action.action_description or ""
+        if _OTHER_SESSION.search(description):
+            continue
+        refs = [
+            (file_type.upper(), int(digits))
+            for file_type, digits in _FILE_REFERENCE.findall(description)
+        ]
+        if refs:
+            per_action[action.action_number] = refs
+    if not per_action:
+        return None
+    wanted = {ref for refs in per_action.values() for ref in refs}
+    resolved = {
+        (row.file_type.upper(), row.file_number): row.bill_key
+        for row in db.execute(
+            select(Bill.file_type, Bill.file_number, Bill.bill_key).where(
+                Bill.session_id == bill_row.session_id,
+                tuple_(Bill.file_type, Bill.file_number).in_(wanted),
+            )
+        )
+    }
+    out: dict[int, list[dict[str, str]]] = {}
+    for action_number, refs in per_action.items():
+        links = [
+            {"code": f"{file_type} {number}", "id": resolved[(file_type, number)]}
+            # Deduplicated in source order: 11 production rows name the same file
+            # twice ("HF2115, HF2115"), and one link per target is enough.
+            for file_type, number in dict.fromkeys(refs)
+            # A reference to the citing bill itself is dropped: SF 2372's feed
+            # carries "See SF2372", and a link back to the page you are already on
+            # is a dead end. The title still quotes the target as the source wrote
+            # it — we decline to link it, we do not re-author it.
+            if (file_type, number) in resolved
+            and resolved[(file_type, number)] != bill_row.bill_key
+        ]
+        if links:
+            out[action_number] = links
+    return out or None
+
+
 def effective_schedule_payload(db: Session, bill_row) -> dict[str, Any] | None:
     """What the bill page shows for EFFECTIVE, as one payload for both platforms.
 
@@ -1508,6 +1593,9 @@ def bill_detail(
     if "progress" in include_set:
         payload["progress"] = [item.model_dump() for item in bill_progress_payload(row)]
     if "actions" in include_set:
+        # Resolved once for the whole bill, then attached per row, so the Actions
+        # timeline can link a "See also HF 2446" to that bill's page (#745).
+        cross_references = action_cross_references(db, row) or {}
         payload["actions"] = [
             {
                 "action_number": action.action_number,
@@ -1518,6 +1606,13 @@ def bill_detail(
                 "action_at": action.action_at,
                 "journal_page": action.journal_page,
                 "roll_call_text": action.roll_call_text,
+                # Omitted entirely on the ~97% of rows that name no bill, rather
+                # than sent as null on every one of them.
+                **(
+                    {"cross_references": links}
+                    if (links := cross_references.get(action.action_number))
+                    else {}
+                ),
             }
             for action in row.actions
         ]

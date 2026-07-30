@@ -176,7 +176,12 @@ export function BillDetailWebScreen() {
     );
   } else if (activeTab === 'actions') {
     body = (
-      <ActionsTab bill={bill} onViewVotes={() => selectTab('votes')} updatedLabel={updatedLabel} />
+      <ActionsTab
+        bill={bill}
+        onViewVotes={() => selectTab('votes')}
+        onOpenBill={openBill}
+        updatedLabel={updatedLabel}
+      />
     );
   } else if (activeTab === 'votes') {
     body = (

@@ -678,6 +678,46 @@ export interface TimelineRow {
    *  dot and no date of its own, because placing it on a day would mean picking one
    *  of the two Minn. Stat. 645.02 candidates. */
   note?: string;
+  /** Bills named in this row's title that we serve a page for, resolved to a
+   *  bill_key by the API. Surfaces render each `code` where it appears in `title`
+   *  as a link to `/bills/{id}`; anything unresolved is absent and stays plain text
+   *  (#745). Use `titleSegments(row)` rather than matching codes by hand. */
+  links?: { code: string; id: string }[];
+}
+
+/** One piece of a rendered title: plain text, or text that links to a bill page. */
+export interface TitleSegment {
+  text: string;
+  billId?: string;
+}
+
+// Split a row's title around the bill codes it links to, so a surface can render
+// "See also HF 2446, HF 2115" with just the two codes pressable. Shared by web and
+// mobile so the two cannot disagree about what is clickable. A row with no links
+// (every row that is not a cross-reference, and every cross-reference whose target
+// we do not serve) comes back as one plain segment — the caller needs no special
+// case for it.
+export function titleSegments(row: TimelineRow): TitleSegment[] {
+  if (!row.links?.length) return [{ text: row.title }];
+  // Longest code first, so "HF 21150" can never be matched by "HF 2115".
+  const byLength = [...row.links].sort((a, b) => b.code.length - a.code.length);
+  const segments: TitleSegment[] = [];
+  let rest = row.title;
+  // Walk left to right, always taking the earliest code still ahead of us, so the
+  // segments come out in reading order however the links were ordered.
+  for (;;) {
+    let next: { at: number; link: { code: string; id: string } } | null = null;
+    for (const link of byLength) {
+      const at = rest.indexOf(link.code);
+      if (at !== -1 && (next === null || at < next.at)) next = { at, link };
+    }
+    if (!next) break;
+    if (next.at > 0) segments.push({ text: rest.slice(0, next.at) });
+    segments.push({ text: next.link.code, billId: next.link.id });
+    rest = rest.slice(next.at + next.link.code.length);
+  }
+  if (rest) segments.push({ text: rest });
+  return segments;
 }
 
 type Norm = Classified & {
@@ -691,6 +731,7 @@ type Norm = Classified & {
   endDate?: string;
   meta?: string;
   note?: string;
+  links?: { code: string; id: string }[];
 };
 
 /** Fixed UI copy for a phased law's rail caption. Owned by the layout, never
@@ -826,6 +867,13 @@ export function buildActionTimeline(
       rawDate: a.date || '',
       tally: a.tally,
       chapter: c.kind === 'signing' && chapMatch ? (chapMatch[1] as string) : undefined,
+      // Keyed off the resolved links themselves, not off the matched rule: the API
+      // only resolves them for "See"-type rows, and a row whose title ends up
+      // quoting no file number simply renders none. Deliberately NOT a new
+      // EventKind — `procedural` is what drives this row's dot and keeps it out of
+      // every collapse step, and re-kinding it to steer rendering is how a row ends
+      // up in the wrong group (the authorAdd/#737 trap).
+      links: a.crossReferences,
     };
   });
 
@@ -991,6 +1039,9 @@ export function buildActionTimeline(
       rollIdx,
       meta: item.meta,
       note: item.note,
+      // Kept only when the code is actually visible in the rendered title, so a
+      // surface can trust that every link it is handed has somewhere to attach.
+      links: item.links?.filter((l) => title.includes(l.code)),
     };
   });
 
