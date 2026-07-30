@@ -54,6 +54,13 @@ marker words land in the stored text as prose.
   presentation only — proven over 1,881 sections to change no word, the same latitude
   `.claude/rules/grounded-answers.md` rule 9 gives the summary cleaners. The durable fix is at
   ingestion ([#741](https://github.com/alethical-org/alethical/issues/741)); this stays as a guard.
+  - **A full stop followed by a digit is a decimal point and is never closed up.** Statutes write
+    bare decimals — "is counted as .55 pupil unit", "$ .0025 per gallon" — and the unguarded rule
+    rendered "counted as.55 pupil unit" on 2 sampled education-funding bills. Do not extend the
+    guard to also require a letter or digit *before* the gap: statutes end clauses on a closing
+    bracket constantly ("paragraph (a) ."), and that stricter rule left the space in 195 sampled
+    sections. The regex uses a capture group rather than a lookbehind, which Hermes (the engine the
+    native builds run on) does not reliably support.
 
 **The legend is gated on what the bill actually contains.** It names only the treatments present in
 that bill's text: both, removals only, additions only, or nothing at all. This is
