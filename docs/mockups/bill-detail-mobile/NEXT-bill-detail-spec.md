@@ -115,8 +115,8 @@ trail, so a pointer we can resolve should be followable, and grounded-answers ru
 requires anything linked to be URL-addressable.
 - **The server resolves, not the client.** Only the API holds an index of the
   corpus, so the bill detail route serves each cross-reference action's targets as
-  `{code, id}` — the same shape as `companion`. The client never parses a file
-  number into a URL itself.
+  `{code, id, title, status_key}` — the same shape as `companion`. The client never
+  parses a file number into a URL itself.
 - **Resolution is scoped to the citing bill's own session**, where a file number is
   unique. Three cases deliberately DO NOT link, and all three stay plain text:
   a reference qualified by another session ("First Special Session, HF 5" — the
@@ -139,6 +139,40 @@ requires anything linked to be URL-addressable.
   Verbatim quotation is owed by the Bill Text section and by citation excerpts. The
   list is explicit and audited, not a spell-checker; today it holds one entry,
   "Frist" → "First" (2 rows, both naming the 2025 First Special Session).
+
+### A pointer row says what it points AT, and gets a caption beside the status (EXPLICIT RULE, #757)
+1,200 production bills end on a pointer: the record says "See HF2446, HF2115" and
+stops. 1,190 of them carry the status **Introduced**, which alone reads as an
+ordinary proposal still waiting its turn — while the record's own last word about
+the bill is "look over there". Three additions, each claiming only what the record
+states.
+- **Every resolvable target gets its own sub-line under the row**, naming what that
+  bill is and where it got to: "HF 2446 — Agriculture and Broadband Development
+  Budget Bill · Signed into Law". Both values come from the **target's** stored
+  record (its AI short title and its `status_key`), never from the pointer row — and
+  the status label comes from the same map the bill's own status pill uses, so a
+  target cannot be described two different ways in one product. The whole line is
+  the link. Verified in production: all 87 distinct resolvable targets carry both
+  fields, so this is not a field that appears on a lucky few.
+- **A target we cannot look up gains nothing** — the 465 special-session rows and
+  the 65 chapter-and-section rows read exactly as they do today, and a resolvable
+  target we hold no short title for keeps its link in the sentence but grows no
+  sub-line. No blank beside a code, no invented detail.
+- **A caption sits under the status in WHERE IT STANDS** whenever the record's
+  newest entry is a pointer (`POINTER_CAPTION`, fixed layout copy): "The record's
+  last entry points somewhere else, not to a further step for this bill. It does not
+  say how the two are related." Replaying all 1,204 production pointer bills through
+  `buildActionTimeline`, **1,195 get it**; the 9 that do not are correct absences —
+  1 is signed into law, 6 reached a floor passage (their pills already say so), and
+  2 carry a genuinely later dated entry than the pointer, which would make "last
+  entry" false.
+- **"See also" carries a plain-language key entry**, so the one row that needed
+  explaining stops being the only row without a definition.
+- **NOTHING may name the mechanism.** The source states a pointer, not a mechanism
+  (#744): not "folded into", not "became law as part of", and the status must not be
+  relabelled "Folded into another bill". We may describe the **target**; we may never
+  describe the **relationship**. Enforced by a test that greps both pieces of fixed
+  copy for those phrasings.
 
 ### Future / scheduled actions (EXPLICIT RULE)
 - Actions dated AFTER the data snapshot ("now" = the Last-updated date) render as

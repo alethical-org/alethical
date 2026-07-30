@@ -7,6 +7,7 @@ import requests
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from alethical.api.serializers import current_bill_summary_enrichment
 from alethical.db.schema import load_schema
 from alethical.db.session import get_engine
 from alethical.api.services.representative_lookup import (
@@ -790,6 +791,11 @@ def test_bill_detail_resolves_cross_reference_actions_to_linkable_bills(client):
     it to {code, id} so the Actions timeline can link it — same shape and same
     URL-addressability contract as `companion` (grounded-answers rule 5).
 
+    #757 adds the two facts we already hold about that target — its plain-language
+    `title` and its `status_key` — so the row can say what the other bill is and
+    where it got to. Both come from the TARGET's own record; nothing in the payload
+    describes how the two bills relate, because the source row never says.
+
     The three things it must NOT do are the point of the test: never resolve a
     reference qualified by another session (it would land on the unrelated
     regular-session bill sharing that number — a confidently wrong link, #746),
@@ -806,6 +812,12 @@ def test_bill_detail_resolves_cross_reference_actions_to_linkable_bills(client):
         )
         target_code = f"{target.file_type} {target.file_number}"
         raw = f"{target.file_type}{target.file_number}"
+        # What the payload must echo back about the target, read from the target's
+        # own record — never from the pointer row that names it (#757). The sample
+        # target starts with no short title, which is the case the assertions below
+        # check first: a fact we do not hold is omitted, not invented.
+        target_status_key = target.status_key
+        target_enrichment_id = current_bill_summary_enrichment(target.enrichments).id
         base = 9700
         db.add_all(
             [
@@ -852,9 +864,11 @@ def test_bill_detail_resolves_cross_reference_actions_to_linkable_bills(client):
         by_number = {action["action_number"]: action for action in actions}
 
         # Resolved to the target's bill_key, with the code spaced the way the
-        # timeline renders it.
+        # timeline renders it, plus the target's own status. No `title`: this target
+        # stores no short title, and a fact we do not hold is left out rather than
+        # filled in with the statutory title or anything else (#757).
         assert by_number[base]["cross_references"] == [
-            {"code": target_code, "id": target_key}
+            {"code": target_code, "id": target_key, "status_key": target_status_key}
         ]
         # And that id really is addressable, which is the whole reason to serve it.
         assert client.get(f"/api/v1/bills/{target_key}").status_code == 200
@@ -871,11 +885,43 @@ def test_bill_detail_resolves_cross_reference_actions_to_linkable_bills(client):
             if number < base and "cross_references" in action
         ]
         assert ordinary == []
+
+        # Give the target the short title production stores for all 87 resolvable
+        # targets, and the pointer row now carries it — read from the TARGET's own
+        # enrichment, so the row can say what the other bill is.
+        with Session(get_engine()) as db:
+            enrichment = db.get(schema.AIEnrichment, target_enrichment_id)
+            enrichment.content_json = {
+                **enrichment.content_json,
+                "short_title": "Agriculture and Broadband Development Budget Bill",
+            }
+            db.commit()
+        relinked = client.get(
+            "/api/v1/bills/94-2025-SF1832", params={"include": "actions"}
+        ).json()["data"]["actions"]
+        assert next(
+            action["cross_references"]
+            for action in relinked
+            if action["action_number"] == base
+        ) == [
+            {
+                "code": target_code,
+                "id": target_key,
+                "title": "Agriculture and Broadband Development Budget Bill",
+                "status_key": target_status_key,
+            }
+        ]
     finally:
         with Session(get_engine()) as db:
             db.execute(
                 delete(schema.BillAction).where(schema.BillAction.action_number >= base)
             )
+            enrichment = db.get(schema.AIEnrichment, target_enrichment_id)
+            enrichment.content_json = {
+                key: value
+                for key, value in enrichment.content_json.items()
+                if key != "short_title"
+            }
             db.commit()
 
 

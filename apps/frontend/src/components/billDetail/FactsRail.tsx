@@ -19,6 +19,7 @@ import {
   latestActionEntry,
   partyFull,
   PHASED_CAPTION,
+  POINTER_CAPTION,
   readLabel,
   stageLabel,
 } from '../../lib/billDetail';
@@ -111,6 +112,13 @@ export function FactsRail({
             <Text style={styles.dateValue}>{dateValue}</Text>
             {effective?.phased ? (
               <PhasedCaption billId={bill.id} onJumpToActions={onJumpToActions} />
+            ) : null}
+            {/* The record's newest entry is a pointer somewhere else, not a further
+                step for this bill. Said here because the status above it reads
+                "Introduced" on 1,190 such bills, which alone implies an ordinary
+                proposal still waiting its turn (#757). */}
+            {latest?.kind === 'crossReference' ? (
+              <Text style={styles.pointerCaption}>{POINTER_CAPTION}</Text>
             ) : null}
           </>
         ) : null}
@@ -349,6 +357,15 @@ const styles = StyleSheet.create({
   phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.green },
   phasedLinkHover: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
   phasedArrow: { fontWeight: t.fontWeights.regular },
+  // Same quiet caption weight as the phased-law one above: it qualifies the status
+  // it sits under without competing with it (#757).
+  pointerCaption: {
+    marginTop: 8,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    lineHeight: 20,
+    color: t.colors.text.muted,
+  },
   codeRow: { marginTop: 11, flexDirection: 'row' },
   codeBadge: {
     backgroundColor: t.colors.omnibus.fill,

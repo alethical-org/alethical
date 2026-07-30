@@ -1346,6 +1346,16 @@ def action_cross_references(
     of the corpus. Same job and payload shape as ``companion_payload`` — ``code`` is
     what the row displays, ``id`` is the ``bill_key`` behind ``/bills/{id}`` (#745).
 
+    Each resolved target also carries the two facts we already store ABOUT it: its
+    plain-language ``title`` (the AI short title) and its ``status_key`` (#757). Two
+    bare codes gave a reader no reason to follow either one; "HF 2446 — Agriculture
+    and Broadband Development Budget Bill · Signed into Law" answers the question
+    they actually came with. Both are records of the TARGET, never a claim about the
+    relationship: the source row states a pointer, not a mechanism (#744), so
+    nothing here may say this bill's language moved into that one. Verified in
+    production: all 87 distinct resolvable targets carry both fields, so this is not
+    a field that shows up on a lucky few.
+
     Scoped to the citing bill's OWN session, where ``(file_type, file_number)`` is
     unique: verified against production, 0 colliding pairs across all 10,471 bills
     of the 94th Legislature, so a reference resolves to exactly one bill or to none.
@@ -1355,8 +1365,9 @@ def action_cross_references(
     special-session file resolve to nothing today for exactly that reason; they read
     as text until that session is ingested ([#746](issue)).
 
-    ONE query for the whole bill, and no query at all for the ~93% of bills that
-    carry no cross-reference row, so this cannot become an N+1 on the detail route.
+    TWO queries for the whole bill (targets, then their short titles), and no query
+    at all for the ~93% of bills that carry no cross-reference row, so this cannot
+    become an N+1 on the detail route.
     """
     per_action: dict[int, list[tuple[str, int]]] = {}
     for action in bill_row.actions:
@@ -1375,18 +1386,29 @@ def action_cross_references(
         return None
     wanted = {ref for refs in per_action.values() for ref in refs}
     resolved = {
-        (row.file_type.upper(), row.file_number): row.bill_key
+        (row.file_type.upper(), row.file_number): row
         for row in db.execute(
-            select(Bill.file_type, Bill.file_number, Bill.bill_key).where(
+            select(
+                Bill.id,
+                Bill.file_type,
+                Bill.file_number,
+                Bill.bill_key,
+                Bill.status_key,
+            ).where(
                 Bill.session_id == bill_row.session_id,
                 tuple_(Bill.file_type, Bill.file_number).in_(wanted),
             )
         )
     }
+    short_titles = _target_short_titles(db, {row.id for row in resolved.values()})
     out: dict[int, list[dict[str, str]]] = {}
     for action_number, refs in per_action.items():
         links = [
-            {"code": f"{file_type} {number}", "id": resolved[(file_type, number)]}
+            _cross_reference_link(
+                f"{file_type} {number}",
+                resolved[(file_type, number)],
+                short_titles,
+            )
             # Deduplicated in source order: 11 production rows name the same file
             # twice ("HF2115, HF2115"), and one link per target is enough.
             for file_type, number in dict.fromkeys(refs)
@@ -1395,11 +1417,60 @@ def action_cross_references(
             # is a dead end. The title still quotes the target as the source wrote
             # it — we decline to link it, we do not re-author it.
             if (file_type, number) in resolved
-            and resolved[(file_type, number)] != bill_row.bill_key
+            and resolved[(file_type, number)].bill_key != bill_row.bill_key
         ]
         if links:
             out[action_number] = links
     return out or None
+
+
+def _target_short_titles(db: Session, bill_ids: set[UUID]) -> dict[UUID, str]:
+    """Each target bill's plain-language short title, by bill id.
+
+    Same choice of enrichment row as ``current_bill_summary_enrichment`` (current
+    ``bill_summary`` with a non-empty summary, newest wins) so a cross-reference
+    line and the target's own page can never name the bill two different ways.
+    Selects the one JSON key rather than the whole ``content_json``, which keeps a
+    multi-kilobyte blob per target off the wire.
+    """
+    if not bill_ids:
+        return {}
+    titles: dict[UUID, str] = {}
+    for bill_id, short_title in db.execute(
+        select(
+            AIEnrichment.bill_id,
+            AIEnrichment.content_json["short_title"].as_string(),
+        )
+        .where(
+            AIEnrichment.bill_id.in_(bill_ids),
+            AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+            AIEnrichment.is_current.is_(True),
+            AIEnrichment.content_json["summary"].as_string() != "",
+        )
+        # Newest last, so a later row overwrites an earlier one — the same
+        # max(created_at) rule the serializer applies.
+        .order_by(AIEnrichment.created_at)
+    ):
+        if short_title and short_title.strip():
+            titles[bill_id] = short_title.strip()
+    return titles
+
+
+def _cross_reference_link(
+    code: str, target, short_titles: dict[UUID, str]
+) -> dict[str, str]:
+    """One resolved pointer target, as the payload the timeline row renders.
+
+    ``title`` / ``status_key`` are omitted when we hold neither, so a target we
+    know nothing about beyond its code stays exactly as bare as it is today.
+    """
+    link = {"code": code, "id": target.bill_key}
+    title = short_titles.get(target.id)
+    if title:
+        link["title"] = title
+    if target.status_key:
+        link["status_key"] = target.status_key
+    return link
 
 
 def effective_schedule_payload(db: Session, bill_row) -> dict[str, Any] | None:

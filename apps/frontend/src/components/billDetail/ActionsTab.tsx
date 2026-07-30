@@ -3,7 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
-import { buildActionTimeline, TimelineDot, TimelineRow, titleSegments } from '../../lib/billDetail';
+import {
+  buildActionTimeline,
+  crossReferenceTargets,
+  TimelineDot,
+  TimelineRow,
+  titleSegments,
+} from '../../lib/billDetail';
 import { linkProps, routePath } from '../../navigation/links';
 import { SourceLine } from './SourceLine';
 import { useHover } from './interactions';
@@ -147,6 +153,7 @@ function Row({
           ) : null}
         </View>
         {row.meta ? <Text style={styles.rowMeta}>{row.meta}</Text> : null}
+        <CrossReferenceTargets row={row} onOpenBill={onOpenBill} />
         {/* The sections that state no date. Deliberately UNDATED — no dot and
             nothing in the date column — because placing it on a day would mean
             picking one of the two Minn. Stat. 645.02 candidates (#715). */}
@@ -219,6 +226,76 @@ function BillCodeLink({
       style={[styles.billCodeLink, hovered && styles.billCodeLinkHover]}
     >
       {code}
+    </Text>
+  );
+}
+
+// What each bill a "See also" row points at actually IS, one quiet line per target
+// (#757): "HF 2446 — Agriculture and Broadband Development Budget Bill · Signed
+// into Law". Two bare codes in the title above gave a reader no reason to follow
+// either; this is the part that answers what they came to find out — whether the
+// trail ends somewhere that became law.
+//
+// Every word is a record we hold about that OTHER bill. Nothing here says this
+// bill's language moved into it, because the record does not say (#744). The whole
+// line is the link, so the target is reachable from the line that describes it, not
+// only from the code in the sentence above — and it is a real anchor via linkProps,
+// like every other in-app link since #770, so right-click and ⌘-click work on it.
+function CrossReferenceTargets({
+  row,
+  onOpenBill,
+}: {
+  row: TimelineRow;
+  onOpenBill?: (billId: string) => void;
+}) {
+  const targets = crossReferenceTargets(row);
+  if (!targets.length) return null;
+  return (
+    <View style={styles.targetList}>
+      {targets.map((target) => (
+        <CrossReferenceTarget
+          key={target.code}
+          code={target.code}
+          title={target.title}
+          status={target.status}
+          href={routePath.bill(target.billId)}
+          onPress={onOpenBill ? () => onOpenBill(target.billId) : undefined}
+        />
+      ))}
+    </View>
+  );
+}
+
+function CrossReferenceTarget({
+  code,
+  title,
+  status,
+  href,
+  onPress,
+}: {
+  code: string;
+  title: string;
+  status?: string;
+  href: string;
+  onPress?: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  const text = (
+    <>
+      <Text style={styles.targetCode}>{code}</Text>
+      <Text>{` — ${title}`}</Text>
+      {status ? <Text style={styles.targetStatus}>{` · ${status}`}</Text> : null}
+    </>
+  );
+  if (!onPress) return <Text style={styles.targetLine}>{text}</Text>;
+  return (
+    <Text
+      accessibilityLabel={`Open ${code}${status ? `, ${status}` : ''}: ${title}`}
+      {...linkProps(href, onPress)}
+      {...hover}
+      style={[styles.targetLine, hovered && styles.targetLineHover]}
+    >
+      {text}
     </Text>
   );
 }
@@ -373,6 +450,22 @@ const styles = StyleSheet.create({
   titleScheduled: { color: t.colors.text.muted },
   billCodeLink: { color: t.colors.text.green, textDecorationLine: 'underline' },
   billCodeLinkHover: { color: t.colors.brand.forest },
+  // What each "See also" target is, one line each (#757). Indented and lighter than
+  // the row title: this is what the record says about ANOTHER bill, so it must not
+  // read as a step this bill took.
+  targetList: { marginTop: 6, gap: 4, paddingLeft: 2 },
+  targetLine: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    color: t.colors.text.secondary,
+  },
+  targetLineHover: { color: t.colors.text.primary },
+  // Bold, NOT the product's mono: the mono face's wide space renders "HF 2446" as
+  // "HF  2446", which reads as a typo two lines under the same code set in body
+  // type. Weight carries the emphasis instead. The status is the quietest part of
+  // the line, since the title is what tells you what the bill is.
+  targetCode: { fontWeight: t.fontWeights.bold },
+  targetStatus: { color: t.colors.text.muted },
   // How many sections start on this row's date — only ever a count read off the
   // sections that STATE that date, never one resting on an inferred date (#715).
   rowMeta: {
