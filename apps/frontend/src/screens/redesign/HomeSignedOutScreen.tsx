@@ -28,6 +28,7 @@ import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBill, useBills } from '../../hooks/useAppQueries';
 import { BillResultCard } from '../../components/search/BillResultCard';
+import { plainBillSummary } from '../../lib/billDetail';
 import type { Bill } from '../../data/types';
 
 // The v2 signed-out home — docs/mockups/home-signed-out-v2 (README = state/token/copy
@@ -1120,7 +1121,10 @@ function NewsCardMobile({
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
-  const summary = bill.aiAnalysis?.summary;
+  // Live data, so it goes through the shared cleaner (grounded-answers rule 9). Full
+  // text — the card clamps to 4 lines visually, which is not the same as dropping
+  // everything after the first sentence.
+  const summary = plainBillSummary(bill.aiAnalysis?.summary);
   return (
     <Pressable
       accessibilityRole="link"
@@ -1210,7 +1214,8 @@ function cleanActionText(raw: string): string {
 function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void }) {
   const [hovered, hoverProps] = useHover();
   const { filled, vetoed } = statusToProgress(bill.status);
-  const summary = bill.aiAnalysis?.summary;
+  // Live data — same shared cleaner, full text (this card clamps to 3 lines).
+  const summary = plainBillSummary(bill.aiAnalysis?.summary);
   // Meta line freshness rule (design): show "Latest action: {action} · {date}"
   // (action dark, date grey), unless the latest action merely restates the bill's
   // status (e.g. an enacted bill whose last action is "Chapter number") or is an

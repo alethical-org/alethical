@@ -48,6 +48,8 @@ import {
   orderBillVersions,
   parseActionDate,
   partyFull,
+  plainBillSummary,
+  plainKeyPoints,
   PartyBlock,
   PHASED_CAPTION,
   readLabel,
@@ -435,11 +437,15 @@ function BillDetailMobileScreen() {
     // Mirror the shipped web FactsRail (lib/billDetail): honest chief-author +
     // effective-date + issues wiring, reusing shared helpers.
     const chief = chiefAuthor(bill);
-    const keyPoints = bill.aiAnalysis?.keyPoints ?? [];
+    // Both through the shared display cleaners, like the web tab: they strip a
+    // bill-code preamble and statute citations without re-authoring the sentence,
+    // so no surface can print the code the amber badge already shows, or legalese
+    // (grounded-answers rule 9).
+    const keyPoints = plainKeyPoints(bill.aiAnalysis?.keyPoints);
     // The key-point bullets ARE the plain-language summary; the standalone summary
     // paragraph is shown only as a fallback when there are no bullets (drops the
     // redundant prose the design removed).
-    const summary = bill.aiAnalysis?.summary?.trim() ?? '';
+    const summary = plainBillSummary(bill.aiAnalysis?.summary);
     const citations = bill.citations ?? [];
     const issues = (bill.topics?.length ? bill.topics : (bill.aiAnalysis?.policyAreas ?? [])).slice(
       0,
