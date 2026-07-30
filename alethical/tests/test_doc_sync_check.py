@@ -27,35 +27,44 @@ def _run(monkeypatch, changed, body):
 def test_card_change_without_an_acknowledgement_fails(monkeypatch):
     # The #345 shape: card code changes, neither describing doc changes, and the
     # body never mentions the docs. This is the case that shipped stale docs.
-    assert _run(
-        monkeypatch,
-        ["apps/frontend/src/components/search/BillResultCard.tsx"],
-        "Removes the eyebrow row for a cleaner card.",
-    ) == 1
+    assert (
+        _run(
+            monkeypatch,
+            ["apps/frontend/src/components/search/BillResultCard.tsx"],
+            "Removes the eyebrow row for a cleaner card.",
+        )
+        == 1
+    )
 
 
 def test_acknowledgement_in_the_body_passes(monkeypatch):
     # "None needed" is a first-class answer: the goal is a considered look, not a
     # doc edit on every commit.
-    assert _run(
-        monkeypatch,
-        ["apps/frontend/src/components/search/BillResultCard.tsx"],
-        "Docs check: none needed — no user-visible change.",
-    ) == 0
+    assert (
+        _run(
+            monkeypatch,
+            ["apps/frontend/src/components/search/BillResultCard.tsx"],
+            "Docs check: none needed — no user-visible change.",
+        )
+        == 0
+    )
 
 
 def test_updating_the_doc_itself_passes_without_a_body_line(monkeypatch):
     # Someone who already fixed the guide shouldn't also have to write a line
     # about having fixed it.
-    assert _run(
-        monkeypatch,
-        [
-            "apps/frontend/src/components/search/BillResultCard.tsx",
-            "docs/product-onboarding/search-bills-guide.md",
-            "docs/product-onboarding/bill-search-screen-spec.md",
-        ],
-        "Puts a quiet AI label back on the card.",
-    ) == 0
+    assert (
+        _run(
+            monkeypatch,
+            [
+                "apps/frontend/src/components/search/BillResultCard.tsx",
+                "docs/product-onboarding/search-bills-guide.md",
+                "docs/product-onboarding/bill-search-screen-spec.md",
+            ],
+            "Puts a quiet AI label back on the card.",
+        )
+        == 0
+    )
 
 
 def test_code_no_doc_describes_is_ignored(monkeypatch):
@@ -74,6 +83,6 @@ def test_the_search_docs_actually_declare_the_card(monkeypatch):
         "docs/product-onboarding/bill-search-screen-spec.md",
     ):
         assert doc in couplings, f"{doc} no longer declares what it describes"
-        assert any(
-            "BillResultCard" in glob for glob in couplings[doc]
-        ), f"{doc} no longer declares the bill card it describes"
+        assert any("BillResultCard" in glob for glob in couplings[doc]), (
+            f"{doc} no longer declares the bill card it describes"
+        )
