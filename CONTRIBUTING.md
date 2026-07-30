@@ -113,6 +113,7 @@ On every PR (`.github/workflows/ci.yml`):
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build
 - **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
+- **Docs drift** (on pull requests): `scripts/check_doc_sync.py` fails your PR if it changes code that a doc says it describes and your PR body has no `Docs check:` line. See "Keeping docs current" below for what to write — one sentence clears it, and "none needed" is a valid sentence.
 
 ### Keeping the workflow actions current
 
@@ -255,12 +256,63 @@ title.
 
 ## Keeping docs current
 
+The problem this section exists for: **a code change quietly makes a sentence in a
+doc false.** Nobody is careless when it happens — the doc that described the old
+behaviour simply isn't in front of the person changing the code. So one part of
+this is automated, and the rest is on you.
+
+### The part CI enforces
+
+A doc that describes behaviour names the code it describes, in its own text, as a
+hidden HTML comment near the top:
+
+```
+<!-- describes: apps/frontend/src/lib/billText.ts, apps/frontend/src/components/billDetail/FullTextTab.tsx -->
+```
+
+`scripts/check_doc_sync.py` reads those declarations. **If your PR changes a file
+some doc declares, your PR body needs one `Docs check:` line saying what you
+concluded.** Any of these pass:
+
+```
+Docs check: none needed — internal refactor, no user-visible change
+Docs check: updated search-bills-guide.md for the new sort labels
+Docs check: reread ai-models-and-billing.md §4 and §4.1; fixed §4
+```
+
+Three things worth knowing:
+
+- **"None needed" is a first-class answer and always will be.** The check forces a
+  *look*, never an edit. Requiring an edit would mean padding docs to please CI, and
+  CI would deserve to be ignored.
+- **Editing the doc does not exempt you from the line.** It used to. Two PRs an hour
+  apart each edited one subsection of `docs/product-onboarding/ai-models-and-billing.md`,
+  each passed on the strength of that edit, and each left the section above it
+  describing a system that took neither of two discounts we had just added. The page
+  contradicted itself for a day. Read the whole doc, then say what you concluded.
+- **Search for the claim your change made false, not for the name of the thing you
+  changed.** That is how the same incident slipped a manual sweep too: searching for
+  "cache" found nothing stale, because the false sentences never mentioned caching —
+  they asserted a price ("pays full list price"). No search finds that. Reading the
+  section does.
+
+**Adding a doc to the check is one line.** If you write or inherit a doc that
+describes how something behaves, give it a `describes:` comment. Frozen records
+(mockup handoffs, dated audits, design intent) deliberately declare nothing — they
+describe a moment, not current behaviour, so they cannot go stale.
+
+### The part CI cannot enforce
+
 Docs carry screenshots and diagrams, and those go stale silently — `grep`
 can't see inside an image, so a review won't catch it. When you change
 something a doc's visual depicts (UI copy, layout, the states a mock shows),
 refresh that image in the **same PR**, so the doc's picture and its words never
 disagree. This covers any doc with embedded visuals — build specs, onboarding
 guides, READMEs — not just files named `*-spec.md`.
+
+The machine-facing form of everything above is `.claude/rules/workflow.md` rule 6,
+and the reasoning behind the check lives in `scripts/check_doc_sync.py`'s own
+docstring, including the incidents that shaped it.
 
 ## Writing cross-references
 
