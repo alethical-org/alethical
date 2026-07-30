@@ -31,6 +31,9 @@ lint:
   pnpm install --frozen-lockfile
   pnpm --dir apps/frontend exec tsc --noEmit
 
+test-frontend:
+  pnpm --dir apps/frontend run test
+
 migrate:
   docker compose up -d db
   uv run python -m alembic -c alembic.ini upgrade head

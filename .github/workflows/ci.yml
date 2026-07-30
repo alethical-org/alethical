@@ -163,6 +163,13 @@ jobs:
       - name: Format check frontend
         run: pnpm exec prettier --check .
 
+      # The type and format checks above cannot catch a wrong answer — they check
+      # the code is spelled correctly, not that it does the right thing (#751).
+      # Pure-logic tests only: no component, browser or visual tests, so this
+      # needs no simulated DOM and stays a few hundred milliseconds.
+      - name: Test frontend
+        run: pnpm run test
+
       - name: Build frontend
         run: pnpm run build
 

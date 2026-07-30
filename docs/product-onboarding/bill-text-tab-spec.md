@@ -156,28 +156,47 @@ scrolls, because the browser handles the fragment itself, so only the highlight 
 The text column caps at 880px. Uncapped it ran ~190 characters a line on a wide window, roughly
 twice a comfortable measure.
 
-## Verification, and the gap in it
+## Verification
 
-`apps/frontend` has **no test runner**, so none of the above is protected by a test —
-tracked in [#751](https://github.com/alethical-org/alethical/issues/751). Until it is, changes to
-`billText.ts` should be verified by replaying production data through the transpiled module:
+The five properties #740 established are now automated tests, so a change that breaks one fails CI:
+
+1. no marker word reaches any rendered string;
+2. no index row is blank where a caption or citation exists;
+3. no caption used as a heading keeps a trailing period, and none is re-cased;
+4. no two index rows within one article group read identically;
+5. no index row is a truncated statute sentence.
+
+Each is a separately named test in `apps/frontend/src/lib/__tests__/billText.test.ts`, run against
+49 real sections from 7 real bills in `__tests__/fixtures/bill-text-sections.json` (what each
+fixture is there to catch, and how to add to it, is in that directory's `README.md`). The runner is
+Vitest; `just test-frontend` runs it, and CI's `frontend` job runs it on every PR that touches
+frontend paths ([#751](https://github.com/alethical-org/alethical/issues/751)). The same file also
+pins the bugs found since: the bare-decimal spacing regression (#756), the punctuation-after-a-
+bracket rule the stricter guard broke (#755), the two sections that differed only by subdivision,
+the struck caption that must not become a title, and a ban on regex lookbehind, which Hermes does
+not reliably support.
+
+### The corpus replay, which the tests do not replace
+
+Committed fixtures cannot prove a change is safe across the *whole* corpus, and they cannot run
+against live data. For a corpus-wide change to `billText.ts`, still replay production sections
+through the transpiled module:
 
 ```bash
 pnpm exec tsc apps/frontend/src/lib/billText.ts --outDir /tmp/bt \
   --module commonjs --target es2020 --skipLibCheck --esModuleInterop
 ```
 
-then, over every section of a decent sample of bills, assert the five properties #740 established:
+Fetch sections read-only from `https://api.alethical.com`: `GET /api/v1/bills/<id>/versions`, take
+the entry whose `is_current` is true (the version code is **not** literally `"current"` for most
+bills), then `GET /api/v1/bills/<id>/versions/<code>/text`. Pace requests ~0.7s apart with a
+`User-Agent` header. Assert the same five properties, and diff every rendered string before and
+after the change rather than only counting failures — the doubled-space defect closed in #751
+showed up in 22 of 2,897 sections and in no property assertion.
 
-1. no marker word reaches any rendered string;
-2. no index row is blank where a caption or citation exists;
-3. no caption used as a heading keeps a trailing period;
-4. no two index rows within one article group read identically;
-5. no index row is a truncated statute sentence.
-
-#740 ran this over 80 bills / 1,881 sections. Layout and jump behaviour need a browser: the index
-threshold at 1/2/3/21 sections, and the jump landing at 90px from several starting scroll positions
-and from both entry points.
+#740 ran this over 80 bills / 1,881 sections; #751 over 47 bills / 2,897 sections. Layout and jump
+behaviour still need a browser: the index threshold at 1/2/3/21 sections, and the jump landing at
+90px from several starting scroll positions and from both entry points.
 
 ## Out of scope for this tab
 
