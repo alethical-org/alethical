@@ -14,6 +14,7 @@ import Svg, { Polygon, Polyline } from 'react-native-svg';
 
 import { MINNESOTA_BOUNDARY, isCoordinateInMinnesota } from '../data/minnesotaBoundary';
 import { RepresentativeLookupCoordinates } from '../data/types';
+import { externalLinkProps } from '../navigation/links';
 import { theme } from '../theme/tokens';
 
 interface MapPinPickerProps {
@@ -318,11 +319,20 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
           </Pressable>
         </View>
         <Pressable
-          accessibilityRole="link"
+          {...externalLinkProps(OPENSTREETMAP_COPYRIGHT_URL)}
           accessibilityLabel="Open OpenStreetMap copyright"
           onPress={(event) => {
+            // Always stop here — this sits inside the map surface's own
+            // Pressable (onPress drops a pin), and unlike externalLinkProps'
+            // usual case this outer element is NOT a link itself, so
+            // pressInsideLink's preventDefault would be wrong: on web the
+            // anchor's own target="_blank" is what should open the tab.
+            // Linking.openURL is only needed as the native fallback, where
+            // there's no anchor at all.
             event.stopPropagation();
-            void Linking.openURL(OPENSTREETMAP_COPYRIGHT_URL);
+            if (Platform.OS !== 'web') {
+              void Linking.openURL(OPENSTREETMAP_COPYRIGHT_URL);
+            }
           }}
           style={({ pressed }) => [styles.attribution, pressed ? styles.attributionPressed : null]}
         >

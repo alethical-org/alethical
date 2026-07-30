@@ -186,6 +186,19 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a
   deep link to the tab, the card link is to the bill's top-level detail.
+- **The card is a real `<a href>`, not a pressable div.** Right-click → "Open link in new
+  tab", ⌘/Ctrl-click, middle-click and "Copy link address" all work on it, and the URL
+  shows in the browser's status bar on hover; a plain left click is still a client-side
+  transition with no page reload. Via the shared `linkProps` / `routePath` helpers
+  (`apps/frontend/src/navigation/links.ts`), which generate the `href` from the same
+  route → path switch the address bar uses, so a card's link and the URL it lands on
+  cannot drift apart.
+- **The controls inside the card stay plain pressables** — chief author, roll-call chip,
+  Track. An `<a>` nested in an `<a>` is invalid markup and reads as one confused control
+  to a screen reader, so each uses `pressInsideLink` instead: it cancels the click so the
+  surrounding card's URL is not followed on top of the control's own action. Their own
+  new-tab behaviour needs the card markup restructured (stretched-link overlay) and is
+  tracked in [#760](https://github.com/alethical-org/alethical/issues/760).
 
 **Deliberately excluded:** key points (too heavy to scan), version count (low value),
 per-card official-source links (provenance lives one click away on detail). Keep it a

@@ -175,15 +175,15 @@ function activeRouteFromState(state: AnyNavState):
   return route;
 }
 
-export function pathnameFromNavigationState(
-  state: NavigationState | PartialState<NavigationState>,
-) {
-  const activeRoute = activeRouteFromState(state);
-
-  if (!activeRoute) {
-    return '/';
-  }
-
+/**
+ * The URL for one route + params. Owns the whole route → path mapping so the
+ * address bar (pathnameFromNavigationState) and every in-app link's `href`
+ * (navigation/links.ts) are generated from the same switch and cannot drift.
+ */
+export function pathForRoute(activeRoute: {
+  name: keyof RootStackParamList | keyof MainTabParamList;
+  params?: Record<string, unknown>;
+}): string {
   switch (activeRoute.name) {
     case 'Home':
       return '/';
@@ -273,6 +273,18 @@ export function pathnameFromNavigationState(
     default:
       return '/';
   }
+}
+
+export function pathnameFromNavigationState(
+  state: NavigationState | PartialState<NavigationState>,
+) {
+  const activeRoute = activeRouteFromState(state);
+
+  if (!activeRoute) {
+    return '/';
+  }
+
+  return pathForRoute(activeRoute);
 }
 
 const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Search', 'Tracked', 'Chat', 'Account'];

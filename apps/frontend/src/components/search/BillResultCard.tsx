@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Bill, BillSponsor } from '../../data/types';
@@ -16,6 +16,7 @@ import {
   plainBillSummary,
 } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
+import { linkProps, pressInsideLink, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
@@ -23,6 +24,13 @@ const isWeb = Platform.OS === 'web';
 // Bill card for the redesigned Search Bills screen (docs/mockups/search-bills).
 // The whole card links to the bill detail; Track / author / roll-calls sit above
 // it (stopPropagation) so they stay independently clickable.
+//
+// The card is a REAL <a href> (navigation/links.ts), so right-click → "Open link
+// in new tab", ⌘-click and middle-click all work on it. The author name and the
+// roll-calls chip stay plain pressables rather than anchors of their own: an <a>
+// inside an <a> is invalid markup and reads as one confused control to a screen
+// reader, and the card is the target worth having (issue #760 tracks giving those
+// two their own new-tab behaviour without nesting).
 
 type BillCardData = Pick<
   Bill,
@@ -101,8 +109,9 @@ function OmnibusPill() {
 }
 
 // The chief author's NAME is the only link (green, → arrow), spelled-out honorific
-// sits outside it. stopPropagation keeps the card's own press from firing when the
-// name is tapped. Own hover state so only the name (not the whole card) recolors.
+// sits outside it. pressInsideLink keeps the card's own press — and the card
+// anchor's own URL — from firing when the name is tapped. Own hover state so only
+// the name (not the whole card) recolors.
 function ChiefAuthorLink({
   author,
   onPress,
@@ -116,10 +125,9 @@ function ChiefAuthorLink({
     <Pressable
       accessibilityRole={clickable ? 'link' : undefined}
       disabled={!clickable}
-      onPress={(e: GestureResponderEvent) => {
-        e.stopPropagation();
+      onPress={pressInsideLink(() => {
         if (author.legislatorId) onPress?.(author.legislatorId);
-      }}
+      })}
       {...hover}
     >
       <Text style={[styles.metaText, styles.authorLink, hovered && styles.authorLinkHover]}>
@@ -189,8 +197,7 @@ export function BillResultCard({
 
   return (
     <Pressable
-      accessibilityRole="link"
-      onPress={onPress}
+      {...linkProps(routePath.bill(bill.id), onPress)}
       onPressIn={warm}
       onHoverIn={() => {
         setHovered(true);
@@ -282,10 +289,7 @@ export function BillResultCard({
           {bill.rollCallCount > 0 ? (
             <Pressable
               accessibilityRole="link"
-              onPress={(e: GestureResponderEvent) => {
-                e.stopPropagation();
-                onRollCalls?.();
-              }}
+              onPress={pressInsideLink(() => onRollCalls?.())}
               style={styles.rollCalls}
             >
               <Text style={styles.rollCallsText}>

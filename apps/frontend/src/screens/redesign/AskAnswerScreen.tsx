@@ -14,6 +14,7 @@ import {
 import { theme } from '../../theme/tokens';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { IaItem, MenuKey } from '../../navigation/ia';
+import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { RootScreenProps } from '../../navigation/types';
 import { useAuth } from '../../providers/AuthProvider';
 import { useAskAnswer, useLegislators } from '../../hooks/useAppQueries';
@@ -141,9 +142,8 @@ function AnswerBillCard({ bill, onOpen }: { bill: AskAnswerBill; onOpen: () => v
       <Text style={styles.billTitle}>{bill.title}</Text>
       {bill.summary ? <Text style={styles.billSummary}>{bill.summary}</Text> : null}
       <Pressable
-        accessibilityRole="link"
+        {...linkProps(routePath.bill(bill.id), onOpen)}
         accessibilityLabel={`View bill ${bill.identifier}`}
-        onPress={onOpen}
       >
         <Text style={styles.viewBillLink}>View bill →</Text>
       </Pressable>
@@ -181,9 +181,8 @@ function AnswerLegislatorRow({
           {partyDistrict ? <Text style={styles.legMeta}>{partyDistrict}</Text> : null}
         </View>
         <Pressable
-          accessibilityRole="link"
+          {...linkProps(routePath.legislator(legislator.id), onOpenProfile)}
           accessibilityLabel={`View profile for ${legislator.fullName}`}
-          onPress={onOpenProfile}
         >
           <Text style={styles.viewBillLink}>View profile →</Text>
         </Pressable>
@@ -204,9 +203,8 @@ function AnswerLegislatorRow({
           {legislator.bills.map((bill) => (
             <Pressable
               key={bill.id}
-              accessibilityRole="link"
+              {...linkProps(routePath.bill(bill.id), () => onOpenBill(bill.id))}
               accessibilityLabel={`View ${bill.identifier}`}
-              onPress={() => onOpenBill(bill.id)}
             >
               <View style={styles.billPill}>
                 <Text style={styles.billPillText}>{bill.identifier}</Text>
@@ -421,7 +419,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               </Text>
               <Text style={styles.question}>{question}</Text>
               <Text style={styles.introLine}>{pending.body}</Text>
-              <Pressable accessibilityRole="link" onPress={() => navigation.navigate('Bills')}>
+              <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
                 <Text style={styles.viewBillLink}>{pending.cta}</Text>
               </Pressable>
             </View>
@@ -446,14 +444,16 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 <View style={styles.cardsColumn}>
                   <AnswerBillCard
                     bill={resolvedBill}
-                    // Bill detail is an old-design page — stays visible but
-                    // doesn't route anywhere until its new design ships.
-                    onOpen={() => {}}
+                    onOpen={() => navigation.navigate('BillDetail', { billId: resolvedBill.id })}
                   />
                   <Pressable
-                    accessibilityRole="link"
+                    {...linkProps(routePath.bill(resolvedBill.id, { tab: 'votes' }), () =>
+                      navigation.navigate('BillDetail', {
+                        billId: resolvedBill.id,
+                        tab: 'votes',
+                      }),
+                    )}
                     accessibilityLabel={`See all votes on ${resolvedBill.identifier}`}
-                    onPress={() => {}}
                   >
                     <Text style={styles.viewBillLink}>
                       See all votes on {resolvedBill.identifier} →
@@ -471,12 +471,16 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   </Text>
                   <View style={styles.cardsColumn}>
                     {shownBills.map((bill) => (
-                      <AnswerBillCard key={bill.id} bill={bill} onOpen={() => {}} />
+                      <AnswerBillCard
+                        key={bill.id}
+                        bill={bill}
+                        onOpen={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                      />
                     ))}
                   </View>
                 </>
               ) : (
-                <Pressable accessibilityRole="link" onPress={() => navigation.navigate('Bills')}>
+                <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
                   <Text style={styles.viewBillLink}>Browse bills to see their votes →</Text>
                 </Pressable>
               )}
@@ -505,9 +509,11 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                       </Text>
                       <Text style={styles.citationExcerpt}>“{citation.excerpt}”</Text>
                       <Pressable
-                        accessibilityRole="link"
+                        {...externalLinkProps(
+                          citation.url,
+                          () => void Linking.openURL(citation.url),
+                        )}
                         accessibilityLabel={`Open the official source for ${citation.label}`}
-                        onPress={() => void Linking.openURL(citation.url)}
                       >
                         <Text style={styles.citationLink}>Open official source ↗</Text>
                       </Pressable>
@@ -515,7 +521,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   ))}
                 </View>
               ) : null}
-              {answeringBill ? <AnswerBillCard bill={answeringBill} onOpen={() => {}} /> : null}
+              {answeringBill ? (
+                <AnswerBillCard
+                  bill={answeringBill}
+                  onOpen={() => navigation.navigate('BillDetail', { billId: answeringBill.id })}
+                />
+              ) : null}
               <FollowUpChips
                 chips={billTextChips(answeringBill?.policyAreas?.[0])}
                 onAsk={askFollowUp}
@@ -549,10 +560,11 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 . Try another issue, or browse everything in Search.
               </Text>
               <Pressable
-                accessibilityRole="link"
-                onPress={() =>
-                  navigation.navigate('Bills', answer?.topic ? { q: answer.topic } : undefined)
-                }
+                {...linkProps(
+                  routePath.bills(answer?.topic ? { q: answer.topic } : undefined),
+                  () =>
+                    navigation.navigate('Bills', answer?.topic ? { q: answer.topic } : undefined),
+                )}
               >
                 <Text style={styles.viewBillLink}>Search all bills →</Text>
               </Pressable>
@@ -583,21 +595,21 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                     <AnswerLegislatorRow
                       key={legislator.id}
                       legislator={legislator}
-                      // Legislator profile and bill detail are old-design
-                      // pages — rows stay visible but don't route anywhere
-                      // until their new designs ship.
-                      onOpenProfile={() => {}}
-                      onOpenBill={() => {}}
+                      onOpenProfile={() =>
+                        navigation.navigate('LegislatorProfile', { legislatorId: legislator.id })
+                      }
+                      onOpenBill={(billId) => navigation.navigate('BillDetail', { billId })}
                     />
                   ))}
                 </View>
               ))}
               {answer.totalBills && answer.totalBills > 0 ? (
                 <Pressable
-                  accessibilityRole="link"
-                  onPress={() =>
-                    navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined)
-                  }
+                  {...linkProps(
+                    routePath.bills(answer.topic ? { q: answer.topic } : undefined),
+                    () =>
+                      navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
+                  )}
                 >
                   <Text style={styles.viewBillLink}>
                     See all {answer.totalBills} {answer.topic}{' '}
@@ -634,15 +646,20 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               </Text>
               <View style={styles.cardsColumn}>
                 {shownBills.map((bill) => (
-                  <AnswerBillCard key={bill.id} bill={bill} onOpen={() => {}} />
+                  <AnswerBillCard
+                    key={bill.id}
+                    bill={bill}
+                    onOpen={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                  />
                 ))}
               </View>
               {answer.totalMatches > shownBills.length ? (
                 <Pressable
-                  accessibilityRole="link"
-                  onPress={() =>
-                    navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined)
-                  }
+                  {...linkProps(
+                    routePath.bills(answer.topic ? { q: answer.topic } : undefined),
+                    () =>
+                      navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
+                  )}
                 >
                   <Text style={styles.viewBillLink}>
                     See all {answer.totalMatches} {answer.topic} bills in Search →

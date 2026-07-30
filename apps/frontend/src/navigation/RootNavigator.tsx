@@ -23,6 +23,7 @@ import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
 import type { HomeScreen } from '../screens/HomeScreen';
 import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
+import { linkProps, routePath } from './links';
 import { MainTabParamList, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { theme } from '../theme/tokens';
@@ -160,9 +161,8 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: RailRouteName }) {
   return (
     <View style={styles.desktopRail}>
       <Pressable
-        accessibilityRole="link"
+        {...linkProps(routePath.home(), () => navigationRef.navigate('Tabs', { screen: 'Home' }))}
         accessibilityLabel="Alethical home"
-        onPress={() => navigationRef.navigate('Tabs', { screen: 'Home' })}
         style={({ pressed }) => [styles.railHeader, pressed && styles.railBrandPressed]}
       >
         <RailLogo />
@@ -174,12 +174,20 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: RailRouteName }) {
         {railRoutes.map((route) => {
           const focused = activeRouteName === route.name;
           const iconColor = focused ? theme.colors.accent : theme.colors.ink;
+          // Only Home's URL actually lands back on this same item: webRoutes.ts
+          // redirects /search, /tracked, /chat, /account — and, a bug found
+          // while wiring this up, /find-my-legislator itself — to Home instead
+          // of resolving to their own tab, so those stay plain pressables
+          // (rule 5, a link's URL must land where the click lands). Role stays
+          // "tab" (not linkProps' "link") since this is still a tab in the rail,
+          // just one that also happens to be addressable.
+          const home = route.name === 'Home' ? linkProps(routePath.home(), route.navigate) : null;
           return (
             <Pressable
               key={route.name}
+              {...(home ?? { onPress: route.navigate })}
               accessibilityRole="tab"
               accessibilityState={focused ? { selected: true } : {}}
-              onPress={route.navigate}
               style={({ pressed }) => [
                 styles.railItem,
                 focused && styles.railItemActive,
@@ -216,24 +224,28 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
         const focused = state.routes[state.index]?.key === route.key;
         const { Icon, label } = tabMeta[routeName];
         const color = focused ? theme.colors.accent : theme.colors.ink;
+        const navigateToTab = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!focused && !event.defaultPrevented) {
+            navigation.navigate(routeName);
+          }
+        };
+        // Same round-trip rule as the desktop rail (see DesktopRail above): only
+        // Home's URL lands back on Home, so it's the only tab that gets a href.
+        const home = routeName === 'Home' ? linkProps(routePath.home(), navigateToTab) : null;
 
         return (
           <Pressable
             key={route.key}
+            {...(home ?? { onPress: navigateToTab })}
             accessibilityRole="tab"
             accessibilityLabel={label}
             accessibilityState={focused ? { selected: true } : {}}
-            onPress={() => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-
-              if (!focused && !event.defaultPrevented) {
-                navigation.navigate(routeName);
-              }
-            }}
             style={({ pressed }) => [
               styles.mobileTabItem,
               focused && styles.mobileTabItemActive,

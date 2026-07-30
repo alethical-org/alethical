@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
+import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { titleCaseIssue } from '../../lib/issues';
 import {
   authorNameOnly,
@@ -125,10 +126,20 @@ export function FactsRail({
         </View>
         <View style={styles.linkCol}>
           {overviewUrl ? (
-            <TextLink label="Bill overview →" onPress={() => onOpenUrl(overviewUrl)} />
+            <TextLink
+              label="Bill overview →"
+              href={overviewUrl}
+              external
+              onPress={() => onOpenUrl(overviewUrl)}
+            />
           ) : null}
           {readUrl ? (
-            <TextLink label={`${readLabel(bill.status)} →`} onPress={() => onOpenUrl(readUrl)} />
+            <TextLink
+              label={`${readLabel(bill.status)} →`}
+              href={readUrl}
+              external
+              onPress={() => onOpenUrl(readUrl)}
+            />
           ) : null}
         </View>
         {bill.companion ? (
@@ -136,6 +147,7 @@ export function FactsRail({
             <Text style={styles.authorFieldLabel}>Companion</Text>
             <TextLink
               label={`${bill.companion.chamber} (${bill.companion.identifier}) →`}
+              href={routePath.bill(bill.companion.id)}
               onPress={() => onOpenBill(bill.companion!.id)}
             />
           </View>
@@ -157,6 +169,7 @@ export function FactsRail({
               {author.legislatorId ? (
                 <TextLink
                   label={`${authorNameOnly(author.name)} →`}
+                  href={routePath.legislator(author.legislatorId)}
                   onPress={() => onOpenLegislator(author.legislatorId as string)}
                 />
               ) : (
@@ -200,16 +213,22 @@ export function FactsRail({
 
 function TextLink({
   label,
+  href,
+  external,
   onPress,
   large,
 }: {
   label: string;
+  href: string;
+  // Official-source URL (revisor.mn.gov) rather than an in-app page.
+  external?: boolean;
   onPress: () => void;
   large?: boolean;
 }) {
   const [hovered, hover] = useHover();
+  const anchor = external ? externalLinkProps(href, onPress) : linkProps(href, onPress);
   return (
-    <Pressable accessibilityRole="link" onPress={onPress} {...hover}>
+    <Pressable {...anchor} {...hover}>
       <Text style={[styles.tlink, large && styles.tlinkLarge, hovered && styles.tlinkHover]}>
         {label}
       </Text>
@@ -218,17 +237,24 @@ function TextLink({
 }
 
 // The phased law's one muted caption. "See dates" is a REAL anchor on the
-// existing deep-link pattern (/bills/{id}?tab=actions), so the location stays
-// shareable and keyboard-operable (grounded-answers rule 5) — the click is then
-// intercepted to switch tabs in place, because we are already on that page and a
-// raw navigation would reload it. The arrow is the text glyph the product already
-// uses for inline trailing link arrows, aria-hidden so it is never read aloud.
+// existing deep-link pattern (/bills/{id}?tab=actions, via linkProps/routePath),
+// so the location stays shareable and keyboard-operable (grounded-answers rule
+// 5) — the click is then intercepted to switch tabs in place, because we are
+// already on that page and a raw navigation would reload it. The arrow is the
+// text glyph the product already uses for inline trailing link arrows,
+// aria-hidden so it is never read aloud.
 //
 // The three parts sit in a wrapping ROW, not inside one parent Text: RN-Web
 // renders a NESTED Text as a <span> and silently drops its href, which turned the
 // anchor into a role="link" span with no URL in the markup. Laid out this way the
 // link is a genuine <a href>, and the caption still wraps in the narrow column
 // (between the chunks) rather than truncating.
+//
+// The dropped-href half of that no longer holds on the installed react-native-web
+// (0.21.2): Text picks span-vs-div from its ancestor and *then* overrides the tag
+// to 'a' when href is set, so a nested Text keeps its anchor — which is why the
+// inline bill codes inside an action sentence (ActionsTab's BillCodeLink) do come
+// out as real links. The ROW layout still earns its keep for the wrapping.
 function PhasedCaption({
   billId,
   onJumpToActions,
@@ -237,7 +263,6 @@ function PhasedCaption({
   onJumpToActions: () => void;
 }) {
   const [hovered, hover] = useHover();
-  const href = `/bills/${encodeURIComponent(billId)}?tab=actions`;
   return (
     <View style={styles.phasedCaptionRow}>
       <Text style={styles.phasedCaption}>
@@ -245,12 +270,7 @@ function PhasedCaption({
         <Text style={styles.phasedSep}>{' · '}</Text>
       </Text>
       <Text
-        accessibilityRole="link"
-        {...({ href } as { href: string })}
-        onPress={(event) => {
-          (event as unknown as { preventDefault?: () => void }).preventDefault?.();
-          onJumpToActions();
-        }}
+        {...linkProps(routePath.bill(billId, { tab: 'actions' }), onJumpToActions)}
         {...hover}
         style={[styles.phasedCaption, styles.phasedLink, hovered && styles.phasedLinkHover]}
       >

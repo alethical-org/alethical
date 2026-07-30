@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
 import { formatMonoDate, orderBillVersions, versionTrackTag } from '../../lib/billDetail';
+import { externalLinkProps } from '../../navigation/links';
 import { SourceLine } from './SourceLine';
 import { useHover } from './interactions';
 
@@ -46,6 +47,7 @@ export function VersionsTab({
               // explains the apparent jump without changing the date-descending order.
               hint={tag === 'UNOFFICIAL' ? 'working draft' : null}
               linkLabel={law ? 'Read the full law' : 'Read the bill text'}
+              href={v.url}
               onPress={() => (v.url ? onOpenUrl(v.url) : undefined)}
             />
           );
@@ -79,6 +81,7 @@ function VersionRow({
   tag,
   hint,
   linkLabel,
+  href,
   onPress,
 }: {
   name: string;
@@ -88,16 +91,17 @@ function VersionRow({
   tag: 'UNOFFICIAL' | 'CONFERENCE' | null;
   hint: string | null;
   linkLabel: string;
+  // Absent when the version carries no official document — the row then falls
+  // back to a plain (inert) link so it still renders without a destination.
+  href?: string;
   onPress: () => void;
 }) {
   const [hovered, hover] = useHover();
+  const anchor = href
+    ? externalLinkProps(href, onPress)
+    : { accessibilityRole: 'link' as const, onPress };
   return (
-    <Pressable
-      accessibilityRole="link"
-      onPress={onPress}
-      {...hover}
-      style={[styles.row, hovered && styles.rowHover]}
-    >
+    <Pressable {...anchor} {...hover} style={[styles.row, hovered && styles.rowHover]}>
       <View style={styles.rowMain}>
         <View style={styles.rowTitleRow}>
           <Text style={styles.rowName}>{name}</Text>

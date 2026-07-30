@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
 import { buildActionTimeline, TimelineDot, TimelineRow, titleSegments } from '../../lib/billDetail';
+import { linkProps, routePath } from '../../navigation/links';
 import { SourceLine } from './SourceLine';
 import { useHover } from './interactions';
 
@@ -122,7 +123,12 @@ function Row({
             <Text style={[styles.title, scheduled && styles.titleScheduled]}>
               {titleSegments(row).map((seg, i) =>
                 seg.billId && onOpenBill ? (
-                  <BillCodeLink key={i} code={seg.text} onPress={() => onOpenBill(seg.billId!)} />
+                  <BillCodeLink
+                    key={i}
+                    code={seg.text}
+                    href={routePath.bill(seg.billId)}
+                    onPress={() => onOpenBill(seg.billId!)}
+                  />
                 ) : (
                   <Text key={i}>{seg.text}</Text>
                 ),
@@ -195,13 +201,20 @@ function AuthorTitle({
 // the only thing marking it as a link (WCAG 1.4.1), and hover does not exist on a
 // phone. Nested inside the title <Text>, so it inherits the title's size and weight
 // and the row's line-height is untouched.
-function BillCodeLink({ code, onPress }: { code: string; onPress: () => void }) {
+function BillCodeLink({
+  code,
+  href,
+  onPress,
+}: {
+  code: string;
+  href: string;
+  onPress: () => void;
+}) {
   const [hovered, hover] = useHover();
   return (
     <Text
-      accessibilityRole="link"
       accessibilityLabel={`Open ${code}`}
-      onPress={onPress}
+      {...linkProps(href, onPress)}
       {...hover}
       style={[styles.billCodeLink, hovered && styles.billCodeLinkHover]}
     >

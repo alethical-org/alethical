@@ -16,6 +16,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
 import { IaItem, MenuKey } from '../../navigation/ia';
+import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../navigation/links';
 import { Bill, Legislator } from '../../data/types';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -233,7 +234,7 @@ export function LegislatorProfileWebScreen() {
                     onOpenLegislator={openLegislator}
                   />
                 ))}
-                <SeeMoreButton onPress={() => openUrl(seeMoreUrl)} />
+                <SeeMoreButton href={seeMoreUrl} onPress={() => openUrl(seeMoreUrl)} />
               </>
             ) : (
               <View style={styles.card}>
@@ -274,6 +275,7 @@ export function LegislatorProfileWebScreen() {
             {legislator.profileUrl ? (
               <SourceLink
                 label={`Official ${chamberWord} profile →`}
+                href={legislator.profileUrl}
                 onPress={() => openUrl(legislator.profileUrl!)}
               />
             ) : null}
@@ -436,9 +438,8 @@ function Breadcrumb({ onPress }: { onPress: () => void }) {
   const color = hovered ? t.colors.text.primary : BREADCRUMB_GREY;
   return (
     <Pressable
-      accessibilityRole="link"
+      {...linkProps(routePath.legislators(), onPress)}
       accessibilityLabel="All legislators"
-      onPress={onPress}
       {...hover}
       style={styles.breadcrumb}
     >
@@ -510,9 +511,8 @@ function ChiefBillCard({
   return (
     <View style={[styles.billCard, hovered && styles.billCardHover]}>
       <Pressable
-        accessibilityRole="button"
+        {...linkProps(routePath.bill(bill.id), onPress)}
         accessibilityLabel={`${bill.identifier}: ${title}`}
-        onPress={onPress}
         {...hover}
       >
         <View style={styles.billTopRow}>
@@ -549,9 +549,13 @@ function ChiefBillCard({
                     {index > 0 ? ', ' : ''}
                     <Text
                       style={styles.coauthorLink}
+                      // Nested inside the card's own link (just above): a plain
+                      // stopPropagation would stop this Pressable's card handler
+                      // but not the anchor's default action, so the browser would
+                      // still follow the card's href on top of opening this name.
                       onPress={
                         sponsor.legislatorId
-                          ? () => onOpenLegislator(sponsor.legislatorId!)
+                          ? pressInsideLink(() => onOpenLegislator(sponsor.legislatorId!))
                           : undefined
                       }
                     >
@@ -577,11 +581,19 @@ function ChiefBillCard({
           {companion ? (
             <LinkChip
               label={`COMPANION ${companion.identifier} · ${(companion.status || '').toUpperCase()}`}
+              href={routePath.bill(companion.id)}
               onPress={() => onOpenBill(companion.id)}
               icon="companion"
             />
           ) : null}
-          {hasVotes ? <LinkChip label="VIEW VOTES" onPress={onViewVotes} icon="votes" /> : null}
+          {hasVotes ? (
+            <LinkChip
+              label="VIEW VOTES"
+              href={routePath.bill(bill.id, { tab: 'votes' })}
+              onPress={onViewVotes}
+              icon="votes"
+            />
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -591,19 +603,20 @@ function ChiefBillCard({
 // Outline chip that links out from a bill card (companion bill / view votes).
 function LinkChip({
   label,
+  href,
   onPress,
   icon,
 }: {
   label: string;
+  href: string;
   onPress: () => void;
   icon: 'companion' | 'votes';
 }) {
   const [hovered, hover] = useHover();
   return (
     <Pressable
-      accessibilityRole="link"
+      {...linkProps(href, onPress)}
       accessibilityLabel={label}
-      onPress={onPress}
       {...hover}
       style={[styles.linkChip, hovered && styles.linkChipHover]}
     >
@@ -701,13 +714,12 @@ function AskChip({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
-function SeeMoreButton({ onPress }: { onPress: () => void }) {
+function SeeMoreButton({ href, onPress }: { href: string; onPress: () => void }) {
   const [hovered, hover] = useHover();
   return (
     <Pressable
-      accessibilityRole="link"
+      {...externalLinkProps(href, onPress)}
       accessibilityLabel="See more chief-authored bills on the Revisor"
-      onPress={onPress}
       {...hover}
       style={[styles.seeMore, hovered && styles.seeMoreHover]}
     >
@@ -804,10 +816,18 @@ function LockIcon() {
 }
 
 // --- Contact source link ---
-function SourceLink({ label, onPress }: { label: string; onPress: () => void }) {
+function SourceLink({
+  label,
+  href,
+  onPress,
+}: {
+  label: string;
+  href: string;
+  onPress: () => void;
+}) {
   const [hovered, hover] = useHover();
   return (
-    <Pressable accessibilityRole="link" onPress={onPress} {...hover}>
+    <Pressable {...externalLinkProps(href, onPress)} {...hover}>
       <Text style={[styles.sourceLink, hovered && styles.sourceLinkHover]}>{label}</Text>
     </Pressable>
   );

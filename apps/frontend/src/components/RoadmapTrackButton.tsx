@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 
 import { useHover } from './billDetail/interactions';
+import { pressInsideLink } from '../navigation/links';
 import { theme as t } from '../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
@@ -33,9 +34,11 @@ export function RoadmapTrackButton() {
       accessibilityRole="button"
       accessibilityLabel="Track bill"
       // Kept out of the tab order (inert); onPress only swallows the tap so the
-      // wrapping card's link press can't fire — clicking is a true no-op.
+      // wrapping card can't fire — clicking is a true no-op. The wrapping card is
+      // a real <a href>, so swallowing means cancelling the click as well as
+      // stopping it propagating, or the browser would follow the card's URL.
       tabIndex={-1}
-      onPress={(e: GestureResponderEvent) => e.stopPropagation()}
+      onPress={pressInsideLink()}
       {...hover}
       style={[styles.btn, hovered && styles.btnHover]}
     >
