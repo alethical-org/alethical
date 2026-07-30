@@ -127,7 +127,17 @@ const INITIALISM_END = /(?:\b[A-Za-z]\.){2,}$/;
 // break, so a paragraph that legitimately opens on punctuation is left alone.
 // The durable fix belongs at ingestion (#741); this keeps the page readable until
 // then, and stays as a guard afterwards.
-const SPACE_BEFORE_PUNCTUATION = /[ \t]+([;,.:!?])/g;
+//
+// One guard, because the naive rule corrupts real statute text: a full stop
+// followed by a digit is a DECIMAL POINT, not the end of a sentence. Statutes
+// write bare decimals after a comma — "shall include, .22 caliber tube feeders",
+// "$ .0025 per gallon" — and closing those gaps glued the number onto the
+// punctuation before it (",.22 caliber").
+//
+// Deliberately NOT also requiring a letter or digit before the gap. Statutes end
+// clauses on a closing bracket constantly — "paragraph (a) ." and "clause (3) ,"
+// — and that stricter rule left 195 sampled sections with the space still there.
+const SPACE_BEFORE_PUNCTUATION = /[ \t]+([;,:!?]|\.(?!\d))/g;
 
 /** Tidy the whitespace flattening left behind. Presentation only. */
 function tidySpacing(value: string): string {
@@ -167,9 +177,9 @@ export function parseChangeRuns(text: string): TextRun[] {
 
   // The same stray space can straddle two runs — a plain run ending in a space
   // followed by a struck full stop — where tidying each run in isolation cannot
-  // reach it.
+  // reach it. Same decimal guard as SPACE_BEFORE_PUNCTUATION.
   for (let i = 0; i < runs.length - 1; i++) {
-    if (/^[;,.:!?]/.test(runs[i + 1].text)) {
+    if (/^([;,:!?]|\.(?!\d))/.test(runs[i + 1].text)) {
       runs[i].text = runs[i].text.replace(/[ \t]+$/, '');
     }
   }
