@@ -21,11 +21,10 @@ import { isWeb } from './interactions';
 
 // Where a jumped-to section comes to rest: far enough below the top of the
 // window to clear the sticky tab bar and still read as the top of the page.
-const SCROLL_OFFSET = 90;
-// The same offset for a browser-native anchor jump, which doesn't route through
-// our scroll handler (web only; RN has no CSS scroll-margin). Cast out of the
-// typed style union.
-const SCROLL_MARGIN = { scrollMarginTop: SCROLL_OFFSET } as object;
+// scrollIntoView honours scroll-margin-top, so this one value sets the offset
+// for our own jumps and for a browser-native anchor jump alike (web only; RN has
+// no CSS scroll-margin). Cast out of the typed style union.
+const SCROLL_MARGIN = { scrollMarginTop: 90 } as object;
 const STICKY_RAIL = { position: 'sticky', top: 24 } as object;
 // Ring drawn around the section a citation chip jumped to, so the landing spot
 // reads as the answer to the click rather than just a tinted card. Web-only —
@@ -99,6 +98,17 @@ export function FullTextTab({
   const [highlighted, setHighlighted] = useState<string | null>(null);
   // The section the reader is looking at, for the index rail's active row.
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  // The section a shared ?tab=text#ft-<id> link asked for, read once on the first
+  // render. It has to be captured here rather than inside the effect that acts on
+  // it: when the bill text is already cached the effect runs before the router
+  // has applied the fragment, finds no hash, and — having no reason to run again
+  // — gives up for good, which is why a shared link scrolled but never
+  // highlighted its section.
+  const [hashTarget] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const match = window.location.hash.match(/^#(?:ft|section)-(.+)$/);
+    return match ? match[1] : null;
+  });
 
   // Sections the Summary tab quotes, so each one can say so — the intro promises
   // citations land on their passage, and nothing marked them before.
@@ -140,19 +150,22 @@ export function FullTextTab({
   const showRail = isWeb && isDesktop && sections.length >= RAIL_MIN_SECTIONS;
 
   // Jump to a section. Three details each fix a way this lands in the wrong
-  // place: the scroll is INSTANT, because a smooth scroll started in the same
-  // beat as a re-render gets dropped or interrupted part-way and stops short;
-  // the target is measured immediately before scrolling, because a rect read
-  // before the re-render is stale by however much the layout moved; and the
-  // position is re-asserted once after the render settles, which corrects any
-  // shift the first jump raced.
+  // place:
+  //
+  // - INSTANT, not smooth: a smooth scroll started in the same beat as a
+  //   re-render gets dropped or interrupted part-way and stops short.
+  // - scrollIntoView, not a computed window.scrollTo: this page scrolls an inner
+  //   container rather than the document, so scrolling the window moves nothing
+  //   at all. scrollIntoView finds the real scroll parent, and honours the
+  //   target's scroll-margin-top, which is what sets the resting offset.
+  // - Re-asserted once after the render settles, correcting any layout shift the
+  //   first jump raced.
   const scrollToSection = (sectionId: string) => {
-    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    if (typeof document === 'undefined') return;
     const jump = () => {
-      const node = document.getElementById(`ft-${sectionId}`);
-      if (!node) return;
-      const top = node.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET;
-      window.scrollTo({ top: Math.max(0, top), behavior: 'instant' as ScrollBehavior });
+      document
+        .getElementById(`ft-${sectionId}`)
+        ?.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'start' });
     };
     jump();
     setTimeout(jump, SCROLL_SETTLE_MS);
@@ -172,21 +185,18 @@ export function FullTextTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, targetSectionId]);
 
-  // Shared-link jump: a ?tab=text#ft-<id> (or #section-<id>) URL scrolls to
-  // that section once on load. Runs only when no in-app anchor is pending.
+  // Shared-link jump: a ?tab=text#ft-<id> (or #section-<id>) URL scrolls to that
+  // section and highlights it, the same as arriving from a citation card. Runs
+  // only when no in-app anchor is pending.
   useEffect(() => {
-    if (!ready || targetSectionId) return;
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
-    const match = window.location.hash.match(/^#(?:ft|section)-(.+)$/);
-    if (!match) return;
-    const id = match[1];
+    if (!ready || targetSectionId || !hashTarget) return;
     const timer = setTimeout(() => {
-      scrollToSection(id);
-      setHighlighted(id);
+      scrollToSection(hashTarget);
+      setHighlighted(hashTarget);
     }, 80);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  }, [ready, hashTarget, targetSectionId]);
 
   // Clear the highlight tint a few seconds after it lands.
   useEffect(() => {
