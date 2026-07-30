@@ -23,11 +23,11 @@ import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { useAuth } from '../../providers/AuthProvider';
-import { useBill, useSessions } from '../../hooks/useAppQueries';
+import { useBill } from '../../hooks/useAppQueries';
 import { isNotFoundError } from '../../data/api';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { Bill, VoteEvent } from '../../data/types';
-import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../components/search/searchPieces';
+import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import {
   authorNameOnly,
   askCardPrompts,
@@ -303,11 +303,11 @@ function BillDetailMobileScreen() {
   const billQuery = useBill(billId);
   const bill = billQuery.data;
 
-  const sessionsQuery = useSessions();
-  const currentSession =
-    sessionsQuery.data?.find((item) => item.isCurrent) ?? sessionsQuery.data?.[0];
-  const sessionLabel = currentSession?.name
-    ? formatSessionLabel(currentSession.name)
+  // The bill's OWN session, not whichever one is current: a special-session bill
+  // belongs to a different session than the biennium, and labelling it with the
+  // biennium's years would state the wrong thing about it (#746).
+  const sessionLabel = bill?.sessionLabel
+    ? formatSessionLabel(bill.sessionLabel)
     : SESSION_LABEL_FALLBACK;
 
   // chrome + overlays

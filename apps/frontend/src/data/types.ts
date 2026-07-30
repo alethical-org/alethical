@@ -214,6 +214,10 @@ export interface Bill {
    *  value row can link to /bills/{id}. Undefined when unlinked or not served (#293). */
   companion?: BillCompanion | null;
   updatedAt: string;
+  /** The session the bill belongs to, worded as the API serves it ("94th Legislature
+   *  (2025) First Special Session"); render it through `formatSessionLabel`. Carried
+   *  per bill because a special session is its own session, so a page must not
+   *  assume the current one (#746). "Current session" where not served. */
   sessionLabel: string;
   topics: string[];
   chiefSponsorIds: string[];

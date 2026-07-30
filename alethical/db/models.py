@@ -34,6 +34,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
+    joinedload,
     mapped_column,
     relationship,
     selectinload,
@@ -1158,6 +1159,11 @@ def bill_detail_stmt(
         # the companion's actions (#293).
         selectinload(Bill.companion_bill).selectinload(Bill.actions),
         selectinload(Bill.enrichments),
+        # The bill's own session, so the page can name the session it belongs to
+        # instead of assuming the current one — a special-session bill belongs to a
+        # different session than the biennium (#746). A joined FK read, so no extra
+        # round trip.
+        joinedload(Bill.session),
     ]
     if load_votes:
         options.append(

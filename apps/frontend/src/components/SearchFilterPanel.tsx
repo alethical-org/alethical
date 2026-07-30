@@ -385,7 +385,11 @@ function sessionLabel(name: string, slug: string): string {
   if (!yearMatch) {
     return name;
   }
-  return yearMatch[2] ? `${yearMatch[1]}-${yearMatch[2]}` : yearMatch[1];
+  const years = yearMatch[2] ? `${yearMatch[1]}-${yearMatch[2]}` : yearMatch[1];
+  // Years alone can't tell a special session apart from the biennium it sits
+  // inside, so keep those words when the name carries them (#746).
+  const special = name.match(/\b(\w+)\s+special session\b/i);
+  return special ? `${years} ${special[1]} Special Session` : years;
 }
 
 function iconForPolicyArea(category: string): FilterIcon {

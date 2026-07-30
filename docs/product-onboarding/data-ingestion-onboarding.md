@@ -117,10 +117,16 @@ specifically the ingestion that *builds the retrieval corpus* those depend on.
 | F | RAG chat synthesis | OpenAI Responses API | HTTPS `POST`, JSON | `OPENAI_API_KEY` | [me.py](../../alethical/api/routers/me.py) |
 | G | Map tiles | OpenStreetMap | HTTP tiles | none | frontend `MapPinPicker.tsx` |
 
-**Timeframe scope:** hardcoded to the **94th Legislature, 2025 regular session** —
-`session_code="0942025"`, `session="94-2025-regular"`, `bill_key` format
-`94-2025-{FILETYPE}{NUMBER}` (e.g. `94-2025-HF2136`). Supporting other biennia
-means threading these through.
+**Timeframe scope:** the **94th Legislature (2025-2026)** — its regular session
+(`session_code="0942025"` / `"0942026"`, session `94-2025-regular`, `bill_key`
+`94-2025-{FILETYPE}{NUMBER}`, e.g. `94-2025-HF2136`) and its **2025 first special
+session** (`session_code="1942025"`, session `94-2025-special-1`, `bill_key`
+`94-2025s1-{FILETYPE}{NUMBER}`). The `s1` is load-bearing: a special session numbers
+its files from 1 again, so `HF 5` exists in both and they are different bills (#746).
+Which row a discovery code ingests into is declared in `SESSION_DEFINITIONS`
+([sessions.py](../../alethical/pipeline/sessions.py)); an unmapped code raises rather
+than defaulting into the current biennium. Supporting other biennia means adding
+their definitions ([#359](https://github.com/alethical-org/alethical/issues/359)).
 
 ## A — Bills (MN Revisor)
 

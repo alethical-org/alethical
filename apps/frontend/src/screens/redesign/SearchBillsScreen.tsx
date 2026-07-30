@@ -33,11 +33,10 @@ import {
   SearchHelperLine,
   SearchHero,
   SearchPageShell,
-  SESSION_LABEL_FALLBACK,
   SortControl,
   SortOption,
-  formatSessionLabel,
 } from '../../components/search/searchPieces';
+import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import { Skeleton } from '../../components/Skeleton';
 
 // Placeholder card rows shown while the first page of bills loads.

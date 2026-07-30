@@ -925,6 +925,20 @@ def test_bill_detail_resolves_cross_reference_actions_to_linkable_bills(client):
             db.commit()
 
 
+def test_bill_detail_serves_the_bills_own_session(client):
+    """#746: the bill page labels itself with the session the bill belongs to. It used
+    to read whichever session was flagged current, which is wrong for a special-session
+    bill — those live in a session of their own, named for one year, not the biennium."""
+    bills = client.get(
+        "/api/v1/bills", params={"session": "94-2025-regular", "limit": 1}
+    ).json()["data"]
+    assert bills, "fixture must include at least one bill"
+    detail = client.get(f"/api/v1/bills/{bills[0]['id']}").json()["data"]
+    assert detail["session"]["slug"] == "94-2025-regular"
+    assert detail["session"]["name"]
+    assert detail["session"]["is_current"] is True
+
+
 def test_bill_detail_serves_is_omnibus(client):
     """The detail payload exposes is_omnibus so the bill page can render the
     OMNIBUS tag — the list payload already did, but the detail one omitted it,

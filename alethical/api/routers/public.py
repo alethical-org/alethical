@@ -1617,6 +1617,11 @@ def bill_detail(
     payload = {
         "id": row.bill_key,
         "title": row.title,
+        "session": {
+            "slug": row.session.slug,
+            "name": row.session.name,
+            "is_current": row.session.is_current,
+        },
         "description": row.description,
         "current_status": row.current_status,
         "status_key": row.status_key,

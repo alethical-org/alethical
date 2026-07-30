@@ -11,9 +11,11 @@ from alethical.db.models import (
     Bill,
     BillAction,
     BillVersion,
+    LegislativeSession,
     Legislator,
     LegislatorServicePeriod,
     LegislatorStats,
+    SessionType,
     Sponsorship,
     SponsorshipRole,
 )
@@ -222,6 +224,39 @@ def test_roster_only_member_can_be_ingested(seed_database: None) -> None:
         assert service_period.profile_url == "https://example.test/representatives/60b"
         assert (
             service_period.photo_url == "https://example.test/representatives/60b.jpg"
+        )
+
+
+def test_seed_reference_data_gives_the_special_session_its_own_row(
+    seed_database: None,
+) -> None:
+    """#746: a special session's bills belong to a session of their own, so seeding
+    for its discovery code must create a second row and leave the biennium's alone —
+    including which one is flagged current, since the API resolves "current" with a
+    single-row read."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        biennium = pipeline.seed_reference_data()["session"]
+        special = pipeline.seed_reference_data("1942025")["session"]
+
+        assert special.id != biennium.id
+        assert special.slug == "94-2025-special-1"
+        assert special.session_type is SessionType.special
+        assert special.is_current is False
+        assert biennium.is_current is True
+        assert special.start_date == datetime(2025, 6, 9, tzinfo=UTC)
+
+        # Idempotent: seeding again returns the same row, never a duplicate.
+        assert pipeline.seed_reference_data("1942025")["session"].id == special.id
+        assert (
+            len(
+                session.scalars(
+                    select(LegislativeSession).where(
+                        LegislativeSession.slug == "94-2025-special-1"
+                    )
+                ).all()
+            )
+            == 1
         )
 
 

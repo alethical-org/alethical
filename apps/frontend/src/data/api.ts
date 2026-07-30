@@ -358,6 +358,10 @@ interface ApiCompanionPayload {
 interface ApiBillDetailPayload {
   id: string;
   title: string;
+  // The bill's own session. A special session is a separate session whose files
+  // are numbered from 1 all over again, so the page can't assume the current one
+  // (#746). Optional so an older cached response still maps.
+  session?: ApiSessionPayload | null;
   description?: string | null;
   current_status?: string | null;
   status_key?: string | null;
@@ -1184,7 +1188,7 @@ function mapBillDetail(
           defaultCandidates: payload.effective_schedule.default_candidates,
         }
       : undefined,
-    sessionLabel: 'Current session',
+    sessionLabel: payload.session?.name ?? 'Current session',
     topics: (payload.topics ?? []).map((topic) => topic.name),
     chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
     sponsors: allSponsors.map(mapSponsor),
