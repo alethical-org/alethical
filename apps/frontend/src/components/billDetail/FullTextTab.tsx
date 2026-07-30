@@ -6,6 +6,7 @@ import { Bill } from '../../data/types';
 import { useBillVersionText } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
+  asHeadingCaption,
   changeKindsPresent,
   parseChangeRuns,
   parseSectionBody,
@@ -18,17 +19,26 @@ import { SectionIndexRail, SectionIndexItem } from './SectionIndexRail';
 import { SourceLine } from './SourceLine';
 import { isWeb } from './interactions';
 
-// scroll-margin-top keeps a jumped-to section clear of the sticky tab bar
-// (web only; RN has no CSS scroll-margin). Cast out of the typed style union.
-const SCROLL_MARGIN = { scrollMarginTop: 80 } as object;
+// Where a jumped-to section comes to rest: far enough below the top of the
+// window to clear the sticky tab bar and still read as the top of the page.
+const SCROLL_OFFSET = 90;
+// The same offset for a browser-native anchor jump, which doesn't route through
+// our scroll handler (web only; RN has no CSS scroll-margin). Cast out of the
+// typed style union.
+const SCROLL_MARGIN = { scrollMarginTop: SCROLL_OFFSET } as object;
 const STICKY_RAIL = { position: 'sticky', top: 24 } as object;
 // Ring drawn around the section a citation chip jumped to, so the landing spot
 // reads as the answer to the click rather than just a tinted card. Web-only —
 // RN has no spread-only shadow.
 const HIT_RING = isWeb ? ({ boxShadow: '0 0 0 3px rgba(91,48,214,0.16)' } as object) : null;
 const HIGHLIGHT_MS = 2500;
-// Below this the bill has few enough sections to scan without an index.
-const RAIL_MIN_SECTIONS = 5;
+// How long to leave the render before re-asserting the scroll position.
+const SCROLL_SETTLE_MS = 250;
+// Any bill with something to navigate gets the index. Showing it from two
+// sections up also holds the reading column in one place from bill to bill —
+// with the rail conditional, moving between a long and a short bill slid the
+// text sideways.
+const RAIL_MIN_SECTIONS = 2;
 
 // Bill Text tab — renders the current bill version's statute sections. Cited-
 // section chips (Summary) deep-link here and highlight the matched section; a
@@ -102,7 +112,10 @@ export function FullTextTab({
       sections.map((section) => {
         const { number, title } = splitSectionLabel(section.heading);
         const body = parseSectionBody(section.text ?? '', { hasTitle: !!title });
-        return { section, number, title, body };
+        // The Legislature's caption, wherever it was published: fused into the
+        // stored heading on some bills, loose in the body on others.
+        const heading = title ?? asHeadingCaption(body.caption);
+        return { section, number, heading, body };
       }),
     [sections],
   );
@@ -126,11 +139,23 @@ export function FullTextTab({
 
   const showRail = isWeb && isDesktop && sections.length >= RAIL_MIN_SECTIONS;
 
+  // Jump to a section. Three details each fix a way this lands in the wrong
+  // place: the scroll is INSTANT, because a smooth scroll started in the same
+  // beat as a re-render gets dropped or interrupted part-way and stops short;
+  // the target is measured immediately before scrolling, because a rect read
+  // before the re-render is stale by however much the layout moved; and the
+  // position is re-asserted once after the render settles, which corrects any
+  // shift the first jump raced.
   const scrollToSection = (sectionId: string) => {
-    if (typeof document === 'undefined') return;
-    document
-      .getElementById(`ft-${sectionId}`)
-      ?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    const jump = () => {
+      const node = document.getElementById(`ft-${sectionId}`);
+      if (!node) return;
+      const top = node.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'instant' as ScrollBehavior });
+    };
+    jump();
+    setTimeout(jump, SCROLL_SETTLE_MS);
   };
 
   // A citation chip asked us to jump: scroll + highlight after the sections have
@@ -255,7 +280,7 @@ export function FullTextTab({
   const legend = changeLegend(changeKinds);
 
   const column = (
-    <View style={styles.column}>
+    <View style={showRail ? styles.column : styles.columnAlone}>
       <Text style={styles.intro}>
         The complete text of this version, section by section, as published by the Minnesota
         Legislature. Cited sections from the summary link straight to their passage here.
@@ -264,7 +289,7 @@ export function FullTextTab({
       {legend ? <Text style={styles.legend}>{legend}</Text> : null}
 
       <View style={styles.sections}>
-        {parsed.map(({ section, number, title, body }, i) => {
+        {parsed.map(({ section, number, heading, body }, i) => {
           const isHit = highlighted === section.sectionId;
           const isCited = citedSectionIds.has(section.sectionId);
           return (
@@ -292,15 +317,17 @@ export function FullTextTab({
                 ) : null}
               </View>
 
-              {title ? (
+              {/* Provenance, not the title: which existing law this section
+                  rewrites. Sits above the title, quiet, so the Legislature's
+                  own caption is the one heading on the card. */}
+              {body.leadIn ? (
+                <ChangeRuns runs={parseChangeRuns(body.leadIn)} style={styles.provenance} />
+              ) : null}
+
+              {heading ? (
                 <Text accessibilityRole="header" style={styles.sectionHeading}>
-                  {title}
+                  {heading}
                 </Text>
-              ) : body.leadIn ? (
-                <ChangeRuns
-                  runs={parseChangeRuns(body.leadIn)}
-                  style={[styles.sectionHeading, styles.sectionHeadingClause]}
-                />
               ) : null}
 
               {body.blocks.map((block, blockIndex) => {
@@ -367,6 +394,10 @@ const styles = StyleSheet.create({
   // The reading measure. Uncapped, the text ran ~190 characters a line on a wide
   // window — roughly twice a comfortable line.
   column: { flex: 1, minWidth: 0, maxWidth: 880 },
+  // A one-section bill has nothing to navigate, so it shows no rail. Centring
+  // the measure is only safe here, where there is no other bill layout for it to
+  // sit out of step with.
+  columnAlone: { width: '100%', maxWidth: 880, alignSelf: 'center' },
   railCol: { width: 244, flexShrink: 0 },
   intro: {
     fontFamily: t.typography.body,
@@ -441,20 +472,23 @@ const styles = StyleSheet.create({
     color: t.colors.purple.base,
   },
   sectionHeading: {
-    marginTop: 10,
+    marginTop: 6,
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.subheadLg,
     fontWeight: t.fontWeights.bold,
     lineHeight: 26,
     color: t.colors.text.primary,
   },
-  // The promoted "… is amended to read:" line is a sentence, not a title, so it
-  // reads at body weight rather than shouting at 700.
-  sectionHeadingClause: {
+  // "Minnesota Statutes 2024, section 62A.011 … is amended to read:" — a
+  // reference, so it stays at body size and regular weight. Styled as a heading
+  // it competed with the caption right below it and the card read as having two
+  // titles.
+  provenance: {
+    marginTop: 10,
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.semibold,
-    lineHeight: 24,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    color: t.colors.text.faint,
   },
   // Subdivision headnote inside a section body — a lead-in line, never a
   // paragraph of its own.

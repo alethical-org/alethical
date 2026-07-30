@@ -16,7 +16,7 @@
 // "new text begin"/"new text end" but keeps the deleted pair, so today only
 // removals are marked in stored text. `parseChangeRuns` handles both kinds, so
 // added text starts underlining on its own once ingestion stops stripping it
-// (#TBD). Nothing here needs to change when it does.
+// (issue #741). Nothing here needs to change when it does.
 
 /** How a run of section text differs from current law. */
 export type ChangeKind = 'plain' | 'removed' | 'added';
@@ -36,9 +36,16 @@ export interface SectionBlock {
 
 export interface SectionBody {
   /** The "Minnesota Statutes 2024, section 62A.011 … is amended to read:" line,
-   *  promoted out of the body to serve as the section's heading line when the
-   *  stored heading carries no title of its own. Null when there isn't one. */
+   *  promoted out of the body. This is provenance — which existing law the
+   *  section rewrites — not the section's title, and renders as such. Null when
+   *  there isn't one. */
   leadIn: string | null;
+  /** The Legislature's own caption for the section ("Health plan.",
+   *  "Definitions."), promoted out of the body to serve as the section's title
+   *  when the stored heading carries none. Null when the source gives none, or
+   *  when the caption carries a change marker — a struck caption stays in the
+   *  body so its strike-through renders rather than reading as current law. */
+  caption: string | null;
   blocks: SectionBlock[];
 }
 
@@ -49,6 +56,9 @@ const MARKER_PAIR = /(deleted|new) text begin([\s\S]*?)\1 text end/g;
 // stray end. Stripped silently: a malformed source must never leak the words,
 // and must never strike the rest of the section either.
 const STRAY_MARKER = /(?:deleted|new) text (?:begin|end)/g;
+// Non-global twin of STRAY_MARKER for one-off tests. `.test()` on a /g regex
+// advances its lastIndex, so the same pattern must never serve both jobs.
+const HAS_MARKER = /(?:deleted|new) text (?:begin|end)/;
 
 const SUBHEADING_MAX = 80;
 const LEAD_IN_MAX = 400;
@@ -69,6 +79,45 @@ const FINITE_VERB =
 const SECTION_LABEL = /^(?:Sec\.|Section)\s*\d+[a-z]?\s*\./i;
 const STATUTE_CITE_START = /^(?:Minnesota Statutes|Minnesota Rules|Laws\s+\d{4})\b/;
 const AMENDS_OR_REPEALS = /\b(?:is|are)\s+(?:amended|repealed)\b|\bto\s+read:\s*$/i;
+
+// A statute number as the Revisor writes it: 115A.554, 62A.011, 3.732.
+const STATUTE_NUMBER = String.raw`\d+[A-Z]?\.\d+`;
+// "…, subdivision 3a, …" — carried into the short form because it is often the
+// only thing that differs between two neighbouring sections. Without it a bill
+// amending subdivisions 9 and 10 of one statute produces two identical rows,
+// which is the failure the fallback exists to prevent.
+const SUBDIVISION = /\bsubdivisions?\s+(\d+[a-z]?)/i;
+// The citation forms a section can open with, most specific first.
+const STATUTE_REFS: Array<{ pattern: RegExp; format: (m: RegExpMatchArray) => string }> = [
+  // "Minnesota Statutes 2024, section 115A.554, subdivision 2, is amended…"
+  {
+    pattern: new RegExp(
+      String.raw`Minnesota Statutes[^,]*,\s*sections?\s+(${STATUTE_NUMBER})`,
+      'i',
+    ),
+    format: (m) => `§ ${m[1]}`,
+  },
+  // A new statute section states its own number in brackets: "[62A.011] …"
+  { pattern: new RegExp(String.raw`^\[(${STATUTE_NUMBER})\]`), format: (m) => `§ ${m[1]}` },
+  // "Minnesota Rules, part 7000.0100, is amended…"
+  {
+    pattern: /Minnesota Rules[^,]*,\s*parts?\s+(\d+\.\d+)/i,
+    format: (m) => `Rules ${m[1]}`,
+  },
+  // "Laws 2023, chapter 71, article 1, section 10, subdivision 9…" — a bill
+  // amending a past session law needs chapter, article AND section: 4 of the 10
+  // sampled Laws citations shared a chapter with a sibling section.
+  {
+    pattern:
+      /Laws\s+(\d{4})[^,]*,\s*chapter\s+(\d+)(?:[^,]*,\s*article\s+(\d+))?(?:[^,]*,\s*sections?\s+(\d+[a-z]?))?/i,
+    format: (m) =>
+      [`Laws ${m[1]}`, `ch. ${m[2]}`, m[3] ? `art. ${m[3]}` : null, m[4] ? `§ ${m[4]}` : null]
+        .filter(Boolean)
+        .join(', '),
+  },
+];
+// An initialism ("U.S.C.", "M.S.A.") ends in a period that belongs to the word.
+const INITIALISM_END = /(?:\b[A-Za-z]\.){2,}$/;
 
 /** Drop marker words and tidy the gap they leave behind. */
 function stripMarkers(value: string): string {
@@ -129,9 +178,48 @@ export function changeKindsPresent(texts: Array<string | null | undefined>): {
 }
 
 /**
+ * A caption ("Health plan.", "REPEALER.") reads as a sentence fragment with its
+ * trailing period but as a title without one, so drop it when the caption is
+ * used as a heading. Capitalisation is left exactly as the source wrote it:
+ * re-casing mangles the acronyms these captions carry (DNR, CHAMPUS) and an
+ * exceptions list would need per-bill upkeep.
+ */
+export function asHeadingCaption(caption: string | null | undefined): string | null {
+  const value = (caption ?? '').trim();
+  if (!value) return null;
+  if (!value.endsWith('.') || INITIALISM_END.test(value)) return value;
+  return value.slice(0, -1).trim() || null;
+}
+
+/**
+ * Condense a section's opening citation to a short reference ("§ 115A.554") for
+ * an index row that has no caption to show. Returns null when the text carries
+ * no citation to condense.
+ */
+export function condenseStatuteRef(text: string | null | undefined): string | null {
+  const value = plainSectionText(text ?? '');
+  if (!value) return null;
+  for (const { pattern, format } of STATUTE_REFS) {
+    const match = value.match(pattern);
+    if (!match) continue;
+    const short = format(match);
+    // The subdivision always goes in when the opening citation names one: a bill
+    // amending subdivisions 9 and 10 of one statute is two sections whose only
+    // difference is that number, and dropping it made two identical rows.
+    // Searched only up to the verb, so a "subdivision" mentioned later in the
+    // body can't be mistaken for part of the citation.
+    const verbAt = value.search(/\b(?:is|are)\s+(?:amended|repealed)\b/i);
+    const subdivision = value.slice(0, verbAt === -1 ? 200 : verbAt).match(SUBDIVISION);
+    return subdivision ? `${short}, subd. ${subdivision[1]}` : short;
+  }
+  return null;
+}
+
+/**
  * Split a stored heading into its number and its title. The Revisor puts both
  * in one line ("Sec. 16. REPEALER."), which is why the number badge was
- * printing whole headings.
+ * printing whole headings. The title comes back heading-ready — no trailing
+ * period, original capitals.
  */
 export function splitSectionLabel(heading: string | null | undefined): {
   number: string | null;
@@ -140,8 +228,8 @@ export function splitSectionLabel(heading: string | null | undefined): {
   const value = plainSectionText(heading ?? '');
   if (!value) return { number: null, title: null };
   const match = value.match(/^(?:Section|Sec\.)\s*(\d+[a-z]?)\s*\.\s*([\s\S]*)$/i);
-  if (!match) return { number: null, title: value };
-  return { number: `SEC. ${match[1].toUpperCase()}`, title: match[2].trim() || null };
+  if (!match) return { number: null, title: asHeadingCaption(value) };
+  return { number: `SEC. ${match[1].toUpperCase()}`, title: asHeadingCaption(match[2]) };
 }
 
 /** Statute source text carries long runs of blank lines between headnotes and
@@ -174,10 +262,16 @@ function isSubheading(plain: string): boolean {
 }
 
 /**
- * Classify a section body into its landmarks. When the section's stored heading
- * carries no title, the opening amendment clause is promoted to `leadIn` and
- * rendered as the heading line — otherwise 17 of the 21 sections on a bill like
- * SF 4214 would show a blank heading and no landmark at all.
+ * Classify a section body into its landmarks.
+ *
+ * The Revisor publishes a section's caption two ways. When it sits inside the
+ * `section_number` heading ("Sec. 3. APPROPRIATION EXTENSIONS.") the stored
+ * heading carries it and `splitSectionLabel` recovers it — 21% of sampled
+ * sections. When it sits in a sibling `<h3 class="headnote">` ("Health plan.")
+ * ingestion leaves it loose in the body — 60% — so it is promoted to `caption`
+ * here and rendered as the section's title. The opening amendment clause is
+ * promoted separately to `leadIn`: it names which law the section rewrites, so
+ * it is provenance above the title, not the title itself.
  */
 export function parseSectionBody(text: string, { hasTitle }: { hasTitle: boolean }): SectionBody {
   const paragraphs = cleanSectionText(text)
@@ -188,6 +282,18 @@ export function parseSectionBody(text: string, { hasTitle }: { hasTitle: boolean
   let leadIn: string | null = null;
   if (!hasTitle && paragraphs.length && isAmendmentClause(plainSectionText(paragraphs[0]))) {
     leadIn = paragraphs.shift() ?? null;
+  }
+
+  // Promote the caption only when the heading gave no title, only when it opens
+  // the body, and only when it is unchanged text. A struck caption stays in the
+  // body so its strike-through renders — shown as a title it would read as
+  // current law when the Legislature is removing it.
+  let caption: string | null = null;
+  if (!hasTitle && paragraphs.length) {
+    const first = paragraphs[0];
+    if (!HAS_MARKER.test(first) && isSubheading(plainSectionText(first))) {
+      caption = plainSectionText(paragraphs.shift() ?? '');
+    }
   }
 
   const blocks: SectionBlock[] = [];
@@ -202,22 +308,24 @@ export function parseSectionBody(text: string, { hasTitle }: { hasTitle: boolean
     blocks.push({ kind, text: paragraph });
   }
 
-  return { leadIn, blocks };
+  return { leadIn, caption, blocks };
 }
 
 /**
- * The short label a section index row shows under its number. Empty when the
- * source gives nothing to say, so the row shows its number alone rather than
- * repeating it as a label.
+ * The short label a section index row shows under its number — the same caption
+ * the section's own card shows, so a row and its destination read alike.
+ *
+ * A row never shows a truncated statute sentence: where the source names no
+ * caption (19% of sampled sections) the amendment clause is condensed to a short
+ * reference instead ("§ 115A.554"), which fits a row and still distinguishes it
+ * from its neighbours. Empty only when there is neither (6% of sections), where
+ * the number stands alone.
  */
 export function sectionIndexLabel(heading: string | null | undefined, text: string): string {
   const { title } = splitSectionLabel(heading);
   if (title) return title;
-  const { leadIn, blocks } = parseSectionBody(text, { hasTitle: false });
-  // Prefer the first subdivision headnote ("Due dates.") over the amendment
-  // clause: the clause is a long citation that truncates to the same
-  // "Minnesota Statutes 2024, section …" on row after row, making neighbouring
-  // rows indistinguishable.
-  const headnote = blocks.find((b) => b.kind === 'subheading')?.text;
-  return plainSectionText(headnote ?? leadIn ?? '');
+  const { leadIn, caption, blocks } = parseSectionBody(text, { hasTitle: false });
+  const headnote = caption ?? blocks.find((b) => b.kind === 'subheading')?.text;
+  if (headnote) return asHeadingCaption(plainSectionText(headnote)) ?? '';
+  return condenseStatuteRef(leadIn ?? blocks[0]?.text ?? '') ?? '';
 }
