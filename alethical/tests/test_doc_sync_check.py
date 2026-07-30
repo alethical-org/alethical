@@ -1,10 +1,15 @@
 """Unit coverage for the docs-drift guard (``scripts/check_doc_sync.py``).
 
 A guard that silently stops guarding is worse than no guard, because it reports
-success. These tests pin the two outcomes that matter, using the real change
-that motivated the script: PR #345 removed the "AI SUMMARY" eyebrow from
+success. These tests pin the outcomes that matter, using the real change that
+motivated the script: PR #345 removed the "AI SUMMARY" eyebrow from
 ``BillResultCard.tsx`` and left both the search spec and the plain-English guide
 claiming AI summaries are labelled.
+
+They also pin the Jul 30 2026 tightening: editing a doc is no longer an exemption,
+because two PRs an hour apart each edited one subsection of the billing guide,
+each passed on the strength of that edit, and each left the section above it
+false. See the script's own docstring for the incident.
 """
 
 from __future__ import annotations
@@ -50,9 +55,12 @@ def test_acknowledgement_in_the_body_passes(monkeypatch):
     )
 
 
-def test_updating_the_doc_itself_passes_without_a_body_line(monkeypatch):
-    # Someone who already fixed the guide shouldn't also have to write a line
-    # about having fixed it.
+def test_editing_the_doc_is_not_a_free_pass(monkeypatch):
+    # This used to pass, on the reasoning that someone who already fixed the guide
+    # shouldn't also write a line saying so. That assumed an edit implies a read.
+    # #784 and #785 each edited one subsection of the billing guide, each passed on
+    # the strength of that edit, and each left the section above it describing a
+    # runner that took neither discount — so the page contradicted itself, twice.
     assert (
         _run(
             monkeypatch,
@@ -62,6 +70,23 @@ def test_updating_the_doc_itself_passes_without_a_body_line(monkeypatch):
                 "docs/product-onboarding/bill-search-screen-spec.md",
             ],
             "Puts a quiet AI label back on the card.",
+        )
+        == 1
+    )
+
+
+def test_editing_the_doc_and_saying_so_passes(monkeypatch):
+    # The fix for the above is one sentence, not a doc rewrite. Naming what was
+    # reread is what makes a partial edit visible to a reviewer.
+    assert (
+        _run(
+            monkeypatch,
+            [
+                "apps/frontend/src/components/search/BillResultCard.tsx",
+                "docs/product-onboarding/search-bills-guide.md",
+            ],
+            "Docs check: reread search-bills-guide.md end to end; updated the card "
+            "section only, the rest still holds.",
         )
         == 0
     )

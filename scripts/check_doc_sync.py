@@ -49,6 +49,30 @@ would mean padding docs to please CI, and CI would deserve to be ignored.
 
 Exit status is non-zero only when the body has no such line, so the failure is
 always fixable by writing one sentence.
+
+**Editing the doc used to be a free pass. It no longer is (Jul 30 2026).** The
+original rule skipped a doc entirely if the PR touched it, on the reasoning that
+someone who already fixed the guide shouldn't have to also write a line saying
+so. That reasoning assumed an edit implies a read, and two PRs an hour apart
+proved it doesn't. #784 added a half-price batch queue to the enrichment runner
+and updated §4.1 of ``docs/product-onboarding/ai-models-and-billing.md``; #785
+added prompt caching and rewrote the same §4.1. Both passed this check on the
+strength of that edit. Neither looked at §4, one screen above, which still
+described a runner that took **neither** discount — so the guide contradicted
+itself within a page, and shipped that way twice.
+
+The instructive part is *why* a partial edit was so easy to mistake for a whole
+one. Of the four sentences left false in §4, only two carried a hedging word a
+grep could find ("*would* bill the same work at 50% off"). The most damaging one
+was a flat assertion with no tell at all: "the API path pays full list price."
+No pattern match finds that. Only reading the section does. So this check does
+not try to guess which sentences went stale — it makes the author state a
+conclusion about the doc as a whole, which is the cheapest checkable proxy for
+having read it.
+
+The cost of closing the hole is one sentence on a PR that both changes described
+code and edits its doc. That is a real cost and it is worth paying: the hole cost
+two PRs and a self-contradicting page in a public repo.
 """
 
 from __future__ import annotations
@@ -121,12 +145,11 @@ def main() -> int:
         return 0
 
     couplings = declared_couplings()
-    # Which declared docs describe something this PR touched, and were themselves
-    # left alone.
+    # Which declared docs describe something this PR touched. Editing the doc is
+    # deliberately NOT an exemption — see the module docstring: a partial edit
+    # passed this check twice while leaving the same file contradicting itself.
     stale: dict[str, list[str]] = {}
     for doc, globs in couplings.items():
-        if doc in changed:
-            continue
         hits = [
             path
             for path in changed
@@ -144,17 +167,23 @@ def main() -> int:
             print(f"  {doc} — describes {', '.join(sorted(hits))}")
         return 0
 
-    print("This PR changes code that a doc describes, and neither the doc nor a")
-    print("'Docs check:' line in the PR body says what happened about it.\n")
+    print("This PR changes code that a doc describes, and the PR body has no")
+    print("'Docs check:' line saying what happened about it.\n")
     for doc, hits in sorted(stale.items()):
-        print(f"  {doc}")
+        edited = " (this PR edits it)" if doc in changed else ""
+        print(f"  {doc}{edited}")
         print(f"    describes: {', '.join(sorted(hits))}")
     print()
-    print("Read each doc above and confirm it is still true of your change. Then")
-    print("either update it, or add one line to the PR body, e.g.:\n")
+    print("Read each doc above — the WHOLE doc, not just the part you edited — and")
+    print("confirm it is still true of your change. Then add one line to the PR")
+    print("body, e.g.:\n")
     print("  Docs check: none needed — internal refactor, no user-visible change")
-    print("  Docs check: updated search-bills-guide.md for the new sort labels\n")
-    print("Both answers pass. The point is that the doc got looked at.")
+    print("  Docs check: updated search-bills-guide.md for the new sort labels")
+    print("  Docs check: reread ai-models-and-billing.md §4 and §4.1; fixed §4\n")
+    print("Any of those passes. The point is that the doc got looked at, and that")
+    print("you say what you concluded. Editing part of a doc is not the same as")
+    print("having read it: a partial edit passed this check twice and shipped a")
+    print("page that contradicted itself.")
     return 1
 
 
