@@ -23,6 +23,8 @@ import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import { useBill, useSessions } from '../../hooks/useAppQueries';
+import { isNotFoundError } from '../../data/api';
+import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { Bill, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../components/search/searchPieces';
 import {
@@ -579,6 +581,15 @@ function BillDetailMobileScreen() {
               <Skeleton width="100%" height={140} radius={t.radii.card} style={styles.skGap24} />
             </View>
           </View>
+        ) : /* A bill that does not exist is a permanent answer, not a blip: say so
+              and give a way out, instead of inviting a retry that can never work
+              (#720). Same shared component the web screen renders. */
+        isNotFoundError(billQuery.error) ? (
+          <BillNotFound
+            billId={billId}
+            onBrowseBills={goToBillList}
+            onAsk={() => navigation.navigate('Ask')}
+          />
         ) : billQuery.isError || !bill || !vm ? (
           <View style={styles.stateBox}>
             <Text style={styles.stateText}>

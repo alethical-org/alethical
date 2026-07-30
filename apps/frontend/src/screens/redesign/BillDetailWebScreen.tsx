@@ -15,6 +15,8 @@ import { ActionsTab } from '../../components/billDetail/ActionsTab';
 import { VotesTab } from '../../components/billDetail/VotesTab';
 import { VersionsTab } from '../../components/billDetail/VersionsTab';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
+import { BillNotFound } from '../../components/billDetail/BillNotFound';
+import { isNotFoundError } from '../../data/api';
 import { Skeleton } from '../../components/Skeleton';
 
 const isWeb = Platform.OS === 'web';
@@ -116,6 +118,19 @@ export function BillDetailWebScreen() {
 
   if (billQuery.isLoading) {
     return shell(<BillBodySkeleton isDesktop={isDesktop} />, <BillHeroSkeleton />);
+  }
+
+  // A bill that does not exist is a permanent answer, not a blip: say so and give
+  // a way out, instead of inviting a retry that can never work (#720).
+  if (isNotFoundError(billQuery.error)) {
+    return shell(
+      <BillNotFound
+        billId={billId}
+        onBrowseBills={goToBillList}
+        onAsk={() => navigation.navigate('Ask')}
+      />,
+      null,
+    );
   }
 
   if (billQuery.isError || !bill) {
