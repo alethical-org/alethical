@@ -152,10 +152,26 @@ regression gets shipped.
 
 ## 6. Ranked roadmap
 
-Ordering note, and a correction to the outside review that proposed it: the
-**privacy and retention decision comes before the evidence receipt**, because a
-receipt can contain a reader's own question. Building the store first means
-retrofitting it.
+**The sequencing rule, so this order stops getting re-proposed.** Two outside
+reviews have now suggested different orderings, both reasonable, neither grounded in
+a stated rule. The rule is:
+
+1. **A true dependency forces order.** The only one here: the retention policy
+   (#803) precedes evidence receipts (#801), because a receipt can contain a
+   reader's own question, and building the store first means retrofitting it.
+2. **Reader-visible failures outrank internal capability.** An error page a reader
+   hits today beats a policy document that blocks nothing but item 5.
+3. **Prevention outranks diagnosis.** Freshness gating (#800) stops a confidently
+   stale answer reaching a reader; receipts (#801) help explain one after the fact.
+   `.claude/rules/grounded-answers.md` rule 7 calls the stale answer the sneakier
+   failure, so the gate goes first.
+4. **Already-measured and bounded work runs in parallel**, not at the end of the
+   queue.
+
+Two reorderings were proposed and declined on that basis: moving the retention
+policy ahead of the retry fix (no dependency justifies delaying a live error path),
+and moving receipts ahead of freshness gating (diagnosis before prevention).
+Reopening the order needs a new dependency or new evidence, not a new preference.
 
 1. **Per-job retry budgets and honest degradation** —
    [#780](https://github.com/alethical-org/alethical/issues/780). Done when
