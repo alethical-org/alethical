@@ -31,12 +31,29 @@ export interface TextRun {
   text: string;
 }
 
-/** One paragraph of a section body, classified for rendering. */
-export type SectionBlockKind = 'subheading' | 'clause' | 'subclause' | 'para';
+/** One paragraph — or one table — of a section body, classified for rendering. */
+export type SectionBlockKind = 'subheading' | 'clause' | 'subclause' | 'para' | 'table';
 
 export interface SectionBlock {
   kind: SectionBlockKind;
   text: string;
+  /** Present only on a `table` block: the rows, tidied for laying out. */
+  table?: SectionTable;
+}
+
+/** A table ready to lay out: equal-width rows, no spacer columns, and the year
+ *  headers for its figure columns when the article published them. */
+export interface SectionTable {
+  /** Column labels above the figure columns ("2026", "2027"), or null when the
+   *  article names none. Never invented — only carried from the article's own
+   *  header row. */
+  columnLabels: string[] | null;
+  rows: SectionTableCell[][];
+}
+
+export interface SectionTableCell {
+  text: string;
+  align: 'left' | 'right' | 'center';
 }
 
 /** One cell of a table ingestion captured from the bill's own markup. */
@@ -376,6 +393,118 @@ export function parseSectionBody(text: string, { hasTitle }: { hasTitle: boolean
   return { leadIn, caption, blocks };
 }
 
+// A column header in an appropriation table is a bare fiscal year.
+const FISCAL_YEAR = /^\d{4}$/;
+// The Revisor lays an appropriation out with a narrow spacer column holding a
+// lone "$" in front of each figure column. That is why the flattened text put the
+// dollar sign on one line and its amount on the next (#752) — they are two real
+// cells. They are one value, so they are joined back together.
+const CURRENCY_SYMBOL_ONLY = /^\$$/;
+
+const EMPTY_CELL: SectionTableCell = { text: '', align: 'left' };
+
+function cellPlainText(cell: { text: string }): string {
+  return plainSectionText(cell.text).trim();
+}
+
+/**
+ * Join a lone "$" cell to the figure beside it, keeping any change marks.
+ *
+ * Butted straight together, with no space: a space between two marker runs is a
+ * plain run of its own, so it survives into "$ 739,634,000". Two marker pairs
+ * back to back still parse — each closes on its own end marker — and adjacent
+ * runs of the same kind merge, so the reader sees one underlined "$739,634,000".
+ */
+function joinCurrency(symbol: string, figure: string): string {
+  return `${symbol.trim()}${figure.trim()}`;
+}
+
+/**
+ * One source row, ready to lay out: empty spacer cells dropped, each lone "$"
+ * folded into its figure. Column spans need no arithmetic because empty cells are
+ * gone — a caption row comes back as one cell and a figure row as label + figures,
+ * which is what the layout needs to know.
+ */
+function tidyTableRow(row: SourceTableCell[]): SectionTableCell[] {
+  const cells: SectionTableCell[] = [];
+  let pendingCurrency: string | null = null;
+  for (const cell of row) {
+    const plain = cellPlainText(cell);
+    if (!plain) continue;
+    if (CURRENCY_SYMBOL_ONLY.test(plain)) {
+      pendingCurrency = cell.text;
+      continue;
+    }
+    const text = pendingCurrency ? joinCurrency(pendingCurrency, cell.text) : cell.text;
+    pendingCurrency = null;
+    cells.push({ text, align: cell.align ?? 'left' });
+  }
+  // A "$" with nothing after it still has to show; dropping it would lose a mark
+  // the Legislature made.
+  if (pendingCurrency) cells.push({ text: pendingCurrency, align: 'right' });
+  return cells;
+}
+
+function isFiscalYearRow(cells: SectionTableCell[]): boolean {
+  return cells.length >= 2 && cells.every((cell) => FISCAL_YEAR.test(cellPlainText(cell)));
+}
+
+/**
+ * The fiscal years an appropriation article uses as its column headers, or null.
+ *
+ * The Revisor publishes them in the article's **first** section ("The figures
+ * '2026' and '2027' used in this article mean…"), while the figures they head are
+ * in the sections after it — so a section usually cannot label its own columns and
+ * the caller has to carry these across the article.
+ */
+export function appropriationColumnLabels(blocks: SourceBlock[]): string[] | null {
+  for (const block of blocks) {
+    if (block.kind !== 'table') continue;
+    for (const row of block.rows) {
+      const cells = tidyTableRow(row);
+      if (isFiscalYearRow(cells)) return cells.map(cellPlainText);
+    }
+  }
+  return null;
+}
+
+/**
+ * A captured table, ready to lay out — or null when it is not really a table, in
+ * which case the caller falls back to rendering its cells as paragraphs.
+ */
+export function tidyTable(
+  rows: SourceTableCell[][],
+  columnLabels: string[] | null,
+): SectionTable | null {
+  const tidied = rows.map(tidyTableRow).filter((row) => row.length > 0);
+  const data = tidied.filter((row) => !isFiscalYearRow(row));
+  const dataWidth = data.length ? Math.max(...data.map((row) => row.length)) : 0;
+  const own = tidied.find(isFiscalYearRow);
+
+  // A year row inside the table becomes its header — but ONLY when it fits: there
+  // must be figure rows for it to head, and one year per figure column. Lifting it
+  // out otherwise would drop the years off the page entirely, since a header that
+  // does not fit is not shown. In the article's opening section nothing fits,
+  // because the years ARE the content there, so the row stays a row.
+  const ownLabels =
+    own && dataWidth >= 2 && own.length === dataWidth - 1 ? own.map(cellPlainText) : null;
+  const bodyRows = ownLabels ? data : tidied;
+  const width = bodyRows.length ? Math.max(...bodyRows.map((row) => row.length)) : 0;
+  if (width < 2) return null;
+
+  return {
+    // Only label the figure columns, and only when the count matches exactly. A
+    // mismatch means these years do not describe this table, and guessing would
+    // put a year over a figure that is not from that year.
+    columnLabels:
+      ownLabels ?? (columnLabels && columnLabels.length === width - 1 ? columnLabels : null),
+    rows: bodyRows.map((row) => [
+      ...row,
+      ...Array.from({ length: width - row.length }, () => EMPTY_CELL),
+    ]),
+  };
+}
+
 /** "Subd. 3. Health plan." — the number and title the Legislature published,
  *  joined the way it writes them. Either half may be missing. */
 export function headingLabel(block: { number?: string | null; text?: string | null }): string {
@@ -410,12 +539,14 @@ export function blockTexts(blocks: SourceBlock[]): string[] {
  * `caption`, everything else to the body — so a card that was already right stays
  * right, and the ones that were guessed now carry their real "Subd. 3." number.
  *
- * A captured table is flattened back to one paragraph per cell here, which is
- * exactly how it renders today. Laying it out as a table is #752.
+ * A captured table becomes a `table` block where it really is a table, and falls
+ * back to one paragraph per cell where it isn't (#752). `columnLabels` are the
+ * fiscal years the appropriation article published, which the caller carries in
+ * because they live in a different section from the figures they head.
  */
 export function parseStructuredBody(
   blocks: SourceBlock[],
-  { hasTitle }: { hasTitle: boolean },
+  { hasTitle, columnLabels = null }: { hasTitle: boolean; columnLabels?: string[] | null },
 ): SectionBody {
   const items = [...blocks];
 
@@ -457,7 +588,30 @@ export function parseStructuredBody(
       const label = headingLabel(item);
       if (label) body.push({ kind: 'subheading', text: label });
     } else if (item.kind === 'table') {
-      for (const row of item.rows) for (const cell of row) pushParagraph(cell.text);
+      const table = tidyTable(item.rows, columnLabels);
+      // Not really a table — one column, or nothing left once the spacer cells
+      // are gone. Its words still have to show, so they render as paragraphs.
+      if (!table) {
+        for (const row of item.rows) for (const cell of row) pushParagraph(cell.text);
+        continue;
+      }
+      // The Revisor publishes each budget line as its OWN one-row table, so a
+      // subdivision's figures arrive as a run of tables that are one table to a
+      // reader. Left apart, the fiscal-year header repeats above every single
+      // line. Joined only while nothing comes between them and the shape matches,
+      // so a heading still starts a new group — which is what the Legislature's
+      // own grouping means.
+      const previous = body[body.length - 1];
+      if (
+        previous?.kind === 'table' &&
+        previous.table &&
+        previous.table.rows[0].length === table.rows[0].length &&
+        String(previous.table.columnLabels) === String(table.columnLabels)
+      ) {
+        previous.table.rows.push(...table.rows);
+      } else {
+        body.push({ kind: 'table', text: '', table });
+      }
     } else {
       pushParagraph(item.text);
     }
@@ -488,5 +642,12 @@ export function sectionIndexLabel(
     : parseSectionBody(text, { hasTitle: false });
   const headnote = caption ?? blocks.find((b) => b.kind === 'subheading')?.text;
   if (headnote) return asHeadingCaption(plainSectionText(headnote)) ?? '';
-  return condenseStatuteRef(leadIn ?? blocks[0]?.text ?? '') ?? '';
+  // A table block carries no text of its own, so reach past it for the citation —
+  // otherwise an appropriation section with no caption gets a blank row.
+  const opening =
+    leadIn ??
+    blocks.find((b) => b.kind !== 'table')?.text ??
+    blocks.find((b) => b.kind === 'table')?.table?.rows[0]?.[0]?.text ??
+    '';
+  return condenseStatuteRef(opening) ?? '';
 }

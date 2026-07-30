@@ -124,6 +124,42 @@ Rules for a caption used as a heading:
 - **A real section header is never absorbed into a body.** Anything matching `Sec. N.` is excluded
   from the sub-heading treatment.
 
+## Appropriation tables render as tables
+
+A budget section is real `<table>` markup in the source, and flattening it put each cell on its own
+line — a dollar sign, then its amount, then a second amount with nothing saying which year either
+belonged to ([#752](https://github.com/alethical-org/alethical/issues/752)). Ingestion captures the
+rows (`body_blocks`), and the tab lays them out. Five rules, each from something measured in the
+Revisor's own markup:
+
+- **A lone `$` is joined to the figure beside it.** It sits in a 3.8%-wide spacer column of its own,
+  so "$" and "739,634,000" are two genuine cells; 542 of them across the sampled corpus. Joined with
+  no space between: a space between two change-marked runs is a plain run of its own and survives into
+  "$ 739,634,000".
+- **Spacer columns are dropped**, so figures line up down a column, which is the whole reason to lay
+  this out as a table. Column spans need no arithmetic once empty cells are gone — a caption row comes
+  back as one cell and a figure row as label + figures.
+- **The fiscal years sit above the figures they head, and are never invented.** They are published in
+  the appropriation article's **first** section ("The figures '2026' and '2027' used in this
+  article…"), while the figures are in the sections after it, so `FullTextTab` collects them per
+  article and passes them in. A table is labelled only when it has exactly one year per figure column;
+  a mismatch shows no header rather than putting a year over a figure that is not from that year.
+- **Adjacent tables of the same shape are joined.** Each budget line is published as its own one-row
+  table, so a subdivision's figures arrive as a run of tables that are one table to a reader — 493
+  source tables become 419 blocks. Left apart, the year header repeated above every single line. Only
+  while nothing comes between them, so a subdivision heading or a sentence of prose still starts a new
+  group, which is what the Legislature's own grouping means.
+- **A year row stays a row when there are no figures for it to head.** In the article's opening
+  section the years *are* the content; lifting them into a header there would leave a header with
+  nothing under it and take the years off the page.
+
+**Anything that is not really a table falls back to paragraphs** — one column, or nothing left once
+the spacers are gone (4 of 497 sampled tables). Its words still show.
+
+On a narrow screen the row **stacks**: the label on its own line, then one line per figure carrying
+its own year ("2026 $739,634,000"). Three columns of statute prose and money do not fit on a phone,
+and pairing each figure with its year means nothing depends on remembering column order.
+
 ## Section index
 
 A sticky right-hand rail, 244px wide, 56px gap, shown on desktop for **any bill with 2 or more
@@ -251,9 +287,11 @@ jump landing at 90px from several starting scroll positions and from both entry 
 
 ## Out of scope for this tab
 
-- **Laying out appropriation tables as tables** — [#752](https://github.com/alethical-org/alethical/issues/752).
-  Ingestion now *captures* the rows and cells (`body_blocks`), but the tab still renders one paragraph
-  per cell, so a budget section still reads as a column of stray numbers (43 of 1,064 multi-paragraph
-  sections sampled). One measured constraint for that work: the year headers ("2026", "2027") are
-  published in the appropriation article's *first* section, while the figures they head are in the
-  sections after it, so labelling a money column means carrying the header across sections.
+- **A screen reader hears an appropriation table as a plain grid of text**, row by row, because
+  RN-Web has no table role to give it. The header row is read before the rows, and the narrow-screen
+  form pairs each figure with its year in the visible text, so the information is reachable — but it
+  is not announced as a table with column headers. Improving that means real table semantics on web,
+  which is its own piece of work.
+- **Recovering sections a bill's page loses entirely** — [#763](https://github.com/alethical-org/alethical/issues/763).
+  Where a page repeats one section id, only the last of them is stored, so 6 of the 12 largest bills
+  are missing sections. This tab renders what the corpus has; the gap is at ingest.

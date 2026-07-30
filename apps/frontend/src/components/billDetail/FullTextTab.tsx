@@ -6,12 +6,14 @@ import { Bill } from '../../data/types';
 import { useBillVersionText } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
+  appropriationColumnLabels,
   asHeadingCaption,
   blockTexts,
   changeKindsPresent,
   parseChangeRuns,
   parseSectionBody,
   parseStructuredBody,
+  SectionTable,
   sectionIndexLabel,
   splitSectionLabel,
   TextRun,
@@ -77,6 +79,86 @@ function ChangeRuns({ runs, style }: { runs: TextRun[]; style: object | object[]
   );
 }
 
+/**
+ * An appropriation table, laid out as a table.
+ *
+ * The Legislature publishes a budget section as real `<table>` markup, and
+ * flattening it to text put each cell on its own line — a dollar sign, then its
+ * amount, then a second amount with nothing saying which year either belonged to
+ * (#752). Ingestion now captures the rows, so:
+ *
+ * - the fiscal years sit above the figure columns they head, when the article
+ *   published them (they live in the article's FIRST section, so they are carried
+ *   in from there — never invented, and never shown when the column count
+ *   disagrees);
+ * - on a narrow screen the same row stacks, pairing each figure with its own year,
+ *   because three columns of statute text and money do not fit on a phone.
+ */
+function AppropriationTable({ table, narrow }: { table: SectionTable; narrow: boolean }) {
+  const { columnLabels, rows } = table;
+
+  if (narrow) {
+    return (
+      <View style={styles.tableStack}>
+        {rows.map((row, rowIndex) => {
+          const [label, ...figures] = row;
+          return (
+            <View key={rowIndex} style={styles.stackRow}>
+              {label.text ? (
+                <ChangeRuns runs={parseChangeRuns(label.text)} style={styles.stackLabel} />
+              ) : null}
+              {figures.map((cell, figureIndex) =>
+                cell.text ? (
+                  <View key={figureIndex} style={styles.stackFigure}>
+                    {columnLabels?.[figureIndex] ? (
+                      <Text style={styles.stackYear}>{columnLabels[figureIndex]}</Text>
+                    ) : null}
+                    <ChangeRuns runs={parseChangeRuns(cell.text)} style={styles.stackValue} />
+                  </View>
+                ) : null,
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.table}>
+      {columnLabels ? (
+        <View style={[styles.tableRow, styles.tableHeaderRow]}>
+          <View style={styles.tableLabelCell} />
+          {columnLabels.map((label, index) => (
+            <View key={index} style={styles.tableFigureCell}>
+              <Text style={styles.tableHeaderText}>{label}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.tableRow}>
+          {row.map((cell, cellIndex) => (
+            <View
+              key={cellIndex}
+              style={cellIndex === 0 ? styles.tableLabelCell : styles.tableFigureCell}
+            >
+              <ChangeRuns
+                runs={parseChangeRuns(cell.text)}
+                style={[
+                  styles.tableCellText,
+                  cellIndex > 0 && styles.tableFigureText,
+                  cell.align === 'center' && styles.tableCellCentre,
+                ]}
+              />
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export function FullTextTab({
   bill,
   targetSectionId,
@@ -119,6 +201,22 @@ export function FullTextTab({
     [bill.citations],
   );
 
+  // An appropriation article states its fiscal years once, in its FIRST section,
+  // and puts the figures they head in the sections after it — so a figure table
+  // cannot label its own columns. Collected per article here, in source order, so
+  // the years are known by the time a later section needs them (#752).
+  const columnLabelsByArticle = useMemo(() => {
+    const labels = new Map<string, string[]>();
+    for (const section of sections) {
+      if (!section.bodyBlocks?.length) continue;
+      const key = section.articleHeading ?? '';
+      if (labels.has(key)) continue;
+      const years = appropriationColumnLabels(section.bodyBlocks);
+      if (years) labels.set(key, years);
+    }
+    return labels;
+  }, [sections]);
+
   const parsed = useMemo(
     () =>
       sections.map((section) => {
@@ -127,14 +225,17 @@ export function FullTextTab({
         // (`bodyBlocks`, #741); fall back to inferring them from the flattened
         // text on any section not yet re-read from the Revisor.
         const body = section.bodyBlocks?.length
-          ? parseStructuredBody(section.bodyBlocks, { hasTitle: !!title })
+          ? parseStructuredBody(section.bodyBlocks, {
+              hasTitle: !!title,
+              columnLabels: columnLabelsByArticle.get(section.articleHeading ?? '') ?? null,
+            })
           : parseSectionBody(section.text ?? '', { hasTitle: !!title });
         // The Legislature's caption, wherever it was published: fused into the
         // stored heading on some bills, a subdivision headnote on others.
         const heading = title ?? asHeadingCaption(body.caption);
         return { section, number, heading, body };
       }),
-    [sections],
+    [sections, columnLabelsByArticle],
   );
 
   // Only claim the treatments this bill actually shows (grounded-answers rule 6).
@@ -354,6 +455,11 @@ export function FullTextTab({
               ) : null}
 
               {body.blocks.map((block, blockIndex) => {
+                if (block.kind === 'table' && block.table) {
+                  return (
+                    <AppropriationTable key={blockIndex} table={block.table} narrow={isMobile} />
+                  );
+                }
                 const runs = parseChangeRuns(block.text);
                 if (block.kind === 'subheading') {
                   return (
@@ -540,6 +646,76 @@ const styles = StyleSheet.create({
   // ~263px card), so the same structure reads at a narrower step on mobile.
   clauseNarrow: { paddingLeft: 26, textIndent: -14 } as object,
   subclauseNarrow: { paddingLeft: 44, textIndent: -14 } as object,
+  // An appropriation table. Ruled rows rather than a full grid: money reads down a
+  // column, so the vertical lines a full grid would add are noise, while a rule
+  // under each row is what keeps a figure tied to its label across the gap.
+  table: {
+    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: t.colors.alpha.ink08,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: t.colors.alpha.ink08,
+  },
+  tableHeaderRow: { borderBottomColor: t.colors.alpha.ink08, paddingBottom: 5 },
+  // The label carries statute prose and wraps; a figure never does, so the label
+  // takes the slack.
+  tableLabelCell: { flex: 2, minWidth: 0 },
+  tableFigureCell: { flex: 1, minWidth: 0 },
+  tableCellText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 22,
+    color: t.colors.text.secondary,
+  },
+  // Figures right-align so their digits line up down the column, which is the
+  // whole reason to lay this out as a table.
+  tableFigureText: { textAlign: 'right', fontVariant: ['tabular-nums'] },
+  tableCellCentre: { textAlign: 'center' },
+  tableHeaderText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.3,
+    textAlign: 'right',
+    color: t.colors.text.muted,
+  },
+  // Phone form: the row stacks, and each figure carries its own year, so the
+  // header row is not needed and nothing depends on remembering column order.
+  tableStack: { marginTop: 14, gap: 12 },
+  stackRow: {
+    gap: 4,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: t.colors.alpha.ink08,
+  },
+  stackLabel: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.semibold,
+    lineHeight: 21,
+    color: t.colors.text.primary,
+  },
+  stackFigure: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  stackYear: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.3,
+    color: t.colors.text.muted,
+  },
+  stackValue: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    color: t.colors.text.secondary,
+    fontVariant: ['tabular-nums'],
+  },
   removed: {
     textDecorationLine: 'line-through',
     color: t.colors.text.faint,
