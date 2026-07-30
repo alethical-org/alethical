@@ -245,7 +245,74 @@ default (Tier C, Aug 1 or July 1 after signing), and the remaining ~49% genuinel
 effect on different dates section by section and fall back to the latest action date.
 This costs **no model money** — it reads bill text already in our database.
 
-## 6. Takeaways for scaling
+## 6. What we measure, and what we deliberately don't
+
+Three kinds of AI quality, three different answers. Knowing which box a question falls in
+saves re-litigating the tooling every time.
+
+| What | Covered? | By what |
+|---|---|---|
+| Does search find the right bill? | ✅ Yes | [`scripts/retrieval_eval.py`](../../scripts/retrieval_eval.py) against 20 real questions ([`retrieval_queries.json`](../../alethical/eval/fixtures/retrieval_queries.json)). Grades recall@1/3/5/10 and MRR, and its `head2head` mode compares embedding models (OpenAI vs Voyage) head to head. **This is the gate — don't replace or wrap it.** |
+| Do generated answers always cite a source? | ✅ Yes | 12 deterministic pass/fail checks in [`test_ask_scenarios.py`](../../alethical/tests/test_ask_scenarios.py), enforcing `.claude/rules/grounded-answers.md` rule 1. Runs in CI. |
+| Does one model *write* better bill summaries than another? | ❌ No | Nothing. The #377 choice of Claude Sonnet 5 was a one-off nobody can re-run. Tracked as [#787](https://github.com/alethical-org/alethical/issues/787). |
+
+**The plan for the gap is a ~200-line script in this repo, not an evaluation framework.**
+Inspect AI was evaluated in full and rejected. It genuinely supports the providers' bulk
+lanes and has a results viewer — and it still loses, for one reason that outranks all of
+that: it would not call `ai_enrichment.py prepare`, so we would rebuild bill-text-to-prompt
+inside its dataset layer. That step tags each excerpt (`[S1]`, `[S2]`) so the model's quoted
+proof can be traced back to a real `BillVersionSection`. Rebuild it and the evaluation grades
+a prompt that is not provably the production one, which is the whole purpose. Its remaining
+infrastructure — bulk submission, resume-after-interruption — is what
+[#784](https://github.com/alethical-org/alethical/pull/784) and
+[#785](https://github.com/alethical-org/alethical/pull/785) already shipped, and the scorers
+would be Alethical-specific either way.
+
+**Reconsider a framework only if running the comparisons by hand becomes the burden** — never
+to reach a model we lack an account for. That is a *gateway's* job, not a framework's, and
+the two are easy to confuse. We hold OpenAI, Anthropic and Voyage keys, which covers every
+current candidate.
+
+Two traps recorded because both are easy to fall into:
+
+- **The automatic citation check is a traceability check, not fact-checking.** It proves a
+  quote exists in the bill. A quote can be perfectly real and still not support the sentence
+  next to it. A high score here must never be read as "the summary is true."
+- **A single "writing quality" number hides the failures that matter.** A summary can read
+  beautifully and be wrong. So the automatic checks are a *gate* (fail them and you are out),
+  and the human pass is a blinded side-by-side with "tie" and "both fail" allowed. Full method
+  in [#787](https://github.com/alethical-org/alethical/issues/787).
+
+## 7. How we choose AI infrastructure — the factors, in priority order
+
+Every AI-infrastructure decision recorded in this file resolved against the same six
+factors, and they only settle anything because they are *ordered*. Correctness outranks
+money, and money only counts when the amount is real.
+
+1. **Don't rebuild how a bill becomes a prompt.** Highest, because it is about being right
+   rather than cheap. This alone rejected Inspect AI (§6).
+2. **Don't give up the bulk lane's 50%.** The largest real money in play. This rejected
+   Vercel AI Gateway outright (§4.1).
+3. **Don't add a company that has to be up.** Applies whenever a job overwrites live pages.
+4. **Don't rebuild what we already have.** Search grading, citation checks, the bulk lane,
+   resume-after-interruption and the citation counter all exist.
+5. **Don't pay a fee for something we already hold.** OpenRouter's 5.5% top-up charge, on
+   accounts we already have.
+6. **Don't take on risk for small money.** Lowest, and it is the tie-break.
+
+**The ordering earns its keep when factors collide, which they did twice:**
+
+- Factor 6 beat factor 2 on [#723](https://github.com/alethical-org/alethical/issues/723).
+  The bulk lane was correct at 3,222 bills (saving $88); once only 388 remained the saving
+  fell to ~$13 against a full day of waiting, and the same rule flipped. **Item count is not
+  the rule — urgency and the dollar gap are.**
+- Factor 6 also kept prompt caching out of the bulk lane (§4, "Both lanes are now wired up"):
+  ~$5 expected, on a swing that could cost money, during a production write.
+
+**Factor 4 is why "we might want it later" is never an argument.** Building for a need we do
+not have is the same mistake as rebuilding something that already works.
+
+## 8. Takeaways for scaling
 
 - **Any new _text_ feature** (better summaries, new answer types, new suggested-question
   styles) is generation → can use the subscription **or** the API.
