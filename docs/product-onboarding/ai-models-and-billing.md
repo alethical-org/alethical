@@ -330,3 +330,5 @@ not have is the same mistake as rebuilding something that already works.
   text (that enrichment reads) and the embeddings (that retrieval uses) come from.
 - [RAG ingestion system design](../architecture/layer-2-rag-ingestion-system-design.md) — the embedding /
   retrieval pipeline in depth.
+- [AI platform position](../architecture/ai-platform-position.md) — why we buy from
+  these providers directly, what we refuse to adopt, and what would change it.
