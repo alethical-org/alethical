@@ -1042,6 +1042,41 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
     assert detail_payload["ai_summary"]["truncated_source"] is False
 
 
+def test_bill_detail_serves_a_bill_that_has_no_ai_enrichment_yet(client):
+    """A bill we carry but have not enriched yet serves 200 with a null analysis.
+
+    Enrichment is a separate paid step that always lags ingestion, so unenriched
+    bills are a normal state, not an error. This route used to raise 404 when
+    ``include`` asked for ``ai_analysis`` and none existed (#44) — invisible while
+    every bill happened to be enriched, and then very visible the moment the 2025
+    first special session landed (#746): all 46 of its bills were the only
+    unenriched rows in production, the frontend requests ``ai_analysis`` on every
+    bill page, and so every one of them rendered "We couldn't find that bill" for a
+    bill the API itself served fine without the include. A missing summary must
+    degrade to a page without a summary, never to a claim that we don't carry it.
+
+    ``94-2025-HF9901`` is the fixture bill seeded with no enrichment
+    (``scripts/load_sample_data.py``, ``seed_bill_without_rag_chunks``).
+    """
+    response = client.get(
+        "/api/v1/bills/94-2025-HF9901",
+        params={"include": "ai_analysis,ai_summary"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["id"] == "94-2025-HF9901"
+    # The route drops every null field from the payload, so "no enrichment" reads
+    # as the keys being absent rather than present-and-null. The frontend already
+    # types both as optional and maps a missing one to null, so an absent key and a
+    # null key are the same thing to it.
+    assert "ai_analysis" not in payload
+    assert "ai_summary" not in payload
+    # The rest of the bill still serves normally — only the generated fields drop
+    # out, so nothing else on the page loses its data.
+    assert payload["title"] == "No chunks test bill"
+
+
 def test_bill_detail_serves_question_prompts_with_fallback(client):
     """The bill page's Ask card sources its chips from ai_analysis.question_prompts
     (#550, grounded-answers rule 2): a re-enriched bill serves its generated
