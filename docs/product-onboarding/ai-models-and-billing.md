@@ -64,12 +64,16 @@ can ride the subscription. **Retrieval is the outlier** — it's embeddings, so 
 
 The batch runner ([`anthropic_enrichment.py`](../../alethical/pipeline/anthropic_enrichment.py),
 built on the shared prompt/schema in [`ai_enrichment.py`](../../alethical/pipeline/ai_enrichment.py))
-has three steps. Only one costs model money.
+has three stages: build the prompts, have the model write, then file the results. Only
+the middle stage costs model money, and it is the only one with a choice to make —
+either wait-and-watch (`generate`) or hand-over-and-come-back (`batch-submit` then
+`batch-collect`).
 
 | Step | What it does | Uses a model? | Billing |
 |---|---|---|---|
 | `prepare` | Builds each bill's prompt from text already in our database | No | Free (database) |
-| `generate` | The model writes the JSON (summary, key points, questions, citations, tags) | **Yes** | Subscription (`--provider claude-cli`) **or** API credits (`--provider api`) |
+| `generate` | The model writes the JSON (summary, key points, questions, citations, tags), one bill at a time or many at once, while you wait | **Yes** | Subscription (`--provider claude-cli`) **or** API credits (`--provider api`) |
+| `batch-submit` + `batch-collect` | The same writing job, handed over as one big file and picked up later at half price | **Yes** | API credits only |
 | `apply` | Writes the results into the database (dry-run first) | No | Free (database) |
 
 **Analogy:** `prepare` = write the assignment, `generate` = the writer does it,
@@ -87,16 +91,21 @@ for roughly the **same total dollar cost**. So the choice is *not* about money �
 API credits; the parallel API path when speed matters. Either way it's checkpointed and
 resumable — it skips bills already done, so a paused run costs nothing to restart.
 
-**"Many bills at once" is not the discounted bulk lane — the API path pays full
-list price.** It fires ordinary real-time calls (`POST /v1/messages`) from a pool of
-concurrent workers, which is what buys the ~1 hour. Anthropic's **Message Batches
-API** *would* bill the same work at **50% off**, but it is best-effort with an SLA of
-up to 24 hours, so taking the discount gives back the entire speed advantage that is
-the reason to use the API path at all. The OpenAI path
-([`ai_enrichment.py`](../../alethical/pipeline/ai_enrichment.py)) *does* use its
-provider's discounted batch queue, which is why that one is cheap and slow. Don't read
-"batch" as "discount" when comparing the two — the mode/tier tradeoff is worked through
-in [#457](https://github.com/alethical-org/alethical/issues/457).
+**"Many bills at once" is not the same thing as the half-price lane, and we now have
+both.** `generate` fires ordinary real-time calls (`POST /v1/messages`) from a pool of
+workers all running together, which is what buys the ~1 hour — but running them
+together is not what earns a discount, so `generate` pays **full list price** for the
+words it sends and receives. The discount is earned by *waiting*: `batch-submit` hands
+the whole job over as one file and `batch-collect` picks it up whenever the provider
+has got to it, up to 24 hours later, for **half price**. So the two are not rival
+readings of one command — they are two commands, and §4.1 below says which discount
+each one takes.
+
+The OpenAI path ([`ai_enrichment.py`](../../alethical/pipeline/ai_enrichment.py)) has
+always used its provider's half-price queue, which is why that one is cheap and slow.
+**The lesson to carry away is that "batch" in a command name never means "discount" by
+itself** — read whether the command *waits*. The full mode-and-tier comparison is
+worked through in [#457](https://github.com/alethical-org/alethical/issues/457).
 
 ### 4.1 Where the 50% bulk discount comes from, and who can reach it
 
