@@ -681,6 +681,19 @@ def current_summary_content(bill: Any) -> dict[str, Any] | None:
     return None
 
 
+def current_key_point_count(bill: Any) -> int | None:
+    """How many `key_points` the bill's CURRENT bill_summary carries, or None when
+    it has no current summary (or one with no key-point array). Model-agnostic on
+    purpose: this screens on what the bill *displays today*, not on which model
+    produced it. Used by `prepare --min-key-points` to re-run only the bills whose
+    lists the consolidation rule (#722/#725) would shorten (#723)."""
+    content = current_summary_content(bill)
+    if content is None:
+        return None
+    points = content.get("key_points")
+    return len(points) if isinstance(points, list) else None
+
+
 def short_title_prompt(bill: Any) -> tuple[str, str]:
     metadata = {
         "bill_key": bill.bill_key,
@@ -762,10 +775,20 @@ def prepare_batch(args: argparse.Namespace) -> None:
     skipped_existing_current = 0
     skipped_existing_title = 0
     skipped_no_summary = 0
+    skipped_key_points_below = 0
+    min_key_points = getattr(args, "min_key_points", None)
     with Session(engine) as db, jsonl_path.open("w", encoding="utf-8") as handle:
         for bill in bills_for_batch(
             db, session_slug=args.session, bill_key=args.bill_key, limit=args.limit
         ):
+            if min_key_points is not None:
+                # Screen on the bill's CURRENT key-point count. A bill with no
+                # current summary has nothing to re-consolidate, so it is skipped
+                # too rather than treated as zero.
+                count = current_key_point_count(bill)
+                if count is None or count < min_key_points:
+                    skipped_key_points_below += 1
+                    continue
             if (
                 not titles_only
                 and getattr(args, "only_missing_current", False)
@@ -850,6 +873,7 @@ def prepare_batch(args: argparse.Namespace) -> None:
                 "skipped_existing_current": skipped_existing_current,
                 "skipped_existing_title": skipped_existing_title,
                 "skipped_no_summary": skipped_no_summary,
+                "skipped_key_points_below": skipped_key_points_below,
                 "jsonl_path": str(jsonl_path),
                 "manifest_path": str(manifest_path),
             },
@@ -1144,6 +1168,17 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--max-input-chars", type=int, default=60_000)
     prepare.add_argument("--force", action="store_true")
     prepare.add_argument("--only-missing-current", action="store_true")
+    prepare.add_argument(
+        "--min-key-points",
+        type=int,
+        default=None,
+        help=(
+            "Only include bills whose CURRENT bill_summary carries at least N "
+            "key points (any model). The screen for a re-consolidation run: "
+            "--min-key-points 7 selects exactly the bills showing more than six "
+            "(#723). Bills with no current summary are skipped."
+        ),
+    )
     prepare.add_argument(
         "--titles-only",
         action="store_true",
