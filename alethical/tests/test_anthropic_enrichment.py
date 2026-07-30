@@ -51,7 +51,10 @@ def test_call_anthropic_returns_validated_content(monkeypatch) -> None:
             pass
 
         def json(self) -> dict:
-            return {"content": [{"type": "text", "text": json.dumps(valid)}]}
+            return {
+                "content": [{"type": "text", "text": json.dumps(valid)}],
+                "usage": {"input_tokens": 11, "cache_read_input_tokens": 2698},
+            }
 
     calls: dict = {}
 
@@ -62,11 +65,92 @@ def test_call_anthropic_returns_validated_content(monkeypatch) -> None:
         return FakeResp()
 
     monkeypatch.setattr(ae.requests, "post", fake_post)
-    out = ae._call_anthropic("key", "claude-sonnet-5", "sys", "user", 8192)
+    out, usage = ae._call_anthropic("key", "claude-sonnet-5", "sys", "user", 8192)
     assert out["confidence"] in {"low", "medium", "high"}
     assert calls["url"] == ae.ANTHROPIC_API_URL
     assert calls["model"] == "claude-sonnet-5"
     assert calls["has_system"] is True
+    # The reported token counts come back so a run can prove the cache was read
+    # instead of projecting the saving (#779).
+    assert usage["cache_read_input_tokens"] == 2698
+
+
+def test_call_anthropic_marks_only_the_repeated_instructions_as_cacheable(
+    monkeypatch,
+) -> None:
+    """The instructions carry the cache marker and the bill text does not.
+
+    Caching only pays off while the repeated text sits ahead of the text that
+    changes per bill, so this pins the shape rather than the saving: the shared
+    instruction block is one marked system block, the bill text is an unmarked user
+    message after it, and the marker asks for the hour-long lifetime that survives a
+    stalled run (#779)."""
+    valid = {key: _placeholder(spec) for key, spec in _summary_props().items()}
+    valid["confidence"] = "low"
+
+    class FakeResp:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return {"content": [{"type": "text", "text": json.dumps(valid)}]}
+
+    sent: dict = {}
+
+    def fake_post(url, headers, json, timeout):  # noqa: A002
+        sent.update(json)
+        return FakeResp()
+
+    monkeypatch.setattr(ae.requests, "post", fake_post)
+    ae._call_anthropic("key", "claude-sonnet-5", "SYSTEM", "BILL TEXT", 8192)
+
+    blocks = sent["system"]
+    assert len(blocks) == 1
+    assert blocks[0]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+    # Unchanged from before caching: the same instructions plus the same schema note.
+    assert blocks[0]["text"] == "SYSTEM" + ae._SCHEMA_NOTE
+    # The part that varies per bill stays after the cached block, and uncached.
+    assert sent["messages"] == [{"role": "user", "content": "BILL TEXT"}]
+    assert "BILL TEXT" not in blocks[0]["text"]
+
+
+def test_warm_cache_writes_the_prefix_without_asking_for_an_answer(
+    monkeypatch,
+) -> None:
+    """The warm-up request carries the same cached instructions as a real call but
+    asks for no output, so the bills that follow read the entry instead of each
+    paying to create it (#779)."""
+
+    class FakeResp:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return {"usage": {"cache_creation_input_tokens": 2698, "output_tokens": 0}}
+
+    sent: dict = {}
+
+    def fake_post(url, headers, json, timeout):  # noqa: A002
+        sent.update(json)
+        return FakeResp()
+
+    monkeypatch.setattr(ae.requests, "post", fake_post)
+    usage = ae._warm_cache("key", "claude-sonnet-5", "SYSTEM")
+
+    assert sent["max_tokens"] == 0
+    # The kept copy is only reusable by the real bills if the warm-up sends the very
+    # same marked instructions, so this asserts the text and the marker, not a
+    # round-trip through the same builder.
+    assert sent["system"] == [
+        {
+            "type": "text",
+            "text": "SYSTEM" + ae._SCHEMA_NOTE,
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
+        }
+    ]
+    assert usage["cache_creation_input_tokens"] == 2698
 
 
 def test_call_claude_cli_returns_validated_content(monkeypatch) -> None:
@@ -143,8 +227,15 @@ def test_batch_parser_exposes_submit_and_collect() -> None:
 
 
 def test_message_params_is_identical_for_live_and_batch(monkeypatch) -> None:
-    """The batch envelope must wrap byte-identical call params, or the two paths
-    would quietly produce different summaries for the same bill."""
+    """The batch envelope must wrap the same words the live call sends, or the two
+    paths would quietly produce different summaries for the same bill.
+
+    Since #779 the two bodies differ in exactly one way, deliberately: the live call
+    asks the API to keep the repeated instructions on hand and the batch call does
+    not, because inside the bulk queue that can cost more than it saves (reasoning in
+    `message_params`). That difference is a billing marker, never wording — so this
+    asserts both halves: the live body is the kept-instructions build, and setting
+    that aside leaves it word-for-word what the batch path sends."""
     captured: dict = {}
 
     class FakeResp:
@@ -167,7 +258,20 @@ def test_message_params_is_identical_for_live_and_batch(monkeypatch) -> None:
         # "{}" fails schema validation; we only want the captured payload.
         ae._call_anthropic("key", "claude-sonnet-5", "sys", "user", 8192)
 
-    assert captured["live"] == ae.message_params("claude-sonnet-5", "sys", "user", 8192)
+    live = captured["live"]
+    batch = ae.message_params("claude-sonnet-5", "sys", "user", 8192)
+    assert live == ae.message_params(
+        "claude-sonnet-5", "sys", "user", 8192, cache_instructions=True
+    )
+    # The batch body is untouched by #779: instructions as a plain block of text with
+    # no marker on it, exactly as it was before the option existed.
+    assert isinstance(batch["system"], str)
+    assert batch["system"] == "sys" + ae._SCHEMA_NOTE
+    # Same words in both, and the marker is the only difference between the bodies.
+    assert live["system"][0]["text"] == batch["system"]
+    assert {k: v for k, v in live.items() if k != "system"} == {
+        k: v for k, v in batch.items() if k != "system"
+    }
 
 
 def test_batch_submit_dry_run_reports_without_spending(tmp_path, capsys) -> None:
@@ -240,6 +344,14 @@ def test_batch_submit_persists_batch_ids_and_maps_custom_ids(
     # Anthropic's custom_id charset excludes dots, so ids are positional and mapped back.
     assert set(state["custom_id_map"]) == {"req-000000", "req-000001", "req-000002"}
     assert sorted(state["custom_id_map"].values()) == ["bill.1", "bill.2", "bill.3"]
+    # Deliberately NOT asking the API to keep the repeated instructions on hand here
+    # (#779, #784): inside the bulk queue that is best-effort, and the calls that miss
+    # pay a premium instead, so on a 3,222-bill run it swings between saving ~$9 and
+    # costing ~$10. Turning it on for the fast lane must not turn it on for this one.
+    for chunk in posted:
+        for request in chunk:
+            assert isinstance(request["params"]["system"], str)
+            assert "cache_control" not in json.dumps(request["params"])
     capsys.readouterr()
 
 
