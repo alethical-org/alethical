@@ -30,8 +30,15 @@ Two *speed* modes for the `api` path, which is a separate axis from billing:
   * `batch-submit` + `batch-collect` — Anthropic's Message Batches queue. **50% off
     both input and output**, best-effort turnaround of up to 24 hours. Use for
     unattended bulk backfills, where nobody is waiting and half price is the whole
-    point. Both modes send byte-identical call params (:func:`message_params`) and
-    write byte-identical output rows, so `apply` cannot tell which produced a row.
+    point. Both modes send the same prompt (:func:`message_params`) and write
+    byte-identical output rows, so `apply` cannot tell which produced a row.
+
+The live mode additionally asks the API to **cache the repeated instruction block**,
+so a run is charged for it in full once and at about a tenth of that on every bill
+after (#779) — see :func:`message_params`, whose docstring also explains why the
+batch mode deliberately does not. This changes billing only: the words the model is
+sent, and the JSON it returns, are byte-for-byte what they were before, and every
+live run prints a `token_usage` block reporting whether the cache was really read.
 
 Flow (mirrors the codex path so it is idempotent and resumable):
   1. `python -m alethical.pipeline.ai_enrichment prepare ...` -> request JSONL + manifest
@@ -92,6 +99,25 @@ CLAUDE_CLI_BIN = os.environ.get("ALETHICAL_CLAUDE_CLI", "claude")
 # task, so the model never needs to act; belt-and-suspenders since --system-prompt
 # already replaces the coding-agent default prompt.
 _CLI_DISALLOWED_TOOLS = "Bash Edit Write Read WebFetch WebSearch Glob Grep"
+# How long the API keeps the cached instruction prefix alive (#779). The default is
+# 5 minutes; an hour costs a fraction of a cent more on the one write and survives a
+# run that stalls, which #723's did (it stopped dead on an account credit failure).
+CACHE_TTL = "1h"
+# The instruction + schema block every bill's request repeats verbatim. Held as one
+# constant because prompt caching only works while these bytes are identical on
+# every call, and a second copy of the text would be free to drift out of step.
+_SCHEMA_NOTE = (
+    "\n\nReturn ONLY a single JSON object matching this schema. No prose, no "
+    "markdown fences:\n" + json.dumps(SUMMARY_SCHEMA)
+)
+# Token counts worth adding up across a run: the cache columns say whether the
+# prefix was reused, and the plain input/output columns price the run.
+_USAGE_FIELDS = (
+    "input_tokens",
+    "output_tokens",
+    "cache_creation_input_tokens",
+    "cache_read_input_tokens",
+)
 
 
 def _system_and_user(request: dict[str, Any]) -> tuple[str, str]:
@@ -112,40 +138,100 @@ def _extract_json(text: str) -> dict[str, Any]:
 
 
 def message_params(
-    model: str, system: str, user: str, max_tokens: int
+    model: str,
+    system: str,
+    user: str,
+    max_tokens: int,
+    *,
+    cache_instructions: bool = False,
 ) -> dict[str, Any]:
     """The Messages-API body for one bill.
 
     Shared by the live path and the batch path on purpose: a batch request is the
     same call with a different envelope, so building it in one place is what makes
     "the two paths produce identical text" true rather than hoped for.
+
+    `cache_instructions` is the single deliberate difference between the two paths,
+    and it changes **billing only** — not one word of what the model is sent. Every
+    bill repeats the same instruction + schema text (~2,700 tokens, confirmed
+    byte-identical across all 3,222 requests of the #723 run) and then adds its own
+    bill text, which is exactly the shape prompt caching needs: the repeated part
+    first, the part that varies after it. Asking the API to keep that repeated part
+    means the second and every later call is billed about a tenth of the normal rate
+    for it (#779). The bill text stays below it as an ordinary user message and is
+    never folded in, because the API matches a stored copy by comparing a request
+    from the start.
+
+    **Why only the live path turns it on.** On the live path the calls are spread out
+    enough that nearly all of them reuse the stored copy, so it is worth about $18 on
+    a 3,222-bill run. Inside the bulk queue the reuse is best-effort, and requests
+    that do *not* reuse it pay a small premium for storing it instead — so the same
+    marker is somewhere between saving ~$9 and costing ~$10 on the same job, which is
+    not a bet worth taking for a production write. That is the reasoning behind the
+    deliberate omission recorded in #784, now with the downside numbered. Full costing
+    in `docs/product-onboarding/ai-models-and-billing.md` §4.1 (Where the 50% bulk
+    discount comes from, and who can reach it).
     """
-    schema_note = (
-        "\n\nReturn ONLY a single JSON object matching this schema. No prose, no "
-        "markdown fences:\n" + json.dumps(SUMMARY_SCHEMA)
-    )
+    system_text = system + _SCHEMA_NOTE
+    # A bare string when uncached, so the batch path's request bytes are exactly what
+    # they were before this option existed; a single text block when cached, because
+    # only a block can carry the marker.
+    system_field: Any = system_text
+    if cache_instructions:
+        system_field = [
+            {
+                "type": "text",
+                "text": system_text,
+                "cache_control": {"type": "ephemeral", "ttl": CACHE_TTL},
+            }
+        ]
     return {
         "model": model,
         "max_tokens": max_tokens,
-        "system": system + schema_note,
+        "system": system_field,
         "messages": [{"role": "user", "content": user}],
     }
 
 
+def _warm_cache(api_key: str, model: str, system: str) -> dict[str, Any]:
+    """Pay to store the repeated instructions once, before the worker pool starts.
+
+    A stored copy can only be reused once the response that stored it has begun, so
+    firing N bills at the same instant would have every one of those first N pay full
+    price for the same instructions. One request with `max_tokens` set to 0 reads the
+    prompt, stores the copy and returns immediately with no answer and no output
+    tokens billed, so the bills behind it reuse it instead of racing to store it
+    again. It doubles as the proof that caching is on: the token counts it reports
+    show the copy being stored.
+    """
+    resp = requests.post(
+        ANTHROPIC_API_URL,
+        headers=_api_headers(api_key),
+        json=message_params(
+            model,
+            system,
+            "warm the instruction cache",
+            0,
+            cache_instructions=True,
+        ),
+        timeout=120,
+    )
+    resp.raise_for_status()
+    return dict(resp.json().get("usage") or {})
+
+
 def _call_anthropic(
     api_key: str, model: str, system: str, user: str, max_tokens: int
-) -> dict[str, Any]:
-    payload = message_params(model, system, user, max_tokens)
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Generate one bill's enrichment. Returns the validated content and the token
+    counts the API reported for the successful attempt."""
+    payload = message_params(model, system, user, max_tokens, cache_instructions=True)
     last_err: Exception | None = None
     for attempt in range(MAX_ATTEMPTS):
         try:
             resp = requests.post(
                 ANTHROPIC_API_URL,
-                headers={
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
+                headers=_api_headers(api_key),
                 json=payload,
                 timeout=240,
             )
@@ -162,7 +248,7 @@ def _call_anthropic(
             errors = validate_summary_shape(content)
             if errors:
                 raise ValueError(f"schema errors: {errors[:5]}")
-            return content
+            return content, dict(data.get("usage") or {})
         except Exception as exc:  # noqa: BLE001
             last_err = exc
             # Exponential backoff; also nudge max_tokens up on truncation.
@@ -181,11 +267,9 @@ def _call_claude_cli(model: str, system: str, user: str) -> dict[str, Any]:
     :func:`_call_anthropic` (returns the validated, schema-shaped content dict), so
     the apply path is unchanged. `model` must be a CLI-recognized alias/id (e.g.
     "sonnet"); `--system-prompt` replaces the default coding-agent prompt with the
-    enrichment prompt so the model just emits JSON."""
-    schema_note = (
-        "\n\nReturn ONLY a single JSON object matching this schema. No prose, no "
-        "markdown fences:\n" + json.dumps(SUMMARY_SCHEMA)
-    )
+    enrichment prompt so the model just emits JSON. This path cannot use the
+    instruction caching of :func:`_system_blocks` — the CLI takes a plain string and
+    does its own caching — so the #779 saving applies to `--provider api` only."""
     cmd = [
         CLAUDE_CLI_BIN,
         "-p",
@@ -193,7 +277,7 @@ def _call_claude_cli(model: str, system: str, user: str) -> dict[str, Any]:
         "--model",
         model,
         "--system-prompt",
-        system + schema_note,
+        system + _SCHEMA_NOTE,
         "--output-format",
         "json",
         "--disallowed-tools",
@@ -275,15 +359,32 @@ def generate(args: argparse.Namespace) -> None:
         flush=True,
     )
 
+    # Write the shared instructions to the cache before the pool opens, so the first
+    # wave of bills reads them instead of each paying for them (#779). A failure here
+    # is not fatal — the run just pays full price for the first few calls.
+    if provider == "api" and pending:
+        warm_system, _ = _system_and_user(requests_by_id[pending[0].custom_id])
+        try:
+            print(
+                json.dumps(
+                    {"cache_warm": _warm_cache(api_key, args.model, warm_system)}
+                ),
+                flush=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(json.dumps({"cache_warm_failed": str(exc)[:200]}), flush=True)
+
     done = 0
     failed: list[dict[str, str]] = []
+    tokens = dict.fromkeys(_USAGE_FIELDS, 0)
 
-    def work(item: Any) -> tuple[str, bool, str]:
+    def work(item: Any) -> dict[str, Any]:
         system, user = _system_and_user(requests_by_id[item.custom_id])
+        usage: dict[str, Any] = {}
         if provider == "claude-cli":
             content = _call_claude_cli(args.model, system, user)
         else:
-            content = _call_anthropic(
+            content, usage = _call_anthropic(
                 api_key, args.model, system, user, DEFAULT_MAX_TOKENS
             )
         out_path = outputs_dir / f"{safe_custom_id(item.custom_id)}.jsonl"
@@ -291,15 +392,18 @@ def generate(args: argparse.Namespace) -> None:
             json.dumps(output_row(item.custom_id, content), ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
-        return item.custom_id, True, ""
+        return usage
 
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         futures = {pool.submit(work, item): item for item in pending}
         for fut in as_completed(futures):
             item = futures[fut]
             try:
-                fut.result()
+                usage = fut.result()
                 done += 1
+                # Summed here in the single consuming thread, so no lock is needed.
+                for field in _USAGE_FIELDS:
+                    tokens[field] += int(usage.get(field) or 0)
             except Exception as exc:  # noqa: BLE001
                 failed.append({"custom_id": item.custom_id, "error": str(exc)[:300]})
             if (done + len(failed)) % 25 == 0:
@@ -325,6 +429,11 @@ def generate(args: argparse.Namespace) -> None:
                 "generated_ok": done,
                 "generated_failed": len(failed),
                 "failed_sample": failed[:10],
+                # cache_read_input_tokens well above cache_creation_input_tokens is
+                # the run saying the shared instructions were reused rather than
+                # re-billed. Zero reads on an `api` run of more than one bill means
+                # caching silently did nothing — investigate before pricing the run.
+                "token_usage": tokens,
                 "combine": combine,
             },
             indent=2,
@@ -332,7 +441,7 @@ def generate(args: argparse.Namespace) -> None:
     )
 
 
-def _batch_headers(api_key: str) -> dict[str, str]:
+def _api_headers(api_key: str) -> dict[str, str]:
     return {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
@@ -442,7 +551,7 @@ def batch_submit(args: argparse.Namespace) -> None:
     for chunk in chunks:
         resp = requests.post(
             ANTHROPIC_BATCHES_URL,
-            headers=_batch_headers(api_key),
+            headers=_api_headers(api_key),
             json={"requests": chunk},
             timeout=600,
         )
@@ -490,7 +599,7 @@ def batch_collect(args: argparse.Namespace) -> None:
     for batch in state["batches"]:
         resp = requests.get(
             f"{ANTHROPIC_BATCHES_URL}/{batch['id']}",
-            headers=_batch_headers(api_key),
+            headers=_api_headers(api_key),
             timeout=120,
         )
         resp.raise_for_status()
@@ -513,7 +622,7 @@ def batch_collect(args: argparse.Namespace) -> None:
     for batch in state["batches"]:
         resp = requests.get(
             f"{ANTHROPIC_BATCHES_URL}/{batch['id']}/results",
-            headers=_batch_headers(api_key),
+            headers=_api_headers(api_key),
             timeout=1800,
         )
         resp.raise_for_status()

@@ -1,5 +1,7 @@
 # AI Models & Billing — How Alethical Uses AI, and How It's Paid
 
+<!-- describes: alethical/pipeline/anthropic_enrichment.py, alethical/pipeline/ai_enrichment.py -->
+
 > A plain-language reference for how Alethical uses AI models — the two kinds of
 > AI output we depend on, the two separate billing rails that pay for them, and
 > which of our jobs need which. Written for anyone new to the project; **keep it
@@ -160,20 +162,42 @@ bills (26.7M tokens in, 12.3M out) prices four ways:
 August is a ~$89 mistake only if we stay on live calls; on the bulk lane it is ~$44.
 Doing both — bulk lane, before September — is the cheapest this job will ever be.
 
-**A third saving exists and stacks, but it is small enough to skip here.** [Prompt
-caching](https://platform.claude.com/docs/en/about-claude/pricing#prompt-caching) bills a
-repeated instruction block at 10% after its first write, and it combines with the bulk
-discount. Our enrichment prompt does have a perfect candidate: ~3,240 tokens of identical
-instructions on every call, about 39% of the input. But it only touches *input*, and the
-bulk lane has already halved that, so the ceiling is roughly **$8 off an $88 run** — less
-in practice, because inside a batch the cache is best-effort. Worth wiring up on the live
-path (~$18 there, and cache reads also stop counting against the per-minute throughput
-limit); not worth adding a new failure mode to a production write for ~$5. Caching is
-therefore not wired up. **The bulk lane is**, as of
-[#784](https://github.com/alethical-org/alethical/pull/784): the Anthropic runner takes
-`batch-submit` / `batch-collect` next to `generate`, and both modes send identical call
-params and write identical output rows, so `apply` cannot tell them apart. Rule of thumb:
-`generate` when someone is waiting, `batch-submit` when nobody is.
+**A third saving exists and stacks, and it is worth taking on the fast lane only.**
+[Prompt caching](https://platform.claude.com/docs/en/about-claude/pricing#prompt-caching)
+lets you pay once to keep a repeated block of instructions on hand, then pay about 10% of
+the normal rate every time a later call reuses it. Our enrichment prompt is a perfect
+candidate: ~3,240 tokens of identical instructions on every call, about 39% of the input.
+
+**Both lanes are now wired up, and each takes exactly the saving that suits it:**
+
+| Lane | Command | Discount it takes | Caching? |
+|---|---|---|---|
+| Fast (~1 hour) | `generate` | none — full list price | ✅ **Yes** — ~$18 off a 3,222-bill run |
+| Bulk (up to 24 hours) | `batch-submit` + `batch-collect` | **50%** off input and output | ❌ No — deliberately |
+
+The bulk lane arrived in [#784](https://github.com/alethical-org/alethical/pull/784) and
+caching in [#779](https://github.com/alethical-org/alethical/issues/779). Both modes send
+the same prompt and write the same output rows, so `apply` cannot tell them apart. Rule of
+thumb: `generate` when someone is waiting, `batch-submit` when nobody is.
+
+**Why caching is on for one lane and off for the other, when it stacks in theory.** On the
+fast lane the calls are spread out enough that nearly every one reuses the kept copy, so
+it reliably saves about **$18**. Inside the bulk queue, reuse is best-effort — and a call
+that does *not* reuse the copy pays a small premium for keeping it instead. Across a
+3,222-bill bulk run that swing is somewhere between **saving ~$9 and costing ~$10**, on a
+job whose whole margin is $88. **Net (plain language): on the fast lane caching is a sure
+$18; in the bulk queue it is a coin toss on a production write, so we take the certain
+saving and skip the gamble.**
+
+Two limits worth knowing about the caching that is on: the subscription path
+(`--provider claude-cli`) gets nothing from it, because the Claude Code CLI takes a plain
+block of text and does its own caching; and any edit to the enrichment prompt or its
+schema — the trim proposed in
+[#773](https://github.com/alethical-org/alethical/issues/773), for example — makes the
+next run pay once to keep the new wording, which costs a fraction of a cent. Every
+`generate` run ends by printing a `token_usage` block saying how many instruction tokens
+were reused rather than re-billed, so the saving is read off a real run instead of
+projected.
 
 **Which model does the writing:** enrichment runs on **Claude Sonnet with extended
 thinking turned off**. The summary / key-points / suggested-questions task is
