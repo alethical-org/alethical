@@ -15,6 +15,19 @@ Legislature's own edit markers as prose ("coverage for on-site medical clinics; 
 begin or deleted text end"), folded each section's heading into its number badge, and gave a
 21-section bill no navigation at all.
 
+## The intro says "the text", not "the complete text"
+
+The tab's opening line is deliberately weaker than it reads naturally, and the missing word is load
+bearing. Ingestion drops a section whenever a bill's page gives two sections the same id
+([#763](https://github.com/alethical-org/alethical/issues/763)): HF 4057's page carries 240 section
+blocks with only 238 distinct ids, and we serve 238, so 2 real sections are silently absent.
+Verified against revisor.mn.gov on Jul 30 2026.
+
+"The complete text" would therefore be a claim the page cannot keep, which
+`.claude/rules/grounded-answers.md` rule 6 forbids ("if a capability slips, trim the claim in the
+same release"). **Restore "complete" once #763 has landed and the corpus has been re-read** — not
+before, and not because the sentence reads better with it.
+
 ## What the data gives us
 
 Everything on this tab comes from `/bills/{id}/versions/{code}/text?format=structured`, which
