@@ -27,7 +27,9 @@ from alethical.pipeline.sessions import (
     CURRENT_SESSION_SLUG,
     CURRENT_SESSION_START_DATE,
     DEFAULT_SESSION_CODE,
+    build_bill_key,
     parse_session_code,
+    special_session_number,
 )
 
 USER_AGENT = "Alethical Minnesota Ingest/0.1"
@@ -104,9 +106,11 @@ class MergeReport:
         return "\n".join(lines)
 
 
-# Session number + year embedded in a bill's status XML URI, e.g.
-# https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/
-STATUS_URI_SESSION_RE = re.compile(r"/bills/v1/(\d+)/(\d{4})/")
+# Session number, year and special-session number embedded in a bill's status XML
+# URI, e.g. https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/ — the third
+# segment is 0 for a regular session and N for the Nth special session, matching
+# the SESSION_TYPE the canonical XML reports (#746).
+STATUS_URI_SESSION_RE = re.compile(r"/bills/v1/(\d+)/(\d{4})/(\d+)/")
 
 
 @dataclass(frozen=True)
@@ -130,9 +134,13 @@ class BillSearchResult:
         match = STATUS_URI_SESSION_RE.search(self.status_xml_uri)
         if match:
             session_number, year = int(match.group(1)), int(match.group(2))
+            special = int(match.group(3))
         else:
             session_number, year = parse_session_code(self.session_code)
-        return f"{session_number}-{year}-{self.file_type}{self.file_number}"
+            special = special_session_number(self.session_code)
+        return build_bill_key(
+            session_number, year, self.file_type, self.file_number, special
+        )
 
     @property
     def target(self) -> BillTarget:
@@ -452,7 +460,16 @@ def parse_bill_xml(xml_text: str) -> dict[str, object]:
         )
 
     return {
-        "bill_key": f"{text('SESSION_NUMBER')}-{text('SESSION_YEAR')}-{text('FILE_TYPE')}{text('FILE_NUMBER')}",
+        # SESSION_TYPE is the special-session number (0 = regular), so it must be
+        # part of the key: the regular and special sessions of one Legislature both
+        # number their files from 1, and HF 5 in each is a different bill (#746).
+        "bill_key": build_bill_key(
+            text("SESSION_NUMBER"),
+            text("SESSION_YEAR"),
+            text("FILE_TYPE"),
+            text("FILE_NUMBER"),
+            text("SESSION_TYPE") or 0,
+        ),
         "file_type": text("FILE_TYPE"),
         "file_number": text("FILE_NUMBER"),
         "revisor_number": text("REVISOR_NUMBER"),
