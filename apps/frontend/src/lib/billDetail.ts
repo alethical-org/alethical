@@ -82,6 +82,7 @@ export type EventKind =
   | 'motionFailed'
   | 'authorAdd' // "Author(s) added: …" — collapsed into one grouped row
   | 'chiefAuthor' // chief-author change — stays its own normal row (never grouped)
+  | 'crossReference' // "See also HF 2446" — a pointer, not a step this bill took
   | 'procedural'; // everything else (introduced, referral, committee report, motions…)
 
 // A term shown in the timeline that the plain-language key should gloss. The
@@ -97,6 +98,12 @@ const GLOSS: Record<string, string> = {
   'Amended on the floor': 'the full chamber changed the bill text during a floor session.',
   Substituted: "a chamber took up the other chamber's companion bill in place of its own.",
   Recalled: 'the chamber pulled a bill back from the floor to send it to committee again.',
+  // The one row on a pointer bill's page that needed explaining was the only row
+  // with no definition (#757). It says what the record states — a pointer — and
+  // deliberately stops there: the source never says whether the language was
+  // absorbed, partly absorbed, or merely related (#744), so neither may this.
+  'See also':
+    "the Legislature's record points from this bill to another file or chapter. It does not say how the two are related.",
   Concurred: "one chamber accepted the other chamber's changes, avoiding a conference.",
   'Conference committee':
     'a small group from both chambers that reconciles the differing House and Senate versions.',
@@ -327,7 +334,7 @@ const ACTION_RULES: Rule[] = [
       !!crossReferenceTarget(desc || '') &&
       (/^see\b/.test(l) || /^\(non-revisor companion\)/.test(l)),
     build: (_t, desc) => ({
-      kind: 'procedural',
+      kind: 'crossReference',
       title: `See also ${crossReferenceTarget(desc)}`,
     }),
   },
@@ -709,8 +716,12 @@ export interface TimelineRow {
   /** Bills named in this row's title that we serve a page for, resolved to a
    *  bill_key by the API. Surfaces render each `code` where it appears in `title`
    *  as a link to `/bills/{id}`; anything unresolved is absent and stays plain text
-   *  (#745). Use `titleSegments(row)` rather than matching codes by hand. */
-  links?: { code: string; id: string }[];
+   *  (#745). Use `titleSegments(row)` rather than matching codes by hand.
+   *
+   *  A link that also carries `title` / `status` gets its own sub-line under the
+   *  row, naming what that bill is and where it got to (#757) — see
+   *  `crossReferenceTargets(row)`. */
+  links?: { code: string; id: string; title?: string; status?: string }[];
 }
 
 /** One piece of a rendered title: plain text, or text that links to a bill page. */
@@ -759,13 +770,61 @@ type Norm = Classified & {
   endDate?: string;
   meta?: string;
   note?: string;
-  links?: { code: string; id: string }[];
+  links?: { code: string; id: string; title?: string; status?: string }[];
 };
+
+/** One "See also" target that we hold enough about to describe: its code, what
+ *  the bill is, and where it got to. */
+export interface CrossReferenceTarget {
+  code: string;
+  billId: string;
+  title: string;
+  status?: string;
+}
+
+/** The targets of a pointer row that we can say something about, for the sub-lines
+ *  under it (#757).
+ *
+ *  A bare "See also HF 2446, HF 2115" gave a reader no reason to follow either
+ *  code. These lines answer that: what the other bill is, and whether it became
+ *  law. Every value is a record we hold about the TARGET — its short title and its
+ *  status — so none of it claims the two bills are related in any particular way,
+ *  which the source row never states (#744).
+ *
+ *  A target we hold no short title for is left out entirely rather than shown as a
+ *  code with a blank beside it, which is why this can return fewer entries than
+ *  `row.links` (or none at all, for the 465 special-session and 65 chapter-and-
+ *  section rows that resolve to no bill we serve). */
+export function crossReferenceTargets(row: TimelineRow): CrossReferenceTarget[] {
+  return (row.links ?? [])
+    .filter((link) => !!link.title)
+    .map((link) => ({
+      code: link.code,
+      billId: link.id,
+      title: link.title as string,
+      status: link.status,
+    }));
+}
 
 /** Fixed UI copy for a phased law's rail caption. Owned by the layout, never
  *  generated — and true by construction: the value is the EARLIEST date the law
  *  states, so every other section necessarily starts later (#715). */
 export const PHASED_CAPTION = 'Phased — some sections later';
+
+/** Fixed UI copy for the rail caption on a bill whose newest record entry is a
+ *  pointer to somewhere else (#757).
+ *
+ *  1,190 such bills carry the status "Introduced", which on its own reads as an
+ *  ordinary proposal still waiting its turn — when in fact the record's own last
+ *  word about the bill is "look over there". Someone checking whether their issue
+ *  went anywhere deserves to be told that, right where the status is.
+ *
+ *  It says only what the record states, which is why it does not say "folded into"
+ *  or "became law as part of": the source names a target, never a mechanism (#744).
+ *  Owned by the layout, never generated. Shown next to the LATEST ACTION value,
+ *  which already quotes the target the record names. */
+export const POINTER_CAPTION =
+  'The record’s last entry points somewhere else, not to a further step for this bill. It does not say how the two are related.';
 
 // The rail's EFFECTIVE value for a signed law, or null when it falls back to the
 // honest LATEST ACTION treatment. Shared by the web facts rail and the mobile
@@ -1095,6 +1154,16 @@ const KIND_SIGNIFICANCE: Record<EventKind, number> = {
   reading: 6,
   notAdopted: 3,
   motionFailed: 3,
+  // Above the procedural steps and the author bookkeeping, below every real
+  // outcome (a passage, a signing, a veto, a failed vote). A pointer is the
+  // record's terminal word about a bill, and it is dateless — so it shares the
+  // dateless group with any other dateless row, where the tie used to be broken by
+  // position. Replaying all 1,204 production pointer bills through this function,
+  // ranking it level with `procedural` handed the group to a dateless "Referred to
+  // Rules and Administration" on 13 of them, which left them reading as ordinary
+  // proposals with no pointer caption at all (#757). Ranks 2, 3 and 4 all produce
+  // the identical 1,195, so this takes the smallest one that does the job.
+  crossReference: 2,
   chiefAuthor: 2,
   procedural: 1,
   authorAdd: 0,
@@ -1119,7 +1188,7 @@ const KIND_SIGNIFICANCE: Record<EventKind, number> = {
 export function latestActionEntry(
   actions: BillAction[],
   now: Date,
-): { label: string; date: string } | null {
+): { label: string; date: string; kind: EventKind } | null {
   const { rows } = buildActionTimeline(actions, [], now);
   if (!rows.length) return null;
   // Enacted status is terminal and dominates: a signed bill reads as law however
@@ -1129,7 +1198,7 @@ export function latestActionEntry(
   // collapsed to one, anchored to the governor-approval date.
   const signing = rows.find((r) => r.kind === 'signing');
   if (signing) {
-    return { label: 'Signed by the Governor', date: formatNiceDate(signing.date) };
+    return { label: 'Signed by the Governor', date: formatNiceDate(signing.date), kind: 'signing' };
   }
   // Otherwise the newest day's headline beat: within a day the tab keeps source
   // order, so pick the most significant kind rather than the first-listed one.
@@ -1145,10 +1214,14 @@ export function latestActionEntry(
       : /\bHouse\b/.test(row.title)
         ? 'House'
         : null;
-    return { label: chamber ? `${verb} the ${chamber}` : `${verb} on third reading`, date };
+    return {
+      label: chamber ? `${verb} the ${chamber}` : `${verb} on third reading`,
+      date,
+      kind: row.kind,
+    };
   }
-  if (row.kind === 'veto') return { label: 'Vetoed by the Governor', date };
-  return { label: row.title, date };
+  if (row.kind === 'veto') return { label: 'Vetoed by the Governor', date, kind: row.kind };
+  return { label: row.title, date, kind: row.kind };
 }
 
 function dotForRow(kind: EventKind, upcoming: boolean, hasTally: boolean): TimelineDot {

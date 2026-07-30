@@ -38,6 +38,7 @@ import {
   chiefAuthor,
   citationChipLabel,
   coAuthorCount,
+  crossReferenceTargets,
   districtRowLabel,
   effectiveRailValue,
   formatAuthorDistrict,
@@ -53,6 +54,7 @@ import {
   plainKeyPoints,
   PartyBlock,
   PHASED_CAPTION,
+  POINTER_CAPTION,
   readLabel,
   scopedChipQuery,
   TimelineRow,
@@ -541,6 +543,9 @@ function BillDetailMobileScreen() {
       dateLabel,
       dateValue,
       datePhased: effective?.phased ?? false,
+      // The record's newest entry is a pointer somewhere else rather than a further
+      // step for this bill, so the status pill above needs qualifying (#757).
+      datePointer: latest?.kind === 'crossReference',
       overviewUrl,
       readUrl,
       actionRows,
@@ -749,6 +754,12 @@ function BillDetailMobileScreen() {
                           </Text>
                         </Text>
                       </Text>
+                    ) : null}
+                    {/* Said next to the status because that status reads
+                        "Introduced" on 1,190 bills whose record has already
+                        stopped talking about them and pointed elsewhere (#757). */}
+                    {vm.datePointer ? (
+                      <Text style={styles.pointerCaption}>{POINTER_CAPTION}</Text>
                     ) : null}
                   </View>
                 ) : null}
@@ -1363,6 +1374,28 @@ function ActionRow({
           ) : null}
         </View>
         {row.meta ? <Text style={styles.actionMeta}>{row.meta}</Text> : null}
+        {/* What each bill a "See also" row points at actually IS — one quiet line
+            per target, from that target's own record (#757). Same shared helper the
+            web tab uses, so neither surface can describe a target the other one
+            doesn't. */}
+        {crossReferenceTargets(row).map((target) => (
+          <Text
+            key={target.code}
+            accessibilityLabel={`Open ${target.code}${
+              target.status ? `, ${target.status}` : ''
+            }: ${target.title}`}
+            // A real anchor, like every other in-app link since #770, so ⌘-click
+            // and right-click behave as they do anywhere else on the web.
+            {...linkProps(routePath.bill(target.billId), () => onOpenBill(target.billId))}
+            style={styles.actionTargetLine}
+          >
+            <Text style={styles.actionTargetCode}>{target.code}</Text>
+            <Text>{` — ${target.title}`}</Text>
+            {target.status ? (
+              <Text style={styles.actionTargetStatus}>{` · ${target.status}`}</Text>
+            ) : null}
+          </Text>
+        ))}
         {/* The sections that state no date. Deliberately UNDATED — no dot and
             nothing in the date column — because placing it on a day would mean
             picking one of the two Minn. Stat. 645.02 candidates (#715). */}
@@ -2494,6 +2527,15 @@ const styles = StyleSheet.create({
   },
   phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.green },
   phasedArrow: { fontWeight: t.fontWeights.regular },
+  // Same quiet caption weight as the phased-law one: it qualifies the status it
+  // sits under rather than competing with it (#757).
+  pointerCaption: {
+    marginTop: 9,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    lineHeight: 23,
+    color: t.colors.text.muted,
+  },
   actionRail: { width: 24, alignItems: 'center' },
   actionRailLine: {
     position: 'absolute',
@@ -2539,6 +2581,19 @@ const styles = StyleSheet.create({
   // Underlined, because mid-sentence there is no position to mark it as a link and
   // there is no hover on a phone — colour alone would be the only cue (WCAG 1.4.1).
   actionBillCodeLink: { color: t.colors.text.green, textDecorationLine: 'underline' },
+  // What each "See also" target is, one line each (#757). Lighter than the row
+  // title: this is the record speaking about ANOTHER bill, not a step this one took.
+  actionTargetLine: {
+    marginTop: 5,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    color: t.colors.text.secondary,
+  },
+  // Bold, not mono: the mono face's wide space renders "HF 2446" as "HF  2446",
+  // which reads as a typo right under the same code set in body type.
+  actionTargetCode: { fontWeight: t.fontWeights.bold },
+  actionTargetStatus: { color: t.colors.text.muted },
   actionTally: {
     paddingVertical: 3,
     paddingHorizontal: 9,

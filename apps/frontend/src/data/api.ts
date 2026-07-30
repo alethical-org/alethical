@@ -247,7 +247,9 @@ interface ApiBillActionPayload {
   committee_name?: string | null;
   action_at?: string | null;
   roll_call_text?: string | null;
-  cross_references?: { code: string; id: string }[] | null;
+  cross_references?:
+    | { code: string; id: string; title?: string | null; status_key?: string | null }[]
+    | null;
 }
 
 interface ApiDistrictPayload {
@@ -596,17 +598,20 @@ function defaultProgress(): Bill['progress'] {
   ];
 }
 
+// status_key → the product's display label. One map, so a bill's own status pill
+// and a "See also" row naming that bill as a target read identically (#757).
+const STATUS_LABELS: Record<string, string> = {
+  proposed: 'Introduced',
+  in_committee: 'In Committee',
+  passed_house: 'Passed House',
+  passed_senate: 'Passed Senate',
+  passed_both_chambers: 'Passed Both Chambers',
+  signed_into_law: 'Signed into Law',
+  vetoed: 'Vetoed',
+};
+
 function statusLabel(statusKey?: string | null, fallback?: string | null) {
-  const labels: Record<string, string> = {
-    proposed: 'Introduced',
-    in_committee: 'In Committee',
-    passed_house: 'Passed House',
-    passed_senate: 'Passed Senate',
-    passed_both_chambers: 'Passed Both Chambers',
-    signed_into_law: 'Signed into Law',
-    vetoed: 'Vetoed',
-  };
-  return (statusKey && labels[statusKey]) || fallback || 'Status unavailable';
+  return (statusKey && STATUS_LABELS[statusKey]) || fallback || 'Status unavailable';
 }
 
 function formatBillIdentifier(fileType: string, fileNumber: number) {
@@ -813,7 +818,19 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     committee: committee || undefined,
     tally: action.roll_call_text?.trim() || undefined,
     actionNumber: action.action_number,
-    crossReferences: action.cross_references?.length ? action.cross_references : undefined,
+    crossReferences: action.cross_references?.length
+      ? action.cross_references.map((ref) => ({
+          code: ref.code,
+          id: ref.id,
+          title: ref.title ?? undefined,
+          // The target's status_key becomes a label here, through the same map the
+          // bill's own status pill uses, so a pointer row and the target's page can
+          // never name the same status two different ways (#757). An unrecognised
+          // key stays undefined rather than printing "Status unavailable" — a
+          // pointer row is no place to advertise a gap in our own data.
+          status: STATUS_LABELS[ref.status_key ?? ''],
+        }))
+      : undefined,
   };
 }
 

@@ -109,10 +109,20 @@ class BillListItem(BaseModel):
 
 class ActionCrossReferencePayload(BaseModel):
     """A bill a "See also" action points at. ``code`` is what the timeline row
-    displays ("HF 2446"); ``id`` is the target's bill_key, for /bills/{id} (#745)."""
+    displays ("HF 2446"); ``id`` is the target's bill_key, for /bills/{id} (#745).
+
+    ``title`` and ``status_key`` are what we already store ABOUT that target — its
+    plain-language short title and its status classification — so the row can say
+    what the other bill is and where it got to, instead of showing a bare code with
+    no reason to follow it (#757). Both describe the target only; neither asserts
+    anything about how the two bills relate, which the source record never states.
+    Absent when we hold no short title / no status for that bill.
+    """
 
     code: str
     id: str
+    title: str | None = None
+    status_key: str | None = None
 
 
 class BillActionPayload(BaseModel):

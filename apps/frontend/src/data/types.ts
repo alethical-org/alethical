@@ -59,8 +59,14 @@ export interface BillAction {
    * `/bills/{id}`. Absent when the row names nothing we serve a page for — a
    * special-session file, or a bare chapter-and-section — in which case the target
    * stays plain text rather than becoming a link that goes nowhere (#745).
+   *
+   * `title` (the target's plain-language short title) and `status` (its display
+   * status label) are facts we store about THAT bill, so the row can say what it
+   * is and where it got to instead of showing a bare code (#757). Each is absent
+   * when we hold it for no such bill. Neither describes how the two bills relate —
+   * the source row states a pointer, not a mechanism.
    */
-  crossReferences?: { code: string; id: string }[];
+  crossReferences?: { code: string; id: string; title?: string; status?: string }[];
 }
 
 export interface BillVersion {
