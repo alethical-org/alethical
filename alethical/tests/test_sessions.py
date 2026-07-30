@@ -184,3 +184,23 @@ def test_bill_key_prefers_the_year_in_the_status_uri():
         session_code="0942025",
     )
     assert introduced_2026.bill_key == "94-2026-HF4138"
+
+
+def test_a_cli_alias_and_an_api_model_id_record_the_same_provenance():
+    """#746: the subscription path takes a CLI alias (`sonnet`) and the API path takes
+    the model id (`claude-sonnet-5`). They are the same model, so both must record one
+    `ai_enrichment.model_name` — otherwise a later "which model wrote this?" query
+    splits one model into two labels and undercounts. (46 rows recorded
+    `claude:sonnet` against the corpus's 10,471 `claude:claude-sonnet-5` before this.)
+    """
+    from alethical.pipeline.anthropic_enrichment import (
+        DEFAULT_MODEL,
+        resolved_model_name,
+    )
+
+    assert resolved_model_name("sonnet") == "claude:claude-sonnet-5"
+    assert resolved_model_name(DEFAULT_MODEL) == "claude:claude-sonnet-5"
+    assert resolved_model_name("sonnet") == resolved_model_name(DEFAULT_MODEL)
+    # An unmapped id passes through untouched, and an explicit override still wins.
+    assert resolved_model_name("claude-opus-4-5") == "claude:claude-opus-4-5"
+    assert resolved_model_name("sonnet", "claude:pinned") == "claude:pinned"

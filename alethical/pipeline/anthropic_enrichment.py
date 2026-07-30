@@ -90,6 +90,26 @@ ANTHROPIC_BATCHES_URL = "https://api.anthropic.com/v1/messages/batches"
 # request comfortably small and means a rejected chunk doesn't sink the run.
 DEFAULT_BATCH_CHUNK_SIZE = 1000
 DEFAULT_MODEL = "claude-sonnet-5"
+# A CLI `--model` alias and the API model id name the SAME model, so both must record
+# the same provenance. Without this map, a subscription-path run recorded
+# `claude:sonnet` while every API-path run recorded `claude:claude-sonnet-5`, splitting
+# one model into two labels in ai_enrichment.model_name — 46 rows against 10,471 after
+# the #746 special-session run, which is exactly the shape that makes a later
+# "which model wrote this?" query quietly wrong.
+CLI_MODEL_ALIASES = {
+    "sonnet": "claude-sonnet-5",
+    "opus": "claude-opus-5",
+    "haiku": "claude-haiku-4-5-20251001",
+}
+
+
+def resolved_model_name(model: str, override: str | None = None) -> str:
+    """The `ai_enrichment.model_name` to record for a generation run."""
+    if override:
+        return override
+    return f"claude:{CLI_MODEL_ALIASES.get(model, model)}"
+
+
 DEFAULT_MAX_TOKENS = 8192
 DEFAULT_CONCURRENCY = 8
 MAX_ATTEMPTS = 4
@@ -341,7 +361,7 @@ def generate(args: argparse.Namespace) -> None:
         total_items,
     ) = _pending_items(args)
     outputs_dir = run_dir / "outputs"
-    model_name = args.model_name or f"claude:{args.model}"
+    model_name = resolved_model_name(args.model, args.model_name)
 
     print(
         json.dumps(
@@ -461,7 +481,7 @@ def _pending_items(
     run_dir = Path(args.run_dir)
     outputs_dir = run_dir / "outputs"
     outputs_dir.mkdir(parents=True, exist_ok=True)
-    model_name = args.model_name or f"claude:{args.model}"
+    model_name = resolved_model_name(args.model, args.model_name)
 
     manifest_path = Path(args.manifest_path)
     codex_manifest_path = write_codex_manifest(
@@ -564,7 +584,7 @@ def batch_submit(args: argparse.Namespace) -> None:
             json.dumps(
                 {
                     "model": args.model,
-                    "model_name": args.model_name or f"claude:{args.model}",
+                    "model_name": resolved_model_name(args.model, args.model_name),
                     "batches": batches,
                     "custom_id_map": id_map,
                 },
