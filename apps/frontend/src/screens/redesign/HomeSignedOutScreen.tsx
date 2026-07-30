@@ -23,6 +23,7 @@ import {
   TopNav,
 } from '../../theme/primitives';
 import { IaItem, MenuKey } from '../../navigation/ia';
+import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { fieldFocusRing } from '../../theme/fieldFocus';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -155,18 +156,28 @@ function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }
 /** Green inline text link ("Read the full law →", chief author, companion bill). */
 function TextLink({
   label,
+  href,
   onPress,
   size = 14,
   weight = t.fontWeights.bold,
 }: {
   label: string;
+  // Every call site in this file points to an official external source
+  // (revisor.mn.gov, house.mn.gov), so a supplied href always gets the
+  // external-link treatment (target="_blank" on web).
+  href?: string;
   onPress?: () => void;
   size?: number;
   weight?: '400' | '500' | '600' | '700' | '800' | '900';
 }) {
   const [hovered, hoverProps] = useHover();
   return (
-    <Pressable accessibilityRole="link" onPress={onPress} {...hoverProps}>
+    <Pressable
+      {...(href
+        ? externalLinkProps(href, onPress)
+        : { accessibilityRole: 'link' as const, onPress })}
+      {...hoverProps}
+    >
       <Text
         style={{
           fontFamily: t.typography.ui,
@@ -332,8 +343,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
           <View style={styles.billMetaMobileRow}>
             <View style={styles.billMetaMobileBadgeCell}>
               <Pressable
-                accessibilityRole="link"
-                onPress={() => openExternal(HF4138_STATUS_URL)}
+                {...externalLinkProps(HF4138_STATUS_URL, () => openExternal(HF4138_STATUS_URL))}
                 {...badgeHover}
                 style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
               >
@@ -370,6 +380,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 <Text style={styles.billMetaText}>Chief author </Text>
                 <TextLink
                   label="Rep. Peggy Scott →"
+                  href={HF4138_AUTHOR_URL}
                   size={13}
                   weight="600"
                   onPress={() => openExternal(HF4138_AUTHOR_URL)}
@@ -379,6 +390,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 <Text style={styles.billMetaText}>Companion bill </Text>
                 <TextLink
                   label="SF 4696 →"
+                  href={SF4696_URL}
                   size={13}
                   weight="600"
                   onPress={() => openExternal(SF4696_URL)}
@@ -390,8 +402,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       ) : (
         <View style={styles.billMetaRow}>
           <Pressable
-            accessibilityRole="link"
-            onPress={() => openExternal(HF4138_STATUS_URL)}
+            {...externalLinkProps(HF4138_STATUS_URL, () => openExternal(HF4138_STATUS_URL))}
             {...badgeHover}
             style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
           >
@@ -416,6 +427,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                   <Text style={styles.billMetaText}>Chief author </Text>
                   <TextLink
                     label="Rep. Peggy Scott →"
+                    href={HF4138_AUTHOR_URL}
                     size={13}
                     weight="600"
                     onPress={() => openExternal(HF4138_AUTHOR_URL)}
@@ -425,6 +437,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                   <Text style={styles.billMetaText}>Companion bill </Text>
                   <TextLink
                     label="SF 4696 →"
+                    href={SF4696_URL}
                     size={13}
                     weight="600"
                     onPress={() => openExternal(SF4696_URL)}
@@ -487,7 +500,11 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       </View>
 
       <View style={styles.answerFooter}>
-        <TextLink label="Read the full law →" onPress={() => openExternal(HF4138_LAW_URL)} />
+        <TextLink
+          label="Read the full law →"
+          href={HF4138_LAW_URL}
+          onPress={() => openExternal(HF4138_LAW_URL)}
+        />
         <Text style={styles.answerFooterHost}>revisor.mn.gov</Text>
       </View>
 
@@ -509,11 +526,13 @@ function CapabilityCard({
   icon,
   title,
   subtitle,
+  href,
   onPress,
 }: {
   icon: 'search' | 'bookmark' | 'person';
   title: string;
   subtitle: string;
+  href: string;
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
@@ -546,10 +565,9 @@ function CapabilityCard({
   };
   return (
     <Pressable
-      accessibilityRole="link"
+      {...linkProps(href, () => settle(true))}
       onPressIn={handlePressIn}
       onPressOut={() => settle(false)}
-      onPress={() => settle(true)}
       {...hoverProps}
       style={[
         styles.capCard,
@@ -877,12 +895,14 @@ function HomeSignedOutDesktop() {
                   icon="search"
                   title="Search Bills"
                   subtitle="Read any bill yourself — by issue or keyword"
+                  href={routePath.bills()}
                   onPress={() => navigation.navigate('Bills')}
                 />
                 <CapabilityCard
                   icon="person"
                   title="Search Legislators"
                   subtitle="See who writes your laws — profiles, committees, authored bills"
+                  href={routePath.legislators()}
                   onPress={() => navigation.navigate('Legislators')}
                 />
               </View>
@@ -900,7 +920,10 @@ function HomeSignedOutDesktop() {
                 >
                   Bills Moving Through the Legislature
                 </Text>
-                <ViewAllButton onPress={() => navigation.navigate('Bills')} />
+                <ViewAllButton
+                  href={routePath.bills()}
+                  onPress={() => navigation.navigate('Bills')}
+                />
               </View>
               <View style={styles.billGroups}>
                 {(recentlyPassed.data?.data ?? []).length > 0 ? (
@@ -911,12 +934,13 @@ function HomeSignedOutDesktop() {
                         <BillResultCard
                           key={bill.id}
                           bill={bill}
-                          // Bill detail and legislator profile are old-design
-                          // pages — cards stay visible but don't route
-                          // anywhere until their new designs ship.
-                          onPress={() => {}}
-                          onSponsorPress={() => {}}
-                          onRollCalls={() => {}}
+                          onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                          onSponsorPress={(legislatorId) =>
+                            navigation.navigate('LegislatorProfile', { legislatorId })
+                          }
+                          onRollCalls={() =>
+                            navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
+                          }
                         />
                       ))}
                     </View>
@@ -930,9 +954,13 @@ function HomeSignedOutDesktop() {
                         <BillResultCard
                           key={bill.id}
                           bill={bill}
-                          onPress={() => {}}
-                          onSponsorPress={() => {}}
-                          onRollCalls={() => {}}
+                          onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                          onSponsorPress={(legislatorId) =>
+                            navigation.navigate('LegislatorProfile', { legislatorId })
+                          }
+                          onRollCalls={() =>
+                            navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
+                          }
                         />
                       ))}
                     </View>
@@ -1081,12 +1109,11 @@ function BillBadge({ label }: { label: string }) {
 }
 
 /** "See more" — full-width outline button → default Search Bills. */
-function SeeMore({ onPress }: { onPress: () => void }) {
+function SeeMore({ href, onPress }: { href: string; onPress: () => void }) {
   const [hovered, hoverProps] = useHover();
   return (
     <Pressable
-      accessibilityRole="link"
-      onPress={onPress}
+      {...linkProps(href, onPress)}
       {...hoverProps}
       style={[
         m.seeMore,
@@ -1127,8 +1154,7 @@ function NewsCardMobile({
   const summary = plainBillSummary(bill.aiAnalysis?.summary);
   return (
     <Pressable
-      accessibilityRole="link"
-      onPress={onPress}
+      {...linkProps(routePath.bill(bill.id), onPress)}
       {...hoverProps}
       style={[m.card, transition('border-color, box-shadow'), hovered && m.cardHover]}
     >
@@ -1230,8 +1256,7 @@ function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void
   const action = rawAction ? cleanActionText(rawAction) : null;
   return (
     <Pressable
-      accessibilityRole="link"
-      onPress={onPress}
+      {...linkProps(routePath.bill(bill.id), onPress)}
       {...hoverProps}
       style={[m.card, transition('border-color, box-shadow'), hovered && m.cardHover]}
     >
@@ -1471,7 +1496,7 @@ function HomeSignedOutMobile() {
                 <SkeletonCard lines={4} />
                 <SkeletonCard lines={4} />
               </View>
-              <SeeMore onPress={openSearchBills} />
+              <SeeMore href={routePath.bills()} onPress={openSearchBills} />
             </Container>
           ) : newsBills.length > 0 ? (
             <Container style={m.section}>
@@ -1487,7 +1512,7 @@ function HomeSignedOutMobile() {
                   />
                 ))}
               </View>
-              <SeeMore onPress={openSearchBills} />
+              <SeeMore href={routePath.bills()} onPress={openSearchBills} />
             </Container>
           ) : null}
 
@@ -1508,7 +1533,7 @@ function HomeSignedOutMobile() {
                 <Text style={m.groupLabel}>RECENTLY INTRODUCED</Text>
                 <SkeletonCard lines={3} />
               </View>
-              <SeeMore onPress={openSearchBills} />
+              <SeeMore href={routePath.bills()} onPress={openSearchBills} />
             </Container>
           ) : introducedBill || signedBill ? (
             <Container style={m.section}>
@@ -1533,7 +1558,7 @@ function HomeSignedOutMobile() {
                   />
                 </View>
               ) : null}
-              <SeeMore onPress={openSearchBills} />
+              <SeeMore href={routePath.bills()} onPress={openSearchBills} />
             </Container>
           ) : null}
 
@@ -2011,12 +2036,13 @@ const m = StyleSheet.create({
   },
 });
 
-function ViewAllButton({ onPress }: { onPress: () => void }) {
+// Navigates to Search Bills, same as SeeMore in the mobile layout above — a real
+// link, not an action button, so it gets linkProps (accessibilityRole becomes 'link').
+function ViewAllButton({ href, onPress }: { href: string; onPress: () => void }) {
   const [hovered, hoverProps] = useHover();
   return (
     <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
+      {...linkProps(href, onPress)}
       {...hoverProps}
       style={[styles.viewAllBtn, hovered && { borderColor: t.colors.brand.base }]}
     >

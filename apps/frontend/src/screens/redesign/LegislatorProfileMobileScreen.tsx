@@ -22,6 +22,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
 import { buildAskChips, splitOfficeAddress } from '../../lib/legislatorProfile';
 import { IaItem, MenuKey } from '../../navigation/ia';
+import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../navigation/links';
 import { useAuth } from '../../providers/AuthProvider';
 import { useLegislator, useLegislatorBills, useSessions } from '../../hooks/useAppQueries';
 import { Bill, Legislator } from '../../data/types';
@@ -77,9 +78,8 @@ function Breadcrumb({ onPress }: { onPress: () => void }) {
   const color = hovered ? t.colors.ink : BREADCRUMB_GREY;
   return (
     <Pressable
-      accessibilityRole="link"
+      {...linkProps(routePath.legislators(), onPress)}
       accessibilityLabel="All legislators"
-      onPress={onPress}
       {...hover}
       style={styles.breadcrumb}
     >
@@ -98,18 +98,27 @@ function Breadcrumb({ onPress }: { onPress: () => void }) {
 }
 
 // Inline text link with the "→" text glyph appended by the caller (house style).
+// Serves both an in-app destination (default) and an external one (`external`) —
+// the two calls below need different anchor behaviour, so the caller says which.
 function TextLink({
   label,
+  href,
   onPress,
   size = 15,
+  external = false,
 }: {
   label: string;
+  href: string;
   onPress: () => void;
   size?: number;
+  external?: boolean;
 }) {
   const [hovered, hover] = useHover();
   return (
-    <Pressable accessibilityRole="link" onPress={onPress} {...hover}>
+    <Pressable
+      {...(external ? externalLinkProps(href, onPress) : linkProps(href, onPress))}
+      {...hover}
+    >
       <Text
         style={[
           styles.textLink,
@@ -317,7 +326,7 @@ function BillCardView({
   );
   const movedDate = formatMonoDate(bill.updatedAt);
   return (
-    <Pressable accessibilityRole="link" onPress={onOpen} style={styles.billCard}>
+    <Pressable {...linkProps(routePath.bill(bill.id), onOpen)} style={styles.billCard}>
       <View style={styles.billTopRow}>
         <Text style={styles.codeBadge}>{bill.identifier}</Text>
         <Text style={styles.billStage}>{bill.status}</Text>
@@ -343,7 +352,15 @@ function BillCardView({
                   {i > 0 ? ', ' : ''}
                   <Text
                     style={styles.coAuthorLink}
-                    onPress={s.legislatorId ? () => onOpenLegislator(s.legislatorId!) : undefined}
+                    // Nested inside the card's own link (above): stopPropagation
+                    // alone would stop the card's handler but not the anchor's
+                    // default action, so the browser would still follow the
+                    // card's href on top of opening this name.
+                    onPress={
+                      s.legislatorId
+                        ? pressInsideLink(() => onOpenLegislator(s.legislatorId!))
+                        : undefined
+                    }
                   >
                     {s.name}
                   </Text>
@@ -371,10 +388,14 @@ function BillCardView({
             </View>
           ) : null}
           {bill.rollCallCount > 0 ? (
+            // Nested inside the card's own link above (an <a> inside an <a> is
+            // invalid markup — grounded-answers nesting rule), so this stays a
+            // plain pressable rather than a link of its own; pressInsideLink still
+            // cancels the click so the browser doesn't also follow the card's href.
             <Pressable
               accessibilityRole="link"
               accessibilityLabel="View votes"
-              onPress={onVotes}
+              onPress={pressInsideLink(onVotes)}
               style={styles.voteChip}
             >
               <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
@@ -575,7 +596,11 @@ export function LegislatorProfileMobileScreen() {
         ) : legQuery.isError || !leg ? (
           <View style={styles.stateBox}>
             <Text style={styles.stateText}>We couldn’t load this legislator.</Text>
-            <TextLink label="All legislators →" onPress={goToLegislatorList} />
+            <TextLink
+              label="All legislators →"
+              href={routePath.legislators()}
+              onPress={goToLegislatorList}
+            />
           </View>
         ) : (
           <>
@@ -708,7 +733,9 @@ export function LegislatorProfileMobileScreen() {
                       {leg.profileUrl ? (
                         <TextLink
                           label={`Official ${leg.chamber} profile →`}
+                          href={leg.profileUrl}
                           onPress={() => openExternal(leg.profileUrl as string)}
+                          external
                         />
                       ) : null}
                     </View>
@@ -906,9 +933,12 @@ export function LegislatorProfileMobileScreen() {
         {/* Outside the state branch on purpose: every state ends with the footer
             (loading, load error, loaded). On the short states it pins to the
             bottom of the window — see styles.footer in theme/primitives.tsx. */}
+        {/* In-app routes, matching the desktop profile: the footer link's own
+            href is /privacy and /terms, so sending the click to the marketing
+            site would land somewhere other than the URL it advertises. */}
         <Footer
-          onPrivacy={() => openExternal('https://www.alethical.com/privacy')}
-          onTerms={() => openExternal('https://www.alethical.com/terms')}
+          onPrivacy={() => navigation.navigate('Privacy')}
+          onTerms={() => navigation.navigate('Terms')}
         />
       </ScrollView>
 

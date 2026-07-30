@@ -15,6 +15,7 @@ import {
   validateRoll,
 } from '../../lib/billDetail';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
+import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { SourceLine } from './SourceLine';
 import { isWeb, useHover } from './interactions';
 
@@ -378,9 +379,8 @@ function RecordLink({ url, onOpen }: { url: string; onOpen: (url: string) => voi
     : null;
   return (
     <Text
-      accessibilityRole="link"
       accessibilityLabel="Official record"
-      onPress={() => onOpen(url)}
+      {...externalLinkProps(url, () => onOpen(url))}
       {...hoverProps}
       style={[styles.recordLink, hovered && styles.recordLinkHover]}
     >
@@ -395,9 +395,8 @@ function MemberChip({ member, onPress }: { member: MemberVote; onPress: () => vo
   const nay = member.vote === 'NO';
   return (
     <Pressable
-      accessibilityRole="link"
       accessibilityLabel={`${member.name}, voted ${member.vote.toLowerCase()}`}
-      onPress={onPress}
+      {...linkProps(routePath.legislator(member.legislatorId), onPress)}
       {...hover}
       style={[
         styles.chip,

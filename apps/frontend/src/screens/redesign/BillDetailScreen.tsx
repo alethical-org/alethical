@@ -21,6 +21,7 @@ import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { useResponsive } from '../../hooks/useResponsive';
 import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
+import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { useAuth } from '../../providers/AuthProvider';
 import { useBill, useSessions } from '../../hooks/useAppQueries';
 import { isNotFoundError } from '../../data/api';
@@ -205,18 +206,30 @@ function CircleCheck() {
 // screen readers announce the label alone.
 function TextLink({
   label,
+  href,
+  external,
   onPress,
   size = 17,
   arrow,
 }: {
   label: string;
+  // Absent for an in-page scroll target (e.g. "View votes →"), which stays a
+  // plain link-styled pressable rather than a real anchor.
+  href?: string;
+  // Official-source URL (revisor.mn.gov) rather than an in-app page.
+  external?: boolean;
   onPress: () => void;
   size?: number;
   arrow?: boolean;
 }) {
   const [hovered, hover] = useHover();
+  const anchor = href
+    ? external
+      ? externalLinkProps(href, onPress)
+      : linkProps(href, onPress)
+    : { accessibilityRole: 'link' as const, onPress };
   return (
-    <Pressable accessibilityRole="link" onPress={onPress} {...hover}>
+    <Pressable {...anchor} {...hover}>
       <Text
         style={[
           styles.textLink,
@@ -602,7 +615,7 @@ function BillDetailMobileScreen() {
             <Text style={styles.stateText}>
               We couldn’t load this bill right now. Please try again in a moment.
             </Text>
-            <TextLink label="Back to all bills →" onPress={goToBillList} />
+            <TextLink label="Back to all bills →" href={routePath.bills()} onPress={goToBillList} />
           </View>
         ) : (
           <>
@@ -750,6 +763,8 @@ function BillDetailMobileScreen() {
                       <TextLink
                         label="Bill overview"
                         arrow
+                        href={vm.overviewUrl}
+                        external
                         onPress={() => openExternal(vm.overviewUrl as string)}
                       />
                     ) : null}
@@ -757,6 +772,8 @@ function BillDetailMobileScreen() {
                       <TextLink
                         label={readLabel(bill.status)}
                         arrow
+                        href={vm.readUrl}
+                        external
                         onPress={() => openExternal(vm.readUrl as string)}
                       />
                     ) : null}
@@ -772,6 +789,7 @@ function BillDetailMobileScreen() {
                       <TextLink
                         label={`${bill.companion.chamber} (${bill.companion.identifier})`}
                         arrow
+                        href={routePath.bill(bill.companion.id)}
                         onPress={() =>
                           navigation.navigate('BillDetail', { billId: bill.companion!.id })
                         }
@@ -800,6 +818,7 @@ function BillDetailMobileScreen() {
                           <TextLink
                             label={authorNameOnly(vm.chief.name)}
                             arrow
+                            href={routePath.legislator(vm.chief.legislatorId)}
                             onPress={() =>
                               navigation.navigate('LegislatorProfile', {
                                 legislatorId: vm.chief!.legislatorId,
@@ -942,6 +961,7 @@ function BillDetailMobileScreen() {
                       label={v.label}
                       date={formatMonoDate(v.date)}
                       isLaw={vm.tone === 'green' && /session law|chapter/i.test(v.label)}
+                      href={v.url}
                       onPress={v.url ? () => openExternal(v.url) : undefined}
                     />
                   ))}
@@ -1078,9 +1098,8 @@ function Breadcrumb({ onPress }: { onPress: () => void }) {
   const color = hovered ? t.colors.ink : BREADCRUMB_GREY;
   return (
     <Pressable
-      accessibilityRole="link"
       accessibilityLabel="All bills"
-      onPress={onPress}
+      {...linkProps(routePath.bills(), onPress)}
       {...hover}
       style={styles.breadcrumb}
     >
@@ -1320,9 +1339,8 @@ function ActionRow({
                 seg.billId ? (
                   <Text
                     key={i}
-                    accessibilityRole="link"
                     accessibilityLabel={`Open ${seg.text}`}
-                    onPress={() => onOpenBill(seg.billId!)}
+                    {...linkProps(routePath.bill(seg.billId), () => onOpenBill(seg.billId!))}
                     style={styles.actionBillCodeLink}
                   >
                     {seg.text}
@@ -1698,9 +1716,8 @@ function MemberChip({ member, onPress }: { member: MemberVote; onPress: () => vo
   const nay = member.vote === 'NO';
   return (
     <Pressable
-      accessibilityRole="link"
       accessibilityLabel={`${member.name}, voted ${member.vote.toLowerCase()}${member.crossover ? ', crossed party lines' : ''}`}
-      onPress={onPress}
+      {...linkProps(routePath.legislator(member.legislatorId), onPress)}
       style={({ pressed }) => [
         styles.chip,
         yea ? styles.chipYes : nay ? styles.chipNo : styles.chipAbs,
@@ -1755,7 +1772,7 @@ function FilterSeg({
 
 function RecordLink({ url, onOpen }: { url: string; onOpen: (url: string) => void }) {
   return (
-    <Pressable accessibilityRole="link" onPress={() => onOpen(url)}>
+    <Pressable {...externalLinkProps(url, () => onOpen(url))}>
       {({ pressed }) => (
         <Text style={[styles.recordLink, pressed && styles.recordLinkPressed]}>
           Official record →
@@ -1769,21 +1786,27 @@ function VersionRow({
   label,
   date,
   isLaw,
+  href,
   onPress,
 }: {
   label: string;
   date: string;
   isLaw: boolean;
+  // Absent when the version carries no official document — the row then falls
+  // back to a plain (inert) link so it still renders without a destination.
+  href?: string;
   onPress?: () => void;
 }) {
   const [hovered, hover] = useHover();
   const tag = isLaw ? null : versionTrackTag(label);
+  const anchor = href
+    ? externalLinkProps(href, onPress)
+    : { accessibilityRole: onPress ? ('link' as const) : undefined, onPress };
   return (
     <Pressable
-      accessibilityRole={onPress ? 'link' : undefined}
       accessibilityLabel={`${isLaw ? 'Read the full law' : 'Read the bill text'} — ${label}`}
       disabled={!onPress}
-      onPress={onPress}
+      {...anchor}
       {...hover}
       style={[styles.versionRow, hovered && onPress ? styles.versionRowHover : null]}
     >

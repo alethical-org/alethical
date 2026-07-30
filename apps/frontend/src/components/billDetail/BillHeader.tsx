@@ -3,6 +3,7 @@ import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-nat
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
+import { linkProps, routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
 import { isWeb, useHover } from './interactions';
 
@@ -100,9 +101,8 @@ function Breadcrumb({ onPress, isMobile }: { onPress: () => void; isMobile: bool
   const color = hovered ? t.colors.ink : BREADCRUMB_GREY;
   return (
     <Pressable
-      accessibilityRole="link"
       accessibilityLabel="All bills"
-      onPress={onPress}
+      {...linkProps(routePath.bills(), onPress)}
       {...hover}
       style={styles.breadcrumb}
     >

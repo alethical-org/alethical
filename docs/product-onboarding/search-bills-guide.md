@@ -100,6 +100,12 @@ Above the list you always see:
 
 Tap a card to open the full bill; results are split into pages with Previous / Next.
 
+Cards behave like ordinary web links, so you can right-click one and pick "Open link in
+new tab" (or hold ⌘ / Ctrl and click, or middle-click) to line several bills up in tabs
+instead of going back and forth. Hovering shows the bill's address in the corner of the
+browser. Two things on the card are exceptions for now and only respond to a normal
+click: the author's name and the "N votes" shortcut.
+
 ---
 
 ## When nothing matches

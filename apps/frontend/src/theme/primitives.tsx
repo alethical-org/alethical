@@ -18,6 +18,7 @@ import { ChevronDown, ChevronUp, MapPin, Menu, Plus, X } from 'lucide-react-nati
 
 import { theme } from './tokens';
 import { IaItem, MenuKey, MENUS, navDropdownItems } from '../navigation/ia';
+import { linkProps, routePath } from '../navigation/links';
 import { useResponsive } from '../hooks/useResponsive';
 
 // Reusable primitives for the redesign, built on the green token system
@@ -29,6 +30,31 @@ const t = theme;
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
   const [hovered, setHovered] = useState(false);
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
+}
+
+const CONTACT_MAILTO = 'mailto:ask@alethical.com';
+
+// The URL behind each interactive nav row, so the row is a real <a href> the
+// browser can open in a new tab (navigation/links.ts). Keyed to the same ids
+// every screen's onNavigate switch handles, so a row's link and its click land
+// in the same place. Two ids are deliberately absent, both because a URL that
+// resolves somewhere else is worse than no URL (grounded-answers rule 2, never
+// advertise what you can't answer): "About Us" has no page yet, and
+// /find-my-legislator is one of the paths webRoutes.ts redirects to Home, so
+// opening it in a new tab would not reach the screen the row navigates to
+// (issue #764).
+const NAV_ITEM_HREFS: Record<string, string> = {
+  ask: routePath.ask(),
+  'search-bills': routePath.bills(),
+  'search-legislators': routePath.legislators(),
+  'about-contact': CONTACT_MAILTO,
+};
+
+/** Link props for one nav row — a real anchor when the row has somewhere to go. */
+function navRowLinkProps(item: IaItem, onPress?: (item: IaItem) => void) {
+  const press = () => onPress?.(item);
+  const href = NAV_ITEM_HREFS[item.id];
+  return href ? linkProps(href, press) : { accessibilityRole: 'link' as const, onPress: press };
 }
 
 // --- Page background: gradient + green wash, with a masked dot-grid that fades
@@ -320,8 +346,7 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
   }
   return (
     <Pressable
-      accessibilityRole="link"
-      onPress={() => onPress?.(item)}
+      {...navRowLinkProps(item, onPress)}
       {...hoverProps}
       style={[styles.menuPanelRow, rowHoverTransition, hovered && styles.menuPanelRowHover]}
     >
@@ -421,7 +446,7 @@ function NavDropdownTrigger({
 function AskNavEntry({ onPress }: { onPress?: () => void }) {
   const [hovered, hoverProps] = useHover();
   return (
-    <Pressable accessibilityRole="link" onPress={onPress} {...hoverProps} style={styles.navTrigger}>
+    <Pressable {...linkProps(routePath.ask(), onPress)} {...hoverProps} style={styles.navTrigger}>
       <Sparkle size={14} />
       <Text
         style={[
@@ -532,11 +557,10 @@ export function TopNav({
     // Contact Us opens mail composition directly rather than routing anywhere
     // in-app — handled once here so every screen's nav gets it for free.
     if (item.id === 'about-contact') {
-      const mailto = 'mailto:ask@alethical.com';
       if (isWeb && typeof window !== 'undefined') {
-        window.location.href = mailto;
+        window.location.href = CONTACT_MAILTO;
       } else {
-        void Linking.openURL(mailto);
+        void Linking.openURL(CONTACT_MAILTO);
       }
       return;
     }
@@ -548,9 +572,8 @@ export function TopNav({
       <View style={styles.navBar}>
         {onHome ? (
           <Pressable
-            accessibilityRole="link"
             accessibilityLabel="Alethical home"
-            onPress={onHome}
+            {...linkProps(routePath.home(), onHome)}
             style={({ pressed }) => [styles.logoLink, pressed && styles.logoLinkPressed]}
           >
             <Logo />
@@ -628,11 +651,10 @@ export function TopNav({
             <ScrollView style={styles.menuList}>
               {variant === 'page' ? (
                 <Pressable
-                  accessibilityRole="link"
-                  onPress={() => {
+                  {...linkProps(routePath.ask(), () => {
                     setDrawerOpen(false);
                     onAsk?.();
-                  }}
+                  })}
                   style={styles.menuRow}
                 >
                   <View style={styles.menuRowInline}>
@@ -650,8 +672,7 @@ export function TopNav({
                     {live.map((item) => (
                       <Pressable
                         key={item.id}
-                        accessibilityRole="link"
-                        onPress={() => navigate(item)}
+                        {...navRowLinkProps(item, navigate)}
                         style={styles.menuSubRow}
                       >
                         <Text style={styles.menuSubRowText}>{item.label}</Text>
@@ -970,10 +991,18 @@ export function MNMap({ size = 330 }: { size?: number }) {
 }
 
 // --- Footer (dark, v2): sovereignty tagline left, legal links right ---
-function FooterLink({ label, onPress }: { label: string; onPress?: () => void }) {
+function FooterLink({
+  label,
+  href,
+  onPress,
+}: {
+  label: string;
+  href: string;
+  onPress?: () => void;
+}) {
   const [hovered, hoverProps] = useHover();
   return (
-    <Pressable accessibilityRole="link" onPress={onPress} {...hoverProps}>
+    <Pressable {...linkProps(href, onPress)} {...hoverProps}>
       <Text style={[styles.footerLink, hovered && { color: t.colors.white }]}>{label}</Text>
     </Pressable>
   );
@@ -992,8 +1021,8 @@ export function Footer({ onPrivacy, onTerms }: { onPrivacy?: () => void; onTerms
             </Text>
           </View>
           <View style={styles.footerLinks}>
-            <FooterLink label="Privacy Policy" onPress={onPrivacy} />
-            <FooterLink label="Terms of Use" onPress={onTerms} />
+            <FooterLink label="Privacy Policy" href={routePath.privacy()} onPress={onPrivacy} />
+            <FooterLink label="Terms of Use" href={routePath.terms()} onPress={onTerms} />
           </View>
         </View>
         <View style={styles.footerDivider} />

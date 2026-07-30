@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MotionIn } from './MotionIn';
 import { useResponsive } from '../hooks/useResponsive';
+import { linkProps, routePath } from '../navigation/links';
 import { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme/tokens';
 
@@ -69,9 +70,10 @@ export function ScreenView({
             <MotionIn delay={0}>
               <View style={styles.masthead}>
                 <Pressable
-                  accessibilityRole="link"
+                  {...linkProps(routePath.home(), () =>
+                    navigation.navigate('Tabs', { screen: 'Home' }),
+                  )}
                   accessibilityLabel="Alethical home"
-                  onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
                   style={({ pressed }) => pressed && styles.mastheadPressed}
                 >
                   <Text style={styles.mastheadLabel}>Alethical</Text>

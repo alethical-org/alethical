@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Legislator } from '../../data/types';
 import { usePrefetchLegislator } from '../../hooks/useAppQueries';
+import { linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
@@ -56,8 +57,7 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
 
   return (
     <Pressable
-      accessibilityRole="link"
-      onPress={onPress}
+      {...linkProps(routePath.legislator(legislator.id), onPress)}
       onPressIn={warm}
       onHoverIn={() => {
         setHovered(true);
