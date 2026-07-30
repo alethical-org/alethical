@@ -55,3 +55,4 @@ paid for" references, and are the place to start if you're new.
 ## About this folder
 
 - [How `docs/` is organized](folder-structure.md) — the folder layout and where a new doc goes
+- **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: ... -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. If you write a doc that describes how something behaves, give it that comment; frozen records deliberately don't have one.
