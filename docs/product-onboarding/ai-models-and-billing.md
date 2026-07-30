@@ -78,12 +78,23 @@ matters.
 `generate` rails produce identical text, but not at identical speed. The subscription
 CLI path (`--provider claude-cli --model sonnet`) runs bills **one at a time**, so a
 full-corpus regeneration (~10,500 bills) takes **~22 hours**. The API path
-(`--provider api`) submits them as a **batch** and finishes the same work in **~1 hour**
+(`--provider api`) runs **many bills at once** and finishes the same work in **~1 hour**
 for roughly the **same total dollar cost**. So the choice is *not* about money — it's
 **already-paid subscription hours (slow, runs unattended overnight) vs. paid API credits
 (fast)**. Rule of thumb: CLI path when there's no deadline and you'd rather not spend
-API credits; API batch when speed matters. Either way it's checkpointed and resumable —
-it skips bills already done, so a paused run costs nothing to restart.
+API credits; the parallel API path when speed matters. Either way it's checkpointed and
+resumable — it skips bills already done, so a paused run costs nothing to restart.
+
+**"Many bills at once" is not the discounted bulk lane — the API path pays full
+list price.** It fires ordinary real-time calls (`POST /v1/messages`) from a pool of
+concurrent workers, which is what buys the ~1 hour. Anthropic's **Message Batches
+API** *would* bill the same work at **50% off**, but it is best-effort with an SLA of
+up to 24 hours, so taking the discount gives back the entire speed advantage that is
+the reason to use the API path at all. The OpenAI path
+([`ai_enrichment.py`](../../alethical/pipeline/ai_enrichment.py)) *does* use its
+provider's discounted batch queue, which is why that one is cheap and slow. Don't read
+"batch" as "discount" when comparing the two — the mode/tier tradeoff is worked through
+in [#457](https://github.com/alethical-org/alethical/issues/457).
 
 **Which model does the writing:** enrichment runs on **Claude Sonnet with extended
 thinking turned off**. The summary / key-points / suggested-questions task is
