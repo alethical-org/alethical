@@ -925,6 +925,23 @@ def test_bill_detail_resolves_cross_reference_actions_to_linkable_bills(client):
             db.commit()
 
 
+def test_bill_detail_serves_a_bill_that_has_no_ai_summary_yet(client):
+    """A bill we haven't summarized is not a missing bill. Asking for `ai_analysis`
+    on one used to 404, which the frontend renders as "We couldn't find that bill" —
+    denying a real law exists because no summary had been written for it. It stayed
+    invisible while every bill in the corpus happened to be enriched, and surfaced
+    the moment the 2025 special session was ingested unenriched (#746)."""
+    response = client.get("/api/v1/bills/94-2025-HF9901?include=ai_analysis,actions")
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["id"] == "94-2025-HF9901"
+    # Absent, not fabricated — the page falls back to the official title. (The
+    # response drops null fields, so an omitted key IS the null the client reads.)
+    assert payload.get("ai_analysis") is None
+    # A genuinely missing bill must still 404, so the two stay distinguishable.
+    assert client.get("/api/v1/bills/94-2025-HF999999").status_code == 404
+
+
 def test_bill_detail_serves_the_bills_own_session(client):
     """#746: the bill page labels itself with the session the bill belongs to. It used
     to read whichever session was flagged current, which is wrong for a special-session

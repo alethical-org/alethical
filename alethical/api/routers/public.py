@@ -1609,8 +1609,12 @@ def bill_detail(
     ai_enrichment = None
     if {"ai_summary", "ai_analysis"} & include_set:
         ai_enrichment = current_bill_summary_enrichment(row.enrichments)
-    if "ai_analysis" in include_set and ai_enrichment is None:
-        raise HTTPException(status_code=404, detail="bill enrichment not found")
+    # A bill with no AI summary yet is NOT a missing bill. This used to 404, which
+    # the frontend renders as "We couldn't find that bill" — telling a reader a real
+    # law does not exist because we haven't written a summary of it. It went
+    # unnoticed only because every bill in the corpus happened to be enriched, until
+    # the 2025 special session was ingested (#746). The page already degrades to the
+    # official title with no bullets when `ai_analysis` is null.
     # Both effective-date fields come from ONE resolve so the rail's value and the
     # timeline's rows can never disagree, and the sections load only once.
     schedule = effective_schedule_payload(db, row)
