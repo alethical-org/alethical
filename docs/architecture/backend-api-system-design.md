@@ -1,5 +1,7 @@
 # Alethical Backend API System Design
 
+<!-- describes: alethical/api/routers/*.py -->
+
 Status: design reference — endpoint inventory spot-verified against `alethical/api/routers/` Jul 2026
 
 ## Goal
