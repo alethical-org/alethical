@@ -556,6 +556,7 @@ function BillDetailMobileScreen() {
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
@@ -962,13 +963,17 @@ function BillDetailMobileScreen() {
                 updatedLabel={vm.updatedLabel}
               />
             </Section>
-
-            <Footer
-              onPrivacy={() => navigation.navigate('Privacy')}
-              onTerms={() => navigation.navigate('Terms')}
-            />
           </>
         )}
+
+        {/* Outside the state branch on purpose: every state ends with the footer
+            (loading, bill-not-found, load error, loaded), the way the web screen
+            already does. On the short states it pins to the bottom of the window
+            — see styles.footer in theme/primitives.tsx. */}
+        <Footer
+          onPrivacy={() => navigation.navigate('Privacy')}
+          onTerms={() => navigation.navigate('Terms')}
+        />
       </ScrollView>
 
       {/* SHARE SHEET */}
@@ -1978,6 +1983,10 @@ const COLUMN_MAX = 640;
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
+  // flexGrow: 1 fills the window on a short page so the footer lands at the
+  // bottom (styles.footer in theme/primitives.tsx) instead of leaving a band
+  // of background below it.
+  scrollContent: { flexGrow: 1 },
   // skeleton loading state (mirrors header + first content section)
   skGap8: { marginTop: 8 },
   skGap14: { marginTop: 14 },

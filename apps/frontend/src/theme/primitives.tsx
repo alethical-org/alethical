@@ -1446,7 +1446,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     ...(isWeb ? ({ outlineStyle: 'none' } as any) : null),
   },
-  footer: { backgroundColor: t.colors.footerBg, paddingTop: 56, paddingBottom: 44 },
+  // marginTop: 'auto' keeps the footer at the bottom of the window on any page
+  // whose content is shorter than the viewport (a not-found bill, an empty
+  // result set), so the leftover space opens up ABOVE the footer instead of
+  // showing as a bare band below it. Costs nothing on a page that already
+  // scrolls: there is no free space for the auto margin to absorb. Needs the
+  // scroll container to grow to full height — every ScrollView that renders a
+  // Footer sets contentContainerStyle flexGrow: 1 for exactly this.
+  footer: {
+    backgroundColor: t.colors.footerBg,
+    paddingTop: 56,
+    paddingBottom: 44,
+    marginTop: 'auto',
+  },
   footerTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
