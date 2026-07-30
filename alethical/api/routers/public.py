@@ -1609,8 +1609,18 @@ def bill_detail(
     ai_enrichment = None
     if {"ai_summary", "ai_analysis"} & include_set:
         ai_enrichment = current_bill_summary_enrichment(row.enrichments)
-    if "ai_analysis" in include_set and ai_enrichment is None:
-        raise HTTPException(status_code=404, detail="bill enrichment not found")
+    # A bill with no enrichment yet still EXISTS, so it serves 200 with the
+    # generated fields absent rather than 404. This used to raise (#44), which was
+    # harmless only while every bill happened to be enriched. Ingesting the 2025
+    # first special session (#746) put 46 real, unenriched bills in production —
+    # the only unenriched rows in the whole corpus — and every one of them 404'd
+    # the entire detail route, because the frontend requests
+    # ``include=...,ai_analysis`` on every bill page. The site rendered "We
+    # couldn't find that bill" for bills it demonstrably carries. Enrichment is a
+    # separate paid step that always lags ingestion, so that lag must degrade to a
+    # page missing its summary, never to a page denying the bill exists.
+    # ``ai_analysis_payload_for_enrichment`` already returns None here and the
+    # return below drops null fields, so the absence flows through on its own.
     # Both effective-date fields come from ONE resolve so the rail's value and the
     # timeline's rows can never disagree, and the sections load only once.
     schedule = effective_schedule_payload(db, row)
