@@ -110,7 +110,13 @@ def resolved_model_name(model: str, override: str | None = None) -> str:
     return f"claude:{CLI_MODEL_ALIASES.get(model, model)}"
 
 
-DEFAULT_MAX_TOKENS = 8192
+# Measured on #723's 3,222-bill run: output averages ~5,400 tokens per bill and
+# reaches 10,922 on a long omnibus. At the old 8,192 roughly one bill in five was
+# cut off mid-JSON, discarded, and retried at a bigger ceiling below — and every
+# discarded attempt was billed. Two bills that needed 2 and 4 attempts each
+# succeeded first try at 16,000. Raising this costs nothing when unused, since
+# billing is per token generated, not per token allowed.
+DEFAULT_MAX_TOKENS = 16000
 DEFAULT_CONCURRENCY = 8
 MAX_ATTEMPTS = 4
 # Team-plan path: the Claude Code CLI binary (overridable for tests / non-PATH installs).
