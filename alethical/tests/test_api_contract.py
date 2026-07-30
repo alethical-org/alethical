@@ -829,8 +829,11 @@ def test_bill_detail_resolves_cross_reference_actions_to_linkable_bills(client):
                     action_text="See",
                     action_description=raw,
                 ),
-                # Another session — must stay unresolved even though the regular
-                # session does contain a bill with this exact file number.
+                # Another session, naming a file that session does not contain.
+                # Must stay unresolved even though the regular session DOES hold a
+                # bill with this exact number: since #797 the row is resolved
+                # against the special session it names, finds nothing there, and
+                # declines rather than falling back to the citing bill's session.
                 schema.BillAction(
                     bill_id=bill.id,
                     chamber_id=bill.chamber_id,
@@ -922,6 +925,127 @@ def test_bill_detail_resolves_cross_reference_actions_to_linkable_bills(client):
                 for key, value in enrichment.content_json.items()
                 if key != "short_title"
             }
+            db.commit()
+
+
+def test_cross_reference_naming_a_session_resolves_to_that_session(client):
+    """#797: "First Special Session, HF 5" links to the SPECIAL HF 5, never the other.
+
+    This is the case the guard in #745 was built around and deliberately declined to
+    handle: a Legislature renumbers its special-session files from 1, so HF 5 names a
+    regular-session tax bill *and* the special session's K-12 education finance bill.
+    Resolving the row inside the citing bill's own session would land a reader on the
+    tax bill — plausible, cited, and wrong. Now that #746 put the special session in
+    the corpus, the row resolves against the session it names.
+
+    The assertions check *which* bill was linked, not merely that something was, since
+    a wrong link and a right one are both "a link". The fixture pair is seeded by
+    ``seed_special_session_collision`` in ``scripts/load_sample_data.py``.
+    """
+    schema = load_schema()
+    base = 9800
+    with Session(get_engine()) as db:
+        bill = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+        )
+        db.add_all(
+            [
+                # Names the special session, which holds an HF 5.
+                schema.BillAction(
+                    bill_id=bill.id,
+                    chamber_id=bill.chamber_id,
+                    action_number=base,
+                    action_text="See",
+                    action_description="First Special Session, HF5",
+                ),
+                # No session named, so the citing bill's own session applies and
+                # this must still find the REGULAR HF 5 exactly as before.
+                schema.BillAction(
+                    bill_id=bill.id,
+                    chamber_id=bill.chamber_id,
+                    action_number=base + 1,
+                    action_text="See",
+                    action_description="HF5",
+                ),
+                # The fuller form the source also uses, with a year and a chapter.
+                schema.BillAction(
+                    bill_id=bill.id,
+                    chamber_id=bill.chamber_id,
+                    action_number=base + 2,
+                    action_text="See",
+                    action_description=(
+                        "2025 1st Special Session HF5, Chapter 9, Article 2., "
+                        "Section 6."
+                    ),
+                ),
+                # One row naming files in two different sessions (10 production rows
+                # name 2+ files). HF 5 resolves in the special session; HF 719 has no
+                # special-session counterpart, so it stays plain text rather than
+                # resolving to the regular-session bill of that number.
+                schema.BillAction(
+                    bill_id=bill.id,
+                    chamber_id=bill.chamber_id,
+                    action_number=base + 3,
+                    action_text="See",
+                    action_description="First Special Session, HF5; HF719",
+                ),
+                # A session we hold no row for. Unmappable, so it stays text — the
+                # refuse-on-doubt default, not an error.
+                schema.BillAction(
+                    bill_id=bill.id,
+                    chamber_id=bill.chamber_id,
+                    action_number=base + 4,
+                    action_text="See",
+                    action_description="Fourth Special Session, HF5",
+                ),
+            ]
+        )
+        db.commit()
+    try:
+        actions = client.get(
+            "/api/v1/bills/94-2025-SF1832", params={"include": "actions"}
+        ).json()["data"]["actions"]
+        by_number = {action["action_number"]: action for action in actions}
+
+        # The headline: the named session wins, and it is the special-session bill.
+        assert by_number[base]["cross_references"] == [
+            {
+                "code": "HF 5",
+                "id": "94-2025s1-HF5",
+                # The fixture bill carries no actions, so the status trigger leaves
+                # it at the first stage. Asserted rather than omitted so the payload
+                # shape stays pinned alongside the id.
+                "status_key": "proposed",
+            }
+        ]
+        # An unqualified reference is unchanged — still the citing bill's own session.
+        assert by_number[base + 1]["cross_references"][0]["id"] == "94-2025-HF5"
+        # The year-and-chapter form resolves to the same special-session bill.
+        assert by_number[base + 2]["cross_references"][0]["id"] == "94-2025s1-HF5"
+        # Mixed row: one link, and it is the special-session HF 5. HF 719 is absent
+        # rather than resolved into the regular session.
+        assert by_number[base + 3]["cross_references"] == [
+            {
+                "code": "HF 5",
+                "id": "94-2025s1-HF5",
+                # The fixture bill carries no actions, so the status trigger leaves
+                # it at the first stage. Asserted rather than omitted so the payload
+                # shape stays pinned alongside the id.
+                "status_key": "proposed",
+            }
+        ]
+        # A session we cannot pin down serves no link at all, not an empty list.
+        assert "cross_references" not in by_number[base + 4]
+
+        # Every id served is genuinely addressable, which is the point of serving it.
+        for number in (base, base + 1, base + 2, base + 3):
+            for reference in by_number[number]["cross_references"]:
+                assert client.get(f"/api/v1/bills/{reference['id']}").status_code == 200
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(
+                delete(schema.BillAction).where(schema.BillAction.action_number >= base)
+            )
             db.commit()
 
 

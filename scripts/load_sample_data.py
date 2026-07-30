@@ -23,6 +23,7 @@ from alethical.pipeline.sessions import (  # noqa: E402
     CURRENT_SESSION_END_DATE,
     CURRENT_SESSION_SLUG,
     CURRENT_SESSION_START_DATE,
+    SPECIAL_SESSION_2025_SLUG,
 )
 
 FIXTURE_ROOT = ROOT / "alethical" / "tests" / "fixtures"
@@ -720,6 +721,70 @@ def seed_bill_without_rag_chunks(session: Session, refs: dict[str, Any]) -> Any:
     return bill
 
 
+def seed_special_session_collision(session: Session, refs: dict[str, Any]) -> Any:
+    """Seed the same file number in two sessions, which is the whole #746 hazard.
+
+    A Legislature numbers its special-session files from 1 all over again, so "HF 5"
+    names two unrelated bills: in the 2025 regular session a tax bill, and in the
+    2025 first special session the K-12 education finance bill. That is not a
+    contrived fixture -- it is the real pair, and it is why a cross-reference row
+    reading "First Special Session, HF 5" must resolve against the session it names
+    and never fall back to the citing bill's (#745, #746, #797).
+
+    Both bills carry deliberately different titles so a test can tell which one a
+    link landed on, rather than only checking that *a* link appeared.
+    """
+    special = session.scalar(
+        select(LegislativeSession).where(
+            LegislativeSession.slug == SPECIAL_SESSION_2025_SLUG
+        )
+    )
+    if special is None:
+        special = LegislativeSession(
+            jurisdiction_id=refs["jurisdiction"].id,
+            slug=SPECIAL_SESSION_2025_SLUG,
+            session_number=94,
+            session_type=SessionType.special,
+            year_start=2025,
+            year_end=2025,
+            name="94th Legislature (2025) First Special Session",
+            start_date=datetime(2025, 6, 9, tzinfo=timezone.utc),
+            end_date=datetime(2025, 6, 10, tzinfo=timezone.utc),
+            # Never current: the API reads "the current session" as a single row, so
+            # a second current one would make that read pick arbitrarily.
+            is_current=False,
+        )
+        session.add(special)
+        session.flush()
+
+    bills = {}
+    for key, target_session, title in (
+        ("94-2025-HF5", refs["session"], "Regular-session HF 5 — a tax bill"),
+        (
+            "94-2025s1-HF5",
+            special,
+            "Special-session HF 5 — K-12 education finance",
+        ),
+    ):
+        bill = session.scalar(select(Bill).where(Bill.bill_key == key))
+        if bill is None:
+            bill = Bill(
+                session_id=target_session.id,
+                chamber_id=refs["chambers"]["house"].id,
+                bill_key=key,
+                file_type="HF",
+                file_number=5,
+                title=title,
+                description=title,
+                official_url=f"https://example.test/{key}",
+                is_omnibus=False,
+            )
+            session.add(bill)
+            session.flush()
+        bills[key] = bill
+    return bills
+
+
 def seed_ai_enrichment(
     session: Session, bill: Any, enrichment_fixtures: dict[str, Any]
 ) -> None:
@@ -919,6 +984,7 @@ def main() -> None:
             bills.append(bill)
 
         seed_bill_without_rag_chunks(session, refs)
+        seed_special_session_collision(session, refs)
 
         user = seed_user_features(session, bills, refs)
         refresh_legislator_stats(session, refs)
