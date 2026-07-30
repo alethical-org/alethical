@@ -213,6 +213,51 @@ thinking turned off**. The summary / key-points / suggested-questions task is
 reasoning-light, so thinking would add latency and cost without improving the output —
 Sonnet-no-thinking is the cheapest tier that holds the quality bar for this job.
 
+### 4.3 What a run actually costs, measured — and how to size the next one
+
+Everything below is measured, not projected: from the 3,222-bill re-enrichment of
+[#723](https://github.com/alethical-org/alethical/issues/723) (applied Jul 30 2026,
+3,177 bills written, 0 failures) and its 1,264 clean calls.
+
+| Measure | Value |
+|---|---|
+| Cost per bill, end to end | **$0.064–0.072** |
+| Output tokens per bill | **~5,400** (up to 10,922 on a long omnibus) |
+| Stored characters per output token | 2.153 |
+| Request characters per input token | 3.039 |
+| Actual generation time, 3,222 bills | ~80 minutes |
+
+**To size a run:** multiply bills by ~$0.07. For the full 10,471-bill corpus that is
+roughly **$730 at list price**, or about **$365** through the half-price bulk lane
+(§4.1). Do not re-derive it from a small sample.
+
+**Why that last sentence is a rule and not advice.** #723 was estimated at **$176** and
+cost **~$224**. The estimate assumed 3,818 output tokens per bill; the real figure is
+~5,400, **41% higher**. The error came from sizing off a 12-bill sample that happened to
+write shorter answers than the real batch. A dozen bills cannot tell you the shape of ten
+thousand, so use the measured per-bill rate above, or sample at least a few hundred.
+
+**Instruction caching is confirmed working in production, not just merged.** The 388-bill
+pass read **1,367,312 of 2,705,191 input tokens from cache — 51%**, saving $2.46 on that
+pass alone. Extrapolated across the full corpus that is roughly **$66 a run**. This was
+[#785](https://github.com/alethical-org/alethical/pull/785)'s first real exercise, and the
+`token_usage` block above is where the number comes from.
+
+**Guard the output ceiling, because a cut-off answer is billed and then thrown away.**
+The ceiling was 8,192 tokens against a ~5,400-token average, so roughly **1 bill in 5**
+was truncated mid-JSON, discarded, and retried at a larger ceiling — with every discarded
+attempt paid for. Raised to 16,000 in
+[#813](https://github.com/alethical-org/alethical/pull/813), worth ~$25 on a 3,222-bill
+batch and more on a full corpus. The tell that the ceiling was the cause rather than the
+model: the same bill produced 4,413 vs 4,425 tokens at both ceilings, so the extra room
+changed nothing except whether the answer survived.
+
+**A prepaid balance can refuse a request it could afford.** Any provider or gateway that
+*reserves* funds equal to the requested output ceiling before running the call will reject
+a 16,000-token request on a nearly-empty balance while accepting a 1,000-token one, with a
+payment error rather than a quota message. Worth knowing before diagnosing a mid-run stall
+as an outage — raising the ceiling raises the balance a run needs up front.
+
 ## 5. The decisions behind retrieval (embedding model + index)
 
 Retrieval is the embedding rail (§2–3). Two decisions, both backed by measured
