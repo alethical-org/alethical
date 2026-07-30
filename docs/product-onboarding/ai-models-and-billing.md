@@ -117,28 +117,60 @@ comparison:
 | OpenAI API direct (what `ai_enrichment.py` already uses) | ✅ Yes |
 | Claude on Google Cloud / Amazon Bedrock | ✅ Yes |
 | Self-hosted LiteLLM proxy | ✅ Yes — it forwards the batch endpoint |
-| Vercel AI Gateway · OpenRouter · Concentrate | ❌ No — live calls only |
+| [OpenRouter](https://openrouter.ai/docs/batch-quickstart) | ✅ Yes — 24-hour batch, **beta** |
+| Vercel AI Gateway · Concentrate | ❌ No — live calls only |
 
-So a model-routing service in front of us is not a way to *get* a better rate; at best
-it passes through the provider's price, and in the bulk case it takes the discount away.
-Evaluated in full at
+So a model-routing service in front of us is not a way to *get* a better rate; the best
+any of them can do is pass the provider's own price through, and some cannot reach the
+bulk lane at all. Evaluated in full at
 [#457](https://github.com/alethical-org/alethical/issues/457#issuecomment-5133755600).
+
+**OpenRouter is the exception worth naming, because it changed.** It now runs a beta
+24-hour batch service across chat, responses, Anthropic Messages **and embeddings**, and
+lists `anthropic/claude-sonnet-5:batch` at the same **$1 in / $5 out** Anthropic charges.
+So it *can* reach the discount, and it *can* handle the embedding half of our workload.
+We still go direct to Anthropic, for reasons that are about risk and overhead rather than
+the token price:
+
+- OpenRouter charges **5.5%** when you top up credits, so the same $88 of tokens costs
+  about **$93**.
+- Its batch service is **beta**, and this is a production write over 3,222 live bills.
+- It adds a second company that has to be up, and a second place our bill text is stored.
+- It saves us no work: we would still write the same batch client either way.
+
+**Net (plain language): OpenRouter can now get the half price, but going straight to
+Anthropic is a few dollars cheaper and has fewer things that can go wrong.**
 
 **The one real promotion is a different thing, and it has a deadline.** Claude Sonnet 5
 is on introductory pricing of **$2 in / $10 out per million tokens** through
 **August 31, 2026**, after which it returns to **$3 / $15**
 ([pricing](https://platform.claude.com/docs/en/about-claude/pricing#claude-sonnet-5-introductory-pricing)).
-That is a 50% increase on every enrichment run from September 1. The
-[#723](https://github.com/alethical-org/alethical/issues/723) re-enrichment of 3,222
-bills prices at **~$176 today and ~$265 after the deadline**; a full-corpus run scales
-the same way. **Net (plain language): any enrichment run we already intend to do is
-meaningfully cheaper if it happens before September.**
+That is a 50% increase on every enrichment run from September 1.
 
-**The two savings stack.** Bulk-lane pricing and [prompt
-caching](https://platform.claude.com/docs/en/about-claude/pricing#prompt-caching) (which
-bills a repeated instruction block at 10% after its first write) combine, so the cheapest
-possible enrichment run is bulk lane + cached prefix. Neither is wired up today: the
-Anthropic runner sends live calls with an uncached system block.
+Both discounts apply to the same measured job, so the
+[#723](https://github.com/alethical-org/alethical/issues/723) re-enrichment of 3,222
+bills (26.7M tokens in, 12.3M out) prices four ways:
+
+| | Live calls (~1 hour) | Bulk lane (up to 24 hours) |
+|---|---|---|
+| **Through Aug 31, 2026** | ~$176 | **~$88** |
+| **From Sep 1, 2026** | ~$265 | ~$132 |
+
+**Net (plain language): the bulk lane saves more than the deadline costs.** Missing
+August is a ~$89 mistake only if we stay on live calls; on the bulk lane it is ~$44.
+Doing both — bulk lane, before September — is the cheapest this job will ever be.
+
+**A third saving exists and stacks, but it is small enough to skip here.** [Prompt
+caching](https://platform.claude.com/docs/en/about-claude/pricing#prompt-caching) bills a
+repeated instruction block at 10% after its first write, and it combines with the bulk
+discount. Our enrichment prompt does have a perfect candidate: ~3,240 tokens of identical
+instructions on every call, about 39% of the input. But it only touches *input*, and the
+bulk lane has already halved that, so the ceiling is roughly **$8 off an $88 run** — less
+in practice, because inside a batch the cache is best-effort. Worth wiring up on the live
+path (~$18 there, and cache reads also stop counting against the per-minute throughput
+limit); not worth adding a new failure mode to a production write for ~$5. Neither the
+bulk lane nor caching is wired up today: the Anthropic runner sends live calls with an
+uncached instruction block.
 
 **Which model does the writing:** enrichment runs on **Claude Sonnet with extended
 thinking turned off**. The summary / key-points / suggested-questions task is
