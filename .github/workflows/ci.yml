@@ -175,6 +175,11 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          # Full history: check_doc_sync.py needs a real merge base with the PR's
+          # base branch. A shallow clone has none, and the guard would then find
+          # no changed files and pass every PR silently.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -183,3 +188,15 @@ jobs:
 
       - name: Check doc references resolve
         run: python scripts/check_doc_references.py
+
+      # Only meaningful on a PR: it compares against the merge base and reads the
+      # PR body. On a push to main there is no body to read, so it is skipped
+      # rather than failing every direct push.
+      - name: Check docs describing changed code were looked at
+        if: github.event_name == 'pull_request'
+        env:
+          DOC_SYNC_BASE_REF: origin/${{ github.base_ref }}
+          DOC_SYNC_PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          git fetch --quiet origin "${{ github.base_ref }}"
+          python scripts/check_doc_sync.py

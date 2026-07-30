@@ -1,5 +1,7 @@
 # Bill search screen spec
 
+<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/search/searchPieces.tsx, alethical/api/routers/public.py -->
+
 Status: v1 build spec. Companion to `docs/product-onboarding/mvp-redesign-plan.md` (§ "Search page split")
 and `docs/product-onboarding/grounded-ask-spec.md` (the Ask answer pages link into this screen). Durable
 answer/citation invariants live in `.claude/rules/grounded-answers.md`.
