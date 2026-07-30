@@ -405,9 +405,15 @@ export function FullTextTab({
 
   const column = (
     <View style={showRail ? styles.column : styles.columnAlone}>
+      {/* Says "the text", not "the complete text". Ingestion drops a section
+          whenever a bill's page gives two sections the same id (#763 — 2 of
+          HF 4057's 240 sections, verified against revisor.mn.gov), so the
+          stronger word is a claim we cannot currently keep
+          (.claude/rules/grounded-answers.md rule 6). Restore "complete" when
+          #763 lands and the corpus has been re-read. */}
       <Text style={styles.intro}>
-        The complete text of this version, section by section, as published by the Minnesota
-        Legislature. Cited sections from the summary link straight to their passage here.
+        The text of this version, section by section, as published by the Minnesota Legislature.
+        Cited sections from the summary link straight to their passage here.
       </Text>
 
       {legend ? <Text style={styles.legend}>{legend}</Text> : null}
