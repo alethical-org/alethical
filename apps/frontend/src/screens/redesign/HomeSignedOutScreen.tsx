@@ -1363,9 +1363,12 @@ function HomeSignedOutMobile() {
     }
     navigation.navigate('Ask', { q: question });
   };
-  // Bill detail and Find My Legislator are old-design pages — the cards/field
-  // stay visible but don't route anywhere until their new designs ship.
-  const openBill = (_billId: string) => {};
+  // Bill detail ships as the redesigned mobile screen, so every bill card on this
+  // page (In the News, Bill Activity) routes there — same target as the desktop
+  // variant's cards above and Search Bills' result cards.
+  const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
+  // Find My Legislator is still an old-design page — the field stays visible but
+  // doesn't route anywhere until its new design ships.
   const openSearchBills = () => navigation.navigate('Bills');
   const openFinder = () => {};
 
