@@ -53,7 +53,7 @@ from alethical.eval.answer_eval import (
     JudgeVerdict,
     aggregate,
     cost_per_answer,
-    declines,
+    mentions_missing_coverage,
     judge_disagreement,
     literal_fact_coverage,
     load_fixture,
@@ -369,7 +369,15 @@ which model wrote the answer and must not speculate.
 
 Return ONLY a JSON object with these keys:
   "grounded":  true only if EVERY factual claim in the answer is supported by the \
-passages shown. A single unsupported number, name, date, or effect makes this false.
+passages shown. A single unsupported number, name, date, or effect makes this false. \
+Judge only what the answer asserts — restating a passage in plainer words is \
+supported, and so is a reasonable plain-language conclusion the passages entail.
+  "declines":  true only if the answer, TAKEN AS A WHOLE, refuses to answer — it \
+tells the reader the text does not cover the question and offers no substantive \
+answer. An answer that DOES answer and then adds a caveat ("...the bill does not \
+specify how often the training must be repeated") is NOT declining: it answered. \
+This distinction is the whole point of the field, so read the whole answer before \
+setting it.
   "covers":    0, 1, or 2 — does it carry the required facts from the answer key? \
 2 = all of them (a paraphrase counts), 1 = some, 0 = none. When the answer key says \
 the passages do NOT answer the question, grade instead on whether the answer tells \
@@ -463,13 +471,22 @@ _VERDICT_SCHEMA = {
     "type": "object",
     "properties": {
         "grounded": {"type": "boolean"},
+        "declines": {"type": "boolean"},
         "covers": {"type": "integer", "enum": [0, 1, 2]},
         "addresses": {"type": "integer", "enum": [0, 1, 2]},
         "framing": {"type": "integer", "enum": [0, 1, 2]},
         "plain": {"type": "integer", "enum": [0, 1, 2]},
         "note": {"type": "string"},
     },
-    "required": ["grounded", "covers", "addresses", "framing", "plain", "note"],
+    "required": [
+        "grounded",
+        "declines",
+        "covers",
+        "addresses",
+        "framing",
+        "plain",
+        "note",
+    ],
     "additionalProperties": False,
 }
 
@@ -579,8 +596,9 @@ def _is_scoreable(verdict: object) -> bool:
 
 def _validated_verdict(verdict: dict) -> dict:
     """Reject a verdict that parsed but is not scoreable, so the retry can fix it."""
-    if not isinstance(verdict.get("grounded"), bool):
-        raise ValueError(f"'grounded' is not a boolean: {verdict.get('grounded')!r}")
+    for flag in ("grounded", "declines"):
+        if not isinstance(verdict.get(flag), bool):
+            raise ValueError(f"{flag!r} is not a boolean: {verdict.get(flag)!r}")
     for dim in GRADED_DIMENSIONS:
         value = verdict.get(dim)
         if (
@@ -710,6 +728,7 @@ def run(args) -> None:
                     JudgeVerdict(
                         judge=judge_spec,
                         grounded=bool(v["grounded"]),
+                        declines=bool(v["declines"]),
                         covers=int(v["covers"]),
                         addresses=int(v["addresses"]),
                         framing=int(v["framing"]),
@@ -744,7 +763,7 @@ def report(
     print("ANSWER QUALITY — all judges pooled")
     print("=" * 100)
     header = (
-        f"{'model':30s} {'score':>6s} {'ship':>6s} {'gate!':>6s} "
+        f"{'model':30s} {'score':>6s} {'ship':>6s} {'gate!':>6s} {'disp':>6s} "
         f"{'p50 s':>7s} {'p95 s':>7s} {'$/answer':>10s} {'bar':>5s}"
     )
     print(header)
@@ -759,6 +778,7 @@ def report(
         print(
             f"{spec:30s} {summary['mean_score']:6.2f} "
             f"{summary['ship_worthy_rate']:6.0%} {summary['gate_failure_count']:6d} "
+            f"{summary['grounding_disputed']:6d} "
             f"{summary['seconds_total']['p50']:7.2f} {summary['seconds_total']['p95']:7.2f} "
             f"{dollars:>10s} "
             f"{'PASS' if meets_bar(summary, p50_seconds=P50_SECONDS, p95_seconds=P95_SECONDS) else 'fail':>5s}"
@@ -790,7 +810,10 @@ def report(
                 f"grounding splits {d['grounding_gate_splits']}"
             )
 
-    print("\n--- gate failures (each one disqualifies a model) ---")
+    print(
+        "\n--- gate failures (each one disqualifies a model; 'disp' above counts "
+        "grounding calls the two judges split on, which are NOT counted as failures) ---"
+    )
     any_failure = False
     for spec, results in results_by_model.items():
         for failure in aggregate(results)["gate_failures"]:
@@ -802,7 +825,8 @@ def report(
 
     print("\n--- mechanical checks (no judge involved) ---")
     print(
-        f"{'model':30s} {'code preamble':>14s} {'statute cites':>14s} {'literal facts':>14s}"
+        f"{'model':30s} {'code preamble':>14s} {'statute cites':>14s} "
+        f"{'literal facts':>14s} {'notes a limit':>14s}"
     )
     for spec, results in results_by_model.items():
         preamble = sum(1 for r in results if opens_with_bill_code(r.answer))
@@ -811,12 +835,16 @@ def report(
         for r in results:
             h, t = literal_fact_coverage(r.query, r.answer)
             hits, totals = hits + h, totals + t
-        print(f"{spec:30s} {preamble:14d} {cites:14d} {f'{hits}/{totals}':>14s}")
+        limits = sum(1 for r in results if mentions_missing_coverage(r.answer))
+        print(
+            f"{spec:30s} {preamble:14d} {cites:14d} "
+            f"{f'{hits}/{totals}':>14s} {limits:14d}"
+        )
 
     print("\n--- refusal behaviour on questions the passages do not cover ---")
     for spec, results in results_by_model.items():
         unanswerable = [r for r in results if not r.query.answerable]
-        declined = sum(1 for r in unanswerable if declines(r.answer))
+        declined = sum(1 for r in unanswerable if r.declines())
         print(f"{spec:30s} declined {declined}/{len(unanswerable)}")
 
 

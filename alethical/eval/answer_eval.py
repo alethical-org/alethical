@@ -20,7 +20,8 @@ rules 1 and 3):
 
 * ``grounded``        — every claim traceable to the provided passages.
 * ``refusal_correct`` — declines on a fixture item labeled unanswerable, and does
-  not decline on one labeled answerable. Both directions fail.
+  not decline on one labeled answerable. Both directions fail. Whether an answer
+  declines is the judges' call, not a pattern's: see ``mentions_missing_coverage``.
 
 Four **graded** dimensions, 0/1/2 each (8 points), scored only on answers that
 clear both gates:
@@ -151,8 +152,20 @@ _STATUTE_CITATION_RE = re.compile(
 )
 
 
-def declines(answer: str) -> bool:
-    """True when the answer tells the reader the text does not cover the question."""
+def mentions_missing_coverage(answer: str) -> bool:
+    """True when the answer says somewhere that the text does not cover something.
+
+    **A hint, never the refusal verdict.** This started life as the refusal gate and
+    was wrong: the production prompt asks a model to "answer the supported part and
+    say what is not covered", so a *good* answer routinely ends with "the bill does
+    not specify how often the training must be repeated". A pattern cannot tell that
+    closing caveat apart from a whole answer that declines — it fired on four of
+    gpt-4o-mini's best answers and recorded them as refusals.
+
+    Whether an answer *as a whole* declines is a judgment, so the judges make it
+    (``JudgeVerdict.declines``) and this function is reported alongside as an
+    independent signal.
+    """
     return bool(_REFUSAL_RE.search(answer))
 
 
@@ -181,6 +194,7 @@ class JudgeVerdict:
 
     judge: str
     grounded: bool
+    declines: bool
     covers: int
     addresses: int
     framing: int
@@ -204,21 +218,47 @@ class AnswerResult:
 
     # --- gates ---
 
-    def refusal_correct(self) -> bool:
-        return declines(self.answer) is not self.query.answerable
+    def declines(self, judge: str | None = None) -> bool:
+        """Did the answer, as a whole, decline? Judged, not pattern-matched.
+
+        A single judge saying so is enough. Declining is a visible, whole-answer
+        property that judges agree on far more readily than grounding, and the
+        conservative reading of a split is that the answer did not answer.
+        """
+        verdicts = self._for(judge)
+        return any(v.declines for v in verdicts)
+
+    def refusal_correct(self, judge: str | None = None) -> bool:
+        return self.declines(judge) is not self.query.answerable
 
     def grounded(self, judge: str | None = None) -> bool:
-        """Grounded only if no judge says otherwise. A single unsupported-claim
-        finding fails the gate — a disputed answer is not a safe answer."""
+        """Ungrounded only when the judges *agree* it is.
+
+        The first rule here was "any judge can fail it", on the reasoning that a
+        disputed answer is not a safe answer. Measurement killed that: the two
+        judges split on grounding for 3–8 of 20 answers per model, so the union of
+        their objections measured the stricter judge rather than the model, and
+        every candidate failed. An objection that survives an independent second
+        judge is evidence; one that does not is a disagreement between graders.
+
+        Disputed calls are not swept away — ``grounding_disputed()`` counts them and
+        the report prints them, so a model with many disputes is visibly less
+        certain rather than silently forgiven.
+        """
         verdicts = self._for(judge)
-        return bool(verdicts) and all(v.grounded for v in verdicts)
+        return not verdicts or not all(not v.grounded for v in verdicts)
+
+    def grounding_disputed(self) -> bool:
+        """True when the judges disagree about whether every claim is supported."""
+        calls = {v.grounded for v in self.verdicts}
+        return len(calls) > 1
 
     def gates_passed(self, judge: str | None = None) -> bool:
-        return self.refusal_correct() and self.grounded(judge)
+        return self.refusal_correct(judge) and self.grounded(judge)
 
     def gate_failures(self, judge: str | None = None) -> list[str]:
         failures = []
-        if not self.refusal_correct():
+        if not self.refusal_correct(judge):
             failures.append(
                 "declined an answerable question"
                 if self.query.answerable
@@ -300,6 +340,9 @@ def aggregate(results: list[AnswerResult], *, judge: str | None = None) -> dict:
         "judge": judge or "all",
         "gate_failures": gate_failures,
         "gate_failure_count": len(gate_failures),
+        # Grounding calls the judges split on. Not failures, but not clean either —
+        # a model with many disputes is less certainly grounded than one with none.
+        "grounding_disputed": sum(1 for r in results if r.grounding_disputed()),
         "mean_score": round(sum(scores) / n, 3),
         "ship_worthy": ship_worthy,
         "ship_worthy_rate": round(ship_worthy / n, 3),

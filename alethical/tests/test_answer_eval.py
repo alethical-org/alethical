@@ -21,11 +21,11 @@ from alethical.eval.answer_eval import (
     RequiredFact,
     aggregate,
     cost_per_answer,
-    declines,
     judge_disagreement,
     literal_fact_coverage,
     load_fixture,
     meets_bar,
+    mentions_missing_coverage,
     opens_with_bill_code,
     statute_citations,
 )
@@ -49,10 +49,20 @@ def _query(*, answerable=True, framing="law", facts=()) -> AnswerQuery:
     )
 
 
-def _verdict(judge="j", *, grounded=True, covers=2, addresses=2, framing=2, plain=2):
+def _verdict(
+    judge="j",
+    *,
+    grounded=True,
+    declines=False,
+    covers=2,
+    addresses=2,
+    framing=2,
+    plain=2,
+):
     return JudgeVerdict(
         judge=judge,
         grounded=grounded,
+        declines=declines,
         covers=covers,
         addresses=addresses,
         framing=framing,
@@ -79,37 +89,73 @@ def _result(query=None, answer="an answer", verdicts=(), **kwargs) -> AnswerResu
         "I could not find retrieval-ready bill text for this bill yet",
     ],
 )
-def test_declines_recognises_real_refusal_wordings(answer):
-    assert declines(answer)
+def test_mentions_missing_coverage_spots_a_no_coverage_sentence(answer):
+    assert mentions_missing_coverage(answer)
+
+
+def test_mentions_missing_coverage_is_a_hint_not_a_refusal_verdict():
+    """The case that broke the first version of the refusal gate.
+
+    The production prompt tells the model to answer the supported part and say
+    what is not covered, so a good answer routinely closes with a caveat. This
+    function fires on that caveat — which is why the gate reads the judges, not
+    this function. Four of gpt-4o-mini's best answers were recorded as refusals
+    before the gate moved.
+    """
+    good_answer_with_a_caveat = (
+        "Minnesota firefighters qualify, and those diagnosed with a critical illness "
+        "on or after August 1, 2021 can apply for support payments. The bill does not "
+        "specify any additional qualifications beyond these criteria."
+    )
+    assert mentions_missing_coverage(good_answer_with_a_caveat)
+    # ...but a judge that read the whole answer says it did not decline, and the
+    # gate follows the judge.
+    result = _result(
+        query=_query(answerable=True),
+        answer=good_answer_with_a_caveat,
+        verdicts=[_verdict(declines=False)],
+    )
+    assert not result.declines()
+    assert result.refusal_correct()
 
 
 @pytest.mark.parametrize(
     "answer",
     [
         "The tax is 6.875 percent of gross receipts, paid by device owners.",
-        # The trap: an answer that describes what the BILL does not do is still
-        # a substantive answer, and must not be scored as a refusal.
         "The law does not apply to vending machines, lottery devices, or gaming devices.",
-        "Grants may not be used to pay for accessibility in a new building.",
     ],
 )
-def test_declines_does_not_fire_on_a_substantive_answer(answer):
-    assert not declines(answer)
+def test_mentions_missing_coverage_ignores_what_a_bill_excludes(answer):
+    assert not mentions_missing_coverage(answer)
 
 
-def test_refusal_gate_fails_in_both_directions():
-    answerable = _result(query=_query(answerable=True), answer="It does not say.")
-    assert not answerable.refusal_correct()
-
-    unanswerable = _result(
-        query=_query(answerable=False), answer="It would cost $86,000."
+def test_refusal_gate_fails_in_both_directions_on_the_judges_call():
+    declined_the_answerable = _result(
+        query=_query(answerable=True), verdicts=[_verdict(declines=True)]
     )
-    assert not unanswerable.refusal_correct()
+    assert not declined_the_answerable.refusal_correct()
+
+    stretched_the_unanswerable = _result(
+        query=_query(answerable=False), verdicts=[_verdict(declines=False)]
+    )
+    assert not stretched_the_unanswerable.refusal_correct()
 
     correct = _result(
-        query=_query(answerable=False), answer="The bill does not say what they cost."
+        query=_query(answerable=False), verdicts=[_verdict(declines=True)]
     )
     assert correct.refusal_correct()
+
+
+def test_one_judge_calling_it_a_refusal_is_enough():
+    """Declining is a visible whole-answer property; the cautious read of a split
+    is that the answer did not answer."""
+    split = _result(
+        query=_query(answerable=True),
+        verdicts=[_verdict("a", declines=False), _verdict("b", declines=True)],
+    )
+    assert split.declines()
+    assert not split.refusal_correct()
 
 
 # --- rule 9 mechanical checks ---
@@ -159,13 +205,23 @@ def test_a_gate_failure_zeroes_an_otherwise_perfect_answer():
     assert not perfect_but_ungrounded.ship_worthy()
 
 
-def test_one_judge_calling_an_answer_ungrounded_fails_the_gate():
+def test_grounding_fails_only_when_the_judges_agree_it_does():
+    """Measurement drove this rule: the judges split on 3-8 of 20 answers per
+    model, so 'either judge can fail it' measured the stricter judge and every
+    candidate failed. A disputed call is reported as disputed, not as a failure."""
     disputed = _result(
         verdicts=[_verdict("a", grounded=True), _verdict("b", grounded=False)]
     )
-    assert not disputed.grounded()
+    assert disputed.grounded()  # not failed — the judges disagree
+    assert disputed.grounding_disputed()
     assert disputed.grounded("a")
-    assert not disputed.grounded("b")
+    assert not disputed.grounded("b")  # per-judge view still shows each call
+
+    agreed = _result(
+        verdicts=[_verdict("a", grounded=False), _verdict("b", grounded=False)]
+    )
+    assert not agreed.grounded()
+    assert not agreed.grounding_disputed()
 
 
 def test_graded_total_floors_a_split_judgment_rather_than_rounding_up():
@@ -185,10 +241,14 @@ def test_ship_worthy_needs_both_gates_and_the_graded_floor():
 
 
 def test_gate_failure_messages_name_the_direction_of_the_refusal_error():
-    declined = _result(query=_query(answerable=True), answer="It does not say.")
+    declined = _result(
+        query=_query(answerable=True), verdicts=[_verdict(declines=True)]
+    )
     assert "declined an answerable question" in declined.gate_failures()
 
-    stretched = _result(query=_query(answerable=False), answer="$86,000.")
+    stretched = _result(
+        query=_query(answerable=False), verdicts=[_verdict(declines=False)]
+    )
     assert "answered a question the passages do not cover" in stretched.gate_failures()
 
 
@@ -429,7 +489,14 @@ def test_loads_json_names_max_tokens_when_the_reply_was_truncated():
 
 def test_a_verdict_that_parsed_but_is_unscoreable_is_rejected_so_the_retry_fires():
     cli = _cli()
-    good = {"grounded": True, "covers": 2, "addresses": 1, "framing": 0, "plain": 2}
+    good = {
+        "grounded": True,
+        "declines": False,
+        "covers": 2,
+        "addresses": 1,
+        "framing": 0,
+        "plain": 2,
+    }
     assert cli._validated_verdict(good) is good
 
     for broken in (
@@ -446,7 +513,14 @@ def test_a_verdict_that_parsed_but_is_unscoreable_is_rejected_so_the_retry_fires
 def test_unscoreable_cached_verdicts_are_detected_rather_than_trusted():
     """A cache can outlive the code that wrote it; junk must be re-judged, not read."""
     cli = _cli()
-    good = {"grounded": True, "covers": 2, "addresses": 1, "framing": 0, "plain": 2}
+    good = {
+        "grounded": True,
+        "declines": False,
+        "covers": 2,
+        "addresses": 1,
+        "framing": 0,
+        "plain": 2,
+    }
     assert cli._is_scoreable(good)
     assert not cli._is_scoreable({k: v for k, v in good.items() if k != "plain"})
     assert not cli._is_scoreable({**good, "covers": None})
