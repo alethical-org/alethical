@@ -175,11 +175,18 @@ _REVISOR_MARKUP = re.compile(
 )
 # A chip is a label on a card, not a heading. Past this, omit the topic rather than
 # truncate: a cut-off phrase reads as broken, and the number alone is already a
-# designed state. 60 is where corpus coverage flattens — 36.6% of sections at 44,
-# 40.2% at 60, then only 41.5% all the way out at 80 — and it is what keeps the
-# genuinely useful long ones ("Human services systems modernization advisory
-# council", 52) while still dropping the 170-character amended monsters.
-_MAX_TOPIC_CHARS = 60
+# designed state. 80 is where a heading stops being a NAME and starts being a
+# SENTENCE, which is the line that actually matters — the chip wraps to the card
+# (`excerptChip`'s maxWidth), so a two-line name reads fine while a clause does not.
+# Measured over all 49,919 current-version sections in production: the 61-80 band is
+# 673 sections and every one is a plain noun phrase ("Sustainable construction and
+# demolition waste transition grants program", 71; "Drinking water regionalization
+# planning and assistance grants", 61 — the one that prompted this), while past 80
+# they turn into full clauses ("Scoping environmental assessment worksheet not
+# required for projects that require a mandatory environmental impact statement",
+# 124) plus the amended monsters `_REVISOR_MARKUP` already drops. Raising 60 -> 80
+# is +673 chips; going on to 120 would add only 212 more, all of them sentences.
+_MAX_TOPIC_CHARS = 80
 
 
 def section_chip_topic(section_heading, cite_heading) -> str:
