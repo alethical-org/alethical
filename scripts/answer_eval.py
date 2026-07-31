@@ -175,6 +175,24 @@ def build_user_prompt(context: dict) -> str:
     return f"Bill: {context['bill_key']}\nQuestion: {context['question']}\n\nContext:\n{body}"
 
 
+# The floor of the reasoning ladder is NOT the same value across the gpt-5 family,
+# and sending the wrong one is a hard 400 rather than a graceful fallback. Both rows
+# were confirmed against the live API on Jul 31 2026:
+#   gpt-5-mini accepts minimal / low / medium / high — 'none' is rejected
+#   gpt-5.1    accepts none / low / medium / high    — 'minimal' is rejected
+# A model absent from this map is sent no reasoning parameter at all, which is
+# correct for the pre-reasoning models (gpt-4o-mini, gpt-4o).
+_LOWEST_REASONING_EFFORT = {
+    "gpt-5-mini": "minimal",
+    "gpt-5-nano": "minimal",
+    "gpt-5.1": "none",
+}
+
+
+def _lowest_reasoning_effort(model: str) -> str | None:
+    return _LOWEST_REASONING_EFFORT.get(model)
+
+
 def _openai_answer(
     model: str, system: str, user: str, *, deep: bool
 ) -> tuple[str, float, float, int, int]:
@@ -194,8 +212,9 @@ def _openai_answer(
             {"role": "user", "content": user},
         ],
     }
-    if not deep and model.startswith("gpt-5"):
-        body["reasoning"] = {"effort": "minimal"}
+    effort = None if deep else _lowest_reasoning_effort(model)
+    if effort:
+        body["reasoning"] = {"effort": effort}
     started = time.monotonic()
     response = requests.post(
         "https://api.openai.com/v1/responses",

@@ -52,6 +52,8 @@ topic tags at once), so they're funded together and can all use either billing r
 | **Bill-specific Ask suggestions** — the starter questions on a bill's Ask card | 3–4 tailored questions per bill | Generation | ✅ Yes *(same enrichment call)* |
 | **Per-point citations** — a source anchor + quote behind each key point | Citation markers | Generation | ✅ Yes *(same enrichment call)* |
 | **Topic/issue tagging** — classifies each bill for browse-by-issue & follow-an-issue | Policy-area tags | Generation | ✅ Yes *(same enrichment call)* |
+| **Grounded Ask answers** — the prose a reader reads on the answer page and in bill chat | A cited, plain-language answer, written per question | Generation | ❌ **No — API-only in practice** (see below) |
+| **Question sorting** — deciding what kind of question was asked | One label from a fixed set | Generation | ❌ No — same reason |
 | **Display-time text cleaner** — interim masking of legalese in the app | (nothing — plain client code) | Not AI | ✅ N/A |
 | **Semantic search / retrieval** — finding the right bill for a typed question | Embedding vectors | **Embedding** | ❌ **No — API-only** |
 | **Corpus status freshness** — keeping each bill's current status up to date | Re-scraped status/actions | Not AI (web scraping) | ✅ N/A (free HTTP) |
@@ -59,6 +61,17 @@ topic tags at once), so they're funded together and can all use either billing r
 **Key insight:** the enrichment cluster (first four rows) is text generation, so it
 can ride the subscription. **Retrieval is the outlier** — it's embeddings, so it can
 *never* use the subscription and always needs a paid embedding-API call.
+
+**The two live rows are a second kind of outlier, for a different reason.** Answering
+a reader's question and sorting that question are both generation, so the "generation
+can ride the subscription" rule *should* apply — but it doesn't, because these run
+**inside a web request while a person waits**. The subscription path is a Claude CLI
+subprocess authenticated with a personal OAuth token (§4); a production API server
+can neither spawn a subprocess per request nor hold one person's login. So the rule to
+remember is not "generation → subscription" but **"generation *in a batch job* →
+subscription; generation *in a request* → API."** These two are also the only AI jobs
+whose cost **recurs with traffic** rather than being paid once per bill, which is why
+a per-answer price rise multiplies in a way an enrichment re-run never does.
 
 ## 4. Anatomy of an enrichment run (where the cost actually is)
 
@@ -392,7 +405,8 @@ saves re-litigating the tooling every time.
 |---|---|---|
 | Does search find the right bill? | ✅ Yes | [`scripts/retrieval_eval.py`](../../scripts/retrieval_eval.py) against 20 real questions ([`retrieval_queries.json`](../../alethical/eval/fixtures/retrieval_queries.json)). Grades recall@1/3/5/10 and MRR, and its `head2head` mode compares embedding models (OpenAI vs Voyage) head to head. **This is the gate — don't replace or wrap it.** |
 | Do generated answers always cite a source? | ✅ Yes | 12 deterministic pass/fail checks in [`test_ask_scenarios.py`](../../alethical/tests/test_ask_scenarios.py), enforcing `.claude/rules/grounded-answers.md` rule 1. Runs in CI. |
-| Does one model *write* better bill summaries than another? | ❌ No | Nothing. The #377 choice of Claude Sonnet 5 was a one-off nobody can re-run. Tracked as [#787](https://github.com/alethical-org/alethical/issues/787). |
+| Does one model *write* better **Ask answers** than another? | ✅ Yes | [`scripts/answer_eval.py`](../../scripts/answer_eval.py) against 20 human-labeled questions ([`answer_questions.json`](../../alethical/eval/fixtures/answer_questions.json)), scoring two pass/fail gates and four graded dimensions with two blind judges from rival providers. The bar it enforces is argued in [answer-quality-bar.md](answer-quality-bar.md) ([#865](https://github.com/alethical-org/alethical/issues/865)). |
+| Does one model *write* better **bill summaries** than another? | ❌ No | Still nothing — the answer eval above deliberately does not cover this. Summaries are written once per bill in a batch job, so they are judged on different terms (no latency budget, cost paid once). The #377 choice of Claude Sonnet 5 remains a one-off nobody can re-run. Tracked as [#787](https://github.com/alethical-org/alethical/issues/787). |
 
 **The plan for the gap is a ~200-line script in this repo, not an evaluation framework.**
 Inspect AI was evaluated in full and rejected. It genuinely supports the providers' bulk
