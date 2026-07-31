@@ -425,3 +425,19 @@ def test_loads_json_names_max_tokens_when_the_reply_was_truncated():
     with pytest.raises(ValueError) as caught:
         cli._loads_json(truncated)
     assert "max_tokens" not in str(caught.value)
+
+
+def test_a_verdict_that_parsed_but_is_unscoreable_is_rejected_so_the_retry_fires():
+    cli = _cli()
+    good = {"grounded": True, "covers": 2, "addresses": 1, "framing": 0, "plain": 2}
+    assert cli._validated_verdict(good) is good
+
+    for broken in (
+        {**good, "grounded": "yes"},  # a string, not a boolean
+        {**good, "covers": 3},  # off the 0-2 scale
+        {**good, "plain": "2"},  # numeric-looking string
+        {**good, "framing": True},  # a bool would sneak through as int 1
+        {k: v for k, v in good.items() if k != "addresses"},  # missing dimension
+    ):
+        with pytest.raises(ValueError):
+            cli._validated_verdict(broken)

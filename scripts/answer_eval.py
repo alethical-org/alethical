@@ -514,11 +514,48 @@ def _loads_json(raw: str, *, stop_reason: str | None = None) -> dict:
     raise ValueError(f"no complete JSON object in judge reply{hint}: {raw[:300]!r}")
 
 
+JUDGE_ATTEMPTS = 3
+
+
 def call_judge(spec: str, system: str, user: str) -> dict:
+    """Grade one answer, retrying a malformed or failed reply.
+
+    Over a hundred-odd calls a judge will occasionally return something that is
+    not JSON — one run died on ``"framing": true ? 2 : 2``, a JavaScript ternary.
+    Sampling is not deterministic, so simply asking again almost always returns a
+    clean object; killing a paid run over one bad reply does not. Transient HTTP
+    failures (429, 5xx) are retried by the same loop.
+    """
     provider, model, _ = parse_spec(spec)
-    if provider == "openai":
-        return _openai_judge(model, system, user)
-    return _anthropic_judge(model, system, user)
+    judge = _openai_judge if provider == "openai" else _anthropic_judge
+    last: Exception | None = None
+    for attempt in range(1, JUDGE_ATTEMPTS + 1):
+        try:
+            verdict = judge(model, system, user)
+            return _validated_verdict(verdict)
+        except (ValueError, KeyError, requests.RequestException) as exc:
+            last = exc
+            if attempt < JUDGE_ATTEMPTS:
+                print(
+                    f"      judge reply unusable ({exc.__class__.__name__}); retrying"
+                )
+                time.sleep(2 * attempt)
+    raise RuntimeError(f"judge {spec} failed {JUDGE_ATTEMPTS} times: {last}") from last
+
+
+def _validated_verdict(verdict: dict) -> dict:
+    """Reject a verdict that parsed but is not scoreable, so the retry can fix it."""
+    if not isinstance(verdict.get("grounded"), bool):
+        raise ValueError(f"'grounded' is not a boolean: {verdict.get('grounded')!r}")
+    for dim in GRADED_DIMENSIONS:
+        value = verdict.get(dim)
+        if (
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or value not in (0, 1, 2)
+        ):
+            raise ValueError(f"{dim!r} is not 0, 1 or 2: {value!r}")
+    return verdict
 
 
 def judge_all(
