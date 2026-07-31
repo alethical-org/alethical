@@ -11,7 +11,6 @@ type WebRouteTarget =
   | { kind: 'findMyLegislator' }
   | { kind: 'privacy' }
   | { kind: 'terms' }
-  | { kind: 'vote'; billId: string; voteEventId: string }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
   | { kind: 'ask'; params: RootStackParamList['Ask'] };
 
@@ -137,12 +136,17 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return { kind: 'tab', screen: 'Home' };
   }
 
+  // The standalone Vote Detail page is old-design and was cut before v0
+  // ([#38](https://github.com/alethical-org/alethical/issues/38) — its Definition
+  // of Done is that the feature "remains removed or hidden from the v0 shipped
+  // surface"), but its URL still resolved to the old screen: no top nav, no
+  // footer, no way back, ISO dates, one card per member. Every recorded roll call
+  // now lives on the bill's Votes tab ([#83](https://github.com/alethical-org/alethical/issues/83)),
+  // so send the old link there rather than Home — the visitor still lands on the
+  // vote they asked for, in the shipped design, at a URL they can share
+  // (grounded-answers.md rule 5).
   if (segments.length === 4 && segments[0] === 'bills' && segments[2] === 'votes') {
-    return {
-      kind: 'vote',
-      billId: decodeURIComponent(segments[1]),
-      voteEventId: decodeURIComponent(segments[3]),
-    };
+    return { kind: 'bill', billId: decodeURIComponent(segments[1]), tab: 'votes' };
   }
 
   return { kind: 'tab', screen: 'Home' };
@@ -359,20 +363,6 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
     case 'terms':
       return {
         routes: [homeTabs, { name: 'Terms' }],
-        index: 1,
-      };
-    case 'vote':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: 'VoteDetail',
-            params: {
-              billId: target.billId,
-              voteEventId: target.voteEventId,
-            },
-          },
-        ],
         index: 1,
       };
     case 'chatSession':
