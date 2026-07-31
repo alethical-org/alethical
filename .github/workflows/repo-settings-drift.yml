@@ -1,0 +1,49 @@
+name: Repo settings drift
+
+# Compares the live GitHub repo settings against the intended values recorded in
+# docs/operations/repo-and-service-settings.md. That doc exists because Dependabot
+# alerts sat switched off for the project's entire life with nothing to notice
+# (#691); this is what stops the doc itself going stale the same way.
+#
+# Runs on every PR, not just on a schedule. A monthly-only check would leave up to
+# a month of silent drift, and it would not prompt the session that changed a
+# setting to update the doc in the same PR — which is the moment the change is
+# still in someone's head. The schedule below is only a backstop for a setting
+# changed straight in the GitHub UI, where no PR exists to catch it.
+#
+# NOT added to the required status checks on main, on purpose: drift is caused by
+# whoever changed a setting, and blocking an unrelated PR would punish the wrong
+# session. It goes red visibly instead.
+#
+# No setup-python step: the script is standard-library only and ubuntu-latest
+# ships python3, so there is one less borrowed action to keep current (#674).
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    # 09:30 UTC on the 1st — after the monthly Dependabot PRs, which is when
+    # CONTRIBUTING.md tells a reader to glance over the settings doc anyway.
+    - cron: "30 9 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Compare live settings against the doc
+        env:
+          # The default GITHUB_TOKEN has no administration scope, so the security
+          # and branch-protection rows come back as UNVERIFIED (never as passing).
+          # Adding a REPO_SETTINGS_TOKEN secret — a fine-grained PAT with
+          # administration:read on this repo — makes those rows checkable too.
+          GH_TOKEN: ${{ secrets.REPO_SETTINGS_TOKEN || github.token }}
+        run: python3 scripts/check_repo_settings.py

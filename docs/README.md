@@ -5,14 +5,14 @@ code and configuration.
 
 **How to read these.** Specs describe the system we intend and the decisions behind
 it; **GitHub issues and the Roadmap board carry sequencing.** So a doc may tell you
-something is *shipped*, *not built yet and waiting on X*, or *a permanent non-goal* —
+something is _shipped_, _not built yet and waiting on X_, or _a permanent non-goal_ —
 but never that work is off-limits because of which milestone it sits in. If you find
 a doc gating work by version, that is a bug in the doc (`.claude/rules/workflow.md`
 rule 13). Milestone claims in particular go stale: check the tracker, not the prose.
 
 ## Start Here
 
-- [Philosophy](philosophy.md) — the *why* beneath Alethical: the beliefs the product, design, and copy all answer to. Read this before the specs.
+- [Philosophy](philosophy.md) — the _why_ beneath Alethical: the beliefs the product, design, and copy all answer to. Read this before the specs.
 
 ## Product & Onboarding
 
@@ -46,7 +46,7 @@ paid for" references, and are the place to start if you're new.
 
 ## Operations
 
-- [Deployment](operations/deployment.md) — the five GitHub Actions workflows, Railway (backend), Vercel (frontend), Supabase auth URLs
+- [Deployment](operations/deployment.md) — the six GitHub Actions workflows, Railway (backend), Vercel (frontend), Supabase auth URLs
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [iOS release workflow](operations/ios-release.md) — simulator QA, TestFlight, and ad hoc builds

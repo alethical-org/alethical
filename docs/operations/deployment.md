@@ -7,17 +7,18 @@ Alethical deploys as two services:
 
 ## Workflows at a glance
 
-Five GitHub Actions workflows in `.github/workflows/`. Which ones a PR can prove
+Six GitHub Actions workflows in `.github/workflows/`. Which ones a PR can prove
 matters: two of them never run on a PR, so a change to them is only verified
 after merge.
 
-| Workflow             | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
-| -------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- |
-| `ci.yml`             | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                       | Yes                              |
-| `migrate.yml`        | push to `main` touching migrations, models, `alembic.ini`, deps, or itself | Applies Alembic migrations to the production database; opens an alert issue on failure | No                               |
-| `railway-deploy.yml` | push to `main` touching backend paths or itself                            | Deploys the API to Railway production                                                  | No                               |
-| `vercel-deploy.yml`  | push to `main` touching frontend paths or itself                           | Deploys the web frontend to Vercel production                                          | No                               |
-| `vote-backfill.yml`  | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
+| Workflow                  | Runs when                                                                  | Does                                                                                      | Provable on a PR?                             |
+| ------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `ci.yml`                  | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                          | Yes                                           |
+| `migrate.yml`             | push to `main` touching migrations, models, `alembic.ini`, deps, or itself | Applies Alembic migrations to the production database; opens an alert issue on failure    | No                                            |
+| `railway-deploy.yml`      | push to `main` touching backend paths or itself                            | Deploys the API to Railway production                                                     | No                                            |
+| `vercel-deploy.yml`       | push to `main` touching frontend paths or itself                           | Deploys the web frontend to Vercel production                                             | No                                            |
+| `vote-backfill.yml`       | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                      | No — dispatch it by hand to test              |
+| `repo-settings-drift.yml` | every PR, pushes to `main`, and monthly                                    | Compares the live repo settings against `repo-and-service-settings.md` and fails on drift | Yes — but deliberately not a _required_ check |
 
 Each of the three deploy/migrate workflows lists its own file in its `push`
 paths, so changing one of them triggers it on merge. That is the intended
