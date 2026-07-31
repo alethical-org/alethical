@@ -296,7 +296,9 @@ def parse_spec(spec: str) -> tuple[str, str, bool]:
         raise SystemExit(f"unknown suffix {suffix!r} in {spec!r} (only '+deep')")
     provider, _, model = base.partition(":")
     if provider not in ("openai", "anthropic"):
-        raise SystemExit(f"unknown provider in {spec!r} (expected openai: or anthropic:)")
+        raise SystemExit(
+            f"unknown provider in {spec!r} (expected openai: or anthropic:)"
+        )
     return provider, model, suffix == "deep"
 
 
@@ -362,7 +364,9 @@ about stage either way and nothing is misstated.
   "plain":     0, 1, or 2 — could a resident with no legal training follow it? \
 Deduct for statute citations, legalese, a bill-number preamble, and for a bare \
 list where a sentence was needed. Do not reward length.
-  "note":      one short sentence naming the single biggest problem, or "" if none.
+  "note":      the single biggest problem, in at most 20 words, or "" if none.
+
+Output the JSON object and nothing else. No preamble, no code fence.
 """
 
 
@@ -425,9 +429,13 @@ def _openai_judge(model: str, system: str, user: str) -> dict:
 
 
 def _anthropic_judge(model: str, system: str, user: str) -> dict:
+    # max_tokens caps thinking AND response text together, so a judge that thinks
+    # needs headroom well beyond the ~120 tokens of JSON it returns. At 1024 the
+    # thinking consumed the budget and the JSON arrived truncated mid-`note`,
+    # which crashed a run 24 verdicts in.
     body: dict = {
         "model": model,
-        "max_tokens": 1024,
+        "max_tokens": 4096,
         "system": system,
         "messages": [{"role": "user", "content": user}],
     }
@@ -447,18 +455,24 @@ def _anthropic_judge(model: str, system: str, user: str) -> dict:
         timeout=180,
     )
     response.raise_for_status()
+    payload = response.json()
     parts = [
         b.get("text", "")
-        for b in response.json().get("content", [])
+        for b in payload.get("content", [])
         if isinstance(b, dict) and b.get("type") == "text"
     ]
-    return _loads_json("\n".join(parts))
+    return _loads_json("\n".join(parts), stop_reason=payload.get("stop_reason"))
 
 
-def _loads_json(raw: str) -> dict:
+def _loads_json(raw: str, *, stop_reason: str | None = None) -> dict:
     start, end = raw.find("{"), raw.rfind("}")
     if start == -1 or end == -1:
-        raise ValueError(f"no JSON object in judge reply: {raw[:200]!r}")
+        hint = (
+            " — the reply hit max_tokens, so raise it rather than retrying"
+            if stop_reason == "max_tokens"
+            else ""
+        )
+        raise ValueError(f"no JSON object in judge reply{hint}: {raw[:200]!r}")
     return json.loads(raw[start : end + 1])
 
 
@@ -483,14 +497,9 @@ def judge_all(
     which model wrote an answer, and never sees the same model's answers in a
     predictable run that would let it infer one.
     """
-    verdicts: dict[str, dict] = (
-        json.loads(cache.read_text()) if cache.exists() else {}
-    )
+    verdicts: dict[str, dict] = json.loads(cache.read_text()) if cache.exists() else {}
     pairs = [
-        (m, q)
-        for m in model_specs
-        for q in queries
-        if f"{m}||{q.key}" not in verdicts
+        (m, q) for m in model_specs for q in queries if f"{m}||{q.key}" not in verdicts
     ]
     random.Random(865).shuffle(pairs)
     if not pairs:
