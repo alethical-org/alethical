@@ -33,6 +33,7 @@ import {
   authorNameOnly,
   askCardPrompts,
   authorTitleLabel,
+  billOverviewUrl,
   buildActionTimeline,
   buildPartyBlocks,
   chamberBillLabel,
@@ -56,6 +57,7 @@ import {
   PartyBlock,
   PHASED_CAPTION,
   POINTER_CAPTION,
+  readDocumentUrl,
   readLabel,
   scopedChipQuery,
   TimelineAuthor,
@@ -498,8 +500,8 @@ function BillDetailMobileScreen() {
         : bill.latestActionText
           ? `${bill.latestActionText}${niceDate ? ` · ${niceDate}` : ''}`
           : niceDate);
-    const overviewUrl = bill.officialLinks?.[0]?.url;
-    const readUrl = bill.versions?.[0]?.url ?? overviewUrl;
+    const overviewUrl = billOverviewUrl(bill.officialLinks?.[0]?.url);
+    const readUrl = readDocumentUrl(bill.versions, bill.actions) ?? overviewUrl;
     // The curated, newest-first timeline — the SAME shared builder the web Actions
     // tab calls (#559), so a given record reads identically on a phone and a laptop.
     // Everything the mobile screen used to do itself now lives in there: plain-

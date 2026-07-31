@@ -11,6 +11,7 @@ import {
   chamberBillLabel,
   chiefAuthor,
   coAuthorCount,
+  billOverviewUrl,
   districtRowLabel,
   formatAuthorDistrict,
   formatNiceDate,
@@ -20,6 +21,7 @@ import {
   partyFull,
   PHASED_CAPTION,
   POINTER_CAPTION,
+  readDocumentUrl,
   readLabel,
   stageLabel,
 } from '../../lib/billDetail';
@@ -71,8 +73,8 @@ export function FactsRail({
         ? `${bill.latestActionText}${bill.updatedAt ? ` · ${formatNiceDate(bill.updatedAt)}` : ''}`
         : formatNiceDate(bill.updatedAt));
 
-  const overviewUrl = bill.officialLinks?.[0]?.url;
-  const readUrl = bill.versions?.[0]?.url ?? overviewUrl;
+  const overviewUrl = billOverviewUrl(bill.officialLinks?.[0]?.url);
+  const readUrl = readDocumentUrl(bill.versions, bill.actions) ?? overviewUrl;
 
   const author = chiefAuthor(bill);
   const coauthors = coAuthorCount(bill);

@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   bienniumEyebrow,
+  billOverviewUrl,
   buildActionTimeline,
   citationChipLabel,
   completeDanglingTitle,
@@ -23,9 +24,10 @@ import {
   plainBillSummary,
   plainKeyPoints,
   POINTER_CAPTION,
+  readDocumentUrl,
   titleSegments,
 } from '../billDetail';
-import { BillAction } from '../../data/types';
+import { BillAction, BillVersion } from '../../data/types';
 
 describe('plainBillSummary drops what is scaffolding', () => {
   it('drops a leading amendatory clause', () => {
@@ -731,5 +733,124 @@ describe('citationChipLabel never shows a topic cut off mid-word', () => {
     expect(citationChipLabel('HF 4301, Sec. 2.', 'Appropriation')).toBe('Sec. 2 · Appropriation');
     // No served topic — the number alone, with no dangling middot.
     expect(citationChipLabel('SF 334, Sec. 14.')).toBe('Sec. 14');
+  });
+});
+
+// The two rail links out to revisor.mn.gov. Both were pointing at the wrong page:
+// "Read the full law" opened the introduced draft (it took whatever version the
+// payload listed first), and "Bill overview" opened an engrossment rather than the
+// bill's status page. The rows below are HF 719's real production payload — the bill
+// that surfaced both bugs: signed into law as Laws 2026, chapter 130, with an
+// introduction plus two engrossments in front of it.
+const HF719_VERSIONS: BillVersion[] = [
+  {
+    id: 'v0',
+    label: 'As introduced',
+    date: '2025-02-12',
+    summary: '',
+    url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/0/',
+    versionCode: '0',
+    isCurrent: false,
+  },
+  {
+    id: 'v1',
+    label: '1st engrossment',
+    date: '2026-05-16',
+    summary: '',
+    url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/1/',
+    versionCode: '1',
+    isCurrent: false,
+  },
+  {
+    id: 'v2',
+    label: '2nd engrossment',
+    date: '2026-05-18',
+    summary: '',
+    url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
+    versionCode: '2',
+    isCurrent: true,
+  },
+  {
+    id: 'law',
+    label: 'Session Law — Chapter 130',
+    date: '2026-05-27',
+    summary: '',
+    url: 'https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/130/',
+    versionCode: 'session-law',
+    isCurrent: false,
+  },
+];
+
+describe('readDocumentUrl picks the document the link promises', () => {
+  it('sends an enacted bill to its Session Law chapter, not the introduced draft', () => {
+    expect(readDocumentUrl(HF719_VERSIONS, [])).toBe(
+      'https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/130/',
+    );
+  });
+
+  it('finds the chapter wherever the payload happens to list it', () => {
+    // The API sets no ordering on versions, so the fix must not depend on position.
+    const [intro, first, second, law] = HF719_VERSIONS;
+    for (const order of [
+      [law, intro, first, second],
+      [intro, law, first, second],
+      [intro, first, law, second],
+      [second, first, law, intro],
+    ]) {
+      expect(readDocumentUrl(order, [])).toBe(
+        'https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/130/',
+      );
+    }
+  });
+
+  it('sends a bill still in progress to its current text', () => {
+    const inProgress = HF719_VERSIONS.filter((v) => v.versionCode !== 'session-law');
+    expect(readDocumentUrl(inProgress, [])).toBe(
+      'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
+    );
+  });
+
+  it('falls back to the newest version when no row is marked current', () => {
+    const noCurrent = HF719_VERSIONS.filter((v) => v.versionCode !== 'session-law').map((v) => ({
+      ...v,
+      isCurrent: false,
+    }));
+    expect(readDocumentUrl(noCurrent, [])).toBe(
+      'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
+    );
+  });
+
+  it('ignores a version carrying no document, and yields nothing when none has one', () => {
+    const urlless = HF719_VERSIONS.map((v) =>
+      v.versionCode === 'session-law' ? { ...v, url: '' } : v,
+    );
+    expect(readDocumentUrl(urlless, [])).toBe(
+      'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
+    );
+    expect(readDocumentUrl([], [])).toBeUndefined();
+    expect(readDocumentUrl(undefined, undefined)).toBeUndefined();
+  });
+});
+
+describe('billOverviewUrl points at the status page, not a text document', () => {
+  it('drops the version tail from a numbered engrossment URL', () => {
+    expect(billOverviewUrl('https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/')).toBe(
+      'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/',
+    );
+  });
+
+  it('drops the whole tail from an unofficial-engrossment URL', () => {
+    // The corpus holds this second shape (e.g. SF 1943), where the version code is
+    // two path segments — stripping only the last one would leave "/versions/ue/".
+    expect(
+      billOverviewUrl('https://www.revisor.mn.gov/bills/94/2025/0/SF/1943/versions/ue/2/'),
+    ).toBe('https://www.revisor.mn.gov/bills/94/2025/0/SF/1943/');
+  });
+
+  it('leaves a URL that names no version alone, and handles a missing one', () => {
+    expect(billOverviewUrl('https://www.revisor.mn.gov/bills/94/2025/0/HF/719/')).toBe(
+      'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/',
+    );
+    expect(billOverviewUrl(undefined)).toBeUndefined();
   });
 });
