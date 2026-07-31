@@ -15,31 +15,41 @@ Legislature's own edit markers as prose ("coverage for on-site medical clinics; 
 begin or deleted text end"), folded each section's heading into its number badge, and gave a
 21-section bill no navigation at all.
 
-## The intro says "the text", not "the complete text"
+## The intro says "the complete text", and that is a checkable claim
 
-The tab's opening line is deliberately weaker than it reads naturally, and the missing word is load
-bearing. It was added by [#776](https://github.com/alethical-org/alethical/pull/776) because
-ingestion dropped a section whenever a bill's page gave two sections the same id
-([#763](https://github.com/alethical-org/alethical/issues/763)): HF 4057's page carried 240 section
-blocks with only 238 distinct ids, and we served 238.
-
-**The cause is fixed and the known damage is repaired.** Rows are keyed on the section's position
-now, so no ingest loses a repeated id again, and a repair run on Jul 30 2026 restored 57 sections
-across 24 current versions — HF 4057 serves all 240. What keeps the weaker word in place is that the
-corpus is not yet provably whole: the 2025 special session was ingested on the old code hours before
-the fix landed, leaving 3 current versions short 7 sections.
-
-**Restore "complete" when, and only when, this prints OK:**
+The word "complete" is a promise about the data, not a flourish, so it is tied to a command rather
+than to anyone's judgement. **It belongs in the sentence exactly when this prints OK:**
 
 ```bash
 ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/check_bill_section_gaps.py
 ```
 
-That is the whole condition, deliberately stated as a command rather than a judgement — the check
-compares every current version's stored section count against its page's count and exits non-zero on
-any gap (`scripts/check_bill_section_gaps.py`). Do not strengthen the sentence because it reads
-better with the word, and do not weaken it again once the check is clean:
-`.claude/rules/grounded-answers.md` rule 6 cuts both ways.
+The check compares every current version's stored section count against the number of sections its
+page published, and exits non-zero on any gap. It runs daily at 11:00 UTC
+(`.github/workflows/bill-section-gaps.yml`) and files an issue when it fails, so nobody has to
+remember to ask.
+
+### How the word came out and went back in
+
+[#776](https://github.com/alethical-org/alethical/pull/776) removed it on Jul 30 2026, correctly:
+ingestion dropped a section whenever a bill's page gave two sections the same id
+([#763](https://github.com/alethical-org/alethical/issues/763)), so HF 4057's page carried 240
+section blocks and we served 238. `.claude/rules/grounded-answers.md` rule 6 requires trimming a
+claim in the same release the capability slips.
+
+[#763](https://github.com/alethical-org/alethical/issues/763) then fixed the cause — rows are keyed
+on the section's position, so no ingest loses a repeated id again — and repaired the damage in two
+passes: 57 sections across 24 current versions on Jul 30, then 7 more across 3 bills on Jul 31, the
+2025 special session having been ingested hours before the fix merged. **64 sections restored in
+total.** The check printed OK on Jul 31 2026, and the word went back in that same release.
+
+### If the check goes red again
+
+Take the word out in the same release, and put it back when the check is clean — rule 6 cuts both
+ways, and the sentence is not a matter of taste in either direction. The repair is
+`scripts/repair_missing_bill_sections.py` (dry run first; it only ever inserts). If it reports a bill
+as needing a re-ingest instead, that bill's page has changed since ingest, which is an
+ingestion-freshness gap (rule 7) rather than something to force.
 
 ## What the data gives us
 
@@ -302,12 +312,18 @@ produced a false failure:
 
 - **Group index rows by article before checking for duplicates.** Section numbers restart inside each
   article, so an omnibus bill legitimately has a "Sec. 3" per article.
-- **A handful of bills repeat one section id on their page** (6 of the 12 largest do, all on
-  `laws.0.1.0` — the id the Revisor hands every section that sits outside an article). Both the page
-  and the corpus now carry every one of them, so a replay must expect the repeat rather than
-  de-duplicate it. Until [#763](https://github.com/alethical-org/alethical/issues/763) landed, the
-  corpus kept only the last of each repeated id and the tab never rendered the others; rows are keyed
-  on the section's position now, so all of them are stored and rendered.
+- **Bills repeat a section id on their page, and 64 current versions do.** Both the page and the
+  corpus now carry every one of them, so a replay must expect the repeat rather than de-duplicate it.
+  Until [#763](https://github.com/alethical-org/alethical/issues/763) landed, the corpus kept only the
+  last of each repeated id and the tab never rendered the others; rows are keyed on the section's
+  position now, so all of them are stored and rendered.
+
+  **Do not assume the repeated id is always `laws.0.1.0`.** That was true of every case found in the
+  2025 and 2026 regular sessions — it is the id the Revisor hands a section sitting outside any
+  article, so a bill with several of those repeats it, up to 10 times on `94-2026-HF4441` and
+  `94-2026-SF4184` (whose 10 sections all share it). But `94-2025s1-SF9` repeats **`laws.0.6.0`**,
+  found Jul 31 2026 while repairing the 2025 special session. So a replay must look for *any*
+  duplicate id, not grep for that one string.
 
 Layout and jump behaviour still need a browser: the index threshold at 1/2/3/21 sections, and the
 jump landing at 90px from several starting scroll positions and from both entry points.
