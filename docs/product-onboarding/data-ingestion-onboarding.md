@@ -119,6 +119,24 @@ specifically the ingestion that *builds the retrieval corpus* those depend on.
 | F | RAG chat synthesis | OpenAI Responses API | HTTPS `POST`, JSON | `OPENAI_API_KEY` | [me.py](../../alethical/api/routers/me.py) |
 | G | Map tiles | OpenStreetMap | HTTP tiles | none | frontend `MapPinPicker.tsx` |
 
+**Every one of those `GET`s decodes through one helper, and it has to**
+([http_text.py](../../alethical/pipeline/http_text.py)). Sources A, B and C each
+have their own retrying fetch function, and each used to finish with
+`return response.text`. That is a trap: `requests` takes the character set from the
+`Content-Type` header, and when a `text/*` response names none it falls back to
+ISO-8859-1 (RFC 2616 §3.7.1). Three of the pages we read send exactly that while
+their bytes are UTF-8 — the Revisor's bill-status API (`text/xml`, whose XML even
+*declares* `encoding="UTF-8"` in a declaration that is thrown away once the body is
+a decoded string), the Senate's member pages, and the Senate's journal index. Under
+the fallback every UTF-8 byte became its own Latin-1 character, so Rep. María Isa
+Pérez-Vega's name entered the pipeline as `PÃ©rez-Vega` and reached 42 bills' author
+rows, 2 bill descriptions and 1 office address that way
+([#849](https://github.com/alethical-org/alethical/issues/849)). `response_text`
+believes a stated charset, tries UTF-8 when none is stated, and keeps the RFC
+fallback as the net for a source that really is Latin-1. **A new fetcher calls it
+rather than `response.text`** — that one line is the whole defect, and a fifth
+scraper written later should inherit the fix, not the bug.
+
 **Timeframe scope:** the **94th Legislature (2025-2026)** — its regular session
 (`session_code="0942025"` / `"0942026"`, session `94-2025-regular`, `bill_key`
 `94-2025-{FILETYPE}{NUMBER}`, e.g. `94-2025-HF2136`) and its **2025 first special

@@ -48,6 +48,7 @@ import requests
 from sqlalchemy import and_, create_engine, or_, select
 from sqlalchemy.orm import Session
 
+from alethical.pipeline.http_text import response_text
 from alethical.db import models as schema
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
@@ -123,7 +124,7 @@ def fetch_text(sess: requests.Session, url: str) -> str:
                 time.sleep(0.5 * attempt)
                 continue
             response.raise_for_status()
-            return response.text
+            return response_text(response)
         except requests.RequestException as exc:
             last_error = exc
             if attempt == MAX_RETRIES:

@@ -18,6 +18,7 @@ import requests
 from sqlalchemy import create_engine, delete, func, select
 from sqlalchemy.orm import Session
 
+from alethical.pipeline.http_text import response_text
 from alethical.db import models as schema
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
@@ -224,7 +225,7 @@ def get_text(url: str, *, retries: int = 4, backoff: float = 2.0) -> str:
                 url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS
             )
             response.raise_for_status()
-            return response.text
+            return response_text(response)
         except requests.RequestException as exc:
             status = getattr(exc.response, "status_code", None)
             if status is not None and status < 500:
