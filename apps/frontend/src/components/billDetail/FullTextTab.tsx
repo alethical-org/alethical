@@ -405,18 +405,19 @@ export function FullTextTab({
 
   const column = (
     <View style={showRail ? styles.column : styles.columnAlone}>
-      {/* Says "the text", not "the complete text". Ingestion used to drop a
-          section whenever a bill's page gave two sections the same id (#763),
-          so the stronger word was a claim we could not keep
-          (.claude/rules/grounded-answers.md rule 6). The cause is fixed and 57
-          sections are restored, but a few bills ingested on the old code are
-          still short. Restore "complete" when
-          scripts/check_bill_section_gaps.py prints OK, and not before — see
+      {/* "The complete text" is a claim, so it is checkable, not decorative.
+          #776 removed the word while ingestion was dropping a section whenever a
+          bill's page gave two sections the same id (#763), and #763 fixed the
+          cause and restored all 64 sections. It went back in once
+          scripts/check_bill_section_gaps.py printed OK against production, which
+          it now does daily (.github/workflows/bill-section-gaps.yml). If that
+          check ever goes red, this word comes out again in the same release —
+          .claude/rules/grounded-answers.md rule 6 cuts both ways. See
           docs/product-onboarding/bill-text-tab-spec.md § 'The intro says "the
-          text", not "the complete text"'. */}
+          complete text", and that is a checkable claim'. */}
       <Text style={styles.intro}>
-        The text of this version, section by section, as published by the Minnesota Legislature.
-        Cited sections from the summary link straight to their passage here.
+        The complete text of this version, section by section, as published by the Minnesota
+        Legislature. Cited sections from the summary link straight to their passage here.
       </Text>
 
       {legend ? <Text style={styles.legend}>{legend}</Text> : null}
