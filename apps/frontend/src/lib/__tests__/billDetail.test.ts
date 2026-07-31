@@ -924,6 +924,25 @@ describe('citationsBySection shows each cited section once', () => {
     expect(kept.map((c) => c.id)).toEqual(['a', 'b']);
   });
 
+  it('separates two same-reading chips that #854 pinned to different sections', () => {
+    // The case the shared id cannot express and the label cannot either: one id
+    // covering several sections whose headings match, so both chips read the same.
+    // sectionOrder is what tells them apart, and the key uses the anchor built from
+    // it — without that these two would collapse and one section become unreachable.
+    const kept = citationsBySection([
+      { ...hf4301[0], id: 'a', sectionOrder: 1 },
+      { ...hf4301[0], id: 'b', sectionOrder: 46 },
+    ]);
+    expect(kept.map((c) => c.id)).toEqual(['a', 'b']);
+    // And the same section cited by two key points is still one chip.
+    expect(
+      citationsBySection([
+        { ...hf4301[0], id: 'a', sectionOrder: 1 },
+        { ...hf4301[1], id: 'b', sectionOrder: 1 },
+      ]).map((c) => c.id),
+    ).toEqual(['a']);
+  });
+
   it('falls back to the rendered label when the backend resolved no section', () => {
     // An unresolved citation renders a disabled chip, so two of them are only
     // duplicates when they read identically.
