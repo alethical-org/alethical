@@ -53,8 +53,34 @@ is not a deduction and it is never averaged against good writing.
 
 | Gate | Fails when |
 |---|---|
-| **`grounded`** | Any factual claim is not supported by the four passages the model was shown. One invented number, name, date, or effect is enough. |
-| **`refusal_correct`** | The answer declines on a question the passages *do* answer, **or** answers one they do not. Both directions are failures. |
+| **`grounded`** | A factual claim is not supported by the four passages the model was shown — **and both judges agree it isn't**. One invented number, name, date, or effect is enough to fail, but one *judge's* objection is not. |
+| **`refusal_correct`** | The answer declines on a question the passages *do* answer, **or** answers one they do not. Both directions are failures. Whether an answer declines is a judge's whole-answer call, not a pattern match. |
+
+### Two rules that changed after the first real run, and why
+
+Both of the original rules made the eval unable to tell models apart. Recording
+the correction here because the reasoning matters more than the rule:
+
+**The refusal gate used to be a regular expression, and it was wrong.** The
+production prompt instructs the model to "answer the supported part and say what is
+not covered", so a *good* answer routinely closes with a caveat: *"...the bill does
+not specify how often the training must be repeated."* A pattern cannot tell that
+sentence apart from a whole answer that declines. It fired on four of gpt-4o-mini's
+best answers and scored them as refusals. Whether an answer declines is a property
+of the answer as a whole, so a judge decides it and the pattern is kept — renamed
+`mentions_missing_coverage` — as an independently reported signal. A single judge
+calling it a refusal is enough: declining is visible and judges agree on it readily,
+and the cautious read of a split is that the answer did not answer.
+
+**The grounding gate used to fail an answer if *either* judge objected.** The
+reasoning was that a disputed answer is not a safe answer. Measurement killed it:
+the two judges split on grounding for **3 to 8 of 20 answers per model**, so the
+union of their objections measured whichever judge was stricter, not the model — and
+all six candidates failed. An objection now has to survive the second judge to
+count. Disputed calls are not forgiven, they are **counted and printed** as
+`disputed`, so a model with many disputes reads as less certainly grounded than one
+with none. This is the same standard the repo applies to its own findings: a claim
+counts when it survives an independent check.
 
 Four **graded** dimensions, scored **0 / 1 / 2** each — 8 points total — and only on
 answers that clear both gates:
@@ -192,6 +218,18 @@ much work they do:
    as a systematic gap rather than being assumed away. If the two judges disagree
    more than the models differ, the comparison is not conclusive and the honest
    report says so.
+5. **The grounding gate requires both judges to agree**, so no single judge can
+   disqualify a rival's model on its own — the defence that actually binds, rather
+   than the three above which only make bias visible.
+
+**And the judges' output shape is constrained, not requested.** Asking for six keys
+in prose does not reliably return six keys: on 14 of 120 pairs the Sonnet judge
+returned a well-formed object that simply omitted `plain`, and did so on all three
+retries, because it was a considered choice rather than a sampling accident. The
+verdict schema is now enforced on the request (`json_schema`, every dimension
+required and restricted to 0/1/2), which is the difference between a run that
+completes and a run that dies two-thirds of the way through having already been paid
+for.
 
 The residual limitation, stated plainly: two judges cannot prove the absence of a
 shared bias, only bound the disagreement between them. The mechanical checks and
