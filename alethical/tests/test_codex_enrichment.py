@@ -71,25 +71,29 @@ def test_over_ceiling_reply_is_reported_but_still_combined(tmp_path) -> None:
     bill with no summary is invisible in every list on the site (#836), which is
     worse than one that runs long."""
     ceiling = ce.key_points_ceiling()
+    # SF4555 sorts LAST by output filename, so an unsorted sample would list the
+    # milder HF1 first -- the sample has to lead with the worst offender.
     run_dir = _run_dir(
         tmp_path,
         {
             "bill_summary:94-2026-SF4555:aaaa": ceiling + 3,
-            "bill_summary:94-2025-HF1:bbbb": 6,
+            "bill_summary:94-2025-HF1:bbbb": ceiling + 1,
+            "bill_summary:94-2025-HF9:cccc": 6,
         },
     )
 
     result = ce.combine_output_files(run_dir=run_dir)
 
-    # Flagged, with the count and the offending bill named.
+    # Flagged, worst first, with each offending bill named and counted.
     assert result["key_points_ceiling"] == ceiling
-    assert result["over_ceiling"] == 1
+    assert result["over_ceiling"] == 2
     assert result["over_ceiling_sample"] == [
-        {"custom_id": "bill_summary:94-2026-SF4555:aaaa", "key_points": ceiling + 3}
+        {"custom_id": "bill_summary:94-2026-SF4555:aaaa", "key_points": ceiling + 3},
+        {"custom_id": "bill_summary:94-2025-HF1:bbbb", "key_points": ceiling + 1},
     ]
 
-    # Not rejected: both bills combined, nothing failed.
-    assert result["combined"] == 2
+    # Not rejected: every bill combined, nothing failed.
+    assert result["combined"] == 3
     assert result["failed"] == 0
     assert result["missing"] == 0
     combined_ids = {
