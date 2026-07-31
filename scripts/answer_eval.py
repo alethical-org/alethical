@@ -67,6 +67,20 @@ REPO = Path(__file__).resolve().parents[1]
 FIXTURE = REPO / "alethical/eval/fixtures/answer_questions.json"
 CONTEXTS = REPO / "alethical/eval/fixtures/answer_contexts.json"
 
+
+def contexts_path(passages: int) -> Path:
+    """Where one passage budget's frozen contexts live.
+
+    The default budget keeps the plain filename so the committed snapshot and every
+    existing reference stay valid; a wider budget gets its own file, because
+    widening the window is a different experiment and must not overwrite the
+    baseline it is being compared against.
+    """
+    if passages == CHUNK_LIMIT:
+        return CONTEXTS
+    return CONTEXTS.with_name(f"answer_contexts_{passages}.json")
+
+
 # Mirrors ask.py: _BILL_TEXT_CHUNK_LIMIT (the passages the writer is given) and
 # the HNSW beam width the request sets. Keep these in step with ask.py or the
 # eval stops measuring production's writer.
@@ -102,6 +116,7 @@ PRICES = {
 
 
 def snapshot(args) -> None:
+    passages = args.passages
     schema = load_schema()
     Bill = schema.Bill
     engine = create_engine(
@@ -123,15 +138,29 @@ def snapshot(args) -> None:
                     build_query_embedding(q.question),
                     bill_id=bill.id,
                     embedding_model=model,
-                    limit=CHUNK_LIMIT,
+                    limit=passages,
                 )
             ).all()
             if not chunks:
                 raise SystemExit(f"{q.bill_key} has no retrievable passages")
+            total = db.scalar(
+                text(
+                    "select count(*) from rag_chunk rc "
+                    "join rag_section_document d on d.id = rc.rag_section_document_id "
+                    "join bill_version bv on bv.id = d.bill_version_id and bv.is_current "
+                    "where d.bill_id = :bill_id"
+                ),
+                {"bill_id": bill.id},
+            )
             out[q.key] = {
                 "question": q.question,
                 "bill_key": q.bill_key,
                 "bill_title": bill.title,
+                # How many passages this bill HAS, against how many the writer is
+                # given. The gap is what makes an answer's completeness claim a
+                # guess, and it is derived here rather than hand-labeled so it
+                # cannot go stale when the passage budget changes (#868).
+                "passages_total": int(total or 0),
                 "chunks": [
                     {"citation_label": c.citation_label, "chunk_text": c.chunk_text}
                     for c in chunks
@@ -141,14 +170,15 @@ def snapshot(args) -> None:
                 f"  {q.bill_key}  {len(out[q.key]['chunks'])} passages  {q.question[:60]}"
             )
 
-    CONTEXTS.write_text(
+    destination = contexts_path(passages)
+    destination.write_text(
         json.dumps(
             {
                 "description": (
                     "Frozen retrieval contexts for the answer-quality eval (#865). "
                     "Produced by `scripts/answer_eval.py snapshot` read-only against "
                     "production, replicating ask.py's per-bill passage retrieval "
-                    f"(limit {CHUNK_LIMIT}, hnsw.ef_search {EF_SEARCH}). Committed so "
+                    f"(limit {passages}, hnsw.ef_search {EF_SEARCH}). Committed so "
                     "every model is written from identical passages and the eval runs "
                     "without a database."
                 ),
@@ -158,11 +188,17 @@ def snapshot(args) -> None:
         )
         + "\n"
     )
-    print(f"\nwrote {len(out)} contexts to {CONTEXTS.relative_to(REPO)}")
+    print(f"\nwrote {len(out)} contexts to {destination.relative_to(REPO)}")
 
 
-def load_contexts() -> dict[str, dict]:
-    return json.loads(CONTEXTS.read_text())["contexts"]
+def load_contexts(passages: int = CHUNK_LIMIT) -> dict[str, dict]:
+    path = contexts_path(passages)
+    if not path.exists():
+        raise SystemExit(
+            f"no snapshot for a {passages}-passage budget; run "
+            f"`snapshot --passages {passages}` first"
+        )
+    return json.loads(path.read_text())["contexts"]
 
 
 # --- generation: production's exact prompt, one provider adapter per family ---
@@ -309,14 +345,28 @@ def _anthropic_answer(
     )
 
 
-def parse_spec(spec: str) -> tuple[str, str, bool]:
-    """``provider:model`` → (provider, model, deep=False); a ``+deep`` suffix flips it.
+def parse_spec(spec: str) -> tuple[str, str, bool, int]:
+    """``provider:model[+deep][@passages]`` → (provider, model, deep, passages).
 
-    Reasoning depth is part of the candidate's identity, not a hidden default: the
-    same model reasoning or not is two different products to a waiting reader, and
-    both deserve their own row in the report.
+    Two things beyond the model name belong to a candidate's identity rather than
+    sitting in a default somewhere:
+
+    * ``+deep`` — reasoning left at the provider's default. The same model reasoning
+      or not is two different products to a waiting reader.
+    * ``@N`` — how many bill passages the writer is given. ``gpt-4o-mini@16`` is a
+      genuinely different candidate from ``gpt-4o-mini``, and comparing them is what
+      separates "the writer is weak" from "the writer was under-informed" (#868).
+
+    Both default to what production does today, so a bare spec means the incumbent
+    configuration.
     """
-    base, _, suffix = spec.partition("+")
+    base, _, budget = spec.partition("@")
+    passages = CHUNK_LIMIT
+    if budget:
+        if not budget.isdigit() or int(budget) < 1:
+            raise SystemExit(f"passage budget in {spec!r} must be a positive integer")
+        passages = int(budget)
+    base, _, suffix = base.partition("+")
     if suffix not in ("", "deep"):
         raise SystemExit(f"unknown suffix {suffix!r} in {spec!r} (only '+deep')")
     provider, _, model = base.partition(":")
@@ -324,11 +374,11 @@ def parse_spec(spec: str) -> tuple[str, str, bool]:
         raise SystemExit(
             f"unknown provider in {spec!r} (expected openai: or anthropic:)"
         )
-    return provider, model, suffix == "deep"
+    return provider, model, suffix == "deep", passages
 
 
 def call_model(spec: str, system: str, user: str) -> tuple[str, float, float, int, int]:
-    provider, model, deep = parse_spec(spec)
+    provider, model, deep, _ = parse_spec(spec)
     if provider == "openai":
         return _openai_answer(model, system, user, deep=deep)
     return _anthropic_answer(model, system, user, deep=deep)
@@ -404,6 +454,16 @@ Output the JSON object and nothing else. No preamble, no code fence.
 
 
 def build_judge_prompt(q: AnswerQuery, context: dict, answer: str) -> str:
+    # The judge cannot score the completeness and absence gates without knowing how
+    # much of the bill the writer was shown — that gap is the whole failure (#868).
+    shown = len(context["chunks"])
+    total = context.get("passages_total", shown)
+    coverage = (
+        f"ALL {total} of this bill's passages — the whole bill."
+        if total <= shown
+        else f"only {shown} of this bill's {total} passages. It could not see the "
+        f"other {total - shown}, and was not told they exist."
+    )
     passages = "\n\n".join(
         f"[{i}] {c['citation_label']}\n{c['chunk_text'].strip()}"
         for i, c in enumerate(context["chunks"], start=1)
@@ -423,6 +483,7 @@ def build_judge_prompt(q: AnswerQuery, context: dict, answer: str) -> str:
     not_claim = "\n".join(f"  - {c}" for c in q.must_not_claim) or "  (none recorded)"
     return f"""QUESTION: {q.question}
 BILL: {q.bill_key} — {context["bill_title"][:200]}
+HOW MUCH OF THE BILL THE WRITER SAW: {coverage}
 
 ANSWER KEY (written by a human reading the passages below)
   Stage: {"enacted LAW" if q.framing == "law" else "a PROPOSAL that has not become law"}
@@ -472,6 +533,8 @@ _VERDICT_SCHEMA = {
     "properties": {
         "grounded": {"type": "boolean"},
         "declines": {"type": "boolean"},
+        "claims_completeness": {"type": "boolean"},
+        "asserts_absence": {"type": "boolean"},
         "covers": {"type": "integer", "enum": [0, 1, 2]},
         "addresses": {"type": "integer", "enum": [0, 1, 2]},
         "framing": {"type": "integer", "enum": [0, 1, 2]},
@@ -481,6 +544,8 @@ _VERDICT_SCHEMA = {
     "required": [
         "grounded",
         "declines",
+        "claims_completeness",
+        "asserts_absence",
         "covers",
         "addresses",
         "framing",
@@ -567,7 +632,7 @@ def call_judge(spec: str, system: str, user: str) -> dict:
     clean object; killing a paid run over one bad reply does not. Transient HTTP
     failures (429, 5xx) are retried by the same loop.
     """
-    provider, model, _ = parse_spec(spec)
+    provider, model, _, _ = parse_spec(spec)
     judge = _openai_judge if provider == "openai" else _anthropic_judge
     last: Exception | None = None
     for attempt in range(1, JUDGE_ATTEMPTS + 1):
@@ -596,7 +661,7 @@ def _is_scoreable(verdict: object) -> bool:
 
 def _validated_verdict(verdict: dict) -> dict:
     """Reject a verdict that parsed but is not scoreable, so the retry can fix it."""
-    for flag in ("grounded", "declines"):
+    for flag in ("grounded", "declines", "claims_completeness", "asserts_absence"):
         if not isinstance(verdict.get(flag), bool):
             raise ValueError(f"{flag!r} is not a boolean: {verdict.get(flag)!r}")
     for dim in GRADED_DIMENSIONS:
@@ -614,7 +679,7 @@ def judge_all(
     judge_spec: str,
     model_specs: list[str],
     queries: list[AnswerQuery],
-    contexts: dict,
+    contexts_by_spec: dict[str, dict],
     answers_by_model: dict[str, dict],
     cache: Path,
 ) -> dict:
@@ -655,7 +720,9 @@ def judge_all(
             judge_spec,
             JUDGE_SYSTEM,
             build_judge_prompt(
-                q, contexts[q.key], answers_by_model[model_spec][q.key]["answer"]
+                q,
+                contexts_by_spec[model_spec][q.key],
+                answers_by_model[model_spec][q.key]["answer"],
             ),
         )
         with lock:
@@ -677,23 +744,34 @@ def judge_all(
 
 def run(args) -> None:
     queries = load_fixture(FIXTURE)
-    contexts = load_contexts()
-    missing = [q.key for q in queries if q.key not in contexts]
-    if missing:
-        raise SystemExit(
-            f"no snapshot for {len(missing)} question(s); run `snapshot` first"
-        )
-
     run_dir = Path(args.run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
     model_specs = [s.strip() for s in args.models.split(",") if s.strip()]
     judge_specs = [s.strip() for s in args.judges.split(",") if s.strip()]
 
+    # One snapshot per passage budget in play, loaded once and shared by every
+    # candidate on that budget, so two models at 16 passages are written from
+    # byte-identical context.
+    budgets = {spec: parse_spec(spec)[3] for spec in model_specs}
+    snapshots = {n: load_contexts(n) for n in sorted(set(budgets.values()))}
+    contexts_by_spec = {spec: snapshots[n] for spec, n in budgets.items()}
+    for spec, contexts in contexts_by_spec.items():
+        missing = [q.key for q in queries if q.key not in contexts]
+        if missing:
+            raise SystemExit(
+                f"{spec}: no snapshot for {len(missing)} question(s) at a "
+                f"{budgets[spec]}-passage budget; run "
+                f"`snapshot --passages {budgets[spec]}` first"
+            )
+
     answers_by_model = {}
     for spec in model_specs:
         print(f"\ngenerating with {spec}")
         answers_by_model[spec] = generate(
-            spec, queries, contexts, run_dir / f"answers-{_slug(spec)}.json"
+            spec,
+            queries,
+            contexts_by_spec[spec],
+            run_dir / f"answers-{_slug(spec)}.json",
         )
 
     verdicts_by_judge = {}
@@ -703,7 +781,7 @@ def run(args) -> None:
             judge_spec,
             model_specs,
             queries,
-            contexts,
+            contexts_by_spec,
             answers_by_model,
             run_dir / f"verdicts-{_slug(judge_spec)}.json",
         )
@@ -713,6 +791,7 @@ def run(args) -> None:
         results = []
         for q in queries:
             raw = answers_by_model[spec][q.key]
+            context = contexts_by_spec[spec][q.key]
             result = AnswerResult(
                 query=q,
                 model=spec,
@@ -721,6 +800,8 @@ def run(args) -> None:
                 seconds_total=raw["seconds_total"],
                 input_tokens=raw["input_tokens"],
                 output_tokens=raw["output_tokens"],
+                passages_shown=len(context["chunks"]),
+                passages_total=context.get("passages_total", len(context["chunks"])),
             )
             for judge_spec in judge_specs:
                 v = verdicts_by_judge[judge_spec][f"{spec}||{q.key}"]
@@ -729,6 +810,8 @@ def run(args) -> None:
                         judge=judge_spec,
                         grounded=bool(v["grounded"]),
                         declines=bool(v["declines"]),
+                        claims_completeness=bool(v["claims_completeness"]),
+                        asserts_absence=bool(v["asserts_absence"]),
                         covers=int(v["covers"]),
                         addresses=int(v["addresses"]),
                         framing=int(v["framing"]),
@@ -849,16 +932,27 @@ def report(
 
 
 def _slug(spec: str) -> str:
-    return spec.replace(":", "-").replace(".", "_")
+    """A candidate's cache filename. Must distinguish every part of its identity —
+    provider, model, reasoning depth and passage budget — or two arms silently
+    share one cache and the second reads the first's answers."""
+    return spec.replace(":", "-").replace(".", "_").replace("@", "-at-")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="stage", required=True)
 
-    sub.add_parser(
+    snapshot_parser = sub.add_parser(
         "snapshot", help="freeze production's retrieval contexts"
-    ).set_defaults(func=snapshot)
+    )
+    snapshot_parser.add_argument(
+        "--passages",
+        type=int,
+        default=CHUNK_LIMIT,
+        help="how many passages to retrieve per question (production uses "
+        f"{CHUNK_LIMIT}); a wider budget is written to its own snapshot file",
+    )
+    snapshot_parser.set_defaults(func=snapshot)
 
     run_parser = sub.add_parser("run", help="generate, judge, and report")
     run_parser.add_argument(

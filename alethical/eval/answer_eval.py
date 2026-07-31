@@ -19,6 +19,10 @@ worse product than a dull one that doesn't (``.claude/rules/grounded-answers.md`
 rules 1 and 3):
 
 * ``grounded``        — every claim traceable to the provided passages.
+* ``honest_about_partial_reading`` — when the passages are a *sample* of a longer
+  bill, the answer must not present a list or count as complete, and must not deny
+  that something exists. Both are absence of evidence sold as evidence of absence
+  (#868).
 * ``refusal_correct`` — declines on a fixture item labeled unanswerable, and does
   not decline on one labeled answerable. Both directions fail. Whether an answer
   declines is the judges' call, not a pattern's: see ``mentions_missing_coverage``.
@@ -32,6 +36,15 @@ clear both gates:
   *would require* (rule 7's status-aware framing).
 * ``plain``       — a non-specialist follows it; no bill-code preamble, no dumped
   statute citations (rule 9).
+
+The third gate exists because the other two cannot see the worst failure this
+product has shipped. Asked which cities and counties get grants in HF 719,
+production named 19 cities and said no counties were named; the bill names ~98 and
+~17. The citations were real, the passages did say what the answer said, and
+cite-or-refuse was satisfied — the answer was simply written from 4 of 102 passages
+with nothing telling it so. A model cannot know what it was not shown, but it *can*
+decline to claim completeness it has no basis for, and that is what is scored here.
+Ground truth for the case: ``alethical/eval/ground_truth.py``.
 
 Labels come from ``fixtures/answer_questions.json`` — written by human reading of
 the snapshotted passages, never by asking a model — so the fixture is an
@@ -195,6 +208,10 @@ class JudgeVerdict:
     judge: str
     grounded: bool
     declines: bool
+    # Only meaningful when the answer was written from part of a bill; see
+    # AnswerResult.honest_about_partial_reading.
+    claims_completeness: bool
+    asserts_absence: bool
     covers: int
     addresses: int
     framing: int
@@ -215,6 +232,14 @@ class AnswerResult:
     seconds_total: float | None = None
     input_tokens: int = 0
     output_tokens: int = 0
+    # How much of the bill the writer was shown. Derived from the snapshot, not
+    # hand-labeled, so it cannot go stale when the passage budget changes.
+    passages_shown: int = 0
+    passages_total: int = 0
+
+    @property
+    def context_is_partial(self) -> bool:
+        return self.passages_total > self.passages_shown
 
     # --- gates ---
 
@@ -253,8 +278,31 @@ class AnswerResult:
         calls = {v.grounded for v in self.verdicts}
         return len(calls) > 1
 
+    def honest_about_partial_reading(self, judge: str | None = None) -> bool:
+        """When only part of the bill was in context, did the answer avoid
+        overclaiming?
+
+        Passes trivially when the whole bill was in context — a complete list *is*
+        complete, and "the bill names no counties" is a fair statement when every
+        section was read. It only bites where it must: on the long bills where four
+        passages are a sample, and where a confident list or a flat denial is
+        exactly the failure #868 records.
+
+        A single judge is enough to fail it, as with declining: both behaviours are
+        visible on the face of the answer, and the cautious reading of a split is
+        that the answer overclaimed.
+        """
+        if not self.context_is_partial:
+            return True
+        verdicts = self._for(judge)
+        return not any(v.claims_completeness or v.asserts_absence for v in verdicts)
+
     def gates_passed(self, judge: str | None = None) -> bool:
-        return self.refusal_correct(judge) and self.grounded(judge)
+        return (
+            self.refusal_correct(judge)
+            and self.grounded(judge)
+            and self.honest_about_partial_reading(judge)
+        )
 
     def gate_failures(self, judge: str | None = None) -> list[str]:
         failures = []
@@ -266,6 +314,21 @@ class AnswerResult:
             )
         if not self.grounded(judge):
             failures.append("made a claim the passages do not support")
+        if not self.honest_about_partial_reading(judge):
+            for verdict in self._for(judge):
+                if verdict.claims_completeness:
+                    failures.append(
+                        "presented a partial list or count as the complete set, "
+                        f"having been shown {self.passages_shown} of "
+                        f"{self.passages_total} passages"
+                    )
+                    break
+            for verdict in self._for(judge):
+                if verdict.asserts_absence:
+                    failures.append(
+                        "denied something exists, on a partial reading of the bill"
+                    )
+                    break
         return failures
 
     # --- graded ---
@@ -343,6 +406,14 @@ def aggregate(results: list[AnswerResult], *, judge: str | None = None) -> dict:
         # Grounding calls the judges split on. Not failures, but not clean either —
         # a model with many disputes is less certainly grounded than one with none.
         "grounding_disputed": sum(1 for r in results if r.grounding_disputed()),
+        # Of the questions where the writer saw only part of the bill, how many
+        # answers overclaimed. The #868 failure, counted.
+        "partial_context_questions": sum(1 for r in results if r.context_is_partial),
+        "overclaimed_on_partial": sum(
+            1
+            for r in results
+            if r.context_is_partial and not r.honest_about_partial_reading(judge)
+        ),
         "mean_score": round(sum(scores) / n, 3),
         "ship_worthy": ship_worthy,
         "ship_worthy_rate": round(ship_worthy / n, 3),

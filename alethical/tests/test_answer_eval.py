@@ -54,6 +54,8 @@ def _verdict(
     *,
     grounded=True,
     declines=False,
+    claims_completeness=False,
+    asserts_absence=False,
     covers=2,
     addresses=2,
     framing=2,
@@ -63,6 +65,8 @@ def _verdict(
         judge=judge,
         grounded=grounded,
         declines=declines,
+        claims_completeness=claims_completeness,
+        asserts_absence=asserts_absence,
         covers=covers,
         addresses=addresses,
         framing=framing,
@@ -417,14 +421,15 @@ def test_parse_spec_treats_reasoning_depth_as_part_of_the_candidate():
     spec.loader.exec_module(cli)
 
     # Default is the shippable configuration: no reasoning, because a reader waits.
-    assert cli.parse_spec("openai:gpt-5-mini") == ("openai", "gpt-5-mini", False)
+    assert cli.parse_spec("openai:gpt-5-mini") == ("openai", "gpt-5-mini", False, 4)
     assert cli.parse_spec("anthropic:claude-sonnet-5") == (
         "anthropic",
         "claude-sonnet-5",
         False,
+        4,
     )
     # `+deep` measures the naive call, and is a distinct candidate with its own row.
-    assert cli.parse_spec("openai:gpt-5.1+deep") == ("openai", "gpt-5.1", True)
+    assert cli.parse_spec("openai:gpt-5.1+deep") == ("openai", "gpt-5.1", True, 4)
 
     for bad in ("gpt-5-mini", "google:gemini", "openai:gpt-5-mini+fast"):
         with pytest.raises(SystemExit):
@@ -492,6 +497,8 @@ def test_a_verdict_that_parsed_but_is_unscoreable_is_rejected_so_the_retry_fires
     good = {
         "grounded": True,
         "declines": False,
+        "claims_completeness": False,
+        "asserts_absence": False,
         "covers": 2,
         "addresses": 1,
         "framing": 0,
@@ -516,6 +523,8 @@ def test_unscoreable_cached_verdicts_are_detected_rather_than_trusted():
     good = {
         "grounded": True,
         "declines": False,
+        "claims_completeness": False,
+        "asserts_absence": False,
         "covers": 2,
         "addresses": 1,
         "framing": 0,
@@ -526,3 +535,144 @@ def test_unscoreable_cached_verdicts_are_detected_rather_than_trusted():
     assert not cli._is_scoreable({**good, "covers": None})
     assert not cli._is_scoreable("not a dict")
     assert not cli._is_scoreable(None)
+
+
+# --- the partial-reading gate: the failure every other signal passes (#868) ---
+
+
+def _partial(**verdict_kwargs) -> AnswerResult:
+    """An answer written from 4 of a bill's 102 passages, as HF 719's is."""
+    return _result(
+        verdicts=[_verdict(**verdict_kwargs)], passages_shown=4, passages_total=102
+    )
+
+
+def test_a_complete_looking_list_from_a_partial_reading_fails():
+    """The HF 719 failure: 19 cities named as though that were the set, when the
+    bill names ~98. Grounded, cited, plain, and wrong."""
+    overclaimed = _partial(claims_completeness=True)
+    assert overclaimed.grounded()  # every claim IS supported by what it was shown
+    assert overclaimed.refusal_correct()
+    assert not overclaimed.honest_about_partial_reading()
+    assert not overclaimed.gates_passed()
+    assert overclaimed.score() == 0
+
+
+def test_denying_a_category_from_a_partial_reading_fails():
+    """ "The bill does not name any counties" from 4 of 102 passages. The bill names
+    at least 17."""
+    denied = _partial(asserts_absence=True)
+    assert not denied.honest_about_partial_reading()
+    assert "denied something exists, on a partial reading of the bill" in (
+        denied.gate_failures()
+    )
+
+
+def test_the_gate_says_how_little_of_the_bill_was_read():
+    failure = " ".join(_partial(claims_completeness=True).gate_failures())
+    assert "4 of 102" in failure
+
+
+def test_the_gate_does_not_fire_when_the_whole_bill_was_in_context():
+    """A complete list IS complete, and an absence IS an absence, when every
+    passage was read. 94.6% of bills fit, so this must not tax them."""
+    whole_bill = _result(
+        verdicts=[_verdict(claims_completeness=True, asserts_absence=True)],
+        passages_shown=3,
+        passages_total=3,
+    )
+    assert not whole_bill.context_is_partial
+    assert whole_bill.honest_about_partial_reading()
+    assert whole_bill.gates_passed()
+
+
+def test_one_judge_spotting_an_overclaim_is_enough():
+    split = _result(
+        verdicts=[
+            _verdict("a", claims_completeness=False),
+            _verdict("b", claims_completeness=True),
+        ],
+        passages_shown=4,
+        passages_total=102,
+    )
+    assert not split.honest_about_partial_reading()
+
+
+def test_aggregate_counts_overclaims_only_among_partial_context_questions():
+    results = [
+        _partial(claims_completeness=True),
+        _partial(),
+        _result(verdicts=[_verdict()], passages_shown=2, passages_total=2),
+    ]
+    summary = aggregate(results)
+    assert summary["partial_context_questions"] == 2
+    assert summary["overclaimed_on_partial"] == 1
+
+
+# --- shared ground truth (#868 imports these; they must not drift) ---
+
+
+def test_hf719_ground_truth_bounds_sit_below_the_measured_counts():
+    from alethical.eval import ground_truth as gt
+
+    # Measured independently twice: 98 cities, 17 counties. Bounds sit clear of
+    # every definitional edge case, so only a real regression breaches them.
+    assert gt.HF719_MIN_GRANT_CITIES <= 98
+    assert gt.HF719_MIN_GRANT_COUNTIES <= 17
+    # ...and well above what the buggy answer claimed.
+    assert gt.HF719_MIN_GRANT_CITIES > gt.HF719_ANSWER_CITY_COUNT_BUG
+    assert gt.HF719_COUNTIES_ARE_NAMED is True
+    for name in gt.HF719_GRANT_COUNTIES:
+        assert name and name[0].isupper()
+    assert "Hennepin" in gt.HF719_GRANT_COUNTIES
+    assert "Minneapolis" in gt.HF719_GRANT_CITIES
+
+
+def test_the_hf719_fixture_question_forbids_both_overclaims():
+    """The label must forbid the two things production actually did."""
+    hf719 = next(
+        q
+        for q in load_fixture(FIXTURE)
+        if q.bill_key == "94-2025-HF719" and "cities and counties" in q.question
+    )
+    forbidden = " ".join(hf719.must_not_claim).lower()
+    assert "no counties are named" in forbidden
+    assert "complete set" in forbidden
+
+
+# --- passage budget is part of a candidate's identity ---
+
+
+def test_parse_spec_reads_the_passage_budget():
+    cli = _cli()
+    assert cli.parse_spec("openai:gpt-4o-mini") == ("openai", "gpt-4o-mini", False, 4)
+    assert cli.parse_spec("openai:gpt-4o-mini@16") == (
+        "openai",
+        "gpt-4o-mini",
+        False,
+        16,
+    )
+    assert cli.parse_spec("anthropic:claude-sonnet-5+deep@8") == (
+        "anthropic",
+        "claude-sonnet-5",
+        True,
+        8,
+    )
+    for bad in ("openai:gpt-4o-mini@0", "openai:gpt-4o-mini@lots"):
+        with pytest.raises(SystemExit):
+            cli.parse_spec(bad)
+
+
+def test_a_wider_budget_gets_its_own_snapshot_file():
+    """The baseline snapshot must never be overwritten by the experiment it is
+    being compared against."""
+    cli = _cli()
+    assert cli.contexts_path(4) == cli.CONTEXTS
+    assert cli.contexts_path(16) != cli.CONTEXTS
+    assert "16" in cli.contexts_path(16).name
+
+
+def test_a_budget_appears_in_the_cache_filename():
+    cli = _cli()
+    assert cli._slug("openai:gpt-4o-mini@16") != cli._slug("openai:gpt-4o-mini")
+    assert "@" not in cli._slug("openai:gpt-4o-mini@16")

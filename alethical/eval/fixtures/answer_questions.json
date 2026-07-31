@@ -6,7 +6,7 @@
       "bill_key": "94-2025-HF719",
       "answerable": true,
       "framing": "law",
-      "why_labeled": "The passages are appropriation sections that name grant recipients city by city with a dollar figure each. This is the question from #865 where the live answer is correct but reads as a flat numbered list; a good answer groups and explains rather than transcribing. Note the passages name only cities and one township, not counties, so an answer that claims counties receive grants is overreaching.",
+      "why_labeled": "THE CASE THIS FIXTURE EXISTS FOR (#868). HF 719 is a 48-section, 15,430-word bonding bill held as 102 retrievable passages. At production's budget the writer sees 4 of them — roughly 900 words of 15,430 — and is not told the rest exist. Counted independently from the bill's full section text, it names at least 98 cities and at least 17 counties as grant recipients (alethical/eval/ground_truth.py). Production's live answer says nineteen cities, names them as though that were the set, and says no counties are named: an undercount by a factor of five and a denial of a category the bill names 17 times. Every trust signal passes it, which is why the completeness and absence gates exist. A correct answer names cities it can see AND signals that it is looking at part of a long bill. An answer that presents its list or count as complete, or that denies counties are named, fails regardless of how well it reads. An earlier version of this label was itself wrong here: it was written from the four passages and said counties were not named, which is true of the passages and false of the bill.",
       "required_facts": [
         {
           "label": "names International Falls (water treatment)",
@@ -26,8 +26,9 @@
         }
       ],
       "must_not_claim": [
-        "that any county receives a grant; Carlton County appears only to locate the township of Thomson, and Hennepin and Anoka counties appear only as road authorities",
-        "a total across all the grants; the passages are excerpts and no total is given"
+        "that no counties are named, or that the bill names only cities; the full bill names at least 17 counties as grant recipients, including Hennepin, Ramsey, Anoka and Washington, none of which appear in the four retrieved passages",
+        "that its list of cities is the complete set; the full bill names at least 98, and the four passages carry a fraction of them",
+        "a count presented as the bill's total, or a total dollar figure; neither can be known from four of 102 passages"
       ]
     },
     {
