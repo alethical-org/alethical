@@ -453,6 +453,27 @@ def _openai_judge(model: str, system: str, user: str) -> dict:
     return _loads_json(_openai_text(response.json()))
 
 
+# Asking for six keys does not reliably get six keys. On 14 of 120 pairs the
+# Sonnet judge returned a perfectly well-formed object that simply omitted
+# `plain` — and did so on all three retries, because it was a considered choice
+# rather than a sampling accident. A retry cannot fix a systematic omission, so
+# the shape is constrained at the API instead of requested in prose. `enum`
+# rather than minimum/maximum: numeric range constraints are not supported.
+_VERDICT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "grounded": {"type": "boolean"},
+        "covers": {"type": "integer", "enum": [0, 1, 2]},
+        "addresses": {"type": "integer", "enum": [0, 1, 2]},
+        "framing": {"type": "integer", "enum": [0, 1, 2]},
+        "plain": {"type": "integer", "enum": [0, 1, 2]},
+        "note": {"type": "string"},
+    },
+    "required": ["grounded", "covers", "addresses", "framing", "plain", "note"],
+    "additionalProperties": False,
+}
+
+
 def _anthropic_judge(model: str, system: str, user: str) -> dict:
     # max_tokens caps thinking AND response text together, so a judge that thinks
     # needs headroom well beyond the ~120 tokens of JSON it returns. At 1024 the
@@ -468,7 +489,10 @@ def _anthropic_judge(model: str, system: str, user: str) -> dict:
         # Judging IS a reasoning task, unlike answer-writing, and no reader is
         # waiting on it — so thinking stays on here.
         body["thinking"] = {"type": "adaptive"}
-        body["output_config"] = {"effort": "medium"}
+        body["output_config"] = {
+            "effort": "medium",
+            "format": {"type": "json_schema", "schema": _VERDICT_SCHEMA},
+        }
     response = requests.post(
         "https://api.anthropic.com/v1/messages",
         headers={
@@ -543,6 +567,16 @@ def call_judge(spec: str, system: str, user: str) -> dict:
     raise RuntimeError(f"judge {spec} failed {JUDGE_ATTEMPTS} times: {last}") from last
 
 
+def _is_scoreable(verdict: object) -> bool:
+    if not isinstance(verdict, dict):
+        return False
+    try:
+        _validated_verdict(verdict)
+    except ValueError:
+        return False
+    return True
+
+
 def _validated_verdict(verdict: dict) -> dict:
     """Reject a verdict that parsed but is not scoreable, so the retry can fix it."""
     if not isinstance(verdict.get("grounded"), bool):
@@ -572,7 +606,16 @@ def judge_all(
     which model wrote an answer, and never sees the same model's answers in a
     predictable run that would let it infer one.
     """
-    verdicts: dict[str, dict] = json.loads(cache.read_text()) if cache.exists() else {}
+    cached: dict[str, dict] = json.loads(cache.read_text()) if cache.exists() else {}
+    # Drop anything in the cache that is not scoreable rather than trusting it. A
+    # cache can outlive the code that wrote it — one written before verdicts were
+    # validated was missing a whole dimension, and crashed the report after all
+    # 140 judgments had been paid for. Dropping it here re-judges just that pair.
+    verdicts = {k: v for k, v in cached.items() if _is_scoreable(v)}
+    if len(verdicts) < len(cached):
+        print(
+            f"    re-judging {len(cached) - len(verdicts)} unscoreable cached verdict(s)"
+        )
     pairs = [
         (m, q) for m in model_specs for q in queries if f"{m}||{q.key}" not in verdicts
     ]

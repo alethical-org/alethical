@@ -441,3 +441,14 @@ def test_a_verdict_that_parsed_but_is_unscoreable_is_rejected_so_the_retry_fires
     ):
         with pytest.raises(ValueError):
             cli._validated_verdict(broken)
+
+
+def test_unscoreable_cached_verdicts_are_detected_rather_than_trusted():
+    """A cache can outlive the code that wrote it; junk must be re-judged, not read."""
+    cli = _cli()
+    good = {"grounded": True, "covers": 2, "addresses": 1, "framing": 0, "plain": 2}
+    assert cli._is_scoreable(good)
+    assert not cli._is_scoreable({k: v for k, v in good.items() if k != "plain"})
+    assert not cli._is_scoreable({**good, "covers": None})
+    assert not cli._is_scoreable("not a dict")
+    assert not cli._is_scoreable(None)
