@@ -226,19 +226,52 @@ export function passageTarget(
  * guarantee cannot rest on that, so the caveat is fixed UI copy the layout owns
  * and the model cannot influence (`.claude/rules/grounded-answers.md` rule 3).
  *
- * Returns null in both safe directions: no served coverage (say nothing rather
- * than guess, so this ships before or after the backend), and full coverage (a
- * caveat on every answer teaches people to ignore it).
+ * **Prefers the sentence the answer path serves** (`coverage.note`, #868). The
+ * server knows two things this side cannot: whether the question was list-shaped at
+ * all — a caveat about a list on a non-list answer teaches readers to skip the one
+ * that matters, so `note` is null there — and whether reading the WHOLE bill still
+ * left the list shortened, which needs different wording from reading only part of
+ * it. It is still layout-owned copy in the sense that matters: a fixed constant in
+ * our code, not something the model writes about itself.
  *
- * The two numbers are a fact about OUR retrieval, not a count of the bill's
- * contents, which is why they are allowed here at all — decision 5 forbids a count
- * that reads as "this list is complete", and this sentence says the opposite.
+ * The `used`/`total` branch is the fallback for a payload that carries the numbers
+ * but no sentence. Transitional: #886 shipped the numbers before #868 shipped the
+ * note, and this keeps the warning working in either merge order rather than having
+ * it silently vanish for however long the gap is. Delete the branch once no served
+ * payload lacks `note`.
+ *
+ * That branch reads ONLY the old `used`/`total` pair, deliberately — never #868's
+ * `passagesSearched`/`passagesTotal`. A payload that carries #868's counts also
+ * carries its `note`, so a null `note` there is a considered "no caveat applies to
+ * this question", not a gap to fill in. Deriving a sentence from those numbers would
+ * override that judgement and put a list caveat on an answer that has no list.
+ *
+ * Returns null in both safe directions: nothing served (say nothing rather than
+ * guess) and nothing to warn about.
+ *
+ * Any numbers in the sentence are a fact about OUR retrieval, never a count of the
+ * bill's contents — decision 5 forbids a count that reads as "this list is
+ * complete", and these sentences claim the opposite.
  */
 export function partialCoverageNote(
-  coverage: { used: number; total: number } | undefined,
+  coverage:
+    | {
+        note?: string | null;
+        complete?: boolean;
+        // #868's counts. Typed because the payload carries them, deliberately NOT
+        // read below — see the note about a null `note` above.
+        passagesSearched?: number;
+        passagesTotal?: number;
+        used?: number;
+        total?: number;
+      }
+    | undefined,
 ): string | null {
   if (!coverage) return null;
+  const served = (coverage.note ?? '').trim();
+  if (served) return served;
   const { used, total } = coverage;
+  if (typeof used !== 'number' || typeof total !== 'number') return null;
   if (!(used > 0) || !(total > used)) return null;
   return `This answer draws on ${used} of the ${total} passages in this bill, so there may be more it doesn’t cover.`;
 }

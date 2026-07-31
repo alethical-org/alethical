@@ -172,7 +172,14 @@ interface ApiAskBillTextAnswerPayload {
   bill: ApiBillListItemPayload;
   session: { slug: string; name: string };
   data_as_of?: string | null;
-  coverage?: { used: number; total: number } | null;
+  coverage?: {
+    note?: string | null;
+    complete?: boolean;
+    passages_searched?: number;
+    passages_total?: number;
+    used?: number;
+    total?: number;
+  } | null;
 }
 
 interface ApiAskAnswerPayload {
@@ -1512,7 +1519,19 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
       sectionTopic: typeof citation.section_topic === 'string' ? citation.section_topic.trim() : '',
     })),
     answeringBill: billTextAnswer ? mapBill(billTextAnswer.bill) : undefined,
-    coverage: billTextAnswer?.coverage ?? undefined,
+    // Both key spellings pass through while #886's and #868's shapes can each be
+    // served; partialCoverageNote prefers the served sentence and falls back to the
+    // numbers, so the warning survives either merge order.
+    coverage: billTextAnswer?.coverage
+      ? {
+          note: billTextAnswer.coverage.note ?? null,
+          complete: billTextAnswer.coverage.complete,
+          passagesSearched: billTextAnswer.coverage.passages_searched,
+          passagesTotal: billTextAnswer.coverage.passages_total,
+          used: billTextAnswer.coverage.used,
+          total: billTextAnswer.coverage.total,
+        }
+      : undefined,
     topic:
       billsAnswer?.topic ?? (answer && 'topic' in answer ? (answer.topic ?? undefined) : undefined),
     sessionName: answer?.session.name,
