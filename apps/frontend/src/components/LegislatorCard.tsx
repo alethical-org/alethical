@@ -18,7 +18,7 @@ export function LegislatorCard({ legislator, onPress }: LegislatorCardProps) {
           <Text style={styles.meta}>
             {legislator.chamber} | District {legislator.district} | {legislator.party}
           </Text>
-          <Text style={styles.bio}>{legislator.bio}</Text>
+          {legislator.bio ? <Text style={styles.bio}>{legislator.bio}</Text> : null}
           <View style={styles.focusRow}>
             {legislator.focusAreas.map((area) => (
               <View key={area} style={styles.focusPill}>

@@ -1030,7 +1030,7 @@ function mapServiceHistory(payload?: ApiServiceHistoryPayload | null): Legislati
   };
 }
 
-function mapLegislator(
+export function mapLegislator(
   payload: ApiLegislatorListItemPayload | ApiLegislatorDetailPayload,
 ): Legislator {
   const service = payload.current_service;
@@ -1062,9 +1062,15 @@ function mapLegislator(
     district,
     party,
     role: legislatorRole(payload),
-    bio:
-      ('biography' in payload ? payload.biography : null) ??
-      'Live legislator profile loaded from the backend.',
+    // No biography → leave it undefined. This mapper handles both the list and the
+    // detail payload, and the LIST payload has no `biography` key at all — so the
+    // stand-in sentence this used to substitute ("Live legislator profile loaded
+    // from the backend.") became the biography of every legislator built from a
+    // list item, and LegislatorCard printed it verbatim on the Find My Legislator
+    // results. It also forced the two redesigned profile screens to filter that
+    // exact string back out, so the sentence had to stay spelled identically in
+    // three files to keep working. Undefined instead: every surface checks.
+    bio: ('biography' in payload ? payload.biography : null) ?? undefined,
     email: service?.email ?? undefined,
     phone: service?.phone ?? undefined,
     officeAddress: cleanOfficeAddress(service?.office_address),
