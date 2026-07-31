@@ -503,6 +503,25 @@ class AskCitation(BaseModel):
     section_topic: str = ""
 
 
+class AskPassageCoverage(BaseModel):
+    """How much of the bill the answer was actually written from.
+
+    ``used`` is the number of passages retrieval handed the answer writer;
+    ``total`` is how many the bill's CURRENT version has. On a long bill these are
+    far apart — HF 719 is 4 of 102 — and the answer reads as complete anyway, which
+    is the failure the #865 eval measured (`docs/product-onboarding/answer-quality-bar.md`
+    §9: the overclaim rate is FLAT at 80% / 89% / 80% across 4, 8 and 16 passages, so
+    a wider window is not the fix).
+
+    Served as a FACT, not as a verdict: the client decides what to say about it, so
+    the caveat stays fixed UI copy the layout owns rather than anything the model can
+    influence (docs/product-onboarding/grounded-ask-spec.md §9.5 decision 11).
+    """
+
+    used: int
+    total: int
+
+
 class AskBillTextAnswer(BaseModel):
     """Single-bill RAG prose answer with citations (docs/product-onboarding/grounded-ask-spec.md
     §4.1 / §9.4, bill_text). Always scoped to one resolved bill; a weak or empty
@@ -513,6 +532,9 @@ class AskBillTextAnswer(BaseModel):
     bill: BillListItem
     session: AskSessionRef
     data_as_of: datetime | None
+    # None only when the total cannot be established; the client then renders no
+    # coverage note rather than guessing at one.
+    coverage: AskPassageCoverage | None = None
 
 
 class AskAnswerPayload(BaseModel):

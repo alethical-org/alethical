@@ -17,6 +17,7 @@ from alethical.api.schemas import (
     AskClassifyRequest,
     AskLegislatorBillRef,
     AskLegislatorRow,
+    AskPassageCoverage,
     AskSessionRef,
     AskTopicBillsAnswer,
     AskTopicLegislatorsAnswer,
@@ -40,7 +41,10 @@ from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding
 
 schema = load_schema()
 Bill = schema.Bill
+BillVersion = schema.BillVersion
 BillVersionSection = schema.BillVersionSection
+RagChunk = schema.RagChunk
+RagSectionDocument = schema.RagSectionDocument
 AIEnrichment = schema.AIEnrichment
 Chamber = schema.Chamber
 District = schema.District
@@ -423,6 +427,31 @@ def _citation_excerpt(chunk_text: str) -> str:
     return f"{cut}…"
 
 
+def _bill_passage_total(db: Session, bill_id) -> int | None:
+    """How many retrievable passages the bill's CURRENT version has, or None.
+
+    Paired with the number retrieval actually used, this is what lets the answer
+    page say above a long-bill answer that it covers part of the bill
+    (docs/product-onboarding/grounded-ask-spec.md §9.5 decision 11; #883). On HF
+    719 it is 102 against the 4 the writer sees.
+
+    Scoped to the current version the SAME way ``semantic_rag_chunk_stmt``'s
+    ``current_version_only`` scopes retrieval (#285). Counting every version's
+    chunks would inflate the total on a bill with several engrossments and make the
+    ratio a different, wrong number.
+    """
+    total = db.scalar(
+        select(func.count(RagChunk.id))
+        .join(
+            RagSectionDocument,
+            RagSectionDocument.id == RagChunk.rag_section_document_id,
+        )
+        .join(BillVersion, BillVersion.id == RagSectionDocument.bill_version_id)
+        .where(RagSectionDocument.bill_id == bill_id, BillVersion.is_current.is_(True))
+    )
+    return total or None
+
+
 def _chunk_sections(db: Session, chunks) -> dict:
     """``bill_version_section_id`` -> ``(section_id_text, source_order, chip topic)``
     for the retrieved chunks' sections.
@@ -617,12 +646,18 @@ def _bill_text_answer(
             IngestionRun.status == IngestionStatus.succeeded
         )
     )
+    passage_total = _bill_passage_total(db, resolved.id)
     return AskBillTextAnswer(
         answer=prose,
         citations=citations,
         bill=bill_list_item(resolved),
         session=AskSessionRef(slug=session_row.slug, name=session_row.name),
         data_as_of=data_as_of,
+        coverage=(
+            AskPassageCoverage(used=len(chunks), total=passage_total)
+            if passage_total
+            else None
+        ),
     )
 
 

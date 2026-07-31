@@ -172,6 +172,7 @@ interface ApiAskBillTextAnswerPayload {
   bill: ApiBillListItemPayload;
   session: { slug: string; name: string };
   data_as_of?: string | null;
+  coverage?: { used: number; total: number } | null;
 }
 
 interface ApiAskAnswerPayload {
@@ -1505,6 +1506,7 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
       sectionTopic: typeof citation.section_topic === 'string' ? citation.section_topic.trim() : '',
     })),
     answeringBill: billTextAnswer ? mapBill(billTextAnswer.bill) : undefined,
+    coverage: billTextAnswer?.coverage ?? undefined,
     topic:
       billsAnswer?.topic ?? (answer && 'topic' in answer ? (answer.topic ?? undefined) : undefined),
     sessionName: answer?.session.name,

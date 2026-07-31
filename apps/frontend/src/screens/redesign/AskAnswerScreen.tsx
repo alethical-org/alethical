@@ -27,6 +27,7 @@ import {
   citedSections,
   followUpPrompts,
   parseAnswerBlocks,
+  partialCoverageNote,
   passageTarget,
 } from '../../lib/askAnswer';
 import {
@@ -334,6 +335,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
   const sections = useMemo(() => citedSections(citations), [citations]);
   const answerBlocks = useMemo(() => parseAnswerBlocks(answer?.billText ?? ''), [answer?.billText]);
+  const coverageNote = partialCoverageNote(answer?.coverage);
   // Held back until the bill's own prompts have landed. Rendered eagerly, the
   // block showed the generic fallback chips for the ~300ms the bill fetch takes
   // and then swapped all three for the bill's own — a visible flicker on the one
@@ -614,6 +616,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       <View>
         <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
           <View style={[styles.contentCol, isDesktop && styles.contentColDesktop]}>
+            {/* ABOVE the answer, deliberately: a reader who skims the first two
+                lines and leaves is the one most at risk of being misled, so they
+                have to see it first. After the list it protects nobody, which is
+                the whole point (§9.5 decision 11, #883). Fixed layout copy — never
+                model output, so the answer cannot soften the caveat about itself. */}
+            {coverageNote ? <Text style={styles.coverageNote}>{coverageNote}</Text> : null}
             <AnswerBody blocks={answerBlocks} />
 
             {bill ? (
@@ -1057,6 +1065,18 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.subhead,
     lineHeight: 28,
     color: '#2c322c',
+  },
+  // The muted framing-note register the topic_legislators answer already uses —
+  // quiet and factual, NOT an error or a warning, because it accompanies a real,
+  // correct, cited answer. No alert colour, no icon, no box.
+  coverageNote: {
+    marginBottom: 18,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    fontStyle: 'italic',
+    color: '#6f756f',
+    maxWidth: 620,
   },
   indexBlock: { marginTop: 18 },
   indexCaption: {
