@@ -85,6 +85,62 @@ def build_query_embedding(text: str) -> list[float]:
     return _build_embeddings([text], model=DEFAULT_RAG_MODEL, batch_size=1)[0]
 
 
+# The model that writes every answer, and which company's API to send it to.
+#
+# The setting is still named OPENAI_RAG_CHAT_MODEL for the same reason the column in
+# a database keeps its name after its meaning widens: renaming it means editing it in
+# every environment at once, and a rename is not what #894 is for. A bare model name
+# means OpenAI, exactly as it always has. A name carrying a `provider:` prefix goes to
+# that provider instead.
+#
+# Why this exists (#894): `claude-sonnet-5` was the only arm in the answer-quality
+# comparison to clear the bar outright (docs/product-onboarding/answer-quality-bar.md
+# §12), and it could not be selected at all, because this function posted to
+# api.openai.com with no branch. The comparison could rank a model the product could
+# not run. This adds the path; it deliberately does not change which model is used.
+#
+# One thing to check before switching this setting to any new model, because it is
+# not visible from here: **the answer page has no markdown renderer.**
+# `apps/frontend/src/lib/askAnswer.ts` strips `**bold**` and `__underline__` and
+# prints everything else verbatim, so a model that writes headings sends `###` to the
+# reader as three literal hash characters. Measured across the 20-question fixture:
+# `claude-sonnet-5` writes none, `claude-haiku-4-5` writes 18 across 11 answers
+# (docs/product-onboarding/answer-quality-bar.md §12). That is a property of the
+# model, not of the provider, and it is a reason to look at a candidate's output
+# before enabling it rather than a reason not to build this path.
+DEFAULT_RAG_CHAT_MODEL = "gpt-4o-mini"
+OPENAI_PROVIDER = "openai"
+ANTHROPIC_PROVIDER = "anthropic"
+
+
+def split_provider(setting: str) -> tuple[str, str]:
+    """``"anthropic:claude-sonnet-5"`` → ``("anthropic", "claude-sonnet-5")``.
+
+    An unprefixed name resolves to OpenAI, which is what every environment sets
+    today, so this returning ``("openai", <name>)`` for them is what keeps the
+    existing path byte-identical.
+
+    An unknown prefix is **not** guessed at. A model name is a thing someone typed
+    into an environment variable, and sending it to the wrong company's API on a
+    typo would either fail confusingly or, worse, succeed against a model nobody
+    chose. Note that a bare model name containing a colon cannot occur on either
+    provider today — both use plain names — so there is no ambiguity to resolve.
+    """
+    provider, separator, model = setting.partition(":")
+    if not separator:
+        return OPENAI_PROVIDER, setting.strip()
+    provider = provider.strip().lower()
+    if provider not in (OPENAI_PROVIDER, ANTHROPIC_PROVIDER):
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"OPENAI_RAG_CHAT_MODEL names an unknown provider {provider!r}; "
+                f"expected {OPENAI_PROVIDER}: or {ANTHROPIC_PROVIDER}:"
+            ),
+        )
+    return provider, model.strip()
+
+
 def extract_openai_response_text(payload: dict) -> str | None:
     text_value = payload.get("output_text")
     if isinstance(text_value, str) and text_value.strip():
@@ -106,6 +162,27 @@ def extract_openai_response_text(payload: dict) -> str | None:
             text = content_item.get("text")
             if isinstance(text, str) and text.strip():
                 parts.append(text.strip())
+    return "\n".join(parts) if parts else None
+
+
+def extract_anthropic_response_text(payload: dict) -> str | None:
+    """The prose out of an Anthropic Messages reply.
+
+    ``content`` is a list of blocks and only the ``text`` ones are the answer — a
+    thinking block is also a text-bearing block and must not be concatenated into
+    what a reader sees. Thinking is pinned off below, so this is belt and braces.
+    """
+    content = payload.get("content")
+    if not isinstance(content, list):
+        return None
+    parts = [
+        block["text"].strip()
+        for block in content
+        if isinstance(block, dict)
+        and block.get("type") == "text"
+        and isinstance(block.get("text"), str)
+        and block["text"].strip()
+    ]
     return "\n".join(parts) if parts else None
 
 
@@ -370,6 +447,35 @@ def strip_list_completeness_claims(prose: str) -> str:
     return cleaned or prose.strip()
 
 
+# Room for the longest answer we have measured, not for a typical one. Anthropic
+# requires max_tokens and truncates silently at it, and the answers this budget has
+# to fit are the enumerate-everything ones: asked which cities HF 719 names, the best
+# candidate listed 95 of 98. A cap costs nothing unless the tokens are generated, so
+# it is set well clear of that rather than close to it.
+_ANTHROPIC_MAX_TOKENS = 4096
+
+# Models that reason before answering unless told not to. Adaptive thinking is ON
+# when the parameter is omitted, and a reader is sitting there waiting — writing a
+# few sentences from passages already in the prompt is not a reasoning task. The
+# answer-quality eval measured the same configuration for the same reason
+# (docs/product-onboarding/answer-quality-bar.md §4, the reasoning trap).
+_ANTHROPIC_THINKING_MODELS = ("claude-sonnet-5", "claude-opus-5")
+
+
+def _anthropic_request(model: str, system: str, user: str) -> dict:
+    body: dict = {
+        "model": model,
+        "max_tokens": _ANTHROPIC_MAX_TOKENS,
+        "system": system,
+        "messages": [{"role": "user", "content": user}],
+    }
+    if model.startswith(_ANTHROPIC_THINKING_MODELS):
+        body["thinking"] = {"type": "disabled"}
+        # Disabling thinking is only allowed at effort `high` or below.
+        body["output_config"] = {"effort": "low"}
+    return body
+
+
 def synthesize_grounded_answer(
     question: str,
     chunks: list,
@@ -394,53 +500,95 @@ def synthesize_grounded_answer(
         f"[{index}] {chunk.citation_label}\n{chunk.chunk_text.strip()}"
         for index, chunk in enumerate(chunks, start=1)
     )
-    api_key = os.environ.get("OPENAI_API_KEY")
+    # Which provider before which key, because the key to require depends on it.
+    # Reading the setting has no side effects and cannot fail for an unprefixed
+    # name, so the OpenAI path reaches the same 503 on a missing key as before.
+    provider, model = split_provider(
+        os.environ.get("OPENAI_RAG_CHAT_MODEL", DEFAULT_RAG_CHAT_MODEL)
+    )
+    anthropic = provider == ANTHROPIC_PROVIDER
+    label = "Anthropic" if anthropic else "OpenAI"
+    key_name = "ANTHROPIC_API_KEY" if anthropic else "OPENAI_API_KEY"
+
+    api_key = os.environ.get(key_name)
     if not api_key:
         raise HTTPException(
-            status_code=503, detail="OPENAI_API_KEY is required for RAG chat synthesis"
+            status_code=503, detail=f"{key_name} is required for RAG chat synthesis"
         )
 
-    model = os.environ.get("OPENAI_RAG_CHAT_MODEL", "gpt-4o-mini")
+    # Resolved ONCE, before the provider branch, and applied to both — as are the two
+    # guards after it. That is deliberate and it is the thing to preserve here (#894).
+    #
+    # The failure this avoids: the moment the prompt or the guards become
+    # per-provider, "the prompt production sends" stops being a single value, and the
+    # answer-quality eval scoring one provider's version while a reader is served the
+    # other's would be invisible — every check green, as when #868 added a prompt
+    # layer the eval could not see (#890). Keeping both provider-agnostic means there
+    # is no per-provider value for the eval to resolve, so it needs no extending.
+    # If either ever has to differ by provider, that stops being true and the eval
+    # has to resolve them for the provider of the arm it is scoring.
+    system_prompt = rag_chat_system_prompt(coverage)
+    user_prompt = f"Bill: {bill_key}\nQuestion: {question}\n\nContext:\n{context}"
     try:
-        response = requests.post(
-            "https://api.openai.com/v1/responses",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": model,
-                "input": [
-                    {
-                        "role": "system",
-                        "content": rag_chat_system_prompt(coverage),
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Bill: {bill_key}\nQuestion: {question}\n\nContext:\n{context}",
-                    },
-                ],
-            },
-            timeout=30,
-        )
+        if anthropic:
+            response = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json=_anthropic_request(model, system_prompt, user_prompt),
+                timeout=30,
+            )
+        else:
+            response = requests.post(
+                "https://api.openai.com/v1/responses",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "input": [
+                        {
+                            "role": "system",
+                            "content": system_prompt,
+                        },
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        },
+                    ],
+                },
+                timeout=30,
+            )
         response.raise_for_status()
         payload = response.json()
-        text_value = extract_openai_response_text(payload)
+        text_value = (
+            extract_anthropic_response_text(payload)
+            if anthropic
+            else extract_openai_response_text(payload)
+        )
         if text_value:
             # Two guards, gated differently on purpose. An absence claim about the
             # bill becomes true once the whole bill has been read, so that one is
             # narrowed only on a partial read. A claim that the answer's own list is
             # exhaustive is never verifiable, so that one always goes.
+            #
+            # Outside the provider branch on purpose (#894): the #868 backstop cannot
+            # be something only OpenAI answers get, and a reader has no idea which
+            # company wrote the sentence in front of them.
             if coverage is None or not coverage.is_complete:
                 text_value = narrow_bill_absence_claims(text_value)
             return strip_list_completeness_claims(text_value)
     except requests.RequestException as exc:
         raise HTTPException(
-            status_code=502, detail="OpenAI RAG chat synthesis failed"
+            status_code=502, detail=f"{label} RAG chat synthesis failed"
         ) from exc
 
     raise HTTPException(
-        status_code=502, detail="OpenAI RAG chat synthesis returned no answer"
+        status_code=502, detail=f"{label} RAG chat synthesis returned no answer"
     )
 
 
