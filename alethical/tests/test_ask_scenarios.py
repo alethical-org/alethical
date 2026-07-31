@@ -782,12 +782,18 @@ def test_the_prompt_forbids_absence_claims_unless_the_whole_bill_went_in():
     assert _coverage_rule(None) == partial
 
 
-# The seeded corpus happens to give both coverage cases for free, so these tests
-# exercise the real `_LIST_QUESTION_WORD_BUDGET` rather than a monkeypatched one:
-#   SF 1832 — 156 passages / 27,061 words → overflows the budget → PARTIAL
-#   HF 4138 —  19 passages /  3,657 words → fits the budget      → COMPLETE
+# SF 1832 is the seeded bill with retrievable text: 156 passages / 27,061 words, so
+# it overflows the real `_LIST_QUESTION_WORD_BUDGET` and gives the PARTIAL case for
+# free. There is no seeded bill small enough to give the COMPLETE case the same way,
+# so the tests that need it raise the budget instead of inventing a bill — the
+# behaviour under test is what happens when every passage went in, not any particular
+# bill's size, and the partial test above still exercises the shipped constant.
+#
+# An earlier draft used HF 4138 for the complete case. It passed locally and failed
+# in CI, because that bill's passages exist only in a developer database and not in
+# what `load_sample_data.py` builds. Depend on the seeded corpus, or create the rows.
 _PARTIAL_BILL_PASSAGES = 156
-_COMPLETE_BILL_PASSAGES = 19
+_BUDGET_ABOVE_EVERY_SEEDED_BILL = 100_000
 _ABSENCE_CLAIM_ANSWER = (
     "Grants go to Silver Lake and South Haven. "
     "The bill does not specify any counties receiving grants."
@@ -848,16 +854,20 @@ def test_a_list_question_that_read_the_whole_bill_still_flags_itself(
     "the bill does not specify any counties" is a claim about the bill, and a
     complete read is what makes it checkable and true.
     """
+    monkeypatch.setattr(
+        "alethical.api.routers.ask._LIST_QUESTION_WORD_BUDGET",
+        _BUDGET_ABOVE_EVERY_SEEDED_BILL,
+    )
     _mock_llm_intent(monkeypatch, "bill_text")
     _mock_rag(monkeypatch, answer_text=_ABSENCE_CLAIM_ANSWER)
     answer = client.post(
         "/api/v1/ask",
-        json={"content": "Which cities and counties get grants in HF 4138?"},
+        json={"content": "Which cities and counties get grants in SF 1832?"},
     ).json()["data"]["answer"]
 
     assert answer is not None
     coverage = answer["coverage"]
-    assert coverage["used"] == coverage["total"] == _COMPLETE_BILL_PASSAGES
+    assert coverage["used"] == coverage["total"] == _PARTIAL_BILL_PASSAGES
     # The flag the page needs to caveat a complete-but-possibly-short list.
     assert coverage["enumerating"] is True
     # Untouched, because a complete read can support it.
@@ -1192,16 +1202,20 @@ def test_a_served_answer_carries_no_completeness_claim(client, monkeypatch):
     when the call site was removed. This one goes through the API, which is the only
     place that proves a reader is protected.
 
-    It runs on the COMPLETE-coverage bill on purpose: that is the case where the
-    reader is most likely to believe an exhaustive-sounding list, and the case where
-    the model's claim would have sat directly under the page's own note saying the
-    opposite — two contradictory statements about the same list on one screen.
+    It runs on a COMPLETE read on purpose: that is the case where the reader is most
+    likely to believe an exhaustive-sounding list, and the case where the model's
+    claim would have sat directly under the page's own note saying the opposite —
+    two contradictory statements about the same list on one screen.
     """
+    monkeypatch.setattr(
+        "alethical.api.routers.ask._LIST_QUESTION_WORD_BUDGET",
+        _BUDGET_ABOVE_EVERY_SEEDED_BILL,
+    )
     _mock_llm_intent(monkeypatch, "bill_text")
     _mock_rag(monkeypatch, answer_text=_LIVE_COMPLETENESS_CLAIM)
     answer = client.post(
         "/api/v1/ask",
-        json={"content": "Which cities and counties get grants in HF 4138?"},
+        json={"content": "Which cities and counties get grants in SF 1832?"},
     ).json()["data"]["answer"]
 
     assert answer is not None
