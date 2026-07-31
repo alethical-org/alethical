@@ -21,8 +21,7 @@ import {
   partyFull,
   PHASED_CAPTION,
   POINTER_CAPTION,
-  readDocumentUrl,
-  readLabel,
+  readDocumentLink,
   stageLabel,
 } from '../../lib/billDetail';
 import { useHover } from './interactions';
@@ -74,7 +73,8 @@ export function FactsRail({
         : formatNiceDate(bill.updatedAt));
 
   const overviewUrl = billOverviewUrl(bill.officialLinks?.[0]?.url);
-  const readUrl = readDocumentUrl(bill.versions, bill.actions) ?? overviewUrl;
+  const read = readDocumentLink(bill.versions, bill.actions);
+  const readUrl = read.url ?? overviewUrl;
 
   const author = chiefAuthor(bill);
   const coauthors = coAuthorCount(bill);
@@ -145,7 +145,7 @@ export function FactsRail({
           ) : null}
           {readUrl ? (
             <TextLink
-              label={`${readLabel(bill.status)} →`}
+              label={`${read.label} →`}
               href={readUrl}
               external
               onPress={() => onOpenUrl(readUrl)}
