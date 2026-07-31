@@ -18,6 +18,7 @@ import {
   billOverviewUrl,
   buildActionTimeline,
   citationChipLabel,
+  citationsBySection,
   completeDanglingTitle,
   crossReferenceTargets,
   latestActionEntry,
@@ -27,7 +28,7 @@ import {
   readDocumentLink,
   titleSegments,
 } from '../billDetail';
-import { BillAction, BillVersion } from '../../data/types';
+import { BillAction, BillVersion, Citation } from '../../data/types';
 
 describe('plainBillSummary drops what is scaffolding', () => {
   it('drops a leading amendatory clause', () => {
@@ -862,5 +863,81 @@ describe('billOverviewUrl points at the status page, not a text document', () =>
       'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/',
     );
     expect(billOverviewUrl(undefined)).toBeUndefined();
+  });
+});
+
+describe('citationsBySection shows each cited section once', () => {
+  // Citations are served per key point, so a bill whose key points all draw on the
+  // same section carries one citation each. These are HF 4301's six as production
+  // serves them: five resolve to laws.0.1.0, one to laws.0.2.0.
+  const hf4301: Citation[] = [0, 1, 2, 3, 4].map((i) => ({
+    id: `laws.0.1.0-${i}`,
+    label: 'HF 4301, Section 1.',
+    excerpt: `point ${i}`,
+    url: 'https://www.revisor.mn.gov/bills/94/2026/0/HF/4301/',
+    sectionId: 'laws.0.1.0',
+    sectionTopic: 'Drinking water regionalization planning and assistance grants',
+  }));
+  hf4301.push({
+    id: 'laws.0.2.0-5',
+    label: 'HF 4301, Sec. 2.',
+    excerpt: 'appropriation',
+    url: 'https://www.revisor.mn.gov/bills/94/2026/0/HF/4301/',
+    sectionId: 'laws.0.2.0',
+    sectionTopic: 'Appropriation',
+  });
+
+  it('keeps one chip per destination section, in served order', () => {
+    const kept = citationsBySection(hf4301);
+    expect(kept.map((c) => c.sectionId)).toEqual(['laws.0.1.0', 'laws.0.2.0']);
+    // The first occurrence wins, so the excerpt and id belong to a real citation.
+    expect(kept[0].id).toBe('laws.0.1.0-0');
+  });
+
+  it('never removes a chip a reader could have told apart', () => {
+    // The invariant that makes this safe on all 10,463 production bills that carry
+    // chips: whatever is dropped had an identical-reading twin that stayed, so the
+    // set of chip texts on screen cannot shrink.
+    const chipTexts = (cs: Citation[]) =>
+      new Set(cs.map((c) => citationChipLabel(c.label, c.sectionTopic)));
+    expect(chipTexts(citationsBySection(hf4301))).toEqual(chipTexts(hf4301));
+  });
+
+  it('does not merge two different sections that share a label', () => {
+    // A section number repeats across a bill's articles, so the label alone is not
+    // the identity — the destination is part of it.
+    const kept = citationsBySection([
+      { ...hf4301[0], id: 'a', sectionId: 'laws.0.1.0' },
+      { ...hf4301[0], id: 'b', sectionId: 'laws.1.1.0' },
+    ]);
+    expect(kept.map((c) => c.id)).toEqual(['a', 'b']);
+  });
+
+  it('does not merge two sections that share an id but read differently', () => {
+    // section_id_text is NOT unique within a version — laws.0.1.0 is the id the
+    // Revisor hands every section outside an article (#763/#854) — so the id alone
+    // is not the identity either. Two chips a reader can tell apart both stay.
+    const kept = citationsBySection([
+      { ...hf4301[0], id: 'a', label: 'Sec. 1 · Eligible recipients' },
+      { ...hf4301[0], id: 'b', label: 'Sec. 2 · Appropriation' },
+    ]);
+    expect(kept.map((c) => c.id)).toEqual(['a', 'b']);
+  });
+
+  it('falls back to the rendered label when the backend resolved no section', () => {
+    // An unresolved citation renders a disabled chip, so two of them are only
+    // duplicates when they read identically.
+    const kept = citationsBySection([
+      { ...hf4301[0], id: 'a', sectionId: '', label: 'HF 4301, Sec. 3. TRANSFER.' },
+      { ...hf4301[0], id: 'b', sectionId: '', label: 'HF 4301, Sec. 3. TRANSFER.' },
+      { ...hf4301[0], id: 'c', sectionId: '', label: 'HF 4301, Sec. 9. REPEALER.' },
+    ]);
+    expect(kept.map((c) => c.id)).toEqual(['a', 'c']);
+  });
+
+  it('leaves a bill whose citations are all distinct untouched, and handles none', () => {
+    const distinct = [hf4301[0], hf4301[5]];
+    expect(citationsBySection(distinct)).toHaveLength(2);
+    expect(citationsBySection([])).toEqual([]);
   });
 });

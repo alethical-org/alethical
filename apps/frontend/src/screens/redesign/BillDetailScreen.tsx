@@ -39,6 +39,7 @@ import {
   chamberBillLabel,
   chiefAuthor,
   citationChipLabel,
+  citationsBySection,
   coAuthorCount,
   crossReferenceTargets,
   districtRowLabel,
@@ -468,7 +469,11 @@ function BillDetailMobileScreen() {
     // paragraph is shown only as a fallback when there are no bullets (drops the
     // redundant prose the design removed).
     const summary = plainBillSummary(bill.aiAnalysis?.summary);
-    const citations = bill.citations ?? [];
+    // One chip per cited section. The strip shows the section label alone, so two
+    // key points citing the same section produce two chips a reader cannot tell
+    // apart, both jumping to the same passage. The web tab keeps every citation —
+    // its cards quote a different excerpt each.
+    const citations = citationsBySection(bill.citations ?? []);
     const issues = (bill.topics?.length ? bill.topics : (bill.aiAnalysis?.policyAreas ?? [])).slice(
       0,
       6,
