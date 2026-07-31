@@ -504,6 +504,12 @@ ANSWER TO GRADE
 
 
 def _openai_judge(model: str, system: str, user: str) -> dict:
+    # Same constraint as the Anthropic judge, and needed for the same reason: asked
+    # in prose for seven keys, this judge returned six and retried its way to the
+    # same six. The Responses API spells structured outputs `text.format` rather
+    # than `output_config.format` (which it rejects outright), and `strict` requires
+    # every property listed in `required` with `additionalProperties: false` — which
+    # _VERDICT_SCHEMA already satisfies.
     response = requests.post(
         "https://api.openai.com/v1/responses",
         headers={
@@ -516,6 +522,14 @@ def _openai_judge(model: str, system: str, user: str) -> dict:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "answer_verdict",
+                    "schema": _VERDICT_SCHEMA,
+                    "strict": True,
+                }
+            },
         },
         timeout=180,
     )
