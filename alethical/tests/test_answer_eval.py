@@ -9,6 +9,7 @@ the behaviour it pins is broken, so none of them is decoration.
 
 from __future__ import annotations
 
+import json
 import pathlib
 
 import pytest
@@ -447,7 +448,9 @@ def test_the_eval_sends_the_whole_prompt_production_sends():
 
     So this asserts against whatever production composes today — the constant while
     #868 is unmerged, `rag_chat_system_prompt(None)` once it lands. `None` is the
-    right coverage because the eval's frozen contexts are partial reads.
+    right coverage for a caller holding no context, and stays the right answer for
+    the bill-scoped chat, which retrieves a fixed three passages and never counts
+    the bill.
     """
     import alethical.api.routers.me as me
 
@@ -459,15 +462,101 @@ def test_the_eval_sends_the_whole_prompt_production_sends():
     assert me.RAG_CHAT_SYSTEM_PROMPT in cli.production_system_prompt()
 
 
+def test_the_prompt_follows_each_questions_coverage_not_the_runs():
+    """A complete read gets production's complete-coverage rule, not the partial one.
+
+    The gap this closes (#878): the eval sent `rag_chat_system_prompt(None)` for
+    every question, which was right when every frozen context was four passages of
+    a long bill and wrong the moment #868 started reading some bills whole. On a
+    complete read production sends a materially *different* instruction — one that
+    positively licenses "the bill names none of these" and asks for every instance
+    rather than a handful. Sending the partial rule there scores a model on words
+    it never received.
+    """
+    import alethical.api.routers.me as me
+
+    cli = _cli()
+    whole = {"chunks": [{}, {}, {}], "passages_total": 3}
+    part = {"chunks": [{}, {}, {}], "passages_total": 102}
+
+    assert cli.production_system_prompt(whole) == me.rag_chat_system_prompt(
+        me.BillTextCoverage(searched=3, total=3)
+    )
+    assert cli.production_system_prompt(part) == me.rag_chat_system_prompt(
+        me.BillTextCoverage(searched=3, total=102)
+    )
+    assert cli.production_system_prompt(whole) != cli.production_system_prompt(part)
+    # An unknown denominator must read as partial, never as licence to speak for
+    # the whole bill — the safe direction, and production's own (BillTextCoverage).
+    assert cli.production_system_prompt(
+        {"chunks": [{}], "passages_total": 0}
+    ) == cli.production_system_prompt(part)
+
+
 def test_a_prompt_change_invalidates_a_cached_arm_rather_than_mixing_two():
     """Without this, a prompt change is invisible: the run reuses old answers,
-    scores them beside new ones, and publishes a comparison across two prompts."""
+    scores them beside new ones, and publishes a comparison across two prompts.
+
+    Digests every variant in play, not one: since #868 a single run sends two
+    system prompts, and hashing only the partial one would let an edit to the
+    complete-coverage rule ship against a stale cache.
+    """
     cli = _cli()
-    a = cli.prompt_fingerprint("answer only from the provided bill text")
-    b = cli.prompt_fingerprint("answer only from the provided bill text\n\nNEVER...")
-    assert a != b
-    assert a == cli.prompt_fingerprint("answer only from the provided bill text")
-    assert len(a) == 12
+    partial_only = {"q": {"chunks": [{}], "passages_total": 9}}
+    both = {**partial_only, "w": {"chunks": [{}], "passages_total": 1}}
+
+    assert len(cli.prompt_fingerprint(partial_only)) == 12
+    assert cli.prompt_fingerprint(partial_only) == cli.prompt_fingerprint(partial_only)
+    # A run that also reads a bill whole sends a second prompt, so it must not
+    # reuse a cache generated when only the partial rule was ever sent.
+    assert cli.prompt_fingerprint(both) != cli.prompt_fingerprint(partial_only)
+
+
+def test_the_snapshot_reproduces_both_of_productions_retrieval_branches():
+    """The eval must ask ask.py how much to read, not restate the rule (#868).
+
+    Before this, the snapshot took one flat passage budget for every question. After
+    #868 production reads the question first — an enumerate-everything question gets
+    up to `_LIST_QUESTION_WORD_BUDGET` words of the bill, a specific question keeps
+    the fixed four passages — so a flat snapshot measures neither shape.
+    """
+    import inspect
+
+    import alethical.api.routers.ask as ask
+
+    cli = _cli()
+    source = inspect.getsource(cli.snapshot)
+    assert "_retrieve_bill_text" in source, (
+        "the snapshot must call production's own retrieval, not re-implement it"
+    )
+    assert "_LIST_QUESTION_RE" in source, (
+        "the snapshot must decide enumerating-ness the way ask.py does"
+    )
+    # And the constant the eval names as production's fixed budget really is it.
+    assert cli.CHUNK_LIMIT == ask._BILL_TEXT_CHUNK_LIMIT
+
+
+def test_the_scored_answer_is_what_production_serves_not_the_raw_completion():
+    """`synthesize_grounded_answer` is the unit under test, guards included.
+
+    Scoring the model's raw words measures a product we do not ship: on a partial
+    read production re-scopes absence claims and always drops a sentence vouching
+    for its own list, so a reader never sees either shape however the model wrote it.
+    """
+    import alethical.api.routers.me as me
+
+    cli = _cli()
+    partial = me.BillTextCoverage(searched=4, total=102)
+    whole = me.BillTextCoverage(searched=48, total=48)
+
+    denial = "The bill does not name any counties."
+    assert cli.served_answer(denial, partial) == me.narrow_bill_absence_claims(denial)
+    assert cli.served_answer(denial, partial) != denial
+    # Once every section has been read the same sentence is true, so it survives.
+    assert cli.served_answer(denial, whole) == denial
+
+    vouched = "Duluth and Rochester get grants. That is the complete list."
+    assert "complete list" not in cli.served_answer(vouched, whole)
 
 
 # --- judge replies are not always clean JSON; the parser has to cope ---
@@ -647,6 +736,33 @@ def test_hf719_ground_truth_bounds_sit_below_the_measured_counts():
     assert "Minneapolis" in gt.HF719_GRANT_CITIES
 
 
+def test_the_grant_recipients_are_read_off_the_snapshot_and_clear_the_bounds():
+    """The denominator of the recall figure has to come from the bill, not a list.
+
+    A hand-typed roster of 98 names goes stale the first time the text is
+    re-ingested, and a stale denominator turns a recall percentage into a fiction.
+    So the names are derived from the snapshotted passages, and this asserts the
+    derivation still finds what two independent hand counts found.
+    """
+    from alethical.eval import ground_truth as gt
+
+    contexts = json.loads(CONTEXTS.read_text())["contexts"]
+    key = next(k for k in contexts if "cities and counties" in k)
+    bill_text = "\n".join(c["chunk_text"] for c in contexts[key]["chunks"])
+    cities, counties = gt.hf719_grant_recipients(bill_text)
+
+    assert len(cities) >= gt.HF719_MIN_GRANT_CITIES
+    assert len(counties) >= gt.HF719_MIN_GRANT_COUNTIES
+    assert {"Minneapolis", "Duluth", "Rochester"} <= cities
+    assert {"Hennepin", "Ramsey", "Anoka"} <= counties
+
+    # And an answer naming a handful reads as naming a handful, which is the whole
+    # point: the honesty gate passes this answer, so only the count can fail it.
+    handful = "Grants go to Minneapolis, Duluth and Hennepin County."
+    assert len(gt.names_from(cities, handful)) == 2
+    assert len(gt.names_from(counties, handful)) == 1
+
+
 def test_the_hf719_fixture_question_forbids_both_overclaims():
     """The label must forbid the two things production actually did."""
     hf719 = next(
@@ -657,6 +773,14 @@ def test_the_hf719_fixture_question_forbids_both_overclaims():
     forbidden = " ".join(hf719.must_not_claim).lower()
     assert "no counties are named" in forbidden
     assert "complete set" in forbidden
+    # And the third, added once #868 started reading this bill whole (#878): the
+    # names a short answer left out are IN the context, so blaming the context for
+    # them is a claim about the context that the context refutes.
+    assert "absent from the provided text" in forbidden
+    # The label must describe the input the writer now gets. A label still saying
+    # the writer sees four passages is a false statement handed to the judge, which
+    # is worse than no label at all.
+    assert "all 102 passages" in hf719.why_labeled.lower()
 
 
 # --- passage budget is part of a candidate's identity ---
@@ -695,3 +819,68 @@ def test_a_budget_appears_in_the_cache_filename():
     cli = _cli()
     assert cli._slug("openai:gpt-4o-mini@16") != cli._slug("openai:gpt-4o-mini")
     assert "@" not in cli._slug("openai:gpt-4o-mini@16")
+
+
+def test_a_candidates_cost_is_looked_up_by_the_model_it_runs():
+    """`+deep` and `@16` change how many tokens, never what a token costs.
+
+    Keying the price table on the whole spec is why three of the nine rows in the
+    bar doc's §10 printed no cost — the three whose entire point was that they
+    consume more tokens than the plain arm.
+    """
+    cli = _cli()
+    plain = cli.price_of("openai:gpt-5.1")
+    assert plain is not None
+    assert cli.price_of("openai:gpt-5.1+deep") == plain
+    assert cli.price_of("openai:gpt-4o-mini@16") == cli.price_of("openai:gpt-4o-mini")
+    assert cli.price_of("openai:gpt-4o-mini+deep@8") == cli.price_of(
+        "openai:gpt-4o-mini"
+    )
+    # An unpriced model still reads as unpriced rather than as free.
+    assert cli.price_of("openai:gpt-9-imaginary") is None
+
+
+def test_a_guard_edit_counts_words_removed_not_whitespace_normalised():
+    """Measuring this wrong invented the loudest number in the comparison.
+
+    Counting any difference reported that `gpt-5.1` needed production's backstop on
+    11 of 20 answers. 31 of the 34 differences across seven arms were whitespace:
+    `strip_list_completeness_claims` splits into sentences and rejoins them, and the
+    rejoin drops a Markdown hard line break (two spaces before a newline). It
+    removed nothing and flagged everything.
+    """
+    cli = _cli()
+    assert not cli.guard_changed_content(
+        "Line one.  \nLine two.", "Line one.\nLine two."
+    )
+    assert not cli.guard_changed_content("a\n\nb", "a b")
+    # A dropped sentence is the thing worth counting, and still counts.
+    assert cli.guard_changed_content(
+        "Duluth and Ely get grants. That is the complete list.",
+        "Duluth and Ely get grants.",
+    )
+    # ...as does a re-scoped absence claim, which changes words without shortening.
+    assert cli.guard_changed_content(
+        "The bill does not name any counties.",
+        "The passages searched do not name any counties.",
+    )
+
+
+def test_unrendered_markdown_counts_only_what_the_page_cannot_show():
+    """The answer page strips **bold** and prints the rest verbatim — no renderer.
+
+    So a heading reaches the reader as "### Eligibility", which reads as a typo.
+    Inline emphasis and ordinary list lines are deliberately not counted: the
+    emphasis is removed before display, and "1." or "- " reads fine as plain text.
+    """
+    from alethical.eval.answer_eval import unrendered_markdown
+
+    assert unrendered_markdown("## Eligibility\nFirefighters qualify.")
+    assert unrendered_markdown("The bill adds:\n> reasonable force may be used")
+    assert unrendered_markdown("| City | Grant |\n| --- | --- |")
+    # Not counted — these survive display intact.
+    assert not unrendered_markdown("**Duluth** gets a grant.")
+    assert not unrendered_markdown("- Duluth\n- Ely")
+    assert not unrendered_markdown("1. Duluth\n2. Ely")
+    # A hash mid-sentence is not a heading.
+    assert not unrendered_markdown("The grant is #3 on the priority list.")

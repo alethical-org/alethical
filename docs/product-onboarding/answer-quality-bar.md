@@ -1,6 +1,6 @@
 # The Answer Quality Bar — what makes a generated answer good enough to ship
 
-<!-- describes: alethical/eval/answer_eval.py, alethical/eval/fixtures/answer_questions.json, scripts/answer_eval.py, alethical/api/routers/me.py -->
+<!-- describes: alethical/eval/answer_eval.py, alethical/eval/ground_truth.py, alethical/eval/fixtures/answer_questions.json, alethical/eval/fixtures/judge_calibration.json, scripts/answer_eval.py, alethical/api/routers/me.py, alethical/api/routers/ask.py -->
 
 > **Net:** Every word of every AI answer a reader sees is written by one model, and
 > until now we had no way to say whether a different model would write better ones.
@@ -8,6 +8,12 @@
 > model" becomes a measurement instead of a hunch. The eval that implements it is
 > `alethical/eval/answer_eval.py`, run by `scripts/answer_eval.py`. Filed as
 > [#865](https://github.com/alethical-org/alethical/issues/865).
+>
+> **Where to start reading.** §3 is the bar. §12 is the current answer and the
+> recommendation ([#878](https://github.com/alethical-org/alethical/issues/878));
+> §11 is why its middle rows can be believed and §10's could not. §10 is the
+> earlier run, kept as a control because it was measured against a prompt and a
+> retrieval shape production no longer uses.
 
 ## 1. What is being measured, and what is deliberately not
 
@@ -16,9 +22,17 @@ answer: `synthesize_grounded_answer` (`alethical/api/routers/me.py`) serves the 
 answer page (`alethical/api/routers/ask.py`) and the signed-in bill-scoped chat. So
 one model choice moves both surfaces, and one eval covers both.
 
-That function takes a question plus four already-retrieved bill passages and
-returns prose. **The passages are the input, not the thing being tested.** The eval
-freezes them: one snapshot of production's retrieval is taken once, committed to
+That function takes a question plus already-retrieved bill passages and returns
+prose. **How many passages is production's business, not a constant here** — since
+[#868](https://github.com/alethical-org/alethical/issues/868) `ask.py` reads the
+question first, giving an enumerate-everything question as much of the bill as a
+20,000-word budget allows and a specific question the fixed four. The snapshot
+calls `ask.py`'s own `_retrieve_bill_text` rather than restating that rule, so
+retrieval is guarded by import the same way the prompt is (§11 records the run
+where it was not, and what that cost).
+
+**The passages are the input, not the thing being tested.** The eval freezes them:
+one snapshot of production's retrieval is taken once, committed to
 `alethical/eval/fixtures/answer_contexts.json`, and every candidate model is asked
 to write from the identical passages. Three consequences, all intended:
 
@@ -90,13 +104,24 @@ others, ...") is fine, and is what a correct answer does.
 that answer average its way to a pass.** It is good on everything else; a one-point
 deduction on a fifth dimension would not stop it shipping.
 
-**It passes trivially when the whole bill was in context** — 9 of the 16 fixture
-bills, and 94.6% of the corpus by the #868 session's count. A complete list *is*
+**It passes trivially when the whole bill was in context.** A complete list *is*
 complete when every section was read, and an absence *is* an absence. The gate only
-bites on the long bills where four passages are a sample.
+bites on the long bills where the passages are a sample.
 
 How much of the bill the writer saw is **derived from the snapshot, not
 hand-labeled**, so it stays correct when the passage budget changes.
+
+> **And after #868 it passes trivially on the very question it was written for.**
+> An enumerate-everything question now reads the whole bill where it fits, and HF
+> 719 fits: all 102 passages, 16,894 words. Partial reads across the fixture fell
+> from 10 of 20 questions to 6, and HF 719's grants question is no longer one of
+> them. That is the fix working — and it moved the failure rather than ending it.
+> Reading everything is not reporting everything: handed all 98 city names,
+> candidates report between 19 and 95 of them, and **no gate in this section can
+> tell those apart**, because every gate here was written for the partial-read
+> failure. §12 measures the gap as enumeration recall and treats it as a decisive
+> number rather than a scored one, on the grounds that one fixture question cannot
+> responsibly carry a fourth gate.
 
 **A caution I earned the hard way.** My first version of this fixture's HF 719 label
 said the passages "name only cities, not counties, so an answer that claims counties
@@ -285,6 +310,14 @@ The residual limitation, stated plainly: two judges cannot prove the absence of 
 shared bias, only bound the disagreement between them. The mechanical checks and
 human labels are what keep the result from resting on the judges alone.
 
+**Two of the judge's own fields went undefined for the whole of the first run.**
+The verdict schema required `claims_completeness` and `asserts_absence`, the code
+decided the honesty gate from them, and the instructions never said what either
+meant — so each judge invented a reading. That is the likeliest single cause of the
+disagreement §10 could not explain, and it is the sort of gap five defences against
+bias will not catch, because none of them checks that the grader was told what it
+was grading. §11 records what fixing it did.
+
 ## 6. The fixture
 
 Twenty questions over twelve real bills, in
@@ -355,9 +388,31 @@ PYTHONPATH=. uv run python scripts/answer_eval.py run --run-dir /tmp/answer-eval
 
 Generates, judges, and prints the scorecards. Answers and verdicts cache per model
 and per judge in the run directory, so adding a candidate re-pays only for that
-candidate. A full five-model, two-judge run costs roughly **$2.40** and takes about
-25 minutes; generation runs serially on purpose, because concurrent requests would
-inflate the latency numbers the bar scores against.
+candidate. Generation runs serially on purpose, because concurrent requests would
+inflate the latency numbers the bar scores against; judging runs concurrently,
+because nothing about a judge's latency is measured.
+
+The seven-arm, two-judge run in §12 — 140 answers and 280 judgments, twice over —
+cost about **$11** end to end and took about 50 minutes, of which generation was
+~25. Passing `--judges ""` generates and stops, which is how the calibration below
+gets answers to hand-score before any verdict exists:
+
+```bash
+PYTHONPATH=. uv run python scripts/answer_eval.py run --judges "" --run-dir /tmp/answer-eval
+PYTHONPATH=. uv run python scripts/answer_eval.py calibrate --emit --run-dir /tmp/answer-eval
+PYTHONPATH=. uv run python scripts/answer_eval.py calibrate --run-dir /tmp/answer-eval
+```
+
+`calibrate --emit` writes blind worksheets; scoring them by hand produces
+`alethical/eval/fixtures/judge_calibration.json`; `calibrate` then measures each
+judge against that key, per dimension.
+
+**A cheaper path exists and was rejected on quality, not price.** Both providers
+offer a batch API at roughly half list price, which would take the run to ~$6.
+Generation cannot use it — wall-clock is a scored dimension, and a batched call
+measures the queue rather than the model — and judging cannot usefully use it
+either, because the judge prompt is what gets iterated on and a turnaround measured
+in hours makes iteration impossible. Half of $11 is not worth a day per attempt.
 
 ## 9. Is the writer weak, or under-informed? The passage-budget arm
 
@@ -366,6 +421,15 @@ different candidate from `gpt-4o-mini`, scored on its own row against snapshots 
 at 8 and 16 passages alongside production's 4. This separates the two explanations
 for a bad answer, which no amount of model comparison can tell apart on its own:
 *the writer is weak* versus *the writer was not shown enough*.
+
+> **Since #868, `@N` moves a smaller knob than it did here.** Production no longer
+> has one budget: an enumerate-everything question reads up to 20,000 words, and
+> only a *specific* question keeps the fixed four passages. So `@16` now widens 6
+> of the 20 fixture questions rather than all of them, and the arm is kept in §12
+> as a control rather than as a candidate. The question this section asks has also
+> largely been answered — see §12's recall table, where the same model handed the
+> whole bill still reports 19 of 98 names, which is as clean a "the writer is weak"
+> result as this eval can produce.
 
 The measurement that motivates it, counted on HF 719 while snapshotting:
 
@@ -391,7 +455,19 @@ model at a wider budget beats a premium model at today's budget**. If it does, t
 decision is about how much text we send, not which model we buy — and those cost very
 different amounts.
 
-## 10. Results, Jul 31 2026 — nine candidates on the same 20 questions
+## 10. Results, Jul 31 2026 (first run) — nine candidates on the same 20 questions
+
+> **Read this section as the control, not the answer.** Every number in it was
+> produced against production's **old prompt** (the eval sent only the first half)
+> **and its old retrieval** (a flat four passages for every question). Both were
+> fixed the same day, and §12 re-runs the comparison against what production
+> actually sends. This section is kept unchanged, and deliberately not updated in
+> place, because a baseline that moves is not a baseline — the two runs are only
+> worth having if you can see what changed between them.
+>
+> Its central conclusion survives and is worth carrying forward: **more context did
+> not stop models overclaiming.** What §12 adds is that a coverage rule in the
+> prompt does.
 
 Full run: 180 answers, 360 blind judgments, ~$13. Raw numbers in the run
 directory's `report.json`; re-derive with the command in §8.
@@ -520,7 +596,319 @@ worst case the per-answer input cost goes from about $0.004 to about $0.034. The
 ranking may also move: this run shows it changes with passage budget. Deciding once,
 after the input size is settled, beats deciding twice.
 
-## 11. What this bar does not cover
+## 11. Calibrating the judges, Jul 31 2026 — measuring the graders against an answer key
+
+§10 ended by saying the middle of its table could not be trusted and that the fix
+was cheap. This is that work ([#878](https://github.com/alethical-org/alethical/issues/878)).
+
+### The method, and the honest limit on it
+
+23 answers from the post-#868 run were scored one at a time against §3's rubric
+**before either judge had graded anything** — the verdict caches did not exist when
+the scores were written, so the blinding is structural rather than promised. The
+sample is every fixture question once with the seven arms rotated across them, plus
+a second reading of SF 3899 and SF 624 on a different arm, and it is deterministic
+so `calibrate --emit` reproduces exactly those pairs. The scores, with a sentence
+of reasoning each, are committed at `alethical/eval/fixtures/judge_calibration.json`.
+
+**Who wrote them matters and is recorded in the file.** They were scored by the
+session doing this work — Claude Opus 5 — not by a human panel and not by a
+majority of annotators. That bounds the result in one specific way: the key shares
+a model family with one of the two judges, so "the Sonnet judge agrees with the key
+more closely" is also what family bias would produce, and this key cannot on its
+own tell those apart. What makes it worth having anyway is that most of its gate
+calls are checkable rather than aesthetic — *is this sentence's content in the
+passages* has an answer anyone can verify against the committed snapshot — and the
+per-item notes name the passage or the labelled must-not-claim that decided each
+one.
+
+**And the sharpest finding does not depend on the key at all.**
+
+### The gpt-5.1 judge was not measuring two of the four graded dimensions
+
+It awarded `plain` = 2 to **136 of 140** answers and `framing` = 2 to **132**. A
+single value handed to a one-sentence reply and to a ten-section wall of statute
+citations is a constant, not a measurement, and no answer key is needed to see it —
+which is why this, rather than any agreement percentage, is the finding to trust.
+
+It also found **7 refusals where 35 were expected** (5 unanswerable questions × 7
+arms). Reading its verdicts against the key showed why: it treated *"here is what
+the text does say, but not the figure you asked for"* as an answer rather than a
+decline. That breaks the refusal gate in both directions at once.
+
+### What fixed it: procedures, not better descriptions
+
+Four fields were rewritten from descriptions of a concept into steps to perform.
+`plain` is now scored by subtraction against three named triggers (a statute
+citation, a bill-number opening, undefined legal vocabulary) rather than by
+impression. `declines` asks one question — *did the reader get the fact they asked
+for?* — and states that explaining the gap is declining well, not answering. The
+two absence fields share one test: *what is this sentence about, the bill or the
+text you were shown?*
+
+Agreement with the key, before and after, n = 23:
+
+| Field | Sonnet judge | | gpt-5.1 judge | |
+|---|---|---|---|---|
+| | before | after | before | after |
+| `grounded` | 91% | 91% | 87% | 83% |
+| `declines` | 100% | 100% | **74%** | **100%** |
+| `claims_completeness` | 100% | 100% | 83% | 83% |
+| `asserts_absence` | 96% | 96% | 74% | 74% |
+| `covers` | 96% | 96% | 96% | 83% |
+| `addresses` | 91% | 91% | 87% | 96% |
+| `framing` | 83% | 78% | 96% | 91% |
+| `plain` | **74%** | **83%** | **56%** | **74%** |
+| graded total /8 | 56% | **65%** | 48% | **56%** |
+
+And the spread of each judge's marks, which is the number that shows whether a
+dimension is being measured at all:
+
+| Dimension | key | Sonnet before → after | gpt-5.1 before → after |
+|---|---|---|---|
+| `framing` | 0.20 | 0.59 → 0.76 | **0.00** → 0.20 |
+| `plain` | 0.65 | 0.44 → 0.71 | **0.00** → 0.56 |
+
+The two zeros becoming non-zero is the whole point. `gpt-5.1`'s `framing` spread
+now matches the key exactly, and its `plain` spread went from a constant to 0.56
+against the key's 0.65.
+
+### What is still wrong, and why it does not reach a score
+
+`gpt-5.1` still over-fires the two absence fields — 6 false positives on
+`asserts_absence` and 4 on `claims_completeness`, out of 23. That looks bad and is
+inert, for a reason worth checking rather than assuming: those fields are consulted
+only when the context is partial (`honest_about_partial_reading` returns early
+otherwise), and **40 of that judge's 42 overclaim flags land on complete-read
+questions**, where the code never looks at them. The 2 that do reach the gate are
+the same 2 the Sonnet judge flags.
+
+The Sonnet judge moved the wrong way on `framing` — 83% → 78%, and its spread rose
+to 0.76 against the key's 0.20, so it now over-deducts where it used to
+under-deduct. That is the one dimension where the rewrite made a judge worse, and
+it is recorded rather than tuned away, because tuning a rubric until both graders
+match one key is how a key stops being independent.
+
+### What this bought
+
+The judges are now usable for the thing they could not do before: **rank the middle
+of the field**. In §10 the same answers drew 5.90 from one judge and 0.80 from the
+other. In §12 the largest per-arm mean gap is 1.0 of 8 and the smallest is 0.35.
+Exact agreement is 25–70% (was 35–65%) — no better on that measure, and the reason
+is visible in the table above: both judges now discriminate more, so they have more
+room to differ by a point. A grader that says 2 to everything agrees with itself
+beautifully.
+
+**Read the ranking through the disagreement column, not around it.** The arm the
+two judges agree about most (`gpt-5.1+deep`: 70% exact, 2 grounding splits) is the
+one whose position is safest. The arm they agree about least (`claude-sonnet-5`:
+25% exact, 7 grounding splits) is the one to read with most caution — and it is
+also the arm one of the judges is a family member of.
+
+## 12. Results, Jul 31 2026 (second run) — seven candidates, after #868
+
+**This is a different measurement from §10, not a correction of it.** §10's numbers
+were produced against production's old prompt *and* its old retrieval: every
+question got four passages, and the eval sent only the first half of the system
+prompt. Both are fixed here. §10 stands as the control; nothing below overwrites it.
+
+Two arms from §10 are retired rather than re-run. `gpt-4o-mini@8` and
+`claude-haiku-4-5@16` asked whether a wider *flat* budget helps, and #868 replaced
+the flat budget for exactly the questions where it mattered. `gpt-4o-mini@16` is
+kept as the one budget control, because widening still applies to the 6 questions
+that stay partial.
+
+### The scorecard
+
+| Candidate | Score /8 | Ships | Gate fails | p50 s | p95 s | $/answer | Bar |
+|---|---|---|---|---|---|---|---|
+| `gpt-4o-mini` (today) | 5.90 | 75% | 4 | **2.00** | **4.19** | **$0.00066** | fail |
+| `gpt-5-mini` | 6.40 | 85% | 1 | 3.12 | 7.85 | $0.00160 | fail |
+| `gpt-5.1` (reasoning off) | 6.05 | 85% | 3 | 2.68 | 8.74 | $0.00788 | fail |
+| **`gpt-5.1+deep`** | 6.70 | **95%** | 1 | 2.15 | 9.83 | $0.00740 | fail |
+| `claude-haiku-4-5` | 5.95 | 80% | 4 | 2.37 | 6.56 | $0.00543 | fail |
+| `claude-sonnet-5` | **6.80** | 90% | **0** | 3.47 | 8.33 | $0.02354 | **PASS** |
+| `gpt-4o-mini@16` | 5.00 | 65% | 7 | 2.35 | 7.58 | $0.00077 | fail |
+
+**`gpt-5.1+deep` is the arm production would actually get** from
+`OPENAI_RAG_CHAT_MODEL=gpt-5.1`. `synthesize_grounded_answer` sends no reasoning
+parameter, and `+deep` is the eval's name for exactly that; the bare `gpt-5.1` row
+pins `reasoning.effort: "none"`, which is a configuration `me.py` cannot currently
+produce. Worth stating because the two rows differ by more than the noise: 6.70
+against 6.05, 95% shipping against 85%.
+
+### Did the completeness gate failures drop? Yes, and for three reasons — one of which is not a fix
+
+§10 counted **4–10 per arm** presenting a partial list as complete and **2–6 per
+arm** denying something exists. Across all seven arms here there are **three**
+such failures in total: one on `claude-haiku-4-5` and two on `gpt-4o-mini@16`. Five
+of the seven arms overclaimed on **none** of the six questions that are still
+partial reads.
+
+The three causes, separated because they are not equally reassuring:
+
+1. **Fewer chances to fail.** Partial reads fell from 10 of 20 questions to 6. Some
+   of the drop is arithmetic.
+2. **The prompt rule works.** On the 6 questions still partial, the overclaim count
+   is 0 for five of seven arms. This is the real result and it belongs to #868.
+3. **It is not the backstop doing it.** The eval now scores what
+   `synthesize_grounded_answer` returns, guards included, so a guard rescue would
+   flatter a model. It measured **0–1 guard edits per arm, 3 across 140 answers** —
+   the prompt is reaching the models, not the regex catching them.
+
+### The failure that moved, and the number no gate scores
+
+Given all 98 city names and 16 county names in its context, each arm reports:
+
+| Candidate | Cities named | Counties named | Recall |
+|---|---|---|---|
+| `gpt-4o-mini` (today) | **19**/98 | **1**/16 | **18%** |
+| `gpt-5-mini` | 95/98 | 16/16 | **97%** |
+| `gpt-5.1` | 77/98 | 15/16 | 81% |
+| `gpt-5.1+deep` | 92/98 | 15/16 | 94% |
+| `claude-haiku-4-5` | 76/98 | 4/16 | 70% |
+| `claude-sonnet-5` | 71/98 | 12/16 | 73% |
+| `gpt-4o-mini@16` | 53/98 | 6/16 | 52% |
+
+**Today's model reports 19 cities — the same 19 as the original bug.** #868
+delivered it 98 names and it printed the same answer, closing with *"Other
+locations may also receive grants, but they were not specifically named in the
+provided text"*, which is false of the text it was given. Every gate passes it: the
+context was complete, so the honesty gate cannot fire, and the sentence is only
+caught at all because it is a claim *about the context* that the context refutes.
+
+This is the strongest single argument in the whole comparison, and it is not in the
+score. **#868 bought the input; only a better model turns that input into an
+answer.** The denominator is read off the snapshot by
+`hf719_grant_recipients` (`alethical/eval/ground_truth.py`) and asserted against
+the two independent hand counts already recorded there, so it cannot quietly drift.
+
+### The omnibus worst case, which is where the money and the waiting are
+
+94.6% of bills fit in a few hundred words. The ~100 that do not are where an
+enumerate-everything question now sends up to 20,000 words, and a median over this
+fixture is a median over short bills.
+
+| Candidate | Slowest answer | vs its p50 | Input tokens | Cost of that one answer |
+|---|---|---|---|---|
+| `gpt-4o-mini` (today) | 18.7 s | 9.4× | 27,311 | $0.0043 |
+| `gpt-5-mini` | **27.3 s** | 8.8× | 27,310 | $0.0109 |
+| `gpt-5.1` | 23.1 s | 8.6× | 27,310 | $0.0561 |
+| `gpt-5.1+deep` | **10.6 s** | 5.0× | 1,276 | $0.0095 |
+| `claude-haiku-4-5` | 11.8 s | 5.0× | 30,224 | $0.0353 |
+| `claude-sonnet-5` | 12.1 s | 3.5× | 45,903 | **$0.1531** |
+| `gpt-4o-mini@16` | 29.5 s | 12.5× | 27,311 | $0.0046 |
+
+**Every arm breaches the 9-second budget on its worst answer, including the one the
+bar passes.** p95 over a 20-question fixture is the 19th-slowest, and only 2 of the
+20 questions are omnibus, so p95 lands just underneath them. That is a hole in §3's
+latency condition of the same shape as the hole in its honesty gate: the fixture is
+too small at the tail for a percentile to see it. Read the worst-case column
+alongside p95, not instead of it.
+
+`gpt-5.1+deep` is the odd row and the interesting one: its slowest answer is not
+the omnibus bill at all but a 1,276-token question, so its tail is reasoning
+variance rather than input size — which is why it is both the slowest at p95 and
+the fastest in the worst case.
+
+### Plain language: the incumbent is the best writer, by a distance
+
+| Candidate | Statute citations | Bill-code openings | Markdown the page cannot render | Facts carried |
+|---|---|---|---|---|
+| `gpt-4o-mini` (today) | **1** | 1 | 0 | 34/39 |
+| `gpt-5-mini` | 16 | 0 | 0 | 37/39 |
+| `gpt-5.1` | 21 | 1 | 1 | 31/39 |
+| `gpt-5.1+deep` | 20 | 1 | 1 | 33/39 |
+| `claude-haiku-4-5` | 12 | 1 | **18** | 34/39 |
+| `claude-sonnet-5` | **24** | 0 | 0 | **38/39** |
+| `gpt-4o-mini@16` | 2 | 2 | 0 | 30/39 |
+
+Every candidate is a plain-language regression against today's model under
+[`grounded-answers`](../../.claude/rules/grounded-answers.md) rule 9 — §10 measured
+`gpt-5.1` at 12 citations against 1, and on the wider input it is 21. This is a
+cost of upgrading, not a reason not to, but it needs a prompt line alongside any
+switch rather than a note afterwards.
+
+**`claude-haiku-4-5` writes 18 Markdown headings across 11 of its 20 answers.**
+`AskAnswerScreen.tsx` strips `**bold**` and prints the rest verbatim — there is no
+Markdown renderer — so those reach a reader as literal `###` characters. It is the
+only arm that does this, which is exactly why an average would hide it and a choice
+must not.
+
+### Recommendation: `OPENAI_RAG_CHAT_MODEL=gpt-5.1`, reasoning left at its default
+
+Same setting §10 recommended, re-tested rather than confirmed, and now resting on
+different evidence.
+
+- **It is first under both judges** — 6.65 from the Sonnet judge, 6.30 from the
+  gpt-5.1 judge — and the only arm that is. That is §3's fourth condition, and it
+  is the condition the calibration in §11 existed to make meaningful.
+- **The judges agree about it more than about any other arm**: 70% exact agreement
+  and 2 grounding splits, against 25% and 7 for `claude-sonnet-5`. Its position is
+  the best-evidenced in the table.
+- **95% ship-worthy**, the highest.
+- **94% enumeration recall against today's 18%** — it is the fix for the failure
+  #868 exposed and no gate scores.
+- **Fastest worst case of any OpenAI arm**, 10.6 s against 18.7–29.5 s, with a p50
+  of 2.15 s.
+- **One line of configuration**, no code, revertible in seconds.
+- **$0.0074 per answer against $0.00066** — 11× today, or $7.40 per thousand
+  answers against $0.66. On the omnibus worst case $0.0095 against $0.0043, so the
+  tail that costs the most time costs barely more money.
+
+Said plainly, because it should not be buried: **no candidate clears all four of
+§3's conditions.** `gpt-5.1+deep` has one gate failure and a p95 of 9.83 s against
+a 9 s budget. `claude-sonnet-5` is the only arm with zero gate failures and the
+only `PASS` in the table, and it fails the fourth condition instead.
+
+### Why not `claude-sonnet-5`, which is the only row marked PASS
+
+Its case is real: zero gate failures, the highest fact coverage (38/39), no
+unrenderable markdown, and the second-fastest worst case. Four things count against
+it, in descending order of how much they should matter.
+
+1. **It loses under the second judge**, 6.60 to 4.55, and it is the arm the two
+   judges agree about least in the whole table — 25% exact agreement, 7 grounding
+   splits, the most of any arm. §3's fourth condition exists for precisely this
+   shape, and the judge it wins under is from its own family.
+2. **Its zero comes partly from the both-judges rule.** Grounding fails only when
+   both judges agree it should. Sonnet has 7 disputed grounding calls and all 7
+   resolved in its favour; under a stricter rule it would not be at zero. The
+   hand-scored key independently marked one Sonnet answer ungrounded (SF 4138, where
+   it states what a truncated exclusion clause excludes) that the gate passed.
+3. **It is the worst offender on statute citations**, 24 against today's 1.
+4. **It costs $0.0235 an answer — 36× today — and $0.153 for one omnibus answer.**
+
+And it **cannot be selected by configuration at all.** `synthesize_grounded_answer`
+posts to `api.openai.com` unconditionally, so `OPENAI_RAG_CHAT_MODEL` only ever
+reaches OpenAI models. Choosing Sonnet means writing a provider adapter in
+`alethical/api/routers/me.py` of roughly the shape `scripts/answer_eval.py`'s
+`_anthropic_answer` already has: read a provider prefix off the setting, post to
+`api.anthropic.com/v1/messages`, map the response back, and pin
+`thinking: disabled` at effort `low` because adaptive thinking is on by default and
+the reader is waiting. Both output guards and `rag_chat_system_prompt(coverage)`
+must apply on the new path too. Call it half a day with tests — small, but a code
+change with a deploy behind it, not a setting.
+
+### The runner-up worth knowing about
+
+**`gpt-5-mini` is the value pick and has the single best number in the comparison:
+97% enumeration recall, 95 of 98 cities and 16 of 16 counties.** One gate failure,
+85% shipping, inside both latency budgets at p50 3.12 s and p95 7.85 s, and
+**$0.0016 an answer — 2.4× today, a fifth of `gpt-5.1`.** What keeps it off the top
+line is that it is the *slowest* arm on the omnibus worst case at 27.3 s, and it
+places fourth under the Sonnet judge. If the omnibus tail turns out to be rare in
+real traffic, this is the better buy, and that is a question the logs can answer
+that this fixture cannot.
+
+### What is deliberately not being done here
+
+**The live model is not being changed.** This section is a recommendation; the
+switch is Eugene's, because it changes what every visitor reads and what every
+answer costs. Nothing in this work modified `OPENAI_RAG_CHAT_MODEL` in any
+environment.
+
+## 13. What this bar does not cover
 
 Named so nobody reads a passing score as more than it is:
 

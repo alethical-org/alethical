@@ -40,6 +40,8 @@ once by the #868 session, agreeing on both figures:
 
 from __future__ import annotations
 
+import re
+
 # Lower bounds, set clear of every definitional edge case above.
 HF719_MIN_GRANT_CITIES = 90
 HF719_MIN_GRANT_COUNTIES = 15
@@ -67,3 +69,50 @@ HF719_GRANT_COUNTIES: tuple[str, ...] = (
 # The claim to test against, in the words a wrong answer uses. Production denied
 # the county category outright; that denial is the sharpest single symptom.
 HF719_COUNTIES_ARE_NAMED = True
+
+
+# The phrasing the bill uses for a named recipient, in the two shapes counted
+# above. Deliberately the *tight* patterns — the ones that produced 98 and 17 —
+# rather than the looser scans that reach ~104 and ~21, because a recall figure
+# has to have a denominator nobody can argue with.
+_GRANT_CITY_RE = re.compile(
+    r"grants?\s+to\s+the\s+city\s+of\s+([A-Z][A-Za-z.'’-]*(?:\s+[A-Z][A-Za-z.'’-]*){0,2})"
+)
+_GRANT_COUNTY_RE = re.compile(
+    r"grants?\s+to\s+([A-Z][A-Za-z.'’-]*(?:\s+[A-Z][A-Za-z.'’-]*){0,1})\s+County\b"
+)
+
+
+def hf719_grant_recipients(bill_text: str) -> tuple[set[str], set[str]]:
+    """(cities, counties) the bill names as grant recipients, read off its own text.
+
+    Derived rather than listed, for the same reason ``passages_total`` is derived
+    in the eval's snapshot: a hand-typed list of 98 names goes stale the first time
+    the bill text is re-ingested, and a stale denominator turns a recall figure
+    into a fiction.
+
+    **Why a recall figure is needed at all** (#878). #868 fixed the retrieval half
+    of the HF 719 failure: an enumerate-everything question now reads the whole
+    bill, so the honesty gate passes *trivially* — a complete read cannot overclaim
+    completeness, and an absence it reports is a real absence. But reading
+    everything is not reporting everything. Given all 102 passages the incumbent
+    still names 21 cities and no counties, and closes by blaming the text
+    ("not specifically named in the provided text") for names the text does
+    contain. No gate in the bar catches that, because every gate was written for
+    the *partial*-read failure. This counts it.
+    """
+    return (
+        {m.group(1).strip() for m in _GRANT_CITY_RE.finditer(bill_text)},
+        {m.group(1).strip() for m in _GRANT_COUNTY_RE.finditer(bill_text)},
+    )
+
+
+def names_from(candidates: set[str], answer: str) -> set[str]:
+    """Which of ``candidates`` the answer actually names. Evidence, not a verdict.
+
+    A literal match on a proper noun is about as safe as machine checking gets —
+    there is no paraphrase of "Lake Benton" — so unlike ``covers``, this one does
+    not need a judge behind it.
+    """
+    lowered = answer.lower()
+    return {name for name in candidates if name.lower() in lowered}

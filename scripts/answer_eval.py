@@ -35,6 +35,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -44,8 +45,15 @@ import requests
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
+from alethical.api.routers import ask as ask_router
 from alethical.api.routers import me as me_router
-from alethical.api.routers.me import RAG_CHAT_SYSTEM_PROMPT, build_query_embedding
+from alethical.api.routers.me import (
+    RAG_CHAT_SYSTEM_PROMPT,
+    BillTextCoverage,
+    build_query_embedding,
+    narrow_bill_absence_claims,
+    strip_list_completeness_claims,
+)
 from alethical.db.schema import load_schema
 from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target
 from alethical.eval.answer_eval import (
@@ -62,6 +70,13 @@ from alethical.eval.answer_eval import (
     mentions_missing_coverage,
     opens_with_bill_code,
     statute_citations,
+    unrendered_markdown,
+)
+from alethical.eval.ground_truth import (
+    HF719_MIN_GRANT_CITIES,
+    HF719_MIN_GRANT_COUNTIES,
+    hf719_grant_recipients,
+    names_from,
 )
 from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding_model
 
@@ -70,10 +85,12 @@ FIXTURE = REPO / "alethical/eval/fixtures/answer_questions.json"
 CONTEXTS = REPO / "alethical/eval/fixtures/answer_contexts.json"
 
 
-# Mirrors ask.py: _BILL_TEXT_CHUNK_LIMIT (the passages the writer is given) and
-# the HNSW beam width the request sets. Keep these in step with ask.py or the
-# eval stops measuring production's writer.
-CHUNK_LIMIT = 4
+# Production's fixed budget for a *specific* question, imported rather than copied
+# so the eval cannot drift from it. Since #868 this is only half of what production
+# does: an enumerate-everything question takes a different branch entirely (see
+# `snapshot`), so this constant no longer describes the whole retrieval — it names
+# the one knob a `@N` candidate moves.
+CHUNK_LIMIT = ask_router._BILL_TEXT_CHUNK_LIMIT  # noqa: SLF001
 EF_SEARCH = 100
 
 # Latency budget, argued in the quality-bar doc. The reader is waiting, and the
@@ -84,6 +101,15 @@ P95_SECONDS = 9.0
 # Judges run concurrently (see judge_all). Kept modest so a run does not trip
 # either provider's rate limits, which would cost more time than it saves.
 JUDGE_CONCURRENCY = 8
+
+# The candidate set and the graders, named once so `run` and `calibrate` cannot
+# drift apart — a calibration measured on a different sample than the run it is
+# meant to license is worth nothing.
+DEFAULT_MODELS = (
+    "openai:gpt-4o-mini,openai:gpt-5-mini,openai:gpt-5.1,"
+    "anthropic:claude-haiku-4-5,anthropic:claude-sonnet-5"
+)
+DEFAULT_JUDGES = "anthropic:claude-sonnet-5,openai:gpt-5.1"
 
 
 def contexts_path(passages: int) -> Path:
@@ -115,10 +141,39 @@ PRICES = {
 }
 
 
+def price_of(spec: str) -> tuple[float, float] | None:
+    """A candidate's per-million-token prices, looked up by the model it runs.
+
+    Keyed on the base model rather than the whole spec, because neither part of a
+    candidate's identity beyond the model changes what a token costs: ``+deep``
+    buys more reasoning tokens at the same rate, and ``@16`` buys more input
+    tokens at the same rate. Looking up the whole spec is why three of the nine
+    rows in §10 of the bar doc printed no cost at all — precisely the rows whose
+    whole point was that they consume more tokens.
+    """
+    provider, model, _, _ = parse_spec(spec)
+    return PRICES.get(f"{provider}:{model}")
+
+
 # --- snapshot: freeze production's retrieval so every model sees one context ---
 
 
 def snapshot(args) -> None:
+    """Freeze production's retrieval — both of its branches (#868).
+
+    This used to take one flat passage budget for every question, and after #868
+    that is no longer what production does. ``ask.py`` now reads the question
+    first: an **enumerate-everything** question ("which cities…", "how many…")
+    gets as much of the bill as ``_LIST_QUESTION_WORD_BUDGET`` allows, up to
+    20,000 words, while a **specific** question keeps the fixed four passages. A
+    flat snapshot measures neither shape, so it would have scored every candidate
+    on an input production stopped sending.
+
+    Rather than restate the rule, this calls production's own
+    ``_retrieve_bill_text``. The eval already guards the *prompt* by importing it
+    rather than copying it; retrieval now gets the same guard, which is the one
+    that #868 proved was needed.
+    """
     passages = args.passages
     schema = load_schema()
     Bill = schema.Bill
@@ -130,47 +185,53 @@ def snapshot(args) -> None:
     model = effective_embedding_model(DEFAULT_RAG_MODEL)
     out: dict[str, dict] = {}
 
+    # A `@N` candidate moves production's fixed budget for specific questions and
+    # nothing else — the list branch is governed by a word budget, not a row count.
+    # Set on the module so `_retrieve_bill_text` reads it, because the point of
+    # calling production's function is that the eval does not re-implement it.
+    if passages != ask_router._BILL_TEXT_CHUNK_LIMIT:  # noqa: SLF001
+        ask_router._BILL_TEXT_CHUNK_LIMIT = passages  # noqa: SLF001
+
     with Session(engine) as db:
         db.execute(text(f"SET LOCAL hnsw.ef_search = {EF_SEARCH}"))
         for q in queries:
             bill = db.scalar(select(Bill).where(Bill.bill_key == q.bill_key))
             if bill is None:
                 raise SystemExit(f"{q.bill_key} is not in this database")
-            chunks = db.scalars(
-                schema.semantic_rag_chunk_stmt(
-                    build_query_embedding(q.question),
-                    bill_id=bill.id,
-                    embedding_model=model,
-                    limit=passages,
-                )
-            ).all()
+            enumerating = bool(ask_router._LIST_QUESTION_RE.search(q.question))  # noqa: SLF001
+            chunks, coverage = ask_router._retrieve_bill_text(  # noqa: SLF001
+                db,
+                bill,
+                model,
+                build_query_embedding(q.question),
+                enumerating=enumerating,
+            )
             if not chunks:
                 raise SystemExit(f"{q.bill_key} has no retrievable passages")
-            total = db.scalar(
-                text(
-                    "select count(*) from rag_chunk rc "
-                    "join rag_section_document d on d.id = rc.rag_section_document_id "
-                    "join bill_version bv on bv.id = d.bill_version_id and bv.is_current "
-                    "where d.bill_id = :bill_id"
-                ),
-                {"bill_id": bill.id},
-            )
             out[q.key] = {
                 "question": q.question,
                 "bill_key": q.bill_key,
                 "bill_title": bill.title,
+                # Whether production reads this question as an enumeration, which
+                # decides both how much it retrieves and which coverage rule it
+                # sends. Recorded so the run can compose the same prompt without a
+                # database.
+                "enumerating": enumerating,
                 # How many passages this bill HAS, against how many the writer is
                 # given. The gap is what makes an answer's completeness claim a
                 # guess, and it is derived here rather than hand-labeled so it
                 # cannot go stale when the passage budget changes (#868).
-                "passages_total": int(total or 0),
+                "passages_total": int(coverage.total or 0),
                 "chunks": [
                     {"citation_label": c.citation_label, "chunk_text": c.chunk_text}
                     for c in chunks
                 ],
             }
+            words = sum(len(c["chunk_text"].split()) for c in out[q.key]["chunks"])
             print(
-                f"  {q.bill_key}  {len(out[q.key]['chunks'])} passages  {q.question[:60]}"
+                f"  {q.bill_key:16s} {'LIST' if enumerating else '    '} "
+                f"{len(out[q.key]['chunks']):4d}/{out[q.key]['passages_total']:<4d} passages "
+                f"{words:6d} words  {q.question[:50]}"
             )
 
     destination = contexts_path(passages)
@@ -180,10 +241,13 @@ def snapshot(args) -> None:
                 "description": (
                     "Frozen retrieval contexts for the answer-quality eval (#865). "
                     "Produced by `scripts/answer_eval.py snapshot` read-only against "
-                    "production, replicating ask.py's per-bill passage retrieval "
-                    f"(limit {passages}, hnsw.ef_search {EF_SEARCH}). Committed so "
-                    "every model is written from identical passages and the eval runs "
-                    "without a database."
+                    "production, calling ask.py's own `_retrieve_bill_text` so both "
+                    "of its branches are reproduced: an enumerate-everything question "
+                    "reads up to _LIST_QUESTION_WORD_BUDGET words of the bill, a "
+                    f"specific question the fixed {passages} passages "
+                    f"(hnsw.ef_search {EF_SEARCH}). Committed so every model is "
+                    "written from identical passages and the eval runs without a "
+                    "database."
                 ),
                 "contexts": out,
             },
@@ -207,8 +271,16 @@ def load_contexts(passages: int = CHUNK_LIMIT) -> dict[str, dict]:
 # --- generation: production's exact prompt, one provider adapter per family ---
 
 
-def production_system_prompt() -> str:
-    """The whole instruction production sends for a partial read of a bill.
+def context_coverage(context: dict) -> BillTextCoverage:
+    """How much of the bill this frozen context is, in production's own type."""
+    return BillTextCoverage(
+        searched=len(context["chunks"]),
+        total=int(context.get("passages_total") or 0),
+    )
+
+
+def production_system_prompt(context: dict | None = None) -> str:
+    """The whole instruction production sends for this question's coverage.
 
     Importing the constant by identity was the original guard, and it was too
     narrow. It catches a *copy* that drifted; it cannot catch a **layer production
@@ -217,24 +289,39 @@ def production_system_prompt() -> str:
     overclaiming §9 of the bar doc measures. The eval kept sending half the prompt
     and every guard stayed green.
 
-    So resolve it the way production does, through the composer when one exists.
-    The frozen contexts here are partial reads, so ``None`` is the matching
-    coverage. Falls back to the bare constant while #868 is unmerged, which keeps
-    this correct on both sides of that landing rather than only after it.
+    **And the coverage is per question, not per run.** A first pass at this sent
+    ``rag_chat_system_prompt(None)`` — the partial rule — for everything, which was
+    right when every frozen context was four passages of a long bill and wrong the
+    moment #868 started reading some bills whole. On a complete read production
+    sends a *different* rule, one that positively licenses "the bill names none of
+    these" and asks the model to enumerate everything rather than a handful. Sending
+    the partial rule there would score a model on an instruction it never receives.
+
+    ``None`` keeps the old behaviour for callers with no context in hand, and is
+    still the right answer for the signed-in bill-scoped chat, which retrieves a
+    fixed three passages and never counts the bill.
     """
     composer = getattr(me_router, "rag_chat_system_prompt", None)
-    return composer(None) if composer else RAG_CHAT_SYSTEM_PROMPT
+    if composer is None:  # pre-#868 checkout
+        return RAG_CHAT_SYSTEM_PROMPT
+    return composer(context_coverage(context) if context else None)
 
 
-def prompt_fingerprint(prompt: str) -> str:
-    """Short stable digest of the prompt an arm was generated under.
+def prompt_fingerprint(contexts: dict) -> str:
+    """Short stable digest of every prompt variant an arm was generated under.
 
     Recorded in every answers cache and checked before reuse. Without it, the
     prompt changing under a cached arm is invisible: the run reuses old answers,
     scores them beside new ones, and publishes a comparison across two different
     prompts. The digest turns that into a visible regeneration instead.
+
+    Digests **all** the variants in play rather than one, because since #868 a run
+    sends two different system prompts — complete-coverage and partial-coverage —
+    and a change to either one has to invalidate the cache. Hashing only the
+    partial rule would have let a complete-coverage edit ship silently.
     """
-    return hashlib.sha256(prompt.encode()).hexdigest()[:12]
+    variants = sorted({production_system_prompt(c) for c in contexts.values()})
+    return hashlib.sha256("\x00".join(variants).encode()).hexdigest()[:12]
 
 
 def build_user_prompt(context: dict) -> str:
@@ -412,11 +499,47 @@ def call_model(spec: str, system: str, user: str) -> tuple[str, float, float, in
     return _anthropic_answer(model, system, user, deep=deep)
 
 
+def guard_changed_content(raw: str, served: str) -> bool:
+    """Did production's guards change the answer's WORDS, or only its whitespace?
+
+    The distinction is not pedantic; measuring it wrong invented a finding. A first
+    pass counted any difference and reported that ``gpt-5.1`` needed the backstop on
+    11 of 20 answers, which would have been the loudest number in the comparison.
+    31 of the 34 differences across all seven arms turned out to be whitespace:
+    ``strip_list_completeness_claims`` splits into sentences and rejoins them, and
+    the rejoin drops a Markdown hard line break (two spaces before a newline). It
+    removed nothing and flagged everything.
+
+    So the comparison ignores whitespace entirely. What is left is the thing worth
+    counting: a sentence the guard actually deleted, or an absence claim it
+    actually re-scoped.
+    """
+    return re.sub(r"\s+", "", raw) != re.sub(r"\s+", "", served)
+
+
+def served_answer(raw: str, coverage: BillTextCoverage) -> str:
+    """What ``synthesize_grounded_answer`` actually returns to a reader.
+
+    The unit under test is that whole function, not the HTTP call inside it, and
+    since #868 it does not hand the model's words straight through: it re-scopes
+    absence claims on a partial read and drops any sentence vouching for its own
+    list. Scoring the raw completion measures a product we do not ship, and would
+    have counted overclaims against a model that a reader never sees.
+
+    The raw text is kept alongside (``guard_rewrote``) so the two questions stay
+    separable: *did the prompt work* is the model's business and #868's, while
+    *what did the reader get* is what the model decision turns on.
+    """
+    text_value = raw
+    if not coverage.is_complete:
+        text_value = narrow_bill_absence_claims(text_value)
+    return strip_list_completeness_claims(text_value)
+
+
 def generate(
     spec: str, queries: list[AnswerQuery], contexts: dict, cache: Path
 ) -> dict:
-    system = production_system_prompt()
-    fingerprint = prompt_fingerprint(system)
+    fingerprint = prompt_fingerprint(contexts)
     if cache.exists():
         cached = json.loads(cache.read_text())
         if cached.get("prompt_fingerprint") == fingerprint:
@@ -429,17 +552,24 @@ def generate(
     answers = {}
     for q in queries:
         context = contexts[q.key]
-        answer, ttft, total, tin, tout = call_model(
-            spec, system, build_user_prompt(context)
+        raw, ttft, total, tin, tout = call_model(
+            spec, production_system_prompt(context), build_user_prompt(context)
         )
+        answer = served_answer(raw, context_coverage(context))
         answers[q.key] = {
             "answer": answer,
+            "raw_answer": raw,
+            "guard_rewrote": guard_changed_content(raw, answer),
             "seconds_to_first_token": ttft,
             "seconds_total": total,
             "input_tokens": tin,
             "output_tokens": tout,
         }
-        print(f"    {total:5.2f}s  {q.bill_key:16s} {q.question[:52]}")
+        print(
+            f"    {total:5.2f}s {tin:6d}in {tout:5d}out "
+            f"{'GUARDED' if guard_changed_content(raw, answer) else '       '} "
+            f"{q.bill_key:16s} {q.question[:44]}"
+        )
     cache.write_text(
         json.dumps({"prompt_fingerprint": fingerprint, "answers": answers}, indent=2)
         + "\n"
@@ -449,6 +579,25 @@ def generate(
 
 # --- judging: blind, label-anchored, and run by two judges from rival families ---
 
+# Two of this prompt's fields went undefined for the whole of #865's published run:
+# the schema required `claims_completeness` and `asserts_absence`, the code decided
+# the honesty gate from them, and the instructions never said what they meant. Each
+# judge invented its own reading, which is the most likely single cause of the
+# disagreement §10 of the bar doc could not explain — the two judges awarded near
+# identical graded marks and then split on the gates, exactly the signature of a
+# shared rubric plus an unshared one (#878).
+#
+# Four fields were then rewritten from descriptions into procedures, because
+# describing what a dimension means turned out not to be enough to get it measured.
+# Against 23 hand scores the gpt-5.1 judge awarded `plain` = 2 to 136 of 140 answers
+# — a constant, not a measurement, and no answer key is needed to see that a single
+# value handed to a one-sentence reply and a ten-section wall of statute citations
+# is not scoring either. It also found only 7 refusals where 35 were expected,
+# because it read "here is what the text DOES say, but not the figure you asked
+# for" as an answer. So `plain` is now scored by subtraction against named triggers,
+# `declines` by a stated test, and the two absence fields by one shared question
+# about what a sentence is ABOUT. Prose invites a judgment; a procedure is harder to
+# skip.
 JUDGE_SYSTEM = """You are grading one answer written by an AI assistant for a \
 Minnesota legislative-transparency product used by ordinary residents.
 
@@ -462,12 +611,33 @@ Return ONLY a JSON object with these keys:
 passages shown. A single unsupported number, name, date, or effect makes this false. \
 Judge only what the answer asserts — restating a passage in plainer words is \
 supported, and so is a reasonable plain-language conclusion the passages entail.
-  "declines":  true only if the answer, TAKEN AS A WHOLE, refuses to answer — it \
-tells the reader the text does not cover the question and offers no substantive \
-answer. An answer that DOES answer and then adds a caveat ("...the bill does not \
-specify how often the training must be repeated") is NOT declining: it answered. \
-This distinction is the whole point of the field, so read the whole answer before \
-setting it.
+  "declines":  apply this test, in these words. Ask: DID THE READER GET THE FACT \
+THEY ASKED FOR? If the question asks how much something costs and the answer names \
+no figure, the reader did not get it — declines is TRUE, and it stays true however \
+much the answer explains about what the text DOES contain, however many nearby \
+sections it walks through, and however helpfully it points to where the answer \
+might be found instead. Explaining the gap IS declining well; it is not answering. \
+Set it FALSE only when the answer delivers the substance asked for, even if it then \
+adds a caveat ("...the bill does not specify how often the training must be \
+repeated"): that one answered and hedged.
+  "claims_completeness": both of these two fields turn on ONE question — WHAT IS \
+THE SENTENCE ABOUT: the bill, or the text you were shown? Read the actual subject \
+of the sentence and answer from that, not from how confident the answer sounds.
+  Set claims_completeness TRUE only if the answer presents a list, set, or count as \
+everything THE BILL contains: "the bill names 19 cities: ...", "there are four \
+exceptions", a bare enumeration with no hint that more may exist. Set it FALSE when \
+the sentence is about the text instead — "the sections provided name, among \
+others, ...", "the passages searched list ... and there may be more". A short list \
+that admits it is partial is fine; a long one that does not is not.
+  "asserts_absence": same test, applied to a negative. TRUE only if the answer says \
+THE BILL contains none of something: "the bill does not name any counties", "no \
+penalties are specified", "there is no funding for X". FALSE when the sentence is \
+about the text — "the passages provided do not mention counties", "the text I was \
+given does not state a figure". A correct refusal is almost always of the second \
+kind, so an answer that declines well should have this FALSE, not TRUE.
+  Both fields are ALWAYS FALSE when the coverage line above says the writer saw the \
+whole bill: with every section read, a complete list IS complete and an absence IS \
+an absence, so there is nothing left to overclaim.
   "covers":    0, 1, or 2 — does it carry the required facts from the answer key? \
 2 = all of them (a paraphrase counts), 1 = some, 0 = none. When the answer key says \
 the passages do NOT answer the question, grade instead on whether the answer tells \
@@ -484,9 +654,20 @@ A dated effective clause inside the passages does NOT make a proposal into law �
 the key says PROPOSAL, an answer that speaks as though the change is already in \
 force is wrong however the passage is worded. Score 2 if the answer says nothing \
 about stage either way and nothing is misstated.
-  "plain":     0, 1, or 2 — could a resident with no legal training follow it? \
-Deduct for statute citations, legalese, a bill-number preamble, and for a bare \
-list where a sentence was needed. Do not reward length.
+  "plain":     could a resident with no legal training follow it? SCORE BY \
+SUBTRACTION, not by impression. Start at 2 and take one point off for EACH of these \
+that is present, stopping at 0:
+    (a) any Minnesota Statutes citation in the prose — "section 302A.111", \
+"chapter 325M", "subdivision 3", "Minnesota Statutes 2024", "Laws 2025, chapter 39". \
+One is enough. ("Section 8" the housing programme and "section 179" the federal tax \
+provision are names, not citations, and do not count.)
+    (b) the answer opens by naming the bill — "HF 1606 creates...", "The bill \
+SF 624...". The reader already sees the bill number on the page.
+    (c) undefined legal vocabulary carried straight from the statute — \
+"dissenters' rights", "overissue", "failure of authorization", "notwithstanding", \
+or a block quote of statutory text.
+  Most answers should NOT score 2. If you find yourself giving 2 to an answer \
+carrying a statute number, re-read rule (a): it is a deduction, not a judgment call.
   "note":      the single biggest problem, in at most 20 words, or "" if none.
 
 Output the JSON object and nothing else. No preamble, no code fence.
@@ -828,6 +1009,16 @@ def run(args) -> None:
             run_dir / f"answers-{_slug(spec)}.json",
         )
 
+    if not judge_specs:
+        # `--judges ""` generates and stops. The point is calibration: hand-scoring
+        # a sample has to happen without either judge's verdict in front of you, and
+        # the answers have to exist first. Generation is paid for either way, so
+        # splitting the stages costs nothing and keeps the answer key independent.
+        print(
+            f"\nno judges requested; {len(queries)} answers per arm cached in {run_dir}"
+        )
+        return
+
     verdicts_by_judge = {}
     for judge_spec in judge_specs:
         print(f"\njudging with {judge_spec}")
@@ -856,6 +1047,7 @@ def run(args) -> None:
                 output_tokens=raw["output_tokens"],
                 passages_shown=len(context["chunks"]),
                 passages_total=context.get("passages_total", len(context["chunks"])),
+                guard_rewrote=bool(raw.get("guard_rewrote")),
             )
             for judge_spec in judge_specs:
                 v = verdicts_by_judge[judge_spec][f"{spec}||{q.key}"]
@@ -876,7 +1068,7 @@ def run(args) -> None:
             results.append(result)
         results_by_model[spec] = results
 
-    report(results_by_model, judge_specs)
+    report(results_by_model, judge_specs, contexts_by_spec)
     (run_dir / "report.json").write_text(
         json.dumps(
             {
@@ -894,7 +1086,9 @@ def run(args) -> None:
 
 
 def report(
-    results_by_model: dict[str, list[AnswerResult]], judge_specs: list[str]
+    results_by_model: dict[str, list[AnswerResult]],
+    judge_specs: list[str],
+    contexts_by_spec: dict[str, dict],
 ) -> None:
     print("\n" + "=" * 100)
     print("ANSWER QUALITY — all judges pooled")
@@ -906,7 +1100,7 @@ def report(
     print(header)
     for spec, results in results_by_model.items():
         summary = aggregate(results)
-        price = PRICES.get(spec)
+        price = price_of(spec)
         overclaim = f"{summary['overclaimed_on_partial']}/{summary['partial_context_questions']}"
         dollars = (
             f"${cost_per_answer(summary, input_per_mtok=price[0], output_per_mtok=price[1]):.5f}"
@@ -922,6 +1116,8 @@ def report(
             f"{dollars:>10s} "
             f"{'PASS' if meets_bar(summary, p50_seconds=P50_SECONDS, p95_seconds=P95_SECONDS) else 'fail':>5s}"
         )
+
+    _report_omnibus_worst_case(results_by_model)
 
     for judge_spec in judge_specs:
         print(f"\n--- as scored by {judge_spec} alone ---")
@@ -965,7 +1161,8 @@ def report(
     print("\n--- mechanical checks (no judge involved) ---")
     print(
         f"{'model':30s} {'code preamble':>14s} {'statute cites':>14s} "
-        f"{'literal facts':>14s} {'notes a limit':>14s}"
+        f"{'literal facts':>14s} {'notes a limit':>14s} {'guard edits':>12s} "
+        f"{'raw markdown':>13s}"
     )
     for spec, results in results_by_model.items():
         preamble = sum(1 for r in results if opens_with_bill_code(r.answer))
@@ -975,10 +1172,19 @@ def report(
             h, t = literal_fact_coverage(r.query, r.answer)
             hits, totals = hits + h, totals + t
         limits = sum(1 for r in results if mentions_missing_coverage(r.answer))
+        guarded = sum(1 for r in results if r.guard_rewrote)
+        raw_md = sum(len(unrendered_markdown(r.answer)) for r in results)
         print(
             f"{spec:30s} {preamble:14d} {cites:14d} "
-            f"{f'{hits}/{totals}':>14s} {limits:14d}"
+            f"{f'{hits}/{totals}':>14s} {limits:14d} {guarded:12d} {raw_md:13d}"
         )
+    print(
+        "'guard edits' = answers production's own backstop had to rewrite before "
+        "serving. The gate scores the SERVED text, so these do not fail a model — "
+        "they count the times the #868 prompt rule did not reach it. "
+        "'raw markdown' counts headings, tables and block quotes, which the answer "
+        "page prints as literal characters — it has no markdown renderer."
+    )
 
     print("\n--- refusal behaviour on questions the passages do not cover ---")
     for spec, results in results_by_model.items():
@@ -986,12 +1192,303 @@ def report(
         declined = sum(1 for r in unanswerable if r.declines())
         print(f"{spec:30s} declined {declined}/{len(unanswerable)}")
 
+    _report_enumeration_recall(results_by_model, contexts_by_spec)
+
+
+def _report_omnibus_worst_case(
+    results_by_model: dict[str, list[AnswerResult]],
+) -> None:
+    """The slowest and dearest single answer each arm produced, and what it cost.
+
+    The median is the wrong number to buy on. 94.6% of bills fit in a few hundred
+    words, so a mean over this fixture is a mean over cheap questions — and the
+    money and the waiting both land on the ~100 omnibus bills, where #868 now
+    sends up to 20,000 words instead of four passages. A model can sit
+    comfortably inside the latency budget at the median and take half a minute on
+    the bill somebody actually asks about.
+
+    Reported per arm rather than as a single figure because the gap between the
+    two is itself the finding: an arm whose worst case is three times its p50 is
+    a different product from one whose worst case is fifteen times it.
+    """
+    print(
+        "\n--- the omnibus worst case: the single slowest answer per arm "
+        "(the median is a median over short bills, and is not what a reader waits "
+        "for on the bill they asked about) ---"
+    )
+    print(
+        f"{'model':30s} {'worst s':>8s} {'vs p50':>7s} {'in tok':>8s} "
+        f"{'$ that answer':>14s} {'question':<40s}"
+    )
+    for spec, results in results_by_model.items():
+        timed = [r for r in results if r.seconds_total is not None]
+        if not timed:
+            continue
+        worst = max(timed, key=lambda r: r.seconds_total)
+        summary = aggregate(results)
+        p50 = summary["seconds_total"]["p50"] or 0
+        price = price_of(spec)
+        dollars = (
+            f"${(worst.input_tokens * price[0] + worst.output_tokens * price[1]) / 1e6:.5f}"
+            if price
+            else "n/a"
+        )
+        print(
+            f"{spec:30s} {worst.seconds_total:8.2f} "
+            f"{(worst.seconds_total / p50 if p50 else 0):6.1f}x {worst.input_tokens:8d} "
+            f"{dollars:>14s} {worst.query.bill_key} {worst.query.question[:30]}"
+        )
+
+
+def _report_enumeration_recall(
+    results_by_model: dict[str, list[AnswerResult]], contexts_by_spec: dict[str, dict]
+) -> None:
+    """How much of HF 719's grant list each arm actually reports (#878).
+
+    The gap this exposes is the reason it is here rather than folded into a gate.
+    #868 fixed the retrieval half of the failure — an enumerate-everything question
+    now reads the whole bill — so the honesty gate **passes trivially** on exactly
+    the question it was written for: a complete read cannot overclaim completeness,
+    and an absence it reports is real. Every gate in the bar was written for the
+    partial-read failure, and the failure moved.
+
+    Reading everything is not reporting everything. This counts the difference,
+    against a denominator read off the bill's own text.
+    """
+    target = next(
+        (
+            (spec, r)
+            for spec, results in results_by_model.items()
+            for r in results
+            if r.query.bill_key == "94-2025-HF719" and r.query.answerable
+        ),
+        None,
+    )
+    if target is None:
+        return
+    key = target[1].query.key
+    context = contexts_by_spec[target[0]][key]
+    bill_text = "\n".join(c["chunk_text"] for c in context["chunks"])
+    cities, counties = hf719_grant_recipients(bill_text)
+    if len(cities) < HF719_MIN_GRANT_CITIES or len(counties) < HF719_MIN_GRANT_COUNTIES:
+        # The snapshot no longer holds the whole bill, so a recall figure computed
+        # from it would flatter every arm. Say so rather than print a wrong number.
+        print(
+            f"\n--- enumeration recall on HF 719: skipped, the snapshot holds only "
+            f"{len(cities)} cities and {len(counties)} counties ---"
+        )
+        return
+
+    print(
+        f"\n--- enumeration recall, HF 719 'which cities and counties get named "
+        f"infrastructure grants?' ({len(cities)} cities and {len(counties)} counties "
+        "are in the context every arm was given) ---"
+    )
+    print(
+        "No gate scores this. The honesty gate passes trivially once the whole bill "
+        "is read, so an answer that reads 98 names and reports 21 is unpunished."
+    )
+    print(f"{'model':30s} {'cities named':>14s} {'counties named':>16s} {'recall':>8s}")
+    for spec, results in results_by_model.items():
+        answer = next(r.answer for r in results if r.query.key == key)
+        hit_c = names_from(cities, answer)
+        hit_k = names_from(counties, answer)
+        recall = (len(hit_c) + len(hit_k)) / (len(cities) + len(counties))
+        print(
+            f"{spec:30s} {f'{len(hit_c)}/{len(cities)}':>14s} "
+            f"{f'{len(hit_k)}/{len(counties)}':>16s} {recall:8.0%}"
+        )
+
 
 def _slug(spec: str) -> str:
     """A candidate's cache filename. Must distinguish every part of its identity —
     provider, model, reasoning depth and passage budget — or two arms silently
     share one cache and the second reads the first's answers."""
     return spec.replace(":", "-").replace(".", "_").replace("@", "-at-")
+
+
+# --- calibration: an answer key for the graders themselves (#878) ---
+
+CALIBRATION = REPO / "alethical/eval/fixtures/judge_calibration.json"
+
+# Fields a hand score records. The four gate flags plus the four graded marks —
+# i.e. everything a judge is asked for except the free-text note, which has no
+# right answer to agree or disagree with.
+CALIBRATION_FLAGS = ("grounded", "declines", "claims_completeness", "asserts_absence")
+
+
+def calibration_sample(
+    model_specs: list[str], queries: list[AnswerQuery]
+) -> list[tuple[str, str]]:
+    """Which (arm, question) pairs get hand-scored. Deterministic, and stratified.
+
+    Every question appears at least once, so no dimension of the fixture goes
+    unrepresented — the framing trap, the baited unanswerables, and the two
+    complete-read enumerations all have to be in the key or the agreement figure
+    says nothing about them. Arms rotate across questions rather than being
+    sampled at random, which spreads the sample over the quality range instead of
+    clustering it on whichever arm the shuffle favoured.
+
+    Deterministic because the committed hand scores have to name the same pairs on
+    every machine; a random sample would make the key unreadable against a re-run.
+    """
+    return [
+        (model_specs[i % len(model_specs)], q.key) for i, q in enumerate(queries)
+    ] + [
+        # A second reading of the two sharpest traps, on a different arm. SF 624
+        # reads "effective August 1, 2025" and never became law, so an answer can
+        # be word-perfect and stage-wrong; SF 3899 puts a section headed SIGNAGE
+        # COSTS and an unrelated $86,000 in front of a question about sign costs.
+        # One observation each would rest the agreement figure on the easy items.
+        #
+        # HF 719 is deliberately NOT doubled: its context is the whole 16,894-word
+        # bill, and the sample has to stay small enough to hand-score attentively.
+        # Two readings of a bill nobody finishes is worse evidence than one.
+        (model_specs[(i + 3) % len(model_specs)], q.key)
+        for i, q in enumerate(queries)
+        if q.bill_key in ("94-2025-SF624", "94-2026-SF3899")
+    ]
+
+
+def calibrate_emit(args) -> None:
+    """Print blind worksheets for hand-scoring, with no judge verdict anywhere near.
+
+    The order matters and is the whole point: hand scores written after reading a
+    judge's verdict are not an answer key, they are a review of that judge. So
+    this stage runs against a run directory that has answers and no verdicts yet
+    (``run --judges ""``), and it never reads a verdict cache even if one exists.
+    """
+    queries = {q.key: q for q in load_fixture(FIXTURE)}
+    run_dir = Path(args.run_dir)
+    model_specs = [s.strip() for s in args.models.split(",") if s.strip()]
+    budgets = {spec: parse_spec(spec)[3] for spec in model_specs}
+    snapshots = {n: load_contexts(n) for n in sorted(set(budgets.values()))}
+    answers = {
+        spec: json.loads((run_dir / f"answers-{_slug(spec)}.json").read_text())[
+            "answers"
+        ]
+        for spec in model_specs
+    }
+
+    out = []
+    for index, (spec, key) in enumerate(
+        calibration_sample(model_specs, list(queries.values())), start=1
+    ):
+        q = queries[key]
+        context = snapshots[budgets[spec]][key]
+        out.append(
+            {
+                "id": index,
+                # The arm is recorded so the key can be replayed, and deliberately
+                # NOT printed in the worksheet body — a hand scorer who knows which
+                # model wrote an answer is as unblinded as a judge who does.
+                "arm": spec,
+                "question_key": key,
+                "worksheet": build_judge_prompt(
+                    q, context, answers[spec][key]["answer"]
+                ),
+            }
+        )
+    destination = run_dir / "calibration-worksheets.json"
+    destination.write_text(json.dumps({"items": out}, indent=2) + "\n")
+    print(f"wrote {len(out)} blind worksheets to {destination}")
+
+
+def _hand_scores() -> dict[str, dict]:
+    if not CALIBRATION.exists():
+        raise SystemExit(
+            f"no hand scores at {CALIBRATION.relative_to(REPO)}; run "
+            "`calibrate emit` and score the worksheets first"
+        )
+    payload = json.loads(CALIBRATION.read_text())
+    return {f"{s['arm']}||{s['question_key']}": s for s in payload["scores"]}
+
+
+def _agreement(judge_values: list, key_values: list) -> dict:
+    n = len(judge_values)
+    exact = sum(1 for a, b in zip(judge_values, key_values) if a == b)
+    return {
+        "n": n,
+        "agree": round(exact / n, 3) if n else None,
+        "mean_abs_error": (
+            round(
+                sum(abs(int(a) - int(b)) for a, b in zip(judge_values, key_values)) / n,
+                2,
+            )
+            if n
+            else None
+        ),
+    }
+
+
+def _spread(values: list) -> float:
+    """Population standard deviation, to catch a grader that is not discriminating.
+
+    The tell §10 of the bar doc flagged and could not prove: a judge awarding 2.0
+    to nearly every arm on nearly every dimension is not measuring that dimension,
+    however well its average happens to line up. Agreement alone cannot see that —
+    a judge that always says 2 agrees perfectly with a key that mostly says 2 — so
+    the spread is reported beside it.
+    """
+    if not values:
+        return 0.0
+    mean = sum(values) / len(values)
+    return round((sum((v - mean) ** 2 for v in values) / len(values)) ** 0.5, 2)
+
+
+def calibrate_score(args) -> None:
+    """Measure each judge against the committed hand scores, per dimension."""
+    key = _hand_scores()
+    run_dir = Path(args.run_dir)
+    judge_specs = [s.strip() for s in args.judges.split(",") if s.strip()]
+
+    print(
+        f"\ncalibration key: {len(key)} hand-scored answers "
+        f"({CALIBRATION.relative_to(REPO)})"
+    )
+    for judge_spec in judge_specs:
+        cache = run_dir / f"verdicts-{_slug(judge_spec)}.json"
+        if not cache.exists():
+            print(f"\n{judge_spec}: no verdicts in {run_dir}")
+            continue
+        verdicts = json.loads(cache.read_text())
+        pairs = [(verdicts[k], v) for k, v in key.items() if k in verdicts]
+        if not pairs:
+            print(f"\n{judge_spec}: no verdicts overlap the calibration sample")
+            continue
+
+        print(f"\n--- {judge_spec} against the hand scores (n={len(pairs)}) ---")
+        for flag in CALIBRATION_FLAGS:
+            judged = [bool(j[flag]) for j, _ in pairs]
+            truth = [bool(h[flag]) for _, h in pairs]
+            a = _agreement(judged, truth)
+            over = sum(1 for x, y in zip(judged, truth) if x and not y)
+            under = sum(1 for x, y in zip(judged, truth) if y and not x)
+            print(
+                f"  {flag:20s} agree {a['agree']:.0%}   "
+                f"said-true-when-false {over}   said-false-when-true {under}"
+            )
+        for dim in GRADED_DIMENSIONS:
+            judged = [int(j[dim]) for j, _ in pairs]
+            truth = [int(h[dim]) for _, h in pairs]
+            a = _agreement(judged, truth)
+            print(
+                f"  {dim:20s} agree {a['agree']:.0%}   "
+                f"mean error {a['mean_abs_error']:.2f}   "
+                f"spread judge {_spread(judged)} vs key {_spread(truth)}"
+            )
+        totals_j = [sum(int(j[d]) for d in GRADED_DIMENSIONS) for j, _ in pairs]
+        totals_k = [sum(int(h[d]) for d in GRADED_DIMENSIONS) for _, h in pairs]
+        t = _agreement(totals_j, totals_k)
+        print(
+            f"  {'graded total /8':20s} agree {t['agree']:.0%}   "
+            f"mean error {t['mean_abs_error']:.2f}   "
+            f"spread judge {_spread(totals_j)} vs key {_spread(totals_k)}"
+        )
+
+
+def calibrate(args) -> None:
+    (calibrate_emit if args.emit else calibrate_score)(args)
 
 
 def main() -> None:
@@ -1011,16 +1508,24 @@ def main() -> None:
     snapshot_parser.set_defaults(func=snapshot)
 
     run_parser = sub.add_parser("run", help="generate, judge, and report")
-    run_parser.add_argument(
-        "--models",
-        default="openai:gpt-4o-mini,openai:gpt-5-mini,openai:gpt-5.1,"
-        "anthropic:claude-haiku-4-5,anthropic:claude-sonnet-5",
-    )
-    run_parser.add_argument(
-        "--judges", default="anthropic:claude-sonnet-5,openai:gpt-5.1"
-    )
+    run_parser.add_argument("--models", default=DEFAULT_MODELS)
+    run_parser.add_argument("--judges", default=DEFAULT_JUDGES)
     run_parser.add_argument("--run-dir", default="/tmp/answer-eval")
     run_parser.set_defaults(func=run)
+
+    cal_parser = sub.add_parser(
+        "calibrate",
+        help="hand-score a sample and measure each judge against it (#878)",
+    )
+    cal_parser.add_argument(
+        "--emit",
+        action="store_true",
+        help="write blind worksheets to hand-score, instead of scoring the judges",
+    )
+    cal_parser.add_argument("--models", default=DEFAULT_MODELS)
+    cal_parser.add_argument("--judges", default=DEFAULT_JUDGES)
+    cal_parser.add_argument("--run-dir", default="/tmp/answer-eval")
+    cal_parser.set_defaults(func=calibrate)
 
     args = parser.parse_args()
     args.func(args)

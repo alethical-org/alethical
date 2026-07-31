@@ -182,8 +182,29 @@ def mentions_missing_coverage(answer: str) -> bool:
     return bool(_REFUSAL_RE.search(answer))
 
 
+# Markdown the answer page cannot render. `AskAnswerScreen.tsx` strips `**bold**`
+# and `__bold__` and prints the rest as plain text — there is no markdown renderer
+# — so a heading, a table row or a block quote reaches the reader as its literal
+# characters. Inline emphasis and ordinary "1." / "- " lines are deliberately not
+# counted: the emphasis is stripped, and a numbered or bulleted line reads fine as
+# plain text.
+_UNRENDERED_MARKDOWN_RE = re.compile(r"^(?:#{1,6}\s|>\s|\|.*\|\s*$)", re.MULTILINE)
+
+
 def opens_with_bill_code(answer: str) -> bool:
     return bool(_BILL_CODE_PREAMBLE_RE.match(answer.strip()))
+
+
+def unrendered_markdown(answer: str) -> list[str]:
+    """Markdown constructs that reach the reader as literal characters.
+
+    Not a rule-9 judgment call but a rendering fact, and the reason it is worth a
+    column of its own: a model can score well on every judged dimension and still
+    put "### Eligibility" on the page, which a resident reads as a typo rather
+    than a heading. Only one candidate does this, so it would be invisible in an
+    average and decisive in a choice.
+    """
+    return [m.group(0).strip() for m in _UNRENDERED_MARKDOWN_RE.finditer(answer)]
 
 
 def statute_citations(answer: str) -> list[str]:
@@ -236,6 +257,16 @@ class AnswerResult:
     # hand-labeled, so it cannot go stale when the passage budget changes.
     passages_shown: int = 0
     passages_total: int = 0
+    # True when production's own output guards had to edit this answer before
+    # serving it — ``narrow_bill_absence_claims`` re-scoped an absence claim, or
+    # ``strip_list_completeness_claims`` dropped a sentence vouching for the list.
+    #
+    # ``answer`` above is the served text, because that is what a reader gets and
+    # what the model decision is about. This flag is how the other question stays
+    # answerable: a guard edit is a case where the #868 prompt rule did *not* work
+    # and the backstop caught it, so a model with many edits is one the prompt is
+    # not reaching, even though its score looks clean.
+    guard_rewrote: bool = False
 
     @property
     def context_is_partial(self) -> bool:
@@ -414,6 +445,11 @@ def aggregate(results: list[AnswerResult], *, judge: str | None = None) -> dict:
             for r in results
             if r.context_is_partial and not r.honest_about_partial_reading(judge)
         ),
+        # Answers production's output guards had to edit before serving. Counted
+        # separately from the gate because these are the cases the guard caught:
+        # the served answer is clean, so no gate fires, but the model still wrote
+        # the overclaim. Prompt failures = this, plus whatever the gate still finds.
+        "guard_rewrote": sum(1 for r in results if r.guard_rewrote),
         "mean_score": round(sum(scores) / n, 3),
         "ship_worthy": ship_worthy,
         "ship_worthy_rate": round(ship_worthy / n, 3),

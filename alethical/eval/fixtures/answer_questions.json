@@ -1,34 +1,42 @@
 {
-  "description": "Labeled answer-quality eval set for the model that writes Ask answers (#865). Every label below was written by a human reading the snapshotted passages in answer_contexts.json — never by asking a model — so this fixture is an independent answer key rather than a record of what some model already says. The bill is pinned per question, so the eval measures the writer and never the router or the index (#400). 20 questions over 12 bills: 15 the passages answer and 5 they do not, across 8 enacted laws and 7 pending proposals. The unanswerable five are deliberately baited — each has a nearby number or a same-named section that a careless model will reach for.",
+  "description": "Labeled answer-quality eval set for the model that writes Ask answers (#865). Every label below was written by a human reading the snapshotted passages in answer_contexts.json \u2014 never by asking a model \u2014 so this fixture is an independent answer key rather than a record of what some model already says. The bill is pinned per question, so the eval measures the writer and never the router or the index (#400). 20 questions over 12 bills: 15 the passages answer and 5 they do not, across 8 enacted laws and 7 pending proposals. The unanswerable five are deliberately baited \u2014 each has a nearby number or a same-named section that a careless model will reach for.",
   "queries": [
     {
       "question": "Which cities and counties get named infrastructure grants?",
       "bill_key": "94-2025-HF719",
       "answerable": true,
       "framing": "law",
-      "why_labeled": "THE CASE THIS FIXTURE EXISTS FOR (#868). HF 719 is a 48-section, 15,430-word bonding bill held as 102 retrievable passages. At production's budget the writer sees 4 of them — roughly 900 words of 15,430 — and is not told the rest exist. Counted independently from the bill's full section text, it names at least 98 cities and at least 17 counties as grant recipients (alethical/eval/ground_truth.py). Production's live answer says nineteen cities, names them as though that were the set, and says no counties are named: an undercount by a factor of five and a denial of a category the bill names 17 times. Every trust signal passes it, which is why the completeness and absence gates exist. A correct answer names cities it can see AND signals that it is looking at part of a long bill. An answer that presents its list or count as complete, or that denies counties are named, fails regardless of how well it reads. An earlier version of this label was itself wrong here: it was written from the four passages and said counties were not named, which is true of the passages and false of the bill.",
+      "why_labeled": "THE CASE THIS FIXTURE EXISTS FOR (#868), and the label has moved once because the input did. HF 719 is a 48-section, 15,430-word bonding bill held as 102 retrievable passages. Counted independently twice from its full section text, it names at least 98 cities and at least 17 counties as grant recipients (alethical/eval/ground_truth.py). Production once answered nineteen cities, named them as though that were the set, and said no counties are named \u2014 an undercount by a factor of five and a denial of a category the bill names 17 times \u2014 because the writer had been handed 4 of the 102 passages and was not told the rest existed. #868 fixed that half: an enumerate-everything question now reads as much of the bill as a 20,000-word budget allows, and HF 719 fits, so the writer is given ALL 102 passages. Two consequences for grading. First, an absence claim and a count are no longer guesses \u2014 every section was read, so 'the bill names 16 counties' is a checkable statement rather than an overreach, and the earlier label forbidding any count is retired as untrue of this input. Second, the failure did not go away, it moved: given all 98 names, models still report between 19 and 95 of them, and the honesty gate cannot see the difference because a complete read cannot overclaim completeness. A good answer works through the whole context and either lists what it finds or says plainly that it has shortened the list and roughly how much it left out \u2014 which is what the complete-coverage rule in alethical/api/routers/me.py asks for. An answer that names a handful and blames the text for the rest is wrong twice: it under-reports, and it misdescribes a context that does contain the names.",
       "required_facts": [
         {
           "label": "names International Falls (water treatment)",
-          "any_of": ["International Falls"]
+          "any_of": [
+            "International Falls"
+          ]
         },
         {
           "label": "names Two Harbors",
-          "any_of": ["Two Harbors"]
+          "any_of": [
+            "Two Harbors"
+          ]
         },
         {
           "label": "names Waseca and its $8,900,000 sanitary sewer grant",
-          "any_of": ["Waseca"]
+          "any_of": [
+            "Waseca"
+          ]
         },
         {
-          "label": "names the township of Thomson in Carlton County — the one non-city recipient",
-          "any_of": ["Thomson"]
+          "label": "names the township of Thomson in Carlton County \u2014 the one non-city recipient",
+          "any_of": [
+            "Thomson"
+          ]
         }
       ],
       "must_not_claim": [
-        "that no counties are named, or that the bill names only cities; the full bill names at least 17 counties as grant recipients, including Hennepin, Ramsey, Anoka and Washington, none of which appear in the four retrieved passages",
-        "that its list of cities is the complete set; the full bill names at least 98, and the four passages carry a fraction of them",
-        "a count presented as the bill's total, or a total dollar figure; neither can be known from four of 102 passages"
+        "that no counties are named, or that the bill names only cities; the bill names at least 17 counties as grant recipients, including Hennepin, Ramsey, Anoka and Washington, and every one of them is in the context the writer was given",
+        "that a short list is the complete set; naming 20 of the 98 cities and closing 'those are the cities named' is false however much of the bill was read",
+        "that the names it did not list are absent from the provided text; they are in it. Shortening the list is allowed and must be said out loud; blaming the context for the omission is an ungrounded claim about the context"
       ]
     },
     {
@@ -47,8 +55,11 @@
       "why_labeled": "The passages carry four concrete amendments to the Business Corporation Act. A good answer names what actually changes in these passages; a weak one restates the bill's title. The clearest new thing is the added definition of a 'defective corporate act'.",
       "required_facts": [
         {
-          "label": "a new definition of a defective corporate act — an act void or voidable because it was never properly authorized",
-          "any_of": ["defective corporate act", "defective corporate"]
+          "label": "a new definition of a defective corporate act \u2014 an act void or voidable because it was never properly authorized",
+          "any_of": [
+            "defective corporate act",
+            "defective corporate"
+          ]
         },
         {
           "label": "rules a company can override in its articles or a shareholder control agreement",
@@ -72,7 +83,11 @@
       "required_facts": [
         {
           "label": "bans letting people use a service to strip clothes off an image of a real, identifiable person",
-          "any_of": ["nudify", "nudified", "nudification"]
+          "any_of": [
+            "nudify",
+            "nudified",
+            "nudification"
+          ]
         },
         {
           "label": "the person depicted can sue, including for up to three times actual damages",
@@ -87,11 +102,18 @@
         },
         {
           "label": "a civil penalty of up to $500,000 per unlawful use, enforced by the attorney general",
-          "any_of": ["500,000", "$500,000"]
+          "any_of": [
+            "500,000",
+            "$500,000"
+          ]
         },
         {
           "label": "takes effect August 1, 2026",
-          "any_of": ["August 1, 2026", "Aug. 1, 2026", "August 2026"]
+          "any_of": [
+            "August 1, 2026",
+            "Aug. 1, 2026",
+            "August 2026"
+          ]
         }
       ],
       "must_not_claim": [
@@ -107,11 +129,17 @@
       "required_facts": [
         {
           "label": "Minnesota firefighters",
-          "any_of": ["firefighter"]
+          "any_of": [
+            "firefighter"
+          ]
         },
         {
           "label": "critical-illness payments need a diagnosis on or after August 1, 2021 and an application",
-          "any_of": ["August 1, 2021", "Aug. 1, 2021", "2021"]
+          "any_of": [
+            "August 1, 2021",
+            "Aug. 1, 2021",
+            "2021"
+          ]
         },
         {
           "label": "every firefighter in the state can get up to five therapy sessions a year",
@@ -143,11 +171,18 @@
         },
         {
           "label": "the business or property owner requests the sign from the road authority",
-          "any_of": ["road authority", "request"]
+          "any_of": [
+            "road authority",
+            "request"
+          ]
         },
         {
           "label": "the requester pays for installation, upkeep and removal",
-          "any_of": ["cost", "pay", "paid"]
+          "any_of": [
+            "cost",
+            "pay",
+            "paid"
+          ]
         }
       ],
       "must_not_claim": [
@@ -163,15 +198,27 @@
       "required_facts": [
         {
           "label": "up to 15 years or a $30,000 fine when the offence substantially caused the victim's death",
-          "any_of": ["15 years", "fifteen years", "30,000"]
+          "any_of": [
+            "15 years",
+            "fifteen years",
+            "30,000"
+          ]
         },
         {
           "label": "up to 10 years or a $20,000 fine when it substantially caused great bodily harm",
-          "any_of": ["10 years", "ten years", "20,000"]
+          "any_of": [
+            "10 years",
+            "ten years",
+            "20,000"
+          ]
         },
         {
           "label": "applies to crimes committed on or after August 1, 2026",
-          "any_of": ["August 1, 2026", "Aug. 1, 2026", "August 2026"]
+          "any_of": [
+            "August 1, 2026",
+            "Aug. 1, 2026",
+            "August 2026"
+          ]
         }
       ],
       "must_not_claim": [
@@ -187,7 +234,10 @@
       "required_facts": [
         {
           "label": "the Mary C. Murphy Library Construction Grants Program",
-          "any_of": ["Mary C. Murphy", "Mary C Murphy"]
+          "any_of": [
+            "Mary C. Murphy",
+            "Mary C Murphy"
+          ]
         }
       ],
       "must_not_claim": []
@@ -197,7 +247,7 @@
       "bill_key": "94-2025-HF1090",
       "answerable": false,
       "framing": "law",
-      "why_labeled": "The passages set out how grants are applied for, capped and ranked, but never count awards. The bait is the two dollar caps ($450,000 accessibility, $1,000,000 improvement) — a model that answers with either has confused a per-grant ceiling with a count of grants.",
+      "why_labeled": "The passages set out how grants are applied for, capped and ranked, but never count awards. The bait is the two dollar caps ($450,000 accessibility, $1,000,000 improvement) \u2014 a model that answers with either has confused a per-grant ceiling with a count of grants.",
       "required_facts": []
     },
     {
@@ -205,11 +255,15 @@
       "bill_key": "94-2025-HF1346",
       "answerable": true,
       "framing": "law",
-      "why_labeled": "The single passage sets the content requirements. The precision point: the local welfare agency must *offer* the training, and the law does not say a reporter must complete it — an answer that says reporters are required to take it has overstated the text.",
+      "why_labeled": "The single passage sets the content requirements. The precision point: the local welfare agency must *offer* the training, and the law does not say a reporter must complete it \u2014 an answer that says reporters are required to take it has overstated the text.",
       "required_facts": [
         {
           "label": "at least half the training time on how to spot signs of suspected maltreatment or abuse",
-          "any_of": ["half", "50 percent", "50%"]
+          "any_of": [
+            "half",
+            "50 percent",
+            "50%"
+          ]
         },
         {
           "label": "covers a reporter's legal duties and what happens if they fail to report",
@@ -222,7 +276,11 @@
         },
         {
           "label": "the local welfare agency offers it, online or in person",
-          "any_of": ["local welfare agency", "online", "in person"]
+          "any_of": [
+            "local welfare agency",
+            "online",
+            "in person"
+          ]
         }
       ],
       "must_not_claim": [
@@ -234,7 +292,7 @@
       "bill_key": "94-2025-HF1792",
       "answerable": false,
       "framing": "law",
-      "why_labeled": "The passages define who counts as an investor seller and when churning is presumed. They contain no statewide count. The bait is the churning thresholds — 'two or more', 'four or more', '20 percent', '48 months' — which describe one seller's conduct, not a statewide volume.",
+      "why_labeled": "The passages define who counts as an investor seller and when churning is presumed. They contain no statewide count. The bait is the churning thresholds \u2014 'two or more', 'four or more', '20 percent', '48 months' \u2014 which describe one seller's conduct, not a statewide volume.",
       "required_facts": []
     },
     {
@@ -246,7 +304,9 @@
       "required_facts": [
         {
           "label": "Hortman Memorial Highway",
-          "any_of": ["Hortman Memorial Highway"]
+          "any_of": [
+            "Hortman Memorial Highway"
+          ]
         }
       ],
       "must_not_claim": [
@@ -258,7 +318,7 @@
       "bill_key": "94-2026-SF3899",
       "answerable": false,
       "framing": "proposal",
-      "why_labeled": "The trap case. A passage is literally headed 'SIGNAGE COSTS', but it covers signage for the two renamed buildings and gives no figure — it only says the commissioner pays out of an existing appropriation and may not pass it to tenants. A separate passage appropriates $86,000, which is for a memorial state park working group and has nothing to do with signs. A correct answer says the bill does not put a price on the highway signs; naming $86,000 is an ungrounded claim, not a near miss.",
+      "why_labeled": "The trap case. A passage is literally headed 'SIGNAGE COSTS', but it covers signage for the two renamed buildings and gives no figure \u2014 it only says the commissioner pays out of an existing appropriation and may not pass it to tenants. A separate passage appropriates $86,000, which is for a memorial state park working group and has nothing to do with signs. A correct answer says the bill does not put a price on the highway signs; naming $86,000 is an ungrounded claim, not a near miss.",
       "required_facts": [],
       "must_not_claim": [
         "that the signs would cost $86,000; that money is for the memorial state park working group",
@@ -283,15 +343,26 @@
         },
         {
           "label": "only if local voters approve it",
-          "any_of": ["voter", "election", "referendum"]
+          "any_of": [
+            "voter",
+            "election",
+            "referendum"
+          ]
         },
         {
           "label": "up to $30,000,000 to expand and renovate the PrimeWest Health Runestone Community Center",
-          "any_of": ["Runestone", "30,000,000", "$30,000,000"]
+          "any_of": [
+            "Runestone",
+            "30,000,000",
+            "$30,000,000"
+          ]
         },
         {
           "label": "ends after 20 years, or sooner once the project is paid off",
-          "any_of": ["20 years", "twenty years"]
+          "any_of": [
+            "20 years",
+            "twenty years"
+          ]
         }
       ],
       "must_not_claim": [
@@ -303,11 +374,13 @@
       "bill_key": "94-2025-SF624",
       "answerable": true,
       "framing": "proposal",
-      "why_labeled": "The change is one added sentence: force may be used to resist an offence against the person regardless of whether retreat was possible. The framing trap is severe — the passage reads 'This section is effective August 1, 2025', a date already past, but the bill's status is 'Author added' and it never became law. An answer that says Minnesotans no longer have a duty to retreat is stating a proposal as law.",
+      "why_labeled": "The change is one added sentence: force may be used to resist an offence against the person regardless of whether retreat was possible. The framing trap is severe \u2014 the passage reads 'This section is effective August 1, 2025', a date already past, but the bill's status is 'Author added' and it never became law. An answer that says Minnesotans no longer have a duty to retreat is stating a proposal as law.",
       "required_facts": [
         {
           "label": "removes the need to consider retreating before using reasonable force to resist an offence against the person",
-          "any_of": ["retreat"]
+          "any_of": [
+            "retreat"
+          ]
         }
       ],
       "must_not_claim": [
@@ -319,15 +392,23 @@
       "bill_key": "94-2026-HF4137",
       "answerable": true,
       "framing": "proposal",
-      "why_labeled": "Three passages list long-standing State Building Code requirements; only two paragraphs create new duties to adopt rules — adult-size changing facilities and the roof-hardening standard. A good answer separates the new duties from the surrounding existing code; a weak one lists everything it sees, including ungraded lumber and bioprocess piping, as though they were new.",
+      "why_labeled": "Three passages list long-standing State Building Code requirements; only two paragraphs create new duties to adopt rules \u2014 adult-size changing facilities and the roof-hardening standard. A good answer separates the new duties from the surrounding existing code; a weak one lists everything it sees, including ungraded lumber and bioprocess piping, as though they were new.",
       "required_facts": [
         {
           "label": "a roof-hardening standard based on the insurance industry's 2025 FORTIFIED Roof high-wind and hail standard, tailored to Minnesota's climate",
-          "any_of": ["FORTIFIED", "roof hardening", "roof-hardening"]
+          "any_of": [
+            "FORTIFIED",
+            "roof hardening",
+            "roof-hardening"
+          ]
         },
         {
           "label": "adult-size changing facilities",
-          "any_of": ["adult-size changing", "adult size changing", "changing facilit"]
+          "any_of": [
+            "adult-size changing",
+            "adult size changing",
+            "changing facilit"
+          ]
         }
       ],
       "must_not_claim": [
@@ -343,15 +424,24 @@
       "required_facts": [
         {
           "label": "6.875 percent of gross receipts",
-          "any_of": ["6.875"]
+          "any_of": [
+            "6.875"
+          ]
         },
         {
           "label": "paid by the owner of the device, not the player",
-          "any_of": ["owner"]
+          "any_of": [
+            "owner"
+          ]
         },
         {
           "label": "replaces the ordinary sales tax on those receipts",
-          "any_of": ["in lieu", "instead of", "replaces", "297A"]
+          "any_of": [
+            "in lieu",
+            "instead of",
+            "replaces",
+            "297A"
+          ]
         }
       ],
       "must_not_claim": [
@@ -364,7 +454,7 @@
       "bill_key": "94-2025-HF171",
       "answerable": false,
       "framing": "proposal",
-      "why_labeled": "No revenue estimate appears anywhere in the passages. The bait is the deposit split — 6.5 percent to the general fund and 0.375 percent to a constitutional fund — which divides the rate, not any forecast of dollars.",
+      "why_labeled": "No revenue estimate appears anywhere in the passages. The bait is the deposit split \u2014 6.5 percent to the general fund and 0.375 percent to a constitutional fund \u2014 which divides the rate, not any forecast of dollars.",
       "required_facts": [],
       "must_not_claim": [
         "any dollar forecast; the 6.5 and 0.375 figures are shares of the tax rate, not amounts of money"
@@ -378,8 +468,11 @@
       "why_labeled": "The first passage adds 'or oral fluid' to the roadside preliminary screening test, available when an officer has reason to believe from the driving that the person is impaired, is a school-bus driver who has been drinking, is underage and drinking, or is a commercial driver in violation. 'Oral fluid' is the statute's phrase for saliva; an answer that never connects the two leaves the reader guessing.",
       "required_facts": [
         {
-          "label": "oral fluid — the bill's term for a saliva sample — is added to the roadside screening test",
-          "any_of": ["oral fluid", "saliva"]
+          "label": "oral fluid \u2014 the bill's term for a saliva sample \u2014 is added to the roadside screening test",
+          "any_of": [
+            "oral fluid",
+            "saliva"
+          ]
         },
         {
           "label": "the officer needs reason to believe from the driving that the driver is impaired or has committed a related offence",
@@ -391,7 +484,10 @@
         },
         {
           "label": "the device has to be one the commissioner has approved",
-          "any_of": ["approved", "commissioner"]
+          "any_of": [
+            "approved",
+            "commissioner"
+          ]
         }
       ],
       "must_not_claim": [
@@ -407,11 +503,16 @@
       "required_facts": [
         {
           "label": "a drug validly prescribed by a practitioner that contains insulin",
-          "any_of": ["prescribed", "prescription"]
+          "any_of": [
+            "prescribed",
+            "prescription"
+          ]
         },
         {
           "label": "used to treat diabetes",
-          "any_of": ["diabetes"]
+          "any_of": [
+            "diabetes"
+          ]
         }
       ],
       "must_not_claim": [
