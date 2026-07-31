@@ -14,6 +14,7 @@ import requests
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import Session
 
+from alethical.pipeline.http_text import response_text
 from alethical.db.schema import load_schema
 from alethical.pipeline.roster_pdf import (
     ReconcileReport,
@@ -279,7 +280,7 @@ def fetch_text(sess: requests.Session, url: str) -> str:
                 time.sleep(0.5 * attempt)
                 continue
             response.raise_for_status()
-            return response.text
+            return response_text(response)
         except requests.RequestException as exc:
             last_error = exc
             if attempt == MAX_RETRIES:
