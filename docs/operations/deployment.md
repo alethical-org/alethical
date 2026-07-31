@@ -7,17 +7,27 @@ Alethical deploys as two services:
 
 ## Workflows at a glance
 
-Five GitHub Actions workflows in `.github/workflows/`. Which ones a PR can prove
-matters: two of them never run on a PR, so a change to them is only verified
+Six GitHub Actions workflows in `.github/workflows/`. Which ones a PR can prove
+matters: four of them never run on a PR, so a change to them is only verified
 after merge.
 
-| Workflow             | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
-| -------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- |
-| `ci.yml`             | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                       | Yes                              |
-| `migrate.yml`        | push to `main` touching migrations, models, `alembic.ini`, deps, or itself | Applies Alembic migrations to the production database; opens an alert issue on failure | No                               |
-| `railway-deploy.yml` | push to `main` touching backend paths or itself                            | Deploys the API to Railway production                                                  | No                               |
-| `vercel-deploy.yml`  | push to `main` touching frontend paths or itself                           | Deploys the web frontend to Vercel production                                          | No                               |
-| `vote-backfill.yml`  | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
+| Workflow                | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
+| ----------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- |
+| `ci.yml`                | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                       | Yes                              |
+| `migrate.yml`           | push to `main` touching migrations, models, `alembic.ini`, deps, or itself | Applies Alembic migrations to the production database; opens an alert issue on failure | No                               |
+| `railway-deploy.yml`    | push to `main` touching backend paths or itself                            | Deploys the API to Railway production                                                  | No                               |
+| `vercel-deploy.yml`     | push to `main` touching frontend paths or itself                           | Deploys the web frontend to Vercel production                                          | No                               |
+| `vote-backfill.yml`     | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
+| `bill-section-gaps.yml` | daily at 11:00 UTC, or by hand                                             | Read-only check that no bill is missing sections its page published; opens an alert issue | No — dispatch it by hand to test |
+
+`bill-section-gaps.yml` is a schedule rather than a PR check for a structural
+reason: the damage it looks for is created by an **ingest**, and ingests are
+triggered by hand from a laptop, so no PR can be running when one happens. A bill
+ingested by a run that started before a pipeline fix merged banks the old bug
+silently — which is what happened to the 2025 special session on Jul 30 2026,
+ingested hours before [#763](https://github.com/alethical-org/alethical/issues/763)'s
+fix landed. It costs one query, and it files an issue only when a gap exists,
+commenting on the open one rather than filing a second.
 
 Each of the three deploy/migrate workflows lists its own file in its `push`
 paths, so changing one of them triggers it on merge. That is the intended

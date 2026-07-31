@@ -1,0 +1,101 @@
+name: Check bill sections are complete
+
+# Catches a bill whose stored text is missing sections the Legislature published
+# (#763). The bug this guards against comes from an INGEST, and ingests are
+# triggered by hand from a laptop — so nothing in CI can see one happen. A bill
+# ingested by a run that started before a pipeline fix merged banks the old bug's
+# damage silently, which is exactly what happened to the 2025 special session on
+# Jul 30 2026: it was ingested hours before #763's fix landed and lost 7 sections.
+# A schedule is therefore the only place this check can live.
+#
+# An incomplete Bill Text tab is invisible from inside the product: the sections
+# that survive look perfectly normal and the section index rail shows no hole. So
+# this is the only thing that would notice.
+#
+# Free: one SQL query, fetches nothing, no paid API. Quiet: it opens an issue only
+# when a gap actually exists, and comments on the existing open one rather than
+# filing a second — so a gap that sits unfixed for a week is one issue, not seven.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 11:00 UTC daily (~5-6am America/Chicago). An hour clear of the vote
+    # backfill at 09:00 so the two never contend for the database.
+    - cron: "0 11 * * *"
+
+concurrency:
+  group: production-bill-section-gap-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    # Build the production URL from the same Supabase inputs the app, migrations
+    # and vote backfill use (supabase_database_url), so there is no separate
+    # DATABASE_URL copy of the password to rotate out of date (#288).
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      # Pinned to an exact release: setup-uv stopped publishing floating major
+      # tags after v7, so this one is bumped by hand. prune-cache keeps the
+      # smaller dependency cache that was the default through v8.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check database secrets are set
+        run: test -n "$SUPABASE_PROJECT_URL" && test -n "$SUPABASE_DB_PASSWORD"
+
+      # Read-only. Exits 1 when any CURRENT version stores fewer sections than
+      # its page published; superseded versions are reported and never fail it,
+      # because nothing in the product reads one.
+      #
+      # Two things here are load-bearing, both verified rather than assumed:
+      #   * PYTHONPATH=. — the script lives in scripts/, so plain `uv run python
+      #     scripts/...` puts scripts/ on sys.path and not the repo root, and the
+      #     script dies on `import alethical`. That failure would fire the alert
+      #     step below and file an issue claiming bills are missing sections when
+      #     nothing had been queried at all.
+      #   * shell: bash — GitHub's default is `bash -e`, WITHOUT pipefail, so the
+      #     `| tee` would hand back tee's exit code (always 0) and swallow the
+      #     script's 1. `shell: bash` runs `bash -eo pipefail`, so a gap fails the
+      #     step and the alert fires.
+      - name: Look for bills missing sections
+        shell: bash
+        run: PYTHONPATH=. uv run python scripts/check_bill_section_gaps.py | tee gap-report.txt
+
+      # Mirrors migrate.yml's alerting: use the built-in token, and comment on the
+      # open issue instead of filing a duplicate. No external service or secret.
+      - name: Open an alert issue if any bill is missing sections
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Bills are missing sections their page published"
+          report=$(cat gap-report.txt 2>/dev/null || echo "(the check produced no output — it may have failed before querying)")
+          body=$(printf '**Net:** At least one bill on the site is missing sections that the Legislature actually published, so its Bill Text tab shows an incomplete bill while looking complete. Nobody can see this from inside the product, which is why this check exists.\n\n```\n%s\n```\n\n**Fix:** from a fresh worktree off `origin/main`, dry-run first, then apply one bill and read it back:\n\n```\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/repair_missing_bill_sections.py\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/repair_missing_bill_sections.py --apply --bill-key <key>\n```\n\nThe repair only ever INSERTS rows, so it cannot disturb stored text or re-run either paid cache. If it reports a bill as needing a re-ingest instead, that bill'"'"'s page has changed since ingest — re-ingest that bill rather than forcing the repair.\n\nBackground: [#763](https://github.com/alethical-org/alethical/issues/763). Run: %s. Auto-filed by `.github/workflows/bill-section-gaps.yml`.' "$report" "$RUN_URL")
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still incomplete as of this run — $RUN_URL"$'\n\n```\n'"$report"$'\n```'
+          else
+            gh issue create --title "🚨 $title" --label backend --body "$body"
+          fi

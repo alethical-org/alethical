@@ -65,8 +65,8 @@ A missing one surfaces as a failed deploy with no obvious cause.
 
 | Secret                                              | Used by                            | For                                                                                                   |
 | --------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `SUPABASE_PROJECT_URL`                              | `migrate.yml`, `vote-backfill.yml` | Builds the production database URL, so no separate copy of the password exists to rotate out of date. |
-| `SUPABASE_DB_PASSWORD`                              | `migrate.yml`, `vote-backfill.yml` | Same pair.                                                                                            |
+| `SUPABASE_PROJECT_URL`                              | `migrate.yml`, `vote-backfill.yml`, `bill-section-gaps.yml` | Builds the production database URL, so no separate copy of the password exists to rotate out of date. |
+| `SUPABASE_DB_PASSWORD`                              | `migrate.yml`, `vote-backfill.yml`, `bill-section-gaps.yml` | Same pair.                                                                                            |
 | `RAILWAY_TOKEN`                                     | `railway-deploy.yml`               | Deploys the API.                                                                                      |
 | `VERCEL_TOKEN`                                      | `vercel-deploy.yml`                | Deploys the web frontend.                                                                             |
 | `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`                | `vercel-deploy.yml`                | Targets the right Vercel project.                                                                     |
