@@ -783,6 +783,33 @@ answer.** The denominator is read off the snapshot by
 `hf719_grant_recipients` (`alethical/eval/ground_truth.py`) and asserted against
 the two independent hand counts already recorded there, so it cannot quietly drift.
 
+**Every figure in that table is one run, and the incumbent's is unstable enough
+that its single number understates its own best case.** The #868 session ran the
+same question three more times against `gpt-4o-mini` with the identical complete
+context and got **26, 34 and 35** cities. With this run's 19 that is four points
+spanning **19 to 35** — a nearly twofold swing on byte-identical input.
+
+Three things follow, and the middle one is the important one:
+
+- **The incumbent's true recall is roughly 19–36%, not a clean 18%.** Read the row
+  as the bottom of a range rather than a measurement.
+- **A twofold swing on identical input is what an instruction being *ignored*
+  looks like**, not one that needs rewording. That is why neither session is
+  touching `_COMPLETE_COVERAGE_RULE`: a prompt edit is unlikely to buy what a
+  capability gap is costing, and against a 97% arm on the same context the gap
+  dwarfs it. (It is also why the wording stays frozen for now — these published
+  numbers were measured against it, and changing it would hand the next reader
+  figures they cannot account for.)
+- **Unpredictability is itself a product problem.** An answer that names 19 cities
+  on Tuesday and 35 on Wednesday, from the same bill and the same question, is
+  worse for a reader than one that is consistently mediocre, because nothing about
+  the page tells them which day they got.
+
+The direction of the comparison is unaffected — 19–35 against 92–95 is still the
+widest margin in this document — but no single-run figure here should be quoted as
+though it were repeatable. Sampling each arm more than once is part of
+[#895](https://github.com/alethical-org/alethical/issues/895).
+
 ### The omnibus worst case, which is where the money and the waiting are
 
 94.6% of bills fit in a few hundred words. The ~100 that do not are where an
