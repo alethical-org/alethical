@@ -791,6 +791,73 @@ def test_the_derivation_reproduces_the_hand_counts_exactly_not_just_the_bounds()
     assert not any(name.endswith(("of", "the")) for name in counties)
 
 
+def test_every_enumeration_case_reproduces_its_hand_verified_count_exactly():
+    """#895: recall is measured on three bills now, so all three need a real denominator.
+
+    Each count was derived from the bill's whole text and then read match by match in
+    context, because every one of the three turned up something a pattern alone gets
+    wrong — a truncated multi-word name, a name followed by revision markup, and a bill
+    that names 15 school districts while funding 11. Asserting **exactly**, never as a
+    bound: a bound is deaf in the direction it bounds, which is how a county pattern
+    finding 16 sat under a `>= 15` assertion while the docstring said 17 ([#900](https://github.com/alethical-org/alethical/pull/900)).
+    """
+    from alethical.eval import ground_truth as gt
+
+    contexts = json.loads(CONTEXTS.read_text())["contexts"]
+    assert gt.ENUMERATION_CASES, "the registry must not be empty"
+
+    for case in gt.ENUMERATION_CASES:
+        context = next(c for c in contexts.values() if c["bill_key"] == case.bill_key)
+        # A recall denominator only means anything against the whole bill. If the
+        # snapshot ever reads one of these partially, the count below is measuring a
+        # sample and this must fail rather than quietly shrink.
+        assert len(context["chunks"]) == context["passages_total"], (
+            f"{case.bill_key} is no longer read in full"
+        )
+        bill_text = "\n".join(c["chunk_text"] for c in context["chunks"])
+
+        found = case.found_in(bill_text)
+        assert len(found) == case.expected, (
+            f"{case.bill_key} {case.shape}: derived {len(found)}, "
+            f"hand-verified {case.expected}"
+        )
+        for exemplar in case.exemplars:
+            assert exemplar in found, (
+                f"{case.bill_key} {case.shape}: {exemplar!r} is named in the bill "
+                "but the pattern missed it"
+            )
+        # No name may run on into the sentence after it.
+        assert not any(name.endswith((" of", " the")) for name in found)
+
+
+def test_the_new_bills_cover_shapes_and_scales_hf719_cannot():
+    """Three bills is the corpus maximum, so each one has to earn its place.
+
+    A second copy of HF 719's city pattern would add a row and no information. What
+    these add is a **non-place** enumerable shape (school district numbers), a second
+    scale (14 items against 98), and both framings, so the framing dimension is
+    exercised on a long bill rather than only on short ones.
+    """
+    from alethical.eval import ground_truth as gt
+
+    by_bill = {c.bill_key for c in gt.ENUMERATION_CASES}
+    assert len(by_bill) == 3, "recall is measured on three bills"
+    assert {c.shape for c in gt.ENUMERATION_CASES} == {
+        "cities",
+        "counties",
+        "school districts",
+    }
+    # Scales are genuinely different, so "does it shorten a short list too" is askable.
+    assert sorted(c.expected for c in gt.ENUMERATION_CASES) == [11, 14, 17, 98]
+
+    queries = {q.bill_key: q for q in load_fixture(FIXTURE)}
+    assert queries["94-2025-HF2484"].framing == "law"
+    assert queries["94-2026-SF3551"].framing == "proposal"
+    # Every enumeration bill has a fixture question, or nothing scores its recall.
+    for bill_key in by_bill:
+        assert bill_key in queries, f"{bill_key} has no fixture question"
+
+
 def test_a_short_recipient_name_is_not_credited_to_a_longer_one_containing_it():
     """Three of HF 719's names sit inside another: St. Paul in South St. Paul,
     Benton in Lake Benton, Minnetonka in Minnetonka Beach.

@@ -60,6 +60,7 @@ connectors no capitals-only pattern can match.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 # Lower bounds, set clear of every definitional edge case above.
 HF719_MIN_GRANT_CITIES = 90
@@ -128,6 +129,111 @@ def hf719_grant_recipients(bill_text: str) -> tuple[set[str], set[str]]:
         {m.group(1).strip() for m in _GRANT_CITY_RE.finditer(bill_text)},
         {m.group(1).strip() for m in _GRANT_COUNTY_RE.finditer(bill_text)},
     )
+
+
+# --- the same counting method, for every bill a recall figure is measured on ---
+#
+# Generalised from HF 719 for [#895](https://github.com/alethical-org/alethical/issues/895),
+# which needs recall measured on more than one bill. **A corpus-wide search settled how
+# many bills can carry one, and the answer is three.** Every bill with 25+ retrievable
+# passages was scanned for named recipients using these tight phrasings; exactly four
+# (bill, shape) pairs clear eight distinct recipients, and they are the three bills
+# below. HF 719 has no peer — the next largest set is 14.
+#
+# That is a fact about Minnesota appropriations bills, not a gap in the fixture, and
+# it is why the recall condition in the bar doc is measured on three bills rather than
+# thirty.
+#
+# **Each count below was derived and then read match by match in context**, which is
+# not ceremony — every one of the three turned up something a pattern alone gets wrong:
+#
+# * A survey pattern counted `Office of the` (from "Office of the County Recorder") and
+#   `Wildwood` (a park in Stearns County) as counties in a bill considered and rejected.
+# * The same pattern truncated `Apple Valley` to `Apple` and `Mendota Heights` to
+#   `Mendota`, because a non-greedy name match stops at the first capitalised word.
+# * `Forest Lake` is followed in the bill text by `[deleted: …]` revision markup, so an
+#   end-anchor allowing only ordinary prose silently dropped it and returned 13 of 14.
+# * SF 3551 names **15** school districts but funds **11**. The other four appear for a
+#   fund transfer or a separate demonstration grant, so "which districts are named" and
+#   "which districts get this money" are different questions with different answers.
+#   The fixture asks the second, and the pattern requires the dollar figure.
+#
+# The lesson those four share: a derived denominator stops a *stale* list, and does
+# nothing about a *wrong* one. Derive, then verify, then assert exactly — a lower bound
+# cannot catch an off-by-one in a denominator (#900).
+
+
+@dataclass(frozen=True)
+class EnumerationCase:
+    """One bill, one shape of thing it names, and how many of them there are.
+
+    ``expected`` is asserted **exactly** rather than as a bound, and ``exemplars`` are
+    recipients no reasonable reading excludes, so a test fails on a regression rather
+    than on a definitional argument.
+    """
+
+    bill_key: str
+    shape: str
+    question_asks: str
+    pattern: re.Pattern[str]
+    expected: int
+    exemplars: tuple[str, ...]
+
+    def found_in(self, bill_text: str) -> frozenset[str]:
+        return frozenset(m.group(1).strip() for m in self.pattern.finditer(bill_text))
+
+
+# A recipient name may carry lowercase connectors (Lake of the Woods) and may be
+# followed by revision markup rather than prose, so the end-anchor allows a bracket.
+_RECIPIENT_NAME = r"[A-Z][A-Za-z.'’-]*(?:\s+(?:[A-Z][A-Za-z.'’-]*|of|the))*?"
+_ENDS = r"(?=\s+(?:for|to|in|and)\b|\s*[\[,.;])"
+
+ENUMERATION_CASES: tuple[EnumerationCase, ...] = (
+    EnumerationCase(
+        bill_key="94-2025-HF719",
+        shape="cities",
+        question_asks="which cities and counties get named infrastructure grants",
+        pattern=_GRANT_CITY_RE,
+        expected=98,
+        exemplars=HF719_GRANT_CITIES,
+    ),
+    EnumerationCase(
+        bill_key="94-2025-HF719",
+        shape="counties",
+        question_asks="which cities and counties get named infrastructure grants",
+        pattern=_GRANT_COUNTY_RE,
+        expected=17,
+        exemplars=HF719_GRANT_COUNTIES,
+    ),
+    EnumerationCase(
+        bill_key="94-2025-HF2484",
+        shape="cities",
+        question_asks="which cities get grants",
+        pattern=re.compile(
+            rf"grants?\s+to\s+the\s+city\s+of\s+({_RECIPIENT_NAME}){_ENDS}"
+        ),
+        expected=14,
+        # Two multi-word names and the one followed by revision markup, because those
+        # are the three the pattern got wrong before it was verified.
+        exemplars=("Apple Valley", "Mendota Heights", "Forest Lake", "Anoka"),
+    ),
+    EnumerationCase(
+        bill_key="94-2026-SF3551",
+        shape="school districts",
+        question_asks="which school districts get supplemental funding, and how much",
+        # The dollar figure is part of the pattern on purpose: it is what separates the
+        # 11 districts this money goes to from the 4 named for other reasons.
+        pattern=re.compile(
+            r"\$[\d,]+\s+for\s+Independent\s+School\s+District\s+No\.\s*(\d+)"
+        ),
+        expected=11,
+        exemplars=("13", "535", "695"),
+    ),
+)
+
+
+def enumeration_cases_for(bill_key: str) -> tuple[EnumerationCase, ...]:
+    return tuple(c for c in ENUMERATION_CASES if c.bill_key == bill_key)
 
 
 def names_from(candidates: set[str], answer: str) -> set[str]:

@@ -1,5 +1,5 @@
 {
-  "description": "Labeled answer-quality eval set for the model that writes Ask answers (#865). Every label below was written by a human reading the snapshotted passages in answer_contexts.json \u2014 never by asking a model \u2014 so this fixture is an independent answer key rather than a record of what some model already says. The bill is pinned per question, so the eval measures the writer and never the router or the index (#400). 20 questions over 12 bills: 15 the passages answer and 5 they do not, across 8 enacted laws and 7 pending proposals. The unanswerable five are deliberately baited \u2014 each has a nearby number or a same-named section that a careless model will reach for.",
+  "description": "Labeled answer-quality eval set for the model that writes Ask answers (#865). Every label below was written by a human reading the snapshotted passages in answer_contexts.json \u2014 never by asking a model \u2014 so this fixture is an independent answer key rather than a record of what some model already says. The bill is pinned per question, so the eval measures the writer and never the router or the index (#400). 20 questions over 12 bills: 15 the passages answer and 5 they do not, across 8 enacted laws and 7 pending proposals. The unanswerable five are deliberately baited \u2014 each has a nearby number or a same-named section that a careless model will reach for. #895 added two long-bill enumeration questions (HF 2484, SF 3551) so recall is measured on three bills and three shapes rather than one; a corpus-wide search established that three is the maximum the corpus supports.",
   "queries": [
     {
       "question": "Which cities and counties get named infrastructure grants?",
@@ -517,6 +517,88 @@
       ],
       "must_not_claim": [
         "the content of the exclusion; the passage is cut off after 'a label approved by the United Stat...' and never says what is excluded"
+      ]
+    },
+    {
+      "question": "Which cities get grants?",
+      "bill_key": "94-2025-HF2484",
+      "answerable": true,
+      "framing": "law",
+      "why_labeled": "ADDED BY #895, to measure enumeration recall on more than one bill. Labeled from the WHOLE bill, never from the retrieved passages \u2014 the #865 session's HF 719 label was written from four passages and stated the product's own bug as ground truth, and this is the counter-check for that. HF 2484 is a 60-passage, 6,853-word capital-investment bill, so a 'which' question reads all of it inside the 20,000-word budget: the writer is given every name and cannot be short by not having seen one. Counted from the bill's own text with the tight phrasing 'grant(s) to the city of X' and then read match by match in context, it names exactly 14 cities: Anoka, Apple Valley, Dellwood, Forest Lake, Hutchinson, Mankato, Medford, Mendota Heights, North St. Paul, Ottertail, Ramsey, South St. Paul, St. Paul and Winona (alethical/eval/ground_truth.py). Three of those are why the count is verified rather than trusted: a non-greedy pattern truncated 'Apple Valley' to 'Apple' and 'Mendota Heights' to 'Mendota', and 'Forest Lake' is followed in the bill text by '[deleted: ...]' revision markup, so an end-anchor allowing only ordinary prose dropped it and returned 13 of 14. Enacted: the bill carries a Governor's action Approval, so an answer must speak in the present tense. Note 'Ramsey' here is the CITY of Ramsey, while in HF 719 'Ramsey' is a county \u2014 an answer that calls this one a county is wrong. A correct answer works through the whole context and either lists what it finds or says plainly that it has shortened the list and roughly how many more there are, which is what the complete-coverage rule in alethical/api/routers/me.py asks for. 14 items is a deliberately different scale from HF 719's 98: it tests whether a model that shortens a long list also shortens a short one.",
+      "required_facts": [
+        {
+          "label": "names Apple Valley (a multi-word city name a pattern truncates)",
+          "any_of": [
+            "Apple Valley"
+          ]
+        },
+        {
+          "label": "names Mendota Heights (the second multi-word name)",
+          "any_of": [
+            "Mendota Heights"
+          ]
+        },
+        {
+          "label": "names Forest Lake, the one followed by revision markup",
+          "any_of": [
+            "Forest Lake"
+          ]
+        },
+        {
+          "label": "names Hutchinson (Civil Air Patrol facility)",
+          "any_of": [
+            "Hutchinson"
+          ]
+        }
+      ],
+      "must_not_claim": [
+        "that the list is complete, exhaustive, or that there are no cities beyond those named; nothing verifies the model's own enumeration and a reader who believes it stops looking",
+        "that the city of Ramsey is a county, or that Ramsey County receives one of these grants; this bill names the city of Ramsey, and the county of that name appears in HF 719 instead",
+        "that any named city is missing from the provided text; the writer is given all 60 passages, so blaming the context for a name the context contains is a false claim about the context itself"
+      ]
+    },
+    {
+      "question": "Which school districts get supplemental funding, and how much?",
+      "bill_key": "94-2026-SF3551",
+      "answerable": true,
+      "framing": "proposal",
+      "why_labeled": "ADDED BY #895, and the one question here whose enumerable thing is NOT a place name \u2014 it is what proves the ground-truth derivation generalises rather than being a second copy of HF 719's city pattern. SF 3551 is a 103-passage, 14,794-word education funding bill, so a 'which' question reads all of it inside the 20,000-word budget. Labeled from the whole bill. It names 15 Independent School Districts but FUNDS exactly 11, and the difference is the label: districts 13 (Columbia Heights, $253,000), 38 (Red Lake, $196,000), 47 (Sauk Rapids-Rice, $281,000), 77 (Mankato, $398,000), 152 (Moorhead, $374,000), 166 (Cook County, $164,000), 177 (Windom, $185,000), 191 (Burnsville, $378,000), 535 (Rochester, $670,000), 659 (Northfield, $266,000) and 695 (Chisholm, $170,000) each receive a stated appropriation. Districts 197, 403, 709 and 881 also appear, but for a permitted fund transfer or a separate demonstration grant, not for this money \u2014 so 'which districts are named' and 'which districts get this funding' are different questions with different answers, and this one asks the second. The ground-truth pattern therefore requires the dollar figure (alethical/eval/ground_truth.py). NOT enacted: only 4 actions and no Governor's action, so an answer must say 'would receive', never 'receives'. A bill that appropriates money in the present tense in its own text is exactly where a writer slips into stating a proposal as law.",
+      "required_facts": [
+        {
+          "label": "names district 535 Rochester, the largest at $670,000",
+          "any_of": [
+            "535",
+            "Rochester"
+          ]
+        },
+        {
+          "label": "names district 13 Columbia Heights",
+          "any_of": [
+            "13",
+            "Columbia Heights"
+          ]
+        },
+        {
+          "label": "names district 695 Chisholm, the last in the funded list",
+          "any_of": [
+            "695",
+            "Chisholm"
+          ]
+        },
+        {
+          "label": "carries at least one of the stated dollar amounts",
+          "any_of": [
+            "670,000",
+            "253,000",
+            "398,000",
+            "374,000"
+          ]
+        }
+      ],
+      "must_not_claim": [
+        "that the districts receive or are receiving this money; the bill has not passed, so the funding would be provided rather than is provided",
+        "that the list is complete or exhaustive, however many it names",
+        "that districts 197, 403, 709 or 881 receive supplemental funding under this bill; they are named for a fund transfer or a separate demonstration grant"
       ]
     }
   ]
