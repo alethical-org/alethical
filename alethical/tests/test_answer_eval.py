@@ -773,6 +773,14 @@ def test_the_hf719_fixture_question_forbids_both_overclaims():
     forbidden = " ".join(hf719.must_not_claim).lower()
     assert "no counties are named" in forbidden
     assert "complete set" in forbidden
+    # And the third, added once #868 started reading this bill whole (#878): the
+    # names a short answer left out are IN the context, so blaming the context for
+    # them is a claim about the context that the context refutes.
+    assert "absent from the provided text" in forbidden
+    # The label must describe the input the writer now gets. A label still saying
+    # the writer sees four passages is a false statement handed to the judge, which
+    # is worse than no label at all.
+    assert "all 102 passages" in hf719.why_labeled.lower()
 
 
 # --- passage budget is part of a candidate's identity ---

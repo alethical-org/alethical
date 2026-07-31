@@ -1223,12 +1223,18 @@ def calibration_sample(
     return [
         (model_specs[i % len(model_specs)], q.key) for i, q in enumerate(queries)
     ] + [
-        # A second reading of the hardest cases, on a different arm. These are
-        # where the judges diverged, so one observation each would leave the
-        # agreement figure resting on the easy questions.
+        # A second reading of the two sharpest traps, on a different arm. SF 624
+        # reads "effective August 1, 2025" and never became law, so an answer can
+        # be word-perfect and stage-wrong; SF 3899 puts a section headed SIGNAGE
+        # COSTS and an unrelated $86,000 in front of a question about sign costs.
+        # One observation each would rest the agreement figure on the easy items.
+        #
+        # HF 719 is deliberately NOT doubled: its context is the whole 16,894-word
+        # bill, and the sample has to stay small enough to hand-score attentively.
+        # Two readings of a bill nobody finishes is worse evidence than one.
         (model_specs[(i + 3) % len(model_specs)], q.key)
         for i, q in enumerate(queries)
-        if q.bill_key in ("94-2025-HF719", "94-2025-SF624", "94-2026-SF3899")
+        if q.bill_key in ("94-2025-SF624", "94-2026-SF3899")
     ]
 
 
