@@ -9,6 +9,7 @@ the behaviour it pins is broken, so none of them is decoration.
 
 from __future__ import annotations
 
+import json
 import pathlib
 
 import pytest
@@ -733,6 +734,33 @@ def test_hf719_ground_truth_bounds_sit_below_the_measured_counts():
         assert name and name[0].isupper()
     assert "Hennepin" in gt.HF719_GRANT_COUNTIES
     assert "Minneapolis" in gt.HF719_GRANT_CITIES
+
+
+def test_the_grant_recipients_are_read_off_the_snapshot_and_clear_the_bounds():
+    """The denominator of the recall figure has to come from the bill, not a list.
+
+    A hand-typed roster of 98 names goes stale the first time the text is
+    re-ingested, and a stale denominator turns a recall percentage into a fiction.
+    So the names are derived from the snapshotted passages, and this asserts the
+    derivation still finds what two independent hand counts found.
+    """
+    from alethical.eval import ground_truth as gt
+
+    contexts = json.loads(CONTEXTS.read_text())["contexts"]
+    key = next(k for k in contexts if "cities and counties" in k)
+    bill_text = "\n".join(c["chunk_text"] for c in contexts[key]["chunks"])
+    cities, counties = gt.hf719_grant_recipients(bill_text)
+
+    assert len(cities) >= gt.HF719_MIN_GRANT_CITIES
+    assert len(counties) >= gt.HF719_MIN_GRANT_COUNTIES
+    assert {"Minneapolis", "Duluth", "Rochester"} <= cities
+    assert {"Hennepin", "Ramsey", "Anoka"} <= counties
+
+    # And an answer naming a handful reads as naming a handful, which is the whole
+    # point: the honesty gate passes this answer, so only the count can fail it.
+    handful = "Grants go to Minneapolis, Duluth and Hennepin County."
+    assert len(gt.names_from(cities, handful)) == 2
+    assert len(gt.names_from(counties, handful)) == 1
 
 
 def test_the_hf719_fixture_question_forbids_both_overclaims():

@@ -70,6 +70,12 @@ from alethical.eval.answer_eval import (
     opens_with_bill_code,
     statute_citations,
 )
+from alethical.eval.ground_truth import (
+    HF719_MIN_GRANT_CITIES,
+    HF719_MIN_GRANT_COUNTIES,
+    hf719_grant_recipients,
+    names_from,
+)
 from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding_model
 
 REPO = Path(__file__).resolve().parents[1]
@@ -93,6 +99,15 @@ P95_SECONDS = 9.0
 # Judges run concurrently (see judge_all). Kept modest so a run does not trip
 # either provider's rate limits, which would cost more time than it saves.
 JUDGE_CONCURRENCY = 8
+
+# The candidate set and the graders, named once so `run` and `calibrate` cannot
+# drift apart — a calibration measured on a different sample than the run it is
+# meant to license is worth nothing.
+DEFAULT_MODELS = (
+    "openai:gpt-4o-mini,openai:gpt-5-mini,openai:gpt-5.1,"
+    "anthropic:claude-haiku-4-5,anthropic:claude-sonnet-5"
+)
+DEFAULT_JUDGES = "anthropic:claude-sonnet-5,openai:gpt-5.1"
 
 
 def contexts_path(passages: int) -> Path:
@@ -933,6 +948,16 @@ def run(args) -> None:
             run_dir / f"answers-{_slug(spec)}.json",
         )
 
+    if not judge_specs:
+        # `--judges ""` generates and stops. The point is calibration: hand-scoring
+        # a sample has to happen without either judge's verdict in front of you, and
+        # the answers have to exist first. Generation is paid for either way, so
+        # splitting the stages costs nothing and keeps the answer key independent.
+        print(
+            f"\nno judges requested; {len(queries)} answers per arm cached in {run_dir}"
+        )
+        return
+
     verdicts_by_judge = {}
     for judge_spec in judge_specs:
         print(f"\njudging with {judge_spec}")
@@ -982,7 +1007,7 @@ def run(args) -> None:
             results.append(result)
         results_by_model[spec] = results
 
-    report(results_by_model, judge_specs)
+    report(results_by_model, judge_specs, contexts_by_spec)
     (run_dir / "report.json").write_text(
         json.dumps(
             {
@@ -1000,7 +1025,9 @@ def run(args) -> None:
 
 
 def report(
-    results_by_model: dict[str, list[AnswerResult]], judge_specs: list[str]
+    results_by_model: dict[str, list[AnswerResult]],
+    judge_specs: list[str],
+    contexts_by_spec: dict[str, dict],
 ) -> None:
     print("\n" + "=" * 100)
     print("ANSWER QUALITY — all judges pooled")
@@ -1098,12 +1125,252 @@ def report(
         declined = sum(1 for r in unanswerable if r.declines())
         print(f"{spec:30s} declined {declined}/{len(unanswerable)}")
 
+    _report_enumeration_recall(results_by_model, contexts_by_spec)
+
+
+def _report_enumeration_recall(
+    results_by_model: dict[str, list[AnswerResult]], contexts_by_spec: dict[str, dict]
+) -> None:
+    """How much of HF 719's grant list each arm actually reports (#878).
+
+    The gap this exposes is the reason it is here rather than folded into a gate.
+    #868 fixed the retrieval half of the failure — an enumerate-everything question
+    now reads the whole bill — so the honesty gate **passes trivially** on exactly
+    the question it was written for: a complete read cannot overclaim completeness,
+    and an absence it reports is real. Every gate in the bar was written for the
+    partial-read failure, and the failure moved.
+
+    Reading everything is not reporting everything. This counts the difference,
+    against a denominator read off the bill's own text.
+    """
+    target = next(
+        (
+            (spec, r)
+            for spec, results in results_by_model.items()
+            for r in results
+            if r.query.bill_key == "94-2025-HF719" and r.query.answerable
+        ),
+        None,
+    )
+    if target is None:
+        return
+    key = target[1].query.key
+    context = contexts_by_spec[target[0]][key]
+    bill_text = "\n".join(c["chunk_text"] for c in context["chunks"])
+    cities, counties = hf719_grant_recipients(bill_text)
+    if len(cities) < HF719_MIN_GRANT_CITIES or len(counties) < HF719_MIN_GRANT_COUNTIES:
+        # The snapshot no longer holds the whole bill, so a recall figure computed
+        # from it would flatter every arm. Say so rather than print a wrong number.
+        print(
+            f"\n--- enumeration recall on HF 719: skipped, the snapshot holds only "
+            f"{len(cities)} cities and {len(counties)} counties ---"
+        )
+        return
+
+    print(
+        f"\n--- enumeration recall, HF 719 'which cities and counties get named "
+        f"infrastructure grants?' ({len(cities)} cities and {len(counties)} counties "
+        "are in the context every arm was given) ---"
+    )
+    print(
+        "No gate scores this. The honesty gate passes trivially once the whole bill "
+        "is read, so an answer that reads 98 names and reports 21 is unpunished."
+    )
+    print(f"{'model':30s} {'cities named':>14s} {'counties named':>16s} {'recall':>8s}")
+    for spec, results in results_by_model.items():
+        answer = next(r.answer for r in results if r.query.key == key)
+        hit_c = names_from(cities, answer)
+        hit_k = names_from(counties, answer)
+        recall = (len(hit_c) + len(hit_k)) / (len(cities) + len(counties))
+        print(
+            f"{spec:30s} {f'{len(hit_c)}/{len(cities)}':>14s} "
+            f"{f'{len(hit_k)}/{len(counties)}':>16s} {recall:8.0%}"
+        )
+
 
 def _slug(spec: str) -> str:
     """A candidate's cache filename. Must distinguish every part of its identity —
     provider, model, reasoning depth and passage budget — or two arms silently
     share one cache and the second reads the first's answers."""
     return spec.replace(":", "-").replace(".", "_").replace("@", "-at-")
+
+
+# --- calibration: an answer key for the graders themselves (#878) ---
+
+CALIBRATION = REPO / "alethical/eval/fixtures/judge_calibration.json"
+
+# Fields a hand score records. The four gate flags plus the four graded marks —
+# i.e. everything a judge is asked for except the free-text note, which has no
+# right answer to agree or disagree with.
+CALIBRATION_FLAGS = ("grounded", "declines", "claims_completeness", "asserts_absence")
+
+
+def calibration_sample(
+    model_specs: list[str], queries: list[AnswerQuery]
+) -> list[tuple[str, str]]:
+    """Which (arm, question) pairs get hand-scored. Deterministic, and stratified.
+
+    Every question appears at least once, so no dimension of the fixture goes
+    unrepresented — the framing trap, the baited unanswerables, and the two
+    complete-read enumerations all have to be in the key or the agreement figure
+    says nothing about them. Arms rotate across questions rather than being
+    sampled at random, which spreads the sample over the quality range instead of
+    clustering it on whichever arm the shuffle favoured.
+
+    Deterministic because the committed hand scores have to name the same pairs on
+    every machine; a random sample would make the key unreadable against a re-run.
+    """
+    return [
+        (model_specs[i % len(model_specs)], q.key) for i, q in enumerate(queries)
+    ] + [
+        # A second reading of the hardest cases, on a different arm. These are
+        # where the judges diverged, so one observation each would leave the
+        # agreement figure resting on the easy questions.
+        (model_specs[(i + 3) % len(model_specs)], q.key)
+        for i, q in enumerate(queries)
+        if q.bill_key in ("94-2025-HF719", "94-2025-SF624", "94-2026-SF3899")
+    ]
+
+
+def calibrate_emit(args) -> None:
+    """Print blind worksheets for hand-scoring, with no judge verdict anywhere near.
+
+    The order matters and is the whole point: hand scores written after reading a
+    judge's verdict are not an answer key, they are a review of that judge. So
+    this stage runs against a run directory that has answers and no verdicts yet
+    (``run --judges ""``), and it never reads a verdict cache even if one exists.
+    """
+    queries = {q.key: q for q in load_fixture(FIXTURE)}
+    run_dir = Path(args.run_dir)
+    model_specs = [s.strip() for s in args.models.split(",") if s.strip()]
+    budgets = {spec: parse_spec(spec)[3] for spec in model_specs}
+    snapshots = {n: load_contexts(n) for n in sorted(set(budgets.values()))}
+    answers = {
+        spec: json.loads((run_dir / f"answers-{_slug(spec)}.json").read_text())[
+            "answers"
+        ]
+        for spec in model_specs
+    }
+
+    out = []
+    for index, (spec, key) in enumerate(
+        calibration_sample(model_specs, list(queries.values())), start=1
+    ):
+        q = queries[key]
+        context = snapshots[budgets[spec]][key]
+        out.append(
+            {
+                "id": index,
+                # The arm is recorded so the key can be replayed, and deliberately
+                # NOT printed in the worksheet body — a hand scorer who knows which
+                # model wrote an answer is as unblinded as a judge who does.
+                "arm": spec,
+                "question_key": key,
+                "worksheet": build_judge_prompt(
+                    q, context, answers[spec][key]["answer"]
+                ),
+            }
+        )
+    destination = run_dir / "calibration-worksheets.json"
+    destination.write_text(json.dumps({"items": out}, indent=2) + "\n")
+    print(f"wrote {len(out)} blind worksheets to {destination}")
+
+
+def _hand_scores() -> dict[str, dict]:
+    if not CALIBRATION.exists():
+        raise SystemExit(
+            f"no hand scores at {CALIBRATION.relative_to(REPO)}; run "
+            "`calibrate emit` and score the worksheets first"
+        )
+    payload = json.loads(CALIBRATION.read_text())
+    return {f"{s['arm']}||{s['question_key']}": s for s in payload["scores"]}
+
+
+def _agreement(judge_values: list, key_values: list) -> dict:
+    n = len(judge_values)
+    exact = sum(1 for a, b in zip(judge_values, key_values) if a == b)
+    return {
+        "n": n,
+        "agree": round(exact / n, 3) if n else None,
+        "mean_abs_error": (
+            round(
+                sum(abs(int(a) - int(b)) for a, b in zip(judge_values, key_values)) / n,
+                2,
+            )
+            if n
+            else None
+        ),
+    }
+
+
+def _spread(values: list) -> float:
+    """Population standard deviation, to catch a grader that is not discriminating.
+
+    The tell §10 of the bar doc flagged and could not prove: a judge awarding 2.0
+    to nearly every arm on nearly every dimension is not measuring that dimension,
+    however well its average happens to line up. Agreement alone cannot see that —
+    a judge that always says 2 agrees perfectly with a key that mostly says 2 — so
+    the spread is reported beside it.
+    """
+    if not values:
+        return 0.0
+    mean = sum(values) / len(values)
+    return round((sum((v - mean) ** 2 for v in values) / len(values)) ** 0.5, 2)
+
+
+def calibrate_score(args) -> None:
+    """Measure each judge against the committed hand scores, per dimension."""
+    key = _hand_scores()
+    run_dir = Path(args.run_dir)
+    judge_specs = [s.strip() for s in args.judges.split(",") if s.strip()]
+
+    print(
+        f"\ncalibration key: {len(key)} hand-scored answers "
+        f"({CALIBRATION.relative_to(REPO)})"
+    )
+    for judge_spec in judge_specs:
+        cache = run_dir / f"verdicts-{_slug(judge_spec)}.json"
+        if not cache.exists():
+            print(f"\n{judge_spec}: no verdicts in {run_dir}")
+            continue
+        verdicts = json.loads(cache.read_text())
+        pairs = [(verdicts[k], v) for k, v in key.items() if k in verdicts]
+        if not pairs:
+            print(f"\n{judge_spec}: no verdicts overlap the calibration sample")
+            continue
+
+        print(f"\n--- {judge_spec} against the hand scores (n={len(pairs)}) ---")
+        for flag in CALIBRATION_FLAGS:
+            judged = [bool(j[flag]) for j, _ in pairs]
+            truth = [bool(h[flag]) for _, h in pairs]
+            a = _agreement(judged, truth)
+            over = sum(1 for x, y in zip(judged, truth) if x and not y)
+            under = sum(1 for x, y in zip(judged, truth) if y and not x)
+            print(
+                f"  {flag:20s} agree {a['agree']:.0%}   "
+                f"said-true-when-false {over}   said-false-when-true {under}"
+            )
+        for dim in GRADED_DIMENSIONS:
+            judged = [int(j[dim]) for j, _ in pairs]
+            truth = [int(h[dim]) for _, h in pairs]
+            a = _agreement(judged, truth)
+            print(
+                f"  {dim:20s} agree {a['agree']:.0%}   "
+                f"mean error {a['mean_abs_error']:.2f}   "
+                f"spread judge {_spread(judged)} vs key {_spread(truth)}"
+            )
+        totals_j = [sum(int(j[d]) for d in GRADED_DIMENSIONS) for j, _ in pairs]
+        totals_k = [sum(int(h[d]) for d in GRADED_DIMENSIONS) for _, h in pairs]
+        t = _agreement(totals_j, totals_k)
+        print(
+            f"  {'graded total /8':20s} agree {t['agree']:.0%}   "
+            f"mean error {t['mean_abs_error']:.2f}   "
+            f"spread judge {_spread(totals_j)} vs key {_spread(totals_k)}"
+        )
+
+
+def calibrate(args) -> None:
+    (calibrate_emit if args.emit else calibrate_score)(args)
 
 
 def main() -> None:
@@ -1123,16 +1390,24 @@ def main() -> None:
     snapshot_parser.set_defaults(func=snapshot)
 
     run_parser = sub.add_parser("run", help="generate, judge, and report")
-    run_parser.add_argument(
-        "--models",
-        default="openai:gpt-4o-mini,openai:gpt-5-mini,openai:gpt-5.1,"
-        "anthropic:claude-haiku-4-5,anthropic:claude-sonnet-5",
-    )
-    run_parser.add_argument(
-        "--judges", default="anthropic:claude-sonnet-5,openai:gpt-5.1"
-    )
+    run_parser.add_argument("--models", default=DEFAULT_MODELS)
+    run_parser.add_argument("--judges", default=DEFAULT_JUDGES)
     run_parser.add_argument("--run-dir", default="/tmp/answer-eval")
     run_parser.set_defaults(func=run)
+
+    cal_parser = sub.add_parser(
+        "calibrate",
+        help="hand-score a sample and measure each judge against it (#878)",
+    )
+    cal_parser.add_argument(
+        "--emit",
+        action="store_true",
+        help="write blind worksheets to hand-score, instead of scoring the judges",
+    )
+    cal_parser.add_argument("--models", default=DEFAULT_MODELS)
+    cal_parser.add_argument("--judges", default=DEFAULT_JUDGES)
+    cal_parser.add_argument("--run-dir", default="/tmp/answer-eval")
+    cal_parser.set_defaults(func=calibrate)
 
     args = parser.parse_args()
     args.func(args)
