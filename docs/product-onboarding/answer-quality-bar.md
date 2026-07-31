@@ -770,28 +770,6 @@ Given all 98 city names and 17 county names in its context, each arm reports:
 | `claude-sonnet-5` | 71/98 | 12/17 | 73% |
 | `gpt-4o-mini@16` | 53/98 | 6/17 | 52% |
 
-> **The numerators above were counted with two small faults in the counter, both
-> since fixed, and neither changes anything this section concludes** (#878
-> follow-up). They are left as measured rather than guessed at, because the answers
-> they were counted from are not committed and cannot be recomputed:
->
-> - **The county denominator was 16, not 17.** The pattern that produced it allowed
->   only capitalised words, so it missed **Lake of the Woods County** — a name this
->   module documented in its own count of 17 and its own code then failed to find.
->   Any arm that named that county is **one higher** than shown.
-> - **A short recipient name inside a longer one was credited twice.** St. Paul sits
->   inside South St. Paul, Benton inside Lake Benton, Minnetonka inside Minnetonka
->   Beach, and a substring test scored the short name whenever the long one appeared.
->   Any city numerator above may be **one lower** than shown. Re-measured on a fresh
->   set of answers at this same budget, this inflated three of four arms by exactly
->   one name each.
->
-> Both corrections are worth at most about **one percentage point** of the recall
-> column, against gaps of 20 to 79 points between the arms, so the ordering stands —
-> the one pair close enough to be worth naming is `claude-haiku-4-5` at 70% and
-> `claude-sonnet-5` at 73%, whose 3-point gap could narrow. Neither fault could
-> produce the finding that carries this section: today's model reporting 19 of 98.
-
 **Today's model reports 19 cities — the same 19 as the original bug.** #868
 delivered it 98 names and it printed the same answer, closing with *"Other
 locations may also receive grants, but they were not specifically named in the
@@ -812,6 +790,27 @@ a regression and cannot catch an off-by-one in the denominator itself — and an
 off-by-one there makes every percentage in the table above a fraction of the wrong
 total. The two figures are now asserted **exactly**, against the snapshotted text
 (`test_the_derivation_reproduces_the_hand_counts_exactly_not_just_the_bounds`).
+
+> **So the table's numerators were counted with two small faults, both since fixed,
+> and neither changes anything this section concludes** (#878 follow-up). They are
+> left as measured rather than guessed at, because the answers they were counted from
+> are not committed, and regenerating produces different answers rather than
+> reproducing that table:
+>
+> - **The county denominator was 16, not 17** — the capitals-only pattern above,
+>   which missed Lake of the Woods County. Any arm that named that county is **one
+>   higher** than shown.
+> - **A short recipient name inside a longer one was credited twice.** St. Paul sits
+>   inside South St. Paul, Benton inside Lake Benton, Minnetonka inside Minnetonka
+>   Beach, and a substring test scored the short name whenever the long one appeared.
+>   Any city numerator may be **one lower** than shown. Re-measured on a fresh set of
+>   answers at this same budget, this inflated three of four arms by one name each.
+>
+> Together they are worth at most about **one percentage point** of the recall
+> column, against gaps of 20 to 79 points between the arms, so the ordering stands —
+> the one pair close enough to be worth naming is `claude-haiku-4-5` at 70% and
+> `claude-sonnet-5` at 73%, whose 3-point gap could narrow. Neither fault could
+> produce the finding that carries this section: today's model reporting 19 of 98.
 
 **Every figure in that table is one run, and the incumbent's is unstable enough
 that its single number understates its own best case.** The #868 session ran the
