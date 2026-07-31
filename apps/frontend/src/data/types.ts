@@ -221,6 +221,13 @@ export interface Bill {
    *  value row can link to /bills/{id}. Undefined when unlinked or not served (#293). */
   companion?: BillCompanion | null;
   updatedAt: string;
+  /** When we last pulled this bill from the Legislature, as the API serves it
+   *  (ISO). This is the page's source-line date (#861) — `updatedAt` is the
+   *  Legislature's own last action on the bill, which the meta rows already state,
+   *  so labelling it "Updated" claimed something about our copy that it never
+   *  measured. Undefined when not served; `pulledLabel` then drops the segment
+   *  rather than substituting a date that means something else. */
+  lastPulledAt?: string;
   /** The session the bill belongs to, worded as the API serves it ("94th Legislature
    *  (2025) First Special Session"); render it through `formatSessionLabel`. Carried
    *  per bill because a special session is its own session, so a page must not

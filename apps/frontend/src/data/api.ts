@@ -371,6 +371,9 @@ interface ApiBillDetailPayload {
   current_status?: string | null;
   status_key?: string | null;
   latest_action_at?: string | null;
+  // When we last pulled this bill from the Legislature (#861) — the source line's
+  // date. Optional so an older cached response still maps.
+  last_pulled_at?: string | null;
   // Verbatim statutory effective date (e.g. "July 1, 2027"), present only when
   // the enacted bill text states one unambiguously (#483); absent otherwise.
   effective_date?: string | null;
@@ -1182,6 +1185,7 @@ function mapBillDetail(
       : null,
     latestActionText: payload.current_status ?? undefined,
     updatedAt: formatUpdatedAt(payload.latest_action_at),
+    lastPulledAt: payload.last_pulled_at ?? undefined,
     effectiveDate: payload.effective_date ?? undefined,
     effectiveSchedule: payload.effective_schedule
       ? {

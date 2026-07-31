@@ -1936,6 +1936,32 @@ def bill_detail(
         "current_status": row.current_status,
         "status_key": row.status_key,
         "latest_action_at": row.latest_action_at,
+        # When we last pulled THIS bill from the Legislature — the finish time of
+        # the ingestion run that last wrote the row. This is the page's source-line
+        # date (#861): "Updated {date}" has to mean "this is how current our copy
+        # is", and the two values that were available before this both said
+        # something else. `latest_action_at` is the Legislature's last action on the
+        # bill (a fact the bill card already states, correctly labelled), and the
+        # corpus-wide max(IngestionRun.finished_at) covers every bill at once, so it
+        # can post-date the very record it stamps — measured Jul 31 2026, it would
+        # have claimed Jul 30 for 10,414 bills last pulled Jul 14 or 15.
+        # One indexed primary-key lookup; `Bill.ingestion_run_id` is set on every
+        # upsert and is populated for all 10,517 production bills.
+        #
+        # COALESCE to the run's start because `finished_at` is nullable and a run
+        # that is still going — or one that recorded a status without a finish time,
+        # as the test fixture's do — would otherwise serve nothing and silently drop
+        # the date from the page. A run's start and finish sit minutes apart, so the
+        # displayed day is the same either way; a missing date is the worse outcome.
+        "last_pulled_at": (
+            db.scalar(
+                select(
+                    func.coalesce(IngestionRun.finished_at, IngestionRun.created_at)
+                ).where(IngestionRun.id == row.ingestion_run_id)
+            )
+            if row.ingestion_run_id
+            else None
+        ),
         # Verbatim statutory effective date, present only when the enacted text
         # states one unambiguously; otherwise absent -> UI shows LATEST ACTION
         # (#483). Never derived from latest_action_at (the #455 bug).

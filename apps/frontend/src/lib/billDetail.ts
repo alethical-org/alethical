@@ -1541,6 +1541,29 @@ export function formatNiceDate(value: string | undefined | null): string {
   return `${m.charAt(0)}${m.slice(1).toLowerCase()} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
+// The source line's "Updated {date}" segment: when we last pulled THIS bill from
+// the Legislature (#861). One helper so every surface that closes with a source
+// line — both bill-detail screens and the Ask answer page — shows the same value
+// from the same field, which is the whole point of one date per page
+// (docs/design/ui-copy-guide.md § Dates on a page).
+//
+// Two nearby values are deliberately NOT used. `bill.updatedAt` is the
+// Legislature's last action on the bill: a real fact, already stated in the meta
+// rows as "Latest action", and labelling it "Updated" told the reader our copy was
+// that old. The corpus-wide max ingestion time covers every bill at once, so it can
+// post-date the record it stamps — on Jul 31 2026 it would have claimed Jul 30 for
+// 10,414 bills last pulled Jul 14 or 15.
+//
+// Returns '' when the bill carries no pull date, and `billSourceText` then drops the
+// segment — never a substitute date, because a wrong date is worse than no date.
+// A value that won't parse is treated the same way: formatNiceDate passes an
+// unparseable string through unchanged, which would print "Updated Unknown" at the
+// foot of the page, so the date has to parse before it earns the label.
+export function pulledLabel(bill: Pick<Bill, 'lastPulledAt'>): string {
+  if (!parseActionDate(bill.lastPulledAt)) return '';
+  return `Updated ${formatNiceDate(bill.lastPulledAt)}`;
+}
+
 // PASSED / FAILED from the roll's result text. Motion outcome, not bill outcome —
 // a passed roll on a later-vetoed bill still reads PASSED (spec §Vetoed bills).
 export function rollPassed(result: string): boolean {

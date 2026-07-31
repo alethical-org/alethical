@@ -7,7 +7,7 @@ import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBill } from '../../hooks/useAppQueries';
-import { bienniumEyebrow, chiefAuthor, formatNiceDate } from '../../lib/billDetail';
+import { bienniumEyebrow, chiefAuthor, pulledLabel } from '../../lib/billDetail';
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { BillHeader, DetailTab } from '../../components/billDetail/BillHeader';
 import { SummaryTab } from '../../components/billDetail/SummaryTab';
@@ -152,12 +152,9 @@ export function BillDetailWebScreen() {
   const shareUrl = `https://alethical.com/bills/${bill.id}`;
   const shareTitle = `${bill.identifier} — ${bill.title}`;
   // ONE value for the whole page (every tab's source line shows the same stamp).
-  // Empty when the bill carries no date — billSourceText then drops the segment
+  // Empty when the bill carries no pull date — billSourceText then drops the segment
   // instead of repeating "Minnesota Legislature" back at the reader.
-  const updatedLabel =
-    bill.updatedAt && bill.updatedAt !== 'Unknown'
-      ? `Updated ${formatNiceDate(bill.updatedAt)}`
-      : '';
+  const updatedLabel = pulledLabel(bill);
   const author = chiefAuthor(bill);
 
   const hero = (
