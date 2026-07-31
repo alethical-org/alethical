@@ -53,11 +53,11 @@ from alethical.eval.answer_eval import (
     JudgeVerdict,
     aggregate,
     cost_per_answer,
-    mentions_missing_coverage,
     judge_disagreement,
     literal_fact_coverage,
     load_fixture,
     meets_bar,
+    mentions_missing_coverage,
     opens_with_bill_code,
     statute_citations,
 )
@@ -66,19 +66,6 @@ from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding
 REPO = Path(__file__).resolve().parents[1]
 FIXTURE = REPO / "alethical/eval/fixtures/answer_questions.json"
 CONTEXTS = REPO / "alethical/eval/fixtures/answer_contexts.json"
-
-
-def contexts_path(passages: int) -> Path:
-    """Where one passage budget's frozen contexts live.
-
-    The default budget keeps the plain filename so the committed snapshot and every
-    existing reference stay valid; a wider budget gets its own file, because
-    widening the window is a different experiment and must not overwrite the
-    baseline it is being compared against.
-    """
-    if passages == CHUNK_LIMIT:
-        return CONTEXTS
-    return CONTEXTS.with_name(f"answer_contexts_{passages}.json")
 
 
 # Mirrors ask.py: _BILL_TEXT_CHUNK_LIMIT (the passages the writer is given) and
@@ -96,11 +83,25 @@ P95_SECONDS = 9.0
 # either provider's rate limits, which would cost more time than it saves.
 JUDGE_CONCURRENCY = 8
 
+
 # List prices, US dollars per million tokens, as of Jul 31 2026.
 # OpenAI: developers.openai.com/api/docs/pricing. Anthropic: the `claude-api`
 # skill's model table. Sonnet 5 carries an introductory rate through
 # 2026-08-31 ($2/$10); the standing rate is used here so the recommendation
 # does not rest on a discount that expires.
+def contexts_path(passages: int) -> Path:
+    """Where one passage budget's frozen contexts live.
+
+    The default budget keeps the plain filename so the committed snapshot and every
+    existing reference stay valid; a wider budget gets its own file, because
+    widening the window is a different experiment and must not overwrite the
+    baseline it is being compared against.
+    """
+    if passages == CHUNK_LIMIT:
+        return CONTEXTS
+    return CONTEXTS.with_name(f"answer_contexts_{passages}.json")
+
+
 PRICES = {
     "openai:gpt-4o-mini": (0.15, 0.60),
     "openai:gpt-5-nano": (0.05, 0.40),
@@ -847,12 +848,13 @@ def report(
     print("=" * 100)
     header = (
         f"{'model':30s} {'score':>6s} {'ship':>6s} {'gate!':>6s} {'disp':>6s} "
-        f"{'p50 s':>7s} {'p95 s':>7s} {'$/answer':>10s} {'bar':>5s}"
+        f"{'overclaim':>10s} {'p50 s':>7s} {'p95 s':>7s} {'$/answer':>10s} {'bar':>5s}"
     )
     print(header)
     for spec, results in results_by_model.items():
         summary = aggregate(results)
         price = PRICES.get(spec)
+        overclaim = f"{summary['overclaimed_on_partial']}/{summary['partial_context_questions']}"
         dollars = (
             f"${cost_per_answer(summary, input_per_mtok=price[0], output_per_mtok=price[1]):.5f}"
             if price
@@ -862,6 +864,7 @@ def report(
             f"{spec:30s} {summary['mean_score']:6.2f} "
             f"{summary['ship_worthy_rate']:6.0%} {summary['gate_failure_count']:6d} "
             f"{summary['grounding_disputed']:6d} "
+            f"{overclaim:>10s} "
             f"{summary['seconds_total']['p50']:7.2f} {summary['seconds_total']['p95']:7.2f} "
             f"{dollars:>10s} "
             f"{'PASS' if meets_bar(summary, p50_seconds=P50_SECONDS, p95_seconds=P95_SECONDS) else 'fail':>5s}"
