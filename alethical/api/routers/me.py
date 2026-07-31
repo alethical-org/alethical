@@ -49,6 +49,18 @@ tracked_bills_stmt = schema.tracked_bills_stmt
 router = APIRouter()
 RAG_CHAT_FALLBACK = "I could not find retrieval-ready bill text for this bill yet, so I cannot give a grounded answer."
 
+# The instruction that governs every generated answer a reader sees — both the Ask
+# answer page and the signed-in bill-scoped chat run through
+# synthesize_grounded_answer below. Named rather than inlined so the
+# answer-quality eval (`scripts/answer_eval.py`, #865) can import the exact
+# production wording instead of keeping a copy that silently drifts out of step.
+RAG_CHAT_SYSTEM_PROMPT = (
+    "Answer only from the provided bill text, but do answer when the text supports a "
+    "plain-language conclusion even if the wording is indirect. If the context partially "
+    "answers the question, answer the supported part and say what is not covered. Only say "
+    "the bill text does not answer the question when none of the provided context is relevant."
+)
+
 
 def get_bill_by_key(db: Session, bill_key: str):
     bill = db.scalar(select(Bill).where(Bill.bill_key == bill_key))
@@ -116,15 +128,7 @@ def synthesize_grounded_answer(question: str, chunks: list, *, bill_key: str) ->
             json={
                 "model": model,
                 "input": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "Answer only from the provided bill text, but do answer when the text supports a "
-                            "plain-language conclusion even if the wording is indirect. If the context partially "
-                            "answers the question, answer the supported part and say what is not covered. Only say "
-                            "the bill text does not answer the question when none of the provided context is relevant."
-                        ),
-                    },
+                    {"role": "system", "content": RAG_CHAT_SYSTEM_PROMPT},
                     {
                         "role": "user",
                         "content": f"Bill: {bill_key}\nQuestion: {question}\n\nContext:\n{context}",

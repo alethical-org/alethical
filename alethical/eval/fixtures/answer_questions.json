@@ -1,0 +1,422 @@
+{
+  "description": "Labeled answer-quality eval set for the model that writes Ask answers (#865). Every label below was written by a human reading the snapshotted passages in answer_contexts.json — never by asking a model — so this fixture is an independent answer key rather than a record of what some model already says. The bill is pinned per question, so the eval measures the writer and never the router or the index (#400). 20 questions over 12 bills: 15 the passages answer and 5 they do not, across 8 enacted laws and 7 pending proposals. The unanswerable five are deliberately baited — each has a nearby number or a same-named section that a careless model will reach for.",
+  "queries": [
+    {
+      "question": "Which cities and counties get named infrastructure grants?",
+      "bill_key": "94-2025-HF719",
+      "answerable": true,
+      "framing": "law",
+      "why_labeled": "THE CASE THIS FIXTURE EXISTS FOR (#868). HF 719 is a 48-section, 15,430-word bonding bill held as 102 retrievable passages. At production's budget the writer sees 4 of them — roughly 900 words of 15,430 — and is not told the rest exist. Counted independently from the bill's full section text, it names at least 98 cities and at least 17 counties as grant recipients (alethical/eval/ground_truth.py). Production's live answer says nineteen cities, names them as though that were the set, and says no counties are named: an undercount by a factor of five and a denial of a category the bill names 17 times. Every trust signal passes it, which is why the completeness and absence gates exist. A correct answer names cities it can see AND signals that it is looking at part of a long bill. An answer that presents its list or count as complete, or that denies counties are named, fails regardless of how well it reads. An earlier version of this label was itself wrong here: it was written from the four passages and said counties were not named, which is true of the passages and false of the bill.",
+      "required_facts": [
+        {
+          "label": "names International Falls (water treatment)",
+          "any_of": ["International Falls"]
+        },
+        {
+          "label": "names Two Harbors",
+          "any_of": ["Two Harbors"]
+        },
+        {
+          "label": "names Waseca and its $8,900,000 sanitary sewer grant",
+          "any_of": ["Waseca"]
+        },
+        {
+          "label": "names the township of Thomson in Carlton County — the one non-city recipient",
+          "any_of": ["Thomson"]
+        }
+      ],
+      "must_not_claim": [
+        "that no counties are named, or that the bill names only cities; the full bill names at least 17 counties as grant recipients, including Hennepin, Ramsey, Anoka and Washington, none of which appear in the four retrieved passages",
+        "that its list of cities is the complete set; the full bill names at least 98, and the four passages carry a fraction of them",
+        "a count presented as the bill's total, or a total dollar figure; neither can be known from four of 102 passages"
+      ]
+    },
+    {
+      "question": "Which legislators voted for this bill?",
+      "bill_key": "94-2025-HF719",
+      "answerable": false,
+      "framing": "law",
+      "why_labeled": "Bill text never contains roll-call records. The retrieved passages are appropriation sections and an effective-date clause. The only correct answer says the bill text does not record who voted.",
+      "required_facts": []
+    },
+    {
+      "question": "What changes for Minnesota corporations?",
+      "bill_key": "94-2025-HF747",
+      "answerable": true,
+      "framing": "law",
+      "why_labeled": "The passages carry four concrete amendments to the Business Corporation Act. A good answer names what actually changes in these passages; a weak one restates the bill's title. The clearest new thing is the added definition of a 'defective corporate act'.",
+      "required_facts": [
+        {
+          "label": "a new definition of a defective corporate act — an act void or voidable because it was never properly authorized",
+          "any_of": ["defective corporate act", "defective corporate"]
+        },
+        {
+          "label": "rules a company can override in its articles or a shareholder control agreement",
+          "any_of": [
+            "shareholder control agreement",
+            "articles",
+            "shareholder agreement"
+          ]
+        }
+      ],
+      "must_not_claim": [
+        "that these are all the changes the law makes; the passages are four excerpts from a much longer bill"
+      ]
+    },
+    {
+      "question": "What does this do about nudification technology?",
+      "bill_key": "94-2025-HF1606",
+      "answerable": true,
+      "framing": "law",
+      "why_labeled": "The passages fully define the ban, its one exemption, the private lawsuit, and the civil penalty. A complete answer covers the ban plus at least one consequence.",
+      "required_facts": [
+        {
+          "label": "bans letting people use a service to strip clothes off an image of a real, identifiable person",
+          "any_of": ["nudify", "nudified", "nudification"]
+        },
+        {
+          "label": "the person depicted can sue, including for up to three times actual damages",
+          "any_of": [
+            "civil action",
+            "sue",
+            "lawsuit",
+            "three times",
+            "triple",
+            "damages"
+          ]
+        },
+        {
+          "label": "a civil penalty of up to $500,000 per unlawful use, enforced by the attorney general",
+          "any_of": ["500,000", "$500,000"]
+        },
+        {
+          "label": "takes effect August 1, 2026",
+          "any_of": ["August 1, 2026", "Aug. 1, 2026", "August 2026"]
+        }
+      ],
+      "must_not_claim": [
+        "that it is a crime; the passages create civil liability and a civil penalty, not a criminal offence"
+      ]
+    },
+    {
+      "question": "Who qualifies for the hometown heroes assistance program?",
+      "bill_key": "94-2025-HF1163",
+      "answerable": true,
+      "framing": "law",
+      "why_labeled": "The passages state who the program serves and the eligibility date for the illness payments. The program is for Minnesota firefighters; critical-illness money requires a diagnosis on or after August 1, 2021 and an application.",
+      "required_facts": [
+        {
+          "label": "Minnesota firefighters",
+          "any_of": ["firefighter"]
+        },
+        {
+          "label": "critical-illness payments need a diagnosis on or after August 1, 2021 and an application",
+          "any_of": ["August 1, 2021", "Aug. 1, 2021", "2021"]
+        },
+        {
+          "label": "every firefighter in the state can get up to five therapy sessions a year",
+          "any_of": [
+            "five psychotherapy",
+            "five therapy",
+            "5 psychotherapy",
+            "up to five"
+          ]
+        }
+      ],
+      "must_not_claim": [
+        "that police officers or other first responders qualify; the passages name firefighters only"
+      ]
+    },
+    {
+      "question": "What roadside signs does this allow?",
+      "bill_key": "94-2025-HF1290",
+      "answerable": true,
+      "framing": "law",
+      "why_labeled": "The passages describe directional signs pointing to outdoor public-access defibrillators, who may request one, and who pays. The cost point matters to a reader and is easy to miss.",
+      "required_facts": [
+        {
+          "label": "directional signs pointing to an outdoor public-access defibrillator (AED)",
+          "any_of": [
+            "defibrillator",
+            "AED"
+          ]
+        },
+        {
+          "label": "the business or property owner requests the sign from the road authority",
+          "any_of": ["road authority", "request"]
+        },
+        {
+          "label": "the requester pays for installation, upkeep and removal",
+          "any_of": ["cost", "pay", "paid"]
+        }
+      ],
+      "must_not_claim": [
+        "that the road authority or the state pays for the signs; the passages put every cost on the requester"
+      ]
+    },
+    {
+      "question": "What is the tougher penalty and what triggers it?",
+      "bill_key": "94-2025-HF2358",
+      "answerable": true,
+      "framing": "law",
+      "why_labeled": "The passages give two new sentencing tiers for coercion under subdivision 1, clause (6): up to 10 years / $20,000 where the offence substantially caused great bodily harm, and up to 15 years / $30,000 where it substantially caused death.",
+      "required_facts": [
+        {
+          "label": "up to 15 years or a $30,000 fine when the offence substantially caused the victim's death",
+          "any_of": ["15 years", "fifteen years", "30,000"]
+        },
+        {
+          "label": "up to 10 years or a $20,000 fine when it substantially caused great bodily harm",
+          "any_of": ["10 years", "ten years", "20,000"]
+        },
+        {
+          "label": "applies to crimes committed on or after August 1, 2026",
+          "any_of": ["August 1, 2026", "Aug. 1, 2026", "August 2026"]
+        }
+      ],
+      "must_not_claim": [
+        "that the 10-year tier is new for every violation; the pre-existing tiers turn on money gained or lost, and the two new tiers apply only to clause (6)"
+      ]
+    },
+    {
+      "question": "What is the library construction grant program called now?",
+      "bill_key": "94-2025-HF1090",
+      "answerable": true,
+      "framing": "law",
+      "why_labeled": "A short factual lookup with one right answer, stated twice in the passages (the section heading and the Citation subdivision). Any model that misses this is failing on something easy.",
+      "required_facts": [
+        {
+          "label": "the Mary C. Murphy Library Construction Grants Program",
+          "any_of": ["Mary C. Murphy", "Mary C Murphy"]
+        }
+      ],
+      "must_not_claim": []
+    },
+    {
+      "question": "How many library grants have been awarded since the program started?",
+      "bill_key": "94-2025-HF1090",
+      "answerable": false,
+      "framing": "law",
+      "why_labeled": "The passages set out how grants are applied for, capped and ranked, but never count awards. The bait is the two dollar caps ($450,000 accessibility, $1,000,000 improvement) — a model that answers with either has confused a per-grant ceiling with a count of grants.",
+      "required_facts": []
+    },
+    {
+      "question": "What training do mandatory reporters have to take?",
+      "bill_key": "94-2025-HF1346",
+      "answerable": true,
+      "framing": "law",
+      "why_labeled": "The single passage sets the content requirements. The precision point: the local welfare agency must *offer* the training, and the law does not say a reporter must complete it — an answer that says reporters are required to take it has overstated the text.",
+      "required_facts": [
+        {
+          "label": "at least half the training time on how to spot signs of suspected maltreatment or abuse",
+          "any_of": ["half", "50 percent", "50%"]
+        },
+        {
+          "label": "covers a reporter's legal duties and what happens if they fail to report",
+          "any_of": [
+            "legal obligation",
+            "consequences",
+            "failure to report",
+            "fail to report"
+          ]
+        },
+        {
+          "label": "the local welfare agency offers it, online or in person",
+          "any_of": ["local welfare agency", "online", "in person"]
+        }
+      ],
+      "must_not_claim": [
+        "that a reporter is required to complete the training; the passage requires the agency to offer it"
+      ]
+    },
+    {
+      "question": "How many contracts for deed are signed in Minnesota each year?",
+      "bill_key": "94-2025-HF1792",
+      "answerable": false,
+      "framing": "law",
+      "why_labeled": "The passages define who counts as an investor seller and when churning is presumed. They contain no statewide count. The bait is the churning thresholds — 'two or more', 'four or more', '20 percent', '48 months' — which describe one seller's conduct, not a statewide volume.",
+      "required_facts": []
+    },
+    {
+      "question": "What would Highway 610 be renamed to?",
+      "bill_key": "94-2026-SF3899",
+      "answerable": true,
+      "framing": "proposal",
+      "why_labeled": "One-line answer in the first passage. The other three passages rename two buildings, so this is a test of answering the question asked rather than summarizing the bill: a reader who asked about the highway does not need the building renames as the headline.",
+      "required_facts": [
+        {
+          "label": "Hortman Memorial Highway",
+          "any_of": ["Hortman Memorial Highway"]
+        }
+      ],
+      "must_not_claim": [
+        "that the renaming has already happened; this bill has not become law"
+      ]
+    },
+    {
+      "question": "How much would the new highway signs cost?",
+      "bill_key": "94-2026-SF3899",
+      "answerable": false,
+      "framing": "proposal",
+      "why_labeled": "The trap case. A passage is literally headed 'SIGNAGE COSTS', but it covers signage for the two renamed buildings and gives no figure — it only says the commissioner pays out of an existing appropriation and may not pass it to tenants. A separate passage appropriates $86,000, which is for a memorial state park working group and has nothing to do with signs. A correct answer says the bill does not put a price on the highway signs; naming $86,000 is an ungrounded claim, not a near miss.",
+      "required_facts": [],
+      "must_not_claim": [
+        "that the signs would cost $86,000; that money is for the memorial state park working group",
+        "that the SIGNAGE COSTS section prices the highway signs; it covers the two building renames"
+      ]
+    },
+    {
+      "question": "What sales tax would Alexandria be allowed to charge, and what would it pay for?",
+      "bill_key": "94-2026-SF4314",
+      "answerable": true,
+      "framing": "proposal",
+      "why_labeled": "The passages give the rate, the voter-approval condition, the named project, the borrowing cap and the expiry. A two-part question, so a complete answer covers both halves.",
+      "required_facts": [
+        {
+          "label": "up to one-quarter of one percent (0.25%)",
+          "any_of": [
+            "one-quarter of one percent",
+            "0.25",
+            "quarter of a percent",
+            "quarter of one percent"
+          ]
+        },
+        {
+          "label": "only if local voters approve it",
+          "any_of": ["voter", "election", "referendum"]
+        },
+        {
+          "label": "up to $30,000,000 to expand and renovate the PrimeWest Health Runestone Community Center",
+          "any_of": ["Runestone", "30,000,000", "$30,000,000"]
+        },
+        {
+          "label": "ends after 20 years, or sooner once the project is paid off",
+          "any_of": ["20 years", "twenty years"]
+        }
+      ],
+      "must_not_claim": [
+        "that the tax is in force; it needs a voter referendum and the bill has not become law"
+      ]
+    },
+    {
+      "question": "Would this change when a person can use force to defend themselves?",
+      "bill_key": "94-2025-SF624",
+      "answerable": true,
+      "framing": "proposal",
+      "why_labeled": "The change is one added sentence: force may be used to resist an offence against the person regardless of whether retreat was possible. The framing trap is severe — the passage reads 'This section is effective August 1, 2025', a date already past, but the bill's status is 'Author added' and it never became law. An answer that says Minnesotans no longer have a duty to retreat is stating a proposal as law.",
+      "required_facts": [
+        {
+          "label": "removes the need to consider retreating before using reasonable force to resist an offence against the person",
+          "any_of": ["retreat"]
+        }
+      ],
+      "must_not_claim": [
+        "that this is current Minnesota law or already in effect; the bill has not passed, and the August 1, 2025 date in the text is the date it would have taken effect had it become law"
+      ]
+    },
+    {
+      "question": "What building standards would have to be adopted?",
+      "bill_key": "94-2026-HF4137",
+      "answerable": true,
+      "framing": "proposal",
+      "why_labeled": "Three passages list long-standing State Building Code requirements; only two paragraphs create new duties to adopt rules — adult-size changing facilities and the roof-hardening standard. A good answer separates the new duties from the surrounding existing code; a weak one lists everything it sees, including ungraded lumber and bioprocess piping, as though they were new.",
+      "required_facts": [
+        {
+          "label": "a roof-hardening standard based on the insurance industry's 2025 FORTIFIED Roof high-wind and hail standard, tailored to Minnesota's climate",
+          "any_of": ["FORTIFIED", "roof hardening", "roof-hardening"]
+        },
+        {
+          "label": "adult-size changing facilities",
+          "any_of": ["adult-size changing", "adult size changing", "changing facilit"]
+        }
+      ],
+      "must_not_claim": [
+        "that the deck-materials, ungraded-lumber, garage-door or bioprocess-piping paragraphs are new; they are existing code shown because the section is being amended"
+      ]
+    },
+    {
+      "question": "What would the amusement device tax be, and who would pay it?",
+      "bill_key": "94-2025-HF171",
+      "answerable": true,
+      "framing": "proposal",
+      "why_labeled": "Both halves are stated plainly: 6.875 percent of gross receipts, imposed on the owners of each device operated in Minnesota, in place of ordinary sales tax. 'Amusement device' is defined broadly enough that naming an example or two makes the answer land for a reader.",
+      "required_facts": [
+        {
+          "label": "6.875 percent of gross receipts",
+          "any_of": ["6.875"]
+        },
+        {
+          "label": "paid by the owner of the device, not the player",
+          "any_of": ["owner"]
+        },
+        {
+          "label": "replaces the ordinary sales tax on those receipts",
+          "any_of": ["in lieu", "instead of", "replaces", "297A"]
+        }
+      ],
+      "must_not_claim": [
+        "that players or customers owe the tax; it is imposed on device owners",
+        "that it covers vending machines, lottery devices or gambling devices; those are excluded"
+      ]
+    },
+    {
+      "question": "How much money would the amusement device tax raise each year?",
+      "bill_key": "94-2025-HF171",
+      "answerable": false,
+      "framing": "proposal",
+      "why_labeled": "No revenue estimate appears anywhere in the passages. The bait is the deposit split — 6.5 percent to the general fund and 0.375 percent to a constitutional fund — which divides the rate, not any forecast of dollars.",
+      "required_facts": [],
+      "must_not_claim": [
+        "any dollar forecast; the 6.5 and 0.375 figures are shares of the tax rate, not amounts of money"
+      ]
+    },
+    {
+      "question": "When could an officer ask a driver for a saliva test?",
+      "bill_key": "94-2026-SF4285",
+      "answerable": true,
+      "framing": "proposal",
+      "why_labeled": "The first passage adds 'or oral fluid' to the roadside preliminary screening test, available when an officer has reason to believe from the driving that the person is impaired, is a school-bus driver who has been drinking, is underage and drinking, or is a commercial driver in violation. 'Oral fluid' is the statute's phrase for saliva; an answer that never connects the two leaves the reader guessing.",
+      "required_facts": [
+        {
+          "label": "oral fluid — the bill's term for a saliva sample — is added to the roadside screening test",
+          "any_of": ["oral fluid", "saliva"]
+        },
+        {
+          "label": "the officer needs reason to believe from the driving that the driver is impaired or has committed a related offence",
+          "any_of": [
+            "reason to believe",
+            "impaired",
+            "driving while impaired"
+          ]
+        },
+        {
+          "label": "the device has to be one the commissioner has approved",
+          "any_of": ["approved", "commissioner"]
+        }
+      ],
+      "must_not_claim": [
+        "that a driver may be tested at random or without any suspicion; the officer must have reason to believe from how the person was driving"
+      ]
+    },
+    {
+      "question": "What counts as covered insulin?",
+      "bill_key": "94-2026-SF4138",
+      "answerable": true,
+      "framing": "proposal",
+      "why_labeled": "The definition is in the passages: a drug validly prescribed by a practitioner that contains insulin, used to treat diabetes. The exclusion clause is cut off mid-sentence in the retrieved text ('does not include an insulin product with a label approved by the United Stat...'), so a grounded answer may note an exclusion exists but must not invent what it says.",
+      "required_facts": [
+        {
+          "label": "a drug validly prescribed by a practitioner that contains insulin",
+          "any_of": ["prescribed", "prescription"]
+        },
+        {
+          "label": "used to treat diabetes",
+          "any_of": ["diabetes"]
+        }
+      ],
+      "must_not_claim": [
+        "the content of the exclusion; the passage is cut off after 'a label approved by the United Stat...' and never says what is excluded"
+      ]
+    }
+  ]
+}
