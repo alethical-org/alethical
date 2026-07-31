@@ -111,6 +111,10 @@ export function BillDetailWebScreen() {
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}
       hero={hero}
+      // The hero ends in the tab bar's rule, so the white panel's own 40px top
+      // padding is the whole gap below it — one source for that space, matching
+      // the design's 40px panel padding (design_handoff_bill_profile_web).
+      heroEndsWithRule
     >
       {children}
     </SearchPageShell>
