@@ -113,12 +113,29 @@ Two things follow, and they are worth stating because they cut against instinct:
   stream the answer page, the latency half of this bar should be re-derived, and a
   model that thinks before writing becomes viable in a way it is not today.
 
-One provider-specific trap sits here. On Claude Sonnet 5, adaptive thinking is **on
-whenever the `thinking` parameter is omitted** — so the naive call has the reader
-waiting through reasoning tokens they will never see. The eval disables thinking and
-pins effort to `low` for answer-writing (allowed at effort `high` or below). Writing
-three sentences from four passages already in front of the model is not a reasoning
-task. Judging is, so the judges keep thinking on — no reader is waiting on them.
+### The reasoning trap, and why it is a candidate's identity rather than a default
+
+Every current frontier model reasons before answering unless told not to, and on
+both providers the *naive* call is the slow one:
+
+- **Claude Sonnet 5** runs adaptive thinking whenever the `thinking` parameter is
+  omitted. The eval sends `thinking: {"type": "disabled"}` with effort `low`
+  (disabling is allowed at effort `high` or below).
+- **OpenAI's gpt-5 family** reasons at its default effort. The eval sends
+  `reasoning: {"effort": "minimal"}`. (`"none"` is rejected — the accepted values
+  are `minimal`, `low`, `medium`, `high`.)
+
+Writing three sentences from four passages already in front of the model is not a
+reasoning task, so the fast configuration is the one we would actually ship — and it
+is the eval's default. But **the same model reasoning or not is two different
+products to a waiting reader**, so depth is part of the candidate's name rather than
+a hidden default: a `+deep` suffix on any candidate spec measures the naive call, and
+gets its own row in the report. That keeps the comparison fair across providers
+(neither family is penalised for a default the other was spared) and makes the cost
+of insisting on speed visible instead of assumed.
+
+Judging is genuinely a reasoning task and no reader is waiting on it, so the judges
+keep thinking on.
 
 ## 5. How an answer gets scored, and what stops the grader flattering the model
 

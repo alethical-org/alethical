@@ -176,9 +176,26 @@ def build_user_prompt(context: dict) -> str:
 
 
 def _openai_answer(
-    model: str, system: str, user: str
+    model: str, system: str, user: str, *, deep: bool
 ) -> tuple[str, float, float, int, int]:
-    """Call OpenAI's Responses API — the same endpoint me.py uses today."""
+    """Call OpenAI's Responses API — the same endpoint me.py uses today.
+
+    ``deep=False`` pins the gpt-5 family to ``reasoning.effort: "minimal"``, the
+    counterpart of disabling Claude's thinking: a reader is waiting, and writing
+    three sentences from four passages already in front of the model is not a
+    reasoning task. Left at the provider default, these models reason first and
+    the reader waits through tokens they never see. ``deep=True`` sends no
+    reasoning parameter, which measures exactly that default.
+    """
+    body: dict = {
+        "model": model,
+        "input": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    }
+    if not deep and model.startswith("gpt-5"):
+        body["reasoning"] = {"effort": "minimal"}
     started = time.monotonic()
     response = requests.post(
         "https://api.openai.com/v1/responses",
@@ -186,13 +203,7 @@ def _openai_answer(
             "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
             "Content-Type": "application/json",
         },
-        json={
-            "model": model,
-            "input": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        },
+        json=body,
         timeout=120,
     )
     response.raise_for_status()
@@ -221,16 +232,15 @@ def _openai_text(payload: dict) -> str:
 
 
 def _anthropic_answer(
-    model: str, system: str, user: str
+    model: str, system: str, user: str, *, deep: bool
 ) -> tuple[str, float, float, int, int]:
     """Call Anthropic's Messages API.
 
-    ``thinking`` is disabled deliberately. On Claude Sonnet 5 adaptive thinking is
-    ON whenever the parameter is omitted, which would have the reader waiting
-    through reasoning tokens they never see — the opposite of what this surface
-    needs. Disabling it is allowed at effort `high` or lower, so effort is pinned
-    to `low`: this is short prose from four passages already in front of the model,
-    not a reasoning task.
+    On Claude Sonnet 5 adaptive thinking is ON whenever the ``thinking`` parameter
+    is omitted, so ``deep=False`` disables it explicitly and pins effort to `low`
+    (disabling is allowed at effort `high` or below). Same reasoning as the OpenAI
+    adapter: the reader is waiting. ``deep=True`` leaves adaptive thinking on,
+    which measures the naive call.
     """
     body: dict = {
         "model": model,
@@ -238,9 +248,12 @@ def _anthropic_answer(
         "system": system,
         "messages": [{"role": "user", "content": user}],
     }
-    if model.startswith("claude-sonnet-5") or model.startswith("claude-opus-5"):
-        body["thinking"] = {"type": "disabled"}
-        body["output_config"] = {"effort": "low"}
+    if model.startswith(("claude-sonnet-5", "claude-opus-5")):
+        if deep:
+            body["thinking"] = {"type": "adaptive"}
+        else:
+            body["thinking"] = {"type": "disabled"}
+            body["output_config"] = {"effort": "low"}
 
     started = time.monotonic()
     response = requests.post(
@@ -271,13 +284,27 @@ def _anthropic_answer(
     )
 
 
+def parse_spec(spec: str) -> tuple[str, str, bool]:
+    """``provider:model`` → (provider, model, deep=False); a ``+deep`` suffix flips it.
+
+    Reasoning depth is part of the candidate's identity, not a hidden default: the
+    same model reasoning or not is two different products to a waiting reader, and
+    both deserve their own row in the report.
+    """
+    base, _, suffix = spec.partition("+")
+    if suffix not in ("", "deep"):
+        raise SystemExit(f"unknown suffix {suffix!r} in {spec!r} (only '+deep')")
+    provider, _, model = base.partition(":")
+    if provider not in ("openai", "anthropic"):
+        raise SystemExit(f"unknown provider in {spec!r} (expected openai: or anthropic:)")
+    return provider, model, suffix == "deep"
+
+
 def call_model(spec: str, system: str, user: str) -> tuple[str, float, float, int, int]:
-    provider, _, model = spec.partition(":")
+    provider, model, deep = parse_spec(spec)
     if provider == "openai":
-        return _openai_answer(model, system, user)
-    if provider == "anthropic":
-        return _anthropic_answer(model, system, user)
-    raise SystemExit(f"unknown provider in {spec!r} (expected openai: or anthropic:)")
+        return _openai_answer(model, system, user, deep=deep)
+    return _anthropic_answer(model, system, user, deep=deep)
 
 
 def generate(
@@ -436,12 +463,10 @@ def _loads_json(raw: str) -> dict:
 
 
 def call_judge(spec: str, system: str, user: str) -> dict:
-    provider, _, model = spec.partition(":")
+    provider, model, _ = parse_spec(spec)
     if provider == "openai":
         return _openai_judge(model, system, user)
-    if provider == "anthropic":
-        return _anthropic_judge(model, system, user)
-    raise SystemExit(f"unknown judge provider in {spec!r}")
+    return _anthropic_judge(model, system, user)
 
 
 def judge_all(
@@ -458,21 +483,30 @@ def judge_all(
     which model wrote an answer, and never sees the same model's answers in a
     predictable run that would let it infer one.
     """
-    if cache.exists():
-        return json.loads(cache.read_text())
-    pairs = [(m, q) for m in model_specs for q in queries]
+    verdicts: dict[str, dict] = (
+        json.loads(cache.read_text()) if cache.exists() else {}
+    )
+    pairs = [
+        (m, q)
+        for m in model_specs
+        for q in queries
+        if f"{m}||{q.key}" not in verdicts
+    ]
     random.Random(865).shuffle(pairs)
-    verdicts: dict[str, dict] = {}
+    if not pairs:
+        print("    (all cached)")
+        return verdicts
     for i, (model_spec, q) in enumerate(pairs, start=1):
         answer = answers_by_model[model_spec][q.key]["answer"]
-        verdict = call_judge(
+        verdicts[f"{model_spec}||{q.key}"] = call_judge(
             judge_spec,
             JUDGE_SYSTEM,
             build_judge_prompt(q, contexts[q.key], answer),
         )
-        verdicts[f"{model_spec}||{q.key}"] = verdict
         print(f"    [{i}/{len(pairs)}] graded one answer")
-    cache.write_text(json.dumps(verdicts, indent=2) + "\n")
+        # Written every time, so an interrupted or rate-limited run resumes
+        # instead of re-paying for everything it already graded.
+        cache.write_text(json.dumps(verdicts, indent=2) + "\n")
     return verdicts
 
 

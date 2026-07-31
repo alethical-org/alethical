@@ -341,3 +341,46 @@ def test_required_fact_aliases_actually_appear_in_the_snapshotted_passages():
             assert any(alias.lower() in passages for alias in fact.any_of), (
                 f"{q.bill_key}: no passage supports {fact.label!r}"
             )
+
+
+# --- candidate-spec parsing lives in the runner, but the semantics are load-bearing ---
+
+
+def test_parse_spec_treats_reasoning_depth_as_part_of_the_candidate():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "answer_eval_cli",
+        pathlib.Path(__file__).resolve().parents[2] / "scripts/answer_eval.py",
+    )
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+
+    # Default is the shippable configuration: no reasoning, because a reader waits.
+    assert cli.parse_spec("openai:gpt-5-mini") == ("openai", "gpt-5-mini", False)
+    assert cli.parse_spec("anthropic:claude-sonnet-5") == (
+        "anthropic",
+        "claude-sonnet-5",
+        False,
+    )
+    # `+deep` measures the naive call, and is a distinct candidate with its own row.
+    assert cli.parse_spec("openai:gpt-5.1+deep") == ("openai", "gpt-5.1", True)
+
+    for bad in ("gpt-5-mini", "google:gemini", "openai:gpt-5-mini+fast"):
+        with pytest.raises(SystemExit):
+            cli.parse_spec(bad)
+
+
+def test_the_eval_scores_productions_own_prompt_rather_than_a_copy():
+    """A copied prompt would silently drift; this pins the import."""
+    import importlib.util
+
+    from alethical.api.routers.me import RAG_CHAT_SYSTEM_PROMPT
+
+    spec = importlib.util.spec_from_file_location(
+        "answer_eval_cli2",
+        pathlib.Path(__file__).resolve().parents[2] / "scripts/answer_eval.py",
+    )
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    assert cli.SYSTEM_PROMPT is RAG_CHAT_SYSTEM_PROMPT
