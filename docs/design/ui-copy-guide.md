@@ -41,6 +41,14 @@ Does this deliver a sovereignty recognition moment, or is it just a label? If ju
 
 **Never say:** translate · dashboard · Sign Up (as marketing CTA) · Ask AI (use Grounded Ask / Ask).
 
+## Dates on a page
+**One date per page, and it lives in the source line** (ratified 2026-07-31). Every screen that shows how current its records are shows it exactly once, at the foot, in the standard line — `Source: Minnesota Legislature · revisor.mn.gov · Updated {date}` — built by the shared `billSourceText` (`apps/frontend/src/components/billDetail/SourceLine.tsx`). **No page-specific exception.**
+
+- **Never date the page's own output.** On a generated-answer page the date belongs to the *record the answer came from*, never to the moment the answer was written: an answer can never be fresher than the bill it was generated from, so an "as of" stamp later than the record's own date is a false claim of currency (`.claude/rules/grounded-answers.md` rule 7).
+- **Never print the same date twice.** A header "AS OF {date}" above a footer "Updated {date}" is the pattern this rule exists to stop — it reads as two different facts and is one.
+- **Take the value from the record, not from the ingestion run.** The corpus-wide "last successful ingestion" timestamp (the API's `data_as_of`) covers the whole corpus, so stamping one bill's page with it can post-date that bill's own record.
+- The known inconsistency: Search Bills and Search Legislators carry their single date in the results header rather than a source line, because those screens have no source line yet. Closing that is [#861](https://github.com/alethical-org/alethical/issues/861); it is an inconsistency to fix, not an allowed exception.
+
 ## Punctuation & typography
 Use typographer's punctuation in all user-facing copy. It is the quality-publishing default, and for a truth-and-records product the polish quietly reinforces credibility (ratified 2026-07-13).
 - **Apostrophes — curly `’` (U+2019), never the straight typewriter `'`.** e.g. don’t, they’ve, Minnesota’s.
