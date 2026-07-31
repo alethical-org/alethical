@@ -2034,6 +2034,39 @@ export function orderBillVersions(versions: BillVersion[], actions: BillAction[]
   });
 }
 
+// The document a "Read the full law / Read the bill text" link should open (spec
+// `docs/mockups/bill-detail-mobile/NEXT-bill-detail-spec.md` §Official-link naming
+// rules): an enacted bill's Session Law chapter, otherwise the bill's current text.
+//
+// The rail used to take `versions[0]`, i.e. whatever row the payload happened to
+// list first — which is the "As introduced" draft. So an enacted bill's "Read the
+// full law" opened the original introduction: HF 719's link went to the February
+// 2025 first draft, two engrossments before the text that became Chapter 130.
+// Position in the payload carries no meaning (the API sets no ordering), so pick
+// the row by what it IS: the synthesized `session-law` row (#438) when the bill is
+// law, else the version the record marks current, else the newest with a document.
+export function readDocumentUrl(
+  versions: BillVersion[] | undefined,
+  actions: BillAction[] | undefined,
+): string | undefined {
+  const ordered = orderBillVersions(versions ?? [], actions ?? []).filter((v) => v.url);
+  const law = ordered.find((v) => v.versionCode === 'session-law');
+  const current = ordered.find((v) => v.isCurrent && !v.isCurrentPointer);
+  return (law ?? current ?? ordered[0])?.url;
+}
+
+// The bill's revisor STATUS/overview page — the one rail link that is deliberately
+// not a document (same spec section). `Bill.official_url` is a *text* URL, because
+// ingestion stores the source URL of the version it parsed, so drop the
+// "versions/…" tail: both shapes the corpus holds (`/versions/2/` and the
+// unofficial-engrossment `/versions/ue/1/`) resolve to the bill's status page once
+// stripped. Without this, "Bill overview" opened an engrossment — the same document
+// the citation links already open.
+export function billOverviewUrl(officialUrl: string | undefined): string | undefined {
+  if (!officialUrl) return undefined;
+  return officialUrl.replace(/\/versions\/.*$/, '/');
+}
+
 // Pick the row to keep between two same-label versions: a real record beats the
 // "current" alias pointer; otherwise the earliest-dated row wins (its date is the
 // real posting date, and undated rows lose so a dated real row is kept).
