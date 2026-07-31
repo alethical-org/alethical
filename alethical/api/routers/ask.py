@@ -24,7 +24,11 @@ from alethical.api.schemas import (
     DetailResponse,
 )
 from alethical.api.rate_limit import rate_limit
-from alethical.api.serializers import bill_list_item, current_bill_summary_enrichment
+from alethical.api.serializers import (
+    bill_list_item,
+    current_bill_summary_enrichment,
+    section_chip_topic,
+)
 from alethical.api.services.ask_router import (
     AskIntent,
     classify_query,
@@ -36,6 +40,7 @@ from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding
 
 schema = load_schema()
 Bill = schema.Bill
+BillVersionSection = schema.BillVersionSection
 AIEnrichment = schema.AIEnrichment
 Chamber = schema.Chamber
 District = schema.District
@@ -418,6 +423,49 @@ def _citation_excerpt(chunk_text: str) -> str:
     return f"{cut}…"
 
 
+def _chunk_sections(db: Session, chunks) -> dict:
+    """``bill_version_section_id`` -> ``(section_id_text, chip topic)`` for the
+    retrieved chunks' sections.
+
+    The section id is what lets a citation card link to the passage inside our own
+    Bill Text tab, which anchors each section on ``#ft-<section_id_text>``
+    (`FullTextTab.tsx`) — .claude/rules/grounded-answers.md rule 5, and
+    docs/product-onboarding/grounded-ask-spec.md §9.5 (The chip-reached answer page —
+    decided web design) decision 4. One extra query for at most four sections; a
+    chunk whose section document has no section row (a whole-version document) gets
+    no id, and the card falls back to the official source URL.
+
+    ``section_id_text`` is NOT unique within a version (66 (version, id) pairs in
+    production name several sections), so the CLIENT still checks the id against the
+    sections the Bill Text tab renders before linking to it. Serving it is honest
+    either way — it is the retrieved section's own stored id, not a claim that it
+    resolves to exactly one place.
+    """
+    section_ids = {
+        chunk.rag_section_document.bill_version_section_id
+        for chunk in chunks
+        if chunk.rag_section_document.bill_version_section_id is not None
+    }
+    if not section_ids:
+        return {}
+    rows = db.execute(
+        select(
+            BillVersionSection.id,
+            BillVersionSection.section_id_text,
+            BillVersionSection.section_heading,
+            BillVersionSection.cite_heading,
+        ).where(BillVersionSection.id.in_(section_ids))
+    ).all()
+    return {
+        row.id: (
+            row.section_id_text,
+            section_chip_topic(row.section_heading, row.cite_heading),
+        )
+        for row in rows
+        if row.section_id_text
+    }
+
+
 # Content-based (semantic) bill resolution — the third resolution step, when
 # HF/SF-number and title matching both fail (docs/product-onboarding/grounded-ask-spec.md §4.1, the
 # semantic half of fuzzy resolution; #266). Semantic search surfaces the top
@@ -537,15 +585,22 @@ def _bill_text_answer(
         return None
 
     prose = synthesize_grounded_answer(content, chunks, bill_key=resolved.bill_key)
-    citations = [
-        AskCitation(
-            label=chunk.citation_label,
-            bill_id=resolved.bill_key,
-            excerpt=_citation_excerpt(chunk.chunk_text),
-            url=resolved.official_url,
+    sections = _chunk_sections(db, chunks)
+    citations = []
+    for chunk in chunks:
+        section_id, section_topic = sections.get(
+            chunk.rag_section_document.bill_version_section_id, ("", "")
         )
-        for chunk in chunks
-    ]
+        citations.append(
+            AskCitation(
+                label=chunk.citation_label,
+                bill_id=resolved.bill_key,
+                excerpt=_citation_excerpt(chunk.chunk_text),
+                url=resolved.official_url,
+                section_id=section_id,
+                section_topic=section_topic,
+            )
+        )
     data_as_of = db.scalar(
         select(func.max(IngestionRun.finished_at)).where(
             IngestionRun.status == IngestionStatus.succeeded

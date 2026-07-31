@@ -280,6 +280,37 @@ def test_bill_text_answer_cites_the_resolved_bill(client, monkeypatch):
     _assert_cite_or_refuse(answer, "bill_text")
 
 
+def test_bill_text_citations_carry_their_statute_section(client, monkeypatch):
+    """§9.5 decision 4: each citation carries the statute section its passage came
+    from, so the answer page's "From the bill" card can link to that passage inside
+    our own Bill Text tab (`?tab=text#ft-<section_id>`) instead of only out to
+    revisor.mn.gov (.claude/rules/grounded-answers.md rule 5).
+
+    The seeded bill's four retrieved passages come from three sections, two of them
+    sharing "laws.2.5.0" — which is also the grouping case the answer page's rail
+    collapses into one card."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    data = client.post("/api/v1/ask", json={"content": "What's in SF 1832?"}).json()[
+        "data"
+    ]
+    citations = data["answer"]["citations"]
+    assert all(c["section_id"] for c in citations), (
+        "every citation must name the section it quotes"
+    )
+    # The ids are the sections' own stored ids, and two passages share one.
+    assert sorted(c["section_id"] for c in citations) == [
+        "laws.2.2.0",
+        "laws.2.5.0",
+        "laws.2.5.0",
+        "laws.3.2.0",
+    ]
+    # section_topic is a separate field, always present as a string (empty when the
+    # section's heading carries no topic worth showing — these fixtures' headings
+    # are a bare "Sec. 5.").
+    assert all(isinstance(c["section_topic"], str) for c in citations)
+
+
 def test_bill_text_resolves_a_bill_by_fuzzy_title(client, monkeypatch):
     """Scenario 1 (docs/product-onboarding/grounded-ask-spec.md §4.1, bill_text): a question with no
     HF/SF number resolves via a single confident title match ("higher education"
