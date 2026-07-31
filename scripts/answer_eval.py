@@ -31,6 +31,7 @@ Examples
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import random
@@ -43,6 +44,7 @@ import requests
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
+from alethical.api.routers import me as me_router
 from alethical.api.routers.me import RAG_CHAT_SYSTEM_PROMPT, build_query_embedding
 from alethical.db.schema import load_schema
 from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target
@@ -84,11 +86,6 @@ P95_SECONDS = 9.0
 JUDGE_CONCURRENCY = 8
 
 
-# List prices, US dollars per million tokens, as of Jul 31 2026.
-# OpenAI: developers.openai.com/api/docs/pricing. Anthropic: the `claude-api`
-# skill's model table. Sonnet 5 carries an introductory rate through
-# 2026-08-31 ($2/$10); the standing rate is used here so the recommendation
-# does not rest on a discount that expires.
 def contexts_path(passages: int) -> Path:
     """Where one passage budget's frozen contexts live.
 
@@ -102,6 +99,11 @@ def contexts_path(passages: int) -> Path:
     return CONTEXTS.with_name(f"answer_contexts_{passages}.json")
 
 
+# List prices, US dollars per million tokens, as of Jul 31 2026.
+# OpenAI: developers.openai.com/api/docs/pricing. Anthropic: the `claude-api`
+# skill's model table. Sonnet 5 carries an introductory rate through
+# 2026-08-31 ($2/$10); the standing rate is used here so the recommendation
+# does not rest on a discount that expires.
 PRICES = {
     "openai:gpt-4o-mini": (0.15, 0.60),
     "openai:gpt-5-nano": (0.05, 0.40),
@@ -204,10 +206,35 @@ def load_contexts(passages: int = CHUNK_LIMIT) -> dict[str, dict]:
 
 # --- generation: production's exact prompt, one provider adapter per family ---
 
-# Production's own instruction, imported rather than copied. The eval must move
-# the model and nothing else, so a change to the live prompt reaches the eval
-# automatically instead of leaving it scoring a prompt we no longer ship.
-SYSTEM_PROMPT = RAG_CHAT_SYSTEM_PROMPT
+
+def production_system_prompt() -> str:
+    """The whole instruction production sends for a partial read of a bill.
+
+    Importing the constant by identity was the original guard, and it was too
+    narrow. It catches a *copy* that drifted; it cannot catch a **layer production
+    adds on top** — which is exactly what [#868](https://github.com/alethical-org/alethical/issues/868)
+    did, composing that constant with a coverage rule that forbids the very
+    overclaiming §9 of the bar doc measures. The eval kept sending half the prompt
+    and every guard stayed green.
+
+    So resolve it the way production does, through the composer when one exists.
+    The frozen contexts here are partial reads, so ``None`` is the matching
+    coverage. Falls back to the bare constant while #868 is unmerged, which keeps
+    this correct on both sides of that landing rather than only after it.
+    """
+    composer = getattr(me_router, "rag_chat_system_prompt", None)
+    return composer(None) if composer else RAG_CHAT_SYSTEM_PROMPT
+
+
+def prompt_fingerprint(prompt: str) -> str:
+    """Short stable digest of the prompt an arm was generated under.
+
+    Recorded in every answers cache and checked before reuse. Without it, the
+    prompt changing under a cached arm is invisible: the run reuses old answers,
+    scores them beside new ones, and publishes a comparison across two different
+    prompts. The digest turns that into a visible regeneration instead.
+    """
+    return hashlib.sha256(prompt.encode()).hexdigest()[:12]
 
 
 def build_user_prompt(context: dict) -> str:
@@ -388,13 +415,22 @@ def call_model(spec: str, system: str, user: str) -> tuple[str, float, float, in
 def generate(
     spec: str, queries: list[AnswerQuery], contexts: dict, cache: Path
 ) -> dict:
+    system = production_system_prompt()
+    fingerprint = prompt_fingerprint(system)
     if cache.exists():
-        return json.loads(cache.read_text())
+        cached = json.loads(cache.read_text())
+        if cached.get("prompt_fingerprint") == fingerprint:
+            return cached["answers"]
+        print(
+            f"    prompt changed since this arm was generated "
+            f"({cached.get('prompt_fingerprint', 'unstamped')} -> {fingerprint}); "
+            "regenerating rather than comparing two prompts side by side"
+        )
     answers = {}
     for q in queries:
         context = contexts[q.key]
         answer, ttft, total, tin, tout = call_model(
-            spec, SYSTEM_PROMPT, build_user_prompt(context)
+            spec, system, build_user_prompt(context)
         )
         answers[q.key] = {
             "answer": answer,
@@ -404,7 +440,10 @@ def generate(
             "output_tokens": tout,
         }
         print(f"    {total:5.2f}s  {q.bill_key:16s} {q.question[:52]}")
-    cache.write_text(json.dumps(answers, indent=2) + "\n")
+    cache.write_text(
+        json.dumps({"prompt_fingerprint": fingerprint, "answers": answers}, indent=2)
+        + "\n"
+    )
     return answers
 
 
