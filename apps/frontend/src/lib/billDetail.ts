@@ -3,6 +3,7 @@ import {
   BillAction,
   BillSponsor,
   BillVersion,
+  Citation,
   EffectiveSchedule,
   IndividualVote,
   VoteEvent,
@@ -1864,6 +1865,35 @@ export function citationChipLabel(label: string, sectionTopic?: string): string 
   const topic = sentenceCaseHeading(sec[2] ?? '');
   // No dangling middot when a section has no usable heading.
   return topic ? `${article}${number} · ${topic}` : withTopic(`${article}${number}`);
+}
+
+// One chip per cited section, for surfaces that show the section label alone.
+//
+// Citations are served per key point (#377), so a bill whose key points all draw
+// on the same section carries one citation each — HF 4301 serves 6 citations
+// resolving to only 2 sections, and the mobile strip printed "Sec. 1 · Drinking
+// water regionalization planning and assistance grants" five times, every copy
+// jumping to the same passage.
+//
+// Two chips are duplicates only when a reader cannot tell them apart AND they go
+// to the same place, so the key is the rendered label plus the destination, and
+// the first occurrence wins (served order is preserved). Both halves are load-
+// bearing: section_id_text is NOT unique within a version (#763/#854), so id
+// alone would collapse two genuinely different sections that share an id — but
+// those carry their own headings, hence their own labels, and stay separate. An
+// unresolved citation (empty sectionId, chip disabled) is then keyed on its label
+// alone, which is all a reader sees.
+//
+// Excerpt-carrying surfaces (the web "From the bill" cards) must NOT use this —
+// there each citation quotes a different passage, so the repeats carry meaning.
+export function citationsBySection(citations: Citation[]): Citation[] {
+  const seen = new Set<string>();
+  return citations.filter((c) => {
+    const key = `${citationChipLabel(c.label, c.sectionTopic)} ${c.sectionId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 // Turn a shouted statutory heading into a short sentence-case topic: "TRANSFER."
