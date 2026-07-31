@@ -87,9 +87,12 @@ const isWeb = Platform.OS === 'web';
 // Amber treatments (README design tokens). Text uses the AA-safe #8f5a12 the
 // token system already settled on (omnibus.text); the FILLED code badge and the
 // GHOSTED omnibus/chapter tag are distinguished by fill, same hue.
+// Fill/border come from the shared omnibus tokens so the mobile code badge is
+// identical to the web FactsRail's — the mockup's darker #fbe7bd/#eccf86 was a
+// mobile-only local that made the same badge read differently per platform.
 const AMBER_TEXT = t.colors.omnibus.text; // #8f5a12
-const CODE_BADGE_FILL = '#fbe7bd';
-const CODE_BADGE_BORDER = '#eccf86';
+const CODE_BADGE_FILL = t.colors.omnibus.fill;
+const CODE_BADGE_BORDER = t.colors.omnibus.border;
 const GHOST_AMBER_BORDER = t.colors.omnibus.ghostBorder; // #e3c17f — shared ghosted omnibus border
 // Breadcrumb grey (palette.ink500) — no semantic text alias maps to it.
 const BREADCRUMB_GREY = '#4b524b';
