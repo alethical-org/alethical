@@ -30,10 +30,11 @@ import { Bill, Legislator } from '../../data/types';
 const isWeb = Platform.OS === 'web';
 const COLUMN_MAX = 640;
 
-// Amber code-badge treatment (matches Bill Detail mobile).
+// Amber code-badge treatment (shared omnibus tokens — same badge as the web
+// profile and the Bill Detail rail).
 const AMBER_TEXT = t.colors.omnibus.text;
-const CODE_BADGE_FILL = '#fbe7bd';
-const CODE_BADGE_BORDER = '#eccf86';
+const CODE_BADGE_FILL = t.colors.omnibus.fill;
+const CODE_BADGE_BORDER = t.colors.omnibus.border;
 const BREADCRUMB_GREY = '#4b524b';
 
 // ── small helpers ─────────────────────────────────────────────────────────────
