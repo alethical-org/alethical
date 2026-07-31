@@ -23,12 +23,15 @@ the same parser the pipeline uses (`parse_bill_text_html`).
 
 Scope discipline:
   * only the current version of each bill, matching what the Bill Text tab reads;
-  * a section whose id is absent from the stored rows is reported and skipped —
+  * a stored row whose position is absent from the page is reported and skipped —
     that means the page has moved on since ingest, which is an ingestion-freshness
     gap (`.claude/rules/grounded-answers.md` rule 7), not this script's job;
-  * where a bill's page repeats one section id (6 of the 12 largest bills do), the
-    LAST block wins, exactly as ingestion's own upsert does, so the blocks stay
-    consistent with the stored flat text.
+  * blocks are matched to a row by the section's POSITION on the page, not by its
+    id, because a page may repeat one id — `laws.0.1.0` is what the Revisor hands
+    every section outside an article, and 6 of the 12 largest bills repeat it
+    (#763). Matching by id would copy the last repeat's blocks onto every row
+    sharing that id, so the structured body would disagree with the flat text
+    stored beside it.
 
 Safe + idempotent: writes a section only when its blocks differ from what is
 stored, so a second run is a no-op. Free, resumable, and reversible (the column is
@@ -77,13 +80,17 @@ PROGRESS_EVERY = 200
 BATCH_SIZE = 50
 
 
-def blocks_by_section(page_html: str, url: str) -> dict[str, list]:
-    """Each section's blocks, keyed by section id, last duplicate winning."""
+def blocks_by_section(page_html: str, url: str) -> dict[int, list]:
+    """Each section's blocks, keyed by its 1-based position on the page.
+
+    Position, not section id: a page may give two sections the same id (#763), and
+    keying by id would copy the last repeat's blocks onto every row sharing it.
+    """
     parsed = parse_bill_text_html(page_html, url)
-    blocks: dict[str, list] = {}
-    for section in parsed["sections"]:  # type: ignore[union-attr]
-        blocks[str(section["section_id"])] = list(section["blocks"])
-    return blocks
+    return {
+        position: list(section["blocks"])
+        for position, section in enumerate(parsed["sections"], start=1)  # type: ignore[arg-type]
+    }
 
 
 def main() -> None:
@@ -196,10 +203,11 @@ def main() -> None:
                         .where(BillVersionSection.bill_version_id == version_id)
                         .order_by(BillVersionSection.source_order.asc())
                     ).all():
-                        fresh = blocks.get(section.section_id_text)
+                        fresh = blocks.get(section.source_order)
                         if fresh is None:
                             absent_from_page.append(
-                                f"{bill_key} {section.section_id_text}"
+                                f"{bill_key} position {section.source_order} "
+                                f"({section.section_id_text})"
                             )
                             continue
                         if section.body_blocks == fresh:
@@ -221,7 +229,7 @@ def main() -> None:
         print(f"already up to date: {unchanged}")
         if absent_from_page:
             print(
-                f"skipped — section id no longer on the bill's page: "
+                f"skipped — the page no longer has a section at that position: "
                 f"{len(absent_from_page)} sections (ingestion-freshness gap)"
             )
             for item in absent_from_page[:20]:

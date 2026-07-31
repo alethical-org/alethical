@@ -623,8 +623,21 @@ class BillVersionSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("bill_version_id", "section_id_text"),
+        # Keyed on the section's POSITION, not its id, because a bill page may give
+        # two sections the same id: `laws.0.1.0` is what the Revisor hands every
+        # section that sits outside an article, so a bill with several of those
+        # repeats it. Keying on the id made the second such section overwrite the
+        # first, and 24 current versions lost 57 sections that way (#763).
+        # `section_id_text` stays the display and anchor value (the Bill Text tab's
+        # `#ft-<sectionId>` links resolve against it) but is no longer unique.
+        # The trade-off: a row now follows its position rather than its content, so
+        # if a version's page ever gained a section in the middle, every later row
+        # would be rewritten with its neighbour's text and re-embedded. That costs
+        # nothing in practice — a version's page is a fixed document at a fixed
+        # `bill_version.html_url`, and a new engrossment gets its own version row.
+        UniqueConstraint("bill_version_id", "source_order"),
         Index("ix_bill_version_section_order", "bill_version_id", "source_order"),
+        Index("ix_bill_version_section_text", "bill_version_id", "section_id_text"),
     )
 
 

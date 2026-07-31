@@ -11,6 +11,7 @@ from alethical.db.models import (
     Bill,
     BillAction,
     BillVersion,
+    BillVersionSection,
     LegislativeSession,
     Legislator,
     LegislatorServicePeriod,
@@ -1129,5 +1130,102 @@ def test_upsert_bill_refreshes_title_on_reingest(seed_database: None) -> None:
         # instead of falling back to the bill key or the short description.
         bill = _ingest("")
         assert bill.title == enacted
+
+        session.rollback()
+
+
+def test_repeated_section_id_keeps_every_section(seed_database: None) -> None:
+    """#763 regression: a bill page may give two sections the same id, so the id
+    cannot identify a row. `laws.0.1.0` is the id the Revisor hands every section
+    that sits outside an article, and 6 of the 12 biggest bills repeat it. The
+    importer used to look a row up by that id and reuse it, so the second such
+    section overwrote the first and only the last survived — 24 current versions
+    lost 57 sections that way. Rows are now keyed on the section's position
+    (`source_order`), which keeps every section AND keeps the re-ingest idempotent:
+    the second run finds the same row at the same position rather than inserting a
+    duplicate. `section_id_text` keeps its (now repeatable) value, because it is
+    what the Bill Text tab's `#ft-<sectionId>` anchors resolve against."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        run = pipeline.start_run("bill", "94-2025-HF6666")
+        artifact = pipeline.record_artifact(
+            run,
+            ArtifactType.html,
+            "https://example.test/hf6666.html",
+            "<html></html>",
+        )
+        bill = Bill(
+            session_id=refs["session"].id,
+            chamber_id=refs["chambers"]["house"].id,
+            bill_key="94-2025-HF6666",
+            file_type="HF",
+            file_number=6666,
+            title="Repeated-section-id regression bill",
+        )
+        session.add(bill)
+        session.flush()
+
+        # Three sections outside any article, all carrying `laws.0.1.0`, with one
+        # ordinary in-article section between them — the real shape of an omnibus.
+        bill_text: dict = {
+            "articles": [],
+            "sections": [
+                {"section_id": "laws.0.1.0", "text": "Advisory committee."},
+                {"section_id": "laws.1.1.0", "text": "In-article section."},
+                {"section_id": "laws.0.1.0", "text": "Repealer."},
+                {"section_id": "laws.0.1.0", "text": "Appropriation."},
+            ],
+        }
+        canonical = {
+            "text_versions": [
+                {"document_engrossment": "0", "document_name": "Introduced"}
+            ]
+        }
+
+        pipeline.upsert_versions_and_sections(bill, canonical, bill_text, artifact)
+        session.flush()
+
+        def stored() -> list[BillVersionSection]:
+            return list(
+                session.scalars(
+                    select(BillVersionSection)
+                    .join(BillVersion)
+                    .where(BillVersion.bill_id == bill.id)
+                    .order_by(BillVersionSection.source_order.asc())
+                ).all()
+            )
+
+        rows = stored()
+        # Every section on the page is stored, not just the last of each id.
+        assert len(rows) == 4
+        assert [row.source_order for row in rows] == [1, 2, 3, 4]
+        assert [row.section_id_text for row in rows] == [
+            "laws.0.1.0",
+            "laws.1.1.0",
+            "laws.0.1.0",
+            "laws.0.1.0",
+        ]
+        assert [row.raw_text for row in rows] == [
+            "Advisory committee.",
+            "In-article section.",
+            "Repealer.",
+            "Appropriation.",
+        ]
+
+        # Re-ingesting the same bill must reuse the same rows: no duplicates, and
+        # no new primary keys (which would orphan every RAG document pointing at
+        # them). This is exactly what the old lookup-by-id was buying.
+        primary_keys_before = [row.id for row in rows]
+        pipeline.upsert_versions_and_sections(bill, canonical, bill_text, artifact)
+        session.flush()
+        rows_again = stored()
+        assert [row.id for row in rows_again] == primary_keys_before
+        assert [row.raw_text for row in rows_again] == [
+            "Advisory committee.",
+            "In-article section.",
+            "Repealer.",
+            "Appropriation.",
+        ]
 
         session.rollback()

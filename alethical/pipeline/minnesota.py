@@ -1904,19 +1904,28 @@ class MinnesotaIngestionPipeline:
                 article_lookup[section["section_id"]] = article
         for source_order, section in enumerate(bill_text.get("sections", []), start=1):
             article = article_lookup.get(section["section_id"], {})
+            # Look the row up by its POSITION on the page, not by its id. A page may
+            # give two sections the same id — `laws.0.1.0` is the id the Revisor
+            # hands every section that sits outside an article, and 6 of the 12
+            # biggest bills repeat it — so looking up by id made the second such
+            # section overwrite the first and only the last one survived (#763).
+            # Position is what actually identifies a section within a version, it is
+            # unique by construction here (one row per index of this loop), and
+            # keying on it keeps the re-ingest idempotent: a second run finds the
+            # same row at the same position and rewrites it with the same values.
             section_row = self.db.scalar(
                 select(BillVersionSection).where(
                     BillVersionSection.bill_version_id == latest_version.id,
-                    BillVersionSection.section_id_text == str(section["section_id"]),
+                    BillVersionSection.source_order == source_order,
                 )
             )
             if section_row is None:
                 section_row = BillVersionSection(
                     bill_version_id=latest_version.id,
-                    section_id_text=str(section["section_id"]),
+                    source_order=source_order,
                 )
                 self.db.add(section_row)
-            section_row.source_order = source_order
+            section_row.section_id_text = str(section["section_id"])
             section_row.article_id_text = str(article.get("article_id") or "") or None
             section_row.article_number = (
                 str(article.get("article_number") or "") or None
