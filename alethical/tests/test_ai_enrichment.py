@@ -605,7 +605,10 @@ def test_section_chip_topic_reads_both_heading_columns() -> None:
 
     Reading only section_heading is why most chips rendered a number and no topic
     (on SF 334 sections 1-4 are the statute-creating kind). Consulting both takes
-    corpus coverage from 22.0% of sections to 40.2%, measured against production.
+    corpus coverage from 20.6% of sections to 39.6% — 19,771 of the 49,919
+    current-version sections in production. The 60% with no topic at all are almost
+    entirely repealer sections, which carry no heading in either column, so there is
+    nothing honest to put on their chip.
     """
     from alethical.api.serializers import section_chip_topic as topic
 
@@ -649,10 +652,34 @@ def test_section_chip_topic_reads_both_heading_columns() -> None:
     assert topic("Sec. 4. new text begin GRANTS new text end", None) == ""
 
     # Too long to sit on a chip -> dropped rather than truncated, because a cut-off
-    # phrase reads as broken while the number alone is a designed state.
-    assert topic(f"Sec. 8. {'A' * 61}", None) == ""
+    # phrase reads as broken while the number alone is a designed state. The limit is
+    # where a heading stops being a name and becomes a sentence; the chip wraps to
+    # the card, so a two-line name is fine and a clause is not.
+    assert topic(f"Sec. 8. {'A' * 81}", None) == ""
     # At the limit it is kept, and an all-caps heading downcases whole.
-    assert topic(f"Sec. 8. {'A' * 60}", None) == "A" + "a" * 59
+    assert topic(f"Sec. 8. {'A' * 80}", None) == "A" + "a" * 79
+    # Real headings from production that the old 60-char limit dropped, each a plain
+    # noun phrase that belongs on a chip. The first is HF 4301 Sec. 1, which is where
+    # this came from: its chip read "Sec. 1" with no topic while Sec. 2 next to it
+    # read "Sec. 2 · Appropriation", and the only difference was one character.
+    assert topic(
+        "Section 1. DRINKING WATER REGIONALIZATION PLANNING AND ASSISTANCE GRANTS.",
+        None,
+    ) == ("Drinking water regionalization planning and assistance grants")
+    assert topic(
+        "Sec. 3. SUSTAINABLE CONSTRUCTION AND DEMOLITION WASTE TRANSITION GRANTS "
+        "PROGRAM.",
+        None,
+    ) == ("Sustainable construction and demolition waste transition grants program")
+    # Past the limit a heading is a full clause, not a name, so it still drops.
+    assert (
+        topic(
+            "Sec. 4. SCOPING ENVIRONMENTAL ASSESSMENT WORKSHEET NOT REQUIRED FOR "
+            "PROJECTS THAT REQUIRE A MANDATORY ENVIRONMENTAL IMPACT STATEMENT.",
+            None,
+        )
+        == ""
+    )
 
 
 def test_prompt_consolidates_key_points_with_six_as_a_target_not_a_quota() -> None:
