@@ -34,7 +34,9 @@ import argparse
 import json
 import os
 import random
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import requests
@@ -75,6 +77,10 @@ EF_SEARCH = 100
 # API does not stream, so total generation time is what they experience.
 P50_SECONDS = 5.0
 P95_SECONDS = 9.0
+
+# Judges run concurrently (see judge_all). Kept modest so a run does not trip
+# either provider's rate limits, which would cost more time than it saves.
+JUDGE_CONCURRENCY = 8
 
 # List prices, US dollars per million tokens, as of Jul 31 2026.
 # OpenAI: developers.openai.com/api/docs/pricing. Anthropic: the `claude-api`
@@ -484,15 +490,28 @@ def _anthropic_judge(model: str, system: str, user: str) -> dict:
 
 
 def _loads_json(raw: str, *, stop_reason: str | None = None) -> dict:
-    start, end = raw.find("{"), raw.rfind("}")
-    if start == -1 or end == -1:
-        hint = (
-            " — the reply hit max_tokens, so raise it rather than retrying"
-            if stop_reason == "max_tokens"
-            else ""
-        )
-        raise ValueError(f"no JSON object in judge reply{hint}: {raw[:200]!r}")
-    return json.loads(raw[start : end + 1])
+    """Pull the first complete JSON object out of a judge's reply.
+
+    Judges are told to return only the object and mostly do, but they variously
+    wrap it in a code fence or follow it with a sentence of commentary. Scanning
+    to the *last* closing brace swallows that trailing prose and fails with a
+    baffling "Extra data"; ``raw_decode`` stops at the end of the first object,
+    which is the one we asked for.
+    """
+    start = raw.find("{")
+    if start != -1:
+        try:
+            obj, _ = json.JSONDecoder().raw_decode(raw, start)
+            if isinstance(obj, dict):
+                return obj
+        except json.JSONDecodeError:
+            pass  # fall through to the shared error below
+    hint = (
+        " — the reply hit max_tokens, so raise it rather than retrying"
+        if stop_reason == "max_tokens"
+        else ""
+    )
+    raise ValueError(f"no complete JSON object in judge reply{hint}: {raw[:300]!r}")
 
 
 def call_judge(spec: str, system: str, user: str) -> dict:
@@ -524,17 +543,34 @@ def judge_all(
     if not pairs:
         print("    (all cached)")
         return verdicts
-    for i, (model_spec, q) in enumerate(pairs, start=1):
-        answer = answers_by_model[model_spec][q.key]["answer"]
-        verdicts[f"{model_spec}||{q.key}"] = call_judge(
+
+    # Judged concurrently, unlike generation. Generation runs serially because its
+    # wall-clock IS a scored dimension and concurrent requests would inflate it;
+    # nothing about a judge's latency is measured, so there is no reason to wait.
+    lock = threading.Lock()
+    done = 0
+
+    def grade(pair):
+        nonlocal done
+        model_spec, q = pair
+        verdict = call_judge(
             judge_spec,
             JUDGE_SYSTEM,
-            build_judge_prompt(q, contexts[q.key], answer),
+            build_judge_prompt(
+                q, contexts[q.key], answers_by_model[model_spec][q.key]["answer"]
+            ),
         )
-        print(f"    [{i}/{len(pairs)}] graded one answer")
-        # Written every time, so an interrupted or rate-limited run resumes
-        # instead of re-paying for everything it already graded.
-        cache.write_text(json.dumps(verdicts, indent=2) + "\n")
+        with lock:
+            verdicts[f"{model_spec}||{q.key}"] = verdict
+            done += 1
+            # Written as each verdict lands, so an interrupted or rate-limited run
+            # resumes instead of re-paying for everything it already graded.
+            cache.write_text(json.dumps(verdicts, indent=2) + "\n")
+            print(f"    [{done}/{len(pairs)}] graded one answer")
+
+    with ThreadPoolExecutor(max_workers=JUDGE_CONCURRENCY) as pool:
+        for future in as_completed([pool.submit(grade, p) for p in pairs]):
+            future.result()  # re-raise the first failure rather than losing it
     return verdicts
 
 

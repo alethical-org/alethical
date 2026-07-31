@@ -384,3 +384,44 @@ def test_the_eval_scores_productions_own_prompt_rather_than_a_copy():
     cli = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cli)
     assert cli.SYSTEM_PROMPT is RAG_CHAT_SYSTEM_PROMPT
+
+
+# --- judge replies are not always clean JSON; the parser has to cope ---
+
+
+def _cli():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "answer_eval_cli3",
+        pathlib.Path(__file__).resolve().parents[2] / "scripts/answer_eval.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '{"grounded": true, "covers": 2}',
+        '```json\n{"grounded": true, "covers": 2}\n```',
+        # Trailing commentary after the object — reading to the LAST brace here
+        # produced a baffling "Extra data" and killed a run mid-flight.
+        '{"grounded": true, "covers": 2}\n\nI graded this strictly {see note}.',
+        'Here is my grading:\n{"grounded": true, "covers": 2}',
+    ],
+)
+def test_loads_json_takes_the_first_object_and_ignores_the_wrapping(raw):
+    assert _cli()._loads_json(raw) == {"grounded": True, "covers": 2}
+
+
+def test_loads_json_names_max_tokens_when_the_reply_was_truncated():
+    cli = _cli()
+    truncated = '{"grounded": true, "note": "the answer states'
+    with pytest.raises(ValueError, match="max_tokens"):
+        cli._loads_json(truncated, stop_reason="max_tokens")
+    # Without that stop reason the message must not blame max_tokens.
+    with pytest.raises(ValueError) as caught:
+        cli._loads_json(truncated)
+    assert "max_tokens" not in str(caught.value)

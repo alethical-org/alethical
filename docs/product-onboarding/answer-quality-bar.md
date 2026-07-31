@@ -96,6 +96,16 @@ sets the terms: an answer that takes 12 seconds is worse than a slightly duller 
 in 3. So the bar sits between them and closer to the good end. Note *total*, not
 time-to-first-word — see §4.
 
+**Weigh p50 more heavily than p95, because at twenty questions p95 is one
+observation.** The 95th percentile of a 20-item fixture is the 19th-slowest answer —
+a single request, and therefore as much a measurement of one moment's network and
+queue conditions as of the model. A p50 failure is a property of the model; a p95
+failure driven by one outlier is a prompt to re-run rather than a verdict. The eval
+prints both and `meets_bar()` requires both, so a p95 breach fails a candidate — but
+read a marginal one as "measure again", not "disqualified". Tightening this properly
+means more samples per question, which is a cheap follow-up if latency ever decides
+a close call.
+
 ## 4. Speed is measured as total time, because nothing streams
 
 `synthesize_grounded_answer` makes a blocking, non-streaming HTTP request and
