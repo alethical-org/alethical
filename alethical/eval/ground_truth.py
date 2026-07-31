@@ -40,6 +40,8 @@ once by the #868 session, agreeing on both figures:
 
 from __future__ import annotations
 
+import re
+
 # Lower bounds, set clear of every definitional edge case above.
 HF719_MIN_GRANT_CITIES = 90
 HF719_MIN_GRANT_COUNTIES = 15
@@ -67,3 +69,57 @@ HF719_GRANT_COUNTIES: tuple[str, ...] = (
 # The claim to test against, in the words a wrong answer uses. Production denied
 # the county category outright; that denial is the sharpest single symptom.
 HF719_COUNTIES_ARE_NAMED = True
+
+
+# --- the counting method itself, so a measurement can reuse it ---
+#
+# The two phrasings the counts above were taken from. Kept here beside the numbers
+# they produced, because a second copy of the pattern elsewhere would quietly start
+# counting something else and the numbers would stop being comparable.
+#
+# Deliberately the TIGHT phrasing, matching how the bounds were set. Run over HF
+# 719's full current text it reproduces the counts above exactly — **98 cities and
+# 17 counties** — and skips the ~6 recipients written another way, which is why the
+# module publishes bounds of 90 and 15 rather than exact figures.
+#
+# A recipient name is a capitalised word, optionally followed by more capitalised
+# words and by the lowercase connectors a place name really contains: Lake of the
+# Woods County is one of the seventeen, and a capitals-only pattern silently finds
+# sixteen. Connectors may only appear *between* capitalised words, never at the end,
+# so the name cannot run on into the sentence after it.
+_NAME = r"[A-Z][A-Za-z.\-']*(?:\s+(?:[A-Z][A-Za-z.\-']*|of|the))*?"
+_GRANT_TO_CITY_RE = re.compile(
+    rf"grants?\s+to\s+the\s+city\s+of\s+({_NAME})(?=\s+(?:for|to|in|and)\b|[,.])"
+)
+_GRANT_TO_COUNTY_RE = re.compile(rf"grants?\s+to\s+({_NAME})\s+County")
+
+
+def grant_recipients(bill_text: str) -> tuple[frozenset[str], frozenset[str]]:
+    """The cities and counties a stretch of HF 719's text names as grant recipients.
+
+    Counts from the **bill text**, which is the only thing that can be counted: an
+    answer's own list is what is being checked against this, so deriving the truth
+    from the answer would confirm whatever the answer said. Pass the whole bill and
+    you get the whole truth; pass a sample and you get what that sample names, which
+    is the right denominator for asking how much of what a writer could see it
+    actually reported (#878).
+    """
+    cities = frozenset(
+        m.group(1).strip() for m in _GRANT_TO_CITY_RE.finditer(bill_text)
+    )
+    counties = frozenset(
+        m.group(1).strip() for m in _GRANT_TO_COUNTY_RE.finditer(bill_text)
+    )
+    return cities, counties
+
+
+def named_in_answer(names: frozenset[str], answer: str) -> frozenset[str]:
+    """Which of those recipient names the answer actually prints.
+
+    Case-sensitive with word boundaries, on purpose: Grant is a real Minnesota city
+    in this bill, and a case-insensitive match would score every use of the word
+    "grant" as a city correctly reported.
+    """
+    return frozenset(
+        name for name in names if re.search(rf"\b{re.escape(name)}\b", answer)
+    )

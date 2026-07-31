@@ -39,22 +39,35 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import NamedTuple
 
 import requests
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.routers import me as me_router
-from alethical.api.routers.me import RAG_CHAT_SYSTEM_PROMPT, build_query_embedding
+from alethical.api.routers.ask import (
+    _BILL_TEXT_CHUNK_LIMIT,
+    _LIST_QUESTION_CHUNK_CEILING,
+    _LIST_QUESTION_RE,
+    _LIST_QUESTION_WORD_BUDGET,
+)
+from alethical.api.routers.me import (
+    RAG_CHAT_SYSTEM_PROMPT,
+    BillTextCoverage,
+    build_query_embedding,
+)
 from alethical.db.schema import load_schema
 from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target
 from alethical.eval.answer_eval import (
+    ENUMERATION_FLOOR,
     GRADED_DIMENSIONS,
     AnswerQuery,
     AnswerResult,
     JudgeVerdict,
     aggregate,
     cost_per_answer,
+    enumeration_recall,
     judge_disagreement,
     literal_fact_coverage,
     load_fixture,
@@ -70,11 +83,23 @@ FIXTURE = REPO / "alethical/eval/fixtures/answer_questions.json"
 CONTEXTS = REPO / "alethical/eval/fixtures/answer_contexts.json"
 
 
-# Mirrors ask.py: _BILL_TEXT_CHUNK_LIMIT (the passages the writer is given) and
-# the HNSW beam width the request sets. Keep these in step with ask.py or the
-# eval stops measuring production's writer.
-CHUNK_LIMIT = 4
+# The passages the writer is given, imported from ask.py rather than copied, and
+# the HNSW beam width the request sets. A copy of this number would drift the same
+# way a copy of the prompt did (#890), and the eval would stop measuring
+# production's writer while every guard stayed green.
+CHUNK_LIMIT = _BILL_TEXT_CHUNK_LIMIT
 EF_SEARCH = 100
+
+# Production does not have one passage budget, it has two, chosen by the shape of
+# the question (#868). A specific question keeps the fixed CHUNK_LIMIT; a question
+# asking for *everything* of a kind reads as much of the bill as
+# _LIST_QUESTION_WORD_BUDGET allows. So "what production sends today" is a budget
+# in its own right, and it is the one the model decision on
+# [#878](https://github.com/alethical-org/alethical/issues/878) has to be made
+# against. A fixed-N budget stays available because §9 of the bar doc compares
+# them, and holding N constant across question shapes is what isolates "the writer
+# was under-informed" from "the writer is weak".
+PRODUCTION_BUDGET = "production"
 
 # Latency budget, argued in the quality-bar doc. The reader is waiting, and the
 # API does not stream, so total generation time is what they experience.
@@ -86,17 +111,17 @@ P95_SECONDS = 9.0
 JUDGE_CONCURRENCY = 8
 
 
-def contexts_path(passages: int) -> Path:
+def contexts_path(budget: int | str) -> Path:
     """Where one passage budget's frozen contexts live.
 
-    The default budget keeps the plain filename so the committed snapshot and every
-    existing reference stay valid; a wider budget gets its own file, because
-    widening the window is a different experiment and must not overwrite the
-    baseline it is being compared against.
+    The fixed 4-passage budget keeps the plain filename so the committed snapshot
+    and every existing reference stay valid; every other budget gets its own file,
+    because widening the window is a different experiment and must not overwrite
+    the baseline it is being compared against.
     """
-    if passages == CHUNK_LIMIT:
+    if budget == CHUNK_LIMIT:
         return CONTEXTS
-    return CONTEXTS.with_name(f"answer_contexts_{passages}.json")
+    return CONTEXTS.with_name(f"answer_contexts_{budget}.json")
 
 
 # List prices, US dollars per million tokens, as of Jul 31 2026.
@@ -118,8 +143,45 @@ PRICES = {
 # --- snapshot: freeze production's retrieval so every model sees one context ---
 
 
+def is_list_question(question: str) -> bool:
+    """Would production widen the window for this question? ask.py's own detector.
+
+    Imported rather than reimplemented: which questions get the wide budget is a
+    production behaviour, and a second copy of the rule here would silently start
+    snapshotting a split production does not make.
+    """
+    return bool(_LIST_QUESTION_RE.search(question))
+
+
+def _budgeted(chunks: list, budget: int | str, *, enumerating: bool) -> list:
+    """Cut a ranked passage list down to what the writer is actually handed.
+
+    Mirrors ``_retrieve_bill_text`` (``alethical/api/routers/ask.py``): a specific
+    question keeps the fixed ``CHUNK_LIMIT``; an enumerate-everything question fills
+    a *word* budget instead, so a bill of short sections gets many more passages
+    than a bill of long ones. The first passage is always kept, however long, because
+    returning nothing would refuse a question the bill can answer.
+
+    Words come from each passage's stored ``word_count``, which is what production
+    adds up. Re-splitting the text here would be a second, slightly different
+    definition of a word, and the budget would cut in a different place.
+    """
+    if budget != PRODUCTION_BUDGET:
+        return chunks[: int(budget)]
+    if not enumerating:
+        return chunks[:CHUNK_LIMIT]
+    kept: list = []
+    words = 0
+    for chunk in chunks:
+        words += chunk.word_count
+        if kept and words > _LIST_QUESTION_WORD_BUDGET:
+            break
+        kept.append(chunk)
+    return kept
+
+
 def snapshot(args) -> None:
-    passages = args.passages
+    budget = args.passages
     schema = load_schema()
     Bill = schema.Bill
     engine = create_engine(
@@ -136,16 +198,28 @@ def snapshot(args) -> None:
             bill = db.scalar(select(Bill).where(Bill.bill_key == q.bill_key))
             if bill is None:
                 raise SystemExit(f"{q.bill_key} is not in this database")
-            chunks = db.scalars(
+            enumerating = is_list_question(q.question)
+            # Fetch the ceiling, then cut. Production does the same: it asks for up
+            # to _LIST_QUESTION_CHUNK_CEILING rows and lets the word budget decide
+            # where to stop, rather than asking the database for a word count.
+            ceiling = (
+                _LIST_QUESTION_CHUNK_CEILING
+                if budget == PRODUCTION_BUDGET and enumerating
+                else CHUNK_LIMIT
+                if budget == PRODUCTION_BUDGET
+                else int(budget)
+            )
+            ranked = db.scalars(
                 schema.semantic_rag_chunk_stmt(
                     build_query_embedding(q.question),
                     bill_id=bill.id,
                     embedding_model=model,
-                    limit=passages,
+                    limit=ceiling,
                 )
             ).all()
-            if not chunks:
+            if not ranked:
                 raise SystemExit(f"{q.bill_key} has no retrievable passages")
+            chunks = _budgeted(list(ranked), budget, enumerating=enumerating)
             total = db.scalar(
                 text(
                     "select count(*) from rag_chunk rc "
@@ -164,16 +238,23 @@ def snapshot(args) -> None:
                 # guess, and it is derived here rather than hand-labeled so it
                 # cannot go stale when the passage budget changes (#868).
                 "passages_total": int(total or 0),
+                # Which of production's two budgets this question fell into, recorded
+                # so a reader of the snapshot can see the split rather than having to
+                # re-run the detector over the question text.
+                "list_question": enumerating,
                 "chunks": [
                     {"citation_label": c.citation_label, "chunk_text": c.chunk_text}
                     for c in chunks
                 ],
             }
+            words = sum(c.word_count for c in chunks)
             print(
-                f"  {q.bill_key}  {len(out[q.key]['chunks'])} passages  {q.question[:60]}"
+                f"  {q.bill_key:16s} {'LIST' if enumerating else '    '} "
+                f"{len(chunks):4d}/{int(total or 0):<4d} passages  {words:6d} words  "
+                f"{q.question[:52]}"
             )
 
-    destination = contexts_path(passages)
+    destination = contexts_path(budget)
     destination.write_text(
         json.dumps(
             {
@@ -181,7 +262,15 @@ def snapshot(args) -> None:
                     "Frozen retrieval contexts for the answer-quality eval (#865). "
                     "Produced by `scripts/answer_eval.py snapshot` read-only against "
                     "production, replicating ask.py's per-bill passage retrieval "
-                    f"(limit {passages}, hnsw.ef_search {EF_SEARCH}). Committed so "
+                    + (
+                        "at production's own two budgets — a fixed "
+                        f"{CHUNK_LIMIT} passages for a specific question, up to "
+                        f"{_LIST_QUESTION_WORD_BUDGET:,} words for a question asking "
+                        "for every instance of something (#868)"
+                        if budget == PRODUCTION_BUDGET
+                        else f"at a fixed limit of {budget} passages per question"
+                    )
+                    + f", hnsw.ef_search {EF_SEARCH}. Committed so "
                     "every model is written from identical passages and the eval runs "
                     "without a database."
                 ),
@@ -194,36 +283,59 @@ def snapshot(args) -> None:
     print(f"\nwrote {len(out)} contexts to {destination.relative_to(REPO)}")
 
 
-def load_contexts(passages: int = CHUNK_LIMIT) -> dict[str, dict]:
-    path = contexts_path(passages)
+def load_contexts(budget: int | str = CHUNK_LIMIT) -> dict[str, dict]:
+    path = contexts_path(budget)
     if not path.exists():
         raise SystemExit(
-            f"no snapshot for a {passages}-passage budget; run "
-            f"`snapshot --passages {passages}` first"
+            f"no snapshot for the {budget} passage budget; run "
+            f"`snapshot --passages {budget}` first"
         )
     return json.loads(path.read_text())["contexts"]
+
+
+def coverage_of(context: dict) -> BillTextCoverage:
+    """How much of the bill this frozen context is — production's own dataclass.
+
+    The eval must send the prompt production would send, and which of the two
+    coverage rules that is depends on this (`rag_chat_system_prompt`). Derived from
+    the snapshot rather than labeled, so it stays right when the budget moves.
+    """
+    return BillTextCoverage(
+        searched=len(context["chunks"]),
+        total=int(context.get("passages_total") or 0),
+    )
 
 
 # --- generation: production's exact prompt, one provider adapter per family ---
 
 
-def production_system_prompt() -> str:
-    """The whole instruction production sends for a partial read of a bill.
+def production_system_prompt(coverage: BillTextCoverage | None = None) -> str:
+    """The whole instruction production sends, for the coverage it is sending it at.
 
     Importing the constant by identity was the original guard, and it was too
     narrow. It catches a *copy* that drifted; it cannot catch a **layer production
     adds on top** — which is exactly what [#868](https://github.com/alethical-org/alethical/issues/868)
     did, composing that constant with a coverage rule that forbids the very
     overclaiming §9 of the bar doc measures. The eval kept sending half the prompt
-    and every guard stayed green.
+    and every guard stayed green (#890).
 
-    So resolve it the way production does, through the composer when one exists.
-    The frozen contexts here are partial reads, so ``None`` is the matching
-    coverage. Falls back to the bare constant while #868 is unmerged, which keeps
-    this correct on both sides of that landing rather than only after it.
+    **The coverage argument is not optional detail — it selects a different rule.**
+    Production sends one instruction when the whole bill went in ("you may describe
+    the bill as a whole … list every one you find") and a different one when the
+    context is a sample ("NEVER state or imply that the bill omits … something").
+    #890 hard-coded ``None`` because every context was then a partial read. At
+    production's shipped budget most are not: a list question over HF 719 reads all
+    102 of its passages, so sending the partial rule there would score a prompt
+    production does not send for that question — the same class of gap #890 closed,
+    one layer down. So the caller passes the coverage the snapshot shows
+    (``coverage_of``), and ``None`` still means "assume a sample", which is both the
+    safe direction and what the bill-scoped chat does.
+
+    Falls back to the bare constant if the composer is absent, which keeps this
+    correct against a checkout from before #868 landed.
     """
     composer = getattr(me_router, "rag_chat_system_prompt", None)
-    return composer(None) if composer else RAG_CHAT_SYSTEM_PROMPT
+    return composer(coverage) if composer else RAG_CHAT_SYSTEM_PROMPT
 
 
 def prompt_fingerprint(prompt: str) -> str:
@@ -235,6 +347,37 @@ def prompt_fingerprint(prompt: str) -> str:
     prompts. The digest turns that into a visible regeneration instead.
     """
     return hashlib.sha256(prompt.encode()).hexdigest()[:12]
+
+
+# The prompt is no longer one string, so the digest cannot be taken over one. Both
+# coverage rules are in play across a single run — a list question over a long bill
+# reads it whole while a specific question next to it reads a sample — so the
+# fingerprint covers the whole instruction surface. Change either rule and every
+# cached arm regenerates, which is the point.
+_FINGERPRINT_COVERAGES = (
+    None,
+    BillTextCoverage(searched=4, total=100),  # a sample
+    BillTextCoverage(searched=100, total=100),  # the whole bill
+)
+
+
+def prompt_surface_fingerprint(*, unprompted: bool = False) -> str:
+    """One digest over every instruction this run could send."""
+    if unprompted:
+        return prompt_fingerprint(f"unprompted::{RAG_CHAT_SYSTEM_PROMPT}")
+    return prompt_fingerprint(
+        "\n=====\n".join(production_system_prompt(c) for c in _FINGERPRINT_COVERAGES)
+    )
+
+
+def _context_text(context: dict) -> str:
+    """Every word of bill text one frozen context holds, as one string."""
+    return "\n".join(c["chunk_text"] for c in context["chunks"])
+
+
+# Named in the report so a reader of the numbers can see what was counted without
+# opening the module that counts it.
+_ENUMERATION_METHOD = '"grant(s) to the city of X" / "grant(s) to X County"'
 
 
 def build_user_prompt(context: dict) -> str:
@@ -373,50 +516,114 @@ def _anthropic_answer(
     )
 
 
-def parse_spec(spec: str) -> tuple[str, str, bool, int]:
-    """``provider:model[+deep][@passages]`` → (provider, model, deep, passages).
+class Candidate(NamedTuple):
+    """Everything about an arm that changes what it is measuring.
 
-    Two things beyond the model name belong to a candidate's identity rather than
+    Every field here has to be part of the candidate's *name*, because each one
+    produces different prose from the same model, and two arms that differ on any of
+    them are not comparable. They are also what ``_slug`` has to distinguish, or two
+    arms silently share a cache and the second reads the first's answers.
+
+    A NamedTuple rather than a dataclass: this module is loaded by path from the
+    tests (``importlib`` with no ``sys.modules`` entry), and ``@dataclass`` needs its
+    class's module to be importable by name to resolve its own sentinels. It crashes
+    on import under that loader. Nothing here needs mutation, so the tuple is both
+    the working option and the smaller one.
+    """
+
+    provider: str
+    model: str
+    deep: bool
+    budget: int | str
+    unprompted: bool
+
+    @property
+    def is_openai(self) -> bool:
+        return self.provider == "openai"
+
+
+_SUFFIXES = ("deep", "unprompted")
+
+
+def parse_spec(spec: str) -> Candidate:
+    """``provider:model[+deep][+unprompted][@budget]`` → a Candidate.
+
+    Three things beyond the model name belong to a candidate's identity rather than
     sitting in a default somewhere:
 
     * ``+deep`` — reasoning left at the provider's default. The same model reasoning
       or not is two different products to a waiting reader.
-    * ``@N`` — how many bill passages the writer is given. ``gpt-4o-mini@16`` is a
-      genuinely different candidate from ``gpt-4o-mini``, and comparing them is what
-      separates "the writer is weak" from "the writer was under-informed" (#868).
+    * ``+unprompted`` — sends only ``RAG_CHAT_SYSTEM_PROMPT``, without #868's
+      coverage rule. This is the **control**, and it is what §9 of the bar doc is
+      arguing about: §9's published overclaim rates were measured on a model nobody
+      had told not to overclaim, so keeping an arm on that prompt is what makes the
+      "a wider window is not the fix" comparison a like-for-like one. It is not a
+      shippable configuration — production always sends the coverage rule.
+    * ``@N`` or ``@production`` — how much bill text the writer is given. ``@N``
+      holds the budget fixed across question shapes, which is what separates "the
+      writer is weak" from "the writer was under-informed" (§9). ``@production`` is
+      what a reader actually gets: a fixed 4 passages for a specific question, up to
+      20,000 words for a question asking for every instance of something (#868).
 
-    Both default to what production does today, so a bare spec means the incumbent
-    configuration.
+    All three default to what production did before #868, so a bare spec is still the
+    old incumbent configuration and every §9 row stays reproducible.
     """
-    base, _, budget = spec.partition("@")
-    passages = CHUNK_LIMIT
-    if budget:
-        if not budget.isdigit() or int(budget) < 1:
-            raise SystemExit(f"passage budget in {spec!r} must be a positive integer")
-        passages = int(budget)
-    base, _, suffix = base.partition("+")
-    if suffix not in ("", "deep"):
-        raise SystemExit(f"unknown suffix {suffix!r} in {spec!r} (only '+deep')")
+    base, _, budget_text = spec.partition("@")
+    budget: int | str = CHUNK_LIMIT
+    if budget_text:
+        if budget_text == PRODUCTION_BUDGET:
+            budget = PRODUCTION_BUDGET
+        elif budget_text.isdigit() and int(budget_text) >= 1:
+            budget = int(budget_text)
+        else:
+            raise SystemExit(
+                f"passage budget in {spec!r} must be a positive integer or "
+                f"{PRODUCTION_BUDGET!r}"
+            )
+    base, *suffixes = base.split("+")
+    for suffix in suffixes:
+        if suffix not in _SUFFIXES:
+            raise SystemExit(
+                f"unknown suffix {suffix!r} in {spec!r} "
+                f"(known: {', '.join('+' + s for s in _SUFFIXES)})"
+            )
     provider, _, model = base.partition(":")
     if provider not in ("openai", "anthropic"):
         raise SystemExit(
             f"unknown provider in {spec!r} (expected openai: or anthropic:)"
         )
-    return provider, model, suffix == "deep", passages
+    return Candidate(
+        provider=provider,
+        model=model,
+        deep="deep" in suffixes,
+        budget=budget,
+        unprompted="unprompted" in suffixes,
+    )
 
 
 def call_model(spec: str, system: str, user: str) -> tuple[str, float, float, int, int]:
-    provider, model, deep, _ = parse_spec(spec)
-    if provider == "openai":
-        return _openai_answer(model, system, user, deep=deep)
-    return _anthropic_answer(model, system, user, deep=deep)
+    candidate = parse_spec(spec)
+    if candidate.is_openai:
+        return _openai_answer(candidate.model, system, user, deep=candidate.deep)
+    return _anthropic_answer(candidate.model, system, user, deep=candidate.deep)
+
+
+def system_prompt_for(context: dict, *, unprompted: bool) -> str:
+    """The instruction to send for one question.
+
+    Not one string per run: production picks its coverage rule per question from how
+    much of that bill went in, so the eval has to as well.
+    """
+    if unprompted:
+        return RAG_CHAT_SYSTEM_PROMPT
+    return production_system_prompt(coverage_of(context))
 
 
 def generate(
     spec: str, queries: list[AnswerQuery], contexts: dict, cache: Path
 ) -> dict:
-    system = production_system_prompt()
-    fingerprint = prompt_fingerprint(system)
+    unprompted = parse_spec(spec).unprompted
+    fingerprint = prompt_surface_fingerprint(unprompted=unprompted)
     if cache.exists():
         cached = json.loads(cache.read_text())
         if cached.get("prompt_fingerprint") == fingerprint:
@@ -430,7 +637,9 @@ def generate(
     for q in queries:
         context = contexts[q.key]
         answer, ttft, total, tin, tout = call_model(
-            spec, system, build_user_prompt(context)
+            spec,
+            system_prompt_for(context, unprompted=unprompted),
+            build_user_prompt(context),
         )
         answers[q.key] = {
             "answer": answer,
@@ -686,12 +895,12 @@ def call_judge(spec: str, system: str, user: str) -> dict:
     clean object; killing a paid run over one bad reply does not. Transient HTTP
     failures (429, 5xx) are retried by the same loop.
     """
-    provider, model, _, _ = parse_spec(spec)
-    judge = _openai_judge if provider == "openai" else _anthropic_judge
+    candidate = parse_spec(spec)
+    judge = _openai_judge if candidate.is_openai else _anthropic_judge
     last: Exception | None = None
     for attempt in range(1, JUDGE_ATTEMPTS + 1):
         try:
-            verdict = judge(model, system, user)
+            verdict = judge(candidate.model, system, user)
             return _validated_verdict(verdict)
         except (ValueError, KeyError, requests.RequestException) as exc:
             last = exc
@@ -806,7 +1015,7 @@ def run(args) -> None:
     # One snapshot per passage budget in play, loaded once and shared by every
     # candidate on that budget, so two models at 16 passages are written from
     # byte-identical context.
-    budgets = {spec: parse_spec(spec)[3] for spec in model_specs}
+    budgets = {spec: parse_spec(spec).budget for spec in model_specs}
     snapshots = {n: load_contexts(n) for n in sorted(set(budgets.values()))}
     contexts_by_spec = {spec: snapshots[n] for spec, n in budgets.items()}
     for spec, contexts in contexts_by_spec.items():
@@ -876,7 +1085,7 @@ def run(args) -> None:
             results.append(result)
         results_by_model[spec] = results
 
-    report(results_by_model, judge_specs)
+    report(results_by_model, judge_specs, contexts_by_spec)
     (run_dir / "report.json").write_text(
         json.dumps(
             {
@@ -894,7 +1103,9 @@ def run(args) -> None:
 
 
 def report(
-    results_by_model: dict[str, list[AnswerResult]], judge_specs: list[str]
+    results_by_model: dict[str, list[AnswerResult]],
+    judge_specs: list[str],
+    contexts_by_spec: dict[str, dict],
 ) -> None:
     print("\n" + "=" * 100)
     print("ANSWER QUALITY — all judges pooled")
@@ -965,20 +1176,31 @@ def report(
     print("\n--- mechanical checks (no judge involved) ---")
     print(
         f"{'model':30s} {'code preamble':>14s} {'statute cites':>14s} "
-        f"{'literal facts':>14s} {'notes a limit':>14s}"
+        f"{'literal facts':>14s} {'notes a limit':>14s} {'named/namable':>14s}"
     )
     for spec, results in results_by_model.items():
         preamble = sum(1 for r in results if opens_with_bill_code(r.answer))
         cites = sum(len(statute_citations(r.answer)) for r in results)
         hits = totals = 0
+        named = namable = 0
         for r in results:
             h, t = literal_fact_coverage(r.query, r.answer)
             hits, totals = hits + h, totals + t
+            n, p = enumeration_recall(
+                r.answer, _context_text(contexts_by_spec[spec][r.query.key])
+            )
+            named, namable = named + n, namable + p
         limits = sum(1 for r in results if mentions_missing_coverage(r.answer))
+        recall = f"{named}/{namable}" if namable else "n/a"
         print(
             f"{spec:30s} {preamble:14d} {cites:14d} "
-            f"{f'{hits}/{totals}':>14s} {limits:14d}"
+            f"{f'{hits}/{totals}':>14s} {limits:14d} {recall:>14s}"
         )
+    print(
+        "  named/namable: of the grant recipients its own context named, how many "
+        f"the answer printed. Counted only where a context names "
+        f"{ENUMERATION_FLOOR}+ of them ({_ENUMERATION_METHOD})."
+    )
 
     print("\n--- refusal behaviour on questions the passages do not cover ---")
     for spec, results in results_by_model.items():
@@ -989,9 +1211,21 @@ def report(
 
 def _slug(spec: str) -> str:
     """A candidate's cache filename. Must distinguish every part of its identity —
-    provider, model, reasoning depth and passage budget — or two arms silently
-    share one cache and the second reads the first's answers."""
+    provider, model, reasoning depth, passage budget and whether it was sent the
+    coverage rule — or two arms silently share one cache and the second reads the
+    first's answers. Suffixes survive verbatim, which is what keeps them distinct."""
     return spec.replace(":", "-").replace(".", "_").replace("@", "-at-")
+
+
+def _budget_arg(value: str) -> int | str:
+    """``--passages`` takes a number or the word ``production``."""
+    if value == PRODUCTION_BUDGET:
+        return PRODUCTION_BUDGET
+    if value.isdigit() and int(value) >= 1:
+        return int(value)
+    raise argparse.ArgumentTypeError(
+        f"expected a positive integer or {PRODUCTION_BUDGET!r}, got {value!r}"
+    )
 
 
 def main() -> None:
@@ -1003,10 +1237,13 @@ def main() -> None:
     )
     snapshot_parser.add_argument(
         "--passages",
-        type=int,
+        type=_budget_arg,
         default=CHUNK_LIMIT,
-        help="how many passages to retrieve per question (production uses "
-        f"{CHUNK_LIMIT}); a wider budget is written to its own snapshot file",
+        help=f"how much bill text to retrieve per question: a fixed number, or "
+        f"{PRODUCTION_BUDGET!r} for what production actually sends — {CHUNK_LIMIT} "
+        f"passages for a specific question and up to {_LIST_QUESTION_WORD_BUDGET:,} "
+        "words for one asking for every instance of something. Each budget is "
+        "written to its own snapshot file",
     )
     snapshot_parser.set_defaults(func=snapshot)
 

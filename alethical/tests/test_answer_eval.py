@@ -9,6 +9,7 @@ the behaviour it pins is broken, so none of them is decoration.
 
 from __future__ import annotations
 
+import json
 import pathlib
 
 import pytest
@@ -420,20 +421,74 @@ def test_parse_spec_treats_reasoning_depth_as_part_of_the_candidate():
     cli = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cli)
 
-    # Default is the shippable configuration: no reasoning, because a reader waits.
-    assert cli.parse_spec("openai:gpt-5-mini") == ("openai", "gpt-5-mini", False, 4)
+    # Default is the shippable configuration: no reasoning, because a reader waits,
+    # and the pre-#868 fixed budget, so every published §9 row stays reproducible.
+    assert cli.parse_spec("openai:gpt-5-mini") == (
+        "openai",
+        "gpt-5-mini",
+        False,
+        4,
+        False,
+    )
     assert cli.parse_spec("anthropic:claude-sonnet-5") == (
         "anthropic",
         "claude-sonnet-5",
         False,
         4,
+        False,
     )
     # `+deep` measures the naive call, and is a distinct candidate with its own row.
-    assert cli.parse_spec("openai:gpt-5.1+deep") == ("openai", "gpt-5.1", True, 4)
+    assert cli.parse_spec("openai:gpt-5.1+deep") == (
+        "openai",
+        "gpt-5.1",
+        True,
+        4,
+        False,
+    )
 
     for bad in ("gpt-5-mini", "google:gemini", "openai:gpt-5-mini+fast"):
         with pytest.raises(SystemExit):
             cli.parse_spec(bad)
+
+
+def test_parse_spec_treats_the_budget_and_the_prompt_as_part_of_the_candidate():
+    """Both change what an arm measures, so both have to be in its name (#878).
+
+    ``@production`` is the budget a reader actually gets — a fixed 4 passages for a
+    specific question, the word budget for one asking for everything — and it is a
+    different thing from any fixed N. ``+unprompted`` drops #868's coverage rule,
+    which is the control §9's overclaim rates were measured under.
+    """
+    cli = _cli()
+    assert cli.parse_spec("openai:gpt-4o-mini@production").budget == "production"
+    assert cli.parse_spec("openai:gpt-4o-mini@16").budget == 16
+    assert cli.parse_spec("openai:gpt-4o-mini").unprompted is False
+    assert cli.parse_spec("openai:gpt-4o-mini+unprompted").unprompted is True
+    # Combined, in either order, and still distinct from every other arm.
+    both = cli.parse_spec("anthropic:claude-sonnet-5+unprompted+deep@production")
+    assert (both.deep, both.unprompted, both.budget) == (True, True, "production")
+
+    for bad in ("openai:gpt-4o-mini@0", "openai:gpt-4o-mini@prod", "openai:x@-4"):
+        with pytest.raises(SystemExit):
+            cli.parse_spec(bad)
+
+
+def test_every_part_of_a_candidates_identity_reaches_its_cache_filename():
+    """Two arms sharing a cache is silent: the second reads the first's answers and
+    the report prints two identical rows under different names."""
+    cli = _cli()
+    slugs = {
+        cli._slug(spec)
+        for spec in (
+            "openai:gpt-4o-mini",
+            "openai:gpt-4o-mini+deep",
+            "openai:gpt-4o-mini+unprompted",
+            "openai:gpt-4o-mini@16",
+            "openai:gpt-4o-mini@production",
+            "openai:gpt-4o-mini+unprompted@production",
+        )
+    }
+    assert len(slugs) == 6
 
 
 def test_the_eval_sends_the_whole_prompt_production_sends():
@@ -459,6 +514,56 @@ def test_the_eval_sends_the_whole_prompt_production_sends():
     assert me.RAG_CHAT_SYSTEM_PROMPT in cli.production_system_prompt()
 
 
+def test_the_prompt_follows_the_coverage_and_not_just_the_constant():
+    """One layer below #890's fix, and the same class of gap.
+
+    #890 pinned the eval to the whole prompt but hard-coded a partial read, which was
+    right when every context was one. At production's shipped budget a list question
+    over a long bill reads it whole, and production sends a *different* rule there —
+    "you may describe the bill as a whole" instead of "you are reading a sample". An
+    eval that sent the partial rule for that question would again be scoring a prompt
+    production does not send.
+    """
+    import alethical.api.routers.me as me
+
+    cli = _cli()
+    whole_bill = me.BillTextCoverage(searched=102, total=102)
+    sample = me.BillTextCoverage(searched=4, total=102)
+
+    assert cli.production_system_prompt(whole_bill) == me.rag_chat_system_prompt(
+        whole_bill
+    )
+    assert cli.production_system_prompt(sample) == me.rag_chat_system_prompt(sample)
+    # The two are genuinely different instructions, which is why passing coverage
+    # matters at all rather than being tidier bookkeeping.
+    assert cli.production_system_prompt(whole_bill) != cli.production_system_prompt(
+        sample
+    )
+    # No coverage means "assume a sample" — the safe direction, and what the
+    # bill-scoped chat does, since it retrieves a fixed few passages and never counts
+    # the bill.
+    assert cli.production_system_prompt() == cli.production_system_prompt(sample)
+    # Whatever it composes, production's own words are inside all of them.
+    for prompt in (
+        cli.production_system_prompt(whole_bill),
+        cli.production_system_prompt(sample),
+    ):
+        assert me.RAG_CHAT_SYSTEM_PROMPT in prompt
+
+
+def test_the_control_arm_sends_the_prompt_section_9_was_measured_under():
+    """`+unprompted` has to be the bare constant, or the control is not a control."""
+    import alethical.api.routers.me as me
+
+    cli = _cli()
+    context = {"chunks": [{"chunk_text": "x"}] * 4, "passages_total": 102}
+    assert cli.system_prompt_for(context, unprompted=True) == me.RAG_CHAT_SYSTEM_PROMPT
+    # And the shipped arm on the same context carries strictly more than that.
+    shipped = cli.system_prompt_for(context, unprompted=False)
+    assert shipped != me.RAG_CHAT_SYSTEM_PROMPT
+    assert me.RAG_CHAT_SYSTEM_PROMPT in shipped
+
+
 def test_a_prompt_change_invalidates_a_cached_arm_rather_than_mixing_two():
     """Without this, a prompt change is invisible: the run reuses old answers,
     scores them beside new ones, and publishes a comparison across two prompts."""
@@ -468,6 +573,52 @@ def test_a_prompt_change_invalidates_a_cached_arm_rather_than_mixing_two():
     assert a != b
     assert a == cli.prompt_fingerprint("answer only from the provided bill text")
     assert len(a) == 12
+    # The prompt is no longer one string, so the digest covers the whole instruction
+    # surface a run can send — both coverage rules. A cache stamped under the control
+    # prompt must never be reused for the shipped one.
+    assert cli.prompt_surface_fingerprint() != cli.prompt_surface_fingerprint(
+        unprompted=True
+    )
+
+
+def test_the_snapshot_splits_the_two_budgets_production_actually_uses():
+    """Production has two budgets, not one, and the split is by question shape.
+
+    Snapshotting one fixed budget for everything would score the models on input no
+    reader gets: a specific question would be handed too much, and a list question
+    over a long bill far too little — which is the whole of #868.
+    """
+    cli = _cli()
+
+    assert cli.is_list_question("Which cities and counties get named grants?")
+    assert cli.is_list_question("How many library grants have been awarded?")
+    assert not cli.is_list_question("What is the tougher penalty?")
+
+    class _Chunk:
+        def __init__(self, words):
+            self.word_count = words
+            self.chunk_text = "word " * words
+
+    many = [_Chunk(5_000) for _ in range(40)]
+
+    # A specific question keeps the fixed sample however long the bill is.
+    assert len(cli._budgeted(many, "production", enumerating=False)) == cli.CHUNK_LIMIT
+    # A list question fills the word budget instead: 20,000 words is 4 of these.
+    assert len(cli._budgeted(many, "production", enumerating=True)) == 4
+    # One passage longer than the entire budget is still read — returning nothing
+    # would refuse a question the bill can answer.
+    assert len(cli._budgeted([_Chunk(90_000)], "production", enumerating=True)) == 1
+    # A fixed budget ignores the split, which is what makes §9's arms comparable.
+    assert len(cli._budgeted(many, 16, enumerating=True)) == 16
+
+
+def test_the_snapshots_own_numbers_decide_which_coverage_rule_is_sent():
+    """Derived from the snapshot, never labeled, so it cannot go stale (#868)."""
+    cli = _cli()
+    assert cli.coverage_of({"chunks": [1] * 102, "passages_total": 102}).is_complete
+    assert not cli.coverage_of({"chunks": [1] * 4, "passages_total": 102}).is_complete
+    # An unknown denominator can never prove completeness, so it reads as a sample.
+    assert not cli.coverage_of({"chunks": [1] * 4, "passages_total": 0}).is_complete
 
 
 # --- judge replies are not always clean JSON; the parser has to cope ---
@@ -647,6 +798,111 @@ def test_hf719_ground_truth_bounds_sit_below_the_measured_counts():
     assert "Minneapolis" in gt.HF719_GRANT_CITIES
 
 
+def test_the_counting_method_reproduces_its_own_published_figures():
+    """The counts above were taken by hand; this proves the shipped pattern agrees.
+
+    Run over the snapshotted full text of HF 719 it must find the same 98 cities and
+    17 counties two sessions counted independently — otherwise the recall numbers the
+    eval reports are measured against a different definition than the bounds beside
+    them, and the two stop being comparable.
+
+    The 17th county is the one that makes this worth pinning: Lake of the Woods
+    County has lowercase connectors in its name, and a capitals-only pattern finds
+    sixteen and looks right.
+    """
+    from alethical.eval import ground_truth as gt
+
+    contexts = json.loads(
+        (
+            pathlib.Path(__file__).resolve().parents[1]
+            / "eval/fixtures/answer_contexts_production.json"
+        ).read_text()
+    )["contexts"]
+    key = next(k for k in contexts if "infrastructure grants" in k)
+    context = contexts[key]
+    # The measurement only means anything if this really is the whole bill.
+    assert len(context["chunks"]) == context["passages_total"]
+    text = "\n".join(c["chunk_text"] for c in context["chunks"])
+
+    cities, counties = gt.grant_recipients(text)
+    assert len(cities) == 98
+    assert len(counties) == 17
+    assert "Lake of the Woods" in counties
+    for name in gt.HF719_GRANT_CITIES:
+        assert name in cities, f"{name} is named in the bill but the pattern missed it"
+    for name in gt.HF719_GRANT_COUNTIES:
+        assert name in counties
+
+
+def test_reading_the_whole_bill_is_not_the_same_as_reporting_it():
+    """The dimension #878 added, and the one the widened budget makes decisive.
+
+    Given every passage of HF 719, a model listed 26–35 of its 98 cities. Nothing
+    else here can see that: the answer is grounded, plain, stage-correct, and a judge
+    checking the labeled facts finds the handful the key asks for and marks 2 of 2.
+    """
+    from alethical.eval.answer_eval import ENUMERATION_FLOOR, enumeration_recall
+
+    context = (
+        "a grant to the city of Minneapolis for a bridge. "
+        "a grant to the city of Duluth for a trail. "
+        "a grant to the city of Rochester to design. "
+        "a grant to the city of Bloomington and to expand. "
+        "a grant to the city of Burnsville for sewer. "
+        "a grant to the city of Champlin for water. "
+        "a grant to the city of Byron to construct. "
+        "a grant to the city of Chanhassen for a road. "
+        "a grant to Hennepin County for a plan. "
+        "a grant to Ramsey County for a study. "
+        "a grant to Lake of the Woods County to engineer. "
+    )
+    shortened = "The bill funds grants to Minneapolis, Duluth and Hennepin County."
+
+    named, namable = enumeration_recall(shortened, context)
+    assert namable == 11
+    assert named == 3
+
+    # A complete report scores full marks on the same context.
+    complete = (
+        "Grants go to Minneapolis, Duluth, Rochester, Bloomington, Burnsville, "
+        "Champlin, Byron and Chanhassen, and to Hennepin, Ramsey and Lake of the "
+        "Woods counties."
+    )
+    assert enumeration_recall(complete, context) == (11, 11)
+
+    # Below the floor it reports nothing rather than a flattering small fraction:
+    # a context naming three cities says nothing about whether a model shortens.
+    tiny = "a grant to the city of Duluth for a trail."
+    assert enumeration_recall("Duluth gets a grant.", tiny) == (0, 0)
+    assert ENUMERATION_FLOOR == 10
+
+
+def test_recall_does_not_count_the_word_grant_as_the_city_of_Grant():
+    """Grant is a real Minnesota city in this bill, so the match is case-sensitive.
+    Case-insensitively, every answer that says "grants" scores a city."""
+    from alethical.eval.ground_truth import named_in_answer, grant_recipients
+
+    context = " ".join(
+        f"a grant to the city of {name} for a project."
+        for name in (
+            "Grant",
+            "Minneapolis",
+            "Duluth",
+            "Rochester",
+            "Byron",
+            "Champlin",
+            "Chanhassen",
+            "Burnsville",
+            "Bloomington",
+            "Breckenridge",
+        )
+    )
+    cities, _ = grant_recipients(context)
+    assert "Grant" in cities
+    lowercase_only = "The bill awards grants for several water projects."
+    assert named_in_answer(cities, lowercase_only) == frozenset()
+
+
 def test_the_hf719_fixture_question_forbids_both_overclaims():
     """The label must forbid the two things production actually did."""
     hf719 = next(
@@ -664,18 +920,26 @@ def test_the_hf719_fixture_question_forbids_both_overclaims():
 
 def test_parse_spec_reads_the_passage_budget():
     cli = _cli()
-    assert cli.parse_spec("openai:gpt-4o-mini") == ("openai", "gpt-4o-mini", False, 4)
+    assert cli.parse_spec("openai:gpt-4o-mini") == (
+        "openai",
+        "gpt-4o-mini",
+        False,
+        4,
+        False,
+    )
     assert cli.parse_spec("openai:gpt-4o-mini@16") == (
         "openai",
         "gpt-4o-mini",
         False,
         16,
+        False,
     )
     assert cli.parse_spec("anthropic:claude-sonnet-5+deep@8") == (
         "anthropic",
         "claude-sonnet-5",
         True,
         8,
+        False,
     )
     for bad in ("openai:gpt-4o-mini@0", "openai:gpt-4o-mini@lots"):
         with pytest.raises(SystemExit):

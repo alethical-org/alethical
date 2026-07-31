@@ -58,6 +58,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from alethical.eval.ground_truth import grant_recipients, named_in_answer
+
 GRADED_DIMENSIONS = ("covers", "addresses", "framing", "plain")
 MAX_GRADED = 2 * len(GRADED_DIMENSIONS)  # 8
 
@@ -196,6 +198,39 @@ def literal_fact_coverage(query: AnswerQuery, answer: str) -> tuple[int, int]:
         return (0, 0)
     hits = sum(1 for f in query.required_facts if f.literal_hit(answer))
     return (hits, len(query.required_facts))
+
+
+# Below this many enumerable recipients in the context, "how many did it report" is
+# not a question about the writer — a context naming three cities tells us nothing
+# about whether a model shortens a long list. Set at ten so this fires on HF 719's
+# hundred-odd and stays silent on every other fixture question, rather than printing
+# a 2/2 that reads like a perfect score.
+ENUMERATION_FLOOR = 10
+
+
+def enumeration_recall(answer: str, context_text: str) -> tuple[int, int]:
+    """(recipients the answer names, recipients its context named). Mechanical.
+
+    The dimension nothing measured before #878, and the one the widened passage
+    budget makes decisive. Reading the whole bill is not the same as reporting it:
+    handed all 102 passages of HF 719, a model listed 26–35 of the 98 cities it
+    names. That gap is invisible to every other check here — the answer is grounded,
+    plain, stage-correct, and a judge marking "does it carry the labeled facts" sees
+    the handful of cities the key asks for and marks 2 of 2.
+
+    The denominator is what the **context** named, not what the bill names, and the
+    difference matters: it asks how much of what this writer could actually see it
+    reported, which is the writer's own performance. When the context is the whole
+    bill the two are the same number.
+
+    Returns ``(0, 0)`` — reported as "not applicable" rather than as a zero score —
+    when the context names fewer than ``ENUMERATION_FLOOR`` recipients.
+    """
+    cities, counties = grant_recipients(context_text)
+    present = cities | counties
+    if len(present) < ENUMERATION_FLOOR:
+        return (0, 0)
+    return (len(named_in_answer(present, answer)), len(present))
 
 
 # --- Scoring ---
