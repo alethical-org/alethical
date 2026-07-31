@@ -13,18 +13,22 @@ anchor key (`?tab=text#ft-<sectionId>`), so no existing link changes.
 
 This is a *convergence*, not a redesign: production and the model have disagreed
 here for months. `0001_initial_schema.py` builds the schema with
-`Base.metadata.create_all`, so production froze an older shape of the model and
-later edits to `__table_args__` never reached it. Production already has
-`UNIQUE (bill_version_id, source_order)` plus the non-unique
-`ix_bill_version_section_text`; a fresh or CI database, built from today's model,
-has `UNIQUE (bill_version_id, section_id_text)` instead. Every step below is
-guarded on what the database actually has, so this converges from either starting
-point and is a no-op against production.
+`Base.metadata.create_all`, so a database froze whatever the model said on the day
+it was built and later edits to `__table_args__` never reached it (#100).
+Production already has `UNIQUE (bill_version_id, source_order)` plus the
+non-unique `ix_bill_version_section_text` — the shape below — so this is a no-op
+there. So is a database built by alembic *after* this commit, because `0001`
+create_all's the model this commit just changed. The one starting point where
+these steps do real work is a database built from the OLD model, i.e. a developer
+database created before this commit: it has `UNIQUE (bill_version_id,
+section_id_text)` and no plain index, and the importer's new lookup would raise on
+it. Every step is guarded on what the database actually has, so all three shapes
+converge. Verified against a real Postgres on all three (see the PR).
 
 Not destructive: no data is read, written, or deleted, and no column changes.
-Adding the unique constraint was checked against production first — all 67,237
+Adding the unique constraint was checked against production first — all 71,143
 stored sections are already distinct on `(bill_version_id, source_order)`, with no
-nulls and no values below 1.
+nulls and no values below 1, so the constraint cannot fail.
 
 Downgrade caveat, stated because it is real: restoring
 `UNIQUE (bill_version_id, section_id_text)` will fail against production, where 40

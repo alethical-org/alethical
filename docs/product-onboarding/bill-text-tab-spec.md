@@ -18,15 +18,28 @@ begin or deleted text end"), folded each section's heading into its number badge
 ## The intro says "the text", not "the complete text"
 
 The tab's opening line is deliberately weaker than it reads naturally, and the missing word is load
-bearing. Ingestion drops a section whenever a bill's page gives two sections the same id
-([#763](https://github.com/alethical-org/alethical/issues/763)): HF 4057's page carries 240 section
-blocks with only 238 distinct ids, and we serve 238, so 2 real sections are silently absent.
-Verified against revisor.mn.gov on Jul 30 2026.
+bearing. It was added by [#776](https://github.com/alethical-org/alethical/pull/776) because
+ingestion dropped a section whenever a bill's page gave two sections the same id
+([#763](https://github.com/alethical-org/alethical/issues/763)): HF 4057's page carried 240 section
+blocks with only 238 distinct ids, and we served 238.
 
-"The complete text" would therefore be a claim the page cannot keep, which
-`.claude/rules/grounded-answers.md` rule 6 forbids ("if a capability slips, trim the claim in the
-same release"). **Restore "complete" once #763 has landed and the corpus has been re-read** — not
-before, and not because the sentence reads better with it.
+**The cause is fixed and the known damage is repaired.** Rows are keyed on the section's position
+now, so no ingest loses a repeated id again, and a repair run on Jul 30 2026 restored 57 sections
+across 24 current versions — HF 4057 serves all 240. What keeps the weaker word in place is that the
+corpus is not yet provably whole: the 2025 special session was ingested on the old code hours before
+the fix landed, leaving 3 current versions short 7 sections.
+
+**Restore "complete" when, and only when, this prints OK:**
+
+```bash
+ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/check_bill_section_gaps.py
+```
+
+That is the whole condition, deliberately stated as a command rather than a judgement — the check
+compares every current version's stored section count against its page's count and exits non-zero on
+any gap (`scripts/check_bill_section_gaps.py`). Do not strengthen the sentence because it reads
+better with the word, and do not weaken it again once the check is clean:
+`.claude/rules/grounded-answers.md` rule 6 cuts both ways.
 
 ## What the data gives us
 
@@ -309,6 +322,10 @@ jump landing at 90px from several starting scroll positions and from both entry 
 - **Addressing one of two sections that share an id.** Now that a repeated `laws.0.1.0` stores every
   section rather than only the last ([#763](https://github.com/alethical-org/alethical/issues/763)),
   a bill can render two sections whose `nativeID` is the same `ft-laws.0.1.0`. A `#ft-` link, and the
-  index rail's scroll-spy, land on whichever the browser finds first. Existing shared links still
-  work — they just cannot distinguish the repeats. Making each repeat separately addressable is its
-  own piece of work, tracked in [#777](https://github.com/alethical-org/alethical/issues/777).
+  index rail's scroll-spy, land on whichever the browser finds first. Every shared link still resolves
+  to a section — restoring the lost sections only ever added rows, so no section id disappeared — but
+  on a repaired bill it now lands on the **first** section carrying that id rather than the only one
+  that used to survive. Measured on `94-2025-HF2434`: `#ft-laws.0.1.0` used to reach position 345, the
+  one row the old ingest kept, and now reaches position 339, the first of 7. Making each repeat
+  separately addressable is its own piece of work, tracked in
+  [#777](https://github.com/alethical-org/alethical/issues/777).

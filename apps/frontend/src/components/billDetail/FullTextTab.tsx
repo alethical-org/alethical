@@ -405,12 +405,15 @@ export function FullTextTab({
 
   const column = (
     <View style={showRail ? styles.column : styles.columnAlone}>
-      {/* Says "the text", not "the complete text". Ingestion drops a section
-          whenever a bill's page gives two sections the same id (#763 — 2 of
-          HF 4057's 240 sections, verified against revisor.mn.gov), so the
-          stronger word is a claim we cannot currently keep
-          (.claude/rules/grounded-answers.md rule 6). Restore "complete" when
-          #763 lands and the corpus has been re-read. */}
+      {/* Says "the text", not "the complete text". Ingestion used to drop a
+          section whenever a bill's page gave two sections the same id (#763),
+          so the stronger word was a claim we could not keep
+          (.claude/rules/grounded-answers.md rule 6). The cause is fixed and 57
+          sections are restored, but a few bills ingested on the old code are
+          still short. Restore "complete" when
+          scripts/check_bill_section_gaps.py prints OK, and not before — see
+          docs/product-onboarding/bill-text-tab-spec.md § 'The intro says "the
+          text", not "the complete text"'. */}
       <Text style={styles.intro}>
         The text of this version, section by section, as published by the Minnesota Legislature.
         Cited sections from the summary link straight to their passage here.
