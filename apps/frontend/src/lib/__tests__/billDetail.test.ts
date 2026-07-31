@@ -24,7 +24,7 @@ import {
   plainBillSummary,
   plainKeyPoints,
   POINTER_CAPTION,
-  readDocumentUrl,
+  readDocumentLink,
   titleSegments,
 } from '../billDetail';
 import { BillAction, BillVersion } from '../../data/types';
@@ -781,11 +781,15 @@ const HF719_VERSIONS: BillVersion[] = [
   },
 ];
 
-describe('readDocumentUrl picks the document the link promises', () => {
+describe('readDocumentLink picks the document the link promises, and names it', () => {
+  const LAW_URL = 'https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/130/';
+  const SECOND_ENGROSSMENT = 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/';
+
   it('sends an enacted bill to its Session Law chapter, not the introduced draft', () => {
-    expect(readDocumentUrl(HF719_VERSIONS, [])).toBe(
-      'https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/130/',
-    );
+    expect(readDocumentLink(HF719_VERSIONS, [])).toEqual({
+      url: LAW_URL,
+      label: 'Read the full law',
+    });
   });
 
   it('finds the chapter wherever the payload happens to list it', () => {
@@ -797,17 +801,16 @@ describe('readDocumentUrl picks the document the link promises', () => {
       [intro, first, law, second],
       [second, first, law, intro],
     ]) {
-      expect(readDocumentUrl(order, [])).toBe(
-        'https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/130/',
-      );
+      expect(readDocumentLink(order, []).url).toBe(LAW_URL);
     }
   });
 
-  it('sends a bill still in progress to its current text', () => {
+  it('sends a bill still in progress to its current text, and says "bill text"', () => {
     const inProgress = HF719_VERSIONS.filter((v) => v.versionCode !== 'session-law');
-    expect(readDocumentUrl(inProgress, [])).toBe(
-      'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
-    );
+    expect(readDocumentLink(inProgress, [])).toEqual({
+      url: SECOND_ENGROSSMENT,
+      label: 'Read the bill text',
+    });
   });
 
   it('falls back to the newest version when no row is marked current', () => {
@@ -815,20 +818,27 @@ describe('readDocumentUrl picks the document the link promises', () => {
       ...v,
       isCurrent: false,
     }));
-    expect(readDocumentUrl(noCurrent, [])).toBe(
-      'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
-    );
+    expect(readDocumentLink(noCurrent, []).url).toBe(SECOND_ENGROSSMENT);
   });
 
-  it('ignores a version carrying no document, and yields nothing when none has one', () => {
-    const urlless = HF719_VERSIONS.map((v) =>
+  it('never promises "the full law" while opening a draft', () => {
+    // The wording follows the destination, not the bill's status — so a bill the
+    // status heuristic calls enacted (#270) while its chapter is missing from the
+    // record says "Read the bill text" and opens the draft it really opens.
+    const chapterMissing = HF719_VERSIONS.filter((v) => v.versionCode !== 'session-law');
+    const chapterUnlinkable = HF719_VERSIONS.map((v) =>
       v.versionCode === 'session-law' ? { ...v, url: '' } : v,
     );
-    expect(readDocumentUrl(urlless, [])).toBe(
-      'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
-    );
-    expect(readDocumentUrl([], [])).toBeUndefined();
-    expect(readDocumentUrl(undefined, undefined)).toBeUndefined();
+    for (const versions of [chapterMissing, chapterUnlinkable]) {
+      const link = readDocumentLink(versions, []);
+      expect(link.url).toBe(SECOND_ENGROSSMENT);
+      expect(link.label).toBe('Read the bill text');
+    }
+  });
+
+  it('yields no URL when no version carries a document', () => {
+    expect(readDocumentLink([], []).url).toBeUndefined();
+    expect(readDocumentLink(undefined, undefined).url).toBeUndefined();
   });
 });
 

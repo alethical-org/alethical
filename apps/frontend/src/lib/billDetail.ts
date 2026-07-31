@@ -1655,8 +1655,16 @@ export function isLaw(status: string): boolean {
 
 // State-aware document-link label (spec §Official-link naming rules). Verb is
 // always "Read"; "Bill overview" is the only status-page link (owned elsewhere).
-export function readLabel(status: string): string {
-  return isLaw(status) ? 'Read the full law' : 'Read the bill text';
+//
+// Takes the document being linked to, NOT the bill's status: the wording and the
+// destination are then decided in one place and cannot disagree. Driving it off
+// status let them drift — a bill whose status reads as law but whose Session Law
+// chapter has not been ingested would say "Read the full law" and open a draft.
+// Nothing in production does that today (all 146 enacted bills carry a chapter),
+// but the status value is a heuristic with a known over-reach (#270), and the
+// Versions tab already labels each row from the row itself.
+export function readLabel(linksToTheLaw: boolean): string {
+  return linksToTheLaw ? 'Read the full law' : 'Read the bill text';
 }
 
 // First sentence of a block of prose (used for card teasers).
@@ -2045,14 +2053,17 @@ export function orderBillVersions(versions: BillVersion[], actions: BillAction[]
 // Position in the payload carries no meaning (the API sets no ordering), so pick
 // the row by what it IS: the synthesized `session-law` row (#438) when the bill is
 // law, else the version the record marks current, else the newest with a document.
-export function readDocumentUrl(
+//
+// Returns the label alongside the URL so `readLabel` describes the page this link
+// actually opens — see the note there on why status is the wrong input for it.
+export function readDocumentLink(
   versions: BillVersion[] | undefined,
   actions: BillAction[] | undefined,
-): string | undefined {
+): { url: string | undefined; label: string } {
   const ordered = orderBillVersions(versions ?? [], actions ?? []).filter((v) => v.url);
   const law = ordered.find((v) => v.versionCode === 'session-law');
   const current = ordered.find((v) => v.isCurrent && !v.isCurrentPointer);
-  return (law ?? current ?? ordered[0])?.url;
+  return { url: (law ?? current ?? ordered[0])?.url, label: readLabel(Boolean(law)) };
 }
 
 // The bill's revisor STATUS/overview page — the one rail link that is deliberately

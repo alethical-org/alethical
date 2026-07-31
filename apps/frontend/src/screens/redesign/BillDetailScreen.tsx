@@ -57,8 +57,7 @@ import {
   PartyBlock,
   PHASED_CAPTION,
   POINTER_CAPTION,
-  readDocumentUrl,
-  readLabel,
+  readDocumentLink,
   scopedChipQuery,
   TimelineAuthor,
   TimelineRow,
@@ -501,7 +500,8 @@ function BillDetailMobileScreen() {
           ? `${bill.latestActionText}${niceDate ? ` · ${niceDate}` : ''}`
           : niceDate);
     const overviewUrl = billOverviewUrl(bill.officialLinks?.[0]?.url);
-    const readUrl = readDocumentUrl(bill.versions, bill.actions) ?? overviewUrl;
+    const read = readDocumentLink(bill.versions, bill.actions);
+    const readUrl = read.url ?? overviewUrl;
     // The curated, newest-first timeline — the SAME shared builder the web Actions
     // tab calls (#559), so a given record reads identically on a phone and a laptop.
     // Everything the mobile screen used to do itself now lives in there: plain-
@@ -555,6 +555,7 @@ function BillDetailMobileScreen() {
       datePointer: latest?.kind === 'crossReference',
       overviewUrl,
       readUrl,
+      readLabel: read.label,
       actionRows,
       actionGlossary,
       rolls,
@@ -788,7 +789,7 @@ function BillDetailMobileScreen() {
                     ) : null}
                     {vm.readUrl ? (
                       <TextLink
-                        label={readLabel(bill.status)}
+                        label={vm.readLabel}
                         arrow
                         href={vm.readUrl}
                         external
