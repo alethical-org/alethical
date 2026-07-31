@@ -64,6 +64,7 @@ export function SearchPageShell({
   onAsk,
   onPrivacy,
   onTerms,
+  heroEndsWithRule,
 }: {
   hero: ReactNode;
   children: ReactNode;
@@ -77,6 +78,13 @@ export function SearchPageShell({
   onAsk: () => void;
   onPrivacy?: () => void;
   onTerms?: () => void;
+  /**
+   * The hero's last element is already a full-width rule (the bill page's tab
+   * bar). Drop the hero's own bottom padding so the gap below that rule is the
+   * white panel's 40px top padding and nothing else — left stacked, the two make
+   * ~84px and the body reads as detached from the tabs it belongs to.
+   */
+  heroEndsWithRule?: boolean;
 }) {
   const heroGradientWeb: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%)' }
@@ -118,7 +126,9 @@ export function SearchPageShell({
               onAsk={onAsk}
             />
 
-            <Container style={styles.heroBody}>{hero}</Container>
+            <Container style={[styles.heroBody, heroEndsWithRule && styles.heroBodyFlush]}>
+              {hero}
+            </Container>
           </View>
 
           {/* RESULTS SECTION — white, matches the mock's results panel. */}
@@ -1109,6 +1119,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 0, flexGrow: 1 },
   heroWrap: { position: 'relative', zIndex: 2 },
   heroBody: { paddingTop: 36, paddingBottom: 44 },
+  heroBodyFlush: { paddingBottom: 0 },
   // The white results panel is what absorbs the leftover height on a short page
   // (one result, a not-found bill), so the extra space reads as more of the same
   // panel rather than a grey stripe between the panel and the footer.
