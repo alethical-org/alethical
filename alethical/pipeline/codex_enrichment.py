@@ -105,6 +105,12 @@ def validate_summary_shape(content: dict[str, Any]) -> list[str]:
     return errors
 
 
+def key_points_ceiling() -> int:
+    """The schema's runaway guard on `key_points` (#725). Read from the schema so
+    the two can never drift apart."""
+    return int(SUMMARY_SCHEMA["properties"]["key_points"]["maxItems"])
+
+
 def combine_output_files(
     *, run_dir: Path, manifest_path: Path | None = None, output_path: Path | None = None
 ) -> dict[str, Any]:
@@ -113,6 +119,13 @@ def combine_output_files(
     expected = {item.custom_id for item in load_manifest_items(manifest_path)}
     seen: set[str] = set()
     failed: list[dict[str, Any]] = []
+    # Bills whose key_points came back above the schema's runaway guard. Reported,
+    # never rejected (#836): the guard only truly binds on the OpenAI
+    # structured-outputs path, and rejecting here would spend four retries and then
+    # drop the bill entirely — and a bill with no summary is invisible in every
+    # list on the site, which is far worse than a summary that runs long.
+    ceiling = key_points_ceiling()
+    over_ceiling: list[dict[str, Any]] = []
 
     with output_path.open("w", encoding="utf-8") as handle:
         for path in sorted((run_dir / "outputs").glob("*.jsonl")):
@@ -131,6 +144,11 @@ def combine_output_files(
                         {"path": str(path), "custom_id": custom_id, "errors": errors}
                     )
                     continue
+                points = content.get("key_points")
+                if isinstance(points, list) and len(points) > ceiling:
+                    over_ceiling.append(
+                        {"custom_id": custom_id, "key_points": len(points)}
+                    )
                 seen.add(custom_id)
                 handle.write(json.dumps(row, ensure_ascii=False) + "\n")
             except Exception as exc:
@@ -143,6 +161,7 @@ def combine_output_files(
                 )
 
     missing = sorted(expected - seen)
+    over_ceiling.sort(key=lambda entry: entry["key_points"], reverse=True)
     return {
         "run_dir": str(run_dir),
         "manifest_path": str(manifest_path),
@@ -151,6 +170,9 @@ def combine_output_files(
         "combined": len(seen),
         "missing": len(missing),
         "failed": len(failed),
+        "key_points_ceiling": ceiling,
+        "over_ceiling": len(over_ceiling),
         "missing_sample": missing[:10],
         "failed_sample": failed[:10],
+        "over_ceiling_sample": over_ceiling[:10],
     }

@@ -312,6 +312,45 @@ allowed to keep a long list of key points.** The six-bullet target exists to sto
 summary reading like the bill; it was never a reason to delete the numbers a reader came
 for. For those 30 bills the wordy list is the correct answer, so they keep it.
 
+### 4.4 The 12-point cap is a hard limit on one writer and only advice on the other
+
+**Net (plain language): the schema tells the model to write at most 12 key points. On the
+writer we actually use, nothing checks that number — it is advice the model can ignore, and
+one bill came back with 15. We now count the bills that go over and print the list at the
+end of a run, instead of throwing those bills away.**
+
+The number lives in one place, `SUMMARY_SCHEMA` in
+[`ai_enrichment.py`](../../alethical/pipeline/ai_enrichment.py) (`"maxItems": 12`). It is a
+runaway guard set well above the six-bullet target of §4.3, not a target itself. What
+happens when a reply exceeds it depends entirely on which writer produced the reply:
+
+| Writer | Does the 12 bind? | Why |
+| --- | --- | --- |
+| OpenAI ([`ai_enrichment.py`](../../alethical/pipeline/ai_enrichment.py)) | **Yes** | Strict Structured Outputs makes the provider enforce the schema before we ever see the reply. |
+| Claude ([`anthropic_enrichment.py`](../../alethical/pipeline/anthropic_enrichment.py), the one every production summary comes from) | **No** | The schema is pasted into the prompt as text, and the reply is checked by `validate_summary_shape` in [`codex_enrichment.py`](../../alethical/pipeline/codex_enrichment.py), which checks the field types and never looks at the count. |
+
+**Turning it into a hard limit on the Claude path would be worse than leaving it advisory.**
+A failed check makes `_call_anthropic` ask again, four times, and then give up on the bill —
+so a genuine omnibus that honestly needs 13 points would cost four paid attempts and end
+with no summary at all. A bill with no summary is **hidden from every list on the site**,
+which is far worse for a reader than a summary that runs long.
+
+**So over-ceiling replies are counted and reported, never rejected**
+([#836](https://github.com/alethical-org/alethical/issues/836)). The end-of-run output from
+`generate` (and from `batch-collect`) carries three extra fields — `key_points_ceiling`,
+`over_ceiling`, and `over_ceiling_sample`, the last naming the worst offenders — so a real
+runaway is visible the day it happens rather than in a spot check months later. The
+pathological case this guard exists for is real: one bill once came back with 59 key points.
+
+**Measured against production 2026-07-30, after the
+[#723](https://github.com/alethical-org/alethical/issues/723) run: 4 bills sit above 12,
+and reading them says the count is doing its job.** The worst, SF 4555 at 15, is a flagged
+omnibus bill whose official title enumerates roughly 20 separate subjects; its 15 points are
+15 distinct subjects with no repetition, and the model had already merged three ceremonial
+designations into one bullet. **A long list on an omnibus bill is the summary working, not
+failing** — the same conclusion §4.3 reached about fee schedules, arrived at from a different
+direction.
+
 ## 5. The decisions behind retrieval (embedding model + index)
 
 Retrieval is the embedding rail (§2–3). Two decisions, both backed by measured
