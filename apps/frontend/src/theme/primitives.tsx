@@ -38,16 +38,17 @@ const CONTACT_MAILTO = 'mailto:ask@alethical.com';
 // The URL behind each interactive nav row, so the row is a real <a href> the
 // browser can open in a new tab (navigation/links.ts). Keyed to the same ids
 // every screen's onNavigate switch handles, so a row's link and its click land
-// in the same place. Two ids are deliberately absent, both because a URL that
+// in the same place. "About Us" is deliberately absent because a URL that
 // resolves somewhere else is worse than no URL (grounded-answers rule 2, never
-// advertise what you can't answer): "About Us" has no page yet, and
-// /find-my-legislator is one of the paths webRoutes.ts redirects to Home, so
-// opening it in a new tab would not reach the screen the row navigates to
-// (issue #764).
+// advertise what you can't answer) — it has no page yet.
 const NAV_ITEM_HREFS: Record<string, string> = {
   ask: routePath.ask(),
   'search-bills': routePath.bills(),
   'search-legislators': routePath.legislators(),
+  // Restored now that /find-my-legislator reads back as its own screen instead
+  // of redirecting to Home, so this row's link lands where its click lands
+  // (issue #764).
+  'search-find-my-legislator': routePath.findMyLegislator(),
   'about-contact': CONTACT_MAILTO,
 };
 

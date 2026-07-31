@@ -8,7 +8,7 @@ type WebRouteTarget =
   | { kind: 'legislator'; legislatorId: string }
   | { kind: 'bills'; params: Record<string, string> }
   | { kind: 'legislators'; params: Record<string, string> }
-  | { kind: 'findMyLegislator' }
+  | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'privacy' }
   | { kind: 'terms' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
@@ -96,18 +96,20 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'terms') {
       return { kind: 'terms' };
     }
-    // '/search', '/tracked', '/chat', '/account', '/find-my-legislator' are
-    // old-design or auth-gated surfaces — redirect a stray bookmark/link to a
-    // live page instead of resolving to them.
+    // Find My Legislator resolves to its own screen: the home page's Find field
+    // and the Search menu both send visitors there, so the address bar has to
+    // read back what it writes (issue #764). ?address= carries what they typed,
+    // making the results reload-safe and shareable (grounded-answers.md rule 5).
+    if (segments[0] === 'find-my-legislator') {
+      return { kind: 'findMyLegislator', address: searchParams.get('address') ?? undefined };
+    }
+    // '/search', '/tracked', '/chat' and '/account' are old-design or auth-gated
+    // surfaces — redirect a stray bookmark/link to a live page instead of
+    // resolving to them.
     if (segments[0] === 'search') {
       return { kind: 'bills', params: {} };
     }
-    if (
-      segments[0] === 'tracked' ||
-      segments[0] === 'chat' ||
-      segments[0] === 'account' ||
-      segments[0] === 'find-my-legislator'
-    ) {
+    if (segments[0] === 'tracked' || segments[0] === 'chat' || segments[0] === 'account') {
       return { kind: 'tab', screen: 'Home' };
     }
   }
@@ -243,8 +245,12 @@ export function pathForRoute(activeRoute: {
     }
     case 'LegislatorProfile':
       return `/legislators/${encodeURIComponent(String(activeRoute.params?.legislatorId ?? ''))}`;
-    case 'FindMyLegislator':
-      return '/find-my-legislator';
+    case 'FindMyLegislator': {
+      const address = activeRoute.params?.address;
+      return address
+        ? `/find-my-legislator?address=${encodeURIComponent(String(address))}`
+        : '/find-my-legislator';
+    }
     case 'Privacy':
       return '/privacy';
     case 'Terms':
@@ -342,7 +348,7 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
       };
     case 'findMyLegislator':
       return {
-        routes: [homeTabs, { name: 'FindMyLegislator' }],
+        routes: [homeTabs, { name: 'FindMyLegislator', params: { address: target.address } }],
         index: 1,
       };
     case 'bills':

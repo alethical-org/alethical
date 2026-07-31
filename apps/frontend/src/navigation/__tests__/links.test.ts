@@ -47,6 +47,7 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.terms()).toBe('/terms');
     expect(routePath.bill('94-2025-SF334')).toBe('/bills/94-2025-SF334');
     expect(routePath.legislator('abc-123')).toBe('/legislators/abc-123');
+    expect(routePath.findMyLegislator()).toBe('/find-my-legislator');
   });
 
   it('carries a bill tab and an ask question as query params', () => {

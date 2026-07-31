@@ -174,18 +174,24 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: RailRouteName }) {
         {railRoutes.map((route) => {
           const focused = activeRouteName === route.name;
           const iconColor = focused ? theme.colors.accent : theme.colors.ink;
-          // Only Home's URL actually lands back on this same item: webRoutes.ts
-          // redirects /search, /tracked, /chat, /account — and, a bug found
-          // while wiring this up, /find-my-legislator itself — to Home instead
-          // of resolving to their own tab, so those stay plain pressables
-          // (rule 5, a link's URL must land where the click lands). Role stays
-          // "tab" (not linkProps' "link") since this is still a tab in the rail,
-          // just one that also happens to be addressable.
-          const home = route.name === 'Home' ? linkProps(routePath.home(), route.navigate) : null;
+          // Only Home and Find My Legislator have URLs that land back on this
+          // same item; webRoutes.ts still redirects /search, /tracked, /chat and
+          // /account to Home, so those stay plain pressables (rule 5, a link's
+          // URL must land where the click lands). Find My Legislator joined the
+          // addressable ones when /find-my-legislator stopped redirecting to
+          // Home (issue #764). Role stays "tab" (not linkProps' "link") since
+          // these are still tabs in the rail, just ones that are addressable.
+          const addressablePath =
+            route.name === 'Home'
+              ? routePath.home()
+              : route.name === 'FindMyLegislator'
+                ? routePath.findMyLegislator()
+                : null;
+          const asLink = addressablePath ? linkProps(addressablePath, route.navigate) : null;
           return (
             <Pressable
               key={route.name}
-              {...(home ?? { onPress: route.navigate })}
+              {...(asLink ?? { onPress: route.navigate })}
               accessibilityRole="tab"
               accessibilityState={focused ? { selected: true } : {}}
               style={({ pressed }) => [

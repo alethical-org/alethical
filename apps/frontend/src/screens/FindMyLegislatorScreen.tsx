@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Card } from '../components/Card';
@@ -7,6 +7,7 @@ import { LegislatorCard } from '../components/LegislatorCard';
 import { MapPinPicker } from '../components/MapPinPicker';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenView } from '../components/ScreenView';
+import { isNotFoundError } from '../data/api';
 import { isCoordinateInMinnesota } from '../data/minnesotaBoundary';
 import { RepresentativeLookupCoordinates } from '../data/types';
 import { useRepresentativeLookup } from '../hooks/useAppQueries';
@@ -16,6 +17,21 @@ import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/field
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FindMyLegislator'>;
 
+// Shown when nobody handed us an address (the screen reached from the nav rail
+// or the Search menu). An address that arrives on the route wins over it.
+const EXAMPLE_ADDRESS = '350 S 5th St, Minneapolis, MN 55415';
+
+// A failed lookup used to print the API's raw problem JSON into the page. The
+// district lookup only recognises a full street address (the Census geocoder
+// behind it matches a house number + street), so "Minneapolis" or a bare ZIP is
+// the miss a visitor is most likely to hit. Say what to type instead.
+function lookupErrorMessage(error: unknown): string {
+  if (isNotFoundError(error)) {
+    return `We could not find that address. A full street address works best, including the house number, city, and ZIP. A city or a ZIP on its own is not enough to pin down a district: try ${EXAMPLE_ADDRESS}.`;
+  }
+  return 'The lookup could not be completed just now. Please try again in a moment.';
+}
+
 function getBrowserGeolocation(): Geolocation | null {
   if (Platform.OS !== 'web') {
     return null;
@@ -24,9 +40,10 @@ function getBrowserGeolocation(): Geolocation | null {
   return nav && 'geolocation' in nav ? nav.geolocation : null;
 }
 
-export function FindMyLegislatorScreen({ navigation }: Props) {
+export function FindMyLegislatorScreen({ navigation, route }: Props) {
+  const requestedAddress = route.params?.address?.trim() || undefined;
   const { focused: addressFocused, focusProps: addressFocusProps } = useFieldFocus();
-  const [address, setAddress] = useState('350 S 5th St, Minneapolis, MN 55415');
+  const [address, setAddress] = useState(requestedAddress ?? EXAMPLE_ADDRESS);
   const [pinCoordinate, setPinCoordinate] = useState<RepresentativeLookupCoordinates>({
     latitude: 44.97683,
     longitude: -93.26579,
@@ -39,6 +56,20 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
   const canRunLookup = address.trim().length > 0 && !representativeLookup.isPending && !locating;
   const canRunPinLookup = isPinInMinnesota && !representativeLookup.isPending && !locating;
   const canUseMyLocation = geolocation !== null && !representativeLookup.isPending && !locating;
+
+  // Arriving with an address — from the home page's Find field, or from a
+  // shared /find-my-legislator?address=... link — runs the lookup on its own.
+  // The visitor already pressed Find, so asking them to press Run Lookup again
+  // would be asking twice for the same thing.
+  const runLookup = representativeLookup.mutate;
+  const autoRanFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!requestedAddress || autoRanFor.current === requestedAddress) {
+      return;
+    }
+    autoRanFor.current = requestedAddress;
+    runLookup(requestedAddress);
+  }, [requestedAddress, runLookup]);
 
   function useMyLocation() {
     if (!geolocation) {
@@ -77,7 +108,7 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
   return (
     <ScreenView
       title="Find My Legislator"
-      subtitle="Use a home address or neighborhood to get a fast, readable answer about who represents you."
+      subtitle="Enter a street address to see who represents you in the Minnesota House and Senate."
       actions={
         <PrimaryButton
           label={representativeLookup.isPending ? 'Looking Up' : 'Run Lookup'}
@@ -96,7 +127,7 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
         ) : null}
         <TextInput
           accessibilityLabel="Address lookup"
-          placeholder="Enter an address or city and ZIP"
+          placeholder="Street address, city, and ZIP"
           placeholderTextColor={theme.colors.mutedInk}
           style={[styles.input, ...fieldFocusRing(addressFocused), fieldOutlineReset]}
           value={address}
@@ -143,11 +174,7 @@ export function FindMyLegislatorScreen({ navigation }: Props) {
 
       {representativeLookup.error ? (
         <Card>
-          <Text style={styles.bodyText}>
-            {representativeLookup.error instanceof Error
-              ? representativeLookup.error.message
-              : 'Representative lookup failed.'}
-          </Text>
+          <Text style={styles.bodyText}>{lookupErrorMessage(representativeLookup.error)}</Text>
         </Card>
       ) : null}
 

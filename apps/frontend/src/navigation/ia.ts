@@ -98,10 +98,13 @@ export const IA: IaItem[] = [
     label: 'Find My Legislator',
     path: '/find-my-legislator',
     menu: 'search',
-    availability: 'roadmap',
+    availability: 'mvp',
     authGated: false,
-    description: 'See who represents you — by address, city, or area',
-    inNavDropdown: true,
+    // "by street address" and not "by address, city, or area": districts are
+    // drawn below city level and the lookup's geocoder only matches a house
+    // number + street, so a city or ZIP cannot resolve to a district
+    // (grounded-answers.md rule 2, never advertise what you can't answer).
+    description: 'See who represents you — by street address',
   },
   {
     id: 'search-issues',
