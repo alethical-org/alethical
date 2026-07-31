@@ -36,6 +36,11 @@ once by the #868 session, agreeing on both figures:
   Sauk Rapids, Mahnomen, Fairmont, Grant).
 * ``grant(s) to X County`` matches **17** counties. Including other phrasings and
   the Moorhead-Clay joint-powers body reaches ~21, of which ~20 are real counties.
+
+Both figures are now asserted against the bill's own snapshotted text rather than
+trusted, because the pattern that was shipped to produce them found 98 and **16**
+(#878 follow-up). The seventeenth is Lake of the Woods County, whose lowercase
+connectors no capitals-only pattern can match.
 """
 
 from __future__ import annotations
@@ -78,9 +83,13 @@ HF719_COUNTIES_ARE_NAMED = True
 _GRANT_CITY_RE = re.compile(
     r"grants?\s+to\s+the\s+city\s+of\s+([A-Z][A-Za-z.'’-]*(?:\s+[A-Z][A-Za-z.'’-]*){0,2})"
 )
-_GRANT_COUNTY_RE = re.compile(
-    r"grants?\s+to\s+([A-Z][A-Za-z.'’-]*(?:\s+[A-Z][A-Za-z.'’-]*){0,1})\s+County\b"
-)
+# A county's name may contain lowercase connectors, and one of the seventeen does:
+# **Lake of the Woods County**. A capitals-only pattern finds sixteen and looks
+# entirely correct, which is why this is pinned by a test against the bill's own
+# text rather than left to review. Connectors are allowed only *between*
+# capitalised words, so a name can never run on into the sentence after it.
+_COUNTY_NAME = r"[A-Z][A-Za-z.'’-]*(?:\s+(?:[A-Z][A-Za-z.'’-]*|of|the)){0,3}?"
+_GRANT_COUNTY_RE = re.compile(rf"grants?\s+to\s+({_COUNTY_NAME})\s+County\b")
 
 
 def hf719_grant_recipients(bill_text: str) -> tuple[set[str], set[str]]:
@@ -113,6 +122,26 @@ def names_from(candidates: set[str], answer: str) -> set[str]:
     A literal match on a proper noun is about as safe as machine checking gets —
     there is no paraphrase of "Lake Benton" — so unlike ``covers``, this one does
     not need a judge behind it.
+
+    **Three of HF 719's recipient names sit inside another one**: St. Paul inside
+    South St. Paul and West St. Paul, Benton inside Lake Benton, Minnetonka inside
+    Minnetonka Beach. A plain substring test credits the short name every time the
+    long one appears, so an answer naming only Lake Benton is recorded as having
+    named Benton too, and the recall figure reads higher than the answer earned.
+    Measured on the re-run's own answers, that inflated three of the four arms
+    checked by exactly one name each.
+
+    So the longest names are matched first and each match is *consumed*: a short
+    name then counts only where it appears somewhere the long one did not. Word
+    boundaries as well, so a city called Grant is not found in the word "grants".
     """
-    lowered = answer.lower()
-    return {name for name in candidates if name.lower() in lowered}
+    remaining = answer
+    found = set()
+    for name in sorted(candidates, key=len, reverse=True):
+        pattern = re.compile(rf"\b{re.escape(name)}\b", re.IGNORECASE)
+        if pattern.search(remaining):
+            found.add(name)
+            # Blank out what this name claimed, so a shorter name nested inside it
+            # cannot claim the same characters over again.
+            remaining = pattern.sub(" ", remaining)
+    return found

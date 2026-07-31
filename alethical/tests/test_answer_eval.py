@@ -763,6 +763,63 @@ def test_the_grant_recipients_are_read_off_the_snapshot_and_clear_the_bounds():
     assert len(gt.names_from(counties, handful)) == 1
 
 
+def test_the_derivation_reproduces_the_hand_counts_exactly_not_just_the_bounds():
+    """The bounds above are 90 and 15, so they pass at 16 counties — and the shipped
+    pattern found 16 while the module documented 17.
+
+    A lower bound is the right shape for a *regression* test and cannot catch an
+    off-by-one in the denominator itself, which silently makes every recall
+    percentage in §12 a fraction of the wrong total. So this pins the two figures
+    the module publishes, exactly.
+
+    The seventeenth county is Lake of the Woods, whose name carries lowercase
+    connectors no capitals-only pattern can match.
+    """
+    from alethical.eval import ground_truth as gt
+
+    contexts = json.loads(CONTEXTS.read_text())["contexts"]
+    key = next(k for k in contexts if "cities and counties" in k)
+    bill_text = "\n".join(c["chunk_text"] for c in contexts[key]["chunks"])
+    # The figures only mean anything if this really is the whole bill.
+    assert len(contexts[key]["chunks"]) == contexts[key]["passages_total"]
+
+    cities, counties = gt.hf719_grant_recipients(bill_text)
+    assert len(cities) == 98
+    assert len(counties) == 17
+    assert "Lake of the Woods" in counties
+    # A connector may not run the name on into the sentence that follows it.
+    assert not any(name.endswith(("of", "the")) for name in counties)
+
+
+def test_a_short_recipient_name_is_not_credited_to_a_longer_one_containing_it():
+    """Three of HF 719's names sit inside another: St. Paul in South St. Paul,
+    Benton in Lake Benton, Minnetonka in Minnetonka Beach.
+
+    A plain substring test credits the short name every time the long one appears,
+    so an answer naming only Lake Benton is recorded as having named Benton as well
+    and reads as more complete than it is. Measured on the re-run's own answers this
+    inflated three of the four arms checked by one name each.
+    """
+    from alethical.eval import ground_truth as gt
+
+    cities = {"St. Paul", "South St. Paul", "Benton", "Lake Benton", "Duluth"}
+
+    only_the_long_ones = "Grants go to South St. Paul and Lake Benton."
+    assert gt.names_from(cities, only_the_long_ones) == {
+        "South St. Paul",
+        "Lake Benton",
+    }
+
+    # Both named separately still counts as both — the fix must not swing the other
+    # way and hide a name the answer really did print.
+    both = "Grants go to South St. Paul, to St. Paul, to Lake Benton and to Benton."
+    assert gt.names_from(cities, both) == cities - {"Duluth"}
+
+    # And a word boundary, so a city called Grant is not found in "grants".
+    assert gt.names_from({"Grant", "Duluth"}, "The bill awards grants.") == set()
+    assert gt.names_from({"Grant"}, "A grant to the city of Grant.") == {"Grant"}
+
+
 def test_the_hf719_fixture_question_forbids_both_overclaims():
     """The label must forbid the two things production actually did."""
     hf719 = next(
