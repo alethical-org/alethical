@@ -1461,6 +1461,7 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
     id: bill.id,
     identifier: formatBillIdentifier(bill.file_type, bill.file_number),
     title: bill.title,
+    shortTitle: bill.ai_analysis?.short_title ?? undefined,
     status: statusLabel(bill.status_key, bill.current_status),
     statusKey: bill.status_key ?? undefined,
     summary: bill.ai_analysis?.summary ?? undefined,

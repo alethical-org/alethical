@@ -20,7 +20,7 @@ const LIST_MARKER = /^\s*(?:\d{1,3}[.)]|[-*•])\s+/;
 
 // The synthesis returns light markdown (**bold**); there is no markdown renderer
 // on this page, so strip the emphasis markers rather than print them.
-export function stripInlineMarkdown(value: string): string {
+function stripInlineMarkdown(value: string): string {
   return value.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1');
 }
 

@@ -367,6 +367,11 @@ export interface AskAnswerBill {
   id: string;
   identifier: string;
   title: string;
+  /** The plain-language title (`ai_analysis.short_title`), which is what a card
+   *  DISPLAYS. `title` is the full statutory "A bill for an act relating to…" and
+   *  stays a hover tooltip / screen-reader label only
+   *  (.claude/rules/grounded-answers.md rule 10). */
+  shortTitle?: string;
   status: string;
   statusKey?: string;
   summary?: string;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -7,7 +7,6 @@ import { SearchPageShell } from '../../components/search/searchPieces';
 import { BillResultCard } from '../../components/search/BillResultCard';
 import { CitationCard, SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
 import { SourceLine } from '../../components/billDetail/SourceLine';
-import { STICKY_RAIL } from '../../components/billDetail/SummaryTab';
 import { Skeleton } from '../../components/Skeleton';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
@@ -31,7 +30,7 @@ import {
   parseAnswerBlocks,
   passageTarget,
 } from '../../lib/askAnswer';
-import { useHover } from '../../components/billDetail/interactions';
+import { STICKY_RAIL, useHover } from '../../components/billDetail/interactions';
 import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
 const t = theme;
@@ -116,6 +115,13 @@ function FollowUpChips({
 }
 
 function AnswerBillCard({ bill, onOpen }: { bill: AskAnswerBill; onOpen: () => void }) {
+  // RN-Web drops the DOM `title` prop, so set the tooltip on the host node.
+  const titleRef = useRef<Text>(null);
+  useEffect(() => {
+    if (isWeb && titleRef.current) {
+      (titleRef.current as unknown as HTMLElement).title = bill.title;
+    }
+  }, [bill.title]);
   return (
     <View style={[styles.billCard, t.shadows.card as object]}>
       <View style={styles.billCardTop}>
@@ -131,7 +137,19 @@ function AnswerBillCard({ bill, onOpen }: { bill: AskAnswerBill; onOpen: () => v
             button, consistent site-wide (docs/product-onboarding/grounded-ask-spec.md §9.2). */}
         <RoadmapTrackButton />
       </View>
-      <Text style={styles.billTitle}>{bill.title}</Text>
+      {/* The PLAIN title, with the statutory one kept as a hover tooltip and the
+          screen-reader name — the treatment BillHeader and the search card already
+          use (.claude/rules/grounded-answers.md rule 10). HF 719's official title
+          is eleven lines of statute citations, and this card was printing all of
+          them on the vote deflection. */}
+      <Text
+        ref={titleRef}
+        style={styles.billTitle}
+        accessibilityLabel={bill.title}
+        numberOfLines={bill.shortTitle ? undefined : 2}
+      >
+        {bill.shortTitle ?? bill.title}
+      </Text>
       {bill.summary ? <Text style={styles.billSummary}>{bill.summary}</Text> : null}
       <Pressable
         {...linkProps(routePath.bill(bill.id), onOpen)}
@@ -318,9 +336,13 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
   const sections = useMemo(() => citedSections(citations), [citations]);
   const answerBlocks = useMemo(() => parseAnswerBlocks(answer?.billText ?? ''), [answer?.billText]);
+  // Held back until the bill's own prompts have landed. Rendered eagerly, the
+  // block showed the generic fallback chips for the ~300ms the bill fetch takes
+  // and then swapped all three for the bill's own — a visible flicker on the one
+  // control the reader is being invited to use.
   const chips = useMemo(
-    () => followUpPrompts(bill?.questionPrompts, question),
-    [bill?.questionPrompts, question],
+    () => (billQuery.isPending ? [] : followUpPrompts(bill?.questionPrompts, question)),
+    [billQuery.isPending, bill?.questionPrompts, question],
   );
 
   // House first, then Senate — drop empty chambers (spec §9.4).
@@ -412,16 +434,29 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       ? `Updated ${formatNiceDate(bill.updatedAt)}`
       : '';
 
-  const eyebrow = !answer?.hasAnswer
-    ? { text: pending.eyebrow, muted: true, comingSoon: false }
-    : isVoteDeflection
-      ? { text: 'ANSWER', muted: false, comingSoon: true }
-      : noMatches
-        ? { text: 'NO MATCHES', muted: true, comingSoon: false }
-        : // An answered bill_text or topic answer carries no eyebrow: the question
-          // is the heading, and the answer below it is self-evidently the answer
-          // (§9.5 Layout — the handoff draws no eyebrow).
-          null;
+  // An eyebrow only where it is load-bearing: it separates an honest empty state
+  // or a deflection from a real answer. An ANSWERED page carries none — the
+  // question is the heading and the answer sits right under it (§9.5 Layout; the
+  // handoff draws no eyebrow).
+  //
+  // isBillText is checked BEFORE noMatches, and must be: `totalMatches` counts
+  // matching bills for a TOPIC answer and is always 0 on a bill_text answer, so
+  // the other order labelled every single-bill answer "NO MATCHES". The render
+  // chain below already had this order; the eyebrow did not.
+  // Nothing until the answer lands: `pending` is the refusal copy, so computing an
+  // eyebrow from a not-yet-arrived answer printed "NO BILL MATCHED" over the
+  // loading skeleton of a question that answers perfectly well.
+  const eyebrow = !answer
+    ? null
+    : !answer.hasAnswer
+      ? { text: pending.eyebrow, muted: true, comingSoon: false }
+      : isVoteDeflection
+        ? { text: 'ANSWER', muted: false, comingSoon: true }
+        : isBillText
+          ? null
+          : noMatches
+            ? { text: 'NO MATCHES', muted: true, comingSoon: false }
+            : null;
 
   const hero = question ? (
     <View style={styles.header}>

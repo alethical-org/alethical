@@ -15,12 +15,7 @@ import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fi
 import { CitationCard, SuggestedQuestionChip } from './CitationCard';
 import { FactsRail } from './FactsRail';
 import { SourceLine } from './SourceLine';
-import { isWeb, useHover } from './interactions';
-
-// Sticky sidebar is web-only (RN has no 'sticky' position) — applied inline so it
-// stays out of StyleSheet.create's typed position union. The Ask answer page's
-// rail reuses this value.
-export const STICKY_RAIL = { position: 'sticky', top: 24 } as object;
+import { isWeb, STICKY_RAIL, useHover } from './interactions';
 
 // Summary tab — two columns on desktop (1.4fr content / 1fr rail), stacked on
 // narrow. Left: key points (the plain-language summary) → From the bill excerpts →
