@@ -4,8 +4,10 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
 import {
+  authorAddPrefix,
   buildActionTimeline,
   crossReferenceTargets,
+  TimelineAuthor,
   TimelineDot,
   TimelineRow,
   titleSegments,
@@ -26,19 +28,30 @@ export function ActionsTab({
   bill,
   onViewVotes,
   onOpenBill,
+  onOpenLegislator,
   updatedLabel,
 }: {
   bill: Bill;
   onViewVotes: (rollIdx: number) => void;
   onOpenBill?: (billId: string) => void;
+  onOpenLegislator?: (legislatorId: string) => void;
   updatedLabel: string;
 }) {
   // "Now" is the real current date, not the corpus stamp: an action is SCHEDULED
   // only if genuinely still in the future. Anchoring to the Updated stamp
   // mislabeled already-past enacted milestones (#537/#541).
+  // The author list goes in so a co-author row can print the full name and link to
+  // the profile, instead of the bare surname the clerk's record holds.
   const { rows, glossary } = useMemo(
-    () => buildActionTimeline(bill.actions, bill.votes, new Date(), bill.effectiveSchedule),
-    [bill.actions, bill.votes, bill.effectiveSchedule],
+    () =>
+      buildActionTimeline(
+        bill.actions,
+        bill.votes,
+        new Date(),
+        bill.effectiveSchedule,
+        bill.sponsors,
+      ),
+    [bill.actions, bill.votes, bill.effectiveSchedule, bill.sponsors],
   );
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -69,6 +82,7 @@ export function ActionsTab({
             onToggle={() => toggle(row.id)}
             onViewVotes={onViewVotes}
             onOpenBill={onOpenBill}
+            onOpenLegislator={onOpenLegislator}
           />
         ))}
       </View>
@@ -98,12 +112,14 @@ function Row({
   onToggle,
   onViewVotes,
   onOpenBill,
+  onOpenLegislator,
 }: {
   row: TimelineRow;
   expanded: boolean;
   onToggle: () => void;
   onViewVotes: (rollIdx: number) => void;
   onOpenBill?: (billId: string) => void;
+  onOpenLegislator?: (legislatorId: string) => void;
 }) {
   const isGroup = !!row.authors && row.authors.length > 1;
   // A row's title colour keys off ONE condition: has this happened yet. Grey means
@@ -124,7 +140,13 @@ function Row({
       <View style={styles.content}>
         <View style={styles.titleRow}>
           {row.authors ? (
-            <AuthorTitle row={row} expanded={expanded} onToggle={onToggle} isGroup={isGroup} />
+            <AuthorTitle
+              row={row}
+              expanded={expanded}
+              onToggle={onToggle}
+              isGroup={isGroup}
+              onOpenLegislator={onOpenLegislator}
+            />
           ) : (
             <Text style={[styles.title, scheduled && styles.titleScheduled]}>
               {titleSegments(row).map((seg, i) =>
@@ -172,31 +194,66 @@ function Row({
 // NAME_CAP hide behind an in-place toggle (point 4). It reads in the same weight and
 // ink as every other row that has happened — the collapsing is what keeps it quiet,
 // not a dimmer treatment.
+//
+// Each name is the member's full name linking to their profile, resolved by the
+// shared builder from the bill's own author list. A name it could not resolve to
+// exactly one person stays as the record wrote it, in plain unlinked ink — the row
+// never guesses which of two members who share a surname signed on.
 function AuthorTitle({
   row,
   expanded,
   onToggle,
   isGroup,
+  onOpenLegislator,
 }: {
   row: TimelineRow;
   expanded: boolean;
   onToggle: () => void;
   isGroup: boolean;
+  onOpenLegislator?: (legislatorId: string) => void;
 }) {
   const names = row.authors ?? [];
-  if (!isGroup) {
-    return <Text style={styles.title}>Co-author added — {names[0] ?? ''}</Text>;
-  }
-  const hidden = Math.max(0, names.length - NAME_CAP);
-  const shown = expanded ? names : names.slice(0, NAME_CAP);
+  const hidden = isGroup ? Math.max(0, names.length - NAME_CAP) : 0;
+  const shown = !isGroup || expanded ? names : names.slice(0, NAME_CAP);
   return (
     <Text style={styles.title}>
-      {names.length} co-authors added — {shown.join(', ')}
+      {authorAddPrefix(names.length)}
+      {shown.map((author, i) => (
+        <Text key={`${author.label}-${i}`}>
+          {i > 0 ? ', ' : ''}
+          <AuthorName author={author} onOpenLegislator={onOpenLegislator} />
+        </Text>
+      ))}
       {hidden > 0 ? (
         <Text onPress={onToggle} style={styles.moreLink}>
           {expanded ? '  show less' : `  +${hidden} more`}
         </Text>
       ) : null}
+    </Text>
+  );
+}
+
+// One author's name inside the row's sentence. Linked and underlined on the same
+// terms as a bill code mid-sentence (BillCodeLink below): colour alone can't mark a
+// link inside running text (WCAG 1.4.1), and a phone has no hover to reveal one.
+function AuthorName({
+  author,
+  onOpenLegislator,
+}: {
+  author: TimelineAuthor;
+  onOpenLegislator?: (legislatorId: string) => void;
+}) {
+  const [hovered, hover] = useHover();
+  const id = author.legislatorId;
+  if (!id || !onOpenLegislator) return <Text>{author.label}</Text>;
+  return (
+    <Text
+      accessibilityLabel={`Open ${author.label}'s profile`}
+      {...linkProps(routePath.legislator(id), () => onOpenLegislator(id))}
+      {...hover}
+      style={[styles.billCodeLink, hovered && styles.billCodeLinkHover]}
+    >
+      {author.label}
     </Text>
   );
 }

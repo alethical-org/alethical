@@ -1,6 +1,7 @@
 import {
   Bill,
   BillAction,
+  BillSponsor,
   BillVersion,
   EffectiveSchedule,
   IndividualVote,
@@ -184,20 +185,90 @@ function crossReferenceTarget(desc: string): string {
 }
 
 // Split a raw author name-list ("Dippel, Zeleznikar, and Bakeberg") into names,
-// re-joining a trailing initial that a comma split off ("Lee, K." must stay one
-// name, not become "Lee" + "K.").
+// re-joining a trailing initial that the separator split off ("Lee, K." must stay
+// one name, not become "Lee" + "K.").
+//
+// The clerk uses BOTH separators, sometimes in one string: 329 production rows are
+// semicolon-delimited ("Fateh; Clark", "Hanson, J.; Pursell; Virnig; and Bahner"),
+// because the semicolon is what keeps a "Surname, Initial." pair together. Splitting
+// on commas alone made "Fateh; Clark" a single name whose row then read "Co-author
+// added" for two people. And the re-join must accept a MULTI-initial suffix: the
+// House distinguishes its two Andersons as "Anderson, P. E." and "Anderson, P. H.",
+// which a single-letter test left as a bare "P. E." standing in for a person.
 function splitNames(desc: string): string[] {
   const parts = desc
     .replace(/\band\b/gi, ',')
-    .split(',')
+    .split(/[,;]/)
     .map((s) => s.trim())
     .filter(Boolean);
   const out: string[] = [];
   for (const p of parts) {
-    if (/^[A-Z]\.?$/.test(p) && out.length) out[out.length - 1] += `, ${p}`;
+    if (/^[A-Z]\.?(?:\s+[A-Z]\.?)*$/.test(p) && out.length) out[out.length - 1] += `, ${p}`;
     else out.push(p);
   }
   return out;
+}
+
+/** One name on an author row: what to print, plus the profile it links to when the
+ *  clerk's surname resolved to exactly one of this bill's authors. */
+export interface TimelineAuthor {
+  /** The legislator's full name when resolved, else the clerk's own string. */
+  label: string;
+  /** Only set when the match was unambiguous, so a surface can trust the link. */
+  legislatorId?: string;
+}
+
+// Fold accents and case so the clerk's ASCII spelling still matches the roster's
+// ("Perez-Vega" → "Pérez-Vega"). Also drops the honorific the Senate roster carries
+// on every name ("Senator Erin K. Maye Quade").
+function nameKey(value: string): string {
+  return authorNameOnly(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+// The clerk writes a bare surname ("Skraba"), or a surname plus the initials that
+// separate two members who share it ("Lee, F.", "Anderson, P. E."). Split those apart.
+function parseClerkName(raw: string): { surname: string; initial: string } {
+  const at = raw.lastIndexOf(',');
+  if (at === -1) return { surname: nameKey(raw), initial: '' };
+  const tail = raw.slice(at + 1).trim();
+  if (!/^[A-Z]\.?(?:\s+[A-Z]\.?)*$/.test(tail)) return { surname: nameKey(raw), initial: '' };
+  return { surname: nameKey(raw.slice(0, at)), initial: tail[0].toLowerCase() };
+}
+
+// Resolve one clerk-written name against the bill's own author list, so the timeline
+// can print "Roger Skraba" and link to his profile instead of the bare "Skraba" the
+// record holds. Match on the surname the roster name ENDS with, because a surname can
+// be two words ("Maye Quade", "Johnson Stewart", "Van Binsbergen") and the roster
+// stores no separate surname field.
+//
+// Ambiguity NEVER guesses. When two authors on the bill share the surname and the
+// clerk's initials cannot separate them (both Andersons are "P."), the row keeps the
+// clerk's own string, unlinked — an honest "this is what the record says" rather than
+// a link to a person who may not be the one who signed on.
+function resolveAuthor(raw: string, sponsors: BillSponsor[]): TimelineAuthor {
+  const { surname, initial } = parseClerkName(raw);
+  if (!surname) return { label: raw };
+  const matches = sponsors.filter((s) => {
+    const key = nameKey(s.name);
+    return key === surname || key.endsWith(` ${surname}`);
+  });
+  // The initials only ever narrow: when they match nobody on this bill they were
+  // distinguishing the member from someone who is not an author here, so a lone
+  // surname match still stands.
+  const narrowed = initial ? matches.filter((s) => nameKey(s.name).startsWith(initial)) : matches;
+  const pick = narrowed.length === 1 ? narrowed[0] : matches.length === 1 ? matches[0] : null;
+  if (!pick?.legislatorId) return { label: raw };
+  return { label: authorNameOnly(pick.name), legislatorId: pick.legislatorId };
+}
+
+/** The words that lead an author-add row, shared by the timeline title and both
+ *  platforms' renderers so the three cannot word it differently. */
+export function authorAddPrefix(count: number): string {
+  return count > 1 ? `${count} co-authors added — ` : 'Co-author added — ';
 }
 
 const ACTION_RULES: Rule[] = [
@@ -275,6 +346,9 @@ const ACTION_RULES: Rule[] = [
     },
   },
   {
+    // The title here is the no-name fallback only: an authorAdd row's real title is
+    // rebuilt from its resolved `authors` in the emit step, so a full name shown on
+    // the row can never disagree with the title read out to a screen reader.
     test: (l) => /authors?\s+added/.test(l),
     build: (_t, desc) => ({
       kind: 'authorAdd',
@@ -705,7 +779,9 @@ export interface TimelineRow {
   kind: EventKind; // the classified event kind (lets callers reword per surface)
   dot: TimelineDot;
   tally?: string; // en-dashed "134–0"; only real passage votes carry one
-  authors?: string[]; // collapsed co-author names (author-group rows)
+  /** Collapsed co-author names (author-group rows), each already resolved to a full
+   *  name + profile link where the bill's own author list made that unambiguous. */
+  authors?: TimelineAuthor[];
   showVotes: boolean;
   rollIdx: number | null;
   /** Sub-line under the title — how many sections start on this row's date (#715). */
@@ -767,7 +843,7 @@ type Norm = Classified & {
   rawDate: string;
   tally?: string;
   chapter?: string;
-  authors?: string[];
+  authors?: TimelineAuthor[];
   endDate?: string;
   meta?: string;
   note?: string;
@@ -934,6 +1010,9 @@ export function buildActionTimeline(
   votes: VoteEvent[],
   now: Date,
   schedule?: EffectiveSchedule,
+  /** The bill's author list, so an author row can print full names and link to
+   *  profiles. Omit it and the rows keep the clerk's bare surnames, unlinked. */
+  sponsors?: BillSponsor[],
 ): { rows: TimelineRow[]; glossary: Array<{ term: string; def: string }> } {
   // 1. Classify, preserving source order (chamber-grouped, ascending #). A DROP
   //    in action_number marks a new chamber, tracked as `block`.
@@ -976,7 +1055,7 @@ export function buildActionTimeline(
       grouped.push(item);
       continue;
     }
-    const names: string[] = [];
+    const names: TimelineAuthor[] = [];
     const startDate = item.rawDate;
     let endDate = item.rawDate;
     let j = i;
@@ -991,7 +1070,7 @@ export function buildActionTimeline(
       norm[j].actionNumber === expectNum
     ) {
       const nm = (actions[norm[j].idx].actionDescription ?? '').trim();
-      if (nm) names.push(...splitNames(nm));
+      if (nm) names.push(...splitNames(nm).map((raw) => resolveAuthor(raw, sponsors ?? [])));
       endDate = norm[j].rawDate || endDate;
       expectNum = norm[j].actionNumber + 1;
       j++;
@@ -1111,6 +1190,12 @@ export function buildActionTimeline(
       const chamber = v.chamber ?? chamberFromTally(item.tally);
       title = chamber ? `${chamber} · ${norm.title}` : norm.title;
     }
+    // An author row's title is rebuilt from the resolved names, so the sentence a
+    // screen reader hears is the same one the eye sees — full names where we have
+    // them, and the same count the row shows.
+    if (item.kind === 'authorAdd' && item.authors?.length) {
+      title = authorAddPrefix(item.authors.length) + item.authors.map((a) => a.label).join(', ');
+    }
     return {
       id: `${item.idx}-${item.actionNumber}`,
       date: formatMonoDate(item.rawDate),
@@ -1189,8 +1274,13 @@ const KIND_SIGNIFICANCE: Record<EventKind, number> = {
 export function latestActionEntry(
   actions: BillAction[],
   now: Date,
+  /** Pass the bill's author list on a surface that has one, so an author row reads
+   *  with the same full names the Actions timeline shows. Without it the row keeps
+   *  the clerk's surnames — which is what a list card gets, since the list endpoint
+   *  serves only the chief author. */
+  sponsors?: BillSponsor[],
 ): { label: string; date: string; kind: EventKind } | null {
-  const { rows } = buildActionTimeline(actions, [], now);
+  const { rows } = buildActionTimeline(actions, [], now, undefined, sponsors);
   if (!rows.length) return null;
   // Enacted status is terminal and dominates: a signed bill reads as law however
   // its feed is dated (the "Chapter number" signing row is often dateless, so it
@@ -1222,6 +1312,15 @@ export function latestActionEntry(
     };
   }
   if (row.kind === 'veto') return { label: 'Vetoed by the Governor', date, kind: row.kind };
+  // An author group states its COUNT and stops. This is a one-line summary beside
+  // a status pill, and 30 production bills have a run of 24 or more names as their
+  // newest action — HF 683 adds 31 in one go. The names belong on the Actions
+  // timeline, which lists them behind a "+N more" toggle and links each one.
+  // (The row's own title used to name whichever member happened to be first, which
+  // read as "one person signed on" for a row that was really 31.)
+  if (row.kind === 'authorAdd' && (row.authors?.length ?? 0) > 1) {
+    return { label: `${row.authors!.length} co-authors added`, date, kind: row.kind };
+  }
   return { label: row.title, date, kind: row.kind };
 }
 

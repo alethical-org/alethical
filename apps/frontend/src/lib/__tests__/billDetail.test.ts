@@ -550,3 +550,130 @@ describe('bienniumEyebrow names the session the bill is actually from', () => {
     expect(bienniumEyebrow('94-2025s1-HF5')).toBe('');
   });
 });
+
+// An author row's names come from the clerk's action_description, which holds bare
+// surnames ("Joy", "Anderson, P. E."). buildActionTimeline resolves each against the
+// bill's own author list so the row can print the full name and link to the profile.
+// Every case below is a real production shape, from a replay of all 6,336
+// author-add rows in the corpus.
+describe('author rows name the person and link to them', () => {
+  const HOUSE_AUTHORS = [
+    { name: 'Steve Gander', role: 'chief_author', legislatorId: 'gander-id' },
+    { name: 'Jim Joy', role: 'co_author', legislatorId: 'joy-id' },
+    { name: 'Roger Skraba', role: 'co_author', legislatorId: 'skraba-id' },
+  ];
+
+  const addAction = (n: number, desc: string): BillAction => ({
+    id: `a${n}`,
+    date: '2026-04-30',
+    description: 'x',
+    actionText: 'Author added',
+    actionDescription: desc,
+    actionNumber: n,
+  });
+
+  const authorRow = (actions: BillAction[], authors = HOUSE_AUTHORS) =>
+    buildActionTimeline(actions, [], NOW, undefined, authors).rows.find((r) => r.authors)!;
+
+  it('prints the full name and the profile id, not the clerk surname', () => {
+    // HF 4301's real rows — the page showed "2 co-authors added — Joy, Skraba".
+    const row = authorRow([addAction(2, 'Joy'), addAction(3, 'Skraba')]);
+    expect(row.authors).toEqual([
+      { label: 'Jim Joy', legislatorId: 'joy-id' },
+      { label: 'Roger Skraba', legislatorId: 'skraba-id' },
+    ]);
+    expect(row.title).toBe('2 co-authors added — Jim Joy, Roger Skraba');
+  });
+
+  it('splits a semicolon list, which 329 production rows use', () => {
+    // "Fateh; Clark" split on commas alone stayed ONE name, so the row read
+    // "Co-author added" for two people and neither could resolve.
+    const row = authorRow([addAction(2, 'Joy; Skraba')]);
+    expect(row.authors?.map((a) => a.label)).toEqual(['Jim Joy', 'Roger Skraba']);
+    expect(row.title).toBe('2 co-authors added — Jim Joy, Roger Skraba');
+  });
+
+  it('keeps a surname and its initials together, however many initials', () => {
+    // The House separates its two Andersons as "Anderson, P. E." and
+    // "Anderson, P. H.". A single-letter re-join left a bare "P. E." standing in
+    // for a person, on 74 production rows.
+    const anderson = [{ name: 'Paul Anderson', role: 'co_author', legislatorId: 'paul-id' }];
+    const row = authorRow(
+      [addAction(2, 'Anderson, P. E.; and Gander')],
+      [...anderson, ...HOUSE_AUTHORS],
+    );
+    expect(row.authors?.map((a) => a.label)).toEqual(['Paul Anderson', 'Steve Gander']);
+  });
+
+  it('refuses to guess between two authors who share a surname', () => {
+    // Both Andersons co-author HF 4407 and the clerk's initials are both "P.", so
+    // nothing in the record says which one this row is. The row keeps the clerk's
+    // own string, unlinked, rather than linking to a coin flip.
+    const both = [
+      { name: 'Paul Anderson', role: 'co_author', legislatorId: 'paul-id' },
+      { name: 'Patti Anderson', role: 'co_author', legislatorId: 'patti-id' },
+    ];
+    const row = authorRow([addAction(2, 'Anderson, P. E.; and Anderson, P. H.')], both);
+    expect(row.authors).toEqual([{ label: 'Anderson, P. E.' }, { label: 'Anderson, P. H.' }]);
+  });
+
+  it('uses an initial to pick between two who share a surname', () => {
+    const lees = [
+      { name: 'Fue Lee', role: 'co_author', legislatorId: 'fue-id' },
+      { name: 'Liz Lee', role: 'co_author', legislatorId: 'liz-id' },
+    ];
+    expect(authorRow([addAction(2, 'Lee, F.')], lees).authors).toEqual([
+      { label: 'Fue Lee', legislatorId: 'fue-id' },
+    ]);
+    expect(authorRow([addAction(2, 'Lee, L.')], lees).authors).toEqual([
+      { label: 'Liz Lee', legislatorId: 'liz-id' },
+    ]);
+  });
+
+  it('matches a two-word surname, and a Senate name through its honorific', () => {
+    // The roster stores no separate surname field, and the Senate prefixes every
+    // name ("Senator Erin K. Maye Quade"). 150 production rows name a member whose
+    // surname is two words.
+    const senate = [
+      { name: 'Senator Erin K. Maye Quade', role: 'co_author', legislatorId: 'mq-id' },
+      { name: 'Senator Ann M. Johnson Stewart', role: 'co_author', legislatorId: 'js-id' },
+    ];
+    expect(authorRow([addAction(2, 'Maye Quade; Johnson Stewart')], senate).authors).toEqual([
+      { label: 'Erin K. Maye Quade', legislatorId: 'mq-id' },
+      { label: 'Ann M. Johnson Stewart', legislatorId: 'js-id' },
+    ]);
+  });
+
+  it('matches an accented surname the clerk wrote in plain ASCII', () => {
+    const perez = [{ name: 'María Isa Pérez-Vega', role: 'co_author', legislatorId: 'pv-id' }];
+    expect(authorRow([addAction(2, 'Perez-Vega')], perez).authors).toEqual([
+      { label: 'María Isa Pérez-Vega', legislatorId: 'pv-id' },
+    ]);
+  });
+
+  it('keeps the record’s own words for a name that is not an author here', () => {
+    // A member later stricken from the bill has no author row to match — 284
+    // production "Author stricken" rows are exactly this. Nothing is invented.
+    const row = authorRow([addAction(2, 'Eichorn')]);
+    expect(row.authors).toEqual([{ label: 'Eichorn' }]);
+    expect(row.title).toBe('Co-author added — Eichorn');
+  });
+
+  it('sums an author group up for the rail rather than listing it', () => {
+    // The rail is one line beside the status pill. 30 production bills have a run of
+    // 24+ names as their newest action (HF 683 adds 31 at once), and the row's title
+    // used to name whichever member came first — reading as one person for a row
+    // that was really 31. Longest rail label corpus-wide is now 52 characters.
+    const many = [addAction(2, 'Joy'), addAction(3, 'Skraba')];
+    expect(latestActionEntry(many, NOW, HOUSE_AUTHORS)?.label).toBe('2 co-authors added');
+    // A single add still names the person, with the full name.
+    expect(latestActionEntry([addAction(2, 'Joy')], NOW, HOUSE_AUTHORS)?.label).toBe(
+      'Co-author added — Jim Joy',
+    );
+  });
+
+  it('leaves every name unlinked when no author list was handed in', () => {
+    const { rows } = buildActionTimeline([addAction(2, 'Joy'), addAction(3, 'Skraba')], [], NOW);
+    expect(rows.find((r) => r.authors)?.authors).toEqual([{ label: 'Joy' }, { label: 'Skraba' }]);
+  });
+});

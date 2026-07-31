@@ -174,6 +174,46 @@ states.
   describe the **relationship**. Enforced by a test that greps both pieces of fixed
   copy for those phrasings.
 
+### A co-author row names the person in full and links to their profile (EXPLICIT RULE, #776)
+The record holds a bare surname — `action_description` on an "Author added" row is
+"Joy", "Maye Quade", or "Anderson, P. E." — so the row read "2 co-authors added —
+Joy, Skraba": someone who does not already know the members learns nothing, and a
+name they might want to look up leads nowhere. Each name now resolves against the
+bill's **own author list** (already served as `all_sponsors`, with full name and
+legislator id) and renders as that full name, linking to `/legislators/{id}`.
+- **The bill's own author list is the only lookup.** No statewide name index in the
+  client, no fuzzy matching against the roster: if the clerk names someone the bill
+  does not list as an author, nothing resolves. Matching is on the surname the
+  roster name *ends with* (a surname can be two words — "Maye Quade", "Johnson
+  Stewart", "Van Binsbergen"), with accents folded so the clerk's ASCII spelling
+  still matches ("Perez-Vega" → "Pérez-Vega"), and the Senate's "Senator " prefix
+  stripped. Corpus-wide: **7,857 of 8,045 names on author rows resolve (97.7%)**.
+- **Ambiguity never guesses.** Where two authors on one bill share a surname and the
+  clerk's initials cannot separate them — the House writes both its Andersons as
+  "P." ("Anderson, P. E." and "Anderson, P. H.", 17 names) — the row keeps the
+  clerk's own string in plain unlinked ink. A link to a coin flip would name the
+  wrong legislator, which is worse than a surname that names none.
+- **The clerk's initials narrow, they never veto.** "Lee, F." picks Fue Lee over Liz
+  Lee. Where the initials match nobody on the bill they were separating the member
+  from someone who is not an author here, so a lone surname match still stands.
+- **Both separators split the list.** The clerk uses commas and semicolons, sometimes
+  in one string ("Hanson, J.; Pursell; Virnig; and Bahner"), and the semicolon is
+  what holds a "Surname, Initial." pair together. Splitting on commas alone made
+  "Fateh; Clark" one name whose row then read "Co-author added" for two people —
+  **272 rows corpus-wide showed the wrong number of people**, and a bare "P. E."
+  stood in for a person on 74 of them.
+- **The rail states the count and stops.** WHERE IT STANDS is one line beside the
+  status pill, and 30 production bills have a run of 24 or more names as their newest
+  action (HF 683 adds 31 at once), so it reads "31 co-authors added" and the names
+  live on the timeline. Previously it named whichever member came first, which read
+  as one person signing on to a row that was really 31.
+- **Underlined, like a linked bill code.** Same reasoning as the cross-reference rule
+  above: mid-sentence there is no position to mark a link and no hover on a phone
+  (WCAG 1.4.1). The name inherits the row title's size and weight.
+- Both the web tab and the mobile screen render from the same resolved names, and the
+  row's `title` is rebuilt from them, so what a screen reader hears is the sentence
+  the eye sees.
+
 ### Future / scheduled actions (EXPLICIT RULE)
 - Actions dated AFTER the data snapshot ("now" = the Last-updated date) render as
   **SCHEDULED, not completed**: dashed green-ring dot (vs. filled green), a

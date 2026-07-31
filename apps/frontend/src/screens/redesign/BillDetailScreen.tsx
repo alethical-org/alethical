@@ -29,6 +29,7 @@ import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { Bill, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import {
+  authorAddPrefix,
   authorNameOnly,
   askCardPrompts,
   authorTitleLabel,
@@ -57,6 +58,7 @@ import {
   POINTER_CAPTION,
   readLabel,
   scopedChipQuery,
+  TimelineAuthor,
   TimelineRow,
   titleSegments,
   validateRoll,
@@ -486,7 +488,7 @@ function BillDetailMobileScreen() {
     // leads with the earliest date it states about itself, plus the one muted
     // caption. Identical logic and copy to the web facts rail — both call the
     // shared effectiveRailValue so the two platforms cannot drift (#715).
-    const latest = latestActionEntry(bill.actions ?? [], now);
+    const latest = latestActionEntry(bill.actions ?? [], now, bill.sponsors);
     const effective = effectiveRailValue(bill);
     const dateLabel = effective ? 'EFFECTIVE' : 'LATEST ACTION';
     const dateValue =
@@ -504,11 +506,14 @@ function BillDetailMobileScreen() {
     // language titles, collapsed co-author runs and floor-passage clusters, deduped
     // cross-chamber rows, chamber-labelled tallies, the resolved effective-date
     // schedule rows (#715), and the glossary of terms actually shown.
+    // The author list goes in too, so a co-author row prints the full name and taps
+    // through to the profile rather than showing the clerk's bare surname.
     const { rows: actionRows, glossary: actionGlossary } = buildActionTimeline(
       bill.actions,
       bill.votes,
       now,
       bill.effectiveSchedule,
+      bill.sponsors,
     );
     // Show only outcome-determining roll calls (final passage, repassage,
     // concurrence, veto override, conference-report adoption, de-facto kill
@@ -897,6 +902,7 @@ function BillDetailMobileScreen() {
                   glossary={vm.actionGlossary}
                   onViewVotes={vm.hasVotes ? () => jumpTo('votes') : undefined}
                   onOpenBill={(billId) => navigation.navigate('BillDetail', { billId })}
+                  onOpenLegislator={openLegislator}
                 />
               ) : (
                 <Text style={styles.emptyLine}>No recorded actions yet.</Text>
@@ -1239,11 +1245,13 @@ function MobileActionsTimeline({
   glossary,
   onViewVotes,
   onOpenBill,
+  onOpenLegislator,
 }: {
   rows: TimelineRow[];
   glossary: Array<{ term: string; def: string }>;
   onViewVotes?: () => void;
   onOpenBill: (billId: string) => void;
+  onOpenLegislator: (legislatorId: string) => void;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -1265,6 +1273,7 @@ function MobileActionsTimeline({
             onToggle={() => toggle(row.id)}
             onViewVotes={row.showVotes ? onViewVotes : undefined}
             onOpenBill={onOpenBill}
+            onOpenLegislator={onOpenLegislator}
           />
         ))}
       </View>
@@ -1291,12 +1300,14 @@ function ActionRow({
   onToggle,
   onViewVotes,
   onOpenBill,
+  onOpenLegislator,
 }: {
   row: TimelineRow;
   expanded: boolean;
   onToggle: () => void;
   onViewVotes?: () => void;
   onOpenBill: (billId: string) => void;
+  onOpenLegislator: (legislatorId: string) => void;
 }) {
   // A row's title is grey for exactly ONE reason: the step hasn't happened yet.
   // Same rule and same token as the web tab (#734) — a past step dimmed by type
@@ -1340,7 +1351,12 @@ function ActionRow({
         ) : null}
         <View style={styles.actionTitleRow}>
           {names.length ? (
-            <ActionAuthorTitle names={names} expanded={expanded} onToggle={onToggle} />
+            <ActionAuthorTitle
+              names={names}
+              expanded={expanded}
+              onToggle={onToggle}
+              onOpenLegislator={onOpenLegislator}
+            />
           ) : (
             <Text style={[styles.actionTitle, scheduled && styles.actionTitleScheduled]}>
               {/* A "See also HF 2446" row links the code to that bill's page. Same
@@ -1414,23 +1430,46 @@ function ActionRow({
 // Names past NAME_CAP hide behind an in-place toggle. It reads in the same weight
 // and ink as any other row that has happened — the collapsing is what keeps it
 // quiet, not a dimmer treatment.
+//
+// Each name is the member's full name, tapping through to their profile — resolved
+// by the shared builder from the bill's own author list, so this surface and the web
+// tab link the same names. One the builder could not pin to a single member stays as
+// the record wrote it, plain and untappable.
 function ActionAuthorTitle({
   names,
   expanded,
   onToggle,
+  onOpenLegislator,
 }: {
-  names: string[];
+  names: TimelineAuthor[];
   expanded: boolean;
   onToggle: () => void;
+  onOpenLegislator: (legislatorId: string) => void;
 }) {
-  if (names.length < 2) {
-    return <Text style={styles.actionTitle}>Co-author added — {names[0] ?? ''}</Text>;
-  }
-  const hidden = Math.max(0, names.length - NAME_CAP);
-  const shown = expanded ? names : names.slice(0, NAME_CAP);
+  const isGroup = names.length > 1;
+  const hidden = isGroup ? Math.max(0, names.length - NAME_CAP) : 0;
+  const shown = !isGroup || expanded ? names : names.slice(0, NAME_CAP);
   return (
     <Text style={styles.actionTitle}>
-      {names.length} co-authors added — {shown.join(', ')}
+      {authorAddPrefix(names.length)}
+      {shown.map((author, i) => (
+        <Text key={`${author.label}-${i}`}>
+          {i > 0 ? ', ' : ''}
+          {author.legislatorId ? (
+            <Text
+              accessibilityLabel={`Open ${author.label}'s profile`}
+              {...linkProps(routePath.legislator(author.legislatorId), () =>
+                onOpenLegislator(author.legislatorId as string),
+              )}
+              style={styles.actionBillCodeLink}
+            >
+              {author.label}
+            </Text>
+          ) : (
+            <Text>{author.label}</Text>
+          )}
+        </Text>
+      ))}
       {hidden > 0 ? (
         <Text onPress={onToggle} style={styles.actionMoreLink}>
           {expanded ? '  show less' : `  +${hidden} more`}
