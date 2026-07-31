@@ -68,17 +68,34 @@ def _reset_bill_rag_rows(db: Session, bill_key: str) -> int:
         )
     ).all()
     if section_rows:
-        chunk_rows = db.scalars(
-            select(schema.RagChunk.id).where(
-                schema.RagChunk.rag_section_document_id.in_(section_rows)
-            )
-        ).all()
-        if chunk_rows:
-            db.execute(
-                delete(schema.RagChunkEmbedding).where(
-                    schema.RagChunkEmbedding.rag_chunk_id.in_(chunk_rows)
+        # Delete the embeddings with the SAME predicate the chunk delete uses, as a
+        # subquery, rather than against a list of chunk ids read a statement earlier.
+        #
+        # What is certain, by reading rather than by measurement: those two were
+        # different sets by construction. The embedding delete covered the chunks that
+        # existed at read time; the chunk delete covers every chunk under these
+        # documents. Any chunk in the second set but not the first keeps its embedding
+        # and then makes the chunk delete fail on the foreign key. One predicate for
+        # both cannot diverge.
+        #
+        # What is NOT established is that this caused the failure that led here. Running
+        # this file straight after test_ask_scenarios.py raised exactly that foreign-key
+        # error, twice, and deselecting that file's coverage-denominator test made it
+        # pass — but after this change the old code stopped reproducing it too, so the
+        # database state that triggered it is gone and the link is unproven. Recorded
+        # that way deliberately: a comment asserting a reproduction that no longer
+        # reproduces is worse than one admitting the gap.
+        #
+        # Neither CI nor the full suite ever saw it; only that two-file invocation did.
+        db.execute(
+            delete(schema.RagChunkEmbedding).where(
+                schema.RagChunkEmbedding.rag_chunk_id.in_(
+                    select(schema.RagChunk.id).where(
+                        schema.RagChunk.rag_section_document_id.in_(section_rows)
+                    )
                 )
             )
+        )
         db.execute(
             delete(schema.RagChunk).where(
                 schema.RagChunk.rag_section_document_id.in_(section_rows)
