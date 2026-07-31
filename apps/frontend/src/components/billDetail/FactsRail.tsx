@@ -60,7 +60,7 @@ export function FactsRail({
   // A law whose sections start on different days keeps the EFFECTIVE label and
   // leads with the earliest date it states about itself ("From May 28, 2026"),
   // plus one muted caption pointing at the Actions timeline for the rest (#715).
-  const latest = latestActionEntry(bill.actions ?? [], new Date());
+  const latest = latestActionEntry(bill.actions ?? [], new Date(), bill.sponsors);
   const effective = effectiveRailValue(bill);
   const dateLabel = effective ? 'EFFECTIVE' : 'LATEST ACTION';
   const dateValue =

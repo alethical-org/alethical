@@ -195,6 +195,7 @@ export function BillDetailWebScreen() {
         bill={bill}
         onViewVotes={() => selectTab('votes')}
         onOpenBill={openBill}
+        onOpenLegislator={openLegislator}
         updatedLabel={updatedLabel}
       />
     );
