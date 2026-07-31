@@ -702,6 +702,92 @@ def test_section_chip_topic_reads_both_heading_columns() -> None:
     )
 
 
+def test_citation_section_topics_refuses_an_ambiguous_section_id() -> None:
+    """A `section_id_text` naming more than one section resolves to NO topic.
+
+    The id is not unique within a version: 66 (version, id) pairs in production name
+    several sections, and on HF 1134 the single id "laws.0.1.0" covers three — "Sec.
+    126. OAK GROVE; COMPREHENSIVE PLAN.", "Sec. 46. NOWTHEN; COMPREHENSIVE PLAN." and
+    a bare "Section 1." Building the map with last-row-wins captioned 58 chips with a
+    topic belonging to a section the citation does not point at: HF 1134's Sec. 1 chip
+    read "Sec. 1 · Nowthen", and HF 1012's read "Sec. 1 · Forest land off-highway
+    vehicle use reclassification", which is Sec. 167's subject.
+
+    Which section is meant is unknowable from the id, so the honest answer is none and
+    the chip falls back to the number alone (.claude/rules/grounded-answers.md rule 1).
+    Replayed across production this drops 75 on-screen topics and every one was a
+    caption belonging to a different section."""
+    from alethical.api.routers.public import _citation_section_topics
+
+    def topics(sections: list[tuple[str, str | None, str | None]]) -> dict[str, str]:
+        version = SimpleNamespace(id=1, is_current=True)
+        bill = SimpleNamespace(versions=[version])
+        db = SimpleNamespace(
+            execute=lambda _stmt: SimpleNamespace(all=lambda: sections)
+        )
+        return _citation_section_topics(db, bill)
+
+    # Unique ids resolve normally — the ordinary case, unchanged.
+    assert topics(
+        [
+            ("laws.0.1.0", "Section 1. DRINKING WATER GRANTS.", None),
+            ("laws.0.2.0", "Sec. 2. APPROPRIATION.", None),
+        ]
+    ) == {"laws.0.1.0": "Drinking water grants", "laws.0.2.0": "Appropriation"}
+
+    # The HF 1134 shape: one id, three sections. No topic for it, at all — not the
+    # first one, not the last one.
+    assert (
+        topics(
+            [
+                ("laws.0.1.0", "Sec. 126. OAK GROVE; COMPREHENSIVE PLAN.", None),
+                ("laws.0.1.0", "Sec. 46. NOWTHEN; COMPREHENSIVE PLAN.", None),
+                ("laws.0.1.0", "Section 1.", None),
+            ]
+        )
+        == {}
+    )
+
+    # A duplicate must not answer on behalf of a heading-less section that shares its
+    # id — the heading-less row occupies the id too, so the pair is still ambiguous.
+    assert (
+        topics(
+            [("laws.0.1.0", "Sec. 1.", None), ("laws.0.1.0", "Sec. 9. TRANSFER.", None)]
+        )
+        == {}
+    )
+    assert (
+        topics(
+            [("laws.0.1.0", "Sec. 9. TRANSFER.", None), ("laws.0.1.0", "Sec. 1.", None)]
+        )
+        == {}
+    )
+
+    # One ambiguous id does not poison the version's other, unique ids.
+    assert topics(
+        [
+            ("laws.0.1.0", "Sec. 126. OAK GROVE.", None),
+            ("laws.0.1.0", "Sec. 46. NOWTHEN.", None),
+            ("laws.0.5.0", "Sec. 5. METROPOLITAN COUNCIL.", None),
+        ]
+    ) == {"laws.0.5.0": "Metropolitan council"}
+
+    # Rows with no id are skipped without affecting anything else.
+    assert (
+        topics([(None, "Sec. 1. TRANSFER.", None), ("", "Sec. 2. REPEALER.", None)])
+        == {}
+    )
+
+    # No current version -> no topics, and no query attempted.
+    assert (
+        _citation_section_topics(
+            SimpleNamespace(execute=None),
+            SimpleNamespace(versions=[SimpleNamespace(id=1, is_current=False)]),
+        )
+        == {}
+    )
+
+
 def test_prompt_consolidates_key_points_with_six_as_a_target_not_a_quota() -> None:
     """The rule is CONSOLIDATION; the count is whatever consolidating produces.
     Six is a target, not a quota — a narrow bill returns fewer, and a genuine
