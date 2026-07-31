@@ -327,6 +327,35 @@ def test_bill_text_citations_carry_their_statute_section(client, monkeypatch):
     assert all(isinstance(c["section_topic"], str) for c in citations)
 
 
+def test_bill_text_answer_says_how_much_of_the_bill_it_read(client, monkeypatch):
+    """§9.5 decision 11 / #883: the answer carries how many of the bill's passages
+    it was written from, against how many the bill has, so the page can say above a
+    long-bill answer that it covers only part of it.
+
+    Served as a FACT, never as a verdict — the caveat is fixed UI copy the layout
+    owns, so nothing the model writes can soften or drop it
+    (.claude/rules/grounded-answers.md rule 3).
+
+    `total` counts the CURRENT version's passages only, the same scoping retrieval
+    uses (#285); counting every engrossment would inflate it and make the ratio a
+    different number."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post("/api/v1/ask", json={"content": "What's in SF 1832?"}).json()[
+        "data"
+    ]["answer"]
+    coverage = answer["coverage"]
+    assert coverage is not None, "a bill_text answer must say how much it read"
+    # `used` is what retrieval actually handed the writer — the same passages the
+    # citations quote, so the two can never disagree.
+    assert coverage["used"] == len(answer["citations"])
+    # The seeded bill has more passages than the answer read, which is the whole
+    # condition the note exists for.
+    assert coverage["total"] > coverage["used"], (
+        "the fixture bill must be partially covered, or this asserts nothing"
+    )
+
+
 def test_bill_text_resolves_a_bill_by_fuzzy_title(client, monkeypatch):
     """Scenario 1 (docs/product-onboarding/grounded-ask-spec.md §4.1, bill_text): a question with no
     HF/SF number resolves via a single confident title match ("higher education"

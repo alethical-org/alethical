@@ -427,6 +427,11 @@ export interface AskAnswer {
   billText?: string;
   citations?: AskCitation[];
   answeringBill?: AskAnswerBill;
+  /** How much of the bill the answer was written from: the passages retrieval used
+   *  against how many the bill's current version has. Absent when the total could
+   *  not be established, in which case the page says nothing about coverage rather
+   *  than guessing (grounded-ask-spec §9.5 decision 11). */
+  coverage?: { used: number; total: number };
 }
 
 export interface AskCitation {

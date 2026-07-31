@@ -17,6 +17,7 @@ import {
   citedSections,
   followUpPrompts,
   parseAnswerBlocks,
+  partialCoverageNote,
   passageTarget,
 } from '../askAnswer';
 import { AskCitation } from '../../data/types';
@@ -272,6 +273,32 @@ describe('passageTarget only links to a passage it can actually reach', () => {
 
   it('does not guess while the bill text is still loading', () => {
     expect(passageTarget('laws.1.24.0', false, false)).toBe('bill-text');
+  });
+});
+
+describe('partialCoverageNote warns only when the answer really is partial', () => {
+  it('names both numbers on the flagship HF 719 case', () => {
+    // 4 of 102 is the real production ratio, and it is the case the whole note
+    // exists for: that answer names 19 of ~98 cities and denies the 17 counties the
+    // bill does name.
+    expect(partialCoverageNote({ used: 4, total: 102 })).toBe(
+      'This answer draws on 4 of the 102 passages in this bill, so there may be more it doesn’t cover.',
+    );
+  });
+
+  it('says nothing when the answer covered the whole bill', () => {
+    // A caveat on every answer teaches people to ignore it.
+    expect(partialCoverageNote({ used: 4, total: 4 })).toBeNull();
+    expect(partialCoverageNote({ used: 6, total: 4 })).toBeNull();
+  });
+
+  it('says nothing when the backend served no coverage', () => {
+    // So this ships safely before or after the flag exists, rather than guessing.
+    expect(partialCoverageNote(undefined)).toBeNull();
+  });
+
+  it('says nothing on a zero, rather than "0 of 102"', () => {
+    expect(partialCoverageNote({ used: 0, total: 102 })).toBeNull();
   });
 });
 

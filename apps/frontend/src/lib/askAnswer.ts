@@ -211,6 +211,38 @@ export function passageTarget(
   return resolves ? 'passage' : 'official';
 }
 
+/**
+ * The partial-coverage note that sits ABOVE the answer, or null for no note
+ * (§9.5 decision 11, [#883]).
+ *
+ * **Why the page carries this and not the model.** On a long bill an answer is
+ * routinely written from a fraction of the text and reads as complete. The #865
+ * eval (`docs/product-onboarding/answer-quality-bar.md` §9) settled that a wider
+ * passage window is NOT the fix — the overclaim rate is flat at 80% with 4
+ * passages, 89% with 8, 80% with 16, and one model given four times the text
+ * produced a longer list with a *stronger* completeness claim. Only 1 of 9 models
+ * ever volunteered that its list was partial, and even that sentence landed at the
+ * END of a long list, where a reader who skims and leaves never reaches it. A
+ * guarantee cannot rest on that, so the caveat is fixed UI copy the layout owns
+ * and the model cannot influence (`.claude/rules/grounded-answers.md` rule 3).
+ *
+ * Returns null in both safe directions: no served coverage (say nothing rather
+ * than guess, so this ships before or after the backend), and full coverage (a
+ * caveat on every answer teaches people to ignore it).
+ *
+ * The two numbers are a fact about OUR retrieval, not a count of the bill's
+ * contents, which is why they are allowed here at all — decision 5 forbids a count
+ * that reads as "this list is complete", and this sentence says the opposite.
+ */
+export function partialCoverageNote(
+  coverage: { used: number; total: number } | undefined,
+): string | null {
+  if (!coverage) return null;
+  const { used, total } = coverage;
+  if (!(used > 0) || !(total > used)) return null;
+  return `This answer draws on ${used} of the ${total} passages in this bill, so there may be more it doesn’t cover.`;
+}
+
 // A chip label is scoped to its bill ("HF 719: Which cities …") before it is
 // asked, so comparing the question the reader arrived with against the bill's
 // stored prompts has to look past that prefix.
