@@ -436,19 +436,38 @@ def test_parse_spec_treats_reasoning_depth_as_part_of_the_candidate():
             cli.parse_spec(bad)
 
 
-def test_the_eval_scores_productions_own_prompt_rather_than_a_copy():
-    """A copied prompt would silently drift; this pins the import."""
-    import importlib.util
+def test_the_eval_sends_the_whole_prompt_production_sends():
+    """Pins the eval to production's *complete* instruction, not just its first half.
 
-    from alethical.api.routers.me import RAG_CHAT_SYSTEM_PROMPT
+    The original guard asserted the eval used `RAG_CHAT_SYSTEM_PROMPT` by identity,
+    which catches a copy that drifted. It could not catch a layer production adds
+    on top, and #868 did exactly that: it composed the constant with a coverage
+    rule forbidding the overclaiming the eval measures, and the eval kept sending
+    half the prompt with every guard green.
 
-    spec = importlib.util.spec_from_file_location(
-        "answer_eval_cli2",
-        pathlib.Path(__file__).resolve().parents[2] / "scripts/answer_eval.py",
-    )
-    cli = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(cli)
-    assert cli.SYSTEM_PROMPT is RAG_CHAT_SYSTEM_PROMPT
+    So this asserts against whatever production composes today — the constant while
+    #868 is unmerged, `rag_chat_system_prompt(None)` once it lands. `None` is the
+    right coverage because the eval's frozen contexts are partial reads.
+    """
+    import alethical.api.routers.me as me
+
+    cli = _cli()
+    composer = getattr(me, "rag_chat_system_prompt", None)
+    expected = composer(None) if composer else me.RAG_CHAT_SYSTEM_PROMPT
+    assert cli.production_system_prompt() == expected
+    # Whatever it composes, production's own words must be inside it.
+    assert me.RAG_CHAT_SYSTEM_PROMPT in cli.production_system_prompt()
+
+
+def test_a_prompt_change_invalidates_a_cached_arm_rather_than_mixing_two():
+    """Without this, a prompt change is invisible: the run reuses old answers,
+    scores them beside new ones, and publishes a comparison across two prompts."""
+    cli = _cli()
+    a = cli.prompt_fingerprint("answer only from the provided bill text")
+    b = cli.prompt_fingerprint("answer only from the provided bill text\n\nNEVER...")
+    assert a != b
+    assert a == cli.prompt_fingerprint("answer only from the provided bill text")
+    assert len(a) == 12
 
 
 # --- judge replies are not always clean JSON; the parser has to cope ---
