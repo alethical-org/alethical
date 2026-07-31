@@ -19,8 +19,17 @@ check across answer types, and the degraded-path guard for #241.
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
+
+from alethical.api.routers.ask import _citation_excerpt
+
+# The header lines rag chunking prepends to a chunk. No served excerpt may start
+# with one (#835).
+_CHUNK_HEADER_RE = re.compile(
+    r"^(?:Bill|Bill title|Article|Section|Statute heading|Citation heading):\s",
+)
 
 # The offline heuristic only reaches topic_bills / bill_text, so scenarios that
 # need another intent drive it through a mocked LLM response (#241 tracks the
@@ -151,6 +160,14 @@ def _assert_cite_or_refuse(answer: dict, kind: str) -> None:
         assert answer["citations"], "a bill_text answer must cite its passages"
         for citation in answer["citations"]:
             assert citation["url"], "every citation resolves to an official URL"
+            # #835: the excerpt shows bill text, not the retrieval header that
+            # rag chunking prepends, and marks its own cut with an ellipsis.
+            assert not _CHUNK_HEADER_RE.match(citation["excerpt"]), (
+                f"excerpt leads with a retrieval header: {citation['excerpt'][:60]!r}"
+            )
+            assert not citation["excerpt"].rstrip().endswith((",", ";", ":")), (
+                f"excerpt ends mid-clause without an ellipsis: {citation['excerpt'][-40:]!r}"
+            )
     else:  # pragma: no cover - guards against a mistyped kind
         raise AssertionError(f"unknown answer kind: {kind}")
 
@@ -408,3 +425,71 @@ def test_topic_matches_by_bill_title_not_only_policy_area(client, monkeypatch):
     assert answer["topic"] == "jobs"
     assert "94-2025-SF1832" in [bill["id"] for bill in answer["bills"]]
     _assert_cite_or_refuse(answer, "topic_bills")
+
+
+# ---------------------------------------------------------------------------
+# Citation excerpts (#835). The chunk text a citation is built from carries a
+# retrieval header and can run far longer than the card shows, so the display
+# excerpt is derived. These pin both halves of that derivation: the header never
+# reaches the reader, and a cut lands on a word boundary marked with an ellipsis.
+# Rule 1 side: only the header is removed and only the tail is dropped — every
+# surviving character is the bill's own.
+# ---------------------------------------------------------------------------
+
+# The real production chunk behind the reported bug, verbatim (HF 719, the answer
+# for "Which cities and counties get named infrastructure grants?").
+_REAL_CHUNK = (
+    "Bill: HF 719\n"
+    "Article: ARTICLE 1 APPROPRIATIONS\n"
+    "Section: Sec. 24. PUBLIC FACILITIES AUTHORITY\n"
+    "\n"
+    "For a grant to the city of Silver Lake to predesign, design, engineer, "
+    "construct, and equip stormwater, wastewater, and drinking water "
+    "infrastructure serving the city and surrounding township properties, "
+    "including replacement of the existing water treatment facility."
+)
+
+
+def test_citation_excerpt_drops_the_retrieval_header():
+    """The purple chip already states Art. 1, Sec. 24 — reprinting it as prose
+    filled the card and pushed the quote out of view."""
+    out = _citation_excerpt(_REAL_CHUNK)
+    assert out.startswith("For a grant to the city of Silver Lake")
+    assert "Bill: HF 719" not in out
+    assert "ARTICLE 1" not in out
+    assert "PUBLIC FACILITIES AUTHORITY" not in out
+
+
+def test_citation_excerpt_cuts_on_a_word_boundary():
+    """The live cut landed mid-word ("and drinki") because it was a hard 220-char
+    slice. Every truncated excerpt now ends on a whole word plus an ellipsis."""
+    out = _citation_excerpt(_REAL_CHUNK)
+    assert out.endswith("…")
+    assert not out.endswith(" …")
+    # The last word is whole: it appears in the source followed by a boundary.
+    last_word = out[:-1].rstrip().rsplit(" ", 1)[-1]
+    assert re.search(rf"\b{re.escape(last_word)}\b[\s.,;:]", _REAL_CHUNK)
+    assert "drinki…" not in out
+
+
+def test_citation_excerpt_leaves_a_short_quote_alone():
+    """No ellipsis when nothing was cut — a closing "…" on a complete sentence
+    claims the bill said more than it did."""
+    body = "For a grant to the city of Cook for a new water tower."
+    assert _citation_excerpt(f"Bill: HF 719\nSection: Sec. 24. TEST\n\n{body}") == body
+
+
+def test_citation_excerpt_keeps_a_body_that_has_no_header():
+    """A chunk stored without the prefix keeps every word of its body — the
+    header strip stops at the first line that isn't a header."""
+    body = "Sec. 24. For a grant to the city of Jordan."
+    assert _citation_excerpt(body) == body
+
+
+def test_citation_excerpt_drops_a_comma_left_at_the_cut():
+    """The ellipsis is the only terminal mark the quote carries, so a comma the
+    source left exactly at the cut goes with it ("until June 30,…")."""
+    body = " ".join(["appropriation"] * 20) + ", and the remainder is cancelled."
+    out = _citation_excerpt(f"Bill: HF 719\n\n{body}")
+    assert out.endswith("…")
+    assert not out.endswith(",…")

@@ -372,6 +372,51 @@ def _resolve_bill_by_title(db: Session, session_id, content: str):
 # belongs on *content-based* resolution (finding the bill by meaning), not here.
 _BILL_TEXT_CHUNK_LIMIT = 4
 
+# Longest citation excerpt we serve, in characters. The synthesis still reads the
+# whole chunk (synthesize_grounded_answer passes chunk_text unbounded) — this caps
+# only what the reader is shown.
+_EXCERPT_MAX_CHARS = 220
+
+# Header lines rag chunking prepends to every chunk body (compact_chunk_prefix /
+# full_section_prefix in alethical/pipeline/rag.py) so the embedded text carries
+# its own location. They are retrieval metadata, not bill text: the citation chip
+# already states the location, so printing them again fills the card and pushes
+# the actual quote out of view (#835).
+_CHUNK_PREFIX_LINE_RE = re.compile(
+    r"^(?:Bill|Bill title|Article|Section|Statute heading|Citation heading):\s",
+)
+
+
+def _citation_excerpt(chunk_text: str) -> str:
+    """One chunk as a short display quote: no retrieval header, cut at a word.
+
+    Only strips the prefix and shortens — the surviving characters, their
+    punctuation and their capitalization pass through verbatim, so this can never
+    introduce a claim the bill text didn't make (.claude/rules/grounded-answers.md
+    rule 1). Mirrors the frontend's citationExcerpt cleaner, which stays in place
+    as defense-in-depth.
+    """
+    lines = (chunk_text or "").strip().splitlines()
+    # Drop the leading header lines only — stop at the first line that isn't one,
+    # so a chunk without a prefix keeps every word of its body.
+    start = 0
+    while start < len(lines) and _CHUNK_PREFIX_LINE_RE.match(lines[start].strip()):
+        start += 1
+    body = " ".join(line.strip() for line in lines[start:] if line.strip())
+    if len(body) <= _EXCERPT_MAX_CHARS:
+        return body
+    cut = body[:_EXCERPT_MAX_CHARS]
+    # Back up to the last whole word. A chunk with no space in its first 220
+    # characters (a long table row) keeps the hard cut rather than losing itself.
+    space = cut.rfind(" ")
+    if space > 0:
+        cut = cut[:space]
+    # The ellipsis is the only terminal mark the quote carries, so a comma or
+    # dash the source left at the cut goes with it.
+    cut = re.sub(r"[,;:\s]+$", "", cut)
+    cut = re.sub(r"\s*[—–-]$", "", cut)
+    return f"{cut}…"
+
 
 # Content-based (semantic) bill resolution — the third resolution step, when
 # HF/SF-number and title matching both fail (docs/product-onboarding/grounded-ask-spec.md §4.1, the
@@ -496,7 +541,7 @@ def _bill_text_answer(
         AskCitation(
             label=chunk.citation_label,
             bill_id=resolved.bill_key,
-            excerpt=chunk.chunk_text.strip().replace("\n", " ")[:220],
+            excerpt=_citation_excerpt(chunk.chunk_text),
             url=resolved.official_url,
         )
         for chunk in chunks
