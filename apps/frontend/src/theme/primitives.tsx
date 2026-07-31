@@ -11,6 +11,7 @@ import {
   TextInput,
   TextStyle,
   View,
+  ViewProps,
   ViewStyle,
 } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
@@ -394,17 +395,40 @@ function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: Ia
   );
 }
 
+/** How long an open panel survives after the pointer leaves the trigger+panel
+ *  cluster. Long enough to cross the 30px gap between them without a flicker. */
+const HOVER_CLOSE_DELAY_MS = 140;
+
+/** Only pointers that can genuinely hover get hover-to-open — on a touch screen
+ *  the emulated mouseenter would open the menu and the tap would close it again. */
+function pointerCanHover() {
+  if (!isWeb || typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(hover: hover)').matches;
+}
+
+/** react-native-web forwards DOM mouse events on a View, but the React Native
+ *  prop types don't declare them — cast once, here. Enter/leave count the
+ *  absolutely-positioned panel too, since it's a DOM child of the trigger wrap. */
+function hoverRegionProps(onEnter: () => void, onLeave: () => void): ViewProps {
+  if (!isWeb) return {};
+  return { onMouseEnter: onEnter, onMouseLeave: onLeave } as unknown as ViewProps;
+}
+
 function NavDropdownTrigger({
   menu,
   label,
   open,
   onToggle,
+  onHoverOpen,
+  onHoverClose,
   onNavigate,
 }: {
   menu: MenuKey;
   label: string;
   open: boolean;
   onToggle: () => void;
+  onHoverOpen: () => void;
+  onHoverClose: () => void;
   onNavigate?: (item: IaItem) => void;
 }) {
   const [hovered, hoverProps] = useHover();
@@ -413,7 +437,7 @@ function NavDropdownTrigger({
   const color = open ? t.colors.brand.deep : hovered ? t.colors.text.primary : '#4b524b';
   const Caret = open ? ChevronUp : ChevronDown;
   return (
-    <View style={styles.navTriggerWrap}>
+    <View style={styles.navTriggerWrap} {...hoverRegionProps(onHoverOpen, onHoverClose)}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
@@ -494,7 +518,8 @@ export function PrimaryButton({
 //     controlled by the host screen (it drives the answer-card blur overlay).
 //     Outside-click close is handled here on web via a document listener — NOT a
 //     full-screen overlay, which stacked above the panel and swallowed row
-//     hover/clicks. Rows render from the ia.ts registry. ---
+//     hover/clicks. A panel opens on hover as well as on click (hover-capable
+//     pointers only). Rows render from the ia.ts registry. ---
 export type NavVariant = 'home' | 'page';
 
 export function TopNav({
@@ -538,6 +563,44 @@ export function TopNav({
     return () => document.removeEventListener('pointerdown', handlePointerDown, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openMenu]);
+  // Hover-to-open, alongside click: pointing at a trigger opens its panel, and
+  // sliding across to the next trigger swaps panels. Closing is delayed so the
+  // pointer can cross the gap between a trigger and its panel.
+  const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerOverTrigger = useRef(false);
+  const cancelHoverClose = () => {
+    if (hoverCloseTimer.current !== null) {
+      clearTimeout(hoverCloseTimer.current);
+      hoverCloseTimer.current = null;
+    }
+  };
+  useEffect(() => cancelHoverClose, []);
+  const handleHoverOpen = (menu: MenuKey) => {
+    if (!pointerCanHover()) return;
+    cancelHoverClose();
+    pointerOverTrigger.current = true;
+    if (openMenu !== menu) setOpenMenu(menu);
+  };
+  const handleHoverClose = () => {
+    if (!pointerCanHover()) return;
+    cancelHoverClose();
+    pointerOverTrigger.current = false;
+    hoverCloseTimer.current = setTimeout(() => {
+      hoverCloseTimer.current = null;
+      setOpenMenu(null);
+    }, HOVER_CLOSE_DELAY_MS);
+  };
+  const toggleMenu = (menu: MenuKey) => {
+    if (openMenu !== menu) {
+      setOpenMenu(menu);
+      return;
+    }
+    // Hover already opened this panel, so a click on the trigger leaves it open
+    // rather than snapping it shut under the cursor. Keyboard and touch, which
+    // never hover, keep the plain open/close toggle.
+    if (pointerOverTrigger.current) return;
+    setOpenMenu(null);
+  };
   const dropdownMenus = MENUS.filter((menu) => menu.key !== 'ask');
   // Mobile flattens every menu's roadmap items into one pill row. Search items keep
   // their bare label; Track-only items collapse into a single "Tracking Features"
@@ -591,7 +654,9 @@ export function TopNav({
                   menu={menu.key}
                   label={menu.label}
                   open={openMenu === menu.key}
-                  onToggle={() => setOpenMenu(openMenu === menu.key ? null : menu.key)}
+                  onToggle={() => toggleMenu(menu.key)}
+                  onHoverOpen={() => handleHoverOpen(menu.key)}
+                  onHoverClose={handleHoverClose}
                   onNavigate={navigate}
                 />
               ))}
