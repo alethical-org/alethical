@@ -401,8 +401,6 @@ export function FullTextTab({
     );
   }
 
-  const legend = changeLegend(changeKinds);
-
   const column = (
     <View style={showRail ? styles.column : styles.columnAlone}>
       {/* "The complete text" is a claim, so it is checkable, not decorative.
@@ -420,7 +418,7 @@ export function FullTextTab({
         Legislature. Cited sections from the summary link straight to their passage here.
       </Text>
 
-      {legend ? <Text style={styles.legend}>{legend}</Text> : null}
+      <ChangeLegend removed={changeKinds.removed} added={changeKinds.added} />
 
       <View style={styles.sections}>
         {parsed.map(({ section, number, heading, body }, i) => {
@@ -518,14 +516,32 @@ export function FullTextTab({
   );
 }
 
-/** The legend above the sections, naming only the treatments this bill shows. */
-function changeLegend({ removed, added }: { removed: boolean; added: boolean }): string | null {
-  if (removed && added) {
-    return 'Struck text is removed from current law · underlined text is added';
-  }
-  if (removed) return 'Struck text is removed from current law';
-  if (added) return 'Underlined text is added to current law';
-  return null;
+// The key above the sections. Each item's sample word carries the very mark it
+// explains — styles.removed / styles.added, the same two styles the section text
+// uses — so the reader sees the treatment here instead of holding a description
+// in their head while hunting for it below.
+//
+// Each item is gated on the mark being present in this version, so the key never
+// points at something that appears nowhere on the page (grounded-answers rule 6);
+// with neither present there is nothing to key, and the card does not render.
+function ChangeLegend({ removed, added }: { removed: boolean; added: boolean }) {
+  if (!removed && !added) return null;
+  return (
+    <View style={styles.legend}>
+      {removed ? (
+        <View style={styles.legendItem}>
+          <Text style={[styles.legendSample, styles.removed]}>Struck text</Text>
+          <Text style={styles.legendGloss}>is removed from current law</Text>
+        </View>
+      ) : null}
+      {added ? (
+        <View style={styles.legendItem}>
+          <Text style={[styles.legendSample, styles.added]}>Underlined text</Text>
+          <Text style={styles.legendGloss}>is added</Text>
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -544,12 +560,35 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     color: t.colors.text.faint,
   },
+  // Its own quiet panel, so the key reads as a key rather than as a third
+  // sentence of the intro paragraph above it.
   legend: {
-    marginTop: 10,
+    marginTop: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 15,
+    backgroundColor: '#f7f9f8',
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 20,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 },
+  legendSample: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,
     lineHeight: 20,
-    color: t.colors.text.muted,
+  },
+  legendGloss: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    lineHeight: 20,
+    color: t.colors.text.secondary,
+    // Lets the gloss wrap its own words on a narrow phone instead of pushing
+    // past the card edge.
+    flexShrink: 1,
   },
   sections: { marginTop: 22, gap: 16 },
   card: {

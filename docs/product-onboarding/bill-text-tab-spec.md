@@ -117,8 +117,19 @@ marker words land in the stored text as prose.
     sections. The regex uses a capture group rather than a lookbehind, which Hermes (the engine the
     native builds run on) does not reliably support.
 
+**The legend's sample words carry the marks they explain, in a card of their own.** It shipped as one
+flat grey sentence — "Struck text is removed from current law · underlined text is added" — in which
+nothing was struck and nothing was underlined, so it was a key that never showed the thing it was a
+key for, sitting in the page as ordinary body copy. It is now an inset panel under the intro
+paragraph holding one item per treatment: the words "Struck text" struck through and "Underlined
+text" underlined, each styled by the very `styles.removed` / `styles.added` the section text uses, so
+the key cannot drift from the marks below it, followed by its plain gloss. The items are laid out with
+flex and a 20px gap rather than a middot, so each one starts on its own and dropping either leaves no
+orphaned separator.
+
 **The legend is gated on what the bill actually contains.** It names only the treatments present in
-that bill's sections: both, removals only, additions only, or nothing at all. This is
+that bill's sections: both, removals only, additions only, or nothing at all — with neither present
+there is nothing to key, and the card does not render. This is
 `.claude/rules/grounded-answers.md` rule 6 applied to a legend. The gate is load-bearing in both
 directions: a section read from `body_blocks` can carry additions (2,342 of 4,767 sampled sections
 show both treatments, 2,072 additions only), while a section still on the flat text can only ever
