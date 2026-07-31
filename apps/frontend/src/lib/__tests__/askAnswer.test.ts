@@ -277,10 +277,34 @@ describe('passageTarget only links to a passage it can actually reach', () => {
 });
 
 describe('partialCoverageNote warns only when the answer really is partial', () => {
-  it('names both numbers on the flagship HF 719 case', () => {
-    // 4 of 102 is the real production ratio, and it is the case the whole note
-    // exists for: that answer names 19 of ~98 cities and denies the 17 counties the
-    // bill does name.
+  it('renders the served sentence verbatim, whatever the counts say', () => {
+    // #868 owns the wording, so the page moves it rather than rewriting it — and it
+    // renders even on a complete read, because reading all 102 passages of HF 719
+    // still produced a list of ~30 of the ~98 cities the bill names.
+    const note =
+      'We searched all 102 passages of this bill’s text. A list like this can still be shortened, so read the bill’s own text if you need every item.';
+    expect(
+      partialCoverageNote({ passagesSearched: 102, passagesTotal: 102, complete: true, note }),
+    ).toBe(note);
+  });
+
+  it('says nothing when the served sentence is deliberately absent', () => {
+    // #868 nulls `note` on a question that is not list-shaped, even when coverage is
+    // partial: a caveat where it does not apply teaches readers to skip the one that
+    // does. The fallback must NOT override that by deriving a sentence from #868's
+    // own counts.
+    expect(
+      partialCoverageNote({
+        passagesSearched: 4,
+        passagesTotal: 102,
+        complete: false,
+        note: null,
+      }),
+    ).toBeNull();
+  });
+
+  it('falls back to the numbers only for the pre-#868 payload', () => {
+    // 4 of 102 is the real production ratio for HF 719 before #868 widened the read.
     expect(partialCoverageNote({ used: 4, total: 102 })).toBe(
       'This answer draws on 4 of the 102 passages in this bill, so there may be more it doesn’t cover.',
     );
@@ -293,8 +317,9 @@ describe('partialCoverageNote warns only when the answer really is partial', () 
   });
 
   it('says nothing when the backend served no coverage', () => {
-    // So this ships safely before or after the flag exists, rather than guessing.
+    // So this ships safely before or after either backend shape, not by guessing.
     expect(partialCoverageNote(undefined)).toBeNull();
+    expect(partialCoverageNote({})).toBeNull();
   });
 
   it('says nothing on a zero, rather than "0 of 102"', () => {

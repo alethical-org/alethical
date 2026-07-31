@@ -427,11 +427,24 @@ export interface AskAnswer {
   billText?: string;
   citations?: AskCitation[];
   answeringBill?: AskAnswerBill;
-  /** How much of the bill the answer was written from: the passages retrieval used
-   *  against how many the bill's current version has. Absent when the total could
-   *  not be established, in which case the page says nothing about coverage rather
-   *  than guessing (grounded-ask-spec §9.5 decision 11). */
-  coverage?: { used: number; total: number };
+  /** How much of the bill the answer was written from (grounded-ask-spec §9.5
+   *  decision 11). `note` is the served caveat sentence, which the page renders
+   *  ABOVE the answer; it is null on a question that is not list-shaped, where the
+   *  caveat would not apply. The passage counts describe OUR retrieval, never the
+   *  bill's contents. Absent entirely when nothing could be established, in which
+   *  case the page says nothing rather than guessing.
+   *
+   *  `used`/`total` are the pre-#868 keys, kept while both shapes can be served;
+   *  `passagesSearched`/`passagesTotal` are #868's. Drop the old pair once no served
+   *  payload uses it. */
+  coverage?: {
+    note?: string | null;
+    complete?: boolean;
+    passagesSearched?: number;
+    passagesTotal?: number;
+    used?: number;
+    total?: number;
+  };
 }
 
 export interface AskCitation {
