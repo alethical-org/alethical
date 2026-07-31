@@ -16,6 +16,7 @@ import requests
 from sqlalchemy import create_engine, select, update
 from sqlalchemy.orm import Session, selectinload
 
+from alethical.api.serializers import section_chip_topic
 from alethical.db import models as schema
 from alethical.pipeline.sessions import CURRENT_SESSION_SLUG
 from alethical.db.session import (
@@ -402,23 +403,19 @@ def _quote_body(quote: str) -> str:
     return re.sub(r"(?:…|(?<![$\d\s.])\.{3,})\s*$", "", body).strip()
 
 
-_CHIP_MAX_TOPIC = 40
-
-
 def _chip_topic(raw: str) -> str:
     """Short sentence-case topic from a section's own statutory heading:
     "TRANSFER." -> "Transfer". Only re-cases and trims — never re-authors, so the
-    chip can never claim something the heading did not say. A heading that
-    already carries mixed case keeps its own capitalization."""
-    topic = (raw or "").strip().strip(".;:, ")
-    if not topic or not re.search(r"[A-Za-z]", topic):
-        return ""
-    if topic == topic.upper():
-        topic = topic.lower()
-    topic = topic[0].upper() + topic[1:]
-    if len(topic) > _CHIP_MAX_TOPIC:
-        topic = topic[: _CHIP_MAX_TOPIC - 1].rstrip(" ,;:") + "…"
-    return topic
+    chip can never claim something the heading did not say.
+
+    Delegates to `section_chip_topic`, the one implementation of this rule, which
+    the detail endpoint also uses to fill a chip's topic in at request time. This
+    used to be a second, weaker copy: it cut the heading off mid-word at 40
+    characters and never split a compound heading, so it wrote 2,033 stored labels
+    reading "Sec. 1 · Wright technical center; capital improv…" where the
+    request-time path reads the same heading as "Wright technical center". Two
+    implementations of one display rule is what let them drift."""
+    return section_chip_topic(raw, None)
 
 
 def _chip_label(anchor: SectionAnchor) -> str:

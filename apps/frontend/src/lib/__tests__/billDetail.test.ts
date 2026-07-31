@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bienniumEyebrow,
   buildActionTimeline,
+  citationChipLabel,
   completeDanglingTitle,
   crossReferenceTargets,
   latestActionEntry,
@@ -675,5 +676,60 @@ describe('author rows name the person and link to them', () => {
   it('leaves every name unlinked when no author list was handed in', () => {
     const { rows } = buildActionTimeline([addAction(2, 'Joy'), addAction(3, 'Skraba')], [], NOW);
     expect(rows.find((r) => r.authors)?.authors).toEqual([{ label: 'Joy' }, { label: 'Skraba' }]);
+  });
+});
+
+describe('citationChipLabel never shows a topic cut off mid-word', () => {
+  // The stored label is written at ingest and its shape varies by when the bill was
+  // enriched. Until this change, ingest cut the topic off at 40 characters, so 2,033
+  // of the 4,269 production chips whose topic came from the stored label ended in an
+  // ellipsis. The server computes the same heading whole at request time, so the
+  // complete value is already on the wire next to the broken one.
+  it('prefers the complete served topic over a cut-off stored one', () => {
+    expect(
+      citationChipLabel(
+        'Sec. 1 · Wright technical center; capital improv…',
+        'Wright technical center',
+      ),
+    ).toBe('Sec. 1 · Wright technical center');
+    expect(
+      citationChipLabel('Sec. 3 · Appropriation; minnesota snap step up f…', 'Appropriation'),
+    ).toBe('Sec. 3 · Appropriation');
+    // Also on an article-structured bill, where the number carries a prefix.
+    expect(
+      citationChipLabel('Art. 2, Sec. 14 · Task force to establish a statewide net…', 'Task force'),
+    ).toBe('Art. 2, Sec. 14 · Task force');
+  });
+
+  it('drops a cut-off topic when no complete one is served', () => {
+    // 30 of those 2,033 have no served topic, because the heading is past the length
+    // a chip can carry and the server drops it. The number alone is the feature's
+    // designed empty state; half a word is not.
+    expect(citationChipLabel('Sec. 4 · Mandatory environmental assessment work…')).toBe('Sec. 4');
+    expect(citationChipLabel('Sec. 7 · Scoping environmental assessment worksh…', '')).toBe(
+      'Sec. 7',
+    );
+  });
+
+  it('leaves a complete stored topic alone, even when the served one differs', () => {
+    // No source heading in the corpus ends in an ellipsis (checked across all 49,919
+    // current-version sections), so an ellipsis is always our own cut and is the only
+    // thing that lets the served value win. A complete stored topic still stands.
+    expect(citationChipLabel('Sec. 2 · Transfer', 'Something else')).toBe('Sec. 2 · Transfer');
+    expect(citationChipLabel('Sec. 26 · Appropriation')).toBe('Sec. 26 · Appropriation');
+  });
+
+  it('still fills in a topic for a label that carries none', () => {
+    // The HF 4301 case: the stored label is just the number, and the served topic
+    // supplies the whole "· Topic" half.
+    expect(
+      citationChipLabel(
+        'HF 4301, Section 1.',
+        'Drinking water regionalization planning and assistance grants',
+      ),
+    ).toBe('Sec. 1 · Drinking water regionalization planning and assistance grants');
+    expect(citationChipLabel('HF 4301, Sec. 2.', 'Appropriation')).toBe('Sec. 2 · Appropriation');
+    // No served topic — the number alone, with no dangling middot.
+    expect(citationChipLabel('SF 334, Sec. 14.')).toBe('Sec. 14');
   });
 });
