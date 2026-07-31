@@ -26,6 +26,20 @@ fails the next time someone answers one of those questions differently — a
 definitional argument, not a regression. The bounds below are chosen to sit well
 clear of every such judgment call, so only a real regression can breach them.
 
+**And that robustness bought a blind spot, which is worth knowing before you copy
+the pattern.** A bound is deaf in the direction it bounds. ``>= 15`` against a hand
+count of 17 is satisfied by 16, so when this module's own county pattern quietly
+found only 16 — it required capitalised words and so missed *Lake of the Woods
+County* — every test stayed green while the prose above said 17 and the code
+disagreed. The bound could not see it, because 16 is exactly the kind of number it
+was designed to accept.
+
+So: **keep the loose bound for the definitional edge cases, and assert the exact
+figure against the bill's own text as well.** The two do different jobs. The bound
+survives an argument about what counts as a recipient; the exact assertion catches
+the counter being wrong, which is the failure that silently inflates every recall
+percentage computed from it. Both are asserted below.
+
 Counted independently twice, from ``bill_version_section.raw_text`` for HF 719's
 current version (48 sections, 15,430 words) on Jul 31 2026, once by this session and
 once by the #868 session, agreeing on both figures:
