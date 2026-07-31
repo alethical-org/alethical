@@ -281,14 +281,18 @@ def test_bill_text_answer_cites_the_resolved_bill(client, monkeypatch):
 
 
 def test_bill_text_citations_carry_their_statute_section(client, monkeypatch):
-    """§9.5 decision 4: each citation carries the statute section its passage came
-    from, so the answer page's "From the bill" card can link to that passage inside
-    our own Bill Text tab (`?tab=text#ft-<section_id>`) instead of only out to
-    revisor.mn.gov (.claude/rules/grounded-answers.md rule 5).
+    """§9.5 decision 4: each citation names the statute section its passage came
+    from, AND that section's position, so the answer page's "From the bill" card can
+    link to the passage inside our own Bill Text tab
+    (`?tab=text#ft-<section_id>-<section_order>`, the #854 anchor scheme) instead of
+    only out to revisor.mn.gov (.claude/rules/grounded-answers.md rule 5).
+
+    The position is what makes the link land right: `section_id_text` is not unique
+    within a version, so an id-only anchor resolves to the FIRST section carrying it.
 
     The seeded bill's four retrieved passages come from three sections, two of them
-    sharing "laws.2.5.0" — which is also the grouping case the answer page's rail
-    collapses into one card."""
+    sharing "laws.2.5.0" — the case the answer page's rail draws as one card holding
+    both quotes."""
     _mock_llm_intent(monkeypatch, "bill_text")
     _mock_rag(monkeypatch)
     data = client.post("/api/v1/ask", json={"content": "What's in SF 1832?"}).json()[
@@ -305,6 +309,18 @@ def test_bill_text_citations_carry_their_statute_section(client, monkeypatch):
         "laws.2.5.0",
         "laws.3.2.0",
     ]
+    # Every citation also carries the section's POSITION, which is what disambiguates
+    # a repeated id. It comes from the chunk's own section row, so it is exact: the
+    # two passages sharing an id share a position too, because they are one section.
+    assert all(isinstance(c["section_order"], int) for c in citations), (
+        "an id without a position cannot address one section"
+    )
+    by_id = {}
+    for citation in citations:
+        by_id.setdefault(citation["section_id"], set()).add(citation["section_order"])
+    assert all(len(orders) == 1 for orders in by_id.values()), (
+        "one section id from one version resolves to one position"
+    )
     # section_topic is a separate field, always present as a string (empty when the
     # section's heading carries no topic worth showing — these fixtures' headings
     # are a bare "Sec. 5.").

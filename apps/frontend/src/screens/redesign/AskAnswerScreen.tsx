@@ -25,11 +25,16 @@ import { bienniumEyebrow, formatNiceDate, scopedChipQuery } from '../../lib/bill
 import {
   alphabeticalIndex,
   citedSections,
-  extraPassagesLabel,
   followUpPrompts,
   parseAnswerBlocks,
   passageTarget,
 } from '../../lib/askAnswer';
+import {
+  citationSectionAnchor,
+  parseSectionAnchor,
+  resolveSectionAnchor,
+  sectionAnchorId,
+} from '../../lib/billText';
 import { STICKY_RAIL, useHover } from '../../components/billDetail/interactions';
 import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
@@ -324,14 +329,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // linked to when its anchor really resolves there (see `passageTarget`).
   const currentVersion = bill?.versions.find((v) => v.isCurrent) ?? bill?.versions[0];
   const textQuery = useBillVersionText(bill?.id, currentVersion?.versionCode);
-  const renderedSectionCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const section of textQuery.data ?? []) {
-      if (!section.sectionId) continue;
-      counts.set(section.sectionId, (counts.get(section.sectionId) ?? 0) + 1);
-    }
-    return counts;
-  }, [textQuery.data]);
+  const renderedSections = textQuery.data ?? [];
   const sectionsLoaded = textQuery.isSuccess;
 
   const sections = useMemo(() => citedSections(citations), [citations]);
@@ -691,9 +689,15 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               </View>
               <View style={styles.railCards}>
                 {sections.map((section) => {
+                  // The anchor value the Bill Text tab answers to — id AND position
+                  // (#854). Built by the same helper the tab's own citation chips
+                  // use, and checked with the same resolver the tab runs on an
+                  // incoming fragment, so a link cannot claim a landing spot the tab
+                  // would not honour.
+                  const anchor = citationSectionAnchor(section);
                   const target = passageTarget(
                     section.sectionId,
-                    renderedSectionCounts,
+                    Boolean(resolveSectionAnchor(renderedSections, parseSectionAnchor(anchor))),
                     sectionsLoaded,
                   );
                   const billTextPath = bill ? routePath.bill(bill.id, { tab: 'text' }) : null;
@@ -702,8 +706,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                       key={section.key}
                       label={section.label}
                       sectionTopic={section.sectionTopic}
-                      excerpt={section.excerpt}
-                      footnote={extraPassagesLabel(section.extraPassages)}
+                      excerpts={section.excerpts}
                       accessibilityLabel={
                         target === 'official'
                           ? `Open the official source for ${section.chipLabel}`
@@ -720,7 +723,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                             // reader can copy (grounded-answers rule 5).
                             passageLinkProps(
                               target === 'passage'
-                                ? `${billTextPath}#ft-${section.sectionId}`
+                                ? `${billTextPath}#${sectionAnchorId(parseSectionAnchor(anchor)!)}`
                                 : billTextPath,
                               () =>
                                 navigation.navigate('BillDetail', {
@@ -888,9 +891,16 @@ function AnswerBody({ blocks }: { blocks: ReturnType<typeof parseAnswerBlocks> }
 }
 
 // A long list of short names, laid out as a three-column A→Z index so one name is
-// findable at a glance (§9.5 decision 6). The count and the "listed A–Z" note are
-// LAYOUT copy derived from what is on screen — the answer's own lead sentence is
-// never rewritten to carry them (decision 5).
+// findable at a glance (§9.5 decision 6). Layout only.
+//
+// Deliberately NO COUNT, and no total (#868). Retrieval hands the answer writer
+// four passages of a bill (`_BILL_TEXT_CHUNK_LIMIT`), so on a 48-section bonding
+// bill the model enumerates what it could see: for HF 719 it named 19 cities where
+// the bill's own text names about 90. A count printed beside that list would turn
+// an incomplete enumeration into a false claim of completeness — the worst failure
+// this product can make (.claude/rules/grounded-answers.md rule 1). The caption
+// states the ORDERING only, which is a fact about the layout and not about the
+// bill; the reader needs it because these names are not in the answer's own order.
 const INDEX_COLUMNS = 3;
 
 function AlphabeticalIndex({ items }: { items: string[] }) {
@@ -907,7 +917,7 @@ function AlphabeticalIndex({ items }: { items: string[] }) {
     : null;
   return (
     <View style={styles.indexBlock}>
-      <Text style={styles.indexCaption}>{items.length} items, listed A–Z</Text>
+      <Text style={styles.indexCaption}>Listed A–Z</Text>
       <View style={[styles.indexList, gridWeb]}>
         {items.map((item) => (
           <Text key={item} style={styles.indexItem}>

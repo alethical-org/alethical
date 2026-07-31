@@ -40,17 +40,18 @@ const CARD_TRANSITION = isWeb
 export function CitationCard({
   label,
   sectionTopic,
-  excerpt,
-  footnote,
+  excerpts,
   onPress,
   linkProps,
   accessibilityLabel,
 }: {
   label: string;
   sectionTopic?: string;
-  excerpt: string;
-  /** One quiet line under the quote — the answer page's "+2 more passages…". */
-  footnote?: string | null;
+  /** Every passage quoted from this section, each under its own green rule. The
+   *  Summary tab passes one; the Ask answer page passes all of the section's, because
+   *  a section that contributed three passages contributed three different facts
+   *  (grounded-ask-spec §9.5 decision 1). */
+  excerpts: string[];
   onPress?: () => void;
   linkProps?: object;
   accessibilityLabel?: string;
@@ -87,8 +88,11 @@ export function CitationCard({
           </Text>
         </View>
       </View>
-      <Text style={styles.quote}>{citationExcerpt(excerpt)}</Text>
-      {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
+      {excerpts.map((excerpt, i) => (
+        <Text key={i} style={styles.quote}>
+          {citationExcerpt(excerpt)}
+        </Text>
+      ))}
     </Pressable>
   );
 }
@@ -195,14 +199,6 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: t.colors.text.secondary,
     fontStyle: 'italic',
-  },
-  // Sits OUTSIDE the green quote rule: it is our count of what else this section
-  // held, not part of the bill's words.
-  footnote: {
-    marginTop: 9,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.label,
-    color: '#6f756f',
   },
   askChip: {
     ...(isWeb ? ({ display: 'inline-flex', overflowWrap: 'anywhere' } as object) : null),

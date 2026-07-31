@@ -98,12 +98,14 @@ export function alphabeticalIndex(items: string[]): string[] | null {
   return [...items].sort((a, b) => a.localeCompare(b, 'en') || (a < b ? -1 : a > b ? 1 : 0));
 }
 
-/** One "From the bill" card: a cited section, quoted once. */
+/** One "From the bill" card: a cited section, and every passage it contributed. */
 export interface CitedSection {
   /** Stable key + grouping identity. */
   key: string;
   /** Statute section id, when the answer path resolved one; '' otherwise. */
   sectionId: string;
+  /** Which section that id names — its position in the version. */
+  sectionOrder: number | null;
   /** The served citation label and section topic, passed to the card unchanged so
    *  the card composes the chip through `citationChipLabel` exactly once. */
   label: string;
@@ -111,47 +113,59 @@ export interface CitedSection {
   /** Normalized chip text ("Art. 1, Sec. 24 · Public facilities authority"), for
    *  grouping and for the card's accessible name. */
   chipLabel: string;
-  /** The best-matching passage from this section, verbatim. */
-  excerpt: string;
-  /** Official source URL, the fallback target when the section id does not resolve. */
+  /** EVERY passage retrieval returned from this section, verbatim, in the order it
+   *  returned them (best match first). Never trimmed — see `citedSections`. */
+  excerpts: string[];
+  /** Official source URL, the fallback target when the section anchor won't resolve. */
   url: string;
-  /** How many further passages this section contributed, beyond the one quoted. */
-  extraPassages: number;
 }
 
 /**
- * One card per cited SECTION, not per retrieved passage (§9.5 decision 1).
- * Retrieval returns up to four chunks and they frequently share a section — the
- * sample question on HF 719 returns three from Art. 1 Sec. 24 — which drew three
- * near-identical cards. Grouping keeps the first passage of each section, which
- * is the best-matching one (retrieval returns them by similarity), and counts the
- * rest so the card can say so once.
+ * One card per cited SECTION — with every one of that section's passages kept
+ * (§9.5 decision 1, as revised Jul 31 2026).
  *
- * Grouped by section id where the answer path resolved one, else by the
- * normalized chip label, so passages from one section still collapse on a bill
- * whose retrieval carries no section row.
+ * Retrieval returns up to four passages and they frequently share a section: the
+ * sample question on HF 719 returns Sec. 24 (Silver Lake), Sec. 24 (International
+ * Falls), Sec. 16 (Freeport), Sec. 24 (Cohasset). The mockup drew that as three
+ * near-identical cards, which reads as broken. But those three are **three
+ * different grants**, so keeping only the best-matching one and counting the rest
+ * would throw away two thirds of the evidence while the answer kept its claim.
+ *
+ * So the grouping is about the LABEL, not the quotes: one purple location chip per
+ * section, and all of that section's quotes stacked beneath it. On the HF 719
+ * example that is two cards, one holding three quotes and one holding one.
+ *
+ * Deliberately NOT `citationsBySection` (`lib/billDetail.ts`), which the mobile
+ * bill page uses: that surface shows the section label ALONE, so a repeat carries
+ * no information and is dropped. Here every repeat carries a different passage.
+ *
+ * Grouped on the section's anchor — id AND position, because `section_id_text` is
+ * not unique within a version (#854) and two genuinely different sections can
+ * share an id. Falls back to the normalized chip label when the answer path
+ * resolved no section, so passages from one section still share a card.
  */
 export function citedSections(citations: AskCitation[]): CitedSection[] {
   const order: string[] = [];
   const byKey = new Map<string, CitedSection>();
   for (const citation of citations) {
     const chipLabel = citationChipLabel(citation.label, citation.sectionTopic);
-    const key = citation.sectionId || chipLabel || citation.label;
+    const anchor = citation.sectionId ? `${citation.sectionId}-${citation.sectionOrder ?? ''}` : '';
+    const key = anchor || chipLabel || citation.label;
     const existing = byKey.get(key);
     if (existing) {
-      existing.extraPassages += 1;
+      existing.excerpts.push(citation.excerpt);
       continue;
     }
     order.push(key);
     byKey.set(key, {
       key,
       sectionId: citation.sectionId,
+      sectionOrder: citation.sectionOrder,
       label: citation.label,
       sectionTopic: citation.sectionTopic,
       chipLabel,
-      excerpt: citation.excerpt,
+      excerpts: [citation.excerpt],
       url: citation.url,
-      extraPassages: 0,
     });
   }
   return order.map((key) => byKey.get(key)!);
@@ -161,9 +175,9 @@ export function citedSections(citations: AskCitation[]): CitedSection[] {
  * Where a "From the bill" card should send the reader.
  *
  *  - `passage`  — the cited section inside our own Bill Text tab, scrolled to and
- *                 highlighted (`?tab=text#ft-<sectionId>`).
- *  - `bill-text` — the Bill Text tab with no anchor: our text carries that section
- *                 but cannot point at one of them (see below).
+ *                 highlighted (`?tab=text#ft-<sectionId>-<sectionOrder>`).
+ *  - `bill-text` — the Bill Text tab with no anchor, while its sections are still
+ *                 loading and the anchor cannot be checked yet.
  *  - `official`  — out to the bill's official source, because our own text does
  *                 not carry the cited section at all.
  */
@@ -174,40 +188,27 @@ export type PassageTarget = 'passage' | 'bill-text' | 'official';
  * to the passage in our own Bill Text tab, and falls back to the official source
  * rather than rendering a dead card).
  *
- * `renderedSectionCounts` counts how many times each id appears among the sections
- * the Bill Text tab actually renders, because `section_id_text` is NOT unique
- * within a version — 66 (version, id) pairs in production name several sections,
- * and the tab anchors them all on the same `#ft-<id>`. So:
+ * `resolves` answers "does an anchor for this section exist among the sections the
+ * Bill Text tab actually renders?" — the caller supplies it from
+ * `resolveSectionAnchor` (`lib/billText.ts`), the same resolver the tab itself uses
+ * for an incoming URL fragment, so the two cannot disagree about where a link
+ * lands. That check is not optional: retrieval may have run on a version whose
+ * sections a later re-read of the bill has moved, and a link into text that no
+ * longer carries the quoted passage is exactly the rule 5 failure the deep link
+ * exists to avoid.
  *
- *  - exactly one section answers to the id → anchor to it.
- *  - several do → which one the citation means is genuinely unknowable, so no
- *    anchor: the tab plus its section index gets the reader there, and we never
- *    land them confidently on the wrong paragraph
- *    (`.claude/rules/grounded-answers.md` rule 1).
- *  - none does → our text does not carry it (retrieval ran on an earlier version),
- *    so the official record is the only honest target.
- *
- * `sectionsLoaded` is false while the text is still being fetched; until it lands
- * we cannot check the id, so the card links to the tab without an anchor rather
- * than guessing.
+ * `sectionsLoaded` is false while that text is still being fetched; until it lands
+ * the anchor cannot be checked, so the card opens the tab without one rather than
+ * guessing.
  */
 export function passageTarget(
   sectionId: string,
-  renderedSectionCounts: Map<string, number>,
+  resolves: boolean,
   sectionsLoaded: boolean,
 ): PassageTarget {
   if (!sectionId) return 'official';
   if (!sectionsLoaded) return 'bill-text';
-  const count = renderedSectionCounts.get(sectionId) ?? 0;
-  if (count === 1) return 'passage';
-  if (count > 1) return 'bill-text';
-  return 'official';
-}
-
-/** "+2 more passages in this section", or null for a section that contributed one. */
-export function extraPassagesLabel(extraPassages: number): string | null {
-  if (extraPassages < 1) return null;
-  return `+${extraPassages} more ${extraPassages === 1 ? 'passage' : 'passages'} in this section`;
+  return resolves ? 'passage' : 'official';
 }
 
 // A chip label is scoped to its bill ("HF 719: Which cities …") before it is

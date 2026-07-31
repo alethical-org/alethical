@@ -15,7 +15,6 @@ import { describe, expect, it } from 'vitest';
 import {
   alphabeticalIndex,
   citedSections,
-  extraPassagesLabel,
   followUpPrompts,
   parseAnswerBlocks,
   passageTarget,
@@ -56,6 +55,7 @@ const HF719_CITATIONS: AskCitation[] = [
       'For a grant to the city of Silver Lake to predesign, design, engineer, construct, and equip stormwater, wastewater, and drinking water infrastructure. This appropriation includes money for improvements to or replacement…',
     url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
     sectionId: 'laws.1.24.0',
+    sectionOrder: 24,
     sectionTopic: 'Public facilities authority',
   },
   {
@@ -65,6 +65,7 @@ const HF719_CITATIONS: AskCitation[] = [
       'For a grant to the city of International Falls to construct, renovate, furnish, and equip improvements and betterments of a capital nature at the existing water treatment facility…',
     url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
     sectionId: 'laws.1.24.0',
+    sectionOrder: 24,
     sectionTopic: 'Public facilities authority',
   },
   {
@@ -74,6 +75,7 @@ const HF719_CITATIONS: AskCitation[] = [
       'Freeport; I-94 Interchange | 6,000,000 For a grant to the city of Freeport for reconstruction of the local road portions of the intersection of marked Interstate Highway 94 and 1st Avenue…',
     url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
     sectionId: 'laws.1.16.0',
+    sectionOrder: 16,
     sectionTopic: 'Transportation',
   },
   {
@@ -83,6 +85,7 @@ const HF719_CITATIONS: AskCitation[] = [
       "Cohasset; Public Infrastructure | 3,000,000 For a grant to the city of Cohasset to design, construct, reconstruct, and equip the rehabilitation of the city's water tower…",
     url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
     sectionId: 'laws.1.24.0',
+    sectionOrder: 24,
     sectionTopic: 'Public facilities authority',
   },
 ];
@@ -205,63 +208,70 @@ describe('alphabeticalIndex only re-orders short names', () => {
   });
 });
 
-describe('citedSections draws one card per section, not per passage', () => {
-  it('collapses the three HF 719 Sec. 24 passages into one card', () => {
+describe('citedSections draws one card per section and keeps every passage', () => {
+  it('puts the three HF 719 Sec. 24 passages under one label, all three kept', () => {
     const sections = citedSections(HF719_CITATIONS);
+    // Two cards, because the four passages come from two sections.
     expect(sections).toHaveLength(2);
     expect(sections[0].sectionId).toBe('laws.1.24.0');
     expect(sections[0].chipLabel).toBe('Art. 1, Sec. 24 · Public facilities authority');
-    expect(sections[0].extraPassages).toBe(2);
-    // The quoted passage is the best-matching one — the first retrieval returned
-    // for that section — and passes through verbatim.
-    expect(sections[0].excerpt).toBe(HF719_CITATIONS[0].excerpt);
+    // All three of that section's quotes survive, verbatim, in retrieval order.
+    // They are three DIFFERENT grants (Silver Lake, International Falls, Cohasset),
+    // so keeping only the best-matching one would drop two thirds of the evidence
+    // while the answer kept its claim (#868).
+    expect(sections[0].excerpts).toEqual([
+      HF719_CITATIONS[0].excerpt,
+      HF719_CITATIONS[1].excerpt,
+      HF719_CITATIONS[3].excerpt,
+    ]);
     expect(sections[1].sectionId).toBe('laws.1.16.0');
-    expect(sections[1].extraPassages).toBe(0);
+    expect(sections[1].excerpts).toEqual([HF719_CITATIONS[2].excerpt]);
+    // Nothing is lost across the whole rail: four passages in, four passages out.
+    expect(sections.flatMap((s) => s.excerpts)).toHaveLength(HF719_CITATIONS.length);
   });
 
-  it('still collapses by section when no section id came through', () => {
-    const noIds = HF719_CITATIONS.map((c) => ({ ...c, sectionId: '' }));
+  it('keeps two sections apart when they share an id', () => {
+    // laws.0.1.0 is what the Revisor hands every section outside an article, so one
+    // id can name several sections (#854). The POSITION is what separates them —
+    // group on the id alone and two unrelated sections merge into one card.
+    const shared: AskCitation[] = [
+      { ...HF719_CITATIONS[0], sectionId: 'laws.0.1.0', sectionOrder: 1 },
+      { ...HF719_CITATIONS[2], sectionId: 'laws.0.1.0', sectionOrder: 17 },
+    ];
+    const sections = citedSections(shared);
+    expect(sections).toHaveLength(2);
+    expect(sections.map((s) => s.sectionOrder)).toEqual([1, 17]);
+  });
+
+  it('still groups by label when no section id came through', () => {
+    const noIds = HF719_CITATIONS.map((c) => ({ ...c, sectionId: '', sectionOrder: null }));
     const sections = citedSections(noIds);
     expect(sections).toHaveLength(2);
-    expect(sections[0].extraPassages).toBe(2);
+    expect(sections[0].excerpts).toHaveLength(3);
     // With no id the card has nothing to anchor to and falls back to the URL.
     expect(sections[0].sectionId).toBe('');
     expect(sections[0].url).toBe(HF719_CITATIONS[0].url);
   });
-
-  it('says once how many further passages a section contributed', () => {
-    expect(extraPassagesLabel(0)).toBeNull();
-    expect(extraPassagesLabel(1)).toBe('+1 more passage in this section');
-    expect(extraPassagesLabel(2)).toBe('+2 more passages in this section');
-  });
 });
 
 describe('passageTarget only links to a passage it can actually reach', () => {
-  const counts = new Map([
-    ['laws.1.24.0', 1],
-    // Two sections answering to one id — the trap this guard exists for.
-    ['laws.0.1.0', 3],
-  ]);
-
-  it('links into our own Bill Text tab when exactly one section owns the id', () => {
-    expect(passageTarget('laws.1.24.0', counts, true)).toBe('passage');
-  });
-
-  it('drops the anchor when several sections share the id', () => {
-    // Which section the citation means is unknowable from the id, so the reader
-    // goes to the tab rather than confidently onto the wrong paragraph.
-    expect(passageTarget('laws.0.1.0', counts, true)).toBe('bill-text');
+  it('links into our own Bill Text tab when the anchor resolves there', () => {
+    expect(passageTarget('laws.1.24.0', true, true)).toBe('passage');
   });
 
   it('falls back to the official source when our text has no such section', () => {
-    expect(passageTarget('laws.9.9.9', counts, true)).toBe('official');
-    expect(passageTarget('', counts, true)).toBe('official');
+    // Retrieval may have run on a version a later re-read of the bill has moved on
+    // from, so the quoted passage is not in the text we would open.
+    expect(passageTarget('laws.9.9.9', false, true)).toBe('official');
+  });
+
+  it('falls back to the official source when the citation names no section', () => {
+    expect(passageTarget('', true, true)).toBe('official');
+    expect(passageTarget('', false, false)).toBe('official');
   });
 
   it('does not guess while the bill text is still loading', () => {
-    expect(passageTarget('laws.1.24.0', new Map(), false)).toBe('bill-text');
-    // Still 'official' with no id at all — no amount of loading produces one.
-    expect(passageTarget('', new Map(), false)).toBe('official');
+    expect(passageTarget('laws.1.24.0', false, false)).toBe('bill-text');
   });
 });
 

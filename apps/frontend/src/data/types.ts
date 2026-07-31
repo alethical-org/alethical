@@ -428,10 +428,16 @@ export interface AskCitation {
   excerpt: string;
   url: string;
   /** Statute section the passage came from, so the answer page's "From the bill"
-   *  card can link into the bill's own Bill Text tab (`?tab=text#ft-<sectionId>`).
-   *  Empty when the retrieved chunk carried no section row — the card then falls
-   *  back to `url` (grounded-ask-spec §9.5 decision 4). */
+   *  card can link into the bill's own Bill Text tab
+   *  (`?tab=text#ft-<sectionId>-<sectionOrder>`). Empty when the retrieved chunk
+   *  carried no section row — the card then falls back to `url`
+   *  (grounded-ask-spec §9.5 decision 4). */
   sectionId: string;
+  /** WHICH section that id names: its position in the version. Needed because
+   *  `sectionId` is not unique within one (#854), so an id-only anchor lands on the
+   *  first section carrying it. Exact on this path — a retrieval chunk holds its
+   *  section's own key. Null only when `sectionId` is empty too. */
+  sectionOrder: number | null;
   /** Short topic from that section's own heading ("Public facilities authority").
    *  citationChipLabel appends it only when normalizing `label` leaves no topic. */
   sectionTopic: string;

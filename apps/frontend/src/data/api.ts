@@ -162,6 +162,7 @@ interface ApiAskCitationPayload {
   excerpt: string;
   url: string;
   section_id?: string | null;
+  section_order?: number | null;
   section_topic?: string | null;
 }
 
@@ -1496,6 +1497,7 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
       excerpt: citation.excerpt,
       url: citation.url,
       sectionId: typeof citation.section_id === 'string' ? citation.section_id.trim() : '',
+      sectionOrder: typeof citation.section_order === 'number' ? citation.section_order : null,
       sectionTopic: typeof citation.section_topic === 'string' ? citation.section_topic.trim() : '',
     })),
     answeringBill: billTextAnswer ? mapBill(billTextAnswer.bill) : undefined,

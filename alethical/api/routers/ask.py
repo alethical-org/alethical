@@ -424,22 +424,30 @@ def _citation_excerpt(chunk_text: str) -> str:
 
 
 def _chunk_sections(db: Session, chunks) -> dict:
-    """``bill_version_section_id`` -> ``(section_id_text, chip topic)`` for the
-    retrieved chunks' sections.
+    """``bill_version_section_id`` -> ``(section_id_text, source_order, chip topic)``
+    for the retrieved chunks' sections.
 
-    The section id is what lets a citation card link to the passage inside our own
-    Bill Text tab, which anchors each section on ``#ft-<section_id_text>``
-    (`FullTextTab.tsx`) — .claude/rules/grounded-answers.md rule 5, and
+    These are what let a citation card link to the quoted passage inside our own
+    Bill Text tab, which anchors each section on ``#ft-<section_id>-<source_order>``
+    (#854; the scheme is described in
+    docs/product-onboarding/bill-text-tab-spec.md § "Jumping to a section") —
+    .claude/rules/grounded-answers.md rule 5, and
     docs/product-onboarding/grounded-ask-spec.md §9.5 (The chip-reached answer page —
-    decided web design) decision 4. One extra query for at most four sections; a
-    chunk whose section document has no section row (a whole-version document) gets
-    no id, and the card falls back to the official source URL.
+    decided web design) decision 4. One extra query for at most four sections.
 
-    ``section_id_text`` is NOT unique within a version (66 (version, id) pairs in
-    production name several sections), so the CLIENT still checks the id against the
-    sections the Bill Text tab renders before linking to it. Serving it is honest
-    either way — it is the retrieved section's own stored id, not a claim that it
-    resolves to exactly one place.
+    **The position is required, not optional.** ``section_id_text`` cannot identify a
+    section on its own: it is what the Revisor hands every section sitting outside an
+    article, so 66 current versions repeat one id across several sections and 30
+    sections of ``94-2025-SF3492`` share ``laws.0.1.0``. An id-only anchor lands the
+    reader on the first of those, which on a long omnibus is very likely the wrong
+    grant — the exact rule 5 failure the deep link exists to avoid.
+
+    Unlike the bill page's key-point citations, which have to be matched back to a
+    section by their quote, a retrieval chunk holds the section's own foreign key. So
+    the position here is EXACT, and the pair always names one section.
+
+    A chunk whose section document has no section row (a whole-version document)
+    yields nothing, and the card falls back to the official source URL.
     """
     section_ids = {
         chunk.rag_section_document.bill_version_section_id
@@ -452,6 +460,7 @@ def _chunk_sections(db: Session, chunks) -> dict:
         select(
             BillVersionSection.id,
             BillVersionSection.section_id_text,
+            BillVersionSection.source_order,
             BillVersionSection.section_heading,
             BillVersionSection.cite_heading,
         ).where(BillVersionSection.id.in_(section_ids))
@@ -459,6 +468,7 @@ def _chunk_sections(db: Session, chunks) -> dict:
     return {
         row.id: (
             row.section_id_text,
+            row.source_order,
             section_chip_topic(row.section_heading, row.cite_heading),
         )
         for row in rows
@@ -588,8 +598,8 @@ def _bill_text_answer(
     sections = _chunk_sections(db, chunks)
     citations = []
     for chunk in chunks:
-        section_id, section_topic = sections.get(
-            chunk.rag_section_document.bill_version_section_id, ("", "")
+        section_id, section_order, section_topic = sections.get(
+            chunk.rag_section_document.bill_version_section_id, ("", None, "")
         )
         citations.append(
             AskCitation(
@@ -598,6 +608,7 @@ def _bill_text_answer(
                 excerpt=_citation_excerpt(chunk.chunk_text),
                 url=resolved.official_url,
                 section_id=section_id,
+                section_order=section_order,
                 section_topic=section_topic,
             )
         )

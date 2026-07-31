@@ -110,7 +110,7 @@ export function SummaryTab({
                     key={c.id}
                     label={c.label}
                     sectionTopic={c.sectionTopic}
-                    excerpt={c.excerpt}
+                    excerpts={[c.excerpt]}
                     onPress={
                       onCitationPress && c.sectionId
                         ? () => onCitationPress(citationSectionAnchor(c))
