@@ -277,49 +277,40 @@ describe('passageTarget only links to a passage it can actually reach', () => {
 });
 
 describe('partialCoverageNote warns only when the answer really is partial', () => {
-  it('renders the served sentence verbatim, whatever the counts say', () => {
-    // #868 owns the wording, so the page moves it rather than rewriting it — and it
-    // renders even on a complete read, because reading all 102 passages of HF 719
-    // still produced a list of ~30 of the ~98 cities the bill names.
-    const note =
-      'We searched all 102 passages of this bill’s text. A list like this can still be shortened, so read the bill’s own text if you need every item.';
-    expect(
-      partialCoverageNote({ passagesSearched: 102, passagesTotal: 102, complete: true, note }),
-    ).toBe(note);
-  });
-
-  it('says nothing when the served sentence is deliberately absent', () => {
-    // #868 nulls `note` on a question that is not list-shaped, even when coverage is
-    // partial: a caveat where it does not apply teaches readers to skip the one that
-    // does. The fallback must NOT override that by deriving a sentence from #868's
-    // own counts.
-    expect(
-      partialCoverageNote({
-        passagesSearched: 4,
-        passagesTotal: 102,
-        complete: false,
-        note: null,
-      }),
-    ).toBeNull();
-  });
-
-  it('falls back to the numbers only for the pre-#868 payload', () => {
-    // 4 of 102 is the real production ratio for HF 719 before #868 widened the read.
+  it('names both numbers on the flagship HF 719 case', () => {
+    // 4 of 102 was the real production ratio, and the case the note exists for: that
+    // answer named 19 of the bill's 98 cities and denied the counties it names.
     expect(partialCoverageNote({ used: 4, total: 102 })).toBe(
       'This answer draws on 4 of the 102 passages in this bill, so there may be more it doesn’t cover.',
     );
   });
 
-  it('says nothing when the answer covered the whole bill', () => {
-    // A caveat on every answer teaches people to ignore it.
+  it('says nothing when a SPECIFIC question covered the whole bill', () => {
+    // A caveat on every answer teaches people to ignore it, and on "when does this
+    // take effect?" there is no list for it to caveat.
     expect(partialCoverageNote({ used: 4, total: 4 })).toBeNull();
     expect(partialCoverageNote({ used: 6, total: 4 })).toBeNull();
+  });
+
+  it('still warns on a LIST question that covered the whole bill (#868)', () => {
+    // The correction that measuring forced. Once the backend reads the whole bill
+    // for a list question, HF 719 serves 102 of 102 — and the answer still lists
+    // 26-35 of the bill's 98 cities. Keying on used < total alone would have taken
+    // the note away from exactly the answer that most needs one.
+    expect(partialCoverageNote({ used: 102, total: 102, enumerating: true })).toBe(
+      'This answer draws on all 102 passages in this bill, but a list like this can still leave items out — check the bill’s own text for the full set.',
+    );
+    // And the partial wording still wins when the read was also short.
+    expect(partialCoverageNote({ used: 152, total: 1484, enumerating: true })).toBe(
+      'This answer draws on 152 of the 1484 passages in this bill, so there may be more it doesn’t cover.',
+    );
+    // A specific question on a fully-read bill is still silent.
+    expect(partialCoverageNote({ used: 102, total: 102, enumerating: false })).toBeNull();
   });
 
   it('says nothing when the backend served no coverage', () => {
     // So this ships safely before or after either backend shape, not by guessing.
     expect(partialCoverageNote(undefined)).toBeNull();
-    expect(partialCoverageNote({})).toBeNull();
   });
 
   it('says nothing on a zero, rather than "0 of 102"', () => {

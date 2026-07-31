@@ -8,7 +8,11 @@ from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
 from alethical.api.problems import problem_exception
-from alethical.api.routers.me import build_query_embedding, synthesize_grounded_answer
+from alethical.api.routers.me import (
+    BillTextCoverage,
+    build_query_embedding,
+    synthesize_grounded_answer,
+)
 from alethical.api.schemas import (
     AskAnswerPayload,
     AskBillTextAnswer,
@@ -57,6 +61,7 @@ LegislatorServicePeriod = schema.LegislatorServicePeriod
 Sponsorship = schema.Sponsorship
 SponsorshipRole = schema.SponsorshipRole
 bill_list_stmt = schema.bill_list_stmt
+retrievable_chunk_count_stmt = schema.retrievable_chunk_count_stmt
 semantic_rag_chunk_stmt = schema.semantic_rag_chunk_stmt
 
 router = APIRouter()
@@ -381,6 +386,50 @@ def _resolve_bill_by_title(db: Session, session_id, content: str):
 # belongs on *content-based* resolution (finding the bill by meaning), not here.
 _BILL_TEXT_CHUNK_LIMIT = 4
 
+# A question that asks for EVERYTHING of a kind cannot be answered from a fixed
+# handful of passages, which is the failure behind #868: asked which cities and
+# counties HF 719 names for grants, the four nearest-by-meaning passages of a
+# 102-passage bonding bill each listed a few city grants and no counties, so the
+# answer enumerated nineteen cities as though that were the set and stated the bill
+# named no counties at all. It names 98 and 20.
+#
+# No selection strategy fixes that — the seventy passages that each say "for a grant
+# to the city of X" are all equally on-topic, so there is no "best four" to find.
+# What is left is to read more of the bill, or to say the read was a sample. This
+# does the first; the served coverage fact and the page's note (§9.5 decision 11) do
+# the second.
+#
+# Detection is deliberately loose: a false positive costs a slower, more complete
+# answer, while a false negative puts the confident-wrong answer back. So "all" and
+# "each" are in, even though they catch questions that are not really enumerations.
+_LIST_QUESTION_RE = re.compile(
+    r"\b(which|list|every|each|all|how many|name the|what are the|who are)\b",
+    re.IGNORECASE,
+)
+
+# Words of bill text one list question may read. Measured over all 10,433 production
+# bills with retrievable text (Jul 31 2026): median 302 words, 90th percentile 2,339,
+# 99th percentile 20,977, largest 241,551. So 20,000 reads 99% of bills in full —
+# including HF 719 at 16,894 — and the ~1% that overflow are reported as partial
+# instead of read as if complete. The median bill is unaffected either way: at 2
+# passages it already fits inside the fixed limit of 4.
+_LIST_QUESTION_WORD_BUDGET = 20_000
+
+# Ceiling on rows fetched before the word budget is applied. The budget is the real
+# gate (20,000 words is ~120 passages at production's ~166 words each); this only
+# stops the largest omnibus bill, at 1,484 passages, from loading every row to throw
+# most of them away.
+_LIST_QUESTION_CHUNK_CEILING = 200
+
+# How many passages the answer SHOWS as citations, however many it read. Reading and
+# showing are different jobs: the synthesizer gets everything inside the word budget,
+# while a citation is something a person checks the answer against, and the first
+# live run of this change served 102 excerpt cards for one HF 719 question, which
+# nobody checks. The coverage fact carries "how much did you read" instead. Rule 1
+# (cite or refuse) asks whether a resolvable official source backs the answer, not
+# how many do, so this never threatens it and never reaches zero.
+_SERVED_CITATION_LIMIT = 8
+
 # Longest citation excerpt we serve, in characters. The synthesis still reads the
 # whole chunk (synthesize_grounded_answer passes chunk_text unbounded) — this caps
 # only what the reader is shown.
@@ -427,7 +476,7 @@ def _citation_excerpt(chunk_text: str) -> str:
     return f"{cut}…"
 
 
-def _bill_passage_total(db: Session, bill_id) -> int | None:
+def _bill_passage_total(db: Session, bill_id, model: str) -> int | None:
     """How many retrievable passages the bill's CURRENT version has, or None.
 
     Paired with the number retrieval actually used, this is what lets the answer
@@ -439,16 +488,22 @@ def _bill_passage_total(db: Session, bill_id) -> int | None:
     ``current_version_only`` scopes retrieval (#285). Counting every version's
     chunks would inflate the total on a bill with several engrossments and make the
     ratio a different, wrong number.
+
+    **Also scoped to the embedding model retrieval filters on** (#868). Retrieval
+    only ever returns chunks embedded under the model the query vector was built
+    with — a distance between vectors from two different models is meaningless
+    (#221) — so counting chunks embedded under any other model, or chunks with no
+    embedding at all, inflates the denominator the same way a stale version does.
+    Uncorrected, a bill could report itself partially read when every passage
+    retrieval can reach had already gone in, which is how a *complete* read gets
+    labelled a sample. ``model`` is taken as an argument rather than resolved here,
+    so it is provably the same value the retrieval call used — resolving it twice is
+    a second way for the two halves to disagree.
+    ``retrievable_chunk_count_stmt`` keeps the joins in lockstep
+    with the retrieval statement so the two halves of the ratio cannot disagree
+    about what "all of this bill's passages" means.
     """
-    total = db.scalar(
-        select(func.count(RagChunk.id))
-        .join(
-            RagSectionDocument,
-            RagSectionDocument.id == RagChunk.rag_section_document_id,
-        )
-        .join(BillVersion, BillVersion.id == RagSectionDocument.bill_version_id)
-        .where(RagSectionDocument.bill_id == bill_id, BillVersion.is_current.is_(True))
-    )
+    total = db.scalar(retrievable_chunk_count_stmt(bill_id, embedding_model=model))
     return total or None
 
 
@@ -576,6 +631,61 @@ def _resolve_bill_by_content(db: Session, session_id, model: str, content, embed
     return next((b for b in candidates if b.bill_key == chosen_key), None)
 
 
+def _retrieve_bill_text(db: Session, bill, model: str, embedding, *, enumerating: bool):
+    """One resolved bill's passages for the synthesizer, and how much of the bill
+    they are (#868).
+
+    Two retrieval shapes, chosen by what the question asks for:
+
+    * **A specific question** (``enumerating=False``) keeps the fixed
+      ``_BILL_TEXT_CHUNK_LIMIT`` sample. Four passages is the right size for "when
+      does this take effect?", and feeding a hundred would cost money and make every
+      reader wait for nothing.
+    * **An enumerate-everything question** reads as much of the bill as
+      ``_LIST_QUESTION_WORD_BUDGET`` allows, because a list is only right when it is
+      either complete or admits it is not.
+
+    Passages stay in relevance order rather than being re-sorted into bill order.
+    Bill order would read more naturally and be easier to check against the source,
+    but it needs each section's ``source_order``, which retrieval does not load, and
+    it changes nothing about whether the answer is correct or honest. Answer
+    *quality* is measured by the eval on
+    [#865](https://github.com/alethical-org/alethical/issues/865); a change like that
+    belongs there, behind a measurement.
+    """
+    total = _bill_passage_total(db, bill.id, model) or 0
+    if not enumerating:
+        chunks = db.scalars(
+            semantic_rag_chunk_stmt(
+                embedding,
+                bill_id=bill.id,
+                embedding_model=model,
+                limit=_BILL_TEXT_CHUNK_LIMIT,
+            )
+        ).all()
+        return chunks, BillTextCoverage(searched=len(chunks), total=total)
+
+    ranked = db.scalars(
+        semantic_rag_chunk_stmt(
+            embedding,
+            bill_id=bill.id,
+            embedding_model=model,
+            limit=_LIST_QUESTION_CHUNK_CEILING,
+        )
+    ).all()
+    budgeted: list = []
+    words = 0
+    for chunk in ranked:
+        words += chunk.word_count
+        # ``budgeted`` guards the first passage: one passage longer than the whole
+        # budget still gets read, because returning nothing would refuse a question
+        # the bill can answer.
+        if budgeted and words > _LIST_QUESTION_WORD_BUDGET:
+            break
+        budgeted.append(chunk)
+    return budgeted, BillTextCoverage(searched=len(budgeted), total=total)
+
+
 def _bill_text_answer(
     db: Session, content: str
 ) -> AskBillTextAnswer | AskTopicBillsAnswer | None:
@@ -612,21 +722,22 @@ def _bill_text_answer(
                 return degraded
         return None
 
-    chunks = db.scalars(
-        semantic_rag_chunk_stmt(
-            embedding,
-            bill_id=resolved.id,
-            embedding_model=model,
-            limit=_BILL_TEXT_CHUNK_LIMIT,
-        )
-    ).all()
+    enumerating = bool(_LIST_QUESTION_RE.search(content))
+    chunks, coverage = _retrieve_bill_text(
+        db, resolved, model, embedding, enumerating=enumerating
+    )
     if not chunks:
         return None
 
-    prose = synthesize_grounded_answer(content, chunks, bill_key=resolved.bill_key)
-    sections = _chunk_sections(db, chunks)
+    prose = synthesize_grounded_answer(
+        content, chunks, bill_key=resolved.bill_key, coverage=coverage
+    )
+    # Cited passages are a SUBSET of what the answer was written from — see
+    # _SERVED_CITATION_LIMIT. The coverage fact below carries how much was read.
+    cited = chunks[:_SERVED_CITATION_LIMIT]
+    sections = _chunk_sections(db, cited)
     citations = []
-    for chunk in chunks:
+    for chunk in cited:
         section_id, section_order, section_topic = sections.get(
             chunk.rag_section_document.bill_version_section_id, ("", None, "")
         )
@@ -646,7 +757,6 @@ def _bill_text_answer(
             IngestionRun.status == IngestionStatus.succeeded
         )
     )
-    passage_total = _bill_passage_total(db, resolved.id)
     return AskBillTextAnswer(
         answer=prose,
         citations=citations,
@@ -654,8 +764,17 @@ def _bill_text_answer(
         session=AskSessionRef(slug=session_row.slug, name=session_row.name),
         data_as_of=data_as_of,
         coverage=(
-            AskPassageCoverage(used=len(chunks), total=passage_total)
-            if passage_total
+            AskPassageCoverage(
+                used=coverage.searched,
+                total=coverage.total,
+                # Whether the reader asked for EVERY instance of something. The page
+                # needs it because a complete read is not a complete list: reading all
+                # 102 passages of HF 719 still produced 26-35 of its 98 cities, so
+                # "used == total" alone would take the page's caveat away on exactly
+                # the answer that most needs one (#868).
+                enumerating=enumerating,
+            )
+            if coverage.total
             else None
         ),
     )

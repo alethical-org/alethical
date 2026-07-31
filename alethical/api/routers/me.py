@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import re
+from dataclasses import dataclass
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -54,6 +56,10 @@ RAG_CHAT_FALLBACK = "I could not find retrieval-ready bill text for this bill ye
 # synthesize_grounded_answer below. Named rather than inlined so the
 # answer-quality eval (`scripts/answer_eval.py`, #865) can import the exact
 # production wording instead of keeping a copy that silently drifts out of step.
+#
+# SINCE #868 THIS IS ONLY THE FIRST HALF. Production appends a coverage rule that
+# depends on how much of the bill went in. Call `rag_chat_system_prompt(coverage)`
+# below for what is actually sent; this constant alone is no longer that.
 RAG_CHAT_SYSTEM_PROMPT = (
     "Answer only from the provided bill text, but do answer when the text supports a "
     "plain-language conclusion even if the wording is indirect. If the context partially "
@@ -103,7 +109,264 @@ def extract_openai_response_text(payload: dict) -> str | None:
     return "\n".join(parts) if parts else None
 
 
-def synthesize_grounded_answer(question: str, chunks: list, *, bill_key: str) -> str:
+@dataclass(frozen=True)
+class BillTextCoverage:
+    """How much of one bill's retrievable text the answer writer was handed.
+
+    ``searched`` and ``total`` count retrieval passages (``RagChunk`` rows for the
+    bill's current version). ``is_complete`` is the *only* thing that licenses an
+    answer to make a claim about **the bill**; short of it an answer may speak
+    only about the passages it actually read.
+
+    Why this exists (#868): production told a reader "the bill does not specify
+    any counties" about HF 719, which names twenty of them, because the four
+    passages it was given mentioned none. Absence from a sample was presented as
+    absence from the bill — the confident-wrong answer
+    `.claude/rules/grounded-answers.md` rule 1 exists to prevent.
+    """
+
+    searched: int
+    total: int
+
+    @property
+    def is_complete(self) -> bool:
+        """True only when every passage of the bill went into the answer.
+
+        ``total`` of 0 means the count is unknown or the bill has no retrievable
+        text, and an unknown denominator can never prove completeness — so it
+        reads as partial, which is the safe direction.
+        """
+        return self.total > 0 and self.searched >= self.total
+
+    @property
+    def is_partial(self) -> bool:
+        """True only when the shortfall is *known* — some passages went unread and
+        we can say how many.
+
+        Distinct from ``not is_complete``, which is also true when ``total`` is 0
+        and nothing is known. Prompting treats unknown as partial, because that is
+        the safe direction; telling a reader we searched "0 of 0 passages" is not
+        safe, it is nonsense, so the reader-facing note keys on this instead.
+        """
+        return self.total > self.searched
+
+
+# Applies whatever the coverage, because it is a claim about the model's own
+# enumeration rather than about the bill, and nothing downstream can check it.
+_NO_COMPLETENESS_CLAIM_RULE = (
+    "NEVER tell the reader your list is complete, exhaustive, or that there is nothing "
+    "beyond what you listed — you have no way to know that, and a reader who believes it "
+    "stops looking."
+)
+
+_COMPLETE_COVERAGE_RULE = (
+    "The context below is the COMPLETE text of this bill — every passage of it. You may "
+    "therefore describe the bill as a whole, and if the bill genuinely names nothing of the "
+    "kind asked about, you may say so. "
+    # Added after measuring the fix live (#868): given all 102 passages of HF 719 the
+    # model listed ~26 of the 98 cities it names and simply stopped, so a complete
+    # read still produced a list a reader would take for the whole set. Reading
+    # everything is not reporting everything, and this is the half of that gap a
+    # prompt can address.
+    "When the question asks for every instance of something, work through the whole context "
+    "and list every one you find — do not stop at a representative handful. If you do shorten "
+    "the list, you MUST say plainly in the answer that you have shortened it and roughly how "
+    "many more there are. " + _NO_COMPLETENESS_CLAIM_RULE
+)
+
+# The instruction that was missing, and the reason production could deny a whole
+# category of the bill's contents (#868). Applied whenever coverage is anything
+# short of provably complete, including when the caller does not know (bill-scoped
+# chat retrieves a fixed 3 passages and does not count the bill).
+_PARTIAL_COVERAGE_RULE = (
+    "The context below is only SOME of this bill's text — the passages that best match the "
+    "question, not the whole bill. You are reading a sample. Therefore: "
+    "(1) NEVER state or imply that the bill omits, excludes, lacks, or contains none of "
+    "something; say only that the passages you were given do not mention it. "
+    "(2) NEVER give a total, a count, or a list you call complete — you cannot see the whole "
+    "bill, so you cannot count it. "
+    "(3) When you list items, say the list comes from the passages searched and may be "
+    "missing others. "
+    "(4) " + _NO_COMPLETENESS_CLAIM_RULE
+)
+
+
+def _coverage_rule(coverage: BillTextCoverage | None) -> str:
+    return (
+        _COMPLETE_COVERAGE_RULE
+        if coverage is not None and coverage.is_complete
+        else _PARTIAL_COVERAGE_RULE
+    )
+
+
+def rag_chat_system_prompt(coverage: BillTextCoverage | None = None) -> str:
+    """The complete system prompt production sends, for the given coverage.
+
+    ``RAG_CHAT_SYSTEM_PROMPT`` is only the first half now (#868): the second half
+    depends on how much of the bill went in, and the two are composed here so there
+    is exactly one place that knows the whole thing.
+
+    **The answer-quality eval should call this, not the constant.** The eval imports
+    `RAG_CHAT_SYSTEM_PROMPT` by identity so it can never score a copy that drifted
+    (`test_the_eval_scores_productions_own_prompt_rather_than_a_copy`) — a good guard
+    that this change slipped past, because the drift is no longer a copy but a layer
+    production adds on top. The eval's frozen contexts are partial reads, so
+    ``rag_chat_system_prompt(None)`` is the prompt matching what it measures. Left as
+    the eval's call to make rather than changed here, since #865's published §9
+    numbers were produced without it and moving the baseline mid-decision is worse
+    than a documented gap; `docs/product-onboarding/answer-quality-bar.md` records it.
+    """
+    return f"{RAG_CHAT_SYSTEM_PROMPT}\n\n{_coverage_rule(coverage)}"
+
+
+# Subject phrases that make a claim about the whole bill, and the non-existence
+# predicates that turn such a claim into an absence claim. Kept as two halves so
+# the pattern fires only on "<the bill> <asserts nothing of a kind>" and never on
+# an ordinary positive sentence about the bill.
+_BILL_SUBJECT = r"(?:[Tt]he|[Tt]his)\s+bill(?:'s)?(?:\s+text)?|(?:HF|SF)\s?\d{1,5}"
+
+# "no" meaning *none of*, not "no" opening a comparative. Legislative prose is
+# full of "no later than", "no more than", "no fewer than" — none of which claim
+# the bill lacks anything, so they must not trigger a rewrite.
+_NONE_OF = r"no(?!\s+(?:fewer|less|more|later|longer|earlier|sooner)\b)"
+_NO_SUCH_THING = (
+    r"does\s+not|do\s+not|doesn't|did\s+not|didn't|is\s+not|isn't|was\s+not|wasn't|"
+    rf"contains?\s+{_NONE_OF}|includes?\s+{_NONE_OF}|has\s+{_NONE_OF}|have\s+{_NONE_OF}|"
+    rf"lists?\s+{_NONE_OF}|names?\s+{_NONE_OF}|mentions?\s+{_NONE_OF}|"
+    rf"specifies\s+{_NONE_OF}|specify\s+{_NONE_OF}|identifies\s+{_NONE_OF}|"
+    rf"makes?\s+{_NONE_OF}|is\s+silent"
+)
+_BILL_ABSENCE_CLAIM_RE = re.compile(
+    rf"\b(?:{_BILL_SUBJECT})\s+(?={_NO_SUCH_THING})",
+)
+
+# What replaces the over-broad subject. Deliberately SINGULAR ("the bill text we
+# searched", not "the passages we searched") so the verb that follows never needs
+# rewriting: "The bill does not specify any counties" becomes "The bill text we
+# searched does not specify any counties" with the predicate untouched. That is
+# what makes this transform safe — it swaps one singular subject noun phrase for
+# another and stops. `.claude/rules/grounded-answers.md` rule 9's display cleaners
+# are the precedent, and its hard limit applies here too: a cleaner may only edit
+# displayed model text where the edit cannot break the sentence.
+_SEARCHED_SUBJECT = "the bill text we searched"
+
+
+def _searched_subject_for(match: re.Match[str]) -> str:
+    """The replacement subject, capitalized when it opens the sentence.
+
+    The pattern matches the subject with its own leading capital, so mirroring
+    that capital is what keeps a rewritten sentence looking written rather than
+    patched.
+    """
+    replacement = _SEARCHED_SUBJECT
+    if match.group(0)[:1].isupper():
+        replacement = replacement[:1].upper() + replacement[1:]
+    return f"{replacement} "
+
+
+def narrow_bill_absence_claims(prose: str) -> str:
+    """Re-scope an answer's absence claims from the bill to the text we read.
+
+    The backstop under ``_PARTIAL_COVERAGE_RULE``: a prompt is a request, and a
+    model that ignores it must still not be able to tell a reader that a bill
+    contains none of something when only part of the bill was searched (#868).
+    Runs only when coverage is short of complete — when the whole bill went in,
+    "the bill does not specify any counties" is a true and useful sentence and
+    passes through untouched.
+    """
+    return _BILL_ABSENCE_CLAIM_RE.sub(_searched_subject_for, prose)
+
+
+# Sentences whose whole content is "and there are no more of these than the ones I
+# just listed". Found by measuring the #868 fix live on 2026-07-31: handed the
+# complete text of HF 719, the model listed 37 of its 98 cities and closed with "The
+# bill does not indicate any additional cities or counties beyond those listed."
+#
+# This is a DIFFERENT claim from an absence claim, and the distinction is why it
+# needs its own guard. "The bill names no counties" is about the bill, and reading
+# the whole bill makes it checkable and true. "There are none beyond the ones I
+# listed" is about the model's own enumeration, which nothing here verifies and
+# complete coverage does not license — so this guard runs on every answer, however
+# much of the bill went in.
+#
+# Patterns are deliberately narrow, and each requires the sentence to point back at
+# the answer's own list. "The complete list of appropriations appears in Article 1"
+# is a useful pointer, not a completeness claim, and must survive.
+#
+# The shape is two-part: something pointing at the answer's own list, and a
+# quantifier claiming it is all of them. Requiring BOTH is what keeps ordinary
+# sentences safe — "All appropriations are onetime appropriations" has the quantifier
+# and no referent, "The complete list of appropriations appears in Article 1" points
+# somewhere else, and "The list above is shortened; roughly 60 more are named" is the
+# honest hedge this must never remove. Each was checked against the pattern, not
+# assumed. Two shapes got through earlier drafts and are now covered by name:
+# "This summarizes all the named cities" and "This list includes all named instances".
+_LIST_REFERENT = (
+    r"(?:this|that|these|those|the|my)\s+(?:list|answer|summary|table|above)?\s*"
+)
+_CLAIMS_ALL = (
+    r"(?:includes?|contains?|covers?|shows?|lists?|represents?|summariz(?:es|ing)|"
+    r"reflects?|is|are)\s+(?:all|every|each\s+of|the\s+(?:complete|full|entire))\b"
+)
+_LIST_COMPLETENESS_CLAIM_RE = re.compile(
+    r"[^.!?\n]*?(?:"
+    # "…and there are no others beyond the ones I listed."
+    r"\bno\s+(?:additional|other|further|more)\b[^.!?\n]*?\b(?:beyond|besides|other\s+than)\b"
+    r"|\bbeyond\s+(?:those|the\s+ones|what(?:'s|\s+is))\s+(?:listed|named|mentioned|shown|above)\b"
+    # "This list includes all…" / "These are all the…" / "That represents all of…"
+    rf"|\b{_LIST_REFERENT}{_CLAIMS_ALL}"
+    # "…all named instances of…" wherever it sits in the sentence.
+    r"|\ball\s+(?:the\s+)?(?:named|listed|mentioned|identified)\s+"
+    r"(?:instances?|items?|entries|ones|examples?)\b"
+    # "The above are the complete list of…"
+    r"|\b(?:is|are)\s+the\s+(?:complete|full|exhaustive)\s+list\b"
+    r")[^.!?\n]*[.!?]\s*",
+    # These sentences usually OPEN a paragraph ("This summarizes all…", "These are
+    # all…"), so a case-sensitive pattern misses the common form entirely — which is
+    # how the live HF 719 claim survived the first version of this guard.
+    re.IGNORECASE,
+)
+
+
+def strip_list_completeness_claims(prose: str) -> str:
+    """Drop any sentence claiming the answer's own list is the whole set.
+
+    Removes the sentence rather than rewriting it, because such a sentence carries
+    nothing except the false assurance — there is no true version of it to rewrite
+    towards — and dropping a whole sentence cannot break the grammar of the ones
+    around it, which editing inside one can (`.claude/rules/grounded-answers.md`
+    rule 9's limit on display cleaners).
+
+    What the reader gets instead is the layout-owned coverage note, which states how
+    much of the bill was searched. That is the honest version of the same
+    information, and it comes from the half of the system that actually knows.
+    """
+    cleaned = _LIST_COMPLETENESS_CLAIM_RE.sub("", prose)
+    # Collapse the blank run a removed trailing sentence can leave behind, and never
+    # return an empty body: if the whole answer was one completeness claim, the
+    # original is still the honest thing to show, caveated by the coverage note.
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned).strip()
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned or prose.strip()
+
+
+def synthesize_grounded_answer(
+    question: str,
+    chunks: list,
+    *,
+    bill_key: str,
+    coverage: BillTextCoverage | None = None,
+) -> str:
+    """One bill's passages plus a question in, cited prose out.
+
+    Shared by the Ask answer page (``alethical/api/routers/ask.py``) and the
+    signed-in bill-scoped chat below, so every change here moves both surfaces.
+
+    ``coverage`` states how much of the bill the ``chunks`` are. It defaults to
+    ``None`` = unknown, which is treated as partial: an unproven denominator must
+    never license a claim about the whole bill (#868). Bill-scoped chat passes
+    nothing, because it retrieves a fixed 3 passages and never counts the bill.
+    """
     if not chunks:
         return RAG_CHAT_FALLBACK
 
@@ -128,7 +391,10 @@ def synthesize_grounded_answer(question: str, chunks: list, *, bill_key: str) ->
             json={
                 "model": model,
                 "input": [
-                    {"role": "system", "content": RAG_CHAT_SYSTEM_PROMPT},
+                    {
+                        "role": "system",
+                        "content": rag_chat_system_prompt(coverage),
+                    },
                     {
                         "role": "user",
                         "content": f"Bill: {bill_key}\nQuestion: {question}\n\nContext:\n{context}",
@@ -141,7 +407,13 @@ def synthesize_grounded_answer(question: str, chunks: list, *, bill_key: str) ->
         payload = response.json()
         text_value = extract_openai_response_text(payload)
         if text_value:
-            return text_value
+            # Two guards, gated differently on purpose. An absence claim about the
+            # bill becomes true once the whole bill has been read, so that one is
+            # narrowed only on a partial read. A claim that the answer's own list is
+            # exhaustive is never verifiable, so that one always goes.
+            if coverage is None or not coverage.is_complete:
+                text_value = narrow_bill_absence_claims(text_value)
+            return strip_list_completeness_claims(text_value)
     except requests.RequestException as exc:
         raise HTTPException(
             status_code=502, detail="OpenAI RAG chat synthesis failed"

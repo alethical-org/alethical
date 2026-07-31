@@ -1604,3 +1604,39 @@ def semantic_rag_chunk_stmt(
     if max_distance is not None:
         stmt = stmt.where(distance <= max_distance)
     return stmt
+
+
+def retrievable_chunk_count_stmt(
+    bill_id: uuid.UUID,
+    *,
+    embedding_model: Optional[str] = None,
+    current_version_only: bool = True,
+):
+    """How many passages of one bill retrieval could return — the denominator an
+    answer's coverage disclosure is measured against (#868).
+
+    Deliberately joined and filtered exactly like ``semantic_rag_chunk_stmt`` above
+    (same embedding join, same ``current_version_only`` scoping, same model
+    filter), because the two numbers are a fraction: if this counted rows that
+    statement can never return, an answer would report itself incomplete forever,
+    and if it counted fewer, an answer would claim to have read the whole bill when
+    it had not. The second failure is the dangerous one, so the joins stay in
+    lockstep rather than being simplified to a bare count on ``rag_chunk``.
+    """
+    stmt = (
+        select(func.count())
+        .select_from(RagChunk)
+        .join(RagChunkEmbedding, RagChunkEmbedding.rag_chunk_id == RagChunk.id)
+        .join(
+            RagSectionDocument,
+            RagSectionDocument.id == RagChunk.rag_section_document_id,
+        )
+        .where(RagSectionDocument.bill_id == bill_id)
+    )
+    if current_version_only:
+        stmt = stmt.join(
+            BillVersion, BillVersion.id == RagSectionDocument.bill_version_id
+        ).where(BillVersion.is_current.is_(True))
+    if embedding_model is not None:
+        stmt = stmt.where(RagChunkEmbedding.embedding_model == embedding_model)
+    return stmt
