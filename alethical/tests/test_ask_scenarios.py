@@ -23,7 +23,25 @@ import re
 
 import pytest
 
-from alethical.api.routers.ask import _citation_excerpt
+from alethical.api.routers.ask import (
+    _BILL_TEXT_CHUNK_LIMIT,
+    _LIST_QUESTION_RE,
+    _SERVED_CITATION_LIMIT,
+    _citation_excerpt,
+)
+from alethical.api.routers.me import (
+    BillTextCoverage,
+    _coverage_rule,
+    narrow_bill_absence_claims,
+    strip_list_completeness_claims,
+)
+from alethical.eval.ground_truth import (
+    HF719_ANSWER_CITY_COUNT_BUG,
+    HF719_GRANT_CITIES,
+    HF719_GRANT_COUNTIES,
+    HF719_MIN_GRANT_CITIES,
+    HF719_MIN_GRANT_COUNTIES,
+)
 
 # The header lines rag chunking prepends to a chunk. No served excerpt may start
 # with one (#835).
@@ -569,3 +587,648 @@ def test_citation_excerpt_drops_a_comma_left_at_the_cut():
     out = _citation_excerpt(f"Bill: HF 719\n\n{body}")
     assert out.endswith("…")
     assert not out.endswith(",…")
+
+
+# --- #868: an answer may not state a count or deny a category the bill contradicts ---
+
+# The real question from production, verbatim. Reachable in one click from HF 719.
+_HF719_QUESTION = "HF 719: Which cities and counties get named infrastructure grants?"
+
+# What production actually returned on 2026-07-31, trimmed in the middle. The last
+# sentence is the whole reason #868 was filed at Urgent: it denies a category of the
+# bill's contents on the strength of four passages that happened not to mention it.
+_HF719_PRODUCTION_ANSWER = (
+    "The cities named in HF 719 that are receiving infrastructure grants include: "
+    "1. Silver Lake 2. South Haven 3. Spicer 4. Dayton\n\n"
+    "The bill does not specify any counties receiving named infrastructure grants."
+)
+
+# GROUND TRUTH lives in exactly ONE place — alethical/eval/ground_truth.py, counted
+# from the bill's own text and shared deliberately between the #865 answer-quality
+# eval and this regression test. Two sessions counted it independently and agreed on
+# both figures. Import it; restating the numbers here is how the two drift apart.
+#
+# The bounds are lower bounds with named exemplars, never exact totals, because an
+# exact total depends on definitions the bill does not settle (is the Moorhead-Clay
+# County Joint Powers Authority a county? is "grants to Dakota County, the city of
+# Lakeville, or both" a city grant?). A test pinned to an exact number fails on a
+# definitional argument rather than on a regression. That module's docstring carries
+# the counting method and the edge cases.
+
+
+def test_hf719_ground_truth_contradicts_the_answer_production_gave():
+    """The premise every other test here rests on, stated as an assertion.
+
+    Production said nineteen cities and no counties. The bill names at least ninety
+    cities and at least fifteen counties. If a future reader doubts the numbers, the
+    provenance is in the comment above; this pins that the answer and the bill
+    genuinely disagree, so nobody re-litigates whether #868 was real.
+    """
+    assert HF719_MIN_GRANT_CITIES > HF719_ANSWER_CITY_COUNT_BUG
+    assert HF719_MIN_GRANT_COUNTIES > 0
+    assert "does not specify any counties" in _HF719_PRODUCTION_ANSWER
+    for county in HF719_GRANT_COUNTIES:
+        assert county not in _HF719_PRODUCTION_ANSWER
+    for city in HF719_GRANT_CITIES:
+        assert city not in _HF719_PRODUCTION_ANSWER
+
+
+def test_the_hf719_question_is_recognized_as_an_enumerate_everything_question():
+    """The routing gate: a question asking for *all* of a kind must take the
+    read-more path, or the fixed four-passage sample puts the bug straight back."""
+    assert _LIST_QUESTION_RE.search(_HF719_QUESTION)
+    for question in (
+        "Which counties get grants?",
+        "List the cities named in HF 719.",
+        "How many cities get infrastructure grants?",
+        "Name the agencies that receive appropriations.",
+        "What are the effective dates for all the articles?",
+    ):
+        assert _LIST_QUESTION_RE.search(question), question
+    # A specific question keeps the cheap fixed sample: widening every answer would
+    # cost money and waiting time on questions four passages already answer.
+    for question in (
+        "When does HF 719 take effect?",
+        "What's in SF 1832?",
+        "How does the bill fund the fish hatchery?",
+        "Who is the chief author?",
+    ):
+        assert not _LIST_QUESTION_RE.search(question), question
+
+
+def test_a_partial_read_may_not_deny_what_the_bill_contains():
+    """The false negative, killed at the contract level rather than only asked for.
+
+    Feeds the guard the exact sentence production served and asserts it can no
+    longer tell a reader the bill omits counties. A prompt is a request; this is
+    what makes the invariant hold when the model ignores it.
+    """
+    out = narrow_bill_absence_claims(_HF719_PRODUCTION_ANSWER)
+    assert "The bill does not specify any counties" not in out
+    assert "The bill text we searched does not specify any counties" in out
+    # The claim is re-scoped, not deleted: the reader still learns that the search
+    # turned up no counties, which is true and useful.
+    assert "counties" in out
+    # Everything the answer got right survives verbatim.
+    assert "1. Silver Lake 2. South Haven 3. Spicer 4. Dayton" in out
+
+
+@pytest.mark.parametrize(
+    "claim,expected",
+    [
+        (
+            "The bill does not specify any counties.",
+            "The bill text we searched does not specify any counties.",
+        ),
+        (
+            "This bill contains no appropriation for transit.",
+            "The bill text we searched contains no appropriation for transit.",
+        ),
+        (
+            "HF 719 does not name any counties.",
+            "The bill text we searched does not name any counties.",
+        ),
+        (
+            "SF1832 makes no mention of Ramsey County.",
+            "The bill text we searched makes no mention of Ramsey County.",
+        ),
+        (
+            "The bill is silent on effective dates.",
+            "The bill text we searched is silent on effective dates.",
+        ),
+        (
+            "The bill has no provision for oversight.",
+            "The bill text we searched has no provision for oversight.",
+        ),
+        (
+            "Nineteen cities are listed. The bill does not mention counties.",
+            "Nineteen cities are listed. The bill text we searched does not mention counties.",
+        ),
+    ],
+)
+def test_every_shape_of_bill_absence_claim_is_re_scoped(claim, expected):
+    """One case per phrasing the guard has to catch. Capitalization is part of the
+    assertion: a rewrite that reads as a patch undermines the answer it corrects."""
+    assert narrow_bill_absence_claims(claim) == expected
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # Positive claims about the bill: the guard must not touch them, or every
+        # answer turns into hedged mush.
+        "The bill appropriates $6,000,000 from the bond proceeds fund.",
+        "This bill names 19 cities.",
+        "The bill does provide grants to cities.",
+        "HF 719 funds flood mitigation in the city of Moorhead.",
+        # "no" opening a comparative is ordinary legislative wording, not an absence
+        # claim. Rewriting these would weaken true statements.
+        "The bill lists no fewer than 19 cities.",
+        "The commissioner must report no later than January 15.",
+        "The bill requires no more than two hearings.",
+        "Grants may last no longer than four years.",
+        # An absence claim about something that is not the bill stands as written.
+        "The city of Anoka does not appear in article 2.",
+        "Ramsey County is not the fiscal agent.",
+    ],
+)
+def test_the_guard_leaves_everything_that_is_not_an_absence_claim_alone(sentence):
+    assert narrow_bill_absence_claims(sentence) == sentence
+
+
+@pytest.mark.parametrize(
+    "searched,total,complete,partial",
+    [
+        (4, 102, False, True),  # the HF 719 failure: a sample presented as the whole
+        (102, 102, True, False),  # the whole bill went in
+        (103, 102, True, False),  # never under-report completeness on an off-by-one
+        (2, 2, True, False),  # the median bill: 2 passages IS the whole bill
+        (4, 0, False, False),  # unknown denominator: not complete, and not countable
+        (0, 0, False, False),
+    ],
+)
+def test_coverage_only_claims_completeness_when_it_can_prove_it(
+    searched, total, complete, partial
+):
+    """``is_complete`` licenses claims about the bill, so an unknown denominator
+    must read as *not* complete — the safe direction. ``is_partial`` is narrower: it
+    gates the reader-facing note, which cannot honestly say "0 of 0 passages"."""
+    coverage = BillTextCoverage(searched=searched, total=total)
+    assert coverage.is_complete is complete
+    assert coverage.is_partial is partial
+
+
+def test_the_prompt_forbids_absence_claims_unless_the_whole_bill_went_in():
+    """The instruction #868 says was the bug. A partial read must be told it is a
+    sample; only a complete read may speak for the bill."""
+    partial = _coverage_rule(BillTextCoverage(searched=4, total=102))
+    assert "only SOME of this bill's text" in partial
+    assert "NEVER state or imply that the bill omits" in partial
+    assert "NEVER give a total, a count, or a list you call complete" in partial
+
+    complete = _coverage_rule(BillTextCoverage(searched=102, total=102))
+    assert "COMPLETE text of this bill" in complete
+    assert "NEVER state or imply that the bill omits" not in complete
+    # A complete read may speak for the bill, but it still may not pass off a
+    # shortened list as the whole set — the gap the live measurement exposed.
+    assert "list every one you find" in complete
+    # And the never-claim-completeness rule is on BOTH, because it is a claim about
+    # the model's own enumeration, which reading the whole bill does not license.
+    for rule in (partial, complete):
+        assert "NEVER tell the reader your list is complete" in rule
+
+    # Bill-scoped chat passes no coverage at all (it retrieves a fixed 3 passages
+    # and never counts the bill). Unknown must land on the cautious rule.
+    assert _coverage_rule(None) == partial
+
+
+# The seeded corpus happens to give both coverage cases for free, so these tests
+# exercise the real `_LIST_QUESTION_WORD_BUDGET` rather than a monkeypatched one:
+#   SF 1832 — 156 passages / 27,061 words → overflows the budget → PARTIAL
+#   HF 4138 —  19 passages /  3,657 words → fits the budget      → COMPLETE
+_PARTIAL_BILL_PASSAGES = 156
+_COMPLETE_BILL_PASSAGES = 19
+_ABSENCE_CLAIM_ANSWER = (
+    "Grants go to Silver Lake and South Haven. "
+    "The bill does not specify any counties receiving grants."
+)
+# The label the seeded chunks are embedded under, and the vector width the column
+# is declared with — both needed to query retrieval directly rather than through
+# the API (#221 explains why the label matters: a query vector and a chunk vector
+# from different models have no meaningful distance between them).
+_TEST_EMBEDDING_MODEL = "deterministic-sha256"
+_VECTOR_DIMENSIONS = 1536
+
+
+def test_a_list_question_that_outgrew_the_budget_reports_it_and_denies_nothing(
+    client, monkeypatch
+):
+    """The #868 fix end to end on a bill too long to read in full.
+
+    Three things have to hold at once for the answer to be honest: the served fact
+    says the read was partial, it says the question was an enumerating one (so the
+    page knows to caveat), and the model's denial of a whole category has been
+    re-scoped to the text actually searched.
+
+    The wording lives on the page (§9.5 decision 11) — the note goes ABOVE the
+    answer, where a reader who skims two lines still sees it, which is why the
+    backend serves the fact rather than a sentence.
+    """
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch, answer_text=_ABSENCE_CLAIM_ANSWER)
+    answer = client.post(
+        "/api/v1/ask",
+        json={"content": "Which cities and counties get grants in SF 1832?"},
+    ).json()["data"]["answer"]
+
+    assert answer is not None
+    coverage = answer["coverage"]
+    assert coverage["total"] == _PARTIAL_BILL_PASSAGES
+    assert coverage["enumerating"] is True
+    # It read far more than the old fixed sample, and still not all of it.
+    assert _BILL_TEXT_CHUNK_LIMIT < coverage["used"] < coverage["total"]
+
+    # And the false negative is gone.
+    assert "The bill does not specify any counties" not in answer["answer"]
+    assert "The bill text we searched does not specify any counties" in answer["answer"]
+    _assert_cite_or_refuse(answer, "bill_text")
+
+
+def test_a_list_question_that_read_the_whole_bill_still_flags_itself(
+    client, monkeypatch
+):
+    """The correction that measuring forced.
+
+    Reading every passage is not reporting every item: given all 102 passages of HF
+    719 the model listed 26-35 of its 98 cities and stopped. So `used == total` alone
+    would have taken the page's caveat away on exactly the answer that most needs
+    one, which is why `enumerating` is served alongside the two numbers.
+
+    The absence claim IS allowed to stand here, and that distinction is the point:
+    "the bill does not specify any counties" is a claim about the bill, and a
+    complete read is what makes it checkable and true.
+    """
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch, answer_text=_ABSENCE_CLAIM_ANSWER)
+    answer = client.post(
+        "/api/v1/ask",
+        json={"content": "Which cities and counties get grants in HF 4138?"},
+    ).json()["data"]["answer"]
+
+    assert answer is not None
+    coverage = answer["coverage"]
+    assert coverage["used"] == coverage["total"] == _COMPLETE_BILL_PASSAGES
+    # The flag the page needs to caveat a complete-but-possibly-short list.
+    assert coverage["enumerating"] is True
+    # Untouched, because a complete read can support it.
+    assert answer["answer"] == _ABSENCE_CLAIM_ANSWER
+    assert "bill text we searched" not in answer["answer"]
+    _assert_cite_or_refuse(answer, "bill_text")
+
+
+def test_a_long_bill_does_not_serve_a_citation_card_per_passage(client, monkeypatch):
+    """Reading and showing are different jobs.
+
+    The first live run of this fix fed the synthesizer all 102 passages of HF 719 and
+    served all 102 back as citations, which the answer page draws as excerpt cards —
+    and since §9.5 decision 1 keeps EVERY passage of a cited section, not one per
+    section, nothing downstream would have trimmed them. A citation is something a
+    person checks the answer against; a hundred is checked by nobody. Coverage
+    carries the "how much did you read" fact instead, and cite-or-refuse (rule 1) is
+    satisfied by citations that resolve, not by their number.
+    """
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post(
+        "/api/v1/ask",
+        json={"content": "Which cities get grants in SF 1832?"},
+    ).json()["data"]["answer"]
+
+    assert answer is not None
+    assert answer["coverage"]["used"] > _SERVED_CITATION_LIMIT
+    assert len(answer["citations"]) == _SERVED_CITATION_LIMIT
+    _assert_cite_or_refuse(answer, "bill_text")
+
+
+def test_a_specific_question_keeps_the_cheap_sample(client, monkeypatch):
+    """Cost control: widening every answer would spend money and make every reader
+    wait for questions four passages already answer. A specific question keeps the
+    fixed sample, and says so by serving `enumerating: false` — which is what lets
+    the page stay silent on a fully-read short bill, where there is no list to
+    caveat and a warning that appears where it does not apply teaches readers to
+    skip the one that does.
+
+    What it does NOT drop is the absence-claim guard: 4 of 156 passages proves
+    nothing about what the bill omits, whatever shape the question was.
+    """
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch, answer_text=_ABSENCE_CLAIM_ANSWER)
+    answer = client.post(
+        "/api/v1/ask", json={"content": "When does SF 1832 take effect?"}
+    ).json()["data"]["answer"]
+
+    assert answer is not None
+    coverage = answer["coverage"]
+    assert coverage["used"] == _BILL_TEXT_CHUNK_LIMIT
+    assert coverage["total"] == _PARTIAL_BILL_PASSAGES
+    assert coverage["enumerating"] is False
+    assert "The bill does not specify any counties" not in answer["answer"]
+    assert "The bill text we searched does not specify any counties" in answer["answer"]
+    _assert_cite_or_refuse(answer, "bill_text")
+
+
+def test_the_coverage_denominator_counts_exactly_what_retrieval_can_return():
+    """The fraction invariant, proved by making it possible to get wrong.
+
+    ``coverage`` is ``searched / total``, and the two halves come from two different
+    statements. If ``total`` counts rows retrieval can never return, an answer reads
+    as incomplete forever; if it counts fewer, an answer claims it read the whole
+    bill when it did not. The second failure is the one that puts #868 back, so this
+    test seeds exactly the rows that would break each half.
+
+    Neither filter is visible in the seeded corpus as it ships — one current version
+    per bill, one embedding model — so a dropped filter passed every other test in
+    this file. That is why the rows are created here rather than assumed.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+
+    from alethical.db.schema import load_schema
+    from alethical.db.session import get_engine
+
+    schema = load_schema()
+    stale_version_id = None
+    extra_chunk_ids: list = []
+
+    def _counts(db, bill):
+        """The denominator, and what retrieval actually returns with no limit."""
+        total = db.scalar(
+            schema.retrievable_chunk_count_stmt(
+                bill.id, embedding_model=_TEST_EMBEDDING_MODEL
+            )
+        )
+        retrievable = db.scalars(
+            schema.semantic_rag_chunk_stmt(
+                [0.0] * _VECTOR_DIMENSIONS,
+                bill_id=bill.id,
+                embedding_model=_TEST_EMBEDDING_MODEL,
+                limit=10_000,
+            )
+        ).all()
+        return total, len(retrievable)
+
+    def _add_chunk(db, *, version_id, embedding_model):
+        document = schema.RagSectionDocument(
+            bill_id=db.scalar(
+                select(schema.BillVersion.bill_id).where(
+                    schema.BillVersion.id == version_id
+                )
+            ),
+            bill_version_id=version_id,
+            citation_label="Coverage fixture",
+            clean_text="For a grant to the city of Coverage Fixture.",
+            search_text="For a grant to the city of Coverage Fixture.",
+            cleaning_version="coverage-fixture",
+            source_hash="0" * 64,
+            word_count=8,
+        )
+        db.add(document)
+        db.flush()
+        chunk = schema.RagChunk(
+            rag_section_document_id=document.id,
+            chunk_index=0,
+            citation_label="Coverage fixture",
+            chunk_text="For a grant to the city of Coverage Fixture.",
+            search_text="For a grant to the city of Coverage Fixture.",
+            chunking_version="coverage-fixture",
+            word_count=8,
+        )
+        db.add(chunk)
+        db.flush()
+        db.add(
+            schema.RagChunkEmbedding(
+                rag_chunk_id=chunk.id,
+                embedding_model=embedding_model,
+                embedding=[0.0] * _VECTOR_DIMENSIONS,
+            )
+        )
+        db.flush()
+        return document, chunk
+
+    try:
+        with Session(get_engine()) as db:
+            bill = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+            )
+            baseline_total, baseline_retrievable = _counts(db, bill)
+            assert baseline_total == baseline_retrievable == _PARTIAL_BILL_PASSAGES
+
+            # A superseded version with its own passage. Retrieval skips it (#285),
+            # so the denominator must skip it too — otherwise a bill whose text was
+            # re-engrossed could never report a complete read.
+            stale = schema.BillVersion(
+                bill_id=bill.id,
+                version_code="coverage-fixture-stale",
+                version_name="Superseded",
+                sequence_number=99,
+                is_current=False,
+            )
+            db.add(stale)
+            db.flush()
+            stale_version_id = stale.id
+            document, chunk = _add_chunk(
+                db, version_id=stale.id, embedding_model=_TEST_EMBEDDING_MODEL
+            )
+            extra_chunk_ids.append((document.id, chunk.id))
+
+            # A passage on the CURRENT version embedded under a different model.
+            # Retrieval filters it out (its distance would be meaningless against a
+            # query vector from another model), so the denominator must too. The
+            # version is selected explicitly rather than taken from
+            # ``bill.versions[0]`` — that relationship has no declared order, and it
+            # now also contains the stale row created just above, so indexing into it
+            # silently attached this passage to the wrong version and let a dropped
+            # model filter go unnoticed.
+            current_version_id = db.scalar(
+                select(schema.BillVersion.id).where(
+                    schema.BillVersion.bill_id == bill.id,
+                    schema.BillVersion.is_current.is_(True),
+                )
+            )
+            document, chunk = _add_chunk(
+                db, version_id=current_version_id, embedding_model="some-other-model"
+            )
+            extra_chunk_ids.append((document.id, chunk.id))
+            db.commit()
+
+        with Session(get_engine()) as db:
+            bill = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+            )
+            total, retrievable = _counts(db, bill)
+            assert total == retrievable == baseline_total, (
+                "the denominator drifted from what retrieval returns: "
+                f"{total} counted vs {retrievable} retrievable"
+            )
+
+            # And the SERVED denominator, through the function the answer path calls.
+            # Testing the statement alone is not enough: the statement takes the
+            # embedding model as an argument, so a call site that forgets to pass it
+            # is a separate, silent way to inflate the total — and the inflated total
+            # makes a COMPLETE read report itself as a sample, which is the direction
+            # that quietly removes the page's caveat.
+            from alethical.api.routers.ask import _bill_passage_total
+
+            served = _bill_passage_total(db, bill.id, _TEST_EMBEDDING_MODEL)
+            assert served == baseline_total, (
+                "the served denominator counted passages retrieval cannot return: "
+                f"{served} served vs {baseline_total} retrievable"
+            )
+    finally:
+        with Session(get_engine()) as db:
+            for document_id, chunk_id in extra_chunk_ids:
+                db.execute(
+                    schema.RagChunkEmbedding.__table__.delete().where(
+                        schema.RagChunkEmbedding.rag_chunk_id == chunk_id
+                    )
+                )
+                db.execute(
+                    schema.RagChunk.__table__.delete().where(
+                        schema.RagChunk.id == chunk_id
+                    )
+                )
+                db.execute(
+                    schema.RagSectionDocument.__table__.delete().where(
+                        schema.RagSectionDocument.id == document_id
+                    )
+                )
+            if stale_version_id is not None:
+                db.execute(
+                    schema.BillVersion.__table__.delete().where(
+                        schema.BillVersion.id == stale_version_id
+                    )
+                )
+            db.commit()
+
+
+# What the model actually wrote when handed the complete text of HF 719, on the first
+# live run of this fix (2026-07-31). It listed 37 of the bill's 98 cities and then
+# closed the door on the other 61.
+_LIVE_COMPLETENESS_CLAIM = (
+    "The cities named in HF 719 receiving infrastructure grants include: "
+    "Silver Lake, South Haven, Spicer. "
+    "This summarizes all the named cities and counties in HF 719. "
+    "The bill does not indicate any additional cities or counties beyond those listed."
+)
+
+
+def test_an_answer_may_not_claim_its_own_list_is_the_whole_set():
+    """A different claim from an absence claim, and the one complete coverage does
+    not license.
+
+    "The bill names no counties" is about the bill: read the whole bill and it is
+    checkable and true. "There are none beyond the ones I listed" is about the
+    model's own enumeration, which nothing verifies — so it goes whatever the
+    coverage, and the layout-owned note carries the honest version.
+    """
+    out = strip_list_completeness_claims(_LIVE_COMPLETENESS_CLAIM)
+    assert "beyond those listed" not in out
+    assert "summarizes all the named cities" not in out
+    # The list itself, and the sentence introducing it, survive untouched.
+    assert "Silver Lake, South Haven, Spicer." in out
+    assert out.startswith("The cities named in HF 719 receiving infrastructure grants")
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "The bill does not indicate any additional cities beyond those listed.",
+        "There are no other counties besides those named above.",
+        "No further agencies are listed beyond the ones shown.",
+        "This summarizes all the appropriations in the bill.",
+        "That represents all of the named recipients.",
+        "These are all the cities receiving grants.",
+        "The above are the complete list of grant recipients.",
+        # Both of these got through an earlier draft of the guard on a live run and
+        # are here by name. The second is the worse one: it contradicted the coverage
+        # note printed directly beneath it, so the page told the reader two opposite
+        # things about the same list.
+        "This is every city named in the bill.",
+        (
+            "This list includes all named instances of cities and counties receiving "
+            "infrastructure grants as per the provided text."
+        ),
+        "The list contains all the counties.",
+    ],
+)
+def test_every_shape_of_completeness_claim_is_removed(claim):
+    """Each of these tells a reader to stop looking. None of them is knowable."""
+    body = f"Grants go to Silver Lake and Spicer. {claim}"
+    out = strip_list_completeness_claims(body)
+    assert out == "Grants go to Silver Lake and Spicer."
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # An honest hedge is the behaviour we want — removing it would make the
+        # answer sound MORE certain than the model was, the exact inversion.
+        "These are the main agencies identified in the provided text.",
+        "Other cities may also receive grants.",
+        "The list above is shortened; roughly 60 more cities are named.",
+        # A pointer to where the full set lives is useful, not a claim about our list.
+        "The complete list of appropriations appears in Article 1.",
+        # Ordinary substantive sentences that happen to contain "all" or "complete".
+        "All appropriations are onetime appropriations.",
+        "The project must be complete before the grant is paid.",
+        "Grants go to all 19 cities named in Article 1.",
+        # A claim about what the BILL does, not about what the answer listed. The
+        # guard requires a pointer back at the answer's own list, and these have none.
+        "This bill covers all school districts in the metro area.",
+        "The bill lists every county board that must report.",
+        "The above grants are onetime.",
+    ],
+)
+def test_the_completeness_guard_leaves_honest_and_substantive_sentences_alone(sentence):
+    body = f"Grants go to Silver Lake and Spicer. {sentence}"
+    assert strip_list_completeness_claims(body) == body
+
+
+def test_the_completeness_guard_never_empties_an_answer():
+    """An answer that is nothing but a completeness claim keeps its original text.
+
+    Serving an empty answer body would break cite-or-refuse in the worst direction:
+    citations rendered against no claim at all. The coverage note is what caveats
+    this case.
+    """
+    only_a_claim = "These are all the cities named in the bill."
+    assert strip_list_completeness_claims(only_a_claim) == only_a_claim
+
+
+def test_a_served_answer_carries_no_completeness_claim(client, monkeypatch):
+    """The guard, proved to be wired in rather than merely to exist.
+
+    Every other test of this guard calls it directly, so all of them still passed
+    when the call site was removed. This one goes through the API, which is the only
+    place that proves a reader is protected.
+
+    It runs on the COMPLETE-coverage bill on purpose: that is the case where the
+    reader is most likely to believe an exhaustive-sounding list, and the case where
+    the model's claim would have sat directly under the page's own note saying the
+    opposite — two contradictory statements about the same list on one screen.
+    """
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch, answer_text=_LIVE_COMPLETENESS_CLAIM)
+    answer = client.post(
+        "/api/v1/ask",
+        json={"content": "Which cities and counties get grants in HF 4138?"},
+    ).json()["data"]["answer"]
+
+    assert answer is not None
+    coverage = answer["coverage"]
+    assert coverage["used"] == coverage["total"]
+    assert coverage["enumerating"] is True
+    prose = answer["answer"]
+    assert "beyond those listed" not in prose
+    assert "summarizes all the named cities" not in prose
+    # The list itself survives, and so does the sentence introducing it.
+    assert "Silver Lake, South Haven, Spicer." in prose
+    assert prose.startswith(
+        "The cities named in HF 719 receiving infrastructure grants"
+    )
+    _assert_cite_or_refuse(answer, "bill_text")
+
+
+def test_the_two_guards_do_different_jobs_and_are_gated_differently():
+    """Stated as a test because collapsing them is the tempting simplification, and
+    it would cost one of the two behaviours.
+
+    An absence claim survives a complete read (it is true, and useful). A
+    completeness claim never survives. Neither guard can substitute for the other.
+    """
+    absence = "The bill does not specify any counties."
+    completeness = "These are all the counties named."
+    # The absence guard sees nothing to do in a completeness claim...
+    assert narrow_bill_absence_claims(completeness) == completeness
+    # ...and the completeness guard leaves an absence claim standing.
+    assert strip_list_completeness_claims(absence) == absence

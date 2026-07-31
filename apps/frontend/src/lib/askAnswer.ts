@@ -226,54 +226,44 @@ export function passageTarget(
  * guarantee cannot rest on that, so the caveat is fixed UI copy the layout owns
  * and the model cannot influence (`.claude/rules/grounded-answers.md` rule 3).
  *
- * **Prefers the sentence the answer path serves** (`coverage.note`, #868). The
- * server knows two things this side cannot: whether the question was list-shaped at
- * all — a caveat about a list on a non-list answer teaches readers to skip the one
- * that matters, so `note` is null there — and whether reading the WHOLE bill still
- * left the list shortened, which needs different wording from reading only part of
- * it. It is still layout-owned copy in the sense that matters: a fixed constant in
- * our code, not something the model writes about itself.
+ * Returns null when nothing was served — say nothing rather than guess, so the page
+ * is safe whichever order the halves of this land in.
  *
- * The `used`/`total` branch is the fallback for a payload that carries the numbers
- * but no sentence. Transitional: #886 shipped the numbers before #868 shipped the
- * note, and this keeps the warning working in either merge order rather than having
- * it silently vanish for however long the gap is. Delete the branch once no served
- * payload lacks `note`.
+ * **Two sentences, because reading the whole bill is not reporting the whole bill**
+ * ([#868]). This began as one: null whenever `used === total`, on the sound
+ * reasoning that a caveat on every answer teaches people to ignore it. What broke
+ * that is the answer path now reading the WHOLE bill for a list question (§4.4a), so
+ * HF 719 went from 4 of 102 passages to 102 of 102 — and the answer still listed
+ * 26-35 of the bill's 98 cities. Keying the caveat on `used < total` alone would have
+ * removed it from precisely the answer that most needs one, as a side effect of
+ * reading MORE of the bill. Hence `enumerating`: the server says whether the reader
+ * asked for every instance of something, which is the case where a shortened list
+ * misleads. A specific question on a fully-read bill still gets nothing, which is
+ * where the original reasoning still holds.
  *
- * That branch reads ONLY the old `used`/`total` pair, deliberately — never #868's
- * `passagesSearched`/`passagesTotal`. A payload that carries #868's counts also
- * carries its `note`, so a null `note` there is a considered "no caveat applies to
- * this question", not a gap to fill in. Deriving a sentence from those numbers would
- * override that judgement and put a list caveat on an answer that has no list.
- *
- * Returns null in both safe directions: nothing served (say nothing rather than
- * guess) and nothing to warn about.
+ * An earlier draft of this function also read a server-composed `coverage.note` and
+ * rendered it verbatim, written against a shape #868 ended up not shipping — that
+ * session adopted `used`/`total` instead, since serving a FACT and wording it here
+ * keeps the copy layout-owned (§9.5 decision 11). There is no `note` on the payload,
+ * so that branch is gone rather than left as a path nothing can reach.
  *
  * Any numbers in the sentence are a fact about OUR retrieval, never a count of the
  * bill's contents — decision 5 forbids a count that reads as "this list is
- * complete", and these sentences claim the opposite.
+ * complete", and both sentences claim the opposite.
  */
 export function partialCoverageNote(
-  coverage:
-    | {
-        note?: string | null;
-        complete?: boolean;
-        // #868's counts. Typed because the payload carries them, deliberately NOT
-        // read below — see the note about a null `note` above.
-        passagesSearched?: number;
-        passagesTotal?: number;
-        used?: number;
-        total?: number;
-      }
-    | undefined,
+  coverage: { used: number; total: number; enumerating?: boolean } | undefined,
 ): string | null {
   if (!coverage) return null;
-  const served = (coverage.note ?? '').trim();
-  if (served) return served;
-  const { used, total } = coverage;
-  if (typeof used !== 'number' || typeof total !== 'number') return null;
-  if (!(used > 0) || !(total > used)) return null;
-  return `This answer draws on ${used} of the ${total} passages in this bill, so there may be more it doesn’t cover.`;
+  const { used, total, enumerating } = coverage;
+  if (!(used > 0) || !(total > 0)) return null;
+  if (total > used) {
+    return `This answer draws on ${used} of the ${total} passages in this bill, so there may be more it doesn’t cover.`;
+  }
+  if (enumerating) {
+    return `This answer draws on all ${total} passages in this bill, but a list like this can still leave items out — check the bill’s own text for the full set.`;
+  }
+  return null;
 }
 
 // A chip label is scoped to its bill ("HF 719: Which cities …") before it is

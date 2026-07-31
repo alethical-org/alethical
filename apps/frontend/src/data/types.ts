@@ -429,24 +429,16 @@ export interface AskAnswer {
   billText?: string;
   citations?: AskCitation[];
   answeringBill?: AskAnswerBill;
-  /** How much of the bill the answer was written from (grounded-ask-spec §9.5
-   *  decision 11). `note` is the served caveat sentence, which the page renders
-   *  ABOVE the answer; it is null on a question that is not list-shaped, where the
-   *  caveat would not apply. The passage counts describe OUR retrieval, never the
-   *  bill's contents. Absent entirely when nothing could be established, in which
-   *  case the page says nothing rather than guessing.
+  /** How much of the bill the answer was written from: the passages retrieval used,
+   *  how many the bill's current version has, and whether the reader asked for EVERY
+   *  instance of something (grounded-ask-spec §9.5 decision 11). Absent when the total
+   *  could not be established, in which case the page says nothing rather than
+   *  guessing. The counts describe OUR retrieval, never the bill's contents.
    *
-   *  `used`/`total` are the pre-#868 keys, kept while both shapes can be served;
-   *  `passagesSearched`/`passagesTotal` are #868's. Drop the old pair once no served
-   *  payload uses it. */
-  coverage?: {
-    note?: string | null;
-    complete?: boolean;
-    passagesSearched?: number;
-    passagesTotal?: number;
-    used?: number;
-    total?: number;
-  };
+   *  `enumerating` is what lets a FULLY-read bill still carry a caveat: reading every
+   *  passage does not mean the answer listed every item, and without it a list answer
+   *  would lose its warning precisely because coverage improved (#868). */
+  coverage?: { used: number; total: number; enumerating?: boolean };
 }
 
 export interface AskCitation {

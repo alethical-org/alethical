@@ -520,6 +520,15 @@ class AskPassageCoverage(BaseModel):
 
     used: int
     total: int
+    # Whether the question asked for EVERY instance of something ("which cities…",
+    # "list all…"). Added by #868, because the two numbers above stopped being
+    # sufficient once a list question began reading the whole bill: `used == total`
+    # says the read was complete, and a complete read is NOT a complete list. Given
+    # every one of HF 719's 102 passages, the writer still listed 26-35 of the 98
+    # cities the bill names. So a page keying its caveat on `used < total` alone would
+    # drop it on exactly the answer that most needs one. Also served as a fact, not a
+    # verdict: the client decides the wording.
+    enumerating: bool = False
 
 
 class AskBillTextAnswer(BaseModel):

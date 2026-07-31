@@ -172,14 +172,7 @@ interface ApiAskBillTextAnswerPayload {
   bill: ApiBillListItemPayload;
   session: { slug: string; name: string };
   data_as_of?: string | null;
-  coverage?: {
-    note?: string | null;
-    complete?: boolean;
-    passages_searched?: number;
-    passages_total?: number;
-    used?: number;
-    total?: number;
-  } | null;
+  coverage?: { used: number; total: number; enumerating?: boolean } | null;
 }
 
 interface ApiAskAnswerPayload {
@@ -1519,17 +1512,16 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
       sectionTopic: typeof citation.section_topic === 'string' ? citation.section_topic.trim() : '',
     })),
     answeringBill: billTextAnswer ? mapBill(billTextAnswer.bill) : undefined,
-    // Both key spellings pass through while #886's and #868's shapes can each be
-    // served; partialCoverageNote prefers the served sentence and falls back to the
-    // numbers, so the warning survives either merge order.
+    // The served shape settled on used/total plus `enumerating` (#868): the answer
+    // path serves a FACT and this side words the sentence, so the copy stays
+    // layout-owned (§9.5 decision 11). An earlier draft also carried a server-composed
+    // `note` and #868's own snake_case counts; neither is served, so they are gone
+    // rather than left as keys nothing sets.
     coverage: billTextAnswer?.coverage
       ? {
-          note: billTextAnswer.coverage.note ?? null,
-          complete: billTextAnswer.coverage.complete,
-          passagesSearched: billTextAnswer.coverage.passages_searched,
-          passagesTotal: billTextAnswer.coverage.passages_total,
           used: billTextAnswer.coverage.used,
           total: billTextAnswer.coverage.total,
+          enumerating: billTextAnswer.coverage.enumerating,
         }
       : undefined,
     topic:
