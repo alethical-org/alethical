@@ -21,7 +21,7 @@ import {
 } from '../../hooks/useAppQueries';
 import { RoadmapTrackButton } from '../../components/RoadmapTrackButton';
 import { SharePopover } from '../../components/billDetail/SharePopover';
-import { bienniumEyebrow, formatNiceDate, scopedChipQuery } from '../../lib/billDetail';
+import { bienniumEyebrow, pulledLabel, scopedChipQuery } from '../../lib/billDetail';
 import {
   alphabeticalIndex,
   citedSections,
@@ -426,11 +426,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const sessionLine = backBill
     ? bienniumEyebrow(backBill.id, answer?.sessionName)
     : bienniumEyebrow('', answer?.sessionName);
-  // The answering bill's OWN record date — the same value that bill's page shows.
-  const updatedLabel =
-    bill?.updatedAt && bill.updatedAt !== 'Unknown'
-      ? `Updated ${formatNiceDate(bill.updatedAt)}`
-      : '';
+  // The answering bill's OWN date, through the SAME helper the bill's page uses, so
+  // the two pages cannot print different dates for one bill — which is the binding
+  // half of §9.5 decision 8a. It reads "when we last pulled this bill", not when the
+  // Legislature last acted on it (#861 / #875); building the label here from
+  // `updatedAt` would have quietly reverted this page to the older meaning.
+  const updatedLabel = bill ? pulledLabel(bill) : '';
 
   // An eyebrow only where it is load-bearing: it separates an honest empty state
   // or a deflection from a real answer. An ANSWERED page carries none — the
