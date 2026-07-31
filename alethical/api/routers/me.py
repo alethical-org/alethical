@@ -342,9 +342,19 @@ def strip_list_completeness_claims(prose: str) -> str:
     information, and it comes from the half of the system that actually knows.
     """
     cleaned = _LIST_COMPLETENESS_CLAIM_RE.sub("", prose)
-    # Collapse the blank run a removed trailing sentence can leave behind, and never
-    # return an empty body: if the whole answer was one completeness claim, the
-    # original is still the honest thing to show, caveated by the coverage note.
+    # Removed nothing, so change nothing. The tidying below exists to close the gap a
+    # deleted sentence leaves, and running it regardless made this reformat answers it
+    # had no business touching: it strips the trailing spaces that end a line, which is
+    # how Markdown writes a hard line break. It hit 31 of 140 answers in #878's eval
+    # run and cost that session a false measurement before they spotted it (they read
+    # a guard rescue where there was none). Harmless on today's answer page, which
+    # renders plain text — but a cleaner with nothing to do must do nothing, or the
+    # next reader cannot tell "we left this alone" from "we passed it through".
+    if cleaned == prose:
+        return prose
+    # Close the gap a removed sentence leaves, and never return an empty body: if the
+    # whole answer was one completeness claim, the original is still the honest thing
+    # to show, caveated by the coverage note.
     cleaned = re.sub(r"[ \t]+\n", "\n", cleaned).strip()
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned or prose.strip()

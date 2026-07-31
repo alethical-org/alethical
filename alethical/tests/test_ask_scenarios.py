@@ -1270,3 +1270,37 @@ def test_the_prompt_production_sends_is_more_than_the_constant_the_eval_imports(
     complete = rag_chat_system_prompt(BillTextCoverage(searched=102, total=102))
     assert complete != sent
     assert complete.startswith(RAG_CHAT_SYSTEM_PROMPT)
+
+
+def test_the_completeness_guard_returns_untouched_text_byte_for_byte():
+    """A cleaner with nothing to remove must return the input unchanged, not a
+    re-serialized version of it.
+
+    Found by #878's eval run, not by the must-not-change cases above: those compare
+    single sentences, and the reformatting only shows on text carrying whitespace the
+    tidying step normalizes. It stripped the two trailing spaces that end a Markdown
+    hard line break, on 31 of 140 answers it removed nothing from, and cost that
+    session a false reading of how often the guard fired.
+
+    Harmless on today's answer page, which renders plain text. Pinned anyway, because
+    "harmless" is a fact about the current renderer and this is a fact about the
+    function: an untouched answer must be indistinguishable from one that never went
+    through here.
+    """
+    # Two trailing spaces before the newline: a Markdown hard line break.
+    body = "Grants go to Silver Lake.  \nOther cities may also receive grants.\n"
+    assert strip_list_completeness_claims(body) == body
+
+    # Leading and trailing blank lines survive too — .strip() used to eat them.
+    padded = "\n\nGrants go to Spicer and Cook.\n\n"
+    assert strip_list_completeness_claims(padded) == padded
+
+    # And a run of blank lines inside an answer it does not touch.
+    spaced = "Grants go to Cohasset.\n\n\n\nGrants also go to Crystal."
+    assert strip_list_completeness_claims(spaced) == spaced
+
+    # When it DOES remove something, tidying still runs — the gap gets closed.
+    with_claim = "Grants go to Silver Lake.  \n\nThese are all the cities named.\n"
+    out = strip_list_completeness_claims(with_claim)
+    assert "These are all" not in out
+    assert out == "Grants go to Silver Lake."
