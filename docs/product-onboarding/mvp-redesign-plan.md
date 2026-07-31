@@ -110,8 +110,15 @@ roadmap noted for direction.
 - **Search vs Track modes:** Search = "the library" (query/filter-forward, public);
   Track = "your space" (personalized activity dashboard, signed-in chrome).
 - **Find My Legislator hero:** Option C — dedicated "Find your legislators" band directly
-  below the hero with a Minnesota map motif + address/ZIP input; additive to the
-  Search → Legislators menu entry. (Mockup in progress.)
+  below the hero with a Minnesota map motif + street-address input; additive to the
+  Search → Legislators menu entry. Shipped, and wired to the Find My Legislator screen
+  in [#873](https://github.com/alethical-org/alethical/issues/873).
+  **A street address, not a ZIP or a city:** Minnesota legislative districts are drawn
+  below city level, and the lookup geocodes through the US Census one-line matcher, which
+  only matches a house number + street (`alethical/api/services/representative_lookup.py`,
+  `CensusGeocoder`). A city name or a bare ZIP returns no match, so neither the field's
+  placeholder nor any suggestion chip may offer one (`.claude/rules/grounded-answers.md`
+  rule 2). The band's original city-name chips were removed for exactly this reason.
 - **Search Bills / Search Legislators — design-review decisions (2026-07-15):** the split
   (`SearchScreen` → `BillsScreen` + `LegislatorsScreen`, per the build-sequence + route
   scheme below) is now driven by a matched pair of high-fidelity Claude-design drafts
@@ -243,7 +250,8 @@ Frontend track (after Phase 0; parallel with backend track)
 - [ ] Top-nav shell driven by the registry (desktop + mobile web)
 - [ ] Migrate `webRoutes.ts` onto the registry + redirects
 - [ ] Option 1 marketing hero: green primitives, placeholder copy, example-question chips, interim Ask → sign-in
-- [ ] Find My Legislator Option C band + MN map (mockup in progress)
+- [x] Find My Legislator Option C band + MN map — shipped; Find wired to the lookup and
+      the screen's URL made shareable (#873, #764)
 - [ ] Search split → `BillsScreen` + `LegislatorsScreen` + shared filter hook — driven by
   the 2026-07-15 design-review decisions (Locked decisions above); build blockers/follow-ups
   #291 (authored-count bug, blocks the legislators activity line), #292 (progress-sort, fast

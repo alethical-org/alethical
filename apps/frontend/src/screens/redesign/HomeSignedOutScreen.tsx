@@ -128,23 +128,11 @@ const ASK_QUESTIONS = [
   'Which legislators support affordable housing?',
 ];
 
-const CITIES = [
-  'MINNEAPOLIS',
-  'SAINT PAUL',
-  'ROCHESTER',
-  'BLOOMINGTON',
-  'DULUTH',
-  'BROOKLYN PARK',
-  'PLYMOUTH',
-  'WOODBURY',
-  'MAPLE GROVE',
-  'BLAINE',
-  'ST. CLOUD',
-  'EAGAN',
-  'EDINA',
-  'MANKATO',
-  'MOORHEAD',
-];
+// A row of city-name chips used to sit under the Find field. They were removed
+// with #873: Minnesota legislative districts are drawn below city level, and the
+// lookup's geocoder only matches a house number + street, so every city chip led
+// to "address could not be geocoded" — a suggestion that can only refuse is what
+// grounded-answers.md rule 2 forbids.
 
 // --- Small shared bits ---
 
@@ -199,16 +187,8 @@ function TextLink({
 // update the two together if either changes.
 const CHIP_PULSE_MS = 300;
 
-/** Hero example chip / finder city chip — purple hover glow, fills its input. */
-function FillChip({
-  label,
-  city,
-  onPress,
-}: {
-  label: string;
-  city?: boolean;
-  onPress: () => void;
-}) {
+/** Hero example chip — purple hover glow, fills its input. */
+function FillChip({ label, onPress }: { label: string; onPress: () => void }) {
   const [hovered, hoverProps] = useHover();
   const { isMobile } = useResponsive();
   // Touch has no hover, so a press shows the same purple glow the chip uses on hover.
@@ -216,7 +196,7 @@ function FillChip({
   // the capability cards' green press-glow; on release it fades no sooner than
   // CHIP_PULSE_MS, so a quick tap still gets a full pulse. Unlike the cards, a chip only
   // fills its input (it never unmounts), so onPress fires immediately and the glow fades
-  // independently on release. Covers both hero example chips and city chips.
+  // independently on release.
   const [pressed, setPressed] = useState(false);
   const pressStart = useRef<number | null>(null);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -243,7 +223,7 @@ function FillChip({
       onPress={onPress}
       {...hoverProps}
       style={[
-        city ? styles.cityChip : styles.exampleChip,
+        styles.exampleChip,
         transition('border-color, box-shadow'),
         glow && styles.chipHover,
         glow && (t.shadows.glowPurple as object),
@@ -251,13 +231,7 @@ function FillChip({
     >
       {/* Hover/press turns only the border + glow purple (chipHover + glowPurple);
           the label keeps its default color. */}
-      <Text
-        style={[
-          city ? styles.cityChipText : styles.exampleChipText,
-          !city && isMobile && styles.exampleChipTextMobile,
-          city && isMobile && styles.cityChipTextMobile,
-        ]}
-      >
+      <Text style={[styles.exampleChipText, isMobile && styles.exampleChipTextMobile]}>
         {label}
       </Text>
     </Pressable>
@@ -705,6 +679,16 @@ function HomeSignedOutDesktop() {
     }
     navigation.navigate('Ask', { q: question });
   };
+  // Find hands the typed address to Find My Legislator, which looks it up on
+  // arrival (#873). Empty field focuses instead of navigating, same as Ask above.
+  const openFinder = () => {
+    const address = finderValue.trim();
+    if (!address) {
+      finderInputRef.current?.focus();
+      return;
+    }
+    navigation.navigate('FindMyLegislator', { address });
+  };
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
@@ -730,18 +714,6 @@ function HomeSignedOutDesktop() {
   const fillAsk = (question: string) => {
     setAskValue(question);
     askInputRef.current?.focus();
-  };
-
-  const titleCase = (s: string) =>
-    s
-      .toLowerCase()
-      .split(' ')
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ');
-
-  const fillFinder = (city: string) => {
-    setFinderValue(titleCase(city));
-    finderInputRef.current?.focus();
   };
 
   const heroGradientWeb: object = isWeb
@@ -1006,24 +978,22 @@ function HomeSignedOutDesktop() {
                         onChangeText={setFinderValue}
                         onFocus={() => setFinderFocused(true)}
                         onBlur={() => setFinderFocused(false)}
-                        // Find My Legislator is on the roadmap — the field stays
-                        // visible but doesn't route anywhere yet.
-                        placeholder="Enter an address, city, or area"
+                        onSubmitEditing={openFinder}
+                        placeholder="Enter your street address, city, and ZIP"
                         placeholderTextColor={t.colors.text.faint}
                         style={styles.finderInput}
                       />
-                      {!isMobile && <PrimaryButton label="Find" />}
+                      {!isMobile && <PrimaryButton label="Find" onPress={openFinder} />}
                     </FieldShell>
                     {isMobile && (
-                      <Pressable accessibilityRole="button" style={styles.askButtonMobile}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={openFinder}
+                        style={styles.askButtonMobile}
+                      >
                         <Text style={styles.askButtonText}>Find</Text>
                       </Pressable>
                     )}
-                  </View>
-                  <View style={styles.cityRow}>
-                    {CITIES.map((city) => (
-                      <FillChip key={city} label={city} city onPress={() => fillFinder(city)} />
-                    ))}
                   </View>
                 </View>
                 {isDesktop ? (
@@ -1367,20 +1337,17 @@ function HomeSignedOutMobile() {
   // page (In the News, Bill Activity) routes there — same target as the desktop
   // variant's cards above and Search Bills' result cards.
   const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
-  // Find My Legislator is still an old-design page — the field stays visible but
-  // doesn't route anywhere until its new design ships.
   const openSearchBills = () => navigation.navigate('Bills');
-  const openFinder = () => {};
-
-  const titleCase = (s: string) =>
-    s
-      .toLowerCase()
-      .split(' ')
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ');
-  const fillFinder = (city: string) => {
-    setFinderValue(titleCase(city));
-    finderInputRef.current?.focus();
+  // Find hands the typed address to Find My Legislator, which looks it up on
+  // arrival (#873). Empty field focuses instead of navigating, same as the Ask
+  // hero above — a blank lookup has nothing to answer.
+  const openFinder = () => {
+    const address = finderValue.trim();
+    if (!address) {
+      finderInputRef.current?.focus();
+      return;
+    }
+    navigation.navigate('FindMyLegislator', { address });
   };
 
   const newsBills = [
@@ -1631,7 +1598,7 @@ function HomeSignedOutMobile() {
                     onFocus={() => setFinderFocused(true)}
                     onBlur={() => setFinderFocused(false)}
                     onSubmitEditing={openFinder}
-                    placeholder="Enter an address, city, or area"
+                    placeholder="Enter your street address, city, and ZIP"
                     placeholderTextColor={t.colors.text.faint}
                     style={m.finderInput}
                   />
@@ -1639,11 +1606,6 @@ function HomeSignedOutMobile() {
                 <Pressable accessibilityRole="button" onPress={openFinder} style={m.findButton}>
                   <Text style={m.findButtonText}>Find</Text>
                 </Pressable>
-                <View style={m.cityRow}>
-                  {CITIES.slice(0, 6).map((city) => (
-                    <FillChip key={city} label={city} city onPress={() => fillFinder(city)} />
-                  ))}
-                </View>
               </Container>
             </View>
 
@@ -2012,7 +1974,6 @@ const m = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.onGreen,
   },
-  cityRow: { marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   accountCard: {
     marginTop: 8,
     backgroundColor: t.colors.tint.t50,
@@ -2423,34 +2384,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
   },
-  cityRow: {
-    marginTop: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
-    maxWidth: 760,
-  },
-  cityChip: {
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink16,
-    borderRadius: 12,
-    paddingVertical: 9,
-    paddingHorizontal: 15,
-    // 44px min touch target (WCAG 2.5.5); the label centers within it.
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  cityChipText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1,
-    color: t.colors.text.primary,
-  },
-  // Mobile home scales city-chip labels up ~1.2x for legibility (2nd-pass delta #6).
-  cityChipTextMobile: { fontSize: 15 },
   finderMap: { flex: 0.85, alignItems: 'center', justifyContent: 'center' },
 
   // bills section

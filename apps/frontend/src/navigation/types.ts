@@ -31,7 +31,11 @@ export type RootStackParamList = {
     track?: boolean;
   };
   LegislatorProfile: { legislatorId: string };
-  FindMyLegislator: undefined;
+  // The address to look up rides in the route (and the URL query) so the home
+  // page's Find field can hand off what the visitor typed, and so the results
+  // are reload-safe / shareable (grounded-answers.md rule 5). Absent = the
+  // screen opens with its own starting address and waits for input.
+  FindMyLegislator: { address?: string } | undefined;
   Privacy: undefined;
   Terms: undefined;
   VoteDetail: { billId: string; voteEventId: string };
