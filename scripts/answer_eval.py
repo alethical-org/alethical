@@ -35,6 +35,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -69,6 +70,7 @@ from alethical.eval.answer_eval import (
     mentions_missing_coverage,
     opens_with_bill_code,
     statute_citations,
+    unrendered_markdown,
 )
 from alethical.eval.ground_truth import (
     HF719_MIN_GRANT_CITIES,
@@ -137,6 +139,20 @@ PRICES = {
     "anthropic:claude-haiku-4-5": (1.00, 5.00),
     "anthropic:claude-sonnet-5": (3.00, 15.00),
 }
+
+
+def price_of(spec: str) -> tuple[float, float] | None:
+    """A candidate's per-million-token prices, looked up by the model it runs.
+
+    Keyed on the base model rather than the whole spec, because neither part of a
+    candidate's identity beyond the model changes what a token costs: ``+deep``
+    buys more reasoning tokens at the same rate, and ``@16`` buys more input
+    tokens at the same rate. Looking up the whole spec is why three of the nine
+    rows in §10 of the bar doc printed no cost at all — precisely the rows whose
+    whole point was that they consume more tokens.
+    """
+    provider, model, _, _ = parse_spec(spec)
+    return PRICES.get(f"{provider}:{model}")
 
 
 # --- snapshot: freeze production's retrieval so every model sees one context ---
@@ -483,6 +499,24 @@ def call_model(spec: str, system: str, user: str) -> tuple[str, float, float, in
     return _anthropic_answer(model, system, user, deep=deep)
 
 
+def guard_changed_content(raw: str, served: str) -> bool:
+    """Did production's guards change the answer's WORDS, or only its whitespace?
+
+    The distinction is not pedantic; measuring it wrong invented a finding. A first
+    pass counted any difference and reported that ``gpt-5.1`` needed the backstop on
+    11 of 20 answers, which would have been the loudest number in the comparison.
+    31 of the 34 differences across all seven arms turned out to be whitespace:
+    ``strip_list_completeness_claims`` splits into sentences and rejoins them, and
+    the rejoin drops a Markdown hard line break (two spaces before a newline). It
+    removed nothing and flagged everything.
+
+    So the comparison ignores whitespace entirely. What is left is the thing worth
+    counting: a sentence the guard actually deleted, or an absence claim it
+    actually re-scoped.
+    """
+    return re.sub(r"\s+", "", raw) != re.sub(r"\s+", "", served)
+
+
 def served_answer(raw: str, coverage: BillTextCoverage) -> str:
     """What ``synthesize_grounded_answer`` actually returns to a reader.
 
@@ -525,7 +559,7 @@ def generate(
         answers[q.key] = {
             "answer": answer,
             "raw_answer": raw,
-            "guard_rewrote": answer != raw,
+            "guard_rewrote": guard_changed_content(raw, answer),
             "seconds_to_first_token": ttft,
             "seconds_total": total,
             "input_tokens": tin,
@@ -533,7 +567,7 @@ def generate(
         }
         print(
             f"    {total:5.2f}s {tin:6d}in {tout:5d}out "
-            f"{'GUARDED' if answer != raw else '       '} "
+            f"{'GUARDED' if guard_changed_content(raw, answer) else '       '} "
             f"{q.bill_key:16s} {q.question[:44]}"
         )
     cache.write_text(
@@ -552,6 +586,18 @@ def generate(
 # disagreement §10 of the bar doc could not explain — the two judges awarded near
 # identical graded marks and then split on the gates, exactly the signature of a
 # shared rubric plus an unshared one (#878).
+#
+# Four fields were then rewritten from descriptions into procedures, because
+# describing what a dimension means turned out not to be enough to get it measured.
+# Against 23 hand scores the gpt-5.1 judge awarded `plain` = 2 to 136 of 140 answers
+# — a constant, not a measurement, and no answer key is needed to see that a single
+# value handed to a one-sentence reply and a ten-section wall of statute citations
+# is not scoring either. It also found only 7 refusals where 35 were expected,
+# because it read "here is what the text DOES say, but not the figure you asked
+# for" as an answer. So `plain` is now scored by subtraction against named triggers,
+# `declines` by a stated test, and the two absence fields by one shared question
+# about what a sentence is ABOUT. Prose invites a judgment; a procedure is harder to
+# skip.
 JUDGE_SYSTEM = """You are grading one answer written by an AI assistant for a \
 Minnesota legislative-transparency product used by ordinary residents.
 
@@ -565,29 +611,33 @@ Return ONLY a JSON object with these keys:
 passages shown. A single unsupported number, name, date, or effect makes this false. \
 Judge only what the answer asserts — restating a passage in plainer words is \
 supported, and so is a reasonable plain-language conclusion the passages entail.
-  "declines":  true only if the answer, TAKEN AS A WHOLE, refuses to answer — it \
-tells the reader the text does not cover the question and offers no substantive \
-answer. An answer that DOES answer and then adds a caveat ("...the bill does not \
-specify how often the training must be repeated") is NOT declining: it answered. \
-This distinction is the whole point of the field, so read the whole answer before \
-setting it.
-  "claims_completeness": ALWAYS false when the line above says the writer saw the \
-whole bill — a complete list IS complete, and there is nothing to overclaim. \
-Otherwise true only if the answer presents a list, set, or count as though it were \
-everything the BILL contains: "the bill names 19 cities: ...", "there are four \
-exceptions", a bare enumeration with no hint that more may exist. It is FALSE when \
-the answer attributes the list to what it read rather than to the bill — "the \
-sections provided name, among others, ...", "the passages searched list ... and \
-there may be more". Judge the claim, not the length: a short list that admits it is \
-partial is fine, and a long list that does not is not.
-  "asserts_absence": ALWAYS false when the line above says the writer saw the whole \
-bill — an absence IS an absence once every section has been read. Otherwise true \
-only if the answer states or implies that the BILL contains none of something: "the \
-bill does not name any counties", "no penalties are specified", "there is no \
-funding for X". It is FALSE when the answer scopes the same observation to the text \
-it was given — "the passages provided do not mention counties". This one field is \
-the failure that motivated the gate: absence from a sample reported as absence from \
-the bill.
+  "declines":  apply this test, in these words. Ask: DID THE READER GET THE FACT \
+THEY ASKED FOR? If the question asks how much something costs and the answer names \
+no figure, the reader did not get it — declines is TRUE, and it stays true however \
+much the answer explains about what the text DOES contain, however many nearby \
+sections it walks through, and however helpfully it points to where the answer \
+might be found instead. Explaining the gap IS declining well; it is not answering. \
+Set it FALSE only when the answer delivers the substance asked for, even if it then \
+adds a caveat ("...the bill does not specify how often the training must be \
+repeated"): that one answered and hedged.
+  "claims_completeness": both of these two fields turn on ONE question — WHAT IS \
+THE SENTENCE ABOUT: the bill, or the text you were shown? Read the actual subject \
+of the sentence and answer from that, not from how confident the answer sounds.
+  Set claims_completeness TRUE only if the answer presents a list, set, or count as \
+everything THE BILL contains: "the bill names 19 cities: ...", "there are four \
+exceptions", a bare enumeration with no hint that more may exist. Set it FALSE when \
+the sentence is about the text instead — "the sections provided name, among \
+others, ...", "the passages searched list ... and there may be more". A short list \
+that admits it is partial is fine; a long one that does not is not.
+  "asserts_absence": same test, applied to a negative. TRUE only if the answer says \
+THE BILL contains none of something: "the bill does not name any counties", "no \
+penalties are specified", "there is no funding for X". FALSE when the sentence is \
+about the text — "the passages provided do not mention counties", "the text I was \
+given does not state a figure". A correct refusal is almost always of the second \
+kind, so an answer that declines well should have this FALSE, not TRUE.
+  Both fields are ALWAYS FALSE when the coverage line above says the writer saw the \
+whole bill: with every section read, a complete list IS complete and an absence IS \
+an absence, so there is nothing left to overclaim.
   "covers":    0, 1, or 2 — does it carry the required facts from the answer key? \
 2 = all of them (a paraphrase counts), 1 = some, 0 = none. When the answer key says \
 the passages do NOT answer the question, grade instead on whether the answer tells \
@@ -604,9 +654,20 @@ A dated effective clause inside the passages does NOT make a proposal into law �
 the key says PROPOSAL, an answer that speaks as though the change is already in \
 force is wrong however the passage is worded. Score 2 if the answer says nothing \
 about stage either way and nothing is misstated.
-  "plain":     0, 1, or 2 — could a resident with no legal training follow it? \
-Deduct for statute citations, legalese, a bill-number preamble, and for a bare \
-list where a sentence was needed. Do not reward length.
+  "plain":     could a resident with no legal training follow it? SCORE BY \
+SUBTRACTION, not by impression. Start at 2 and take one point off for EACH of these \
+that is present, stopping at 0:
+    (a) any Minnesota Statutes citation in the prose — "section 302A.111", \
+"chapter 325M", "subdivision 3", "Minnesota Statutes 2024", "Laws 2025, chapter 39". \
+One is enough. ("Section 8" the housing programme and "section 179" the federal tax \
+provision are names, not citations, and do not count.)
+    (b) the answer opens by naming the bill — "HF 1606 creates...", "The bill \
+SF 624...". The reader already sees the bill number on the page.
+    (c) undefined legal vocabulary carried straight from the statute — \
+"dissenters' rights", "overissue", "failure of authorization", "notwithstanding", \
+or a block quote of statutory text.
+  Most answers should NOT score 2. If you find yourself giving 2 to an answer \
+carrying a statute number, re-read rule (a): it is a deduction, not a judgment call.
   "note":      the single biggest problem, in at most 20 words, or "" if none.
 
 Output the JSON object and nothing else. No preamble, no code fence.
@@ -1039,7 +1100,7 @@ def report(
     print(header)
     for spec, results in results_by_model.items():
         summary = aggregate(results)
-        price = PRICES.get(spec)
+        price = price_of(spec)
         overclaim = f"{summary['overclaimed_on_partial']}/{summary['partial_context_questions']}"
         dollars = (
             f"${cost_per_answer(summary, input_per_mtok=price[0], output_per_mtok=price[1]):.5f}"
@@ -1055,6 +1116,8 @@ def report(
             f"{dollars:>10s} "
             f"{'PASS' if meets_bar(summary, p50_seconds=P50_SECONDS, p95_seconds=P95_SECONDS) else 'fail':>5s}"
         )
+
+    _report_omnibus_worst_case(results_by_model)
 
     for judge_spec in judge_specs:
         print(f"\n--- as scored by {judge_spec} alone ---")
@@ -1098,7 +1161,8 @@ def report(
     print("\n--- mechanical checks (no judge involved) ---")
     print(
         f"{'model':30s} {'code preamble':>14s} {'statute cites':>14s} "
-        f"{'literal facts':>14s} {'notes a limit':>14s} {'guard edits':>12s}"
+        f"{'literal facts':>14s} {'notes a limit':>14s} {'guard edits':>12s} "
+        f"{'raw markdown':>13s}"
     )
     for spec, results in results_by_model.items():
         preamble = sum(1 for r in results if opens_with_bill_code(r.answer))
@@ -1109,14 +1173,17 @@ def report(
             hits, totals = hits + h, totals + t
         limits = sum(1 for r in results if mentions_missing_coverage(r.answer))
         guarded = sum(1 for r in results if r.guard_rewrote)
+        raw_md = sum(len(unrendered_markdown(r.answer)) for r in results)
         print(
             f"{spec:30s} {preamble:14d} {cites:14d} "
-            f"{f'{hits}/{totals}':>14s} {limits:14d} {guarded:12d}"
+            f"{f'{hits}/{totals}':>14s} {limits:14d} {guarded:12d} {raw_md:13d}"
         )
     print(
         "'guard edits' = answers production's own backstop had to rewrite before "
         "serving. The gate scores the SERVED text, so these do not fail a model — "
-        "they count the times the #868 prompt rule did not reach it."
+        "they count the times the #868 prompt rule did not reach it. "
+        "'raw markdown' counts headings, tables and block quotes, which the answer "
+        "page prints as literal characters — it has no markdown renderer."
     )
 
     print("\n--- refusal behaviour on questions the passages do not cover ---")
@@ -1126,6 +1193,51 @@ def report(
         print(f"{spec:30s} declined {declined}/{len(unanswerable)}")
 
     _report_enumeration_recall(results_by_model, contexts_by_spec)
+
+
+def _report_omnibus_worst_case(
+    results_by_model: dict[str, list[AnswerResult]],
+) -> None:
+    """The slowest and dearest single answer each arm produced, and what it cost.
+
+    The median is the wrong number to buy on. 94.6% of bills fit in a few hundred
+    words, so a mean over this fixture is a mean over cheap questions — and the
+    money and the waiting both land on the ~100 omnibus bills, where #868 now
+    sends up to 20,000 words instead of four passages. A model can sit
+    comfortably inside the latency budget at the median and take half a minute on
+    the bill somebody actually asks about.
+
+    Reported per arm rather than as a single figure because the gap between the
+    two is itself the finding: an arm whose worst case is three times its p50 is
+    a different product from one whose worst case is fifteen times it.
+    """
+    print(
+        "\n--- the omnibus worst case: the single slowest answer per arm "
+        "(the median is a median over short bills, and is not what a reader waits "
+        "for on the bill they asked about) ---"
+    )
+    print(
+        f"{'model':30s} {'worst s':>8s} {'vs p50':>7s} {'in tok':>8s} "
+        f"{'$ that answer':>14s} {'question':<40s}"
+    )
+    for spec, results in results_by_model.items():
+        timed = [r for r in results if r.seconds_total is not None]
+        if not timed:
+            continue
+        worst = max(timed, key=lambda r: r.seconds_total)
+        summary = aggregate(results)
+        p50 = summary["seconds_total"]["p50"] or 0
+        price = price_of(spec)
+        dollars = (
+            f"${(worst.input_tokens * price[0] + worst.output_tokens * price[1]) / 1e6:.5f}"
+            if price
+            else "n/a"
+        )
+        print(
+            f"{spec:30s} {worst.seconds_total:8.2f} "
+            f"{(worst.seconds_total / p50 if p50 else 0):6.1f}x {worst.input_tokens:8d} "
+            f"{dollars:>14s} {worst.query.bill_key} {worst.query.question[:30]}"
+        )
 
 
 def _report_enumeration_recall(

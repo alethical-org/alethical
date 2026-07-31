@@ -819,3 +819,68 @@ def test_a_budget_appears_in_the_cache_filename():
     cli = _cli()
     assert cli._slug("openai:gpt-4o-mini@16") != cli._slug("openai:gpt-4o-mini")
     assert "@" not in cli._slug("openai:gpt-4o-mini@16")
+
+
+def test_a_candidates_cost_is_looked_up_by_the_model_it_runs():
+    """`+deep` and `@16` change how many tokens, never what a token costs.
+
+    Keying the price table on the whole spec is why three of the nine rows in the
+    bar doc's §10 printed no cost — the three whose entire point was that they
+    consume more tokens than the plain arm.
+    """
+    cli = _cli()
+    plain = cli.price_of("openai:gpt-5.1")
+    assert plain is not None
+    assert cli.price_of("openai:gpt-5.1+deep") == plain
+    assert cli.price_of("openai:gpt-4o-mini@16") == cli.price_of("openai:gpt-4o-mini")
+    assert cli.price_of("openai:gpt-4o-mini+deep@8") == cli.price_of(
+        "openai:gpt-4o-mini"
+    )
+    # An unpriced model still reads as unpriced rather than as free.
+    assert cli.price_of("openai:gpt-9-imaginary") is None
+
+
+def test_a_guard_edit_counts_words_removed_not_whitespace_normalised():
+    """Measuring this wrong invented the loudest number in the comparison.
+
+    Counting any difference reported that `gpt-5.1` needed production's backstop on
+    11 of 20 answers. 31 of the 34 differences across seven arms were whitespace:
+    `strip_list_completeness_claims` splits into sentences and rejoins them, and the
+    rejoin drops a Markdown hard line break (two spaces before a newline). It
+    removed nothing and flagged everything.
+    """
+    cli = _cli()
+    assert not cli.guard_changed_content(
+        "Line one.  \nLine two.", "Line one.\nLine two."
+    )
+    assert not cli.guard_changed_content("a\n\nb", "a b")
+    # A dropped sentence is the thing worth counting, and still counts.
+    assert cli.guard_changed_content(
+        "Duluth and Ely get grants. That is the complete list.",
+        "Duluth and Ely get grants.",
+    )
+    # ...as does a re-scoped absence claim, which changes words without shortening.
+    assert cli.guard_changed_content(
+        "The bill does not name any counties.",
+        "The passages searched do not name any counties.",
+    )
+
+
+def test_unrendered_markdown_counts_only_what_the_page_cannot_show():
+    """The answer page strips **bold** and prints the rest verbatim — no renderer.
+
+    So a heading reaches the reader as "### Eligibility", which reads as a typo.
+    Inline emphasis and ordinary list lines are deliberately not counted: the
+    emphasis is removed before display, and "1." or "- " reads fine as plain text.
+    """
+    from alethical.eval.answer_eval import unrendered_markdown
+
+    assert unrendered_markdown("## Eligibility\nFirefighters qualify.")
+    assert unrendered_markdown("The bill adds:\n> reasonable force may be used")
+    assert unrendered_markdown("| City | Grant |\n| --- | --- |")
+    # Not counted — these survive display intact.
+    assert not unrendered_markdown("**Duluth** gets a grant.")
+    assert not unrendered_markdown("- Duluth\n- Ely")
+    assert not unrendered_markdown("1. Duluth\n2. Ely")
+    # A hash mid-sentence is not a heading.
+    assert not unrendered_markdown("The grant is #3 on the priority list.")

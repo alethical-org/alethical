@@ -182,8 +182,29 @@ def mentions_missing_coverage(answer: str) -> bool:
     return bool(_REFUSAL_RE.search(answer))
 
 
+# Markdown the answer page cannot render. `AskAnswerScreen.tsx` strips `**bold**`
+# and `__bold__` and prints the rest as plain text — there is no markdown renderer
+# — so a heading, a table row or a block quote reaches the reader as its literal
+# characters. Inline emphasis and ordinary "1." / "- " lines are deliberately not
+# counted: the emphasis is stripped, and a numbered or bulleted line reads fine as
+# plain text.
+_UNRENDERED_MARKDOWN_RE = re.compile(r"^(?:#{1,6}\s|>\s|\|.*\|\s*$)", re.MULTILINE)
+
+
 def opens_with_bill_code(answer: str) -> bool:
     return bool(_BILL_CODE_PREAMBLE_RE.match(answer.strip()))
+
+
+def unrendered_markdown(answer: str) -> list[str]:
+    """Markdown constructs that reach the reader as literal characters.
+
+    Not a rule-9 judgment call but a rendering fact, and the reason it is worth a
+    column of its own: a model can score well on every judged dimension and still
+    put "### Eligibility" on the page, which a resident reads as a typo rather
+    than a heading. Only one candidate does this, so it would be invisible in an
+    average and decisive in a choice.
+    """
+    return [m.group(0).strip() for m in _UNRENDERED_MARKDOWN_RE.finditer(answer)]
 
 
 def statute_citations(answer: str) -> list[str]:
