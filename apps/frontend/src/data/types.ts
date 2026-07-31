@@ -422,4 +422,12 @@ export interface AskCitation {
   billId: string;
   excerpt: string;
   url: string;
+  /** Statute section the passage came from, so the answer page's "From the bill"
+   *  card can link into the bill's own Bill Text tab (`?tab=text#ft-<sectionId>`).
+   *  Empty when the retrieved chunk carried no section row — the card then falls
+   *  back to `url` (grounded-ask-spec §9.5 decision 4). */
+  sectionId: string;
+  /** Short topic from that section's own heading ("Public facilities authority").
+   *  citationChipLabel appends it only when normalizing `label` leaves no topic. */
+  sectionTopic: string;
 }

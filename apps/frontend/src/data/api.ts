@@ -161,6 +161,8 @@ interface ApiAskCitationPayload {
   bill_id: string;
   excerpt: string;
   url: string;
+  section_id?: string | null;
+  section_topic?: string | null;
 }
 
 interface ApiAskBillTextAnswerPayload {
@@ -1492,6 +1494,8 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
       billId: citation.bill_id,
       excerpt: citation.excerpt,
       url: citation.url,
+      sectionId: typeof citation.section_id === 'string' ? citation.section_id.trim() : '',
+      sectionTopic: typeof citation.section_topic === 'string' ? citation.section_topic.trim() : '',
     })),
     answeringBill: billTextAnswer ? mapBill(billTextAnswer.bill) : undefined,
     topic:

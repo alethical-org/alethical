@@ -2,35 +2,25 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { theme as t, prefersReducedMotion } from '../../theme/tokens';
+import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
 import {
   askCardPrompts,
-  citationChipLabel,
-  citationExcerpt,
   plainBillSummary,
   plainKeyPoints,
   scopedChipQuery,
 } from '../../lib/billDetail';
 import { citationSectionAnchor } from '../../lib/billText';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
+import { CitationCard, SuggestedQuestionChip } from './CitationCard';
 import { FactsRail } from './FactsRail';
 import { SourceLine } from './SourceLine';
 import { isWeb, useHover } from './interactions';
 
 // Sticky sidebar is web-only (RN has no 'sticky' position) — applied inline so it
-// stays out of StyleSheet.create's typed position union.
-const STICKY_RAIL = { position: 'sticky', top: 24 } as object;
-
-// Citation-card hover/focus easing. Web-only, and dropped under reduced motion
-// (#193) so the lift lands instantly rather than animating.
-const CARD_TRANSITION = isWeb
-  ? ({
-      transitionProperty: 'background-color, border-color, box-shadow',
-      transitionDuration: '0.15s',
-      transitionTimingFunction: 'ease',
-    } as object)
-  : null;
+// stays out of StyleSheet.create's typed position union. The Ask answer page's
+// rail reuses this value.
+export const STICKY_RAIL = { position: 'sticky', top: 24 } as object;
 
 // Summary tab — two columns on desktop (1.4fr content / 1fr rail), stacked on
 // narrow. Left: key points (the plain-language summary) → From the bill excerpts →
@@ -219,79 +209,11 @@ function AskModule({
       {chips.length ? (
         <View style={styles.askChips}>
           {chips.map((chip) => (
-            <AskChip key={chip} label={chip} onPress={() => askChip(chip)} />
+            <SuggestedQuestionChip key={chip} label={chip} onPress={() => askChip(chip)} />
           ))}
         </View>
       ) : null}
     </View>
-  );
-}
-
-// "From the bill" citation card. When onPress is provided it becomes a button
-// that jumps to the cited section in the Bill Text tab; otherwise it stays a
-// static card (the prop is absent).
-//
-// The chip reads "Sec. 4 · License classes →" — one format on every surface
-// (citationChipLabel). The trailing arrow is the U+2192 text glyph in the chip's
-// own JetBrains Mono at its font size, weight 400, aria-hidden so the label is
-// announced alone: a fixed-size SVG icon renders as a stub sitting high near the
-// cap line instead of optically centred on the label.
-function CitationCard({
-  label,
-  sectionTopic,
-  excerpt,
-  onPress,
-}: {
-  label: string;
-  sectionTopic?: string;
-  excerpt: string;
-  onPress?: () => void;
-}) {
-  const [hovered, hover] = useHover();
-  const { focused, focusProps } = useFieldFocus();
-  const pressable = !!onPress;
-  const chipLabel = citationChipLabel(label, sectionTopic);
-  const lifted = pressable && (hovered || focused);
-  return (
-    <Pressable
-      accessibilityRole={pressable ? 'button' : undefined}
-      accessibilityLabel={pressable ? `Jump to ${chipLabel} in Bill Text` : undefined}
-      onPress={onPress}
-      disabled={!pressable}
-      {...(pressable ? hover : {})}
-      {...(pressable ? focusProps : {})}
-      style={[
-        styles.excerptCard,
-        pressable && !prefersReducedMotion() ? CARD_TRANSITION : null,
-        lifted && styles.excerptCardLift,
-      ]}
-    >
-      <View style={styles.excerptChipRow}>
-        <View style={styles.excerptChip}>
-          <Text style={styles.excerptChipText}>
-            {chipLabel}
-            <Text aria-hidden style={styles.excerptChipArrow}>
-              {' →'}
-            </Text>
-          </Text>
-        </View>
-      </View>
-      <Text style={styles.excerptQuote}>{citationExcerpt(excerpt)}</Text>
-    </Pressable>
-  );
-}
-
-function AskChip({ label, onPress }: { label: string; onPress: () => void }) {
-  const [hovered, hover] = useHover();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      {...hover}
-      style={[styles.askChip, hovered && styles.askChipHover]}
-    >
-      <Text style={[styles.askChipText, hovered && styles.askChipTextHover]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -356,79 +278,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   excerpts: { marginTop: 14, gap: 12 },
-  excerptCard: {
-    backgroundColor: '#f7f9f8',
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    borderRadius: t.radii.lg,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  // Hover AND keyboard focus: the surface LIFTS off the page's grey (#f7f9f8 →
-  // white) and the colour is carried by the border + one tight ring. It must not
-  // tint, because the purple tint it used to take is the same fill the section
-  // chip inside the card uses — so the chip dissolved into the card at the exact
-  // moment you were about to click through it, leaving only its 1px border.
-  //
-  // The rule this sets, anywhere a filled chip or badge sits inside a card
-  // (citation cards, bill cards with the amber code badge, result rows with facet
-  // chips): the container's hover moves along the NEUTRAL axis, never into the
-  // chip's own colour family. Ring matches askChipHover below.
-  excerptCardLift: {
-    backgroundColor: t.colors.white,
-    borderColor: t.colors.purple.base,
-    ...(isWeb
-      ? { boxShadow: '0 0 0 3px rgba(91,48,214,0.14)' }
-      : (t.shadows.focusPurple as object)),
-  },
-  excerptChipRow: { flexDirection: 'row', maxWidth: '100%' },
-  excerptChip: {
-    // Same reason as the mobile chip: the topic can make the label longer than a
-    // narrow card, so let it stop at the card and wrap rather than run past it.
-    maxWidth: '100%',
-    flexShrink: 1,
-    backgroundColor: t.colors.purple.tint,
-    borderWidth: 1,
-    borderColor: t.colors.purple.border,
-    borderRadius: t.radii.badge,
-    paddingVertical: 3,
-    paddingHorizontal: 9,
-  },
-  excerptChipText: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.3,
-    color: t.colors.purple.base,
-  },
-  // Decorative "→": the chip's own font and size, weight 400 so it reads lighter
-  // than the 700 label.
-  //
-  // Nudged up 2.6px (0.2 × the 13px font size) because the glyph is not actually
-  // JetBrains Mono's. Measured: in JetBrains Mono every glyph shares one advance
-  // (digit 48.0, letter 48.0 at 80px) but "→" comes out 48.16 — the font has no
-  // U+2192, so the browser substitutes it from a fallback. That fallback centres
-  // the arrow on the maths axis (0.175em above the baseline) while digits and
-  // capitals centre at 0.375em, leaving it 0.2em low against its own label.
-  // `position: relative` + `top`, not `transform`: CSS ignores transforms on
-  // inline boxes, and splitting the arrow out of the text flow would break
-  // wrapping. Same root cause as the missing arrow in Libre Franklin.
-  excerptChipArrow: {
-    fontWeight: t.fontWeights.regular,
-    position: 'relative',
-    top: -2.6,
-  },
-  excerptQuote: {
-    marginTop: 9,
-    paddingLeft: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: t.colors.tint.border,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 21,
-    color: t.colors.text.secondary,
-    fontStyle: 'italic',
-  },
   askCard: {
     marginTop: 40,
     backgroundColor: t.colors.surfaces.base,
@@ -491,25 +340,4 @@ const styles = StyleSheet.create({
     color: t.colors.white,
   },
   askChips: { marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 9 },
-  askChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink12,
-    borderRadius: t.radii.pill,
-  },
-  askChipHover: {
-    borderColor: t.colors.purple.base,
-    ...(isWeb
-      ? { boxShadow: '0 0 0 3px rgba(91,48,214,0.14)' }
-      : (t.shadows.focusPurple as object)),
-  },
-  askChipText: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.medium,
-    color: t.colors.text.secondary,
-  },
-  askChipTextHover: { color: t.colors.purple.base },
 });
