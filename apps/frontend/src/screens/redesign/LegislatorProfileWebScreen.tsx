@@ -176,10 +176,7 @@ export function LegislatorProfileWebScreen() {
     />
   );
 
-  const bioText =
-    legislator.bio && legislator.bio !== 'Live legislator profile loaded from the backend.'
-      ? legislator.bio
-      : null;
+  const bioText = legislator.bio ?? null;
   const committees = legislator.committeeAssignments ?? [];
   const service = legislator.legislativeService;
   const seeMoreUrl = chiefAuthorListUrl(legislator);

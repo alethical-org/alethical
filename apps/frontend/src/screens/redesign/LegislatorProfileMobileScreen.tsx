@@ -562,8 +562,7 @@ export function LegislatorProfileMobileScreen() {
 
   const allBills = billsQuery.data?.data ?? [];
   const visibleBills = showAllBills ? allBills : allBills.slice(0, 2);
-  const hasRealBio =
-    leg?.bio && leg.bio !== 'Live legislator profile loaded from the backend.' ? leg.bio : null;
+  const hasRealBio = leg?.bio ?? null;
   const committees = leg?.committeeAssignments ?? [];
   const service = leg?.legislativeService;
   // Peel a leading leadership title out of the office blob into its own labeled

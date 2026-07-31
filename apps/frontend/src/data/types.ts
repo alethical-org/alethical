@@ -295,7 +295,9 @@ export interface Legislator {
   district: string;
   party: Party;
   role: string;
-  bio: string;
+  /** Official biography prose. Undefined when the record carries none — every
+   *  surface that renders it must check first rather than print a stand-in. */
+  bio?: string;
   email?: string;
   phone?: string;
   officeAddress?: string;
