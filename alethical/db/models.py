@@ -628,8 +628,11 @@ class BillVersionSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         # section that sits outside an article, so a bill with several of those
         # repeats it. Keying on the id made the second such section overwrite the
         # first, and 24 current versions lost 57 sections that way (#763).
-        # `section_id_text` stays the display and anchor value (the Bill Text tab's
-        # `#ft-<sectionId>` links resolve against it) but is no longer unique.
+        # `section_id_text` stays the DISPLAY value but is no longer unique, so it is
+        # not an anchor either: the Bill Text tab keys each section's HTML id and
+        # share link on `ft-<section_id_text>-<source_order>`, and a citation chip
+        # carries the same pair (#854). An id-only `#ft-` link still resolves, to the
+        # first section carrying that id.
         # The trade-off: a row now follows its position rather than its content, so
         # if a version's page ever gained a section in the middle, every later row
         # would be rewritten with its neighbour's text and re-embedded. That costs

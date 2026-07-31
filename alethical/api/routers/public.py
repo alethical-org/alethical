@@ -44,6 +44,10 @@ from alethical.api.services.representative_lookup import (
 )
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
+from alethical.pipeline.ai_enrichment import (
+    CitedSectionCandidate,
+    resolve_cited_section,
+)
 from alethical.pipeline.policy_area_counts import compute_policy_area_counts
 from alethical.pipeline.sessions import SESSION_DEFINITIONS, special_session_number
 
@@ -65,6 +69,7 @@ Jurisdiction = schema.Jurisdiction
 LegislativeSession = schema.LegislativeSession
 Legislator = schema.Legislator
 LegislatorServicePeriod = schema.LegislatorServicePeriod
+RagSectionDocument = schema.RagSectionDocument
 Sponsorship = schema.Sponsorship
 SponsorshipRole = schema.SponsorshipRole
 bill_detail_stmt = schema.bill_detail_stmt
@@ -1326,6 +1331,112 @@ def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
     return topics
 
 
+def _citation_section_orders(
+    db: Session, bill_row, enrichment
+) -> dict[tuple[str, str], int]:
+    """(section_id, quote) -> the POSITION of the section that citation cites.
+
+    A citation stores the cited section's `section_id_text`, and that does not
+    identify a section: `laws.0.1.0` is the id the Revisor hands every section
+    sitting outside an article, so 66 current versions repeat one id across as many
+    as 30 sections (#763, #854). Without a position the chip's jump lands on
+    whichever repeat comes first, a shared link opens the wrong section, and the
+    CITED IN SUMMARY badge lights every repeat. `resolve_cited_section` recovers the
+    position from the citation's own verbatim quote and label; a citation it cannot
+    place is simply absent from this map.
+
+    Keyed on the PAIR because two citations on one page can carry the same
+    `section_id` and still cite different sections — HF 1134 has one chip for Sec. 1
+    and another for Sec. 126, both stored as `laws.0.1.0` — and the quote is what
+    tells them apart.
+
+    Two queries, and the second only when it is needed. The first reads a string and
+    an integer per section, which settles the ~10,400 bills whose section ids are all
+    distinct: an id naming one section resolves to it with nothing else to read. The
+    second fetches the label and body text to match against, and only for the
+    repeated ids a citation actually targets — loading every section's body on every
+    bill page would cost megabytes on the largest bills (one version runs to 761
+    sections).
+
+    That body comes from the RAG document where there is one, falling back to the
+    section's own `raw_text`. The two are not interchangeable: the RAG text is what
+    the enrichment checked the quote against, so it renders the Revisor's change
+    markers the same way ("[deleted: …]"). Matched against `raw_text` alone, 6 of the
+    affected citations find their quote in no candidate at all. The fallback stays
+    because 23,885 sections have no RAG document.
+    """
+    current = next((v for v in (bill_row.versions or []) if v.is_current), None)
+    if current is None:
+        return {}
+    stored = ((enrichment.content_json or {}) if enrichment else {}).get(
+        "key_point_citations"
+    )
+    cited = [entry for entry in stored or [] if isinstance(entry, dict)]
+    if not cited:
+        return {}
+
+    positions: dict[str, list[int]] = defaultdict(list)
+    for section_id_text, source_order in db.execute(
+        select(BillVersionSection.section_id_text, BillVersionSection.source_order)
+        .where(BillVersionSection.bill_version_id == current.id)
+        .order_by(BillVersionSection.source_order.asc())
+    ).all():
+        if section_id_text:
+            positions[section_id_text].append(source_order)
+
+    def cited_id(entry) -> str:
+        value = entry.get("section_id")
+        return value.strip() if isinstance(value, str) else ""
+
+    ambiguous = {
+        section_id
+        for section_id in (cited_id(entry) for entry in cited)
+        if len(positions.get(section_id, ())) > 1
+    }
+    detail: dict[int, tuple[str | None, str | None]] = {}
+    if ambiguous:
+        detail = {
+            source_order: (citation_label, clean_text or raw_text)
+            for source_order, citation_label, clean_text, raw_text in db.execute(
+                select(
+                    BillVersionSection.source_order,
+                    RagSectionDocument.citation_label,
+                    RagSectionDocument.clean_text,
+                    BillVersionSection.raw_text,
+                )
+                .outerjoin(
+                    RagSectionDocument,
+                    RagSectionDocument.bill_version_section_id == BillVersionSection.id,
+                )
+                .where(
+                    BillVersionSection.bill_version_id == current.id,
+                    BillVersionSection.section_id_text.in_(ambiguous),
+                )
+            ).all()
+        }
+
+    orders: dict[tuple[str, str], int] = {}
+    for entry in cited:
+        section_id = cited_id(entry)
+        label, quote = entry.get("label"), entry.get("quote")
+        if not section_id or not isinstance(quote, str):
+            continue
+        candidates = [
+            CitedSectionCandidate(
+                source_order=source_order,
+                label=detail.get(source_order, (None, None))[0],
+                text=detail.get(source_order, (None, None))[1],
+            )
+            for source_order in positions.get(section_id, ())
+        ]
+        match = resolve_cited_section(
+            candidates, label if isinstance(label, str) else "", quote
+        )
+        if match is not None:
+            orders[(section_id, quote.strip())] = match.source_order
+    return orders
+
+
 def verified_effective_date(db: Session, bill_row) -> str | None:
     """The enacted bill's statutory effective date, verbatim, or None (detail page).
 
@@ -1853,7 +1964,10 @@ def bill_detail(
         if "tracking" in include_set and current_user
         else None,
         "ai_analysis": ai_analysis_payload_for_enrichment(
-            ai_enrichment, row.official_url, _citation_section_topics(db, row)
+            ai_enrichment,
+            row.official_url,
+            _citation_section_topics(db, row),
+            _citation_section_orders(db, row, ai_enrichment),
         ),
         "ai_summary": ai_enrichment.content_json if ai_enrichment else None,
     }
@@ -1987,6 +2101,15 @@ def bill_version_text(
             "sections": [
                 {
                     "section_id": section.section_id_text,
+                    # The section's position in the version, 1-based. Served
+                    # BESIDE `section_id` because the id does not identify a
+                    # section: `laws.0.1.0` is what the Revisor hands every
+                    # section sitting outside an article, so 66 current versions
+                    # repeat one id across as many as 30 sections (#763, #854).
+                    # `(bill_version_id, source_order)` is the row's uniqueness
+                    # constraint, so this is the only value that can key a
+                    # per-section HTML id or share link to one section.
+                    "source_order": section.source_order,
                     "heading": section.section_heading,
                     "article_heading": section.article_heading,
                     "text": section.raw_text,

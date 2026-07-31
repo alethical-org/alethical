@@ -54,8 +54,17 @@ ingestion-freshness gap (rule 7) rather than something to force.
 ## What the data gives us
 
 Everything on this tab comes from `/bills/{id}/versions/{code}/text?format=structured`, which
-returns per section: `section_id`, `heading`, `article_heading`, `text`, and — since
+returns per section: `section_id`, `source_order`, `heading`, `article_heading`, `text`, and — since
 [#741](https://github.com/alethical-org/alethical/issues/741) — `body_blocks`.
+
+**`section_id` does not identify a section; `source_order` does.** `laws.0.1.0` is the id the Revisor
+hands every section sitting outside an article, so a bill with several of those repeats it — 66
+current versions do, 30 sections deep on `94-2025-SF3492` and `94-2025-HF3284`. `source_order` is the
+section's 1-based position, and it is the row's uniqueness constraint in the database
+(`UNIQUE (bill_version_id, source_order)`, from
+[#763](https://github.com/alethical-org/alethical/issues/763)). Anything that has to name one
+section — an HTML id, a share link, a citation's target — is keyed on the pair, never on the id
+alone ([#854](https://github.com/alethical-org/alethical/issues/854); see § "Jumping to a section").
 
 **`body_blocks` is the structure, and it is what the tab reads.** Ingestion used to store a
 section's body as one flat string, which destroyed three things the Revisor publishes: the
@@ -144,7 +153,14 @@ Top to bottom inside a section card:
 1. **Article eyebrow**, when the bill has articles (mono, muted).
 2. **Badge row** — the number badge holds `SEC. 3` and nothing else. Beside it, a `CITED IN SUMMARY`
    badge when the Summary tab quotes this section (purple `#f0ebfc` / `#d8c9f7` / `#5b30d6`, mono
-   11px, forced onto one line).
+   11px, forced onto one line). **The badge is keyed on the section's anchor, not its id**, so it
+   marks the one section a citation was grounded against. Keyed on the id it lit every section
+   sharing that id: on `94-2025-SF3492`, all 31 sections carried it while only 5 are cited, which
+   told the reader a key point came from a section it did not
+   ([#854](https://github.com/alethical-org/alethical/issues/854)). A citation the API cannot place
+   on one section badges nothing at all — a badge is a claim about provenance, and there is nothing
+   to ground it in (`.claude/rules/grounded-answers.md` rule 1, the same refusal
+   [#853](https://github.com/alethical-org/alethical/pull/853) made for the chip's caption).
 3. **Provenance** — "Minnesota Statutes 2024, section 62A.011 … is amended to read:" at body size,
    regular weight, `#6f756f`. This names which existing law the section rewrites. **It is not the
    title.** Styled as a heading it competes with the caption below it and the card reads as having
@@ -221,6 +237,9 @@ sections**.
   otherwise shows several rows numbered 1.
 - Rows hang off a 1px rule; the section in view carries a 2px `#11150f` left border and a bold label.
   Which section is "in view" comes from an IntersectionObserver discounting the sticky tab bar.
+- **A row is keyed and matched on the section's anchor, not its id.** On a bill that repeats an id,
+  keying on the id gave several rows the same React key and lit whichever came first rather than the
+  one being read ([#854](https://github.com/alethical-org/alethical/issues/854)).
 
 **A row is never blank, and never a truncated statute sentence.** In order:
 
@@ -240,12 +259,43 @@ still tell neighbouring rows apart.
 
 ## Jumping to a section
 
-Every section is URL-addressable (`?tab=text#ft-<sectionId>`), per
+Every section is URL-addressable (`?tab=text#ft-<sectionId>-<sourceOrder>`), per
 `.claude/rules/grounded-answers.md` rule 5. Two entry points: an index row, and a citation card on
 the Summary tab. Arriving from a citation rings the card
 (`0 0 0 3px rgba(91,48,214,0.16)`) plus a purple tint, for 2.5s.
 
-Four details, each of which was a real bug:
+### The anchor carries the position as well as the id
+
+`ft-laws.0.1.0-4`. The scheme lives in `lib/billText.ts` — `sectionAnchorId` builds it,
+`parseSectionAnchor` splits it, `resolveSectionAnchor` matches it against the sections on the page.
+
+**The position is there because the id is not unique** (§ "What the data gives us"). Keyed on the id
+alone, `94-2025-SF3492` emitted `ft-laws.0.1.0` thirty times, `getElementById` answered every one of
+them with the first, and three things broke at once: a chip labelled "Sec. 21" scrolled to Sec. 1, a
+shared link could not say which of the 30 it meant, and every section sharing the id was badged as
+cited. Duplicate ids are also invalid HTML and ambiguous to assistive technology.
+
+**The id is there because the position alone would fail silently.** Because the anchor holds both
+halves, `resolveSectionAnchor` can require them to agree, and fall back to the first section carrying
+that id when they don't. A `ft-4` scheme has nothing to check: a link made before a re-read of the
+bill moved the section would land on an unrelated section without anything looking wrong, which is
+the same class of failure as the bug being fixed.
+
+**Old `#ft-<sectionId>` links keep resolving**, to the first section carrying that id. That is not a
+new behaviour — it is exactly where such a link already landed — so nothing already shared breaks.
+Splitting the two halves back apart is unambiguous: all 71,150 section ids in production match
+`laws.<n>.<n>.<n>`, so an id never contains a hyphen, and the rule is "a plain number after the last
+hyphen".
+
+**A citation chip carries the same anchor value.** The stored citation records only the section id, so
+the API resolves the position at request time and serves it as `section_order`
+(`_citation_section_orders` in `alethical/api/routers/public.py`, `resolve_cited_section` in
+`alethical/pipeline/ai_enrichment.py`) — recovered from the citation's own verbatim quote, with its
+label breaking a tie when a bill repeats one sentence section for section. Of the 95 affected
+citations in production it places 94; the one it cannot place keeps the chip jumping to the first
+section carrying the id and claims no badge.
+
+Four more details, each of which was a real bug:
 
 - **Scroll instantly, not smoothly.** A smooth scroll started in the same beat as a re-render gets
   dropped or interrupted part-way and stops short — by different amounts from different starting
@@ -286,6 +336,12 @@ pins the bugs found since: the bare-decimal spacing regression (#756), the punct
 bracket rule the stricter guard broke (#755), the two sections that differed only by subdivision,
 the struck caption that must not become a title, and a ban on regex lookbehind, which Hermes does
 not reliably support.
+
+**The anchor scheme has its own file, `__tests__/sectionAnchors.test.ts`**, over the first five
+sections of `94-2025-SF3492`, where all but one share an id. It pins both halves of the contract that
+pull against each other: an exact positional anchor reaches that exact section, and an old id-only
+anchor — or a positional one whose position no longer matches — falls back to the first section
+carrying the id. Removing either half fails it.
 
 **The structured path has its own file, `__tests__/billTextBlocks.test.ts`**, over
 `fixtures/bill-text-body-blocks.json` — 5 real sections carrying the `body_blocks` the API returns.
@@ -346,13 +402,10 @@ jump landing at 90px from several starting scroll positions and from both entry 
   form pairs each figure with its year in the visible text, so the information is reachable — but it
   is not announced as a table with column headers. Improving that means real table semantics on web,
   which is its own piece of work.
-- **Addressing one of two sections that share an id.** Now that a repeated `laws.0.1.0` stores every
-  section rather than only the last ([#763](https://github.com/alethical-org/alethical/issues/763)),
-  a bill can render two sections whose `nativeID` is the same `ft-laws.0.1.0`. A `#ft-` link, and the
-  index rail's scroll-spy, land on whichever the browser finds first. Every shared link still resolves
-  to a section — restoring the lost sections only ever added rows, so no section id disappeared — but
-  on a repaired bill it now lands on the **first** section carrying that id rather than the only one
-  that used to survive. Measured on `94-2025-HF2434`: `#ft-laws.0.1.0` used to reach position 345, the
-  one row the old ingest kept, and now reaches position 339, the first of 7. Making each repeat
-  separately addressable is its own piece of work, tracked in
-  [#777](https://github.com/alethical-org/alethical/issues/777).
+- **Storing the cited section's position at enrichment time.** The API recovers it per request from
+  the citation's quote and label (§ "Jumping to a section"), which works on every already-enriched
+  bill and costs one extra query on the 66 versions that repeat an id. Writing the position into
+  `key_point_citations` would make the recovery unnecessary, and would place the one citation the
+  recovery cannot — but it only takes effect on bills a future re-enrichment happens to touch, and a
+  corpus-wide re-enrichment is a paid run. Worth folding into the next one rather than doing for its
+  own sake.

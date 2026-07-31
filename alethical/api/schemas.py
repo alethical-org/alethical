@@ -160,6 +160,13 @@ class AICitationPayload(BaseModel):
     url: str
     excerpt: str
     section_id: str
+    # WHICH section that id names: its 1-based position in the version. `section_id`
+    # cannot identify a section on its own — 66 current versions repeat one id across
+    # several sections (#854) — so the client needs the position to jump to the cited
+    # section and to badge it. None when the stored citation does not establish which
+    # of the repeats it was grounded against; the client then lands on the first and
+    # badges none (grounded-answers rule 1).
+    section_order: int | None = None
     # Short topic from the cited section's own heading ("License classes"), served
     # separately from `label` so the client composes the chip once. The stored
     # label's shape varies by when the bill was enriched, so concatenating here

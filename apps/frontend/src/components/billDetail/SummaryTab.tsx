@@ -12,6 +12,7 @@ import {
   plainKeyPoints,
   scopedChipQuery,
 } from '../../lib/billDetail';
+import { citationSectionAnchor } from '../../lib/billText';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { FactsRail } from './FactsRail';
 import { SourceLine } from './SourceLine';
@@ -54,8 +55,10 @@ export function SummaryTab({
   onOpenBill: (billId: string) => void;
   isDesktop: boolean;
   updatedLabel: string;
-  // Jump to a cited statute section in the Bill Text tab. No-op if absent.
-  onCitationPress?: (sectionId: string) => void;
+  // Jump to a cited statute section in the Bill Text tab, by anchor value
+  // (`laws.0.1.0-4`) — the section id alone does not identify a section (#854).
+  // No-op if absent.
+  onCitationPress?: (sectionAnchor: string) => void;
   // Open the Actions tab — the rail's "See dates" target for a phased law (#715).
   onJumpToActions: () => void;
 }) {
@@ -125,7 +128,7 @@ export function SummaryTab({
                     excerpt={c.excerpt}
                     onPress={
                       onCitationPress && c.sectionId
-                        ? () => onCitationPress(c.sectionId)
+                        ? () => onCitationPress(citationSectionAnchor(c))
                         : undefined
                     }
                   />

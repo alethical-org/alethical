@@ -651,3 +651,107 @@ export function sectionIndexLabel(
     '';
   return condenseStatuteRef(opening) ?? '';
 }
+
+// ---------------------------------------------------------------------------
+// Section anchors — the HTML id and URL fragment that address ONE section.
+// ---------------------------------------------------------------------------
+//
+// `section_id` does not identify a section. `laws.0.1.0` is the id the Revisor
+// hands every section sitting outside an article, so 66 current bill versions
+// repeat one id across several sections — 30 of them on SF 3492 and on HF 3284
+// (#763, #854). Keying the HTML id on it therefore emitted duplicate ids, and
+// `getElementById` answered every one of them with whichever section came first:
+// a citation chip jumped to the wrong section, a shared link opened the wrong
+// section, and the CITED IN SUMMARY badge lit every section sharing the id.
+//
+// The anchor is `ft-<sectionId>-<sourceOrder>`. `source_order` is the section's
+// 1-based position in the version — already written on every row and already
+// carrying `UNIQUE (bill_version_id, source_order)` in production, so it is the
+// only value that can be unique. It is kept BESIDE the id rather than used alone
+// because the pair is self-validating: `resolveSectionAnchor` requires both
+// halves to agree, and falls back to the first section with that id when they
+// don't. Position alone would land an out-of-date link silently on a different
+// section, which is the failure this whole scheme exists to remove.
+//
+// Splitting the two halves back apart is unambiguous: all 71,150 section ids in
+// production match `laws.<n>.<n>.<n>`, so an id never contains a hyphen and the
+// LAST hyphen always separates the id from the position.
+
+/** What a section anchor names: the section's id, and its position when the
+ *  anchor carries one. A bare `laws.0.1.0` (the pre-#854 form, still live in
+ *  links already shared) parses with `sourceOrder: null`. */
+export interface SectionAnchor {
+  sectionId: string;
+  sourceOrder: number | null;
+}
+
+/** The anchor VALUE naming one section: `laws.0.1.0-4`. This is what travels in a
+ *  URL fragment and in a chip's jump target; `sectionAnchorId` prefixes it to make
+ *  the HTML id. */
+export function sectionAnchorValue(anchor: SectionAnchor): string {
+  const { sectionId, sourceOrder } = anchor;
+  return sourceOrder === null ? sectionId : `${sectionId}-${sourceOrder}`;
+}
+
+/** The HTML id addressing one section: `ft-laws.0.1.0-4`. */
+export function sectionAnchorId(anchor: SectionAnchor): string {
+  return `ft-${sectionAnchorValue(anchor)}`;
+}
+
+/** Split an anchor VALUE (no `ft-` prefix) into its id and position. */
+export function parseSectionAnchor(value: string): SectionAnchor | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  // Split at the last hyphen, and only when what follows is a plain position.
+  // Anything else is the whole value as an id — the old form.
+  const cut = trimmed.lastIndexOf('-');
+  if (cut > 0) {
+    const tail = trimmed.slice(cut + 1);
+    if (/^\d+$/.test(tail)) {
+      return { sectionId: trimmed.slice(0, cut), sourceOrder: Number(tail) };
+    }
+  }
+  return { sectionId: trimmed, sourceOrder: null };
+}
+
+/** Read a section anchor out of a URL fragment (`#ft-laws.0.1.0-4`), accepting
+ *  the older `#section-` prefix the same way the tab always has. */
+export function sectionAnchorFromHash(hash: string): SectionAnchor | null {
+  const match = hash.match(/^#(?:ft|section)-(.+)$/);
+  return match ? parseSectionAnchor(match[1]) : null;
+}
+
+/** The anchor of the section a jump target actually names, out of the sections
+ *  this version renders — or null when it names none of them.
+ *
+ *  Exact match first, so a `laws.0.1.0-4` anchor reaches the fourth section and
+ *  not the first. Falling back to the FIRST section carrying that id is what
+ *  keeps a link shared before #854 working, and is also the honest answer when a
+ *  re-read of the bill has moved the section a positional anchor pointed at. */
+export function resolveSectionAnchor<T extends SectionAnchor>(
+  sections: readonly T[],
+  target: SectionAnchor | null,
+): T | null {
+  if (!target) return null;
+  if (target.sourceOrder !== null) {
+    const exact = sections.find(
+      (s) => s.sectionId === target.sectionId && s.sourceOrder === target.sourceOrder,
+    );
+    if (exact) return exact;
+  }
+  return sections.find((s) => s.sectionId === target.sectionId) ?? null;
+}
+
+/** The anchor value a citation chip jumps to. `sectionOrder` is present whenever
+ *  the API could pin the citation to one section; without it the chip falls back
+ *  to the bare id and lands on the first section carrying it, which is the best
+ *  available guess and is what the tab has always done. */
+export function citationSectionAnchor(citation: {
+  sectionId: string;
+  sectionOrder?: number | null;
+}): string {
+  return sectionAnchorValue({
+    sectionId: citation.sectionId,
+    sourceOrder: typeof citation.sectionOrder === 'number' ? citation.sectionOrder : null,
+  });
+}

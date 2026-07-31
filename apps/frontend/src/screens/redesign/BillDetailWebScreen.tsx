@@ -186,8 +186,8 @@ export function BillDetailWebScreen() {
         onOpenBill={openBill}
         isDesktop={isDesktop}
         updatedLabel={updatedLabel}
-        onCitationPress={(sectionId: string) => {
-          setPendingAnchor(sectionId);
+        onCitationPress={(sectionAnchor: string) => {
+          setPendingAnchor(sectionAnchor);
           selectTab('text');
         }}
         onJumpToActions={() => selectTab('actions')}
@@ -220,7 +220,7 @@ export function BillDetailWebScreen() {
     body = (
       <FullTextTab
         bill={bill}
-        targetSectionId={pendingAnchor}
+        targetSectionAnchor={pendingAnchor}
         onAnchorConsumed={() => setPendingAnchor(null)}
         updatedLabel={updatedLabel}
       />
