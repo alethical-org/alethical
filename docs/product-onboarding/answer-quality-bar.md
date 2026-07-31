@@ -579,9 +579,9 @@ Two things to weigh against it:
 - **`claude-sonnet-5` is the safer answer and the more expensive one.** Zero
   unsupported claims, the highest Sonnet-judge score, and the only arm that
   volunteered that its list was partial. But $0.0076 per answer (2.6× `gpt-5.1`,
-  38× today), and **it is not reachable through this setting** — `me.py` posts to
-  `api.openai.com`, so a Claude model needs a provider adapter of roughly the shape
-  the eval already has.
+  38× today). It was also unreachable through this setting when this run was
+  written, `me.py` posting to `api.openai.com` unconditionally — no longer true
+  since [#894](https://github.com/alethical-org/alethical/issues/894); see §12.
 - **`gpt-5.1` carries 12 statute citations across the fixture against today's 1.**
   That is a plain-language regression under
   [`grounded-answers`](../../.claude/rules/grounded-answers.md) rule 9, and the
@@ -935,16 +935,30 @@ it, in descending order of how much they should matter.
 3. **It is the worst offender on statute citations**, 24 against today's 1.
 4. **It costs $0.0235 an answer — 36× today — and $0.153 for one omnibus answer.**
 
-And it **cannot be selected by configuration at all.** `synthesize_grounded_answer`
-posts to `api.openai.com` unconditionally, so `OPENAI_RAG_CHAT_MODEL` only ever
-reaches OpenAI models. Choosing Sonnet means writing a provider adapter in
-`alethical/api/routers/me.py` of roughly the shape `scripts/answer_eval.py`'s
-`_anthropic_answer` already has: read a provider prefix off the setting, post to
-`api.anthropic.com/v1/messages`, map the response back, and pin
-`thinking: disabled` at effort `low` because adaptive thinking is on by default and
-the reader is waiting. Both output guards and `rag_chat_system_prompt(coverage)`
-must apply on the new path too. Call it half a day with tests — small, but a code
-change with a deploy behind it, not a setting.
+**It used to have a fifth strike, and that one is gone.** Until
+[#894](https://github.com/alethical-org/alethical/issues/894) shipped
+([PR #904](https://github.com/alethical-org/alethical/pull/904)),
+`synthesize_grounded_answer` posted to `api.openai.com` unconditionally, so Sonnet
+could not be selected by configuration at all and the recommendation could point at
+"needs a code change" as a tiebreaker. It no longer can:
+`OPENAI_RAG_CHAT_MODEL` now takes an optional provider prefix, and
+`anthropic:claude-sonnet-5` is a one-line change exactly like `gpt-5.1`. The default
+moved in no environment; a bare name is still today's OpenAI request unchanged.
+
+**The recommendation does not move, and it matters that it does not.** The four
+reasons above were always the substantive ones and all four still stand. What
+changed is that the argument now has to carry its own weight rather than leaning on
+an implementation gap — which is the right position to be in, and worth stating
+plainly because "we can't do it" quietly doing the work of "we shouldn't" is how a
+decision survives past its evidence.
+
+Worth recording about how #894 was built, because it is what keeps this eval honest:
+the prompt and both output guards are resolved **once, outside the provider branch**,
+so they cannot vary by provider. That is deliberate. If either ever did vary, "the
+prompt production sends" would stop being a single value, and
+`production_system_prompt()` could resolve one provider's version while a reader is
+served the other's — invisible, and the same shape as the layer-on-top failure §11
+records. The condition is pinned by a test and noted at the branch.
 
 ### The runner-up worth knowing about
 
