@@ -1,28 +1,66 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
+
 import { theme } from '../../theme/tokens';
-import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
+import { SearchPageShell } from '../../components/search/searchPieces';
+import { BillResultCard } from '../../components/search/BillResultCard';
+import { CitationCard, SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
+import { SourceLine } from '../../components/billDetail/SourceLine';
+import { Skeleton } from '../../components/Skeleton';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { RootScreenProps } from '../../navigation/types';
 import { useAuth } from '../../providers/AuthProvider';
-import { useAskAnswer, useLegislators } from '../../hooks/useAppQueries';
+import { useResponsive } from '../../hooks/useResponsive';
+import {
+  useAskAnswer,
+  useBill,
+  useBillVersionText,
+  useLegislators,
+} from '../../hooks/useAppQueries';
 import { RoadmapTrackButton } from '../../components/RoadmapTrackButton';
+import { SharePopover } from '../../components/billDetail/SharePopover';
+import { bienniumEyebrow, formatNiceDate, scopedChipQuery } from '../../lib/billDetail';
+import {
+  alphabeticalIndex,
+  citedSections,
+  followUpPrompts,
+  parseAnswerBlocks,
+  passageTarget,
+} from '../../lib/askAnswer';
+import {
+  citationSectionAnchor,
+  parseSectionAnchor,
+  resolveSectionAnchor,
+  sectionAnchorId,
+} from '../../lib/billText';
+import { STICKY_RAIL, useHover } from '../../components/billDetail/interactions';
 import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
 const t = theme;
 const isWeb = Platform.OS === 'web';
+
+// The chip-reached Ask answer page. Spec of record:
+// docs/product-onboarding/grounded-ask-spec.md §9.5 (The chip-reached answer page —
+// decided web design), which supersedes §9.1–§9.2 for the bill_text state; design
+// handoff in docs/mockups/answer-web/.
+//
+// Structure: nav → answer header on the gradient (back link, the question as the
+// H1, the session line, Share, closed by the shell's hairline) → white body, two
+// columns on desktop (the answer, the bill card, "Ask another question" | the
+// sticky "From the bill" rail) → source line → footer.
+//
+// Deliberately NO question field, Ask button or composer, and nothing gated on
+// sign-in: a suggested chip on Bill Detail is the only way in, so an answer here
+// can never be a refusal someone typed themselves (§9.5 Scope, with #832).
+// The nav's Sign in button stays — it is global chrome.
+//
+// Every piece is shared with the screen it came from rather than re-implemented:
+// the bill card is Search Bills' `BillResultCard`, the cited-section cards and the
+// chips are Bill Detail's `CitationCard` / `SuggestedQuestionChip`, Share is Bill
+// Detail's `SharePopover`, and the sticky rail and source line are its
+// `STICKY_RAIL` and `SourceLine`.
 
 // Status text colors mirror the v2 bill cards (HomeSignedOutScreen).
 function statusColor(statusKey?: string) {
@@ -35,28 +73,11 @@ function statusColor(statusKey?: string) {
   return t.colors.text.secondary;
 }
 
-function formatDataAsOf(dataAsOf?: string) {
-  if (!dataAsOf) {
-    return null;
-  }
-  const parsed = new Date(dataAsOf);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-// The RAG synthesis returns light markdown (**bold**); strip the emphasis
-// markers so the prose reads cleanly — there is no markdown renderer here.
-function stripInlineMarkdown(value: string) {
-  return value.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1');
-}
-
 // §4.7 follow-up chips — cross-intent templates filled from the *resolved*
 // topic, so they are non-refusable by construction (rule 1): the topic already
 // matched, so the target path returns results. A topic answer bridges to the
-// other topic path. Capped at 3, ordered deep-dive → bills → legislators (§4.7
-// rule 3). bill_text chunk-derived deep-dive chips are a follow-on.
+// other topic path. bill_text answers don't use these: they offer the answering
+// bill's own stored questions instead (§9.5 decision 7, `followUpPrompts`).
 function crossIntentChips(intent?: string, topic?: string): { label: string; submit: string }[] {
   if (!topic) {
     return [];
@@ -72,27 +93,6 @@ function crossIntentChips(intent?: string, topic?: string): { label: string; sub
   return [];
 }
 
-// §4.7 follow-up chips for a bill_text answer — deterministic cross-intent
-// templates filled from the answering bill's own policy-area tag, so they are
-// non-refusable by construction (the bill is itself in that policy area, so
-// each target path returns results). No LLM, no extra call. Deeper chunk-derived
-// deep-dive chips (§4.7 rule 1) are the v1.1 upgrade (#261).
-function billTextChips(topic?: string): { label: string; submit: string }[] {
-  if (!topic) {
-    return [];
-  }
-  return [
-    {
-      label: `What other ${topic} bills are there?`,
-      submit: `What other ${topic} bills are there?`,
-    },
-    {
-      label: `Which legislators authored ${topic} bills?`,
-      submit: `Which legislators authored ${topic} bills?`,
-    },
-  ];
-}
-
 function FollowUpChips({
   chips,
   onAsk,
@@ -106,17 +106,13 @@ function FollowUpChips({
   return (
     <View style={styles.followupBlock}>
       <Text style={styles.followupHeading}>CONTINUE</Text>
-      <View style={styles.followupRow}>
+      <View style={styles.chipRow}>
         {chips.map((chip) => (
-          <Pressable
+          <SuggestedQuestionChip
             key={chip.submit}
-            accessibilityRole="button"
-            accessibilityLabel={chip.submit}
-            style={styles.followupChip}
+            label={chip.label}
             onPress={() => onAsk(chip.submit)}
-          >
-            <Text style={styles.followupChipText}>{chip.label} →</Text>
-          </Pressable>
+          />
         ))}
       </View>
     </View>
@@ -124,6 +120,13 @@ function FollowUpChips({
 }
 
 function AnswerBillCard({ bill, onOpen }: { bill: AskAnswerBill; onOpen: () => void }) {
+  // RN-Web drops the DOM `title` prop, so set the tooltip on the host node.
+  const titleRef = useRef<Text>(null);
+  useEffect(() => {
+    if (isWeb && titleRef.current) {
+      (titleRef.current as unknown as HTMLElement).title = bill.title;
+    }
+  }, [bill.title]);
   return (
     <View style={[styles.billCard, t.shadows.card as object]}>
       <View style={styles.billCardTop}>
@@ -139,7 +142,19 @@ function AnswerBillCard({ bill, onOpen }: { bill: AskAnswerBill; onOpen: () => v
             button, consistent site-wide (docs/product-onboarding/grounded-ask-spec.md §9.2). */}
         <RoadmapTrackButton />
       </View>
-      <Text style={styles.billTitle}>{bill.title}</Text>
+      {/* The PLAIN title, with the statutory one kept as a hover tooltip and the
+          screen-reader name — the treatment BillHeader and the search card already
+          use (.claude/rules/grounded-answers.md rule 10). HF 719's official title
+          is eleven lines of statute citations, and this card was printing all of
+          them on the vote deflection. */}
+      <Text
+        ref={titleRef}
+        style={styles.billTitle}
+        accessibilityLabel={bill.title}
+        numberOfLines={bill.shortTitle ? undefined : 2}
+      >
+        {bill.shortTitle ?? bill.title}
+      </Text>
       {bill.summary ? <Text style={styles.billSummary}>{bill.summary}</Text> : null}
       <Pressable
         {...linkProps(routePath.bill(bill.id), onOpen)}
@@ -217,12 +232,48 @@ function AnswerLegislatorRow({
   );
 }
 
+// "← Back to HF 719". Required, not decorative: a chip on Bill Detail is the only
+// way onto this page, so the way back has to be on it (§9.5 Layout). The target
+// comes from the ANSWERING BILL in the payload, never from reading the question
+// text — so it is right even when the bill was resolved by meaning rather than by
+// name (§9.5 decision 10 / issue #859 task 10).
+function BackToBill({
+  identifier,
+  billId,
+  onPress,
+}: {
+  identifier: string;
+  billId: string;
+  onPress: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  const color = hovered ? t.colors.ink : BACK_LINK_GREY;
+  return (
+    <Pressable
+      accessibilityLabel={`Back to ${identifier}`}
+      {...linkProps(routePath.bill(billId), onPress)}
+      {...hover}
+      style={styles.backLink}
+    >
+      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M15 6 L9 12 L15 18"
+          stroke={color}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+      <Text style={[styles.backLinkLabel, { color }]}>Back to {identifier}</Text>
+    </Pressable>
+  );
+}
+
 export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const question = route.params?.q?.trim() ?? '';
   const { signInWithGoogle } = useAuth();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [retryValue, setRetryValue] = useState(question);
-  const [copied, setCopied] = useState(false);
+  const { isDesktop } = useResponsive();
 
   const askQuery = useAskAnswer(question);
 
@@ -250,15 +301,47 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const shownLegislators = answer?.legislators ?? [];
   const hasMatches = Boolean(answer?.hasAnswer && answer.totalMatches > 0);
   const noMatches = Boolean(answer?.hasAnswer && answer.totalMatches === 0);
-  const dataAsOf = formatDataAsOf(answer?.dataAsOf);
   const followUpChips = crossIntentChips(answer?.intent, answer?.topic);
 
-  // §4.7 rule 4: follow-up chips fire their fully-qualified submit directly
-  // (not populate — that is hero-only). Re-runs the Ask in place, updating ?q=.
-  const askFollowUp = (submit: string) => {
-    setRetryValue(submit);
-    navigation.setParams({ q: submit });
-  };
+  // legislator_vote → the v1 honest vote deflection (§4.5 / §9.4): never a vote
+  // answer. A resolved bill deep-links its Votes tab; otherwise it degrades to
+  // the topic_bills list. hasAnswer is true, so this sits outside `pending`.
+  const isVoteDeflection = answer?.intent === 'legislator_vote';
+  const resolvedBill = answer?.resolvedBill;
+
+  // bill_text → the §9.5 single-bill answer: the prose, the answering bill's card,
+  // its remaining suggested questions, and the cited-section rail.
+  const isBillText = answer?.intent === 'bill_text';
+  const answeringBill = answer?.answeringBill;
+  const citations = answer?.citations ?? [];
+
+  // The answering bill is fetched in full rather than reshaped out of the Ask
+  // payload, because four things on this page come from the bill record and not
+  // from the answer: BillResultCard needs a whole `Bill`, "Ask another question"
+  // needs the bill's stored question_prompts, the card's Effective line needs the
+  // verified statutory date, and the source line needs the bill's OWN record date
+  // (§9.5 decision 8a — never the Ask payload's corpus-wide `data_as_of`).
+  const answeringBillId = answeringBill?.id ?? '';
+  const billQuery = useBill(answeringBillId, { enabled: Boolean(answeringBillId) });
+  const bill = billQuery.data;
+
+  // The sections the Bill Text tab actually renders, so a cited section is only
+  // linked to when its anchor really resolves there (see `passageTarget`).
+  const currentVersion = bill?.versions.find((v) => v.isCurrent) ?? bill?.versions[0];
+  const textQuery = useBillVersionText(bill?.id, currentVersion?.versionCode);
+  const renderedSections = textQuery.data ?? [];
+  const sectionsLoaded = textQuery.isSuccess;
+
+  const sections = useMemo(() => citedSections(citations), [citations]);
+  const answerBlocks = useMemo(() => parseAnswerBlocks(answer?.billText ?? ''), [answer?.billText]);
+  // Held back until the bill's own prompts have landed. Rendered eagerly, the
+  // block showed the generic fallback chips for the ~300ms the bill fetch takes
+  // and then swapped all three for the bill's own — a visible flicker on the one
+  // control the reader is being invited to use.
+  const chips = useMemo(
+    () => (billQuery.isPending ? [] : followUpPrompts(bill?.questionPrompts, question)),
+    [billQuery.isPending, bill?.questionPrompts, question],
+  );
 
   // House first, then Senate — drop empty chambers (spec §9.4).
   const chamberGroups = useMemo(
@@ -297,25 +380,14 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           cta: 'Browse bills in Search →',
         };
 
-  // legislator_vote → the v1 honest vote deflection (§4.5 / §9.4): never a vote
-  // answer. A resolved bill deep-links its Votes tab; otherwise it degrades to
-  // the topic_bills list. hasAnswer is true, so this sits outside `pending`.
-  const isVoteDeflection = answer?.intent === 'legislator_vote';
-  const resolvedBill = answer?.resolvedBill;
-
-  // bill_text → the §4.1 / §9.4 single-bill RAG answer: prose + passage
-  // citations + the answering bill. hasAnswer is true, so (like vote deflection)
-  // it renders its own block ahead of the NO MATCHES check.
-  const isBillText = answer?.intent === 'bill_text';
-  const answeringBill = answer?.answeringBill;
-  const citations = answer?.citations ?? [];
-
-  const submitRetry = () => {
-    const next = retryValue.trim();
-    if (next) {
-      navigation.setParams({ q: next });
-    }
+  // §4.7 rule 4: follow-up chips fire their fully-qualified submit directly
+  // (not populate — that is hero-only). Re-runs the Ask in place, updating ?q=.
+  const askFollowUp = (submit: string) => {
+    navigation.setParams({ q: submit });
   };
+
+  const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
+  const openVotes = (billId: string) => navigation.navigate('BillDetail', { billId, tab: 'votes' });
 
   // Mirrors HomeSignedOutScreen's handler: only the shipped rows navigate.
   const handleNavigate = (item: IaItem) => {
@@ -337,420 +409,585 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     }
   };
 
-  const copyLink = async () => {
-    try {
-      if (isWeb && typeof window !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(window.location.href);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        return;
-      }
-      await Share.share({ message: `${question} — Alethical` });
-    } catch {
-      // Clipboard/share permission denied — leave the button label unchanged.
-    }
-  };
+  // The bill the back link returns to: the answering bill on a bill_text answer,
+  // the resolved bill on a vote deflection. Both come from the payload.
+  const backBill = answeringBill ?? resolvedBill;
+  // Share is on the answered states only (§9.2). The deflection's CTA already
+  // routes to the shareable artifact, and a refusal has nothing to share.
+  const showShare = Boolean(answer?.hasAnswer) && !isVoteDeflection;
+  const shareUrl =
+    isWeb && typeof window !== 'undefined'
+      ? window.location.href
+      : `https://alethical.com${routePath.ask({ q: question })}`;
+  // From the existing helper, not the served session name ("94th Legislature
+  // (2025 - 2026) Regular Session") — one vocabulary on every page (§9.5
+  // decision 8). No date here: the page's single date is the source line
+  // (§9.5 decision 8a, docs/design/ui-copy-guide.md § Dates on a page).
+  const sessionLine = backBill
+    ? bienniumEyebrow(backBill.id, answer?.sessionName)
+    : bienniumEyebrow('', answer?.sessionName);
+  // The answering bill's OWN record date — the same value that bill's page shows.
+  const updatedLabel =
+    bill?.updatedAt && bill.updatedAt !== 'Unknown'
+      ? `Updated ${formatNiceDate(bill.updatedAt)}`
+      : '';
 
-  return (
-    <PageBackground>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.navWrap}>
-          <TopNav
-            openMenu={openMenu}
-            onOpenMenuChange={setOpenMenu}
-            onNavigate={handleNavigate}
-            onSignIn={() => void signInWithGoogle()}
+  // An eyebrow only where it is load-bearing: it separates an honest empty state
+  // or a deflection from a real answer. An ANSWERED page carries none — the
+  // question is the heading and the answer sits right under it (§9.5 Layout; the
+  // handoff draws no eyebrow).
+  //
+  // isBillText is checked BEFORE noMatches, and must be: `totalMatches` counts
+  // matching bills for a TOPIC answer and is always 0 on a bill_text answer, so
+  // the other order labelled every single-bill answer "NO MATCHES". The render
+  // chain below already had this order; the eyebrow did not.
+  // Nothing until the answer lands: `pending` is the refusal copy, so computing an
+  // eyebrow from a not-yet-arrived answer printed "NO BILL MATCHED" over the
+  // loading skeleton of a question that answers perfectly well.
+  const eyebrow = !answer
+    ? null
+    : !answer.hasAnswer
+      ? { text: pending.eyebrow, muted: true, comingSoon: false }
+      : isVoteDeflection
+        ? { text: 'ANSWER', muted: false, comingSoon: true }
+        : isBillText
+          ? null
+          : noMatches
+            ? { text: 'NO MATCHES', muted: true, comingSoon: false }
+            : null;
+
+  const hero = question ? (
+    <View style={styles.header}>
+      <View style={styles.headerMain}>
+        {backBill ? (
+          <BackToBill
+            identifier={backBill.identifier}
+            billId={backBill.id}
+            onPress={() => openBill(backBill.id)}
           />
-        </View>
-        <Container style={styles.body}>
-          {/* Retry path: the persistent Ask bar (docs/product-onboarding/grounded-ask-spec.md §9.1). */}
-          <View style={styles.askBar}>
-            <TextInput
-              style={styles.askInput}
-              value={retryValue}
-              onChangeText={setRetryValue}
-              placeholder="Ask about bills or legislators by issue or name"
-              placeholderTextColor={t.colors.text.muted}
-              onSubmitEditing={submitRetry}
-              returnKeyType="search"
-              {...(isWeb
-                ? {
-                    onKeyPress: (event: {
-                      nativeEvent: { key: string };
-                      preventDefault?: () => void;
-                    }) => {
-                      if (event.nativeEvent.key === 'Enter') {
-                        event.preventDefault?.();
-                        submitRetry();
-                      }
-                    },
-                  }
-                : null)}
-            />
+        ) : null}
+        {eyebrow ? (
+          <View style={styles.eyebrowRow}>
+            <Text style={[styles.eyebrow, eyebrow.muted && styles.eyebrowMuted]}>
+              {eyebrow.text}
+            </Text>
+            {eyebrow.comingSoon ? (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        <Text accessibilityRole="header" style={styles.h1}>
+          {question}
+        </Text>
+        {sessionLine ? <Text style={styles.sessionLine}>{sessionLine}</Text> : null}
+      </View>
+      {showShare ? <SharePopover url={shareUrl} title={question} subject="answer" /> : null}
+    </View>
+  ) : null;
+
+  const shell = (children: React.ReactNode) => (
+    <SearchPageShell
+      openMenu={openMenu}
+      onOpenMenuChange={setOpenMenu}
+      onNavigate={handleNavigate}
+      onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
+      onSignIn={() => void signInWithGoogle()}
+      // The shell passes variant="home" to the nav, which hides the ✦ Ask entry —
+      // right here, where there is deliberately nothing to type into.
+      onAsk={() => navigation.navigate('Ask', {})}
+      onPrivacy={() => navigation.navigate('Privacy')}
+      onTerms={() => navigation.navigate('Terms')}
+      hero={hero}
+      // The header ends in its own hairline, so the white panel's 40px top padding
+      // is the whole gap below it. Left stacked with the hero's own bottom padding
+      // the two make ~84px and the answer reads as detached from the question it
+      // answers (issue #859, task 3).
+      heroEndsWithRule={Boolean(hero)}
+    >
+      {children}
+    </SearchPageShell>
+  );
+
+  if (askQuery.isLoading || resolvingName) {
+    return shell(
+      <View style={styles.stateBox}>
+        <Skeleton height={22} width="70%" />
+        <Skeleton height={22} width="90%" />
+        <Skeleton height={22} width="55%" />
+      </View>,
+    );
+  }
+
+  if (askQuery.isError) {
+    return shell(
+      <View style={styles.stateBox}>
+        <Text style={styles.stateText}>Something went wrong answering this question.</Text>
+        <Pressable accessibilityRole="button" onPress={() => askQuery.refetch()}>
+          <Text style={styles.viewBillLink}>Try again →</Text>
+        </Pressable>
+      </View>,
+    );
+  }
+
+  // No ?q= at all. There is no field on this page to fill in, so the honest exit
+  // is Search rather than an instruction to type something (§9.5 Scope).
+  if (!question) {
+    return shell(
+      <View style={styles.stateBox}>
+        <Text style={styles.stateText}>
+          This page shows the answer to a question asked from a bill. Pick a bill and ask one of its
+          suggested questions.
+        </Text>
+        <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
+          <Text style={styles.viewBillLink}>Browse Minnesota bills in Search →</Text>
+        </Pressable>
+      </View>,
+    );
+  }
+
+  // --- The refusal / NO BILL MATCHED state (§9.5 decision 9). A chip cannot
+  // produce it, but ?q= is shareable and hand-editable, so it must still render.
+  if (answer && !answer.hasAnswer) {
+    return shell(
+      <View style={styles.narrowColumn}>
+        <Text style={styles.bodyText}>{pending.body}</Text>
+        <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
+          <Text style={styles.viewBillLink}>{pending.cta}</Text>
+        </Pressable>
+      </View>,
+    );
+  }
+
+  // --- The vote deflection (§4.5 / §9.4): never a vote answer, no tallies.
+  if (isVoteDeflection && answer) {
+    return shell(
+      <View style={styles.narrowColumn}>
+        {/* Fixed deflection copy owned by the layout (docs/product-onboarding/grounded-ask-spec.md
+            §9.4) — .claude/rules/grounded-answers.md rules 3 & 4. */}
+        <Text style={styles.bodyText}>
+          Vote-by-vote answers will land right here. Until then, every roll call on this bill is on
+          its Votes page — each with a link to the official record.
+        </Text>
+        {resolvedBill ? (
+          <View style={styles.cardsColumn}>
+            <AnswerBillCard bill={resolvedBill} onOpen={() => openBill(resolvedBill.id)} />
             <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Ask"
-              style={styles.askButton}
-              onPress={submitRetry}
+              {...linkProps(routePath.bill(resolvedBill.id, { tab: 'votes' }), () =>
+                openVotes(resolvedBill.id),
+              )}
+              accessibilityLabel={`See all votes on ${resolvedBill.identifier}`}
             >
-              <Text style={styles.askButtonText}>Ask</Text>
+              <Text style={styles.viewBillLink}>See all votes on {resolvedBill.identifier} →</Text>
             </Pressable>
           </View>
-
-          {askQuery.isLoading || resolvingName ? (
-            <View style={styles.centerBlock}>
-              <ActivityIndicator color={t.colors.brand.deep} />
-            </View>
-          ) : askQuery.isError ? (
-            <View style={styles.centerBlock}>
-              <Text style={styles.errorText}>Something went wrong answering this question.</Text>
-              <Pressable accessibilityRole="button" onPress={() => askQuery.refetch()}>
-                <Text style={styles.viewBillLink}>Try again →</Text>
-              </Pressable>
-            </View>
-          ) : !question ? (
-            <View style={styles.centerBlock}>
-              <Text style={styles.errorText}>Type a question above to get started.</Text>
-            </View>
-          ) : answer && !answer.hasAnswer ? (
-            <View style={styles.answerBlock}>
-              <Text style={[styles.eyebrow, pending.muted && styles.eyebrowMuted]}>
-                {pending.eyebrow}
-              </Text>
-              <Text style={styles.question}>{question}</Text>
-              <Text style={styles.introLine}>{pending.body}</Text>
-              <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
-                <Text style={styles.viewBillLink}>{pending.cta}</Text>
-              </Pressable>
-            </View>
-          ) : isVoteDeflection && answer ? (
-            <View style={styles.answerBlock}>
-              {/* §9.4 vote-deflection: ANSWER eyebrow (not an error) + COMING
-                  SOON badge; never a vote answer, no tallies or positions. */}
-              <View style={styles.eyebrowRow}>
-                <Text style={styles.eyebrow}>ANSWER</Text>
-                <View style={styles.comingSoonBadge}>
-                  <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
-                </View>
-              </View>
-              <Text style={styles.question}>{question}</Text>
-              {/* Fixed deflection copy owned by the layout (docs/product-onboarding/grounded-ask-spec.md
-                  §9.4) — .claude/rules/grounded-answers.md rules 3 & 4. */}
-              <Text style={styles.introLine}>
-                Vote-by-vote answers will land right here. Until then, every roll call on this bill
-                is on its Votes page — each with a link to the official record.
-              </Text>
-              {resolvedBill ? (
-                <View style={styles.cardsColumn}>
-                  <AnswerBillCard
-                    bill={resolvedBill}
-                    onOpen={() => navigation.navigate('BillDetail', { billId: resolvedBill.id })}
-                  />
-                  <Pressable
-                    {...linkProps(routePath.bill(resolvedBill.id, { tab: 'votes' }), () =>
-                      navigation.navigate('BillDetail', {
-                        billId: resolvedBill.id,
-                        tab: 'votes',
-                      }),
-                    )}
-                    accessibilityLabel={`See all votes on ${resolvedBill.identifier}`}
-                  >
-                    <Text style={styles.viewBillLink}>
-                      See all votes on {resolvedBill.identifier} →
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : shownBills.length > 0 ? (
-                <>
-                  {/* Unresolved bill → degrade to the topic_bills list, each card
-                      deep-linking its Votes tab (§4.5 / §9.4). */}
-                  <Text style={styles.introLine}>
-                    No specific bill was named. Here are current-session bills on
-                    <Text style={styles.topicPill}> {answer.topic ?? 'this topic'} </Text>— open any
-                    to see its roll-call votes:
-                  </Text>
-                  <View style={styles.cardsColumn}>
-                    {shownBills.map((bill) => (
-                      <AnswerBillCard
-                        key={bill.id}
-                        bill={bill}
-                        onOpen={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                      />
-                    ))}
-                  </View>
-                </>
-              ) : (
-                <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
-                  <Text style={styles.viewBillLink}>Browse bills to see their votes →</Text>
-                </Pressable>
-              )}
-            </View>
-          ) : isBillText && answer && answer.billText ? (
-            <View style={styles.answerBlock}>
-              {/* §9.4 bill_text: answer prose + provenance strip + a Sources
-                  section, each citation opening its official source. */}
-              <Text style={styles.eyebrow}>ANSWER</Text>
-              <Text style={styles.question}>{question}</Text>
-              {answeringBill ? (
-                <Text style={styles.provenance}>
-                  {answeringBill.identifier}
-                  {answer.sessionName ? ` · ${answer.sessionName}` : ''}
-                  {dataAsOf ? ` · Data as of ${dataAsOf}` : ''}
-                </Text>
-              ) : null}
-              <Text style={styles.billTextProse}>{stripInlineMarkdown(answer.billText)}</Text>
-              {citations.length > 0 ? (
-                <View style={styles.sourcesBlock}>
-                  <Text style={styles.sourcesHeading}>SOURCES</Text>
-                  {citations.map((citation, index) => (
-                    <View key={`${citation.label}-${index}`} style={styles.citationCard}>
-                      <Text style={styles.citationLabel}>
-                        {index + 1}. {citation.label}
-                      </Text>
-                      <Text style={styles.citationExcerpt}>“{citation.excerpt}”</Text>
-                      <Pressable
-                        {...externalLinkProps(
-                          citation.url,
-                          () => void Linking.openURL(citation.url),
-                        )}
-                        accessibilityLabel={`Open the official source for ${citation.label}`}
-                      >
-                        <Text style={styles.citationLink}>Open official source ↗</Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-              {answeringBill ? (
-                <AnswerBillCard
-                  bill={answeringBill}
-                  onOpen={() => navigation.navigate('BillDetail', { billId: answeringBill.id })}
-                />
-              ) : null}
-              <FollowUpChips
-                chips={billTextChips(answeringBill?.policyAreas?.[0])}
-                onAsk={askFollowUp}
-              />
-              <View style={styles.shareRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={isWeb ? 'Copy link to this answer' : 'Share this answer'}
-                  style={styles.shareButton}
-                  onPress={() => void copyLink()}
-                >
-                  <Text style={styles.shareButtonText}>
-                    {copied ? 'Link copied' : isWeb ? 'Copy link' : 'Share'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : noMatches ? (
-            <View style={styles.answerBlock}>
-              <Text style={styles.eyebrow}>NO MATCHES</Text>
-              <Text style={styles.question}>{question}</Text>
-              <Text style={styles.introLine}>
-                {isLegislators
-                  ? 'No current-session legislators are on the record for'
-                  : 'No current-session bills match'}{' '}
-                {answer?.topic ? (
-                  <Text style={styles.topicPill}> {answer.topic} </Text>
-                ) : (
-                  <Text>this topic</Text>
-                )}
-                . Try another issue, or browse everything in Search.
-              </Text>
-              <Pressable
-                {...linkProps(
-                  routePath.bills(answer?.topic ? { q: answer.topic } : undefined),
-                  () =>
-                    navigation.navigate('Bills', answer?.topic ? { q: answer.topic } : undefined),
-                )}
-              >
-                <Text style={styles.viewBillLink}>Search all bills →</Text>
-              </Pressable>
-            </View>
-          ) : hasMatches && answer && isLegislators ? (
-            <View style={styles.answerBlock}>
-              <Text style={styles.eyebrow}>ANSWER</Text>
-              <Text style={styles.question}>{question}</Text>
-              {/* Fixed framing copy owned by the layout, never LLM output
-                  (docs/product-onboarding/grounded-ask-spec.md §4.3; .claude/rules/grounded-answers.md rule 3). */}
-              <Text style={styles.framingNote}>
-                “Support” shown as what the public record shows: bills authored or co-authored on
-                this topic — not inferred opinions.
-              </Text>
-              <Text style={styles.introLine}>
-                Legislators on the record for
-                <Text style={styles.topicPill}> {answer.topic} </Text>, grouped by chamber:
-              </Text>
-              <Text style={styles.provenance}>
-                {shownLegislators.length} of {answer.totalMatches} legislators
-                {answer.sessionName ? ` · ${answer.sessionName}` : ''}
-                {dataAsOf ? ` · Data as of ${dataAsOf}` : ''}
-              </Text>
-              {chamberGroups.map((group) => (
-                <View key={group.key} style={styles.chamberGroup}>
-                  <Text style={styles.chamberHeading}>{group.label}</Text>
-                  {group.legislators.map((legislator) => (
-                    <AnswerLegislatorRow
-                      key={legislator.id}
-                      legislator={legislator}
-                      onOpenProfile={() =>
-                        navigation.navigate('LegislatorProfile', { legislatorId: legislator.id })
-                      }
-                      onOpenBill={(billId) => navigation.navigate('BillDetail', { billId })}
-                    />
-                  ))}
-                </View>
+        ) : shownBills.length > 0 ? (
+          <>
+            {/* Unresolved bill → degrade to the topic_bills list, each card
+                deep-linking its Votes tab (§4.5 / §9.4). */}
+            <Text style={styles.bodyText}>
+              No specific bill was named. Here are current-session bills on
+              <Text style={styles.topicPill}> {answer.topic ?? 'this topic'} </Text>— open any to
+              see its roll-call votes:
+            </Text>
+            <View style={styles.cardsColumn}>
+              {shownBills.map((listed) => (
+                <AnswerBillCard key={listed.id} bill={listed} onOpen={() => openBill(listed.id)} />
               ))}
-              {answer.totalBills && answer.totalBills > 0 ? (
-                <Pressable
-                  {...linkProps(
-                    routePath.bills(answer.topic ? { q: answer.topic } : undefined),
-                    () =>
-                      navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
-                  )}
-                >
-                  <Text style={styles.viewBillLink}>
-                    See all {answer.totalBills} {answer.topic}{' '}
-                    {answer.totalBills === 1 ? 'bill' : 'bills'} in Search →
-                  </Text>
-                </Pressable>
-              ) : null}
-              <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
-              <View style={styles.shareRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={isWeb ? 'Copy link to this answer' : 'Share this answer'}
-                  style={styles.shareButton}
-                  onPress={() => void copyLink()}
-                >
-                  <Text style={styles.shareButtonText}>
-                    {copied ? 'Link copied' : isWeb ? 'Copy link' : 'Share'}
-                  </Text>
-                </Pressable>
-              </View>
             </View>
-          ) : hasMatches && answer ? (
-            <View style={styles.answerBlock}>
-              <Text style={styles.eyebrow}>ANSWER</Text>
-              <Text style={styles.question}>{question}</Text>
-              <Text style={styles.introLine}>
-                Current-session bills matching
-                <Text style={styles.topicPill}> {answer.topic} </Text>, by legislative progress:
-              </Text>
-              <Text style={styles.provenance}>
-                {shownBills.length} of {answer.totalMatches} matching bills
-                {answer.sessionName ? ` · ${answer.sessionName}` : ''}
-                {dataAsOf ? ` · Data as of ${dataAsOf}` : ''}
-              </Text>
-              <View style={styles.cardsColumn}>
-                {shownBills.map((bill) => (
-                  <AnswerBillCard
-                    key={bill.id}
-                    bill={bill}
-                    onOpen={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                  />
-                ))}
+          </>
+        ) : (
+          <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
+            <Text style={styles.viewBillLink}>Browse bills to see their votes →</Text>
+          </Pressable>
+        )}
+      </View>,
+    );
+  }
+
+  // --- The chip-reached single-bill answer (§9.5). Everything above is a state
+  // this page must still be able to render; this is the one it was designed for.
+  if (isBillText && answer && answer.billText) {
+    return shell(
+      <View>
+        <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
+          <View style={[styles.contentCol, isDesktop && styles.contentColDesktop]}>
+            <AnswerBody blocks={answerBlocks} />
+
+            {bill ? (
+              <View style={styles.billCardBlock}>
+                <BillResultCard
+                  bill={bill}
+                  onPress={() => openBill(bill.id)}
+                  onSponsorPress={(legislatorId) =>
+                    navigation.navigate('LegislatorProfile', { legislatorId })
+                  }
+                  onRollCalls={() => openVotes(bill.id)}
+                />
               </View>
-              {answer.totalMatches > shownBills.length ? (
-                <Pressable
-                  {...linkProps(
-                    routePath.bills(answer.topic ? { q: answer.topic } : undefined),
-                    () =>
-                      navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
-                  )}
-                >
-                  <Text style={styles.viewBillLink}>
-                    See all {answer.totalMatches} {answer.topic} bills in Search →
-                  </Text>
-                </Pressable>
-              ) : null}
-              <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
-              <View style={styles.shareRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={isWeb ? 'Copy link to this answer' : 'Share this answer'}
-                  style={styles.shareButton}
-                  onPress={() => void copyLink()}
-                >
-                  <Text style={styles.shareButtonText}>
-                    {copied ? 'Link copied' : isWeb ? 'Copy link' : 'Share'}
-                  </Text>
-                </Pressable>
+            ) : billQuery.isLoading ? (
+              <View style={styles.billCardBlock}>
+                <Skeleton height={220} radius={18} />
+              </View>
+            ) : null}
+
+            {chips.length ? (
+              <View style={styles.askAnotherBlock}>
+                <Text accessibilityRole="header" style={styles.h2}>
+                  Ask another question
+                </Text>
+                <View style={styles.chipRow}>
+                  {chips.map((chip) => {
+                    // Scoped to this bill the same way Bill Detail scopes its chips,
+                    // so the bill_text path resolves it and the chip cannot dead-end
+                    // in a refusal (rule 2). A real anchor, so each suggestion has
+                    // its own shareable URL.
+                    const submit = answeringBill
+                      ? scopedChipQuery(answeringBill.identifier, chip)
+                      : chip;
+                    return (
+                      <SuggestedQuestionChip
+                        key={chip}
+                        label={chip}
+                        linkProps={linkProps(routePath.ask({ q: submit }), () =>
+                          askFollowUp(submit),
+                        )}
+                      />
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+          </View>
+
+          {sections.length ? (
+            <View
+              style={[
+                styles.railCol,
+                isDesktop && styles.railColDesktop,
+                isDesktop && isWeb ? STICKY_RAIL : null,
+              ]}
+            >
+              <View style={styles.railHead}>
+                <Text accessibilityRole="header" style={styles.h2}>
+                  From the bill
+                </Text>
+                <View style={styles.citedLabel}>
+                  <Text style={styles.citedLabelText}>Cited Sections</Text>
+                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                    <Circle cx={12} cy={12} r={9} stroke={t.colors.brand.deep} strokeWidth={2} />
+                    <Path
+                      d="M8.5 12.2 L11 14.7 L15.7 9.6"
+                      stroke={t.colors.brand.deep}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                </View>
+              </View>
+              <View style={styles.railCards}>
+                {sections.map((section) => {
+                  // The anchor value the Bill Text tab answers to — id AND position
+                  // (#854). Built by the same helper the tab's own citation chips
+                  // use, and checked with the same resolver the tab runs on an
+                  // incoming fragment, so a link cannot claim a landing spot the tab
+                  // would not honour.
+                  const anchor = citationSectionAnchor(section);
+                  const target = passageTarget(
+                    section.sectionId,
+                    Boolean(resolveSectionAnchor(renderedSections, parseSectionAnchor(anchor))),
+                    sectionsLoaded,
+                  );
+                  const billTextPath = bill ? routePath.bill(bill.id, { tab: 'text' }) : null;
+                  return (
+                    <CitationCard
+                      key={section.key}
+                      label={section.label}
+                      sectionTopic={section.sectionTopic}
+                      excerpts={section.excerpts}
+                      accessibilityLabel={
+                        target === 'official'
+                          ? `Open the official source for ${section.chipLabel}`
+                          : `Read ${section.chipLabel} in the bill text`
+                      }
+                      linkProps={
+                        target !== 'official' && billTextPath
+                          ? // A REAL browser navigation, not the usual in-app
+                            // transition: the target carries a URL fragment, and
+                            // React Navigation rewrites the URL on navigate, so an
+                            // in-app transition would drop `#ft-…` and the Bill Text
+                            // tab would have nothing to scroll to. One page load buys
+                            // a landing that scrolls and highlights, and a URL the
+                            // reader can copy (grounded-answers rule 5).
+                            passageLinkProps(
+                              target === 'passage'
+                                ? `${billTextPath}#${sectionAnchorId(parseSectionAnchor(anchor)!)}`
+                                : billTextPath,
+                              () =>
+                                navigation.navigate('BillDetail', {
+                                  billId: bill!.id,
+                                  tab: 'text',
+                                }),
+                            )
+                          : externalLinkProps(section.url, () => {
+                              Linking.openURL(section.url).catch(() => {});
+                            })
+                      }
+                    />
+                  );
+                })}
               </View>
             </View>
           ) : null}
-        </Container>
-        <Footer
-          onPrivacy={() => navigation.navigate('Privacy')}
-          onTerms={() => navigation.navigate('Terms')}
-        />
-      </ScrollView>
-    </PageBackground>
+        </View>
+        <SourceLine updatedLabel={updatedLabel} />
+      </View>,
+    );
+  }
+
+  // --- NO MATCHES on a topic answer (§4.5): in scope, just empty. Never shares
+  // the out-of-scope label.
+  if (noMatches) {
+    return shell(
+      <View style={styles.narrowColumn}>
+        <Text style={styles.bodyText}>
+          {isLegislators
+            ? 'No current-session legislators are on the record for'
+            : 'No current-session bills match'}{' '}
+          {answer?.topic ? (
+            <Text style={styles.topicPill}> {answer.topic} </Text>
+          ) : (
+            <Text>this topic</Text>
+          )}
+          . Try another issue, or browse everything in Search.
+        </Text>
+        <Pressable
+          {...linkProps(routePath.bills(answer?.topic ? { q: answer.topic } : undefined), () =>
+            navigation.navigate('Bills', answer?.topic ? { q: answer.topic } : undefined),
+          )}
+        >
+          <Text style={styles.viewBillLink}>Search all bills →</Text>
+        </Pressable>
+      </View>,
+    );
+  }
+
+  // --- topic_legislators (§4.3 / §9.4).
+  if (hasMatches && answer && isLegislators) {
+    return shell(
+      <View style={styles.narrowColumn}>
+        {/* Fixed framing copy owned by the layout, never LLM output
+            (docs/product-onboarding/grounded-ask-spec.md §4.3; .claude/rules/grounded-answers.md rule 3). */}
+        <Text style={styles.framingNote}>
+          “Support” shown as what the public record shows: bills authored or co-authored on this
+          topic — not inferred opinions.
+        </Text>
+        <Text style={styles.bodyText}>
+          Legislators on the record for
+          <Text style={styles.topicPill}> {answer.topic} </Text>, grouped by chamber:
+        </Text>
+        <Text style={styles.provenance}>
+          {shownLegislators.length} of {answer.totalMatches} legislators
+        </Text>
+        {chamberGroups.map((group) => (
+          <View key={group.key} style={styles.chamberGroup}>
+            <Text style={styles.chamberHeading}>{group.label}</Text>
+            {group.legislators.map((legislator) => (
+              <AnswerLegislatorRow
+                key={legislator.id}
+                legislator={legislator}
+                onOpenProfile={() =>
+                  navigation.navigate('LegislatorProfile', { legislatorId: legislator.id })
+                }
+                onOpenBill={openBill}
+              />
+            ))}
+          </View>
+        ))}
+        {answer.totalBills && answer.totalBills > 0 ? (
+          <Pressable
+            {...linkProps(routePath.bills(answer.topic ? { q: answer.topic } : undefined), () =>
+              navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
+            )}
+          >
+            <Text style={styles.viewBillLink}>
+              See all {answer.totalBills} {answer.topic}{' '}
+              {answer.totalBills === 1 ? 'bill' : 'bills'} in Search →
+            </Text>
+          </Pressable>
+        ) : null}
+        <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
+      </View>,
+    );
+  }
+
+  // --- topic_bills (§4.2 / §9.4).
+  if (hasMatches && answer) {
+    return shell(
+      <View style={styles.narrowColumn}>
+        <Text style={styles.bodyText}>
+          Current-session bills matching
+          <Text style={styles.topicPill}> {answer.topic} </Text>, by legislative progress:
+        </Text>
+        <Text style={styles.provenance}>
+          {shownBills.length} of {answer.totalMatches} matching bills
+        </Text>
+        <View style={styles.cardsColumn}>
+          {shownBills.map((listed) => (
+            <AnswerBillCard key={listed.id} bill={listed} onOpen={() => openBill(listed.id)} />
+          ))}
+        </View>
+        {answer.totalMatches > shownBills.length ? (
+          <Pressable
+            {...linkProps(routePath.bills(answer.topic ? { q: answer.topic } : undefined), () =>
+              navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
+            )}
+          >
+            <Text style={styles.viewBillLink}>
+              See all {answer.totalMatches} {answer.topic} bills in Search →
+            </Text>
+          </Pressable>
+        ) : null}
+        <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
+      </View>,
+    );
+  }
+
+  return shell(null);
+}
+
+// The generated answer, displayed and never recomposed (§9.5 decision 5): the
+// model's own sentences and their order pass through untouched, and the only thing
+// the layout decides is the SHAPE of a list it wrote.
+function AnswerBody({ blocks }: { blocks: ReturnType<typeof parseAnswerBlocks> }) {
+  return (
+    <View>
+      {blocks.map((block, index) => {
+        if (block.kind === 'paragraph') {
+          return (
+            <Text key={index} style={[styles.answerText, index > 0 && styles.answerTextSpaced]}>
+              {block.text}
+            </Text>
+          );
+        }
+        const index3 = alphabeticalIndex(block.items);
+        return index3 ? (
+          <AlphabeticalIndex key={index} items={index3} />
+        ) : (
+          <View key={index} style={styles.points}>
+            {block.items.map((item, i) => (
+              <View key={i} style={styles.pointRow}>
+                <View style={styles.bullet} />
+                <Text style={styles.pointText}>{item}</Text>
+              </View>
+            ))}
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
+// A long list of short names, laid out as a three-column A→Z index so one name is
+// findable at a glance (§9.5 decision 6). Layout only.
+//
+// Deliberately NO COUNT, and no total (#868). Retrieval hands the answer writer
+// four passages of a bill (`_BILL_TEXT_CHUNK_LIMIT`), so on a 48-section bonding
+// bill the model enumerates what it could see: for HF 719 it named 19 cities where
+// the bill's own text names about 90. A count printed beside that list would turn
+// an incomplete enumeration into a false claim of completeness — the worst failure
+// this product can make (.claude/rules/grounded-answers.md rule 1). The caption
+// states the ORDERING only, which is a fact about the layout and not about the
+// bill; the reader needs it because these names are not in the answer's own order.
+const INDEX_COLUMNS = 3;
+
+function AlphabeticalIndex({ items }: { items: string[] }) {
+  const rows = Math.ceil(items.length / INDEX_COLUMNS);
+  const gridWeb = isWeb
+    ? ({
+        display: 'grid',
+        gridAutoFlow: 'column',
+        gridTemplateRows: `repeat(${rows}, auto)`,
+        columnGap: 28,
+        rowGap: 9,
+        justifyContent: 'start',
+      } as object)
+    : null;
+  return (
+    <View style={styles.indexBlock}>
+      <Text style={styles.indexCaption}>Listed A–Z</Text>
+      <View style={[styles.indexList, gridWeb]}>
+        {items.map((item) => (
+          <Text key={item} style={styles.indexItem}>
+            {item}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// A cited passage is reached by a genuine browser navigation on web (the fragment
+// has to survive), and by an ordinary in-app navigate on native, where there is no
+// anchor to carry.
+function passageLinkProps(href: string, onPress: () => void) {
+  if (!isWeb) {
+    return { accessibilityRole: 'link' as const, onPress };
+  }
+  return { accessibilityRole: 'link' as const, href };
+}
+
+// Back-link grey, matching Bill Detail's breadcrumb (palette.ink500).
+const BACK_LINK_GREY = '#4b524b';
+
 const styles = StyleSheet.create({
-  scrollContent: {
-    flexGrow: 1,
+  // --- Header (on the gradient) ---
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 32,
+    flexWrap: 'wrap',
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: t.colors.alpha.ink10,
   },
-  navWrap: {
-    zIndex: 10,
+  headerMain: { minWidth: 0, flexShrink: 1, flexGrow: 1, flexBasis: 320 },
+  backLink: {
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
   },
-  body: {
-    paddingTop: t.spacing.lg,
-    paddingBottom: t.spacing.xxl,
-    flexGrow: 1,
+  backLinkLabel: {
+    fontFamily: t.typography.ui,
+    fontSize: 16,
+    fontWeight: t.fontWeights.semibold,
   },
-  askBar: {
+  h1: {
+    fontFamily: t.typography.title,
+    fontSize: 42,
+    lineHeight: 45,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.9,
+    color: t.colors.text.primary,
+  },
+  sessionLine: {
+    marginTop: 14,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    fontWeight: t.fontWeights.medium,
+    letterSpacing: 0.7,
+    color: t.colors.text.muted,
+  },
+  eyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: t.spacing.sm,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.borders.base,
-    borderRadius: t.radii.lg,
-    paddingLeft: t.spacing.md,
-    paddingRight: t.spacing.xs,
-    paddingVertical: t.spacing.xs,
-    marginBottom: t.spacing.xl,
-  },
-  askInput: {
-    flex: 1,
-    fontFamily: t.typography.body,
-    fontSize: 15,
-    color: t.colors.text.primary,
-    paddingVertical: t.spacing.sm,
-    ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
-  },
-  askButton: {
-    backgroundColor: t.colors.brand.base,
-    borderRadius: t.radii.md,
-    paddingHorizontal: t.spacing.lg,
-    paddingVertical: t.spacing.sm,
-  },
-  askButtonText: {
-    fontFamily: t.typography.ui,
-    fontWeight: '700',
-    fontSize: 14,
-    color: t.colors.text.onGreen,
-  },
-  centerBlock: {
-    alignItems: 'center',
-    gap: t.spacing.md,
-    paddingVertical: t.spacing.xxl,
-  },
-  errorText: {
-    fontFamily: t.typography.body,
-    fontSize: 15,
-    color: t.colors.text.secondary,
-  },
-  answerBlock: {
-    gap: t.spacing.md,
-    maxWidth: 720,
-    width: '100%',
-    alignSelf: 'center',
+    marginBottom: 12,
   },
   eyebrow: {
     fontFamily: t.typography.mono,
@@ -759,11 +996,8 @@ const styles = StyleSheet.create({
     color: t.colors.text.green,
     fontWeight: '700',
   },
-  eyebrowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: t.spacing.sm,
-  },
+  // Out-of-scope is a calm, muted state — not an answer, not "coming soon".
+  eyebrowMuted: { color: t.colors.text.muted },
   comingSoonBadge: {
     backgroundColor: t.colors.tint.t150,
     borderRadius: t.radii.badge,
@@ -778,21 +1012,105 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: t.colors.brand.deep,
   },
-  // Out-of-scope is a calm, muted state — not an answer, not "coming soon".
-  eyebrowMuted: {
-    color: t.colors.text.muted,
-  },
-  question: {
+
+  // --- Body grid (1.4fr / 1fr, 56px, collapsing under 1100px) ---
+  grid: { gap: 40 },
+  gridDesktop: { flexDirection: 'row', alignItems: 'flex-start', gap: 56 },
+  contentCol: { minWidth: 0 },
+  contentColDesktop: { flex: 1.4 },
+  railCol: { minWidth: 0 },
+  railColDesktop: { flex: 1 },
+  // Single-column states (a refusal, a topic list) read as prose, so they keep a
+  // measure rather than running the full 1240px.
+  narrowColumn: { maxWidth: 760, gap: t.spacing.md },
+
+  h2: {
     fontFamily: t.typography.title,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '700',
+    fontSize: t.fontSizes.h3,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.3,
     color: t.colors.text.primary,
   },
-  introLine: {
+
+  // --- The answer ---
+  answerText: {
     fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: t.fontSizes.subhead,
+    lineHeight: 28,
+    fontWeight: t.fontWeights.medium,
+    color: '#2c322c',
+  },
+  answerTextSpaced: { marginTop: 22 },
+  points: { marginTop: 18, gap: 14 },
+  pointRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  bullet: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: t.colors.text.primary,
+    marginTop: 10,
+  },
+  pointText: {
+    flex: 1,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.subhead,
+    lineHeight: 28,
+    color: '#2c322c',
+  },
+  indexBlock: { marginTop: 18 },
+  indexCaption: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.label,
+    color: '#6f756f',
+  },
+  indexList: {
+    marginTop: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 28,
+    rowGap: 9,
+  },
+  indexItem: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.bodyLg,
+    fontWeight: t.fontWeights.medium,
+    color: '#2c322c',
+  },
+
+  billCardBlock: { marginTop: 36 },
+  askAnotherBlock: { marginTop: 36, gap: 14 },
+  chipRow: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: 9 },
+
+  // --- "From the bill" rail ---
+  railHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  citedLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  citedLabelText: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.7,
+    color: t.colors.text.muted,
+  },
+  railCards: { marginTop: 14, gap: 12 },
+
+  // --- Shared / other states ---
+  stateBox: { gap: t.spacing.md, maxWidth: 620 },
+  stateText: {
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    lineHeight: 25,
+    color: t.colors.text.secondary,
+  },
+  bodyText: {
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    lineHeight: 25,
     color: t.colors.text.secondary,
   },
   topicPill: {
@@ -811,82 +1129,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: t.colors.text.muted,
   },
-  billTextProse: {
-    fontFamily: t.typography.body,
-    fontSize: 16,
-    lineHeight: 25,
-    color: t.colors.text.primary,
-  },
-  sourcesBlock: {
-    gap: t.spacing.sm,
-  },
-  sourcesHeading: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    fontWeight: '700',
-    color: t.colors.text.secondary,
-  },
-  citationCard: {
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.borders.base,
-    borderRadius: t.radii.card,
-    padding: t.spacing.md,
-    gap: 6,
-  },
-  citationLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: '700',
-    color: t.colors.text.secondary,
-  },
-  citationExcerpt: {
-    fontFamily: t.typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-    fontStyle: 'italic',
-    color: t.colors.text.primary,
-  },
-  // Gray external link — the §9.4 grammar: gray ↗ leaves the app to the record.
-  citationLink: {
-    fontFamily: t.typography.ui,
-    fontSize: 13,
-    fontWeight: '700',
-    color: t.colors.text.muted,
-  },
-  cardsColumn: {
-    gap: t.spacing.md,
-  },
-  followupBlock: {
-    gap: t.spacing.sm,
-  },
+  cardsColumn: { gap: t.spacing.md },
+  followupBlock: { gap: t.spacing.sm, marginTop: t.spacing.sm },
   followupHeading: {
     fontFamily: t.typography.mono,
     fontSize: 12,
     letterSpacing: 1.2,
     fontWeight: '700',
     color: t.colors.text.secondary,
-  },
-  followupRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: t.spacing.sm,
-  },
-  followupChip: {
-    borderWidth: 1,
-    borderColor: t.colors.borders.base,
-    borderRadius: t.radii.badge,
-    backgroundColor: t.colors.surfaces.base,
-    ...(isWeb
-      ? ({ paddingLeft: 12, paddingRight: 12, paddingTop: 8, paddingBottom: 8 } as object)
-      : { paddingHorizontal: 12, paddingVertical: 8 }),
-  },
-  followupChipText: {
-    fontFamily: t.typography.ui,
-    fontSize: 14,
-    fontWeight: '600',
-    color: t.colors.brand.deep,
   },
   framingNote: {
     fontFamily: t.typography.body,
@@ -895,9 +1145,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: t.colors.text.muted,
   },
-  chamberGroup: {
-    gap: t.spacing.sm,
-  },
+  chamberGroup: { gap: t.spacing.sm },
   chamberHeading: {
     fontFamily: t.typography.mono,
     fontSize: 12,
@@ -920,10 +1168,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: t.spacing.sm,
   },
-  legNameCol: {
-    flexShrink: 1,
-    gap: 2,
-  },
+  legNameCol: { flexShrink: 1, gap: 2 },
   legName: {
     fontFamily: t.typography.body,
     fontSize: 15,
@@ -947,12 +1192,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
     marginTop: 2,
   },
-  billPillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
-  },
+  billPillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   billPill: {
     backgroundColor: t.colors.omnibus.fill,
     borderRadius: t.radii.badge,
@@ -1020,23 +1260,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: t.colors.text.green,
-  },
-  shareRow: {
-    flexDirection: 'row',
-    marginTop: t.spacing.sm,
-  },
-  shareButton: {
-    borderWidth: 1,
-    borderColor: t.colors.borders.base,
-    borderRadius: t.radii.md,
-    paddingHorizontal: t.spacing.md,
-    paddingVertical: t.spacing.xs,
-    backgroundColor: t.colors.surfaces.base,
-  },
-  shareButtonText: {
-    fontFamily: t.typography.ui,
-    fontSize: 13,
-    fontWeight: '600',
-    color: t.colors.text.secondary,
   },
 });

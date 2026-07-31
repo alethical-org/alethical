@@ -161,6 +161,9 @@ interface ApiAskCitationPayload {
   bill_id: string;
   excerpt: string;
   url: string;
+  section_id?: string | null;
+  section_order?: number | null;
+  section_topic?: string | null;
 }
 
 interface ApiAskBillTextAnswerPayload {
@@ -1463,6 +1466,7 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
     id: bill.id,
     identifier: formatBillIdentifier(bill.file_type, bill.file_number),
     title: bill.title,
+    shortTitle: bill.ai_analysis?.short_title ?? undefined,
     status: statusLabel(bill.status_key, bill.current_status),
     statusKey: bill.status_key ?? undefined,
     summary: bill.ai_analysis?.summary ?? undefined,
@@ -1496,6 +1500,9 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
       billId: citation.bill_id,
       excerpt: citation.excerpt,
       url: citation.url,
+      sectionId: typeof citation.section_id === 'string' ? citation.section_id.trim() : '',
+      sectionOrder: typeof citation.section_order === 'number' ? citation.section_order : null,
+      sectionTopic: typeof citation.section_topic === 'string' ? citation.section_topic.trim() : '',
     })),
     answeringBill: billTextAnswer ? mapBill(billTextAnswer.bill) : undefined,
     topic:

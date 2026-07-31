@@ -24,7 +24,11 @@ from alethical.api.schemas import (
     DetailResponse,
 )
 from alethical.api.rate_limit import rate_limit
-from alethical.api.serializers import bill_list_item, current_bill_summary_enrichment
+from alethical.api.serializers import (
+    bill_list_item,
+    current_bill_summary_enrichment,
+    section_chip_topic,
+)
 from alethical.api.services.ask_router import (
     AskIntent,
     classify_query,
@@ -36,6 +40,7 @@ from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding
 
 schema = load_schema()
 Bill = schema.Bill
+BillVersionSection = schema.BillVersionSection
 AIEnrichment = schema.AIEnrichment
 Chamber = schema.Chamber
 District = schema.District
@@ -418,6 +423,59 @@ def _citation_excerpt(chunk_text: str) -> str:
     return f"{cut}…"
 
 
+def _chunk_sections(db: Session, chunks) -> dict:
+    """``bill_version_section_id`` -> ``(section_id_text, source_order, chip topic)``
+    for the retrieved chunks' sections.
+
+    These are what let a citation card link to the quoted passage inside our own
+    Bill Text tab, which anchors each section on ``#ft-<section_id>-<source_order>``
+    (#854; the scheme is described in
+    docs/product-onboarding/bill-text-tab-spec.md § "Jumping to a section") —
+    .claude/rules/grounded-answers.md rule 5, and
+    docs/product-onboarding/grounded-ask-spec.md §9.5 (The chip-reached answer page —
+    decided web design) decision 4. One extra query for at most four sections.
+
+    **The position is required, not optional.** ``section_id_text`` cannot identify a
+    section on its own: it is what the Revisor hands every section sitting outside an
+    article, so 66 current versions repeat one id across several sections and 30
+    sections of ``94-2025-SF3492`` share ``laws.0.1.0``. An id-only anchor lands the
+    reader on the first of those, which on a long omnibus is very likely the wrong
+    grant — the exact rule 5 failure the deep link exists to avoid.
+
+    Unlike the bill page's key-point citations, which have to be matched back to a
+    section by their quote, a retrieval chunk holds the section's own foreign key. So
+    the position here is EXACT, and the pair always names one section.
+
+    A chunk whose section document has no section row (a whole-version document)
+    yields nothing, and the card falls back to the official source URL.
+    """
+    section_ids = {
+        chunk.rag_section_document.bill_version_section_id
+        for chunk in chunks
+        if chunk.rag_section_document.bill_version_section_id is not None
+    }
+    if not section_ids:
+        return {}
+    rows = db.execute(
+        select(
+            BillVersionSection.id,
+            BillVersionSection.section_id_text,
+            BillVersionSection.source_order,
+            BillVersionSection.section_heading,
+            BillVersionSection.cite_heading,
+        ).where(BillVersionSection.id.in_(section_ids))
+    ).all()
+    return {
+        row.id: (
+            row.section_id_text,
+            row.source_order,
+            section_chip_topic(row.section_heading, row.cite_heading),
+        )
+        for row in rows
+        if row.section_id_text
+    }
+
+
 # Content-based (semantic) bill resolution — the third resolution step, when
 # HF/SF-number and title matching both fail (docs/product-onboarding/grounded-ask-spec.md §4.1, the
 # semantic half of fuzzy resolution; #266). Semantic search surfaces the top
@@ -537,15 +595,23 @@ def _bill_text_answer(
         return None
 
     prose = synthesize_grounded_answer(content, chunks, bill_key=resolved.bill_key)
-    citations = [
-        AskCitation(
-            label=chunk.citation_label,
-            bill_id=resolved.bill_key,
-            excerpt=_citation_excerpt(chunk.chunk_text),
-            url=resolved.official_url,
+    sections = _chunk_sections(db, chunks)
+    citations = []
+    for chunk in chunks:
+        section_id, section_order, section_topic = sections.get(
+            chunk.rag_section_document.bill_version_section_id, ("", None, "")
         )
-        for chunk in chunks
-    ]
+        citations.append(
+            AskCitation(
+                label=chunk.citation_label,
+                bill_id=resolved.bill_key,
+                excerpt=_citation_excerpt(chunk.chunk_text),
+                url=resolved.official_url,
+                section_id=section_id,
+                section_order=section_order,
+                section_topic=section_topic,
+            )
+        )
     data_as_of = db.scalar(
         select(func.max(IngestionRun.finished_at)).where(
             IngestionRun.status == IngestionStatus.succeeded

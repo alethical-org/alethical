@@ -26,7 +26,7 @@ import {
 import { Skeleton } from '../Skeleton';
 import { SectionIndexRail, SectionIndexItem } from './SectionIndexRail';
 import { SourceLine } from './SourceLine';
-import { isWeb } from './interactions';
+import { isWeb, STICKY_RAIL } from './interactions';
 
 // Where a jumped-to section comes to rest: far enough below the top of the
 // window to clear the sticky tab bar and still read as the top of the page.
@@ -34,7 +34,6 @@ import { isWeb } from './interactions';
 // for our own jumps and for a browser-native anchor jump alike (web only; RN has
 // no CSS scroll-margin). Cast out of the typed style union.
 const SCROLL_MARGIN = { scrollMarginTop: 90 } as object;
-const STICKY_RAIL = { position: 'sticky', top: 24 } as object;
 // Ring drawn around the section a citation chip jumped to, so the landing spot
 // reads as the answer to the click rather than just a tinted card. Web-only —
 // RN has no spread-only shadow.

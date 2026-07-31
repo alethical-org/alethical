@@ -482,6 +482,25 @@ class AskCitation(BaseModel):
     bill_id: str
     excerpt: str
     url: str
+    # The statute section the passage came from, so a citation card can link to it
+    # inside our own Bill Text tab (`?tab=text#ft-<section_id>-<section_order>`)
+    # rather than only out to revisor.mn.gov (grounded-answers rule 5;
+    # docs/product-onboarding/grounded-ask-spec.md §9.5 decision 4). Empty when the
+    # retrieved chunk's section document carries no section row — a whole-version
+    # document — in which case the card falls back to `url`.
+    section_id: str = ""
+    # WHICH section that id names: its position in the version. Required, because
+    # `section_id` is not unique within one — 66 current versions repeat an id across
+    # several sections (#854), so an id-only anchor lands on the first of them. Unlike
+    # the bill page's key-point citations, a retrieval chunk holds its section's own
+    # foreign key, so this is exact rather than inferred. None only when `section_id`
+    # is also absent.
+    section_order: int | None = None
+    # Short topic from that section's own heading ("Public facilities authority"),
+    # served separately from `label` for the same reason as AICitationPayload: the
+    # stored label's shape varies, so the client normalizes the label and appends
+    # this only when the result carries no topic of its own.
+    section_topic: str = ""
 
 
 class AskBillTextAnswer(BaseModel):

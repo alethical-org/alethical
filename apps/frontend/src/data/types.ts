@@ -374,6 +374,11 @@ export interface AskAnswerBill {
   id: string;
   identifier: string;
   title: string;
+  /** The plain-language title (`ai_analysis.short_title`), which is what a card
+   *  DISPLAYS. `title` is the full statutory "A bill for an act relating to…" and
+   *  stays a hover tooltip / screen-reader label only
+   *  (.claude/rules/grounded-answers.md rule 10). */
+  shortTitle?: string;
   status: string;
   statusKey?: string;
   summary?: string;
@@ -429,4 +434,18 @@ export interface AskCitation {
   billId: string;
   excerpt: string;
   url: string;
+  /** Statute section the passage came from, so the answer page's "From the bill"
+   *  card can link into the bill's own Bill Text tab
+   *  (`?tab=text#ft-<sectionId>-<sectionOrder>`). Empty when the retrieved chunk
+   *  carried no section row — the card then falls back to `url`
+   *  (grounded-ask-spec §9.5 decision 4). */
+  sectionId: string;
+  /** WHICH section that id names: its position in the version. Needed because
+   *  `sectionId` is not unique within one (#854), so an id-only anchor lands on the
+   *  first section carrying it. Exact on this path — a retrieval chunk holds its
+   *  section's own key. Null only when `sectionId` is empty too. */
+  sectionOrder: number | null;
+  /** Short topic from that section's own heading ("Public facilities authority").
+   *  citationChipLabel appends it only when normalizing `label` leaves no topic. */
+  sectionTopic: string;
 }
