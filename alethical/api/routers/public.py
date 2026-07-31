@@ -1282,6 +1282,20 @@ def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
     Three short text columns for one version's sections — the detail route already
     reads this table for the effective-date schedule, and citations only render on
     this endpoint (the list serializer passes no official_url, so it emits none).
+
+    An id naming MORE THAN ONE section resolves to no topic. `section_id_text` is
+    not unique within a version — 66 (version, id) pairs in production name several
+    sections, and on HF 1134 the single id "laws.0.1.0" covers three: "Sec. 126. OAK
+    GROVE; COMPREHENSIVE PLAN.", "Sec. 46. NOWTHEN; COMPREHENSIVE PLAN." and a bare
+    "Section 1." Building the map with last-row-wins therefore captioned 58 chips with
+    a topic belonging to a section the citation does not point at (HF 1134's Sec. 1
+    chip read "Sec. 1 · Nowthen"; HF 1012's read "Sec. 1 · Forest land off-highway
+    vehicle use reclassification", which is Sec. 167's subject). Which section is meant
+    is genuinely unknowable from the id, so the honest answer is none: the chip renders
+    the number alone, its designed empty state, rather than naming a subject the cited
+    section may not have (.claude/rules/grounded-answers.md rule 1 — a confident wrong
+    caption is the worst failure, and being right by luck on the duplicates that happen
+    to agree is not being right).
     """
     current = next((v for v in (bill_row.versions or []) if v.is_current), None)
     if current is None:
@@ -1294,9 +1308,18 @@ def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
         ).where(BillVersionSection.bill_version_id == current.id)
     ).all()
     topics: dict[str, str] = {}
+    seen: set[str] = set()
     for section_id_text, section_heading, cite_heading in rows:
         if not section_id_text:
             continue
+        if section_id_text in seen:
+            # A second section answering to the same id. Neither can be trusted as
+            # the one cited, so the id resolves to nothing. Counting a heading-less
+            # section as "seen" matters: it occupies the id too, so a later duplicate
+            # that happens to have a heading must not answer on its behalf.
+            topics.pop(section_id_text, None)
+            continue
+        seen.add(section_id_text)
         topic = section_chip_topic(section_heading, cite_heading)
         if topic:
             topics[section_id_text] = topic
