@@ -434,6 +434,26 @@ def test_chip_label_canonical_format() -> None:
     # Never expose the internal, non-human-readable section_id_text key.
     assert label("") == "Cited section"
 
+    # A long heading yields the number alone, NEVER a topic cut off mid-word.
+    # `_chip_topic` used to cut at 40 characters, which wrote 2,033 production
+    # labels like "Sec. 1 · Wright technical center; capital improv…". It now
+    # delegates to `section_chip_topic`, the one implementation of this rule, so
+    # ingest and the request-time path can no longer disagree about the same
+    # heading: the compound heading splits on its semicolon, and a heading too long
+    # for a chip is dropped rather than cut.
+    assert label("SF 1, Sec. 1. WRIGHT TECHNICAL CENTER; CAPITAL IMPROVEMENTS.") == (
+        "Sec. 1 · Wright technical center"
+    )
+    assert label(
+        "SF 577, Sec. 7. SCOPING ENVIRONMENTAL ASSESSMENT WORKSHEET NOT REQUIRED "
+        "FOR PROJECTS THAT REQUIRE A MANDATORY ENVIRONMENTAL IMPACT STATEMENT."
+    ) == ("Sec. 7")
+    # The 61-80 band the request-time path now keeps is kept here identically.
+    assert label(
+        "HF 4301, Section 1. DRINKING WATER REGIONALIZATION PLANNING AND "
+        "ASSISTANCE GRANTS."
+    ) == ("Sec. 1 · Drinking water regionalization planning and assistance grants")
+
 
 def test_stored_quote_never_ends_unpunctuated() -> None:
     """A citation excerpt is displayed on its own, so it must read as a finished

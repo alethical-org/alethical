@@ -1801,11 +1801,22 @@ export function citationChipLabel(label: string, sectionTopic?: string): string 
     // normalizer: the stored label's shape varies by when the bill was enriched
     // ("SF 334, Sec. 14. TRANSFER." vs "Sec. 14 · Transfer"), so appending on the
     // server doubled the topic onto labels that already carried it.
+    //
+    // One exception: a stored topic CUT OFF mid-word is not a topic the label
+    // "already produced", it is a broken one, and the served topic is the same
+    // heading read whole. So the ellipsis loses to the served value, and where
+    // there is no served value the fragment is dropped rather than shown — the
+    // number alone is the feature's designed empty state. 2,033 of the 4,269
+    // production chips whose topic came from the stored label were cut off at 40
+    // characters ("Sec. 1 · Wright technical center; capital improv…"), and 2,003
+    // of those have a complete served topic waiting ("Wright technical center").
     const topic = (sectionTopic ?? '').trim();
-    if (!topic || out.includes(' · ') || !/^(?:Art\. [\w.-]+, )?Sec\. [\w.-]+$/.test(out)) {
-      return out;
-    }
-    return `${out} · ${topic}`;
+    const truncated = / · .*…$/.test(out);
+    const base = truncated ? out.replace(/ · .*$/, '') : out;
+    if (!/^(?:Art\. [\w.-]+, )?Sec\. [\w.-]+$/.test(base)) return out;
+    if (!topic) return base;
+    if (!truncated && out.includes(' · ')) return out;
+    return `${base} · ${topic}`;
   };
 
   let s = (label ?? '').trim();
