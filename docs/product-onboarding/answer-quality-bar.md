@@ -55,6 +55,56 @@ is not a deduction and it is never averaged against good writing.
 |---|---|
 | **`grounded`** | A factual claim is not supported by the four passages the model was shown — **and both judges agree it isn't**. One invented number, name, date, or effect is enough to fail, but one *judge's* objection is not. |
 | **`refusal_correct`** | The answer declines on a question the passages *do* answer, **or** answers one they do not. Both directions are failures. Whether an answer declines is a judge's whole-answer call, not a pattern match. |
+| **`honest_about_partial_reading`** | The passages are a *sample* of a longer bill, and the answer either presents a list or count as the complete set, or denies that something exists. Passes trivially when the whole bill was in context. |
+
+### The third gate, and why the first two could not catch the worst failure we ship
+
+Asked *"which cities and counties get named infrastructure grants?"* about HF 719,
+production answers **nineteen cities**, names them as though that were the set, and
+says **no counties are named**. Counted from the bill's own 48 sections, it names at
+least **98 cities** and at least **17 counties**
+([`alethical/eval/ground_truth.py`](../../alethical/eval/ground_truth.py),
+[#868](https://github.com/alethical-org/alethical/issues/868)).
+
+**Every trust signal we have passes that answer.** The citations are real. The
+passages genuinely say what the answer says. Cite-or-refuse is satisfied. The prose
+is clean, plain and stage-correct. It scores well on all four graded dimensions. The
+answer is wrong because the writer was handed **4 of the bill's 102 passages** —
+about 900 words of 15,430 — with nothing marking them as a sample, and then told to
+answer from the provided text.
+
+So the gate scores the one thing a model *can* control here. It cannot know what it
+was not shown, but it can decline to claim a completeness it has no basis for. Two
+failures, either of which is disqualifying:
+
+- **Claiming completeness** — a list, set or count presented as the answer when only
+  part of the bill was read. "The bill names 19 cities: ..." is true of the passages
+  and false of the bill.
+- **Asserting absence** — "the bill does not name any counties" from 4 of 102
+  passages is absence of evidence sold as evidence of absence.
+
+Saying the same things about *the passages* ("the sections I can see name, among
+others, ...") is fine, and is what a correct answer does.
+
+**This is a gate rather than a graded dimension because grading it softer would let
+that answer average its way to a pass.** It is good on everything else; a one-point
+deduction on a fifth dimension would not stop it shipping.
+
+**It passes trivially when the whole bill was in context** — 9 of the 16 fixture
+bills, and 94.6% of the corpus by the #868 session's count. A complete list *is*
+complete when every section was read, and an absence *is* an absence. The gate only
+bites on the long bills where four passages are a sample.
+
+How much of the bill the writer saw is **derived from the snapshot, not
+hand-labeled**, so it stays correct when the passage budget changes.
+
+**A caution I earned the hard way.** My first version of this fixture's HF 719 label
+said the passages "name only cities, not counties, so an answer that claims counties
+receive grants is overreaching." That is true of the four passages and false of the
+bill — I wrote the product's own bug into the test for the product's bug, because I
+labeled against what the model sees instead of against the source. Anything scoring
+completeness has to be labeled from the **whole bill**, and the eval now checks
+against a count taken from it.
 
 ### Two rules that changed after the first real run, and why
 
@@ -309,7 +359,39 @@ candidate. A full five-model, two-judge run costs roughly **$2.40** and takes ab
 25 minutes; generation runs serially on purpose, because concurrent requests would
 inflate the latency numbers the bar scores against.
 
-## 9. What this bar does not cover
+## 9. Is the writer weak, or under-informed? The passage-budget arm
+
+A candidate's **passage budget** is part of its identity: `gpt-4o-mini@16` is a
+different candidate from `gpt-4o-mini`, scored on its own row against snapshots taken
+at 8 and 16 passages alongside production's 4. This separates the two explanations
+for a bad answer, which no amount of model comparison can tell apart on its own:
+*the writer is weak* versus *the writer was not shown enough*.
+
+The measurement that motivates it, counted on HF 719 while snapshotting:
+
+| Passages given | Words seen | Cities visible | Counties visible |
+|---|---|---|---|
+| **4** (production today) | 870 | 13 | **0** |
+| 8 | 1,762 | 20 | 4 |
+| 16 | 3,500 | 49 | 6 |
+| the whole bill | 15,430 | **98** | **17** |
+
+Two conclusions, and the second is the important one:
+
+1. **At today's budget not a single county is visible.** Production is not being
+   careless when it says none are named — it is reporting the only thing it can see.
+   That is a structural problem, and no stronger writer fixes it.
+2. **Even 16 passages shows 6 of 17 counties and 49 of 98 cities.** Widening the
+   window narrows the error without making a complete list possible. So a wider
+   window is not an alternative to the honesty gate above; anything short of the
+   whole bill still needs the answer to say it is looking at part of it.
+
+The number worth having from the comparison is therefore whether **the incumbent
+model at a wider budget beats a premium model at today's budget**. If it does, the
+decision is about how much text we send, not which model we buy — and those cost very
+different amounts.
+
+## 10. What this bar does not cover
 
 Named so nobody reads a passing score as more than it is:
 
