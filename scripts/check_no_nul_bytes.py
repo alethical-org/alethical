@@ -58,11 +58,7 @@ def tracked_files() -> list[Path]:
         capture_output=True,
         check=True,
     ).stdout.split(b"\0")
-    return [
-        Path(rel.decode())
-        for rel in out
-        if rel and b"node_modules" not in rel
-    ]
+    return [Path(rel.decode()) for rel in out if rel and b"node_modules" not in rel]
 
 
 def find_problems() -> list[str]:
