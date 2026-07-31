@@ -86,15 +86,28 @@ SUMMARY_SCHEMA: dict[str, Any] = {
                 "bullet that is only a citation (e.g. 'Amends Minnesota Statutes "
                 "2024, section 120B.123, subdivision 5.')."
             ),
-            # Runaway guard ONLY, deliberately well above the ~6 target. `maxItems`
-            # is enforced by strict Structured Outputs, and the model satisfies it
-            # by TRUNCATING the tail, not by merging (verified against
-            # /v1/responses: a 12-item request returned the first 6 and silently
-            # dropped the rest). So a ceiling AT the target would do the exact
-            # thing the consolidation rule forbids — drop the bill's later
-            # substance. Set high enough that ordinary bills reach it only after
-            # consolidation genuinely failed, while still stopping the pathological
-            # case (one production bill carried 59 key points).
+            # Runaway guard, deliberately well above the ~6 target — and it only
+            # BINDS on the OpenAI path. Read that before trusting it as a limit:
+            #
+            # * OpenAI (`ai_enrichment` batch, strict Structured Outputs) enforces
+            #   `maxItems`, and the model satisfies it by TRUNCATING the tail rather
+            #   than merging (verified against /v1/responses: a 12-item request
+            #   returned the first 6 and silently dropped the rest). So a ceiling AT
+            #   the target would do the exact thing the consolidation rule forbids —
+            #   drop the bill's later substance. Hence 12, not 6.
+            # * Claude (`anthropic_enrichment`, the PRODUCTION path) pastes this
+            #   schema into the prompt as text and validates the reply with
+            #   `validate_summary_shape`, which checks types and the confidence enum
+            #   and does NOT read `maxItems`. So here the number is advice to the
+            #   model, not a limit — one production bill came back with 15 (#836).
+            #
+            # Over-ceiling replies are therefore REPORTED, not rejected:
+            # `combine_output_files` counts them (`over_ceiling`) so a genuine
+            # runaway is visible at the end of a run. Rejecting would burn the four
+            # retries in `_call_anthropic` and then drop the bill, and a bill with no
+            # summary is invisible in every list on the site — worse than a long one.
+            # The pathological case this exists for: one production bill once
+            # carried 59 key points.
             "maxItems": 12,
             "items": {"type": "string"},
         },
