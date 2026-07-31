@@ -8,14 +8,13 @@ import {
   StyleProp,
   StyleSheet,
   Text,
-  TextInput,
   TextStyle,
   View,
   ViewProps,
   ViewStyle,
 } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
-import { ChevronDown, ChevronUp, MapPin, Menu, Plus, X } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Menu, Plus, X } from 'lucide-react-native';
 
 import { theme } from './tokens';
 import { IaItem, MenuKey, MENUS, navDropdownItems } from '../navigation/ia';
@@ -992,37 +991,14 @@ export function GoogleButton({ onPress }: { onPress?: () => void }) {
   );
 }
 
-// --- City chip ---
-export function CityChip({ label, onPress }: { label: string; onPress?: () => void }) {
-  const [hovered, hoverProps] = useHover();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      {...hoverProps}
-      style={[styles.cityChip, hovered && { borderColor: t.colors.brand.base }]}
-    >
-      <Text style={[styles.cityChipText, hovered && { color: t.colors.brand.deep }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-// --- Address lookup field + Find button ---
-export function AddressField() {
-  return (
-    <View style={styles.addressBar}>
-      <View style={styles.addressField}>
-        <MapPin size={18} color={t.colors.text.muted} strokeWidth={2.2} />
-        <TextInput
-          style={styles.addressInput}
-          placeholder="Enter an address, city, or area"
-          placeholderTextColor={t.colors.text.muted}
-        />
-      </View>
-      <PrimaryButton label="Find" />
-    </View>
-  );
-}
+// A `CityChip` and an `AddressField` used to live here — an early shared pair for
+// the Find My Legislator band. Neither was ever imported anywhere: the band that
+// shipped builds its own field and button inside HomeSignedOutScreen.tsx. They
+// were removed with #873, which wired that band up and dropped its city chips.
+// Both were carrying the two bugs that issue fixed, into the shipped bundle: a
+// "Find" button with no `onPress` (PrimaryButton renders that as disabled), and
+// the placeholder "Enter an address, city, or area", which offers a city and an
+// area the lookup cannot resolve (grounded-answers.md rule 2).
 
 // --- Minnesota map graphic (accurate outline; interior white, brand-green stroke) ---
 // The interior is filled from the outer-boundary subpath only; the full two-subpath
@@ -1500,46 +1476,6 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.bodyLg,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
-  },
-  cityChip: {
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink16,
-    borderRadius: t.radii.md,
-    paddingVertical: 9,
-    paddingHorizontal: 15,
-  },
-  cityChipText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.semibold,
-    letterSpacing: 0.7,
-    color: t.colors.text.primary,
-  },
-  addressBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.borders.base,
-    borderRadius: t.radii.md,
-    paddingLeft: 16,
-    paddingRight: 8,
-    paddingVertical: 8,
-    width: '100%',
-    maxWidth: 560,
-    ...(t.shadows.sm as object),
-  },
-  addressField: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  addressInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    color: t.colors.text.primary,
-    paddingVertical: 12,
-    ...(isWeb ? ({ outlineStyle: 'none' } as any) : null),
   },
   // marginTop: 'auto' keeps the footer at the bottom of the window on any page
   // whose content is shorter than the viewport (a not-found bill, an empty
