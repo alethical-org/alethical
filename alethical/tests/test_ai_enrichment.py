@@ -566,6 +566,9 @@ def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
             "url": url,
             "excerpt": "a grant program",
             "section_id": "1.1",
+            # No candidate sections were supplied, so nothing places the citation
+            # and the position is absent rather than guessed (#854).
+            "section_order": None,
             "section_topic": "",
         },
         {
@@ -574,6 +577,7 @@ def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
             "url": url,
             "excerpt": "an annual report",
             "section_id": "2.1",
+            "section_order": None,
             "section_topic": "",
         },
     ]
@@ -585,6 +589,15 @@ def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
     assert [(c.label, c.section_topic) for c in with_topics] == [
         ("Section 1.1", "License classes"),
         ("Section 2.1", ""),
+    ]
+    # The resolved position rides alongside too, keyed on (section_id, quote) —
+    # two citations can share an id and cite different sections, which is exactly the
+    # case on the 66 versions that repeat one (#854).
+    orders = {("1.1", "a grant program"): 7, ("9.9", "nothing"): 1}
+    with_orders = serializers.ai_citation_payloads(content, url, None, orders)
+    assert [(c.section_id, c.section_order) for c in with_orders] == [
+        ("1.1", 7),
+        ("2.1", None),
     ]
     # No resolvable official URL → no dead-link citations (grounded-answers rule 5).
     assert serializers.ai_citation_payloads(content, None) == []
@@ -786,6 +799,60 @@ def test_citation_section_topics_refuses_an_ambiguous_section_id() -> None:
         )
         == {}
     )
+
+
+def test_resolve_cited_section_places_a_citation_on_a_repeated_section_id() -> None:
+    """Which of several sections sharing one id a stored citation was grounded against.
+
+    `section_id_text` does not identify a section — `laws.0.1.0` is the id the Revisor
+    hands every section outside an article, so 66 current versions repeat it, 30 times
+    over on SF 3492 (#763, #854). The position was never stored, so the citation's own
+    two copies of its source recover it: the verbatim quote, and the label built from
+    the section's heading.
+
+    Measured over all 95 affected citations in production: the quote alone places 88,
+    the label breaks the tie on 6 of the remaining 7, and 1 resolves to neither."""
+    resolve = ai_enrichment.resolve_cited_section
+    candidate = ai_enrichment.CitedSectionCandidate
+
+    # One candidate IS the answer, whatever the quote says — the id names it alone.
+    only = candidate(source_order=4, label=None, text=None)
+    assert resolve([only], "Sec. 4", "text nobody stored") is only
+
+    # An id naming nothing in this version places nothing.
+    assert resolve([], "Sec. 1", "a grant program") is None
+
+    # The ordinary repeated-id case: the quote appears in exactly one of them.
+    first = candidate(
+        source_order=1, label="HF 1134, Section 1.", text="A city may adopt a plan."
+    )
+    seventh = candidate(
+        source_order=7,
+        label="HF 1134, Sec. 126. OAK GROVE; COMPREHENSIVE PLAN.",
+        text="The city of Oak Grove may extend its comprehensive plan.",
+    )
+    assert resolve([first, seventh], "Sec. 1", "may adopt a plan") is first
+    assert resolve([first, seventh], "Sec. 126 · Oak grove", "extend its") is seventh
+
+    # The SF 4184 / HF 4441 case: the quote is boilerplate the bill repeats section
+    # for section, so it matches both. The label — which `_chip_label` derives from
+    # the section's own heading — is what settles it.
+    boiler = "This section is effective August 1, 2026."
+    eighth = candidate(source_order=8, label="SF 4184, Sec. 8.", text=boiler)
+    ninth = candidate(source_order=9, label="SF 4184, Sec. 9. REPEALER.", text=boiler)
+    assert resolve([eighth, ninth], "SF 4184, Sec. 9. REPEALER.", boiler) is ninth
+    # A label already normalized to the chip's shape matches the same section, so a
+    # bill enriched before `_chip_label` existed and one enriched after both resolve.
+    assert resolve([eighth, ninth], "Sec. 9 · Repealer", boiler) is ninth
+
+    # Neither signal separates them -> None. The caller keeps the reader's jump
+    # landing on the first section carrying the id, and claims nothing about which
+    # section a key point came from (grounded-answers rule 1, following #853).
+    twin = candidate(source_order=36, label="Sec. 36", text=boiler)
+    other_twin = candidate(source_order=41, label="Sec. 36", text=boiler)
+    assert resolve([twin, other_twin], "Sec. 36", boiler) is None
+    # A quote in none of them, with no label to fall back on, is equally unplaceable.
+    assert resolve([eighth, ninth], "", "words in no section") is None
 
 
 def test_prompt_consolidates_key_points_with_six_as_a_target_not_a_quota() -> None:

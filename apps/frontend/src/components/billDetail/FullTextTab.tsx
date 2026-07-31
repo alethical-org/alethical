@@ -11,8 +11,13 @@ import {
   blockTexts,
   changeKindsPresent,
   parseChangeRuns,
+  parseSectionAnchor,
   parseSectionBody,
   parseStructuredBody,
+  resolveSectionAnchor,
+  SectionAnchor,
+  sectionAnchorFromHash,
+  sectionAnchorId,
   SectionTable,
   sectionIndexLabel,
   splitSectionLabel,
@@ -45,9 +50,15 @@ const RAIL_MIN_SECTIONS = 2;
 
 // Bill Text tab — renders the current bill version's statute sections. Cited-
 // section chips (Summary) deep-link here and highlight the matched section; a
-// shared ?tab=text#ft-<id> URL scrolls to it on load (grounded-answers rule
-// 5 — the location is URL-addressable). The same component renders on web and
-// on the mobile single-scroll page.
+// shared ?tab=text#ft-<id>-<position> URL scrolls to it on load (grounded-answers
+// rule 5 — the location is URL-addressable). The same component renders on web
+// and on the mobile single-scroll page.
+//
+// Every anchor carries the section's POSITION as well as its id, because the id
+// alone does not identify a section — 66 current versions repeat one id across
+// several sections, 30 of them on SF 3492 (#854). `sectionAnchorId` and
+// `resolveSectionAnchor` in lib/billText.ts own that scheme, including the
+// fallback that keeps a link shared before #854 resolving.
 //
 // The Revisor's change markers arrive as words in the stored text; turning them
 // back into strike-through / underline, and recovering the section and
@@ -161,12 +172,16 @@ function AppropriationTable({ table, narrow }: { table: SectionTable; narrow: bo
 
 export function FullTextTab({
   bill,
-  targetSectionId,
+  targetSectionAnchor,
   onAnchorConsumed,
   updatedLabel,
 }: {
   bill: Bill;
-  targetSectionId?: string | null;
+  /** Anchor value a citation chip asked us to jump to — `laws.0.1.0-4`, the same
+   *  string a shared `#ft-` fragment carries. A chip whose section could not be
+   *  pinned to one position passes the bare id and lands on the first section
+   *  carrying it. */
+  targetSectionAnchor?: string | null;
   onAnchorConsumed?: () => void;
   updatedLabel: string;
 }) {
@@ -178,26 +193,40 @@ export function FullTextTab({
   const sections = query.data ?? [];
   const ready = query.isSuccess;
 
-  // The section currently tinted after a jump; cleared on a timer.
+  // The HTML id of the section currently tinted after a jump; cleared on a timer.
   const [highlighted, setHighlighted] = useState<string | null>(null);
-  // The section the reader is looking at, for the index rail's active row.
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
-  // The section a shared ?tab=text#ft-<id> link asked for, read once on the first
-  // render. It has to be captured here rather than inside the effect that acts on
-  // it: when the bill text is already cached the effect runs before the router
-  // has applied the fragment, finds no hash, and — having no reason to run again
-  // — gives up for good, which is why a shared link scrolled but never
+  // The HTML id of the section the reader is looking at, for the index rail's
+  // active row. Keyed on the anchor, not the section id, or the rail lit whichever
+  // repeat of a shared id came first rather than the one being read (#777).
+  const [activeAnchorId, setActiveAnchorId] = useState<string | null>(null);
+  // The section a shared ?tab=text#ft-<id>-<position> link asked for, read once on
+  // the first render. It has to be captured here rather than inside the effect
+  // that acts on it: when the bill text is already cached the effect runs before
+  // the router has applied the fragment, finds no hash, and — having no reason to
+  // run again — gives up for good, which is why a shared link scrolled but never
   // highlighted its section.
-  const [hashTarget] = useState<string | null>(() => {
+  const [hashTarget] = useState<SectionAnchor | null>(() => {
     if (typeof window === 'undefined') return null;
-    const match = window.location.hash.match(/^#(?:ft|section)-(.+)$/);
-    return match ? match[1] : null;
+    return sectionAnchorFromHash(window.location.hash);
   });
 
   // Sections the Summary tab quotes, so each one can say so — the intro promises
   // citations land on their passage, and nothing marked them before.
-  const citedSectionIds = useMemo(
-    () => new Set((bill.citations ?? []).map((c) => c.sectionId).filter(Boolean)),
+  //
+  // Held as ANCHOR ids, so only the section a citation was grounded against gets
+  // the badge. Keyed on the section id it marked every section sharing that id as
+  // cited, which on the 66 versions that repeat one told the reader a key point
+  // came from a section it did not (#854). A citation the API could not pin to one
+  // position carries no `sectionOrder` and badges nothing at all — the same
+  // refusal #853 made for the chip's caption, because a badge is a claim about
+  // provenance and there is nothing to ground it in (grounded-answers rule 1).
+  const citedAnchorIds = useMemo(
+    () =>
+      new Set(
+        (bill.citations ?? [])
+          .filter((c) => c.sectionId && typeof c.sectionOrder === 'number')
+          .map((c) => sectionAnchorId({ sectionId: c.sectionId, sourceOrder: c.sectionOrder! })),
+      ),
     [bill.citations],
   );
 
@@ -253,7 +282,7 @@ export function FullTextTab({
   const indexItems: SectionIndexItem[] = useMemo(
     () =>
       parsed.map(({ section, number }) => ({
-        sectionId: section.sectionId,
+        anchorId: sectionAnchorId(section),
         number,
         label: sectionIndexLabel(section.heading, section.text ?? '', section.bodyBlocks),
         articleHeading: section.articleHeading,
@@ -263,8 +292,17 @@ export function FullTextTab({
 
   const showRail = isWeb && isDesktop && sections.length >= RAIL_MIN_SECTIONS;
 
-  // Jump to a section. Three details each fix a way this lands in the wrong
-  // place:
+  // Which section an anchor names, out of the ones this version renders. Resolving
+  // through the section list rather than straight to `getElementById` is what lets
+  // an old id-only link fall back to the first section carrying that id instead of
+  // finding nothing.
+  const anchorIdFor = (target: SectionAnchor | null) => {
+    const section = resolveSectionAnchor(sections, target);
+    return section ? sectionAnchorId(section) : null;
+  };
+
+  // Jump to a section, and return the HTML id it landed on so the caller can tint
+  // that section. Three details each fix a way this lands in the wrong place:
   //
   // - INSTANT, not smooth: a smooth scroll started in the same beat as a
   //   re-render gets dropped or interrupted part-way and stops short.
@@ -274,11 +312,11 @@ export function FullTextTab({
   //   target's scroll-margin-top, which is what sets the resting offset.
   // - Re-asserted once after the render settles, correcting any layout shift the
   //   first jump raced.
-  const scrollToSection = (sectionId: string) => {
+  const scrollToAnchor = (anchorId: string) => {
     if (typeof document === 'undefined') return;
     const jump = () => {
       document
-        .getElementById(`ft-${sectionId}`)
+        .getElementById(anchorId)
         ?.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'start' });
     };
     jump();
@@ -288,29 +326,35 @@ export function FullTextTab({
   // A citation chip asked us to jump: scroll + highlight after the sections have
   // painted, then release the anchor. Deferred a frame so layout has settled.
   useEffect(() => {
-    if (!ready || !targetSectionId) return;
+    if (!ready || !targetSectionAnchor) return;
     const timer = setTimeout(() => {
-      scrollToSection(targetSectionId);
-      setHighlighted(targetSectionId);
+      const anchorId = anchorIdFor(parseSectionAnchor(targetSectionAnchor));
+      if (anchorId) {
+        scrollToAnchor(anchorId);
+        setHighlighted(anchorId);
+      }
       onAnchorConsumed?.();
     }, 60);
     return () => clearTimeout(timer);
     // onAnchorConsumed is a stable setter-wrapper from the parent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, targetSectionId]);
+  }, [ready, targetSectionAnchor]);
 
-  // Shared-link jump: a ?tab=text#ft-<id> (or #section-<id>) URL scrolls to that
-  // section and highlights it, the same as arriving from a citation card. Runs
-  // only when no in-app anchor is pending.
+  // Shared-link jump: a ?tab=text#ft-<id>-<position> (or #section-<id>) URL scrolls
+  // to that section and highlights it, the same as arriving from a citation card.
+  // Runs only when no in-app anchor is pending.
   useEffect(() => {
-    if (!ready || targetSectionId || !hashTarget) return;
+    if (!ready || targetSectionAnchor || !hashTarget) return;
     const timer = setTimeout(() => {
-      scrollToSection(hashTarget);
-      setHighlighted(hashTarget);
+      const anchorId = anchorIdFor(hashTarget);
+      if (anchorId) {
+        scrollToAnchor(anchorId);
+        setHighlighted(anchorId);
+      }
     }, 80);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, hashTarget, targetSectionId]);
+  }, [ready, hashTarget, targetSectionAnchor]);
 
   // Clear the highlight tint a few seconds after it lands.
   useEffect(() => {
@@ -329,14 +373,13 @@ export function FullTextTab({
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          const id = entry.target.id.replace(/^ft-/, '');
-          if (entry.isIntersecting) visible.set(id, entry.boundingClientRect.top);
-          else visible.delete(id);
+          if (entry.isIntersecting) visible.set(entry.target.id, entry.boundingClientRect.top);
+          else visible.delete(entry.target.id);
         }
         if (!visible.size) return;
         // The topmost section still on screen is the one being read.
         const [topId] = [...visible.entries()].sort((a, b) => a[1] - b[1])[0];
-        setActiveSectionId(topId);
+        setActiveAnchorId(topId);
       },
       // Discount the sticky tab bar so a section counts as current only once it
       // has cleared it.
@@ -344,7 +387,7 @@ export function FullTextTab({
     );
 
     for (const item of indexItems) {
-      const node = document.getElementById(`ft-${item.sectionId}`);
+      const node = document.getElementById(item.anchorId);
       if (node) observer.observe(node);
     }
     return () => observer.disconnect();
@@ -421,13 +464,14 @@ export function FullTextTab({
       <ChangeLegend removed={changeKinds.removed} added={changeKinds.added} />
 
       <View style={styles.sections}>
-        {parsed.map(({ section, number, heading, body }, i) => {
-          const isHit = highlighted === section.sectionId;
-          const isCited = citedSectionIds.has(section.sectionId);
+        {parsed.map(({ section, number, heading, body }) => {
+          const anchorId = sectionAnchorId(section);
+          const isHit = highlighted === anchorId;
+          const isCited = citedAnchorIds.has(anchorId);
           return (
             <View
-              key={`${section.sectionId}-${i}`}
-              nativeID={`ft-${section.sectionId}`}
+              key={anchorId}
+              nativeID={anchorId}
               style={[styles.card, isHit && styles.cardHit, isHit && HIT_RING, SCROLL_MARGIN]}
             >
               {section.articleHeading?.trim() ? (
@@ -508,8 +552,8 @@ export function FullTextTab({
       <View style={[styles.railCol, STICKY_RAIL]}>
         <SectionIndexRail
           items={indexItems}
-          activeSectionId={activeSectionId}
-          onSelect={scrollToSection}
+          activeAnchorId={activeAnchorId}
+          onSelect={scrollToAnchor}
         />
       </View>
     </View>

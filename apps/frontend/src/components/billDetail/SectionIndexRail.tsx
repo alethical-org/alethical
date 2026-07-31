@@ -13,7 +13,11 @@ import { isWeb, useHover } from './interactions';
 // would otherwise appear as two identical "1" rows.
 
 export interface SectionIndexItem {
-  sectionId: string;
+  /** The HTML id of the section this row jumps to — `ft-<sectionId>-<position>`.
+   *  Keyed on the anchor rather than the section id because a version can repeat
+   *  one id across several sections, which made two rows share a React key and
+   *  the rail light the wrong one (#854). */
+  anchorId: string;
   /** "SEC. 4" — the number alone. */
   number: string | null;
   /** Section title, first subdivision headnote, or amendment clause. Empty when
@@ -24,12 +28,12 @@ export interface SectionIndexItem {
 
 export function SectionIndexRail({
   items,
-  activeSectionId,
+  activeAnchorId,
   onSelect,
 }: {
   items: SectionIndexItem[];
-  activeSectionId: string | null;
-  onSelect: (sectionId: string) => void;
+  activeAnchorId: string | null;
+  onSelect: (anchorId: string) => void;
 }) {
   // Preserve source order while collecting each article's rows.
   const groups: Array<{ article: string | null; items: SectionIndexItem[] }> = [];
@@ -55,9 +59,9 @@ export function SectionIndexRail({
           <View style={styles.rows}>
             {group.items.map((item) => (
               <IndexRow
-                key={item.sectionId}
+                key={item.anchorId}
                 item={item}
-                active={item.sectionId === activeSectionId}
+                active={item.anchorId === activeAnchorId}
                 onSelect={onSelect}
               />
             ))}
@@ -75,7 +79,7 @@ function IndexRow({
 }: {
   item: SectionIndexItem;
   active: boolean;
-  onSelect: (sectionId: string) => void;
+  onSelect: (anchorId: string) => void;
 }) {
   const [hovered, hoverProps] = useHover();
   const [focused, setFocused] = useState(false);
@@ -86,7 +90,7 @@ function IndexRow({
       {...hoverProps}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      onPress={() => onSelect(item.sectionId)}
+      onPress={() => onSelect(item.anchorId)}
       accessibilityRole="link"
       accessibilityLabel={[item.number ?? 'Section', item.label].filter(Boolean).join(': ')}
       accessibilityState={{ selected: active }}

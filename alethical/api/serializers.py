@@ -213,7 +213,7 @@ def section_chip_topic(section_heading, cite_heading) -> str:
 
 
 def ai_citation_payloads(
-    content, official_url, section_topics=None
+    content, official_url, section_topics=None, section_orders=None
 ) -> list[api_schemas.AICitationPayload]:
     """Build resolvable per-key-point citations (#377) from the enrichment's
     already-grounded `key_point_citations`. Each targets the bill's official
@@ -223,7 +223,16 @@ def ai_citation_payloads(
     `section_topics` maps section_id_text -> topic and fills in the "· Topic" half
     of a chip whose stored label carries only a number. Composed here, at request
     time, rather than baked into the stored label, so every bill gets it now
-    instead of only the ones a future re-enrichment happens to touch."""
+    instead of only the ones a future re-enrichment happens to touch.
+
+    `section_orders` maps (section_id, quote) -> the POSITION of the section that
+    citation cites, which is what the chip jumps to and badges. The stored
+    `section_id` cannot say on its own: 66 current versions repeat one id across
+    several sections (#854). The pair is the key because two citations can share an
+    id and still cite different sections, and the quote is the thing that tells them
+    apart — the router resolves it (`_citation_section_orders`). A citation missing
+    from the map leaves the chip jumping to the first section carrying the id, while
+    no section claims to be the source of the key point."""
     raw = content.get("key_point_citations")
     if not isinstance(raw, list) or not official_url:
         return []
@@ -251,6 +260,7 @@ def ai_citation_payloads(
                 url=official_url,
                 excerpt=quote.strip(),
                 section_id=section_id,
+                section_order=(section_orders or {}).get((section_id, quote.strip())),
                 section_topic=(section_topics or {}).get(section_id, ""),
             )
         )
@@ -293,7 +303,7 @@ def display_summary(content: dict) -> str | None:
 
 
 def ai_analysis_payload_for_enrichment(
-    enrichment, official_url=None, section_topics=None
+    enrichment, official_url=None, section_topics=None, section_orders=None
 ) -> api_schemas.AIAnalysisPayload | None:
     if enrichment is None:
         return None
@@ -327,7 +337,9 @@ def ai_analysis_payload_for_enrichment(
             if isinstance(policy_areas, list)
             else []
         ),
-        citations=ai_citation_payloads(content, official_url, section_topics),
+        citations=ai_citation_payloads(
+            content, official_url, section_topics, section_orders
+        ),
         # Bill-specific Ask chips (#550), served as-is; empty for un-re-enriched
         # summaries so the frontend keeps its safe generic fallback.
         question_prompts=(

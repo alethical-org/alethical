@@ -11,6 +11,13 @@ export interface Citation {
   url: string;
   /** Statute section this key point cites, keyed to a Bill Text section (#377). */
   sectionId: string;
+  /** The cited section's 1-based position in the version, when the API could pin
+   *  the citation to ONE section. `sectionId` cannot do that on its own: 66
+   *  current versions repeat one id across several sections (#854). Absent when
+   *  the id is repeated and the stored citation does not say which of them it was
+   *  grounded against — then the chip still jumps to the first, but no section
+   *  claims the CITED IN SUMMARY badge. */
+  sectionOrder?: number | null;
   /** Short topic from the cited section's own heading ("License classes"), served
    *  separately from `label` because the stored label's shape varies by when the
    *  bill was enriched. citationChipLabel appends it only when normalizing the

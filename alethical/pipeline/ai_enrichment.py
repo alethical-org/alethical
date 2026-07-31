@@ -557,6 +557,70 @@ def resolve_key_point_citations(
     }
 
 
+@dataclass(frozen=True)
+class CitedSectionCandidate:
+    """One section a stored citation's `section_id` could be naming.
+
+    `source_order` is the section's position, the only value that identifies it.
+    `label` and `text` are the two things a stored citation kept a copy of, and are
+    what `resolve_cited_section` matches back against."""
+
+    source_order: int
+    label: str | None
+    text: str | None
+
+
+def resolve_cited_section(
+    candidates: list[CitedSectionCandidate], label: str, quote: str
+) -> CitedSectionCandidate | None:
+    """Which section a stored citation was grounded against, or None.
+
+    A stored citation records the section's `section_id_text`, and that does not
+    identify a section: `laws.0.1.0` is the id the Revisor hands every section
+    sitting outside an article, so 66 current versions repeat one id across as many
+    as 30 sections (#763). The position was never stored, so the citation's own two
+    copies of its source are what recover it:
+
+    * the `quote`, which `resolve_key_point_citations` above only kept after
+      checking it appears VERBATIM in that one section's text — so a candidate
+      whose text does not contain it is not the section, and usually exactly one
+      does. Measured over every affected citation in production: 88 of 95.
+    * the `label`, which is a deterministic function of the section's own heading
+      (`_chip_label`, or the raw `citation_label` on a bill enriched before that
+      existed). It breaks the tie on the 7 whose quote is boilerplate a bill repeats
+      section for section ("This section is effective August 1, 2026."), settling 6
+      of them.
+
+    One citation in production resolves to neither, and the honest answer there is
+    None: the caller keeps the reader's jump landing on the first section carrying
+    the id, but claims nothing about which section a key point came from — the same
+    refusal #853 made for the chip's caption (.claude/rules/grounded-answers.md
+    rule 1)."""
+    if len(candidates) == 1:
+        return candidates[0]
+    body = _quote_body(quote or "")
+    needle = _normalize_for_match(body) if body else ""
+    by_quote = [
+        candidate
+        for candidate in candidates
+        if needle and needle in _normalize_for_match(candidate.text or "")
+    ]
+    if len(by_quote) == 1:
+        return by_quote[0]
+    wanted = (label or "").strip()
+    by_label = [
+        candidate
+        for candidate in (by_quote or candidates)
+        if wanted
+        and wanted
+        in (
+            (candidate.label or "").strip(),
+            _chip_label(SectionAnchor("", candidate.label or "", "", "", None)),
+        )
+    ]
+    return by_label[0] if len(by_label) == 1 else None
+
+
 def bills_for_batch(
     db: Session, *, session_slug: str | None, bill_key: str | None, limit: int | None
 ) -> list[Any]:

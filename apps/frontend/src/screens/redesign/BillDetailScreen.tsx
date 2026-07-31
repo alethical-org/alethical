@@ -65,6 +65,7 @@ import {
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
+import { citationSectionAnchor } from '../../lib/billText';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton } from '../../components/Skeleton';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
@@ -721,7 +722,7 @@ function BillDetailMobileScreen() {
                         accessibilityLabel={`Jump to ${citationChipLabel(c.label, c.sectionTopic)} in Bill Text`}
                         disabled={!c.sectionId}
                         onPress={() => {
-                          setFtAnchor(c.sectionId);
+                          setFtAnchor(citationSectionAnchor(c));
                           jumpTo('fulltext');
                         }}
                         style={({ pressed }) => [
@@ -998,7 +999,7 @@ function BillDetailMobileScreen() {
               </Text>
               <FullTextTab
                 bill={bill}
-                targetSectionId={ftAnchor}
+                targetSectionAnchor={ftAnchor}
                 onAnchorConsumed={() => setFtAnchor(null)}
                 updatedLabel={vm.updatedLabel}
               />

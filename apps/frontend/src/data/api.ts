@@ -333,6 +333,11 @@ interface ApiBillVersionTextPayload {
   version_code: string;
   sections: Array<{
     section_id: string;
+    // The section's 1-based position in the version. `section_id` repeats across
+    // sections on 66 current versions, so the position is what addresses one of
+    // them (#854). Optional so a cached response from before it was served still
+    // parses — those sections fall back to the id-only anchor.
+    source_order?: number | null;
     heading?: string | null;
     article_heading?: string | null;
     text: string;
@@ -405,6 +410,9 @@ interface ApiAiCitationPayload {
   excerpt: string;
   section_id: string;
   section_topic?: string | null;
+  // Position of the cited section in the version, when the API could pin the
+  // citation to one (#854). Absent otherwise.
+  section_order?: number | null;
 }
 
 interface ApiAiAnalysisPayload {
@@ -952,6 +960,7 @@ function citationsFromAnalysis(analysis: ApiAiAnalysisPayload | null | undefined
       url: c.url,
       sectionId: typeof c.section_id === 'string' ? c.section_id.trim() : '',
       sectionTopic: typeof c.section_topic === 'string' ? c.section_topic.trim() : '',
+      sectionOrder: typeof c.section_order === 'number' ? c.section_order : null,
     }));
 }
 
@@ -1621,6 +1630,10 @@ export async function getBillFromApi(
 
 export interface BillVersionSectionText {
   sectionId: string;
+  /** 1-based position in the version — the half of a section anchor that is
+   *  actually unique (#854). Null only on a response served before the API
+   *  carried it. */
+  sourceOrder: number | null;
   heading: string | null;
   articleHeading: string | null;
   text: string;
@@ -1637,6 +1650,7 @@ export async function fetchBillVersionText(
   );
   return (response.data.sections ?? []).map((section) => ({
     sectionId: section.section_id,
+    sourceOrder: typeof section.source_order === 'number' ? section.source_order : null,
     heading: section.heading ?? null,
     articleHeading: section.article_heading ?? null,
     text: section.text,
