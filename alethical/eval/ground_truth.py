@@ -134,15 +134,23 @@ def hf719_grant_recipients(bill_text: str) -> tuple[set[str], set[str]]:
 # --- the same counting method, for every bill a recall figure is measured on ---
 #
 # Generalised from HF 719 for [#895](https://github.com/alethical-org/alethical/issues/895),
-# which needs recall measured on more than one bill. **A corpus-wide search settled how
-# many bills can carry one, and the answer is three.** Every bill with 25+ retrievable
-# passages was scanned for named recipients using these tight phrasings; exactly four
-# (bill, shape) pairs clear eight distinct recipients, and they are the three bills
-# below. HF 719 has no peer — the next largest set is 14.
+# which needs recall measured on more than one bill. **Three bills carry a
+# *named-recipient* recall measurement, and that is a property of the phrasings below
+# rather than a ceiling on enumeration.** Every bill with 25+ retrievable passages was
+# scanned for named recipients using these tight phrasings; exactly four (bill, shape)
+# pairs clear eight distinct recipients, and they are the three bills below. HF 719 has
+# no peer for named places — the next largest set is 14.
 #
-# That is a fact about Minnesota appropriations bills, not a gap in the fixture, and
-# it is why the recall condition in the bar doc is measured on three bills rather than
-# thirty.
+# **Read that as a fact about "grant to the city of X", not as a limit on what can be
+# counted.** The pool scanned holds 565 bills with 25+ passages, 262 with 50+ and 131
+# with 100+; three of 565 is unsurprising for place names, because the long bills are
+# mostly omnibus policy bills amending statutes and only bonding and appropriation
+# bills list towns. A bill can be enumerable without naming a place, and SF 3551 below
+# is the proof — it enumerates school district *numbers*. Dollar-figure line items,
+# program names, agency names and repealed statute sections are all countable and all
+# appear in bills with no city in them. So a fourth case is a matter of writing a
+# fourth pattern, not of finding a rarer bill, and anyone reading this as "three is all
+# there can ever be" should stop and write the pattern instead.
 #
 # **Each count below was derived and then read match by match in context**, which is
 # not ceremony — every one of the three turned up something a pattern alone gets wrong:
@@ -158,9 +166,19 @@ def hf719_grant_recipients(bill_text: str) -> tuple[set[str], set[str]]:
 #   "which districts get this money" are different questions with different answers.
 #   The fixture asks the second, and the pattern requires the dollar figure.
 #
-# The lesson those four share: a derived denominator stops a *stale* list, and does
-# nothing about a *wrong* one. Derive, then verify, then assert exactly — a lower bound
-# cannot catch an off-by-one in a denominator (#900).
+# **The rule those four share, and the one to read before writing a new pattern here:
+# a derived denominator stops a *stale* list and does nothing about a *wrong* one.
+# Derive, then verify, then assert exactly.** A lower bound cannot catch an off-by-one
+# in a denominator (#900), and a pattern cannot tell you it counted the wrong thing.
+#
+# The sharpest version of "wrong" is not a broken regex — it is **a plausible regex
+# over the wrong noun.** Two bills were nearly added to this registry on the strength
+# of naming twenty and fourteen counties; reading the matches showed the counties were
+# *locations* ("the land is located in Becker County", "restoration project in
+# Cottonwood County") and only four were recipients of anything. A gate built on that
+# denominator would have measured whether an answer lists places a bill mentions, while
+# reporting itself as measuring whether the answer lists who gets the money. Every
+# individual match was correct; the noun was wrong. Only reading them catches it.
 
 
 @dataclass(frozen=True)
