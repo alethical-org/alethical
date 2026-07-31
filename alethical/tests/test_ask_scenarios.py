@@ -1232,3 +1232,27 @@ def test_the_two_guards_do_different_jobs_and_are_gated_differently():
     assert narrow_bill_absence_claims(completeness) == completeness
     # ...and the completeness guard leaves an absence claim standing.
     assert strip_list_completeness_claims(absence) == absence
+
+
+def test_the_prompt_production_sends_is_more_than_the_constant_the_eval_imports():
+    """The drift the #865 eval's own guard cannot see, pinned so it stays visible.
+
+    That eval asserts it scores `RAG_CHAT_SYSTEM_PROMPT` *by identity*, so it can
+    never score a copy that fell out of step. #868 slipped past it, because the drift
+    is not a copy — it is a layer production adds on top. This test makes the layer
+    explicit: production sends strictly more than the constant, the constant is still
+    the opening of it, and the added half is the coverage rule.
+
+    It fails if someone reunifies them by dropping the coverage rule, which would
+    silently take the prompt-level half of #868 back out.
+    """
+    from alethical.api.routers.me import RAG_CHAT_SYSTEM_PROMPT, rag_chat_system_prompt
+
+    sent = rag_chat_system_prompt(None)
+    assert sent.startswith(RAG_CHAT_SYSTEM_PROMPT)
+    assert sent != RAG_CHAT_SYSTEM_PROMPT
+    assert _coverage_rule(None) in sent
+    # And the two coverage cases really do send different instructions.
+    complete = rag_chat_system_prompt(BillTextCoverage(searched=102, total=102))
+    assert complete != sent
+    assert complete.startswith(RAG_CHAT_SYSTEM_PROMPT)

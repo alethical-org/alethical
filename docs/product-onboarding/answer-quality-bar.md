@@ -433,6 +433,12 @@ The overclaim rate is **flat** across passage budgets: 80% at 4 passages, 89% at
 5 of 20 questions still have a partial context — but on the bills that remain
 partial, models overclaim just as often.
 
+> **The scores above were produced against a prompt production no longer sends, and the re-run below must fix that first** ([#868](https://github.com/alethical-org/alethical/issues/868), Jul 31 2026). This eval imports `RAG_CHAT_SYSTEM_PROMPT` by identity so it can never score a drifted *copy* — a good guard, and #868 slipped past it, because the drift is not a copy but a **layer production adds on top**. Production now composes that constant with a coverage rule that forbids exactly the overclaiming this section measures: on a partial read it says *"NEVER state or imply that the bill omits … something"* and *"NEVER give a total, a count, or a list you call complete"*, and on either read *"NEVER tell the reader your list is complete."*
+>
+> So **the 80% / 89% / 80% figures are the overclaim rate of an unprompted model**, which is the right number for the question this section asks (does more context fix it?) and the wrong one for "what will a reader see." Call `rag_chat_system_prompt(coverage)` (`alethical/api/routers/me.py`) instead of the constant; the frozen contexts here are partial reads, so `rag_chat_system_prompt(None)` is the matching prompt. Left as this eval's change to make rather than done in #868, because moving a published baseline mid-decision is worse than a recorded gap.
+>
+> Two things this does **not** change. The conclusion still holds — the fix is a layout-owned note, not a wider window — and it now holds for a second, independent reason: #868 measured that reading **all 102** passages of HF 719 still produced 26–35 of its 98 cities. And the shipped product is not relying on the prompt anyway: both overclaim shapes are removed in the answer path, so a model that ignores the instruction still cannot reach a reader (`.claude/rules/grounded-answers.md` rule 11).
+
 `gpt-4o-mini@16` is the clearest demonstration. Given four times the text it
 produced a **longer** list (28 items, up from 17) with a **stronger** completeness
 claim, closing "this list includes both city and county grants for various

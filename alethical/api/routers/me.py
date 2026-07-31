@@ -56,6 +56,10 @@ RAG_CHAT_FALLBACK = "I could not find retrieval-ready bill text for this bill ye
 # synthesize_grounded_answer below. Named rather than inlined so the
 # answer-quality eval (`scripts/answer_eval.py`, #865) can import the exact
 # production wording instead of keeping a copy that silently drifts out of step.
+#
+# SINCE #868 THIS IS ONLY THE FIRST HALF. Production appends a coverage rule that
+# depends on how much of the bill went in. Call `rag_chat_system_prompt(coverage)`
+# below for what is actually sent; this constant alone is no longer that.
 RAG_CHAT_SYSTEM_PROMPT = (
     "Answer only from the provided bill text, but do answer when the text supports a "
     "plain-language conclusion even if the wording is indirect. If the context partially "
@@ -193,6 +197,26 @@ def _coverage_rule(coverage: BillTextCoverage | None) -> str:
         if coverage is not None and coverage.is_complete
         else _PARTIAL_COVERAGE_RULE
     )
+
+
+def rag_chat_system_prompt(coverage: BillTextCoverage | None = None) -> str:
+    """The complete system prompt production sends, for the given coverage.
+
+    ``RAG_CHAT_SYSTEM_PROMPT`` is only the first half now (#868): the second half
+    depends on how much of the bill went in, and the two are composed here so there
+    is exactly one place that knows the whole thing.
+
+    **The answer-quality eval should call this, not the constant.** The eval imports
+    `RAG_CHAT_SYSTEM_PROMPT` by identity so it can never score a copy that drifted
+    (`test_the_eval_scores_productions_own_prompt_rather_than_a_copy`) — a good guard
+    that this change slipped past, because the drift is no longer a copy but a layer
+    production adds on top. The eval's frozen contexts are partial reads, so
+    ``rag_chat_system_prompt(None)`` is the prompt matching what it measures. Left as
+    the eval's call to make rather than changed here, since #865's published §9
+    numbers were produced without it and moving the baseline mid-decision is worse
+    than a documented gap; `docs/product-onboarding/answer-quality-bar.md` records it.
+    """
+    return f"{RAG_CHAT_SYSTEM_PROMPT}\n\n{_coverage_rule(coverage)}"
 
 
 # Subject phrases that make a claim about the whole bill, and the non-existence
@@ -369,7 +393,7 @@ def synthesize_grounded_answer(
                 "input": [
                     {
                         "role": "system",
-                        "content": f"{RAG_CHAT_SYSTEM_PROMPT}\n\n{_coverage_rule(coverage)}",
+                        "content": rag_chat_system_prompt(coverage),
                     },
                     {
                         "role": "user",
