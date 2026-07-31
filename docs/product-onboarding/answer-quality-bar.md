@@ -758,17 +758,39 @@ The three causes, separated because they are not equally reassuring:
 
 ### The failure that moved, and the number no gate scores
 
-Given all 98 city names and 16 county names in its context, each arm reports:
+Given all 98 city names and 17 county names in its context, each arm reports:
 
 | Candidate | Cities named | Counties named | Recall |
 |---|---|---|---|
-| `gpt-4o-mini` (today) | **19**/98 | **1**/16 | **18%** |
-| `gpt-5-mini` | 95/98 | 16/16 | **97%** |
-| `gpt-5.1` | 77/98 | 15/16 | 81% |
-| `gpt-5.1+deep` | 92/98 | 15/16 | 94% |
-| `claude-haiku-4-5` | 76/98 | 4/16 | 70% |
-| `claude-sonnet-5` | 71/98 | 12/16 | 73% |
-| `gpt-4o-mini@16` | 53/98 | 6/16 | 52% |
+| `gpt-4o-mini` (today) | **19**/98 | **1**/17 | **18%** |
+| `gpt-5-mini` | 95/98 | 16/17 | **97%** |
+| `gpt-5.1` | 77/98 | 15/17 | 81% |
+| `gpt-5.1+deep` | 92/98 | 15/17 | 94% |
+| `claude-haiku-4-5` | 76/98 | 4/17 | 70% |
+| `claude-sonnet-5` | 71/98 | 12/17 | 73% |
+| `gpt-4o-mini@16` | 53/98 | 6/17 | 52% |
+
+> **The numerators above were counted with two small faults in the counter, both
+> since fixed, and neither changes anything this section concludes** (#878
+> follow-up). They are left as measured rather than guessed at, because the answers
+> they were counted from are not committed and cannot be recomputed:
+>
+> - **The county denominator was 16, not 17.** The pattern that produced it allowed
+>   only capitalised words, so it missed **Lake of the Woods County** — a name this
+>   module documented in its own count of 17 and its own code then failed to find.
+>   Any arm that named that county is **one higher** than shown.
+> - **A short recipient name inside a longer one was credited twice.** St. Paul sits
+>   inside South St. Paul, Benton inside Lake Benton, Minnetonka inside Minnetonka
+>   Beach, and a substring test scored the short name whenever the long one appeared.
+>   Any city numerator above may be **one lower** than shown. Re-measured on a fresh
+>   set of answers at this same budget, this inflated three of four arms by exactly
+>   one name each.
+>
+> Both corrections are worth at most about **one percentage point** of the recall
+> column, against gaps of 20 to 79 points between the arms, so the ordering stands —
+> the one pair close enough to be worth naming is `claude-haiku-4-5` at 70% and
+> `claude-sonnet-5` at 73%, whose 3-point gap could narrow. Neither fault could
+> produce the finding that carries this section: today's model reporting 19 of 98.
 
 **Today's model reports 19 cities — the same 19 as the original bug.** #868
 delivered it 98 names and it printed the same answer, closing with *"Other
@@ -780,8 +802,16 @@ caught at all because it is a claim *about the context* that the context refutes
 This is the strongest single argument in the whole comparison, and it is not in the
 score. **#868 bought the input; only a better model turns that input into an
 answer.** The denominator is read off the snapshot by
-`hf719_grant_recipients` (`alethical/eval/ground_truth.py`) and asserted against
-the two independent hand counts already recorded there, so it cannot quietly drift.
+`hf719_grant_recipients` (`alethical/eval/ground_truth.py`) rather than hand-listed,
+so it cannot go stale when the bill is re-ingested.
+
+**It could still drift, and did, because it was asserted against a *lower bound*.**
+The hand counts recorded in that module are 98 and 17; the test asserted `>= 90` and
+`>= 15`, which 98 and 16 both satisfy. A lower bound is the right shape for catching
+a regression and cannot catch an off-by-one in the denominator itself — and an
+off-by-one there makes every percentage in the table above a fraction of the wrong
+total. The two figures are now asserted **exactly**, against the snapshotted text
+(`test_the_derivation_reproduces_the_hand_counts_exactly_not_just_the_bounds`).
 
 ### The omnibus worst case, which is where the money and the waiting are
 
@@ -893,7 +923,7 @@ change with a deploy behind it, not a setting.
 ### The runner-up worth knowing about
 
 **`gpt-5-mini` is the value pick and has the single best number in the comparison:
-97% enumeration recall, 95 of 98 cities and 16 of 16 counties.** One gate failure,
+97% enumeration recall, 95 of 98 cities and 16 of 17 counties.** One gate failure,
 85% shipping, inside both latency budgets at p50 3.12 s and p95 7.85 s, and
 **$0.0016 an answer — 2.4× today, a fifth of `gpt-5.1`.** What keeps it off the top
 line is that it is the *slowest* arm on the omnibus worst case at 27.3 s, and it
