@@ -196,6 +196,12 @@ jobs:
       - name: Check doc references resolve
         run: python scripts/check_doc_references.py
 
+      # Cheap and unconditional: a NUL byte anywhere makes git and grep treat that
+      # whole file as binary, so its code stops being searchable and its diffs stop
+      # being reviewable. One shipped in #866 and every other gate passed it.
+      - name: Check no file carries a NUL byte
+        run: python scripts/check_no_nul_bytes.py
+
       # Only meaningful on a PR: it compares against the merge base and reads the
       # PR body. On a push to main there is no body to read, so it is skipped
       # rather than failing every direct push.

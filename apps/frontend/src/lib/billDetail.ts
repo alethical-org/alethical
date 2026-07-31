@@ -8,6 +8,7 @@ import {
   IndividualVote,
   VoteEvent,
 } from '../data/types';
+import { citationSectionAnchor } from './billText';
 import { normalizeMotion } from './motionNormalize';
 import { formatSessionLabel } from './sessionLabel';
 
@@ -1877,19 +1878,19 @@ export function citationChipLabel(label: string, sectionTopic?: string): string 
 //
 // Two chips are duplicates only when a reader cannot tell them apart AND they go
 // to the same place, so the key is the rendered label plus the destination, and
-// the first occurrence wins (served order is preserved). Both halves are load-
-// bearing: section_id_text is NOT unique within a version (#763/#854), so id
-// alone would collapse two genuinely different sections that share an id — but
-// those carry their own headings, hence their own labels, and stay separate. An
-// unresolved citation (empty sectionId, chip disabled) is then keyed on its label
-// alone, which is all a reader sees.
+// the first occurrence wins (served order is preserved). The destination is the
+// section ANCHOR, not the bare id: section_id_text is not unique within a version
+// (#763/#854), so keying on the id alone would collapse two genuinely different
+// sections that share one. The label half is what a reader actually compares, so
+// it stays in the key too — an unresolved citation (empty sectionId, chip
+// disabled) then keys on the label alone, which is all there is to see.
 //
 // Excerpt-carrying surfaces (the web "From the bill" cards) must NOT use this —
 // there each citation quotes a different passage, so the repeats carry meaning.
 export function citationsBySection(citations: Citation[]): Citation[] {
   const seen = new Set<string>();
   return citations.filter((c) => {
-    const key = `${citationChipLabel(c.label, c.sectionTopic)} ${c.sectionId}`;
+    const key = `${citationChipLabel(c.label, c.sectionTopic)} ${citationSectionAnchor(c)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
