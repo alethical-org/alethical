@@ -206,15 +206,25 @@ def rag_chat_system_prompt(coverage: BillTextCoverage | None = None) -> str:
     depends on how much of the bill went in, and the two are composed here so there
     is exactly one place that knows the whole thing.
 
-    **The answer-quality eval should call this, not the constant.** The eval imports
-    `RAG_CHAT_SYSTEM_PROMPT` by identity so it can never score a copy that drifted
-    (`test_the_eval_scores_productions_own_prompt_rather_than_a_copy`) — a good guard
-    that this change slipped past, because the drift is no longer a copy but a layer
-    production adds on top. The eval's frozen contexts are partial reads, so
-    ``rag_chat_system_prompt(None)`` is the prompt matching what it measures. Left as
-    the eval's call to make rather than changed here, since #865's published §9
-    numbers were produced without it and moving the baseline mid-decision is worse
-    than a documented gap; `docs/product-onboarding/answer-quality-bar.md` records it.
+    **Pass the coverage you actually have. Never default the argument to stand in for
+    it.** ``None`` is not "unknown, so be careful about which rule to send" — it
+    selects the PARTIAL rule, which is only cautious when the read really was partial.
+    On a complete read it sends an answer the wrong instruction: it forbids describing
+    the bill as a whole and forbids saying the bill genuinely names nothing of a kind,
+    both of which a complete read supports and a reader benefits from. The default
+    exists for bill-scoped chat, which retrieves a fixed 3 passages and never counts
+    the bill, so partial is both true and the safe read there.
+
+    **This docstring told the answer-quality eval to call ``rag_chat_system_prompt(None)``,
+    and that advice was wrong within a day.** It was written when every frozen context
+    was a 4-passage sample. #868 then widened list questions to read the whole bill, so
+    most snapshotted contexts became *complete* reads and the blanket ``None`` scored
+    the partial rule against them. The eval now composes the coverage per question from
+    its own snapshot (``production_system_prompt`` in `scripts/answer_eval.py`), which
+    is the right shape and the general lesson: **a resolver that hardcodes one branch
+    agrees with a production path rather than with production.** Two other instances of
+    exactly that are recorded on
+    [#894](https://github.com/alethical-org/alethical/issues/894).
     """
     return f"{RAG_CHAT_SYSTEM_PROMPT}\n\n{_coverage_rule(coverage)}"
 
