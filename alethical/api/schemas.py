@@ -211,6 +211,10 @@ class BillDetailPayload(BaseModel):
     current_status: str | None = None
     status_key: str | None = None
     latest_action_at: datetime | None = None
+    # When we last pulled this bill from the Legislature (#861). Distinct from
+    # latest_action_at, which is when the Legislature last acted on it; the page's
+    # source line shows this one, because "Updated" is a claim about our copy.
+    last_pulled_at: datetime | None = None
     official_url: str | None = None
     is_omnibus: bool = False
     companion: CompanionBillPayload | None = None

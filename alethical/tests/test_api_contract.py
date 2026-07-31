@@ -426,6 +426,29 @@ def test_bill_detail_and_action_endpoints_expose_live_action_dates(client):
     assert "action_at" in action_payload[0]
 
 
+def test_bill_detail_serves_when_we_last_pulled_the_bill(client):
+    """#861: the source line's "Updated {date}" is a claim about how current OUR
+    copy is, so the detail payload carries `last_pulled_at` — the finish time of the
+    ingestion run that last wrote the bill — as a field of its own.
+
+    It must be distinct from `latest_action_at`. That is the Legislature's last
+    action on the bill, a fact the page already states in its meta rows, and
+    labelling it "Updated" told the reader our copy was that old. The corpus-wide
+    max(IngestionRun.finished_at) is the other wrong answer: it covers every bill at
+    once, so it can post-date the record it stamps.
+    """
+    payload = client.get(
+        "/api/v1/bills/94-2025-SF1832", params={"include": "actions"}
+    ).json()["data"]
+    assert "last_pulled_at" in payload, (
+        "the source line has no honest date to show without this field"
+    )
+    assert payload["last_pulled_at"], "the fixture bill was ingested, so it has one"
+    # The two dates answer different questions and must not be the same field
+    # served twice.
+    assert payload["last_pulled_at"] != payload.get("latest_action_at")
+
+
 def test_bill_action_endpoints_expose_committee_name(client):
     """#599: both action payloads (detail ?include=actions and /actions) carry
     committee_name so the Search card and Actions timeline can name the committee.

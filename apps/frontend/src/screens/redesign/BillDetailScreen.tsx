@@ -58,6 +58,7 @@ import {
   PartyBlock,
   PHASED_CAPTION,
   POINTER_CAPTION,
+  pulledLabel,
   readDocumentLink,
   scopedChipQuery,
   TimelineAuthor,
@@ -571,8 +572,10 @@ function BillDetailMobileScreen() {
       hasVotes,
       // The page's one last-updated stamp, for the single source line closing the
       // whole scroll at the foot of Bill Text (billSourceText drops the segment
-      // when the bill carries no date).
-      updatedLabel: niceDate ? `Updated ${niceDate}` : '',
+      // when the bill carries no pull date). NOT `niceDate` above, which is the
+      // Legislature's last action on the bill and feeds the LATEST ACTION rail row
+      // — the same value under two labels was the #861 bug.
+      updatedLabel: pulledLabel(bill),
     };
   }, [bill]);
 
