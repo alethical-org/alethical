@@ -2664,6 +2664,210 @@ def test_bill_scoped_chat_missing_chunks_returns_grounded_fallback(
     assert assistant_message["citations"] == []
 
 
+def test_the_answer_writer_reaches_anthropic_without_moving_the_openai_path(
+    monkeypatch,
+):
+    """#894: the model that scored best could not be selected at all.
+
+    `synthesize_grounded_answer` posted to api.openai.com with no branch, so
+    `claude-sonnet-5` — the only arm to clear the bar outright
+    (docs/product-onboarding/answer-quality-bar.md §12) — was unreachable, and the
+    comparison could rank a model the product could not run.
+
+    The half of this that matters most on merge is the *unchanged* half: an
+    unprefixed model name must still take exactly today's path, because that is what
+    every environment sets and this must change nothing a reader sees.
+    """
+    from alethical.api.routers import me
+
+    calls = []
+
+    class _Reply:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    class _Chunk:
+        citation_label = "Sec. 1"
+        chunk_text = "A grant to the city of Duluth."
+
+    def record(payload):
+        def post(url, **kwargs):
+            calls.append({"url": url, **kwargs})
+            return _Reply(payload)
+
+        return post
+
+    # --- the existing path, which must not move ---
+    monkeypatch.delenv("OPENAI_RAG_CHAT_MODEL", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setattr(
+        me.requests, "post", record({"output_text": "An OpenAI answer."})
+    )
+    answer = me.synthesize_grounded_answer(
+        "which cities?", [_Chunk()], bill_key="94-2025-HF719"
+    )
+    assert answer == "An OpenAI answer."
+    assert calls[-1]["url"] == "https://api.openai.com/v1/responses"
+    assert calls[-1]["headers"]["Authorization"] == "Bearer test-openai-key"
+    assert calls[-1]["json"]["model"] == me.DEFAULT_RAG_CHAT_MODEL
+    # No Anthropic-only key leaks into the request that already worked.
+    assert "max_tokens" not in calls[-1]["json"]
+    assert "thinking" not in calls[-1]["json"]
+
+    # An explicit `openai:` prefix is the same path, so the prefix is a label rather
+    # than a second behaviour.
+    monkeypatch.setenv("OPENAI_RAG_CHAT_MODEL", "openai:gpt-5.1")
+    me.synthesize_grounded_answer("which cities?", [_Chunk()], bill_key="94-2025-HF719")
+    assert calls[-1]["url"] == "https://api.openai.com/v1/responses"
+    assert calls[-1]["json"]["model"] == "gpt-5.1"
+
+    # --- the new path ---
+    monkeypatch.setenv("OPENAI_RAG_CHAT_MODEL", "anthropic:claude-sonnet-5")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
+    monkeypatch.setattr(
+        me.requests,
+        "post",
+        record({"content": [{"type": "text", "text": "An Anthropic answer."}]}),
+    )
+    answer = me.synthesize_grounded_answer(
+        "which cities?", [_Chunk()], bill_key="94-2025-HF719"
+    )
+    assert answer == "An Anthropic answer."
+    sent = calls[-1]
+    assert sent["url"] == "https://api.anthropic.com/v1/messages"
+    assert sent["headers"]["x-api-key"] == "test-anthropic-key"
+    assert sent["json"]["model"] == "claude-sonnet-5"
+    assert sent["json"]["system"] == me.rag_chat_system_prompt(None)
+    assert sent["json"]["messages"][0]["content"].startswith("Bill: 94-2025-HF719")
+    # Thinking off, because a reader is waiting and this is not a reasoning task.
+    assert sent["json"]["thinking"] == {"type": "disabled"}
+    assert sent["json"]["max_tokens"] >= 4096
+    # A thinking block is text-bearing and must never be concatenated into the answer.
+    monkeypatch.setattr(
+        me.requests,
+        "post",
+        record(
+            {
+                "content": [
+                    {"type": "thinking", "thinking": "let me consider"},
+                    {"type": "text", "text": "Only this reaches the reader."},
+                ]
+            }
+        ),
+    )
+    assert (
+        me.synthesize_grounded_answer(
+            "which cities?", [_Chunk()], bill_key="94-2025-HF719"
+        )
+        == "Only this reaches the reader."
+    )
+
+
+def test_the_868_guards_are_not_something_only_openai_answers_get(monkeypatch):
+    """A reader has no idea which company wrote the sentence in front of them, so the
+    #868 backstop cannot be provider-specific (`.claude/rules/grounded-answers.md`
+    rule 11).
+
+    Both guards are asserted on the Anthropic path: an absence claim is re-scoped on
+    a partial read, and a completeness claim is removed whatever the coverage.
+    """
+    from alethical.api.routers import me
+
+    class _Reply:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "The bill does not specify any counties. "
+                            "This is the complete list of cities."
+                        ),
+                    }
+                ]
+            }
+
+    class _Chunk:
+        citation_label = "Sec. 1"
+        chunk_text = "A grant to the city of Duluth."
+
+    monkeypatch.setenv("OPENAI_RAG_CHAT_MODEL", "anthropic:claude-sonnet-5")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
+    monkeypatch.setattr(me.requests, "post", lambda *a, **k: _Reply())
+
+    partial = me.synthesize_grounded_answer(
+        "which counties?",
+        [_Chunk()],
+        bill_key="94-2025-HF719",
+        coverage=me.BillTextCoverage(searched=4, total=102),
+    )
+    assert "The bill text we searched does not specify any counties" in partial
+    assert "complete list" not in partial
+
+    # On a complete read the absence claim is true and stays; the completeness claim
+    # is about the model's own enumeration and still goes.
+    whole_bill = me.synthesize_grounded_answer(
+        "which counties?",
+        [_Chunk()],
+        bill_key="94-2025-HF719",
+        coverage=me.BillTextCoverage(searched=102, total=102),
+    )
+    assert "The bill does not specify any counties" in whole_bill
+    assert "complete list" not in whole_bill
+
+
+def test_an_unknown_provider_prefix_is_refused_rather_than_guessed_at(monkeypatch):
+    """Sending a mistyped model to the wrong company's API would either fail
+    confusingly or, worse, succeed against a model nobody chose."""
+    from alethical.api.routers import me
+    from fastapi import HTTPException
+
+    assert me.split_provider("gpt-4o-mini") == ("openai", "gpt-4o-mini")
+    assert me.split_provider("anthropic:claude-sonnet-5") == (
+        "anthropic",
+        "claude-sonnet-5",
+    )
+    with pytest.raises(HTTPException) as caught:
+        me.split_provider("gemini:gemini-3-pro")
+    assert caught.value.status_code == 503
+    assert "unknown provider" in caught.value.detail
+
+
+def test_the_anthropic_path_requires_its_own_key_not_openais(monkeypatch):
+    """The key to demand depends on where the request is going, so the check had to
+    move after the provider is resolved."""
+    from alethical.api.routers import me
+    from fastapi import HTTPException
+
+    class _Chunk:
+        citation_label = "Sec. 1"
+        chunk_text = "A grant to the city of Duluth."
+
+    monkeypatch.setenv("OPENAI_RAG_CHAT_MODEL", "anthropic:claude-sonnet-5")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "an-openai-key-does-not-help-here")
+    with pytest.raises(HTTPException) as caught:
+        me.synthesize_grounded_answer("q", [_Chunk()], bill_key="94-2025-HF719")
+    assert caught.value.status_code == 503
+    assert caught.value.detail == "ANTHROPIC_API_KEY is required for RAG chat synthesis"
+
+    # And the existing message for the existing path is unchanged.
+    monkeypatch.delenv("OPENAI_RAG_CHAT_MODEL", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(HTTPException) as caught:
+        me.synthesize_grounded_answer("q", [_Chunk()], bill_key="94-2025-HF719")
+    assert caught.value.detail == "OPENAI_API_KEY is required for RAG chat synthesis"
+
+
 ENACTED_VERSION_SESSION_SLUG = "test-session-law-fixture"
 
 
