@@ -391,7 +391,130 @@ model at a wider budget beats a premium model at today's budget**. If it does, t
 decision is about how much text we send, not which model we buy — and those cost very
 different amounts.
 
-## 10. What this bar does not cover
+## 10. Results, Jul 31 2026 — nine candidates on the same 20 questions
+
+Full run: 180 answers, 360 blind judgments, ~$13. Raw numbers in the run
+directory's `report.json`; re-derive with the command in §8.
+
+### The headline: no candidate clears the bar, and the reason is not the model
+
+| Candidate | Score /8 | Ships | Gate fails | Overclaimed | p50 s | p95 s | $/answer | Bar |
+|---|---|---|---|---|---|---|---|---|
+| `gpt-4o-mini` (today) | 3.45 | 50% | 13 | 8/10 | **1.99** | 4.66 | **$0.00020** | fail |
+| `gpt-5-mini` | 4.25 | 60% | 10 | 7/10 | 2.62 | **10.19** | $0.00060 | fail |
+| `gpt-5.1` | 4.10 | 60% | 13 | 7/10 | 2.48 | 7.14 | $0.00291 | fail |
+| `claude-haiku-4-5` | 3.20 | 45% | 16 | 10/10 | 2.37 | 4.30 | $0.00182 | fail |
+| `claude-sonnet-5` | 4.20 | 60% | 12 | 8/10 | 3.22 | 7.20 | $0.00760 | fail |
+| `gpt-5.1+deep` | 3.55 | 50% | 15 | 9/10 | 2.80 | 6.80 | $0.00291 | fail |
+| `gpt-4o-mini@8` | 3.80 | 45% | 12 | 8/9 | 1.45 | 4.43 | — | fail |
+| `gpt-4o-mini@16` | 4.65 | 65% | 9 | 4/5 | 2.16 | 5.24 | — | fail |
+| `claude-haiku-4-5@16` | 5.50 | 75% | 7 | 4/5 | 2.59 | 4.56 | — | fail |
+
+**Every arm fails, and they fail on the same thing.** Broken down by cause, the
+gate failures are overwhelmingly [#868](https://github.com/alethical-org/alethical/issues/868)'s
+structural problem rather than bad writing:
+
+| Failure | Range across the nine arms |
+|---|---|
+| Presented a partial list or count as complete | **4 – 10** |
+| Denied something exists, on a partial reading | **2 – 6** |
+| Made a claim the passages do not support (both judges agreeing) | 0 – 3 |
+
+Two arms — `claude-sonnet-5` and `gpt-5-mini` — produced **zero** unsupported
+claims across all 20 questions. **All nine arms declined correctly on 5 of 5**
+questions the passages do not cover, so cite-or-refuse is intact everywhere.
+The failure is not that the models make things up. It is that they state a
+partial reading as the whole truth.
+
+### Widening the window does not fix it
+
+The overclaim rate is **flat** across passage budgets: 80% at 4 passages, 89% at 8,
+80% at 16. A wider window reduces *how many bills are partial* — at 16 passages only
+5 of 20 questions still have a partial context — but on the bills that remain
+partial, models overclaim just as often.
+
+`gpt-4o-mini@16` is the clearest demonstration. Given four times the text it
+produced a **longer** list (28 items, up from 17) with a **stronger** completeness
+claim, closing "this list includes both city and county grants for various
+infrastructure projects as specified in the bill." More context made the wrong claim
+bigger. Only `claude-sonnet-5` volunteered the truth unprompted: *"the provided
+context does not include the full list of grants in the bill … there may be
+additional cities and counties named elsewhere in HF 719."*
+
+### Which model writes better, with the structural failure held out
+
+Scoring only the **10 questions where the whole bill was in context** — so the
+completeness gate cannot fire — isolates writing quality. Ranked by the **worse** of
+the two judges, because a candidate that wins under one judge has not won:
+
+| Rank | Candidate | Worse judge | Sonnet judge | gpt-5.1 judge | Unsupported claims |
+|---|---|---|---|---|---|
+| 1 | `gpt-5.1+deep` | **6.10** | 6.60 | 6.10 | 1 |
+| 2 | `gpt-5.1` | 5.50 | 6.10 | 5.50 | 1 |
+| 3 | `claude-sonnet-5` | 5.40 | **7.10** | 5.40 | **0** |
+| 4 | `gpt-5-mini` | 4.80 | 7.00 | 4.80 | **0** |
+| 5 | `claude-haiku-4-5` | 4.60 | 6.70 | 4.60 | 1 |
+| 9 | **`gpt-4o-mini` (today)** | **0.80** | 5.90 | 0.80 | 2 |
+
+**Today's model is last of the nine, under both judges.** That is the one ranking
+result robust to the judge disagreement below, and it means there is real headroom.
+
+### Read the middle of that table with caution
+
+The two judges disagree more than the models differ. On the same answers,
+`gpt-4o-mini` scores 5.90 from the Sonnet judge and 0.80 from the gpt-5.1 judge — a
+5.1-point gap, against a 2.2-point spread between the best and worst *models* under
+either judge alone. Exact agreement runs 35–65% and they split on the grounding gate
+5–10 times per arm.
+
+The gpt-5.1 judge is the more suspect of the two: it awards near-perfect graded
+marks almost uniformly (`addresses` 2.0, `framing` 2.0, `plain` 2.0 for nearly every
+arm) and then fails answers on the gates. A grader that does not discriminate on the
+graded dimensions is not measuring them.
+
+So: **first and last place are trustworthy; the ordering in between is not.**
+Tightening it means a calibration pass — hand-score a sample, measure each judge
+against it, and drop or re-prompt the one that diverges. That is the next piece of
+work on this eval, and it is cheap.
+
+### What to change, and what it costs
+
+**Recommendation: `OPENAI_RAG_CHAT_MODEL=gpt-5.1`, left at its default reasoning.**
+
+- It tops the conservative ranking (6.10 against today's 0.80) and beats today's
+  model under **both** judges.
+- It stays inside the latency budget: p50 2.80s, p95 6.80s against 5s and 9s. Note
+  its *default* reasoning both scored higher and ran faster at p95 than forcing
+  reasoning off, so send no reasoning parameter.
+- One line of config, no code, trivially reversible.
+- Cite-or-refuse is preserved (5 of 5).
+- **It costs about 15× more per answer** — $0.0029 against $0.0002, or **$2.90 per
+  thousand answers against $0.20**. Small in absolute terms; it multiplies with
+  traffic in a way the one-off enrichment bill never did.
+
+Two things to weigh against it:
+
+- **`claude-sonnet-5` is the safer answer and the more expensive one.** Zero
+  unsupported claims, the highest Sonnet-judge score, and the only arm that
+  volunteered that its list was partial. But $0.0076 per answer (2.6× `gpt-5.1`,
+  38× today), and **it is not reachable through this setting** — `me.py` posts to
+  `api.openai.com`, so a Claude model needs a provider adapter of roughly the shape
+  the eval already has.
+- **`gpt-5.1` carries 12 statute citations across the fixture against today's 1.**
+  That is a plain-language regression under
+  [`grounded-answers`](../../.claude/rules/grounded-answers.md) rule 9, and the
+  display cleaners only strip citations in positions where removal cannot break the
+  sentence. Worth a prompt tweak alongside the switch.
+
+**Sequencing: land [#868](https://github.com/alethical-org/alethical/issues/868)
+first, then re-run this eval before committing to a model.** Not because the switch
+is wrong, but because #868 widens the input for list questions from ~1,200 tokens to
+~27,000, and `gpt-5.1` charges 8.3× more per input token than today's model. On that
+worst case the per-answer input cost goes from about $0.004 to about $0.034. The
+ranking may also move: this run shows it changes with passage budget. Deciding once,
+after the input size is settled, beats deciding twice.
+
+## 11. What this bar does not cover
 
 Named so nobody reads a passing score as more than it is:
 
