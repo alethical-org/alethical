@@ -447,7 +447,9 @@ def test_the_eval_sends_the_whole_prompt_production_sends():
 
     So this asserts against whatever production composes today — the constant while
     #868 is unmerged, `rag_chat_system_prompt(None)` once it lands. `None` is the
-    right coverage because the eval's frozen contexts are partial reads.
+    right coverage for a caller holding no context, and stays the right answer for
+    the bill-scoped chat, which retrieves a fixed three passages and never counts
+    the bill.
     """
     import alethical.api.routers.me as me
 
@@ -459,15 +461,101 @@ def test_the_eval_sends_the_whole_prompt_production_sends():
     assert me.RAG_CHAT_SYSTEM_PROMPT in cli.production_system_prompt()
 
 
+def test_the_prompt_follows_each_questions_coverage_not_the_runs():
+    """A complete read gets production's complete-coverage rule, not the partial one.
+
+    The gap this closes (#878): the eval sent `rag_chat_system_prompt(None)` for
+    every question, which was right when every frozen context was four passages of
+    a long bill and wrong the moment #868 started reading some bills whole. On a
+    complete read production sends a materially *different* instruction — one that
+    positively licenses "the bill names none of these" and asks for every instance
+    rather than a handful. Sending the partial rule there scores a model on words
+    it never received.
+    """
+    import alethical.api.routers.me as me
+
+    cli = _cli()
+    whole = {"chunks": [{}, {}, {}], "passages_total": 3}
+    part = {"chunks": [{}, {}, {}], "passages_total": 102}
+
+    assert cli.production_system_prompt(whole) == me.rag_chat_system_prompt(
+        me.BillTextCoverage(searched=3, total=3)
+    )
+    assert cli.production_system_prompt(part) == me.rag_chat_system_prompt(
+        me.BillTextCoverage(searched=3, total=102)
+    )
+    assert cli.production_system_prompt(whole) != cli.production_system_prompt(part)
+    # An unknown denominator must read as partial, never as licence to speak for
+    # the whole bill — the safe direction, and production's own (BillTextCoverage).
+    assert cli.production_system_prompt(
+        {"chunks": [{}], "passages_total": 0}
+    ) == cli.production_system_prompt(part)
+
+
 def test_a_prompt_change_invalidates_a_cached_arm_rather_than_mixing_two():
     """Without this, a prompt change is invisible: the run reuses old answers,
-    scores them beside new ones, and publishes a comparison across two prompts."""
+    scores them beside new ones, and publishes a comparison across two prompts.
+
+    Digests every variant in play, not one: since #868 a single run sends two
+    system prompts, and hashing only the partial one would let an edit to the
+    complete-coverage rule ship against a stale cache.
+    """
     cli = _cli()
-    a = cli.prompt_fingerprint("answer only from the provided bill text")
-    b = cli.prompt_fingerprint("answer only from the provided bill text\n\nNEVER...")
-    assert a != b
-    assert a == cli.prompt_fingerprint("answer only from the provided bill text")
-    assert len(a) == 12
+    partial_only = {"q": {"chunks": [{}], "passages_total": 9}}
+    both = {**partial_only, "w": {"chunks": [{}], "passages_total": 1}}
+
+    assert len(cli.prompt_fingerprint(partial_only)) == 12
+    assert cli.prompt_fingerprint(partial_only) == cli.prompt_fingerprint(partial_only)
+    # A run that also reads a bill whole sends a second prompt, so it must not
+    # reuse a cache generated when only the partial rule was ever sent.
+    assert cli.prompt_fingerprint(both) != cli.prompt_fingerprint(partial_only)
+
+
+def test_the_snapshot_reproduces_both_of_productions_retrieval_branches():
+    """The eval must ask ask.py how much to read, not restate the rule (#868).
+
+    Before this, the snapshot took one flat passage budget for every question. After
+    #868 production reads the question first — an enumerate-everything question gets
+    up to `_LIST_QUESTION_WORD_BUDGET` words of the bill, a specific question keeps
+    the fixed four passages — so a flat snapshot measures neither shape.
+    """
+    import inspect
+
+    import alethical.api.routers.ask as ask
+
+    cli = _cli()
+    source = inspect.getsource(cli.snapshot)
+    assert "_retrieve_bill_text" in source, (
+        "the snapshot must call production's own retrieval, not re-implement it"
+    )
+    assert "_LIST_QUESTION_RE" in source, (
+        "the snapshot must decide enumerating-ness the way ask.py does"
+    )
+    # And the constant the eval names as production's fixed budget really is it.
+    assert cli.CHUNK_LIMIT == ask._BILL_TEXT_CHUNK_LIMIT
+
+
+def test_the_scored_answer_is_what_production_serves_not_the_raw_completion():
+    """`synthesize_grounded_answer` is the unit under test, guards included.
+
+    Scoring the model's raw words measures a product we do not ship: on a partial
+    read production re-scopes absence claims and always drops a sentence vouching
+    for its own list, so a reader never sees either shape however the model wrote it.
+    """
+    import alethical.api.routers.me as me
+
+    cli = _cli()
+    partial = me.BillTextCoverage(searched=4, total=102)
+    whole = me.BillTextCoverage(searched=48, total=48)
+
+    denial = "The bill does not name any counties."
+    assert cli.served_answer(denial, partial) == me.narrow_bill_absence_claims(denial)
+    assert cli.served_answer(denial, partial) != denial
+    # Once every section has been read the same sentence is true, so it survives.
+    assert cli.served_answer(denial, whole) == denial
+
+    vouched = "Duluth and Rochester get grants. That is the complete list."
+    assert "complete list" not in cli.served_answer(vouched, whole)
 
 
 # --- judge replies are not always clean JSON; the parser has to cope ---
