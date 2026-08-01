@@ -181,6 +181,16 @@ def hf719_grant_recipients(bill_text: str) -> tuple[set[str], set[str]]:
 # individual match was correct; the noun was wrong. Only reading them catches it.
 
 
+# How an item is recognised inside an *answer*, which is a different job from
+# finding it in the bill. A proper noun needs only word boundaries. A bare number
+# needs far more care: school district 13 and the "13" inside "$13,000" are the same
+# three characters, and crediting the second would inflate a recall figure with money.
+# So the numeric form refuses a number that any digit, comma, period or dollar sign
+# runs into on either side.
+MENTIONED_AS_NAME = r"\b{item}\b"
+MENTIONED_AS_NUMBER = r"(?<![$\d,.]){item}\b(?![\d,]*\d)"
+
+
 @dataclass(frozen=True)
 class EnumerationCase:
     """One bill, one shape of thing it names, and how many of them there are.
@@ -188,6 +198,12 @@ class EnumerationCase:
     ``expected`` is asserted **exactly** rather than as a bound, and ``exemplars`` are
     recipients no reasonable reading excludes, so a test fails on a regression rather
     than on a definitional argument.
+
+    ``pattern`` finds the items in the **bill**; ``mention`` decides whether an
+    **answer** named one. They are separate because the two texts fail differently: a
+    bill needs the tight recipient phrasing so the denominator is not a list of places
+    merely mentioned, and an answer needs protection against a number that is part of
+    a dollar figure.
     """
 
     bill_key: str
@@ -196,9 +212,14 @@ class EnumerationCase:
     pattern: re.Pattern[str]
     expected: int
     exemplars: tuple[str, ...]
+    mention: str = MENTIONED_AS_NAME
 
     def found_in(self, bill_text: str) -> frozenset[str]:
         return frozenset(m.group(1).strip() for m in self.pattern.finditer(bill_text))
+
+    def named_in(self, answer: str, items: set[str] | frozenset[str]) -> set[str]:
+        """Which of ``items`` this answer actually reports. Evidence, not a verdict."""
+        return names_from(set(items), answer, template=self.mention)
 
 
 # A recipient name may carry lowercase connectors (Lake of the Woods) and may be
@@ -246,6 +267,7 @@ ENUMERATION_CASES: tuple[EnumerationCase, ...] = (
         ),
         expected=11,
         exemplars=("13", "535", "695"),
+        mention=MENTIONED_AS_NUMBER,
     ),
 )
 
@@ -254,7 +276,9 @@ def enumeration_cases_for(bill_key: str) -> tuple[EnumerationCase, ...]:
     return tuple(c for c in ENUMERATION_CASES if c.bill_key == bill_key)
 
 
-def names_from(candidates: set[str], answer: str) -> set[str]:
+def names_from(
+    candidates: set[str], answer: str, *, template: str = MENTIONED_AS_NAME
+) -> set[str]:
     """Which of ``candidates`` the answer actually names. Evidence, not a verdict.
 
     A literal match on a proper noun is about as safe as machine checking gets —
@@ -272,11 +296,15 @@ def names_from(candidates: set[str], answer: str) -> set[str]:
     So the longest names are matched first and each match is *consumed*: a short
     name then counts only where it appears somewhere the long one did not. Word
     boundaries as well, so a city called Grant is not found in the word "grants".
+
+    ``template`` says what counts as a mention of one item, because a proper noun and
+    a bare school-district number are not recognised the same way — see
+    ``MENTIONED_AS_NAME`` and ``MENTIONED_AS_NUMBER``.
     """
     remaining = answer
     found = set()
     for name in sorted(candidates, key=len, reverse=True):
-        pattern = re.compile(rf"\b{re.escape(name)}\b", re.IGNORECASE)
+        pattern = re.compile(template.format(item=re.escape(name)), re.IGNORECASE)
         if pattern.search(remaining):
             found.add(name)
             # Blank out what this name claimed, so a shorter name nested inside it

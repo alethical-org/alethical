@@ -18,6 +18,7 @@ from alethical.eval.answer_eval import (
     SHIP_WORTHY_GRADED,
     AnswerQuery,
     AnswerResult,
+    EnumerationScore,
     JudgeVerdict,
     RequiredFact,
     aggregate,
@@ -79,6 +80,19 @@ def _result(query=None, answer="an answer", verdicts=(), **kwargs) -> AnswerResu
     result = AnswerResult(query=query or _query(), model="m", answer=answer, **kwargs)
     result.verdicts.extend(verdicts)
     return result
+
+
+def _ctx(*, chunks=1, passages_total=1, chunk_text="a passage") -> dict:
+    """A frozen retrieval context, in the shape the runner's snapshot writes."""
+    return {
+        "bill_key": "94-2025-HF1",
+        "question": "q",
+        "passages_total": passages_total,
+        "chunks": [
+            {"citation_label": f"Sec. {i}", "chunk_text": chunk_text}
+            for i in range(chunks)
+        ],
+    }
 
 
 # --- refusal detection: both directions matter, so both are pinned ---
@@ -300,28 +314,55 @@ def test_aggregate_rejects_an_empty_result_set():
 # --- the bar ---
 
 
+def _bar(summary, **overrides):
+    """``meets_bar`` at the shipped numbers, so a test names only what it varies."""
+    return meets_bar(
+        summary,
+        **{
+            "p50_seconds": 5.0,
+            "p95_seconds": 9.0,
+            "worst_seconds": 15.0,
+            "min_enumeration_recall": 0.80,
+            **overrides,
+        },
+    )
+
+
+def _enumerating(named, total=100, shape="cities"):
+    """A result carrying a recall observation per sample."""
+    return _result(
+        verdicts=[_verdict()],
+        seconds_total=2.0,
+        enumeration=(EnumerationScore(shape=shape, total=total, named=tuple(named)),),
+    )
+
+
 def test_meets_bar_requires_quality_and_speed_together():
     good = aggregate(
-        [_result(verdicts=[_verdict()], seconds_total=2.0) for _ in range(10)]
+        [_result(verdicts=[_verdict()], seconds_total=2.0) for _ in range(9)]
+        + [_enumerating([90])]
     )
-    assert meets_bar(good, p50_seconds=5.0, p95_seconds=9.0)
+    assert _bar(good)
     # Same answers, too slow for a reader who is waiting.
     slow = aggregate(
-        [_result(verdicts=[_verdict()], seconds_total=12.0) for _ in range(10)]
+        [_result(verdicts=[_verdict()], seconds_total=12.0) for _ in range(9)]
+        + [_enumerating([90])]
     )
-    assert not meets_bar(slow, p50_seconds=5.0, p95_seconds=9.0)
+    assert not _bar(slow)
 
 
 def test_meets_bar_fails_on_a_single_gate_failure_however_good_the_rest():
-    results = [_result(verdicts=[_verdict()], seconds_total=1.0) for _ in range(19)]
+    results = [_result(verdicts=[_verdict()], seconds_total=1.0) for _ in range(18)]
+    results.append(_enumerating([90]))
     results.append(_result(verdicts=[_verdict(grounded=False)], seconds_total=1.0))
     summary = aggregate(results)
     assert summary["ship_worthy_rate"] == 0.95  # would clear the 90% rate on its own
-    assert not meets_bar(summary, p50_seconds=5.0, p95_seconds=9.0)
+    assert not _bar(summary)
 
 
 def test_meets_bar_fails_below_the_ship_worthy_rate():
-    results = [_result(verdicts=[_verdict()], seconds_total=1.0) for _ in range(8)]
+    results = [_result(verdicts=[_verdict()], seconds_total=1.0) for _ in range(7)]
+    results.append(_enumerating([90]))
     results += [
         _result(verdicts=[_verdict(covers=0, addresses=0)], seconds_total=1.0)
         for _ in range(2)
@@ -329,7 +370,98 @@ def test_meets_bar_fails_below_the_ship_worthy_rate():
     summary = aggregate(results)
     assert summary["gate_failure_count"] == 0
     assert summary["ship_worthy_rate"] == 0.8
-    assert not meets_bar(summary, p50_seconds=5.0, p95_seconds=9.0)
+    assert not _bar(summary)
+
+
+# --- #895: the two conditions an average was hiding ---
+
+
+def test_the_worst_answer_fails_the_bar_even_where_both_percentiles_pass():
+    """The hole this closes: every arm measured breaches the 9-second budget on its
+    slowest answer, at 10.6 to 29.5 seconds, while its p95 lands underneath.
+
+    p95 over 20 questions is the 19th-slowest, and only a handful of the questions
+    are long bills — so the percentile is measuring the short ones and calling the
+    tail clean. Nineteen fast answers and one that takes half a minute is not a fast
+    product for the reader who asked about the long bill.
+    """
+    results = [_result(verdicts=[_verdict()], seconds_total=1.0) for _ in range(19)]
+    results.append(_enumerating([90]))
+    results[-1].seconds_total = 1.0
+    results[-1].sample_seconds = (1.0, 1.0, 29.5)
+    summary = aggregate(results)
+    assert summary["seconds_total"]["p50"] == 1.0
+    assert summary["seconds_total"]["p95"] == 1.0  # the tail is invisible here
+    assert summary["seconds_total"]["worst"] == 29.5  # and visible here
+    assert not _bar(summary)
+    # Nothing else about the arm changed, so the tail is what failed it.
+    assert _bar(summary, worst_seconds=30.0)
+
+
+def test_the_worst_case_reads_every_sample_not_just_the_scored_one():
+    """A repeat exists precisely because one draw is not a tail. The same question
+    and model measured 10.0 to 23.2 seconds run to run, so a worst case computed
+    from the first sample would report whichever run happened to be scored.
+    """
+    results = [_enumerating([90]) for _ in range(3)]
+    results[0].sample_seconds = (2.0, 23.2, 10.0)
+    assert aggregate(results)["seconds_total"]["worst"] == 23.2
+
+
+def test_recall_binds_the_worst_draw_because_a_reader_gets_one_draw():
+    """Four runs of one question returned 19, 26, 34 and 35 of 98 cities. Their mean
+    is 29%, which describes no answer anybody received. The bar reads the 19.
+    """
+    swings = aggregate([_enumerating([19, 26, 34, 35], total=98)])
+    recall = swings["enumeration_recall"]
+    assert round(recall["min"], 3) == 0.194
+    assert round(recall["max"], 3) == 0.357
+    assert not _bar(swings)
+    # A steady arm at the same *worst* value passes, so the spread is not being
+    # punished twice — being erratic costs a candidate only its bad draws.
+    steady = aggregate([_enumerating([90, 90, 90], total=100)])
+    assert _bar(steady)
+    # And an arm that is high on average but dips below on one draw does not.
+    erratic = aggregate([_enumerating([99, 99, 70], total=100)])
+    assert erratic["enumeration_recall"]["median"] == 0.99
+    assert not _bar(erratic)
+
+
+def test_each_shape_is_scored_apart_so_a_good_list_cannot_carry_a_bad_one():
+    """The arm that named 19 of 98 cities named 1 of 17 counties. Pooled, that is one
+    mediocre percentage; apart, it is a short list and a denied category, which are
+    different failures and only the second is the one #868 was filed for.
+    """
+    pooled_would_hide_it = aggregate(
+        [
+            _result(
+                verdicts=[_verdict()],
+                seconds_total=1.0,
+                enumeration=(
+                    EnumerationScore(shape="cities", total=100, named=(95,)),
+                    EnumerationScore(shape="counties", total=20, named=(2,)),
+                ),
+            )
+        ]
+    )
+    recall = pooled_would_hide_it["enumeration_recall"]
+    assert recall["shapes"] == 2
+    assert recall["min"] == 0.10  # the counties, not (95+2)/120 = 81%
+    assert not _bar(pooled_would_hide_it)
+
+
+def test_an_unmeasured_recall_fails_the_bar_rather_than_passing_it_by_default():
+    """A fixture that lost its long bills must not start passing everything.
+
+    ``None`` here means "not measured", and the cautious reading of a missing
+    measurement is that the condition is unmet — the same reasoning that makes a
+    missing latency figure fail rather than pass.
+    """
+    summary = aggregate(
+        [_result(verdicts=[_verdict()], seconds_total=1.0) for _ in range(10)]
+    )
+    assert summary["enumeration_recall"] is None
+    assert not _bar(summary)
 
 
 def test_cost_per_answer_is_the_mean_over_the_fixture():
@@ -502,14 +634,57 @@ def test_a_prompt_change_invalidates_a_cached_arm_rather_than_mixing_two():
     complete-coverage rule ship against a stale cache.
     """
     cli = _cli()
-    partial_only = {"q": {"chunks": [{}], "passages_total": 9}}
-    both = {**partial_only, "w": {"chunks": [{}], "passages_total": 1}}
+    partial_only = {"q": _ctx(passages_total=9)}
+    both = {**partial_only, "w": _ctx(passages_total=1)}
 
     assert len(cli.prompt_fingerprint(partial_only)) == 12
     assert cli.prompt_fingerprint(partial_only) == cli.prompt_fingerprint(partial_only)
     # A run that also reads a bill whole sends a second prompt, so it must not
     # reuse a cache generated when only the partial rule was ever sent.
     assert cli.prompt_fingerprint(both) != cli.prompt_fingerprint(partial_only)
+
+
+def test_re_snapshotting_invalidates_a_cached_arm_too_not_only_a_prompt_edit():
+    """#895: this was believed to happen and did not, which is why it is pinned now.
+
+    Neither coverage rule quotes a passage count — both are fixed prose — so a fresh
+    snapshot keeping the same mix of complete and partial reads produced a
+    byte-identical set of system prompts and the same digest, however much the bill
+    text underneath had moved. The cached arm was then reused, and answers written
+    from the old passages were scored and judged against the new ones.
+    """
+    cli = _cli()
+    before = {"q": _ctx(chunk_text="the city of Duluth")}
+    after = {"q": _ctx(chunk_text="the city of Rochester")}
+    assert cli.prompt_fingerprint(before) != cli.prompt_fingerprint(after)
+    # The coverage classes are identical across those two, so the system prompts
+    # alone genuinely cannot tell them apart. That is the near-miss, stated.
+    assert cli.production_system_prompt(before["q"]) == cli.production_system_prompt(
+        after["q"]
+    )
+
+
+def test_repeats_go_to_the_long_questions_and_nowhere_else():
+    """Sampling is confined to where the variance is (#895). The short questions are
+    stable, so repeats there would buy nothing and cost three times the money — the
+    reason the plan is "cut arms, never repeats" rather than "sample everything".
+    """
+    cli = _cli()
+    short = _ctx(chunks=cli.CHUNK_LIMIT, passages_total=cli.CHUNK_LIMIT)
+    long_bill = _ctx(chunks=102, passages_total=102)
+    assert cli.samples_wanted(short) == 1
+    assert cli.samples_wanted(long_bill) == cli.REPEAT_SAMPLES >= 3
+    # Derived from production's own budget, not a hand-written list of bill keys,
+    # so the set stays right when the fixture or the budget changes.
+    contexts = json.loads(CONTEXTS.read_text())["contexts"]
+    repeated = [k for k, c in contexts.items() if cli.samples_wanted(c) > 1]
+    assert len(repeated) == 6, repeated
+    # Every bill a recall figure is measured on is in the repeated set, or its
+    # spread — the thing the sampling was bought for — goes unmeasured.
+    from alethical.eval.ground_truth import ENUMERATION_CASES
+
+    for case in ENUMERATION_CASES:
+        assert any(k.startswith(case.bill_key) for k in repeated), case.bill_key
 
 
 def test_the_snapshot_reproduces_both_of_productions_retrieval_branches():
@@ -856,6 +1031,51 @@ def test_the_new_bills_cover_shapes_and_scales_hf719_cannot():
     # Every enumeration bill has a fixture question, or nothing scores its recall.
     for bill_key in by_bill:
         assert bill_key in queries, f"{bill_key} has no fixture question"
+
+
+def test_a_dollar_figure_does_not_credit_a_school_district_of_the_same_digits():
+    """Finding an item in a *bill* and finding it in an *answer* are different jobs.
+
+    School district 13 and the "13" inside "$13,000" are the same three characters,
+    and the districts are the one enumerable shape in the fixture that is a bare
+    number rather than a proper noun. Crediting a dollar amount would inflate recall
+    with money — an answer that named nothing would score for every district whose
+    digits happened to open an appropriation.
+    """
+    from alethical.eval.ground_truth import MENTIONED_AS_NUMBER, names_from
+
+    districts = {"13", "38", "152"}
+    money = "The bill gives $13,000 to one district and $1,152,000 to another."
+    assert names_from(districts, money, template=MENTIONED_AS_NUMBER) == set()
+    # And a real listing is still read, in the two shapes an answer writes it.
+    listed = "Districts No. 13, 38, and 152 each receive money."
+    assert names_from(districts, listed, template=MENTIONED_AS_NUMBER) == districts
+
+
+def test_recall_is_not_computed_from_a_denominator_that_stopped_reproducing():
+    """A missing row is a visible gap; a wrong row is a fiction that reads like a
+    measurement. If the snapshot's text no longer yields the count a human verified,
+    every percentage from it is wrong by the same amount, so none is printed (#900).
+    """
+    cli = _cli()
+    contexts = json.loads(CONTEXTS.read_text())["contexts"]
+    whole_bill = next(
+        c
+        for c in contexts.values()
+        if c["bill_key"] == "94-2025-HF2484" and len(c["chunks"]) == c["passages_total"]
+    )
+    assert cli.enumeration_scores(whole_bill, ["Anoka"])[0].total == 14
+
+    # Half the bill: the denominator would be a sample of the list, not the list.
+    half = {**whole_bill, "chunks": whole_bill["chunks"][:30]}
+    assert cli.enumeration_scores(half, ["Anoka"]) == ()
+
+    # Whole bill, but the text has changed under the hand-verified count.
+    gutted = {
+        **whole_bill,
+        "chunks": [{**c, "chunk_text": "nothing"} for c in whole_bill["chunks"]],
+    }
+    assert cli.enumeration_scores(gutted, ["Anoka"]) == ()
 
 
 def test_a_short_recipient_name_is_not_credited_to_a_longer_one_containing_it():
