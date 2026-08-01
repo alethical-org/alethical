@@ -1076,6 +1076,10 @@ def enumeration_scores(
     bill_text = "\n".join(c["chunk_text"] for c in context["chunks"])
     scores = []
     for case in enumeration_cases_for(context["bill_key"]):
+        # Matched on the question, not only the bill. HF 719 has two fixture
+        # questions and only one of them asks for a list.
+        if not case.asks(context["question"]):
+            continue
         items = case.found_in(bill_text)
         if len(items) != case.expected:
             print(

@@ -1102,6 +1102,25 @@ def test_recall_is_not_computed_from_a_denominator_that_stopped_reproducing():
     assert cli.enumeration_scores(gutted, ["Anoka"]) == ()
 
 
+def test_recall_is_scored_only_on_the_question_the_ground_truth_answers():
+    """HF 719 carries two fixture questions and only one asks for a list.
+
+    Keying recall on the bill alone scored the *"which legislators voted for this
+    bill?"* answer for naming no cities, recorded 0 of 98, and dragged both arms'
+    worst draw to zero — which is fatal for a condition that binds the worst draw,
+    because one spurious zero is indistinguishable from a real one.
+    """
+    cli = _cli()
+    contexts = json.loads(CONTEXTS.read_text())["contexts"]
+    hf719 = [c for c in contexts.values() if c["bill_key"] == "94-2025-HF719"]
+    assert len(hf719) == 2, "this test is about the bill having two questions"
+
+    grants = next(c for c in hf719 if "cities and counties" in c["question"])
+    votes = next(c for c in hf719 if c is not grants)
+    assert len(cli.enumeration_scores(grants, ["Minneapolis"])) == 2  # cities, counties
+    assert cli.enumeration_scores(votes, ["Minneapolis"]) == ()
+
+
 def test_a_short_recipient_name_is_not_credited_to_a_longer_one_containing_it():
     """Three of HF 719's names sit inside another: St. Paul in South St. Paul,
     Benton in Lake Benton, Minnetonka in Minnetonka Beach.

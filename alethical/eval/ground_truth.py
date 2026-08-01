@@ -217,6 +217,18 @@ class EnumerationCase:
     def found_in(self, bill_text: str) -> frozenset[str]:
         return frozenset(m.group(1).strip() for m in self.pattern.finditer(bill_text))
 
+    def asks(self, question: str) -> bool:
+        """Is this the fixture question this case is the ground truth for?
+
+        **The bill is not enough to identify it, and assuming it was produced a
+        wrong measurement.** HF 719 carries two fixture questions — the grants
+        question and an unanswerable one about who voted for it — so keying recall
+        on the bill alone scored the voting answer for naming no cities, recorded it
+        as 0%, and dragged both arms' worst draw to zero. A condition that binds the
+        worst draw is exactly the shape that a single spurious zero destroys.
+        """
+        return question.strip().rstrip("?").casefold() == self.question_asks.casefold()
+
     def named_in(self, answer: str, items: set[str] | frozenset[str]) -> set[str]:
         """Which of ``items`` this answer actually reports. Evidence, not a verdict."""
         return names_from(set(items), answer, template=self.mention)
