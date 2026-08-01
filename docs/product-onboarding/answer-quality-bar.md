@@ -14,6 +14,11 @@
 > §11 is why its middle rows can be believed and §10's could not. §10 is the
 > earlier run, kept as a control because it was measured against a prompt and a
 > retrieval shape production no longer uses.
+>
+> **Read §12's addendum before acting on §12.** A replication on byte-identical
+> input did not reproduce the recommended arm's margin
+> ([#895](https://github.com/alethical-org/alethical/issues/895)), so the
+> recommendation is not currently safe to act on without a re-run.
 
 ## 1. What is being measured, and what is deliberately not
 
@@ -218,9 +223,17 @@ read a marginal one as "measure again", not "disqualified".
 and every arm breached it.** §12 measured slowest answers of 10.6 to 29.5 seconds
 against a 9-second budget, while every arm's p95 landed underneath — not because the
 percentile was wrong but because it was answering a different question. p95 over 20
-questions is the 19th-slowest, and only a handful of the questions are long bills, so
-the percentile describes the short ones and reports the tail as clean. A reader who
+questions is the 21st-slowest of 22 here, and when only two questions were long bills
+the percentile described the short ones and reported the tail as clean. A reader who
 asks about a bonding bill is in the tail by definition.
+
+**Widening the fixture fixed half of that on its own, and the half it left is the
+reason this condition still exists.** With six long questions instead of two, p95 now
+lands *on* a long bill and fails: §12's addendum measures 17.31 s and 14.32 s where
+the same arms once read 4.19 s and 9.83 s. But p95 is still **one observation**, and
+it still sits well under the worst — 14.32 s against 27.97 s on the arm whose variance
+is concentrated in a single question. A percentile cannot see a spread inside the
+question it happens to land on; only the maximum can.
 
 Three things fix the number, and none of them is the measured data:
 
@@ -263,8 +276,10 @@ tell those apart** — every gate above was written for the partial-read failure
 - **Not 50%, because half a list is a different answer.** The one arm that measured
   52% is one nobody proposes to ship.
 - **80% is where a reader who checks the bill finds the answer substantially right**,
-  and it sits in a wide gap in everything measured so far — the nearest arms either
-  side are 73% and 94%, so no candidate is decided by a percentage point.
+  and no arm measured so far sits near it. The two sampled in §12's addendum have
+  worst draws of **12%** and **65%**, and best draws of 100%; the seven single-draw
+  figures in §12 run 18% to 97%. The threshold is not deciding anything by a
+  percentage point, which is the property to preserve if it is ever revisited.
 - **Each shape is scored apart, never pooled.** The arm that named 19 of 98 cities
   named **1 of 17 counties**. Pooled, that is one mediocre percentage; apart, it is a
   short list and a denied category, and only the second is the failure #868 was filed
@@ -520,7 +535,13 @@ because nothing about a judge's latency is measured.
 
 The seven-arm, two-judge run in §12 — 140 answers and 280 judgments, twice over —
 cost about **$11** end to end and took about 50 minutes, of which generation was
-~25. Passing `--judges ""` generates and stops, which is how the calibration below
+~25. The two-arm run in §12's addendum — 68 answers and 88 judgments on 22 questions,
+with three samples on each of the six long ones — took about 15 minutes and cost about
+**$3**, of which $0.25 was generation. **Only generation is metered**: the eval records
+the writer's tokens and not the judges', so a cost figure for a whole run is an
+estimate, and judging is the larger half of it.
+
+Passing `--judges ""` generates and stops, which is how the calibration below
 gets answers to hand-score before any verdict exists:
 
 ```bash
@@ -1109,6 +1130,137 @@ that this fixture cannot.
 switch is Eugene's, because it changes what every visitor reads and what every
 answer costs. Nothing in this work modified `OPENAI_RAG_CHAT_MODEL` in any
 environment.
+
+### Addendum, Aug 1 2026 (#895) — two arms, 22 questions, and a margin that did not reproduce
+
+**Everything above this heading covers the original 20 questions and is left exactly
+as measured.** #895 added two long-bill enumeration questions and the repeat sampling
+§3's new conditions need, and scored **two** arms on the enlarged fixture rather than
+re-running all seven: `gpt-4o-mini`, today's model, and `gpt-5.1+deep`, which is what
+`OPENAI_RAG_CHAT_MODEL=gpt-5.1` actually produces and therefore what the
+recommendation above means. Re-running six settled arms to make a table look uniform
+is spending money on presentation.
+
+**This is a replication, not a fresh experiment, and that is what makes its result
+serious.** The original 20 questions' passages are byte-identical to the snapshot §12
+used — checked, not assumed — and the three prompt constants in
+`alethical/api/routers/me.py` are unchanged from [#889](https://github.com/alethical-org/alethical/pull/889)
+through today. Same input, same instruction, same two arms, a different draw.
+
+| | `gpt-4o-mini` | `gpt-5.1+deep` |
+|---|---|---|
+| Score /8, original 20 — **§12** | 5.90 | **6.70** |
+| Score /8, original 20 — **this run** | 5.90 | **5.60** |
+| Gate failures, original 20 — §12 → this run | 4 → 6 | **1 → 5** |
+| Worst single answer — §12 → this run | 18.7 s → 18.5 s | **10.6 s → 28.0 s** |
+
+**`gpt-4o-mini` reproduced almost exactly. `gpt-5.1+deep` did not, and it is the arm
+the recommendation rests on.**
+
+#### The two margins, side by side
+
+Reported this way because [#895](https://github.com/alethical-org/alethical/issues/895)
+pre-committed a re-run trigger to them *before* any number existed, so the decision
+reads off the data rather than off anyone's judgement.
+
+| Margin of `gpt-5.1+deep` over `gpt-4o-mini` | Pooled | Sonnet judge | gpt-5.1 judge |
+|---|---|---|---|
+| **On the original 20 questions** | **−0.30** | +0.00 | +0.70 |
+| **On the 2 questions #895 added** | **+1.00** | +1.00 | +0.00 |
+
+On the new questions `gpt-5.1+deep` wins, by a wider margin than §12 reported on the
+old ones — 8/8 against 7/8 on HF 2484, 6/8 against 5/8 on SF 3551, no gate failures on
+either side. **Read alone that is the reassuring branch, and reading it alone would be
+a mistake**: the new margin is larger only because the reference it is measured
+against collapsed.
+
+**Two questions is a thin base and the figure is a mean over two answers**, so the
+sharper signal on those questions is recall, below, where the gap is 100% against 79%
+on HF 2484 and a tie at 100% on SF 3551.
+
+#### The trigger, and why none of its three branches fits
+
+The pre-committed rule was: no longer beats the incumbent on the new questions → full
+seven-arm re-run; still wins but at under half its original-20 margin → full re-run;
+wins by a comparable margin → report and stop.
+
+**All three branches assume the original-20 margin is a fixed positive reference, and
+that assumption is what failed.** Taken literally, the new-question margin (+1.00) is
+not smaller than the original-20 margin (−0.30), so the letter of the rule says
+"comparable margin, no re-run" — which is plainly the wrong reading, because the only
+reason it clears the comparison is that the denominator went negative. **The finding
+is worse than any branch anticipated: it is not that the conclusion weakened on a
+harder fixture, it is that the conclusion does not reproduce on the fixture it was
+measured on.** The trigger is therefore recorded as **fired**, and the decision and the
+spend belong to whoever owns this section.
+
+**What a re-run should buy, if it happens.** Not seven arms scored once each — that is
+the design that produced a 6.70 nobody can reproduce. The cause here is single-draw
+variance, so the money should go on **repeats of the arms that matter**, exactly as it
+did one level down for recall. This is the same lesson twice: §12's own recall table
+turned out to be one draw of a 19-to-35 range, and now §12's own *score* table turns
+out to be one draw too.
+
+#### Enumeration recall, three bills and three shapes, sampled three times
+
+| Arm | HF 719 cities /98 | HF 719 counties /17 | HF 2484 cities /14 | SF 3551 districts /11 | Worst draw |
+|---|---|---|---|---|---|
+| `gpt-4o-mini` | 27 / 35 / 35 | 2 / 2 / 2 | 11 / 11 / 12 | 11 / 11 / 11 | **12%** |
+| `gpt-5.1+deep` | 94 / 71 / 71 | 17 / 11 / 12 | 14 / 14 / 14 | 11 / 11 / 11 | **65%** |
+
+**Neither arm clears the 80% floor, and both would have looked far better on one
+draw.** §12 recorded `gpt-5.1+deep` at 94%; sampled three times its HF 719 cities run
+94, 71 and 71, and its counties 17, 11 and 12. The 94% was the good draw.
+
+Three things this table shows that a single figure could not:
+
+- **List length is what breaks these models, not enumeration.** Both arms are perfect
+  on SF 3551's 11 districts. `gpt-5.1+deep` is perfect on HF 2484's 14 cities and
+  today's model is close. The failure is specific to the 98-item list, which answers
+  the question §12 could not ask: **a model that shortens a long list does not
+  necessarily shorten a short one.**
+- **Today's model's county figure is stably terrible**, 2 of 17 on every draw, where
+  its city figure swings 27 to 35. Stability is not quality — a flat line low down is
+  an instruction being followed badly, and a wide swing is one being ignored, which is
+  the distinction §12 used to argue against rewording the prompt.
+- **The one non-place shape is the easiest for both.** SF 3551 was added to prove the
+  ground-truth derivation generalises past place names; it also happens to show that
+  the difficulty lives in the length of the list rather than in what is being counted.
+
+#### Latency, on a fixture that can finally see the tail
+
+| Arm | p50 | p95 | Worst | That question's three draws |
+|---|---|---|---|---|
+| `gpt-4o-mini` | 1.99 s | 17.31 s | 18.46 s | 18.5 / 8.6 / 6.3 s |
+| `gpt-5.1+deep` | 2.99 s | 14.32 s | 27.97 s | 14.7 / 17.1 / 28.0 s |
+
+Both breach the 9-second p95 budget and the 15-second worst-case budget. Two things
+worth taking from it:
+
+- **p95 moved from 4.19 s to 17.31 s for `gpt-4o-mini` on the same model and the same
+  short questions**, purely because the fixture now holds six long questions instead of
+  two. A percentile is a statement about the fixture as much as about the model.
+- **The same question and arm ranged 6.3 to 18.5 seconds**, and `gpt-5.1+deep` 14.7 to
+  28.0 — a threefold swing and a twofold one, on byte-identical input. A worst case is only comparable between arms sampled the same way; both of
+  these are three draws on the long questions and one on the short.
+
+#### What this addendum does not change
+
+- **The §12 scorecard, recommendation and reasoning above are untouched.** They are a
+  record of what was measured on 20 questions, and this section says plainly where
+  that record did not replicate rather than editing it to agree.
+- **No model configuration moved.** `OPENAI_RAG_CHAT_MODEL` is unchanged in every
+  environment; the choice remains Eugene's.
+- **The coverage-rule wording is untouched.** It belongs to
+  [#868](https://github.com/alethical-org/alethical/issues/868)'s session, which asked
+  to be told once a fixture made a prompt experiment measurable. It now is: three
+  enumerable bills, two scales, one non-place shape, sampled three times.
+- **Cost: $0.25 measured for generation** — 68 answers, and the only half the eval
+  meters — against a pre-run estimate of $3.40 for the whole thing including the 88
+  judgments, itself under the $3.81 #895 authorised and against ~$11 for §12's seven
+  arms. Confining the repeats to the six long questions is what makes sampling
+  affordable. **Judging is the expensive half and its tokens are not recorded**, which
+  is a gap worth knowing before anyone budgets a bigger run off these figures.
 
 ## 13. What this bar does not cover
 
