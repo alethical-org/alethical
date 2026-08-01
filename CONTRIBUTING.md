@@ -3,6 +3,11 @@
 This guide covers how to set up the project and how we make changes. If anything
 here is out of date, fixing it is a great first PR.
 
+Before your first change, read [`docs/philosophy.md`](docs/philosophy.md) — what the
+product is, the problem it solves, who we assume is reading, and the principles the
+specs and rules answer to. It takes five minutes and it explains why a lot of what
+follows is the way it is.
+
 ## Prerequisites
 
 Install these once:

@@ -7,6 +7,10 @@ features, copy, and design change around them. It sits above the operational doc
 the [UI copy guide](design/ui-copy-guide.md) says *how it sounds*. Those are rules and
 tactics; this is the direction they answer to.
 
+**What this is not.** Not a feature spec. Nothing here describes a screen, a state, or a
+component. If a sentence would go stale the next time a screen changes, it belongs in a
+spec and not in this file — this one should still read true a year from now.
+
 These are principles, not a checklist. Where one seems to conflict with a concrete
 capability, the [grounded-answer invariants](../.claude/rules/grounded-answers.md) win:
 a thing must be *true* before it can be on-philosophy.
@@ -27,6 +31,59 @@ horizon, not a claim about today. What we ship at any given moment is a reliable
 Minnesota legislative data and analysis product ([scope](product-onboarding/product-scope.md)); the
 philosophy points the compass, and the principle *say only what we can do* keeps every
 concrete promise honest.
+
+---
+
+## The problem: legibility, not secrecy
+
+Minnesota already publishes all of it. Bill text, authorship, committee actions, roll
+calls, and enacted chapters are public, on official sites, updated while the session
+runs. There is no locked door, and nothing here was ever kept from anyone.
+
+What exists instead is a format addressed to people who already know the system. A bill
+arrives as a number, a chain of procedural actions, and pages of amendatory text that
+reads as edits to statute rather than as a description of anything. Following it takes
+knowing what a committee referral means, that a bill usually has a twin in the other
+chamber, and which of several near-identical versions is the one that passed. A reader
+without that knowledge doesn't get a wrong answer. They get no answer, and they stop.
+
+So the barrier is legibility, and that decides what we are. Not an exposé, not a
+watchdog uncovering what someone hid, not a scorecard — nothing here is hidden, and
+staging it as hidden would be its own dishonesty. We remove the format barrier and
+nothing else. The competition is not another website; it is the moment a person decides
+this isn't for them and closes the tab. It is also why provenance is never negotiable
+here: the record is public, so there is no case where we couldn't point straight at it.
+
+---
+
+## Who we assume is reading
+
+Every principle below presumes a particular reader. Writing them down makes them
+arguable, which is the point — these are assumptions we chose, not findings we measured.
+We hold ourselves to principle 1 as well, so where evidence arrives and contradicts one,
+the evidence wins and this section changes.
+
+- **We optimize for the person who has none of the context.** The [README](../README.md)
+  mission names citizens, journalists, and legislators, and all three are welcome. But
+  journalists and legislative staff arrive already fluent and already tooled. Serving
+  someone is not the same as optimizing for them: when a tradeoff pulls between the
+  fluent reader and the newcomer, the newcomer wins.
+- **They arrive with a worry, not a research question.** Something specific happened, or
+  they heard something and want to know whether it's real. Nobody shows up wanting to
+  browse legislation.
+- **They don't know the words or the process.** Not author versus sponsor, not what a
+  committee referral is, not that a bill usually has a twin in the other chamber.
+  Anything that needs that knowledge just to begin does not work.
+- **They don't know the bill by name.** They know the subject. Every way in has to start
+  from what a person actually holds in their head.
+- **They have minutes.** The plain sentence has to land first, with the detail underneath
+  for the reader who wants it and out of the way of the reader who doesn't.
+- **They arrive skeptical of government and of AI in equal measure.** Trust is not the
+  starting condition; each screen either earns it or spends it. This is why a visible way
+  back to the source beats a confident tone, every time.
+- **They come rarely, and often from a link someone sent them.** Not a daily habit: read
+  one thing, leave. So every place worth landing on has to be a URL of its own, and the
+  product has to make sense to someone who arrived in the middle of it.
 
 ---
 
@@ -67,6 +124,14 @@ the term of art is more precise. The layperson's entry word wins at the surface;
 precise term keeps its place in the data model and the code. Precision the reader can't
 parse isn't precision to them.
 
+This also governs what we *put on a surface*, not only how we word what's already there.
+Showing each bill's official statutory title under the plain-language headline is
+perfectly accurate and still wrong: it puts back the legalese the product exists to
+remove ([#731](https://github.com/alethical-org/alethical/issues/731)). The test is
+*does this help someone understand what the bill does, or does it only prove we know the
+legal wording?* The second kind stays reachable behind the source link, never pushed at
+the reader.
+
 ### 6. One honest name
 
 Name a thing for the promise it keeps, not the hype it can borrow. A good name tells the
@@ -102,6 +167,19 @@ a log nobody opens are all a failure we chose to keep and monitor. Prefer the ch
 makes the failure impossible, and use notice-and-repair only for what prevention can't
 reach. In a product whose value is being trustworthy, the errors that never happen are the
 ones the reader never has to forgive.
+
+### 10. We are not competing for attention
+
+Anything that measures itself in time-on-site eventually optimizes for whatever holds
+attention, and in this subject matter that thing is outrage. So we don't measure
+ourselves that way. Someone who arrives with a question, gets a true answer with the
+source in view, and leaves four minutes later is the best outcome this product has — not
+a retention failure to be fixed.
+
+The [scope](product-onboarding/product-scope.md) already reads this way: no social
+features, no comment threads, personalization kept to tracked bills and saved places, one
+quiet email when a tracked bill moves. Those are not gaps waiting to be filled. They are
+the same decision, made over and over.
 
 ---
 

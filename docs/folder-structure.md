@@ -1,19 +1,23 @@
 # How `docs/` is organized
 
 Every document lives in a folder named for the question it answers, so you can guess where
-something is without a map. Only `README.md` (the index) and this file sit at the root.
+something is without a map. Only three files sit at the root: `README.md` (the index),
+`philosophy.md` (the *why*, which sits above every folder rather than inside one), and
+this file.
 
 ## Layout
 
 ```
 docs/
 ├── README.md              the index
+├── philosophy.md          the why beneath the product
 ├── folder-structure.md    this doc
 │
 ├── product-onboarding/    What we're building (and won't), plus how to learn how it works
 │   ├── product-scope.md
 │   ├── grounded-ask-spec.md
 │   ├── bill-search-screen-spec.md
+│   ├── bill-text-tab-spec.md
 │   ├── mvp-redesign-plan.md
 │   ├── ai-models-and-billing.md
 │   ├── data-ingestion-onboarding.md
