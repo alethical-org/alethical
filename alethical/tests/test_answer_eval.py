@@ -1066,9 +1066,11 @@ def test_recall_is_not_computed_from_a_denominator_that_stopped_reproducing():
     )
     assert cli.enumeration_scores(whole_bill, ["Anoka"])[0].total == 14
 
-    # Half the bill: the denominator would be a sample of the list, not the list.
-    half = {**whole_bill, "chunks": whole_bill["chunks"][:30]}
-    assert cli.enumeration_scores(half, ["Anoka"]) == ()
+    # A partial read is refused on its coverage alone, even where the passages in
+    # hand happen to hold every name. Otherwise recall would silently become a
+    # measurement of retrieval — an arm shown less of the bill would look no worse.
+    same_text_more_bill = {**whole_bill, "passages_total": 200}
+    assert len(cli.enumeration_scores(same_text_more_bill, ["Anoka"])) == 0
 
     # Whole bill, but the text has changed under the hand-verified count.
     gutted = {
