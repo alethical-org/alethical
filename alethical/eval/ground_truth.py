@@ -60,6 +60,7 @@ connectors no capitals-only pattern can match.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 # Lower bounds, set clear of every definitional edge case above.
 HF719_MIN_GRANT_CITIES = 90
@@ -130,7 +131,166 @@ def hf719_grant_recipients(bill_text: str) -> tuple[set[str], set[str]]:
     )
 
 
-def names_from(candidates: set[str], answer: str) -> set[str]:
+# --- the same counting method, for every bill a recall figure is measured on ---
+#
+# Generalised from HF 719 for [#895](https://github.com/alethical-org/alethical/issues/895),
+# which needs recall measured on more than one bill. **Three bills carry a
+# *named-recipient* recall measurement, and that is a property of the phrasings below
+# rather than a ceiling on enumeration.** Every bill with 25+ retrievable passages was
+# scanned for named recipients using these tight phrasings; exactly four (bill, shape)
+# pairs clear eight distinct recipients, and they are the three bills below. HF 719 has
+# no peer for named places — the next largest set is 14.
+#
+# **Read that as a fact about "grant to the city of X", not as a limit on what can be
+# counted.** The pool scanned holds 565 bills with 25+ passages, 262 with 50+ and 131
+# with 100+; three of 565 is unsurprising for place names, because the long bills are
+# mostly omnibus policy bills amending statutes and only bonding and appropriation
+# bills list towns. A bill can be enumerable without naming a place, and SF 3551 below
+# is the proof — it enumerates school district *numbers*. Dollar-figure line items,
+# program names, agency names and repealed statute sections are all countable and all
+# appear in bills with no city in them. So a fourth case is a matter of writing a
+# fourth pattern, not of finding a rarer bill, and anyone reading this as "three is all
+# there can ever be" should stop and write the pattern instead.
+#
+# **Each count below was derived and then read match by match in context**, which is
+# not ceremony — every one of the three turned up something a pattern alone gets wrong:
+#
+# * A survey pattern counted `Office of the` (from "Office of the County Recorder") and
+#   `Wildwood` (a park in Stearns County) as counties in a bill considered and rejected.
+# * The same pattern truncated `Apple Valley` to `Apple` and `Mendota Heights` to
+#   `Mendota`, because a non-greedy name match stops at the first capitalised word.
+# * `Forest Lake` is followed in the bill text by `[deleted: …]` revision markup, so an
+#   end-anchor allowing only ordinary prose silently dropped it and returned 13 of 14.
+# * SF 3551 names **15** school districts but funds **11**. The other four appear for a
+#   fund transfer or a separate demonstration grant, so "which districts are named" and
+#   "which districts get this money" are different questions with different answers.
+#   The fixture asks the second, and the pattern requires the dollar figure.
+#
+# **The rule those four share, and the one to read before writing a new pattern here:
+# a derived denominator stops a *stale* list and does nothing about a *wrong* one.
+# Derive, then verify, then assert exactly.** A lower bound cannot catch an off-by-one
+# in a denominator (#900), and a pattern cannot tell you it counted the wrong thing.
+#
+# The sharpest version of "wrong" is not a broken regex — it is **a plausible regex
+# over the wrong noun.** Two bills were nearly added to this registry on the strength
+# of naming twenty and fourteen counties; reading the matches showed the counties were
+# *locations* ("the land is located in Becker County", "restoration project in
+# Cottonwood County") and only four were recipients of anything. A gate built on that
+# denominator would have measured whether an answer lists places a bill mentions, while
+# reporting itself as measuring whether the answer lists who gets the money. Every
+# individual match was correct; the noun was wrong. Only reading them catches it.
+
+
+# How an item is recognised inside an *answer*, which is a different job from
+# finding it in the bill. A proper noun needs only word boundaries. A bare number
+# needs far more care: school district 13 and the "13" inside "$13,000" are the same
+# three characters, and crediting the second would inflate a recall figure with money.
+# So the numeric form refuses a number that any digit, comma, period or dollar sign
+# runs into on either side.
+MENTIONED_AS_NAME = r"\b{item}\b"
+MENTIONED_AS_NUMBER = r"(?<![$\d,.]){item}\b(?![\d,]*\d)"
+
+
+@dataclass(frozen=True)
+class EnumerationCase:
+    """One bill, one shape of thing it names, and how many of them there are.
+
+    ``expected`` is asserted **exactly** rather than as a bound, and ``exemplars`` are
+    recipients no reasonable reading excludes, so a test fails on a regression rather
+    than on a definitional argument.
+
+    ``pattern`` finds the items in the **bill**; ``mention`` decides whether an
+    **answer** named one. They are separate because the two texts fail differently: a
+    bill needs the tight recipient phrasing so the denominator is not a list of places
+    merely mentioned, and an answer needs protection against a number that is part of
+    a dollar figure.
+    """
+
+    bill_key: str
+    shape: str
+    question_asks: str
+    pattern: re.Pattern[str]
+    expected: int
+    exemplars: tuple[str, ...]
+    mention: str = MENTIONED_AS_NAME
+
+    def found_in(self, bill_text: str) -> frozenset[str]:
+        return frozenset(m.group(1).strip() for m in self.pattern.finditer(bill_text))
+
+    def asks(self, question: str) -> bool:
+        """Is this the fixture question this case is the ground truth for?
+
+        **The bill is not enough to identify it, and assuming it was produced a
+        wrong measurement.** HF 719 carries two fixture questions — the grants
+        question and an unanswerable one about who voted for it — so keying recall
+        on the bill alone scored the voting answer for naming no cities, recorded it
+        as 0%, and dragged both arms' worst draw to zero. A condition that binds the
+        worst draw is exactly the shape that a single spurious zero destroys.
+        """
+        return question.strip().rstrip("?").casefold() == self.question_asks.casefold()
+
+    def named_in(self, answer: str, items: set[str] | frozenset[str]) -> set[str]:
+        """Which of ``items`` this answer actually reports. Evidence, not a verdict."""
+        return names_from(set(items), answer, template=self.mention)
+
+
+# A recipient name may carry lowercase connectors (Lake of the Woods) and may be
+# followed by revision markup rather than prose, so the end-anchor allows a bracket.
+_RECIPIENT_NAME = r"[A-Z][A-Za-z.'’-]*(?:\s+(?:[A-Z][A-Za-z.'’-]*|of|the))*?"
+_ENDS = r"(?=\s+(?:for|to|in|and)\b|\s*[\[,.;])"
+
+ENUMERATION_CASES: tuple[EnumerationCase, ...] = (
+    EnumerationCase(
+        bill_key="94-2025-HF719",
+        shape="cities",
+        question_asks="which cities and counties get named infrastructure grants",
+        pattern=_GRANT_CITY_RE,
+        expected=98,
+        exemplars=HF719_GRANT_CITIES,
+    ),
+    EnumerationCase(
+        bill_key="94-2025-HF719",
+        shape="counties",
+        question_asks="which cities and counties get named infrastructure grants",
+        pattern=_GRANT_COUNTY_RE,
+        expected=17,
+        exemplars=HF719_GRANT_COUNTIES,
+    ),
+    EnumerationCase(
+        bill_key="94-2025-HF2484",
+        shape="cities",
+        question_asks="which cities get grants",
+        pattern=re.compile(
+            rf"grants?\s+to\s+the\s+city\s+of\s+({_RECIPIENT_NAME}){_ENDS}"
+        ),
+        expected=14,
+        # Two multi-word names and the one followed by revision markup, because those
+        # are the three the pattern got wrong before it was verified.
+        exemplars=("Apple Valley", "Mendota Heights", "Forest Lake", "Anoka"),
+    ),
+    EnumerationCase(
+        bill_key="94-2026-SF3551",
+        shape="school districts",
+        question_asks="which school districts get supplemental funding, and how much",
+        # The dollar figure is part of the pattern on purpose: it is what separates the
+        # 11 districts this money goes to from the 4 named for other reasons.
+        pattern=re.compile(
+            r"\$[\d,]+\s+for\s+Independent\s+School\s+District\s+No\.\s*(\d+)"
+        ),
+        expected=11,
+        exemplars=("13", "535", "695"),
+        mention=MENTIONED_AS_NUMBER,
+    ),
+)
+
+
+def enumeration_cases_for(bill_key: str) -> tuple[EnumerationCase, ...]:
+    return tuple(c for c in ENUMERATION_CASES if c.bill_key == bill_key)
+
+
+def names_from(
+    candidates: set[str], answer: str, *, template: str = MENTIONED_AS_NAME
+) -> set[str]:
     """Which of ``candidates`` the answer actually names. Evidence, not a verdict.
 
     A literal match on a proper noun is about as safe as machine checking gets —
@@ -148,11 +308,15 @@ def names_from(candidates: set[str], answer: str) -> set[str]:
     So the longest names are matched first and each match is *consumed*: a short
     name then counts only where it appears somewhere the long one did not. Word
     boundaries as well, so a city called Grant is not found in the word "grants".
+
+    ``template`` says what counts as a mention of one item, because a proper noun and
+    a bare school-district number are not recognised the same way — see
+    ``MENTIONED_AS_NAME`` and ``MENTIONED_AS_NUMBER``.
     """
     remaining = answer
     found = set()
     for name in sorted(candidates, key=len, reverse=True):
-        pattern = re.compile(rf"\b{re.escape(name)}\b", re.IGNORECASE)
+        pattern = re.compile(template.format(item=re.escape(name)), re.IGNORECASE)
         if pattern.search(remaining):
             found.add(name)
             # Blank out what this name claimed, so a shorter name nested inside it

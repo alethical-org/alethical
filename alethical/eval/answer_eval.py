@@ -72,6 +72,28 @@ SHIP_WORTHY_GRADED = 6
 SHIP_WORTHY_RATE_BAR = 0.90
 
 
+@dataclass(frozen=True)
+class EnumerationScore:
+    """How much of one enumerable list one answer reported, per sample (#895).
+
+    ``named`` holds one count per sample rather than a single number, because the
+    same model on byte-identical input reported 19, 26, 34 and 35 of HF 719's 98
+    cities. A mean over those describes an answer nobody received — a reader gets one
+    draw — so the samples are kept apart all the way to the bar, which binds the
+    worst of them.
+    """
+
+    shape: str
+    total: int
+    named: tuple[int, ...]
+
+    @property
+    def rates(self) -> tuple[float, ...]:
+        if not self.total:
+            return ()
+        return tuple(n / self.total for n in self.named)
+
+
 # --- Fixture ---
 
 
@@ -267,6 +289,14 @@ class AnswerResult:
     # and the backstop caught it, so a model with many edits is one the prompt is
     # not reaching, even though its score looks clean.
     guard_rewrote: bool = False
+    # Every sample's total generation time, the scored one first (#895). One entry
+    # for the short questions, which are stable; n >= 3 on the long ones, where the
+    # same question and model measured 10.0 to 23.2 seconds run to run. Only the
+    # worst case reads this — p50 and p95 stay one-per-question, so they remain
+    # comparable with runs made before sampling existed.
+    sample_seconds: tuple[float, ...] = ()
+    # One entry per enumerable shape this question's bill has; empty for the rest.
+    enumeration: tuple[EnumerationScore, ...] = ()
 
     @property
     def context_is_partial(self) -> bool:
@@ -424,6 +454,14 @@ def aggregate(results: list[AnswerResult], *, judge: str | None = None) -> dict:
         per_dimension[dim] = round(sum(marks) / len(marks), 2) if marks else None
 
     totals = [r.seconds_total for r in results if r.seconds_total is not None]
+    # Every sample, not one per question, so the worst case is a worst case rather
+    # than the worst of a single draw. Falls back to the scored answer's own time
+    # for any result carrying no sample list.
+    all_seconds = [
+        s
+        for r in results
+        for s in (r.sample_seconds or ((r.seconds_total,) if r.seconds_total else ()))
+    ]
     ttfts = [
         r.seconds_to_first_token
         for r in results
@@ -457,6 +495,11 @@ def aggregate(results: list[AnswerResult], *, judge: str | None = None) -> dict:
         "seconds_total": {
             "p50": _percentile(totals, 50),
             "p95": _percentile(totals, 95),
+            # The slowest single answer, across every sample. A percentile over 20
+            # questions cannot see this: p95 is the 19th-slowest, and only a handful
+            # of the questions are long bills, so p95 lands underneath a tail that
+            # every arm breaches (§12 of the bar doc, "the omnibus worst case").
+            "worst": max(all_seconds) if all_seconds else None,
         },
         "seconds_to_first_token": {
             "p50": _percentile(ttfts, 50),
@@ -464,17 +507,75 @@ def aggregate(results: list[AnswerResult], *, judge: str | None = None) -> dict:
         },
         "input_tokens": sum(r.input_tokens for r in results),
         "output_tokens": sum(r.output_tokens for r in results),
+        "enumeration_recall": enumeration_recall(results),
     }
 
 
-def meets_bar(summary: dict, *, p50_seconds: float, p95_seconds: float) -> bool:
+def enumeration_recall(results: list[AnswerResult]) -> dict | None:
+    """How much of each enumerable list the arm reported, worst draw first (#895).
+
+    ``None`` when the fixture in play has no enumerable question, so a caller can
+    tell "not measured" from "measured badly" — the distinction the recall condition
+    turns on, because an unmeasured arm must not read as a passing one.
+
+    One observation per (shape, sample): HF 719's cities and its counties are counted
+    apart, not pooled into one percentage. Pooling hides the sharpest single fact in
+    the whole comparison — the arm that named 19 of 98 cities named **1 of 17**
+    counties, and a combined figure reads as one mediocre number rather than two
+    different failures.
+    """
+    observations = [
+        (score.shape, rate)
+        for r in results
+        for score in r.enumeration
+        for rate in score.rates
+    ]
+    if not observations:
+        return None
+    rates = sorted(rate for _, rate in observations)
+    return {
+        "observations": len(observations),
+        "shapes": len({shape for shape, _ in observations}),
+        # The bar binds this one. A reader gets one draw, so an arm is as good as
+        # its worst, not as good as its average.
+        "min": rates[0],
+        "max": rates[-1],
+        "median": rates[len(rates) // 2],
+    }
+
+
+def meets_bar(
+    summary: dict,
+    *,
+    p50_seconds: float,
+    p95_seconds: float,
+    worst_seconds: float,
+    min_enumeration_recall: float,
+) -> bool:
     """Whether a model's scorecard clears the shipping bar.
 
     Latency is part of the bar, not a footnote: this prose is written while a
     reader waits, so a slower model is a worse product at equal quality.
+
+    Two of these conditions are #895's, and both exist because an average was
+    hiding the answer somebody actually gets:
+
+    * ``worst_seconds`` sits **alongside** p50 and p95, not instead of them. Every
+      arm measured so far breaches the 9-second budget on its slowest answer, at
+      10.6 to 29.5 seconds, while its p95 lands underneath — because p95 over 20
+      questions is the 19th-slowest and few of the questions are long bills.
+    * ``min_enumeration_recall`` binds the **worst** draw of the worst list, not the
+      mean. An arm that names 19 of 98 cities one run and 35 the next averages to a
+      figure describing neither.
+
+    An arm with no enumeration measurement is **not** given the benefit of the
+    doubt: the condition is unmet rather than vacuously true, because a fixture that
+    lost its long bills must not silently start passing everything.
     """
     p50 = summary["seconds_total"]["p50"]
     p95 = summary["seconds_total"]["p95"]
+    worst = summary["seconds_total"].get("worst")
+    recall = summary.get("enumeration_recall")
     return (
         summary["gate_failure_count"] == 0
         and summary["ship_worthy_rate"] >= SHIP_WORTHY_RATE_BAR
@@ -482,6 +583,10 @@ def meets_bar(summary: dict, *, p50_seconds: float, p95_seconds: float) -> bool:
         and p50 <= p50_seconds
         and p95 is not None
         and p95 <= p95_seconds
+        and worst is not None
+        and worst <= worst_seconds
+        and recall is not None
+        and recall["min"] >= min_enumeration_recall
     )
 
 

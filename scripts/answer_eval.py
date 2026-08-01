@@ -14,10 +14,19 @@ Stages
              Every later stage reads the snapshot, so retrieval is held constant
              and no candidate model can be advantaged by a luckier search.
 
-  run        Generate an answer per (model, question) from the snapshot, have the
-             judges score them blind, and print the scorecards. Results cache to
-             the run directory per model and per judge, so re-running is cheap and
-             a new candidate can be added without re-paying for the old ones.
+  run        Generate answers per (model, question) from the snapshot — three of
+             them on the long questions, one on the short ones (``samples_wanted``)
+             — have the judges score the first of each blind, and print the
+             scorecards. Results cache to the run directory per model and per judge,
+             so re-running is cheap and a new candidate can be added without
+             re-paying for the old ones.
+
+**Re-snapshotting throws away every arm's cached answers.** That is the digest check
+working as designed (``prompt_fingerprint``) and not a fault, but the bill lands on
+whoever runs the eval next: a fresh snapshot means the next ``run`` pays full price
+for every arm, with no warning beyond a line saying it is regenerating. Raising the
+sample count is deliberately *not* the same thing — the cache is topped up, and only
+the new samples are paid for.
 
 Examples
 --------
@@ -60,6 +69,7 @@ from alethical.eval.answer_eval import (
     GRADED_DIMENSIONS,
     AnswerQuery,
     AnswerResult,
+    EnumerationScore,
     JudgeVerdict,
     aggregate,
     cost_per_answer,
@@ -72,12 +82,7 @@ from alethical.eval.answer_eval import (
     statute_citations,
     unrendered_markdown,
 )
-from alethical.eval.ground_truth import (
-    HF719_MIN_GRANT_CITIES,
-    HF719_MIN_GRANT_COUNTIES,
-    hf719_grant_recipients,
-    names_from,
-)
+from alethical.eval.ground_truth import enumeration_cases_for
 from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding_model
 
 REPO = Path(__file__).resolve().parents[1]
@@ -97,6 +102,23 @@ EF_SEARCH = 100
 # API does not stream, so total generation time is what they experience.
 P50_SECONDS = 5.0
 P95_SECONDS = 9.0
+# The tail budget, alongside the two percentiles rather than replacing them (#895).
+# Argued in §3 of the bar doc: #865 names 12 seconds as already worse than a duller
+# answer in 3, and the tail gets three seconds more because it is a genuinely bigger
+# job — 20,000 words of bill instead of 900. It splits the field rather than passing
+# or failing everything: of §12's seven arms, three sit under it and four do not.
+WORST_SECONDS = 15.0
+
+# How much of a bill's list an answer has to carry, on its **worst** draw (#895).
+# Argued in §3 of the bar doc.
+MIN_ENUMERATION_RECALL = 0.80
+
+# Long questions are sampled more than once, because the same model on byte-identical
+# input reported 19, 26, 34 and 35 of HF 719's 98 cities, and took 10.0 to 23.2
+# seconds doing it. Three is the smallest number that shows a spread rather than a
+# pair of points, and repeats are confined to the questions that have one — the short
+# questions are stable, so paying for repeats there buys nothing.
+REPEAT_SAMPLES = 3
 
 # Judges run concurrently (see judge_all). Kept modest so a run does not trip
 # either provider's rate limits, which would cost more time than it saves.
@@ -308,20 +330,36 @@ def production_system_prompt(context: dict | None = None) -> str:
 
 
 def prompt_fingerprint(contexts: dict) -> str:
-    """Short stable digest of every prompt variant an arm was generated under.
+    """Short stable digest of everything an arm's answers were generated from.
 
     Recorded in every answers cache and checked before reuse. Without it, the
     prompt changing under a cached arm is invisible: the run reuses old answers,
     scores them beside new ones, and publishes a comparison across two different
     prompts. The digest turns that into a visible regeneration instead.
 
-    Digests **all** the variants in play rather than one, because since #868 a run
-    sends two different system prompts — complete-coverage and partial-coverage —
-    and a change to either one has to invalidate the cache. Hashing only the
-    partial rule would have let a complete-coverage edit ship silently.
+    Digests **all** the system-prompt variants in play rather than one, because since
+    #868 a run sends two — complete-coverage and partial-coverage — and a change to
+    either one has to invalidate the cache. Hashing only the partial rule would have
+    let a complete-coverage edit ship silently.
+
+    **And it digests the contexts themselves, which for a while it did not** (#895).
+    Re-snapshotting was believed to invalidate every cached arm; it did not, and the
+    reason is worth keeping because it is the shape of near-miss that reads as safe.
+    Neither coverage rule quotes a passage count — both are fixed prose — so a
+    re-snapshot that keeps the same mix of complete and partial reads produces a
+    *byte-identical* set of system prompts and therefore the same digest, however
+    much the bill text underneath moved. The cache would then be reused, and answers
+    written from the old passages would be scored and judged against the new ones.
+    That is the same failure the digest exists to stop, one level over: not two
+    prompts compared side by side, but an answer compared against a context it was
+    never written from. Hashing the user prompts closes it, because those carry the
+    passages, the question and the bill.
     """
     variants = sorted({production_system_prompt(c) for c in contexts.values()})
-    return hashlib.sha256("\x00".join(variants).encode()).hexdigest()[:12]
+    user_prompts = sorted(build_user_prompt(c) for c in contexts.values())
+    return hashlib.sha256("\x00".join(variants + user_prompts).encode()).hexdigest()[
+        :12
+    ]
 
 
 def build_user_prompt(context: dict) -> str:
@@ -536,44 +574,80 @@ def served_answer(raw: str, coverage: BillTextCoverage) -> str:
     return strip_list_completeness_claims(text_value)
 
 
+def samples_wanted(context: dict) -> int:
+    """How many times to answer this question (#895).
+
+    Repeats go where the variance is, and the variance is on the long bills. The
+    test is **derived, not listed**: a question is long when #868's whole-bill branch
+    gave it more passages than production's fixed budget, which is exactly the six
+    questions of 13 or more passages in this fixture. Deriving it means the set stays
+    right when the fixture or the budget changes, the same reason ``passages_total``
+    is read off the snapshot rather than hand-labeled.
+    """
+    return REPEAT_SAMPLES if len(context["chunks"]) > CHUNK_LIMIT else 1
+
+
+def _one_sample(spec: str, context: dict) -> dict:
+    raw, ttft, total, tin, tout = call_model(
+        spec, production_system_prompt(context), build_user_prompt(context)
+    )
+    answer = served_answer(raw, context_coverage(context))
+    return {
+        "answer": answer,
+        "raw_answer": raw,
+        "guard_rewrote": guard_changed_content(raw, answer),
+        "seconds_to_first_token": ttft,
+        "seconds_total": total,
+        "input_tokens": tin,
+        "output_tokens": tout,
+    }
+
+
 def generate(
     spec: str, queries: list[AnswerQuery], contexts: dict, cache: Path
 ) -> dict:
+    """Answer every question with one arm, ``samples_wanted`` times each.
+
+    The cache is **topped up** rather than all-or-nothing: raising the sample count
+    generates only the new samples and keeps the ones already paid for. A prompt
+    change still discards everything, because two prompts must never be compared
+    side by side — but a sampling change is not a prompt change.
+    """
     fingerprint = prompt_fingerprint(contexts)
+    answers: dict[str, dict] = {}
     if cache.exists():
         cached = json.loads(cache.read_text())
         if cached.get("prompt_fingerprint") == fingerprint:
-            return cached["answers"]
-        print(
-            f"    prompt changed since this arm was generated "
-            f"({cached.get('prompt_fingerprint', 'unstamped')} -> {fingerprint}); "
-            "regenerating rather than comparing two prompts side by side"
-        )
-    answers = {}
+            answers = {k: v for k, v in cached["answers"].items() if "samples" in v}
+        else:
+            print(
+                f"    prompt changed since this arm was generated "
+                f"({cached.get('prompt_fingerprint', 'unstamped')} -> {fingerprint}); "
+                "regenerating rather than comparing two prompts side by side"
+            )
     for q in queries:
         context = contexts[q.key]
-        raw, ttft, total, tin, tout = call_model(
-            spec, production_system_prompt(context), build_user_prompt(context)
+        samples = list(answers.get(q.key, {}).get("samples", []))
+        for _ in range(samples_wanted(context) - len(samples)):
+            sample = _one_sample(spec, context)
+            samples.append(sample)
+            print(
+                f"    {sample['seconds_total']:5.2f}s {sample['input_tokens']:6d}in "
+                f"{sample['output_tokens']:5d}out "
+                f"{'GUARDED' if sample['guard_rewrote'] else '       '} "
+                f"[{len(samples)}/{samples_wanted(context)}] "
+                f"{q.bill_key:16s} {q.question[:40]}"
+            )
+        answers[q.key] = {"samples": samples}
+        # Written per question rather than once at the end, so a crash or a rate
+        # limit two-thirds of the way through an arm costs the questions still to
+        # come and not the ones already paid for.
+        cache.write_text(
+            json.dumps(
+                {"prompt_fingerprint": fingerprint, "answers": answers}, indent=2
+            )
+            + "\n"
         )
-        answer = served_answer(raw, context_coverage(context))
-        answers[q.key] = {
-            "answer": answer,
-            "raw_answer": raw,
-            "guard_rewrote": guard_changed_content(raw, answer),
-            "seconds_to_first_token": ttft,
-            "seconds_total": total,
-            "input_tokens": tin,
-            "output_tokens": tout,
-        }
-        print(
-            f"    {total:5.2f}s {tin:6d}in {tout:5d}out "
-            f"{'GUARDED' if guard_changed_content(raw, answer) else '       '} "
-            f"{q.bill_key:16s} {q.question[:44]}"
-        )
-    cache.write_text(
-        json.dumps({"prompt_fingerprint": fingerprint, "answers": answers}, indent=2)
-        + "\n"
-    )
     return answers
 
 
@@ -957,7 +1031,11 @@ def judge_all(
             build_judge_prompt(
                 q,
                 contexts_by_spec[model_spec][q.key],
-                answers_by_model[model_spec][q.key]["answer"],
+                # The first sample, matching what the scorecard grades. Repeats are
+                # deliberately not judged: they were bought to measure the recall
+                # spread and the latency tail, and judging them would triple the
+                # dearest half of the run to re-score answers nobody scores.
+                answers_by_model[model_spec][q.key]["samples"][0]["answer"],
             ),
         )
         with lock:
@@ -975,6 +1053,48 @@ def judge_all(
 
 
 # --- reporting ---
+
+
+def enumeration_scores(
+    context: dict, answers: list[str]
+) -> tuple[EnumerationScore, ...]:
+    """How much of each list this bill names, each sample reported (#895).
+
+    Two conditions have to hold before a number is produced, and failing either one
+    returns nothing rather than a figure:
+
+    * **The whole bill has to be in the context.** Recall against a sample of the
+      bill measures retrieval, not the writer, and would flatter every arm.
+    * **The derivation has to reproduce its hand-verified count.** If the snapshot's
+      text no longer yields the number a human counted, the denominator is wrong, and
+      every percentage computed from it is wrong by the same amount. A missing row is
+      a visible gap; a wrong row is a fiction that reads like a measurement (#900).
+    """
+    coverage = context_coverage(context)
+    if not coverage.is_complete:
+        return ()
+    bill_text = "\n".join(c["chunk_text"] for c in context["chunks"])
+    scores = []
+    for case in enumeration_cases_for(context["bill_key"]):
+        # Matched on the question, not only the bill. HF 719 has two fixture
+        # questions and only one of them asks for a list.
+        if not case.asks(context["question"]):
+            continue
+        items = case.found_in(bill_text)
+        if len(items) != case.expected:
+            print(
+                f"    enumeration recall skipped for {case.bill_key} {case.shape}: "
+                f"the snapshot yields {len(items)}, hand-verified {case.expected}"
+            )
+            continue
+        scores.append(
+            EnumerationScore(
+                shape=case.shape,
+                total=len(items),
+                named=tuple(len(case.named_in(a, items)) for a in answers),
+            )
+        )
+    return tuple(scores)
 
 
 def run(args) -> None:
@@ -1035,7 +1155,13 @@ def run(args) -> None:
     for spec in model_specs:
         results = []
         for q in queries:
-            raw = answers_by_model[spec][q.key]
+            samples = answers_by_model[spec][q.key]["samples"]
+            # Everything judged and graded reads the first sample, so the scorecard
+            # keeps one answer per question and stays comparable with the runs made
+            # before sampling existed. The repeats feed the two measurements they
+            # were bought for — the recall spread and the latency tail — and are not
+            # sent to the judges, which is what keeps the sampling affordable.
+            raw = samples[0]
             context = contexts_by_spec[spec][q.key]
             result = AnswerResult(
                 query=q,
@@ -1048,6 +1174,8 @@ def run(args) -> None:
                 passages_shown=len(context["chunks"]),
                 passages_total=context.get("passages_total", len(context["chunks"])),
                 guard_rewrote=bool(raw.get("guard_rewrote")),
+                sample_seconds=tuple(s["seconds_total"] for s in samples),
+                enumeration=enumeration_scores(context, [s["answer"] for s in samples]),
             )
             for judge_spec in judge_specs:
                 v = verdicts_by_judge[judge_spec][f"{spec}||{q.key}"]
@@ -1068,7 +1196,7 @@ def run(args) -> None:
             results.append(result)
         results_by_model[spec] = results
 
-    report(results_by_model, judge_specs, contexts_by_spec)
+    report(results_by_model, judge_specs)
     (run_dir / "report.json").write_text(
         json.dumps(
             {
@@ -1088,14 +1216,14 @@ def run(args) -> None:
 def report(
     results_by_model: dict[str, list[AnswerResult]],
     judge_specs: list[str],
-    contexts_by_spec: dict[str, dict],
 ) -> None:
     print("\n" + "=" * 100)
     print("ANSWER QUALITY — all judges pooled")
     print("=" * 100)
     header = (
         f"{'model':30s} {'score':>6s} {'ship':>6s} {'gate!':>6s} {'disp':>6s} "
-        f"{'overclaim':>10s} {'p50 s':>7s} {'p95 s':>7s} {'$/answer':>10s} {'bar':>5s}"
+        f"{'overclaim':>10s} {'p50 s':>7s} {'p95 s':>7s} {'worst s':>8s} "
+        f"{'recall':>13s} {'$/answer':>10s} {'bar':>5s}"
     )
     print(header)
     for spec, results in results_by_model.items():
@@ -1107,15 +1235,27 @@ def report(
             if price
             else "n/a"
         )
+        recall = summary["enumeration_recall"]
+        # Worst and best draw, not a mean: an arm that names 19 of 98 on one run and
+        # 35 on the next has no single recall figure worth printing.
+        recall_cell = (
+            f"{recall['min']:.0%}-{recall['max']:.0%}" if recall else "not measured"
+        )
         print(
             f"{spec:30s} {summary['mean_score']:6.2f} "
             f"{summary['ship_worthy_rate']:6.0%} {summary['gate_failure_count']:6d} "
-            f"{summary['grounding_disputed']:6d} "
-            f"{overclaim:>10s} "
+            f"{summary['grounding_disputed']:6d} {overclaim:>10s} "
             f"{summary['seconds_total']['p50']:7.2f} {summary['seconds_total']['p95']:7.2f} "
+            f"{summary['seconds_total']['worst']:8.2f} {recall_cell:>13s} "
             f"{dollars:>10s} "
-            f"{'PASS' if meets_bar(summary, p50_seconds=P50_SECONDS, p95_seconds=P95_SECONDS) else 'fail':>5s}"
+            f"{'PASS' if meets_bar(summary, p50_seconds=P50_SECONDS, p95_seconds=P95_SECONDS, worst_seconds=WORST_SECONDS, min_enumeration_recall=MIN_ENUMERATION_RECALL) else 'fail':>5s}"
         )
+    print(
+        f"'worst s' is the slowest single answer of any sample, against a "
+        f"{WORST_SECONDS:.0f}s budget; p95 over 20 questions cannot see it. "
+        f"'recall' is the worst and best draw of any bill's list, against a "
+        f"{MIN_ENUMERATION_RECALL:.0%} floor on the worst."
+    )
 
     _report_omnibus_worst_case(results_by_model)
 
@@ -1192,7 +1332,7 @@ def report(
         declined = sum(1 for r in unanswerable if r.declines())
         print(f"{spec:30s} declined {declined}/{len(unanswerable)}")
 
-    _report_enumeration_recall(results_by_model, contexts_by_spec)
+    _report_enumeration_recall(results_by_model)
 
 
 def _report_omnibus_worst_case(
@@ -1212,91 +1352,97 @@ def _report_omnibus_worst_case(
     a different product from one whose worst case is fifteen times it.
     """
     print(
-        "\n--- the omnibus worst case: the single slowest answer per arm "
-        "(the median is a median over short bills, and is not what a reader waits "
-        "for on the bill they asked about) ---"
+        "\n--- the omnibus worst case: the single slowest answer per arm, across "
+        "every sample (the median is a median over short bills, and is not what a "
+        f"reader waits for on the bill they asked about); budget {WORST_SECONDS:.0f}s ---"
     )
     print(
-        f"{'model':30s} {'worst s':>8s} {'vs p50':>7s} {'in tok':>8s} "
-        f"{'$ that answer':>14s} {'question':<40s}"
+        f"{'model':30s} {'worst s':>8s} {'vs p50':>7s} {'that question':>14s} "
+        f"{'in tok':>8s} {'$ that answer':>14s} {'bar':>5s} {'question':<30s}"
     )
     for spec, results in results_by_model.items():
-        timed = [r for r in results if r.seconds_total is not None]
+        timed = [r for r in results if r.sample_seconds or r.seconds_total is not None]
         if not timed:
             continue
-        worst = max(timed, key=lambda r: r.seconds_total)
+
+        def samples_of(r: AnswerResult) -> tuple[float, ...]:
+            return r.sample_seconds or (r.seconds_total,)
+
+        worst = max(timed, key=lambda r: max(samples_of(r)))
+        span = samples_of(worst)
         summary = aggregate(results)
         p50 = summary["seconds_total"]["p50"] or 0
         price = price_of(spec)
+        # Tokens and cost are the scored sample's. Input is fixed by the context, so
+        # only the output side moves between samples of one question.
         dollars = (
             f"${(worst.input_tokens * price[0] + worst.output_tokens * price[1]) / 1e6:.5f}"
             if price
             else "n/a"
         )
         print(
-            f"{spec:30s} {worst.seconds_total:8.2f} "
-            f"{(worst.seconds_total / p50 if p50 else 0):6.1f}x {worst.input_tokens:8d} "
-            f"{dollars:>14s} {worst.query.bill_key} {worst.query.question[:30]}"
+            f"{spec:30s} {max(span):8.2f} "
+            f"{(max(span) / p50 if p50 else 0):6.1f}x "
+            f"{f'{min(span):.1f}-{max(span):.1f}s':>14s} {worst.input_tokens:8d} "
+            f"{dollars:>14s} "
+            f"{'PASS' if max(span) <= WORST_SECONDS else 'fail':>5s} "
+            f"{worst.query.bill_key} {worst.query.question[:30]}"
         )
+    print(
+        "'that question' is the same question's whole sample range, because the "
+        "spread is a finding: one question and one model measured 10.0 to 23.2 "
+        "seconds run to run, so one observation of a tail is not a tail."
+    )
 
 
 def _report_enumeration_recall(
-    results_by_model: dict[str, list[AnswerResult]], contexts_by_spec: dict[str, dict]
+    results_by_model: dict[str, list[AnswerResult]],
 ) -> None:
-    """How much of HF 719's grant list each arm actually reports (#878).
+    """How much of each bill's list every arm reports, and how far it swings (#895).
 
-    The gap this exposes is the reason it is here rather than folded into a gate.
-    #868 fixed the retrieval half of the failure — an enumerate-everything question
-    now reads the whole bill — so the honesty gate **passes trivially** on exactly
-    the question it was written for: a complete read cannot overclaim completeness,
-    and an absence it reports is real. Every gate in the bar was written for the
-    partial-read failure, and the failure moved.
+    This started as a HF 719 footnote (#878) and is a bar condition now, for the
+    reason the footnote itself recorded: #868 fixed the retrieval half of the
+    failure, so an enumerate-everything question reads the whole bill and the honesty
+    gate **passes trivially** on the very question it was written for. Reading
+    everything is not reporting everything, and no other gate can see the difference.
 
-    Reading everything is not reporting everything. This counts the difference,
-    against a denominator read off the bill's own text.
+    **Min and max, never a mean.** Four runs of one question on one model returned 19,
+    26, 34 and 35 of 98 cities. A reader gets one draw, so an average describes an
+    answer nobody received, and the swing itself is a product defect — 19 on Tuesday
+    and 35 on Wednesday, with nothing on the page saying which one you got.
     """
-    target = next(
-        (
-            (spec, r)
-            for spec, results in results_by_model.items()
-            for r in results
-            if r.query.bill_key == "94-2025-HF719" and r.query.answerable
-        ),
-        None,
-    )
-    if target is None:
-        return
-    key = target[1].query.key
-    context = contexts_by_spec[target[0]][key]
-    bill_text = "\n".join(c["chunk_text"] for c in context["chunks"])
-    cities, counties = hf719_grant_recipients(bill_text)
-    if len(cities) < HF719_MIN_GRANT_CITIES or len(counties) < HF719_MIN_GRANT_COUNTIES:
-        # The snapshot no longer holds the whole bill, so a recall figure computed
-        # from it would flatter every arm. Say so rather than print a wrong number.
-        print(
-            f"\n--- enumeration recall on HF 719: skipped, the snapshot holds only "
-            f"{len(cities)} cities and {len(counties)} counties ---"
-        )
-        return
-
     print(
-        f"\n--- enumeration recall, HF 719 'which cities and counties get named "
-        f"infrastructure grants?' ({len(cities)} cities and {len(counties)} counties "
-        "are in the context every arm was given) ---"
+        "\n--- enumeration recall: how much of each bill's list the arm reports, "
+        f"worst draw first (n={REPEAT_SAMPLES} on the long questions; min-max, never "
+        "a mean, because a reader gets one draw) ---"
     )
     print(
-        "No gate scores this. The honesty gate passes trivially once the whole bill "
-        "is read, so an answer that reads 98 names and reports 21 is unpunished."
+        f"{'model':30s} {'bill':16s} {'shape':16s} {'of':>4s} "
+        f"{'worst':>7s} {'best':>7s} {'named':>16s}"
     )
-    print(f"{'model':30s} {'cities named':>14s} {'counties named':>16s} {'recall':>8s}")
     for spec, results in results_by_model.items():
-        answer = next(r.answer for r in results if r.query.key == key)
-        hit_c = names_from(cities, answer)
-        hit_k = names_from(counties, answer)
-        recall = (len(hit_c) + len(hit_k)) / (len(cities) + len(counties))
+        for r in results:
+            for score in r.enumeration:
+                rates = score.rates
+                print(
+                    f"{spec:30s} {r.query.bill_key:16s} {score.shape:16s} "
+                    f"{score.total:4d} {min(rates):7.0%} {max(rates):7.0%} "
+                    f"{'/'.join(str(n) for n in score.named):>16s}"
+                )
+    print(
+        f"{'model':30s} {'worst of every draw of every list — the bar binds this':<60s}"
+    )
+    for spec, results in results_by_model.items():
+        recall = aggregate(results)["enumeration_recall"]
+        if recall is None:
+            print(f"{spec:30s} not measured (no enumerable question read in full)")
+            continue
         print(
-            f"{spec:30s} {f'{len(hit_c)}/{len(cities)}':>14s} "
-            f"{f'{len(hit_k)}/{len(counties)}':>16s} {recall:8.0%}"
+            f"{spec:30s} min {recall['min']:.0%}  median {recall['median']:.0%}  "
+            f"max {recall['max']:.0%}  over {recall['observations']} draws of "
+            f"{recall['shapes']} shapes  "
+            f"{'PASS' if recall['min'] >= MIN_ENUMERATION_RECALL else 'fail'} "
+            f"against {MIN_ENUMERATION_RECALL:.0%}"
         )
 
 
