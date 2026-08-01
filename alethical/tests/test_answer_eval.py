@@ -664,6 +664,28 @@ def test_re_snapshotting_invalidates_a_cached_arm_too_not_only_a_prompt_edit():
     )
 
 
+def test_every_reader_of_the_answers_cache_goes_through_the_sample_list():
+    """The bug this exists for: sampling changed the cache from one answer per
+    question to a list of them, and the judging path kept indexing ``["answer"]``
+    directly. It cost a full paid generation run that then died before a single
+    verdict, which is the worst place for this class of mistake to surface — the
+    money is spent and the result is nothing.
+
+    Structural rather than behavioural because the alternative needs two providers
+    and a network. Same technique the retrieval-branch test above uses.
+    """
+    import inspect
+
+    cli = _cli()
+    for fn in (cli.judge_all, cli.run):
+        source = inspect.getsource(fn)
+        assert '[q.key]["answer"]' not in source, (
+            f"{fn.__name__} reads the pre-sampling cache shape"
+        )
+    # And the writer really does produce a list, so the readers are right.
+    assert '{"samples": samples}' in inspect.getsource(cli.generate)
+
+
 def test_repeats_go_to_the_long_questions_and_nowhere_else():
     """Sampling is confined to where the variance is (#895). The short questions are
     stable, so repeats there would buy nothing and cost three times the money — the

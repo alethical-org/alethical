@@ -1031,7 +1031,11 @@ def judge_all(
             build_judge_prompt(
                 q,
                 contexts_by_spec[model_spec][q.key],
-                answers_by_model[model_spec][q.key]["answer"],
+                # The first sample, matching what the scorecard grades. Repeats are
+                # deliberately not judged: they were bought to measure the recall
+                # spread and the latency tail, and judging them would triple the
+                # dearest half of the run to re-score answers nobody scores.
+                answers_by_model[model_spec][q.key]["samples"][0]["answer"],
             ),
         )
         with lock:

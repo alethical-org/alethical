@@ -171,12 +171,21 @@ answers that clear both gates:
 point where no single dimension is worse than "partly" on average; five would admit
 an answer that is weak on half of what we claim to care about at once.
 
-**A model clears the bar** when all four of these hold:
+**A model clears the bar** when all six of these hold:
 
 1. **Zero gate failures** across the fixture.
-2. **≥ 90% of answers ship-worthy** (18 of 20).
+2. **≥ 90% of answers ship-worthy** (20 of 22).
 3. **p50 total generation ≤ 5 s**, **p95 ≤ 9 s**.
-4. It wins under **both** judges, not just one (§5).
+4. **No single answer over 15 s**, across every sample.
+5. **≥ 80% enumeration recall on its worst draw of every list.**
+6. It wins under **both** judges, not just one (§5).
+
+Conditions 4 and 5 are [#895](https://github.com/alethical-org/alethical/issues/895)'s,
+and both exist for the same reason: **the bar was scoring an average, and a reader
+gets one answer.** Everything above them was measured as a central tendency over 20
+questions, which is the right shape for "is this model good" and blind to "what is
+the worst thing it does". Both of the failures this document spends the most words on
+live in that blind spot.
 
 ### Why those numbers
 
@@ -197,15 +206,122 @@ sets the terms: an answer that takes 12 seconds is worse than a slightly duller 
 in 3. So the bar sits between them and closer to the good end. Note *total*, not
 time-to-first-word — see §4.
 
-**Weigh p50 more heavily than p95, because at twenty questions p95 is one
-observation.** The 95th percentile of a 20-item fixture is the 19th-slowest answer —
+**Weigh p50 more heavily than p95, because at this fixture size p95 is one
+observation.** The 95th percentile of a 22-item fixture is the 21st-slowest answer —
 a single request, and therefore as much a measurement of one moment's network and
 queue conditions as of the model. A p50 failure is a property of the model; a p95
 failure driven by one outlier is a prompt to re-run rather than a verdict. The eval
 prints both and `meets_bar()` requires both, so a p95 breach fails a candidate — but
-read a marginal one as "measure again", not "disqualified". Tightening this properly
-means more samples per question, which is a cheap follow-up if latency ever decides
-a close call.
+read a marginal one as "measure again", not "disqualified".
+
+**15 s for the worst single answer, because both percentiles were blind to the tail
+and every arm breached it.** §12 measured slowest answers of 10.6 to 29.5 seconds
+against a 9-second budget, while every arm's p95 landed underneath — not because the
+percentile was wrong but because it was answering a different question. p95 over 20
+questions is the 19th-slowest, and only a handful of the questions are long bills, so
+the percentile describes the short ones and reports the tail as clean. A reader who
+asks about a bonding bill is in the tail by definition.
+
+Three things fix the number, and none of them is the measured data:
+
+- **[#865](https://github.com/alethical-org/alethical/issues/865) already named 12
+  seconds as past the point where quality buys patience** — "an answer that takes 12
+  seconds is worse than a slightly duller one in 3". A tail budget has to sit near
+  that, not at half a minute.
+- **The tail gets three seconds more than that, and no more,** because it is a
+  genuinely bigger job — up to 20,000 words of bill rather than 900 — and someone who
+  asked about a 48-section appropriations bill is knowingly asking a larger question.
+- **It has to split the field to measure anything.** Of §12's seven arms, three sit
+  under 15 s and four do not. A condition everything passes is decoration; one
+  everything fails is a budget nobody will keep.
+
+**And it reads every sample, not the scored one.** One question on one model measured
+10.0, 11.2, 13.6, 19.4, 22.0 and 23.2 seconds run to run, so a worst case taken from
+a single draw reports whichever run happened to be scored. The consequence to hold
+onto: **a worst case is only comparable between arms measured under the same sampling
+plan**, because the maximum of more draws is larger. Both arms in §12's addendum use
+the same plan — three samples on the long questions, one on the short ones.
+
+**80% enumeration recall on the worst draw, because reading everything is not
+reporting everything.** Handed all 98 city names HF 719 contains, arms report between
+19 and 95 of them, and until this condition existed **no gate in this section could
+tell those apart** — every gate above was written for the partial-read failure, and
+#868 moved the failure rather than ending it.
+
+- **Not a mean, and this is the whole point of the condition.** Four runs of one
+  question on one model returned 19, 26, 34 and 35 of 98 cities. Their mean is 29%,
+  a figure describing no answer anybody received. A reader gets one draw, so the bar
+  reads the worst one. **This is also how "erratic" becomes a reason to reject an
+  arm**, which it was not before: a candidate that swings twofold on byte-identical
+  input fails on its bad days, where an average let its good days pay for them.
+- **Not 90% or higher, because the smallest list has 11 items.** One missed school
+  district moves that percentage by 9 points, so a 90% floor would turn a
+  definitional argument about one district into a failed candidate. That is the
+  lower-bound lesson of [#900](https://github.com/alethical-org/alethical/pull/900)
+  running the other way: a threshold set too tight fails on the noise it cannot
+  distinguish from a regression.
+- **Not 50%, because half a list is a different answer.** The one arm that measured
+  52% is one nobody proposes to ship.
+- **80% is where a reader who checks the bill finds the answer substantially right**,
+  and it sits in a wide gap in everything measured so far — the nearest arms either
+  side are 73% and 94%, so no candidate is decided by a percentage point.
+- **Each shape is scored apart, never pooled.** The arm that named 19 of 98 cities
+  named **1 of 17 counties**. Pooled, that is one mediocre percentage; apart, it is a
+  short list and a denied category, and only the second is the failure #868 was filed
+  for.
+- **An arm with no recall measurement fails rather than passes.** "Not measured" is
+  not "nothing wrong". A fixture that lost its long bills must not quietly start
+  passing everything, which is what a condition that skips itself when unmeasurable
+  would do.
+
+### How many bills can carry a recall measurement, and why that is not a ceiling
+
+Three bills, and the number is a property of **one phrasing** rather than a limit on
+enumeration. Every bill with 25+ retrievable passages was scanned for named
+recipients using the tight phrasings in
+[`alethical/eval/ground_truth.py`](../../alethical/eval/ground_truth.py) — money
+flowing *to* an entity, not an entity merely mentioned — and exactly four (bill,
+shape) pairs clear eight distinct recipients: HF 719 (90 cities, 16 counties), HF 2484
+(14 cities) and SF 3551 (11 school districts). HF 719 has no peer; the next largest
+set of named places is 14.
+
+**Do not read that as "three is all there can ever be".** The pool scanned holds 565
+bills with 25+ passages, 262 with 50+ and 131 with 100+. Three of 565 is unsurprising
+for "grant to the city of X", because the long bills are mostly omnibus policy bills
+amending statutes and only bonding and appropriation bills list towns. **SF 3551 is
+the standing proof that enumeration need not involve a place at all** — it counts
+school district *numbers*. Dollar-figure line items, program names, agency names and
+repealed statute sections are all countable, and all appear in bills with no city in
+them. **A fourth case is a matter of writing a fourth pattern, not of finding a rarer
+bill**, and anyone reading this paragraph as a dead end should stop and write the
+pattern instead.
+
+Two costs are real and worth knowing before writing one:
+
+- **A 14-item list and a 98-item list do not measure the same thing.** HF 719's recall
+  figure is decisive because of the spread it exposes — 19 against 95 on identical
+  input. On a short list the same models compress into a much narrower band. More
+  questions buys a gate that cannot pass by luck; it does not buy more of that
+  discrimination. Both are worth having and they are different goods.
+- **Derive, then verify, then assert exactly.** A derived denominator stops a *stale*
+  list and does nothing about a *wrong* one. The sharpest version of wrong is not a
+  broken pattern but **a plausible pattern over the wrong noun**: two bills were
+  nearly added on the strength of naming twenty and fourteen counties, and reading
+  the matches showed those counties were *locations* ("the land is located in Becker
+  County") with only four receiving anything. Every individual match was correct and
+  the noun was wrong. A gate built on that denominator would have measured whether an
+  answer lists places a bill mentions, while reporting itself as measuring who gets
+  the money.
+
+**Re-snapshotting invalidates every arm's cached answers, so the next `run` pays full
+price with no warning beyond a line saying it is regenerating.** That is the digest
+check working as designed and worth knowing before you re-snapshot casually. It was
+also *not true* until #895: neither coverage rule quotes a passage count, so a fresh
+snapshot keeping the same mix of complete and partial reads produced byte-identical
+system prompts and the same digest — and answers written from the old passages would
+have been judged against the new ones. The digest now covers the contexts themselves.
+Raising the sample count is deliberately not the same thing: that cache is topped up,
+and only the new samples are paid for.
 
 ## 4. Speed is measured as total time, because nothing streams
 
@@ -320,12 +436,22 @@ was grading. §11 records what fixing it did.
 
 ## 6. The fixture
 
-Twenty questions over twelve real bills, in
-`alethical/eval/fixtures/answer_questions.json`:
+**Twenty-two questions over eighteen real bills**, in
+`alethical/eval/fixtures/answer_questions.json`. It was 20 over 16 until #895 added
+the two long-bill enumeration questions §3 measures recall on; the counts below are
+recounted from the file rather than carried forward, because the previous version of
+this list said "twelve bills" when there were sixteen:
 
-- **15 the passages answer**, **5 they do not** — because the refusal gate is
+- **17 the passages answer**, **5 they do not** — because the refusal gate is
   half the bar and needs real cases, not a token one.
-- **8 enacted laws, 7 pending proposals** — the framing dimension needs both.
+- **12 questions about enacted laws, 10 about pending proposals** (10 bills and 8) —
+  the framing dimension needs both, and since #895 it is exercised on a **long** bill
+  in each direction rather than only on short ones: HF 2484 carries a Governor's
+  action Approval, SF 3551 has four actions and none of them enactment.
+- **Six questions read more than production's fixed four passages**, which is what
+  makes a tail and a recall spread measurable at all. Those six are sampled three
+  times per arm; the rest once, because they are stable and repeats there would cost
+  three times the money for no new information.
 - **Question shapes a reader actually types**: a list ("which cities get grants"), a
   lookup ("what is the program called now"), a two-part question ("what tax, and
   what would it pay for"), a definition, a penalty, an eligibility test.
@@ -343,7 +469,7 @@ Twenty questions over twelve real bills, in
 - **The quality gap from #865 is in it**: HF 719's named infrastructure grants,
   where the live answer is correct and flat.
 
-Twenty scored carefully beats two hundred scored carelessly. Every fact in the key
+Twenty-two scored carefully beats two hundred scored carelessly. Every fact in the key
 is checked by CI to actually appear in the snapshotted passages
 (`test_required_fact_aliases_actually_appear_in_the_snapshotted_passages`), so the
 key can never ask for something the best possible model could only guess.
@@ -862,6 +988,12 @@ latency condition of the same shape as the hole in its honesty gate: the fixture
 too small at the tail for a percentile to see it. Read the worst-case column
 alongside p95, not instead of it.
 
+> **Both holes are closed as of #895**, which is why this paragraph now reads as
+> history. §3 carries a 15-second worst-case condition alongside the two percentiles,
+> and an 80% recall floor on the worst draw; the fixture has six long questions
+> instead of two, and each is sampled three times. The measurements below stand as
+> they were taken.
+
 `gpt-5.1+deep` is the odd row and the interesting one: its slowest answer is not
 the omnibus bill at all but a 1,276-token question, so its tail is reasoning
 variance rather than input size — which is why it is both the slowest at p95 and
@@ -897,7 +1029,7 @@ Same setting §10 recommended, re-tested rather than confirmed, and now resting 
 different evidence.
 
 - **It is first under both judges** — 6.65 from the Sonnet judge, 6.30 from the
-  gpt-5.1 judge — and the only arm that is. That is §3's fourth condition, and it
+  gpt-5.1 judge — and the only arm that is. That is §3's both-judges condition, and it
   is the condition the calibration in §11 existed to make meaningful.
 - **The judges agree about it more than about any other arm**: 70% exact agreement
   and 2 grounding splits, against 25% and 7 for `claude-sonnet-5`. Its position is
@@ -912,10 +1044,10 @@ different evidence.
   answers against $0.66. On the omnibus worst case $0.0095 against $0.0043, so the
   tail that costs the most time costs barely more money.
 
-Said plainly, because it should not be buried: **no candidate clears all four of
+Said plainly, because it should not be buried: **no candidate clears all of
 §3's conditions.** `gpt-5.1+deep` has one gate failure and a p95 of 9.83 s against
 a 9 s budget. `claude-sonnet-5` is the only arm with zero gate failures and the
-only `PASS` in the table, and it fails the fourth condition instead.
+only `PASS` in the table, and it fails the both-judges condition instead.
 
 ### Why not `claude-sonnet-5`, which is the only row marked PASS
 
@@ -925,7 +1057,7 @@ it, in descending order of how much they should matter.
 
 1. **It loses under the second judge**, 6.60 to 4.55, and it is the arm the two
    judges agree about least in the whole table — 25% exact agreement, 7 grounding
-   splits, the most of any arm. §3's fourth condition exists for precisely this
+   splits, the most of any arm. §3's both-judges condition exists for precisely this
    shape, and the judge it wins under is from its own family.
 2. **Its zero comes partly from the both-judges rule.** Grounding fails only when
    both judges agree it should. Sonnet has 7 disputed grounding calls and all 7
