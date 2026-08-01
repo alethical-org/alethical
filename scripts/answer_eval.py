@@ -639,10 +639,15 @@ def generate(
                 f"{q.bill_key:16s} {q.question[:40]}"
             )
         answers[q.key] = {"samples": samples}
-    cache.write_text(
-        json.dumps({"prompt_fingerprint": fingerprint, "answers": answers}, indent=2)
-        + "\n"
-    )
+        # Written per question rather than once at the end, so a crash or a rate
+        # limit two-thirds of the way through an arm costs the questions still to
+        # come and not the ones already paid for.
+        cache.write_text(
+            json.dumps(
+                {"prompt_fingerprint": fingerprint, "answers": answers}, indent=2
+            )
+            + "\n"
+        )
     return answers
 
 
