@@ -2,6 +2,8 @@
 
 Standing rules for any surface that generates, displays, or advertises answers. These outlive any single build — current implementation spec: `docs/product-onboarding/grounded-ask-spec.md`.
 
+**Why these exist.** They are `docs/philosophy.md` made checkable — principle 1 (truth before voice), 2 (uncover, don't translate), 4 (say only what we can do) and 5 (meet people in their own words), turned into things a test or a reviewer can fail a PR on. Read the philosophy when a rule below feels arbitrary, or when you hit a case it doesn't name; read the rule when you need the line that actually decides.
+
 1. **Cite or refuse.** No generated answer ships without at least one citation resolving to an official source URL (bill → `Bill.official_url`, roll call → `VoteEvent.official_url`, legislator → `Legislator.profile_url`). Weak retrieval refuses rather than stretches. An honest "no matches" or "out of scope" is a first-class response, not an error state. For the generated **answer paths**, the standing enforcement of this contract is the acceptance suite `alethical/tests/test_ask_scenarios.py` (cite-or-refuse across `/ask` answer bodies, the grounded-neutrality authorship citations of rule 3, and the no-ungrounded-leak interim contract of rule 4), alongside the classification and `topic_bills` coverage in `alethical/tests/test_api_contract.py`.
 
 2. **Never advertise what you can't answer.** Placeholders, sample question chips, suggested follow-ups, empty states, and marketing copy may only name intents the router can currently answer. System-suggested questions (chips) must be constructed so they cannot lead to a refusal.

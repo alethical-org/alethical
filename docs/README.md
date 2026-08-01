@@ -12,7 +12,7 @@ rule 13). Milestone claims in particular go stale: check the tracker, not the pr
 
 ## Start Here
 
-- [Philosophy](philosophy.md) — the *why* beneath Alethical: the beliefs the product, design, and copy all answer to. Read this before the specs.
+- [Philosophy](philosophy.md) — the *why* beneath Alethical: what the product is, the problem it solves (legibility, not secrecy), who we assume is reading, and the principles the product, design, and copy all answer to. Read this before the specs.
 
 ## Product & Onboarding
 
