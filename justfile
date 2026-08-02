@@ -20,6 +20,9 @@ worktree-rm branch:
   -git branch -D {{branch}}
   @echo "🧹 Removed worktree ../alethical-wt-{{branch}}."
 
+doctor:
+  uv run python scripts/check_local_env.py
+
 format:
   uvx ruff check --fix alethical scripts
   uvx ruff format alethical scripts
