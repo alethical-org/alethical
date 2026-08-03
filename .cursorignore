@@ -1,0 +1,9 @@
+# Other agents' live working trees. Several coding agents run in this repo at once,
+# each in its own git worktree, and six of those worktrees sit INSIDE this folder.
+# The path is gitignored, so nothing an agent checks by default reveals that the files
+# there belong to someone else — one of them routinely holds uncommitted work.
+#
+# Cursor feeds this file into its sandbox's filesystem rules, so listing the path here
+# is a mechanism rather than a request. AGENTS.md § Hard lines explains the same
+# boundary in prose for tools that have no equivalent.
+/.claude/worktrees/

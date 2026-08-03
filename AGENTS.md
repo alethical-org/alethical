@@ -66,6 +66,49 @@ the local Postgres that `just up` starts.
   repo at once, in separate worktrees, and these commands silently destroy work that
   is not yours. Scan open PRs and issues before starting so you do not duplicate work
   already in flight.
+- **Four more git commands destroy other agents' work without looking destructive**,
+  so a rule that says "no destructive git" does not cover them, and neither does a
+  reviewer or classifier scanning for dangerous-looking commands. The first and last
+  caused real incidents here; the middle two were found by testing what a shared
+  checkout actually permits:
+  - `git stash` — scoops up every other agent's in-flight edits, and popping it moves
+    merged code backwards.
+  - `git update-ref` pointed at someone else's branch. `git update-ref refs/heads/<b>
+    <commit>` moves a branch another worktree has checked out, silently, with no output
+    at all; `git update-ref -d refs/heads/<b>` deletes one, where `git branch -D`
+    refuses. No git version guards this — plumbing carries no safety checks — so this
+    one is a rule, not a mechanism. `git checkout -B <branch>` used to do the same, and
+    git 2.44.0 closed it; `git` on this Mac's `PATH` is Homebrew's 2.55.0, where
+    `checkout`, `switch`, `rebase`, `branch -f` and `branch -D` all refuse a branch
+    another worktree holds. **Two holes remain in that guard, both verified:**
+    `git checkout --ignore-other-worktrees -B <branch>` moves the branch anyway, and
+    `/usr/bin/git` is still Apple's unguarded 2.39.5, so anything calling git by that
+    absolute path gets the old behaviour. Treat a refusal as git telling you the branch
+    is someone else's, not as an obstacle to route around, and never reach for the
+    override flag to get past one.
+  - `git worktree remove --force <path>` — deletes a worktree *and* its uncommitted
+    work. No git version guards this either. A tracked hook
+    (`.githooks/post-checkout`) locks every new worktree as it is created, whichever
+    tool ran `git worktree add`, so the command refuses and prints the lock reason.
+    `just worktree-rm` unlocks first, so the intended cleanup path still works.
+    **The hook is broad but not total:** it only covers worktrees created after it is
+    installed, `--force --force` still overrides it, `git worktree unlock` clears it,
+    and it does nothing at all until someone runs `just install-hooks` in that clone
+    (git cannot ship `core.hooksPath` inside a repository). Treat it as a guard
+    against an accident, not a boundary you can rely on.
+  - Creating a branch in the shared checkout at all — it yanks the checkout off `main`
+    while others are using it.
+
+  To compare against another revision, read it out of git's object store —
+  `git show origin/main:<path>` — and never touch the working tree. To write, make your
+  own worktree: `just worktree <branch>`.
+- **`.claude/worktrees/` holds other agents' live branches, and it is gitignored** —
+  so it is invisible to `git status` and to any check that only looks at tracked files.
+  It is inside this folder, but it is not scratch space and it is not yours: treat every
+  path under it as another agent's working tree. Do not edit, delete, reformat, or run a
+  project-wide replace across it, and exclude it from any sweep of ignored or
+  "temporary" files. `.cursorignore` fences this path off for Cursor specifically, since
+  a prose rule is not a mechanism; if your tool has an equivalent, use it too.
 
 ## Cursor Cloud specific instructions
 
@@ -76,6 +119,10 @@ find `libstdc++`, which breaks the `erlpack` C++ build — leave GCC as default)
 startup update script refreshes dependencies only (`uv sync` + `pnpm install
 --frozen-lockfile`). Everything below is a run-time caveat setup can't bake in.
 
+- **Install the worktree-protection hook in every fresh clone.** Run
+  `just install-hooks` as the first setup command, before any `git worktree add`.
+  Git cannot carry `core.hooksPath` in a clone, so worktrees are not locked until this
+  command registers the tracked `.githooks/post-checkout` hook.
 - **Docker is not running at session start.** Start it once before `just up` /
   `just migrate`:
   `sudo bash -c 'nohup dockerd >/var/log/dockerd.log 2>&1 &'`, then, if the socket

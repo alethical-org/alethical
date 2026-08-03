@@ -43,7 +43,8 @@ docs/
 │   ├── ios-release.md
 │   ├── android-prototype-handoff.md
 │   ├── local-dev-windows.md
-│   └── repo-and-service-settings.md
+│   ├── repo-and-service-settings.md
+│   └── keeping-docs-current-decisions.md
 │
 ├── mockups/               Design bundles
 └── research/              Research findings

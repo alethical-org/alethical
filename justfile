@@ -4,11 +4,31 @@
 # switch or destructive clean in one session can't wipe another's uncommitted
 # work. See .claude/rules/workflow.md rule 10 (concurrent-session isolation).
 
+# Point git at this repo's tracked hooks. Run once per clone, before anything else.
+# Until you run it, a new worktree is NOT auto-locked and `git worktree remove
+# --force` can delete another session's uncommitted work. `core.hooksPath` is local
+# config, so it cannot travel with a clone; this recipe is the one documented way in.
+install-hooks:
+  # Absolute, pointing at the MAIN checkout's .githooks, on purpose. A relative
+  # `core.hooksPath` resolves per worktree, so a worktree that checks out a branch
+  # predating .githooks would silently get no hook. Absolute means every worktree
+  # uses the same hook whatever branch it has out. core.hooksPath is local config
+  # and never committed, so a machine-specific path here costs nothing.
+  git config core.hooksPath "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.githooks"
+  @echo "✅ Hooks active from $(git config --get core.hooksPath). New worktrees now auto-lock."
+
 # Create an isolated worktree off origin/main, fully set up to build & verify.
 # Usage: just worktree my-branch   ->   ../alethical-wt-my-branch (its own deps).
 worktree branch:
   git fetch origin main
   git worktree add -b {{branch}} ../alethical-wt-{{branch}} origin/main
+  # Lock it. `git worktree remove --force` deletes a worktree AND its uncommitted
+  # work in one command; a lock makes that refuse and print this reason instead.
+  # `just worktree-rm` unlocks first, so the intended cleanup path still works.
+  # Tolerant of failure on purpose: with hooks installed, .githooks/post-checkout
+  # has already locked it, and a second lock is an error. Kept as a belt so a clone
+  # that never ran `just install-hooks` still gets locked worktrees from this recipe.
+  -git worktree lock ../alethical-wt-{{branch}} --reason "live session; if this is stale: just worktree-rm {{branch}}"
   main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; [ -f "$main_root/.env" ] && ln -sf "$main_root/.env" ../alethical-wt-{{branch}}/.env || true
   cd ../alethical-wt-{{branch}} && pnpm install --frozen-lockfile
   @echo "✅ Worktree ready: ../alethical-wt-{{branch}} (branch {{branch}}). cd there to build, commit, and push."
@@ -16,6 +36,7 @@ worktree branch:
 # Remove a worktree created by `just worktree` (run after its PR is merged).
 # Usage: just worktree-rm my-branch
 worktree-rm branch:
+  -git worktree unlock ../alethical-wt-{{branch}}
   git worktree remove ../alethical-wt-{{branch}}
   -git branch -D {{branch}}
   @echo "🧹 Removed worktree ../alethical-wt-{{branch}}."
