@@ -1,6 +1,6 @@
 # Grounded Ask — Build Spec
 
-<!-- describes: apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, alethical/api/routers/ask.py, alethical/api/services/ask_router.py -->
+<!-- describes: apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/components/RoadmapTrackButton.tsx, apps/frontend/src/components/billDetail/CitationCard.tsx, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/interactions.ts, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/askAnswer.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/billText.ts, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/schemas.py, alethical/pipeline/rag_ingest.py -->
 
 Status: draft for engineering review
 Owner: Eugene

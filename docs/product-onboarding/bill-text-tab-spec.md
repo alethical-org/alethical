@@ -1,6 +1,6 @@
 # Bill Text tab spec
 
-<!-- describes: apps/frontend/src/lib/billText.ts, apps/frontend/src/components/billDetail/FullTextTab.tsx, apps/frontend/src/components/billDetail/SectionIndexRail.tsx -->
+<!-- describes: apps/frontend/src/lib/billText.ts, apps/frontend/src/components/billDetail/FullTextTab.tsx, apps/frontend/src/components/billDetail/SectionIndexRail.tsx, apps/frontend/src/hooks/useResponsive.ts -->
 
 Status: shipped, [#740](https://github.com/alethical-org/alethical/pull/740) (`5379a88`). Covers the **Bill Text
 tab** of Bill Detail on web (`/bills/:billId?tab=text`) and the `sec-fulltext` block of the mobile

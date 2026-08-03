@@ -25,8 +25,14 @@ describes the old behaviour); the human-facing version is "Keeping docs current"
 A doc that describes behaviour names the code it describes, in its own text:
 
 ```
-<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, ... -->
+<!-- describes: path/to/YourScreen.tsx, path/to/your_router.py -->
 ```
+
+**The paths in that example are deliberately made up.** `declared_couplings()` finds every
+`describes:` comment anywhere in a doc's raw text, including one inside a code fence — it does
+not parse Markdown. So an example naming a real file makes *this* doc declare that file, and a
+PR touching it is then told to re-read a decision record that says nothing about it. The first
+draft of this section used `SearchBillsScreen.tsx` and did exactly that.
 
 `scripts/check_doc_sync.py` then fails any PR that changes a declared file without one
 `Docs check:` line in the body saying what the author concluded. "None needed" passes — the
@@ -202,6 +208,55 @@ if it did.
 - Run the import-hop expansion (candidate E) **once, by hand**, over the 129 pairs, and adopt
   the ones a person judges real. Same issue.
 - Leave `scripts/check_doc_sync.py` alone.
+
+## The by-hand pass, as run ([#918](https://github.com/alethical-org/alethical/issues/918), 2026-08-03)
+
+**39 of 131 pairs adopted, 92 rejected.** The expansion re-measured at **131** pairs rather
+than 129; the two extra are `__init__.py` package files this parser resolves and #917's did
+not, and both were rejected anyway.
+
+The test each pair was judged against — rule 6's "could a sentence in this doc now be wrong?"
+— needed one sharpening before it could be applied consistently, because on a bare reading
+almost everything passes. **Adopt when the doc holds a sentence whose truth depends on that
+file's specific behaviour**: a named symbol, an enumerated list, a described interaction, a
+stated payload or display rule. **Reject when the doc's only tie to the file is** (a) generic
+infrastructure the doc never characterises, (b) a bare pointer to where the code lives, or
+(c) a claim so general that only a redesign could falsify it — and that redesign would
+necessarily touch an already-declared file.
+
+Test (c) is the one that did the most work, and it is why the noise ratio came out lower than
+the 36% #917 measured. Most of what the expansion surfaces is a doc *pointing at* a file
+rather than *claiming* something about it, and a pointer cannot go stale.
+
+**Three findings worth keeping:**
+
+1. **"Plumbing" is a property of the pair, not of the file.** #917 named
+   `apps/frontend/src/hooks/useResponsive.ts` as pure layout plumbing, and for
+   `search-bills-guide.md` it is — that guide makes no claim about screen width. Three specs
+   *do*: `grounded-ask-spec.md` states the rail collapses "below 1100px" and the file defines
+   `isDesktop: width >= 1100`. So it was adopted for three docs and rejected for the rest.
+   Same story for `alethical/api/serializers.py`, #917's flagship noise case: rejected where
+   a doc merely reads serialized output, adopted for the three that enumerate payload fields
+   or name the file outright ("Status key derived at serialization from action text").
+2. **A design doc's aspirational sections are not claims.** `backend-api-system-design.md`
+   names `auth.py`'s behaviour under "Recommended approach" and `schemas.py`'s under "Rules".
+   Neither can be falsified by changing the code, because neither describes the code. Its
+   *shipped-shape* passages are a different matter and were adopted.
+3. **One hop does not reach everything a doc claims.** `data-ingestion-onboarding.md` makes
+   detailed claims about `alethical/api/routers/me.py` (`build_query_embedding`, the offline
+   hash fallback) and `alethical/api/services/representative_lookup.py` (both hop URLs, four
+   env-var override names) that no pipeline file imports, so the expansion never offered
+   them. Both were added on top of the 131. A mechanical lead list finds what the code wires
+   together; only reading the doc finds what the doc asserts.
+
+**Measured cost.** Per-PR firing over the same 60 merged PRs rises from **25/60 (42%)** to
+**34/60 (57%)** — against the **63%** #917 projected for adopting the expansion wholesale.
+No single added declaration is a runaway: the heaviest is `lib/billDetail.ts` at 8 of 60 PRs
+per doc, which is the intended effect rather than noise, and `serializers.py` costs 2 of 60.
+
+This does not reopen the decision above. Candidate E is still rejected **as a gate** for the
+reason the noise table gives; what this pass shows is that a person applying test (c) rejects
+70% of its output, which is exactly the work a CI check could not have done.
 
 **What would change this decision.** Reconsider if a drift ships from a coupling that no doc
 declared *after* the declarations have been widened — that would be evidence the human sweep

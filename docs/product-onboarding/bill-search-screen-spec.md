@@ -1,6 +1,6 @@
 # Bill search screen spec
 
-<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/search/searchPieces.tsx, alethical/api/routers/public.py -->
+<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/RoadmapTrackButton.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
 
 Status: v1 build spec. Companion to `docs/product-onboarding/mvp-redesign-plan.md` (§ "Search page split")
 and `docs/product-onboarding/grounded-ask-spec.md` (the Ask answer pages link into this screen). Durable
