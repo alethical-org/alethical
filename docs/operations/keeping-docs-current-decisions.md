@@ -3,12 +3,17 @@
 # Keeping docs current — what we decided and why
 
 **Net:** We looked at four ways to automatically catch a doc that describes code it never
-declared, measured each one against the real repo, and are **not building any of them**. The
-declared-coupling check we already have (`scripts/check_doc_sync.py`) stays as-is; the gap it
-has is a **missing declaration**, which is a one-line fix per doc, not a missing algorithm.
-Every automatic alternative we measured either misses the case that matters or fires on
-roughly one-in-three PRs for plumbing reasons, and a check people route around is worse than
-no check.
+declared, measured each one against the real repo, and are **not making any of them a CI
+gate**. The declared-coupling check we already have (`scripts/check_doc_sync.py`) stays as-is;
+the gap it has is a **missing declaration**, and writing one is a one-line edit per doc. Two of
+the four alternatives cannot see plain-English guides at all, one costs money in CI on a graph
+we can't keep current, and the closest near-miss would newly fire on 20% of PRs with at least
+36% of its new prompts triggered by plumbing — and a check people route around is worse than no
+check.
+
+**One option is deliberately left open rather than rejected: running that near-miss as a
+non-blocking report instead of a gate.** We never measured that mode, and it is the strongest
+remaining candidate. See "What we did not measure" below.
 
 Evaluated [#917](https://github.com/alethical-org/alethical/issues/917), 2026-08-03. The
 convention this serves is `.claude/rules/workflow.md` rule 6 (search for everything that still
@@ -37,7 +42,9 @@ behaviour — `docs/product-onboarding/search-bills-guide.md` and
 `docs/product-onboarding/bill-search-screen-spec.md` — and **neither declares that file**.
 A change to it passes CI while both docs describe the old behaviour. That gap is real.
 
-Two findings reframe how much it justifies, though, and both cut against building something:
+Two findings reframe the case that was made for building something. Neither is an argument
+*against* automating — see "What we did not measure" — but both remove a reason that was
+offered *for* it:
 
 **1. All four historical drifts would already be caught today.** Rule 6 names four drifts
 that shipped this way. Every one of them touched a file that *is* declared:
@@ -160,8 +167,14 @@ it — is the same property that makes a dependency rule noisy. Graph shape cann
 "shared behaviour that docs describe" from "shared plumbing that docs don't", because the
 difference is what the doc claims, not how the code is wired.
 
+**Scope of that last claim.** What the numbers disprove is a **global import-in-degree cutoff**,
+because the file we want and a file we don't are tied at 18. They do not test path or directory
+exclusions, type-only imports, changed-symbol analysis, a hand-kept behaviour-hub allowlist, or
+a plumbing denylist. Any of those could still work; none was measured.
+
 **Verdict: no as a gate. Yes as a one-time lead list** run by a person against the 129 pairs,
-who keeps the handful that are real and discards the plumbing.
+who keeps the ones that are real and discards the plumbing. Whether it also deserves to run as
+a recurring non-blocking report is genuinely open — see below.
 
 ## Decision
 
@@ -170,10 +183,14 @@ who keeps the handful that are real and discards the plumbing.
 The reasoning, shortest form: the check we have already puts a doc in front of a human on 43%
 of PRs, and its precision comes from a human deciding what each doc claims. Every automatic
 widening we measured either cannot see plain-English guides (B, C), costs money in CI on a
-graph we can't trust to be current (A), or buys the one case we know about at the price of a
-third of its firings being plumbing noise (E). The specific failure in front of us is that two
-docs are missing one filename — and the fix for a missing declaration is to write the
-declaration.
+graph we can't trust to be current (A), or buys the one case we know about at the price of
+newly firing on 20% of PRs with at least 36% of its new prompts triggered only by plumbing (E).
+The specific failure in front of us is that two docs are missing one filename — and the fix for
+a missing declaration is to write the declaration.
+
+**Take D as the gate decision, not as the whole answer.** Building nothing *blocking* is well
+supported. Ruling out every recurring, non-blocking aid is not, and this doc originally read as
+if it did.
 
 **What follows from this:**
 
@@ -189,8 +206,35 @@ declaration.
 **What would change this decision.** Reconsider if a drift ships from a coupling that no doc
 declared *after* the declarations have been widened — that would be evidence the human sweep
 is the bottleneck rather than the declaration list. A second signal: if declaring docs grows
-well past 9 of 47, hand-maintaining the lists gets harder and candidate E's noise ratio is
+past roughly 20 of 47, hand-maintaining the lists gets harder and candidate E's noise ratio is
 worth re-measuring against a larger declared base.
+
+Waiting for a drift to ship is a poor experiment, though, because the experiment is a public
+error. #918's by-hand review is the cheaper version of the same test: it produces a real
+precision number for candidate E, prospectively, without anything going stale first.
+
+## What we did not measure
+
+Three gaps, recorded so nobody reads this doc as more conclusive than it is. A 2026-08-03
+adversarial review (Codex) found all three.
+
+- **Candidate E as a recurring non-blocking report.** It was only ever measured as a blocking
+  gate. As a report it costs nothing, blocks nobody, and cannot be routed around because there
+  is nothing to route around. This is the strongest remaining option and it is untested.
+- **The other 64% of candidate E's new prompts.** We classified 36% of the 69 newly-named
+  (PR, doc) pairs as plumbing-only. The remaining 44 pairs were never judged, so **36% is a
+  lower bound on the noise, not a false-positive rate**, and E's actual precision is unknown.
+  #918's review of the 129 pairs is what settles it.
+- **Whether the existing check's 43% firing rate produces good reviews.** 43% measures reach,
+  not whether anyone read the whole doc. Rule 6 already records two PRs that edited the right
+  doc and still shipped a contradiction one section away. Nothing here measures how often a
+  `Docs check:` line reflects a real read.
+
+One framing correction while we are at it: the four historical drifts being already-covered is
+**neutral evidence, not evidence against automating**. The declarations were fitted to those
+drifts after the fact, so they say nothing about how often a *future* undeclared coupling
+appears. This doc's original wording treated it as an argument for building nothing; it isn't
+one, and the case for D rests on the measurements instead.
 
 ## Reproducing the measurements
 
