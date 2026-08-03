@@ -9,6 +9,10 @@
 worktree branch:
   git fetch origin main
   git worktree add -b {{branch}} ../alethical-wt-{{branch}} origin/main
+  # Lock it. `git worktree remove --force` deletes a worktree AND its uncommitted
+  # work in one command; a lock makes that refuse and print this reason instead.
+  # `just worktree-rm` unlocks first, so the intended cleanup path still works.
+  git worktree lock ../alethical-wt-{{branch}} --reason "live session; if this is stale: just worktree-rm {{branch}}"
   main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; [ -f "$main_root/.env" ] && ln -sf "$main_root/.env" ../alethical-wt-{{branch}}/.env || true
   cd ../alethical-wt-{{branch}} && pnpm install --frozen-lockfile
   @echo "✅ Worktree ready: ../alethical-wt-{{branch}} (branch {{branch}}). cd there to build, commit, and push."
@@ -16,6 +20,7 @@ worktree branch:
 # Remove a worktree created by `just worktree` (run after its PR is merged).
 # Usage: just worktree-rm my-branch
 worktree-rm branch:
+  -git worktree unlock ../alethical-wt-{{branch}}
   git worktree remove ../alethical-wt-{{branch}}
   -git branch -D {{branch}}
   @echo "🧹 Removed worktree ../alethical-wt-{{branch}}."
