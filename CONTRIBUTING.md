@@ -40,6 +40,28 @@ What the lock does and does not do: it makes a single `--force` fail and print w
 the lock, both on purpose. It is a guard against an accident, not a security
 boundary, and it only covers worktrees created after the hook is installed.
 
+**Because the lock is not a wall, also run `just install-wip-backup`.** Tested against a
+live agent on Aug 3 2026, the lock and every command-blocking rule turned out to be an
+*approval prompt* rather than a denial: once approved, deleting a locked worktree
+succeeded. With an agent that can ask for approval, no setting is a boundary, so the
+realistic goal is bounded loss rather than no damage.
+
+That recipe snapshots every worktree's uncommitted work every 5 minutes, into a
+`refs/wip-backup/<worktree>` ref plus a small bundle under
+`~/Library/Application Support/alethical-wip-backups/`. It costs nothing to run, pushes
+nothing (this repo is public and uncommitted work has not been reviewed for publication),
+and cannot disturb you: it stages into a temporary index, so your own staged and unstaged
+state is never touched. Snapshots survive deleting the worktree and survive `git gc`. Stop
+it with `just stop-wip-backup`; take one on demand with `just back-up-wip`.
+
+To get work back: `git show refs/wip-backup/<worktree>:<path>`, or
+`git restore --source refs/wip-backup/<worktree> -- <path>`. Recovery from a bundle after
+losing the whole repo is in the script's header comment.
+
+This exists because on Aug 3 2026 a 132-line production-schema audit was found existing as
+one uncommitted file, in one worktree, on one Mac, referenced by nothing. One command
+would have destroyed it.
+
 Verify it's healthy:
 
 ```bash
