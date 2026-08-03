@@ -25,8 +25,14 @@ describes the old behaviour); the human-facing version is "Keeping docs current"
 A doc that describes behaviour names the code it describes, in its own text:
 
 ```
-<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, ... -->
+<!-- describes: path/to/YourScreen.tsx, path/to/your_router.py -->
 ```
+
+**The paths in that example are deliberately made up.** `declared_couplings()` finds every
+`describes:` comment anywhere in a doc's raw text, including one inside a code fence — it does
+not parse Markdown. So an example naming a real file makes *this* doc declare that file, and a
+PR touching it is then told to re-read a decision record that says nothing about it. The first
+draft of this section used `SearchBillsScreen.tsx` and did exactly that.
 
 `scripts/check_doc_sync.py` then fails any PR that changes a declared file without one
 `Docs check:` line in the body saying what the author concluded. "None needed" passes — the
@@ -194,14 +200,83 @@ if it did.
 
 **What follows from this:**
 
-- Add `apps/frontend/src/lib/billDetail.ts` to the `describes:` comments of
+- ~~Add `apps/frontend/src/lib/billDetail.ts` to the `describes:` comments of
   `docs/product-onboarding/search-bills-guide.md` and
-  `docs/product-onboarding/bill-search-screen-spec.md`.
-  Tracked in [#918](https://github.com/alethical-org/alethical/issues/918) — deliberately not
-  done here, since #917 put declaration edits out of scope.
-- Run the import-hop expansion (candidate E) **once, by hand**, over the 129 pairs, and adopt
-  the ones a person judges real. Same issue.
-- Leave `scripts/check_doc_sync.py` alone.
+  `docs/product-onboarding/bill-search-screen-spec.md`.~~ **Done**
+  ([#918](https://github.com/alethical-org/alethical/issues/918)); #917 put declaration edits
+  out of its own scope.
+- ~~Run the import-hop expansion (candidate E) **once, by hand**, over the 129 pairs, and adopt
+  the ones a person judges real.~~ **Done** (same issue) — 39 of 131 adopted; see the next
+  section.
+- Leave `scripts/check_doc_sync.py` alone. Still true — #918 changed no code.
+
+## The by-hand pass, as run ([#918](https://github.com/alethical-org/alethical/issues/918), 2026-08-03)
+
+**39 of 131 pairs adopted, 92 rejected.** The expansion re-measured at **131** pairs rather
+than 129; the two extra are `__init__.py` package files this parser resolves and #917's did
+not, and both were rejected anyway.
+
+The test each pair was judged against — rule 6's "could a sentence in this doc now be wrong?"
+— needed one sharpening before it could be applied consistently, because on a bare reading
+almost everything passes. **Adopt when the doc holds a sentence whose truth depends on that
+file's specific behaviour**: a named symbol, an enumerated list, a described interaction, a
+stated payload or display rule. **Reject when the doc's only tie to the file is** (a) generic
+infrastructure the doc never characterises, (b) a bare pointer to where the code lives, or
+(c) a claim so general that only a redesign could falsify it — and that redesign would
+necessarily touch an already-declared file.
+
+Test (c) is the one that did the most work. Most of what the expansion surfaces is a doc
+*pointing at* a file rather than *claiming* something about it, and a pointer cannot go stale.
+
+**This is candidate E's precision, and it is not the same number as the 36% above.** Watch the
+denominators, since mixing them is the error #920 came back to fix. The **36%** is
+firing-weighted: the share of 69 newly-named *(PR, doc)* prompts over 60 PRs that only a
+plumbing file triggered. The **30%** here is candidate-weighted: the share of 131
+*(doc, added file)* declaration proposals a person kept. E is a lead-list generator, so 30%
+is the figure that describes it as one — **70% of what it proposes is wrong**, which is
+roughly two rejections for every keep.
+
+**Three findings worth keeping:**
+
+1. **"Plumbing" is a property of the pair, not of the file.** #917 named
+   `apps/frontend/src/hooks/useResponsive.ts` as pure layout plumbing, and for
+   `search-bills-guide.md` it is — that guide makes no claim about screen width. Three specs
+   *do*: `grounded-ask-spec.md` states the rail collapses "below 1100px" and the file defines
+   `isDesktop: width >= 1100`. So it was adopted for three docs and rejected for the rest.
+   Same story for `alethical/api/serializers.py`, #917's flagship noise case: rejected where
+   a doc merely reads serialized output, adopted for the three that enumerate payload fields
+   or name the file outright ("Status key derived at serialization from action text").
+2. **A design doc's aspirational sections are not claims.** `backend-api-system-design.md`
+   names `auth.py`'s behaviour under "Recommended approach" and `schemas.py`'s under "Rules".
+   Neither can be falsified by changing the code, because neither describes the code. Its
+   *shipped-shape* passages are a different matter and were adopted.
+3. **One hop does not reach everything a doc claims.** `data-ingestion-onboarding.md` makes
+   detailed claims about `alethical/api/routers/me.py` (`build_query_embedding`, the offline
+   hash fallback) and `alethical/api/services/representative_lookup.py` (both hop URLs, four
+   env-var override names) that no pipeline file imports, so the expansion never offered
+   them. Both were added on top of the 131. A mechanical lead list finds what the code wires
+   together; only reading the doc finds what the doc asserts.
+
+**Measured cost.** Per-PR firing rises from **25/60 (42%)** to **34/60 (57%)** — against the
+**63%** #917 projected for adopting the expansion wholesale. (The 25 is a re-measurement of the
+same pre-change declarations against a `--limit 60` window that had moved on by a day, so it
+reads 25 where the figure above reads 26. Same measurement, later sample.)
+No single added declaration is a runaway: the heaviest is `lib/billDetail.ts` at 8 of 60 PRs
+per doc, which is the intended effect rather than noise, and `serializers.py` costs 2 of 60.
+
+**What this settles, and what it does not.** It does not reopen the gate decision: a mechanism
+whose proposals are 70% wrong cannot be the thing that blocks a merge, and nothing here
+disputes that. It does settle the precision gap "What we did not measure" recorded — E's
+precision is 30%, no longer unknown.
+
+**For the non-blocking-report option that is still open, the 30% cuts both ways, and the second
+half is the one that decides it.** A report nobody has to obey can carry a 70% miss rate; that
+is what a lead list is. The harder problem is that this pass took **reading eight docs
+end to end, 4,216 lines**, to sort 131 proposals — the judgment is not in the graph, it is in
+knowing that "below 1100px" is a claim and "the implemented styling source of truth" is a
+pointer. A report re-proposing the same 92 rejected pairs every month would be re-asking a
+question already answered at that price, so if it is ever built it needs to remember what was
+declined, not just recompute the hop.
 
 **What would change this decision.** Reconsider if a drift ships from a coupling that no doc
 declared *after* the declarations have been widened — that would be evidence the human sweep
@@ -210,8 +285,12 @@ past roughly 20 of 47, hand-maintaining the lists gets harder and candidate E's 
 worth re-measuring against a larger declared base.
 
 Waiting for a drift to ship is a poor experiment, though, because the experiment is a public
-error. #918's by-hand review is the cheaper version of the same test: it produces a real
-precision number for candidate E, prospectively, without anything going stale first.
+error. #918's by-hand review was the cheaper version of the same test, and it has now run: it
+produced a real precision number for candidate E — **30%** — prospectively, without anything
+going stale first. See "The by-hand pass, as run" above.
+
+The "roughly 20 of 47" trigger is closer than it was: that pass took declaring docs from 9 to
+10, and more than doubled the globs they carry (52 → 90 firings over 60 PRs).
 
 ## What we did not measure
 
@@ -220,11 +299,14 @@ adversarial review (Codex) found all three.
 
 - **Candidate E as a recurring non-blocking report.** It was only ever measured as a blocking
   gate. As a report it costs nothing, blocks nobody, and cannot be routed around because there
-  is nothing to route around. This is the strongest remaining option and it is untested.
-- **The other 64% of candidate E's new prompts.** We classified 36% of the 69 newly-named
-  (PR, doc) pairs as plumbing-only. The remaining 44 pairs were never judged, so **36% is a
-  lower bound on the noise, not a false-positive rate**, and E's actual precision is unknown.
-  #918's review of the 129 pairs is what settles it.
+  is nothing to route around. This is the strongest remaining option and it is still untested
+  — but #918 found the thing that would decide it, and it is not the false-positive rate: see
+  "The by-hand pass, as run" on why a report has to remember what a person already declined.
+- ~~**The other 64% of candidate E's new prompts.**~~ **Settled by
+  [#918](https://github.com/alethical-org/alethical/issues/918).** All 131 pairs were judged
+  and E's precision is **30%** (39 kept). The 36% figure stands as written — a lower bound on
+  firing-weighted noise, not a false-positive rate — and is a different denominator from the
+  30%, which "The by-hand pass, as run" spells out.
 - **Whether the existing check's 43% firing rate produces good reviews.** 43% measures reach,
   not whether anyone read the whole doc. Rule 6 already records two PRs that edited the right
   doc and still shipped a contradiction one section away. Nothing here measures how often a

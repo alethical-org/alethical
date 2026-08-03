@@ -1,6 +1,6 @@
 # AI Models & Billing — How Alethical Uses AI, and How It's Paid
 
-<!-- describes: alethical/pipeline/anthropic_enrichment.py, alethical/pipeline/ai_enrichment.py -->
+<!-- describes: alethical/pipeline/anthropic_enrichment.py, alethical/pipeline/ai_enrichment.py, alethical/pipeline/codex_enrichment.py -->
 
 > A plain-language reference for how Alethical uses AI models — the two kinds of
 > AI output we depend on, the two separate billing rails that pay for them, and
