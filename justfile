@@ -4,6 +4,45 @@
 # switch or destructive clean in one session can't wipe another's uncommitted
 # work. See .claude/rules/workflow.md rule 10 (concurrent-session isolation).
 
+# Snapshot every worktree's uncommitted work right now, so it does not exist in only
+# one place. Safe to run any time: it stages into a temporary index, so no worktree's
+# own staged/unstaged state is touched. See the script header for how to recover one.
+back-up-wip:
+  sh scripts/back-up-uncommitted-worktree-work.sh
+  @git for-each-ref --format='  %(refname:short)  %(committerdate:relative)' refs/wip-backup || true
+
+# Run that snapshot automatically every 5 minutes (macOS only, costs nothing per run).
+# The worktree lock and Cursor's command rules both turned out to be approval prompts
+# rather than hard denials, so bounded loss is the realistic protection, not prevention.
+# Undo with: just stop-wip-backup
+install-wip-backup:
+  #!/bin/sh
+  set -e
+  plist="$HOME/Library/LaunchAgents/com.alethical.wip-backup.plist"
+  repo="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+  mkdir -p "$HOME/Library/LaunchAgents"
+  cat > "$plist" <<PLIST
+  <?xml version="1.0" encoding="UTF-8"?>
+  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+  <plist version="1.0"><dict>
+    <key>Label</key><string>com.alethical.wip-backup</string>
+    <key>ProgramArguments</key>
+    <array><string>/bin/sh</string><string>$repo/scripts/back-up-uncommitted-worktree-work.sh</string></array>
+    <key>EnvironmentVariables</key><dict><key>ALETHICAL_REPO</key><string>$repo</string></dict>
+    <key>StartInterval</key><integer>300</integer>
+    <key>RunAtLoad</key><true/>
+    <key>StandardErrorPath</key><string>$HOME/Library/Logs/alethical-wip-backup.log</string>
+  </dict></plist>
+  PLIST
+  launchctl bootout "gui/$(id -u)/com.alethical.wip-backup" 2>/dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "$plist"
+  echo "✅ Snapshotting uncommitted work every 5 minutes. Errors go to ~/Library/Logs/alethical-wip-backup.log"
+
+stop-wip-backup:
+  -launchctl bootout "gui/$(id -u)/com.alethical.wip-backup"
+  -rm -f "$HOME/Library/LaunchAgents/com.alethical.wip-backup.plist"
+  @echo "🛑 Automatic snapshots stopped. Existing refs/wip-backup/* snapshots are untouched."
+
 # Point git at this repo's tracked hooks. Run once per clone, before anything else.
 # Until you run it, a new worktree is NOT auto-locked and `git worktree remove
 # --force` can delete another session's uncommitted work. `core.hooksPath` is local
