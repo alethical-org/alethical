@@ -66,20 +66,27 @@ the local Postgres that `just up` starts.
   repo at once, in separate worktrees, and these commands silently destroy work that
   is not yours. Scan open PRs and issues before starting so you do not duplicate work
   already in flight.
-- **Three more git commands destroy other agents' work without looking destructive**,
+- **Four more git commands destroy other agents' work without looking destructive**,
   so a rule that says "no destructive git" does not cover them, and neither does a
-  reviewer or classifier scanning for dangerous-looking commands. Each one caused a real
-  incident here:
+  reviewer or classifier scanning for dangerous-looking commands. The first and last
+  caused real incidents here; the middle two were found by testing what a shared
+  checkout actually permits:
   - `git stash` — scoops up every other agent's in-flight edits, and popping it moves
     merged code backwards.
-  - `git checkout -B <branch>` — the one that gets through. Git *refuses* a plain
-    `git checkout <branch>` and `git branch -f <branch>` when that branch is checked out
-    in another worktree, so those two fail safe. `-B` does not: measured on git 2.39.5,
-    it reports "Switched to and reset branch" and moves the ref, leaving the other
-    worktree's HEAD silently jumped to a different commit with its uncommitted edits
-    still on disk. Do not reach for `-B` as a workaround when a plain checkout is
-    refused — that refusal is the guardrail telling you the branch belongs to someone
-    else.
+  - `git update-ref` pointed at someone else's branch. `git update-ref refs/heads/<b>
+    <commit>` moves a branch another worktree has checked out, silently, with no output
+    at all; `git update-ref -d refs/heads/<b>` deletes one, where `git branch -D`
+    refuses. No git version guards this — plumbing carries no safety checks — so this
+    one is a rule, not a mechanism. `git checkout -B <branch>` used to do the same, and
+    git 2.44.0 closed it; this Mac runs 2.55.0, where `checkout`, `switch`, `rebase`,
+    `branch -f` and `branch -D` all refuse a branch another worktree holds. Treat a
+    refusal as git telling you the branch is someone else's, not as an obstacle to
+    route around.
+  - `git worktree remove --force <path>` — deletes a worktree *and* its uncommitted
+    work. No git version guards this either. `just worktree` locks what it creates, so
+    the command refuses and prints the lock reason; `just worktree-rm` unlocks first, so
+    the intended cleanup path still works. A second `--force` overrides the lock, which
+    is the deliberate escalation, not the accident.
   - Creating a branch in the shared checkout at all — it yanks the checkout off `main`
     while others are using it.
 
