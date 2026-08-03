@@ -1,0 +1,12 @@
+---
+description: Plain-language approval asks for risky actions
+alwaysApply: true
+---
+
+# Explain before asking for approval
+
+When an action needs Eugene's explicit approval, explain first in beginner-friendly language:
+
+- what will be read, written, deleted, downloaded, uploaded, or sent over the network
+- whether secrets, GitHub, production, billing, or persistent data could be affected
+- do not proceed until he explicitly approves
