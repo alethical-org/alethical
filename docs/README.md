@@ -52,6 +52,7 @@ paid for" references, and are the place to start if you're new.
 - [iOS release workflow](operations/ios-release.md) — simulator QA, TestFlight, and ad hoc builds
 - [Android prototype handoff](operations/android-prototype-handoff.md) — the Expo/RN Android build path
 - [Windows local development notes](operations/local-dev-windows.md)
+- [Keeping docs current — decisions](operations/keeping-docs-current-decisions.md) — why the stale-docs check relies on declarations a human writes, and the four automated alternatives we measured and rejected
 
 ## About this folder
 
