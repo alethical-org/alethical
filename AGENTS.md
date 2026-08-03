@@ -83,10 +83,15 @@ the local Postgres that `just up` starts.
     refusal as git telling you the branch is someone else's, not as an obstacle to
     route around.
   - `git worktree remove --force <path>` — deletes a worktree *and* its uncommitted
-    work. No git version guards this either. `just worktree` locks what it creates, so
-    the command refuses and prints the lock reason; `just worktree-rm` unlocks first, so
-    the intended cleanup path still works. A second `--force` overrides the lock, which
-    is the deliberate escalation, not the accident.
+    work. No git version guards this either. A tracked hook
+    (`.githooks/post-checkout`) locks every new worktree as it is created, whichever
+    tool ran `git worktree add`, so the command refuses and prints the lock reason.
+    `just worktree-rm` unlocks first, so the intended cleanup path still works.
+    **The hook is broad but not total:** it only covers worktrees created after it is
+    installed, `--force --force` still overrides it, `git worktree unlock` clears it,
+    and it does nothing at all until someone runs `just install-hooks` in that clone
+    (git cannot ship `core.hooksPath` inside a repository). Treat it as a guard
+    against an accident, not a boundary you can rely on.
   - Creating a branch in the shared checkout at all — it yanks the checkout off `main`
     while others are using it.
 
