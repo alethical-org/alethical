@@ -16,10 +16,12 @@ depends_on = None
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    # The 0001 baseline builds every current model via metadata.create_all, so on a
-    # fresh database this table already exists by the time 0002 runs; create it only
-    # where it is genuinely missing (a database migrated before this revision). This
-    # coexistence dance goes away once the create_all baseline is replaced (#100).
+    # The 0001 baseline creates this table explicitly, so on any database that
+    # started from 0001 it already exists by the time 0002 runs. The body below is
+    # therefore unreachable except on production, which had the table before
+    # Alembic managed this schema at all (#100). Kept as the record of what this
+    # revision means, not deleted, because a revision that silently does nothing
+    # is harder to read than one that says why.
     if inspector.has_table("notification_event"):
         return
     op.create_table(

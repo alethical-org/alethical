@@ -377,14 +377,27 @@ class LegislatorElectionHistory(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         JSONB, nullable=False, default=list, server_default="[]"
     )
     is_current_chamber: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
+        Boolean, nullable=False, default=False, server_default=text("false")
     )
     term_number: Mapped[Optional[int]] = mapped_column(Integer)
 
     legislator: Mapped["Legislator"] = relationship(back_populates="election_history")
     chamber: Mapped["Chamber"] = relationship()
 
-    __table_args__ = (UniqueConstraint("legislator_id", "period_sequence"),)
+    __table_args__ = (
+        # Named explicitly to match production. 0008 creates this table with this
+        # exact name, but skips itself when the table already exists -- which is
+        # always, on a fresh database, because the create_all baseline got there
+        # first (#100). So production carried 0008's short name while every fresh
+        # database got the long one the naming convention generates. A name-only
+        # difference is not cosmetic: a later `op.drop_constraint` naming one of
+        # them fails against the other.
+        UniqueConstraint(
+            "legislator_id",
+            "period_sequence",
+            name="uq_legislator_election_history_leg_seq",
+        ),
+    )
 
 
 class Committee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -980,6 +993,26 @@ class AIEnrichment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_current: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     bill: Mapped[Optional["Bill"]] = relationship(back_populates="enrichments")
+
+    __table_args__ = (
+        # Declared here because production already has it and nothing in the repo
+        # said so (#100). It is the only thing enforcing "one current summary per
+        # bill" -- the enrichment pipeline looks that row up with a plain
+        # `db.scalar(select(...))` and would silently pick an arbitrary one of
+        # several. Applied to production out of band, so rebuilding the schema
+        # from this file used to drop the protection without a word.
+        Index(
+            "ix_ai_enrichment_bill_summary_current_unique",
+            "bill_id",
+            "enrichment_type",
+            unique=True,
+            postgresql_where=text(
+                "bill_id IS NOT NULL "
+                "AND enrichment_type = 'bill_summary'::enrichment_type "
+                "AND is_current = true"
+            ),
+        ),
+    )
 
 
 class PolicyAreaCount(Base):

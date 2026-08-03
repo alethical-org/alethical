@@ -22,10 +22,10 @@ depends_on = None
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    # The 0001 baseline runs metadata.create_all, so on a fresh database this
-    # table already exists (the model is in models.py) by the time this revision
-    # runs; create it only where genuinely missing — an existing/production
-    # database migrated before this revision (mirrors 0002/#100).
+    # The 0001 baseline creates this table explicitly, so on any database that
+    # started from 0001 it already exists by the time this revision runs. The body
+    # below is therefore unreachable except on a database that predates 0001's
+    # coverage of it (mirrors 0002/#100).
     if inspector.has_table("legislator_election_history"):
         return
     op.create_table(
