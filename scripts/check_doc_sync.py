@@ -88,6 +88,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # ``<!-- describes: <comma-separated globs> -->`` anywhere in a doc.
 DESCRIBES = re.compile(r"<!--\s*describes:\s*(.+?)\s*-->", re.IGNORECASE | re.DOTALL)
+# A fenced code block is an *example*, not a declaration. Stripped before the scan
+# above runs, because this is a raw-text regex and not a Markdown parser, so it
+# cannot otherwise tell the two apart. #919 wrote a decision record that showed the
+# comment's syntax inside a fence; the guard read the example as real and spent an
+# hour telling every PR that touched SearchBillsScreen.tsx to re-read a document
+# about docs policy. Found by the #918 pass (PR #921), which worked around it by
+# rewriting the example with placeholder paths -- a workaround that leaves the trap
+# armed for the next person who documents this file.
+FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[ \t]*$|\Z)", re.S | re.M)
 # The acknowledgement line a PR body needs. Matched case-insensitively and
 # anywhere in the body, so it can sit under a heading or in a checklist item.
 ACK = re.compile(r"docs\s*check\s*:", re.IGNORECASE)
@@ -99,7 +108,7 @@ def declared_couplings() -> dict[str, list[str]]:
     for path in sorted((ROOT / "docs").rglob("*.md")):
         globs = [
             glob.strip()
-            for match in DESCRIBES.findall(path.read_text(encoding="utf-8"))
+            for match in DESCRIBES.findall(FENCE.sub("", path.read_text(encoding="utf-8")))
             for glob in match.split(",")
             if glob.strip()
         ]

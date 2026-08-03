@@ -107,7 +107,11 @@ def test_code_no_doc_describes_is_ignored(monkeypatch):
     # merged after #791 were all docs-only, so CI skipped the backend job every
     # time. So assert the premise first: if a doc adopts these files too, this
     # fails with the reason rather than with a bare exit-code mismatch.
-    undescribed = ["alethical/db/models.py", "justfile"]
+    # #921 declared alethical/db/models.py (the previous pick) on
+    # data-ingestion-onboarding.md, which broke this test on main: a docs-only PR
+    # skips the backend job, so nothing caught it. The premise assertion below is
+    # what turns that into a readable failure instead of a mystery exit code.
+    undescribed = ["apps/frontend/src/navigation/RootNavigator.tsx", "justfile"]
     couplings = check_doc_sync.declared_couplings()
     for path in undescribed:
         owners = [
@@ -135,3 +139,51 @@ def test_the_search_docs_actually_declare_the_card(monkeypatch):
         assert any("BillResultCard" in glob for glob in couplings[doc]), (
             f"{doc} no longer declares the bill card it describes"
         )
+
+
+def test_a_fenced_example_is_not_a_declaration(tmp_path, monkeypatch):
+    # A doc that *documents* this guard has to show the comment's syntax, and the
+    # scanner is a raw-text regex rather than a Markdown parser, so nothing but an
+    # explicit fence strip tells an example from a declaration. #919 shipped a
+    # decision record whose fenced example named SearchBillsScreen.tsx; for about
+    # an hour every PR touching that screen was told to re-read a document about
+    # docs policy. PR #921 defused it by rewriting the example with placeholder
+    # paths, which fixes that one doc and leaves the trap armed for the next.
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "guide.md").write_text(
+        "<!-- describes: real/declared.py -->\n"
+        "\n"
+        "# How the guard works\n"
+        "\n"
+        "Declare the coupling in the doc itself:\n"
+        "\n"
+        "```\n"
+        "<!-- describes: example/only.py -->\n"
+        "```\n"
+        "\n"
+        "Tilde fences and indented fences count too:\n"
+        "\n"
+        "  ~~~markdown\n"
+        "  <!-- describes: also/example.py -->\n"
+        "  ~~~\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(check_doc_sync, "ROOT", tmp_path)
+
+    globs = check_doc_sync.declared_couplings()["docs/guide.md"]
+    assert globs == ["real/declared.py"], (
+        "a fenced example was read as a real declaration, so documenting this "
+        f"guard arms it against an unrelated file: {globs}"
+    )
+
+
+def test_the_decision_record_does_not_declare_the_search_screen():
+    # The live instance of the bug above, pinned against reintroduction: this doc
+    # exists to explain the guard, so it will always contain the syntax.
+    couplings = check_doc_sync.declared_couplings()
+    declared = couplings.get("docs/operations/keeping-docs-current-decisions.md", [])
+    assert not any("SearchBillsScreen" in glob for glob in declared), (
+        "the decision record declares the search screen again — its example is "
+        "being read as a declaration"
+    )
