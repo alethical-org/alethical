@@ -108,7 +108,9 @@ def declared_couplings() -> dict[str, list[str]]:
     for path in sorted((ROOT / "docs").rglob("*.md")):
         globs = [
             glob.strip()
-            for match in DESCRIBES.findall(FENCE.sub("", path.read_text(encoding="utf-8")))
+            for match in DESCRIBES.findall(
+                FENCE.sub("", path.read_text(encoding="utf-8"))
+            )
             for glob in match.split(",")
             if glob.strip()
         ]

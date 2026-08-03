@@ -171,7 +171,10 @@ def test_a_fenced_example_is_not_a_declaration(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(check_doc_sync, "ROOT", tmp_path)
 
-    globs = check_doc_sync.declared_couplings()["docs/guide.md"]
+    # Unpack rather than naming the path: check_doc_references.py requires every
+    # docs/ path written anywhere in the repo to resolve to a real file, and this
+    # doc only exists inside tmp_path.
+    (globs,) = check_doc_sync.declared_couplings().values()
     assert globs == ["real/declared.py"], (
         "a fenced example was read as a real declaration, so documenting this "
         f"guard arms it against an unrelated file: {globs}"
