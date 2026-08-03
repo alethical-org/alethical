@@ -378,14 +378,32 @@ class LegislatorElectionHistory(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         JSONB, nullable=False, default=list, server_default="[]"
     )
     is_current_chamber: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
+        # server_default matches production, which has had it since 0008 created
+        # the table there; a database built by create_all never got one, because
+        # the model only carried the Python-side `default`. Audit finding D8.
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
     )
     term_number: Mapped[Optional[int]] = mapped_column(Integer)
 
     legislator: Mapped["Legislator"] = relationship(back_populates="election_history")
     chamber: Mapped["Chamber"] = relationship()
 
-    __table_args__ = (UniqueConstraint("legislator_id", "period_sequence"),)
+    # Named explicitly to match production. 0008 named this constraint by hand;
+    # the naming convention generates the much longer
+    # uq_legislator_election_history_legislator_id_period_sequence, which is what
+    # create_all built on every fresh database. Same two columns either way, so
+    # nothing behaved differently -- until a future op.drop_constraint() names one
+    # of the two and fails against the other. Audit finding D7.
+    __table_args__ = (
+        UniqueConstraint(
+            "legislator_id",
+            "period_sequence",
+            name="uq_legislator_election_history_leg_seq",
+        ),
+    )
 
 
 class Committee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -997,6 +1015,30 @@ class AIEnrichment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_current: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     bill: Mapped[Optional["Bill"]] = relationship(back_populates="enrichments")
+
+    # The only thing enforcing "one current summary per bill". It exists in
+    # production and was declared nowhere, so rebuilding the database from this
+    # file used to drop the protection silently. Declared here so it survives.
+    # Audit finding D6; the predicate is transcribed from production's own
+    # pg_get_indexdef, including the bill_id IS NOT NULL leg (rows for a
+    # legislator carry a null bill_id and must not collide with each other).
+    #
+    # This does NOT protect the get-or-create in
+    # alethical/pipeline/ai_enrichment.py, which looks rows up on five columns
+    # this index does not cover -- that gap is its own bug, tracked separately.
+    __table_args__ = (
+        Index(
+            "ix_ai_enrichment_bill_summary_current_unique",
+            "bill_id",
+            "enrichment_type",
+            unique=True,
+            postgresql_where=text(
+                "bill_id IS NOT NULL "
+                "AND enrichment_type = 'bill_summary' "
+                "AND is_current = true"
+            ),
+        ),
+    )
 
 
 class PolicyAreaCount(Base):

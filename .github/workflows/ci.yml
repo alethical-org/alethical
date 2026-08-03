@@ -110,6 +110,17 @@ jobs:
             exit 1
           fi
 
+      # Guard against the schema drifting away from the models again. Builds two
+      # throwaway databases on the service above — one by `alembic upgrade head`,
+      # one by `Base.metadata.create_all()` — and diffs their catalogs. A model
+      # edit with no migration shows up here as a difference. This check could
+      # not have worked before #100: while 0001 called create_all, the migration
+      # path read models.py too, so the two sides agreed by construction and the
+      # drift that reached production (39 differences, docs/operations/
+      # production-database-schema-drift.md) was invisible to every gate we had.
+      - name: Check schema drift
+        run: uv run python scripts/check_schema_drift.py
+
       # Guard against imports that only work by accident: a package our code
       # imports but pyproject.toml never declares survives on some other
       # dependency happening to require it, then breaks when that dependency

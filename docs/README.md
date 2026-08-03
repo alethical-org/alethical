@@ -53,6 +53,7 @@ paid for" references, and are the place to start if you're new.
 - [Android prototype handoff](operations/android-prototype-handoff.md) — the Expo/RN Android build path
 - [Windows local development notes](operations/local-dev-windows.md)
 - [Keeping docs current — decisions](operations/keeping-docs-current-decisions.md) — why the stale-docs check relies on declarations a human writes, and the four automated alternatives we measured and rejected
+- [Production database schema drift](operations/production-database-schema-drift.md) — the eleven ways production and the code disagreed, which side was right in each, and the CI check that now catches the next one
 
 ## About this folder
 
