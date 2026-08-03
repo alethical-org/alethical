@@ -38,6 +38,13 @@ jobs:
               - ".python-version"
               - "alembic.ini"
               - "alethical/**"
+              # A backend test asserts on the content of docs: the docs-drift
+              # guard's suite reads every doc's `describes:` comment, so a
+              # docs-only edit can break a backend test. #921 declared
+              # alethical/db/models.py on a doc and broke
+              # test_code_no_doc_describes_is_ignored with CI green, because a
+              # docs-only PR skipped this job.
+              - "docs/**"
               - "pyproject.toml"
               - "scripts/**"
               - "uv.lock"
