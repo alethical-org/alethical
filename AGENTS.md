@@ -78,10 +78,14 @@ the local Postgres that `just up` starts.
     at all; `git update-ref -d refs/heads/<b>` deletes one, where `git branch -D`
     refuses. No git version guards this — plumbing carries no safety checks — so this
     one is a rule, not a mechanism. `git checkout -B <branch>` used to do the same, and
-    git 2.44.0 closed it; this Mac runs 2.55.0, where `checkout`, `switch`, `rebase`,
-    `branch -f` and `branch -D` all refuse a branch another worktree holds. Treat a
-    refusal as git telling you the branch is someone else's, not as an obstacle to
-    route around.
+    git 2.44.0 closed it; `git` on this Mac's `PATH` is Homebrew's 2.55.0, where
+    `checkout`, `switch`, `rebase`, `branch -f` and `branch -D` all refuse a branch
+    another worktree holds. **Two holes remain in that guard, both verified:**
+    `git checkout --ignore-other-worktrees -B <branch>` moves the branch anyway, and
+    `/usr/bin/git` is still Apple's unguarded 2.39.5, so anything calling git by that
+    absolute path gets the old behaviour. Treat a refusal as git telling you the branch
+    is someone else's, not as an obstacle to route around, and never reach for the
+    override flag to get past one.
   - `git worktree remove --force <path>` — deletes a worktree *and* its uncommitted
     work. No git version guards this either. A tracked hook
     (`.githooks/post-checkout`) locks every new worktree as it is created, whichever
