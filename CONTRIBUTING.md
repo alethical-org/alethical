@@ -23,9 +23,22 @@ Install these once:
 ```bash
 git clone https://github.com/alethical-org/alethical.git
 cd alethical
+just install-hooks          # one time, per clone — see the note below
 cp .env.example .env        # then fill in the secrets marked "SET THIS"
 just up                     # starts Postgres + backend + web frontend
 ```
+
+**`just install-hooks` is not optional if anyone else works in this clone.** It
+points git at this repo's tracked hooks (`.githooks`), and the one hook there locks
+each new worktree as it is created. Without it, `git worktree remove --force` will
+delete somebody's worktree along with their uncommitted work, in one command, with
+no confirmation. Git cannot ship this setting inside a repository — `core.hooksPath`
+is local config — so **a fresh clone is unprotected until you run it.**
+
+What the lock does and does not do: it makes a single `--force` fail and print why.
+`--force --force` still removes the worktree, and `git worktree unlock <path>` clears
+the lock, both on purpose. It is a guard against an accident, not a security
+boundary, and it only covers worktrees created after the hook is installed.
 
 Verify it's healthy:
 

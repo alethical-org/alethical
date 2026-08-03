@@ -1,0 +1,48 @@
+#!/bin/sh
+# Lock a newly created linked worktree, so `git worktree remove --force` cannot
+# delete it along with whatever uncommitted work is sitting in it.
+#
+# Why a lock. Measured on this repo: an unlocked worktree and its unsaved files
+# are gone after one `git worktree remove --force`. Locked, the same command dies
+# "cannot remove a locked working tree" and prints the reason back. Two --force
+# flags still remove it, which is the deliberate escalation, not the accident.
+#
+# Why post-checkout. `git worktree add` runs this hook inside the new worktree, so
+# it is the one place every normally created worktree passes through, whichever
+# tool ran the command. It never inspects refs, so it cannot misfire during
+# `git gc` or `git pack-refs` the way a reference-transaction hook does.
+#
+# Scope, stated honestly: this protects worktrees created after the hook is
+# installed, by anything that goes through `git worktree add`. It is not a
+# security boundary. `--force --force` overrides it, `git worktree unlock` removes
+# it, and a fresh clone has no protection at all until `just install-hooks` runs.
+#
+# Arguments are git's: $1 previous HEAD, $2 new HEAD, $3 is 1 for a branch
+# checkout and 0 for a file checkout. Always exits 0 so an ordinary checkout
+# cannot be broken by anything in here.
+
+[ "$3" = "1" ] || exit 0
+
+toplevel=$(git rev-parse --path-format=absolute --show-toplevel 2>/dev/null) || exit 0
+common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit 0
+[ -n "$toplevel" ] && [ -n "$common" ] || exit 0
+
+# The main checkout cannot be locked at all ("fatal: The main working tree cannot
+# be locked or unlocked"), so leave it alone rather than printing an error on
+# every branch switch.
+[ "$toplevel" = "$(dirname "$common")" ] && exit 0
+
+# Already locked: do nothing, so repeated checkouts in the same worktree stay quiet.
+if git worktree list --porcelain 2>/dev/null | awk -v want="worktree $toplevel" '
+     $0 == want { inside = 1; next }
+     inside && /^locked/ { found = 1; exit }
+     inside && /^$/ { exit }
+     END { exit !found }'; then
+  exit 0
+fi
+
+git worktree lock "$toplevel" \
+  --reason "auto-locked on create; if this worktree is stale: git worktree unlock $toplevel" \
+  >/dev/null 2>&1 || exit 0
+
+exit 0
