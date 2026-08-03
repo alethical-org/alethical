@@ -66,3 +66,19 @@ the local Postgres that `just up` starts.
   repo at once, in separate worktrees, and these commands silently destroy work that
   is not yours. Scan open PRs and issues before starting so you do not duplicate work
   already in flight.
+- **Four more git commands destroy other agents' work without looking destructive**,
+  so a rule that says "no destructive git" does not cover them. Each one caused a real
+  incident here: `git stash` (scoops up every other agent's in-flight edits, and
+  popping it moves merged code backwards), `git checkout -B <branch>` and
+  `git branch -f` (move a ref another checkout has out, so that checkout's `git status`
+  fills with phantom deletions), and creating a branch in the shared checkout at all
+  (it yanks the checkout off `main` while others are using it). To compare against
+  another revision, read it out of git's object store — `git show origin/main:<path>` —
+  and never touch the working tree. To write, make your own worktree:
+  `just worktree <branch>`.
+- **`.claude/worktrees/` holds other agents' live branches, and it is gitignored** —
+  so it is invisible to `git status` and to any check that only looks at tracked files.
+  It is inside this folder, but it is not scratch space and it is not yours: treat every
+  path under it as another agent's working tree. Do not edit, delete, reformat, or run a
+  project-wide replace across it, and exclude it from any sweep of ignored or
+  "temporary" files.

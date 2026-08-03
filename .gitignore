@@ -14,6 +14,7 @@ __pycache__/
 .idea/
 .vscode/
 .codex/
+.cursor/
 
 # Per-machine Claude Code state that must never reach this PUBLIC repo.
 # Previously ignored only via one contributor's ~/.gitignore_global and
