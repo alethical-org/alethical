@@ -5,6 +5,7 @@ import Svg, { Path } from 'react-native-svg';
 import { theme as t } from '../../theme/tokens';
 import { linkProps, routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
+import { BillTrackButton } from './BillTrackButton';
 import { SharePopover } from './SharePopover';
 import { isWeb, useHover } from './interactions';
 
@@ -37,6 +38,8 @@ export function BillHeader({
   hotIssue = false,
   shareUrl,
   shareTitle,
+  tracked,
+  onTrack,
   activeTab,
   onSelectTab,
   onAllBills,
@@ -52,6 +55,11 @@ export function BillHeader({
   hotIssue?: boolean;
   shareUrl: string;
   shareTitle: string;
+  // Track button (ink) sits immediately left of Share. `tracked` toggles its
+  // label/icon; `onTrack` routes a signed-out user to sign-in or toggles the
+  // signed-in user's watchlist.
+  tracked: boolean;
+  onTrack: () => void;
   activeTab: DetailTab;
   onSelectTab: (tab: DetailTab) => void;
   onAllBills: () => void;
@@ -94,7 +102,12 @@ export function BillHeader({
             />
           ))}
         </View>
-        <SharePopover url={shareUrl} title={shareTitle} subject="bill" />
+        <View style={styles.headerActions}>
+          <View style={styles.trackSlot}>
+            <BillTrackButton tracked={tracked} onPress={onTrack} size="web" />
+          </View>
+          <SharePopover url={shareUrl} title={shareTitle} subject="bill" />
+        </View>
       </View>
     </View>
   );
@@ -280,6 +293,15 @@ const styles = StyleSheet.create({
   // Narrow: let Share wrap below the tabs and tighten the tab spacing so all four
   // tabs stay reachable within the phone-width column (no clipped 4th tab).
   tabBarMobile: { marginTop: 22, rowGap: 4 },
+  // Track + Share grouped at the right end of the tab row. flex-end so both sit
+  // on the tab bar's baseline; the trackSlot's marginBottom mirrors SharePopover's
+  // own (shareWrap marginBottom 10) so the two buttons align.
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+  },
+  trackSlot: { marginBottom: 10 },
   tabList: {
     flexDirection: 'row',
     alignItems: 'center',

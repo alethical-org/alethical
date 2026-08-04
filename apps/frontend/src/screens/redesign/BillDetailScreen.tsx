@@ -23,9 +23,11 @@ import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { useAuth } from '../../providers/AuthProvider';
-import { useBill } from '../../hooks/useAppQueries';
+import { useBill, useToggleTrackedBill, useTrackedBills } from '../../hooks/useAppQueries';
+import { trackSignInReturnTo } from '../../navigation/webRoutes';
 import { isNotFoundError } from '../../data/api';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
+import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
 import { Bill, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import {
@@ -327,7 +329,7 @@ export function BillDetailScreen() {
 function BillDetailMobileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, isSignedIn, user } = useAuth();
   const { isMobile } = useResponsive();
 
   const params: Record<string, unknown> = route.params ?? {};
@@ -338,6 +340,46 @@ function BillDetailMobileScreen() {
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
+
+  const trackedQuery = useTrackedBills(user?.id);
+  const toggleTrackedBill = useToggleTrackedBill(user?.id);
+  const trackedIds = useMemo(
+    () => new Set((trackedQuery.data ?? []).map((item) => item.id)),
+    [trackedQuery.data],
+  );
+  const tracked = bill ? trackedIds.has(bill.id) : false;
+
+  const onTrack = useCallback(() => {
+    if (!bill) return;
+    // Tracking needs an account: send a signed-out user through sign-in and back
+    // to ?track=1, which the effect below completes (grounded-answers rule 5).
+    if (!isSignedIn) {
+      void signInWithGoogle(trackSignInReturnTo(bill.id));
+      return;
+    }
+    toggleTrackedBill.mutate(bill.id);
+  }, [bill, isSignedIn, signInWithGoogle, toggleTrackedBill]);
+
+  // Intent-preserving track: a signed-out user who tapped Track returns here with
+  // ?track=1. Once signed in and the tracked list has loaded, complete the track
+  // (unless already tracked) and clear the param so a refresh doesn't repeat it.
+  const autoTrackFired = useRef(false);
+  useEffect(() => {
+    if (!params.track || !isSignedIn || !bill || trackedQuery.isLoading) return;
+    if (!autoTrackFired.current && !trackedIds.has(bill.id)) {
+      autoTrackFired.current = true;
+      toggleTrackedBill.mutate(bill.id);
+    }
+    navigation.setParams({ track: undefined });
+  }, [
+    params.track,
+    isSignedIn,
+    bill,
+    trackedQuery.isLoading,
+    trackedIds,
+    toggleTrackedBill,
+    navigation,
+  ]);
 
   // The bill's OWN session, not whichever one is current: a special-session bill
   // belongs to a different session than the biennium, and labelling it with the
@@ -710,7 +752,10 @@ function BillDetailMobileScreen() {
                       </View>
                     ) : null}
                   </View>
-                  <ShareButton onPress={() => setShareOpen(true)} />
+                  <View style={styles.headerActions}>
+                    <BillTrackButton tracked={tracked} onPress={onTrack} size="mobile" />
+                    <ShareButton onPress={() => setShareOpen(true)} />
+                  </View>
                 </View>
                 <Text style={styles.eyebrow}>
                   {bill.chamber.toUpperCase()} · {sessionLabel.toUpperCase()}
@@ -2258,6 +2303,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.24,
     color: t.colors.text.secondary,
     ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
+  },
+  // Track + Share grouped at the right end of the status row.
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   shareBtn: {
     flexDirection: 'row',
