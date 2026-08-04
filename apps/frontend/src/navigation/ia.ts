@@ -134,6 +134,21 @@ export const IA: IaItem[] = [
     inNavDropdown: true,
   },
   {
+    // Free-form "Ask AI" is a ROADMAP capability, not the shipped grounded Ask
+    // (/ask, mvp above): open-ended AI questions aren't built yet, so this rides
+    // in the greyed "ON THE ROADMAP" group as an inert pill. "Ask AI" is a
+    // deliberate, Eugene-directed exception to the ui-copy-guide "never Ask AI"
+    // ban (2026-08-04) — the ban governs shipped/live copy; this is a
+    // non-committal roadmap chip. See docs/design/ui-copy-guide.md § Feature naming.
+    id: 'search-ask-ai',
+    label: 'Ask AI',
+    path: '/search/ask-ai',
+    menu: 'search',
+    availability: 'roadmap',
+    authGated: false,
+    inNavDropdown: true,
+  },
+  {
     id: 'search-news',
     label: 'News & media',
     path: '/search/news',

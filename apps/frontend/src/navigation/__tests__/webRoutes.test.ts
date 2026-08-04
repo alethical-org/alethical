@@ -121,6 +121,20 @@ describe('Find My Legislator round-trips through its URL', () => {
   });
 });
 
+// Free-form "Ask AI" is a roadmap capability, not the shipped grounded Ask, so it
+// rides in the Search dropdown's greyed "ON THE ROADMAP" row after Candidates.
+describe('Search dropdown roadmap row', () => {
+  it('reads Candidates then Ask AI', () => {
+    const { roadmap } = navDropdownItems('search');
+    expect(roadmap.map((item) => item.label)).toEqual(['Candidates', 'Ask AI']);
+  });
+
+  it('keeps Ask AI a greyed roadmap pill, never a live row', () => {
+    const { live } = navDropdownItems('search');
+    expect(live.map((item) => item.id)).not.toContain('search-ask-ai');
+  });
+});
+
 // Bill tracking ships, so Track's "Bills" is an active row at the top of the
 // dropdown (icon tile + description + link), not a greyed "ON THE ROADMAP" pill.
 describe('Track dropdown offers Bills as a live row', () => {
