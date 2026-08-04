@@ -230,7 +230,7 @@ export function SearchLegislatorsScreen() {
                   legislator={legislator}
                   onPress={() =>
                     navigation.navigate('LegislatorProfile', {
-                      legislatorId: legislator.id,
+                      legislatorId: legislator.slug ?? legislator.id,
                     })
                   }
                 />

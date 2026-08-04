@@ -74,6 +74,7 @@ interface ApiSponsorPayload {
   name: string;
   role: string;
   legislator_id?: string | null;
+  slug?: string | null;
   source_order?: number | null;
   source_chamber?: string | null;
   chamber?: string | null;
@@ -130,6 +131,7 @@ interface ApiAskLegislatorBillPayload {
 
 interface ApiAskLegislatorPayload {
   id: string;
+  slug?: string | null;
   full_name: string;
   party?: string | null;
   district?: string | null;
@@ -435,6 +437,7 @@ interface ApiAiAnalysisPayload {
 
 interface ApiBillVoteRecordPayload {
   legislator_id: string;
+  slug?: string | null;
   legislator_name?: string | null;
   party?: string | null;
   vote_value: string;
@@ -600,6 +603,7 @@ function mapSponsor(payload: ApiSponsorPayload): BillSponsor {
     name: payload.name,
     role: payload.role,
     legislatorId: payload.legislator_id ?? undefined,
+    slug: payload.slug ?? undefined,
     chamber: toOptionalChamber(payload.chamber ?? payload.source_chamber),
     party: payload.party ?? undefined,
     district: payload.district ?? undefined,
@@ -1056,6 +1060,7 @@ export function mapLegislator(
 
   return {
     id: payload.id,
+    slug: payload.slug ?? undefined,
     name: displayName,
     shortName: shortName(displayName),
     chamber,
@@ -1135,6 +1140,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
     sessionLabel: 'Current session',
     topics: [],
     chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
+    chiefSponsorSlugs: payload.chief_sponsors.map((sponsor) => sponsor.slug ?? null),
     coAuthorCount: payload.co_author_count ?? 0,
     companion: payload.companion
       ? {
@@ -1214,6 +1220,7 @@ function mapBillDetail(
     sessionLabel: payload.session?.name ?? 'Current session',
     topics: (payload.topics ?? []).map((topic) => topic.name),
     chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
+    chiefSponsorSlugs: payload.chief_sponsors.map((sponsor) => sponsor.slug ?? null),
     sponsors: allSponsors.map(mapSponsor),
     progress:
       payload.progress?.map((step) => ({
@@ -1261,6 +1268,7 @@ function mapBillDetail(
       // serve party), so the roster grid groups by party without a second lookup.
       votes: (vote.records ?? []).map((record) => ({
         legislatorId: record.legislator_id,
+        slug: record.slug ?? undefined,
         name: record.legislator_name ?? undefined,
         party: record.party ?? undefined,
         vote: record.vote_value === 'yes' ? 'YES' : record.vote_value === 'no' ? 'NO' : 'ABSENT',
@@ -1536,6 +1544,7 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
     bills: (billsAnswer?.bills ?? []).map(mapBill),
     legislators: legislators.map((leg) => ({
       id: leg.id,
+      slug: leg.slug ?? undefined,
       fullName: leg.full_name,
       party: leg.party ?? undefined,
       district: leg.district ?? undefined,

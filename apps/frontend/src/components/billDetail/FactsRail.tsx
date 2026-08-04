@@ -179,8 +179,8 @@ export function FactsRail({
               {author.legislatorId ? (
                 <TextLink
                   label={`${authorNameOnly(author.name)} →`}
-                  href={routePath.legislator(author.legislatorId)}
-                  onPress={() => onOpenLegislator(author.legislatorId as string)}
+                  href={routePath.legislator(author.slug ?? author.legislatorId)}
+                  onPress={() => onOpenLegislator((author.slug ?? author.legislatorId) as string)}
                 />
               ) : (
                 <Text style={styles.authorNamePlain}>{authorNameOnly(author.name)}</Text>

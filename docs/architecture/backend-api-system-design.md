@@ -159,7 +159,7 @@ Recommended identifiers:
 
 - `session_slug`: `94-2025-regular`
 - `bill_id`: use canonical bill key such as `94-2025-SF1832`
-- `legislator_id`: stable opaque UUID in API, plus a `slug` field for frontend routes
+- `legislator_id`: the readable `slug` (`melissa-hortman`) is the canonical public identifier and what frontend routes use (`/legislators/{slug}`, SEO-friendly like the bill key); the `{legislator_id}` path segment on every legislator endpoint resolves **either** the slug **or** the stable opaque UUID, so links shared before the slug switch keep working
 - `district_id`: stable opaque UUID, plus `code` like `64B`
 - `chat_session_id`: stable opaque UUID
 

@@ -126,7 +126,7 @@ function ChiefAuthorLink({
       accessibilityRole={clickable ? 'link' : undefined}
       disabled={!clickable}
       onPress={pressInsideLink(() => {
-        if (author.legislatorId) onPress?.(author.legislatorId);
+        if (author.legislatorId) onPress?.(author.slug ?? author.legislatorId);
       })}
       {...hover}
     >

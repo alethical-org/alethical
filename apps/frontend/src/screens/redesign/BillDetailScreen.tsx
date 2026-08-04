@@ -849,10 +849,10 @@ function BillDetailMobileScreen() {
                           <TextLink
                             label={authorNameOnly(vm.chief.name)}
                             arrow
-                            href={routePath.legislator(vm.chief.legislatorId)}
+                            href={routePath.legislator(vm.chief.slug ?? vm.chief.legislatorId)}
                             onPress={() =>
                               navigation.navigate('LegislatorProfile', {
-                                legislatorId: vm.chief!.legislatorId,
+                                legislatorId: vm.chief!.slug ?? vm.chief!.legislatorId,
                               })
                             }
                           />
@@ -1473,8 +1473,8 @@ function ActionAuthorTitle({
           {author.legislatorId ? (
             <Text
               accessibilityLabel={`Open ${author.label}'s profile`}
-              {...linkProps(routePath.legislator(author.legislatorId), () =>
-                onOpenLegislator(author.legislatorId as string),
+              {...linkProps(routePath.legislator(author.slug ?? author.legislatorId), () =>
+                onOpenLegislator((author.slug ?? author.legislatorId) as string),
               )}
               style={styles.actionBillCodeLink}
             >
@@ -1787,7 +1787,7 @@ function PartyBlockView({
             <MemberChip
               key={m.legislatorId}
               member={m}
-              onPress={() => onOpenLegislator(m.legislatorId)}
+              onPress={() => onOpenLegislator(m.slug ?? m.legislatorId)}
             />
           ))}
         </View>
@@ -1804,7 +1804,7 @@ function MemberChip({ member, onPress }: { member: MemberVote; onPress: () => vo
   return (
     <Pressable
       accessibilityLabel={`${member.name}, voted ${member.vote.toLowerCase()}${member.crossover ? ', crossed party lines' : ''}`}
-      {...linkProps(routePath.legislator(member.legislatorId), onPress)}
+      {...linkProps(routePath.legislator(member.slug ?? member.legislatorId), onPress)}
       style={({ pressed }) => [
         styles.chip,
         yea ? styles.chipYes : nay ? styles.chipNo : styles.chipAbs,

@@ -62,3 +62,11 @@ describe('mapLegislator biography', () => {
     expect(mapLegislator(nullBio as never).bio).toBeUndefined();
   });
 });
+
+describe('mapLegislator slug', () => {
+  it('carries the slug through for the readable /legislators/{slug} URL', () => {
+    // The API has always served `slug`; the mapper used to drop it, so every
+    // profile link fell back to the UUID. It must reach the domain object now.
+    expect(mapLegislator(REAL_PAYLOAD as never).slug).toBe('patty-acomb');
+  });
+});

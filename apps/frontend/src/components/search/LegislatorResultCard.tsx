@@ -14,7 +14,7 @@ const isWeb = Platform.OS === 'web';
 
 type LegislatorCardData = Pick<
   Legislator,
-  'id' | 'name' | 'chamber' | 'district' | 'party' | 'committees' | 'focusAreas'
+  'id' | 'slug' | 'name' | 'chamber' | 'district' | 'party' | 'committees' | 'focusAreas'
 > & { authoredCount?: number };
 
 interface LegislatorResultCardProps {
@@ -49,7 +49,9 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
   const prefetchLegislator = usePrefetchLegislator();
   // Warm the profile cache on navigation intent so the profile opens without its
   // "Loading legislator…" spinner.
-  const warm = () => prefetchLegislator(legislator.id);
+  // Warm with the slug so the cache key matches the profile screen's fetch (its
+  // param comes from the slug URL), not the UUID.
+  const warm = () => prefetchLegislator(legislator.slug ?? legislator.id);
   const committees = legislator.committees ?? [];
   const shown = committees.slice(0, 2);
   const extra = committees.length - shown.length;
@@ -57,7 +59,7 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
 
   return (
     <Pressable
-      {...linkProps(routePath.legislator(legislator.id), onPress)}
+      {...linkProps(routePath.legislator(legislator.slug ?? legislator.id), onPress)}
       onPressIn={warm}
       onHoverIn={() => {
         setHovered(true);

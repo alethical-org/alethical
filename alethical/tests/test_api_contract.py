@@ -1284,6 +1284,30 @@ def test_legislator_directory_profile_search_and_lookup_cover_user_story(client)
     assert bills_response.status_code == 200
     assert isinstance(bills_response.json()["data"], list)
 
+    # Readable-slug URLs resolve the same profile as the UUID (SEO-friendly
+    # /legislators/{slug}); old UUID links keep working, so both forms 200 and
+    # every sub-endpoint accepts the slug too.
+    slug = first_legislator["slug"]
+    assert slug and slug != legislator_id
+    by_slug = client.get(
+        f"/api/v1/legislators/{slug}",
+        params={"session": "94-2025-regular", "include": "current_service"},
+    )
+    assert by_slug.status_code == 200
+    assert by_slug.json()["data"]["id"] == legislator_id
+    assert (
+        client.get(
+            f"/api/v1/legislators/{slug}/bills", params={"session": "94-2025-regular"}
+        ).status_code
+        == 200
+    )
+    assert (
+        client.get(
+            f"/api/v1/legislators/{slug}/votes", params={"session": "94-2025-regular"}
+        ).status_code
+        == 200
+    )
+
     search_response = client.get(
         "/api/v1/search", params={"q": "jobs", "types": "bills,legislators"}
     )
@@ -1639,6 +1663,8 @@ def test_bill_votes_records_carry_legislator_name_and_party(client):
         assert record["vote_value"] == "yes"
         assert record["legislator_name"] == "Votia Partytest"
         assert record["party"] == "DFL"
+        # Slug rides on each record so the member chip links to /legislators/{slug}.
+        assert record["slug"] == "vote-party-test-member"
     finally:
         with Session(get_engine()) as db:
             if created:

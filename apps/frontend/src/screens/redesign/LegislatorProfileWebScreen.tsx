@@ -158,10 +158,13 @@ export function LegislatorProfileWebScreen() {
   const displayName = officialName(legislator.name, chamberWord);
   const partyLabel = partyFull(legislator.party);
   const districtLine = `${chamberWord} District ${legislator.district}`;
+  // Share the readable slug URL (falls back to the UUID only for a row served
+  // without a slug); the backend resolves either form.
+  const shareSlug = legislator.slug ?? legislator.id;
   const shareUrl =
     isWeb && typeof window !== 'undefined'
-      ? `${window.location.origin}/legislators/${encodeURIComponent(legislator.id)}`
-      : `https://alethical.com/legislators/${encodeURIComponent(legislator.id)}`;
+      ? `${window.location.origin}/legislators/${encodeURIComponent(shareSlug)}`
+      : `https://alethical.com/legislators/${encodeURIComponent(shareSlug)}`;
   const shareTitle = `${displayName} — ${partyLabel}, ${districtLine}`;
 
   const hero = (

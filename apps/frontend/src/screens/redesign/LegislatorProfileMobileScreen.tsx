@@ -547,7 +547,9 @@ export function LegislatorProfileMobileScreen() {
     onAsk: () => navigation.navigate('Ask'),
   };
 
-  const shareUrl = leg ? `https://alethical.com/legislators/${leg.id}` : 'https://alethical.com';
+  const shareUrl = leg
+    ? `https://alethical.com/legislators/${leg.slug ?? leg.id}`
+    : 'https://alethical.com';
   const shareTitle = leg
     ? `${honorificName(leg.name, leg.chamber)} — ${partyFull(leg.party)}, ${leg.chamber} District ${leg.district}`
     : 'Alethical';
