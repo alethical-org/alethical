@@ -218,6 +218,9 @@ export interface TimelineAuthor {
   label: string;
   /** Only set when the match was unambiguous, so a surface can trust the link. */
   legislatorId?: string;
+  /** Readable profile-URL segment carried through from the matched sponsor, so
+   *  the timeline links to /legislators/{slug} rather than the UUID. */
+  slug?: string;
 }
 
 // Fold accents and case so the clerk's ASCII spelling still matches the roster's
@@ -264,7 +267,7 @@ function resolveAuthor(raw: string, sponsors: BillSponsor[]): TimelineAuthor {
   const narrowed = initial ? matches.filter((s) => nameKey(s.name).startsWith(initial)) : matches;
   const pick = narrowed.length === 1 ? narrowed[0] : matches.length === 1 ? matches[0] : null;
   if (!pick?.legislatorId) return { label: raw };
-  return { label: authorNameOnly(pick.name), legislatorId: pick.legislatorId };
+  return { label: authorNameOnly(pick.name), legislatorId: pick.legislatorId, slug: pick.slug };
 }
 
 /** The words that lead an author-add row, shared by the timeline title and both
@@ -1580,6 +1583,9 @@ export function rollPassed(result: string): boolean {
 
 export type MemberVote = {
   legislatorId: string;
+  /** Readable profile-URL segment carried through from the roll-call record, so
+   *  the member chip links to /legislators/{slug} rather than the UUID. */
+  slug?: string;
   name: string;
   party: 'DFL' | 'R' | 'I';
   vote: 'YES' | 'NO' | 'ABSENT';
@@ -1616,6 +1622,7 @@ function normalizeParty(p: string | undefined): 'DFL' | 'R' | 'I' {
 export function buildPartyBlocks(votes: IndividualVote[]): PartyBlock[] {
   const members: MemberVote[] = votes.map((v) => ({
     legislatorId: v.legislatorId,
+    slug: v.slug,
     name: v.name || 'Unknown',
     party: normalizeParty(v.party),
     vote: v.vote,

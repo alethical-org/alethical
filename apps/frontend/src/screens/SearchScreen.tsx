@@ -275,7 +275,9 @@ export function SearchScreen({ navigation, route }: Props) {
                   key={legislator.id}
                   legislator={legislator}
                   onPress={() =>
-                    navigation.navigate('LegislatorProfile', { legislatorId: legislator.id })
+                    navigation.navigate('LegislatorProfile', {
+                      legislatorId: legislator.slug ?? legislator.id,
+                    })
                   }
                 />
               ))}

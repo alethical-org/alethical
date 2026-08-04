@@ -200,6 +200,7 @@ def _topic_legislators_answer(
     rows = db.execute(
         select(
             Legislator.id,
+            Legislator.slug,
             Legislator.full_name,
             Legislator.sort_name,
             LegislatorServicePeriod.party,
@@ -239,6 +240,7 @@ def _topic_legislators_answer(
         if entry is None:
             entry = {
                 "id": key,
+                "slug": row.slug,
                 "full_name": row.full_name,
                 "sort_name": row.sort_name,
                 "party": row.party,
@@ -274,6 +276,7 @@ def _topic_legislators_answer(
     displayed = [
         AskLegislatorRow(
             id=e["id"],
+            slug=e["slug"],
             full_name=e["full_name"],
             party=e["party"],
             district=e["district"],

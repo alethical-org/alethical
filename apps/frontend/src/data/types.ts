@@ -100,6 +100,9 @@ export interface VoteBreakdown {
 
 export interface IndividualVote {
   legislatorId: string;
+  /** Readable profile-URL segment ("melissa-hortman"); links use it in place of
+   *  the UUID. Undefined for rows served before slugs were carried through. */
+  slug?: string;
   vote: 'YES' | 'NO' | 'ABSENT';
   /** Member name + party carried inline on the roll-call record (the /legislators
    *  list doesn't serve party), so the roster groups by party without a join. */
@@ -125,6 +128,9 @@ export interface BillSponsor {
   name: string;
   role: 'chief_author' | 'co_author' | 'sponsor' | string;
   legislatorId?: string;
+  /** Readable profile-URL segment ("melissa-hortman"); links use it in place of
+   *  the UUID. Undefined for rows served before slugs were carried through. */
+  slug?: string;
   chamber?: Chamber;
   party?: string;
   district?: string;
@@ -235,6 +241,10 @@ export interface Bill {
   sessionLabel: string;
   topics: string[];
   chiefSponsorIds: string[];
+  /** Readable profile-URL slug per chief sponsor, index-aligned with
+   *  chiefSponsorIds. Null where a sponsor row carries no slug; the card falls
+   *  back to the id, which the backend still resolves. */
+  chiefSponsorSlugs?: (string | null)[];
   /** Number of co-authors (co_author-role sponsorships) on the bill, for the
    *  "+N co-authors" line on list cards. Undefined when not served (#295). */
   coAuthorCount?: number;
@@ -289,6 +299,9 @@ export interface CommitteeAssignment {
 
 export interface Legislator {
   id: string;
+  /** Readable profile-URL segment ("melissa-hortman"), unique per jurisdiction.
+   *  Profile links and share URLs use it in place of the UUID. */
+  slug?: string;
   name: string;
   shortName: string;
   chamber: Chamber;
@@ -399,6 +412,9 @@ export interface AskAnswerLegislatorBill {
 
 export interface AskAnswerLegislator {
   id: string;
+  /** Readable profile-URL segment ("melissa-hortman"); links use it in place of
+   *  the UUID. Undefined for rows served before slugs were carried through. */
+  slug?: string;
   fullName: string;
   party?: string;
   district?: string;

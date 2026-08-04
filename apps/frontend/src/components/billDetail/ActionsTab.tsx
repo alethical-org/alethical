@@ -246,10 +246,11 @@ function AuthorName({
   const [hovered, hover] = useHover();
   const id = author.legislatorId;
   if (!id || !onOpenLegislator) return <Text>{author.label}</Text>;
+  const target = author.slug ?? id;
   return (
     <Text
       accessibilityLabel={`Open ${author.label}'s profile`}
-      {...linkProps(routePath.legislator(id), () => onOpenLegislator(id))}
+      {...linkProps(routePath.legislator(target), () => onOpenLegislator(target))}
       {...hover}
       style={[styles.billCodeLink, hovered && styles.billCodeLinkHover]}
     >

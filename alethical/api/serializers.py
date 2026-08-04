@@ -35,6 +35,7 @@ def sponsor_payloads(
         legislator_id = (
             str(sponsorship.legislator.id) if sponsorship.legislator else None
         )
+        slug = sponsorship.legislator.slug if sponsorship.legislator else None
         service_period = None
         if sponsorship.legislator and session_id is not None:
             service_period = next(
@@ -55,6 +56,7 @@ def sponsor_payloads(
                 if hasattr(sponsorship.role, "value")
                 else str(sponsorship.role),
                 legislator_id=legislator_id,
+                slug=slug,
                 source_order=sponsorship.source_order,
                 source_chamber=sponsorship.source_chamber,
                 chamber=service_period.chamber.slug

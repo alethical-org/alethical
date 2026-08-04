@@ -349,7 +349,7 @@ function PartyBlockView({
             <MemberChip
               key={m.legislatorId}
               member={m}
-              onPress={() => onOpenLegislator(m.legislatorId)}
+              onPress={() => onOpenLegislator(m.slug ?? m.legislatorId)}
             />
           ))}
         </View>
@@ -396,7 +396,7 @@ function MemberChip({ member, onPress }: { member: MemberVote; onPress: () => vo
   return (
     <Pressable
       accessibilityLabel={`${member.name}, voted ${member.vote.toLowerCase()}`}
-      {...linkProps(routePath.legislator(member.legislatorId), onPress)}
+      {...linkProps(routePath.legislator(member.slug ?? member.legislatorId), onPress)}
       {...hover}
       style={[
         styles.chip,

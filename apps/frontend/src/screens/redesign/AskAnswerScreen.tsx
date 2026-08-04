@@ -197,7 +197,7 @@ function AnswerLegislatorRow({
           {partyDistrict ? <Text style={styles.legMeta}>{partyDistrict}</Text> : null}
         </View>
         <Pressable
-          {...linkProps(routePath.legislator(legislator.id), onOpenProfile)}
+          {...linkProps(routePath.legislator(legislator.slug ?? legislator.id), onOpenProfile)}
           accessibilityLabel={`View profile for ${legislator.fullName}`}
         >
           <Text style={styles.viewBillLink}>View profile →</Text>
@@ -292,7 +292,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // spinning forever instead of landing on a (currently old-design) profile.
   useEffect(() => {
     if (nameMatch) {
-      navigation.replace('LegislatorProfile', { legislatorId: nameMatch.id });
+      navigation.replace('LegislatorProfile', { legislatorId: nameMatch.slug ?? nameMatch.id });
     }
   }, [nameMatch, navigation]);
 
@@ -808,7 +808,9 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                 key={legislator.id}
                 legislator={legislator}
                 onOpenProfile={() =>
-                  navigation.navigate('LegislatorProfile', { legislatorId: legislator.id })
+                  navigation.navigate('LegislatorProfile', {
+                    legislatorId: legislator.slug ?? legislator.id,
+                  })
                 }
                 onOpenBill={openBill}
               />

@@ -18,6 +18,7 @@ interface BillCardProps {
     | 'updatedAt'
     | 'aiAnalysis'
     | 'chiefSponsorIds'
+    | 'chiefSponsorSlugs'
   > & {
     topics?: string[];
     sponsorNames?: string[];
@@ -48,6 +49,7 @@ export function BillCard({
   const sponsors = (bill.sponsorNames ?? []).map((name, index) => ({
     name,
     legislatorId: bill.chiefSponsorIds[index],
+    slug: bill.chiefSponsorSlugs?.[index] ?? undefined,
   }));
 
   return (
@@ -82,7 +84,7 @@ export function BillCard({
                       onPress={(event: GestureResponderEvent) => {
                         event.stopPropagation();
                         if (sponsor.legislatorId) {
-                          onSponsorPress?.(sponsor.legislatorId);
+                          onSponsorPress?.(sponsor.slug ?? sponsor.legislatorId);
                         }
                       }}
                     >

@@ -339,11 +339,21 @@ def get_bill_by_key(db: Session, bill_key: str):
 
 
 def get_legislator_by_id(db: Session, legislator_id: str):
+    """Resolve a legislator by either its readable ``slug`` or its UUID.
+
+    Profile URLs use the slug (``/legislators/melissa-hortman``); UUID links
+    shared before the slug switch still resolve, so no redirect is needed. A
+    string that parses as a UUID is looked up by primary key, otherwise by the
+    (jurisdiction-unique) slug.
+    """
     try:
         parsed_id = UUID(legislator_id)
     except ValueError:
-        raise HTTPException(status_code=404, detail="legislator not found") from None
-    legislator = db.scalar(select(Legislator).where(Legislator.id == parsed_id))
+        legislator = db.scalar(
+            select(Legislator).where(Legislator.slug == legislator_id)
+        )
+    else:
+        legislator = db.scalar(select(Legislator).where(Legislator.id == parsed_id))
     if legislator is None:
         raise HTTPException(status_code=404, detail="legislator not found")
     return legislator
@@ -359,6 +369,18 @@ def member_name_by_legislator(db: Session, legislator_ids) -> dict[str, str]:
         select(Legislator.id, Legislator.full_name).where(Legislator.id.in_(ids))
     ).all()
     return {str(legislator_id): full_name for legislator_id, full_name in rows}
+
+
+def member_slug_by_legislator(db: Session, legislator_ids) -> dict[str, str]:
+    """Readable profile-URL slug per legislator id, batched for a whole roll call
+    so the /votes per-member records can link to /legislators/{slug} (#83)."""
+    ids = list(legislator_ids)
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(Legislator.id, Legislator.slug).where(Legislator.id.in_(ids))
+    ).all()
+    return {str(legislator_id): slug for legislator_id, slug in rows}
 
 
 def member_party_by_legislator(db: Session, legislator_ids) -> dict[str, str | None]:
@@ -2172,6 +2194,7 @@ def bill_votes(
     }
     names = member_name_by_legislator(db, voter_ids)
     parties = member_party_by_legislator(db, voter_ids)
+    slugs = member_slug_by_legislator(db, voter_ids)
     chambers = chamber_slug_by_id(
         db, {vote_event.chamber_id for vote_event in row.vote_events}
     )
@@ -2196,6 +2219,7 @@ def bill_votes(
                 {
                     "legislator_id": str(record.legislator_id),
                     "legislator_name": names.get(str(record.legislator_id)),
+                    "slug": slugs.get(str(record.legislator_id)),
                     "party": parties.get(str(record.legislator_id)),
                     "vote_value": record.vote_value.value,
                 }
@@ -2360,8 +2384,9 @@ def legislator_votes(
     db: Session = Depends(get_db),
 ):
     session_row = get_session_by_slug(db, session)
+    legislator = get_legislator_by_id(db, legislator_id)
     rows = db.scalars(
-        schema.legislator_vote_history_stmt(legislator_id, session_row.id).limit(limit)
+        schema.legislator_vote_history_stmt(legislator.id, session_row.id).limit(limit)
     ).all()
     data = [
         {

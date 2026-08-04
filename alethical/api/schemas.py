@@ -57,6 +57,9 @@ class SponsorSummary(BaseModel):
     name: str
     role: str
     legislator_id: str | None = None
+    # Readable profile-URL segment (e.g. "melissa-hortman"); the frontend links
+    # to /legislators/{slug}, falling back to legislator_id for old rows.
+    slug: str | None = None
     source_order: int | None = None
     source_chamber: str | None = None
     chamber: str | None = None
@@ -430,6 +433,8 @@ class AskLegislatorBillRef(BaseModel):
 
 class AskLegislatorRow(BaseModel):
     id: str
+    # Readable profile-URL segment; the frontend links to /legislators/{slug}.
+    slug: str | None = None
     full_name: str
     party: str | None
     district: str | None
