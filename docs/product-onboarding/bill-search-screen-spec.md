@@ -205,10 +205,13 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   component, used identically on the answer/bill rail cards and home. It is `aria-disabled`,
   does **nothing** on click (no sign-in, no toggle, no page change), and has **no** affirmed
   "✓ Tracking" state. No "coming soon" label — ink is the color role reserved for Track
-  (green stays for other forward actions), and the absent affirmed state + the nav's roadmap
-  entry carry the not-live signal. The live auth-gated flow (intent-preserving sign-in →
-  return-to-search with the button affirmed) is **deferred until tracking ships**; states
-  owned by grounded-ask §9.2 (Answer page — Track button note).
+  (green stays for other forward actions), and the absent affirmed state carries the
+  not-live signal. (The Track **nav** dropdown now offers Bills as a live entry linking to
+  the Tracked page's sign-in card — a deliberate interim split while this on-card track flow
+  stays inert; reconciling the two is tracked in
+  [#976](https://github.com/alethical-org/alethical/issues/976).) The live auth-gated flow
+  (intent-preserving sign-in → return-to-search with the button affirmed) is **deferred until
+  tracking ships**; states owned by grounded-ask §9.2 (Answer page — Track button note).
 - **Card link → bill Overview** (`/bills/:billId`), the detail screen (not yet redesigned;
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a

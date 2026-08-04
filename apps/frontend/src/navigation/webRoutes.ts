@@ -103,13 +103,20 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'find-my-legislator') {
       return { kind: 'findMyLegislator', address: searchParams.get('address') ?? undefined };
     }
-    // '/search', '/tracked', '/chat' and '/account' are old-design or auth-gated
-    // surfaces — redirect a stray bookmark/link to a live page instead of
-    // resolving to them.
+    // '/search' is old-design — redirect a stray bookmark/link to the live bill
+    // list instead of resolving to it.
     if (segments[0] === 'search') {
       return { kind: 'bills', params: {} };
     }
-    if (segments[0] === 'tracked' || segments[0] === 'chat' || segments[0] === 'account') {
+    // '/tracked' is the tracked-bills page (the Track dropdown's live "Bills" row
+    // links here). Signed-out visitors get a "sign in to track" card, not Home, so
+    // the link lands where it says it will (grounded-answers.md rule 5).
+    if (segments[0] === 'tracked') {
+      return { kind: 'tab', screen: 'Tracked' };
+    }
+    // '/chat' and '/account' are old-design or auth-gated surfaces with no shipped
+    // page yet — redirect a stray bookmark/link to Home.
+    if (segments[0] === 'chat' || segments[0] === 'account') {
       return { kind: 'tab', screen: 'Home' };
     }
   }

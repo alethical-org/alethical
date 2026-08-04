@@ -30,7 +30,7 @@ describe('old-design URLs land on a shipped page', () => {
     });
   });
 
-  it.each([['/tracked'], ['/account'], ['/chat'], ['/chat/new'], ['/chat/sessions/abc-123']])(
+  it.each([['/account'], ['/chat'], ['/chat/new'], ['/chat/sessions/abc-123']])(
     'sends %s to the home page',
     (path) => {
       expect(targetFromPathname(path)).toEqual({ kind: 'tab', screen: 'Home' });
@@ -39,6 +39,13 @@ describe('old-design URLs land on a shipped page', () => {
 
   it('sends the old search page to the bill list', () => {
     expect(targetFromPathname('/search')).toEqual({ kind: 'bills', params: {} });
+  });
+
+  // Bill tracking ships, so the Track dropdown's live "Bills" row links to the
+  // Tracked page; /tracked resolves to it instead of redirecting to Home. A
+  // signed-out visitor still lands there and is prompted to sign in.
+  it('resolves the tracked page instead of redirecting to Home', () => {
+    expect(targetFromPathname('/tracked')).toEqual({ kind: 'tab', screen: 'Tracked' });
   });
 });
 
@@ -111,5 +118,24 @@ describe('Find My Legislator round-trips through its URL', () => {
   it('does not offer a city or an area it cannot look up', () => {
     const item = IA.find((entry) => entry.id === 'search-find-my-legislator');
     expect(item?.description).toBe('See who represents you — by street address');
+  });
+});
+
+// Bill tracking ships, so Track's "Bills" is an active row at the top of the
+// dropdown (icon tile + description + link), not a greyed "ON THE ROADMAP" pill.
+describe('Track dropdown offers Bills as a live row', () => {
+  it('lists Bills under live, not roadmap', () => {
+    const { live, roadmap } = navDropdownItems('track');
+    expect(live.map((item) => item.id)).toContain('track-bills');
+    expect(roadmap.map((item) => item.id)).not.toContain('track-bills');
+  });
+
+  it('leaves only Legislators, Candidates and Campaign Finance on the roadmap row', () => {
+    const { roadmap } = navDropdownItems('track');
+    expect(roadmap.map((item) => item.label)).toEqual([
+      'Legislators',
+      'Candidates',
+      'Campaign Finance',
+    ]);
   });
 });

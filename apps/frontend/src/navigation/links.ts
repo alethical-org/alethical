@@ -36,6 +36,7 @@ export const routePath = {
   ask: (params?: RootStackParamList['Ask']) => pathForRoute({ name: 'Ask', params }),
   bills: (params?: RootStackParamList['Bills']) => pathForRoute({ name: 'Bills', params }),
   legislators: () => pathForRoute({ name: 'Legislators' }),
+  tracked: () => pathForRoute({ name: 'Tracked' }),
   bill: (billId: string, params?: Omit<RootStackParamList['BillDetail'], 'billId'>) =>
     pathForRoute({ name: 'BillDetail', params: { billId, ...params } }),
   legislator: (legislatorId: string) =>
