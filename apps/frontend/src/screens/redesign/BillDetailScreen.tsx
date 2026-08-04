@@ -625,8 +625,14 @@ function BillDetailMobileScreen() {
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
-        {/* 0 — top nav (scrolls away) */}
-        <TopNav {...shellProps} />
+        {/* 0 — top nav (scrolls away). On a white surface, so it reads as the TOP
+            of the header's white block rather than a grey strip above it — the
+            header (nav → title → status/flags → tabs) is one continuous white
+            surface, and the grey ground shows only in the gaps between the content
+            sections below. */}
+        <View style={styles.navSurface}>
+          <TopNav {...shellProps} />
+        </View>
 
         {billQuery.isLoading ? (
           <View accessible accessibilityLabel="Loading bill">
@@ -732,8 +738,11 @@ function BillDetailMobileScreen() {
               </View>
             </View>
 
-            {/* 3 — Summary */}
-            <Section id="summary" onLayout={onSectionLayout}>
+            {/* 3 — Summary. No top grey gap: it sits flush under the sticky tab
+                bar, whose own bottom border does the separating, so "Key points"
+                starts clean on the white surface. The grey gaps stay between the
+                content sections below. */}
+            <Section id="summary" onLayout={onSectionLayout} style={styles.firstSection}>
               <Text accessibilityRole="header" style={styles.h2}>
                 Key points
               </Text>
@@ -2153,10 +2162,16 @@ const styles = StyleSheet.create({
   // shared column
   column: { width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center', paddingHorizontal: 20 },
 
-  // header — a white surface on the grey ground, so the neutral status pill, the
-  // "🔥 Hot issue" flag and the OMNIBUS tag pop against white (matching web)
-  // instead of blending into a grey header. paddingTop 26 keeps the header off the
-  // nav; the grey ground shows above it (the nav sits on the ground).
+  // The top nav sits on white, so it reads as the top of the header's white surface
+  // (nav → title → status/flags → tabs is one continuous white block) rather than a
+  // grey strip above it. zIndex keeps the nav — and its dropdowns/drawer — above the
+  // sticky chip bar (zIndex 50) when both are on screen.
+  navSurface: { backgroundColor: t.colors.surfaces.base, zIndex: 60 },
+
+  // header — the continuation of that white surface, so the neutral status pill, the
+  // "🔥 Hot issue" flag and the OMNIBUS tag pop against white (matching web) instead
+  // of blending into a grey header. paddingTop is white breathing room below the nav
+  // (the nav now sits on the same white surface, not on the grey ground).
   headerOuter: {
     position: 'relative',
     backgroundColor: t.colors.surfaces.base,
@@ -2322,16 +2337,20 @@ const styles = StyleSheet.create({
 
   // sections
   // Each content section is a white surface on the grey ground. PANEL_GAP of grey
-  // shows above each one (including the first, below the sticky chip bar), so the
-  // ground appears only in the gaps between white panels. paddingBottom matches
-  // paddingTop now that the panel owns its own bottom breathing room (the old 8
-  // relied on the next section's transparent top padding for separation).
+  // shows above each one, so the ground appears only in the gaps between the white
+  // content panels. paddingBottom matches paddingTop now that the panel owns its own
+  // bottom breathing room (the old 8 relied on the next section's transparent top
+  // padding for separation).
   sectionOuter: {
     backgroundColor: t.colors.surfaces.base,
     marginTop: PANEL_GAP,
     paddingTop: 28,
     paddingBottom: 28,
   },
+  // The first (Summary) section drops that top gap: it sits flush under the sticky
+  // chip bar, whose own bottom border separates it, so "Key points" starts clean on
+  // the white surface instead of behind a second grey band.
+  firstSection: { marginTop: 0 },
   lastSection: { paddingBottom: 40 },
   h2: {
     fontFamily: t.typography.title,
