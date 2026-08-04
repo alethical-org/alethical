@@ -74,7 +74,9 @@ const SearchScreen = lazy(() =>
   import('../screens/SearchScreen').then((m) => ({ default: m.SearchScreen })),
 );
 const TrackedScreen = lazy(() =>
-  import('../screens/TrackedScreen').then((m) => ({ default: m.TrackedScreen })),
+  import('../screens/redesign/TrackedBillsScreen').then((m) => ({
+    default: m.TrackedBillsScreen,
+  })),
 );
 const VoteDetailScreen = lazy(() =>
   import('../screens/VoteDetailScreen').then((m) => ({ default: m.VoteDetailScreen })),
@@ -302,6 +304,11 @@ function MainTabs() {
                 | keyof MainTabParamList
                 | undefined;
               if (!isSignedIn && !isLoading && activeTab === 'Home') {
+                return null;
+              }
+              // Tracked owns its chrome (SearchPageShell), so it hides the bottom
+              // tab bar too — its mobile nav is the top-nav menu (#976).
+              if (activeTab === 'Tracked') {
                 return null;
               }
               return <MobileTabBar {...props} />;
@@ -599,7 +606,12 @@ export function RootNavigator() {
       }}
     >
       <View style={isDesktop ? styles.globalShell : styles.globalShellMobile}>
-        {isDesktop && !isSignedOutHome ? <DesktopRail activeRouteName={activeRailRoute} /> : null}
+        {/* Tracked is a redesign page that brings its own chrome (SearchPageShell's
+            top nav + footer), like the /bills stack pages — so it opts out of the
+            old desktop rail, the same way the signed-out home does (#976). */}
+        {isDesktop && !isSignedOutHome && activeRailRoute !== 'Tracked' ? (
+          <DesktopRail activeRouteName={activeRailRoute} />
+        ) : null}
         <View style={styles.globalContent}>
           <Suspense
             fallback={
