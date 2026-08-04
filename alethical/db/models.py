@@ -1072,9 +1072,9 @@ class AIEnrichment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # pg_get_indexdef, including the bill_id IS NOT NULL leg (rows for a
     # legislator carry a null bill_id and must not collide with each other).
     #
-    # This does NOT protect the get-or-create in
-    # alethical/pipeline/ai_enrichment.py, which looks rows up on five columns
-    # this index does not cover -- that gap is its own bug, tracked separately.
+    # It covers two of the five columns the write path in
+    # alethical/pipeline/ai_enrichment.py looks a row up on, and only rows that
+    # are current. The key below covers the other gap (#927).
     __table_args__ = (
         Index(
             "ix_ai_enrichment_bill_summary_current_unique",
@@ -1086,6 +1086,34 @@ class AIEnrichment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
                 "AND enrichment_type = 'bill_summary' "
                 "AND is_current = true"
             ),
+        ),
+        # What identifies one enrichment row, per the write path's own lookup
+        # (#927). `apply_output` SELECTs on exactly these five columns and inserts
+        # when it finds none -- a check-then-insert, so two workers in one parallel
+        # batch both find nothing and both insert. Production carried 2,219 such
+        # pairs, and because that SELECT has no ordering it would then pick one of
+        # the two arbitrarily and mark it current: 2,217 bills each one coin flip
+        # away from a different summary.
+        #
+        # NULLS NOT DISTINCT is load-bearing, not decoration. 9,161 of 23,703
+        # production rows have no bill_version_id, and a plain UNIQUE lets every
+        # one of them duplicate freely, because Postgres does not consider one
+        # NULL equal to another -- the same hole audit finding #928 found in
+        # three other keys. Measured before adding it: the null rows create no
+        # collisions among themselves, so this spelling costs nothing.
+        #
+        # Named by hand: the convention generates 87 characters for these five
+        # columns, past Postgres's 63-character limit, so it would arrive
+        # truncated with a hash on the end and the migration would have to
+        # hard-code that hash.
+        UniqueConstraint(
+            "bill_id",
+            "bill_version_id",
+            "enrichment_type",
+            "model_name",
+            "source_version_hash",
+            name="uq_ai_enrichment_bill_version_type_model_hash",
+            postgresql_nulls_not_distinct=True,
         ),
     )
 
