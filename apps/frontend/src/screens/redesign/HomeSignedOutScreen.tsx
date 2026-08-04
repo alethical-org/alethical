@@ -1192,7 +1192,7 @@ function HomeSignedOutMobile() {
               hold until BOTH date-ordered queries settle, then both cards render
               together — no stagger. */}
           {activityLoading ? (
-            <Container style={m.section}>
+            <Container style={[m.section, m.activitySectionBottom]}>
               <Text style={m.eyebrow}>2025–2026 SESSION</Text>
               <Text accessibilityRole="header" style={m.sectionH2}>
                 Legislative Bill Activity
@@ -1215,7 +1215,7 @@ function HomeSignedOutMobile() {
               <SeeMore href={routePath.bills()} onPress={openSearchBills} />
             </Container>
           ) : introducedBills.length > 0 || signedBills.length > 0 ? (
-            <Container style={m.section}>
+            <Container style={[m.section, m.activitySectionBottom]}>
               <Text style={m.eyebrow}>2025–2026 SESSION</Text>
               <Text accessibilityRole="header" style={m.sectionH2}>
                 Legislative Bill Activity
@@ -1274,7 +1274,7 @@ function HomeSignedOutMobile() {
                   style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
                 />
               ) : null}
-              <Container style={[m.section, m.finderSectionTop, m.lastSectionBottom]}>
+              <Container style={[m.section, m.lastSectionBottom]}>
                 <Text accessibilityRole="header" style={m.finderH2}>
                   Find My Legislator
                 </Text>
@@ -1360,11 +1360,12 @@ const m = StyleSheet.create({
   // 96 (lastSectionBottom) so its content isn't crowded against the black footer.
   section: { paddingTop: 40, paddingBottom: 40 },
   lastSectionBottom: { paddingBottom: 96 },
-  // Find My Legislator only: +20 top padding over the shared section rhythm. The
-  // band's separation from the Bill Activity list above comes from its green tint,
-  // not whitespace, and with the Ask section gone it sits directly under the list's
-  // "See more" button — the extra top space lets the green band read as its own zone.
-  finderSectionTop: { paddingTop: 60 },
+  // Bill Activity only: +20 bottom padding over the shared section rhythm. With the
+  // Ask section gone, the green Find My Legislator band sits directly under this
+  // list's "See more" button. The separation should be neutral page-background space
+  // before the band, not more green inside it (that would leave the band's heading
+  // floating in a green void), so the extra gap lives here, below "See more".
+  activitySectionBottom: { paddingBottom: 60 },
   eyebrow: {
     fontFamily: t.typography.ui,
     fontSize: 15,
