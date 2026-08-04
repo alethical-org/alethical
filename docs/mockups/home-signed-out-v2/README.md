@@ -156,6 +156,13 @@ them accessible." (accent `#3de08a`). Privacy Policy + Terms of Use (→ alethic
 - Capability "Search Legislators" → Search-Legislators page.
 - Bill "Chief author" links → Legislator Profile; "COMPANION …" → Bill Votes page.
 - Answer-card links → external `revisor.mn.gov` / `house.mn.gov` (new tab).
+  **Shipped build deliberately differs (PR #952):** the **HF 4138** badge and the
+  **SF 4696** companion link go in-app to our own bill pages (`/bills/94-2026-HF4138`,
+  `/bills/94-2026-SF4696`) rather than out to revisor.mn.gov — sending the card's two most
+  clickable elements to the raw official record is the legalese this page exists to replace
+  (`.claude/rules/grounded-answers.md` rule 10). Only the **Chief author** link
+  (house.mn.gov) and the footer's **"Read the full law"** (2026 Session Law Chapter 111)
+  still open an external source. Do not "restore" the two in-app links to match this line.
 - Footer Privacy/Terms → `alethical.com/privacy`, `/terms` (new tab).
 - Sign in / account CTAs → account/`#account`; "Continue with Google" = Google OAuth.
 

@@ -146,26 +146,28 @@ function TextLink({
   label,
   href,
   onPress,
+  internal = false,
   size = 14,
   weight = t.fontWeights.bold,
 }: {
   label: string;
-  // Every call site in this file points to an official external source
-  // (revisor.mn.gov, house.mn.gov), so a supplied href always gets the
-  // external-link treatment (target="_blank" on web).
+  // External sources (revisor.mn.gov, house.mn.gov) get target="_blank"; an
+  // `internal` href is an in-app page (a bill profile), so it navigates in place
+  // via linkProps instead of opening a new tab.
   href?: string;
   onPress?: () => void;
+  internal?: boolean;
   size?: number;
   weight?: '400' | '500' | '600' | '700' | '800' | '900';
 }) {
   const [hovered, hoverProps] = useHover();
+  const anchorProps = href
+    ? internal
+      ? linkProps(href, onPress)
+      : externalLinkProps(href, onPress)
+    : { accessibilityRole: 'link' as const, onPress };
   return (
-    <Pressable
-      {...(href
-        ? externalLinkProps(href, onPress)
-        : { accessibilityRole: 'link' as const, onPress })}
-      {...hoverProps}
-    >
+    <Pressable {...anchorProps} {...hoverProps}>
       <Text
         style={{
           fontFamily: t.typography.ui,
@@ -253,13 +255,16 @@ function FieldShell({
 
 // --- Hero answer card (static sample answer — HF 4138) ---
 
-const HF4138_STATUS_URL = 'https://www.revisor.mn.gov/bills/94/2026/0/HF/4138/';
+// The bill code badge and the companion-bill link point to our own bill profile
+// pages (in-app navigation), not the official source. These are the corpus bill
+// ids for HF 4138 and its Senate companion SF 4696.
+const HF4138_BILL_ID = '94-2026-HF4138';
+const SF4696_BILL_ID = '94-2026-SF4696';
 // HF 4138 was enacted as 2026 Session Law Chapter 111, so the footer links to the
 // signed law rather than a bill draft. Hardcoded because the hero is a static sample;
 // the reusable bill card derives this from status (see BillCard reusability note).
 const HF4138_LAW_URL = 'https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/111/';
 const HF4138_AUTHOR_URL = 'https://www.house.mn.gov/members/profile/15314';
-const SF4696_URL = 'https://www.revisor.mn.gov/bills/94/2026/0/SF/4696/';
 
 function CitedSectionCard({
   n,
@@ -291,6 +296,7 @@ function CitedSectionCard({
 function AnswerCard({ dimmed }: { dimmed: boolean }) {
   const [badgeHovered, badgeHover] = useHover();
   const { isMobile } = useResponsive();
+  const navigation = useNavigation<any>();
   const blurOverlay: object = isWeb
     ? {
         backgroundColor: 'rgba(255,255,255,0.6)',
@@ -317,7 +323,9 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
           <View style={styles.billMetaMobileRow}>
             <View style={styles.billMetaMobileBadgeCell}>
               <Pressable
-                {...externalLinkProps(HF4138_STATUS_URL, () => openExternal(HF4138_STATUS_URL))}
+                {...linkProps(routePath.bill(HF4138_BILL_ID), () =>
+                  navigation.navigate('BillDetail', { billId: HF4138_BILL_ID }),
+                )}
                 {...badgeHover}
                 style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
               >
@@ -364,10 +372,11 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 <Text style={styles.billMetaText}>Companion bill </Text>
                 <TextLink
                   label="SF 4696 →"
-                  href={SF4696_URL}
+                  href={routePath.bill(SF4696_BILL_ID)}
+                  internal
                   size={13}
                   weight="600"
-                  onPress={() => openExternal(SF4696_URL)}
+                  onPress={() => navigation.navigate('BillDetail', { billId: SF4696_BILL_ID })}
                 />
               </View>
             </View>
@@ -376,7 +385,9 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       ) : (
         <View style={styles.billMetaRow}>
           <Pressable
-            {...externalLinkProps(HF4138_STATUS_URL, () => openExternal(HF4138_STATUS_URL))}
+            {...linkProps(routePath.bill(HF4138_BILL_ID), () =>
+              navigation.navigate('BillDetail', { billId: HF4138_BILL_ID }),
+            )}
             {...badgeHover}
             style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
           >
@@ -411,10 +422,11 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                   <Text style={styles.billMetaText}>Companion bill </Text>
                   <TextLink
                     label="SF 4696 →"
-                    href={SF4696_URL}
+                    href={routePath.bill(SF4696_BILL_ID)}
+                    internal
                     size={13}
                     weight="600"
-                    onPress={() => openExternal(SF4696_URL)}
+                    onPress={() => navigation.navigate('BillDetail', { billId: SF4696_BILL_ID })}
                   />
                 </View>
               </View>
