@@ -101,7 +101,7 @@ matched Jul 30 exactly.
 | # | Divergence | Correct side | Why | Status |
 | --- | --- | --- | --- | --- |
 | D1 | `bill_version_section`: production keyed rows on `UNIQUE(bill_version_id, source_order)` and kept a plain index on `(bill_version_id, section_id_text)`. `models.py` declared `UNIQUE(bill_version_id, section_id_text)`. | **Production** | A bill page can hand two sections the same id (`laws.0.1.0` for anything outside an article), so the id cannot identify a row; the section's position can never repeat. 64 versions in production hold repeated section ids. | **Fixed.** [#763](https://github.com/alethical-org/alethical/issues/763) via [PR #778](https://github.com/alethical-org/alethical/pull/778), migration `0016`. Gone from the Aug 3 re-run. |
-| D2 | `notification_event`: production runs a 12-column delivery queue (`channel`, `source_hash`, `subject`, `body`, `payload_json`, `status`, `scheduled_for`, `failure_reason`, six of them `NOT NULL` with no default) plus `UNIQUE(user_id, bill_id, event_type, source_hash)` and a `notification_event_status` enum. `models.py` declares a 7-column status-change log. **19 of the 39 raw differences are this one table.** | **`models.py`** | The rich table is a fossil of an abandoned email-delivery design (commit `a1066aa`, since simplified). `0002`'s skip-if-exists guard is the only reason production still has it. The table holds **0 rows** (re-confirmed Aug 3 2026), so replacing it loses nothing. | Open — [#929](https://github.com/alethical-org/alethical/issues/929). Changes a live table's shape, so it gets its own migration and its own review. |
+| D2 | `notification_event`: production runs a 12-column delivery queue (`channel`, `source_hash`, `subject`, `body`, `payload_json`, `status`, `scheduled_for`, `failure_reason`, six of them `NOT NULL` with no default) plus `UNIQUE(user_id, bill_id, event_type, source_hash)` and a `notification_event_status` enum. `models.py` declares a 7-column status-change log. **19 of the 39 raw differences are this one table.** | **`models.py`** | The rich table is a fossil of an abandoned email-delivery design (commit `a1066aa`, since simplified). `0002`'s skip-if-exists guard is the only reason production still has it. The table holds **0 rows** (re-confirmed Aug 3 2026), so replacing it loses nothing. | **Closed** — [#929](https://github.com/alethical-org/alethical/issues/929), migration `0020_notification_event_shape.py`, merged in [#938](https://github.com/alethical-org/alethical/pull/938) about 80 minutes after this row was last edited. It got its own migration and its own review, as this row asked. |
 | D3 | `evidence_document`: a table with **34,033 rows**, a primary key, two foreign keys, a check constraint and a unique key, that exists only in production. Nothing in the repo declares it. | **Neither — it is an orphan** | Created by `0003_representative_evidence`, applied to production by hand from the unmerged branch `origin/codex/representative-lookup-followups` while auto-migration was down ([#288](https://github.com/alethical-org/alethical/issues/288)). Production's migration bookmark was later reset past it, so the table survived and its migration did not. | Open — [#855](https://github.com/alethical-org/alethical/issues/855). Needs a product call (adopt the feature, or drop 34,033 rows), not a decision an audit makes. |
 | D4 | `chat_session.subject_legislator_id`: a `uuid` column with a foreign key to `legislator`, present only in production. **6 of 37 chat sessions have a value in it.** | Same as D3 | Same origin, same migration. | With D3, [#855](https://github.com/alethical-org/alethical/issues/855). |
 | D5 | `oban_jobs`, `oban_leaders`, `oban_producers` and the `oban_job_state` enum exist only in production. | **Production** | Correct as they are — the `oban` package creates them through its own installer, deliberately outside Alembic. | **Closed.** The drift check ignores them by name, so a true state cannot fail it forever. |
@@ -172,10 +172,15 @@ guard nobody built is worse than one that admits the gap.
 
 ### Still open
 
-Three items, each with an owner:
+Two items, each with an owner:
 
-- **D2 + D11 + R5** — replace production's fossil `notification_event`:
-  [#929](https://github.com/alethical-org/alethical/issues/929).
+- **D2 + D11 + R5** — **closed.** Production's fossil `notification_event` was replaced
+  by migration `0020_notification_event_shape.py`
+  ([#929](https://github.com/alethical-org/alethical/issues/929), merged in
+  [#938](https://github.com/alethical-org/alethical/pull/938)), which drops the fossil
+  table and the `notification_event_status` enum. R5's landmine goes with it: the
+  writer in `alethical/api/services/notifications.py` and the 7-column model in
+  `models.py` now agree with the live table.
 - **D3 + D4** — 34,033 orphan rows and a populated orphan column, needing a product
   decision: [#855](https://github.com/alethical-org/alethical/issues/855).
 - **R1** — **closed** by [#927](https://github.com/alethical-org/alethical/issues/927).
