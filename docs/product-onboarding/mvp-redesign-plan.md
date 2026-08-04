@@ -103,7 +103,7 @@ roadmap noted for direction.
   and rate limiting (O8, #98) are still open — anonymous asks are unmetered today.
 - **Logged-out Track experience:** read-only shell with a value-prop empty state (not a
   hard redirect). Bill tracking is a not-yet-live roadmap feature (decided Jul 2026), so
-  the TRACK button is an inert dashed **roadmap preview** everywhere it appears (shared
+  the TRACK button is an inert ink-filled **roadmap preview** everywhere it appears (shared
   `RoadmapTrackButton`) — it does not trigger sign-in or toggle a tracked state. The
   intent-preserving sign-in + post-auth return-to-action flow is deferred until tracking
   ships.
