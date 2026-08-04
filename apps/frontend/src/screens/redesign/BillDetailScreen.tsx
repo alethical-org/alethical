@@ -100,6 +100,19 @@ const GHOST_AMBER_BORDER = t.colors.omnibus.ghostBorder; // #e3c17f — shared g
 // Breadcrumb grey (palette.ink500) — no semantic text alias maps to it.
 const BREADCRUMB_GREY = '#4b524b';
 
+// Editorial "🔥 Hot issue" flag — the same set that drives the home "In the News"
+// pins and Search Bills. Keys are `bill.id` (e.g. "94-2026-HF4138"). Only the own
+// key of each flagged bill is listed; a companion INHERITS the flag via the live
+// companion relationship (checked below), so both chambers' versions carry it
+// without hardcoding every paired key. Kept local to this surface, matching the
+// per-surface convention (the home screen holds its own copy) — no shared module
+// exists yet across the surfaces carrying this flag.
+const HOT_ISSUE_BILL_KEYS = new Set<string>(['94-2026-HF4138', '94-2025-SF856', '94-2026-SF5310']);
+
+function isHotIssueBill(bill: { id: string; companion?: { id: string } | null }): boolean {
+  return HOT_ISSUE_BILL_KEYS.has(bill.id) || Boolean(bill.companion && HOT_ISSUE_BILL_KEYS.has(bill.companion.id));
+}
+
 // Section ids for the sticky jump chips + scroll-spy.
 const SECTIONS = [
   { id: 'summary', label: 'Summary' },
@@ -666,6 +679,15 @@ function BillDetailMobileScreen() {
                     {bill.isOmnibus ? (
                       <View style={styles.omnibusTag}>
                         <Text style={styles.omnibusTagText}>OMNIBUS</Text>
+                      </View>
+                    ) : null}
+                    {isHotIssueBill(bill) ? (
+                      <View
+                        style={styles.hotPill}
+                        accessibilityRole="text"
+                        accessibilityLabel="Hot issue"
+                      >
+                        <Text style={styles.hotPillText}>🔥 Hot issue</Text>
                       </View>
                     ) : null}
                   </View>
@@ -2190,6 +2212,28 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.84,
     color: AMBER_TEXT,
+  },
+  // Neutral "🔥 Hot issue" flag — same treatment as the web BillResultCard pill
+  // (#f1f1f4 bg, rgba(17,21,15,0.08) border, #4f5651 text, 999 radius), but sized
+  // to THIS header's tag tier (12px, matching OMNIBUS) rather than the larger
+  // home-card size. Never amber — amber is reserved for the bill-code badge.
+  hotPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: t.colors.surfaces.s400,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: t.radii.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+  hotPillText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.24,
+    color: t.colors.text.secondary,
+    ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
   },
   shareBtn: {
     flexDirection: 'row',
