@@ -609,17 +609,22 @@ export function TopNav({
   // Mobile flattens the roadmap into one pill row: the named Search/Track chips
   // first, then "More Tracking" — one compact, non-committal catch-all for the
   // rest of tracking's expansion (legislators, candidates …) rather than
-  // enumerating each. → Candidates · Campaign Finance · More Tracking.
+  // enumerating each. "Ask AI" reads last (it's a Search roadmap chip on web, but
+  // on this single flattened row it trails the tracking chips, not sits second).
+  // → Candidates · Campaign Finance · More Tracking · Ask AI.
   const searchRoadmap = navDropdownItems('search').roadmap;
   const trackRoadmap = navDropdownItems('track').roadmap;
-  const namedRoadmapLabels = new Set(searchRoadmap.map((item) => item.label));
+  const askAi = searchRoadmap.find((item) => item.id === 'search-ask-ai');
+  const namedSearchRoadmap = searchRoadmap.filter((item) => item.id !== 'search-ask-ai');
+  const namedRoadmapLabels = new Set(namedSearchRoadmap.map((item) => item.label));
   const campaignFinance = trackRoadmap.find((item) => item.id === 'track-campaign-finance');
   if (campaignFinance) namedRoadmapLabels.add(campaignFinance.label);
   const hasMoreTracking = trackRoadmap.some((item) => !namedRoadmapLabels.has(item.label));
   const mobileRoadmapPills = [
-    ...searchRoadmap.map((item) => item.label),
+    ...namedSearchRoadmap.map((item) => item.label),
     ...(campaignFinance ? [campaignFinance.label] : []),
     ...(hasMoreTracking ? ['More Tracking'] : []),
+    ...(askAi ? [askAi.label] : []),
   ];
   const navigate = (item: IaItem) => {
     setOpenMenu(null);
