@@ -504,105 +504,6 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
   );
 }
 
-// --- Capability card ---
-
-// Min time the green press-glow shows before a tap navigates. The glow's fade-in
-// is 180ms on web (instant on native), so this leaves a brief lit dwell — a quick
-// tap still gets a full pulse, but navigation stays snappy. A press-and-hold keeps
-// glowing past it and navigates on release.
-const CARD_PULSE_MS = 300;
-
-function CapabilityCard({
-  icon,
-  title,
-  subtitle,
-  href,
-  onPress,
-}: {
-  icon: 'search' | 'bookmark' | 'person';
-  title: string;
-  subtitle: string;
-  href: string;
-  onPress: () => void;
-}) {
-  const [hovered, hoverProps] = useHover();
-  // Touch has no hover, so a press shows the same green glow the card uses on hover.
-  // The glow appears on press-in and stays lit while held (press-and-hold to preview);
-  // on release the card navigates — but never before the glow has shown for
-  // CARD_PULSE_MS, so a quick tap still gets a full pulse before it leaves.
-  const [pressed, setPressed] = useState(false);
-  const pressStart = useRef<number | null>(null);
-  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => (settleTimer.current ? clearTimeout(settleTimer.current) : undefined), []);
-  const glow = hovered || pressed;
-  const c = t.colors.brand.deep;
-  const handlePressIn = () => {
-    if (settleTimer.current) clearTimeout(settleTimer.current);
-    pressStart.current = Date.now();
-    setPressed(true);
-  };
-  // Drop the glow no sooner than CARD_PULSE_MS after press-in, and navigate too when
-  // this is a real selection. onPressOut fires first and only fades the glow, so a
-  // press dragged off the card (no onPress) clears the glow without navigating.
-  const settle = (navigate: boolean) => {
-    const elapsed = pressStart.current != null ? Date.now() - pressStart.current : CARD_PULSE_MS;
-    const remaining = Math.max(0, CARD_PULSE_MS - elapsed);
-    if (settleTimer.current) clearTimeout(settleTimer.current);
-    settleTimer.current = setTimeout(() => {
-      setPressed(false);
-      if (navigate) onPress();
-    }, remaining);
-  };
-  return (
-    <Pressable
-      {...linkProps(href, () => settle(true))}
-      onPressIn={handlePressIn}
-      onPressOut={() => settle(false)}
-      {...hoverProps}
-      style={[
-        styles.capCard,
-        transition('border-color, box-shadow'),
-        glow && { borderColor: t.colors.brand.base },
-        glow && (t.shadows.glowGreen as object),
-      ]}
-    >
-      <View style={styles.capIconTile}>
-        <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-          {icon === 'search' ? (
-            <>
-              <Circle cx={11} cy={11} r={7} stroke={c} strokeWidth={2} />
-              <Path d="M16.5 16.5 L21 21" stroke={c} strokeWidth={2} strokeLinecap="round" />
-            </>
-          ) : null}
-          {icon === 'bookmark' ? (
-            <Path
-              d="M7 4 h10 v16 l-5 -4 l-5 4 Z"
-              stroke={c}
-              strokeWidth={2}
-              strokeLinejoin="round"
-            />
-          ) : null}
-          {icon === 'person' ? (
-            <>
-              <Circle cx={12} cy={8} r={3.4} stroke={c} strokeWidth={2} />
-              <Path
-                d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"
-                stroke={c}
-                strokeWidth={2}
-                strokeLinecap="round"
-              />
-            </>
-          ) : null}
-        </Svg>
-      </View>
-      <View style={styles.capBody}>
-        <Text style={styles.capTitle}>{title}</Text>
-        <Text style={styles.capSubtitle}>{subtitle}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
 // --- Bill card (v2) ---
 
 function ProgressSteps({ filled, vetoed }: { filled: number; vetoed?: boolean }) {
@@ -799,29 +700,6 @@ function HomeSignedOutDesktop() {
               </View>
             </Container>
             <View style={styles.heroBottomSpace} />
-          </View>
-
-          {/* CAPABILITY DIRECTORY */}
-          <View style={styles.capSection}>
-            <Container>
-              <Text style={styles.sectionEyebrow}>THE RECORD IS YOURS</Text>
-              <View style={[styles.capGrid, !isDesktop && styles.capGridStacked]}>
-                <CapabilityCard
-                  icon="search"
-                  title="Search Bills"
-                  subtitle="Read any bill yourself — by issue or keyword"
-                  href={routePath.bills()}
-                  onPress={() => navigation.navigate('Bills')}
-                />
-                <CapabilityCard
-                  icon="person"
-                  title="Search Legislators"
-                  subtitle="See who writes your laws — profiles, committees, authored bills"
-                  href={routePath.legislators()}
-                  onPress={() => navigation.navigate('Legislators')}
-                />
-              </View>
-            </Container>
           </View>
 
           {/* BILLS MOVING THROUGH THE LEGISLATURE */}
@@ -2222,8 +2100,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.faint,
   },
 
-  // capability directory
-  capSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 60, paddingBottom: 64 },
+  // Section eyebrow — small green label above a section (e.g. "2025–26 LEGISLATIVE SESSION").
   sectionEyebrow: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.meta,
@@ -2231,41 +2108,6 @@ const styles = StyleSheet.create({
     letterSpacing: 2.6,
     color: t.colors.brand.deep,
     marginBottom: 22,
-  },
-  capGrid: { flexDirection: 'row', gap: 20 },
-  capGridStacked: { flexDirection: 'column' },
-  capCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 16,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink10,
-    borderRadius: 16,
-    padding: 24,
-  },
-  capIconTile: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: t.colors.tint.t150,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  capBody: { flex: 1, minWidth: 0 },
-  capTitle: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.subheadLg,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-  },
-  capSubtitle: {
-    marginTop: 5,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.lg,
-    lineHeight: 24,
-    color: t.colors.text.secondary,
   },
 
   // finder band
