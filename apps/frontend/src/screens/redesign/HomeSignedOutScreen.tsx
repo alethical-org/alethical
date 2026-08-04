@@ -18,6 +18,7 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import { fieldFocusRing } from '../../theme/fieldFocus';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useBillTracking } from '../../hooks/useBillTracking';
 import { useBill, useBills } from '../../hooks/useAppQueries';
 import { BillResultCard } from '../../components/search/BillResultCard';
 import { plainBillSummary } from '../../lib/billDetail';
@@ -450,6 +451,7 @@ export function HomeSignedOutScreen() {
 function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
   const { signInWithGoogle } = useAuth();
+  const { isTracked, toggleTrack } = useBillTracking();
   const { isDesktop, isMobile } = useResponsive();
   // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
@@ -628,6 +630,8 @@ function HomeSignedOutDesktop() {
                           key={bill.id}
                           bill={bill}
                           hotIssue={HOT_ISSUE_BILL_KEYS.has(bill.id)}
+                          tracked={isTracked(bill.id)}
+                          onToggleTrack={() => toggleTrack(bill.id)}
                           onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
                           onSponsorPress={(legislatorId) =>
                             navigation.navigate('LegislatorProfile', { legislatorId })
@@ -649,6 +653,8 @@ function HomeSignedOutDesktop() {
                           key={bill.id}
                           bill={bill}
                           hotIssue={HOT_ISSUE_BILL_KEYS.has(bill.id)}
+                          tracked={isTracked(bill.id)}
+                          onToggleTrack={() => toggleTrack(bill.id)}
                           onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
                           onSponsorPress={(legislatorId) =>
                             navigation.navigate('LegislatorProfile', { legislatorId })

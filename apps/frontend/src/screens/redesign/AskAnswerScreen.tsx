@@ -19,7 +19,8 @@ import {
   useBillVersionText,
   useLegislators,
 } from '../../hooks/useAppQueries';
-import { RoadmapTrackButton } from '../../components/RoadmapTrackButton';
+import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
+import { useBillTracking } from '../../hooks/useBillTracking';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { bienniumEyebrow, pulledLabel, scopedChipQuery } from '../../lib/billDetail';
 import {
@@ -120,7 +121,17 @@ function FollowUpChips({
   );
 }
 
-function AnswerBillCard({ bill, onOpen }: { bill: AskAnswerBill; onOpen: () => void }) {
+function AnswerBillCard({
+  bill,
+  onOpen,
+  tracked,
+  onToggleTrack,
+}: {
+  bill: AskAnswerBill;
+  onOpen: () => void;
+  tracked: boolean;
+  onToggleTrack: () => void;
+}) {
   // RN-Web drops the DOM `title` prop, so set the tooltip on the host node.
   const titleRef = useRef<Text>(null);
   useEffect(() => {
@@ -139,9 +150,9 @@ function AnswerBillCard({ bill, onOpen }: { bill: AskAnswerBill; onOpen: () => v
             {bill.status}
           </Text>
         </View>
-        {/* Bill tracking is a not-yet-live roadmap feature — inert dashed preview
-            button, consistent site-wide (docs/product-onboarding/grounded-ask-spec.md §9.2). */}
-        <RoadmapTrackButton />
+        {/* Live Track button, consistent site-wide (#976). The card is a View, not
+            a link wrapper, so no press-swallowing is needed here. */}
+        <BillTrackButton size="card" tracked={tracked} onPress={onToggleTrack} />
       </View>
       {/* The PLAIN title, with the statutory one kept as a hover tooltip and the
           screen-reader name — the treatment BillHeader and the search card already
@@ -273,6 +284,7 @@ function BackToBill({
 export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const question = route.params?.q?.trim() ?? '';
   const { signInWithGoogle } = useAuth();
+  const { isTracked, toggleTrack } = useBillTracking();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const { isDesktop } = useResponsive();
 
@@ -575,7 +587,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
         </Text>
         {resolvedBill ? (
           <View style={styles.cardsColumn}>
-            <AnswerBillCard bill={resolvedBill} onOpen={() => openBill(resolvedBill.id)} />
+            <AnswerBillCard
+              bill={resolvedBill}
+              onOpen={() => openBill(resolvedBill.id)}
+              tracked={isTracked(resolvedBill.id)}
+              onToggleTrack={() => toggleTrack(resolvedBill.id)}
+            />
             <Pressable
               {...linkProps(routePath.bill(resolvedBill.id, { tab: 'votes' }), () =>
                 openVotes(resolvedBill.id),
@@ -596,7 +613,13 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             </Text>
             <View style={styles.cardsColumn}>
               {shownBills.map((listed) => (
-                <AnswerBillCard key={listed.id} bill={listed} onOpen={() => openBill(listed.id)} />
+                <AnswerBillCard
+                  key={listed.id}
+                  bill={listed}
+                  onOpen={() => openBill(listed.id)}
+                  tracked={isTracked(listed.id)}
+                  onToggleTrack={() => toggleTrack(listed.id)}
+                />
               ))}
             </View>
           </>
@@ -628,6 +651,8 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               <View style={styles.billCardBlock}>
                 <BillResultCard
                   bill={bill}
+                  tracked={isTracked(bill.id)}
+                  onToggleTrack={() => toggleTrack(bill.id)}
                   onPress={() => openBill(bill.id)}
                   onSponsorPress={(legislatorId) =>
                     navigation.navigate('LegislatorProfile', { legislatorId })
@@ -847,7 +872,13 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
         </Text>
         <View style={styles.cardsColumn}>
           {shownBills.map((listed) => (
-            <AnswerBillCard key={listed.id} bill={listed} onOpen={() => openBill(listed.id)} />
+            <AnswerBillCard
+              key={listed.id}
+              bill={listed}
+              onOpen={() => openBill(listed.id)}
+              tracked={isTracked(listed.id)}
+              onToggleTrack={() => toggleTrack(listed.id)}
+            />
           ))}
         </View>
         {answer.totalMatches > shownBills.length ? (
