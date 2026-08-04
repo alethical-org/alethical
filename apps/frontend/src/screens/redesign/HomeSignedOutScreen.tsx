@@ -931,7 +931,15 @@ function cleanActionText(raw: string): string {
 }
 
 /** Bill Activity card — live data. Whole card → bill detail. */
-function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void }) {
+function ActivityCardMobile({
+  bill,
+  hotIssue,
+  onPress,
+}: {
+  bill: Bill;
+  hotIssue: boolean;
+  onPress: () => void;
+}) {
   const [hovered, hoverProps] = useHover();
   const { filled, vetoed } = statusToProgress(bill.status);
   // Live data — same shared cleaner, full text (this card clamps to 3 lines).
@@ -957,6 +965,11 @@ function ActivityCardMobile({ bill, onPress }: { bill: Bill; onPress: () => void
       <View style={m.activityHeadRow}>
         <BillBadge label={bill.identifier} />
         <Text style={m.activityStatus}>{bill.status}</Text>
+        {hotIssue ? (
+          <View style={[m.hotPill, m.activityHotPill]}>
+            <Text style={m.hotPillText}>🔥 Hot issue</Text>
+          </View>
+        ) : null}
       </View>
       <View style={m.activityProgress}>
         <ProgressSteps filled={filled} vetoed={vetoed} />
@@ -1228,6 +1241,7 @@ function HomeSignedOutMobile() {
                       <ActivityCardMobile
                         key={bill.id}
                         bill={bill}
+                        hotIssue={HOT_ISSUE_BILL_KEYS.has(bill.id)}
                         onPress={() => openBill(bill.id)}
                       />
                     ))}
@@ -1248,6 +1262,7 @@ function HomeSignedOutMobile() {
                       <ActivityCardMobile
                         key={bill.id}
                         bill={bill}
+                        hotIssue={HOT_ISSUE_BILL_KEYS.has(bill.id)}
                         onPress={() => openBill(bill.id)}
                       />
                     ))}
@@ -1519,6 +1534,9 @@ const m = StyleSheet.create({
     color: t.colors.text.muted,
   },
   activityHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // Push the "🔥 Hot issue" flag to the card's right edge, matching where the
+  // In-the-News card sits it (top-right of the top row).
+  activityHotPill: { marginLeft: 'auto' },
   activityStatus: {
     fontFamily: t.typography.ui,
     fontSize: 16,
