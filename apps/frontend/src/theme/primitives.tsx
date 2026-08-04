@@ -48,6 +48,10 @@ const NAV_ITEM_HREFS: Record<string, string> = {
   // of redirecting to Home, so this row's link lands where its click lands
   // (issue #764).
   'search-find-my-legislator': routePath.findMyLegislator(),
+  // Live now that Bills is an active Track row: the link lands on the Tracked page,
+  // which prompts a signed-out visitor to sign in rather than advertising a
+  // capability it can't deliver (grounded-answers rule 2).
+  'track-bills': routePath.tracked(),
   'about-contact': CONTACT_MAILTO,
 };
 

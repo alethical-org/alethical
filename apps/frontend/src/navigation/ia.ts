@@ -149,10 +149,13 @@ export const IA: IaItem[] = [
     label: 'Bills',
     path: '/track/bills',
     menu: 'track',
-    availability: 'roadmap',
+    // Live, not roadmap: bill tracking ships, so Bills renders as an active row at
+    // the top of the Track dropdown (same icon-tile + description + link pattern as
+    // the Search rows), above the "ON THE ROADMAP" group. Still auth-gated — the row
+    // links to the Tracked page, which prompts a signed-out visitor to sign in.
+    availability: 'mvp',
     authGated: true,
     description: 'Follow a bill — save it to your watchlist',
-    inNavDropdown: true,
   },
   {
     id: 'track-legislators',

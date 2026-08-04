@@ -208,7 +208,7 @@ Source of truth: `apps/frontend/src/navigation/ia.ts` (`IA`, `ROUTES`, `REDIRECT
 | Ask AI | `/ask`, `/ask/new`, `/ask/sessions/:id` | redirect `/chat*` → `/ask*` |
 | Search → Bills | `/bills`, detail `/bills/:billId` | redirect `/search` → `/bills` |
 | Search → Legislators | `/legislators`, detail `/legislators/:legislatorId` | Find-My-Rep CTA; deep link `/find-my-legislator` (unchanged, avoids `:legislatorId` collision) |
-| Track → Bills | `/track/bills` | redirect `/tracked` → `/track/bills`; auth-gated |
+| Track → Bills | `/tracked` | live nav entry (#976); `/tracked` resolves to the Tracked page (sign-in card when signed out), no longer redirected to Home; auth-gated |
 | About | `/about`, `/about/trust`, `/about/contact` | static |
 | Auth / account | `/sign-in`, `/account`, `/account/notifications` | |
 | Legal (footer) | `/privacy`, `/terms` | not in About menu |
