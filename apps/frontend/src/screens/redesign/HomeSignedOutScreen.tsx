@@ -1748,7 +1748,11 @@ const styles = StyleSheet.create({
   },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
-  heroBottomSpace: { height: 88 },
+  // Tightened 88 -> 48: the answer card runs much taller than the left column, so
+  // a tall bottom spacer left the hero reading bottom-heavy with a large trailing
+  // gap down to "Bills Moving". Trimming it pulls that section up without moving the
+  // card or the Search buttons.
+  heroBottomSpace: { height: 48 },
 
   // answer card
   answerCard: {
@@ -1954,7 +1958,11 @@ const styles = StyleSheet.create({
   finderMap: { flex: 0.85, alignItems: 'center', justifyContent: 'center' },
 
   // bills section
-  billsSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 52, paddingBottom: 76 },
+  // paddingBottom 76 -> 98: mirrors the mobile fix (#969). The green Find My
+  // Legislator band sits directly below this section; the extra separation should be
+  // neutral light page-background space here, below the last bill card, not more green
+  // inside the band's top padding (that would float the band's heading in a green void).
+  billsSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 52, paddingBottom: 98 },
   billsHeadRow: {
     flexDirection: 'row',
     alignItems: 'center',
