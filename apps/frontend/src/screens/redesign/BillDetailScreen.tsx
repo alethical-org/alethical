@@ -110,7 +110,10 @@ const BREADCRUMB_GREY = '#4b524b';
 const HOT_ISSUE_BILL_KEYS = new Set<string>(['94-2026-HF4138', '94-2025-SF856', '94-2026-SF5310']);
 
 function isHotIssueBill(bill: { id: string; companion?: { id: string } | null }): boolean {
-  return HOT_ISSUE_BILL_KEYS.has(bill.id) || Boolean(bill.companion && HOT_ISSUE_BILL_KEYS.has(bill.companion.id));
+  return (
+    HOT_ISSUE_BILL_KEYS.has(bill.id) ||
+    Boolean(bill.companion && HOT_ISSUE_BILL_KEYS.has(bill.companion.id))
+  );
 }
 
 // Section ids for the sticky jump chips + scroll-spy.
