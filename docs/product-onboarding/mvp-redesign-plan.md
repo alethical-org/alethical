@@ -221,6 +221,12 @@ Source of truth: `apps/frontend/src/navigation/ia.ts` (`IA`, `ROUTES`, `REDIRECT
 Logged in → same menus + `[avatar ▾]` (ACCOUNT_MENU); Track submenus populate; the
 ✦ Ask entry drops its gate.
 
+**Mobile drawer omits ✦ Ask on every screen (decided Aug 2026).** The page-aware
+✦ Ask entry above is the *desktop* nav rule. The mobile side-menu drawer is one
+Ask-free menu everywhere — home and non-home alike — because Ask is roadmap, not a
+shipped mobile surface; the drawer opens straight into SEARCH · TRACK · ABOUT · ON
+THE ROADMAP. Desktop keeps the page-aware ✦ Ask top-level entry (`AskNavEntry`).
+
 **webRoutes.ts / RootNavigator migration steps (apply during the frontend track — NOT now,
 because it would break the running old-IA app before screens/tokens exist):**
 1. Import `IA`/`ROUTES`/`REDIRECTS`; replace magic path strings in `targetFromPathname`
