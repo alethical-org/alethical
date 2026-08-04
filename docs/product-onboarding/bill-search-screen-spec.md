@@ -1,6 +1,6 @@
 # Bill search screen spec
 
-<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/lib/hotIssues.ts, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/RoadmapTrackButton.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
+<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/lib/hotIssues.ts, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
 
 Status: v1 build spec. Companion to `docs/product-onboarding/mvp-redesign-plan.md` (§ "Search page split")
 and `docs/product-onboarding/grounded-ask-spec.md` (the Ask answer pages link into this screen). Durable
@@ -208,20 +208,18 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   Puts "how everyone voted" one click from search.
 
 **Actions**
-- **Track button — roadmap preview (inert), decided Jul 2026 (ink fill, Aug 2026).** Bill
-  tracking is a not-yet-live roadmap feature, so the Track button is inert — but it renders
-  as a solid **ink** fill: background `#11150f`, white label (leading "+") and icon, 1px
-  `#11150f` border, radius 10px, hovering to `#2c322c` — via the shared `RoadmapTrackButton`
-  component, used identically on the answer/bill rail cards and home. It is `aria-disabled`,
-  does **nothing** on click (no sign-in, no toggle, no page change), and has **no** affirmed
-  "✓ Tracking" state. No "coming soon" label — ink is the color role reserved for Track
-  (green stays for other forward actions), and the absent affirmed state carries the
-  not-live signal. (The Track **nav** dropdown now offers Bills as a live entry linking to
-  the Tracked page's sign-in card — a deliberate interim split while this on-card track flow
-  stays inert; reconciling the two is tracked in
-  [#976](https://github.com/alethical-org/alethical/issues/976).) The live auth-gated flow
-  (intent-preserving sign-in → return-to-search with the button affirmed) is **deferred until
-  tracking ships**; states owned by grounded-ask §9.2 (Answer page — Track button note).
+- **Track button — now live, Aug 2026 ([#976](https://github.com/alethical-org/alethical/issues/976)).**
+  The Track button is functional: it renders as a solid **ink** fill (background `#11150f`,
+  white label with a leading "+" that flips to a check when tracked, 1px `#11150f` border,
+  radius 10px, hovering to `#2c322c`) via the shared `BillTrackButton` (`useBillTracking`),
+  used identically on the answer/bill rail cards and home. A signed-out tap routes through
+  sign-in and returns to the bill at `?track=1` to complete the track; signed in it toggles
+  the bill on the watchlist and reads "Tracked". This reverses the Jul 2026 roadmap-preview
+  decision, where the button was an inert `aria-disabled` preview. Ink is the color role
+  reserved for Track (green stays for other forward actions). The Track **nav** dropdown
+  already offered Bills as a live entry; the on-card button now agrees. The remaining part of
+  #976 is rebuilding the Tracked page in the redesign. On the card, the tap is swallowed
+  (`pressInsideLink`) so it toggles instead of following the card's link to the bill.
 - **Card link → bill Overview** (`/bills/:billId`), the detail screen (not yet redesigned;
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a

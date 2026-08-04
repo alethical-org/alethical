@@ -1,34 +1,43 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { GestureResponderEvent, Pressable, StyleSheet, Text } from 'react-native';
 import { Check, Plus } from 'lucide-react-native';
 
 import { theme as t } from '../../theme/tokens';
 import { isWeb, useHover } from './interactions';
 
 // Bill Detail header Track control — the one live tracking affordance on a bill
-// profile. INK fill (#11150f, white label/icon): ink is the reserved role for
-// Track alone, so it reads as the primary tracking action beside the white
-// outline Share (grounded next to it in the header). One shared component so web
-// and mobile stay the same button, sized per viewport to match Share on each
-// (`size`): web mirrors SharePopover's shareBtn, mobile the screen's ShareButton.
+// profile, and the shared Track control on bill cards / home / Ask answers. INK
+// fill (#11150f, white label/icon): ink is the reserved role for Track alone, so
+// it reads as the primary tracking action beside the white outline Share (in the
+// header). One shared component across every surface, sized per viewport (`size`):
+// 'web' mirrors SharePopover's shareBtn, 'mobile' the screen's ShareButton, 'card'
+// the compact on-card button.
 //
-// Unlike components/RoadmapTrackButton.tsx (the still-inert on-card roadmap
-// button, tracked in #976), this one is functional: onPress toggles the bill on
-// the signed-in user's watchlist, or routes a signed-out user through sign-in.
-// It reflects state (Track / Tracked) because a live toggle cannot honestly keep
-// showing "+ Track" on a bill the reader already tracks.
+// It is functional (this replaced the retired inert RoadmapTrackButton, #976):
+// onPress toggles the bill on the signed-in user's watchlist, or routes a
+// signed-out user through sign-in (see hooks/useBillTracking). It reflects state
+// (Track / Tracked) because a live toggle cannot honestly keep showing "+ Track"
+// on a bill the reader already tracks.
 export function BillTrackButton({
   tracked,
   onPress,
   size,
 }: {
   tracked: boolean;
-  onPress: () => void;
-  /** 'web' matches SharePopover's button; 'mobile' matches the mobile ShareButton. */
-  size: 'web' | 'mobile';
+  // Matches Pressable's onPress so a link surface can pass a pressInsideLink handler
+  // (which receives the event to swallow it); header callers pass a plain () => void.
+  onPress: (event: GestureResponderEvent) => void;
+  /**
+   * 'web' matches SharePopover's button; 'mobile' matches the mobile ShareButton;
+   * 'card' matches the compact on-card button (bill lists, home, Ask answer card).
+   */
+  size: 'web' | 'mobile' | 'card';
 }) {
   const [hovered, hover] = useHover();
-  const mobile = size === 'mobile';
-  const glyph = mobile ? 16 : 17;
+  const glyph = size === 'web' ? 17 : 16;
+  const btnSize =
+    size === 'web' ? styles.btnWeb : size === 'mobile' ? styles.btnMobile : styles.btnCard;
+  const textSize =
+    size === 'web' ? styles.textWeb : size === 'mobile' ? styles.textMobile : styles.textCard;
   return (
     <Pressable
       accessibilityRole="button"
@@ -36,23 +45,20 @@ export function BillTrackButton({
       accessibilityState={{ selected: tracked }}
       onPress={onPress}
       {...hover}
-      style={[styles.btn, mobile ? styles.btnMobile : styles.btnWeb, hovered && styles.btnHover]}
+      style={[styles.btn, btnSize, hovered && styles.btnHover]}
     >
       {tracked ? (
         <Check size={glyph} color={TRACK_WHITE} strokeWidth={2.6} />
       ) : (
         <Plus size={glyph} color={TRACK_WHITE} strokeWidth={2.6} />
       )}
-      <Text style={[styles.text, mobile ? styles.textMobile : styles.textWeb]}>
-        {tracked ? 'Tracked' : 'Track'}
-      </Text>
+      <Text style={[styles.text, textSize]}>{tracked ? 'Tracked' : 'Track'}</Text>
     </Pressable>
   );
 }
 
-// Bespoke ink fill + hover, matching components/RoadmapTrackButton.tsx so both
-// Track controls read identically. No semantic token maps to the #2c322c hover,
-// so it stays a local const (as BillHeader does for its breadcrumb grey).
+// Bespoke ink fill + hover. No semantic token maps to the #2c322c hover, so it
+// stays a local const (as BillHeader does for its breadcrumb grey).
 const TRACK_INK = '#11150f';
 const TRACK_INK_HOVER = '#2c322c';
 const TRACK_WHITE = '#ffffff';
@@ -90,6 +96,14 @@ const styles = StyleSheet.create({
     paddingRight: 14,
     minHeight: 44,
   },
+  // Card: the compact button on bill lists / home / the Ask answer card.
+  // Radius 10, 10/18, gap 8, 14/700.
+  btnCard: {
+    gap: 8,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
   btnHover: { backgroundColor: TRACK_INK_HOVER, borderColor: TRACK_INK_HOVER },
   text: {
     fontFamily: t.typography.ui,
@@ -98,4 +112,5 @@ const styles = StyleSheet.create({
   },
   textWeb: { fontSize: t.fontSizes.bodyLg },
   textMobile: { fontSize: t.fontSizes.body },
+  textCard: { fontSize: t.fontSizes.small, fontWeight: t.fontWeights.bold },
 });

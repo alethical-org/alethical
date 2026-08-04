@@ -5,7 +5,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Bill, BillSponsor } from '../../data/types';
 import { usePrefetchBill } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
-import { RoadmapTrackButton } from '../RoadmapTrackButton';
+import { BillTrackButton } from '../billDetail/BillTrackButton';
 import { useHover } from '../billDetail/interactions';
 import {
   authorNameOnly,
@@ -52,9 +52,15 @@ interface BillResultCardProps {
   onPress?: () => void;
   onSponsorPress?: (legislatorId: string) => void;
   onRollCalls?: () => void;
-  // Whether to show the (inert) roadmap Track button in the top row. Search hides
-  // it on the mobile-web layout; defaults on so other surfaces are unchanged.
+  // Whether to show the Track button in the top row. Search hides it on the
+  // mobile-web layout; defaults on so other surfaces are unchanged.
   showTrackButton?: boolean;
+  // Whether this bill is on the signed-in user's watchlist (flips the button to
+  // "Tracked"). Supplied by the screen via useBillTracking.
+  tracked?: boolean;
+  // Toggle this bill's tracked state (or route a signed-out user to sign-in). When
+  // omitted, the Track button is not rendered — a surface must opt in by wiring it.
+  onToggleTrack?: () => void;
   // Editorial "🔥 Hot issue" flag (NEXT-home-spec §Bill Activity — Card chrome).
   // Shown on both web (top-right, left of Track) and mobile (right of the identity
   // row). The editor marks which bills carry it via lib/hotIssues.ts; off by
@@ -163,6 +169,8 @@ export function BillResultCard({
   onSponsorPress,
   onRollCalls,
   showTrackButton = true,
+  tracked = false,
+  onToggleTrack,
   hotIssue = false,
 }: BillResultCardProps) {
   const [hovered, setHovered] = useState(false);
@@ -262,7 +270,15 @@ export function BillResultCard({
           {hotIssue || showTrackButton ? (
             <View style={styles.topRight}>
               {hotIssue ? <HotIssuePill /> : null}
-              {showTrackButton ? <RoadmapTrackButton /> : null}
+              {showTrackButton && onToggleTrack ? (
+                // The card is a real link, so swallow the tap (pressInsideLink) or
+                // clicking Track would follow the card's href to the bill.
+                <BillTrackButton
+                  size="card"
+                  tracked={tracked}
+                  onPress={pressInsideLink(onToggleTrack)}
+                />
+              ) : null}
             </View>
           ) : null}
         </View>
