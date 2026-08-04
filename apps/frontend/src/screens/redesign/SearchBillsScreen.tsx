@@ -17,6 +17,7 @@ import {
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useResponsive } from '../../hooks/useResponsive';
 import { BillResultCard } from '../../components/search/BillResultCard';
+import { isHotIssueBill } from '../../lib/hotIssues';
 import {
   ChamberFilter,
   ChamberSegmented,
@@ -502,6 +503,9 @@ export function SearchBillsScreen() {
               <BillResultCard
                 key={bill.id}
                 bill={bill}
+                // Editorial "🔥 Hot issue" flag — same list that drives the home
+                // Bill Activity cards (lib/hotIssues.ts). Data-driven, not per-card.
+                hotIssue={isHotIssueBill(bill.id)}
                 // Track button is roadmap-only for now; hide it on the mobile-web
                 // layout to keep the card's top row uncluttered (desktop keeps it).
                 showTrackButton={isDesktop}

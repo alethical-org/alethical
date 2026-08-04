@@ -55,8 +55,10 @@ interface BillResultCardProps {
   // Whether to show the (inert) roadmap Track button in the top row. Search hides
   // it on the mobile-web layout; defaults on so other surfaces are unchanged.
   showTrackButton?: boolean;
-  // Editorial "🔥 Hot issue" flag (NEXT-home-spec §Bill Activity — Card chrome, web).
-  // The editor marks which bills carry it; off by default so nothing shows it unasked.
+  // Editorial "🔥 Hot issue" flag (NEXT-home-spec §Bill Activity — Card chrome).
+  // Shown on both web (top-right, left of Track) and mobile (right of the identity
+  // row). The editor marks which bills carry it via lib/hotIssues.ts; off by
+  // default so nothing shows it unasked.
   hotIssue?: boolean;
 }
 
@@ -232,6 +234,14 @@ export function BillResultCard({
               <Text style={styles.badgeText}>{bill.identifier}</Text>
             </View>
             {bill.isOmnibus ? <OmnibusPill /> : null}
+            {/* Hot-issue flag sits on the right of the identity row — the same spot
+                the home mobile card uses. Same neutral pill / 13px as web. */}
+            {hotIssue ? (
+              <>
+                <View style={styles.topSpacer} />
+                <HotIssuePill />
+              </>
+            ) : null}
           </View>
           <View style={styles.headerRow}>
             <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
