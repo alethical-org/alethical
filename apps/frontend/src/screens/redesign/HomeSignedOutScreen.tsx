@@ -122,12 +122,6 @@ const openExternal = (url: string) => {
   void Linking.openURL(url);
 };
 
-const ASK_QUESTIONS = [
-  'What’s in the new social media law for kids?',
-  'What bills affect healthcare?',
-  'Which legislators support affordable housing?',
-];
-
 // A row of city-name chips used to sit under the Find field. They were removed
 // with #873: Minnesota legislative districts are drawn below city level, and the
 // lookup's geocoder only matches a house number + street, so every city chip led
@@ -183,59 +177,69 @@ function TextLink({
   );
 }
 
-// Min time the purple press-glow stays lit after a chip press-in, so a quick tap still
-// gets a full pulse; a press-and-hold keeps glowing past it. Kept equal to the
-// capability cards' CARD_PULSE_MS (both 300ms) so the two press-glows feel identical —
-// update the two together if either changes.
-const CHIP_PULSE_MS = 300;
+// Hover lift for the hero entry buttons (mock: 0 10px 28px rgba(17,21,15,0.08)).
+// Web-only micro-state (hover never fires on touch); native gets nothing.
+const heroEntryHoverShadow = Platform.select({
+  web: { boxShadow: '0 10px 28px rgba(17,21,15,0.08)' },
+  default: {},
+}) as object;
 
-/** Hero example chip — purple hover glow, fills its input. */
-function FillChip({ label, onPress }: { label: string; onPress: () => void }) {
+/**
+ * Hero entry-point button — a real in-app link: leading icon + bold label + a
+ * green trailing arrow. The two of these replace the hero's earlier free-form
+ * Ask field and prompt chips (free-form Ask is roadmap, not shipped), routing to
+ * the two search surfaces that work today.
+ */
+function HeroEntryButton({
+  icon,
+  label,
+  href,
+  onPress,
+}: {
+  icon: 'search' | 'person';
+  label: string;
+  href: string;
+  onPress: () => void;
+}) {
   const [hovered, hoverProps] = useHover();
-  const { isMobile } = useResponsive();
-  // Touch has no hover, so a press shows the same purple glow the chip uses on hover.
-  // The glow appears on press-in and stays lit while held (press-and-hold), matching
-  // the capability cards' green press-glow; on release it fades no sooner than
-  // CHIP_PULSE_MS, so a quick tap still gets a full pulse. Unlike the cards, a chip only
-  // fills its input (it never unmounts), so onPress fires immediately and the glow fades
-  // independently on release.
-  const [pressed, setPressed] = useState(false);
-  const pressStart = useRef<number | null>(null);
-  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => (settleTimer.current ? clearTimeout(settleTimer.current) : undefined), []);
-  const glow = hovered || pressed;
-  const handlePressIn = () => {
-    if (settleTimer.current) clearTimeout(settleTimer.current);
-    pressStart.current = Date.now();
-    setPressed(true);
-  };
-  // Drop the glow no sooner than CHIP_PULSE_MS after press-in. Fires on every release
-  // (tap or drag-off), so the glow always clears; the fill runs from onPress.
-  const handlePressOut = () => {
-    const elapsed = pressStart.current != null ? Date.now() - pressStart.current : CHIP_PULSE_MS;
-    const remaining = Math.max(0, CHIP_PULSE_MS - elapsed);
-    if (settleTimer.current) clearTimeout(settleTimer.current);
-    settleTimer.current = setTimeout(() => setPressed(false), remaining);
-  };
+  const green = t.colors.brand.deep;
   return (
     <Pressable
-      accessibilityRole="button"
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onPress}
+      {...linkProps(href, onPress)}
       {...hoverProps}
       style={[
-        styles.exampleChip,
+        styles.heroEntryButton,
         transition('border-color, box-shadow'),
-        glow && styles.chipHover,
-        glow && (t.shadows.glowPurple as object),
+        hovered && styles.heroEntryButtonHover,
+        hovered && heroEntryHoverShadow,
       ]}
     >
-      {/* Hover/press turns only the border + glow purple (chipHover + glowPurple);
-          the label keeps its default color. */}
-      <Text style={[styles.exampleChipText, isMobile && styles.exampleChipTextMobile]}>
-        {label}
-      </Text>
+      <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
+        {icon === 'search' ? (
+          <>
+            <Circle cx={11} cy={11} r={7} stroke={green} strokeWidth={2} />
+            <Path d="M16.5 16.5 L21 21" stroke={green} strokeWidth={2} strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            <Circle cx={12} cy={8} r={3.4} stroke={green} strokeWidth={2} />
+            <Path
+              d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"
+              stroke={green}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </>
+        )}
+      </Svg>
+      <Text style={styles.heroEntryLabel}>{label}</Text>
+      {/* Trailing arrow — a text glyph, not an SVG stub, so it optically centers on
+          the label's x-height. It reads as part of the link's name ("Search Bills →"),
+          the same trailing-arrow convention as TextLink ("Read the full law →"). On
+          this web hero Libre Franklin's missing U+2192 falls back to Helvetica and
+          renders true; the SVG-arrow swap (memory: libre-franklin-omits-right-arrow-
+          glyph) is an Android concern, and the desktop hero only renders at ≥1100px. */}
+      <Text style={styles.heroEntryArrow}>→</Text>
     </Pressable>
   );
 }
@@ -666,31 +670,11 @@ function HomeSignedOutDesktop() {
     { enabled: isFocused },
   );
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [askFocused, setAskFocused] = useState(false);
   const [finderFocused, setFinderFocused] = useState(false);
-  const [askValue, setAskValue] = useState('');
   const [finderValue, setFinderValue] = useState('');
-  const askInputRef = useRef<TextInput>(null);
   const finderInputRef = useRef<TextInput>(null);
 
-  // Auto-size the ask field to its content (see useAskAutoGrow): one line at
-  // rest, growing only when the placeholder/value actually wraps, and shrinking
-  // back — RN-Web's onContentSizeChange can't shrink, so the hook drives the DOM
-  // node and re-measures on resize + font-load.
-  useAskAutoGrow(askInputRef, askValue);
-
   const signIn = () => void signInWithGoogle();
-  // Ask routes to the answer page (#217): topic questions render a cited bill
-  // list there; intents whose answer paths haven't shipped yet fall back to an
-  // interim coming-soon state on the same page.
-  const submitAsk = () => {
-    const question = askValue.trim();
-    if (!question) {
-      askInputRef.current?.focus();
-      return;
-    }
-    navigation.navigate('Ask', { q: question });
-  };
   // Find hands the typed address to Find My Legislator, which looks it up on
   // arrival (#873). Empty field focuses instead of navigating, same as Ask above.
   const openFinder = () => {
@@ -721,11 +705,6 @@ function HomeSignedOutDesktop() {
         // until those static pages ship (see PR notes / #143).
         return;
     }
-  };
-
-  const fillAsk = (question: string) => {
-    setAskValue(question);
-    askInputRef.current?.focus();
   };
 
   const heroGradientWeb: object = isWeb
@@ -789,75 +768,27 @@ function HomeSignedOutDesktop() {
                   </Text>
                   <Text style={[styles.heroSubhead, !isDesktop && styles.heroSubheadMobile]}>
                     We read every bill so you don’t have to — what it says, where it stands, and how
-                    legislators voted. Plain language, every answer linked to official sources.
+                    legislators voted. Plain language, with every claim linked to the official
+                    record.
                   </Text>
 
-                  {/* ASK FIELD. Mobile stacks a full-width Ask button below the
-                      field (inline, it would clip the placeholder on a narrow
-                      screen) and top-aligns the icon so it holds as the field grows. */}
-                  <View style={[styles.askShell, isMobile && styles.askFieldMobile]}>
-                    <FieldShell
-                      focused={askFocused}
-                      style={isMobile ? styles.askShellMobileInner : undefined}
-                    >
-                      <Search
-                        size={22}
-                        color={t.colors.text.faint}
-                        strokeWidth={2}
-                        style={isMobile ? styles.askIconMobile : undefined}
-                      />
-                      <TextInput
-                        ref={askInputRef}
-                        // No accessibilityLabel: the descriptive placeholder is the field's
-                        // accessible name. An aria-label here would make screen readers announce
-                        // both it AND the placeholder (a11y refinement, see design-audit skill).
-                        value={askValue}
-                        onChangeText={setAskValue}
-                        onFocus={() => setAskFocused(true)}
-                        onBlur={() => setAskFocused(false)}
-                        // Auto-grow (multiline): starts at one row; the layout effect
-                        // above sizes it to content between one line and the cap.
-                        multiline
-                        numberOfLines={1}
-                        blurOnSubmit={false}
-                        // Enter submits (Shift+Enter = newline), matching the chat composer.
-                        onKeyPress={(event) => {
-                          const ne = event.nativeEvent as { key?: string; shiftKey?: boolean };
-                          if (isWeb && ne.key === 'Enter' && !ne.shiftKey) {
-                            (event as { preventDefault?: () => void }).preventDefault?.();
-                            submitAsk();
-                          }
-                        }}
-                        placeholder={ASK_PLACEHOLDER}
-                        placeholderTextColor={t.colors.text.faint}
-                        style={[styles.askInput, isMobile && styles.askInputMobile]}
-                      />
-                      {!isMobile && (
-                        <Pressable
-                          accessibilityRole="button"
-                          onPress={submitAsk}
-                          style={styles.askButton}
-                        >
-                          <Text style={styles.askButtonText}>Ask</Text>
-                        </Pressable>
-                      )}
-                    </FieldShell>
-                    {isMobile && (
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={submitAsk}
-                        style={styles.askButtonMobile}
-                      >
-                        <Text style={styles.askButtonText}>Ask</Text>
-                      </Pressable>
-                    )}
-                  </View>
-
-                  {/* EXAMPLE CHIPS */}
-                  <View style={styles.chipsRow}>
-                    {ASK_QUESTIONS.map((q) => (
-                      <FillChip key={q} label={q} onPress={() => fillAsk(q)} />
-                    ))}
+                  {/* ENTRY POINTS. Two real links replace the earlier free-form Ask
+                      field + prompt chips (free-form Ask is roadmap, not shipped, and
+                      the field duplicated Bill Search below the fold). Side by side,
+                      wrapping to stacked when the column gets narrow. */}
+                  <View style={styles.heroEntryRow}>
+                    <HeroEntryButton
+                      icon="search"
+                      label="Search Bills"
+                      href={routePath.bills()}
+                      onPress={() => navigation.navigate('Bills')}
+                    />
+                    <HeroEntryButton
+                      icon="person"
+                      label="Search Legislators"
+                      href={routePath.legislators()}
+                      onPress={() => navigation.navigate('Legislators')}
+                    />
                   </View>
                 </View>
 
@@ -2080,26 +2011,40 @@ const styles = StyleSheet.create({
     paddingRight: 6,
     paddingLeft: 26,
   },
-  askShell: { marginTop: 48, maxWidth: 720 },
-  askInput: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: ASK_MIN_HEIGHT,
-    maxHeight: ASK_MAX_HEIGHT,
-    fontFamily: t.typography.body,
-    fontSize: 21,
-    lineHeight: 28,
-    color: t.colors.text.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 6,
-    textAlignVertical: 'top',
-    ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
+  // Hero entry buttons — two side-by-side links; wrap to stacked in a narrow column.
+  heroEntryRow: {
+    marginTop: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 14,
+    maxWidth: 660,
   },
-  askButton: {
-    backgroundColor: t.colors.brand.base,
-    borderRadius: 12,
-    paddingVertical: 18,
-    paddingHorizontal: 40,
+  heroEntryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink12,
+    borderRadius: 14,
+    paddingTop: 15,
+    paddingRight: 20,
+    paddingBottom: 15,
+    paddingLeft: 17,
+  },
+  heroEntryButtonHover: { borderColor: 'rgba(45,212,126,0.55)' },
+  heroEntryLabel: {
+    fontFamily: t.typography.ui,
+    fontSize: 19,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  heroEntryArrow: {
+    fontFamily: t.typography.ui,
+    fontSize: 19,
+    fontWeight: t.fontWeights.regular,
+    color: t.colors.brand.deep,
   },
   askButtonText: {
     fontFamily: t.typography.ui,
@@ -2107,15 +2052,8 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.darkest,
   },
-  // Mobile: field row + full-width Ask button stacked in a column.
+  // Mobile: field row + full-width Ask/Find button stacked in a column (Find field).
   askFieldMobile: { gap: 12 },
-  // Top-align the icon (row no longer centers) and balance the right padding now
-  // that the inline button is gone.
-  askShellMobileInner: { alignItems: 'flex-start', paddingRight: 26 },
-  askIconMobile: { marginTop: 17 },
-  // Mobile ask size matches the Find field's placeholder (20px, tokens.h4) so the two
-  // hero fields read consistently; still below the 21px desktop size.
-  askInputMobile: { fontSize: 20, lineHeight: 26 },
   askButtonMobile: {
     backgroundColor: t.colors.brand.base,
     borderRadius: 12,
@@ -2123,33 +2061,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipsRow: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
-    maxWidth: 720,
-  },
-  exampleChip: {
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink12,
-    borderRadius: t.radii.pill,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    // 44px min touch target (WCAG 2.5.5); the label centers within it.
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  exampleChipText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.medium,
-    color: t.colors.text.secondary,
-  },
-  exampleChipTextMobile: { fontSize: 15 },
-  chipHover: { borderColor: t.colors.purple.base },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
   heroBottomSpace: { height: 88 },
