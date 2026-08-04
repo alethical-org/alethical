@@ -563,7 +563,7 @@ function HomeSignedOutDesktop() {
             <Container style={styles.heroBody}>
               <View style={[styles.heroGrid, isDesktop && styles.heroGridDesktop]}>
                 {/* LEFT */}
-                <View style={styles.heroLeft}>
+                <View style={[styles.heroLeft, isDesktop && styles.heroLeftDesktop]}>
                   <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
                   <Text
                     accessibilityRole="header"
@@ -1675,6 +1675,12 @@ const styles = StyleSheet.create({
   heroGrid: { gap: 40 },
   heroGridDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
   heroLeft: { flex: 1, minWidth: 0, maxWidth: 720 },
+  // Nudge the left column down ~72px so it sits below dead-top but well above center.
+  // The answer card on the right runs taller, so with a top-aligned grid the left
+  // column's buttons left an empty pocket at the lower-left; this offset shrinks that
+  // pocket while keeping the headline anchored high (full centering would open a new
+  // void at the top-left). Grid stays alignItems:'flex-start'; only the left moves.
+  heroLeftDesktop: { marginTop: 72 },
   heroEyebrow: {
     fontFamily: t.typography.ui,
     fontSize: 15,
