@@ -61,6 +61,18 @@ the local Postgres that `just up` starts.
 - **Never fire an irreversible action to prove a change works** — a real send to real
   users, a paid run, or a destructive production data or schema change. Keep the live
   trigger behind config and verify with a dry run.
+- **The danger is any write into the shared checkout, not just a git command.** Every
+  rule below names a git command, and that framing has a hole: `cd /Users/eug/Code/Alethical`
+  followed by `cat >> file`, `> file`, `sed -i`, `rm`, or a formatter is a write into
+  everyone's shared tree, and nothing anywhere guards it. A session hit this on
+  Aug 3 2026 — several of its commands `cd`'d to the shared checkout and one appended a
+  file there. It got away with it only because the write was **append-only and therefore
+  provably its own**; a `sed -i` or a `>` would have overwritten work it could not prove
+  was not somebody else's. **So check where you are before any write, not just before a
+  git command**, and prefer absolute paths into your own worktree over a `cd`. If you
+  find you have written there, do not blanket-reset: prove the diff is entirely yours
+  first (`git diff --stat`, and confirm it is purely additive), move the content to your
+  worktree, then restore with a path-scoped `git checkout HEAD -- <path>`.
 - **Never run destructive git in a shared checkout** (`git reset --hard`,
   `git clean -fd`, `git checkout .`, switching branches). Several agents work in this
   repo at once, in separate worktrees, and these commands silently destroy work that
