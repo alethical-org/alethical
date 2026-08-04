@@ -1,3 +1,44 @@
+"""Embed the bills whose text is stored but not searchable (#844).
+
+Net: a bill becomes answerable in two stages -- ingestion stores its text, then
+this turns each section into an embedding so search can find it. When stage two
+has not run, the bill sits on the site looking normal and Grounded Ask cannot
+find or cite a word of it. This is stage two.
+
+**It spends money**, on OpenAI's embedding API, so it is a dry run by default::
+
+    ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. \\
+        uv run python scripts/backfill_rag_bulk.py --source-target production
+
+That prints every bill it would embed, its section count and its cost, and makes
+no API call. Then, in order::
+
+    ... --source-target production --apply --bill-key 94-2025-HF1058   # one bill
+    ... --source-target production --apply                             # the rest
+
+It picks its own targets from the pipeline's staleness query
+(``STALE_RAG_BILL_KEYS_SQL`` in ``alethical/pipeline/rag.py``), so it needs no
+bill list. Every write is an ``on_conflict_do_update`` upsert into
+``rag_section_document``, ``rag_chunk`` and ``rag_chunk_embedding`` -- there is no
+``DELETE`` anywhere in this file -- so it is additive and idempotent, and a second
+run is a no-op that costs nothing.
+
+**Which paths leave work for this script, verified by reading them rather than
+assumed.** The job-queue path already embeds: ``BillSyncChunkWorker``
+(``alethical/pipeline/oban_workers.py``) calls ``build_rag_rows_for_bill_keys``
+whenever ``include_rag`` is true, which is the default. Two paths do not, and
+between them they produced all 69 bills #844 found:
+
+  * ``scripts/load_minnesota_data.py`` -- ingests text and never embeds.
+  * ``scripts/repair_missing_bill_sections.py`` -- inserts sections and prints an
+    instruction telling a person to run this script afterwards.
+
+So the durable guard is not "wire embedding into ingestion" -- one ingestion path
+already has it. It is that the two script paths depend on somebody reading a
+printed line, which is what ``.github/workflows/rag-coverage-gaps.yml`` now
+notices when nobody did.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -8,6 +49,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import create_engine, select, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -35,7 +77,7 @@ PROD_SECTION_MAP_SQL = text(
       where bv.is_current = true
       order by b.id, bv.sequence_number desc
     )
-    select cv.bill_key, cv.bill_id, cv.bill_version_id, bvs.id as section_id, bvs.section_id_text
+    select cv.bill_key, cv.bill_id, cv.bill_version_id, bvs.id as section_id, bvs.source_order
     from current_versions cv
     join bill_version_section bvs on bvs.bill_version_id = cv.bill_version_id
     where cv.bill_key = any(:keys)
@@ -92,9 +134,13 @@ def load_local_payloads(
             loaded[bill_key] = (
                 bill,
                 [
+                    # source_order rides along so the target section can be
+                    # matched on the column the database actually keys on. See
+                    # load_prod_section_map for why that matters.
                     _chunk_payloads(
                         str(bill.file_type), bill.file_number, bill, section
                     )
+                    | {"source_order": section.source_order}
                     for section in sections
                 ],
             )
@@ -104,6 +150,23 @@ def load_local_payloads(
 def load_prod_section_map(
     prod_db: Session, bill_keys: list[str]
 ) -> dict[str, dict[str, Any]]:
+    """Map each bill's sections to their ids in the target database.
+
+    **Keyed on ``source_order``, never on ``section_id_text``.** This used to key
+    on ``section_id_text``, and a bill's page is allowed to repeat one: 66 stored
+    versions do, and among the 69 bills #844 found, **27** did. Repeats collapsed
+    into a single map entry, so several sections resolved to the SAME target id
+    and one INSERT arrived carrying two rows with the same conflict key --
+    Postgres refuses that outright (``ON CONFLICT DO UPDATE command cannot affect
+    row a second time``), which is how the first full run died after embedding
+    nothing.
+
+    ``source_order`` is the right key and the database says so: measured across
+    production it repeats on **0** versions and is never null, and
+    ``uq_bill_version_section_bill_version_id_source_order`` declares it. Same
+    trap as [#763](https://github.com/alethical-org/alethical/issues/763), which
+    lost real bill sections by keying rows on the section id a page may repeat.
+    """
     mapped: dict[str, dict[str, Any]] = {}
     for row in prod_db.execute(PROD_SECTION_MAP_SQL, {"keys": bill_keys}):
         entry = mapped.setdefault(
@@ -114,7 +177,7 @@ def load_prod_section_map(
                 "sections": {},
             },
         )
-        entry["sections"][row.section_id_text] = row.section_id
+        entry["sections"][row.source_order] = row.section_id
     return mapped
 
 
@@ -140,7 +203,7 @@ def upsert_batch(
                 continue
             _bill, local_sections = local_bill_payload
             for section in local_sections:
-                prod_section_id = prod_bill["sections"].get(section["section_id_text"])
+                prod_section_id = prod_bill["sections"].get(section["source_order"])
                 if prod_section_id is None:
                     continue
                 payload = dict(section)
@@ -173,6 +236,20 @@ def upsert_batch(
                 "chunks": 0,
                 "embeddings": 0,
             }
+
+        # Catch a repeated target section here, where the message can name the
+        # bill, rather than as Postgres's "ON CONFLICT DO UPDATE command cannot
+        # affect row a second time" ten frames down a traceback. Two rows in one
+        # statement sharing a conflict key is always a mapping bug upstream, and
+        # this is the shape it takes -- see load_prod_section_map.
+        targets = [row["bill_version_section_id"] for row in section_rows]
+        if len(set(targets)) != len(targets):
+            repeated = {str(target) for target in targets if targets.count(target) > 1}
+            raise SystemExit(
+                f"Two sections map to the same target row, so the upsert would "
+                f"carry a duplicate key. Bills in this batch: {sorted(bill_keys)}. "
+                f"Repeated target section ids: {sorted(repeated)}"
+            )
 
         excluded_section = insert(schema.RagSectionDocument).excluded
         section_stmt = (
@@ -327,6 +404,50 @@ def upsert_batch(
         }
 
 
+def price(characters: int) -> float:
+    """What this run costs, from the same arithmetic the issue used.
+
+    ~4 characters a token is the working ratio for English prose, and
+    ``text-embedding-3-small`` is $0.02 per million input tokens. Close enough to
+    decide with; the run prints what it actually spent afterwards.
+    """
+    return characters / 4 / 1_000_000 * 0.02
+
+
+def report_plan(prod_engine: Any, bill_keys: list[str]) -> None:
+    """What the run would embed, bill by bill, and what it would cost.
+
+    Every bill, never only a total: this is a PAID run, and the list is the last
+    chance to notice it is about to embed something nobody meant to.
+    """
+    with Session(prod_engine) as db:
+        rows = db.execute(
+            text(
+                "SELECT b.bill_key, count(*) AS sections, "
+                "       coalesce(sum(length(s.raw_text)), 0) AS characters "
+                "  FROM bill b "
+                "  JOIN bill_version bv ON bv.bill_id = b.id AND bv.is_current "
+                "  JOIN bill_version_section s ON s.bill_version_id = bv.id "
+                " WHERE b.bill_key = ANY(CAST(:keys AS text[])) "
+                " GROUP BY b.bill_key ORDER BY count(*) DESC"
+            ),
+            {"keys": bill_keys},
+        ).all()
+    characters = sum(int(row.characters) for row in rows)
+    sections = sum(int(row.sections) for row in rows)
+    for row in rows:
+        print(
+            f"  {row.bill_key:20} sections={int(row.sections):4} "
+            f"characters={int(row.characters):9,} "
+            f"~${price(int(row.characters)):.5f}"
+        )
+    print(
+        f"\nwould embed: {len(rows)} bills, {sections:,} sections, "
+        f"{characters:,} characters (~{characters // 4:,} tokens) "
+        f"-> ~${price(characters):.4f} at $0.02/1M for {MODEL}"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch-size", type=int, default=25)
@@ -335,6 +456,21 @@ def main() -> None:
     parser.add_argument("--heartbeat-seconds", type=int, default=60)
     parser.add_argument(
         "--source-target", choices=["local", "production"], default="local"
+    )
+    # Dry run by default, like every other production script here. This one
+    # SPENDS MONEY on an embedding API, so "run it and see" is the one default it
+    # must not have: a script whose no-flag behaviour is to buy something is a
+    # script that will eventually buy something nobody asked for.
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Embed for real. Without this the script only reports (dry run).",
+    )
+    parser.add_argument(
+        "--bill-key",
+        action="append",
+        help="Limit to these bills, repeatable. Use for the scoped live check "
+        "before the full paid run.",
     )
     args = parser.parse_args()
 
@@ -352,11 +488,39 @@ def main() -> None:
         connect_args=NO_PREPARED_STATEMENTS,
     )
 
+    # Say which database, every run. Both engines point at production on the real
+    # path, and a run that silently read somewhere else would report "nothing
+    # stale" -- a false all-clear on a job whose whole point is finding gaps.
+    print(
+        f"Source: {make_url(source_url).host}/{make_url(source_url).database}\n"
+        f"Target: {make_url(str(prod_engine.url)).host}/"
+        f"{make_url(str(prod_engine.url)).database}\n"
+    )
+
     with Session(prod_engine) as db:
         bill_keys = list(db.scalars(MISSING_SQL, params()).all())
+        if args.bill_key:
+            wanted = set(args.bill_key)
+            unknown = wanted - set(bill_keys)
+            if unknown:
+                raise SystemExit(
+                    f"Not in the stale set, so there is nothing to embed for: "
+                    f"{sorted(unknown)}"
+                )
+            bill_keys = [key for key in bill_keys if key in wanted]
         if args.limit is not None:
             bill_keys = bill_keys[: args.limit]
         start_totals = db.execute(TOTALS_SQL, params()).one()._mapping
+
+    if not bill_keys:
+        print("Every bill's text is already searchable. Nothing to embed.")
+        return
+
+    report_plan(prod_engine, bill_keys)
+    if not args.apply:
+        print("\nDry run: nothing was written and no API call was made.")
+        print("Next: --apply --bill-key <key> for one bill, then --apply.")
+        return
 
     state = {
         "done": False,

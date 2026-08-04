@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Iterable
 from hashlib import sha256
 from typing import Any
@@ -273,6 +274,36 @@ def _delete_bill_rag_rows(db: Any, bill_id: Any, version_id: Any) -> dict[str, i
     }
 
 
+# A dropped connection is worth a few tries; a wall of them is a real outage and
+# should surface rather than be waited out. Sleeps 1s, 2s, 4s between attempts.
+EMBEDDING_CONNECTION_ATTEMPTS = 4
+
+
+def _post_embeddings(api_key: str, *, model: str, batch: list[str]):
+    """POST one batch, retrying a dropped connection with a growing pause."""
+    for attempt in range(EMBEDDING_CONNECTION_ATTEMPTS):
+        try:
+            return requests.post(
+                "https://api.openai.com/v1/embeddings",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "input": batch,
+                    "dimensions": VECTOR_DIMENSIONS,
+                    "encoding_format": "float",
+                },
+                timeout=OPENAI_EMBEDDING_TIMEOUT_SECONDS,
+            )
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            if attempt == EMBEDDING_CONNECTION_ATTEMPTS - 1:
+                raise
+            time.sleep(2**attempt)
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
 def _openai_embeddings(
     texts: list[str], *, model: str, batch_size: int
 ) -> list[list[float]]:
@@ -282,6 +313,17 @@ def _openai_embeddings(
     Returns a flat list aligned with `texts`. Raises RuntimeError if
     OPENAI_API_KEY is unset; raises requests.HTTPError on non-2xx responses
     (e.g. rate limits) — callers running in Oban should rely on Oban's retry.
+
+    **A dropped connection is retried here, and only that.** Handing every failure
+    to the caller's retry assumes the caller has one, and
+    `scripts/backfill_rag_bulk.py` does not: it embeds thousands of sections in
+    one process, so a single blip loses a whole batch's paid work and it has to
+    start that batch again. Twice in a row on Aug 4 2026 a run died on
+    `SSLV3_ALERT_BAD_RECORD_MAC` from api.openai.com — a transport error with no
+    response attached, where the request may never have been billed and retrying
+    is unambiguously right. Scoped deliberately to `ConnectionError` (which
+    `SSLError` subclasses) and `Timeout`: an HTTP status means the server answered,
+    and what to do about a 429 or a 400 stays the caller's decision, unchanged.
     """
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
@@ -293,20 +335,7 @@ def _openai_embeddings(
     out: list[list[float]] = []
     for start in range(0, len(texts), max(1, batch_size)):
         batch = texts[start : start + batch_size]
-        response = requests.post(
-            "https://api.openai.com/v1/embeddings",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": model,
-                "input": batch,
-                "dimensions": VECTOR_DIMENSIONS,
-                "encoding_format": "float",
-            },
-            timeout=OPENAI_EMBEDDING_TIMEOUT_SECONDS,
-        )
+        response = _post_embeddings(api_key, model=model, batch=batch)
         response.raise_for_status()
         payload = response.json()
         data = sorted(payload.get("data", []), key=lambda d: d.get("index", 0))

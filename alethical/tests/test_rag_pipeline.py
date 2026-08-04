@@ -594,3 +594,80 @@ def test_semantic_retrieval_excludes_non_current_versions() -> None:
         assert "HF 7777 (superseded)" in unscoped
 
         db.rollback()
+
+
+def test_a_dropped_connection_is_retried_but_an_http_error_is_not(monkeypatch) -> None:
+    """A blip on the wire is retried; a server that answered is the caller's call.
+
+    Two full-corpus embedding runs died on `SSLV3_ALERT_BAD_RECORD_MAC` from
+    api.openai.com (Aug 4 2026), losing a whole batch of paid work each time,
+    because `_openai_embeddings` had no retry and the script calling it has none
+    either. A transport error carries no response, so the request may never have
+    been billed and retrying it is unambiguously right.
+
+    The second half is the part worth pinning: an HTTP *status* means the server
+    answered, and blindly retrying a 429 or a 400 would spend money against a
+    limit or repeat a bad request. That stays the caller's decision.
+    """
+    import requests
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(rag_ingest.time, "sleep", lambda _seconds: None)
+
+    class _Response:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"data": [{"embedding": [0.5] * rag_ingest.VECTOR_DIMENSIONS}]}
+
+    attempts: list[int] = []
+
+    def _fail_twice_then_succeed(*_args, **_kwargs):
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise requests.exceptions.SSLError("bad record mac")
+        return _Response()
+
+    monkeypatch.setattr(rag_ingest.requests, "post", _fail_twice_then_succeed)
+    vectors = rag_ingest._openai_embeddings(
+        ["some section text"], model=DEFAULT_RAG_MODEL, batch_size=1
+    )
+    assert len(attempts) == 3, "the dropped connection was not retried"
+    assert len(vectors) == 1 and len(vectors[0]) == rag_ingest.VECTOR_DIMENSIONS
+
+    # Retrying is bounded: a real outage surfaces rather than being waited out.
+    attempts.clear()
+
+    def _always_fail(*_args, **_kwargs):
+        attempts.append(1)
+        raise requests.exceptions.ConnectionError("connection reset")
+
+    monkeypatch.setattr(rag_ingest.requests, "post", _always_fail)
+    with pytest.raises(requests.exceptions.ConnectionError):
+        rag_ingest._openai_embeddings(
+            ["some section text"], model=DEFAULT_RAG_MODEL, batch_size=1
+        )
+    assert len(attempts) == rag_ingest.EMBEDDING_CONNECTION_ATTEMPTS
+
+    # An HTTP status is NOT retried: one call, and the caller decides.
+    attempts.clear()
+
+    class _RateLimited(_Response):
+        status_code = 429
+
+        def raise_for_status(self) -> None:
+            raise requests.exceptions.HTTPError("429 Too Many Requests")
+
+    def _rate_limited(*_args, **_kwargs):
+        attempts.append(1)
+        return _RateLimited()
+
+    monkeypatch.setattr(rag_ingest.requests, "post", _rate_limited)
+    with pytest.raises(requests.exceptions.HTTPError):
+        rag_ingest._openai_embeddings(
+            ["some section text"], model=DEFAULT_RAG_MODEL, batch_size=1
+        )
+    assert len(attempts) == 1, "an HTTP error must not be retried here"
