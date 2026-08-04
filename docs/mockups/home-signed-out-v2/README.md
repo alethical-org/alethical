@@ -1,3 +1,9 @@
+> **Superseded for the hero answer card (2026-08-04):** the answer-card description below
+> (the "ASKED" eyebrow, green badge, "Cited ✓ Section 325M.40", companion line, "View bill
+> text →") is the original v2 card and no longer matches what ships. The current hero
+> answer card is `docs/mockups/home-signed-out-hero-card/`. Do not rebuild the card from
+> the bullets below. The rest of this page's v2 spec still stands.
+>
 > **Repo context** (added on landing, 2026-07-12). Tracked design reference for the
 > **signed-out home** page — the v2 final design. Tracking issue: [#143](https://github.com/alethical-org/alethical/issues/143);
 > plan: `docs/product-onboarding/mvp-redesign-plan.md`. Implementation is in React Native, merged to
