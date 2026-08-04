@@ -274,7 +274,10 @@ function HeroSearchButton({ onPress, full }: { onPress: () => void; full?: boole
 }
 
 // Clear (×) button inside the as-you-type search field — appears only when the
-// field has text and empties it. Neutral ink circle, darkening on hover.
+// field has text and empties it. A bare ink glyph inset from the right edge to
+// mirror the leading magnifier; a neutral circle fades in on hover. The 44px
+// pressable is an invisible hit cushion around the small glyph, and the app-wide
+// :focus-visible ring (App.tsx) shows keyboard focus, rounded to the pill.
 function ClearFieldButton({ onPress }: { onPress: () => void }) {
   const [hovered, hover] = useHover();
   return (
@@ -283,9 +286,11 @@ function ClearFieldButton({ onPress }: { onPress: () => void }) {
       accessibilityLabel="Clear search"
       onPress={onPress}
       {...hover}
-      style={[styles.clearField, hovered && styles.clearFieldHover]}
+      style={styles.clearField}
     >
-      <X size={13} color={hovered ? t.colors.text.primary : '#4f5651'} strokeWidth={2.6} />
+      <View style={[styles.clearFieldGlyph, hovered && styles.clearFieldGlyphLit]}>
+        <X size={16} color={hovered ? t.colors.text.primary : '#4f5651'} strokeWidth={2.4} />
+      </View>
     </Pressable>
   );
 }
@@ -1230,16 +1235,28 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.darkest,
   },
+  // 44px invisible hit cushion; the visible glyph is inset by centering it, so
+  // the × mirrors the leading magnifier's distance from the field edge (~20px on
+  // web) instead of jamming against the border. borderRadius rounds the app-wide
+  // :focus-visible outline (App.tsx) to the pill.
   clearField: {
-    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearFieldGlyph: {
     width: 30,
     height: 30,
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(17,21,15,0.06)',
   },
-  clearFieldHover: { backgroundColor: 'rgba(17,21,15,0.12)' },
+  clearFieldGlyphLit: { backgroundColor: 'rgba(17,21,15,0.10)' },
   // 18px between the filter controls and the ISSUES section heading below them.
   // (Search Legislators puts a single child in this slot, so the gap is inert there.)
   filterSlot: { marginTop: 22, gap: 18 },
