@@ -1274,7 +1274,7 @@ function HomeSignedOutMobile() {
                   style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
                 />
               ) : null}
-              <Container style={[m.section, m.lastSectionBottom]}>
+              <Container style={[m.section, m.finderSectionTop, m.lastSectionBottom]}>
                 <Text accessibilityRole="header" style={m.finderH2}>
                   Find My Legislator
                 </Text>
@@ -1360,6 +1360,11 @@ const m = StyleSheet.create({
   // 96 (lastSectionBottom) so its content isn't crowded against the black footer.
   section: { paddingTop: 40, paddingBottom: 40 },
   lastSectionBottom: { paddingBottom: 96 },
+  // Find My Legislator only: +20 top padding over the shared section rhythm. The
+  // band's separation from the Bill Activity list above comes from its green tint,
+  // not whitespace, and with the Ask section gone it sits directly under the list's
+  // "See more" button — the extra top space lets the green band read as its own zone.
+  finderSectionTop: { paddingTop: 60 },
   eyebrow: {
     fontFamily: t.typography.ui,
     fontSize: 15,
