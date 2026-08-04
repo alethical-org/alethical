@@ -482,10 +482,15 @@ def main(argv: list[str] | None = None) -> int:
         "no bill lost its summary flag",
         after["affected_bill_flags"] == before["affected_bill_flags"],
     )
+    # A scoped run clears the groups it touched and leaves the rest, so the only
+    # honest claim is that the count fell. Subtracting the deletion count would be
+    # exact only while every group holds exactly two rows -- true of the 2,219
+    # production groups, and a false FAIL the day one holds three.
     ok &= _check(
         f"duplicate groups {before['duplicate_groups']} -> {after['duplicate_groups']}",
-        after["duplicate_groups"]
-        == (before["duplicate_groups"] - len(deletions) if args.only_bill else 0),
+        after["duplicate_groups"] < before["duplicate_groups"]
+        if args.only_bill
+        else after["duplicate_groups"] == 0,
     )
     if not ok:
         print(f"\nSomething is off. Undo with --restore-from {backup_path}")
