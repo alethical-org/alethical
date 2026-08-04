@@ -67,12 +67,16 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
    beside the results.
 7. **Pagination** — Previous · "Page N of M" · Next (server-backed `limit`/`offset`,
    advances on `has_more`; must not slice a bounded list locally). A page change
-   scrolls the first result back to the top of the viewport (smooth, ~20px of air
-   on web / ~12px on mobile), moves keyboard focus onto the results list, and
-   announces the new "Page N of M" via `aria-live`. This is the shared
-   `usePaginatedListScroll` hook wired through the `Pagination` control, so it
-   fires on Previous/Next only — never on a filter, sort, or search keystroke. Any
-   new paged list inherits it the same way.
+   scrolls the **results header** (item 5, the one-line "{N} bills · Sorted by …"
+   row) to the top of the viewport (smooth, ~20px of air on web / ~12px on mobile),
+   with the first result card directly beneath it, and moves keyboard focus there.
+   The header — not the first card — is the anchor: it re-confirms the sort on
+   every page and gives a clean "top of results" line for one line of cost. The
+   filter stack (chip row, chamber/status/session, issue pills) stays scrolled off
+   — that is what the reader already set. The new "Page N of M" is announced via
+   `aria-live`. This is the shared `usePaginatedListScroll` hook wired through the
+   `Pagination` control, so it fires on Previous/Next only — never on a filter,
+   sort, or search keystroke. Any new paged list inherits it the same way.
 
 ## Copy punctuation on this screen
 

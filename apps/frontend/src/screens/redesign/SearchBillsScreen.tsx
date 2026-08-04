@@ -104,7 +104,7 @@ export function SearchBillsScreen() {
   const route = useRoute<any>();
   const { signInWithGoogle } = useAuth();
   const { isDesktop } = useResponsive();
-  const { listAnchorProps, onPageChange } = usePaginatedListScroll();
+  const { scrollAnchorProps, onPageChange } = usePaginatedListScroll();
 
   // URL-addressable filter state (issue #135): the filters live in the /bills
   // query string so a filtered view is shareable, bookmarkable, reload-safe, and
@@ -470,6 +470,7 @@ export function SearchBillsScreen() {
     >
       <FilterChipRow chips={chips} onClearAll={clearFilters} />
       <ResultsHeader
+        {...scrollAnchorProps}
         count={resultCount}
         // Singular; ResultsHeader pluralizes it, so one result reads "1 bill".
         noun="bill"
@@ -478,12 +479,7 @@ export function SearchBillsScreen() {
       />
 
       {billsQuery.isLoading ? (
-        <View
-          {...listAnchorProps}
-          style={styles.list}
-          accessible
-          accessibilityLabel="Loading bills"
-        >
+        <View style={styles.list} accessible accessibilityLabel="Loading bills">
           {SKELETON_ROWS.map((i) => (
             <Skeleton key={i} width="100%" height={148} radius={t.radii.card} />
           ))}
@@ -505,7 +501,7 @@ export function SearchBillsScreen() {
         />
       ) : (
         <>
-          <View {...listAnchorProps} style={styles.list}>
+          <View style={styles.list}>
             {bills.map((bill) => (
               <BillResultCard
                 key={bill.id}

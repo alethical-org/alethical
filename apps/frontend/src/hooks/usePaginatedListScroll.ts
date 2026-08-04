@@ -6,21 +6,24 @@ import { useReducedMotion } from './useReducedMotion';
 
 // When a paginated list changes page, the reader is parked at the bottom next to
 // the Prev/Next row, staring at swapped-in-place results with no signal anything
-// moved. This hook lands the first result at the top of the viewport instead:
-// smooth-scroll the list into view (the motion is the signal), move keyboard
-// focus to the list, and leave a small gap above so the first card isn't clipped.
+// moved. This hook lands the results' own count/sort header at the top of the
+// viewport instead, first card just beneath it: smooth-scroll it into view (the
+// motion is the signal), move keyboard focus there, and leave a small gap above.
+// The header — not the first card — is the anchor: it re-confirms the sort on
+// every page and gives a clean "top of results" line for one line of cost. The
+// tall filter stack above it stays scrolled off (that's what the reader set).
 //
-// Build-once: any paged list gets the behavior by spreading `listAnchorProps` on
-// its results container and passing `onPageChange` to the shared Pagination
+// Build-once: any paged list gets the behavior by spreading `scrollAnchorProps`
+// on its results header and passing `onPageChange` to the shared Pagination
 // control, which fires it after Prev/Next (never on filter/sort/keystroke — the
 // reader is already at the top of the list for those).
 //
-// The gap above the list: ~20px on web, ~12px on the narrow mobile-web layout.
+// The gap above the header: ~20px on web, ~12px on the narrow mobile-web layout.
 const WEB_OFFSET = 20;
 const MOBILE_OFFSET = 12;
 const SCROLL_DURATION_MS = 320;
 
-// Walk up from the list to the real scrolling element. The Search screens scroll
+// Walk up from the anchor to the real scrolling element. The Search screens scroll
 // inside a nested react-native-web ScrollView (a div with overflow), not the
 // window, so we must move that div — window scrolling would do nothing. Falls
 // back to the document scroller for any page that scrolls the window instead.
@@ -36,17 +39,17 @@ function findScrollParent(node: HTMLElement): HTMLElement {
   return (document.scrollingElement as HTMLElement | null) ?? document.documentElement;
 }
 
-// The scroll position that puts the list's top edge `offset` px below the
-// scroller's top. `listTop`/`scrollerTop` are viewport-relative (getBoundingClientRect
-// tops); adding the current scrollTop converts to an absolute target. Clamp at 0 so a
-// list already at/above the top doesn't lurch backward past the start of the page.
+// The scroll position that puts the anchor's top edge `offset` px below the
+// scroller's top. `anchorTop`/`scrollerTop` are viewport-relative (getBoundingClientRect
+// tops); adding the current scrollTop converts to an absolute target. Clamp at 0 so an
+// anchor already at/above the top doesn't lurch backward past the start of the page.
 export function computeScrollTarget(
   scrollTop: number,
-  listTop: number,
+  anchorTop: number,
   scrollerTop: number,
   offset: number,
 ): number {
-  return Math.max(0, scrollTop + (listTop - scrollerTop) - offset);
+  return Math.max(0, scrollTop + (anchorTop - scrollerTop) - offset);
 }
 
 // react-native-web's ScrollView div ignores Element.scrollTo() entirely (verified
@@ -78,9 +81,8 @@ export function usePaginatedListScroll() {
   const { isMobile } = useResponsive();
   const reducedMotion = useReducedMotion();
   const rafRef = useRef({ id: 0 });
-  // A stable DOM id for this list instance (two lists on one screen each get
-  // their own). getElementById tolerates any string, but strip the framework's
-  // separators so the id stays readable.
+  // A stable DOM id for this list's scroll anchor. getElementById tolerates any
+  // string, but strip the framework's separators so the id stays readable.
   const nativeID = `paged-list-${useId().replace(/[^a-z0-9]/gi, '')}`;
 
   const onPageChange = useCallback(() => {
@@ -110,13 +112,13 @@ export function usePaginatedListScroll() {
       animateScrollTop(scroller, target, rafRef.current);
     }
 
-    // Move keyboard focus onto the list so the next Tab walks into the new
-    // results instead of the footer. tabindex="-1" makes it programmatically
+    // Move keyboard focus onto the results header so the next Tab walks into the
+    // new results instead of the footer. tabindex="-1" makes it programmatically
     // focusable only; suppress the ring since it's a scroll target, not a control.
     el.setAttribute('tabindex', '-1');
     el.style.outline = 'none';
     el.focus({ preventScroll: true });
   }, [nativeID, isMobile, reducedMotion]);
 
-  return { listAnchorProps: { nativeID }, onPageChange };
+  return { scrollAnchorProps: { nativeID }, onPageChange };
 }

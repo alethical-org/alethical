@@ -620,6 +620,7 @@ export function ResultsHeader({
   dataAsOf,
   sortControl,
   sortLabel,
+  nativeID,
 }: {
   count: number;
   /** Singular unit noun ("bill"); pluralized unless the count is exactly 1. */
@@ -630,13 +631,19 @@ export function ResultsHeader({
   /** Static "Sorted by …" label — the fallback for screens with no sort control
    *  yet (Search Legislators). Omit both to hide the meta row (e.g. no results). */
   sortLabel?: string;
+  /** Scroll anchor for pagination (usePaginatedListScroll): a page change lands
+   *  this count/sort row at the top of the viewport, first card just beneath it. */
+  nativeID?: string;
 }) {
   const { isMobile } = useResponsive();
   const asOf = formatAsOf(dataAsOf);
   const unit = count === 1 ? noun : `${noun}s`;
   const meta = sortControl ?? (sortLabel ? <StaticSortLabel label={sortLabel} /> : null);
   return (
-    <View style={[styles.resultsHeader, isMobile && styles.resultsHeaderMobile]}>
+    <View
+      nativeID={nativeID}
+      style={[styles.resultsHeader, isMobile && styles.resultsHeaderMobile]}
+    >
       <View style={styles.resultsHeaderMain}>
         <View style={[styles.resultsCountRow, isMobile && styles.resultsCountRowMobile]}>
           <Text style={[styles.resultsCount, isMobile && styles.resultsCountMobile]}>
