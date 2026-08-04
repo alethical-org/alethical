@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Any
 
 import requests
-from sqlalchemy import create_engine, select, update
+from sqlalchemy import create_engine, func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.serializers import section_chip_topic
@@ -1117,29 +1118,36 @@ def apply_output(args: argparse.Namespace) -> None:
                 )
                 .values(is_current=False)
             )
-            existing = db.scalar(
-                select(AIEnrichment).where(
-                    AIEnrichment.bill_id == bill_id,
-                    AIEnrichment.bill_version_id == bill_version_id,
-                    AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
-                    AIEnrichment.model_name == item.model,
-                    AIEnrichment.source_version_hash == item.source_version_hash,
+            # Upsert on the row's identity, rather than SELECT-then-insert (#927).
+            # The old shape was a check-then-insert: two workers in one parallel
+            # batch both found nothing and both inserted, which is where
+            # production's 2,219 duplicate pairs came from. Worse, that SELECT
+            # carried no ordering, so once a pair existed it returned an arbitrary
+            # one and marked it current -- a coin flip between two different
+            # summaries. Handing the decision to the database settles it: the
+            # second writer waits for the first and updates its row instead.
+            insert_enrichment = pg_insert(AIEnrichment).values(
+                bill_id=bill_id,
+                bill_version_id=bill_version_id,
+                enrichment_type=EnrichmentType.bill_summary,
+                model_name=item.model,
+                source_version_hash=item.source_version_hash,
+                content_json=content,
+                is_current=True,
+            )
+            db.execute(
+                insert_enrichment.on_conflict_do_update(
+                    constraint="uq_ai_enrichment_bill_version_type_model_hash",
+                    set_={
+                        "content_json": insert_enrichment.excluded.content_json,
+                        "is_current": True,
+                        # ON CONFLICT DO UPDATE is not an UPDATE construct, so the
+                        # column's own `onupdate` never fires. Set it here or a
+                        # rewritten row keeps its original timestamp.
+                        "updated_at": func.now(),
+                    },
                 )
             )
-            if existing is None:
-                existing = AIEnrichment(
-                    bill_id=bill_id,
-                    bill_version_id=bill_version_id,
-                    enrichment_type=EnrichmentType.bill_summary,
-                    model_name=item.model,
-                    source_version_hash=item.source_version_hash,
-                    content_json=content,
-                    is_current=True,
-                )
-                db.add(existing)
-            else:
-                existing.content_json = content
-                existing.is_current = True
             applied += 1
         if args.dry_run:
             db.rollback()

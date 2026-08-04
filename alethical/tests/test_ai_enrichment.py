@@ -4,7 +4,9 @@ import json
 import re
 from types import SimpleNamespace
 
+import pytest
 from sqlalchemy import create_engine, delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
@@ -994,3 +996,189 @@ def test_key_points_schema_ceiling_is_a_runaway_guard_not_the_target() -> None:
     desc = ai_enrichment.SUMMARY_SCHEMA["properties"]["key_points"]["description"]
     assert "AIM FOR ABOUT SIX" in desc
     assert "target" in desc and "not a quota" in desc
+
+
+# ---------------------------------------------------------------------------
+# The five-column identity of an enrichment row (#927)
+# ---------------------------------------------------------------------------
+
+
+def _enrichment(bill_id, version_id, *, content: dict, is_current: bool = False):
+    """One `ai_enrichment` row on the five columns the write path treats as
+    identifying. Never current by default: production's 2,219 duplicate groups
+    contain no current row, so this is the shape being reproduced."""
+    return schema.AIEnrichment(
+        bill_id=bill_id,
+        bill_version_id=version_id,
+        enrichment_type=schema.EnrichmentType.bill_summary,
+        model_name="claude:claude-sonnet-5",
+        source_version_hash="a" * 64,
+        content_json=content,
+        is_current=is_current,
+    )
+
+
+def test_the_five_column_key_refuses_a_second_row() -> None:
+    """The database must refuse the duplicate, because the code cannot (#927).
+
+    `apply_output` demotes the current row, SELECTs on these five columns, and
+    inserts when it finds none. That is a check-then-insert: two workers in one
+    parallel batch both find nothing and both insert. Production carries 2,219
+    such pairs, every one of them two rows where there should be one.
+
+    Two rows are inserted here from two separate transactions, exactly as two
+    workers would. Before the constraint both commits succeed and the table holds
+    a duplicate. After it, the second commit raises.
+
+    Run twice: once with a real `bill_version_id`, once with none. The null case
+    is not a curiosity -- 9,161 of 23,703 production rows have no version -- and a
+    plain `UNIQUE` would wave every one of them through, because Postgres does not
+    consider one NULL equal to another. That is why the key says
+    `NULLS NOT DISTINCT`.
+    """
+    with _session() as db:
+        bill_id, version_id = _make_bill_with_summary(
+            db,
+            bill_key="test-2025-HF999020",
+            file_number=999020,
+            content={"summary": "Unrelated current summary.", "key_points": []},
+        )
+    try:
+        for label, version in (("with a version", version_id), ("with none", None)):
+            with _session() as db:
+                db.add(_enrichment(bill_id, version, content={"summary": "First."}))
+                db.commit()
+            with _session() as db:
+                db.add(_enrichment(bill_id, version, content={"summary": "Second."}))
+                with pytest.raises(IntegrityError):
+                    db.commit()
+                db.rollback()
+            with _session() as db:
+                rows = list(
+                    db.scalars(
+                        select(schema.AIEnrichment).where(
+                            schema.AIEnrichment.bill_id == bill_id,
+                            schema.AIEnrichment.is_current.is_(False),
+                        )
+                    )
+                )
+                assert len(rows) == 1, f"{label}: {len(rows)} rows survived"
+                # The first writer's content stands. Which of two summaries a
+                # reader sees is exactly what was a coin flip before this key.
+                assert rows[0].content_json["summary"] == "First."
+                db.execute(
+                    delete(schema.AIEnrichment).where(
+                        schema.AIEnrichment.id == rows[0].id
+                    )
+                )
+                db.commit()
+    finally:
+        with _session() as db:
+            _cleanup(db, bill_id)
+
+
+def test_apply_output_updates_the_matching_row_instead_of_inserting_a_second(
+    tmp_path,
+) -> None:
+    """The write path must land on one row per key, whatever it finds there.
+
+    A superseded row already sits on this key -- the state 2,219 production bills
+    are in. The upsert has to reuse it: same row id, new content, promoted to
+    current. If it inserted instead, the new key would reject the write outright,
+    so this also proves the constraint and the write path agree.
+    """
+    with _session() as db:
+        bill_id, version_id = _make_bill_with_summary(
+            db,
+            bill_key="test-2025-HF999021",
+            file_number=999021,
+            content={"summary": "The current summary.", "key_points": []},
+        )
+    try:
+        with _session() as db:
+            superseded = _enrichment(
+                bill_id, version_id, content={"summary": "Superseded.", "_meta": {}}
+            )
+            db.add(superseded)
+            db.commit()
+            superseded_id = superseded.id
+
+        custom_id = "bill_summary:test-2025-HF999021:0123456789abcdef"
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "created_at": "20260804T000000Z",
+                    "endpoint": "/v1/responses",
+                    "mode": "summaries",
+                    "model": "claude:claude-sonnet-5",
+                    "items": [
+                        {
+                            "custom_id": custom_id,
+                            "bill_id": str(bill_id),
+                            "bill_key": "test-2025-HF999021",
+                            "bill_version_id": str(version_id),
+                            "model": "claude:claude-sonnet-5",
+                            "source_version_hash": "a" * 64,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        # Mocked LLM output: a static batch-output file, no API call.
+        output_path = tmp_path / "output.jsonl"
+        output_path.write_text(
+            json.dumps(
+                {
+                    "custom_id": custom_id,
+                    "response": {
+                        "status_code": 200,
+                        "body": {
+                            "output_text": json.dumps(
+                                {
+                                    "summary": "The freshly written summary.",
+                                    "key_points": [],
+                                    "policy_areas": ["Education"],
+                                }
+                            )
+                        },
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        ai_enrichment.apply_output(
+            SimpleNamespace(
+                api_key=None,
+                output_path=str(output_path),
+                output_dir=str(tmp_path),
+                batch_id=None,
+                manifest_path=str(manifest_path),
+                database_url=get_database_url(),
+                dry_run=False,
+            )
+        )
+
+        with _session() as db:
+            rows = list(
+                db.scalars(
+                    select(schema.AIEnrichment).where(
+                        schema.AIEnrichment.bill_id == bill_id
+                    )
+                )
+            )
+            # Two rows: the bill's original current summary was demoted and a
+            # different row now holds the new one. The key here matched only the
+            # superseded row, so that is the row that had to be reused.
+            reused = [r for r in rows if r.id == superseded_id]
+            assert len(reused) == 1, "the superseded row was replaced, not updated"
+            assert reused[0].content_json["summary"] == "The freshly written summary."
+            assert reused[0].is_current is True
+            assert reused[0].content_json["_meta"]["model"] == "claude:claude-sonnet-5"
+            assert sum(1 for r in rows if r.is_current) == 1
+    finally:
+        with _session() as db:
+            _cleanup(db, bill_id)
