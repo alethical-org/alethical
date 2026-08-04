@@ -1,6 +1,6 @@
 # Bill search screen spec
 
-<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/RoadmapTrackButton.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
+<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/lib/hotIssues.ts, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/RoadmapTrackButton.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
 
 Status: v1 build spec. Companion to `docs/product-onboarding/mvp-redesign-plan.md` (§ "Search page split")
 and `docs/product-onboarding/grounded-ask-spec.md` (the Ask answer pages link into this screen). Durable
@@ -133,6 +133,15 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   `/bills` list item). One indicator only — it is not repeated in the meta block. (Text is
   darkened from the mockup's `#a76a1a`, which was 3.98:1 on the fill, to `#8f5a12` = 5.16:1
   to clear WCAG AA for 11px text.)
+- **Hot-issue flag** — a **neutral** pill ("🔥 Hot issue", fill `#f1f1f4` / border
+  `rgba(17,21,15,0.08)` / text `#4f5651`, radius 999, 13px/700) shown only on bills the
+  editor has flagged. Never amber — amber is reserved for bill-code identity, and a hot
+  issue is an editorial flag, not a code. On web it sits in the card's top-right group to
+  the left of the Track button (~16px gap), same row; on mobile it sits on the right of the
+  identity row. The flagged set is the **same editorial list that drives the home Bill
+  Activity / In the News cards** (`apps/frontend/src/lib/hotIssues.ts`,
+  `HOT_ISSUE_BILL_KEYS`) — data-driven, not hardcoded per card — so a bill flagged for the
+  home shows the flag in search results too. Off by default (`hotIssue` prop).
 - **Bill title (short, plain-language)** — the card headline, largest text, clamped to 2
   lines. It leads with an AI-generated neutral `short_title` (`AIEnrichment`
   `bill_summary.short_title`) and falls back to the official statutory title when no
