@@ -249,10 +249,13 @@ def insert_rows(conn: sa.Connection, rows: list[dict[str, Any]]) -> None:
     statement = sa.text(
         f"INSERT INTO ai_enrichment ({', '.join(COLUMNS)}) VALUES ({placeholders})"
     )
-    for row in rows:
-        payload = dict(row)
-        payload["content_json"] = json.dumps(payload["content_json"])
-        conn.execute(statement, payload)
+    # One round trip, not 2,219 of them: production is reached over a pooler in
+    # another region, so a row-at-a-time restore turns minutes of waiting into an
+    # open transaction holding locks the whole time.
+    conn.execute(
+        statement,
+        [{**row, "content_json": json.dumps(row["content_json"])} for row in rows],
+    )
 
 
 def serializable(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
