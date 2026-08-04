@@ -135,7 +135,7 @@ function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
 }
 
-/** Green inline text link ("Read the full law →", chief author, companion bill). */
+/** Green inline text link (chief author, "View bill profile →"). */
 function TextLink({
   label,
   href,
@@ -259,15 +259,10 @@ function FieldShell({
 
 // --- Hero answer card (static sample answer — HF 4138) ---
 
-// The bill code badge and the companion-bill link point to our own bill profile
-// pages (in-app navigation), not the official source. These are the corpus bill
-// ids for HF 4138 and its Senate companion SF 4696.
+// The bill code badge and the "View bill profile" footer link both point to our own
+// bill profile page (in-app navigation), not the official source — so badge and link
+// agree. The external source-text link lives on the bill profile, not on this teaser.
 const HF4138_BILL_ID = '94-2026-HF4138';
-const SF4696_BILL_ID = '94-2026-SF4696';
-// HF 4138 was enacted as 2026 Session Law Chapter 111, so the footer links to the
-// signed law rather than a bill draft. Hardcoded because the hero is a static sample;
-// the reusable bill card derives this from status (see BillCard reusability note).
-const HF4138_LAW_URL = 'https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/111/';
 const HF4138_AUTHOR_URL = 'https://www.house.mn.gov/members/profile/15314';
 
 function CitedSectionCard({
@@ -320,8 +315,9 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       </View>
 
       {/* badge + meta. Mobile: compact 2×2 grid (fixed 90px left column shared by
-          badge + votes; right column holds dates and author/companion, both aligned
-          at 90 + 20px). Desktop unchanged. */}
+          badge + votes; right column holds dates and chief author, both aligned
+          at 90 + 20px). Desktop: two balanced meta columns (left = signed/effective,
+          right = chief author + vote counts). */}
       {isMobile ? (
         <View style={styles.billMetaMobile}>
           <View style={styles.billMetaMobileRow}>
@@ -372,17 +368,6 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                   onPress={() => openExternal(HF4138_AUTHOR_URL)}
                 />
               </View>
-              <View style={[styles.billMetaLinkRow, { marginTop: 2 }]}>
-                <Text style={styles.billMetaText}>Companion bill </Text>
-                <TextLink
-                  label="SF 4696 →"
-                  href={routePath.bill(SF4696_BILL_ID)}
-                  internal
-                  size={13}
-                  weight="600"
-                  onPress={() => navigation.navigate('BillDetail', { billId: SF4696_BILL_ID })}
-                />
-              </View>
             </View>
           </View>
         </View>
@@ -422,25 +407,14 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                     onPress={() => openExternal(HF4138_AUTHOR_URL)}
                   />
                 </View>
-                <View style={[styles.billMetaLinkRow, { marginTop: 2 }]}>
-                  <Text style={styles.billMetaText}>Companion bill </Text>
-                  <TextLink
-                    label="SF 4696 →"
-                    href={routePath.bill(SF4696_BILL_ID)}
-                    internal
-                    size={13}
-                    weight="600"
-                    onPress={() => navigation.navigate('BillDetail', { billId: SF4696_BILL_ID })}
-                  />
-                </View>
+                <Text style={[styles.billMetaText, { marginTop: 2 }]}>
+                  House 132–2 · Senate 66–0
+                </Text>
               </View>
             </View>
-            <Text style={[styles.billMetaText, { marginTop: 10 }]}>House 132–2 · Senate 66–0</Text>
           </View>
         </View>
       )}
-
-      <View style={styles.hairline} />
 
       <Text style={styles.answerSummary}>
         Minnesota’s{' '}
@@ -450,7 +424,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       </Text>
 
       <View style={styles.citedRow}>
-        <Text style={styles.citedLabel}>Cited</Text>
+        <Text style={styles.citedLabel}>CITED SECTIONS</Text>
         <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
           <Circle cx={12} cy={12} r={9} stroke={t.colors.brand.deep} strokeWidth={2} />
           <Path
@@ -461,41 +435,34 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
             strokeLinejoin="round"
           />
         </Svg>
-        <Text style={styles.citedLabel}>Section 325M.40</Text>
       </View>
 
       <View style={styles.sectionCardStack}>
         <CitedSectionCard
           n="1"
-          title="3(b) — Parental consent"
-          quote={
-            '“A covered social media platform may not create an account for a user identified as a child … without first obtaining verifiable parental consent.”'
-          }
+          title="Parental consent"
+          quote="A covered social media platform may not create an account for a user identified as a child … without first obtaining verifiable parental consent."
         />
         <CitedSectionCard
           n="2"
-          title="5(a) — Addictive features"
-          quote={
-            '“A covered social media platform may not present addictive interface features in the display or feed of any account of a child.”'
-          }
+          title="Addictive features"
+          quote="A covered social media platform may not present addictive interface features in the display or feed of any account of a child."
           note="Such as infinite scrolling, autoplay video, and push notifications"
         />
         <CitedSectionCard
           n="3"
-          title="4(a) — Privacy by default"
-          quote={
-            '“An account for a child shall have all privacy settings set by default at the most private levels.”'
-          }
+          title="Privacy by default"
+          quote="An account for a child shall have all privacy settings set by default at the most private levels."
         />
       </View>
 
       <View style={styles.answerFooter}>
         <TextLink
-          label="Read the full law →"
-          href={HF4138_LAW_URL}
-          onPress={() => openExternal(HF4138_LAW_URL)}
+          label="View bill profile →"
+          href={routePath.bill(HF4138_BILL_ID)}
+          internal
+          onPress={() => navigation.navigate('BillDetail', { billId: HF4138_BILL_ID })}
         />
-        <Text style={styles.answerFooterHost}>revisor.mn.gov</Text>
       </View>
 
       {/* de-emphasis overlay while a nav menu is open */}
@@ -1972,13 +1939,13 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   hairlineFlex: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink08 },
-  hairline: { height: 1, backgroundColor: t.colors.alpha.ink08, marginBottom: 14 },
   billMetaRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 24,
     flexWrap: 'wrap',
-    marginBottom: 14,
+    // 22px carries the facts→summary shift now that the plain hairline is gone.
+    marginBottom: 22,
   },
   billBadgeLg: {
     marginTop: 5,
@@ -2007,7 +1974,7 @@ const styles = StyleSheet.create({
   billMetaBold: { fontWeight: t.fontWeights.bold },
   billMetaLinkRow: { flexDirection: 'row', alignItems: 'center' },
   // Mobile compact metadata grid: fixed 90px left column + 20px gap + flexible right column.
-  billMetaMobile: { marginBottom: 14 },
+  billMetaMobile: { marginBottom: 22 },
   billMetaMobileRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 20 },
   // Left column wide enough for the "HF 4138" badge on one line; badge left-aligned
   // (flush with the votes below it), matching the design. Both cells share the width
@@ -2093,11 +2060,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     flexWrap: 'wrap',
-  },
-  answerFooterHost: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.label,
-    color: t.colors.text.faint,
   },
 
   // Section eyebrow — small green label above a section (e.g. "2025–26 LEGISLATIVE SESSION").
