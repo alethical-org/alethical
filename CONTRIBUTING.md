@@ -88,6 +88,33 @@ needs no configuration. See `.env.example` for what each variable does.
 
 Run `just lint`, `just format`, `uv run pytest`, and `just test-frontend` before opening a PR — CI runs the same checks, **plus a `prettier --check` over `apps/frontend` that `just lint` does not cover** (so `just lint` passing is not enough — run `just format` too).
 
+**Format with the pinned versions CI uses, not the unpinned ones `just lint` reaches for.**
+`just lint` and `just format` call `uvx ruff` and `uvx ty` with no version, so they pull
+whatever is newest and can format a file differently from CI or report errors CI never
+sees. To reproduce CI exactly: `uvx ruff@0.15.0 check alethical scripts`,
+`uvx ruff@0.15.0 format alethical scripts`, `uvx ty@0.0.63 check alethical/db`. Two PRs
+failed on this in one night, each on a file `just format` had already formatted.
+
+### One local Postgres, many worktrees
+
+Every worktree shares the **same** local Postgres on `:54329`, and the test suite runs
+`alembic upgrade head` against it at setup. That makes two failures common, and neither
+error message points at the cause:
+
+- **`FAILED: Can't locate revision identified by '00xx_…'`, every test erroring at
+  setup.** The database is stamped with a revision your branch does not contain, because
+  another worktree ran its own migration, or because you renumbered yours after running
+  it. Fix: `uv run alembic stamp <the-revision-before-it> --purge`, then
+  `uv run alembic upgrade head`. Where the stamp came from another worktree still using
+  it, build a throwaway database instead of re-stamping the shared one out from under
+  them.
+- **A red suite that looks like your change broke everything.** Check the stamp before
+  believing it. A dependency bump was briefly blamed for 502 failing tests that were
+  entirely a stamp mismatch.
+
+A worktree created with plain `git worktree add` has **no `.env`**, and every test errors
+without it. Use `just worktree <branch>`, which links it.
+
 ### Frontend tests
 
 The runner is **Vitest** (`apps/frontend`, pinned exact). It runs plain TypeScript modules directly, so there is no Babel or React Native transform chain to keep working, no config file, and the whole suite finishes in well under a second. `jest-expo` was not chosen: it needs the React Native preset and a Babel transform chain to test what are ordinary pure functions. Node's own `node --test` was not chosen either: running TypeScript through it depends on type-stripping whose behaviour varies by Node patch version, and unpinned tooling has turned this repo's CI red before. `pnpm --dir apps/frontend run test:watch` re-runs on save.
