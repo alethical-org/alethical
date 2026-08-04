@@ -115,12 +115,20 @@ matched Jul 30 exactly.
 ## Code that relies on something the database does not guarantee
 
 Each of these is the same shape as the lost bill sections: application code assuming a
-uniqueness the database never promised. Two are wrong on live data right now. All counts
-re-measured Aug 3 2026.
+uniqueness the database never promised. All counts re-measured Aug 3 2026; R1 re-measured
+against production Aug 4 2026 and unchanged.
+
+**Every one of these six is now closed, and three of the six had the wrong severity when
+written.** R2 was recorded as damage and was not; R6 was recorded as an uncounted aside
+and was a live 64-row reader-visible bug; R1 was recorded as "already wrong" and was
+latent. The *measurements* were sound each time — the row counts, the constraint
+definitions, the null semantics all held up. What went wrong was the label attached to
+them. Worth carrying into the next audit: a count is evidence, "already wrong" is a
+conclusion, and the two need checking separately.
 
 | # | Where | What it assumes | What the database actually has | Measured in production |
 | --- | --- | --- | --- | --- |
-| R1 | `alethical/pipeline/ai_enrichment.py` — get-or-create | `(bill_id, bill_version_id, enrichment_type, model_name, source_version_hash)` is unique | **No constraint on any of it**, in production or in `models.py`. D6's index covers two of the five columns and only current bill summaries, so it does not close this. | **2,219 duplicate groups**, 2,219 surplus rows, out of 23,703. The lookup is a plain `db.scalar(select(...))`, so it returns an arbitrary one of several matching rows. **Already wrong** — [#927](https://github.com/alethical-org/alethical/issues/927). |
+| R1 | `alethical/pipeline/ai_enrichment.py` — get-or-create | `(bill_id, bill_version_id, enrichment_type, model_name, source_version_hash)` is unique | **No constraint on any of it**, in production or in `models.py`. D6's index covers two of the five columns and only current bill summaries, so it did not close this. | **Fixed — and this row's severity was wrong.** The 2,219 duplicate groups were real, but **"Already wrong" overstates it**: **0** of them contained a current row, so nothing a reader saw was ambiguous. The damage was **latent**, and it would have fired on the next re-enrichment — the lookup has no ordering, so it returned an arbitrary row and marked it current, and 2,217 groups held two *different* summaries. Deduped on production and the five-column key added, spelt `NULLS NOT DISTINCT` because 9,161 rows have a null `bill_version_id` ([#927](https://github.com/alethical-org/alethical/issues/927), `0019`). |
 | R2 | `alethical/pipeline/minnesota.py` — `_LEGISLATOR_FK_REPOINTS` | deduping a repointed sponsorship on `(bill_id, role)` is enough | The declared key is `(bill_id, legislator_id, committee_id, role)`, and Postgres treats a NULL `committee_id` as distinct from another NULL, so the constraint blocks nothing for legislator-owned rows | **Fixed — and this row was wrong when written.** The "1 duplicate group" is **not a duplicate**: the official record lists Hemmingsen-Jaeger as SF 1943's House author 14 *and* its Senate author 5. Two genuine rows the key could not express, and the merge was deleting one of them. Cross-chamber authorship is structural — 258 bills carry both chambers' lists. `source_chamber` now joins the key ([#928](https://github.com/alethical-org/alethical/issues/928), `0018`). |
 | R3 | `alethical/pipeline/minnesota.py` and `scripts/load_sample_data.py` — `upsert_service_period` | one row per `(legislator_id, session_id)` with `is_current` true | The declared key is `(legislator_id, session_id, period_sequence)`; `is_current` is in no unique key, and the index naming all three columns is **not unique** | 0 violations. Latent, and the non-unique index reads like protection. [#928](https://github.com/alethical-org/alethical/issues/928). |
 | R4 | `alethical/pipeline/minnesota.py` and `alethical/pipeline/committee_memberships.py` | `(committee_id, legislator_id, role)` blocks a duplicate when `role` is NULL | It does not — NULL is never equal to NULL in a unique key. Only these two call paths' select-then-insert prevent it | 0 violations. Latent. [#928](https://github.com/alethical-org/alethical/issues/928). |
@@ -170,8 +178,10 @@ Three items, each with an owner:
   [#929](https://github.com/alethical-org/alethical/issues/929).
 - **D3 + D4** — 34,033 orphan rows and a populated orphan column, needing a product
   decision: [#855](https://github.com/alethical-org/alethical/issues/855).
-- **R1** — the AI-enrichment get-or-create sitting on 2,219 duplicate rows:
-  [#927](https://github.com/alethical-org/alethical/issues/927).
+- **R1** — **closed** by [#927](https://github.com/alethical-org/alethical/issues/927).
+  The 2,219 surplus rows were deleted from production (dry run predicted 2,219, the live
+  run deleted 2,219, current summaries unchanged at 10,517), and migration `0019` adds
+  the five-column key. Its "already wrong" label was too strong: latent, not live.
 - **R2, R3, R4, R6** — **closed** by
   [#928](https://github.com/alethical-org/alethical/issues/928). Two of the four rows
   above were wrong when written: R2 was not damage at all, and R6 was a live 64-row

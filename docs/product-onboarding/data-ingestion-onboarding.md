@@ -287,10 +287,17 @@ Overrides: `ALETHICAL_CENSUS_GEOCODER_URL`, `ALETHICAL_CENSUS_BENCHMARK`,
 `POST /v1/files` (`purpose=batch`, JSONL) → `POST /v1/batches`
 (`endpoint=/v1/responses`, `completion_window=24h`) → poll `GET /v1/batches/{id}`
 → download `GET /v1/files/{output_file_id}/content`. Output is structured JSON
-(`SUMMARY_SCHEMA`) written to `ai_enrichment` keyed by
-`(model_name, source_version_hash, is_current)`. A second backend runs the same
-schema through a local **Codex CLI** (`ai_codex` queue), touching prod only at
-`ai-apply`.
+(`SUMMARY_SCHEMA`) written to `ai_enrichment`, one row per
+`(bill_id, bill_version_id, enrichment_type, model_name, source_version_hash)`.
+Those five columns are the row's identity: `apply` upserts on them
+(`ON CONFLICT … DO UPDATE`), and a unique key spelt `NULLS NOT DISTINCT` makes the
+database refuse a second row rather than trusting the writer to look first
+([#927](https://github.com/alethical-org/alethical/issues/927), migration `0019`).
+`is_current` is **not** part of that identity, and this guide used to say it was —
+it marks which of a bill's rows is the one on display, which
+`ix_ai_enrichment_bill_summary_current_unique` separately holds to one per bill.
+A second backend runs the same schema through a local **Codex CLI** (`ai_codex`
+queue), touching prod only at `ai-apply`.
 
 **F. RAG chat synthesis:** `POST https://api.openai.com/v1/responses` with an
 "answer only from the provided bill text" system prompt over pgvector-retrieved
