@@ -13,7 +13,7 @@ The signed-out hero ships three sample question chips that map 1:1 to the shippe
 The signed-out home page hero ships this copy:
 
 > **Grounded answers on Minnesota law**
-> We read every bill so you don't have to — what it says, where it stands, and how everyone voted. Plain language, every answer linked to its official source.
+> We read every bill so you don't have to — what it says, where it stands, and how legislators voted. Plain language, every answer linked to its official source.
 
 The subhead is a contract, not marketing: **no answer ships without a resolvable citation to its official source.** Everything in this spec exists to keep that sentence true when the hero's Ask box goes from bill-scoped chat to a general question box.
 
@@ -43,7 +43,7 @@ Every answer ends with tappable citations using the existing citation panel patt
 
 **Not built yet — the vote path, gated on the §5 coverage spike:** the `legislator_vote` answer path · person entity-resolution (§4.6) · the "my legislator" location prompt (§8.1) · the vote chip returns to the hero — in chamber-tally form first if individual-vote coverage turns out thin.
 
-Rationale: the vote path stacks the three hardest problems (person resolution, roll-call coverage, signed-out location capture), while every shipped path is a thin formatter over queries that already exist. Roll calls are already live on the bill page's Votes tab, so the hero's "how everyone voted" stays true product-wide — users can *see* every vote; conversational vote answers arrive with the vote path.
+Rationale: the vote path stacks the three hardest problems (person resolution, roll-call coverage, signed-out location capture), while every shipped path is a thin formatter over queries that already exist. Roll calls are already live on the bill page's Votes tab, so the hero's "how legislators voted" stays true product-wide — users can *see* every vote; conversational vote answers arrive with the vote path.
 
 ## 3. Already built — do not rebuild
 
@@ -131,7 +131,7 @@ Half-day task against the live DB. Runs in parallel with everything else; its fi
 - [ ] The three hero chips (cannabis bill / healthcare / affordable housing) return correct, cited answers against production data.
 - [ ] Cite-or-refuse enforced on every answer path — no citation, no answer.
 - [ ] Vote questions get the deflection response with a working deep link to the bill's Votes tab — never a partial vote answer, never a tally on the deflection page.
-- [ ] Votes tab ships the deflection's landing surface (§9.3): URL-addressable, result + tally inline per roll call, official-record link per row. This is the surface that keeps the hero's "how everyone voted" true — if it can't ship, the hero subhead must be trimmed, not fudged.
+- [ ] Votes tab ships the deflection's landing surface (§9.3): URL-addressable, result + tally inline per roll call, official-record link per row. This is the surface that keeps the hero's "how legislators voted" true — if it can't ship, the hero subhead must be trimmed, not fudged.
 - [ ] Citation URLs resolve per source type (bill / legislator), never defaulting to an unrelated bill page.
 - [ ] Out-of-scope questions refuse politely with scope statement; in-scope empty topics get the distinct NO MATCHES state (§4.5).
 - [ ] "Support" questions use authorship/vote framing per §4.3, rendered as fixed UI copy.
@@ -192,7 +192,7 @@ One page template, five states; the router's typed intent decides which renders.
 
 ### 9.3 The Votes tab dependency (`votes-tab` — shipped)
 
-The deflection CTA and the hero's "how everyone voted" both land here:
+The deflection CTA and the hero's "how legislators voted" both land here:
 - **URL-addressable tab** (`?tab=votes` or `#votes`). The deflection CTA is cross-page navigation and can only target a tab that exists in the URL, not component state. The same anchor is what the vote path's roll-call citations will deep-link to, and it gives users shareable vote URLs for free.
 - Each roll-call row: motion/reading · date · chamber · **result with tally inline** ("Passed · 70–58") · a link to `VoteEvent.official_url` labelled **"Official record →"**. This line quoted it as "View roll call →", a string that appears nowhere in the frontend.
 - This is a **records surface**, not a generated answer: tallies belong here and must not appear in generated answers before the cited vote path ships.
