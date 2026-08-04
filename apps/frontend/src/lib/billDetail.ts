@@ -1998,11 +1998,12 @@ export const DEFAULT_ASK_CHIPS = [
   'Who does it affect?',
 ];
 
-// Derive the "Ask about this bill" card's placeholder + chips from a bill's
-// generated question_prompts. The first prompt seeds the placeholder
-// (bill-specific); the next three become chips; falls back to DEFAULT_ASK_CHIPS
-// when the bill has none. Single source for web (SummaryTab) and mobile
-// (BillDetailScreen) so the chip set stays identical on both surfaces.
+// Derive the "Ask about this bill" card's chips from a bill's generated
+// question_prompts. The first prompt is held back (it seeded the card's
+// placeholder before the card became chips-only); the next three become chips;
+// falls back to DEFAULT_ASK_CHIPS when the bill has none. Single source for web
+// (SummaryTab) and mobile (BillDetailScreen) so the chip set stays identical on
+// both surfaces. `placeholder` is retained for callers but no longer displayed.
 export function askCardPrompts(questionPrompts: string[] | undefined): {
   placeholder: string | undefined;
   chips: string[];
