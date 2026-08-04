@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { MapPin, Search } from 'lucide-react-native';
+import { MapPin } from 'lucide-react-native';
 
 import { theme, prefersReducedMotion } from '../../theme/tokens';
 import {
@@ -30,70 +30,6 @@ import type { Bill } from '../../data/types';
 
 const t = theme;
 const isWeb = Platform.OS === 'web';
-
-// Hero ask field auto-grows from one line to a ~4-line cap, then scrolls.
-const ASK_MIN_HEIGHT = 60;
-const ASK_MAX_HEIGHT = 150;
-const ASK_PLACEHOLDER = 'Ask about bills or legislators by issue or name';
-
-// Size the ask textarea (web) to its CONTENT: one line at rest, growing to fit a
-// wrapped placeholder/value and shrinking back — never a fixed multi-line height,
-// so it neither crops the text nor leaves an empty second line (#468 + follow-up).
-// scrollHeight ignores the placeholder, so mirror it into the value only while
-// measuring; Math.max floors a text that fits on one line at ASK_MIN_HEIGHT.
-const measureAskField = (node: TextInput | null) => {
-  if (!isWeb) return;
-  const el = node as unknown as HTMLTextAreaElement | null;
-  if (!el || typeof el.scrollHeight !== 'number') return;
-  const empty = !el.value;
-  if (empty) el.value = ASK_PLACEHOLDER;
-  el.style.height = 'auto';
-  const next = Math.min(Math.max(el.scrollHeight, ASK_MIN_HEIGHT), ASK_MAX_HEIGHT);
-  if (empty) el.value = '';
-  el.style.height = `${next}px`;
-};
-
-// Keep the ask field sized to its content. Measuring only on value change froze a
-// stale height: a field measured at its mount width (or with the fallback font,
-// before Libre Franklin loads — the fallback is wider and wraps the placeholder)
-// stayed two lines tall after it later widened or the font swapped in. So
-// also re-measure on the two things that silently change how the text wraps:
-//   • the field's WIDTH — a ResizeObserver catches every reflow (viewport resize,
-//     layout shift), guarded on width so our own height write can't feed back;
-//   • web-font load — `fonts.ready`, since the font changes text metrics without
-//     changing the (flex-driven) field width, so the observer alone would miss it.
-const useAskAutoGrow = (ref: RefObject<TextInput | null>, value: string) => {
-  useLayoutEffect(() => {
-    measureAskField(ref.current);
-  }, [ref, value]);
-  useEffect(() => {
-    if (!isWeb) return;
-    const el = ref.current as unknown as HTMLElement | null;
-    const remeasure = () => measureAskField(ref.current);
-    let cancelled = false;
-    let observer: ResizeObserver | undefined;
-    if (el && typeof ResizeObserver !== 'undefined') {
-      let lastWidth = -1;
-      observer = new ResizeObserver((entries) => {
-        const width = Math.round(entries[0]?.contentRect.width ?? 0);
-        if (width !== lastWidth) {
-          lastWidth = width;
-          remeasure();
-        }
-      });
-      observer.observe(el);
-    } else {
-      window.addEventListener('resize', remeasure);
-    }
-    const fonts = (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts;
-    fonts?.ready?.then(() => !cancelled && remeasure()).catch(() => {});
-    return () => {
-      cancelled = true;
-      if (observer) observer.disconnect();
-      else window.removeEventListener('resize', remeasure);
-    };
-  }, [ref]);
-};
 
 // .18s ease micro-transitions (README "Hover / focus micro-states") — web only.
 const transition = (props: string): object =>
@@ -1080,11 +1016,8 @@ function SkeletonCard({ lines }: { lines: number }) {
 function HomeSignedOutMobile() {
   const navigation = useNavigation<any>();
   const { signInWithGoogle } = useAuth();
-  const [askFocused, setAskFocused] = useState(false);
   const [finderFocused, setFinderFocused] = useState(false);
-  const [askValue, setAskValue] = useState('');
   const [finderValue, setFinderValue] = useState('');
-  const askInputRef = useRef<TextInput>(null);
   const finderInputRef = useRef<TextInput>(null);
 
   // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
@@ -1096,46 +1029,36 @@ function HomeSignedOutMobile() {
   const news1 = useBill(IN_THE_NEWS[1].key, { enabled: isFocused });
   // Bill Activity — live, date-ordered now that action dates are ingested (#329):
   //   • Recently Introduced = newest by real introduction date (sort=introduced).
-  //   • Recently Passed = most recently enacted bill (status=signed_into_law,
+  //   • Recently Passed = most recently enacted bills (status=signed_into_law,
   //     ordered by latest-action date desc — the signing/enactment milestone).
   //     "Passed both chambers, not yet signed" is ~0 genuine bills in the corpus
   //     (#305), so enacted is the honest population for the "Recently Passed" card.
+  // Counts match the web home (NEXT-home-spec §"Bill Activity"): 2 passed, 3
+  // introduced. The specific bills are illustrative; selection is date-driven.
   const introduced = useBills(
     undefined,
     undefined,
     { sort: 'introduced' },
-    { limit: 1 },
+    { limit: 3 },
     { enabled: isFocused },
   );
   const signed = useBills(
     undefined,
     undefined,
     { status: 'signed_into_law', sort: 'latest_action' },
-    { limit: 1 },
+    { limit: 2 },
     { enabled: isFocused },
   );
 
-  // Auto-size the ask field to its content — one line at rest, grow only on
-  // real wrap, shrink back; re-measures on resize + font-load (see useAskAutoGrow).
-  useAskAutoGrow(askInputRef, askValue);
-
   const signIn = () => void signInWithGoogle();
-  const submitAsk = () => {
-    const question = askValue.trim();
-    if (!question) {
-      askInputRef.current?.focus();
-      return;
-    }
-    navigation.navigate('Ask', { q: question });
-  };
   // Bill detail ships as the redesigned mobile screen, so every bill card on this
   // page (In the News, Bill Activity) routes there — same target as the desktop
   // variant's cards above and Search Bills' result cards.
   const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
   const openSearchBills = () => navigation.navigate('Bills');
   // Find hands the typed address to Find My Legislator, which looks it up on
-  // arrival (#873). Empty field focuses instead of navigating, same as the Ask
-  // hero above — a blank lookup has nothing to answer.
+  // arrival (#873). Empty field focuses instead of navigating — a blank lookup
+  // has nothing to answer.
   const openFinder = () => {
     const address = finderValue.trim();
     if (!address) {
@@ -1149,20 +1072,21 @@ function HomeSignedOutMobile() {
     { pin: IN_THE_NEWS[0], bill: news0.data },
     { pin: IN_THE_NEWS[1], bill: news1.data },
   ].filter((n) => n.bill != null) as { pin: (typeof IN_THE_NEWS)[number]; bill: Bill }[];
-  const introducedBill = introduced.data?.data?.[0];
-  const signedBill = signed.data?.data?.[0];
+  const introducedBills = introduced.data?.data ?? [];
+  const signedBills = signed.data?.data ?? [];
 
   // First-paint layout stability: "In the News" and "Bill Activity" are gated on
   // async query data, so until those queries resolve they'd render null (zero
-  // height) and the Ask section below them would sit right under the hero, then
-  // jump down once the data arrived. While a section's queries are still loading,
+  // height) and the Find My Legislator section below them would sit right under
+  // the hero, then jump down once the data arrived. While a section's queries are
+  // still loading,
   // render skeletons in its slot so the page holds its final order from the first
   // paint (no content-driven layout shift). On error/empty the section still
   // collapses to null, unchanged.
   const newsLoading = news0.isLoading || news1.isLoading;
   const activityLoading = introduced.isLoading || signed.isLoading;
 
-  // Masked dot textures — ONLY three sections carry them (Hero, Ask, Find My
+  // Masked dot textures — only two sections carry them (Hero, Find My
   // Legislator), each contained to its own section and faded soft at the edges
   // (mask stops lifted from the mock source). No page-wide dot field.
   const heroDotsWeb: object = isWeb
@@ -1173,16 +1097,6 @@ function HomeSignedOutMobile() {
           'linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 40px), transparent 100%)',
         WebkitMaskImage:
           'linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 40px), transparent 100%)',
-      }
-    : {};
-  const askDotsWeb: object = isWeb
-    ? {
-        backgroundImage: 'radial-gradient(rgba(17,21,15,0.09) 1.4px, transparent 1.5px)',
-        backgroundSize: '30px 30px',
-        maskImage:
-          'linear-gradient(to bottom, transparent 0%, #000 32%, #000 84%, transparent 100%)',
-        WebkitMaskImage:
-          'linear-gradient(to bottom, transparent 0%, #000 32%, #000 84%, transparent 100%)',
       }
     : {};
   const finderDotsWeb: object = isWeb
@@ -1237,7 +1151,7 @@ function HomeSignedOutMobile() {
               onSignIn={signIn}
             />
 
-            {/* HERO COPY (no ask field — Ask is its own section below) */}
+            {/* HERO COPY (headline + subhead only — no ask field) */}
             <Container style={m.heroBody}>
               <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
               <Text accessibilityRole="header" style={m.heroH1}>
@@ -1292,78 +1206,69 @@ function HomeSignedOutMobile() {
               </Text>
               <View style={m.activityGroup}>
                 <Text style={m.groupLabel}>RECENTLY PASSED</Text>
-                <SkeletonCard lines={3} />
+                <View style={m.activityCardStack}>
+                  <SkeletonCard lines={3} />
+                  <SkeletonCard lines={3} />
+                </View>
               </View>
               <View style={[m.activityGroup, m.activityGroupFollowing]}>
                 <Text style={m.groupLabel}>RECENTLY INTRODUCED</Text>
-                <SkeletonCard lines={3} />
+                <View style={m.activityCardStack}>
+                  <SkeletonCard lines={3} />
+                  <SkeletonCard lines={3} />
+                  <SkeletonCard lines={3} />
+                </View>
               </View>
               <SeeMore href={routePath.bills()} onPress={openSearchBills} />
             </Container>
-          ) : introducedBill || signedBill ? (
+          ) : introducedBills.length > 0 || signedBills.length > 0 ? (
             <Container style={m.section}>
               <Text style={m.eyebrow}>2025–2026 SESSION</Text>
               <Text accessibilityRole="header" style={m.sectionH2}>
                 Legislative Bill Activity
               </Text>
-              {signedBill ? (
+              {signedBills.length > 0 ? (
                 <View style={m.activityGroup}>
                   <Text style={m.groupLabel}>RECENTLY PASSED</Text>
-                  <ActivityCardMobile bill={signedBill} onPress={() => openBill(signedBill.id)} />
+                  <View style={m.activityCardStack}>
+                    {signedBills.map((bill) => (
+                      <ActivityCardMobile
+                        key={bill.id}
+                        bill={bill}
+                        onPress={() => openBill(bill.id)}
+                      />
+                    ))}
+                  </View>
                 </View>
               ) : null}
-              {introducedBill ? (
+              {introducedBills.length > 0 ? (
                 <View
-                  style={signedBill ? [m.activityGroup, m.activityGroupFollowing] : m.activityGroup}
+                  style={
+                    signedBills.length > 0
+                      ? [m.activityGroup, m.activityGroupFollowing]
+                      : m.activityGroup
+                  }
                 >
                   <Text style={m.groupLabel}>RECENTLY INTRODUCED</Text>
-                  <ActivityCardMobile
-                    bill={introducedBill}
-                    onPress={() => openBill(introducedBill.id)}
-                  />
+                  <View style={m.activityCardStack}>
+                    {introducedBills.map((bill) => (
+                      <ActivityCardMobile
+                        key={bill.id}
+                        bill={bill}
+                        onPress={() => openBill(bill.id)}
+                      />
+                    ))}
+                  </View>
                 </View>
               ) : null}
               <SeeMore href={routePath.bills()} onPress={openSearchBills} />
             </Container>
           ) : null}
 
-          {/* ASK — purple AI entry point (own masked dot texture) */}
-          <View style={m.askWrap}>
-            {isWeb ? (
-              <View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, askDotsWeb]}
-              />
-            ) : null}
-            <Container style={m.section}>
-              <Text style={m.eyebrow}>HAVE A QUESTION?</Text>
-              <Text style={m.askSub}>Plain language answers linked to official sources.</Text>
-              <FieldShell focused={askFocused} style={m.askShell}>
-                <Search size={22} color={t.colors.text.faint} strokeWidth={2} style={m.askIcon} />
-                <TextInput
-                  ref={askInputRef}
-                  value={askValue}
-                  onChangeText={setAskValue}
-                  onFocus={() => setAskFocused(true)}
-                  onBlur={() => setAskFocused(false)}
-                  multiline
-                  numberOfLines={1}
-                  blurOnSubmit={false}
-                  onKeyPress={(event) => {
-                    const ne = event.nativeEvent as { key?: string; shiftKey?: boolean };
-                    if (isWeb && ne.key === 'Enter' && !ne.shiftKey) {
-                      (event as { preventDefault?: () => void }).preventDefault?.();
-                      submitAsk();
-                    }
-                  }}
-                  placeholder={ASK_PLACEHOLDER}
-                  placeholderTextColor={t.colors.text.faint}
-                  style={m.askInput}
-                />
-              </FieldShell>
-              <AskButton onPress={submitAsk} />
-            </Container>
-          </View>
+          {/* Free-form Ask section removed — Ask is roadmap, not shipped, and it
+              duplicated Search. Mirrors dropping the ask field from the web hero.
+              Section order is now hero → In the News → Bill Activity → Find My
+              Legislator → footer. */}
 
           {/* FIND MY LEGISLATOR + BE IN THE KNOW share one continuous green→white
               background — the tint fades to white and stays white behind the
@@ -1418,25 +1323,6 @@ function HomeSignedOutMobile() {
   );
 }
 
-/** Full-width purple Ask button (mobile Ask section). */
-function AskButton({ onPress }: { onPress: () => void }) {
-  const [hovered, hoverProps] = useHover();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      {...hoverProps}
-      style={[
-        m.askButton,
-        transition('background-color'),
-        hovered && { backgroundColor: '#4a26b0' },
-      ]}
-    >
-      <Text style={m.askButtonText}>Ask</Text>
-    </Pressable>
-  );
-}
-
 const m = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
@@ -1444,10 +1330,9 @@ const m = StyleSheet.create({
   // bottom (styles.footer in theme/primitives.tsx) instead of leaving a band
   // of background below it.
   scrollContent: { position: 'relative', paddingBottom: 0, flexGrow: 1 },
-  // Hero + Ask each own their masked dot texture; overflow:hidden contains the
-  // texture (and its fade) to the section so it never bleeds page-wide.
+  // The hero owns a masked dot texture; overflow:hidden contains the texture
+  // (and its fade) to the section so it never bleeds page-wide.
   heroWrap: { position: 'relative', overflow: 'hidden' },
-  askWrap: { position: 'relative', overflow: 'hidden' },
   heroBody: { paddingTop: 40, paddingBottom: 40 },
   // Type scaled up ~1.2x for mobile legibility; the four largest black headers
   // (hero H1, "Legislative Bill Activity", "Find My Legislator", "Be in the Know")
@@ -1550,13 +1435,17 @@ const m = StyleSheet.create({
     letterSpacing: 0.4,
     color: t.colors.omnibus.text,
   },
+  // Editorial "🔥 Hot issue" flag: a NEUTRAL pill, matching web (BillResultCard
+  // hotPill). Amber is reserved for the bill-code badge — a hot issue is an
+  // editorial flag, not a code, so it must not wear the code color. Same neutral
+  // tokens as web; only the font size stays at the larger mobile scale below.
   hotPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: t.colors.omnibus.fill,
+    backgroundColor: t.colors.surfaces.s400, // #f1f1f4 — neutral grey, never amber
     borderWidth: 1,
-    borderColor: t.colors.omnibus.border,
-    borderRadius: t.radii.pill,
+    borderColor: t.colors.alpha.ink08, // rgba(17,21,15,0.08)
+    borderRadius: t.radii.pill, // 999
     paddingVertical: 5,
     paddingHorizontal: 12,
   },
@@ -1565,7 +1454,7 @@ const m = StyleSheet.create({
     fontSize: 14,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: 0.4,
-    color: t.colors.omnibus.text,
+    color: t.colors.text.secondary, // #4f5651
     // Stay on one line at the larger size.
     ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
   },
@@ -1620,6 +1509,9 @@ const m = StyleSheet.create({
   // with the card beneath it, not the card above.
   activityGroup: { marginTop: 16, gap: 14 },
   activityGroupFollowing: { marginTop: 32 },
+  // Cards within a group (web home shows 2 passed / 3 introduced). 18px apart,
+  // matching the In-the-News card spacing (cardStack) so both stacks read alike.
+  activityCardStack: { gap: 18 },
   groupLabel: {
     fontFamily: t.typography.ui,
     fontSize: 15,
@@ -1670,49 +1562,6 @@ const m = StyleSheet.create({
   seeMoreArrow: {
     position: 'relative',
     top: 1,
-  },
-  askSub: {
-    marginTop: 8,
-    fontFamily: t.typography.body,
-    fontSize: 17,
-    lineHeight: 25,
-    color: t.colors.text.muted,
-  },
-  askShell: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: 13,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  askIcon: { marginTop: 2 },
-  askInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: t.typography.body,
-    fontSize: 19,
-    lineHeight: 26,
-    color: t.colors.text.primary,
-    ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
-  },
-  askButton: {
-    marginTop: 12,
-    backgroundColor: t.colors.purple.base,
-    borderRadius: 13,
-    paddingVertical: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  askButtonText: {
-    fontFamily: t.typography.ui,
-    fontSize: 19,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.white,
   },
   // Continuous green→white band spanning Find My Legislator + Be in the Know
   // (see greenBandGradientWeb). No hard break; section rhythm comes from the inner
