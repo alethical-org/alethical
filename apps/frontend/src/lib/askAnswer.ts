@@ -287,9 +287,10 @@ const FOLLOW_UP_LIMIT = 3;
  * refusal (`.claude/rules/grounded-answers.md` rule 2).
  *
  * Deliberately NOT `askCardPrompts`, which Bill Detail's Ask card uses: that
- * helper spends the first prompt on the field's placeholder and offers prompts
- * 1–3 as chips, so here it would only ever leave two. Same field, same fallback
- * (`DEFAULT_ASK_CHIPS`) for a bill with no stored prompts.
+ * helper holds the first prompt back (it seeded the card's placeholder before the
+ * card became chips-only) and offers prompts 1–3 as chips, so here it would only
+ * ever leave two. Same data field, same fallback (`DEFAULT_ASK_CHIPS`) for a bill
+ * with no stored prompts.
  */
 export function followUpPrompts(
   questionPrompts: string[] | undefined,

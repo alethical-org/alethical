@@ -71,6 +71,7 @@ import { citationSectionAnchor } from '../../lib/billText';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton } from '../../components/Skeleton';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
+import { SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
 // Bill Detail — mobile-first, single scrolling page (docs/mockups/bill-detail-mobile).
@@ -1976,6 +1977,9 @@ function VersionRow({
   );
 }
 
+// Chips-only: free-form Ask is on the roadmap, not shipped, so a typable field
+// would over-promise. Matches the Answer page's "Ask another question", which is
+// already chips-only, and stays identical to the web SummaryTab Ask module.
 function AskCard({
   identifier,
   questionPrompts,
@@ -1985,53 +1989,31 @@ function AskCard({
   questionPrompts: string[] | undefined;
   onAsk: (q?: string) => void;
 }) {
-  const { focused, focusProps } = useFieldFocus();
-  const [q, setQ] = useState('');
-  // Bill-specific placeholder + chips from the served question_prompts, shared
-  // with the web SummaryTab so the chip set is identical on both surfaces (#627).
-  const { placeholder, chips } = askCardPrompts(questionPrompts);
+  // Bill-specific chips from the served question_prompts, shared with the web
+  // SummaryTab so the chip set is identical on both surfaces (#627).
+  const { chips } = askCardPrompts(questionPrompts);
   return (
     <View style={styles.askCard}>
       <Text accessibilityRole="header" style={styles.askTitle}>
         Ask about this bill
       </Text>
-      <Text style={styles.askSub}>No account needed — answers cite the bill text.</Text>
-      <View style={[styles.askField, ...fieldFocusRing(focused)]}>
-        <TextInput
-          value={q}
-          onChangeText={setQ}
-          onFocus={focusProps.onFocus}
-          onBlur={focusProps.onBlur}
-          onSubmitEditing={() => onAsk(q.trim() || undefined)}
-          returnKeyType="search"
-          placeholder={placeholder ?? `Ask a question about ${identifier}`}
-          placeholderTextColor={t.colors.text.faint}
-          style={[styles.askInput, fieldOutlineReset]}
-        />
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Ask"
-        onPress={() => onAsk(q.trim() || undefined)}
-        style={styles.askBtn}
-      >
-        <Text style={styles.askBtnText}>Ask</Text>
-      </Pressable>
+      <Text style={styles.askSub}>Answers cite the bill text</Text>
       {/* System-suggested chips scope to this bill (`${id}: ${chip}`) so the
           /ask bill_text path always resolves — a chip can never refuse
-          (grounded-answers rule 2). Scoping lives in scopedChipQuery. */}
+          (grounded-answers rule 2). Each is a real anchor to its own answer URL,
+          matching the Answer page's "Ask another question". */}
       {chips.length ? (
         <View style={styles.askChips}>
-          {chips.map((chip) => (
-            <Pressable
-              key={chip}
-              accessibilityRole="button"
-              onPress={() => onAsk(scopedChipQuery(identifier, chip))}
-              style={styles.askChip}
-            >
-              <Text style={styles.askChipText}>{chip}</Text>
-            </Pressable>
-          ))}
+          {chips.map((chip) => {
+            const scoped = scopedChipQuery(identifier, chip);
+            return (
+              <SuggestedQuestionChip
+                key={chip}
+                label={chip}
+                linkProps={linkProps(routePath.ask({ q: scoped }), () => onAsk(scoped))}
+              />
+            );
+          })}
         </View>
       ) : null}
     </View>
@@ -2563,55 +2545,12 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.lg,
     color: t.colors.text.muted,
   },
-  askField: {
-    marginTop: 14,
+  askChips: {
+    marginTop: 16,
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-  },
-  askInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.lg,
-    color: t.colors.text.primary,
-    paddingVertical: 14,
-  },
-  askBtn: {
-    marginTop: 10,
-    backgroundColor: t.colors.purple.base,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  askBtnText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.subhead,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.white,
-  },
-  askChips: { marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 9 },
-  askChip: {
-    // Bill-specific prompts are full sentences; cap the pill at the card width
-    // so a long chip wraps to two lines instead of overflowing a narrow phone.
-    maxWidth: '100%',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink12,
-    borderRadius: t.radii.pill,
-  },
-  askChipText: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.medium,
-    color: t.colors.text.secondary,
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 
   // actions

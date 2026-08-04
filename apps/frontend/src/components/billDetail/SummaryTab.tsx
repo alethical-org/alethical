@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
@@ -11,11 +10,11 @@ import {
   scopedChipQuery,
 } from '../../lib/billDetail';
 import { citationSectionAnchor } from '../../lib/billText';
-import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
+import { linkProps, routePath } from '../../navigation/links';
 import { CitationCard, SuggestedQuestionChip } from './CitationCard';
 import { FactsRail } from './FactsRail';
 import { SourceLine } from './SourceLine';
-import { isWeb, STICKY_RAIL, useHover } from './interactions';
+import { isWeb, STICKY_RAIL } from './interactions';
 
 // Summary tab — two columns on desktop (1.4fr content / 1fr rail), stacked on
 // narrow. Left: key points (the plain-language summary) → From the bill excerpts →
@@ -54,7 +53,7 @@ export function SummaryTab({
   // whose job is showing the whole summary.
   const summary = plainBillSummary(bill.aiAnalysis?.summary);
   const citations = bill.citations ?? [];
-  const { placeholder: askPlaceholder, chips: askChipList } = askCardPrompts(bill.questionPrompts);
+  const { chips: askChipList } = askCardPrompts(bill.questionPrompts);
 
   return (
     <View>
@@ -123,12 +122,7 @@ export function SummaryTab({
           ) : null}
 
           {showAsk ? (
-            <AskModule
-              identifier={bill.identifier}
-              placeholder={askPlaceholder}
-              chips={askChipList}
-              onAsk={onAsk}
-            />
+            <AskModule identifier={bill.identifier} chips={askChipList} onAsk={onAsk} />
           ) : null}
         </View>
 
@@ -155,57 +149,40 @@ export function SummaryTab({
   );
 }
 
+// Chips-only: free-form Ask is on the roadmap, not shipped, so a typable field
+// would over-promise. Matches the Answer page's "Ask another question", which is
+// already chips-only. Heading + subhead + a wrap of starter chips, nothing typable.
 function AskModule({
   identifier,
-  placeholder,
   chips,
   onAsk,
 }: {
   identifier: string;
-  placeholder?: string;
   chips: string[];
   onAsk: (question: string) => void;
 }) {
-  const [value, setValue] = useState('');
-  const { focused, focusProps } = useFieldFocus();
-  const [btnHovered, btnHover] = useHover();
-
-  const submit = () => onAsk(value.trim());
-
-  const askChip = (chip: string) => onAsk(scopedChipQuery(identifier, chip));
-
   return (
     <View style={styles.askCard}>
       <Text accessibilityRole="header" style={styles.askTitle}>
         Ask about this bill
       </Text>
-      <Text style={styles.askSub}>No account needed — answers cite the bill text.</Text>
-      <View style={[styles.askField, ...fieldFocusRing(focused)]}>
-        <TextInput
-          value={value}
-          onChangeText={setValue}
-          onFocus={focusProps.onFocus}
-          onBlur={focusProps.onBlur}
-          onSubmitEditing={submit}
-          returnKeyType="search"
-          placeholder={placeholder ?? `Ask a question about ${identifier}`}
-          placeholderTextColor={t.colors.text.faint}
-          style={[styles.askInput, fieldOutlineReset]}
-        />
-        <Pressable
-          accessibilityRole="button"
-          onPress={submit}
-          {...btnHover}
-          style={[styles.askBtn, btnHovered && styles.askBtnHover]}
-        >
-          <Text style={styles.askBtnText}>Ask</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.askSub}>Answers cite the bill text</Text>
+      {/* System-suggested chips scope to this bill (`${id}: ${chip}`) so the
+          /ask bill_text path always resolves — a chip can never refuse
+          (grounded-answers rule 2). Each is a real anchor to its own answer URL,
+          matching the Answer page's "Ask another question". */}
       {chips.length ? (
         <View style={styles.askChips}>
-          {chips.map((chip) => (
-            <SuggestedQuestionChip key={chip} label={chip} onPress={() => askChip(chip)} />
-          ))}
+          {chips.map((chip) => {
+            const scoped = scopedChipQuery(identifier, chip);
+            return (
+              <SuggestedQuestionChip
+                key={chip}
+                label={chip}
+                linkProps={linkProps(routePath.ask({ q: scoped }), () => onAsk(scoped))}
+              />
+            );
+          })}
         </View>
       ) : null}
     </View>
@@ -298,41 +275,11 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.small,
     color: t.colors.text.faint,
   },
-  askField: {
-    marginTop: 14,
+  askChips: {
+    marginTop: 16,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: t.radii.md,
-    paddingVertical: 5,
-    paddingRight: 5,
-    paddingLeft: 18,
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 9,
   },
-  askInput: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: 'transparent',
-    color: t.colors.text.primary,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    paddingVertical: 12,
-    paddingHorizontal: 2,
-  },
-  askBtn: {
-    backgroundColor: t.colors.purple.base,
-    borderRadius: 9,
-    paddingVertical: 12,
-    paddingHorizontal: 26,
-  },
-  askBtnHover: { backgroundColor: '#4a26b0' },
-  askBtnText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.white,
-  },
-  askChips: { marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 9 },
 });
