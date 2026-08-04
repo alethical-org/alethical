@@ -3,7 +3,9 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alethical.db.models import (
@@ -12,6 +14,8 @@ from alethical.db.models import (
     BillAction,
     BillVersion,
     BillVersionSection,
+    Committee,
+    CommitteeMembership,
     LegislativeSession,
     Legislator,
     LegislatorServicePeriod,
@@ -1227,5 +1231,325 @@ def test_repeated_section_id_keeps_every_section(seed_database: None) -> None:
             "Repealer.",
             "Appropriation.",
         ]
+
+        session.rollback()
+
+
+# --- Uniqueness the database was never told to enforce (#928) ----------------
+#
+# Four ingestion paths each assumed the database was stopping a duplicate, and in
+# each case it was not. Three of the four are the same Postgres rule: a unique key
+# never blocks two rows whose value is empty, because NULL is not considered equal
+# to NULL. Each test below fails against the code as it was, so the fix is proven
+# rather than asserted.
+
+
+def _special_session_xml(
+    file_type: str, file_number: str, companion_type: str, companion_number: str
+) -> str:
+    """A bill in the 1st special session of 2025. `SESSION_TYPE` is what makes it
+    special; `build_bill_key` turns that into the `s1` in `94-2025s1-HF1`."""
+    return f"""<?xml version="1.0"?>
+<BILL>
+  <SESSION_NUMBER>94</SESSION_NUMBER>
+  <SESSION_YEAR>2025</SESSION_YEAR>
+  <SESSION_TYPE>1</SESSION_TYPE>
+  <FILE_TYPE>{file_type}</FILE_TYPE>
+  <FILE_NUMBER>{file_number}</FILE_NUMBER>
+  <DESCRIPTION>Special session companion pair test bill</DESCRIPTION>
+  <COMPANION_TYPE>{companion_type}</COMPANION_TYPE>
+  <COMPANION_NUMBER>{companion_number}</COMPANION_NUMBER>
+  <ACTIONS></ACTIONS>
+  <TEXT_VERSION_LIST></TEXT_VERSION_LIST>
+</BILL>
+"""
+
+
+def _ingest_bill(pipeline, refs, session, xml: str) -> Bill:
+    canonical = parse_bill_xml(xml)
+    key = canonical["bill_key"]
+    run = pipeline.start_run("bill", key)
+    xml_artifact = pipeline.record_artifact(
+        run, ArtifactType.xml, f"https://example.test/{key}.xml", xml
+    )
+    html_artifact = pipeline.record_artifact(
+        run, ArtifactType.html, f"https://example.test/{key}.html", "<html></html>"
+    )
+    bill = pipeline.upsert_bill(
+        refs,
+        canonical,
+        {"sections": [], "articles": [], "source_url": "https://example.test/x"},
+        run,
+        xml_artifact,
+        html_artifact,
+    )
+    session.flush()
+    return bill
+
+
+def test_special_session_bill_links_to_its_own_special_session_companion() -> None:
+    """R6 — a special session's HF 1 must link to that special session's SF 1.
+
+    `link_companion` used to build the companion's key by hand, without the `s1`
+    that marks a special session, so it looked up `94-2025-SF1` and found the
+    *regular* session's SF 1 — a different bill entirely. Worse than a miss: it
+    linked both directions, so an unrelated regular-session bill was given a
+    companion it does not have. 64 bill rows in production carried a wrong
+    pointer, and both sides displayed the same "SF 8" label, so a reader could
+    not tell the two apart.
+    """
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        # A special session gets its own session row, because a Legislature
+        # numbers its special-session files from 1 again (#746). That is exactly
+        # why two different bills can share a file number, and so exactly why the
+        # companion key has to say which session it means.
+        special_refs = pipeline.seed_reference_data("1942025")
+
+        # The regular-session pair, and the same numbers again in a special
+        # session. The decoy is the whole point: the wrong key resolves to it.
+        regular_sf = _ingest_bill(
+            pipeline, refs, session, _companion_xml("SF", "7001", "HF", "7001")
+        )
+        special_hf = _ingest_bill(
+            pipeline,
+            special_refs,
+            session,
+            _special_session_xml("HF", "7001", "SF", "7001"),
+        )
+        special_sf = _ingest_bill(
+            pipeline,
+            special_refs,
+            session,
+            _special_session_xml("SF", "7001", "HF", "7001"),
+        )
+
+        assert special_hf.bill_key == "94-2025s1-HF7001"
+        assert special_sf.bill_key == "94-2025s1-SF7001"
+        assert regular_sf.bill_key == "94-2025-SF7001"
+
+        session.refresh(special_hf)
+        session.refresh(regular_sf)
+
+        # The special-session bill links to its own special-session companion...
+        assert special_hf.companion_bill_id == special_sf.id
+        assert special_sf.companion_bill_id == special_hf.id
+        # ...and the regular-session bill of the same number is left alone.
+        assert regular_sf.companion_bill_id != special_hf.id
+
+        session.rollback()
+
+
+def test_merging_legislators_keeps_a_cross_chamber_authorship() -> None:
+    """R2 — one person can author the same bill on both chambers' lists.
+
+    Verified against the official record for SF 1943: Hemmingsen-Jaeger is House
+    author 14 *and* Senate author 5. Two genuine rows, not a duplicate. The merge
+    used to decide which rows collide using only `(bill_id, role)`, so it treated
+    those two as the same row and deleted one. The rest of the real key includes
+    `source_chamber`, so both survive.
+    """
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        bill = _ingest_bill(
+            pipeline, refs, session, _companion_xml("SF", "7100", "HF", "7100")
+        )
+        source = pipeline.upsert_legislator(refs, "Dupe Author", external_key="dup-1")
+        target = pipeline.upsert_legislator(refs, "Dupe Author", external_key="dup-2")
+        session.flush()
+
+        # The target already has the senate-side co-authorship; the source holds
+        # the house-side one. Same bill, same role, different chamber.
+        session.add(
+            Sponsorship(
+                bill_id=bill.id,
+                legislator_id=target.id,
+                role=SponsorshipRole.co_author,
+                source_order=5,
+                source_chamber="senate",
+            )
+        )
+        session.add(
+            Sponsorship(
+                bill_id=bill.id,
+                legislator_id=source.id,
+                role=SponsorshipRole.co_author,
+                source_order=14,
+                source_chamber="house",
+            )
+        )
+        session.flush()
+
+        pipeline._merge_legislator(source, target)
+
+        chambers = sorted(
+            row.source_chamber
+            for row in session.scalars(
+                select(Sponsorship).where(
+                    Sponsorship.bill_id == bill.id,
+                    Sponsorship.legislator_id == target.id,
+                )
+            )
+        )
+        assert chambers == ["house", "senate"], (
+            "the merge destroyed a real authorship the official record shows"
+        )
+
+        session.rollback()
+
+
+def test_merging_legislators_still_drops_a_true_duplicate_authorship() -> None:
+    """R2, the other half — a genuinely identical row must still be dropped.
+
+    Widening the collision key must not turn the merge into a duplicate factory.
+    Two rows alike on every part of the key, including `source_chamber`, are one
+    authorship and only one may survive.
+    """
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        bill = _ingest_bill(
+            pipeline, refs, session, _companion_xml("SF", "7200", "HF", "7200")
+        )
+        source = pipeline.upsert_legislator(refs, "Same Author", external_key="same-1")
+        target = pipeline.upsert_legislator(refs, "Same Author", external_key="same-2")
+        session.flush()
+        for legislator in (target, source):
+            session.add(
+                Sponsorship(
+                    bill_id=bill.id,
+                    legislator_id=legislator.id,
+                    role=SponsorshipRole.co_author,
+                    source_order=3,
+                    source_chamber="senate",
+                )
+            )
+        session.flush()
+
+        pipeline._merge_legislator(source, target)
+
+        rows = list(
+            session.scalars(
+                select(Sponsorship).where(
+                    Sponsorship.bill_id == bill.id,
+                    Sponsorship.legislator_id == target.id,
+                )
+            )
+        )
+        assert len(rows) == 1, "the merge kept both halves of a true duplicate"
+
+        session.rollback()
+
+
+def test_database_blocks_a_second_current_service_period() -> None:
+    """R3 — at most one CURRENT service period per member per session.
+
+    `upsert_service_period` looks a row up by (legislator_id, session_id,
+    is_current) and inserts when it finds none, which is only safe if something
+    guarantees there is at most one. Nothing did. The index naming those three
+    columns is not unique, so it read like protection without being any.
+    """
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        legislator = pipeline.upsert_legislator(
+            refs, "Twice Current", external_key="tc"
+        )
+        chamber = refs["chambers"]["house"]
+        district = pipeline.upsert_district(refs, chamber, "60B")
+        session.flush()
+
+        def _period(sequence: int) -> LegislatorServicePeriod:
+            return LegislatorServicePeriod(
+                legislator_id=legislator.id,
+                session_id=refs["session"].id,
+                chamber_id=chamber.id,
+                district_id=district.id,
+                period_sequence=sequence,
+                is_current=True,
+            )
+
+        session.add(_period(1))
+        session.flush()
+        session.add(_period(2))
+        with pytest.raises(IntegrityError) as raised:
+            session.flush()
+        # Name the constraint: a bare "it raised IntegrityError" passes for any
+        # reason, including a missing required column, which is exactly how the
+        # first draft of this test passed while never reaching the key it exists
+        # to check.
+        assert "uq_legislator_service_period_one_current" in str(raised.value)
+
+        session.rollback()
+
+
+def test_database_blocks_a_duplicate_membership_with_no_role() -> None:
+    """R4 — an empty role must not make two identical memberships legal.
+
+    `UNIQUE(committee_id, legislator_id, role)` blocked nothing when `role` was
+    empty, because Postgres does not consider two empty values equal. That is the
+    ordinary case: most memberships carry no role. Only the two writers looking
+    before they insert kept the table clean.
+    """
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        legislator = pipeline.upsert_legislator(refs, "Twice Member", external_key="tm")
+        committee = Committee(
+            session_id=refs["session"].id,
+            chamber_id=refs["chambers"]["house"].id,
+            name="Duplicate Membership Test Committee",
+        )
+        session.add(committee)
+        session.flush()
+
+        session.add(
+            CommitteeMembership(
+                committee_id=committee.id, legislator_id=legislator.id, role=None
+            )
+        )
+        session.flush()
+        session.add(
+            CommitteeMembership(
+                committee_id=committee.id, legislator_id=legislator.id, role=None
+            )
+        )
+        with pytest.raises(IntegrityError):
+            session.flush()
+
+        session.rollback()
+
+
+def test_database_blocks_a_repeated_authorship_on_the_same_chamber_list() -> None:
+    """R2's database half — the widened key must still block a true repeat.
+
+    Two rows alike on every part of the key, chamber included, are one authorship
+    listed twice. The empty committee_id used to make them legal.
+    """
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        bill = _ingest_bill(
+            pipeline, refs, session, _companion_xml("SF", "7300", "HF", "7300")
+        )
+        legislator = pipeline.upsert_legislator(
+            refs, "Repeat Author", external_key="ra"
+        )
+        session.flush()
+        for order in (1, 2):
+            session.add(
+                Sponsorship(
+                    bill_id=bill.id,
+                    legislator_id=legislator.id,
+                    role=SponsorshipRole.co_author,
+                    source_order=order,
+                    source_chamber="senate",
+                )
+            )
+        with pytest.raises(IntegrityError) as raised:
+            session.flush()
+        assert "uq_sponsorship_bill_author_role_chamber" in str(raised.value)
 
         session.rollback()

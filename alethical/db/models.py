@@ -339,6 +339,20 @@ class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("legislator_id", "session_id", "period_sequence"),
+        # At most one CURRENT period per member per session (#928). The code has
+        # always assumed this -- upsert_service_period looks a row up by
+        # (legislator_id, session_id, is_current) and inserts when it finds none
+        # -- but nothing enforced it, so two concurrent runs could both find none
+        # and both insert. The index that names all three columns below is not
+        # unique and only looked like protection. Same shape as
+        # uq_bill_version_one_current_per_bill. 0 violations in production.
+        Index(
+            "uq_legislator_service_period_one_current",
+            "legislator_id",
+            "session_id",
+            unique=True,
+            postgresql_where=text("is_current"),
+        ),
         Index(
             "ix_legislator_service_period_current",
             "session_id",
@@ -448,7 +462,19 @@ class CommitteeMembership(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="committee_memberships"
     )
 
-    __table_args__ = (UniqueConstraint("committee_id", "legislator_id", "role"),)
+    # NULLS NOT DISTINCT (#928): role is empty on an ordinary membership, and
+    # Postgres does not consider two empty values equal, so this key blocked
+    # nothing for exactly the rows it was written to protect. The only thing
+    # preventing a duplicate was that both writers happen to look before they
+    # insert. 0 violations in production.
+    __table_args__ = (
+        UniqueConstraint(
+            "committee_id",
+            "legislator_id",
+            "role",
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
 
 
 class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -685,7 +711,30 @@ class Sponsorship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     committee: Mapped[Optional["Committee"]] = relationship()
 
     __table_args__ = (
-        UniqueConstraint("bill_id", "legislator_id", "committee_id", "role"),
+        # NULLS NOT DISTINCT, and source_chamber is part of the key (#928).
+        #
+        # Without NULLS NOT DISTINCT this key blocked nothing for an ordinary
+        # legislator authorship, because committee_id is empty on those rows and
+        # Postgres does not consider two empty values equal. Without
+        # source_chamber it would now be too strict in the other direction: one
+        # person can author the same bill on both chambers' lists, and the
+        # official record shows it (SF 1943 — Hemmingsen-Jaeger is House author 14
+        # and Senate author 5). Measured across production before adding it: 0
+        # rows violate this key.
+        # Named by hand: the convention generates a 69-character name, past
+        # Postgres's 63-character limit, so it would arrive truncated with a hash
+        # on the end and the migration would have to hard-code that hash. A short
+        # explicit name is the same fix the audit applied for finding D7 -- both
+        # sides say the same thing, and a human can read it.
+        UniqueConstraint(
+            "bill_id",
+            "legislator_id",
+            "committee_id",
+            "role",
+            "source_chamber",
+            name="uq_sponsorship_bill_author_role_chamber",
+            postgresql_nulls_not_distinct=True,
+        ),
         CheckConstraint(
             "(legislator_id IS NOT NULL) OR (committee_id IS NOT NULL)",
             name="sponsorship_has_target",

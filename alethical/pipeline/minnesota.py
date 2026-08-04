@@ -476,6 +476,11 @@ def parse_bill_xml(xml_text: str) -> dict[str, object]:
         "description": text("DESCRIPTION"),
         "session_year": text("SESSION_YEAR"),
         "session_number": text("SESSION_NUMBER"),
+        # Carried through so link_companion can build the companion's key with
+        # build_bill_key, the same way this bill's own key above is built. Without
+        # it a special-session bill resolved its companion to the *regular*
+        # session's file of that number (#928).
+        "special_session": text("SESSION_TYPE") or 0,
         # MN bills come in House/Senate companion pairs; the detailed status XML
         # names the companion's file type + number (e.g. SF2483 -> HF2431). Used
         # to populate Bill.companion_bill_id in upsert_bill (#293).
@@ -1252,7 +1257,17 @@ class MinnesotaIngestionPipeline:
     # (the target keeps its own real-district ones), so they are not listed here.
     _LEGISLATOR_FK_REPOINTS = (
         # (table, fk_column, dedup_columns)  -- dedup = the rest of the unique key
-        ("sponsorship", "legislator_id", ("bill_id", "role")),
+        # sponsorship names committee_id and source_chamber because both are in
+        # the real key. Leaving source_chamber out made the merge treat one
+        # person's House-list and Senate-list authorship of the same bill as one
+        # row and delete one of them -- and the official record does show both
+        # (SF 1943: Hemmingsen-Jaeger is House author 14 and Senate author 5).
+        # See migration 0018 for the matching database constraint (#928).
+        (
+            "sponsorship",
+            "legislator_id",
+            ("bill_id", "committee_id", "role", "source_chamber"),
+        ),
         ("vote_record", "legislator_id", ("vote_event_id",)),
         ("committee_membership", "legislator_id", ("committee_id", "role")),
         ("evidence_document", "legislator_id", ("source_url",)),
@@ -1318,7 +1333,16 @@ class MinnesotaIngestionPipeline:
         Table/column names are fixed literals (see _LEGISLATOR_FK_REPOINTS), never
         user input. Returns the number of rows repointed."""
         if dedup:
-            match = " AND ".join(f"t.{col} = s.{col}" for col in dedup)
+            # IS NOT DISTINCT FROM, not `=`: several dedup columns are nullable
+            # (sponsorship.committee_id, committee_membership.role), and `=`
+            # yields NULL rather than true when both sides are empty, so a
+            # colliding row was never matched and never dropped. The repoint then
+            # created the duplicate the drop existed to prevent. This is the same
+            # null rule the matching constraints in 0018 spell NULLS NOT
+            # DISTINCT, so the two now agree about what a collision is (#928).
+            match = " AND ".join(
+                f"t.{col} IS NOT DISTINCT FROM s.{col}" for col in dedup
+            )
             self.db.execute(
                 text(
                     f"DELETE FROM {table} AS s WHERE s.{column} = :src "
@@ -1762,9 +1786,20 @@ class MinnesotaIngestionPipeline:
         companion_number = str(canonical.get("companion_number") or "").strip()
         if not companion_type or not companion_number:
             return
-        companion_key = (
-            f"{canonical['session_number']}-{canonical['session_year']}"
-            f"-{companion_type}{companion_number}"
+        # build_bill_key, not a hand-built string: it is the one place a bill_key
+        # is composed, and it appends the `s<n>` special-session suffix. Building
+        # the key here by hand omitted that suffix, so a special-session bill
+        # looked up the *regular* session's file of the same number and found a
+        # real, unrelated bill -- then linked both directions, giving that bill a
+        # companion it does not have. 64 rows in production carried a wrong
+        # pointer, on both sides labelled identically, so neither page could be
+        # read as wrong (#928).
+        companion_key = build_bill_key(
+            canonical["session_number"],
+            canonical["session_year"],
+            companion_type,
+            companion_number,
+            canonical.get("special_session") or 0,
         )
         companion = self.db.scalar(select(Bill).where(Bill.bill_key == companion_key))
         if companion is None or companion.id == bill.id:

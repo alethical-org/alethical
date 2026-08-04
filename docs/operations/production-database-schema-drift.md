@@ -121,11 +121,11 @@ re-measured Aug 3 2026.
 | # | Where | What it assumes | What the database actually has | Measured in production |
 | --- | --- | --- | --- | --- |
 | R1 | `alethical/pipeline/ai_enrichment.py` — get-or-create | `(bill_id, bill_version_id, enrichment_type, model_name, source_version_hash)` is unique | **No constraint on any of it**, in production or in `models.py`. D6's index covers two of the five columns and only current bill summaries, so it does not close this. | **2,219 duplicate groups**, 2,219 surplus rows, out of 23,703. The lookup is a plain `db.scalar(select(...))`, so it returns an arbitrary one of several matching rows. **Already wrong** — [#927](https://github.com/alethical-org/alethical/issues/927). |
-| R2 | `alethical/pipeline/minnesota.py` — `_LEGISLATOR_FK_REPOINTS` | deduping a repointed sponsorship on `(bill_id, role)` is enough | The declared key is `(bill_id, legislator_id, committee_id, role)`, and Postgres treats a NULL `committee_id` as distinct from another NULL, so the constraint blocks nothing for legislator-owned rows | **1 duplicate group.** Already wrong — [#928](https://github.com/alethical-org/alethical/issues/928). |
+| R2 | `alethical/pipeline/minnesota.py` — `_LEGISLATOR_FK_REPOINTS` | deduping a repointed sponsorship on `(bill_id, role)` is enough | The declared key is `(bill_id, legislator_id, committee_id, role)`, and Postgres treats a NULL `committee_id` as distinct from another NULL, so the constraint blocks nothing for legislator-owned rows | **Fixed — and this row was wrong when written.** The "1 duplicate group" is **not a duplicate**: the official record lists Hemmingsen-Jaeger as SF 1943's House author 14 *and* its Senate author 5. Two genuine rows the key could not express, and the merge was deleting one of them. Cross-chamber authorship is structural — 258 bills carry both chambers' lists. `source_chamber` now joins the key ([#928](https://github.com/alethical-org/alethical/issues/928), `0018`). |
 | R3 | `alethical/pipeline/minnesota.py` and `scripts/load_sample_data.py` — `upsert_service_period` | one row per `(legislator_id, session_id)` with `is_current` true | The declared key is `(legislator_id, session_id, period_sequence)`; `is_current` is in no unique key, and the index naming all three columns is **not unique** | 0 violations. Latent, and the non-unique index reads like protection. [#928](https://github.com/alethical-org/alethical/issues/928). |
 | R4 | `alethical/pipeline/minnesota.py` and `alethical/pipeline/committee_memberships.py` | `(committee_id, legislator_id, role)` blocks a duplicate when `role` is NULL | It does not — NULL is never equal to NULL in a unique key. Only these two call paths' select-then-insert prevent it | 0 violations. Latent. [#928](https://github.com/alethical-org/alethical/issues/928). |
 | R5 | `alethical/api/services/notifications.py` — `record_bill_status_change` | `notification_event` has `old_status_code`, `new_status_code`, `old_status`, `new_status` | Production's table has none of those four and requires six other columns to be non-null. The insert would fail outright | Not reachable: the function's only caller is its own test. A landmine for whoever wires up [#36](https://github.com/alethical-org/alethical/issues/36), not a live break. With D2. |
-| R6 | `alethical/pipeline/minnesota.py` — `link_companion` | a bill key built by hand matches `build_bill_key()`'s output | `build_bill_key()` appends an `s<n>` suffix for special sessions; the hand-built key never does, so a special-session companion can never match and the miss is indistinguishable from "no companion" | Not counted. Unrelated to schema drift, found on the way. [#928](https://github.com/alethical-org/alethical/issues/928). |
+| R6 | `alethical/pipeline/minnesota.py` — `link_companion` | a bill key built by hand matches `build_bill_key()`'s output | `build_bill_key()` appends an `s<n>` suffix for special sessions; the hand-built key never did, so a special-session bill resolved its companion to the **regular** session's file of that number — a real, unrelated bill — and then linked both directions | **Fixed — and far worse than this row said.** Recorded as "not counted, unrelated to schema drift"; it was a live, reader-visible bug. **64 bill rows** carried a wrong companion, both sides labelled identically ("SF 8"), so neither page read as wrong. Repaired: 32 repointed, 26 recovered from the surviving reverse link, 6 left blank ([#928](https://github.com/alethical-org/alethical/issues/928)). |
 
 Two things checked and **clean**, worth recording so nobody re-checks them:
 
@@ -164,7 +164,7 @@ guard nobody built is worse than one that admits the gap.
 
 ### Still open
 
-Four items, each with an owner:
+Three items, each with an owner:
 
 - **D2 + D11 + R5** — replace production's fossil `notification_event`:
   [#929](https://github.com/alethical-org/alethical/issues/929).
@@ -172,8 +172,10 @@ Four items, each with an owner:
   decision: [#855](https://github.com/alethical-org/alethical/issues/855).
 - **R1** — the AI-enrichment get-or-create sitting on 2,219 duplicate rows:
   [#927](https://github.com/alethical-org/alethical/issues/927).
-- **R2, R3, R4, R6** — the remaining uniqueness assumptions, each wanting a failing
-  test first: [#928](https://github.com/alethical-org/alethical/issues/928).
+- **R2, R3, R4, R6** — **closed** by
+  [#928](https://github.com/alethical-org/alethical/issues/928). Two of the four rows
+  above were wrong when written: R2 was not damage at all, and R6 was a live 64-row
+  bug rather than an uncounted aside. Both corrected in the table.
 
 ## Reading this later
 
