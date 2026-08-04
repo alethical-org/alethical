@@ -17,7 +17,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t, prefersReducedMotion } from '../../theme/tokens';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
-import { Footer, PageBackground, TopNav } from '../../theme/primitives';
+import { Footer, TopNav } from '../../theme/primitives';
 import { useResponsive } from '../../hooks/useResponsive';
 import { titleCaseIssue } from '../../lib/issues';
 import { IaItem, MenuKey } from '../../navigation/ia';
@@ -99,6 +99,17 @@ const CODE_BADGE_BORDER = t.colors.omnibus.border;
 const GHOST_AMBER_BORDER = t.colors.omnibus.ghostBorder; // #e3c17f — shared ghosted omnibus border
 // Breadcrumb grey (palette.ink500) — no semantic text alias maps to it.
 const BREADCRUMB_GREY = '#4b524b';
+
+// Page ground — ONE flat cool-grey. Every zone (header + each content section) is
+// a white surface (surfaces.base) sitting on this; the ground shows only in the
+// gaps between those white panels, which is what makes them pop and gives the
+// neutral-grey chips (#f1f1f4 hot-issue / topic pills) a white surface to sit on.
+// A single-screen ground tone with no other consumer, so a local const rather
+// than a shared token (avoids a speculative theme abstraction). Slightly cooler /
+// deeper than surfaces.s300 (#f4f5f7) so white reads as a distinct surface.
+const GROUND = '#eef1f4';
+// Grey gap between stacked white panels — the only place the ground shows.
+const PANEL_GAP = 12;
 
 // Editorial "🔥 Hot issue" flag — the same set that drives the home "In the News"
 // pins and Search Bills. Keys are `bill.id` (e.g. "94-2026-HF4138"). Only the own
@@ -606,7 +617,7 @@ function BillDetailMobileScreen() {
   };
 
   return (
-    <PageBackground>
+    <View style={styles.pageGround}>
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
@@ -662,7 +673,6 @@ function BillDetailMobileScreen() {
           <>
             {/* 1 — bill header */}
             <View style={styles.headerOuter}>
-              {isWeb ? <View pointerEvents="none" style={styles.headerDots} /> : null}
               <View style={styles.column}>
                 <Breadcrumb onPress={goToBillList} />
                 <Text
@@ -1142,7 +1152,7 @@ function BillDetailMobileScreen() {
       {/* NOTE: the Votes section has no sign-in / "see how your legislators voted"
           promotion. Per-district personalization isn't wired yet, so we don't advertise
           it (no unshippable capability). Sign-in stays available via the top nav. */}
-    </PageBackground>
+    </View>
   );
 }
 
@@ -2117,6 +2127,9 @@ function BottomSheet({
 const COLUMN_MAX = 640;
 
 const styles = StyleSheet.create({
+  // Flat cool-grey page ground (replaces the old multi-stop gradient + green
+  // radial wash). White panels sit on it; grey shows only in the gaps.
+  pageGround: { flex: 1, backgroundColor: GROUND },
   scroll: { flex: 1 },
   // flexGrow: 1 fills the window on a short page so the footer lands at the
   // bottom (styles.footer in theme/primitives.tsx) instead of leaving a band
@@ -2140,10 +2153,16 @@ const styles = StyleSheet.create({
   // shared column
   column: { width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center', paddingHorizontal: 20 },
 
-  // header
-  // paddingTop bumped 8 → 26 so the header no longer hugs the nav (~26px nav →
-  // breadcrumb). Breadcrumb adds ~20px down to the title via its own marginBottom.
-  headerOuter: { position: 'relative', paddingTop: 26, paddingBottom: 18 },
+  // header — a white surface on the grey ground, so the neutral status pill, the
+  // "🔥 Hot issue" flag and the OMNIBUS tag pop against white (matching web)
+  // instead of blending into a grey header. paddingTop 26 keeps the header off the
+  // nav; the grey ground shows above it (the nav sits on the ground).
+  headerOuter: {
+    position: 'relative',
+    backgroundColor: t.colors.surfaces.base,
+    paddingTop: 26,
+    paddingBottom: 18,
+  },
   breadcrumb: {
     marginBottom: 20,
     flexDirection: 'row',
@@ -2155,19 +2174,6 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.ui,
     fontSize: 15,
     fontWeight: t.fontWeights.semibold,
-  },
-  headerDots: {
-    ...(StyleSheet.absoluteFillObject as object),
-    ...(isWeb
-      ? ({
-          backgroundImage: t.gradients.dotInk,
-          backgroundSize: '30px 30px',
-          maskImage:
-            'linear-gradient(to bottom, transparent 0px, #000 40px, #000 calc(100% - 20px), transparent 100%)',
-          WebkitMaskImage:
-            'linear-gradient(to bottom, transparent 0px, #000 40px, #000 calc(100% - 20px), transparent 100%)',
-        } as object)
-      : null),
   },
   h1: {
     fontFamily: t.typography.title,
@@ -2315,7 +2321,17 @@ const styles = StyleSheet.create({
   jumpChipTextActive: { color: t.colors.white, fontWeight: t.fontWeights.bold },
 
   // sections
-  sectionOuter: { paddingTop: 28, paddingBottom: 8 },
+  // Each content section is a white surface on the grey ground. PANEL_GAP of grey
+  // shows above each one (including the first, below the sticky chip bar), so the
+  // ground appears only in the gaps between white panels. paddingBottom matches
+  // paddingTop now that the panel owns its own bottom breathing room (the old 8
+  // relied on the next section's transparent top padding for separation).
+  sectionOuter: {
+    backgroundColor: t.colors.surfaces.base,
+    marginTop: PANEL_GAP,
+    paddingTop: 28,
+    paddingBottom: 28,
+  },
   lastSection: { paddingBottom: 40 },
   h2: {
     fontFamily: t.typography.title,
