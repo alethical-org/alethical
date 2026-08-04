@@ -296,8 +296,13 @@ enumeration. Every bill with 25+ retrievable passages was scanned for named
 recipients using the tight phrasings in
 [`alethical/eval/ground_truth.py`](../../alethical/eval/ground_truth.py) — money
 flowing *to* an entity, not an entity merely mentioned — and exactly four (bill,
-shape) pairs clear eight distinct recipients: HF 719 (90 cities, 16 counties), HF 2484
-(14 cities) and SF 3551 (11 school districts). HF 719 has no peer; the next largest
+shape) pairs clear eight distinct recipients: HF 719 (98 cities, 17 counties), HF 2484
+(14 cities) and SF 3551 (11 school districts). This line said 90 and 16, which matched
+neither the exact counts asserted in `ground_truth.py` (98 and 17, pinned by
+`test_the_derivation_reproduces_the_hand_counts_exactly_not_just_the_bounds`) nor the
+lower-bound constants beside them (`HF719_MIN_GRANT_CITIES = 90`,
+`HF719_MIN_GRANT_COUNTIES = 15`) — and contradicted this doc's own §3 and its later
+correction, both of which say 98 and 17. HF 719 has no peer; the next largest
 set of named places is 14.
 
 **Do not read that as "three is all there can ever be".** The pool scanned holds 565
@@ -363,9 +368,15 @@ both providers the *naive* call is the slow one:
 - **Claude Sonnet 5** runs adaptive thinking whenever the `thinking` parameter is
   omitted. The eval sends `thinking: {"type": "disabled"}` with effort `low`
   (disabling is allowed at effort `high` or below).
-- **OpenAI's gpt-5 family** reasons at its default effort. The eval sends
-  `reasoning: {"effort": "minimal"}`. (`"none"` is rejected — the accepted values
-  are `minimal`, `low`, `medium`, `high`.)
+- **OpenAI's gpt-5 family** reasons at its default effort, so the eval asks for the
+  lowest each model accepts — and the two models do not accept the same word
+  (`_LOWEST_REASONING_EFFORT`, `scripts/answer_eval.py`):
+  - `gpt-5-mini` / `gpt-5-nano` → `reasoning: {"effort": "minimal"}`
+  - `gpt-5.1` → `reasoning: {"effort": "none"}`; here `"minimal"` is the value that
+    gets rejected.
+
+  This bullet had it backwards for `gpt-5.1`, which is the model used as a judge and
+  as a top candidate throughout this doc.
 
 Writing three sentences from four passages already in front of the model is not a
 reasoning task, so the fast configuration is the one we would actually ship — and it
@@ -499,7 +510,7 @@ key can never ask for something the best possible model could only guess.
 | What "better" means | Faithful, plain, stage-correct writing | Picking the right bucket more often |
 | Failure a reader sees | A wrong or unreadable answer | The wrong kind of answer page, or a needless refusal |
 | Cost driver | Output tokens — it writes | Input tokens — it reads and emits a few |
-| Measured by | This eval | Classification accuracy in `alethical/tests/test_api_contract.py` |
+| Measured by | This eval | **Nothing yet.** This cell named `alethical/tests/test_api_contract.py`, but `test_ask_classify_llm_intents` there is a mocked contract test — a stub response keyed on a substring of the question — so it checks the wiring, not accuracy against labelled questions. The paragraph below already said as much, so the table and the prose disagreed. |
 
 Because the router's output is a label, prose quality buys it nothing, and its cost
 is dominated by input tokens, so a stronger model is *cheaper* to upgrade there than
@@ -658,7 +669,7 @@ partial, models overclaim just as often.
 
 > **The scores above were produced against a prompt production no longer sends, and the re-run below must fix that first** ([#868](https://github.com/alethical-org/alethical/issues/868), Jul 31 2026). This eval imports `RAG_CHAT_SYSTEM_PROMPT` by identity so it can never score a drifted *copy* — a good guard, and #868 slipped past it, because the drift is not a copy but a **layer production adds on top**. Production now composes that constant with a coverage rule that forbids exactly the overclaiming this section measures: on a partial read it says *"NEVER state or imply that the bill omits … something"* and *"NEVER give a total, a count, or a list you call complete"*, and on either read *"NEVER tell the reader your list is complete."*
 >
-> So **the 80% / 89% / 80% figures are the overclaim rate of an unprompted model**, which is the right number for the question this section asks (does more context fix it?) and the wrong one for "what will a reader see." Call `rag_chat_system_prompt(coverage)` (`alethical/api/routers/me.py`) instead of the constant; the frozen contexts here are partial reads, so `rag_chat_system_prompt(None)` is the matching prompt. Left as this eval's change to make rather than done in #868, because moving a published baseline mid-decision is worse than a recorded gap.
+> So **the 80% / 89% / 80% figures are the overclaim rate of an unprompted model**, which is the right number for the question this section asks (does more context fix it?) and the wrong one for "what will a reader see." Call `rag_chat_system_prompt(coverage)` (`alethical/api/routers/me.py`) instead of the constant. **This originally said to pass `rag_chat_system_prompt(None)` — the partial rule — for everything, and that is the fix the code has since tried and rejected:** `production_system_prompt()` (`scripts/answer_eval.py`) records that a blanket `None` "was right when every frozen context was four passages … and wrong the moment #868 started reading some bills whole." It now derives coverage per question. The baseline itself is still deliberately unmoved, because shifting a published baseline mid-decision is worse than a recorded gap.
 >
 > Two things this does **not** change. The conclusion still holds — the fix is a layout-owned note, not a wider window — and it now holds for a second, independent reason: #868 measured that reading **all 102** passages of HF 719 still produced 26–35 of its 98 cities. And the shipped product is not relying on the prompt anyway: both overclaim shapes are removed in the answer path, so a model that ignores the instruction still cannot reach a reader (`.claude/rules/grounded-answers.md` rule 11).
 
@@ -1039,7 +1050,7 @@ cost of upgrading, not a reason not to, but it needs a prompt line alongside any
 switch rather than a note afterwards.
 
 **`claude-haiku-4-5` writes 18 Markdown headings across 11 of its 20 answers.**
-`AskAnswerScreen.tsx` strips `**bold**` and prints the rest verbatim — there is no
+`stripInlineMarkdown` (`apps/frontend/src/lib/askAnswer.ts`, called by `AskAnswerScreen.tsx`) strips `**bold**` and prints the rest verbatim — there is no
 Markdown renderer — so those reach a reader as literal `###` characters. It is the
 only arm that does this, which is exactly why an average would hide it and a choice
 must not.

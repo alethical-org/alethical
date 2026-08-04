@@ -38,7 +38,7 @@ draft of this section used `SearchBillsScreen.tsx` and did exactly that.
 `Docs check:` line in the body saying what the author concluded. "None needed" passes — the
 check forces the *look*, not an edit.
 
-Measured on 2026-08-03: **9 of 47 docs** declare anything, and the check **fires on 26 of the
+Measured on 2026-08-03: **11 of 52 docs** declare anything (this said 9 of 47 a few hours earlier the same day; `production-database-schema-drift.md` and the two specs added to the index since both declare code now), and the check **fires on 26 of the
 last 60 merged PRs (43%)**, naming 54 doc-review prompts in total.
 
 ## The gap, and what the evidence actually says about it
