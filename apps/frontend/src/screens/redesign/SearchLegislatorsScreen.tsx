@@ -43,7 +43,7 @@ export function SearchLegislatorsScreen() {
   const route = useRoute<any>();
   const { signInWithGoogle } = useAuth();
   const { isDesktop } = useResponsive();
-  const { listAnchorProps, onPageChange } = usePaginatedListScroll();
+  const { scrollAnchorProps, onPageChange } = usePaginatedListScroll();
 
   // URL-addressable filter state, mirroring Search Bills: filters live in the
   // /legislators query string so a filtered roster is shareable, reload-safe,
@@ -200,6 +200,7 @@ export function SearchLegislatorsScreen() {
       }
     >
       <ResultsHeader
+        {...scrollAnchorProps}
         count={filtered.length}
         // Singular; ResultsHeader pluralizes it, so one result reads "1 legislator".
         noun="legislator"
@@ -208,12 +209,7 @@ export function SearchLegislatorsScreen() {
       />
 
       {legislatorsQuery.isLoading ? (
-        <View
-          {...listAnchorProps}
-          style={styles.grid}
-          accessible
-          accessibilityLabel="Loading legislators"
-        >
+        <View style={styles.grid} accessible accessibilityLabel="Loading legislators">
           {SKELETON_CARDS.map((i) => (
             <View key={i} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
               <Skeleton width="100%" height={132} radius={t.radii.card} />
@@ -230,7 +226,7 @@ export function SearchLegislatorsScreen() {
         <NoResults variant="legislators" total={allLegislators.length} onClear={clearFilters} />
       ) : (
         <>
-          <View {...listAnchorProps} style={styles.grid}>
+          <View style={styles.grid}>
             {paged.map((legislator) => (
               <View key={legislator.id} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
                 <LegislatorResultCard
