@@ -54,6 +54,7 @@ topic tags at once), so they're funded together and can all use either billing r
 | **Topic/issue tagging** — classifies each bill for browse-by-issue & follow-an-issue | Policy-area tags | Generation | ✅ Yes *(same enrichment call)* |
 | **Grounded Ask answers** — the prose a reader reads on the answer page and in bill chat | A cited, plain-language answer, written per question | Generation | ❌ **No — API-only in practice** (see below) |
 | **Question sorting** — deciding what kind of question was asked | One label from a fixed set | Generation | ❌ No — same reason |
+| **Short-title rewrite** — a scannable headline for a bill whose official title is a statutory run-on | One short neutral title per bill | Generation | ❌ **No — pinned to `gpt-4o-mini`** regardless of the run's main model (`TITLE_MODEL`, `alethical/pipeline/ai_enrichment.py`) |
 | **Display-time text cleaner** — interim masking of legalese in the app | (nothing — plain client code) | Not AI | ✅ N/A |
 | **Semantic search / retrieval** — finding the right bill for a typed question | Embedding vectors | **Embedding** | ❌ **No — API-only** |
 | **Corpus status freshness** — keeping each bill's current status up to date | Re-scraped status/actions | Not AI (web scraping) | ✅ N/A (free HTTP) |
@@ -171,17 +172,28 @@ is on introductory pricing of **$2 in / $10 out per million tokens** through
 ([pricing](https://platform.claude.com/docs/en/about-claude/pricing#claude-sonnet-5-introductory-pricing)).
 That is a 50% increase on every enrichment run from September 1.
 
-Both discounts apply to the same measured job, so the
+Both discounts apply to the same job, so the
 [#723](https://github.com/alethical-org/alethical/issues/723) re-enrichment of 3,222
-bills (26.7M tokens in, 12.3M out) prices four ways:
+bills prices four ways. **These are the measured figures, not the pre-run estimate.**
+The table here used to carry the estimate (26.7M in / 12.3M out → ~$176 live, ~$88 bulk)
+under the words "the same measured job", while §4.2 twelve lines below said the run
+actually cost ~$224 because output ran 41% over. Same doc, same job, two prices — the
+recurrence of exactly the failure [#786](https://github.com/alethical-org/alethical/pull/786)
+fixed once already.
+
+Measured: 26.7M tokens in, ~17.4M out (3,222 bills × ~5,400 output tokens each).
 
 | | Live calls (~1 hour) | Bulk lane (up to 24 hours) |
 |---|---|---|
-| **Through Aug 31, 2026** | ~$176 | **~$88** |
-| **From Sep 1, 2026** | ~$265 | ~$132 |
+| **Through Aug 31, 2026** | **~$224** (actually paid) | **~$112** |
+| **From Sep 1, 2026** | ~$337 | ~$169 |
+
+The bulk-lane column is the live column halved, per the 50% bulk discount above; the
+Sep 1 row scales the measured cost by the same ratio the estimate used ($265 / $176).
+Only the ~$224 was actually paid.
 
 **Net (plain language): the bulk lane saves more than the deadline costs.** Missing
-August is a ~$89 mistake only if we stay on live calls; on the bulk lane it is ~$44.
+August is a ~$113 mistake only if we stay on live calls; on the bulk lane it is ~$57.
 Doing both — bulk lane, before September — is the cheapest this job will ever be.
 
 **Those output figures are now high, because the job itself got smaller.** The prices

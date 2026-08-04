@@ -15,8 +15,10 @@ Alethical ingests **Minnesota legislative data by scraping official public
 government sources** — there is no single vendor API and **no API keys are
 needed for any government source**. Bills come from the MN Revisor (XML + HTML),
 legislators from the joint Legislature roster + chamber profile pages, votes from
-chamber-specific journals/pages, and district lookup from US Census + MN GIS. The
-only credentialed dependency is **OpenAI** (AI bill summaries + RAG chat).
+chamber-specific journals/pages, and district lookup from US Census + MN GIS. There are **two** credentialed dependencies: **Anthropic**
+(`alethical/pipeline/anthropic_enrichment.py` — where every production bill summary
+comes from today) and **OpenAI** (the batch summary backend + RAG chat). This guide
+named only OpenAI, which pointed a new engineer at the wrong one.
 Everything is orchestrated through an **Oban (Postgres-backed) job queue driven
 from a CLI** — there is **no scheduler/cron**; a human runs the pipeline. All
 batch ingestion is **dry-run by default** and **idempotent**.
@@ -281,7 +283,7 @@ Overrides: `ALETHICAL_CENSUS_GEOCODER_URL`, `ALETHICAL_CENSUS_BENCHMARK`,
 `ALETHICAL_MN_GIS_LOOKUP_URL`, `ALETHICAL_HTTP_TIMEOUT_SECONDS`. CLI:
 `python -m alethical.api.services.representative_lookup "<address>" --json`.
 
-## E & F — OpenAI (the only credentialed sources)
+## E & F — the credentialed sources (Anthropic and OpenAI)
 
 **E. AI bill summaries — Batch API** (base `https://api.openai.com/v1`):
 `POST /v1/files` (`purpose=batch`, JSONL) → `POST /v1/batches`
@@ -296,8 +298,11 @@ database refuse a second row rather than trusting the writer to look first
 `is_current` is **not** part of that identity, and this guide used to say it was —
 it marks which of a bill's rows is the one on display, which
 `ix_ai_enrichment_bill_summary_current_unique` separately holds to one per bill.
-A second backend runs the same schema through a local **Codex CLI** (`ai_codex`
-queue), touching prod only at `ai-apply`.
+Two further backends write the same schema. A local **Codex CLI** runs on the
+`ai_codex` queue, touching prod only at `ai-apply`. And **Anthropic**
+(`anthropic_enrichment.py`, `ANTHROPIC_API_KEY`) is the one every production summary
+actually comes from — it was missing from this section, from the pipeline diagram, and
+from the stage table above.
 
 **F. RAG chat synthesis:** `POST https://api.openai.com/v1/responses` with an
 "answer only from the provided bill text" system prompt over pgvector-retrieved
@@ -332,9 +337,16 @@ CLI: `uv run python -m alethical.pipeline.oban --target {local|production} {inst
 | `bill-sync-chunk` | `bill_sync` (**8**) | Ingest a chunk of bills + build RAG |
 | `committee-backfill` | `committee_sync` (1) | Committee memberships |
 | `vote-backfill` | `vote_sync` (1) | Roll-call votes |
+| `rag-backfill` / `rag-backfill-chunk` | `rag_sync` (1) | Rebuild retrieval chunks + embeddings. Both were missing from this table. |
 | `ai-prepare` / `ai-apply` | `ai_batch` / `ai_apply` | OpenAI Batch prepare/apply |
 | `codex-ai-*` | `ai_batch` / `ai_codex` | Local Codex enrichment |
 | `smoke` | `maintenance` (1) | Health check |
+
+**`just pipeline-work` does not drain every queue in this table.** It covers
+`source_sync`, `bill_sync`, `committee_sync`, `vote_sync` and `ai_batch`, so
+`ai_apply`, `ai_codex` and `rag_sync` need a `drain` of their own
+(`python -m alethical.pipeline.oban --target <t> drain <queue>`). A job sitting in one
+of those three looks stuck when nothing is draining it.
 
 **Safety:** jobs are `--dry-run` by default — pass `--write --allow-writes` to
 persist. A **task-key dedupe** prevents duplicate concurrent jobs. Typical run
@@ -356,7 +368,7 @@ just pipeline local --write --allow-writes     # commit after review
 | `uv run python scripts/backfill_rag_bulk.py` | Threaded RAG backfill for current versions missing chunks |
 | `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans` | Committee repair/backfill |
 | `uv run python -m alethical.pipeline.votes` | Vote backfill (debug) |
-| `uv run python -m alethical.pipeline.ai_enrichment {submit\|status} ...` | Direct OpenAI Batch control |
+| `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end. |
 
 ## Provenance, idempotency & data layers
 
