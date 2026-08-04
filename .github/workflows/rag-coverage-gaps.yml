@@ -1,0 +1,108 @@
+name: Check every bill is searchable
+
+# Catches a bill whose text is stored but never embedded, so it sits on the site
+# looking completely normal while Grounded Ask cannot find or cite a word of it
+# (#844). A reader gets an honest refusal about a bill we are holding in full,
+# which `.claude/rules/grounded-answers.md` rule 7 calls a gap to close rather
+# than an acceptable steady state.
+#
+# Nothing inside the product shows this. The bill page renders, the text is
+# there, the summary is there — only search is blind to it. So this check is the
+# only thing that would notice.
+#
+# Why a schedule is the only place it can live: the job-queue path already embeds
+# (BillSyncChunkWorker calls build_rag_rows_for_bill_keys when include_rag is
+# true, the default). Two paths do not — scripts/load_minnesota_data.py never
+# embeds, and scripts/repair_missing_bill_sections.py prints a line telling a
+# person to embed afterwards. Both run by hand from a laptop, so no CI run can
+# see one happen, and the second depends on somebody reading that printed line.
+# #844's 69 bills were found only because someone finishing #763 happened to.
+#
+# Free: one SQL query, fetches nothing, no paid API. Quiet: it opens an issue only
+# when a gap actually exists, and comments on the existing open one rather than
+# filing a second — so a gap that sits unfixed for a week is one issue, not seven.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 12:00 UTC daily (~6-7am America/Chicago). An hour after the bill-section
+    # gap check at 11:00 and three after the vote backfill at 09:00, so the three
+    # never contend for the database.
+    - cron: "0 12 * * *"
+
+concurrency:
+  group: production-rag-coverage-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    # Build the production URL from the same Supabase inputs the app, migrations
+    # and the sibling checks use (supabase_database_url), so there is no separate
+    # DATABASE_URL copy of the password to rotate out of date (#288).
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      # Pinned to an exact release, matching bill-section-gaps.yml: setup-uv
+      # stopped publishing floating major tags after v7, so this one is bumped by
+      # hand. prune-cache keeps the smaller dependency cache.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check database secrets are set
+        run: test -n "$SUPABASE_PROJECT_URL" && test -n "$SUPABASE_DB_PASSWORD"
+
+      # Read-only. Exits 1 when any bill's current version is stored but not
+      # searchable, using the pipeline's own staleness query rather than a
+      # restatement of it.
+      #
+      # Two things here are load-bearing, both learned from bill-section-gaps.yml:
+      #   * PYTHONPATH=. — the script lives in scripts/, so plain `uv run python
+      #     scripts/...` puts scripts/ on sys.path and not the repo root, and the
+      #     script dies on `import alethical`. That failure would fire the alert
+      #     below and file an issue claiming bills are unsearchable when nothing
+      #     had been queried at all.
+      #   * shell: bash — GitHub's default is `bash -e`, WITHOUT pipefail, so the
+      #     `| tee` would hand back tee's exit code (always 0) and swallow the
+      #     script's 1. `shell: bash` runs `bash -eo pipefail`, so a gap fails the
+      #     step and the alert fires.
+      - name: Look for bills that are stored but not searchable
+        shell: bash
+        run: PYTHONPATH=. uv run python scripts/check_rag_coverage.py | tee rag-report.txt
+
+      # Mirrors bill-section-gaps.yml: use the built-in token, and comment on the
+      # open issue instead of filing a duplicate. No external service or secret.
+      - name: Open an alert issue if any bill is unsearchable
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Bills are on the site but cannot be found by search"
+          report=$(cat rag-report.txt 2>/dev/null || echo "(the check produced no output — it may have failed before querying)")
+          body=$(printf '**Net:** At least one bill is stored in full and cannot be found or cited by Grounded Ask, so a reader asking about it gets a refusal while we are holding the whole text. Nothing inside the product shows this — the bill page looks completely normal.\n\n```\n%s\n```\n\n**Fix:** from a fresh worktree off `origin/main`. It SPENDS MONEY on the embedding API, so it is a dry run by default and the report above carries the cost:\n\n```\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/backfill_rag_bulk.py --source-target production\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/backfill_rag_bulk.py --source-target production --apply --bill-key <key>\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/backfill_rag_bulk.py --source-target production --apply\n```\n\nEvery write it makes is an upsert, so it is additive and a second run is a no-op that costs nothing.\n\nBackground: [#844](https://github.com/alethical-org/alethical/issues/844). Run: %s. Auto-filed by `.github/workflows/rag-coverage-gaps.yml`.' "$report" "$RUN_URL")
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still unsearchable as of this run — $RUN_URL"$'\n\n```\n'"$report"$'\n```'
+          else
+            gh issue create --title "🚨 $title" --label backend --body "$body"
+          fi
