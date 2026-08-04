@@ -43,7 +43,7 @@ roadmap noted for direction.
   the v2 home design shows the Search and Track dropdowns with a greyed, non-navigable
   **ON THE ROADMAP** group beneath the live entries, rather than hiding all roadmap
   items. The curated sets differ per menu: **Search → Issues · Candidates**; **Track →
-  Legislators · Issues · Candidates · Campaign finance**. Other roadmap registry entries stay hidden. Live
+  Legislators · Issues · Candidates · Campaign Finance**. Other roadmap registry entries stay hidden. Live
   entries keep icon + one-line description — **Search:** Bills (with a **"Grounded Ask"**
   badge) · Search Legislators · Find My Legislator; **Track:** Bills.
 - **Mockups → frontend handoff (no HTML conversion step):** when the Claude-design

@@ -194,7 +194,7 @@ export const IA: IaItem[] = [
   },
   {
     id: 'track-campaign-finance',
-    label: 'Campaign finance',
+    label: 'Campaign Finance',
     path: '/track/campaign-finance',
     menu: 'track',
     availability: 'roadmap',
