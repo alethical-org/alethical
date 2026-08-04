@@ -34,6 +34,7 @@ export function BillHeader({
   fullTitle,
   eyebrow,
   omnibus,
+  hotIssue = false,
   shareUrl,
   shareTitle,
   activeTab,
@@ -46,6 +47,9 @@ export function BillHeader({
   fullTitle: string;
   eyebrow: string;
   omnibus: boolean;
+  // Editorial "🔥 Hot issue" flag (../../lib/hotIssues). Renders a neutral pill in
+  // the qualifier-tag row after the session year / OMNIBUS tag.
+  hotIssue?: boolean;
   shareUrl: string;
   shareTitle: string;
   activeTab: DetailTab;
@@ -76,6 +80,7 @@ export function BillHeader({
       <View style={styles.eyebrowRow}>
         <Text style={styles.eyebrow}>{eyebrow}</Text>
         {omnibus ? <OmnibusTag /> : null}
+        {hotIssue ? <HotIssuePill /> : null}
       </View>
 
       <View style={[styles.tabBar, isMobile && styles.tabBarMobile]}>
@@ -169,6 +174,17 @@ function OmnibusTag() {
     </View>
   );
 }
+// Editorial "🔥 Hot issue" flag — a NEUTRAL pill, identical to the home feed and
+// search cards (never amber; amber is reserved for bill-code identity). The 🔥
+// carries the signal; the pill stays quiet grey.
+function HotIssuePill() {
+  return (
+    <View style={styles.hotPill} accessibilityRole="text" accessibilityLabel="Hot issue">
+      <Text style={styles.hotPillText}>🔥 Hot issue</Text>
+    </View>
+  );
+}
+
 // Breadcrumb grey (palette.ink500) — no semantic text alias maps to it, so it's a
 // local const like the other bespoke header colors.
 const BREADCRUMB_GREY = '#4b524b';
@@ -232,6 +248,24 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.9,
     color: t.colors.omnibus.text,
+  },
+  hotPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: t.colors.surfaces.s400, // #f1f1f4 — neutral grey, never amber
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: t.radii.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+  hotPillText: {
+    fontFamily: t.typography.ui,
+    fontSize: 13,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.26,
+    color: t.colors.text.secondary, // #4f5651
+    ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
   },
   tabBar: {
     marginTop: 30,

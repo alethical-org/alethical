@@ -8,6 +8,7 @@ import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBill } from '../../hooks/useAppQueries';
 import { bienniumEyebrow, chiefAuthor, pulledLabel } from '../../lib/billDetail';
+import { isHotIssueBill } from '../../lib/hotIssues';
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { BillHeader, DetailTab } from '../../components/billDetail/BillHeader';
 import { SummaryTab } from '../../components/billDetail/SummaryTab';
@@ -163,6 +164,7 @@ export function BillDetailWebScreen() {
       fullTitle={bill.title}
       eyebrow={eyebrow}
       omnibus={!!bill.isOmnibus}
+      hotIssue={isHotIssueBill(bill.id, bill.companion?.id)}
       shareUrl={shareUrl}
       shareTitle={shareTitle}
       activeTab={activeTab}
