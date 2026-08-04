@@ -398,6 +398,48 @@ make it fast and accurate:
   build, session pooler, statement-timeout off) — see
   [`scripts/build_rag_hnsw_index.py`](../../scripts/build_rag_hnsw_index.py).
 
+### 5.1 What embedding actually costs, measured
+
+**Net (plain language): embedding is the cheap half of our AI spend by a wide margin.
+Making 69 whole bills searchable cost about **7 cents**. Sizing an embedding job off the
+enrichment numbers in §4.2 would overstate it by roughly a thousand times.**
+
+Measured on the [#844](https://github.com/alethical-org/alethical/issues/844) run,
+Aug 4 2026 — 69 bills that had been ingested but never embedded, including the whole
+2025 special session:
+
+| Measure | Value |
+| --- | --- |
+| Bills | 69 |
+| Sections | 6,199 |
+| Characters | 13,392,532 |
+| Tokens (~4 chars/token) | ~3,348,000 |
+| **Cost at $0.02/1M for `text-embedding-3-small`** | **~$0.067** |
+| Wall clock | ~20 minutes |
+| Cost per bill | **~$0.001** |
+
+**To size an embedding job:** multiply bills by ~$0.001, or characters by
+$0.02/4,000,000. A full 10,500-bill corpus re-embed is roughly **$10**, which is why
+"re-embed everything" is a decision about *time*, not money — and why the embedding
+half of a `raw_text` rewrite (§ "Never fix raw_text" in
+[data-ingestion-onboarding.md](data-ingestion-onboarding.md)) is the cheap half. The
+expensive half of that rewrite is the ~$365–730 enrichment re-run.
+
+**Compare the two rails on the same corpus and the gap is the point:** enriching 10,471
+bills costs ~$730 at list price (§4.2); embedding the same corpus costs ~$10. Writing
+words is ~70× more expensive than measuring them.
+
+**Two things that cost more than the tokens did, both worth building against:**
+
+- **A dropped connection used to lose a whole batch.** Two runs died on
+  `SSLV3_ALERT_BAD_RECORD_MAC` from api.openai.com, each throwing away paid work
+  already done in that batch. `_openai_embeddings`
+  ([`rag_ingest.py`](../../alethical/pipeline/rag_ingest.py)) now retries a dropped
+  connection four times with a growing pause — scoped to transport errors only,
+  because an HTTP status means the server answered and a 429 is the caller's decision.
+- **Smaller batches lose less to a blip.** `--batch-size 5` rather than the default 25
+  bounded each failure to five bills' work instead of twenty-five.
+
 **Effective-date extraction is a *deterministic parse*, not an AI job (#598, #561/#572,
 #706).** Worth noting here because it's easy to assume "hard text problem = needs a
 model": it doesn't. Minnesota bills set effective dates **per section**, so there's no
