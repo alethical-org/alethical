@@ -192,6 +192,16 @@ export const IA: IaItem[] = [
     description: "Follow who's running — the record behind the campaign, through election day",
     inNavDropdown: true,
   },
+  {
+    id: 'track-campaign-finance',
+    label: 'Campaign finance',
+    path: '/track/campaign-finance',
+    menu: 'track',
+    availability: 'roadmap',
+    authGated: true,
+    description: 'Follow the money — who funds a campaign, and where it goes',
+    inNavDropdown: true,
+  },
 
   // About — static content.
   {
