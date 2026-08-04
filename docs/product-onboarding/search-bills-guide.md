@@ -100,9 +100,8 @@ Above the list you always see:
 - **Issue tags** for the bill.
 - **A votes link** when there were recorded votes, taking you straight to how
   everyone voted.
-- **A dashed "+ Track" button** on desktop, which is a preview of something we haven't
-  built yet. It is deliberately faint and dashed, and clicking it does nothing at all. It
-  doesn't appear on a phone.
+- **A black "+ Track" button** on desktop, which is a preview of something we haven't
+  built yet. Clicking it does nothing at all for now. It doesn't appear on a phone.
 
 Tap a card to open the full bill; results are split into pages with Previous / Next.
 

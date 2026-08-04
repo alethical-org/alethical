@@ -55,6 +55,9 @@ interface BillResultCardProps {
   // Whether to show the (inert) roadmap Track button in the top row. Search hides
   // it on the mobile-web layout; defaults on so other surfaces are unchanged.
   showTrackButton?: boolean;
+  // Editorial "🔥 Hot issue" flag (NEXT-home-spec §Bill Activity — Card chrome, web).
+  // The editor marks which bills carry it; off by default so nothing shows it unasked.
+  hotIssue?: boolean;
 }
 
 type Tone = 'neutral' | 'green' | 'vetoed';
@@ -108,6 +111,16 @@ function OmnibusPill() {
   );
 }
 
+// Editorial "🔥 Hot issue" flag: a NEUTRAL pill (never amber — amber is reserved
+// for bill-code identity). The 🔥 carries the signal; the pill stays quiet grey.
+function HotIssuePill() {
+  return (
+    <View style={styles.hotPill} accessibilityRole="text" accessibilityLabel="Hot issue">
+      <Text style={styles.hotPillText}>🔥 Hot issue</Text>
+    </View>
+  );
+}
+
 // The chief author's NAME is the only link (green, → arrow), spelled-out honorific
 // sits outside it. pressInsideLink keeps the card's own press — and the card
 // anchor's own URL — from firing when the name is tapped. Own hover state so only
@@ -148,6 +161,7 @@ export function BillResultCard({
   onSponsorPress,
   onRollCalls,
   showTrackButton = true,
+  hotIssue = false,
 }: BillResultCardProps) {
   const [hovered, setHovered] = useState(false);
   const { isMobile } = useResponsive();
@@ -233,7 +247,14 @@ export function BillResultCard({
           <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
           <ProgressBar index={index} tone={tone} />
           <View style={styles.topSpacer} />
-          {showTrackButton ? <RoadmapTrackButton /> : null}
+          {/* Right group: the "🔥 Hot issue" flag sits to the LEFT of Track with a
+              16px gap, on the same row — it adds no card height. */}
+          {hotIssue || showTrackButton ? (
+            <View style={styles.topRight}>
+              {hotIssue ? <HotIssuePill /> : null}
+              {showTrackButton ? <RoadmapTrackButton /> : null}
+            </View>
+          ) : null}
         </View>
       )}
 
@@ -323,6 +344,26 @@ const styles = StyleSheet.create({
   },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 14, flexWrap: 'wrap' },
   topSpacer: { flex: 1 },
+  // Right-aligned group holding the Hot-issue flag + Track, 16px apart.
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  hotPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: t.colors.surfaces.s400, // #f1f1f4 — neutral grey, never amber
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: t.radii.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+  hotPillText: {
+    fontFamily: t.typography.ui,
+    fontSize: 13,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.26,
+    color: t.colors.text.secondary, // #4f5651
+    ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
+  },
   // Mobile header: two stacked rows (identity, then status/progress) with a
   // steady ~11px vertical gap between them.
   headerMobile: { gap: 11 },

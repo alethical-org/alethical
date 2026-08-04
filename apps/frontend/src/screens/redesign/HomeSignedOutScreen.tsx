@@ -505,6 +505,13 @@ export function HomeSignedOutScreen() {
   return isDesktop ? <HomeSignedOutDesktop /> : <HomeSignedOutMobile />;
 }
 
+// Editorially flagged "🔥 Hot issue" bills (NEXT-home-spec §Bill Activity — Card
+// chrome, web). A card carries the flag only when its bill is in this set. The
+// desktop feed is recency-driven (not curated), so a flagged bill shows the pill
+// when it happens to appear in the top-2 passed / top-3 introduced. Keyed by
+// bill.id, e.g. "94-2026-HF4138" — the same editorial pins as In-the-News today.
+const HOT_ISSUE_BILL_KEYS = new Set<string>(['94-2026-HF4138', '94-2025-SF856']);
+
 function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
   const { signInWithGoogle } = useAuth();
@@ -675,10 +682,6 @@ function HomeSignedOutDesktop() {
                 >
                   Bills Moving Through the Legislature
                 </Text>
-                <ViewAllButton
-                  href={routePath.bills()}
-                  onPress={() => navigation.navigate('Bills')}
-                />
               </View>
               <View style={styles.billGroups}>
                 {(recentlyPassed.data?.data ?? []).length > 0 ? (
@@ -689,6 +692,7 @@ function HomeSignedOutDesktop() {
                         <BillResultCard
                           key={bill.id}
                           bill={bill}
+                          hotIssue={HOT_ISSUE_BILL_KEYS.has(bill.id)}
                           onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
                           onSponsorPress={(legislatorId) =>
                             navigation.navigate('LegislatorProfile', { legislatorId })
@@ -709,6 +713,7 @@ function HomeSignedOutDesktop() {
                         <BillResultCard
                           key={bill.id}
                           bill={bill}
+                          hotIssue={HOT_ISSUE_BILL_KEYS.has(bill.id)}
                           onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
                           onSponsorPress={(legislatorId) =>
                             navigation.navigate('LegislatorProfile', { legislatorId })
@@ -1783,21 +1788,6 @@ const m = StyleSheet.create({
   },
 });
 
-// Navigates to Search Bills, same as SeeMore in the mobile layout above — a real
-// link, not an action button, so it gets linkProps (accessibilityRole becomes 'link').
-function ViewAllButton({ href, onPress }: { href: string; onPress: () => void }) {
-  const [hovered, hoverProps] = useHover();
-  return (
-    <Pressable
-      {...linkProps(href, onPress)}
-      {...hoverProps}
-      style={[styles.viewAllBtn, hovered && { borderColor: t.colors.brand.base }]}
-    >
-      <Text style={[styles.viewAllText, hovered && { color: t.colors.brand.deep }]}>VIEW ALL</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
   scroll: { flex: 1 },
@@ -2128,21 +2118,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   billsH2Mobile: { fontSize: 32, lineHeight: 36 },
-  viewAllBtn: {
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink20,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-  },
-  viewAllText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.6,
-    color: t.colors.text.primary,
-  },
   billGroups: { marginTop: 30, gap: 40 },
   billGroupLabel: {
     fontFamily: t.typography.ui,

@@ -189,16 +189,17 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   Puts "how everyone voted" one click from search.
 
 **Actions**
-- **Track button — roadmap preview (inert), decided Jul 2026.** Bill tracking is a
-  not-yet-live roadmap feature, so the Track button renders as a de-emphasized **dashed**
-  preview control — white fill, dashed `rgba(17,21,15,0.3)` border, muted `#4f5651` label
-  with a leading "+", hovering to `#11150f` — via the shared `RoadmapTrackButton`
-  component, used identically on the answer/bill rail cards and home. It is
-  `aria-disabled`, does **nothing** on click (no sign-in, no toggle, no page change), and
-  has **no** affirmed "✓ Tracking" state. No "coming soon" label — the dashed treatment +
-  the nav's roadmap entry carry that. The live auth-gated flow (intent-preserving sign-in
-  → return-to-search with the button affirmed) is **deferred until tracking ships**;
-  states owned by grounded-ask §9.2 (Answer page — Track button note).
+- **Track button — roadmap preview (inert), decided Jul 2026 (ink fill, Aug 2026).** Bill
+  tracking is a not-yet-live roadmap feature, so the Track button is inert — but it renders
+  as a solid **ink** fill: background `#11150f`, white label (leading "+") and icon, 1px
+  `#11150f` border, radius 10px, hovering to `#2c322c` — via the shared `RoadmapTrackButton`
+  component, used identically on the answer/bill rail cards and home. It is `aria-disabled`,
+  does **nothing** on click (no sign-in, no toggle, no page change), and has **no** affirmed
+  "✓ Tracking" state. No "coming soon" label — ink is the color role reserved for Track
+  (green stays for other forward actions), and the absent affirmed state + the nav's roadmap
+  entry carry the not-live signal. The live auth-gated flow (intent-preserving sign-in →
+  return-to-search with the button affirmed) is **deferred until tracking ships**; states
+  owned by grounded-ask §9.2 (Answer page — Track button note).
 - **Card link → bill Overview** (`/bills/:billId`), the detail screen (not yet redesigned;
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a
