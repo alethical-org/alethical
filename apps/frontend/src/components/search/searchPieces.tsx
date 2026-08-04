@@ -1049,6 +1049,7 @@ export function Pagination({
   hasNext,
   onPrev,
   onNext,
+  onPageChange,
 }: {
   page: number;
   totalPages?: number;
@@ -1056,16 +1057,35 @@ export function Pagination({
   hasNext: boolean;
   onPrev: () => void;
   onNext: () => void;
+  // Fired after a Prev/Next press (see usePaginatedListScroll): lands the first
+  // result at the top of the viewport and moves keyboard focus onto the list.
+  onPageChange?: () => void;
 }) {
   if (!hasPrev && !hasNext) return null;
   return (
     <View style={styles.pagination}>
-      <PageButton direction="prev" disabled={!hasPrev} onPress={onPrev} />
-      <Text style={styles.pageLabel}>
+      <PageButton
+        direction="prev"
+        disabled={!hasPrev}
+        onPress={() => {
+          onPrev();
+          onPageChange?.();
+        }}
+      />
+      {/* aria-live: announce the new page number to screen readers, since the
+          results below swap silently. */}
+      <Text style={styles.pageLabel} accessibilityLiveRegion="polite">
         Page <Text style={styles.pageLabelNum}>{page}</Text>
         {typeof totalPages === 'number' ? ` of ${totalPages}` : ''}
       </Text>
-      <PageButton direction="next" disabled={!hasNext} onPress={onNext} />
+      <PageButton
+        direction="next"
+        disabled={!hasNext}
+        onPress={() => {
+          onNext();
+          onPageChange?.();
+        }}
+      />
     </View>
   );
 }

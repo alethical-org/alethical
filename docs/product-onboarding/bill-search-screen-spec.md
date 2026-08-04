@@ -66,7 +66,13 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
    shipped as the **ISSUES pill section in the filter row** above — item 3 — not as a rail
    beside the results.
 7. **Pagination** — Previous · "Page N of M" · Next (server-backed `limit`/`offset`,
-   advances on `has_more`; must not slice a bounded list locally).
+   advances on `has_more`; must not slice a bounded list locally). A page change
+   scrolls the first result back to the top of the viewport (smooth, ~20px of air
+   on web / ~12px on mobile), moves keyboard focus onto the results list, and
+   announces the new "Page N of M" via `aria-live`. This is the shared
+   `usePaginatedListScroll` hook wired through the `Pagination` control, so it
+   fires on Previous/Next only — never on a filter, sort, or search keystroke. Any
+   new paged list inherits it the same way.
 
 ## Copy punctuation on this screen
 
