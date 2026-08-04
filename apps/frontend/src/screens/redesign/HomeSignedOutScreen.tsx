@@ -1,14 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import {
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { MapPin, Search } from 'lucide-react-native';
@@ -113,14 +104,6 @@ const transition = (props: string): object =>
         transitionTimingFunction: 'ease',
       } as object)
     : {};
-
-const openExternal = (url: string) => {
-  if (isWeb && typeof window !== 'undefined') {
-    window.open(url, '_blank', 'noopener,noreferrer');
-    return;
-  }
-  void Linking.openURL(url);
-};
 
 // A row of city-name chips used to sit under the Find field. They were removed
 // with #873: Minnesota legislative districts are drawn below city level, and the
@@ -263,7 +246,9 @@ function FieldShell({
 // bill profile page (in-app navigation), not the official source — so badge and link
 // agree. The external source-text link lives on the bill profile, not on this teaser.
 const HF4138_BILL_ID = '94-2026-HF4138';
-const HF4138_AUTHOR_URL = 'https://www.house.mn.gov/members/profile/15314';
+// Chief author's legislator profile on our own site (in-app navigation), matching the
+// badge and footer link. Her official House profile is reachable from that profile page.
+const PEGGY_SCOTT_LEGISLATOR_ID = '2ebc386c-bf7e-4b9c-9d81-81f3bef1f971';
 
 function CitedSectionCard({
   n,
@@ -362,10 +347,15 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 <Text style={styles.billMetaText}>Chief author </Text>
                 <TextLink
                   label="Rep. Peggy Scott →"
-                  href={HF4138_AUTHOR_URL}
+                  href={routePath.legislator(PEGGY_SCOTT_LEGISLATOR_ID)}
+                  internal
                   size={13}
                   weight="600"
-                  onPress={() => openExternal(HF4138_AUTHOR_URL)}
+                  onPress={() =>
+                    navigation.navigate('LegislatorProfile', {
+                      legislatorId: PEGGY_SCOTT_LEGISLATOR_ID,
+                    })
+                  }
                 />
               </View>
             </View>
@@ -401,10 +391,15 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                   <Text style={styles.billMetaText}>Chief author </Text>
                   <TextLink
                     label="Rep. Peggy Scott →"
-                    href={HF4138_AUTHOR_URL}
+                    href={routePath.legislator(PEGGY_SCOTT_LEGISLATOR_ID)}
+                    internal
                     size={13}
                     weight="600"
-                    onPress={() => openExternal(HF4138_AUTHOR_URL)}
+                    onPress={() =>
+                      navigation.navigate('LegislatorProfile', {
+                        legislatorId: PEGGY_SCOTT_LEGISLATOR_ID,
+                      })
+                    }
                   />
                 </View>
                 <Text style={[styles.billMetaText, { marginTop: 2 }]}>
