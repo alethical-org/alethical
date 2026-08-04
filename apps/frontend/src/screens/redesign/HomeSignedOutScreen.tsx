@@ -509,8 +509,15 @@ export function HomeSignedOutScreen() {
 // chrome, web). A card carries the flag only when its bill is in this set. The
 // desktop feed is recency-driven (not curated), so a flagged bill shows the pill
 // when it happens to appear in the top-2 passed / top-3 introduced. Keyed by
-// bill.id, e.g. "94-2026-HF4138" — the same editorial pins as In-the-News today.
-const HOT_ISSUE_BILL_KEYS = new Set<string>(['94-2026-HF4138', '94-2025-SF856']);
+// bill.id, e.g. "94-2026-HF4138". Both chambers' versions of a flagged bill are
+// listed so the pill follows the bill whichever companion surfaces in the feed
+// (HF 5157 / SF 5310 are the "Bans Nonconsensual AI Nudification Images" companions).
+const HOT_ISSUE_BILL_KEYS = new Set<string>([
+  '94-2026-HF4138',
+  '94-2025-SF856',
+  '94-2026-SF5310',
+  '94-2026-HF5157',
+]);
 
 function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
