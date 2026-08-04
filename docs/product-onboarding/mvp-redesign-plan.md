@@ -108,9 +108,11 @@ roadmap noted for direction.
   and Ask answers. A signed-out tap routes through sign-in and returns to `?track=1` to
   complete the track; signed in, it toggles the bill on the watchlist and reads "Tracked".
   The old inert `RoadmapTrackButton` was retired. The intent-preserving sign-in +
-  post-auth return-to-action flow is shipped on all of these surfaces. Remaining under
-  [#976](https://github.com/alethical-org/alethical/issues/976): rebuild the Tracked page in
-  the redesign (still the old sidebar design).
+  post-auth return-to-action flow is shipped on all of these surfaces. The Tracked page
+  itself is now the redesign too (`screens/redesign/TrackedBillsScreen.tsx`): full-bleed
+  top-nav chrome like the /bills pages, the same `BillResultCard` list, and a value-prop
+  sign-in card when signed out. The old sidebar `TrackedScreen` was deleted. This closes
+  [#976](https://github.com/alethical-org/alethical/issues/976).
 - **Search vs Track modes:** Search = "the library" (query/filter-forward, public);
   Track = "your space" (personalized activity dashboard, signed-in chrome).
 - **Find My Legislator hero:** Option C — dedicated "Find your legislators" band directly
