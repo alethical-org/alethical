@@ -16,6 +16,7 @@ import {
 } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useResponsive } from '../../hooks/useResponsive';
+import { usePaginatedListScroll } from '../../hooks/usePaginatedListScroll';
 import { BillResultCard } from '../../components/search/BillResultCard';
 import { isHotIssueBill } from '../../lib/hotIssues';
 import {
@@ -103,6 +104,7 @@ export function SearchBillsScreen() {
   const route = useRoute<any>();
   const { signInWithGoogle } = useAuth();
   const { isDesktop } = useResponsive();
+  const { listAnchorProps, onPageChange } = usePaginatedListScroll();
 
   // URL-addressable filter state (issue #135): the filters live in the /bills
   // query string so a filtered view is shareable, bookmarkable, reload-safe, and
@@ -476,7 +478,12 @@ export function SearchBillsScreen() {
       />
 
       {billsQuery.isLoading ? (
-        <View style={styles.list} accessible accessibilityLabel="Loading bills">
+        <View
+          {...listAnchorProps}
+          style={styles.list}
+          accessible
+          accessibilityLabel="Loading bills"
+        >
           {SKELETON_ROWS.map((i) => (
             <Skeleton key={i} width="100%" height={148} radius={t.radii.card} />
           ))}
@@ -498,7 +505,7 @@ export function SearchBillsScreen() {
         />
       ) : (
         <>
-          <View style={styles.list}>
+          <View {...listAnchorProps} style={styles.list}>
             {bills.map((bill) => (
               <BillResultCard
                 key={bill.id}
@@ -529,6 +536,7 @@ export function SearchBillsScreen() {
             hasNext={totalPages != null ? page < totalPages : hasMore}
             onPrev={() => navigation.setParams({ page: page > 2 ? String(page - 1) : undefined })}
             onNext={() => navigation.setParams({ page: String(page + 1) })}
+            onPageChange={onPageChange}
           />
         </>
       )}
