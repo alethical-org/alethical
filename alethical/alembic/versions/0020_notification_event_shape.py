@@ -111,7 +111,9 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(
-            ["user_id"], ["user_account.id"], name="fk_notification_event_user_id_user_account"
+            ["user_id"],
+            ["user_account.id"],
+            name="fk_notification_event_user_id_user_account",
         ),
         sa.ForeignKeyConstraint(
             ["bill_id"], ["bill.id"], name="fk_notification_event_bill_id_bill"
@@ -135,7 +137,9 @@ def downgrade() -> None:
     """
     bind = op.get_bind()
     if _table_exists(bind):
-        op.drop_index("ix_notification_event_user_unsent", table_name="notification_event")
+        op.drop_index(
+            "ix_notification_event_user_unsent", table_name="notification_event"
+        )
         op.drop_table("notification_event")
 
     # notification_channel was never dropped by the upgrade (notification_preference
