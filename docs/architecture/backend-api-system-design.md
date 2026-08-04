@@ -2,7 +2,18 @@
 
 <!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py -->
 
-Status: design reference — endpoint inventory spot-verified against `alethical/api/routers/` Jul 2026
+Status: **design reference, not an inventory of what exists.** Much of this document is the
+target shape rather than the shipped API, and the two used to be indistinguishable here: it
+previously claimed the endpoint list was "spot-verified", while documenting nine routes that
+were never built and listing filter parameters the handlers silently ignore. A full audit
+against `alethical/api/routers/` on Aug 3 2026 corrected thirteen such claims and marked every
+unbuilt endpoint **NOT BUILT** inline.
+
+**So read it this way:** a route or parameter with no NOT BUILT marker was verified present on
+Aug 3 2026. Anything marked NOT BUILT is design intent with no code behind it — do not build a
+client against it, and do not treat a "Status: pass" user story below as evidence it works.
+When you add or change a route, update the entry here in the same PR (`.claude/rules/workflow.md`
+rule 6); when you find drift, fix it rather than adding another hedge.
 
 ## Goal
 
@@ -279,9 +290,11 @@ Examples:
 
 Public GET endpoints should support:
 
-- `ETag`
-- `Last-Modified`
-- `Cache-Control`
+- `ETag` — **NOT BUILT.** Nothing in `alethical/api/` sets this header, and a live response
+  carries none. A `last-modified` does come back in production, but Cloudflare's edge cache
+  adds it, not the app.
+- `Last-Modified` — see above: edge-supplied, not application-supplied.
+- `Cache-Control` — real, set by the app.
 
 Signed-in endpoints should default to non-shared caching.
 
@@ -339,38 +352,47 @@ Purpose:
 
 - bill list, search, browse, and filtering
 
-Filters:
+Filters (the handler's real signature; `bills()` in `alethical/api/routers/public.py`):
 
 - `session`
 - `q`
 - `chamber`
 - `status`
-- `topic`
-- `is_omnibus`
-- `updated_after`
+- `policy_area` — repeatable, several are OR'd. This section long called it `topic`, which the
+  handler silently ignores, so a client sending `?topic=Education` gets the unfiltered list back
+  and no error.
+- `omnibus` — likewise not `is_omnibus`, which is silently ignored.
 - `sort`
-- `order`
 - `limit`
 - `offset`
-- `cursor` reserved for a later cursor-backed implementation
+- `updated_after` — **NOT BUILT**
+- `order` — **NOT BUILT**, and this entry contradicted the Filtering and Sorting section above,
+  which correctly says each `sort` value carries its own direction so no `order` param exists.
+- `cursor` — **NOT BUILT**; reserved for a later cursor-backed implementation.
 
 Optional includes:
 
-- `include=chief_sponsors`
 - `include=tracking`
+- `include=chief_sponsors` — accepted, but **not optional in effect**: `bill_list_item()`
+  (`alethical/api/serializers.py`) always populates `chief_sponsors`, and the route never checks
+  the include set for it. Every list response carries it whether you ask or not.
 
-Response fields:
+Response fields (`BillListItem`, `alethical/api/schemas.py`):
 
 - bill id
 - bill number
 - title
-- chamber
-- session
 - current status
 - latest action date
 - chief sponsor preview
+- effective date, for enacted bills with a groundable value
 - tracked state when authenticated and requested
 - stats
+- also present and previously undocumented here: `status_key`, `official_url`, `is_omnibus`,
+  `co_author_count`, `companion`, `ai_analysis`, `actions`
+- ~~chamber~~ and ~~session~~ — **NOT RETURNED** on a list item, despite being listed here for
+  months. Chamber is recoverable from the bill number's HF/SF prefix; session comes from the
+  `session` you filtered by. The bill *detail* response is the one that carries them.
 
 #### `GET /api/v1/bills/{bill_id}`
 
@@ -378,9 +400,14 @@ Purpose:
 
 - main bill detail screen
 
-Optional includes:
+Optional includes — the branches `bill_detail()` actually implements are
+`all_sponsors`, `actions`, `versions`, `progress`, `tracking`:
 
-- `include=all_sponsors,actions,versions,topics,tracking,ai_summary`
+- `include=all_sponsors,actions,versions,progress,tracking`
+- `include=topics` — **NOT BUILT**; no branch reads it, so it changes nothing.
+- `include=ai_summary` — **NOT BUILT** as an include, because it is unconditional: the AI
+  analysis payload ships on the response whether or not you ask.
+- `include=progress` is real and was undocumented here until the Aug 3 2026 audit.
 
 Default shape:
 
@@ -425,11 +452,14 @@ Purpose:
 
 - list vote events for a bill
 
-#### `GET /api/v1/bills/{bill_id}/votes/{vote_event_id}`
+#### `GET /api/v1/bills/{bill_id}/votes/{vote_event_id}` — **NOT BUILT**
 
 Purpose:
 
 - vote-event detail with roll-call records
+
+Never needed: `GET /bills/{bill_id}/votes` already embeds each event's full per-voter `records`
+array, so a detail route would only re-slice a response the client already has.
 
 ### Legislators
 
@@ -439,18 +469,18 @@ Purpose:
 
 - legislator directory and search
 
-Filters:
+Filters (`legislators()` takes exactly these five):
 
 - `session`
 - `q`
 - `chamber`
-- `district`
-- `party`
-- `sort`
-- `order`
 - `limit`
 - `offset`
-- `cursor` reserved for a later cursor-backed implementation
+- `district` — **NOT BUILT**. Silently ignored, so `?district=64B` returns the whole directory.
+- `party` — **NOT BUILT**, same silent pass-through.
+- `sort` — **NOT BUILT**
+- `order` — **NOT BUILT**
+- `cursor` — **NOT BUILT**; reserved for a later cursor-backed implementation.
 
 Response fields:
 
@@ -483,10 +513,11 @@ Filters:
 
 - `session`
 - `role=chief|all`
-- `sort`
-- `order`
 - `limit`
-- `cursor`
+- `offset` — real, and undocumented here until the Aug 3 2026 audit.
+- `sort` — **NOT BUILT**
+- `order` — **NOT BUILT**
+- `cursor` — **NOT BUILT** (the route paginates by `offset`)
 
 #### `GET /api/v1/legislators/{legislator_id}/votes`
 
@@ -494,13 +525,14 @@ Purpose:
 
 - vote history for legislator profile
 
-Filters:
+Filters (`legislator_votes()` takes two):
 
 - `session`
-- `bill_id`
-- `vote_value`
 - `limit`
-- `cursor`
+- `bill_id` — **NOT BUILT**. Silently ignored, so the filtered call returns the same rows as
+  the unfiltered one.
+- `vote_value` — **NOT BUILT**, same silent pass-through.
+- `cursor` — **NOT BUILT**
 
 ### Districts and Lookup
 
@@ -581,6 +613,40 @@ Response:
 
 - grouped results by resource type
 
+### Grounded Ask
+
+Both routes are public and real, and both were missing from this document until the Aug 3 2026
+audit — even though `alethical/api/routers/ask.py` is named in the `describes:` comment at the
+top. That made the product's flagship surface the largest gap here.
+
+#### `POST /api/v1/ask`
+
+Purpose:
+
+- the one-shot grounded answer: classify the question, retrieve, synthesize, and return an answer
+  that carries citations or refuses
+
+Contract, invariants, and answer-page states live in
+`docs/product-onboarding/grounded-ask-spec.md`; the cite-or-refuse rule it must satisfy is
+`.claude/rules/grounded-answers.md` rule 1.
+
+#### `POST /api/v1/ask/classify`
+
+Purpose:
+
+- routing only — which intent a question resolves to, without producing an answer
+
+### Policy Areas
+
+#### `GET /api/v1/policy-areas`
+
+Purpose:
+
+- the issue list with a live bill count each, backing the bill-search issue pills
+  (`docs/product-onboarding/bill-search-screen-spec.md`, Filters — Policy area)
+
+Real, and undocumented here until the Aug 3 2026 audit.
+
 ## Authenticated User API
 
 ### Current User
@@ -656,11 +722,15 @@ Purpose:
 
 - manage email-first notifications
 
-#### `GET /api/v1/me/notification-events`
+#### `GET /api/v1/me/notification-events` — **NOT BUILT**
 
 Purpose:
 
 - user notification history
+
+The `NotificationEvent` model and a writer service (`alethical/api/services/notifications.py`)
+both exist, so events can be recorded; nothing can read them back over HTTP. Story 7 below
+depends on this route and was marked "Status: pass" regardless.
 
 ### Chat
 
@@ -720,31 +790,49 @@ Response:
 
 Streaming option:
 
-- support SSE when `Accept: text/event-stream` is sent
+- support SSE when `Accept: text/event-stream` is sent — **NOT BUILT.** There is no
+  `StreamingResponse` or `text/event-stream` handling anywhere in `alethical/api/`.
+  `ChatMessageCreateRequest.stream` exists in the schema but `create_chat_message()` never reads
+  it, so the field is dead and a client setting it gets an ordinary buffered reply.
 
 ## Internal Operations API
 
 These endpoints should not be exposed to public clients.
 
+`alethical/api/routers/internal.py` registers exactly **three** routes. Six of the eight this
+section originally listed were never built, and two that exist were never listed.
+
 ### Ingestion and Data Review
 
 #### `GET /internal/v1/ingestion-runs`
 
-#### `GET /internal/v1/ingestion-runs/{run_id}`
+#### `GET /internal/v1/oban/jobs`
 
-#### `GET /internal/v1/parser-failures`
+Background-job rows. Real, and absent from this doc until the Aug 3 2026 audit.
 
-#### `GET /internal/v1/manual-overrides`
+#### `GET /internal/v1/oban`
 
-#### `POST /internal/v1/manual-overrides`
+The HTML job dashboard (`response_class=HTMLResponse`). Real, and likewise undocumented until
+that audit.
+
+#### `GET /internal/v1/ingestion-runs/{run_id}` — **NOT BUILT**
+
+#### `GET /internal/v1/parser-failures` — **NOT BUILT**
+
+#### `GET /internal/v1/manual-overrides` — **NOT BUILT**
+
+#### `POST /internal/v1/manual-overrides` — **NOT BUILT**
 
 ### Reprocessing
 
-#### `POST /internal/v1/bills/{bill_id}/reingest`
+Nothing in this subsection exists. Reprocessing is done by running the pipeline directly
+(`docs/product-onboarding/data-ingestion-onboarding.md`), not over HTTP.
 
-#### `POST /internal/v1/legislators/{legislator_id}/reingest`
+#### `POST /internal/v1/bills/{bill_id}/reingest` — **NOT BUILT**
 
-#### `POST /internal/v1/rag/bills/{bill_id}/rebuild`
+#### `POST /internal/v1/legislators/{legislator_id}/reingest` — **NOT BUILT**
+
+#### `POST /internal/v1/rag/bills/{bill_id}/rebuild` — **NOT BUILT**
 
 Purpose:
 
@@ -774,7 +862,7 @@ Status: pass
 Frontend access path:
 
 - `GET /api/v1/bills/{bill_id}`
-- optional `GET /api/v1/bills/{bill_id}/votes/{vote_event_id}`
+- optional `GET /api/v1/bills/{bill_id}/votes` — the whole roll call, per-voter records included
 - optional `GET /api/v1/bills/{bill_id}/versions/{version_code}/text`
 
 Economic access:
@@ -844,13 +932,14 @@ Economic access:
 
 ### 7. Receive Basic Updates
 
-Status: pass
+Status: **partial** — a user can set preferences but cannot read a single delivered update.
 
 Frontend access path:
 
 - `GET /api/v1/me/notification-preferences`
 - `PUT /api/v1/me/notification-preferences/{channel}`
-- `GET /api/v1/me/notification-events`
+- `GET /api/v1/me/notification-events` — **NOT BUILT**, so the history half of this story has no
+  endpoint behind it. It was marked "pass" anyway.
 
 ### 8. Ask Grounded Questions With Citations
 
@@ -872,23 +961,27 @@ Economic access:
 
 ### 9. Review Parser Failures and Overrides
 
-Status: pass
+Status: **not built** — every endpoint below is missing, so nothing validates this story. It read
+"pass" until the Aug 3 2026 audit. Parser failures are reviewed by reading ingestion logs and the
+`GET /internal/v1/oban` job dashboard.
 
 Frontend access path:
 
-- `GET /internal/v1/parser-failures`
-- `GET /internal/v1/manual-overrides`
-- `POST /internal/v1/manual-overrides`
+- `GET /internal/v1/parser-failures` — **NOT BUILT**
+- `GET /internal/v1/manual-overrides` — **NOT BUILT**
+- `POST /internal/v1/manual-overrides` — **NOT BUILT**
 
 ### 10. Reprocess Bad Records
 
-Status: pass
+Status: **not built over HTTP** — it read "pass" until the Aug 3 2026 audit. Reprocessing is real
+but happens by running the pipeline directly
+(`docs/product-onboarding/data-ingestion-onboarding.md`), not through these routes.
 
 Frontend access path:
 
-- `POST /internal/v1/bills/{bill_id}/reingest`
-- `POST /internal/v1/legislators/{legislator_id}/reingest`
-- `POST /internal/v1/rag/bills/{bill_id}/rebuild`
+- `POST /internal/v1/bills/{bill_id}/reingest` — **NOT BUILT**
+- `POST /internal/v1/legislators/{legislator_id}/reingest` — **NOT BUILT**
+- `POST /internal/v1/rag/bills/{bill_id}/rebuild` — **NOT BUILT**
 
 ## API Layering Recommendation
 

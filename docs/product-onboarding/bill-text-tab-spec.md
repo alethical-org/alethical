@@ -104,7 +104,7 @@ corpus.
 The Revisor wraps a changed run in screen-reader-only spans; ingestion flattens the HTML, so the
 marker words land in the stored text as prose.
 
-- `deleted text begin … deleted text end` → strike-through, `#6f756f`.
+- `deleted text begin … deleted text end` → strike-through, `t.colors.text.faint` (`#70776f`).
 - `new text begin … new text end` → underline (offset 3px), weight 600, `#11150f`.
 - A malformed pair — an unclosed begin, a stray end — has its words **stripped silently**. It must
   never leak the words, and must never strike the rest of the section either.
@@ -161,8 +161,9 @@ Top to bottom inside a section card:
    on one section badges nothing at all — a badge is a claim about provenance, and there is nothing
    to ground it in (`.claude/rules/grounded-answers.md` rule 1, the same refusal
    [#853](https://github.com/alethical-org/alethical/pull/853) made for the chip's caption).
-3. **Provenance** — "Minnesota Statutes 2024, section 62A.011 … is amended to read:" at body size,
-   regular weight, `#6f756f`. This names which existing law the section rewrites. **It is not the
+3. **Provenance** — "Minnesota Statutes 2024, section 62A.011 … is amended to read:" at
+   `t.fontSizes.small` (14px, one step below body), regular weight, `t.colors.text.faint`
+   (`#70776f`). This names which existing law the section rewrites. **It is not the
    title.** Styled as a heading it competes with the caption below it and the card reads as having
    two titles.
 4. **Title** — the Legislature's caption, 19px / 700 / `#11150f`.
