@@ -60,8 +60,11 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
    Sort sits on the **right** of the header strip on web; on mobile it moves to its own
    left-aligned row 18px below the count line, where a right-hung control read as scattered
    in a narrow column.
-6. **Single full-width results column** of bill cards (the "library" list; no side rail
-   in v1 — browse-by-policy-area rail deferred to [#130](https://github.com/alethical-org/alethical/issues/130)).
+6. **Single full-width results column** of bill cards (the "library" list). No side rail, and
+   that is now the settled layout rather than a deferral: browse-by-policy-area
+   ([#130](https://github.com/alethical-org/alethical/issues/130), closed Jul 24 2026)
+   shipped as the **ISSUES pill section in the filter row** above — item 3 — not as a rail
+   beside the results.
 7. **Pagination** — Previous · "Page N of M" · Next (server-backed `limit`/`offset`,
    advances on `has_more`; must not slice a bounded list locally).
 
@@ -160,12 +163,26 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   — by named sources, a separate official-text section, and the citation contract — not by
   per-element badges.** Read it that way before adding provenance chrome to any surface.
 
-**Secondary meta block**
-- **Chief author (linked) + co-author count** — "Author: Patti Anderson · +42 co-authors"
-  (`Sponsorship` chief_author; count from `BillStats.sponsor_count`).
+**Secondary meta block**, in render order:
+- **Chief author (linked)** — "Chief author: Rep. Patti Anderson" (`Sponsorship` chief
+  author, scoped to *this file's own chamber* via `chiefAuthor`, so a Senate file shows its
+  Senate chief and not the House companion's author — the companion-contamination case).
+  **No co-author count.** This line first specified "Author: Patti Anderson · +42
+  co-authors" with the count from `BillStats.sponsor_count`; the shipped card carries
+  neither the shortened label nor the count, and co-authors live on the bill page instead.
+  Renders "Chief author: Unavailable" when the file has no chief on record.
 - **Latest action + date** — "Latest action: Referred to Ways and Means · Mar 12, 2026"
   (`BillAction` / `Bill.latest_action_at`). More informative than a bare status word and
-  explains the list ordering.
+  explains the list ordering. The label is the curated plain-language action matching the
+  bill's Actions tab, paired with the date of *that same* action rather than the bill's
+  generic timestamp.
+- **Effective date** — "Effective: August 1, 2026", or "various dates" for an omnibus whose
+  sections start on different days. Shown **only** when the backend set `effective_date`,
+  which it does solely for enacted bills with a date it can ground in the bill's own text or
+  actions (`docs/product-onboarding/grounded-ask-spec.md` decision 8a covers the same line
+  on the Ask answer page's bill card; resolution in `resolve_effective_date`,
+  `alethical/api/routers/public.py`). Never inferred from the Minn. Stat. 645.02 default, so
+  a law with no stated date simply omits the line.
 - **Policy-area pills** — up to 3.
 - **Roll-call chip** — "N roll calls", shown only when votes exist, links to the bill's
   Votes tab (`/bills/:billId?tab=votes`; the tab ships in v1 per grounded-ask §9.3).
@@ -238,21 +255,25 @@ same action and both are on screen at once (shape and label conventions:
 cross-sell — a failed keyword search routed into Ask could end in a refusal, which
 `.claude/rules/grounded-answers.md` #2 forbids inviting.
 
-## Backend deltas required ([#134](https://github.com/alethical-org/alethical/issues/134))
+## Backend additions this screen needed — all three shipped ([#134](https://github.com/alethical-org/alethical/issues/134))
 
-The screen assumes three small additions to `GET /api/v1/bills`:
+Written as pending requirements; kept as a record of what `GET /api/v1/bills` gained, because
+each is still the thing the screen depends on:
 1. **Bill-number search** — `q` matches `file_type`+`file_number` / `bill_key`, not only
-   title/description.
-2. **Total result count** — for "312 bills" and "Page N of M" (today only `has_more`).
+   title/description. Shipped, and tightened to an *exclusive* ID lookup in
+   [#569](https://github.com/alethical-org/alethical/pull/569) — see the Filters table.
+2. **Total result count** — for "312 bills" and "Page N of M", where the endpoint previously
+   returned only `has_more`. Shipped: the response carries `total`.
 3. **"Data as of" timestamp** — latest succeeded `IngestionRun.finished_at`, for the
-   provenance strip (also needed by the Ask answer pages, grounded-ask §9.2).
+   provenance strip (also used by the Ask answer pages, grounded-ask §9.2). Shipped as
+   `data_as_of`, and it is what the results header's "as of {date}" prints.
 
 Everything else on this screen runs on the current API.
 
 ## Out of scope for this screen
 
 - **Meaning-based search and natural-language questions — Grounded Ask's job, not this box.** The search box matches the *words* you type (now word-form- and typo-tolerant, [#573](https://github.com/alethical-org/alethical/issues/573)); finding bills by *concept* when the words differ (e.g. "school money" → a bill that says "fund") or answering a full question ("what bills help teachers?", "how did my rep vote on housing?") is `docs/product-onboarding/grounded-ask-spec.md` (§3.1 natural-language Ask box, §4.1 router intents). This is why there is deliberately no "Ask AI instead" cross-sell from a failed search (see Empty / no-results state above; `.claude/rules/grounded-answers.md` rule 2).
-- Browse-by-policy-area side rail — [#130](https://github.com/alethical-org/alethical/issues/130), since **shipped** (closed Jul 24 2026); this section predates it.
+- Browse-by-policy-area **as a side rail** — still out of scope, and now permanently: [#130](https://github.com/alethical-org/alethical/issues/130) (closed Jul 24 2026) delivered the capability as the ISSUES pill section in the filter row instead, so the results column stays full-width (Page anatomy items 3 and 6).
 - Author filter (data supports it; not built). The user-facing sort control **shipped** in [#610](https://github.com/alethical-org/alethical/issues/610) — see the Filters table above.
 - Bill export.
 
