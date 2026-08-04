@@ -606,17 +606,20 @@ export function TopNav({
     setOpenMenu(null);
   };
   const dropdownMenus = MENUS.filter((menu) => menu.key !== 'ask');
-  // Mobile flattens every menu's roadmap items into one pill row. Search items keep
-  // their bare label; Track-only items collapse into a single "Tracking Features"
-  // pill rather than listing each one. → Find My Legislator · Candidates · Tracking Features.
+  // Mobile flattens the roadmap into one pill row: the named Search/Track chips
+  // first, then "More Tracking" — one compact, non-committal catch-all for the
+  // rest of tracking's expansion (legislators, candidates …) rather than
+  // enumerating each. → Candidates · Campaign Finance · More Tracking.
   const searchRoadmap = navDropdownItems('search').roadmap;
-  const searchRoadmapLabels = new Set(searchRoadmap.map((item) => item.label));
-  const trackOnlyRoadmap = navDropdownItems('track').roadmap.filter(
-    (item) => !searchRoadmapLabels.has(item.label),
-  );
+  const trackRoadmap = navDropdownItems('track').roadmap;
+  const namedRoadmapLabels = new Set(searchRoadmap.map((item) => item.label));
+  const campaignFinance = trackRoadmap.find((item) => item.id === 'track-campaign-finance');
+  if (campaignFinance) namedRoadmapLabels.add(campaignFinance.label);
+  const hasMoreTracking = trackRoadmap.some((item) => !namedRoadmapLabels.has(item.label));
   const mobileRoadmapPills = [
     ...searchRoadmap.map((item) => item.label),
-    ...(trackOnlyRoadmap.length > 0 ? ['Tracking Features'] : []),
+    ...(campaignFinance ? [campaignFinance.label] : []),
+    ...(hasMoreTracking ? ['More Tracking'] : []),
   ];
   const navigate = (item: IaItem) => {
     setOpenMenu(null);
@@ -718,20 +721,9 @@ export function TopNav({
               </Pressable>
             </View>
             <ScrollView style={styles.menuList}>
-              {variant === 'page' ? (
-                <Pressable
-                  {...linkProps(routePath.ask(), () => {
-                    setDrawerOpen(false);
-                    onAsk?.();
-                  })}
-                  style={styles.menuRow}
-                >
-                  <View style={styles.menuRowInline}>
-                    <Sparkle size={18} />
-                    <Text style={[styles.menuRowText, { color: t.colors.purple.base }]}>Ask</Text>
-                  </View>
-                </Pressable>
-              ) : null}
+              {/* No "✦ Ask" row: the mobile drawer is one Ask-free menu on every
+                  screen (Ask is roadmap, not shipped). The top-level ✦ Ask entry
+                  stays on the desktop web nav for non-home pages (AskNavEntry). */}
               {dropdownMenus.map((menu) => {
                 const { live } = navDropdownItems(menu.key);
                 if (live.length === 0) return null;
@@ -1243,7 +1235,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     color: t.colors.text.primary,
   },
-  menuRowInline: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   hamburger: {
     padding: 9,
     borderRadius: 10,
@@ -1274,14 +1265,6 @@ const styles = StyleSheet.create({
   },
   menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   menuList: { flex: 1, marginTop: 40 },
-  menuRow: { paddingVertical: 22, borderBottomWidth: 1, borderBottomColor: t.colors.borders.base },
-  menuRowText: {
-    fontFamily: t.typography.title,
-    fontSize: 27,
-    fontWeight: t.fontWeights.semibold,
-    letterSpacing: -0.3,
-    color: t.colors.text.primary,
-  },
   menuFooter: {},
   primaryBtn: {
     borderRadius: t.radii.md,
