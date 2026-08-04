@@ -25,7 +25,8 @@ Deliberately NOT covered: ``evidence_document`` (62 mangled rows). Its ``content
 is generated text copied from ``bill.description``, so string surgery there would
 patch a derivative rather than the record; several of its rows mix correct UTF-8
 with mangled UTF-8 in one string and cannot be repaired by a whole-string
-round-trip at all. It is tracked separately.
+round-trip at all. That table has since been dropped -- nothing read it, so its 62
+rows were **removed, not repaired** (#855, migration ``0022``).
 
 Usage (run from the repo root; PYTHONPATH=. so `alethical` imports):
     # dry run (default) — reports every row it would change, writes nothing
