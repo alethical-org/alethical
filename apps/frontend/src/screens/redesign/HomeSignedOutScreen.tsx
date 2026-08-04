@@ -230,9 +230,8 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       {/* The bold question is the first element (the "ASKED" eyebrow was removed). */}
       <Text style={styles.askedQuestion}>What’s in the new social media law for kids?</Text>
 
-      {/* BILL divider */}
+      {/* Full-width divider between the question and the bill facts. */}
       <View style={styles.billDividerRow}>
-        <Text style={styles.billDividerLabel}>BILL</Text>
         <View style={styles.hairlineFlex} />
       </View>
 
@@ -1798,14 +1797,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     marginBottom: 16,
   },
-  billDividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  billDividerLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.caption,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.2,
-    color: t.colors.text.muted,
-  },
+  billDividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   hairlineFlex: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink08 },
   billMetaRow: {
     flexDirection: 'row',
