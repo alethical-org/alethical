@@ -1250,12 +1250,12 @@ class MinnesotaIngestionPipeline:
     # violate the referencing table's own unique key, so dedup_columns names the
     # rest of that key: a source row whose (target_id, *dedup) already exists on
     # the target is dropped instead of repointed. Kept in sync with the live
-    # production FK set — including chat_session.subject_legislator_id, a column
-    # from the representative-evidence feature applied to prod out-of-band (#288)
-    # and not in the repo schema, which is repointed only where it actually
-    # exists. evidence_document was the other such entry and is gone: migration
-    # 0022 dropped the table (#855). service_period + stats are dropped (the
-    # target keeps its own real-district ones), so they are not listed here.
+    # production FK set, which as of #855 is the same set the repo declares:
+    # the two entries that existed only in production — evidence_document and
+    # chat_session.subject_legislator_id, both from the representative-evidence
+    # feature applied out-of-band (#288) — are gone, dropped by migrations 0022
+    # and 0023. service_period + stats are dropped (the target keeps its own
+    # real-district ones), so they are not listed here.
     _LEGISLATOR_FK_REPOINTS = (
         # (table, fk_column, dedup_columns)  -- dedup = the rest of the unique key
         # sponsorship names committee_id and source_chamber because both are in
@@ -1272,17 +1272,16 @@ class MinnesotaIngestionPipeline:
         ("vote_record", "legislator_id", ("vote_event_id",)),
         ("committee_membership", "legislator_id", ("committee_id", "role")),
         ("ai_enrichment", "legislator_id", ()),
-        ("chat_session", "subject_legislator_id", ()),
     )
 
     def _merge_legislator(self, source: Any, target: Any) -> int:
         """Move ``source``'s data onto ``target`` and delete ``source``.
 
         Repoints every legislator-referencing row (sponsorships, votes, committee
-        memberships, AI enrichments, chat sessions), dropping any that
-        would duplicate an existing target row on the referencing table's unique
-        key; drops ``source``'s own service periods and stats; then deletes
-        ``source``. Returns the number of sponsorships moved. Idempotent."""
+        memberships, AI enrichments), dropping any that would duplicate an
+        existing target row on the referencing table's unique key; drops
+        ``source``'s own service periods and stats; then deletes ``source``.
+        Returns the number of sponsorships moved. Idempotent."""
         moved = 0
         for table, column, dedup in self._LEGISLATOR_FK_REPOINTS:
             if not self._column_exists(table, column):
@@ -1303,10 +1302,14 @@ class MinnesotaIngestionPipeline:
         return moved
 
     def _column_exists(self, table: str, column: str) -> bool:
-        """Whether public.<table>.<column> exists. One FK column
-        (chat_session.subject_legislator_id) lives only in the out-of-band prod
-        schema (#288), so the merge repoints it only where the column is actually
-        present — a no-op on the repo's canonical schema."""
+        """Whether public.<table>.<column> exists.
+
+        Every entry in ``_LEGISLATOR_FK_REPOINTS`` is now in the repo's own schema,
+        so this always answers True today — it is kept as the guard for the *next*
+        column that exists in only one of the two databases. That situation is not
+        hypothetical: it is what the two out-of-band columns from #288 were, and
+        this check is why the merge stayed correct against both schemas until #855
+        dropped them."""
         return (
             self.db.scalar(
                 text(
