@@ -102,11 +102,15 @@ roadmap noted for direction.
   and not-yet-shipped intents get an "ON THE ROADMAP" state. The one-free-answer cap
   and rate limiting (O8, #98) are still open — anonymous asks are unmetered today.
 - **Logged-out Track experience:** read-only shell with a value-prop empty state (not a
-  hard redirect). Bill tracking is a not-yet-live roadmap feature (decided Jul 2026), so
-  the TRACK button is an inert ink-filled **roadmap preview** everywhere it appears (shared
-  `RoadmapTrackButton`) — it does not trigger sign-in or toggle a tracked state. The
-  intent-preserving sign-in + post-auth return-to-action flow is deferred until tracking
-  ships.
+  hard redirect). Bill tracking began as a not-yet-live roadmap feature (decided Jul 2026),
+  and the shared `RoadmapTrackButton` on **bill cards, the home feed, and Ask answers** is
+  still an inert ink-filled **roadmap preview** — it does not trigger sign-in or toggle a
+  tracked state (reconciling those with the now-live feature is [#976](https://github.com/alethical-org/alethical/issues/976)).
+  **Exception — the Bill Profile header Track button is live** (`BillTrackButton`, web +
+  mobile): a signed-out tap routes through sign-in and returns to `?track=1` to complete the
+  track; signed in, it toggles the bill on the watchlist via `useToggleTrackedBill`. So the
+  intent-preserving sign-in + post-auth return-to-action flow is shipped on the bill header,
+  and still deferred on the roadmap-preview surfaces above.
 - **Search vs Track modes:** Search = "the library" (query/filter-forward, public);
   Track = "your space" (personalized activity dashboard, signed-in chrome).
 - **Find My Legislator hero:** Option C — dedicated "Find your legislators" band directly

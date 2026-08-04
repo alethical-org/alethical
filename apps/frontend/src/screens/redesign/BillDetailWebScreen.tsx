@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
@@ -6,7 +6,8 @@ import { theme as t } from '../../theme/tokens';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
-import { useBill } from '../../hooks/useAppQueries';
+import { useBill, useToggleTrackedBill, useTrackedBills } from '../../hooks/useAppQueries';
+import { trackSignInReturnTo } from '../../navigation/webRoutes';
 import { bienniumEyebrow, chiefAuthor, pulledLabel } from '../../lib/billDetail';
 import { isHotIssueBill } from '../../lib/hotIssues';
 import { SearchPageShell } from '../../components/search/searchPieces';
@@ -33,7 +34,7 @@ const LEGACY_TAB_PARAMS: Record<string, DetailTab> = { fulltext: 'text' };
 export function BillDetailWebScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, isSignedIn, user } = useAuth();
   const { isDesktop } = useResponsive();
 
   const billId = String(route.params?.billId ?? '');
@@ -49,6 +50,46 @@ export function BillDetailWebScreen() {
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
+
+  const trackedQuery = useTrackedBills(user?.id);
+  const toggleTrackedBill = useToggleTrackedBill(user?.id);
+  const trackedIds = useMemo(
+    () => new Set((trackedQuery.data ?? []).map((item) => item.id)),
+    [trackedQuery.data],
+  );
+  const tracked = bill ? trackedIds.has(bill.id) : false;
+
+  const onTrack = () => {
+    if (!bill) return;
+    // Tracking needs an account: send a signed-out user through sign-in and back
+    // to ?track=1, which the effect below completes (grounded-answers rule 5).
+    if (!isSignedIn) {
+      void signInWithGoogle(trackSignInReturnTo(bill.id));
+      return;
+    }
+    toggleTrackedBill.mutate(bill.id);
+  };
+
+  // Intent-preserving track: a signed-out user who tapped Track returns here with
+  // ?track=1. Once signed in and the tracked list has loaded, complete the track
+  // (unless already tracked) and clear the param so a refresh doesn't repeat it.
+  const autoTrackFired = useRef(false);
+  useEffect(() => {
+    if (!route.params?.track || !isSignedIn || !bill || trackedQuery.isLoading) return;
+    if (!autoTrackFired.current && !trackedIds.has(bill.id)) {
+      autoTrackFired.current = true;
+      toggleTrackedBill.mutate(bill.id);
+    }
+    navigation.setParams({ track: undefined });
+  }, [
+    route.params?.track,
+    isSignedIn,
+    bill,
+    trackedQuery.isLoading,
+    trackedIds,
+    toggleTrackedBill,
+    navigation,
+  ]);
 
   const selectTab = (tab: DetailTab) => {
     navigation.setParams({ tab: tab === 'summary' ? undefined : tab });
@@ -167,6 +208,8 @@ export function BillDetailWebScreen() {
       hotIssue={isHotIssueBill(bill.id, bill.companion?.id)}
       shareUrl={shareUrl}
       shareTitle={shareTitle}
+      tracked={tracked}
+      onTrack={onTrack}
       activeTab={activeTab}
       onSelectTab={selectTab}
       onAllBills={goToBillList}

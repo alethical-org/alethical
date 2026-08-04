@@ -22,7 +22,7 @@ product. It's the phone counterpart to `NEXT Bill Profile web` — **one continu
 page** (no tabs), designed so a non-political reader can understand a bill fast: plain-language
 key points first, official record deeper down.
 
-Top → bottom: **Top bar** → **Bill header** (title + status + Share) → **sticky jump chips**
+Top → bottom: **Top bar** → **Bill header** (title + status + Track + Share; Track is the live ink-filled button, see Tracking section) → **sticky jump chips**
 (Summary · Actions · Votes · Versions, with scroll-spy) → **Summary** (key points + citations +
 facts card + Ask) → **Actions** (timeline + plain-language key) → **Votes** (roll-call
 accordion + "your legislators") → **Versions**. Two bottom sheets (Sign in, Share) and an

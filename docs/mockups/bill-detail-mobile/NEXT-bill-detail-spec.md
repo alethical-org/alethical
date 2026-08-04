@@ -412,10 +412,14 @@ law → "Read the bill text →"). Right group: **COMPANION "House (HF 100) →"
 Official Sources block. (Standing: **black/ink filled badge-buttons are reserved
 for Track features** — don't reuse ink fills for other chips.)
 
-## Tracking — REMOVED from bill detail
-No Track/Tracking controls on this page (header, votes empty state, etc.).
-Tracking still lives on Search and Tracked Bills. Deferred to roadmap. The
-sign-in modal now has ONE intent: `votes` ("see your legislators"). No toast.
+## Tracking — header Track button now live (was removed)
+The header now carries a live **Track** button, immediately left of Share
+(`BillTrackButton`, ink-filled): signed out it opens sign-in and returns to
+`?track=1` to finish the track; signed in it toggles the bill on the watchlist.
+This reverses the original handoff, which removed all Track controls from bill
+detail and deferred them to roadmap. The votes empty state still has no tracking,
+and Tracking also lives on Search and Tracked Bills. The `votes` sign-in intent
+("see your legislators") is unchanged. Part of [#976](https://github.com/alethical-org/alethical/issues/976).
 
 ## Logo
 Nav uses the canonical two-peaks mark (assets/alethical-favicon.svg geometry) in
