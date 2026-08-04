@@ -777,7 +777,7 @@ function HomeSignedOutDesktop() {
                   </Text>
                   <Text style={[styles.heroSubhead, !isDesktop && styles.heroSubheadMobile]}>
                     We read every bill so you don’t have to — what it says, where it stands, and how
-                    everyone voted. Plain language, every answer linked to official sources.
+                    legislators voted. Plain language, every answer linked to official sources.
                   </Text>
 
                   {/* ASK FIELD. Mobile stacks a full-width Ask button below the
@@ -1451,7 +1451,7 @@ function HomeSignedOutMobile() {
               </Text>
               <Text style={m.heroSubhead}>
                 We read every bill so you don’t have to — what it says, where it stands, and how
-                everyone voted. Plain language, every answer linked to official sources.
+                legislators voted. Plain language, every answer linked to official sources.
               </Text>
             </Container>
           </View>
