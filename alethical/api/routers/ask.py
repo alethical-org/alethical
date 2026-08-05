@@ -438,9 +438,13 @@ _SERVED_CITATION_LIMIT = 8
 # only what the reader is shown.
 _EXCERPT_MAX_CHARS = 220
 
-# Header lines rag chunking prepends to every chunk body (compact_chunk_prefix /
-# full_section_prefix in alethical/pipeline/rag.py) so the embedded text carries
-# its own location. They are retrieval metadata, not bill text: the citation chip
+# Header lines rag chunking prepends to every chunk body (compact_chunk_prefix in
+# alethical/pipeline/rag.py) so the embedded text carries its own location. "Bill
+# title" is the one label that prefix has never emitted; it belonged to the
+# section-level full_section_prefix, which only ever fed
+# rag_section_document.search_text and went with it (#715). Left in the pattern as
+# cheap defence, not because any chunk carries it.
+# They are retrieval metadata, not bill text: the citation chip
 # already states the location, so printing them again fills the card and pushes
 # the actual quote out of view (#835).
 _CHUNK_PREFIX_LINE_RE = re.compile(

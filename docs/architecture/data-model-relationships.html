@@ -579,8 +579,8 @@
       rag_section_document: {
         group: 'ai',
         summary: 'Cleaned citation-safe section document for retrieval.',
-        fields: ['id', 'bill_id', 'bill_version_id', 'bill_version_section_id', 'citation_label', 'clean_text', 'search_text', 'cleaning_version', 'source_hash', 'word_count'],
-        notes: ['Derived from bill_version_section. Chunks and embeddings are built from this.'],
+        fields: ['id', 'bill_id', 'bill_version_id', 'bill_version_section_id', 'citation_label', 'clean_text', 'cleaning_version', 'source_hash', 'word_count'],
+        notes: ['Derived from bill_version_section. Chunks and embeddings are built from this.', 'No search_text: a section-level copy had no reader and was dropped (#715). The lexical arm of hybrid retrieval (#380) indexes rag_chunk.search_text instead.'],
         relations: [
           ['rag_section_document.bill_id', 'bill.id', 'many to 1'],
           ['rag_section_document.bill_version_id', 'bill_version.id', 'many to 1'],

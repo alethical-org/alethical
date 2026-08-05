@@ -977,7 +977,6 @@ def test_the_coverage_denominator_counts_exactly_what_retrieval_can_return():
             bill_version_id=version_id,
             citation_label="Coverage fixture",
             clean_text="For a grant to the city of Coverage Fixture.",
-            search_text="For a grant to the city of Coverage Fixture.",
             cleaning_version="coverage-fixture",
             source_hash="0" * 64,
             word_count=8,
