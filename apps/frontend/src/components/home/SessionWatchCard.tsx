@@ -4,7 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { ChangeBlock } from '../ChangeBlock';
 import { Skeleton } from '../Skeleton';
-import { isWeb, useBusyRegion, useHover } from '../billDetail/interactions';
+import { isWeb, useHover } from '../billDetail/interactions';
 import type { Bill } from '../../data/types';
 import { formatNiceDate, latestActionEntry } from '../../lib/billDetail';
 import type { SessionWatch, SessionWatchRow } from '../../lib/sessionWatch';
@@ -46,12 +46,6 @@ export function SessionWatchCard({
   onWhatsMoving: () => void;
 }) {
   const pending = watch.state === 'pending';
-  // aria-busy only. The card is a REGION: nothing in it is focusable while it
-  // loads and nothing is disabled, so `useUnavailableControl` would be wrong here —
-  // aria-disabled is defined for interactive roles (docs/design/design-principles.md
-  // §3). This helper sets the marker AND clears it, which matters because this card
-  // resolves in place rather than unmounting.
-  const busyRef = useBusyRegion(pending);
 
   return (
     <View style={styles.card}>
@@ -65,7 +59,7 @@ export function SessionWatchCard({
       </View>
       <View style={styles.rule} />
 
-      {pending ? <PendingFrame ref={busyRef} /> : null}
+      {pending ? <PendingFrame /> : null}
 
       {watch.state === 'tracking-nothing' ? (
         <TrackFirstBillFrame onSearchBills={onSearchBills} onWhatsMoving={onWhatsMoving} />
@@ -92,8 +86,18 @@ export function SessionWatchCard({
 // from the Track button's terminal "couldn't check" form, which means we asked and
 // it failed and offers a retry; this means we have not asked yet and resolves on
 // its own.
-const PendingFrame = ({ ref }: { ref: React.Ref<View> }) => (
-  <View ref={ref} style={styles.frame}>
+const PendingFrame = () => (
+  // A plain `aria-busy` prop, NOT `useUnavailableControl` and not a ref helper.
+  // The card is a REGION: nothing in it is focusable and nothing is disabled, and
+  // `aria-disabled` is defined for interactive roles, so marking it would say
+  // something untrue of a region. React Native types this prop and
+  // react-native-web forwards it; the silent-drop problem is specific to
+  // `accessibilityState={{ … }}`, which renders nothing at all
+  // (docs/design/design-principles.md §3). Being a plain prop it is also
+  // reactive, which matters here because this card resolves IN PLACE rather than
+  // unmounting — React writes aria-busy="false" rather than leaving a stale
+  // "still loading" marker on content that has already arrived.
+  <View aria-busy style={styles.frame}>
     <View style={styles.pendingRow}>
       <Spinner />
       <Text style={styles.pendingText}>Checking for anything new since you last looked</Text>
