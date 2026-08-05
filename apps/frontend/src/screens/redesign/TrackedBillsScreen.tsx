@@ -16,11 +16,12 @@ import { BillResultCard } from '../../components/search/BillResultCard';
 import { Skeleton } from '../../components/Skeleton';
 import { isWeb, useHover } from '../../components/billDetail/interactions';
 import { isHotIssueBill } from '../../lib/hotIssues';
-import { lastVisitDate } from '../../lib/trackedBillsLastVisit';
+import { lastVisitFrom } from '../../lib/trackedBillsLastVisit';
 import {
   groupTrackedBillsByChange,
   mostRecentChangeLabel,
   trackedBillsSummaryLine,
+  type MovedBill,
 } from '../../lib/trackedBillsChanges';
 
 const SKELETON_ROWS = [0, 1, 2];
@@ -42,13 +43,29 @@ export function TrackedBillsScreen() {
   // When this reader last opened the page. Held for the whole browser session, so
   // reloading does not erase what changed (hooks/useTrackedBillsLastVisit).
   const lastVisitQuery = useTrackedBillsLastVisit(user?.id);
-  const since = lastVisitDate(lastVisitQuery.data);
   // Stable per mount, so the grouping memo is too.
   const now = useMemo(() => new Date(), []);
-  const { moved, unchanged } = useMemo(
-    () => groupTrackedBillsByChange(bills, since, now),
-    [bills, since, now],
+  // Built inside the memo: lastVisitFrom returns a fresh object each call, so
+  // holding it in a variable outside would break the memo on every render.
+  const lastVisitData = lastVisitQuery.data;
+  const groups = useMemo(
+    () => groupTrackedBillsByChange(bills, lastVisitFrom(lastVisitData), now),
+    [bills, lastVisitData, now],
   );
+  // `not-checked` means the last-visit lookup never returned — the query errored,
+  // since the render below waits while it is loading. The list is still worth
+  // showing, so it renders with no caption and no grouping: we cannot say what
+  // moved, and saying "nothing moved" would be the false reassurance this whole
+  // three-way type exists to prevent (#1026).
+  const moved = groups.state === 'grouped' ? groups.moved : [];
+  const unchanged = groups.state === 'grouped' ? groups.unchanged : bills;
+  const summaryLine =
+    trackedBillsSummaryLine({
+      total: bills.length,
+      movedCount: moved.length,
+      lastVisit: lastVisitFrom(lastVisitData),
+      mostRecentChange: mostRecentChangeLabel(bills),
+    }) ?? null;
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
@@ -153,17 +170,14 @@ export function TrackedBillsScreen() {
             <Text style={styles.count}>{bills.length}</Text>
             <Text style={styles.countNoun}>{bills.length === 1 ? 'bill' : 'bills'}</Text>
           </View>
-          <View style={styles.summaryRow}>
-            {moved.length > 0 ? <TrendGlyph /> : <ClockGlyph />}
-            <Text style={styles.summaryText}>
-              {trackedBillsSummaryLine({
-                total: bills.length,
-                movedCount: moved.length,
-                since,
-                mostRecentChange: mostRecentChangeLabel(bills),
-              })}
-            </Text>
-          </View>
+          {/* No caption at all when we never learned when they last looked. A
+              glyph and a sentence would both be claims we cannot ground. */}
+          {summaryLine ? (
+            <View style={styles.summaryRow}>
+              {moved.length > 0 ? <TrendGlyph /> : <ClockGlyph />}
+              <Text style={styles.summaryText}>{summaryLine}</Text>
+            </View>
+          ) : null}
         </View>
 
         {moved.length > 0 ? (
@@ -208,7 +222,7 @@ export function TrackedBillsScreen() {
   );
 }
 
-type MovedChange = ReturnType<typeof groupTrackedBillsByChange>['moved'][number]['change'];
+type MovedChange = MovedBill<unknown>['change'];
 
 // Rising line: something moved. Green, matching the change blocks below it.
 function TrendGlyph() {
