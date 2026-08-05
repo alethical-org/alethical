@@ -104,12 +104,19 @@ header itself carries `z-index: 40` — otherwise the sort control's wrapper is 
 header's stacking context and, as an earlier sibling, paints under the card list.
 
 **"Menu" here means the visual thing, not an ARIA menu.** To a screen reader each of these is a
-trigger that says whether it is open, holding a labelled group of ordinary buttons — deliberately
+trigger that names its facet *and its current value* ("Filter by status: All statuses", "Sort
+results, sorted by legislative progress") and says whether it is open, holding a labelled group of
+ordinary buttons in which the chosen row carries `aria-current="true"` — deliberately
 not `role="menu"` / `role="menuitem"`, because an ARIA menu promises arrow-key navigation between
 items that this screen does not implement
 ([#1025](https://github.com/alethical-org/alethical/issues/1025); the reasoning, and the
 react-native-web trap behind it, are in `docs/design/design-principles.md` §3, Interaction &
 accessibility baseline).
+
+The trigger has to repeat the value because an `accessibilityLabel` **replaces** the visible text
+rather than adding to it: the button read "All statuses" on screen while its accessible name was
+just "Filter by status", so the current filter reached a screen reader nowhere at all until
+[#1036](https://github.com/alethical-org/alethical/issues/1036).
 
 ## Filters (all backed by today's API)
 

@@ -153,9 +153,9 @@ function TabButton({
   const [hovered, hover] = useHover();
   return (
     <Pressable
-      accessibilityRole="tab"
+      accessibilityRole="button"
       accessibilityLabel={`${label} tab`}
-      accessibilityState={{ selected: active }}
+      aria-current={active ? 'page' : undefined}
       onPress={onPress}
       {...hover}
       style={[styles.tab, active && styles.tabActive]}

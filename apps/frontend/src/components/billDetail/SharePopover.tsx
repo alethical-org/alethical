@@ -70,7 +70,7 @@ export function SharePopover({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Share this ${subject}`}
-        accessibilityState={{ expanded: open }}
+        aria-expanded={open}
         onPress={() => {
           setOpen((v) => !v);
           setCopied(false);

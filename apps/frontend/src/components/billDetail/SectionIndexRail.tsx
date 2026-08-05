@@ -93,7 +93,7 @@ function IndexRow({
       onPress={() => onSelect(item.anchorId)}
       accessibilityRole="link"
       accessibilityLabel={[item.number ?? 'Section', item.label].filter(Boolean).join(': ')}
-      accessibilityState={{ selected: active }}
+      aria-current={active ? 'location' : undefined}
       style={[styles.row, lit && styles.rowLit, active && styles.rowActive]}
     >
       {item.number ? <Text style={styles.rowNumber}>{item.number}</Text> : null}

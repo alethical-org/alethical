@@ -13,7 +13,8 @@ export function Chip({ label, selected = false, disabled = false, onPress }: Chi
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled, selected }}
+      accessibilityState={{ disabled }}
+      aria-pressed={selected}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [

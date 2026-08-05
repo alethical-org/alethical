@@ -181,7 +181,7 @@ function RollCard({
     <View style={[styles.card, hovered && !open && (styles.cardHover as object)]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
+        aria-expanded={open}
         onPress={onToggle}
         {...hover}
         style={styles.cardHead}
@@ -438,6 +438,7 @@ function FilterSeg({
   return (
     <Pressable
       accessibilityRole="button"
+      aria-pressed={active}
       onPress={onPress}
       {...hover}
       style={[styles.seg, active && styles.segActive]}

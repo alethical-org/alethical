@@ -134,8 +134,13 @@ export function BillTrackButton({
   return (
     <Pressable
       accessibilityRole="button"
+      // Deliberately NOT `aria-pressed`, unlike the other toggles in #1036. This
+      // label names the NEXT action rather than the thing being toggled, so the two
+      // together announce "Untrack this bill, pressed" — the name says untrack, the
+      // state says on. The label already carries the state unambiguously. Making it
+      // a real toggle means renaming it to "Track this bill" in both states, which
+      // is the Track button's own copy and settled elsewhere (#1013, #1021, #1027).
       accessibilityLabel={tracked ? 'Untrack this bill' : 'Track this bill'}
-      accessibilityState={{ selected: tracked }}
       onPress={onPress}
       {...hover}
       style={[styles.btn, btnSize, hovered && styles.btnHover]}

@@ -744,7 +744,7 @@ function SessionFilter() {
     <View style={styles.sessionWrap}>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
+        aria-expanded={open}
         onPress={() => setOpen((v) => !v)}
         {...hover}
         style={[styles.sessionBtn, hovered && styles.sessionBtnHover]}

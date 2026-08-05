@@ -127,6 +127,28 @@ one: see the box below before writing one.**
 > `aria-expanded={open}` on the Search Bills sort trigger renders `aria-expanded="true"`, where the
 > `accessibilityState` it replaced rendered nothing.
 >
+> **`selected` almost never becomes `aria-selected`, though — pick per control
+> ([#1036](https://github.com/alethical-org/alethical/issues/1036)).** `aria-selected` is only
+> meaningful inside a `listbox`, `tablist`, `grid` or `tree`, and this app has none of those. What
+> the fifteen sites actually needed:
+>
+> | The control | Write | Why |
+> | --- | --- | --- |
+> | Marks where you are — nav rail, mobile tab bar, bill tabs, section rail, jump chips, the chosen row in a filter or sort dropdown | `aria-current` (`"page"` for a URL, `"location"` for a spot in the page, `"true"` in a plain set) | Says which one is current, promises no keyboard behaviour |
+> | A toggle that stays on — Track, roll-call and chamber filters, Omnibus only, issue pills, chat citations | `aria-pressed` | It is a toggle button, and that is the attribute for one |
+> | Anything else | nothing | Silence beats a state claim that is not true |
+>
+> **Two of those three are unchecked by TypeScript, so a typo ships.** `aria-current` and
+> `aria-pressed` are not in React Native's `ViewAccessibility.d.ts`; they compile with any value at
+> all. Measured: `aria-expanded={12345}` is a compile error, `aria-current={12345}` is not. The
+> guard is `apps/frontend/src/lib/__tests__/ariaStateProps.test.ts` plus opening the page.
+>
+> **`accessibilityLabel` REPLACES the visible text for a screen reader; it does not add to it.**
+> This is how the Search Bills filters hid their own state: the button read "All statuses" on screen
+> and its computed accessible name was "Filter by status", so the current filter was announced
+> nowhere. If the visible text carries a value, the label has to carry it too
+> ("Filter by status: All statuses").
+>
 > **For "this control is unavailable", use the one helper instead: `useUnavailableControl`**
 > (`apps/frontend/src/components/billDetail/interactions.ts`). Spread its ref onto the node. It
 > sets `aria-disabled`, optionally `aria-busy`, and `tabindex="-1"`, and — the part a plain prop
@@ -142,9 +164,13 @@ one: see the box below before writing one.**
 > stays on the sign-in button while it connects.
 >
 > **`accessibilityRole` is fine, including the roles you would not expect.** Measured: `menuitem`
-> renders `role="menuitem"`. Whether it *should* be used is a separate question — our dropdowns are
-> deliberately disclosures containing a labelled group of buttons, not ARIA menus, because an ARIA
-> menu promises arrow-key navigation we have not built.
+> renders `role="menuitem"`, and `tab` renders `role="tab"`. Whether either *should* be used is a
+> separate question, and the answer for both is no: our dropdowns are deliberately disclosures
+> containing a labelled group of buttons, not ARIA menus, and the three `tab` sites were dropped in
+> [#1036](https://github.com/alethical-org/alethical/issues/1036) — they rendered a real `role="tab"`
+> with no `tablist` parent anywhere, and an ARIA tab promises arrow-key navigation and a roving
+> tabindex we have not built either. Both roles are a promise of keyboard behaviour, so do not reach
+> for one until that behaviour exists.
 >
 > **Never conclude any of this from the source.** Every claim above was wrong at least once when
 > reasoned from the code: the same sweep that found the trap named the wrong component for it, and
