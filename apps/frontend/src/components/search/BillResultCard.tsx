@@ -145,10 +145,15 @@ function HotIssuePill() {
 // badge on it: a dated report, not an alert (#1009). The mono eyebrow carries the
 // date of the change itself.
 //
-// A change the record states no date for prints "MOVED" and nothing more. The
+// A change the record states no date for names the absence rather than going
+// quiet: "MOVED · DATE NOT RECORDED", the qualifier in a lighter tone. The
 // Legislature genuinely files undated entries ("Laid on table", conference-
 // committee steps), and the sentence still names what happened — we neither invent
-// a date nor hide a real change (grounded-answers rule 1).
+// a date nor hide a real change (grounded-answers rule 1). Naming it says the
+// silence is the record's, not ours; a bare "MOVED" read as our omission. The
+// eyebrow stays first and stays green in both cases, because dated and undated
+// blocks sit in the same list and one composition is what makes them read as the
+// same thing.
 //
 // The earlier-steps link exists so one sentence never implies it was the only
 // thing that happened. It states a count and no date range: "since your last
@@ -161,8 +166,14 @@ function ChangeBlock({ change, onHistory }: { change: BillChanges; onHistory?: (
   const earlier = change.earlierCount;
   return (
     <View style={styles.change}>
+      {/* One Text, so the two tones stay on one line and wrap as one phrase. */}
       <Text style={styles.changeEyebrow}>
-        {change.date ? `MOVED ${change.date.toUpperCase()}` : 'MOVED'}
+        MOVED
+        {change.date ? (
+          ` ${change.date.toUpperCase()}`
+        ) : (
+          <Text style={styles.changeEyebrowQualifier}> · DATE NOT RECORDED</Text>
+        )}
       </Text>
       <Text style={styles.changeText}>{change.label}</Text>
       {earlier > 0 && onHistory ? (
@@ -388,7 +399,19 @@ export function BillResultCard({
 
       {summary ? <Text style={styles.summary}>{summary}</Text> : null}
 
-      {change ? <ChangeBlock change={change} onHistory={onChangeHistory} /> : null}
+      {/* With no summary the change block follows the title directly, and the
+          card's own 12px gap reads tight under a 25px bold heading — so it takes
+          20px there. On BOTH surfaces: the handoff says this case is invisible on
+          a phone because the phone card renders no summary line, and that is
+          wrong. The isMobile branch above covers the HEADER only and closes
+          before the title; the title and the summary are rendered once, outside
+          it, by both layouts. Verified in this file and in the committed 375px
+          screenshots at docs/verification/1007-tracked-bills-phone/. */}
+      {change ? (
+        <View style={summary ? undefined : styles.changeAfterTitle}>
+          <ChangeBlock change={change} onHistory={onChangeHistory} />
+        </View>
+      ) : null}
 
       <View style={styles.meta}>
         <View style={styles.metaRow}>
@@ -566,6 +589,9 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
     maxWidth: 1040,
   },
+  // 8px on top of the card's own 12px gap = the 20px the design asks for below a
+  // title with no summary between it and the block.
+  changeAfterTitle: { marginTop: 8 },
   // The "what moved since you last looked" panel. Soft green, inside the card.
   change: {
     maxWidth: 1040,
@@ -588,6 +614,12 @@ const styles = StyleSheet.create({
     // (theme/tokens.ts) — accessibility overrides the spec.
     color: t.colors.brand.forest,
   },
+  // The "· DATE NOT RECORDED" half, quieter than the green so it reads as a
+  // qualifier and not a second heading. text.muted (#656c66) rather than the
+  // mock's #6f756f: at 11px that measures 4.41:1 on the panel, just under WCAG
+  // AA's 4.5:1, and #656c66 measures 5.05:1 — the same figure as the green beside
+  // it, so neither half dominates the other.
+  changeEyebrowQualifier: { color: t.colors.text.muted },
   changeText: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,

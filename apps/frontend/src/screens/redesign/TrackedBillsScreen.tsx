@@ -295,7 +295,10 @@ const styles = StyleSheet.create({
   h1Mobile: { fontSize: 40, lineHeight: 42, letterSpacing: -0.8 },
   subhead: {
     marginTop: 16,
-    maxWidth: 640,
+    // Wide enough that the sentence sits on ONE line at desktop width. At 640 it
+    // broke after "record", which reads as two thoughts. Still capped, so it never
+    // runs the full ~150 characters on a wide monitor.
+    maxWidth: 980,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.lg,
     lineHeight: 26,
