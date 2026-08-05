@@ -11,20 +11,18 @@ import {
   MessageSquareText,
   Home,
   MapPin,
-  Search,
   UserCircle,
   type LucideIcon,
 } from 'lucide-react-native';
-import { ComponentProps, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
-import type { HomeScreen } from '../screens/HomeScreen';
 import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
 import { linkProps, routePath } from './links';
-import { MainTabParamList, RootStackParamList } from './types';
+import { MainTabParamList, MainTabScreenProps, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { theme } from '../theme/tokens';
 
@@ -70,9 +68,6 @@ const SearchLegislatorsScreen = lazy(() =>
     default: m.SearchLegislatorsScreen,
   })),
 );
-const SearchScreen = lazy(() =>
-  import('../screens/SearchScreen').then((m) => ({ default: m.SearchScreen })),
-);
 const TrackedScreen = lazy(() =>
   import('../screens/redesign/TrackedBillsScreen').then((m) => ({
     default: m.TrackedBillsScreen,
@@ -89,7 +84,6 @@ type NavIcon = LucideIcon;
 type RailRouteName = keyof MainTabParamList | 'FindMyLegislator';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
-  Search: { label: 'Search', Icon: Search },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
   Chat: { label: 'Chat', Icon: MessageSquareText },
   Account: { label: 'Account', Icon: UserCircle },
@@ -104,11 +98,6 @@ const railRoutes: Array<{
     name: 'Home',
     ...tabMeta.Home,
     navigate: () => navigationRef.navigate('Tabs', { screen: 'Home' }),
-  },
-  {
-    name: 'Search',
-    ...tabMeta.Search,
-    navigate: () => navigationRef.navigate('Tabs', { screen: 'Search' }),
   },
   {
     name: 'FindMyLegislator',
@@ -276,7 +265,7 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
 // see #143), regardless of auth state — including a stale signed-in session
 // from earlier testing. While the session restores, render nothing rather
 // than flashing the wrong home.
-function HomeRoute(_props: ComponentProps<typeof HomeScreen>) {
+function HomeRoute(_props: MainTabScreenProps<'Home'>) {
   const { isLoading } = useAuth();
   if (isLoading) {
     return null;
@@ -322,7 +311,6 @@ function MainTabs() {
       }}
     >
       <Tab.Screen name="Home" component={HomeRoute} options={{ title: 'Home' }} />
-      <Tab.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
       <Tab.Screen name="Tracked" component={TrackedScreen} options={{ title: 'Tracked' }} />
       <Tab.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
       <Tab.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />

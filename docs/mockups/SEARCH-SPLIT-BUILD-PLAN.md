@@ -75,7 +75,7 @@ Map lowercased `bill.status` keyword → `{ index 0-4, tone }`:
 - `navigation/RootNavigator.tsx`: register `SearchBillsScreen` + `SearchLegislatorsScreen`
   as root-stack screens (like `Home`/`FindMyLegislator`).
 - `navigation/webRoutes.ts`: parse+serialize `/bills` (list) and `/legislators` (list);
-  honor `REDIRECTS` `/search` → `/bills` (registry already declares it). Keep `/bills/:id` +
+  forward `/search` → `/bills` directly in `targetFromPathname`, carrying query params. Keep `/bills/:id` +
   `/legislators/:id` detail routes intact.
 - Wire nav: on both new screens `handleNavigate` routes search-bills→Bills,
   search-legislators→Legislators, find-my-legislator→FindMyLegislator, track-bills→Tracked,
