@@ -18,6 +18,7 @@ import {
   billOverviewUrl,
   buildActionTimeline,
   citationChipLabel,
+  completeStatusText,
   citationsBySection,
   completeDanglingTitle,
   crossReferenceTargets,
@@ -958,5 +959,91 @@ describe('citationsBySection shows each cited section once', () => {
     const distinct = [hf4301[0], hf4301[5]];
     expect(citationsBySection(distinct)).toHaveLength(2);
     expect(citationsBySection([])).toEqual([]);
+  });
+});
+
+// `completeStatusText` is what the surfaces that read a bill's STATUS (rather than
+// its actions) show as the latest action — the home page's Bill Activity card, and
+// the latest-action rail's fallback when a bill's actions are absent (#812). Every
+// string below is a real production status, and the committee beside it is the one
+// stored on that bill's matching action row.
+describe('completeStatusText names the committee behind a referral status', () => {
+  const action = (action_text: string, committee_name: string) => [
+    { action_text: 'Introduction and first reading', committee_name: null },
+    { action_text, committee_name },
+  ];
+
+  it('rewrites the clerk wording AND names the committee (5,680 production bills)', () => {
+    expect(
+      completeStatusText(
+        'Introduction and first reading, referred to',
+        action(
+          'Introduction and first reading, referred to',
+          'Environment and Natural Resources Finance and Policy',
+        ),
+      ),
+    ).toBe('Introduced and referred to Environment and Natural Resources Finance and Policy');
+    expect(completeStatusText('Referred to', action('Referred to', 'Capital Investment'))).toBe(
+      'Referred to Capital Investment',
+    );
+  });
+
+  it('keeps the generic wording when no committee is stored, never dropping to "Referred"', () => {
+    // What these two read as today, and must keep reading as when the record has
+    // no committee to name.
+    expect(completeStatusText('Introduction and first reading, referred to', [])).toBe(
+      'Introduced and referred to committee',
+    );
+    expect(completeStatusText('Referred to', undefined)).toBe('Referred to committee');
+    expect(
+      completeStatusText('Referred to', [{ action_text: 'Referred to', committee_name: '' }]),
+    ).toBe('Referred to committee');
+  });
+
+  it('finishes the rarer referral and returned-to wordings too', () => {
+    expect(
+      completeStatusText(
+        'Comm report: To pass as amended and re-refer to',
+        action('Comm report: To pass as amended and re-refer to', 'Health and Human Services'),
+      ),
+    ).toBe('Comm report: To pass as amended and re-refer to Health and Human Services');
+    expect(
+      completeStatusText(
+        'House rule 4.20, interim disposition of bills, returned to',
+        action('House rule 4.20, interim disposition of bills, returned to', 'Education Policy'),
+      ),
+    ).toBe('House rule 4.20, interim disposition of bills, returned to Education Policy');
+  });
+
+  it('drops the unfinished clause on a rarer wording rather than inventing a target', () => {
+    expect(completeStatusText('Withdrawn and re-referred to', [])).toBe('Withdrawn');
+    expect(completeStatusText('Rule 47, returned to', [])).toBe('Rule 47');
+  });
+
+  it('matches the action by its text, not by position', () => {
+    expect(
+      completeStatusText('Referred to', [
+        { action_text: 'Referred to', committee_name: 'Taxes' },
+        { action_text: 'Author added', committee_name: null },
+      ]),
+    ).toBe('Referred to Taxes');
+  });
+
+  it('leaves a status that already reads as a finished sentence alone', () => {
+    for (const status of [
+      'Chapter number',
+      'Passed the House',
+      'Introduction and first reading, referred to Taxes',
+      'Governor vetoed',
+      'Effective date',
+      'Author stricken',
+    ]) {
+      expect(completeStatusText(status, [])).toBe(status);
+    }
+  });
+
+  it('returns nothing for a missing status, so the caller can omit the line', () => {
+    expect(completeStatusText(null, [])).toBeUndefined();
+    expect(completeStatusText('   ', [])).toBeUndefined();
   });
 });

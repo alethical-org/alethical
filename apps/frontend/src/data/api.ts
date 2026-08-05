@@ -1,5 +1,10 @@
 import { Platform } from 'react-native';
-import { completeDanglingTitle, TRAILING_REFERRAL, TRAILING_RETURN } from '../lib/billDetail';
+import {
+  completeDanglingTitle,
+  completeStatusText,
+  TRAILING_REFERRAL,
+  TRAILING_RETURN,
+} from '../lib/billDetail';
 import type { SourceBlock } from '../lib/billText';
 import {
   AskAnswer,
@@ -1133,7 +1138,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
     title: payload.title,
     chamber: toChamber(payload.file_type),
     status: statusLabel(payload.status_key, payload.current_status),
-    latestActionText: payload.current_status ?? undefined,
+    latestActionText: completeStatusText(payload.current_status, payload.actions),
     isOmnibus: payload.is_omnibus ?? false,
     effectiveDate: payload.effective_date ?? undefined,
     updatedAt: formatUpdatedAt(payload.latest_action_at),
@@ -1199,7 +1204,7 @@ function mapBillDetail(
           status: statusLabel(payload.companion.status_key, payload.companion.status),
         }
       : null,
-    latestActionText: payload.current_status ?? undefined,
+    latestActionText: completeStatusText(payload.current_status, payload.actions),
     updatedAt: formatUpdatedAt(payload.latest_action_at),
     lastPulledAt: payload.last_pulled_at ?? undefined,
     effectiveDate: payload.effective_date ?? undefined,

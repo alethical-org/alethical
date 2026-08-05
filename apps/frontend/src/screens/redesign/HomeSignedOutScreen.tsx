@@ -908,10 +908,10 @@ function friendlyMetaDate(iso?: string): string | null {
 // The MN source's latest-action text is often a terse fragment ("Referred to",
 // "Introduction and first reading, referred to"); map the common ones to fuller,
 // plain phrasing for the meta line. Unmapped values pass through trimmed.
+// The two referral wordings moved to `completeStatusText` (lib/billDetail), which
+// rewrites them the same way AND names the committee the record holds, so they
+// never reach this map any more (#812).
 const ACTION_LABELS: Record<string, string> = {
-  'introduction and first reading, referred to': 'Introduced and referred to committee',
-  'introduction and first reading, referred to committee': 'Introduced and referred to committee',
-  'referred to': 'Referred to committee',
   'author stricken': 'Author removed',
   'bill was passed': 'Passed',
   'bill was passed as amended': 'Passed as amended',
