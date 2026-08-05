@@ -19,6 +19,7 @@ import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fi
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { useResponsive } from '../../hooks/useResponsive';
 import { IaItem, MenuKey } from '../../navigation/ia';
+import { useUnavailableControl } from '../billDetail/interactions';
 
 // Shared building blocks for the redesigned Search Bills / Search Legislators
 // screens (docs/mockups/search-bills + search-legislators). The two screens
@@ -474,9 +475,15 @@ function DropdownItem({
   onSelect: () => void;
 }) {
   const [hovered, hover] = useHover();
+  const unavailableRef = useUnavailableControl(Boolean(disabled));
   if (disabled) {
     return (
       <View
+        // A View has no `disabled` prop, so accessibilityState is all there was — and on
+        // RN-Web it renders nothing, leaving this row announcing as a choice the reader
+        // could make (#1025). The ref is what actually marks it. Not busy: nothing is
+        // in flight, this option simply is not built yet.
+        ref={unavailableRef}
         accessibilityRole="menuitem"
         accessibilityState={{ disabled: true }}
         style={styles.dropdownItem}
