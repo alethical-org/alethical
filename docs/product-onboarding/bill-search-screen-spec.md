@@ -231,7 +231,7 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   ([#986](https://github.com/alethical-org/alethical/pull/986)), closing #976. On the card,
   the tap is swallowed (`pressInsideLink`) so it toggles instead of following the card's link
   to the bill.
-- **Three forms, one fixed box** ([#1013](https://github.com/alethical-org/alethical/issues/1013)).
+- **Four forms, one fixed box** ([#1013](https://github.com/alethical-org/alethical/issues/1013), [#1021](https://github.com/alethical-org/alethical/issues/1021)).
   Beyond `+ Track` and `✓ Tracked` there is a third form for **"we don't know yet"**: the same
   ink box with **no words**, a small white spinner, 62% opacity, and unpressable
   (`aria-busy`, `aria-disabled`, `tabindex="-1"`, all set on the DOM node because RN-Web drops
@@ -249,6 +249,30 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   Boxes are **`web` 128×46, `mobile` 112×44, `card` 124×44**, min-width with an explicit
   height (a label's line box is taller than the spinner's, so a min-height would bind on the
   spinner form alone and the box would shrink on resolve).
+- **The fourth form: when the check FAILS** ([#1021](https://github.com/alethical-org/alethical/issues/1021)).
+  `useTrackedBills` is `retry: false`, so one blip is permanent until something refetches. The
+  button then becomes the **outline** of the same box — white fill, 1px border
+  `rgba(17,21,15,0.32)`, an ink refresh glyph, **no label**, the same three footprints,
+  hovering to border `#11150f` / background `#f7f8fa`. That completes a three-way visual
+  system: **filled = we know · filled and dimmed = we're asking · outlined = we don't know**.
+  It is **focusable** (unlike the checking form) and carries
+  `aria-label="Couldn't check whether you track this bill. Press to check again."`
+  **One press refetches the whole list**, so every unresolved button on the page recovers at
+  once — that falls out of every button reading one query key (`['tracked-bills', userId]`)
+  and needs no coordination. It deliberately does **not** fall back to `+ Track`: with
+  refetch-on-press the *action* is safe, but the *label* would still state a fact about the
+  reader's own list we never got.
+- **This screen carries the page-level notice for that failure**, and that is a deliberate
+  move away from where the design first scoped it. Grey `#f7f8fa`, `role="status"` and never
+  `role="alert"` (nothing is broken; one thing is missing), shown once above the results:
+  "We couldn't check which bills you're tracking. Everything about the bills themselves loaded
+  normally — only your saved list is missing." plus **Check again**. It lives here rather than
+  on the tracked-bills page because **that sentence is only true where the bills came from a
+  different request.** On this screen it is exactly true. On the tracked page it is false —
+  the saved list *is* the page, so a failure leaves nothing to render, and
+  `TrackedBillsScreen` already shows its own full-page message instead. Whether the notice
+  belongs on the bill page, the home feed and the Ask answer card too is with Design; the
+  outlined button alone asserts nothing there, so nothing dishonest ships without it.
 - **Track stays off this screen's phone layout — and that is now a choice this screen makes,
   not something the card lacks** ([#1007](https://github.com/alethical-org/alethical/issues/1007)).
   `BillResultCard`'s phone layout used to render no Track control at all, so every surface

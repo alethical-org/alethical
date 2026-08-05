@@ -1,52 +1,65 @@
-// Whether the Track button honestly knows the reader's tracked state yet (#1013).
+// What the Track button honestly knows about this reader's tracked state (#1013, #1021).
 //
-// A pure function rather than a line inside the hook, because the case that matters
-// most cannot be checked any other way here: the frontend's test runner is
-// pure-logic only (no component or browser tests, #751), and the case worth pinning
-// is a *signed-out* visitor never seeing the checking form. That is the majority of
-// traffic on every card on the site, and getting it wrong ships a permanent spinner
-// where the Track button belongs.
+// FOUR states, and the button has a distinct form for each, because three of them are
+// claims and one of them must not be:
 //
-// The condition is deliberately NOT "the query is loading". Two separate
-// measurements, from two sessions, bracket why no single React Query flag works on
-// the installed @tanstack/react-query 5.100.9:
+//   tracked / untracked → filled black, labelled. We know, so we say so.
+//   checking            → filled black, dimmed, spinner, no label, unpressable.
+//   unavailable         → the same box OUTLINED, refresh glyph, no label, pressable.
+//
+// Derived here rather than in each surface. Five places render this button, and a
+// four-way condition re-worked out five times is how one of them ends up wrong.
+//
+// The case worth pinning hardest is SIGNED OUT, and it is pinned by a test because
+// the frontend's runner is pure-logic only (no component or browser tests, #751).
+// A signed-out visitor is the majority of traffic on every card on the site, and
+// their state is NOT unknown — they track nothing, so "+ Track" is correct and
+// honest, and neither the checking nor the unavailable form may ever appear for
+// them. Design confirmed that explicitly and asked for it to be explicit here:
+// neither form is a general loading or error state for this control.
+//
+// Two measurements, from two sessions, bracket why no single React Query flag can
+// stand in for this on the installed @tanstack/react-query 5.100.9:
 //
 //   * `useTrackedBills` is `enabled: Boolean(userId && accessToken)`, and a DISABLED
 //     query reports `isPending: true` FOREVER. Gate on isPending and every
 //     signed-out visitor gets a spinner that never resolves.
 //   * That same disabled query reports `isLoading: false`, because v5 derives
 //     `isLoading = isPending && isFetching` and a disabled query is not fetching. So
-//     isLoading is also false during the first part of a *signed-in* reader's gap,
-//     before the stored session has been read back and the query is enabled at all.
+//     isLoading also misses the first part of a signed-in reader's gap, before the
+//     stored session has been read back and the query is enabled at all.
 //
-// Neither flag alone is right, so this asks the two questions that actually decide
-// it: are we signed in, and has the list arrived?
+// So this asks the questions that actually decide it: signed in, has the list
+// arrived, and did it fail.
 
-export interface TrackedStateInputs {
+export type TrackState = 'tracked' | 'untracked' | 'checking' | 'unavailable';
+
+export interface TrackStateInputs {
   /** Whether a session exists at all. A signed-out reader tracks nothing. */
   isSignedIn: boolean;
   /** Whether the watchlist response has arrived (the query has data). */
   hasList: boolean;
   /** Whether the watchlist request failed. */
   isError: boolean;
+  /** Whether this bill is on the watchlist. Meaningful only once it has arrived. */
+  isTracked: boolean;
 }
 
-export function isTrackedStateUnknown({
+export function trackState({
   isSignedIn,
   hasList,
   isError,
-}: TrackedStateInputs): boolean {
-  // Signed out is not unknown -- it is known to be nothing. "+ Track" is the honest
-  // and correct button, and it must appear immediately.
-  if (!isSignedIn) return false;
-  // A failed request is unknown and UNRESOLVABLE, which is a different thing from
-  // unknown. Holding the checking form would leave the button permanently
-  // unpressable with nothing the reader can do about it, so we fall back to the
-  // known-state rendering instead. That is not a wrong assertion left standing:
-  // pressing Track upserts, the mutation invalidates this query, and the refetch
-  // repairs the label -- so the button's own action IS the retry, which is why no
-  // separate retry affordance is needed (#1013, and the request is measured at
-  // ~144ms in production, so this path is a fault and not the common case).
-  if (isError) return false;
-  return !hasList;
+  isTracked,
+}: TrackStateInputs): TrackState {
+  // Signed out is not unknown -- it is known to be nothing, and it must resolve on
+  // the first frame with no spinner and no outline.
+  if (!isSignedIn) return 'untracked';
+  // A list we already have wins over a later failure: a refetch can fail while the
+  // reader's real watchlist is still on screen, and that data is not wrong.
+  if (hasList) return isTracked ? 'tracked' : 'untracked';
+  // Failed with nothing to fall back on. NOT "+ Track": pressing that on a bill they
+  // already track would re-save instead of remove, and the label would assert
+  // something we never checked. The outlined form asserts nothing and is pressable.
+  if (isError) return 'unavailable';
+  return 'checking';
 }

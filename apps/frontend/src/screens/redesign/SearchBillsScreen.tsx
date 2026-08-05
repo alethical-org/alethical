@@ -19,6 +19,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { usePaginatedListScroll } from '../../hooks/usePaginatedListScroll';
 import { BillResultCard } from '../../components/search/BillResultCard';
+import { TrackedListUnavailableNotice } from '../../components/billDetail/TrackedListUnavailableNotice';
 import { isHotIssueBill } from '../../lib/hotIssues';
 import {
   ChamberFilter,
@@ -501,6 +502,16 @@ export function SearchBillsScreen() {
         />
       ) : (
         <>
+          {/* The page half of the failed-watchlist treatment (#1021). It sits HERE and
+              not on the tracked-bills page, which is where the design first scoped it,
+              because the notice's own sentence is only true where the bills came from a
+              different request: "everything about the bills themselves loaded normally
+              — only your saved list is missing". On this screen that is exactly the
+              case. On the tracked page it is false — the saved list IS the page, so a
+              failure leaves nothing to render, and that screen already shows its own
+              full-page message instead. Renders nothing unless a signed-in reader's
+              watchlist actually failed. */}
+          <TrackedListUnavailableNotice />
           <View style={styles.list}>
             {bills.map((bill) => (
               <BillResultCard
