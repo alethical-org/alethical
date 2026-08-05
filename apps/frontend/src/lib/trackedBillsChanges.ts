@@ -27,6 +27,17 @@ type WithActions = { actions?: BillAction[] };
  *
  *  `since` is null on a reader's first visit, where nothing can be "since" — the
  *  whole list comes back unchanged rather than every bill claiming to have moved.
+ *
+ *  CALLERS: null here means "there is genuinely no previous visit", NOT "we have
+ *  not looked it up yet". Those are different facts and this function cannot tell
+ *  them apart. Pass null from a surface that simply has not asked and it will
+ *  report every bill as unchanged — which reads on screen as "nothing moved" on a
+ *  session where plenty did, a false statement that looks completely correct.
+ *  A surface that reads the mark without advancing it (the signed-in homepage's
+ *  planned Session watch card) gets null on a cold load and must render its own
+ *  third state rather than calling this. Spelled out in
+ *  `docs/architecture/backend-api-system-design.md` § "Before you add a SECOND
+ *  surface that shows 'what moved'".
  */
 export function groupTrackedBillsByChange<T extends WithActions>(
   bills: T[],

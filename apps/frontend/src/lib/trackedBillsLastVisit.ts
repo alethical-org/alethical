@@ -31,7 +31,12 @@ function sessionStore(): Storage | null {
 
 /** The comparison point already held for this browser session: an ISO timestamp,
  *  or `''` for a reader with no recorded previous visit. `null` means nothing is
- *  held yet and the caller should ask the API. */
+ *  held yet and the caller should ask the API.
+ *
+ *  Safe for a read-only caller — this never asks the API and so never advances
+ *  the mark. But do NOT feed its `null` straight into `lastVisitDate` and then
+ *  into `groupTrackedBillsByChange`: that chain turns "we have not asked yet"
+ *  into "nothing has moved". See the note on `groupTrackedBillsByChange`. */
 export function readHeldLastVisit(userId: string): string | null {
   const inMemory = HELD_IN_MEMORY.get(userId);
   if (inMemory !== undefined) return inMemory;
