@@ -103,6 +103,14 @@ react-native-web stamps `position: relative` + `z-index: 0` on *every* View, so 
 header itself carries `z-index: 40` — otherwise the sort control's wrapper is trapped in the
 header's stacking context and, as an earlier sibling, paints under the card list.
 
+**"Menu" here means the visual thing, not an ARIA menu.** To a screen reader each of these is a
+trigger that says whether it is open, holding a labelled group of ordinary buttons — deliberately
+not `role="menu"` / `role="menuitem"`, because an ARIA menu promises arrow-key navigation between
+items that this screen does not implement
+([#1025](https://github.com/alethical-org/alethical/issues/1025); the reasoning, and the
+react-native-web trap behind it, are in `docs/design/design-principles.md` §3, Interaction &
+accessibility baseline).
+
 ## Filters (all backed by today's API)
 
 | Filter | Control | API param |

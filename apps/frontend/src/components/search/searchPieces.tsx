@@ -418,7 +418,11 @@ export function FilterDropdown({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
-        accessibilityState={{ expanded: open }}
+        // `aria-expanded` as a real prop, not accessibilityState — the state object
+        // renders nothing on RN-Web, so until now this trigger announced no open or
+        // closed state at all (#1025). The plain aria prop is forwarded on both
+        // platforms, so nothing else is needed.
+        aria-expanded={open}
         onPress={() => setOpen(!open)}
         {...hover}
         style={[
@@ -439,7 +443,13 @@ export function FilterDropdown({
         <ChevronDown size={13} color={active ? t.colors.white : '#6f756f'} strokeWidth={2.2} />
       </Pressable>
       {open ? (
-        <View style={styles.dropdownMenu}>
+        // A group of buttons, deliberately not an ARIA menu — see the note above
+        // DropdownItem. Same `role="group"` the active-filter chip row uses.
+        <View
+          role="group"
+          accessibilityLabel={accessibilityLabel ?? label}
+          style={styles.dropdownMenu}
+        >
           {options.map((option) => (
             <DropdownItem
               key={`${option.value}-${option.label}`}
@@ -463,6 +473,15 @@ export function FilterDropdown({
 // uses black/neutral, never green — green is reserved for "action".) A `disabled`
 // row (e.g. a not-yet-loaded prior session) reads muted grey and is inert: no
 // hover, no press, no check.
+//
+// These rows are buttons, NOT `menuitem`s, and that is a decision rather than an
+// oversight (#1025). An ARIA menu is a promise of a keyboard contract — arrow keys
+// to move between items, Home/End, one tab stop for the whole menu — and none of
+// that is built here. Claiming the role without the behaviour tells a reader the
+// menu works in a way it does not, which is the thing this product refuses to do
+// (docs/philosophy.md principle 4, say only what we can do). So: the trigger is a
+// disclosure that reports whether it is open, the popover is a labelled group, and
+// each row is an ordinary button — every one of which is true.
 function DropdownItem({
   label,
   selected,
@@ -484,7 +503,7 @@ function DropdownItem({
         // could make (#1025). The ref is what actually marks it. Not busy: nothing is
         // in flight, this option simply is not built yet.
         ref={unavailableRef}
-        accessibilityRole="menuitem"
+        accessibilityRole="button"
         accessibilityState={{ disabled: true }}
         style={styles.dropdownItem}
       >
@@ -730,7 +749,9 @@ export function SortControl({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Sort results"
-        accessibilityState={{ expanded: open }}
+        // See FilterDropdown: accessibilityState renders nothing on RN-Web, so the
+        // open/closed state has to be the plain aria prop (#1025).
+        aria-expanded={open}
         onPress={() => onOpenChange(!open)}
         {...hover}
         style={[styles.sortTrigger, (hovered || open) && styles.filterHover]}
@@ -748,7 +769,7 @@ export function SortControl({
         <ChevronDown size={13} color="#6f756f" strokeWidth={2.2} />
       </Pressable>
       {open ? (
-        <View style={styles.sortMenu}>
+        <View role="group" accessibilityLabel="Sort results" style={styles.sortMenu}>
           {options.map((option) => (
             <SortMenuItem
               key={option.key}
@@ -777,9 +798,21 @@ function SortMenuItem({
   onSelect: () => void;
 }) {
   const [hovered, hover] = useHover();
+  const unavailableRef = useUnavailableControl(Boolean(option.roadmap));
   if (option.roadmap) {
     return (
-      <View style={styles.sortItemRoadmap}>
+      // This row is the one a reader actually meets: the sort menu's "Most tracked".
+      // It shipped as a bare View — no role, no state, eight plain `<div>`s to a
+      // screen reader — so the roadmap tag beside it was the only thing saying the
+      // choice can't be made, and that tag is visual only (#1025). The role makes it
+      // a control; the ref is what marks the control unavailable, because
+      // accessibilityState renders nothing here.
+      <View
+        ref={unavailableRef}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: true }}
+        style={styles.sortItemRoadmap}
+      >
         <Text style={styles.sortItemRoadmapText}>{option.label}</Text>
         <View style={styles.roadmapTag}>
           <Text style={styles.roadmapTagText}>ON THE ROADMAP</Text>

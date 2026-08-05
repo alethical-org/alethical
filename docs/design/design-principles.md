@@ -106,8 +106,50 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 
 Non-negotiable for every screen. These are platform-agnostic principles adapted from Vercel's
 **Web Interface Guidelines** (MIT — see attribution) and reconciled to our RN/Expo, web-first stack.
-On web, `react-native-web` maps RN accessibility props (`accessibilityLabel`, `accessibilityRole`,
-`accessibilityState`) to real ARIA — so these are checkable on the rendered site and fixable in RN.
+On web, `react-native-web` maps *most* RN accessibility props to real ARIA — so these are checkable
+on the rendered site and fixable in RN. **`accessibilityState` is the exception, and it is a silent
+one: see the box below before writing one.**
+
+> **Marking a control disabled, busy, expanded or selected — read this first.**
+>
+> **`accessibilityState={{ disabled, busy, expanded, selected }}` renders nothing on web.** No
+> attribute, no error, no warning, no type complaint: react-native-web 0.21 does not carry that prop
+> to the DOM at all. So a control marked this way tells a screen reader nothing, while
+> `accessibilityRole="button"` separately makes it a keyboard tab stop — a "disabled" control that
+> is reachable by Tab and announces as an ordinary working button. It survived in four places
+> because nothing anywhere fails
+> ([#1013](https://github.com/alethical-org/alethical/issues/1013),
+> [#1025](https://github.com/alethical-org/alethical/issues/1025)).
+>
+> **The plain ARIA prop works, and it is what to write for `expanded` and `selected`.**
+> `aria-expanded`, `aria-selected`, `aria-disabled` and `aria-busy` are ordinary props on any
+> View/Pressable, typed by React Native itself and honoured on both platforms. Measured:
+> `aria-expanded={open}` on the Search Bills sort trigger renders `aria-expanded="true"`, where the
+> `accessibilityState` it replaced rendered nothing.
+>
+> **For "this control is unavailable", use the one helper instead: `useUnavailableControl`**
+> (`apps/frontend/src/components/billDetail/interactions.ts`). Spread its ref onto the node. It
+> sets `aria-disabled`, optionally `aria-busy`, and `tabindex="-1"`, and — the part a plain prop
+> cannot do — **clears them again when the control becomes usable**, which matters for a button
+> that recovers in place rather than unmounting. One mechanism for all four sites beats a rule with
+> an exception in it. Used by the Track button's "checking" form, the sign-in dialog's "Connecting"
+> state, and the two dropdown rows that name something not built yet.
+>
+> **Why not just `aria-disabled` as a prop there too?** Measured: react-native-web turns it into a
+> real native `disabled` attribute, which makes the browser *drop focus* off the element. That is
+> right for a row nobody ever focuses and wrong for a button someone just pressed — the reader gets
+> thrown out of the very control whose new state they need to hear. Verified with the helper: focus
+> stays on the sign-in button while it connects.
+>
+> **`accessibilityRole` is fine, including the roles you would not expect.** Measured: `menuitem`
+> renders `role="menuitem"`. Whether it *should* be used is a separate question — our dropdowns are
+> deliberately disclosures containing a labelled group of buttons, not ARIA menus, because an ARIA
+> menu promises arrow-key navigation we have not built.
+>
+> **Never conclude any of this from the source.** Every claim above was wrong at least once when
+> reasoned from the code: the same sweep that found the trap named the wrong component for it, and
+> the `menuitem` finding started life as the opposite claim. Open the page and read the rendered
+> attributes.
 
 - **Everything actionable is reachable and labeled.** Every control is keyboard-reachable in a
   sensible order; icon-only controls carry an accessibility label.
