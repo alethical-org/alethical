@@ -61,3 +61,36 @@ export function useUnavailableControl(
   }, [active, busy, blockFocus]);
   return ref;
 }
+
+// Mark a REGION as busy while its content is on its way. The sibling of
+// useUnavailableControl, and deliberately a separate function rather than a flag on it.
+//
+// A loading region is not an unavailable control, and the difference is not cosmetic:
+// `aria-disabled` is defined for interactive roles, so putting it on a region says
+// something that is not true of a region at all. An opt-out flag would make that wrong
+// thing spellable, and would leave a helper whose name promises "control that cannot be
+// used" quietly also handling "container waiting for data" — at which point the name
+// stops telling the next person which one they want. Two small helpers, each named for
+// its own job.
+//
+// Only `aria-busy`, and nothing about focus: a region holds no control to keep the
+// keyboard away from, and the controls inside it mark themselves.
+//
+// Same reason this is a ref rather than `accessibilityState`: RN-Web renders neither
+// `aria-busy` nor `aria-disabled` from it (see useUnavailableControl above). And the
+// CLEARING matters more here than there — a pending region resolves in place, where a
+// disabled control usually unmounts, so a busy marker left behind would sit on content
+// that has already arrived.
+export function useBusyRegion(busy: boolean) {
+  const ref = useRef<View>(null);
+  useEffect(() => {
+    if (!isWeb || !ref.current) return;
+    const node = ref.current as unknown as HTMLElement;
+    if (busy) {
+      node.setAttribute('aria-busy', 'true');
+    } else {
+      node.removeAttribute('aria-busy');
+    }
+  }, [busy]);
+  return ref;
+}
