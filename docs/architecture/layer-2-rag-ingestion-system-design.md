@@ -164,7 +164,7 @@ Suggested fields:
 - `cleaning_version`
 - `source_hash`
 
-The `search_text` field above was built and then removed (August 2026, [#715](https://github.com/alethical-org/alethical/issues/715)): it stored the cleaned section text with a citation header glued on top, and nothing ever read it. Keyword retrieval, when it arrives, ranks *chunks* rather than sections so its results can be fused with the vector arm's ([#380](https://github.com/alethical-org/alethical/issues/380)), so it indexes `rag_chunk.search_text` and this field had no reader to serve. The list is kept as written to record the original proposal.
+The `search_text` field above was built and then removed (August 2026, [#715](https://github.com/alethical-org/alethical/issues/715)): it stored the cleaned section text with a citation header glued on top, and nothing ever read it. Keyword retrieval, when it arrives, ranks *chunks* rather than sections so its results can be fused with the vector arm's results ([#380](https://github.com/alethical-org/alethical/issues/380)), so it indexes `rag_chunk.search_text` and this field had no reader to serve. The list is kept as written to record the original proposal.
 
 ### `rag_chunk`
 

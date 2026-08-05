@@ -20,9 +20,23 @@ production first, every ``INSERT INTO legislator`` fails on the not-null constra
 until the migration lands. Roster ingestion is human-triggered, so the window is
 narrow rather than certain, which is exactly the kind of risk that gets waved through.
 
-Setting a server default *before* dropping removes it entirely: an insert arriving in
-that window gets ``true`` from the database instead of an error, and a moment later the
-column is gone. Two statements, no window, no coordination required.
+Setting a server default *before* dropping was meant to remove that window entirely:
+an insert arriving in it would get ``true`` from the database instead of an error.
+
+**Correction (#715, Aug 2026): it does not, and the default below is a no-op.** Both
+statements run inside one transaction -- ``env.py`` wraps each migration in
+``context.begin_transaction()`` and PostgreSQL DDL is transactional -- so no other
+connection ever observes the intermediate state. Every outside session sees either the
+column with no default or no column at all, exactly as if the default were never set.
+The window this claimed to close stayed open; it did not bite, because roster ingestion
+is human-triggered and nothing was running. The statement is left in place because this
+revision is already applied and removing it would change nothing.
+
+What *does* close a window like this is staging the change across releases behind a
+``mapped_column(..., deferred=True)`` field: deferred keeps the column in
+``Base.metadata`` so ``scripts/check_schema_drift.py`` stays green, while dropping it
+out of whole-entity ``SELECT``\\ s. The full shape is written up in
+``0024_drop_rag_section_search_text``.
 
 Revision ID: 0021_drop_legislator_is_active
 Revises: 0020_notification_event_shape
@@ -50,9 +64,10 @@ def upgrade() -> None:
     if not _has_column(bind):
         return
 
-    # Close the window before opening it. Between the app deploy and this migration,
-    # inserts omit is_active while the column is still NOT NULL; a default makes those
-    # succeed instead of failing.
+    # A no-op, kept because this revision is already applied. It was meant to let an
+    # insert arriving between the app deploy and this migration take the default
+    # instead of failing, but both statements share one transaction, so no other
+    # connection ever sees the default. See the module docstring's correction.
     op.execute("ALTER TABLE legislator ALTER COLUMN is_active SET DEFAULT true")
     op.drop_column("legislator", "is_active")
 
