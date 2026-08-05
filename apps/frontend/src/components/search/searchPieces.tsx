@@ -338,7 +338,7 @@ function SegmentButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: active }}
+      aria-pressed={active}
       onPress={onPress}
       {...hover}
       onHoverIn={() => {
@@ -417,7 +417,12 @@ export function FilterDropdown({
     <View ref={wrapRef as never} style={styles.dropdownWrap}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel ?? label}
+        // `label` IS the current choice ("All statuses", "2025–2026"), but an
+        // accessibilityLabel REPLACES the visible text for a screen reader rather
+        // than adding to it — measured: the computed name came back "Filter by
+        // status" while the button read "All statuses", so the current filter was
+        // announced nowhere. Name the facet and its value together.
+        accessibilityLabel={accessibilityLabel ? `${accessibilityLabel}: ${label}` : label}
         // `aria-expanded` as a real prop, not accessibilityState — the state object
         // renders nothing on RN-Web, so until now this trigger announced no open or
         // closed state at all (#1025). The plain aria prop is forwarded on both
@@ -515,7 +520,11 @@ function DropdownItem({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      // Not `aria-selected`: that is only meaningful inside a listbox, and this is a
+      // labelled group of buttons (#1037 kept it that way rather than claim an ARIA
+      // menu's keyboard contract). `aria-current` says which one is chosen and
+      // promises nothing about arrow keys.
+      aria-current={selected ? 'true' : undefined}
       onPress={onSelect}
       {...hover}
       style={[styles.dropdownItem, highlighted && styles.dropdownItemHighlight]}
@@ -540,7 +549,7 @@ export function OmnibusToggle({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: value }}
+      aria-pressed={value}
       onPress={() => onChange(!value)}
       {...hover}
       style={[styles.omnibus, value ? styles.omnibusOn : hovered && styles.filterHover]}
@@ -584,7 +593,7 @@ export function FilterPill({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: active }}
+      aria-pressed={active}
       accessibilityLabel={typeof count === 'number' ? `${label}, ${count} bills` : label}
       onPress={onPress}
       {...hover}
@@ -748,7 +757,10 @@ export function SortControl({
     <View ref={wrapRef as never} style={styles.sortWrap}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Sort results"
+        // Carries the current sort for the same reason FilterDropdown's does: the
+        // button reads "Sorted by legislative progress" on screen, but a bare
+        // "Sort results" accessibilityLabel replaced that for a screen reader.
+        accessibilityLabel={`Sort results, sorted by ${(current?.label ?? '').toLowerCase()}`}
         // See FilterDropdown: accessibilityState renders nothing on RN-Web, so the
         // open/closed state has to be the plain aria prop (#1025).
         aria-expanded={open}
@@ -824,7 +836,9 @@ function SortMenuItem({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      // Same call as DropdownItem above: a group of buttons, so `aria-current`
+      // rather than `aria-selected`.
+      aria-current={selected ? 'true' : undefined}
       onPress={onSelect}
       {...hover}
       style={[styles.sortItem, highlighted && styles.sortItemHighlight]}

@@ -53,11 +53,14 @@ describe('accessibilityState never carries expanded or selected', () => {
         });
     }
 
-    expect(offenders, [
-      'These render NOTHING on react-native-web. Use the plain prop instead:',
-      '  accessibilityState={{ expanded: open }}  ->  aria-expanded={open}',
-      '  accessibilityState={{ selected: active }} ->  aria-selected / aria-current / aria-pressed,',
-      '    whichever is true for that control (see docs/design/design-principles.md).',
-    ].join('\n')).toEqual([]);
+    expect(
+      offenders,
+      [
+        'These render NOTHING on react-native-web. Use the plain prop instead:',
+        '  accessibilityState={{ expanded: open }}  ->  aria-expanded={open}',
+        '  accessibilityState={{ selected: active }} ->  aria-selected / aria-current / aria-pressed,',
+        '    whichever is true for that control (see docs/design/design-principles.md).',
+      ].join('\n'),
+    ).toEqual([]);
   });
 });
