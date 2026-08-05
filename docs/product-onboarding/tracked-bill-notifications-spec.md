@@ -205,9 +205,10 @@ binds a page, because a page can be fixed and an inbox cannot.
   momentum", "cleared a hurdle".
 - **The subject line is a fact.** "HF 4138 was signed into law", not "Big news about a
   bill you follow".
-- **No tracking pixels, no open tracking, no click tracking.** The signed-out home page
-  names "infinite scrolling, autoplay video, and push notifications" among the things
-  this product does not do to people. A surveillance pixel belongs on that list.
+- **No tracking pixels, no open tracking, no click tracking.** `docs/philosophy.md`
+  principle 10 ("We are not competing for attention") refuses to measure ourselves by
+  whether people came back. An open-rate metric is exactly that measurement, and having
+  it would eventually shape what we send.
 
 ---
 
@@ -215,6 +216,12 @@ binds a page, because a page can be fixed and an inbox cannot.
 
 **Recommendation: a daily digest, on by default, with weekly as the alternative.**
 `realtime` stays in the enum and stays out of the interface in v1.
+
+This is already the shape the product committed to. `docs/philosophy.md` principle 10
+("We are not competing for attention") describes the intended personalization as
+"**one quiet email when a tracked bill moves**" — and lists it beside no social features
+and no comment threads as "not gaps waiting to be filled". A digest is what "one quiet
+email" means once you have to pick a mechanism.
 
 **First, the argument that does *not* hold, because it is the one everybody reaches
 for.** "A digest sends less mail than immediate" is false at our volumes. Measured over
