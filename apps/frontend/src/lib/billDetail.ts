@@ -151,6 +151,31 @@ export function completeDanglingTitle(title: string, target: string): string {
   return kept.trim() || withoutPreposition.trim();
 }
 
+// The same standing rule, applied to the bill's CURRENT STATUS rather than to a
+// timeline row. `bill.current_status` is the source's action text verbatim, so it
+// inherits the same dangling preposition — 6,078 production bills read "Referred
+// to" or "Introduction and first reading, referred to" with the committee missing,
+// even though the matching action row carries it in committee_name (#812). The
+// timeline has completed these since #599; the "Latest action" line never did.
+//
+// The committee is looked up by matching the status against the action rows the
+// same payload already carries, so nothing is inferred: a status with no matching
+// action, or a matching action with no committee, falls through to
+// completeDanglingTitle's own fallback and simply loses the unfinished clause.
+export function completeStatusText(
+  status: string | null | undefined,
+  actions?: readonly { action_text?: string | null; committee_name?: string | null }[] | null,
+): string | undefined {
+  const text = (status || '').trim();
+  if (!text) return undefined;
+  if (!TRAILING_PREPOSITION.test(text)) return text;
+  const key = text.toLowerCase();
+  const match = (actions || []).find(
+    (action) => (action.action_text || '').trim().toLowerCase() === key,
+  );
+  return completeDanglingTitle(text, (match?.committee_name || '').trim());
+}
+
 // Ordered clerk-phrasing → plain-language rules. First match wins, so put the
 // specific patterns before the general ones. `text` is the raw action_text;
 // `desc` the raw action_description (a name list, committee name, date, or
