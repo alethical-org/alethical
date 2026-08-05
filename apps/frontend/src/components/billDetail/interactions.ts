@@ -28,6 +28,21 @@ export function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () =>
 // an ordinary, pressable button with nothing behind it. No error, no warning, no type
 // complaint. It fails completely quietly, which is why it survived in three places.
 //
+// SCOPE, measured after this shipped: the problem is `accessibilityState` SPECIFICALLY,
+// not accessibility on RN-Web generally. The plain `aria-busy` / `aria-disabled` /
+// `aria-expanded` props are ordinary props that React Native types and react-native-web
+// forwards to the DOM (they are in its forwardedProps allowlist, 0.21.2). Nobody had
+// tried them. **So for a static state, or a region that is merely busy, pass the plain
+// prop and do not reach for this helper.**
+//
+// Two things still need this helper rather than a plain prop:
+//   * A control that goes busy and RECOVERS IN PLACE. A plain `aria-disabled` prop makes
+//     RN-Web add a real native `disabled` attribute, and the browser then drops focus off
+//     the element — wrong for a button someone just pressed, where focus should stay put.
+//   * Clearing on recovery, which a plain prop cannot express for the tabindex it also
+//     manages here.
+// Both distinctions are written up in `docs/design/design-principles.md` §3.
+//
 // The one case where `accessibilityState` DOES appear to work is the tell: RN-Web's
 // Pressable manages `aria-disabled` from its own `disabled` PROP. So a control passing
 // `disabled={...}` is fine (`PrimaryButton`, the pagination arrows), and a control that
@@ -59,38 +74,5 @@ export function useUnavailableControl(
     // NOT achieve this on RN-Web; tabIndex -1 does.
     if (blockFocus) node.setAttribute('tabindex', '-1');
   }, [active, busy, blockFocus]);
-  return ref;
-}
-
-// Mark a REGION as busy while its content is on its way. The sibling of
-// useUnavailableControl, and deliberately a separate function rather than a flag on it.
-//
-// A loading region is not an unavailable control, and the difference is not cosmetic:
-// `aria-disabled` is defined for interactive roles, so putting it on a region says
-// something that is not true of a region at all. An opt-out flag would make that wrong
-// thing spellable, and would leave a helper whose name promises "control that cannot be
-// used" quietly also handling "container waiting for data" — at which point the name
-// stops telling the next person which one they want. Two small helpers, each named for
-// its own job.
-//
-// Only `aria-busy`, and nothing about focus: a region holds no control to keep the
-// keyboard away from, and the controls inside it mark themselves.
-//
-// Same reason this is a ref rather than `accessibilityState`: RN-Web renders neither
-// `aria-busy` nor `aria-disabled` from it (see useUnavailableControl above). And the
-// CLEARING matters more here than there — a pending region resolves in place, where a
-// disabled control usually unmounts, so a busy marker left behind would sit on content
-// that has already arrived.
-export function useBusyRegion(busy: boolean) {
-  const ref = useRef<View>(null);
-  useEffect(() => {
-    if (!isWeb || !ref.current) return;
-    const node = ref.current as unknown as HTMLElement;
-    if (busy) {
-      node.setAttribute('aria-busy', 'true');
-    } else {
-      node.removeAttribute('aria-busy');
-    }
-  }, [busy]);
   return ref;
 }
