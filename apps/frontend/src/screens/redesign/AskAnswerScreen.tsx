@@ -907,9 +907,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
             )}
           >
-            <Text style={styles.viewBillLink}>
-              See all {answer.totalMatches} {answer.topic} bills in Search →
-            </Text>
+            {/* No count in the link. An Ask covers the whole Legislature, including
+                its special session, while Search browses ONE session at a time and
+                defaults to the regular one — so promising a specific number here
+                would promise a page Search cannot show (#810). The count above still
+                says how many the answer matched. */}
+            <Text style={styles.viewBillLink}>See all {answer.topic} bills in Search →</Text>
           </Pressable>
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
