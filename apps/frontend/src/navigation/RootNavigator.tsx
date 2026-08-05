@@ -165,13 +165,13 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: RailRouteName }) {
         {railRoutes.map((route) => {
           const focused = activeRouteName === route.name;
           const iconColor = focused ? theme.colors.accent : theme.colors.ink;
-          // Only Home and Find My Legislator have URLs that land back on this
-          // same item; webRoutes.ts still redirects /search, /tracked, /chat and
-          // /account to Home, so those stay plain pressables (rule 5, a link's
-          // URL must land where the click lands). Find My Legislator joined the
-          // addressable ones when /find-my-legislator stopped redirecting to
-          // Home (issue #764). Role stays "tab" (not linkProps' "link") since
-          // these are still tabs in the rail, just ones that are addressable.
+          // Only Home and Find My Legislator are wired as addressable links here
+          // (their URLs land back on this same item). Tracked, Chat and Account
+          // stay plain pressables (rule 5, a link's URL must land where the click
+          // lands). Find My Legislator joined the addressable ones when
+          // /find-my-legislator stopped redirecting to Home (issue #764). Role
+          // stays "tab" (not linkProps' "link") since these are still tabs in the
+          // rail, just ones that are addressable.
           const addressablePath =
             route.name === 'Home'
               ? routePath.home()

@@ -4,11 +4,17 @@ Companion to `search-bills/` and `search-legislators/` (per-page specs + BUILD-N
 This is the file-by-file plan for building the matched pair on the green design system.
 Branch: `feat/search-bills-legislators-screens` (off `origin/main`).
 
+> **Status: shipped.** The matched pair (`SearchBillsScreen` + `SearchLegislatorsScreen`)
+> is live, and the legacy combined `SearchScreen` + `SearchFilterPanel` this plan reused
+> have since been **retired** (#313); `/search` now forwards to `/bills`. Present-tense
+> references to those legacy files below describe the state during the build.
+
 ## Architecture decision (low-risk, additive)
 The new screens are **full-page root-stack screens** with the shared `TopNav` chrome
 (like `screens/redesign/HomeSignedOutScreen.tsx`) — NOT inside `MainTabs`. So we add
 `/bills` + `/legislators` **additively**; the old combined `SearchScreen` (in `MainTabs`,
-URL `/search`) keeps working until the global rail→TopNav migration. Nav variant on these
+URL `/search`) kept working until the split shipped, and has since been retired (#313 —
+`/search` now forwards to `/bills`). Nav variant on these
 pages = `"page"` (shows the top-level ✦ Ask entry, per the IA locked decision).
 
 ## Reuse decisions (don't rebuild what exists)
