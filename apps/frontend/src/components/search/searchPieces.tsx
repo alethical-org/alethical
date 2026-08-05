@@ -532,7 +532,14 @@ function DropdownItem({
       <Text style={[styles.dropdownItemText, selected && styles.dropdownItemTextSelected]}>
         {label}
       </Text>
-      {selected ? <Text style={styles.dropdownCheck}>✓</Text> : null}
+      {/* Hidden from assistive tech: measured, the glyph lands in the computed
+          accessible name ("All statuses ✓"), where a screen reader reads it out as
+          "check mark". `aria-current` above already says this is the chosen one. */}
+      {selected ? (
+        <Text aria-hidden style={styles.dropdownCheck}>
+          ✓
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -757,10 +764,12 @@ export function SortControl({
     <View ref={wrapRef as never} style={styles.sortWrap}>
       <Pressable
         accessibilityRole="button"
-        // Carries the current sort for the same reason FilterDropdown's does: the
-        // button reads "Sorted by legislative progress" on screen, but a bare
-        // "Sort results" accessibilityLabel replaced that for a screen reader.
-        accessibilityLabel={`Sort results, sorted by ${(current?.label ?? '').toLowerCase()}`}
+        // No accessibilityLabel on purpose. It would REPLACE the visible text, and
+        // "Sorted by legislative progress" is already a complete, natural name that
+        // carries the current sort — the `button` role supplies the rest. A label
+        // here only duplicates the word "sort" in something read aloud in full every
+        // time. FilterDropdown's trigger is the opposite case and keeps its label,
+        // because "All statuses" alone loses the "filter by" context.
         // See FilterDropdown: accessibilityState renders nothing on RN-Web, so the
         // open/closed state has to be the plain aria prop (#1025).
         aria-expanded={open}
@@ -846,7 +855,13 @@ function SortMenuItem({
       <Text style={[styles.sortItemText, selected && styles.sortItemTextSelected]}>
         {option.label}
       </Text>
-      {selected ? <Text style={styles.dropdownCheck}>✓</Text> : null}
+      {/* Hidden for the same reason as DropdownItem's: the glyph reaches the
+          accessible name, and `aria-current` already carries the meaning. */}
+      {selected ? (
+        <Text aria-hidden style={styles.dropdownCheck}>
+          ✓
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
