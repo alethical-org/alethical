@@ -21,6 +21,7 @@ works. The specs come first; the last three are the "how does this actually work
 paid for" references, and are the place to start if you're new.
 
 - [Scope](product-onboarding/product-scope.md) — what the product is, its core principles, and what it deliberately does not do
+- [What we keep about readers](product-onboarding/user-data-retention-policy.md) — every piece of reader data we store, why it exists, how long we keep it, what deletion should mean, and the gaps that are not closed yet
 - [Grounded Ask build spec](product-onboarding/grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
 - [MVP redesign plan](product-onboarding/mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
 - [Bill search screen spec](product-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)

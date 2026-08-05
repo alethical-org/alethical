@@ -1,0 +1,487 @@
+<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/services/auth.py, alethical/api/services/representative_lookup.py, alethical/logging.py, apps/frontend/src/screens/LegalScreens.tsx -->
+
+# What we keep about readers, and for how long
+
+**Net.** The bills are public. The people reading them are not. This says exactly what
+Alethical stores about a reader, why each piece exists, how long we keep it, and what
+happens when someone asks us to delete their account. It also says the two things that
+are not true yet: there is no way to delete an account, and the published Privacy Policy
+does not name everything we collect or everyone we send it to.
+
+**Why this doc exists.** Google sign-in went live on 5 August 2026. Before that, an
+account was a thing we had designed but almost nobody had. Now real people have real
+accounts with real data attached, and "we never wrote it down" stops being a small
+omission. [`docs/philosophy.md`](../philosophy.md) principle 4 (*say only what we can
+do*) applies to what we say about ourselves, not only to what we say about bills.
+
+**What this is.** A decision record. It settles what the policy *is*, so the work it
+implies can be scoped honestly. It is not a build spec and it ships no code.
+
+**Where it sits.** In `product-onboarding/` rather than `operations/`, because
+[`docs/folder-structure.md`](../folder-structure.md) says to pick the folder by the
+question the doc answers. This answers *what does the product keep about the people who
+read it, and what do we promise them* — a product commitment, read by whoever builds
+account deletion and whoever next edits the public Privacy Policy. It is not a runbook
+for operating the service.
+
+**Everything below was checked against the code and against production**, not written
+from memory. The production numbers are a read-only census taken on 5 August 2026: row
+counts only, no email address, no message text, no name.
+
+---
+
+## 1. What we actually have
+
+Five accounts exist in production. One of them is a leftover test account
+(`@example.com`, created through the local development sign-in path); four are real
+people. The oldest account was created on 29 March 2026. The oldest typed question is
+129 days old. Nothing we hold is old enough for any retention rule below to have expired
+yet, which makes this the cheapest possible moment to adopt one.
+
+| What it is, in plain words | Where it lives | Rows in production |
+| --- | --- | --- |
+| An account — a name and an email address | `user_account` | 5 |
+| The link between that account and Google | `auth_identity` | 5 (4 Google, 1 test) |
+| A saved home address | `saved_place` | **0** |
+| Bills someone chose to follow | `tracked_bill` | 4 |
+| Whether someone wants email alerts | `notification_preference` | 1 |
+| A queued "this bill moved" alert | `notification_event` | **0** |
+| A conversation about one bill | `chat_session` | 37 |
+| The messages in those conversations | `chat_message` | 82, of which **41 are questions a reader typed** |
+
+The two zeroes matter as much as the numbers. No reader has ever saved an address,
+because nothing in the app can save one (§2.3). No alert has ever been queued, because
+the job that queues them is not wired into anything yet (§2.5).
+
+---
+
+## 2. Every category, one at a time
+
+### 2.1 The account itself
+
+**What it holds.** A display name, an email address, a switch marked "active", the
+moment the account was first created, and the last time the reader opened their
+tracked-bills page.
+
+**Where the name comes from.** Nobody types it. When someone signs in for the first
+time we take the part of their email address before the `@` and use that as their
+display name (`alethical/api/auth.py`). So a reader who has never given us a name still
+has one on file, and it is a slice of their email address. That is worth knowing before
+we ever show a display name to anyone but its owner.
+
+**The "active" switch is not wired to anything.** `user_account.is_active` exists,
+defaults to on, and no code anywhere checks it. Signing in does not look at it. This is
+worse than an unused column: it is a switch that looks like it disables an account and
+does not. Someone will reach for it the first time we need to lock someone out, and it
+will silently do nothing. Tracked as its own issue (§8).
+
+**One timestamp does not mean what its name says.** `last_signed_in_at` reads like "the
+last time this person signed in." Since [#990](https://github.com/alethical-org/alethical/pull/990)
+merged on 5 August 2026 it is written only when an account gains a *new* sign-in method
+— not when someone signs in, and not on any request. The values sitting in production
+today were written by the older behaviour, which updated it on every single request, so
+from today onward they are frozen and misleading. Nothing reads the column, so nothing
+is currently wrong; the moment a support question makes someone read it, it will be.
+Same story for `auth_identity.last_used_at`.
+
+**Retention: as long as the account exists.** An account with no email address cannot
+be signed into, so this is the record the account *is*.
+
+### 2.2 The link to Google
+
+**What it holds.** Which sign-in service was used, the permanent id that service gave
+us for this person, their email address as that service reported it, and when the
+address was confirmed.
+
+**Why it is a separate table from the account.** So we can change how people sign in
+without rewriting the product. Today it is Google through Supabase; if that ever
+changes, the swap happens in this one table and `tracked_bill`, `chat_session` and
+everything else keep pointing at the same account. That separation is not decoration —
+it is what makes the deletion rules in §6 tractable, because "unlink this person from
+Google" and "delete what this person did" are two different operations on two different
+tables.
+
+**Retention: as long as the account exists.** Delete the row and the person can still
+sign in with Google; they just get a brand-new empty account and their old one is
+orphaned forever. So this row lives and dies with the account, never separately.
+
+### 2.3 A saved home address — designed, never built
+
+**What the table can hold.** A label ("Home"), the address as typed, a city, a state, a
+postal code, a latitude and longitude, and which House and Senate district the address
+falls in.
+
+**What is actually reachable.** The API can create and edit a saved place with a label,
+address, city and state (`alethical/api/routers/me.py`). It has never once been able to
+store the postal code, the coordinates, or the districts — those five columns have no
+write path at all. And the app has no button that calls the create endpoint; the Account
+screen only reads the list. So the whole feature is a read path over an empty table.
+**Zero saved places exist in production, and zero ever have.**
+
+**Retention: not applicable, because we hold none.** If the feature ships, an address is
+the most sensitive thing we would ever store, and the rule should be written before the
+first row is written, not after. The proposal is in §5.
+
+**The five unreachable columns should be dropped, not given a retention rule** (§8). The
+best retention policy for a home address we cannot save is to not have a column for it.
+
+### 2.4 Bills someone chose to follow
+
+**What it holds.** Which account, which bill, whether they want alerts, and a free-text
+note.
+
+**The note is the sharp edge.** Everything else here is a choice from a public list. The
+note is a box a person can type anything into, attached to a named bill, and it is the
+one thing in this category that is not simply "a public record, selected." Nothing in
+the app currently offers a note field, and no note exists in production, but the API
+accepts one.
+
+**Retention: as long as the account exists.** Deleting someone's followed bills while
+their account lives would break the feature they signed in for. Notes inherit the
+treatment of typed text in §5.
+
+### 2.5 Whether someone wants alerts
+
+**What it holds.** A channel (email or push), a frequency (immediately, daily, weekly,
+or off), and an on/off switch. One row exists in production.
+
+**Retention: as long as the account exists.** It is a setting. Losing it means silently
+changing what someone asked for.
+
+### 2.6 Queued alerts
+
+**What it holds.** A record that a bill someone follows changed status, with the old and
+new status and whether it was sent.
+
+**Nothing generates these.** The function that writes them
+(`alethical/api/services/notifications.py`) is not called from anywhere outside its own
+tests, and the job that would email them does not exist
+([#36](https://github.com/alethical-org/alethical/issues/36)). Zero rows in production.
+
+**Retention when they start being written: 90 days after sending.** An alert is a
+delivery receipt. Once it is sent, the only thing it is good for is answering "did you
+email me about this?" — and three months is longer than anyone asks. Unsent rows stay
+until sent or until the account is deleted.
+
+### 2.7 Conversations about a bill
+
+**What it holds.** A conversation is a `chat_session` with a title, the bill it is
+about, and a running list of `chat_message` rows. Each message has a role (reader or
+assistant) and its full text. The assistant's messages also carry the passages they
+cited.
+
+**The title is generated, not typed.** It is built by the app as `"HF 1234 analysis"`
+from the bill's identifier (`apps/frontend/src/screens/BillDetailScreen.tsx`). All 37
+titles in production follow that pattern. A title is safe to show; a message is not.
+
+**Three columns here are dead.** `chat_session.retrieval_profile` is empty on all 37
+rows and read by nothing. `chat_message.model_name`, `input_tokens` and `output_tokens`
+are set on none of the 82 rows and read by nothing. See §8.
+
+**41 messages in production are text a reader typed.** This is the most sensitive thing
+we hold, and §5 is about it.
+
+---
+
+## 3. Given, generated, or just written down
+
+The issue behind this doc asked for this distinction, and it turns out to be the most
+useful cut through the whole list — because it predicts how a reader will feel about
+each item without them having to be asked.
+
+**Given deliberately.** Bills someone chose to follow. Their alert settings. A note on a
+bill. A saved address, if the feature ever ships. The reader performed an act meant to
+be remembered, and would be annoyed if we forgot.
+
+**Volunteered without being asked for.** Every question typed into a bill conversation.
+Nobody set out to tell us something about themselves; they set out to understand a bill.
+What they reveal on the way there is a side effect of the question, and they will not
+remember having disclosed it. The reader's expectation and the record diverge here more
+than anywhere else, which is exactly why §5 treats it separately.
+
+**Handed over by Google, not by the reader.** Their email address and the permanent id
+Google uses for them. The reader consented to the sign-in, not to a specific field
+list.
+
+**Neither given nor volunteered — we just wrote it down.** The display name we
+manufactured from their email address. The timestamps. The queued alerts. Nobody chose
+any of it, nobody knows it exists, and nobody would miss it. This is the category where
+"do we need this at all?" is the right first question, and where §8's answer is usually
+no.
+
+---
+
+## 4. What leaves our systems
+
+Three kinds of reader data travel to third parties. Only one of the three is named in
+the published Privacy Policy.
+
+| Who gets it | What they get | When | Named in our Privacy Policy? |
+| --- | --- | --- | --- |
+| Google (through Supabase) | Name, email address, profile picture, a sign-in id | Every sign-in | Yes |
+| Supabase | The same, plus it hosts the whole database | Always | Yes |
+| **OpenAI** | **The reader's question, word for word** | Every Ask, every chat message | **No** |
+| **Anthropic** | **The reader's question, word for word** | Every chat message, when configured to Claude | **No** |
+| **US Census Bureau** | **The address as typed** | Every Find My Legislator search | **No** |
+| **Minnesota GIS (`gis.lcc.mn.gov`)** | Latitude and longitude | Every Find My Legislator search | **No** |
+| Vercel | Hosts the web app, so its request logs see every page address (§7) | Every page load | No, and it should be |
+| Cloudflare | Sits in front of the API | Every API call | No, and it should be |
+
+**The good half.** No account identifier ever reaches a model. The prompt we send is
+built from the bill's identifier, the reader's question, and passages of bill text
+(`synthesize_grounded_answer`, `alethical/api/routers/me.py`). There is no user id, no
+email address, no name, and no address in it. The address that goes to the Census
+Bureau carries no account identifier either — the lookup endpoint does not require
+sign-in and never reads the caller's account.
+
+**The bad half.** A reader's typed question leaves our systems on every single Ask and
+every chat message, and the Privacy Policy's list of who we share information with
+names only "Supabase (authentication and database) and Google (sign-in)." That is a
+factual gap between what the published page says and what the code does. Fixing the page
+is its own issue (§8).
+
+---
+
+## 5. The hard one: typed questions
+
+**The judgment call.** *Treat text a reader typed as a strictly more sensitive class
+than choices a reader made, give it a life of its own that does not depend on the
+account, and never let a copy of it outlive the original.*
+
+**Why they are not the same thing.** A followed bill is a selection from a public list.
+Its worst-case disclosure is "this person is interested in HF 1234" — close to ordinary
+civic interest, and precisely the thing the product exists to help with. A typed
+question is unbounded free text that the reader controls completely, and people
+routinely put things in it that no list could contain. *"Does the new cannabis law
+affect my probation?"* is a sentence about the person, not about the bill. We did not
+ask for it, we cannot predict it, and the reader will not remember telling us. Averaging
+the two categories into one rule protects the harmless one and under-protects the
+dangerous one.
+
+**So, three rules for typed text:**
+
+1. **A conversation expires 24 months after its last message**, whether or not the
+   account is still active. The thread is the unit, not the message — deleting half a
+   conversation leaves an unreadable remainder. 24 months is not an arbitrary round
+   number: the Minnesota Legislature runs on a two-year biennium, our corpus is
+   organised by biennium, and a question about a bill is only meaningful while that
+   biennium's record is the live one. A reader following a bill through a full session
+   keeps their thread; a reader coming back after the bills have all died gets a clean
+   slate. **What would change it:** if we ever ship a way to search or export your own
+   conversation history, the value of an old thread goes up and 24 months should be
+   revisited. Nothing in production is close to this yet — the oldest message is 129
+   days old.
+
+2. **A reader can delete a conversation without deleting their account.** Someone who
+   realises they typed something they would rather we did not have should not have to
+   choose between that sentence and their followed bills. Today they cannot do either
+   (§7); when we build deletion, this is the smaller, easier, and more urgent half.
+
+3. **A typed message may never be copied into anything that outlives it.** No log line,
+   no diagnostic receipt, no analytics event, no evaluation fixture, no error report. If
+   we cannot delete every copy when the 24 months run out, the retention rule is
+   decorative. This is the constraint the issue asked us to place on per-answer receipts:
+   **a receipt may record which passages were retrieved, which model answered, and how
+   long it took — and may not record the question, the answer, or anything that
+   identifies who asked.** A receipt that carries the question is a second, undeletable
+   copy of the most sensitive thing we hold, sitting in the system least likely to be
+   swept.
+
+**What we are deliberately not doing.** We are not shortening this to a few weeks. A
+reader following a bill needs to come back to their own thread months later, and a
+policy that quietly destroys the thing someone signed in for is a bad policy dressed as
+a cautious one. The protection comes from rules 2 and 3, not from making the number
+small.
+
+---
+
+## 6. What deletion should mean
+
+None of this exists yet (§7). This is the specification for when it is built.
+
+**"Delete my account" should mean:**
+
+| Category | What happens | Why |
+| --- | --- | --- |
+| The account row | Deleted | It is the thing being deleted |
+| The Google link | Deleted | Leaving it orphans the person's future sign-in |
+| Saved addresses | Deleted | No reason survives the account |
+| Followed bills | Deleted | A private choice tied to a named person |
+| Notes on bills | Deleted | Typed text (§5) |
+| Alert settings | Deleted | Meaningless without an account |
+| Sent alerts | Deleted | A delivery receipt for an address we no longer hold |
+| Conversations and every message | Deleted | Typed text (§5) — this is the one that most needs to actually happen |
+
+**What we would keep, and it is a short list.** Counts with nobody attached: how many
+accounts exist, how many bills are followed, how many questions were asked in a month.
+These are already computable without names and are what tells us whether the product
+works. Nothing in that list can be turned back into a person.
+
+**What we would not keep, and this needs saying explicitly.** No "deleted user" shadow
+row. No email address retained to stop the same person signing up again. No archived
+copy of a conversation "for quality." Every one of those is a normal-sounding
+engineering decision that turns a deletion into a move.
+
+**Two honest limits, stated rather than glossed:**
+
+- **Backups.** Supabase takes automatic database backups. A deleted row stays inside
+  them until they roll off. This is unavoidable for any hosted database and is not a
+  reason to soften the promise, but the promise should be worded as "we delete it, and
+  it ages out of our backups on the backup schedule" rather than implying instant
+  erasure everywhere. **The exact backup retention on our Supabase plan is not recorded
+  anywhere in this repo and should be confirmed and written into
+  [`docs/operations/repo-and-service-settings.md`](../operations/repo-and-service-settings.md)** —
+  it is a setting that controls the product and does not live in the code, which is
+  exactly what that doc is for.
+- **Third parties.** OpenAI and Anthropic received the reader's questions and we cannot
+  reach into their systems to delete them. What we can do is say so, and rely on their
+  own retention terms. This is another reason §5 rule 3 matters: the fewer copies we
+  make, the smaller the gap between what we promise and what we control.
+
+---
+
+## 7. What is not true today
+
+Written in the present tense, because pretending otherwise is the exact failure
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 6
+exists to prevent, and that rule binds our own documents as much as our product copy.
+
+**There is no way to delete an account.** No endpoint, no button, no script, no runbook.
+The API can delete a followed bill and a saved place; that is all
+(`alethical/api/routers/me.py`). Deleting a conversation is not possible. Deleting an
+account is not possible. If someone emails `ask@alethical.com` today and asks us to
+delete their data, honouring it means someone hand-writing SQL against production with
+nothing to check their work against. **Everything in §6 above is a proposal, not a
+description.**
+
+**The published Privacy Policy is narrower than what we collect.** The live page
+(`apps/frontend/src/screens/LegalScreens.tsx`, effective 16 June 2026) says under
+*Information We Collect* that we collect Google profile information, authentication
+data, and usage data. It does not mention the questions people type, the bills they
+follow, their alert settings, or a saved address. Under *How We Share Information* it
+names Supabase and Google, and does not name OpenAI, Anthropic, the US Census Bureau, or
+the Minnesota GIS service — all four of which receive reader-supplied text or location
+today (§4). Under *Data Retention* it says we keep things "as long as your account is
+active," which is a real answer but not a per-category one. Under *Your Rights* it
+offers access, correction, export and deletion on request, which is a promise we
+currently have no mechanism to keep.
+
+**There are no meaningful server-side logs, which is luck rather than design.** The API
+routes its logs to a rotating file inside its own container (`alethical/logging.py`),
+and it clears every other handler while doing so. On Railway that container's filesystem
+is wiped on each redeploy, so those logs are gone within days and nobody reads them. The
+practical result is that almost nothing gets logged anywhere durable, so there is
+currently very little to redact. **That is an accident of configuration, not a
+protection.** One line adding a console handler, or one Sentry integration, and every
+error report starts carrying whatever was in the request. So the redaction rule is worth
+writing now, while it costs nothing:
+
+> **Log redaction rule.** Server logs may record a request's method, path, status,
+> duration, and the account's internal id. They may never record an email address, a
+> display name, an address as typed, latitude or longitude, a message's text, or an Ask
+> question. Any new logging, error-reporting, or monitoring integration is checked
+> against this list before it is switched on.
+
+The account's internal id is deliberately allowed: it is a random identifier that means
+nothing outside our own database, it is what makes a bug report actionable, and it
+disappears when the account is deleted.
+
+**Reader questions travel in the page address, by design.** `/ask?q=<the question>` and
+`/chat/new?prompt=<the question>` both put typed text into the URL
+(`apps/frontend/src/navigation/webRoutes.ts`). This is deliberate and correct —
+[`grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 5 requires every
+answer to be reachable by a link someone can share. The cost is that the question lands
+in browser history, in the referrer sent to any link the reader clicks next, and in the
+web host's request logs. The API itself is clean: every path that carries a question is
+a POST with the text in the body, so nothing in front of the API ever sees it in a URL.
+**The tension is real and the shareable link wins**, but the consequence should be named
+in the Privacy Policy rather than discovered.
+
+**No analytics of any kind are installed.** No Google Analytics, no PostHog, no Vercel
+Analytics, nothing. There is no analytics retention question to answer because there is
+no analytics. Worth recording, because the next person to add a product-metrics tool
+needs to know they are the first, and that §5 rule 3 applies to them.
+
+---
+
+## 8. Things nothing reads — drop them, do not write rules for them
+
+The best retention policy for data we never use is not collecting it. Each of these was
+confirmed by searching the whole repository for a reader and by counting the rows in
+production.
+
+**Recommended for removal.** Each is filed as its own issue, because dropping a column
+here has a real procedure to follow first — four production checks and one trap where a
+`NOT NULL` column breaks the running code before the migration lands. Nothing is dropped
+in the change that adds this document.
+
+| Column | Written by | Read by | Production |
+| --- | --- | --- | --- |
+| `saved_place.postal_code` | nothing | nothing | 0 rows |
+| `saved_place.latitude` | nothing | nothing | 0 rows |
+| `saved_place.longitude` | nothing | nothing | 0 rows |
+| `saved_place.house_district_id` | sample-data script only | one validation script | 0 rows |
+| `saved_place.senate_district_id` | sample-data script only | one validation script | 0 rows |
+| `chat_session.retrieval_profile` | nothing | nothing | empty on all 37 |
+| `chat_message.model_name` | nothing | nothing | unset on all 82 |
+| `chat_message.input_tokens` | nothing | nothing | unset on all 82 |
+| `chat_message.output_tokens` | nothing | nothing | unset on all 82 |
+
+**A different problem, not a dead column.** `user_account.is_active` is read by nothing,
+but it should not be dropped without a decision — it is the switch we would need the
+first time we have to lock an account, and today it is a switch wired to nothing. Either
+wire it up at sign-in or remove it; leaving it is the worst of the three.
+
+**Deliberately kept even though nothing reads them.** `user_account.last_signed_in_at`,
+`auth_identity.last_used_at`, and `auth_identity.email_verified_at`. Unlike a latitude
+we could recompute from a live lookup, a timestamp cannot be reconstructed after the
+fact — once you did not write it down, it is gone. All three have obvious future
+readers: answering "when did this person last use the account," investigating abuse, and
+knowing whether an address was ever confirmed. They keep the account's retention period.
+The naming problem in §2.1 is a separate fix.
+
+---
+
+## 9. Retention, all in one place
+
+| What | How long | Why that long |
+| --- | --- | --- |
+| Account, name, email | Life of the account | It is the account |
+| Google link | Life of the account | Removing it orphans the person |
+| Followed bills, alert settings | Life of the account | The feature they signed in for |
+| Saved address (if ever built) | Life of the account, deletable on its own | Most sensitive thing we would hold; the reader should be able to remove it without losing everything else |
+| Notes on bills | Typed text — §5 rules apply | A free-text box is a free-text box |
+| Sent alerts | 90 days after sending | A delivery receipt nobody asks about after three months |
+| Unsent alerts | Until sent, or account deletion | They are pending work |
+| Conversations and messages | **24 months from the last message**, then deleted whether or not the account is active | Matches the two-year biennium the record is organised by |
+| Server logs | Whatever the host keeps; no reader data in them at all (§7 rule) | Redaction beats retention — the cheapest data to keep safe is data you never wrote |
+| Anonymous counts | Indefinitely | Nothing in them points at a person |
+
+---
+
+## 10. What this constrains
+
+- **Per-answer receipts.** May carry which passages were retrieved, which model
+  answered, and timings. May not carry the question, the answer, or anything
+  identifying. §5 rule 3.
+- **Any new logging or error reporting.** Checked against the redaction rule in §7
+  before it is switched on.
+- **Any new column on a user table.** Comes with an answer to "what reads this?" at the
+  moment it is added. §8 is what happens when that question goes unasked for a year.
+- **The public Privacy Policy.** Should be brought in line with §2 and §4. It is the
+  version of this document that readers actually see, and right now the two disagree.
+
+---
+
+## Related
+
+- [`docs/philosophy.md`](../philosophy.md) — principle 4, *say only what we can do*
+- [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) — rule 6
+  (copy matches shipped capability) and rule 5 (shareable URLs), both of which this doc
+  answers to
+- [`docs/architecture/db-schema-system-design.md`](../architecture/db-schema-system-design.md)
+  — the table groups these columns sit in
+- [`docs/operations/repo-and-service-settings.md`](../operations/repo-and-service-settings.md)
+  — where the Supabase backup retention setting should be recorded
+- [Issue #803](https://github.com/alethical-org/alethical/issues/803) — the issue this
+  document answers

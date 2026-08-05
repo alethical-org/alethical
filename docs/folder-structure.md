@@ -15,6 +15,7 @@ docs/
 │
 ├── product-onboarding/    What we're building (and won't), plus how to learn how it works
 │   ├── product-scope.md
+│   ├── user-data-retention-policy.md
 │   ├── grounded-ask-spec.md
 │   ├── bill-search-screen-spec.md
 │   ├── bill-text-tab-spec.md
@@ -57,7 +58,7 @@ Each folder answers a question, and that is what lets someone find a doc by gues
 (architecture) · *how should it look* (design) · *how do I run it* (operations). The
 remaining two hold non-prose material: `mockups/` and `research/`.
 
-Four placements aren't obvious, so they're stated:
+Five placements aren't obvious, so they're stated:
 
 - **`frontend-screen-system-design.md` is architecture, not design** — it is a system design
   for the screen layer; the visual rules live in `design/design-principles.md`. Its one
@@ -69,6 +70,13 @@ Four placements aren't obvious, so they're stated:
   pipeline module (`roster_pdf.py`) and its reconciliation.
 - **`mockups/` stays at the root** rather than under `design/` — the `design-build` and
   `design-intake` skills reference its path, and moving it would churn those for no real gain.
+- **`user-data-retention-policy.md` is product, not operations** — it reads like an ops
+  concern because it names tables and third-party services, but the question it answers is
+  *what does the product keep about the people who read it, and what do we promise them*.
+  Its readers are whoever builds account deletion and whoever next edits the public Privacy
+  Policy, not someone running the service. The Supabase backup-retention setting it asks for
+  is the one genuinely operational piece, and that belongs in
+  `operations/repo-and-service-settings.md` instead.
 
 ## Adding a doc
 
