@@ -15,10 +15,21 @@
 
 import type { LastVisit } from './trackedBillsChanges';
 
+// TWO facts, held separately and deliberately (#1034). They used to be one value,
+// and collapsing them breaks the mechanism outright: if the homepage loads first
+// and holds what it READ, the tracked list would later find something held, skip
+// its write, and the server's mark would never advance again for that browser
+// session — and the key survives a reload, so possibly never again at all.
+//
+//  1. the comparison point — shared, written by whichever surface asks first
+//  2. whether THIS browser session has already advanced the mark — written only by
+//     the tracked list, which is the one surface allowed to advance it
 const HELD_IN_MEMORY = new Map<string, string>();
+const ADVANCED_IN_MEMORY = new Set<string>();
 
 // Per user: two people sharing a browser must not inherit each other's mark.
 const storageKey = (userId: string) => `alethical.trackedBillsLastVisit.${userId}`;
+const advancedKey = (userId: string) => `alethical.trackedBillsAdvanced.${userId}`;
 
 // Absent on native, and throws rather than returning null in Safari private
 // browsing — so every use is guarded and every failure is survivable.
@@ -68,10 +79,44 @@ export function holdLastVisit(userId: string, value: string): void {
   }
 }
 
-/** Forget every held mark. For tests, and for sign-out, so the next reader on this
- *  browser starts from their own visit rather than the previous one's. */
+/** Has THIS browser session already advanced the server's mark for this reader?
+ *
+ *  Only the tracked list advances it, and only once per browser session. Kept apart
+ *  from the comparison point because the homepage holds that too, by reading —
+ *  and a read must never make the tracked list think the write already happened. */
+export function hasAdvancedThisSession(userId: string): boolean {
+  if (ADVANCED_IN_MEMORY.has(userId)) return true;
+  const store = sessionStore();
+  if (!store) return false;
+  try {
+    if (store.getItem(advancedKey(userId)) === null) return false;
+    ADVANCED_IN_MEMORY.add(userId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Record that the tracked list has advanced the mark for this browser session, so
+ *  a reload does not advance it a second time. */
+export function markAdvancedThisSession(userId: string): void {
+  ADVANCED_IN_MEMORY.add(userId);
+  const store = sessionStore();
+  if (!store) return;
+  try {
+    store.setItem(advancedKey(userId), '1');
+  } catch {
+    // See holdLastVisit. Worst case a reload advances the mark once more, which
+    // shortens the window shown; it never reports a change that did not happen.
+  }
+}
+
+/** Forget every held mark and every advanced flag. For tests, and for sign-out, so
+ *  the next reader on this browser starts from their own visit rather than the
+ *  previous one's. */
 export function forgetHeldLastVisits(): void {
   HELD_IN_MEMORY.clear();
+  ADVANCED_IN_MEMORY.clear();
 }
 
 /** Turn what the API or the hold gave us into the three-way answer the page needs

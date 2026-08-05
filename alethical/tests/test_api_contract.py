@@ -2687,6 +2687,98 @@ def test_tracked_bills_last_visit_is_read_once_then_advanced(client, auth_header
             db.commit()
 
 
+def test_reading_the_last_visit_mark_never_advances_it(client, auth_headers):
+    """``GET /me/tracked-bills/last-viewed`` reads and does not write (#1034).
+
+    The signed-in homepage shows up to two of a reader's moved bills. If looking at
+    it advanced the mark, someone with six moved bills would see two and the other
+    four would never be reported — information loss dressed as a feature. So only
+    the tracked list advances, and every other surface uses this route.
+
+    The test that matters is the repeat: reading many times must leave the mark
+    exactly where it was, and a write afterwards must still see that same value as
+    the previous visit.
+    """
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        user_id = db.scalar(
+            select(schema.UserAccount.id).where(
+                schema.UserAccount.primary_email == "ada@example.com"
+            )
+        )
+        original = db.scalar(
+            select(schema.UserAccount.tracked_bills_last_viewed_at).where(
+                schema.UserAccount.id == user_id
+            )
+        )
+
+    planted = datetime(2026, 3, 12, 14, 0, tzinfo=timezone.utc)
+    try:
+        with Session(get_engine()) as db:
+            db.execute(
+                schema.UserAccount.__table__.update()
+                .where(schema.UserAccount.id == user_id)
+                .values(tracked_bills_last_viewed_at=planted)
+            )
+            db.commit()
+
+        # Read it repeatedly. Every answer is the planted value, and the column
+        # never moves -- a single read could pass by luck on a slow clock.
+        for _ in range(3):
+            response = client.get(
+                "/api/v1/me/tracked-bills/last-viewed", headers=auth_headers
+            )
+            assert response.status_code == 200
+            assert response.json()["data"]["last_viewed_at"] is not None
+            with Session(get_engine()) as db:
+                still = db.scalar(
+                    select(schema.UserAccount.tracked_bills_last_viewed_at).where(
+                        schema.UserAccount.id == user_id
+                    )
+                )
+            assert still == planted, "reading the mark moved it"
+
+        # And the write path still works on top of an unmoved mark: it reports the
+        # planted value as the previous visit, then advances past it.
+        wrote = client.post("/api/v1/me/tracked-bills/viewed", headers=auth_headers)
+        assert wrote.status_code == 200
+        # Compare the INSTANT, not the string: Postgres renders the timestamp in the
+        # connection's timezone, so the same moment comes back as "-04:00" here and
+        # as "+00:00" where it was planted.
+        assert (
+            datetime.fromisoformat(wrote.json()["data"]["previous_viewed_at"])
+            == planted
+        )
+        with Session(get_engine()) as db:
+            advanced = db.scalar(
+                select(schema.UserAccount.tracked_bills_last_viewed_at).where(
+                    schema.UserAccount.id == user_id
+                )
+            )
+        assert advanced > planted
+
+        # A reader with no recorded visit reads null -- which the client must treat
+        # as "no previous visit", never as "nothing has moved" (#1026).
+        with Session(get_engine()) as db:
+            db.execute(
+                schema.UserAccount.__table__.update()
+                .where(schema.UserAccount.id == user_id)
+                .values(tracked_bills_last_viewed_at=None)
+            )
+            db.commit()
+        empty = client.get("/api/v1/me/tracked-bills/last-viewed", headers=auth_headers)
+        assert empty.status_code == 200
+        assert empty.json()["data"]["last_viewed_at"] is None
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(
+                schema.UserAccount.__table__.update()
+                .where(schema.UserAccount.id == user_id)
+                .values(tracked_bills_last_viewed_at=original)
+            )
+            db.commit()
+
+
 def test_bill_actions_carry_a_first_seen_mark_for_the_undated_ones(client):
     """Every action ships ``first_seen_at`` (#1009).
 
