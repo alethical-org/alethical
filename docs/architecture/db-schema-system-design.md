@@ -173,11 +173,14 @@ UI needs:
 - user tracked bills
 - bill card fields
 - last update and tracked metadata
+- when this reader last opened the screen, so it can say what moved since ([#1009](https://github.com/alethical-org/alethical/issues/1009))
 
 Target query plan:
 
 - one `tracked_bill` query joined to `bill`
 - eager load chief sponsors if displayed
+- eager load the bill's actions — the screen compares them against the reader's last visit, so a lazy load would fire one extra query per saved bill
+- one read-and-advance of `user_account.tracked_bills_last_viewed_at` on the screen's first load per browser session, which is a write and sits outside the join above
 
 ### 7. Chat Retrieval
 

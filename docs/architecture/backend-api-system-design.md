@@ -665,13 +665,33 @@ Purpose:
 
 - tracked bills screen
 
-The shipped endpoint returns **every** bill the user tracks, in one page, newest-tracked first (`tracked_bills_stmt` in `alethical/db/models.py` orders by `tracked_bill.created_at DESC, id DESC`). Two things this deliberately does not do, both since [#1007](https://github.com/alethical-org/alethical/issues/1007): it does not order by the bill's own latest action (useful, but it reshuffles as the Legislature acts, which is a "what changed since you last looked" signal that needs a design first), and it does not gate on `Bill.has_current_summary` the way the browse and search statements do — a bill the reader saved appears whether or not we have written its AI summary yet.
+The shipped endpoint returns **every** bill the user tracks, in one page, newest-tracked first (`tracked_bills_stmt` in `alethical/db/models.py` orders by `tracked_bill.created_at DESC, id DESC`). Two things this deliberately does not do, both since [#1007](https://github.com/alethical-org/alethical/issues/1007): it does not order by the bill's own latest action (useful, but it reshuffles as the Legislature acts), and it does not gate on `Bill.has_current_summary` the way the browse and search statements do — a bill the reader saved appears whether or not we have written its AI summary yet.
+
+"What changed since you last looked" is no longer a gap here — it shipped as [#1009](https://github.com/alethical-org/alethical/issues/1009), but as a client-side grouping rather than a server-side order. The response is unchanged; the frontend compares each bill's own actions against the reader's previous visit (`changesSince` in `apps/frontend/src/lib/billDetail.ts`) and groups the page itself. The one piece the server owns is the comparison point, below.
 
 Filters (**planned, none built yet** — the shipped endpoint takes no query parameters):
 
 - `sort` — would follow the `/bills` values (`relevance` / `latest_action` / `progress` / `introduced`), not the `updated_at|latest_action_at` sketched here
 - `limit`
 - `cursor`
+
+#### `POST /api/v1/me/tracked-bills/viewed`
+
+Purpose:
+
+- give the tracked-bills screen its comparison point for "what moved since you last looked"
+
+Takes no body. Returns the user's **previous** visit and advances the mark to now in one call:
+
+```json
+{ "previous_viewed_at": "2026-03-12T14:00:00+00:00", "viewed_at": "2026-08-05T17:33:31+00:00" }
+```
+
+`previous_viewed_at` is `null` for a user with no recorded visit — their first look, which the page states as such rather than reporting every bill as having just moved.
+
+Read and advance are deliberately one call. Split into a GET and a PUT they could interleave — two tabs opening at once, or a retry — and hand the second caller a mark the first had just written, which reads on screen as "nothing has moved". The client asks once per browser session and holds the answer in `sessionStorage`, so reloading the page does not erase what changed.
+
+Backed by `user_account.tracked_bills_last_viewed_at` (alembic `0025`), a column of its own. `last_signed_in_at` cannot serve: `alethical/api/auth.py` rewrites it on every authenticated request, so it always reads "just now" by the time a page renders and nothing can ever be newer than it.
 
 #### `PUT /api/v1/me/tracked-bills/{bill_id}`
 
@@ -722,7 +742,9 @@ Purpose:
 
 Purpose:
 
-- manage email-first notifications
+- store a user's per-channel notification preference. Storing one is all that happens: no
+  channel delivers anything yet ([#36](https://github.com/alethical-org/alethical/issues/36)),
+  so a preference set here changes nothing a user receives.
 
 #### `GET /api/v1/me/notification-events` — **NOT BUILT**
 
@@ -924,13 +946,14 @@ Frontend access path:
 
 - `PUT /api/v1/me/tracked-bills/{bill_id}`
 - `GET /api/v1/me/tracked-bills`
+- `POST /api/v1/me/tracked-bills/viewed`
 - `PATCH /api/v1/me/tracked-bills/{bill_id}`
 - `DELETE /api/v1/me/tracked-bills/{bill_id}`
 
 Economic access:
 
 - one request to mutate
-- one request to load the tracked bills screen
+- one request to load the tracked bills screen, plus one `viewed` call on the FIRST load of a browser session (the client holds its answer in `sessionStorage` and does not ask again)
 
 ### 7. Receive Basic Updates
 

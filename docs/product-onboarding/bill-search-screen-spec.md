@@ -147,8 +147,10 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   `rgba(17,21,15,0.08)` / text `#4f5651`, radius 999, 13px/700) shown only on bills the
   editor has flagged. Never amber — amber is reserved for bill-code identity, and a hot
   issue is an editorial flag, not a code. On web it sits in the card's top-right group to
-  the left of the Track button (~16px gap), same row; on mobile it sits on the right of the
-  identity row. The flagged set is the **same editorial list that drives the home Bill
+  the left of the Track button (~16px gap), same row; on mobile it sits in the left-hand
+  label group with the code badge and the OMNIBUS tag, which wraps internally so the Track
+  button keeps the right edge ([#1009](https://github.com/alethical-org/alethical/issues/1009)).
+  The flagged set is the **same editorial list that drives the home Bill
   Activity / In the News cards** (`apps/frontend/src/lib/hotIssues.ts`,
   `HOT_ISSUE_BILL_KEYS`) — data-driven, not hardcoded per card — so a bill flagged for the
   home shows the flag in search results too. Off by default (`hotIssue` prop).
@@ -233,7 +235,14 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   not something the card lacks** ([#1007](https://github.com/alethical-org/alethical/issues/1007)).
   `BillResultCard`'s phone layout used to render no Track control at all, so every surface
   using the card was Track-less on a phone; it now honours the same `showTrackButton` prop
-  the desktop layout does, in its own third header row. This screen keeps passing
+  the desktop layout does. Track sits in the phone header's FIRST row, on the right of the
+  code badge and any labels ([#1009](https://github.com/alethical-org/alethical/issues/1009)
+  moved it there from a third row of its own). The row's shape is load-bearing: the label
+  group is `flex:1` with `minWidth:0` and wraps internally, and the button is `flex:none`
+  with `marginLeft:auto`, so the button lands in the identical spot whether a bill carries
+  zero, one or both labels. Measured at 375px: right edge at 320px on all three cases. A
+  button that drops onto its own line in the both-labels case is the crowding that got the
+  phone Track control removed the first time. This screen keeps passing
   `showTrackButton={isDesktop}`, so the crowded-top-row decision of
   [#596](https://github.com/alethical-org/alethical/pull/596) is unchanged here. Surfaces
   that do not pass the prop (the Tracked page, the Ask answer card) now show it on a phone,
