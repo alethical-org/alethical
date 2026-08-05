@@ -43,15 +43,14 @@ edge — the same spot it holds on SF 1832 below it, which carries one label. Me
 
 Every difference from the reference, so nobody has to guess whether one was intended.
 
-- **One claim in `HANDOFF.md` is factually wrong: "on phone this case is invisible — the
-  phone card never rendered a summary line".** It does, and always has. In
-  `apps/frontend/src/components/search/BillResultCard.tsx` the `isMobile ? (…) : (…)`
-  branch covers the **header only** and closes before the title; the title and the summary
-  are rendered once, outside it, by both layouts. Committed proof at 375px:
-  `docs/verification/1007-tracked-bills-phone/tracked-page-375px.png`, where two bills show
-  a full summary paragraph and the unenriched one shows none. So the no-summary composition
-  is **not** web-only and the 20px treatment is applied on both surfaces. Flagged so the
-  reference can be corrected; the bundle itself is left as the designer wrote it.
+- **~~`HANDOFF.md` claims the no-summary case is invisible on a phone.~~ Corrected in the
+  reference; the claim is gone.** It said the phone card never rendered a summary line and
+  the composition question was therefore web-only. It does render one, and always has: in
+  `apps/frontend/src/components/search/BillResultCard.tsx` the `isMobile ? (…) : (…)` branch
+  covers the **header only** and closes before the title, so the title and the summary are
+  each rendered once, outside it, by both layouts. Proof at 375px:
+  `docs/verification/1007-tracked-bills-phone/tracked-page-375px.png`. The 20px treatment is
+  applied on both surfaces, which is what the build already did.
 - **The earlier-steps link counts every classified change, not only the big ones.** The
   issue asked for "meaningful milestones". Counting only milestones makes the link disappear
   on a busy day — the exact day it exists for — and understates what happened. It counts the
@@ -59,14 +58,15 @@ Every difference from the reference, so nobody has to guess whether one was inte
   cluster and the repeated signing rows into one each, so a seven-row day reads as the four
   things that happened. Pointers to other bills ("See also HF 2446") are left out: they are
   not steps this bill took.
-- **The mono eyebrow and the earlier-steps link are `#0f7a45`, not the reference's
-  `#149d5b`.** At 11px and 14px on the panel's green, `#149d5b` measures 3.27:1 — short of
-  WCAG AA's 4.5:1 for small text. `#0f7a45` measures 5.05:1. The same call, for the same
-  reason, as the omnibus token's own note in `apps/frontend/src/theme/tokens.ts`.
-- **"· DATE NOT RECORDED" is `#656c66`, not the reference's `#6f756f`,** for the same
-  reason: at 11px the reference grey measures 4.41:1 on the panel, just under AA, and
-  `#656c66` (the existing `text.muted` token) measures 5.05:1 — the same figure as the green
-  beside it, so neither half of the eyebrow dominates the other.
+- **~~The change block's two greys differ from the reference.~~ No longer a deviation** — the
+  reference was refreshed to match the code, so both now read `#0f7a45` for "MOVED" and
+  `#656c66` for "· DATE NOT RECORDED" inside the panel. Kept here because the *reason* is a
+  trap worth knowing when this block is reused in a new container: on **white**, `#149d5b`
+  and `#6f756f` are the right values and the reference still uses them in ~20 places. On the
+  pale green panel they measure 3.27:1 and 4.41:1, both short of WCAG AA's 4.5:1 at 11px,
+  while `#0f7a45` and `#656c66` measure 5.05:1 each — deliberately equal, so neither half of
+  the eyebrow dominates. Reaching for the familiar on-white grey inside this panel is a
+  contrast failure that looks completely normal.
 - **The panel uses the existing green tokens** (`tint.t50` `#f2f9f5`, `tint.t300` `#cbeed6`)
   rather than the reference's `#f2fbf6` / `#cdeedd`. The pairs are visually identical, and a
   near-duplicate palette entry is a thing that later drifts.
