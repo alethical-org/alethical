@@ -15,9 +15,11 @@ is the same call CI makes.
 from __future__ import annotations
 
 import dataclasses
+import json
 
 import pytest
 
+from scripts import check_schema_drift
 from scripts.check_schema_drift import (
     IGNORED_TABLES,
     MIGRATION_ONLY_INDEXES,
@@ -149,6 +151,47 @@ def test_the_ignore_sets_stay_small_and_deliberate() -> None:
     }
     assert OWNED_EXTENSIONS == {"vector", "pg_trgm"}
     assert len(MIGRATION_ONLY_INDEXES) == 8
+
+
+@pytest.mark.parametrize(
+    "argv, mode",
+    [
+        (["--against-production", "--json"], "production-vs-migrations"),
+        (["--json"], "migrations-vs-models"),
+    ],
+)
+def test_json_output_is_only_json_when_there_is_drift(
+    argv: list[str], mode: str, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    """``--json`` has to stay parseable in the case that matters: drift found.
+
+    Both modes end by printing advice written for a person at a terminal. Printed
+    under ``--json`` it lands after the closing brace, so stdout stops being JSON
+    at exactly the moment there is something to read -- and it is invisible on a
+    clean repo, because the advice only prints when there are differences. The
+    caller this breaks is the post-deploy production check in
+    ``.github/workflows/migrate.yml``, which parses this output to decide whether
+    to file an issue.
+    """
+    left, right = _snapshot("production"), _mutated(tables={"bill"})
+    differences = diff_snapshots(left, right)
+    assert differences, "the fixture must actually differ or this proves nothing"
+    monkeypatch.setattr(
+        check_schema_drift,
+        "run_production_vs_migrations",
+        lambda: (left, right, differences),
+    )
+    monkeypatch.setattr(
+        check_schema_drift,
+        "run_migrations_vs_models",
+        lambda: (left, right, differences),
+    )
+
+    check_schema_drift.main(argv)
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["mode"] == mode
+    assert payload["differences"], "the drift has to survive into the JSON"
 
 
 @pytest.mark.usefixtures("seed_database")

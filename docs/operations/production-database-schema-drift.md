@@ -1,4 +1,4 @@
-<!-- describes: scripts/check_schema_drift.py, alethical/alembic/versions/0001_initial_schema.py, alethical/alembic/versions/0017_align_models_with_production.py -->
+<!-- describes: scripts/check_schema_drift.py, .github/workflows/migrate.yml, alethical/alembic/versions/0001_initial_schema.py, alethical/alembic/versions/0017_align_models_with_production.py -->
 
 # Production database schema drift — audit and standing check
 
@@ -10,8 +10,14 @@ wrong** — so rebuilding the database from `models.py` would have made things w
 better. Re-measured **Aug 3 2026**: one finding has been fixed, no new finding has
 appeared, and every number below reproduced exactly.
 
-The cause is now removed and a check now watches for its return. What is left to decide
-is four findings, each with its own issue, listed under "Still open" below.
+The cause is now removed and two checks now watch for its return — one on every backend
+pull request, one after every deploy that touches the schema. **Re-measured Aug 5 2026:
+no drift at all.** Production and this repository describe the same 33 tables and 359
+columns, with nothing left over. Every finding below is closed; the section at the end
+records how each one went.
+
+*Every date in this document is UTC*, matching the merge timestamps it cites. A
+measurement stamped Aug 5 was taken on the evening of Aug 4 in US time.
 
 ## Why the drift existed at all
 
@@ -59,15 +65,48 @@ migration is exactly that disagreement. **This check could not have existed befo
 mutation rather than assumed — the same invented column on `models.py` reports no drift
 against the old baseline and one difference against the new one.
 
-**What a person runs, to re-measure production:**
+**What runs after every schema deploy, and what a person runs by hand:**
 
 ```bash
-uv run python scripts/check_schema_drift.py --against-production
+ALETHICAL_DATABASE_TARGET=production uv run python scripts/check_schema_drift.py --against-production
 ```
 
-Read-only against production, and never run by CI, which has no production credentials
-and must not get any. It exits 0 whatever it finds: which side is right is a judgement
-call, and six of the eleven below went production's way.
+Read-only against production — the snapshot connection is opened `postgresql_readonly`,
+so the script cannot write there even if someone later adds a stray DDL call. It exits 0
+whatever it finds: which side is right is a judgement call, and six of the eleven below
+went production's way.
+
+**This one answers the question the pull-request check cannot.** That check compares two
+throwaway databases and never reads production, so a change applied to production *by
+hand* is invisible to it — which is exactly how findings D3 and D4 below happened, and
+they went unnoticed for about seven weeks. So it also runs as its own job in
+`.github/workflows/migrate.yml`, after that workflow applies migrations to production,
+and opens a GitHub issue if it finds anything. That workflow is the one place that
+legitimately holds production credentials, which is why the check lives there and not in
+`ci.yml`: **CI at pull-request time has no production credentials and must never be given
+any.** Cost is zero — no new secret, no schedule, no paid call.
+
+Three limits worth knowing rather than discovering.
+
+**It is not "after every deploy" — it is after every deploy that touches the schema.**
+`migrate.yml` fires only when a merge to `main` changes `alethical/alembic/**`,
+`alethical/db/models.py`, `alembic.ini`, `pyproject.toml`, `uv.lock` or that workflow, so
+a merge of app code alone runs neither the migration nor this check. A hand-edit made to
+production therefore waits for the next schema merge, or for someone to press Run on the
+workflow (`workflow_dispatch`), before anything notices. Widening the trigger would mean
+running `alembic upgrade head` against production on every merge, which is a bigger
+change to how deploys work than this check is worth; the honest description is here
+instead.
+
+**A cancelled migration produces no check and no alert.** The job requires the migration
+to have succeeded, which is deliberate: if migrations did not finish, production is
+mid-history and comparing it would report drift that is an artefact of the cancellation
+rather than a finding. The gap that remains is the migration itself —
+[#1002](https://github.com/alethical-org/alethical/issues/1002) tracks it.
+
+**The snapshot compares** tables, columns, types, nullability, defaults, constraints,
+indexes, enums and owned extensions — **not** views, sequences, functions, triggers,
+grants or row-level-security policies, none of which this schema uses today.
 
 Names are compared separately from definitions, because a constraint can be correct and
 still be *named* differently on the two sides — which is its own latent break, and one
@@ -78,10 +117,12 @@ of the findings below.
 Four groups, each a decision rather than a blind spot, each listed by name in the script
 so a new exception has to be added deliberately:
 
-- **Oban's tables** (`oban_jobs`, `oban_leaders`, `oban_producers`, `oban_job_state`).
-  The job queue installs these through its own `install` command, outside Alembic on
-  purpose — `docs/product-onboarding/data-ingestion-onboarding.md` § "Orchestration —
-  Oban job queue + CLI". Finding D5.
+- **Oban's objects** — three tables (`oban_jobs`, `oban_leaders`, `oban_producers`) and
+  one enum (`oban_job_state`), ignored by two separate lists in the script because
+  tables and enums are compared separately. The job queue installs them through its own
+  `install` command, outside Alembic on purpose —
+  `docs/product-onboarding/data-ingestion-onboarding.md` § "Orchestration — Oban job
+  queue + CLI". Finding D5.
 - **Extensions we do not own.** Compared by allowlist (`vector`, `pg_trgm`) rather than
   by difference, because Supabase installs `pgcrypto`, `uuid-ossp`, `pg_stat_statements`
   and `supabase_vault` as platform furniture. Finding D9.
@@ -102,8 +143,8 @@ matched Jul 30 exactly.
 | --- | --- | --- | --- | --- |
 | D1 | `bill_version_section`: production keyed rows on `UNIQUE(bill_version_id, source_order)` and kept a plain index on `(bill_version_id, section_id_text)`. `models.py` declared `UNIQUE(bill_version_id, section_id_text)`. | **Production** | A bill page can hand two sections the same id (`laws.0.1.0` for anything outside an article), so the id cannot identify a row; the section's position can never repeat. 64 versions in production hold repeated section ids. | **Fixed.** [#763](https://github.com/alethical-org/alethical/issues/763) via [PR #778](https://github.com/alethical-org/alethical/pull/778), migration `0016`. Gone from the Aug 3 re-run. |
 | D2 | `notification_event`: production runs a 12-column delivery queue (`channel`, `source_hash`, `subject`, `body`, `payload_json`, `status`, `scheduled_for`, `failure_reason`, six of them `NOT NULL` with no default) plus `UNIQUE(user_id, bill_id, event_type, source_hash)` and a `notification_event_status` enum. `models.py` declares a 7-column status-change log. **19 of the 39 raw differences are this one table.** | **`models.py`** | The rich table is a fossil of an abandoned email-delivery design (commit `a1066aa`, since simplified). `0002`'s skip-if-exists guard is the only reason production still has it. The table holds **0 rows** (re-confirmed Aug 3 2026), so replacing it loses nothing. | **Closed** — [#929](https://github.com/alethical-org/alethical/issues/929), migration `0020_notification_event_shape.py`, merged in [#938](https://github.com/alethical-org/alethical/pull/938) about 80 minutes after this row was last edited. It got its own migration and its own review, as this row asked. |
-| D3 | `evidence_document`: a table with **34,033 rows**, a primary key, two foreign keys, a check constraint and a unique key, that exists only in production. Nothing in the repo declares it. | **Neither — it is an orphan** | Created by `0003_representative_evidence`, applied to production by hand from the unmerged branch `origin/codex/representative-lookup-followups` while auto-migration was down ([#288](https://github.com/alethical-org/alethical/issues/288)). Production's migration bookmark was later reset past it, so the table survived and its migration did not. | Open — [#855](https://github.com/alethical-org/alethical/issues/855). Needs a product call (adopt the feature, or drop 34,033 rows), not a decision an audit makes. |
-| D4 | `chat_session.subject_legislator_id`: a `uuid` column with a foreign key to `legislator`, present only in production. **6 of 37 chat sessions have a value in it.** | Same as D3 | Same origin, same migration. | With D3, [#855](https://github.com/alethical-org/alethical/issues/855). |
+| D3 | `evidence_document`: a table with **34,033 rows**, a primary key, two foreign keys, a check constraint and a unique key, that exists only in production. Nothing in the repo declares it. | **Neither — it is an orphan** | Created by `0003_representative_evidence`, applied to production by hand from the unmerged branch `origin/codex/representative-lookup-followups` while auto-migration was down ([#288](https://github.com/alethical-org/alethical/issues/288)). Production's migration bookmark was later reset past it, so the table survived and its migration did not. | **Closed** — [#855](https://github.com/alethical-org/alethical/issues/855) took the product call and dropped it, migration `0022_drop_evidence_document`, merged in [#944](https://github.com/alethical-org/alethical/pull/944) Aug 4 2026. Nothing read it: 0 sequential and 0 index scans over 12 minutes of live traffic, no inbound dependency of any kind, last written Jun 14 2026. All 34,033 rows were captured first and the capture proven restorable by restoring it and comparing every row back. |
+| D4 | `chat_session.subject_legislator_id`: a `uuid` column with a foreign key to `legislator`, present only in production. **6 of 37 chat sessions have a value in it.** | Same as D3 | Same origin, same migration. | **Closed** with D3 — migration `0023_drop_chat_session_subject_legislator_id`, merged in [#947](https://github.com/alethical-org/alethical/pull/947) Aug 4 2026. The 6 rows turned out not to be user sessions at all: all belong to the seed account and are the out-of-band feature's own tests. Values captured before the drop. Note the stronger argument than any scan counter — SQLAlchemy only ever names the columns a model maps, and `models.py` never mapped this one, so today's code *could not* emit a statement that touched it. |
 | D5 | `oban_jobs`, `oban_leaders`, `oban_producers` and the `oban_job_state` enum exist only in production. | **Production** | Correct as they are — the `oban` package creates them through its own installer, deliberately outside Alembic. | **Closed.** The drift check ignores them by name, so a true state cannot fail it forever. |
 | D6 | `ai_enrichment` has a partial unique index in production, `ix_ai_enrichment_bill_summary_current_unique` on `(bill_id, enrichment_type)` where the row is a current bill summary. `models.py` declared **no constraint of any kind** on that table. | **Production** | It is the only thing enforcing "one current summary per bill," and it holds — **0 violations**, re-measured Aug 3 2026. Rebuild the database from `models.py` and that protection silently disappeared. | **Fixed.** Declared in `models.py`; migration `0017` creates it on any database that lacks it. |
 | D7 | `legislator_election_history`'s unique key is named `uq_legislator_election_history_leg_seq` in production and `uq_legislator_election_history_legislator_id_period_sequence` on a fresh database. Same two columns either way. | **Production** | `0008` named it by hand; the naming convention generates the long form, and `create_all` used the long form on fresh databases. The cost is latent and lands the day a migration writes `op.drop_constraint()` with one name and meets the database holding the other. | **Fixed.** Name pinned in `models.py`; `0017` renames where the long form is present. |
@@ -143,10 +184,14 @@ Two things checked and **clean**, worth recording so nobody re-checks them:
   three-column key, and `rag_chunk_embedding.rag_chunk_id` — and the diff found zero
   constraint differences on those three tables. No raw-SQL `ON CONFLICT` exists
   anywhere, and no `Session.merge()` call does either.
-- **The two orphan objects are handled safely already.** `_merge_legislator` repoints
-  `evidence_document` and `chat_session.subject_legislator_id` only after a runtime
-  check that the column exists (`_column_exists`), so it is a no-op on the repo's schema
-  and correct against production. That is the right pattern, not a bug.
+- **The two orphan objects were handled safely even while they existed.** When this was
+  written, `_merge_legislator` repointed `evidence_document` and
+  `chat_session.subject_legislator_id` only after a runtime check that the column exists
+  (`_column_exists`), so it was a no-op on the repo's schema and correct against
+  production. That was the right pattern, not a bug. **Both entries are gone from
+  `_LEGISLATOR_FK_REPOINTS` as of [#855](https://github.com/alethical-org/alethical/issues/855)**,
+  since the objects they guarded no longer exist anywhere; the `_column_exists` guard
+  stays for the four remaining entries.
 
 ## What changed, and what deliberately did not
 
@@ -164,15 +209,29 @@ Landed with this document:
   when `models.py` and the migration history stop agreeing — the recurrence guard, per
   `docs/philosophy.md` principle 9 ("Prevent, don't just fix").
 
+- The same script also runs as its own job in `.github/workflows/migrate.yml`, after
+  every deploy that touches the schema, comparing live production against the migration
+  history and filing an issue if they part company. That is the half the pull-request
+  check cannot cover, because it never looks at production. Its coverage limits are
+  spelled out under "What runs after every schema deploy" above.
+
 **One sentence in the Jul 30 draft of this document was not true when it was written.**
 It said findings were kept from recurring by `scripts/check_schema_drift.py`, "run by CI
 on every backend PR". That file existed on no branch and no workflow referenced it. It
 is true now, which is the only reason the claim survives — a document that describes a
 guard nobody built is worse than one that admits the gap.
 
-### Still open
+### How each finding ended
 
-Two items, each with an owner:
+**Nothing is open.** All eleven divergences and all six code-reliance findings are
+closed, and an independent re-measurement on **Aug 5 2026** found production and this
+repository describing the same schema with **zero differences**.
+
+The section below used to be headed "Still open" and listed D3 + D4 as awaiting a
+product decision. They were decided and dropped on Aug 4 2026, a few hours after the row
+above them was last edited, and the heading outlived them by a day — which is the small
+version of the exact failure this whole document is about. Dates and measurements here
+are left exactly as they were taken; only status changes.
 
 - **D2 + D11 + R5** — **closed.** Production's fossil `notification_event` was replaced
   by migration `0020_notification_event_shape.py`
@@ -181,8 +240,16 @@ Two items, each with an owner:
   table and the `notification_event_status` enum. R5's landmine goes with it: the
   writer in `alethical/api/services/notifications.py` and the 7-column model in
   `models.py` now agree with the live table.
-- **D3 + D4** — 34,033 orphan rows and a populated orphan column, needing a product
-  decision: [#855](https://github.com/alethical-org/alethical/issues/855).
+- **D3 + D4** — **closed** by [#855](https://github.com/alethical-org/alethical/issues/855)
+  on Aug 4 2026. The product call went to dropping both: `evidence_document` (34,033
+  rows, migration `0022`, [#944](https://github.com/alethical-org/alethical/pull/944))
+  and `chat_session.subject_legislator_id` (6 rows, migration `0023`,
+  [#947](https://github.com/alethical-org/alethical/pull/947)). Nothing read either —
+  established against live production over 12 minutes of real traffic, not by grep. Both
+  captured to restorable files first, and each capture proven by restoring it and
+  comparing every row back. With them went the last of the out-of-band objects from
+  [#288](https://github.com/alethical-org/alethical/issues/288), and the 62 garbled rows
+  the mojibake sweep had deliberately skipped.
 - **R1** — **closed** by [#927](https://github.com/alethical-org/alethical/issues/927).
   The 2,219 surplus rows were deleted from production (dry run predicted 2,219, the live
   run deleted 2,219, current summaries unchanged at 10,517), and migration `0019` adds
@@ -195,5 +262,21 @@ Two items, each with an owner:
 ## Reading this later
 
 The one-line version: **a `create_all` baseline cannot describe a schema, so for months
-nothing did.** The check is the part that matters going forward — if it is green, this
-document is history. If someone disables it, this document is a forecast.
+nothing did.** The checks are the part that matters going forward — if they are green,
+this document is history. If someone disables them, this document is a forecast.
+
+There are two of them and they fail differently, which is the whole point. The
+pull-request check answers *"do our own migrations still build what our own models
+declare?"* and **breaks the build**, because there is a right answer and the author can
+fix it before merging. The post-deploy check answers *"does the live database still look
+the way we think?"* and **only files an issue**, because when those two part company
+neither side is automatically wrong — six of the eleven findings above went production's
+way, and a check that failed the deploy on those would have been telling us to make
+production worse.
+
+One habit this document earned the hard way: **a count is evidence, a label is a
+conclusion, and the two go stale at different speeds.** Every measurement here survived
+re-checking. What kept going wrong was the words next to the numbers — three severity
+labels were wrong when written, and a "Still open" heading outlived the work it
+described by a day. When you update this file, change the labels and leave the
+measurements alone.

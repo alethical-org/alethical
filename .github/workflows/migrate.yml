@@ -54,8 +54,15 @@ jobs:
       - name: Check migration secrets are set
         run: test -n "$SUPABASE_PROJECT_URL" && test -n "$SUPABASE_DB_PASSWORD"
 
+      # `env -u DATABASE_URL` is deliberate. alembic/env.py resolves its URL as
+      # database_url_for_target(ALETHICAL_DATABASE_TARGET, DATABASE_URL) and an
+      # explicit DATABASE_URL WINS OVER THE TARGET — so a DATABASE_URL reaching
+      # this job (a job-level env added later, a composite action, a runner
+      # default) would silently migrate that database instead of production, and
+      # production would stop being migrated with no error anywhere. Unset it at
+      # the command rather than trusting nobody ever adds one.
       - name: Run Alembic migrations
-        run: uv run python -m alembic -c alembic.ini upgrade head
+        run: env -u DATABASE_URL uv run python -m alembic -c alembic.ini upgrade head
 
       # Make a failed prod migration loud instead of a silent side-workflow (#522):
       # a post-merge failure (bad secret, connection, a migration that errors on
@@ -77,4 +84,131 @@ jobs:
             gh issue comment "$existing" --body "Migration failed again on $SHA — $RUN_URL"
           else
             gh issue create --title "🚨 $title" --label backend --body "$body"
+          fi
+
+  # Does production still look the way this repository says it does? The PR-time
+  # check in ci.yml cannot answer that: it compares two throwaway databases and
+  # never reads production, so a change applied to production BY HAND is
+  # invisible to it. That is not hypothetical — it is how findings D3 and D4 of
+  # docs/operations/production-database-schema-drift.md happened. During #288,
+  # auto-migration was broken, schema changes were applied to production from an
+  # unmerged branch, and the migration bookmark was reset past them. The orphan
+  # table survived undetected for about seven weeks holding 34,033 rows.
+  #
+  # This runs here rather than in ci.yml because this is the one workflow that
+  # legitimately holds production credentials — CI at PR time has none and must
+  # never be given any. Cost is zero: no new secret, no schedule, no paid call.
+  #
+  # A SEPARATE JOB, not a step on `migrate`, for three reasons: it cannot change
+  # whether the migration is reported as succeeding; the migrate job never gets a
+  # DATABASE_URL at all, so the redirect hazard above cannot arise there; and the
+  # `if: failure()` alert above stays scoped to the migration, so a fault in this
+  # check can never file an issue claiming production failed to migrate.
+  check-production-drift:
+    needs: migrate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    services:
+      # pgvector, not plain postgres: 0001 runs CREATE EXTENSION vector, so a
+      # stock image cannot build the comparison database at all.
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: alethical
+          POSTGRES_USER: alethical
+          POSTGRES_PASSWORD: alethical
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U alethical -d alethical"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # The throwaway side only. The production side ignores this entirely:
+      # run_production_vs_migrations() calls database_url_for_target("production")
+      # with no explicit URL, and _local_base_url() refuses any non-local host
+      # before it will create a database.
+      DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # Read-only against production: the snapshot connection is opened with
+      # postgresql_readonly, so this cannot write there even if someone later
+      # adds a stray DDL call to the script. Exits 0 whatever it finds — which
+      # side is right is a judgement call, and six of the audit's eleven findings
+      # went production's way, so drift is a thing to read rather than a build to
+      # break.
+      # Once, not once per output format. Each run opens production and builds a
+      # throwaway database from the whole migration history, so running it again
+      # for a human-readable log would double the work and — worse — could
+      # disagree with the JSON if production changed in between, leaving two
+      # different answers in one job. Render the log from the same JSON the next
+      # step decides on.
+      - name: Compare production against the migration history
+        run: |
+          uv run python scripts/check_schema_drift.py --against-production --json > drift.json
+          jq -r '
+            "production vs migrations: \(.differences | length) difference(s)",
+            (.differences[] | "  \(.category) \(.key): production=\(.production // "absent") migrations=\(.migrations // "absent")")
+          ' drift.json
+
+      # Reporting into a log nobody opens is the same as not checking. File it.
+      - name: Open an issue if production has drifted
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          count=$(jq '.differences | length' drift.json)
+          echo "differences: $count"
+          if [ "$count" -eq 0 ]; then
+            echo "Production matches the migration history."
+            exit 0
+          fi
+          title="Production database has drifted from the migration history"
+          {
+            echo "**Net:** The live database no longer matches what this repository's migrations build. Something changed production outside Alembic, or a migration did not produce the shape it claimed. Nothing is broken by this on its own, but it is how 34,033 orphan rows went unnoticed for seven weeks before."
+            echo
+            echo "Found on commit \`$SHA\` after migrations ran. Run: $RUN_URL"
+            echo
+            echo "**$count difference(s):**"
+            echo
+            echo '```'
+            jq -r '.differences[] | "\(.category) \(.key): production=\(.production // "absent") migrations=\(.migrations // "absent")"' drift.json
+            echo '```'
+            echo
+            echo "Reproduce locally (read-only against production):"
+            echo
+            echo '```bash'
+            echo "ALETHICAL_DATABASE_TARGET=production uv run python scripts/check_schema_drift.py --against-production"
+            echo '```'
+            echo
+            echo "Which side is right is a judgement call — six of the eleven findings in [the audit](https://github.com/alethical-org/alethical/blob/main/docs/operations/production-database-schema-drift.md) went production's way. Auto-filed by \`.github/workflows/migrate.yml\`."
+          } > body.md
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file body.md
+          else
+            gh issue create --title "🚨 $title" --label backend --body-file body.md
           fi
