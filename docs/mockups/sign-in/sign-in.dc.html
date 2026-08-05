@@ -379,6 +379,9 @@
           <sc-if value="{{ trackUnknown }}" hint-placeholder-val="{{ true }}">
             <button disabled aria-busy="true" aria-label="Checking your tracked bills" style="min-width:128px;height:46px;display:inline-flex;align-items:center;justify-content:center;padding:12px 20px;background:#11150f;border:1px solid #11150f;border-radius:12px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;cursor:default;opacity:0.62;"><span style="width:18px;height:18px;border-radius:50%;border:2.2px solid rgba(255,255,255,0.32);border-top-color:#ffffff;display:inline-block;animation:spin 0.7s linear infinite;"></span></button>
           </sc-if>
+          <sc-if value="{{ trackFailed }}" hint-placeholder-val="{{ false }}">
+            <button aria-label="Couldn’t check whether you track this bill. Press to check again." title="Check again" style="min-width:128px;height:46px;display:inline-flex;align-items:center;justify-content:center;padding:12px 20px;background:#ffffff;border:1px solid rgba(17,21,15,0.32);border-radius:12px;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;cursor:pointer;" style-hover="border-color:#11150f;background:#f7f8fa;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M20 12 a8 8 0 1 1-2.4-5.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4 v4 h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </sc-if>
         </div>
         <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6f756f;">BOX LOCKED AT 128 × 46</div>
       </div>
@@ -394,6 +397,9 @@
           </sc-if>
           <sc-if value="{{ trackUnknown }}" hint-placeholder-val="{{ true }}">
             <button disabled aria-busy="true" aria-label="Checking your tracked bills" style="min-width:112px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:11px 14px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;cursor:default;opacity:0.62;"><span style="width:17px;height:17px;border-radius:50%;border:2.2px solid rgba(255,255,255,0.32);border-top-color:#ffffff;display:inline-block;animation:spin 0.7s linear infinite;"></span></button>
+          </sc-if>
+          <sc-if value="{{ trackFailed }}" hint-placeholder-val="{{ false }}">
+            <button aria-label="Couldn’t check whether you track this bill. Press to check again." title="Check again" style="min-width:112px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:11px 14px;background:#ffffff;border:1px solid rgba(17,21,15,0.32);border-radius:10px;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;cursor:pointer;" style-active="background:#f1f1f4;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M20 12 a8 8 0 1 1-2.4-5.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4 v4 h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           </sc-if>
         </div>
         <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6f756f;">BOX LOCKED AT 112 × 44</div>
@@ -411,10 +417,35 @@
           <sc-if value="{{ trackUnknown }}" hint-placeholder-val="{{ true }}">
             <button disabled aria-busy="true" aria-label="Checking your tracked bills" style="min-width:124px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:default;opacity:0.62;"><span style="width:16px;height:16px;border-radius:50%;border:2.2px solid rgba(255,255,255,0.32);border-top-color:#ffffff;display:inline-block;animation:spin 0.7s linear infinite;"></span></button>
           </sc-if>
+          <sc-if value="{{ trackFailed }}" hint-placeholder-val="{{ false }}">
+            <button aria-label="Couldn’t check whether you track this bill. Press to check again." title="Check again" style="min-width:124px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;background:#ffffff;border:1px solid rgba(17,21,15,0.32);border-radius:10px;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;" style-hover="border-color:#11150f;background:#f7f8fa;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M20 12 a8 8 0 1 1-2.4-5.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4 v4 h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </sc-if>
         </div>
         <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6f756f;">BOX LOCKED AT 124 × 44</div>
       </div>
     </div>
+
+    <sc-if value="{{ trackFailed }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top:22px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 24px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">AT SCALE · A FAILED REQUEST MEANS EVERY ROW</div>
+      <div role="status" style="margin-top:14px;display:flex;align-items:flex-start;gap:11px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:13px 15px;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9" stroke="#6f756f" stroke-width="1.9"/><path d="M12 8.2 V12.4" stroke="#6f756f" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="16" r="1.1" fill="#6f756f"/></svg>
+        <div style="flex:1;min-width:0;font-size:14.5px;line-height:1.5;color:#4f5651;">We couldn’t check which bills you’re tracking. Everything about the bills themselves loaded normally — only your saved list is missing. <button style="background:transparent;border:none;padding:0;font-family:'Libre Franklin',sans-serif;font-size:14.5px;font-weight:700;color:#149d5b;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">Check again</button></div>
+      </div>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px;">
+        <sc-for list="{{ failRows }}" as="r" hint-placeholder-count="3">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid rgba(17,21,15,0.08);border-radius:12px;padding:12px 14px;">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+              <span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12.5px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:4px 9px;border-radius:6px;flex:none;">{{ r.code }}</span>
+              <span style="font-size:15px;font-weight:700;color:#11150f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.title }}</span>
+            </div>
+            <button aria-label="Couldn’t check whether you track this bill. Press to check again." title="Check again" style="flex:none;min-width:124px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;background:#ffffff;border:1px solid rgba(17,21,15,0.32);border-radius:10px;color:#11150f;cursor:pointer;" style-hover="border-color:#11150f;background:#f7f8fa;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M20 12 a8 8 0 1 1-2.4-5.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4 v4 h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin:14px 0 0;font-size:14px;line-height:1.55;color:#6f756f;">Ten rows in this state stay ten quiet outlined boxes and <strong style="color:#11150f;">one</strong> sentence — not ten error messages. Pressing any one of them refetches the whole list, so every button on the page resolves at once.</p>
+    </div>
+    </sc-if>
 
     <div style="margin-top:22px;display:flex;gap:22px;flex-wrap:wrap;">
       <div style="flex:1;min-width:420px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 24px;">
@@ -423,6 +454,18 @@
           <div><strong style="color:#11150f;">Same black pill, no words.</strong> Any label would assert a state, so the unknown form drops the label and centres a small white spinner in the same black box at 62% opacity. Black keeps it recognisable as Track; the motion says "deciding", not "broken"; the dimming says "not yet yours to press". It is <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">disabled</code> with <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">aria-busy="true"</code> and an <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">aria-label</code> of "Checking your tracked bills", so a screen reader is told the same thing sighted users are.</div>
           <div><strong style="color:#11150f;">The footprint is fixed for all three forms, not just this one.</strong> Each size gets a min-width set <strong>above</strong> its widest form ("✓ Tracked") with content centred, so subpixel rounding and font fallback can't reintroduce a shift: <strong>128 × 46</strong> desktop (widest shipped form 127.31), <strong>112 × 44</strong> phone (107.48), <strong>124 × 44</strong> compact (116.28). Desktop needs an explicit <em>height</em>, not a min-height — a 16px/600 label makes a taller line box than an 18px spinner, so a min-height binds on the spinner form only and the box would shrink 1.5px on resolve. These numbers are the whole guarantee; measure all three forms after building and confirm they're identical.</div>
           <div><strong style="color:#11150f;">This also fixes an artifact nobody flagged, and it is bigger than it looked.</strong> "+ Track" and "✓ Tracked" are different widths in every size — measured on shipped code, compact runs <strong>100.13 → 116.28px</strong>, a <strong>16px</strong> jump, and desktop and phone jump 16–18px too. So every ordinary track and untrack currently shoves its whole row sideways by that much. Locking the box removes it everywhere, not just after sign-in.</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:420px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 24px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#a76a1a;">WHEN THE CHECK FAILS OUTRIGHT — THE FOURTH FORM</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:13px;font-size:14.5px;line-height:1.55;color:#4f5651;">
+          <div><strong style="color:#11150f;">A composite, not one of your three.</strong> Page level carries the sentence <em>once</em>; the button carries the way out. Neither alone works: a per-row retry with a label becomes a wall on a ten-card list, and a page-level message alone leaves the buttons with no form.</div>
+          <div><strong style="color:#11150f;">The button becomes the OUTLINE of the same box</strong> — white fill, dark ink border, a refresh glyph, no label, at the same 128×46 / 112×44 / 124×44. Filled black means "we know" (+ Track / ✓ Tracked); filled-and-dimmed means "asking"; <em>outlined</em> means "we don't know". No word appears, so nothing is asserted, and it is a live control rather than a dead one.</div>
+          <div><strong style="color:#11150f;">One press fixes the page.</strong> Pressing any one of them refetches the whole list, so every unknown button resolves together. That is what makes ten of them tolerable — they are ten identical quiet boxes and one sentence, not ten errors.</div>
+          <div><strong style="color:#11150f;">We deliberately did NOT fall back to "+ Track".</strong> It is an assertion that can be wrong, and pressing it on an already-tracked bill would re-save rather than remove. Even with a refetch-on-press, the reader sees a claim about their own list that we have not earned.</div>
+          <div><strong style="color:#11150f;">Tone is neutral, not alarm.</strong> Grey notice, not red: nothing about the bill is wrong. The copy says so explicitly — "Everything about the bills themselves loaded normally — only your saved list is missing" — and never implies we will notify anyone. It is <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">role="status"</code>, not <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">alert</code>.</div>
+          <div><strong style="color:#11150f;">Screen readers get the meaning, not the outline.</strong> Each button's <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">aria-label</code> is "Couldn't check whether you track this bill. Press to check again." — the visual treatment is doing the talking for sighted users, so the label has to say the same thing.</div>
+          <div><strong style="color:#11150f;">Confirmed: the unknown and failed forms are for a SIGNED-IN reader only.</strong> Signed out, the answer is known — they track nothing — so "+ Track" is correct and honest. Never build either form as a general loading or error state for the control.</div>
         </div>
       </div>
       <div style="flex:1;min-width:420px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 24px;">
@@ -543,12 +586,18 @@ class Component extends DCLogic {
       { key: 'idle', label: '+ Track' },
       { key: 'tracked', label: '✓ Tracked' },
       { key: 'unknown', label: 'Unknown (checking)' },
+      { key: 'failed', label: 'Couldn’t check' },
     ];
     const trackBtns = trackDefs.map(d => ({ label: d.label, active: tr === d.key, inactive: tr !== d.key, select: () => this.setState({ track: d.key }) }));
 
     return {
-      trackIdle: tr === 'idle', trackOn: tr === 'tracked', trackUnknown: tr === 'unknown',
+      trackIdle: tr === 'idle', trackOn: tr === 'tracked', trackUnknown: tr === 'unknown', trackFailed: tr === 'failed',
       trackBtns,
+      failRows: [
+        { code: 'SF 1832', title: 'Jobs, Labor, and Economic Development Omnibus' },
+        { code: 'HF 2136', title: 'Forensic Interview Training Scholarships' },
+        { code: 'SF 5310', title: 'Bans Nonconsensual AI Nudification Images' },
+      ],
       acctOut: acct === 'out',
       acctSignedIn: acct !== 'out',
       acctMenu: acct === 'menu',

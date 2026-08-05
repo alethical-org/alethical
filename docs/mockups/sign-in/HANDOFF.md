@@ -89,6 +89,28 @@ sign-in redirect when the app hasn't yet retrieved what this person tracks.
 - Preview band **TRACK FORM**: `+ Track · ✓ Tracked · Unknown (checking)`, all three sizes side by
   side with each locked box labelled.
 
+## When the check fails outright — the fourth form
+The tracked-list request does not retry, so one network blip means the button would sit in the
+checking form forever. The answer is a **composite**: the page carries the sentence once, the button
+carries the way out.
+
+- **The button is the OUTLINE of the same box** — white fill, border `rgba(17,21,15,0.32)`, ink
+  refresh glyph, **no label**, same 128×46 / 112×44 / 124×44. The control becomes a three-way system:
+  filled black = we know · filled + dimmed = we're asking · **outlined = we don't know**. Nothing is
+  asserted, it's a live control, and the footprint never moves.
+- **One press refetches the whole list**, so every unknown button on the page resolves at once. Not
+  per-row retries.
+- **Page-level notice, once, neutral** (grey `#f7f8fa`, not red, `role="status"`): "We couldn't check
+  which bills you're tracking. Everything about the bills themselves loaded normally — only your
+  saved list is missing. [Check again]" — says the bill data is fine, never implies notification.
+- **Not a "+ Track" fallback:** that asserts a state we haven't earned, and pressing it on an
+  already-tracked bill would re-save instead of remove.
+- **aria-label:** "Couldn't check whether you track this bill. Press to check again." Focusable, keeps
+  the `#7c5cff` ring.
+- **Signed-out is NOT unknown** — they track nothing, so `+ Track` is correct. Both the checking and
+  failed forms are for a signed-in reader whose list hasn't arrived, and must not be generalised into
+  a loading/error state.
+
 ## Deviation
 You may deviate with good reason (component reality, a Google Identity constraint, a11y, a better
 in-repo pattern, a place the spec is silent) — but **list every deviation** (what the spec said,

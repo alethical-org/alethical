@@ -29,7 +29,7 @@ import {
   updateNotificationPreference,
 } from '../data/mockData';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
-import { isTrackedStateUnknown } from '../lib/trackedState';
+import { trackState, TrackState } from '../lib/trackedState';
 import { useAuth } from '../providers/AuthProvider';
 
 export function useCurrentUser() {
@@ -212,20 +212,35 @@ export function useTrackedBills(userId?: string) {
   });
 }
 
-// Whether the Track button can honestly say anything about this reader's tracked
-// state yet (#1013). Kept next to the query it reads so the two cannot drift, and
-// deliberately NOT derived from `isLoading` or `isPending` — see the comment block in
-// `lib/trackedState.ts` for why neither flag alone is correct on this version of
-// React Query. Every Track button on a page subscribes to the same query key, so the
-// extra observers share one cache entry and one request.
-export function useTrackedStateUnknown(): boolean {
+// What the Track button honestly knows about this reader's tracked state, plus the
+// way out when the answer never came (#1013, #1021). Kept next to the query it reads
+// so the two cannot drift, and deliberately NOT derived from `isLoading` or
+// `isPending` — see the comment block in `lib/trackedState.ts` for why neither flag
+// alone is correct on this version of React Query.
+//
+// `recheck` refetches the ONE shared query every Track button on the page reads
+// (`['tracked-bills', userId]`), so a single press resolves every unresolved button
+// at once. That is the design's "one press fixes the page", and it needs no
+// coordination — it falls out of every button already sharing one query key. The same
+// sharing is why the extra observers cost nothing: measured A/B against main, page
+// load fires the same number of requests with and without these subscriptions.
+export function useTrackedListState(): {
+  state: (isTracked: boolean) => TrackState;
+  isError: boolean;
+  recheck: () => void;
+} {
   const { isSignedIn, user } = useAuth();
   const trackedQuery = useTrackedBills(user?.id);
-  return isTrackedStateUnknown({
-    isSignedIn,
-    hasList: trackedQuery.data !== undefined,
-    isError: trackedQuery.isError,
-  });
+  const hasList = trackedQuery.data !== undefined;
+  const isError = trackedQuery.isError;
+  return {
+    state: (isTracked: boolean) => trackState({ isSignedIn, hasList, isError, isTracked }),
+    // Only ever true for a signed-in reader with no list to fall back on: a
+    // signed-out visitor's state is not unknown, so no page should show them a
+    // failure notice about a list they do not have.
+    isError: isSignedIn && !hasList && isError,
+    recheck: () => void trackedQuery.refetch(),
+  };
 }
 
 export function useToggleTrackedBill(userId?: string) {

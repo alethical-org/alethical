@@ -7,9 +7,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Check, Plus } from 'lucide-react-native';
+import { Check, Plus, RefreshCw } from 'lucide-react-native';
 
-import { useTrackedStateUnknown } from '../../hooks/useAppQueries';
+import { useTrackedListState } from '../../hooks/useAppQueries';
 import { theme as t } from '../../theme/tokens';
 import { isWeb, useHover } from './interactions';
 
@@ -27,18 +27,28 @@ import { isWeb, useHover } from './interactions';
 // (Track / Tracked) because a live toggle cannot honestly keep showing "+ Track"
 // on a bill the reader already tracks.
 //
-// THREE forms, one box (#1013).
+// FOUR forms, one box (#1013, #1021), and a three-way visual system:
 //
-// The third form is "we do not know yet". Until the watchlist has come back, a
-// signed-in reader's tracked state is genuinely unknown, and the button used to
-// render `tracked={false}` — asserting "+ Track" on a bill they may well already
+//   filled black          = we know          -> "+ Track" / "✓ Tracked"
+//   filled black, dimmed  = we're asking     -> spinner, no label, unpressable
+//   outlined              = we don't know    -> refresh glyph, no label, pressable
+//
+// The two wordless forms exist because the button used to render `tracked={false}`
+// whenever it had no answer — asserting "+ Track" on a bill the reader may already
 // track, where pressing it re-saves instead of removing. A wrong assertion is worse
-// than a blank one, so the label is what goes: same black box, no words, a spinner.
-// The button asks for that state itself rather than taking it as a prop, so every
-// surface gets it without threading a flag down through four screens (and without
-// this change needing to touch a file another session has open).
+// than a blank one, so the label is what goes. It never falls back to a label on
+// failure either: with refetch-on-press the ACTION is safe, but the LABEL would still
+// state a fact about someone's own list that we never got.
 //
-// All three forms share ONE fixed box per size, because the labels do not: measured
+// Both wordless forms are for a SIGNED-IN reader whose list has not arrived, only.
+// Signed out is not unknown — they track nothing, so "+ Track" is correct and honest,
+// and neither form may ever appear for them. Neither is a general loading or error
+// state for this control (`lib/trackedState.ts` derives all four, and pins that case).
+//
+// The button asks for the state itself rather than taking it as a prop, so every
+// surface gets all four forms without threading a flag down through five screens.
+//
+// All four forms share ONE fixed box per size, because the labels do not: measured
 // on production before this change, "✓ Tracked" is 16 to 18px wider than "+ Track"
 // at every size, so every ordinary track and untrack nudged its whole row sideways —
 // on a list, under the reader's finger as they pressed it. Height is explicit rather
@@ -60,16 +70,17 @@ export function BillTrackButton({
   size: 'web' | 'mobile' | 'card';
 }) {
   const [hovered, hover] = useHover();
-  const stateUnknown = useTrackedStateUnknown();
-  const spinnerVisible = useDelayed(stateUnknown, SPINNER_DELAY_MS);
-  const unknownRef = useInertBusyNode(stateUnknown);
+  const { state: resolveState, recheck } = useTrackedListState();
+  const state = resolveState(tracked);
+  const spinnerVisible = useDelayed(state === 'checking', SPINNER_DELAY_MS);
+  const unknownRef = useInertBusyNode(state === 'checking');
   const glyph = size === 'web' ? 17 : 16;
   const btnSize =
     size === 'web' ? styles.btnWeb : size === 'mobile' ? styles.btnMobile : styles.btnCard;
   const textSize =
     size === 'web' ? styles.textWeb : size === 'mobile' ? styles.textMobile : styles.textCard;
 
-  if (stateUnknown) {
+  if (state === 'checking') {
     // A View rather than a disabled Pressable: there is nothing to press, and
     // RN-Web's Pressable manages aria-disabled from its own `disabled` state (which
     // would also let the tap fall through to a wrapping card link). The View's
@@ -95,6 +106,31 @@ export function BillTrackButton({
     );
   }
 
+  if (state === 'unavailable') {
+    // The check failed with nothing to fall back on. Deliberately NOT "+ Track":
+    // pressing that on a bill the reader already tracks would re-save instead of
+    // remove, and the label would assert a fact about their own list we never got.
+    // So the box loses its fill instead of its honesty — outlined is the third rung
+    // of a three-way system (filled = we know, filled + dimmed = we're asking,
+    // outlined = we don't know), it asserts no word, it is live rather than dead, and
+    // it keeps the same footprint so a failure cannot reflow a card.
+    //
+    // One press refetches the whole shared list, so EVERY unresolved button on the
+    // page recovers at once rather than each row retrying its own bill. That falls
+    // out of every button reading one query key; it needs no coordination.
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Couldn't check whether you track this bill. Press to check again."
+        onPress={pressRecheck(recheck)}
+        {...hover}
+        style={[styles.btn, btnSize, styles.btnRetry, hovered && styles.btnRetryHover]}
+      >
+        <RefreshCw size={glyph} color={TRACK_INK} strokeWidth={2.4} />
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -112,6 +148,19 @@ export function BillTrackButton({
       <Text style={[styles.text, textSize]}>{tracked ? 'Tracked' : 'Track'}</Text>
     </Pressable>
   );
+}
+
+// Swallow the press before rechecking. Every card surface wraps this button in a real
+// link, so an unswallowed press would follow the card's href to the bill instead of
+// retrying — the same reason the label forms are handed a pressInsideLink onPress.
+function pressRecheck(recheck: () => void) {
+  return (event: GestureResponderEvent) => {
+    const native = event?.nativeEvent as unknown as { stopPropagation?: () => void } | undefined;
+    event?.stopPropagation?.();
+    native?.stopPropagation?.();
+    event?.preventDefault?.();
+    recheck();
+  };
 }
 
 // Mark the unknown form as a busy, unavailable, unfocusable button on the DOM node.
@@ -217,6 +266,10 @@ const styles = StyleSheet.create({
   // Still black, so it is recognisably Track; dimmed, so it reads as not yet yours
   // to press.
   btnUnknown: { opacity: 0.62 },
+  // The failed form: the same box with its fill removed. Losing the fill is what says
+  // "we don't know" without spending a word on it, and it keeps the ink glyph legible.
+  btnRetry: { backgroundColor: TRACK_WHITE, borderColor: 'rgba(17,21,15,0.32)' },
+  btnRetryHover: { backgroundColor: '#f7f8fa', borderColor: TRACK_INK },
   text: {
     fontFamily: t.typography.ui,
     fontWeight: t.fontWeights.semibold,
