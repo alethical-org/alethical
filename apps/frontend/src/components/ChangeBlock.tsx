@@ -27,8 +27,11 @@ import { theme as t } from '../theme/tokens';
 // same thing.
 //
 // The earlier-steps link exists so one sentence never implies it was the only
-// thing that happened. It states a count and no date range: "since your last
-// visit" already gives the range, and the bill's own history shows every date. A
+// thing that happened. It states a COUNT and nothing else: the window is already
+// named once in the summary line above each list, so repeating it per row is
+// redundant — and "since your last visit" was retired as inaccurate, because only
+// opening the tracked list advances the mark, so a homepage reader's window is not
+// "since your last visit" at all (#1069, reversing #1009's longer label). A
 // plain Pressable rather than an anchor — the card around it is a real <a>, and an
 // <a> inside an <a> is invalid markup that reads as one confused control to a
 // screen reader (the same reason the author name and roll-calls chip are plain).
@@ -66,7 +69,7 @@ export function ChangeBlock({
           style={styles.changeMore}
         >
           <Text style={[styles.changeMoreText, hovered && styles.changeMoreTextHover]}>
-            {earlier === 1 ? '1 earlier step' : `${earlier} earlier steps`} since your last visit{' '}
+            {earlier === 1 ? '1 earlier step' : `${earlier} earlier steps`}{' '}
             <Text style={styles.changeMoreArrow} aria-hidden>
               →
             </Text>
