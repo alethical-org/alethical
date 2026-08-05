@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, and the two used to be indistinguishable here: it
@@ -309,6 +309,48 @@ Recommended approach:
 - backend verifies the token against Supabase Auth
 - backend resolves token subject to `auth_identity`
 - backend creates or loads `user_account`
+
+### How a token becomes an account
+
+Verified present Aug 5 2026 (`alethical/api/auth.py`, `alethical/api/services/auth.py`),
+and pinned by `alethical/tests/test_auth_multi_user_isolation.py`,
+`alethical/tests/test_auth_token_verification.py` and
+`alethical/tests/test_auth_read_path.py`.
+
+`SupabaseAuthService.authenticate` maps the token's claims onto an
+`AuthenticatedPrincipal` (`provider`, `provider_subject`, `email`, `email_verified`).
+`get_optional_current_user` then takes one of two paths, and the split matters:
+
+- **Resolution** — an `auth_identity` row already exists for
+  `(provider, provider_subject)`. Load its `user_account` and return it. This is
+  every authenticated read, and it must stay side-effect-free: it commits only
+  when `_reconcile_identity_fields` finds a field genuinely different, because
+  assigning an equal value still marks the row dirty and issues an UPDATE. Bumping
+  `last_used_at` / `last_signed_in_at` per request was the read-path write removed
+  by [#990](https://github.com/alethical-org/alethical/pull/990)
+  ([#108](https://github.com/alethical-org/alethical/issues/108)); both columns are
+  now written at provisioning only.
+- **Provisioning** — first sign-in for that identity. Look for an existing
+  `user_account` whose `primary_email` equals the principal's email; create one if
+  there is none; then create the `auth_identity` and commit once.
+
+**The email lookup is deliberate.** One person who signs in with Google today and a
+second method tomorrow gets two `auth_identity` rows on the *same* `user_account`,
+rather than silently starting over with an empty one — which is the whole reason
+`user_account` and `auth_identity` are separate tables. `user_account.primary_email`
+is `unique=True`, so at most one account can hold a given address and the lookup
+cannot pick the wrong one of two.
+
+**Its one open question:** the lookup reads `principal.email` and does *not* consult
+`principal.email_verified`, so an identity whose address the provider never confirmed
+would still join the existing account. Google always confirms, and whether an
+unconfirmed account can obtain a token at all is a Supabase project setting this
+repository neither controls nor records — so the exposure is real in shape and
+unquantified in size. Decision tracked in
+[#1039](https://github.com/alethical-org/alethical/issues/1039), with the current
+behaviour pinned by a test so a change has to be deliberate. Related: `email_verified`
+is set from `email_confirmed_at` **or** `phone_confirmed_at`, so a phone-verified
+account reads as having a verified email.
 
 Public endpoints:
 
