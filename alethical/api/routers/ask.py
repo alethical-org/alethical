@@ -38,7 +38,7 @@ from alethical.api.serializers import (
 from alethical.api.services.legislative_sessions import (
     LegislatureScope,
     current_legislature_scope,
-    named_special_session,
+    named_special_session_in_question,
 )
 from alethical.api.services.ask_router import (
     AskIntent,
@@ -408,7 +408,7 @@ def _question_session_ids(scope: LegislatureScope, content: str):
     about the name and would happily answer from either session — the decline bought
     nothing (caught in review before shipping, #810).
     """
-    named = named_special_session(content, scope.primary.session_number)
+    named = named_special_session_in_question(content, scope.primary.session_number)
     if named is False:
         return scope.ids
     if named is None:

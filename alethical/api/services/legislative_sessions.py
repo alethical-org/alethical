@@ -143,6 +143,26 @@ SPECIAL_SESSION_ORDINALS = {
 }
 
 
+# A free-text QUESTION only counts as naming a session when it says "special
+# session". A cross-reference row is terse and its bare "session" always means
+# another one, so `OTHER_SESSION` is the right gate there; a reader writes "session"
+# casually all the time ("what passed this session?"), and treating that as a session
+# reference we could not pin down made every such question refuse outright.
+QUESTION_NAMES_A_SESSION = re.compile(r"special\s+session", re.I)
+
+
+def named_special_session_in_question(text: str, legislature: int) -> str | None | bool:
+    """``named_special_session`` for a reader's own words rather than a source row.
+
+    Identical once a special session really is named — same ordinals, same
+    decline-on-ambiguity. The only difference is what counts as naming one at all:
+    "what happened in the last session?" names nothing and must not refuse (#810).
+    """
+    if not QUESTION_NAMES_A_SESSION.search(text):
+        return False
+    return named_special_session(text, legislature)
+
+
 def known_special_sessions() -> list[tuple[int, int, int, str]]:
     """Every special session we can name, as ``(legislature, ordinal, year, slug)``.
 

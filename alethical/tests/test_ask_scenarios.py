@@ -1449,3 +1449,19 @@ def test_a_declined_session_name_is_not_undone_by_the_other_resolvers(
         assert answer is None, (
             f"{phrase!r} named a session we do not hold, so nothing may answer it"
         )
+
+
+def test_saying_the_word_session_is_not_naming_one(client, monkeypatch):
+    """A reader writes "session" casually and means nothing by it.
+
+    The cross-reference resolver treats a bare "session" as naming another session,
+    because a Revisor row is terse and always does. A question is not: "what passed
+    this session?" names nothing, and reading it as a session we could not pin down
+    made every such question refuse outright (#810)."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post(
+        "/api/v1/ask", json={"content": "What's in SF 2483 this session?"}
+    ).json()["data"]["answer"]
+    assert answer is not None, "an incidental 'session' must not refuse the question"
+    assert answer["bill"]["id"] == "94-2025-SF2483"
