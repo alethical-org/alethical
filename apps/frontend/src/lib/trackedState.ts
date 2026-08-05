@@ -57,9 +57,21 @@ export function trackState({
   // A list we already have wins over a later failure: a refetch can fail while the
   // reader's real watchlist is still on screen, and that data is not wrong.
   if (hasList) return isTracked ? 'tracked' : 'untracked';
-  // Failed with nothing to fall back on. NOT "+ Track": pressing that on a bill they
-  // already track would re-save instead of remove, and the label would assert
-  // something we never checked. The outlined form asserts nothing and is pressable.
+  // Failed with nothing to fall back on. This is its own state because BOTH of the
+  // obvious shortcuts are wrong, and they are wrong for opposite reasons — worth
+  // recording both, because each one looks like a simplification from the other side:
+  //
+  //   * Holding 'checking' leaves a DEAD CONTROL. `useTrackedBills` is `retry: false`,
+  //     so one blip is permanent until something else refetches; the reader would be
+  //     left with a button they can never press and no way to recover.
+  //   * Falling back to 'untracked' leaves a FALSE CLAIM. Pressing "+ Track" on a bill
+  //     they already track re-saves instead of removing — and even once the press is
+  //     made safe by the refetch, the label still states something about the reader's
+  //     own list that we never got. A safe action does not make an unearned claim
+  //     honest (#1021, Design's reason for rejecting the fallback).
+  //
+  // So the answer is a different form, not either of these: outlined, wordless,
+  // pressable. It asserts nothing and it recovers the whole page in one press.
   if (isError) return 'unavailable';
   return 'checking';
 }
