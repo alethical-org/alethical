@@ -77,7 +77,7 @@ export function SearchPageShell({
    * Ignored. TopNav opens the one app-wide sign-in dialog itself
    * (providers/SignInModalProvider), so no screen hands it a callback any more.
    * Kept accepted, and optional, only so a screen owned by another in-flight
-   * change keeps compiling until it drops the prop — issue #1008.
+   * change keeps compiling until it drops the prop — issue #1010.
    */
   onSignIn?: () => void;
   onAsk: () => void;
