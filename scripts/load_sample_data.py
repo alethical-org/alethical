@@ -781,7 +781,76 @@ def seed_special_session_collision(session: Session, refs: dict[str, Any]) -> An
             session.add(bill)
             session.flush()
         bills[key] = bill
+        _seed_minimal_retrievable_text(session, bill, title)
     return bills
+
+
+def _seed_minimal_retrievable_text(session: Session, bill: Any, title: str) -> None:
+    """One current version, one section, one embedded chunk.
+
+    Without this the special session's HF 5 resolves and then refuses for want of a
+    passage, so a test asserting "the reader gets the education bill" would pass on
+    a refusal — which is exactly the outcome it is meant to rule out (#810). The
+    text is the bill's own title, which is enough for retrieval to have something
+    real to cite.
+    """
+    existing = session.scalar(
+        select(BillVersion).where(
+            BillVersion.bill_id == bill.id, BillVersion.is_current.is_(True)
+        )
+    )
+    if existing is not None:
+        return
+    version = BillVersion(
+        bill_id=bill.id,
+        version_code="current",
+        version_name="As introduced",
+        sequence_number=1,
+        html_url=f"{bill.official_url}/text",
+        is_current=True,
+    )
+    session.add(version)
+    session.flush()
+    section = BillVersionSection(
+        bill_version_id=version.id,
+        section_id_text="1",
+        source_order=1,
+        section_heading=title,
+        raw_text=title,
+    )
+    session.add(section)
+    session.flush()
+    rag_section = RagSectionDocument(
+        bill_id=bill.id,
+        bill_version_id=version.id,
+        bill_version_section_id=section.id,
+        citation_label=f"{bill.file_type} {bill.file_number}, Sec. 1",
+        clean_text=title,
+        search_text=title,
+        cleaning_version="sample",
+        source_hash=bill.bill_key,
+        word_count=len(title.split()),
+    )
+    session.add(rag_section)
+    session.flush()
+    chunk = RagChunk(
+        rag_section_document_id=rag_section.id,
+        chunk_index=0,
+        citation_label=rag_section.citation_label,
+        chunk_text=title,
+        search_text=title,
+        chunking_version="sample",
+        word_count=len(title.split()),
+    )
+    session.add(chunk)
+    session.flush()
+    session.add(
+        RagChunkEmbedding(
+            rag_chunk_id=chunk.id,
+            embedding_model=FALLBACK_EMBEDDING_MODEL,
+            embedding=deterministic_embedding(title),
+        )
+    )
 
 
 def seed_ai_enrichment(

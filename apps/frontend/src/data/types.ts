@@ -399,6 +399,11 @@ export interface AskAnswerBill {
   summary?: string;
   officialUrl?: string;
   policyAreas?: string[];
+  /** Which session this bill is from, served ONLY when it is not the Legislature's
+   *  regular session (#810). A special session numbers its files from 1 again, so
+   *  two cards can both read "HF 5" and mean different laws; this is what tells
+   *  them apart. Absent for every regular-session bill. */
+  sessionName?: string;
 }
 
 // One routed Ask answer (POST /api/v1/ask). `hasAnswer` is false for intents
@@ -435,6 +440,11 @@ export interface AskAnswer {
   // legislators, with totalBills carrying the underlying bill count.
   totalMatches: number;
   totalBills?: number;
+  /** Set when the list is not a topic result but the answer to a bill number that
+   *  names more than one bill ("HF 5" exists in both the regular and the first
+   *  special session). Carries the number asked about, so the page says why it is
+   *  offering a choice instead of answering (#810). */
+  ambiguousReference?: string;
   bills: AskAnswerBill[];
   legislators: AskAnswerLegislator[];
   // legislator_vote (§4.5 vote deflection): the bill the question named, if it

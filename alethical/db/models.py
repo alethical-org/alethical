@@ -5,6 +5,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import date, datetime
+from collections.abc import Sequence
 from typing import Optional
 
 from sqlalchemy import (
@@ -1454,8 +1455,24 @@ def bill_progress_rank():
     )
 
 
+def _session_scope_clause(session_id: uuid.UUID | Sequence[uuid.UUID]):
+    """Match one session, or any of several.
+
+    A question about "2025 law" spans every session of the Legislature that sat in
+    2025 — the regular one and its special session — so the Ask paths pass the whole
+    scope while every other caller keeps passing one id (#810). Kept as ``==`` for a
+    single id so the existing index plans and query logs do not change shape.
+    """
+    if isinstance(session_id, (list, tuple, set, frozenset)):
+        ids = tuple(session_id)
+        if len(ids) == 1:
+            return Bill.session_id == ids[0]
+        return Bill.session_id.in_(ids)
+    return Bill.session_id == session_id
+
+
 def bill_list_stmt(
-    session_id: uuid.UUID,
+    session_id: uuid.UUID | Sequence[uuid.UUID],
     user_id: Optional[uuid.UUID] = None,
     sort: str = "latest_action",
     text_query: Optional[str] = None,
@@ -1527,7 +1544,7 @@ def bill_list_stmt(
     return (
         select(Bill)
         .where(
-            Bill.session_id == session_id,
+            _session_scope_clause(session_id),
             # Precomputed gate (#505): identical to the
             # ``current_bill_summary_enrichment_bill_ids`` semi-join (the trigger
             # maintains the column from that exact predicate), but reads a cheap
@@ -1699,6 +1716,7 @@ def semantic_rag_chunk_stmt(
     query_embedding: list[float],
     *,
     bill_id: Optional[uuid.UUID] = None,
+    session_id: uuid.UUID | Sequence[uuid.UUID] | None = None,
     embedding_model: Optional[str] = None,
     limit: int = 10,
     max_distance: Optional[float] = None,
@@ -1735,6 +1753,15 @@ def semantic_rag_chunk_stmt(
         ).where(BillVersion.is_current.is_(True))
     if bill_id is not None:
         stmt = stmt.where(RagSectionDocument.bill_id == bill_id)
+    if session_id is not None:
+        # Applied HERE rather than by the caller, because the LIMIT above is what
+        # makes the difference: filtering afterwards means the database picks the
+        # nearest N chunks corpus-wide and the caller throws away the out-of-scope
+        # ones, so a bill outside the scope silently costs an in-scope bill its slot
+        # (#810).
+        stmt = stmt.join(Bill, Bill.id == RagSectionDocument.bill_id).where(
+            _session_scope_clause(session_id)
+        )
     if embedding_model is not None:
         stmt = stmt.where(RagChunkEmbedding.embedding_model == embedding_model)
     if max_distance is not None:

@@ -87,6 +87,12 @@ class BillListItem(BaseModel):
     file_type: str
     file_number: int
     title: str
+    # Which session this bill is from, served ONLY when it is not the Legislature's
+    # regular session (#810). A special session numbers its files from 1 again, so
+    # "HF 5" alone is not an identifier; without this a card for the special
+    # session's HF 5 would sit under the biennium's name and read as a bill it is
+    # not. Omitted for regular-session bills, which is every card today.
+    session: "AskSessionRef | None" = None
     current_status: str | None = None
     status_key: str | None = None
     latest_action_at: datetime | None = None
@@ -419,6 +425,12 @@ class AskTopicBillsAnswer(BaseModel):
     data_as_of: datetime | None
     total_matches: int
     bills: list[BillListItem]
+    # Set when this list is not a topic result at all, but the answer to a bill
+    # number that names more than one bill ("HF 5" exists in both the regular and
+    # the first special session, and they are different laws). Carries the number
+    # asked about so the page can say why it is showing two bills instead of
+    # answering — the page must not present a collision as a topic match (#810).
+    ambiguous_reference: str | None = None
 
 
 class AskLegislatorBillRef(BaseModel):

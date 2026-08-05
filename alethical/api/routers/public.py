@@ -35,6 +35,9 @@ from alethical.api.serializers import (
     sponsor_payloads,
     tracking_payload,
 )
+from alethical.api.services.legislative_sessions import (
+    named_special_session,
+)
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
     RepresentativeLookupNotFound,
@@ -49,7 +52,6 @@ from alethical.pipeline.ai_enrichment import (
     resolve_cited_section,
 )
 from alethical.pipeline.policy_area_counts import compute_policy_area_counts
-from alethical.pipeline.sessions import SESSION_DEFINITIONS, special_session_number
 
 schema = load_schema()
 Bill = schema.Bill
@@ -1490,142 +1492,6 @@ _CROSS_REFERENCE_LABEL = re.compile(r"^(?:see\b|\(non-revisor companion\))", re.
 # House/Senate file references inside that description. Leading zeros and any
 # spacing are tolerated, so "HF2446", "HF 2446" and "SF0334" all resolve.
 _FILE_REFERENCE = re.compile(r"\b(HF|SF)\s*0*(\d+)\b", re.I)
-# A description that names a session is naming a DIFFERENT one — the citing bill's
-# own session is never restated. 465 production rows qualify their file this way
-# ("First Special Session, HF 5"), and resolving those against the regular session
-# would link to the unrelated regular-session bill that happens to share the number:
-# a confidently wrong link, which is worse than the plain text we render instead.
-#
-# Until #746 those rows were skipped outright, because the bills they name were not
-# in the corpus at all. Now that they are, the row is resolved against the session it
-# NAMES instead — but only when that name maps to exactly one session we hold, and
-# never by falling back to the citing bill's session (see ``_named_special_session``).
-_OTHER_SESSION = re.compile(r"\bsession\b", re.I)
-# The session a description names. Every one of the 465 production rows names a
-# SPECIAL session; none names a different regular one, which makes sense — a regular
-# session is identified by its biennium, and these rows point sideways within one.
-#
-# Both optional groups are genuinely optional in the source data: 48 rows carry a
-# year ("2025 1st Special Session SF3, Chapter 1, …") and 417 do not
-# ("First Special Session, HF 5"), while 5 rows give no ordinal at all
-# ("See Special Session, HF5"). Missing pieces widen the candidate set rather than
-# guessing at one, and a widened set that stays ambiguous is declined.
-_NAMED_SPECIAL_SESSION = re.compile(
-    r"(?:(?P<year>(?:19|20)\d{2})\s+)?"
-    r"(?:(?P<qualifier>[A-Za-z0-9]+)\s+)?"
-    r"special\s+session\b",
-    re.I,
-)
-# Ordinals run to 7th because Minnesota has gone that far: the Revisor's own session
-# code ``7912020`` is the 91st Legislature's 2020 **7th** Special Session
-# (``special_session_number``). Listing the whole real range matters — an ordinal
-# missing from this map is treated as unrecognised and the row is declined, which is
-# the safe outcome, but only if the ones that exist are actually here.
-#
-# "frist" is not a typo of ours: 2 production rows spell it that way ("Frist Special
-# Session, HF9"). Accepting it cannot produce a wrong link, because the uniqueness
-# check still has to pass; refusing it would drop 2 real references over a
-# misspelling in the source feed.
-_SPECIAL_SESSION_ORDINALS = {
-    "first": 1,
-    "1st": 1,
-    "frist": 1,
-    "second": 2,
-    "2nd": 2,
-    "third": 3,
-    "3rd": 3,
-    "fourth": 4,
-    "4th": 4,
-    "fifth": 5,
-    "5th": 5,
-    "sixth": 6,
-    "6th": 6,
-    "seventh": 7,
-    "7th": 7,
-}
-
-
-def _known_special_sessions() -> list[tuple[int, int, int, str]]:
-    """Every special session we can name, as ``(legislature, ordinal, year, slug)``.
-
-    Read from ``SESSION_DEFINITIONS`` rather than from the database so there is one
-    source of truth for what "First Special Session" means, shared with the ingestion
-    that creates these rows. The ordinal is the discovery code's leading digit, which
-    is what ``special_session_number`` decodes.
-    """
-    return sorted(
-        {
-            (
-                definition.session_number,
-                special_session_number(code),
-                definition.year_start,
-                definition.slug,
-            )
-            for code, definition in SESSION_DEFINITIONS.items()
-            if definition.session_type == "special"
-        }
-    )
-
-
-def _named_special_session(description: str, legislature: int) -> str | None | bool:
-    """Which session slug a cross-reference names, if it names one unambiguously.
-
-    Three outcomes, deliberately distinct:
-
-    * ``False`` — the description names no session, so the caller resolves the
-      reference inside the citing bill's own session exactly as before.
-    * a slug — it names exactly one session we hold.
-    * ``None`` — it names a session we cannot pin down to exactly one. The caller
-      skips the row and it renders as plain text.
-
-    The last case is the important one, and it is why this never falls back to the
-    citing bill's session: "First Special Session, HF 5" resolved against the regular
-    session lands a reader on an unrelated tax bill instead of the K-12 education
-    finance bill they asked for (#745, #746). A link we decline to draw costs a
-    reader one click they have to make themselves; a wrong link costs them the truth.
-
-    **Candidates are confined to the citing bill's own Legislature.** A bare "First
-    Special Session" is only meaningful relative to the Legislature doing the citing,
-    and once #359 loads prior bienniums there will be several sessions answering to
-    that name. Confining the search means those can never bleed in; and if one
-    Legislature ever holds two special sessions in different years, an unqualified
-    reference to it becomes ambiguous and is declined rather than guessed.
-    """
-    if not _OTHER_SESSION.search(description):
-        return False
-    match = _NAMED_SPECIAL_SESSION.search(description)
-    if match is None:
-        # Says "session" but not in a shape we recognise. Unknown, so declined.
-        return None
-    year = int(match.group("year")) if match.group("year") else None
-    qualifier = match.group("qualifier")
-    if qualifier is None:
-        ordinal = None
-    elif qualifier.lower() in _SPECIAL_SESSION_ORDINALS:
-        ordinal = _SPECIAL_SESSION_ORDINALS[qualifier.lower()]
-    else:
-        # A word we do not recognise sits where an ordinal would. Treating that as
-        # "no ordinal given" is how a wrong link gets made: "Fourth Special Session"
-        # would fall through to the Legislature's only special session and link the
-        # first one. Unrecognised means declined.
-        #
-        # This is also why the 5 rows reading "See Special Session, HF5" stay plain
-        # text — "See" lands in the qualifier slot. Resolving them would mean the
-        # only special session of that Legislature, which the uniqueness check below
-        # would confirm, but it is not worth a lead-in word list to win 5 rows out of
-        # 465. They keep the behaviour they have today, which is correct, just not
-        # linked.
-        return None
-    candidates = {
-        slug
-        for candidate_legislature, candidate_ordinal, candidate_year, slug in (
-            _known_special_sessions()
-        )
-        if candidate_legislature == legislature
-        and (ordinal is None or candidate_ordinal == ordinal)
-        and (year is None or candidate_year == year)
-    }
-    return candidates.pop() if len(candidates) == 1 else None
 
 
 def action_cross_references(
@@ -1664,7 +1530,7 @@ def action_cross_references(
     reader somewhere plausible and wrong. Until #746 those rows were skipped
     outright because the special session was not in the corpus; now they resolve
     against it, and anything still unmappable keeps being skipped. See
-    ``_named_special_session`` for how a name is pinned to one session and why an
+    ``named_special_session`` for how a name is pinned to one session and why an
     ambiguous one is declined.
 
     One row can legitimately name files in two different sessions —
@@ -1695,7 +1561,7 @@ def action_cross_references(
     # row's files can never be resolved against a session the row did not name.
     per_action: dict[int, list[tuple[str, str, int]]] = {}
     for action_number, description in candidates:
-        named = _named_special_session(description, legislature)
+        named = named_special_session(description, legislature)
         if named is None:
             # Names a session we cannot pin to exactly one row. Stays plain text.
             continue

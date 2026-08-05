@@ -371,12 +371,18 @@ def bill_list_item(
     co_author_count: int = 0,
     include_companion: bool = False,
     effective_date: str | None = None,
+    session=None,
 ) -> api_schemas.BillListItem:
+    # ``session`` is passed only by the Ask paths, and only for a bill outside the
+    # Legislature's regular session (#810). Every other caller lists one session's
+    # bills under a heading that already names it, so serving it there would repeat
+    # the same string on every row for nothing.
     return api_schemas.BillListItem(
         id=bill.bill_key,
         file_type=bill.file_type,
         file_number=bill.file_number,
         title=bill.title,
+        session=session,
         current_status=bill.current_status,
         status_key=bill.status_key,
         latest_action_at=bill.latest_action_at,

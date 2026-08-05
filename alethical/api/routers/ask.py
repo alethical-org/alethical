@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import re
 
 from fastapi import APIRouter, Depends
@@ -33,6 +34,11 @@ from alethical.api.serializers import (
     bill_list_item,
     current_bill_summary_enrichment,
     section_chip_topic,
+)
+from alethical.api.services.legislative_sessions import (
+    LegislatureScope,
+    current_legislature_scope,
+    named_special_session,
 )
 from alethical.api.services.ask_router import (
     AskIntent,
@@ -94,6 +100,30 @@ _AUTHORSHIP_ROLES = (SponsorshipRole.chief_author, SponsorshipRole.co_author)
 _BILL_REFERENCE_RE = re.compile(r"\b([HS])\.?\s*F\.?\s*0*(\d{1,5})\b", re.IGNORECASE)
 
 
+def _scope_session_ref(scope: LegislatureScope) -> AskSessionRef:
+    """How an answer names the ground it covered.
+
+    Always the Legislature's regular session, in every answer shape. A single-bill
+    answer additionally carries the resolved bill's OWN session on the bill payload,
+    so the page can say which session that bill is from without this field ever
+    meaning two different things depending on the answer (#810).
+    """
+    return AskSessionRef(slug=scope.primary.slug, name=scope.primary.name)
+
+
+def _bill_session_ref(scope: LegislatureScope, bill) -> AskSessionRef | None:
+    """The session a single bill belongs to, for the bill payload.
+
+    ``None`` for a bill of the Legislature's regular session, which is what a reader
+    already assumes; served only when the bill comes from somewhere else, so a
+    special-session bill can never be shown under the biennium's name.
+    """
+    row = scope.by_id(bill.session_id)
+    if row is None or row.id == scope.primary.id:
+        return None
+    return AskSessionRef(slug=row.slug, name=row.name)
+
+
 def _progress_sort_key(bill):
     rank = bill.status_rank if bill.status_rank is not None else 99
     action_ts = (
@@ -102,12 +132,14 @@ def _progress_sort_key(bill):
     return (rank, -action_ts, bill.file_number, bill.bill_key)
 
 
-def _matched_bill_ids_select(session_id, topic_value: str):
-    """Bill ids matching a topic in the current session — the single predicate
+def _matched_bill_ids_select(session_ids, topic_value: str):
+    """Bill ids matching a topic in the current Legislature — the single predicate
     both topic answer paths share so their result sets stay in lockstep.
 
     A bill matches on a policy-area tag OR a title/description keyword hit,
-    restricted to current-session bills that carry an AI summary."""
+    restricted to bills of the sessions in scope that carry an AI summary. Scope is
+    every session of the Legislature sitting, not just the regular one, so a reader
+    asking about 2025 law reaches its special session too (#810)."""
     pattern = f"%{topic_value}%"
     matching_policy_area_bills = select(AIEnrichment.bill_id).where(
         AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
@@ -115,7 +147,7 @@ def _matched_bill_ids_select(session_id, topic_value: str):
         cast(AIEnrichment.content_json["policy_areas"], String).ilike(pattern),
     )
     return select(Bill.id).where(
-        Bill.session_id == session_id,
+        Bill.session_id.in_(tuple(session_ids)),
         # Precomputed gate (#505) — identical to the semi-join it replaces.
         Bill.has_current_summary.is_(True),
         or_(
@@ -127,15 +159,13 @@ def _matched_bill_ids_select(session_id, topic_value: str):
 
 
 def _topic_bills_answer(db: Session, topic: str | None) -> AskTopicBillsAnswer:
-    session_row = db.scalar(
-        select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
-    )
+    scope = current_legislature_scope(db)
     data_as_of = db.scalar(
         select(func.max(IngestionRun.finished_at)).where(
             IngestionRun.status == IngestionStatus.succeeded
         )
     )
-    session_ref = AskSessionRef(slug=session_row.slug, name=session_row.name)
+    session_ref = _scope_session_ref(scope)
 
     topic_value = (topic or "").strip()
     if len(topic_value) < _MIN_TOPIC_LENGTH:
@@ -147,8 +177,8 @@ def _topic_bills_answer(db: Session, topic: str | None) -> AskTopicBillsAnswer:
             bills=[],
         )
 
-    stmt = bill_list_stmt(session_row.id).where(
-        Bill.id.in_(_matched_bill_ids_select(session_row.id, topic_value))
+    stmt = bill_list_stmt(scope.ids).where(
+        Bill.id.in_(_matched_bill_ids_select(scope.ids, topic_value))
     )
     rows = db.scalars(stmt).all()
     ranked = sorted(rows, key=_progress_sort_key)
@@ -157,22 +187,23 @@ def _topic_bills_answer(db: Session, topic: str | None) -> AskTopicBillsAnswer:
         session=session_ref,
         data_as_of=data_as_of,
         total_matches=len(rows),
-        bills=[bill_list_item(bill) for bill in ranked[:_DISPLAY_LIMIT]],
+        bills=[
+            bill_list_item(bill, session=_bill_session_ref(scope, bill))
+            for bill in ranked[:_DISPLAY_LIMIT]
+        ],
     )
 
 
 def _topic_legislators_answer(
     db: Session, topic: str | None
 ) -> AskTopicLegislatorsAnswer:
-    session_row = db.scalar(
-        select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
-    )
+    scope = current_legislature_scope(db)
     data_as_of = db.scalar(
         select(func.max(IngestionRun.finished_at)).where(
             IngestionRun.status == IngestionStatus.succeeded
         )
     )
-    session_ref = AskSessionRef(slug=session_row.slug, name=session_row.name)
+    session_ref = _scope_session_ref(scope)
 
     topic_value = (topic or "").strip()
     empty = AskTopicLegislatorsAnswer(
@@ -186,7 +217,7 @@ def _topic_legislators_answer(
     if len(topic_value) < _MIN_TOPIC_LENGTH:
         return empty
 
-    matched_bill_ids = _matched_bill_ids_select(session_row.id, topic_value)
+    matched_bill_ids = _matched_bill_ids_select(scope.ids, topic_value)
     total_bills = db.scalar(
         select(func.count()).select_from(matched_bill_ids.subquery())
     )
@@ -221,7 +252,11 @@ def _topic_legislators_answer(
             LegislatorServicePeriod,
             and_(
                 LegislatorServicePeriod.legislator_id == Legislator.id,
-                LegislatorServicePeriod.session_id == session_row.id,
+                # The REGULAR session, deliberately, while the bills above span
+                # the whole Legislature: service periods exist only for the regular
+                # session (206 rows; zero for the special one), and this join is what
+                # supplies each author's chamber and party (#810).
+                LegislatorServicePeriod.session_id == scope.primary.id,
                 LegislatorServicePeriod.is_current.is_(True),
             ),
         )
@@ -298,6 +333,35 @@ def _topic_legislators_answer(
     )
 
 
+def _ambiguous_number_answer(
+    db: Session, scope: LegislatureScope, collisions
+) -> AskTopicBillsAnswer:
+    """The bills a colliding number names, shown instead of an answer about one.
+
+    Rendered by the same list the topic paths return, with ``ambiguous_reference``
+    set so the page says what happened rather than presenting two bills as topic
+    matches. This is the honest shape for a question we cannot resolve: the reader
+    named a number that means two different laws, and both are one click away.
+    """
+    data_as_of = db.scalar(
+        select(func.max(IngestionRun.finished_at)).where(
+            IngestionRun.status == IngestionStatus.succeeded
+        )
+    )
+    first = collisions[0]
+    return AskTopicBillsAnswer(
+        topic=None,
+        session=_scope_session_ref(scope),
+        data_as_of=data_as_of,
+        total_matches=len(collisions),
+        bills=[
+            bill_list_item(bill, session=_bill_session_ref(scope, bill))
+            for bill in collisions
+        ],
+        ambiguous_reference=f"{first.file_type} {first.file_number}",
+    )
+
+
 def _parse_bill_reference(content: str) -> tuple[str, int] | None:
     """Extract an ``(file_type, file_number)`` HF/SF citation from free text, or
     ``None``. First match wins — a vote question names at most one bill."""
@@ -307,10 +371,38 @@ def _parse_bill_reference(content: str) -> tuple[str, int] | None:
     return f"{match.group(1).upper()}F", int(match.group(2))
 
 
-def _resolve_bill(db: Session, session_id, content: str):
-    """Resolve a free-text ask to a single current-session bill by its HF/SF
-    number, or ``None`` when no number is named or none matches (§4.6). The
-    caller degrades an unresolved ask to the topic_bills list (§4.5).
+@dataclass(frozen=True)
+class _NumberMatch:
+    """What an HF/SF number in a question resolved to.
+
+    ``bill`` is the one bill it names. ``collisions`` is the set it names when the
+    number alone cannot choose between sessions — the caller shows them and lets the
+    reader pick, rather than answering about one and hoping it was the right one.
+    """
+
+    bill: object | None = None
+    collisions: tuple = ()
+
+
+def _resolve_bill(db: Session, scope: LegislatureScope, content: str) -> _NumberMatch:
+    """Resolve a free-text ask to a single bill by its HF/SF number (§4.6).
+
+    A Legislature numbers its special-session files from 1 all over again, so "HF 5"
+    names a tax bill in the 94th's regular session and the K-12 education finance act
+    in its first special session (#746). Three outcomes:
+
+    * the question names a session ("HF 5 in the first special session") — resolved
+      there, or refused when the name does not pin down exactly one session we hold;
+    * the number matches once across the Legislature — resolved, which is every one
+      of the 10,471 regular-session bills whose number the special session never
+      reused;
+    * it matches more than once — returned as collisions, NOT resolved.
+
+    That last case is why this returns a result object rather than a bill. Preferring
+    the regular session would answer about a tax bill for a reader asking about
+    schools, with every trust signal firing correctly on the wrong bill — the failure
+    #868 is named after. There is no evidence in a bare number to break the tie with,
+    so nothing here breaks it (grounded rule 1, cite or refuse).
 
     Unlike ``bill_list_stmt`` this does not require a bill-summary enrichment —
     the resolved-bill card (§9.4) is records, not a generated summary. It does
@@ -318,15 +410,34 @@ def _resolve_bill(db: Session, session_id, content: str):
     (grounded rule 1, cite-or-refuse); a bill without one degrades instead."""
     reference = _parse_bill_reference(content)
     if reference is None:
-        return None
+        return _NumberMatch()
     file_type, file_number = reference
-    stmt = select(Bill).where(
-        Bill.session_id == session_id,
-        Bill.file_type == file_type,
-        Bill.file_number == file_number,
-        Bill.official_url.isnot(None),
+    named = named_special_session(content, scope.primary.session_number)
+    if named is None:
+        # Named a session we cannot pin down to one. Refuse rather than pick.
+        return _NumberMatch()
+    session_ids = scope.ids
+    if named is not False:
+        session_ids = tuple(row.id for row in scope.sessions if row.slug == named)
+        if not session_ids:
+            return _NumberMatch()
+    matches = tuple(
+        db.scalars(
+            select(Bill)
+            .where(
+                Bill.session_id.in_(session_ids),
+                Bill.file_type == file_type,
+                Bill.file_number == file_number,
+                Bill.official_url.isnot(None),
+            )
+            .order_by(Bill.bill_key)
+        ).all()
     )
-    return db.scalars(stmt).first()
+    if len(matches) == 1:
+        return _NumberMatch(bill=matches[0])
+    if len(matches) > 1:
+        return _NumberMatch(collisions=matches)
+    return _NumberMatch()
 
 
 # Question scaffolding stripped to isolate the bill's title phrase for a fuzzy
@@ -356,7 +467,7 @@ def _bill_title_phrase(content: str) -> str | None:
     return phrase or None
 
 
-def _resolve_bill_by_title(db: Session, session_id, content: str):
+def _resolve_bill_by_title(db: Session, session_ids, content: str):
     """Fuzzy title/description match, but only a *single* confident match
     resolves (docs/product-onboarding/grounded-ask-spec.md §4.1, v1 fuzzy title match). An ambiguous
     phrase (2+ matches) or none returns ``None`` so the caller refuses rather
@@ -369,7 +480,7 @@ def _resolve_bill_by_title(db: Session, session_id, content: str):
     rows = db.scalars(
         select(Bill)
         .where(
-            Bill.session_id == session_id,
+            Bill.session_id.in_(tuple(session_ids)),
             Bill.official_url.isnot(None),
             or_(Bill.title.ilike(pattern), Bill.description.ilike(pattern)),
         )
@@ -581,7 +692,7 @@ _BILL_TEXT_RESOLVE_CANDIDATES = 6
 _BILL_TEXT_RESOLVE_MAX_DISTANCE = 0.6
 
 
-def _semantic_candidate_bills(db: Session, session_id, model: str, embedding):
+def _semantic_candidate_bills(db: Session, session_ids, model: str, embedding):
     """Top distinct current-session, citable, AI-summarized bills by best matching
     passage — the candidate pool the LLM chooses from. Real-model-only."""
     if model != DEFAULT_RAG_MODEL:
@@ -589,6 +700,10 @@ def _semantic_candidate_bills(db: Session, session_id, model: str, embedding):
     chunks = db.scalars(
         semantic_rag_chunk_stmt(
             embedding,
+            # Scoped in the QUERY, not after it: this statement takes the nearest
+            # N chunks, so filtering the results instead would let a bill outside
+            # the scope spend a slot an in-scope bill needed (#810).
+            session_id=tuple(session_ids),
             embedding_model=model,
             limit=_BILL_TEXT_RESOLVE_CHUNK_LIMIT,
             max_distance=_BILL_TEXT_RESOLVE_MAX_DISTANCE,
@@ -599,7 +714,7 @@ def _semantic_candidate_bills(db: Session, session_id, model: str, embedding):
     )
     candidates = []
     for bill_id in ordered_ids:
-        bill = db.scalar(bill_list_stmt(session_id).where(Bill.id == bill_id))
+        bill = db.scalar(bill_list_stmt(tuple(session_ids)).where(Bill.id == bill_id))
         if bill is not None and bill.official_url:
             candidates.append(bill)
         if len(candidates) >= _BILL_TEXT_RESOLVE_CANDIDATES:
@@ -607,12 +722,12 @@ def _semantic_candidate_bills(db: Session, session_id, model: str, embedding):
     return candidates
 
 
-def _resolve_bill_by_content(db: Session, session_id, model: str, content, embedding):
+def _resolve_bill_by_content(db: Session, session_ids, model: str, content, embedding):
     """Resolve a colloquial description ("the new social media law for kids") to a
     single bill when number/title resolution failed (§4.1 / #266): the LLM picks
     the best of the top semantic candidates, or none → the caller degrades /
     refuses. Real-model-only; on the hash fallback (tests) it is a no-op."""
-    candidates = _semantic_candidate_bills(db, session_id, model, embedding)
+    candidates = _semantic_candidate_bills(db, session_ids, model, embedding)
     if not candidates:
         return None
     catalog = []
@@ -705,9 +820,7 @@ def _bill_text_answer(
     with matches (§4.1 fallback); otherwise, or when the resolved bill has no
     passage, refuse (return ``None``) rather than stretch (cite-or-refuse, §4.5).
     """
-    session_row = db.scalar(
-        select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
-    )
+    scope = current_legislature_scope(db)
     model = effective_embedding_model(DEFAULT_RAG_MODEL)
     embedding = build_query_embedding(content)
     # HNSW ANN search tuning (#584). ef_search is the search-beam width; it must
@@ -716,10 +829,14 @@ def _bill_text_answer(
     # HNSW, which recovered recall and cut ~9s search latency.)
     db.execute(text("SET LOCAL hnsw.ef_search = 100"))
 
+    by_number = _resolve_bill(db, scope, content)
+    if by_number.collisions:
+        # One number, two bills, no evidence to choose. Hand the reader both.
+        return _ambiguous_number_answer(db, scope, by_number.collisions)
     resolved = (
-        _resolve_bill(db, session_row.id, content)
-        or _resolve_bill_by_title(db, session_row.id, content)
-        or _resolve_bill_by_content(db, session_row.id, model, content, embedding)
+        by_number.bill
+        or _resolve_bill_by_title(db, scope.ids, content)
+        or _resolve_bill_by_content(db, scope.ids, model, content, embedding)
     )
     if resolved is None:
         phrase = _bill_title_phrase(content)
@@ -767,8 +884,8 @@ def _bill_text_answer(
     return AskBillTextAnswer(
         answer=prose,
         citations=citations,
-        bill=bill_list_item(resolved),
-        session=AskSessionRef(slug=session_row.slug, name=session_row.name),
+        bill=bill_list_item(resolved, session=_bill_session_ref(scope, resolved)),
+        session=_scope_session_ref(scope),
         data_as_of=data_as_of,
         coverage=(
             AskPassageCoverage(
@@ -796,22 +913,29 @@ def _vote_deflection_answer(
     the frontend can deep-link the Votes tab (§9.3); otherwise degrade to the
     cited topic_bills list. No tallies or vote positions in either shape — those
     are records on the Votes tab, not a generated answer (grounded rule 4)."""
-    session_row = db.scalar(
-        select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
-    )
+    scope = current_legislature_scope(db)
     data_as_of = db.scalar(
         select(func.max(IngestionRun.finished_at)).where(
             IngestionRun.status == IngestionStatus.succeeded
         )
     )
-    session_ref = AskSessionRef(slug=session_row.slug, name=session_row.name)
+    session_ref = _scope_session_ref(scope)
 
-    resolved = _resolve_bill(db, session_row.id, content)
-    if resolved is not None:
+    by_number = _resolve_bill(db, scope, content)
+    if by_number.collisions:
         return AskVoteDeflectionAnswer(
             session=session_ref,
             data_as_of=data_as_of,
-            resolved_bill=bill_list_item(resolved),
+            resolved_bill=None,
+            topic_bills=_ambiguous_number_answer(db, scope, by_number.collisions),
+        )
+    if by_number.bill is not None:
+        return AskVoteDeflectionAnswer(
+            session=session_ref,
+            data_as_of=data_as_of,
+            resolved_bill=bill_list_item(
+                by_number.bill, session=_bill_session_ref(scope, by_number.bill)
+            ),
             topic_bills=None,
         )
     return AskVoteDeflectionAnswer(
