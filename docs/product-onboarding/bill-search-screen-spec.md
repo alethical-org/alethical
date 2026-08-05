@@ -218,8 +218,9 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   The Track button is functional: it renders as a solid **ink** fill (background `#11150f`,
   white label with a leading "+" that flips to a check when tracked, 1px `#11150f` border,
   radius 10px, hovering to `#2c322c`) via the shared `BillTrackButton` (`useBillTracking`),
-  used identically on the answer/bill rail cards and home. A signed-out tap routes through
-  sign-in and returns to the bill at `?track=1` to complete the track; signed in it toggles
+  used identically on the answer/bill rail cards and home. A signed-out tap opens the shared
+  sign-in dialog naming this bill (`components/auth/SignInDialog.tsx`, [#1006](https://github.com/alethical-org/alethical/issues/1006)),
+  then returns to the bill at `?track=1` to complete the track; signed in it toggles
   the bill on the watchlist and reads "Tracked". This reverses the Jul 2026 roadmap-preview
   decision, where the button was an inert `aria-disabled` preview. Ink is the color role
   reserved for Track (green stays for other forward actions). The Track **nav** dropdown

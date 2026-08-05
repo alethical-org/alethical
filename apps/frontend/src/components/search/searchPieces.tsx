@@ -60,7 +60,6 @@ export function SearchPageShell({
   onOpenMenuChange,
   onNavigate,
   onHome,
-  onSignIn,
   onAsk,
   onPrivacy,
   onTerms,
@@ -74,7 +73,13 @@ export function SearchPageShell({
   onOpenMenuChange: (menu: MenuKey | null) => void;
   onNavigate: (item: IaItem) => void;
   onHome?: () => void;
-  onSignIn: () => void;
+  /**
+   * Ignored. TopNav opens the one app-wide sign-in dialog itself
+   * (providers/SignInModalProvider), so no screen hands it a callback any more.
+   * Kept accepted, and optional, only so a screen owned by another in-flight
+   * change keeps compiling until it drops the prop — issue #1010.
+   */
+  onSignIn?: () => void;
   onAsk: () => void;
   onPrivacy?: () => void;
   onTerms?: () => void;
@@ -122,7 +127,6 @@ export function SearchPageShell({
               onOpenMenuChange={onOpenMenuChange}
               onNavigate={onNavigate}
               onHome={onHome}
-              onSignIn={onSignIn}
               onAsk={onAsk}
             />
 

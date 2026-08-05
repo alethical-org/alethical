@@ -88,6 +88,15 @@ const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> 
   Chat: { label: 'Chat', Icon: MessageSquareText },
   Account: { label: 'Account', Icon: UserCircle },
 };
+/**
+ * The tabs a person can actually reach from the sidebar and the phone tab row.
+ * Chat and Account are deliberately absent: both are pre-redesign screens wired
+ * to fixture data, and now that signing in works, a link to either would land
+ * someone on a page we stopped maintaining. Their URLs already redirect Home
+ * (navigation/webRoutes.ts), and the bill-scoped chat is untouched — it opens
+ * from a bill page, not from a tab (grounded-answers.md rule 8).
+ */
+const VISIBLE_TABS: ReadonlySet<keyof MainTabParamList> = new Set(['Home', 'Tracked']);
 const railRoutes: Array<{
   name: RailRouteName;
   label: string;
@@ -109,16 +118,6 @@ const railRoutes: Array<{
     name: 'Tracked',
     ...tabMeta.Tracked,
     navigate: () => navigationRef.navigate('Tabs', { screen: 'Tracked' }),
-  },
-  {
-    name: 'Chat',
-    ...tabMeta.Chat,
-    navigate: () => navigationRef.navigate('Tabs', { screen: 'Chat' }),
-  },
-  {
-    name: 'Account',
-    ...tabMeta.Account,
-    navigate: () => navigationRef.navigate('Tabs', { screen: 'Account' }),
   },
 ];
 
@@ -210,7 +209,9 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: RailRouteName }) {
 
 function MobileTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const routes = state.routes;
+  const routes = state.routes.filter((route) =>
+    VISIBLE_TABS.has(route.name as keyof MainTabParamList),
+  );
 
   return (
     <View
@@ -260,11 +261,11 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-// Sign-in isn't available yet (no post-login experience shipped), so the site
-// root always renders the v2 marketing home (full-bleed, with its own TopNav —
-// see #143), regardless of auth state — including a stale signed-in session
-// from earlier testing. While the session restores, render nothing rather
-// than flashing the wrong home.
+// The site root always renders the v2 marketing home (full-bleed, with its own
+// TopNav — see #143), signed in or out. Signing in works now (#1006), but a
+// signed-in home page is not built, so there is nothing else to send anyone to;
+// what changes when you sign in is the nav's account control, not this page.
+// While the session restores, render nothing rather than flashing the wrong home.
 function HomeRoute(_props: MainTabScreenProps<'Home'>) {
   const { isLoading } = useAuth();
   if (isLoading) {

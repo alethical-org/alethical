@@ -60,7 +60,6 @@ const REVISOR_SESSION_CODE = '0942025';
 export function LegislatorProfileWebScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { signInWithGoogle } = useAuth();
   const { isDesktop } = useResponsive();
 
   const legislatorId = String(route.params?.legislatorId ?? '');
@@ -128,7 +127,6 @@ export function LegislatorProfileWebScreen() {
       onOpenMenuChange={setOpenMenu}
       onNavigate={handleNavigate}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-      onSignIn={() => void signInWithGoogle()}
       onAsk={() => navigation.navigate('Ask')}
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}

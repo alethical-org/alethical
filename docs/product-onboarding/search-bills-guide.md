@@ -101,9 +101,9 @@ Above the list you always see:
 - **A votes link** when there were recorded votes, taking you straight to how
   everyone voted.
 - **A black "+ Track" button** on desktop. Click it to save the bill to your
-  watchlist; if you are not signed in, it takes you to sign-in first and finishes
-  saving the bill when you come back. Once saved, it reads "Tracked". It doesn't
-  appear on a phone.
+  watchlist; if you are not signed in, a box opens asking you to sign in with
+  Google and naming the bill, and the bill is saved for you when you come back.
+  Once saved, it reads "Tracked". It doesn't appear on a phone.
 
 Tap a card to open the full bill; results are split into pages with Previous / Next.
 

@@ -290,7 +290,6 @@ function BackToBill({
 
 export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const question = route.params?.q?.trim() ?? '';
-  const { signInWithGoogle } = useAuth();
   const { isTracked, toggleTrack } = useBillTracking();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const { isDesktop } = useResponsive();
@@ -519,7 +518,6 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       onOpenMenuChange={setOpenMenu}
       onNavigate={handleNavigate}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-      onSignIn={() => void signInWithGoogle()}
       // The shell passes variant="home" to the nav, which hides the ✦ Ask entry —
       // right here, where there is deliberately nothing to type into.
       onAsk={() => navigation.navigate('Ask', {})}

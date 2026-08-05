@@ -34,7 +34,7 @@ const LEGACY_TAB_PARAMS: Record<string, DetailTab> = { fulltext: 'text' };
 export function BillDetailWebScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { signInWithGoogle, isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth();
   const { isDesktop } = useResponsive();
 
   const billId = String(route.params?.billId ?? '');
@@ -54,7 +54,7 @@ export function BillDetailWebScreen() {
   const { trackedIds, isTracked, toggleTrack, trackedLoading } = useBillTracking();
   const tracked = bill ? isTracked(bill.id) : false;
   const onTrack = () => {
-    if (bill) toggleTrack(bill.id);
+    if (bill) toggleTrack(bill.id, bill.identifier);
   };
 
   // Intent-preserving track: a signed-out user who tapped Track returns here with
@@ -127,7 +127,6 @@ export function BillDetailWebScreen() {
       onOpenMenuChange={setOpenMenu}
       onNavigate={handleNavigate}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-      onSignIn={() => void signInWithGoogle()}
       onAsk={() => navigation.navigate('Ask')}
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}

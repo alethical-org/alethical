@@ -16,7 +16,6 @@ import {
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { fieldFocusRing } from '../../theme/fieldFocus';
-import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { useBill, useBills } from '../../hooks/useAppQueries';
@@ -450,7 +449,6 @@ export function HomeSignedOutScreen() {
 
 function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
-  const { signInWithGoogle } = useAuth();
   const { isTracked, toggleTrack } = useBillTracking();
   const { isDesktop, isMobile } = useResponsive();
   // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
@@ -480,8 +478,6 @@ function HomeSignedOutDesktop() {
   const [finderFocused, setFinderFocused] = useState(false);
   const [finderValue, setFinderValue] = useState('');
   const finderInputRef = useRef<TextInput>(null);
-
-  const signIn = () => void signInWithGoogle();
   // Find hands the typed address to Find My Legislator, which looks it up on
   // arrival (#873). Empty field focuses instead of navigating, same as Ask above.
   const openFinder = () => {
@@ -558,7 +554,6 @@ function HomeSignedOutDesktop() {
               onOpenMenuChange={setOpenMenu}
               onNavigate={handleNavigate}
               onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-              onSignIn={signIn}
             />
 
             <Container style={styles.heroBody}>
@@ -1026,7 +1021,6 @@ function SkeletonCard({ lines }: { lines: number }) {
 
 function HomeSignedOutMobile() {
   const navigation = useNavigation<any>();
-  const { signInWithGoogle } = useAuth();
   const [finderFocused, setFinderFocused] = useState(false);
   const [finderValue, setFinderValue] = useState('');
   const finderInputRef = useRef<TextInput>(null);
@@ -1060,8 +1054,6 @@ function HomeSignedOutMobile() {
     { limit: 2 },
     { enabled: isFocused },
   );
-
-  const signIn = () => void signInWithGoogle();
   // Bill detail ships as the redesigned mobile screen, so every bill card on this
   // page (In the News, Bill Activity) routes there — same target as the desktop
   // variant's cards above and Search Bills' result cards.
@@ -1159,7 +1151,6 @@ function HomeSignedOutMobile() {
                 }
               }}
               onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-              onSignIn={signIn}
             />
 
             {/* HERO COPY (headline + subhead only — no ask field) */}

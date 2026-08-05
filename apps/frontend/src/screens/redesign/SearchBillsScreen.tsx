@@ -103,7 +103,6 @@ const SORT_TO_API: Record<SortKey, 'relevance' | 'progress' | 'latest_action'> =
 export function SearchBillsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { signInWithGoogle } = useAuth();
   const { isDesktop } = useResponsive();
   const { isTracked, toggleTrack } = useBillTracking();
   const { scrollAnchorProps, onPageChange } = usePaginatedListScroll();
@@ -453,7 +452,6 @@ export function SearchBillsScreen() {
       onOpenMenuChange={setOpenMenu}
       onNavigate={handleNavigate}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-      onSignIn={() => void signInWithGoogle()}
       onAsk={() => navigation.navigate('Ask')}
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}
@@ -515,7 +513,7 @@ export function SearchBillsScreen() {
                 // uncluttered (desktop keeps it).
                 showTrackButton={isDesktop}
                 tracked={isTracked(bill.id)}
-                onToggleTrack={() => toggleTrack(bill.id)}
+                onToggleTrack={() => toggleTrack(bill.id, bill.identifier)}
                 // Bill detail now ships as the redesigned mobile screen, so the
                 // card routes there (and roll-calls deep-link to its Votes
                 // section).

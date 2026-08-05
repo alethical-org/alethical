@@ -1,10 +1,19 @@
-import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { Platform } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Session } from '@supabase/supabase-js';
 
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { SignInErrorKind, signInErrorKind } from '../lib/signIn';
 
 interface AuthUser {
   id: string;
@@ -19,6 +28,12 @@ interface AuthContextValue {
   user: AuthUser | null;
   accessToken: string | null;
   authError: string | null;
+  /**
+   * Whether the last failure was the person backing out of Google or something
+   * actually going wrong. The sign-in dialog words the two differently, and the
+   * raw provider message can't tell them apart.
+   */
+  authErrorKind: SignInErrorKind | null;
   signInWithGoogle: (returnTo?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -71,6 +86,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authErrorKind, setAuthErrorKind] = useState<SignInErrorKind | null>(null);
+
+  // Every failure path sets both, so a caller never has to guess the kind from
+  // the wording of a provider message.
+  const failWith = useCallback((message: string, kind: SignInErrorKind = 'failed') => {
+    setAuthError(message);
+    setAuthErrorKind(kind);
+  }, []);
+
+  const clearAuthError = useCallback(() => {
+    setAuthError(null);
+    setAuthErrorKind(null);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -80,7 +108,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
       if (error) {
-        setAuthError(error.message);
+        failWith(error.message);
       }
       setSession(data.session);
       setIsLoading(false);
@@ -89,14 +117,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setIsLoading(false);
-      setAuthError(null);
+      clearAuthError();
     });
 
     return () => {
       mounted = false;
       data.subscription.unsubscribe();
     };
-  }, []);
+  }, [clearAuthError, failWith]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -106,11 +134,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
       user: userFromSession(session),
       accessToken: session?.access_token ?? null,
       authError,
+      authErrorKind,
       signInWithGoogle: async (returnTo?: string) => {
-        setAuthError(null);
+        clearAuthError();
 
         if (!isSupabaseConfigured) {
-          setAuthError('Supabase is not configured for this app environment.');
+          failWith('Supabase is not configured for this app environment.');
           return;
         }
 
@@ -124,7 +153,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         });
 
         if (error) {
-          setAuthError(error.message);
+          failWith(error.message);
           return;
         }
 
@@ -133,12 +162,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
 
         if (!data.url) {
-          setAuthError('Supabase did not return a Google sign-in URL.');
+          failWith('Supabase did not return a Google sign-in URL.');
           return;
         }
 
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+        // Dismissing the Google sheet used to return here silently, which left
+        // anything waiting on the result — the sign-in dialog — spinning forever.
         if (result.type !== 'success') {
+          failWith('The Google sign-in window closed before sign-in finished.', 'cancelled');
           return;
         }
 
@@ -146,32 +178,35 @@ export function AuthProvider({ children }: PropsWithChildren) {
           getCallbackParam(result.url, 'error_description') ??
           getCallbackParam(result.url, 'error');
         if (callbackError) {
-          setAuthError(callbackError);
+          failWith(
+            callbackError,
+            signInErrorKind(getCallbackParam(result.url, 'error') ?? callbackError),
+          );
           return;
         }
 
         const authCode = getCallbackParam(result.url, 'code');
         if (!authCode) {
-          setAuthError('Supabase did not return an auth code.');
+          failWith('Supabase did not return an auth code.');
           return;
         }
 
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
         if (exchangeError) {
-          setAuthError(exchangeError.message);
+          failWith(exchangeError.message);
         }
       },
       signOut: async () => {
-        setAuthError(null);
+        clearAuthError();
         const { error } = await supabase.auth.signOut();
         if (error) {
-          setAuthError(error.message);
+          failWith(error.message);
           return;
         }
         setSession(null);
       },
     }),
-    [authError, isLoading, session],
+    [authError, authErrorKind, clearAuthError, failWith, isLoading, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
