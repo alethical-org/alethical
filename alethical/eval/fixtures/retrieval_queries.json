@@ -23,7 +23,7 @@
       "accept_companion": true,
       "companion_bill_key": "94-2025-SF3197",
       "phrasing_type": "colloquial",
-      "why_this_bill": "Only bill titled 'establishing an excise tax on certain social media platform businesses' (new chapter 295) — a tax mechanism, distinct from all the consumer-protection social-media bills."
+      "why_this_bill": "Only bill titled 'establishing an excise tax on certain social media platform businesses' (new chapter 295) \u2014 a tax mechanism, distinct from all the consumer-protection social-media bills."
     },
     {
       "question": "Is there a proposal to make social media apps show a mental health warning and time-use reminders?",
@@ -39,7 +39,7 @@
       "accept_companion": true,
       "companion_bill_key": "94-2026-SF5233",
       "phrasing_type": "colloquial",
-      "why_this_bill": "Uniquely 'reduction to local government aid to a county or city that uses the incorrect state flag' (new chapter 477A) — a one-of-a-kind mechanism."
+      "why_this_bill": "Uniquely 'reduction to local government aid to a county or city that uses the incorrect state flag' (new chapter 477A) \u2014 a one-of-a-kind mechanism."
     },
     {
       "question": "Is there a bill letting renters fix problems themselves and take it out of the rent?",
@@ -63,7 +63,7 @@
       "accept_companion": true,
       "companion_bill_key": "94-2025-SF2908",
       "phrasing_type": "colloquial",
-      "why_this_bill": "Uniquely 'prohibiting certain sex offenders from accessing social media platforms' (amends 243.055) — a public-safety mechanism distinct from the consumer-protection social-media bills."
+      "why_this_bill": "Uniquely 'prohibiting certain sex offenders from accessing social media platforms' (amends 243.055) \u2014 a public-safety mechanism distinct from the consumer-protection social-media bills."
     },
     {
       "question": "What is the Minnesota Age-Appropriate Design Code Act?",
@@ -71,7 +71,7 @@
       "accept_companion": true,
       "companion_bill_key": "94-2026-SF4574",
       "phrasing_type": "named_act",
-      "why_this_bill": "Title verbatim names 'creating the Minnesota Age-Appropriate Design Code Act' — a distinctive named act (children's online privacy / high-privacy defaults)."
+      "why_this_bill": "Title verbatim names 'creating the Minnesota Age-Appropriate Design Code Act' \u2014 a distinctive named act (children's online privacy / high-privacy defaults)."
     },
     {
       "question": "What does the reproductive health equity grant fund bill do?",
@@ -103,7 +103,7 @@
       "accept_companion": false,
       "companion_bill_key": null,
       "phrasing_type": "exact_term",
-      "why_this_bill": "The only sports-betting bill that 'proposing an amendment to the Minnesota Constitution ... authorizing sports betting if conducted by a horse racing track or Indian Tribe' — a distinct constitutional-amendment route versus the statutory-licensing sports-betting bills."
+      "why_this_bill": "The only sports-betting bill that 'proposing an amendment to the Minnesota Constitution ... authorizing sports betting if conducted by a horse racing track or Indian Tribe' \u2014 a distinct constitutional-amendment route versus the statutory-licensing sports-betting bills."
     },
     {
       "question": "Is there a bill banning step therapy for insulin?",
@@ -160,6 +160,13 @@
       "companion_bill_key": "94-2025-SF1756",
       "phrasing_type": "informal",
       "why_this_bill": "Uniquely 'appropriating money for the Minnesota Helmets to Hardhats program' (grant to Building Strong Communities). 'Helmets to Hardhats' is a distinctive named program."
+    },
+    {
+      "question": "What's in the special session K-12 education funding law?",
+      "expected_bill_key": "94-2025s1-HF5",
+      "accept_companion": false,
+      "phrasing_type": "colloquial",
+      "why_this_bill": "The 2025 first special session's PreK-12 education funding and policy act, signed into law. Added with #810, which made the special session answerable at all: until then every Ask path scoped to the regular session, so this question could only refuse. It is also the collision case -- the regular session's HF 5 is a tax bill -- so a run that returns 94-2025-HF5 here has resolved the wrong law, not merely missed. FAILS TODAY at rank 10 of 25, outside the 6-candidate window the resolver reads, measured against production Aug 2026 \u2014 the bill is now reachable where before #810 it was absent from the corpus search entirely, but description-based resolution does not yet surface it. That is a retrieval-ranking gap (#400), not a scoping one."
     }
   ]
 }

@@ -1513,3 +1513,44 @@ def test_a_question_about_another_legislature_is_refused(client, monkeypatch):
         },
     ).json()["data"]["answer"]
     assert answer is None or answer.get("bill", {}).get("id") != "94-2025s1-HF5"
+
+
+def test_the_semantic_search_is_scoped_in_the_query_not_after_it():
+    """The acceptance tests above run on the fallback embedding model, where the
+    semantic step returns nothing — so none of them would notice if the session
+    filter were dropped from it. This checks the statement itself.
+
+    It has to be IN the query: the statement takes the nearest N chunks, so a filter
+    applied to the results instead lets a bill outside the scope spend a slot an
+    in-scope bill needed (#810)."""
+    import uuid as _uuid
+
+    from alethical.db.schema import load_schema
+
+    schema = load_schema()
+    one, two = _uuid.uuid4(), _uuid.uuid4()
+    scoped = str(schema.semantic_rag_chunk_stmt([0.1] * 1536, session_id=(one, two)))
+    assert "JOIN bill ON" in scoped, "the scope must be joined into the statement"
+    assert "bill.session_id IN" in scoped
+    assert "LIMIT" in scoped
+    assert scoped.index("bill.session_id IN") < scoped.index("LIMIT"), (
+        "the filter has to be applied before the row limit, or it is not a scope"
+    )
+    # And it stays absent when nothing asked for it, so bill-scoped chat and the
+    # coverage count are untouched.
+    unscoped = str(schema.semantic_rag_chunk_stmt([0.1] * 1536))
+    assert "JOIN bill ON" not in unscoped
+
+
+def test_one_session_still_compares_by_equality():
+    """`bill_list_stmt` is on every bill list in the product. A single id must keep
+    producing the query it always did, so its index plans do not change (#810)."""
+    import uuid as _uuid
+
+    from alethical.db.schema import load_schema
+
+    schema = load_schema()
+    one, two = _uuid.uuid4(), _uuid.uuid4()
+    assert "bill.session_id = " in str(schema.bill_list_stmt(one))
+    assert "bill.session_id = " in str(schema.bill_list_stmt([one]))
+    assert "bill.session_id IN" in str(schema.bill_list_stmt([one, two]))
