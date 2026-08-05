@@ -270,9 +270,29 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   on the tracked-bills page because **that sentence is only true where the bills came from a
   different request.** On this screen it is exactly true. On the tracked page it is false —
   the saved list *is* the page, so a failure leaves nothing to render, and
-  `TrackedBillsScreen` already shows its own full-page message instead. Whether the notice
-  belongs on the bill page, the home feed and the Ask answer card too is with Design; the
-  outlined button alone asserts nothing there, so nothing dishonest ships without it.
+  `TrackedBillsScreen` already shows its own full-page message instead.
+- **This screen is the ONLY one that carries it, decided Aug 2026 — do not add it elsewhere.**
+  Two conditions have to hold together for that sentence to earn its place, and only this
+  screen meets both: the bills arrived from a *different* request than the saved list (so
+  "everything about the bills themselves loaded normally" is true), **and** the reader is
+  scanning *many* bills, where a column of outlined buttons could be misread as "these bills
+  failed" rather than "my list didn't load". The notice exists to disambiguate a wall of quiet
+  buttons, and its plural wording only fits a list. Why each of the others is excluded:
+  - **A bill's own page** — one bill, one button. Nothing to misread, and the list-framed copy
+    reads wrong beside a single bill. The outlined refresh glyph is self-explanatory there.
+  - **Ask answer pages** — the answer and its cited bills are the point; tracking is an
+    incidental overlay on one or a few bills. Same copy mismatch.
+  - **The home feed** — the closest call, and the only other multi-button case. Still excluded:
+    bill activity is a browse-and-discover strip, not a list-management surface, so a
+    page-level failure strip over-weights an incidental miss and competes with the hero. The
+    homepage's real saved-list surface is the Session watch card, so a failed lookup belongs
+    *in that card* in its own context. Never state "your list is missing" twice on one screen.
+  - **The tracked-bills page** — the list *is* the page, so it owns the whole-page failure
+    message (above).
+  Reconsider **only** the home feed, and only on evidence that readers are confused by several
+  outlined buttons there. If it is ever added, attach it to the bill-activity *section header*
+  rather than the page top, and suppress it whenever the Session watch card is already telling
+  the failure story.
 - **Track stays off this screen's phone layout — and that is now a choice this screen makes,
   not something the card lacks** ([#1007](https://github.com/alethical-org/alethical/issues/1007)).
   `BillResultCard`'s phone layout used to render no Track control at all, so every surface
