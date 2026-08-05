@@ -1828,6 +1828,24 @@ export async function listTrackedBillsFromApi(
  *  Read and advance are one call because they must not interleave: two tabs, or a
  *  retry, could otherwise hand the second caller a mark it had just written, and
  *  the page would say nothing had moved. */
+/** When this reader last opened their tracked list, WITHOUT advancing the mark.
+ *
+ *  For a surface that shows only some of what moved (#1034). Advancing on a glance
+ *  that displayed two of six moved bills would consume the other four unseen, so
+ *  only the tracked list itself advances; everything else uses this.
+ *
+ *  `null` means no recorded visit yet — NOT "nothing has moved". */
+export async function readTrackedBillsLastViewedFromApi(
+  accessToken: string,
+): Promise<string | null> {
+  const response = await apiRequest<DetailResponse<{ last_viewed_at: string | null }>>(
+    '/me/tracked-bills/last-viewed',
+    { method: 'GET' },
+    accessToken,
+  );
+  return response.data?.last_viewed_at ?? null;
+}
+
 export async function markTrackedBillsViewedFromApi(accessToken: string): Promise<string | null> {
   const response = await apiRequest<DetailResponse<{ previous_viewed_at: string | null }>>(
     '/me/tracked-bills/viewed',

@@ -29,7 +29,9 @@ import {
 } from '../trackedBillsChanges';
 import {
   forgetHeldLastVisits,
+  hasAdvancedThisSession,
   holdLastVisit,
+  markAdvancedThisSession,
   lastVisitFrom,
   readHeldLastVisit,
 } from '../trackedBillsLastVisit';
@@ -431,6 +433,38 @@ describe('the comparison point survives a refresh', () => {
       state: 'previous-visit',
       at: new Date('2026-03-12T14:00:00Z'),
     });
+  });
+
+  it('keeps "already advanced" apart from "a value is held" (#1034)', () => {
+    // Holding a comparison point and having advanced the mark are two facts. The
+    // homepage holds the first by READING; if that counted as the second, the
+    // tracked list would skip its write and the server's mark would never move
+    // again for this browser session.
+    (globalThis as { window?: unknown }).window = { sessionStorage: fakeStorage() };
+    holdLastVisit('user-1', '2026-03-12T14:00:00Z');
+    expect(readHeldLastVisit('user-1')).toBe('2026-03-12T14:00:00Z');
+    expect(hasAdvancedThisSession('user-1')).toBe(false);
+
+    markAdvancedThisSession('user-1');
+    expect(hasAdvancedThisSession('user-1')).toBe(true);
+  });
+
+  it('remembers the advance across a reload, so a refresh does not advance again', () => {
+    (globalThis as { window?: unknown }).window = { sessionStorage: fakeStorage() };
+    markAdvancedThisSession('user-1');
+    forgetHeldLastVisits(); // the reload
+    expect(hasAdvancedThisSession('user-1')).toBe(true);
+  });
+
+  it('keeps the advance flag per reader, like the mark itself', () => {
+    (globalThis as { window?: unknown }).window = { sessionStorage: fakeStorage() };
+    markAdvancedThisSession('user-1');
+    expect(hasAdvancedThisSession('user-2')).toBe(false);
+  });
+
+  it('starts a fresh browser session having advanced nothing', () => {
+    // No sessionStorage at all (native, or a genuinely new session).
+    expect(hasAdvancedThisSession('user-1')).toBe(false);
   });
 
   it('treats a mark it cannot read as not-checked, never as a first visit', () => {

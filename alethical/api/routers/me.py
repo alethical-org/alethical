@@ -625,6 +625,24 @@ def tracked_bills(
     )
 
 
+@router.get("/me/tracked-bills/last-viewed", response_model=DetailResponse)
+def read_tracked_bills_last_viewed(current_user=Depends(get_current_user)):
+    """When this user last opened the tracked-bills page, WITHOUT advancing the mark.
+
+    The read-only sibling of the POST below, for a surface that shows a *subset* of
+    what moved (#1034, the signed-in homepage's Session watch card). That card shows
+    up to two bills; if a glance at it advanced the mark for the whole set, someone
+    with six moved bills would see two and the other four would never be reported.
+    So only the tracked list itself advances the mark, and everything else reads.
+
+    ``null`` means no recorded visit yet. It does NOT mean "nothing has moved": a
+    caller must tell the two apart, which is what ``LastVisit`` in
+    ``apps/frontend/src/lib/trackedBillsChanges.ts`` exists to force (#1026).
+    """
+    at = current_user.tracked_bills_last_viewed_at
+    return DetailResponse(data={"last_viewed_at": at.isoformat() if at else None})
+
+
 @router.post("/me/tracked-bills/viewed", response_model=DetailResponse)
 def mark_tracked_bills_viewed(
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
