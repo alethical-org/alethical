@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Sora:wght@500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  #finder-field:focus-within{border-color:#5b30d6 !important;box-shadow:0 0 0 4px rgba(91,48,214,0.14);}
+  /* a11y: keyboard focus ring — WCAG 2.4.7 + 1.4.11 (visible on light & dark) */
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[tabindex]:focus-visible,[role="button"]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}
+  #finder-field input:focus-visible,[data-glow-field] input:focus-visible,[data-glow-field] textarea:focus-visible{outline:none !important;}
+  #bill-badge:hover{text-decoration:underline !important;}
+  a[data-tlink]:hover{color:#0f7a45 !important;text-decoration:underline !important;}
+  a[data-capcard]:hover{border-color:#2ed47e !important;box-shadow:0 0 0 3px rgba(46,212,126,0.12), 0 0 14px rgba(46,212,126,0.32) !important;}
+</style>
+</helmet>
+<div style="width:1600px;min-height:1120px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;position:relative;overflow:hidden;">
+
+  <!-- CLICK-AWAY BACKDROP (search menu) -->
+  <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ true }}">
+  <div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:50;"></div>
+  </sc-if>
+
+  <!-- HERO WRAPPER (light, grid) -->
+  <div style="position:relative;padding:0;background:linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%);">
+
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px);background-size:30px 30px;pointer-events:none;-webkit-mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);"></div>
+
+    <!-- NAV (signed out) -->
+    <nav data-screen-label="Nav" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:26px 56px 0;">
+      <a href="#" style="display:flex;align-items:center;gap:16px;text-decoration:none;">
+        <svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex:none;">
+          <rect x="15" y="29" width="7.5" height="21" rx="3.75" fill="#11150f"></rect>
+          <rect x="28.25" y="15" width="7.5" height="35" rx="3.75" fill="#11150f"></rect>
+          <rect x="41.5" y="35" width="7.5" height="15" rx="3.75" fill="#11150f"></rect>
+        </svg>
+        <span style="font-weight:600;font-size:25px;letter-spacing:0.16em;color:#11150f;">ALETHICAL</span>
+      </a>
+      <div style="display:flex;align-items:center;gap:30px;">
+        <div style="display:flex;align-items:center;gap:34px;">
+          <div style="position:relative;z-index:60;">
+            <a href="#" onClick="{{ toggleSearch }}" style="display:inline-flex;align-items:center;text-decoration:none;font-size:18px;font-weight:500;cursor:pointer;color:#4b524b;position:relative;outline:none;-webkit-tap-highlight-color:transparent;" style-hover="color:#11150f;">
+              <sc-if value="{{ searchClosed }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:8px;">Search<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></sc-if>
+              <sc-if value="{{ searchOpen }}"><span style="display:inline-flex;align-items:center;gap:8px;color:#149d5b;">Search<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 15 L12 9 L18 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></sc-if>
+            </a>
+            <sc-if value="{{ searchOpen }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;top:calc(100% + 30px);left:50%;transform:translateX(-50%);width:452px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:16px;box-shadow:0 1px 2px rgba(17,21,15,0.10), 0 12px 26px rgba(17,21,15,0.16), 0 40px 80px rgba(17,21,15,0.32);padding:10px;z-index:60;">
+              <div style="position:absolute;top:-8px;left:50%;width:15px;height:15px;background:#ffffff;border-left:1px solid rgba(17,21,15,0.14);border-top:1px solid rgba(17,21,15,0.14);transform:translateX(-50%) rotate(45deg);"></div>
+              <div style="position:relative;display:flex;flex-direction:column;gap:6px;">
+
+                <!-- Bills -->
+                <a href="#" onClick="{{ toggleSearch }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;text-decoration:none;" style-hover="background:rgba(17,21,15,0.05);">
+                  <span style="width:40px;height:40px;border-radius:10px;background:#e4f8ee;display:flex;align-items:center;justify-content:center;flex:none;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M8 3h6l4 4v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="#149d5b" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v4h4M10 12h5M10 16h4" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:18px;font-weight:700;color:#11150f;">Bills</div>
+                    <div style="margin-top:3px;font-size:14px;color:#6b716b;line-height:1.35;text-wrap:pretty;">Make sense of any bill — grounded in the source</div>
+                  </div>
+                </a>
+
+                <!-- Search Legislators -->
+                <a href="#" onClick="{{ toggleSearch }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;text-decoration:none;" style-hover="background:rgba(17,21,15,0.05);">
+                  <span style="width:40px;height:40px;border-radius:10px;background:#e4f8ee;display:flex;align-items:center;justify-content:center;flex:none;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="#149d5b" stroke-width="2"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke="#149d5b" stroke-width="2" stroke-linecap="round"/></svg>
+                  </span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:18px;font-weight:700;color:#11150f;">Legislators</div>
+                    <div style="margin-top:2px;font-size:14px;color:#6b716b;line-height:1.35;text-wrap:pretty;">Look up any legislator — committees and authored bills</div>
+                  </div>
+                </a>
+
+                <!-- Find My Legislator -->
+                <a href="#" onClick="{{ toggleSearch }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;text-decoration:none;" style-hover="background:rgba(17,21,15,0.05);">
+                  <span style="width:40px;height:40px;border-radius:10px;background:#e4f8ee;display:flex;align-items:center;justify-content:center;flex:none;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z" stroke="#149d5b" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.4" stroke="#149d5b" stroke-width="2"/></svg>
+                  </span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:18px;font-weight:700;color:#11150f;">Find My Legislator</div>
+                    <div style="margin-top:2px;font-size:14px;color:#6b716b;line-height:1.35;text-wrap:pretty;">See who represents you — by street address</div>
+                  </div>
+                </a>
+
+                <!-- On the roadmap — consolidated (Option B) -->
+                <div style="display:flex;align-items:center;gap:10px;padding:16px 14px 10px;">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.11em;color:#6f756f;">ON THE ROADMAP</span>
+                  <span style="flex:1;height:1px;background:rgba(17,21,15,0.07);"></span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 14px 8px;">
+                  <span style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:#6f756f;background:#f4f5f7;border:1px solid rgba(17,21,15,0.08);border-radius:999px;padding:6px 13px;">Candidates</span>
+                  <span style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:#6f756f;background:#f4f5f7;border:1px solid rgba(17,21,15,0.08);border-radius:999px;padding:6px 13px;">Ask AI</span>
+                </div>
+
+              </div>
+            </div>
+            </sc-if>
+          </div>
+          <div style="position:relative;z-index:60;">
+            <a href="#" onClick="{{ toggleTrack }}" style="display:inline-flex;align-items:center;text-decoration:none;font-size:18px;font-weight:500;cursor:pointer;color:#4b524b;position:relative;outline:none;-webkit-tap-highlight-color:transparent;" style-hover="color:#11150f;">
+              <sc-if value="{{ trackClosed }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:8px;">Track<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></sc-if>
+              <sc-if value="{{ trackOpen }}"><span style="display:inline-flex;align-items:center;gap:8px;color:#149d5b;">Track<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 15 L12 9 L18 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></sc-if>
+            </a>
+            <sc-if value="{{ trackOpen }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;top:calc(100% + 30px);left:50%;transform:translateX(-50%);width:452px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:16px;box-shadow:0 1px 2px rgba(17,21,15,0.10), 0 12px 26px rgba(17,21,15,0.16), 0 40px 80px rgba(17,21,15,0.32);padding:10px;z-index:60;">
+              <div style="position:absolute;top:-8px;left:50%;width:15px;height:15px;background:#ffffff;border-left:1px solid rgba(17,21,15,0.14);border-top:1px solid rgba(17,21,15,0.14);transform:translateX(-50%) rotate(45deg);"></div>
+              <div style="position:relative;display:flex;flex-direction:column;gap:6px;">
+
+                <!-- Bills (track) -->
+                <a href="#" onClick="{{ toggleTrack }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;text-decoration:none;" style-hover="background:rgba(17,21,15,0.05);">
+                  <span style="width:40px;height:40px;border-radius:10px;background:#e4f8ee;display:flex;align-items:center;justify-content:center;flex:none;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M8 3h6l4 4v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="#149d5b" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v4h4M10 12h5M10 16h4" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:18px;font-weight:700;color:#11150f;">Bills</div>
+                    <div style="margin-top:3px;font-size:14px;color:#6b716b;line-height:1.35;text-wrap:pretty;">Follow a bill — save it to your watchlist</div>
+                  </div>
+                </a>
+
+                <!-- On the roadmap — consolidated (Option B) -->
+                <div style="display:flex;align-items:center;gap:10px;padding:16px 14px 10px;">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.11em;color:#6f756f;">ON THE ROADMAP</span>
+                  <span style="flex:1;height:1px;background:rgba(17,21,15,0.07);"></span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 14px 8px;">
+                  <span style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:#6f756f;background:#f4f5f7;border:1px solid rgba(17,21,15,0.08);border-radius:999px;padding:6px 13px;">Legislators</span>
+                  <span style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:#6f756f;background:#f4f5f7;border:1px solid rgba(17,21,15,0.08);border-radius:999px;padding:6px 13px;">Candidates</span>
+                  <span style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:#6f756f;background:#f4f5f7;border:1px solid rgba(17,21,15,0.08);border-radius:999px;padding:6px 13px;">Campaign Finance</span>
+                </div>
+
+              </div>
+            </div>
+            </sc-if>
+          </div>
+          <div style="position:relative;z-index:60;">
+            <a href="#" onClick="{{ toggleAbout }}" style="display:inline-flex;align-items:center;text-decoration:none;font-size:18px;font-weight:500;cursor:pointer;color:#4b524b;position:relative;outline:none;-webkit-tap-highlight-color:transparent;" style-hover="color:#11150f;">
+              <sc-if value="{{ aboutClosed }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:8px;">About<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></sc-if>
+              <sc-if value="{{ aboutOpen }}"><span style="display:inline-flex;align-items:center;gap:8px;color:#149d5b;">About<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 15 L12 9 L18 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></sc-if>
+            </a>
+            <sc-if value="{{ aboutOpen }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;top:calc(100% + 30px);left:50%;transform:translateX(-50%);width:320px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:16px;box-shadow:0 1px 2px rgba(17,21,15,0.10), 0 12px 26px rgba(17,21,15,0.16), 0 40px 80px rgba(17,21,15,0.32);padding:10px;z-index:60;">
+              <div style="position:absolute;top:-8px;left:50%;width:15px;height:15px;background:#ffffff;border-left:1px solid rgba(17,21,15,0.14);border-top:1px solid rgba(17,21,15,0.14);transform:translateX(-50%) rotate(45deg);"></div>
+              <div style="position:relative;display:flex;flex-direction:column;gap:6px;">
+
+                <!-- About Us -->
+                <a href="#" onClick="{{ toggleAbout }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;text-decoration:none;" style-hover="background:rgba(17,21,15,0.05);">
+                  <span style="width:40px;height:40px;border-radius:10px;background:#e4f8ee;display:flex;align-items:center;justify-content:center;flex:none;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="9.5" cy="8" r="3.2" stroke="#149d5b" stroke-width="2"/><path d="M3.5 19.5c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#149d5b" stroke-width="2" stroke-linecap="round"/><path d="M16.5 5.2a3.2 3.2 0 0 1 0 5.9" stroke="#149d5b" stroke-width="2" stroke-linecap="round"/><path d="M18 13.9c2.4.5 4 2.7 4 5.6" stroke="#149d5b" stroke-width="2" stroke-linecap="round"/></svg>
+                  </span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:18px;font-weight:700;color:#11150f;">About Us</div>
+                  </div>
+                </a>
+
+                <!-- Trust & Integrity -->
+                <a href="#" onClick="{{ toggleAbout }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;text-decoration:none;" style-hover="background:rgba(17,21,15,0.05);">
+                  <span style="width:40px;height:40px;border-radius:10px;background:#e4f8ee;display:flex;align-items:center;justify-content:center;flex:none;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6l7-3Z" stroke="#149d5b" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L15.5 10" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:18px;font-weight:700;color:#11150f;">Trust &amp; Integrity</div>
+                  </div>
+                </a>
+
+                <!-- Contact Us -->
+                <a href="#" onClick="{{ toggleAbout }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;text-decoration:none;" style-hover="background:rgba(17,21,15,0.05);">
+                  <span style="width:40px;height:40px;border-radius:10px;background:#e4f8ee;display:flex;align-items:center;justify-content:center;flex:none;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5.5" width="17" height="13" rx="2" stroke="#149d5b" stroke-width="2"/><path d="M4.5 7l7.5 5.5L19.5 7" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:18px;font-weight:700;color:#11150f;">Contact Us</div>
+                  </div>
+                </a>
+
+              </div>
+            </div>
+            </sc-if>
+          </div>
+        </div>
+        <a href="#account" style="display:inline-flex;align-items:center;justify-content:center;padding:13px 26px;background:#2ed47e;border:1px solid #2ed47e;border-radius:12px;color:#06231a;text-decoration:none;font-size:18px;font-weight:600;" style-hover="background:#28bf71;border-color:#28bf71;">Sign in</a>
+      </div>
+    </nav>
+
+    <!-- HERO BODY -->
+    <div style="position:relative;display:grid;grid-template-columns:1fr 1fr;gap:40px;padding:80px 56px 0;align-items:start;">
+
+      <!-- LEFT -->
+      <div data-screen-label="Hero copy" style="max-width:720px;">
+        <div style="display:flex;align-items:center;gap:13px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:15px;font-weight:500;letter-spacing:0.18em;color:#149d5b;margin-bottom:36px;">
+          TRUTH, UNCONCEALED
+        </div>
+
+        <h1 style="margin:0;font-size:72px;line-height:1.0;font-weight:800;letter-spacing:-0.02em;color:#11150f;">
+          Grounded answers<br><span style="color:#149d5b;white-space:nowrap;">on Minnesota law</span>
+        </h1>
+
+        <p style="margin:36px 0 0;font-size:23px;line-height:1.5;color:#6b716b;max-width:660px;">
+          We read every bill so you don’t have to — what it says, where it stands, and how legislators voted. Plain language, with every claim linked to the official record.
+        </p>
+
+        <!-- ENTRY POINTS -->
+        <sc-if value="{{ showCapabilities }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:44px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;max-width:660px;">
+
+          <a href="LIVE Search bill web.dc.html" data-capcard="1" style="display:inline-flex;align-items:center;gap:12px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:14px;padding:15px 20px 15px 17px;text-decoration:none;transition:border-color .18s ease, box-shadow .18s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 10px 28px rgba(17,21,15,0.08);">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="11" cy="11" r="7" stroke="#149d5b" stroke-width="2"/><path d="M16.5 16.5 L21 21" stroke="#149d5b" stroke-width="2" stroke-linecap="round"/></svg>
+            <span style="font-size:19px;font-weight:700;color:#11150f;">Search Bills</span>
+            <span aria-hidden="true" style="flex:none;font-size:19px;font-weight:400;color:#149d5b;">→</span>
+          </a>
+
+          <a href="LIVE Search legislators web.dc.html" data-capcard="1" style="display:inline-flex;align-items:center;gap:12px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:14px;padding:15px 20px 15px 17px;text-decoration:none;transition:border-color .18s ease, box-shadow .18s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 10px 28px rgba(17,21,15,0.08);">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="12" cy="8" r="3.4" stroke="#149d5b" stroke-width="2"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" stroke="#149d5b" stroke-width="2" stroke-linecap="round"/></svg>
+            <span style="font-size:19px;font-weight:700;color:#11150f;">Search Legislators</span>
+            <span aria-hidden="true" style="flex:none;font-size:19px;font-weight:400;color:#149d5b;">→</span>
+          </a>
+
+        </div>
+        </sc-if>
+      </div>
+
+      <!-- RIGHT: answer card -->
+      <div data-screen-label="Answer card" style="display:flex;justify-content:flex-end;margin-top:-10px;">
+        <div style="width:600px;max-width:100%;background:#ffffff;border-radius:20px;padding:32px 34px;box-shadow:0 18px 44px rgba(17,21,15,0.08);position:relative;">
+          <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;inset:0;border-radius:20px;background:rgba(255,255,255,0.6);backdrop-filter:blur(5px) saturate(0.9);-webkit-backdrop-filter:blur(5px) saturate(0.9);z-index:5;pointer-events:none;transition:opacity 0.2s ease;"></div>
+          </sc-if>
+          <div style="margin-bottom:16px;">
+            <div style="font-size:19px;font-weight:700;color:#11150f;line-height:1.3;">What’s in the new social media law for kids?</div>
+          </div>
+          <div style="margin-bottom:14px;height:1px;background:rgba(17,21,15,0.08);"></div>
+          <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;margin-bottom:22px;">
+            <div style="flex:none;">
+              <a id="bill-badge" href="LIVE Bill profile web.dc.html" style="display:inline-block;margin-top:5px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:7px 13px;border-radius:8px;text-decoration:none;" style-hover="background:#f6e6cb;">HF 4138</a>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;">
+                <div style="flex:none;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#6b716b;">
+                  <div style="margin-top:2px;"><span style="font-weight:700;color:#6b716b;">Signed</span> May 26, 2026</div>
+                  <div style="margin-top:2px;"><span style="font-weight:700;color:#6b716b;">Effective</span> July 1, 2027</div>
+                </div>
+                <div style="flex:none;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#6b716b;">
+                  <div><span style="margin-right:5px;">Chief author</span><a data-tlink="1" target="_blank" rel="noopener noreferrer" href="https://www.house.mn.gov/members/profile/15314" style="color:#149d5b;font-weight:600;text-decoration:none;" style-hover="color:#0f7a45;text-decoration:underline;">Rep. Peggy Scott →</a></div>
+                  <div style="margin-top:2px;">House 132–2 · Senate 66–0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p style="margin:0 0 14px;font-size:19px;line-height:1.4;color:#1a201d;font-weight:400;">
+            Minnesota’s <strong style="font-weight:600;">Stop Harms from Addictive Social Media Act</strong> will require parental consent for kids under 16, ban addictive features, and default their accounts to the strictest privacy.
+          </p>
+          <div style="margin-bottom:10px;"><span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#6f756f;">CITED SECTIONS<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="12" cy="12" r="9" stroke="#149d5b" stroke-width="2"/><path d="M8.5 12.2 L11 14.7 L15.7 9.6" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="background:#f7f9f8;border:1px solid rgba(17,21,15,0.08);border-radius:14px;padding:12px 16px;">
+              <div style="display:flex;align-items:center;gap:11px;min-width:0;">
+                <span style="width:22px;height:22px;border-radius:6px;background:#f0ebfc;border:1px solid #d8c9f7;color:#5b30d6;display:inline-flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;flex:none;">1</span>
+                <span style="font-size:15px;font-weight:700;color:#11150f;">Parental consent</span>
+              </div>
+              <div style="margin-top:8px;padding-left:12px;border-left:3px solid #bfeacf;font-size:14px;line-height:1.5;color:#4f5651;font-style:italic;">A covered social media platform may not create an account for a user identified as a child … without first obtaining verifiable parental consent.</div>
+            </div>
+            <div style="background:#f7f9f8;border:1px solid rgba(17,21,15,0.08);border-radius:14px;padding:12px 16px;">
+              <div style="display:flex;align-items:center;gap:11px;min-width:0;">
+                <span style="width:22px;height:22px;border-radius:6px;background:#f0ebfc;border:1px solid #d8c9f7;color:#5b30d6;display:inline-flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;flex:none;">2</span>
+                <span style="font-size:15px;font-weight:700;color:#11150f;">Addictive features</span>
+              </div>
+              <div style="margin-top:8px;padding-left:12px;border-left:3px solid #bfeacf;font-size:14px;line-height:1.5;color:#4f5651;font-style:italic;">A covered social media platform may not present addictive interface features in the display or feed of any account of a child.</div>
+              <div style="margin-top:6px;padding-left:15px;font-size:14px;line-height:1.45;color:#6f756f;">Such as infinite scrolling, autoplay video, and push notifications</div>
+            </div>
+            <div style="background:#f7f9f8;border:1px solid rgba(17,21,15,0.08);border-radius:14px;padding:12px 16px;">
+              <div style="display:flex;align-items:center;gap:11px;min-width:0;">
+                <span style="width:22px;height:22px;border-radius:6px;background:#f0ebfc;border:1px solid #d8c9f7;color:#5b30d6;display:inline-flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;flex:none;">3</span>
+                <span style="font-size:15px;font-weight:700;color:#11150f;">Privacy by default</span>
+              </div>
+              <div style="margin-top:8px;padding-left:12px;border-left:3px solid #bfeacf;font-size:14px;line-height:1.5;color:#4f5651;font-style:italic;">An account for a child shall have all privacy settings set by default at the most private levels.</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;padding-left:17px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <a data-tlink="1" href="LIVE Bill profile web.dc.html" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:#149d5b;text-decoration:none;" style-hover="color:#0f7a45;text-decoration:underline;">View bill profile →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:88px;"></div>
+  </div>
+
+  <!-- BILLS MOVING THROUGH THE LEGISLATURE -->
+  <div id="recent-bills" data-screen-label="Bills moving through the legislature" style="position:relative;background:#ffffff;padding:52px 56px 76px;">
+    <div>
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:0.2em;color:#149d5b;margin-bottom:14px;">2025–26 LEGISLATIVE SESSION</div>
+      <h2 style="margin:0;font-size:44px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Bills Moving Through the Legislature</h2>
+    </div>
+    <div style="margin-top:30px;display:flex;flex-direction:column;gap:44px;">
+      <div>
+        <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;letter-spacing:0.12em;color:#6b716b;">RECENTLY PASSED</div>
+        <div style="margin-top:18px;display:flex;flex-direction:column;gap:20px;">
+        <div style="position:relative;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:18px;padding:24px 26px;box-shadow:0 8px 24px rgba(17,21,15,0.05);transition:border-color .18s ease, box-shadow .18s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+          <a href="LIVE Bill profile web.dc.html" aria-label="New Council and Fund to Modernize Human Services IT" style="position:absolute;inset:0;z-index:1;border-radius:18px;"></a>
+          <div style="position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;pointer-events:none;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:5px 10px;border-radius:6px;">SF 334</span><span style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#149d5b;white-space:nowrap;">Signed into Law</span><div style="display:flex;align-items:center;gap:4px;"><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span></div></div>
+            <div style="display:flex;align-items:center;gap:16px;flex:none;"><button aria-label="Track this bill" style="position:relative;z-index:2;pointer-events:auto;flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 11px;background:#11150f;border:1px solid #11150f;border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#ffffff;cursor:pointer;" style-hover="background:#2c322c;border-color:#2c322c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 V19 M5 12 H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Track</button></div>
+          </div>
+          <div style="margin-top:16px;font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;line-height:1.25;">New Council and Fund to Modernize Human Services IT</div>
+          <p style="margin:10px 0 0;font-size:14px;line-height:1.55;color:#6b716b;max-width:1040px;">Establishes an advisory council of state, county, and Tribal representatives to help plan and prioritize upgrades to the computer systems counties and state agencies use to run human services programs, and a separate group of eight legislators to oversee that modernization work over the next several years. Creates a special fund meant to hold at least $50 million for these projects, refilled automatically from state budget surpluses, and provides funding for county technology grants, state system upgrades, and fraud-detection technology.</p>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(17,21,15,0.08);">
+            <div style="font-size:13px;color:#4f5651;">Chief author: Senator <a href="Legislator Profile.dc.html" style="position:relative;z-index:2;pointer-events:auto;color:#149d5b;font-weight:600;text-decoration:none;" style-hover="color:#0f7a45;text-decoration:underline;">Melissa H. Wiklund →</a></div>
+            <div style="margin-top:4px;font-size:13px;color:#4f5651;">Latest action: <span style="color:#11150f;font-weight:600;">Signed by the Governor</span> <span style="color:#6f756f;">May 27, 2026</span></div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">State Government</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Human Services</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Information Technology</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Government Finance</span><a href="Bill Votes.dc.html#votes" style="position:relative;z-index:2;pointer-events:auto;padding:6px 12px;background:#e4f8ee;border:1px solid #bfeacf;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:700;color:#149d5b;text-decoration:none;white-space:nowrap;" style-hover="background:#d5f2e2;">3 votes</a></div>
+        </div>
+        <div style="position:relative;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:18px;padding:24px 26px;box-shadow:0 8px 24px rgba(17,21,15,0.05);transition:border-color .18s ease, box-shadow .18s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+          <a href="LIVE Bill profile web.dc.html" aria-label="Statewide Capital Projects and Bonding Bill" style="position:absolute;inset:0;z-index:1;border-radius:18px;"></a>
+          <div style="position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;pointer-events:none;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:5px 10px;border-radius:6px;">HF 719</span><span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:transparent;border:1px solid #e3c17f;border-radius:7px;font-family:'Libre Franklin',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#a76a1a;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 4 v16 M6 8 h12 M7 8 l-3 6 h6 Z M17 8 l-3 6 h6 Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>OMNIBUS</span><span style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#149d5b;white-space:nowrap;">Signed into Law</span><div style="display:flex;align-items:center;gap:4px;"><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span></div></div>
+            <div style="display:flex;align-items:center;gap:16px;flex:none;"><button aria-label="Track this bill" style="position:relative;z-index:2;pointer-events:auto;flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 11px;background:#11150f;border:1px solid #11150f;border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#ffffff;cursor:pointer;" style-hover="background:#2c322c;border-color:#2c322c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 V19 M5 12 H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Track</button></div>
+          </div>
+          <div style="margin-top:16px;font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;line-height:1.25;">Statewide Capital Projects and Bonding Bill</div>
+          <p style="margin:10px 0 0;font-size:14px;line-height:1.55;color:#6b716b;max-width:1040px;">Authorizes billions in state bond financing for construction and renovation projects spread across nearly every part of state government, plus grants to specific cities, counties, and other local entities for roads, water systems, public safety buildings, parks, and community facilities. It also adjusts some earlier funding commitments and, according to the bill's title, includes a temporary reduction in vehicle registration taxes, though the supplied text does not include the details of that provision.</p>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(17,21,15,0.08);">
+            <div style="font-size:13px;color:#4f5651;">Chief author: Representative <a href="Legislator Profile.dc.html" style="position:relative;z-index:2;pointer-events:auto;color:#149d5b;font-weight:600;text-decoration:none;" style-hover="color:#0f7a45;text-decoration:underline;">Mary Franson →</a></div>
+            <div style="margin-top:4px;font-size:13px;color:#4f5651;">Latest action: <span style="color:#11150f;font-weight:600;">Signed by the Governor</span> <span style="color:#6f756f;">May 27, 2026</span></div>
+            <div style="margin-top:4px;font-size:13px;color:#4f5651;">Effective: <span style="color:#11150f;font-weight:600;">various dates</span></div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Capital Investment And Bonding</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Transportation</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Infrastructure</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Education</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Public Safety And Corrections</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Natural Resources And Environment</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Economic Development</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Human Services</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Veterans & Military</span><a href="Bill Votes.dc.html#votes" style="position:relative;z-index:2;pointer-events:auto;padding:6px 12px;background:#e4f8ee;border:1px solid #bfeacf;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:700;color:#149d5b;text-decoration:none;white-space:nowrap;" style-hover="background:#d5f2e2;">2 votes</a></div>
+        </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;letter-spacing:0.12em;color:#6b716b;">RECENTLY INTRODUCED</div>
+        <div style="margin-top:18px;display:flex;flex-direction:column;gap:20px;">
+        <div style="position:relative;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:18px;padding:24px 26px;box-shadow:0 8px 24px rgba(17,21,15,0.05);transition:border-color .18s ease, box-shadow .18s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+          <a href="LIVE Bill profile web.dc.html" aria-label="Bans Nonconsensual AI Nudification Images" style="position:absolute;inset:0;z-index:1;border-radius:18px;"></a>
+          <div style="position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;pointer-events:none;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:5px 10px;border-radius:6px;">SF 5310</span><span style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#4f5651;white-space:nowrap;">In Committee</span><div style="display:flex;align-items:center;gap:4px;"><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span></div></div>
+            <div style="display:flex;align-items:center;gap:16px;flex:none;"><span style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:#f1f1f4;border:1px solid rgba(17,21,15,0.08);border-radius:999px;font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.02em;color:#4f5651;white-space:nowrap;">🔥 Hot issue</span><button aria-label="Track this bill" style="position:relative;z-index:2;pointer-events:auto;flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 11px;background:#11150f;border:1px solid #11150f;border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#ffffff;cursor:pointer;" style-hover="background:#2c322c;border-color:#2c322c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 V19 M5 12 H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Track</button></div>
+          </div>
+          <div style="margin-top:16px;font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;line-height:1.25;">Bans Nonconsensual AI Nudification Images</div>
+          <p style="margin:10px 0 0;font-size:14px;line-height:1.55;color:#6b716b;max-width:1040px;">Creates a new crime for making or distributing digitally altered or AI-generated images that realistically show a real, identifiable person nude, exposing intimate parts, or engaging in a sexual act, when that person did not consent to it and the original image did not show that. Penalties range up to five years in prison and a $10,000 fine, rising to ten years and $20,000 if aggravating factors are present, such as posting the image online, using it to harass someone, or maintaining a website built for creating or spreading such images. The bill lists exemptions for law enforcement, medical treatment, research, and reporting on matters of public interest, and it shields internet and telecom providers from liability for content posted by other people.</p>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(17,21,15,0.08);">
+            <div style="font-size:13px;color:#4f5651;">Chief author: Senator <a href="Legislator Profile.dc.html" style="position:relative;z-index:2;pointer-events:auto;color:#149d5b;font-weight:600;text-decoration:none;" style-hover="color:#0f7a45;text-decoration:underline;">Bill Lieske →</a></div>
+            <div style="margin-top:4px;font-size:13px;color:#4f5651;">Latest action: <span style="color:#11150f;font-weight:600;">Referred to Judiciary and Public Safety</span> <span style="color:#6f756f;">May 17, 2026</span></div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Crime</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Technology</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Consumer Protection</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Justice & Courts</span></div>
+        </div>
+        <div style="position:relative;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:18px;padding:24px 26px;box-shadow:0 8px 24px rgba(17,21,15,0.05);transition:border-color .18s ease, box-shadow .18s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+          <a href="LIVE Bill profile web.dc.html" aria-label="Creates Agricultural Land Ownership Oversight Office" style="position:absolute;inset:0;z-index:1;border-radius:18px;"></a>
+          <div style="position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;pointer-events:none;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:5px 10px;border-radius:6px;">SF 5309</span><span style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#4f5651;white-space:nowrap;">In Committee</span><div style="display:flex;align-items:center;gap:4px;"><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span></div></div>
+            <div style="display:flex;align-items:center;gap:16px;flex:none;"><button aria-label="Track this bill" style="position:relative;z-index:2;pointer-events:auto;flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 11px;background:#11150f;border:1px solid #11150f;border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#ffffff;cursor:pointer;" style-hover="background:#2c322c;border-color:#2c322c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 V19 M5 12 H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Track</button></div>
+          </div>
+          <div style="margin-top:16px;font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;line-height:1.25;">Creates Agricultural Land Ownership Oversight Office</div>
+          <p style="margin:10px 0 0;font-size:14px;line-height:1.55;color:#6b716b;max-width:1040px;">Sets up a new Office of Business Regulation and Land Ownership within the Department of Agriculture. The office studies consolidation among agriculture-related businesses and evaluates trends in farmland purchases by individuals, companies, churches, and nonprofits, then advises the commissioner and reports findings to the legislature every two years. A director with expertise in antitrust and property law leads the office, supported by hired staff including lawyers and economists, and money is appropriated from the general fund to establish and run it starting in fiscal year 2027.</p>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(17,21,15,0.08);">
+            <div style="font-size:13px;color:#4f5651;">Chief author: Senator <a href="Legislator Profile.dc.html" style="position:relative;z-index:2;pointer-events:auto;color:#149d5b;font-weight:600;text-decoration:none;" style-hover="color:#0f7a45;text-decoration:underline;">John A. Hoffman →</a></div>
+            <div style="margin-top:4px;font-size:13px;color:#4f5651;">Latest action: <span style="color:#11150f;font-weight:600;">Referred to Agriculture, Veterans, Broadband, and Rural Development</span> <span style="color:#6f756f;">May 17, 2026</span></div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Agriculture</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Environment & Natural Resources</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Government Operations</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Antitrust And Business Regulation</span></div>
+        </div>
+        <div style="position:relative;background:#ffffff;border:1px solid rgba(17,21,15,0.08);border-radius:18px;padding:24px 26px;box-shadow:0 8px 24px rgba(17,21,15,0.05);transition:border-color .18s ease, box-shadow .18s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+          <a href="LIVE Bill profile web.dc.html" aria-label="Rehiring Retired Police Officers Without Losing Pensions" style="position:absolute;inset:0;z-index:1;border-radius:18px;"></a>
+          <div style="position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;pointer-events:none;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.04em;background:#fbf1e2;border:1px solid #f0d6a8;color:#a76a1a;padding:5px 10px;border-radius:6px;">SF 5308</span><span style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;color:#4f5651;white-space:nowrap;">In Committee</span><div style="display:flex;align-items:center;gap:4px;"><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#2ed47e;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span><span style="width:26px;height:6px;border-radius:4px;background:#e2e5e4;display:inline-block;"></span></div></div>
+            <div style="display:flex;align-items:center;gap:16px;flex:none;"><button aria-label="Track this bill" style="position:relative;z-index:2;pointer-events:auto;flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 11px;background:#11150f;border:1px solid #11150f;border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#ffffff;cursor:pointer;" style-hover="background:#2c322c;border-color:#2c322c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 V19 M5 12 H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Track</button></div>
+          </div>
+          <div style="margin-top:16px;font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;line-height:1.25;">Rehiring Retired Police Officers Without Losing Pensions</div>
+          <p style="margin:10px 0 0;font-size:14px;line-height:1.55;color:#6b716b;max-width:1040px;">Creates a special path for retired police officers to come back to work as police officers while keeping their full pension payments. To qualify, the officer must have at least five years of service in the plan, be receiving or have applied for a pension, be at least 55 years old, and wait at least a day after retiring before returning. While reemployed, the officer keeps making contributions but does not build up any additional pension credit, and the annuity amount stays fixed. The officer can also keep their state health insurance coverage, though they pay for it themselves unless a labor agreement says otherwise. Cities face limits on how many retired officers they can rehire this way, with the limits scaled to the size of the department.</p>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(17,21,15,0.08);">
+            <div style="font-size:13px;color:#4f5651;">Chief author: Senator <a href="Legislator Profile.dc.html" style="position:relative;z-index:2;pointer-events:auto;color:#149d5b;font-weight:600;text-decoration:none;" style-hover="color:#0f7a45;text-decoration:underline;">Doron Clark →</a></div>
+            <div style="margin-top:4px;font-size:13px;color:#4f5651;">Latest action: <span style="color:#11150f;font-weight:600;">Referred to State and Local Government</span> <span style="color:#6f756f;">May 17, 2026</span></div>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Public Pensions</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Public Safety</span><span style="padding:6px 12px;background:#f1f1f4;border-radius:8px;font-family:'Libre Franklin',sans-serif;font-size:12px;font-weight:600;color:#4f5651;white-space:nowrap;">Labor & Employment</span></div>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- FIND YOUR LEGISLATORS BAND -->
+  <sc-if value="{{ showLegislatorFinder }}" hint-placeholder-val="{{ true }}">
+  <div id="finder" data-screen-label="Find your legislators" style="position:relative;background:linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%);padding:64px 56px 128px;overflow:hidden;">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(20,157,91,0.09) 1.3px, transparent 1.4px);background-size:30px 30px;pointer-events:none;-webkit-mask:linear-gradient(to bottom, transparent 0%, #000 36%, transparent 88%);mask:linear-gradient(to bottom, transparent 0%, #000 36%, transparent 88%);"></div>
+
+    <div style="position:relative;display:grid;grid-template-columns:1.15fr 0.85fr;gap:56px;align-items:center;">
+      <div style="max-width:760px;">
+        <h2 style="margin:0;font-size:52px;line-height:1.02;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Find My Legislator</h2>
+        <p style="margin:22px 0 0;font-size:22px;line-height:1.5;color:#4f5651;max-width:820px;">Find who represents you — their profile, committees, and<br>the bills they’ve authored.</p>
+
+        <div id="finder-field" style="margin-top:38px;display:flex;align-items:center;gap:12px;max-width:600px;padding:6px 6px 6px 24px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:14px;transition:border-color .18s ease, box-shadow .18s ease;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z" stroke="#6f756f" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.6" stroke="#6f756f" stroke-width="2"/></svg>
+          <input ref="{{ finderRef }}" placeholder="Enter your street address, city, and ZIP" style="flex:1;min-width:0;background:transparent;border:none;outline:none;color:#11150f;font-family:'Libre Franklin',sans-serif;font-size:20px;padding:16px 6px;" />
+          <button style="flex:none;background:#2ed47e;color:#06231a;border:none;border-radius:12px;padding:16px 34px;font-family:'Libre Franklin',sans-serif;font-size:18px;font-weight:700;cursor:pointer;" style-hover="background:#28bf71;">Find</button>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:center;align-items:center;">
+        <svg width="330" height="363" viewBox="0 0 599 658" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;" role="img" aria-label="Map of Minnesota"><g transform="translate(0.000000,658.000000) scale(0.100000,-0.100000)" fill="#ffffff" stroke="none"><path d="M1930 5699 l0 -179 -598 0 c-692 0 -639 8 -622 -94 5 -33 23 -88 40&#xA;-123 33 -71 36 -93 18 -126 -18 -34 -20 -455 -1 -484 7 -13 22 -62 34 -110 11&#xA;-49 41 -140 66 -203 46 -115 46 -115 48 -260 1 -144 26 -376 49 -454 6 -23 9&#xA;-54 5 -71 -25 -111 -2 -263 58 -380 40 -80 72 -274 73 -441 0 -91 0 -91 -80&#xA;-177 -44 -47 -80 -92 -80 -101 0 -9 19 -52 42 -96 35 -67 46 -80 72 -86 17 -3&#xA;48 -13 69 -21 37 -15 37 -15 37 -788 0 -606 3 -775 13 -782 17 -13 3082 -8&#xA;3127 5 19 5 30 10 23 11 -18 2 -24 69 -14 151 10 75 10 75 -26 128 -51 75&#xA;-138 152 -171 152 -19 0 -36 11 -55 35 -16 20 -46 47 -68 62 -28 19 -47 44&#xA;-70 92 -44 95 -44 94 -60 102 -8 4 -40 14 -71 23 -55 16 -78 35 -128 106 -11&#xA;15 -30 23 -75 28 -59 7 -62 9 -133 83 -73 77 -73 77 -63 149 6 49 6 91 0 128&#xA;-7 37 -7 63 0 81 15 39 71 279 71 307 0 29 -68 101 -105 110 -22 5 -25 11 -25&#xA;53 0 36 5 49 21 59 19 12 79 124 79 148 0 12 72 54 177 104 60 28 62 30 70 77&#xA;4 26 7 146 5 265 -3 217 -3 217 20 220 17 2 24 11 26 33 2 22 11 34 35 45 18&#xA;8 33 24 35 35 2 12 37 45 84 80 257 188 453 367 497 453 32 62 68 99 134 138&#xA;34 20 87 55 117 78 78 61 118 79 291 132 167 50 246 85 309 135 80 64 34 125&#xA;-63 84 -63 -26 -85 -20 -103 25 -9 22 -25 45 -35 50 -10 6 -111 10 -226 10&#xA;-209 0 -209 0 -234 52 -38 81 -43 81 -151 10 -149 -98 -287 -133 -308 -77 -7&#xA;18 -17 25 -35 25 -18 0 -31 11 -50 40 -28 44 -45 54 -116 64 -44 6 -48 10 -63&#xA;50 -28 73 -52 89 -117 74 -81 -17 -88 -27 -63 -92 9 -23 -38 -21 -60 3 -9 10&#xA;-22 49 -29 87 -13 69 -13 69 -80 72 -71 3 -81 12 -45 41 33 28 17 47 -51 60&#xA;-42 8 -72 21 -95 42 -28 24 -42 29 -84 29 -28 0 -63 5 -78 10 -33 13 -130 -25&#xA;-175 -67 -22 -20 -40 -25 -112 -30 -87 -6 -87 -6 -87 19 0 59 -67 87 -209 88&#xA;-31 0 -51 7 -73 25 -20 17 -42 25 -67 25 -60 0 -143 19 -163 37 -13 12 -18 31&#xA;-18 74 0 40 -12 97 -40 184 -29 93 -40 143 -40 190 0 79 -9 87 -140 120 l-90&#xA;23 0 -179z"></path></g><g transform="translate(0.000000,658.000000) scale(0.100000,-0.100000)" fill="none" stroke="#2FA060" stroke-width="34" stroke-linejoin="round" stroke-linecap="round"><path d="M1930 5699 l0 -179 -598 0 c-692 0 -639 8 -622 -94 5 -33 23 -88 40&#xA;-123 33 -71 36 -93 18 -126 -18 -34 -20 -455 -1 -484 7 -13 22 -62 34 -110 11&#xA;-49 41 -140 66 -203 46 -115 46 -115 48 -260 1 -144 26 -376 49 -454 6 -23 9&#xA;-54 5 -71 -25 -111 -2 -263 58 -380 40 -80 72 -274 73 -441 0 -91 0 -91 -80&#xA;-177 -44 -47 -80 -92 -80 -101 0 -9 19 -52 42 -96 35 -67 46 -80 72 -86 17 -3&#xA;48 -13 69 -21 37 -15 37 -15 37 -788 0 -606 3 -775 13 -782 17 -13 3082 -8&#xA;3127 5 19 5 30 10 23 11 -18 2 -24 69 -14 151 10 75 10 75 -26 128 -51 75&#xA;-138 152 -171 152 -19 0 -36 11 -55 35 -16 20 -46 47 -68 62 -28 19 -47 44&#xA;-70 92 -44 95 -44 94 -60 102 -8 4 -40 14 -71 23 -55 16 -78 35 -128 106 -11&#xA;15 -30 23 -75 28 -59 7 -62 9 -133 83 -73 77 -73 77 -63 149 6 49 6 91 0 128&#xA;-7 37 -7 63 0 81 15 39 71 279 71 307 0 29 -68 101 -105 110 -22 5 -25 11 -25&#xA;53 0 36 5 49 21 59 19 12 79 124 79 148 0 12 72 54 177 104 60 28 62 30 70 77&#xA;4 26 7 146 5 265 -3 217 -3 217 20 220 17 2 24 11 26 33 2 22 11 34 35 45 18&#xA;8 33 24 35 35 2 12 37 45 84 80 257 188 453 367 497 453 32 62 68 99 134 138&#xA;34 20 87 55 117 78 78 61 118 79 291 132 167 50 246 85 309 135 80 64 34 125&#xA;-63 84 -63 -26 -85 -20 -103 25 -9 22 -25 45 -35 50 -10 6 -111 10 -226 10&#xA;-209 0 -209 0 -234 52 -38 81 -43 81 -151 10 -149 -98 -287 -133 -308 -77 -7&#xA;18 -17 25 -35 25 -18 0 -31 11 -50 40 -28 44 -45 54 -116 64 -44 6 -48 10 -63&#xA;50 -28 73 -52 89 -117 74 -81 -17 -88 -27 -63 -92 9 -23 -38 -21 -60 3 -9 10&#xA;-22 49 -29 87 -13 69 -13 69 -80 72 -71 3 -81 12 -45 41 33 28 17 47 -51 60&#xA;-42 8 -72 21 -95 42 -28 24 -42 29 -84 29 -28 0 -63 5 -78 10 -33 13 -130 -25&#xA;-175 -67 -22 -20 -40 -25 -112 -30 -87 -6 -87 -6 -87 19 0 59 -67 87 -209 88&#xA;-31 0 -51 7 -73 25 -20 17 -42 25 -67 25 -60 0 -143 19 -163 37 -13 12 -18 31&#xA;-18 74 0 40 -12 97 -40 184 -29 93 -40 143 -40 190 0 79 -9 87 -140 120 l-90&#xA;23 0 -179z m105 142 c113 -29 115 -31 115 -106 0 -47 11 -97 40 -190 28 -87&#xA;40 -144 40 -184 0 -47 4 -61 23 -79 24 -23 102 -42 168 -42 25 0 47 -8 66 -24&#xA;23 -19 44 -24 121 -30 115 -8 140 -17 148 -53 12 -59 8 -56 101 -50 72 5 90&#xA;10 112 30 45 42 142 80 175 67 15 -5 50 -10 78 -10 42 0 56 -5 84 -29 23 -20&#xA;53 -34 94 -42 64 -12 75 -27 38 -51 -41 -27 -17 -48 55 -48 63 0 63 0 74 -66&#xA;13 -77 43 -117 83 -112 20 2 24 8 21 28 -9 63 -9 62 53 77 71 16 79 11 112&#xA;-63 23 -52 23 -52 86 -63 63 -11 67 -14 111 -76 10 -14 28 -25 40 -25 13 0 26&#xA;-9 32 -22 25 -57 164 -24 312 73 55 37 99 59 108 55 8 -3 26 -30 39 -61 25&#xA;-55 25 -55 238 -55 117 0 218 -4 224 -8 7 -4 20 -25 30 -47 23 -48 47 -54 110&#xA;-30 58 22 88 17 92 -15 6 -53 -110 -116 -337 -184 -173 -53 -213 -71 -291&#xA;-132 -30 -23 -83 -58 -116 -78 -68 -39 -113 -85 -144 -147 -45 -87 -217 -244&#xA;-487 -444 -60 -44 -93 -75 -93 -87 0 -12 -13 -24 -35 -34 -29 -12 -35 -20 -35&#xA;-43 0 -23 -5 -30 -22 -33 -23 -3 -23 -3 -23 -233 -1 -294 -1 -295 -73 -328&#xA;-99 -45 -174 -89 -179 -106 -19 -58 -64 -141 -82 -151 -17 -9 -21 -20 -21 -59&#xA;0 -48 1 -50 45 -71 48 -23 85 -66 85 -98 0 -25 -57 -268 -71 -303 -7 -18 -7&#xA;-44 0 -81 6 -37 6 -79 0 -127 -10 -72 -10 -72 68 -154 77 -81 79 -82 138 -89&#xA;41 -5 63 -13 70 -24 42 -73 78 -96 203 -130 7 -2 15 -12 18 -21 25 -75 69&#xA;-145 109 -173 25 -17 56 -46 71 -65 19 -25 34 -35 54 -35 35 0 112 -68 163&#xA;-142 36 -53 36 -53 26 -128 -5 -41 -7 -92 -3 -112 5 -34 4 -38 -23 -45 -15 -4&#xA;-719 -8 -1563 -8 l-1535 1 -3 777 c-2 777 -2 777 -31 791 -15 8 -48 20 -72 27&#xA;-42 11 -46 15 -82 88 -21 42 -38 82 -37 89 0 8 36 52 80 99 80 86 80 86 80&#xA;177 -1 167 -33 361 -73 441 -60 117 -83 269 -58 380 4 17 1 48 -5 71 -23 78&#xA;-48 310 -49 454 -2 145 -2 145 -48 260 -25 63 -55 154 -66 203 -12 48 -27 97&#xA;-34 110 -19 29 -17 450 1 484 18 33 15 55 -18 126 -36 75 -55 174 -39 194 9&#xA;10 130 13 613 15 l601 3 3 173 c2 128 6 172 15 172 6 0 44 -9 82 -19z"></path></g><g transform="translate(0.000000,658.000000) scale(0.100000,-0.100000)" fill="none" stroke="#149d5b" stroke-width="40" stroke-linejoin="round" stroke-linecap="round"><path d="M1930 5699 l0 -179 -598 0 c-692 0 -639 8 -622 -94 5 -33 23 -88 40&#xA;-123 33 -71 36 -93 18 -126 -18 -34 -20 -455 -1 -484 7 -13 22 -62 34 -110 11&#xA;-49 41 -140 66 -203 46 -115 46 -115 48 -260 1 -144 26 -376 49 -454 6 -23 9&#xA;-54 5 -71 -25 -111 -2 -263 58 -380 40 -80 72 -274 73 -441 0 -91 0 -91 -80&#xA;-177 -44 -47 -80 -92 -80 -101 0 -9 19 -52 42 -96 35 -67 46 -80 72 -86 17 -3&#xA;48 -13 69 -21 37 -15 37 -15 37 -788 0 -606 3 -775 13 -782 17 -13 3082 -8&#xA;3127 5 19 5 30 10 23 11 -18 2 -24 69 -14 151 10 75 10 75 -26 128 -51 75&#xA;-138 152 -171 152 -19 0 -36 11 -55 35 -16 20 -46 47 -68 62 -28 19 -47 44&#xA;-70 92 -44 95 -44 94 -60 102 -8 4 -40 14 -71 23 -55 16 -78 35 -128 106 -11&#xA;15 -30 23 -75 28 -59 7 -62 9 -133 83 -73 77 -73 77 -63 149 6 49 6 91 0 128&#xA;-7 37 -7 63 0 81 15 39 71 279 71 307 0 29 -68 101 -105 110 -22 5 -25 11 -25&#xA;53 0 36 5 49 21 59 19 12 79 124 79 148 0 12 72 54 177 104 60 28 62 30 70 77&#xA;4 26 7 146 5 265 -3 217 -3 217 20 220 17 2 24 11 26 33 2 22 11 34 35 45 18&#xA;8 33 24 35 35 2 12 37 45 84 80 257 188 453 367 497 453 32 62 68 99 134 138&#xA;34 20 87 55 117 78 78 61 118 79 291 132 167 50 246 85 309 135 80 64 34 125&#xA;-63 84 -63 -26 -85 -20 -103 25 -9 22 -25 45 -35 50 -10 6 -111 10 -226 10&#xA;-209 0 -209 0 -234 52 -38 81 -43 81 -151 10 -149 -98 -287 -133 -308 -77 -7&#xA;18 -17 25 -35 25 -18 0 -31 11 -50 40 -28 44 -45 54 -116 64 -44 6 -48 10 -63&#xA;50 -28 73 -52 89 -117 74 -81 -17 -88 -27 -63 -92 9 -23 -38 -21 -60 3 -9 10&#xA;-22 49 -29 87 -13 69 -13 69 -80 72 -71 3 -81 12 -45 41 33 28 17 47 -51 60&#xA;-42 8 -72 21 -95 42 -28 24 -42 29 -84 29 -28 0 -63 5 -78 10 -33 13 -130 -25&#xA;-175 -67 -22 -20 -40 -25 -112 -30 -87 -6 -87 -6 -87 19 0 59 -67 87 -209 88&#xA;-31 0 -51 7 -73 25 -20 17 -42 25 -67 25 -60 0 -143 19 -163 37 -13 12 -18 31&#xA;-18 74 0 40 -12 97 -40 184 -29 93 -40 143 -40 190 0 79 -9 87 -140 120 l-90&#xA;23 0 -179z m105 142 c113 -29 115 -31 115 -106 0 -47 11 -97 40 -190 28 -87&#xA;40 -144 40 -184 0 -47 4 -61 23 -79 24 -23 102 -42 168 -42 25 0 47 -8 66 -24&#xA;23 -19 44 -24 121 -30 115 -8 140 -17 148 -53 12 -59 8 -56 101 -50 72 5 90&#xA;10 112 30 45 42 142 80 175 67 15 -5 50 -10 78 -10 42 0 56 -5 84 -29 23 -20&#xA;53 -34 94 -42 64 -12 75 -27 38 -51 -41 -27 -17 -48 55 -48 63 0 63 0 74 -66&#xA;13 -77 43 -117 83 -112 20 2 24 8 21 28 -9 63 -9 62 53 77 71 16 79 11 112&#xA;-63 23 -52 23 -52 86 -63 63 -11 67 -14 111 -76 10 -14 28 -25 40 -25 13 0 26&#xA;-9 32 -22 25 -57 164 -24 312 73 55 37 99 59 108 55 8 -3 26 -30 39 -61 25&#xA;-55 25 -55 238 -55 117 0 218 -4 224 -8 7 -4 20 -25 30 -47 23 -48 47 -54 110&#xA;-30 58 22 88 17 92 -15 6 -53 -110 -116 -337 -184 -173 -53 -213 -71 -291&#xA;-132 -30 -23 -83 -58 -116 -78 -68 -39 -113 -85 -144 -147 -45 -87 -217 -244&#xA;-487 -444 -60 -44 -93 -75 -93 -87 0 -12 -13 -24 -35 -34 -29 -12 -35 -20 -35&#xA;-43 0 -23 -5 -30 -22 -33 -23 -3 -23 -3 -23 -233 -1 -294 -1 -295 -73 -328&#xA;-99 -45 -174 -89 -179 -106 -19 -58 -64 -141 -82 -151 -17 -9 -21 -20 -21 -59&#xA;0 -48 1 -50 45 -71 48 -23 85 -66 85 -98 0 -25 -57 -268 -71 -303 -7 -18 -7&#xA;-44 0 -81 6 -37 6 -79 0 -127 -10 -72 -10 -72 68 -154 77 -81 79 -82 138 -89&#xA;41 -5 63 -13 70 -24 42 -73 78 -96 203 -130 7 -2 15 -12 18 -21 25 -75 69&#xA;-145 109 -173 25 -17 56 -46 71 -65 19 -25 34 -35 54 -35 35 0 112 -68 163&#xA;-142 36 -53 36 -53 26 -128 -5 -41 -7 -92 -3 -112 5 -34 4 -38 -23 -45 -15 -4&#xA;-719 -8 -1563 -8 l-1535 1 -3 777 c-2 777 -2 777 -31 791 -15 8 -48 20 -72 27&#xA;-42 11 -46 15 -82 88 -21 42 -38 82 -37 89 0 8 36 52 80 99 80 86 80 86 80&#xA;177 -1 167 -33 361 -73 441 -60 117 -83 269 -58 380 4 17 1 48 -5 71 -23 78&#xA;-48 310 -49 454 -2 145 -2 145 -48 260 -25 63 -55 154 -66 203 -12 48 -27 97&#xA;-34 110 -19 29 -17 450 1 484 18 33 15 55 -18 126 -36 75 -55 174 -39 194 9&#xA;10 130 13 613 15 l601 3 3 173 c2 128 6 172 15 172 6 0 44 -9 82 -19z"/></g></svg>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- FOOTER -->
+  <footer data-screen-label="Footer" style="position:relative;background:#0a0e0c;color:#ffffff;padding:56px 56px 44px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:48px;flex-wrap:wrap;">
+      <div style="max-width:480px;">
+        <p style="margin:0;font-size:21px;line-height:1.4;font-weight:300;letter-spacing:-0.01em;color:#eef1ef;">We hold these truths to be self-evident.<br><span style="color:#3de08a;">Alethical makes them accessible.</span></p>
+      </div>
+      <div style="display:flex;align-items:center;gap:34px;">
+        <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Privacy Policy</a>
+        <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Terms of Use</a>
+      </div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.1em;color:#7c847f;">© 2026 ALETHICAL · BUILT IN MINNESOTA</div>
+      <div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:0.14em;color:#3de08a;">TRUTH, UNCONCEALED</div>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showCapabilities&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;},&quot;showLegislatorFinder&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;}}">
+class Component extends DCLogic {
+  state = { openMenu: null };
+  renderVals() {
+    const openMenu = this.state.openMenu;
+    const toggle = (name) => (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState(s => ({ openMenu: s.openMenu === name ? null : name })); };
+    this.finderRef = this.finderRef || React.createRef();
+    return {
+      showCapabilities: this.props.showCapabilities ?? true,
+      showLegislatorFinder: this.props.showLegislatorFinder ?? true,
+      menuOpen: openMenu !== null,
+      closeMenu: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ openMenu: null }); },
+      searchOpen: openMenu === 'search',
+      searchClosed: openMenu !== 'search',
+      toggleSearch: toggle('search'),
+      trackOpen: openMenu === 'track',
+      trackClosed: openMenu !== 'track',
+      toggleTrack: toggle('track'),
+      aboutOpen: openMenu === 'about',
+      aboutClosed: openMenu !== 'about',
+      toggleAbout: toggle('about'),
+      finderRef: this.finderRef,
+    };
+  }
+}
+</script>
+</body>
+</html>

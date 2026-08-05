@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -18,9 +18,14 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import { fieldFocusRing } from '../../theme/fieldFocus';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBillTracking } from '../../hooks/useBillTracking';
-import { useBill, useBills } from '../../hooks/useAppQueries';
+import { useBill, useBills, useTrackedBills } from '../../hooks/useAppQueries';
+import { useLastVisitWithoutAdvancing } from '../../hooks/useTrackedBillsLastVisit';
+import { useAuth } from '../../providers/AuthProvider';
+import { SessionWatchCard } from '../../components/home/SessionWatchCard';
+import { sessionWatch } from '../../lib/sessionWatch';
+import { lastVisitFrom } from '../../lib/trackedBillsLastVisit';
 import { BillResultCard } from '../../components/search/BillResultCard';
-import { plainBillSummary } from '../../lib/billDetail';
+import { formatNiceDate, plainBillSummary } from '../../lib/billDetail';
 import { HOT_ISSUE_BILL_KEYS } from '../../lib/hotIssues';
 import type { Bill } from '../../data/types';
 
@@ -31,6 +36,96 @@ import type { Bill } from '../../data/types';
 
 const t = theme;
 const isWeb = Platform.OS === 'web';
+
+// "Welcome back, Jordan" — the given name only. A full name in a greeting reads as
+// an address label rather than a greeting, and the account control in the nav
+// already carries the whole identity.
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+// The reader's LOCAL calendar day, so a visit at 9pm Minnesota time is not dated to
+// the next day by its UTC timestamp. Same helper shape the tracked page uses.
+function localDay(at: Date): string {
+  const month = `${at.getMonth() + 1}`.padStart(2, '0');
+  const day = `${at.getDate()}`.padStart(2, '0');
+  return `${at.getFullYear()}-${month}-${day}`;
+}
+
+// Beside the hero's state line. Green rising line when something moved, grey clock
+// when it is quiet, grey ring while we are still checking — never an error colour,
+// because none of the three is a failure. The state line beside it carries the
+// whole message, so these are decorative.
+function HeroStateGlyph({ glyph }: { glyph: 'trend' | 'clock' | 'spinner' }) {
+  if (glyph === 'trend') {
+    return (
+      <Svg
+        width={30}
+        height={30}
+        viewBox="0 0 24 24"
+        fill="none"
+        style={heroGlyphStyle}
+        aria-hidden
+      >
+        <Path
+          d="M5 16 L11 10 L14 13 L19 8"
+          stroke={theme.colors.brand.deep}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M14.5 8 H19 V12.5"
+          stroke={theme.colors.brand.deep}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    );
+  }
+  if (glyph === 'spinner') {
+    return (
+      <Svg
+        width={30}
+        height={30}
+        viewBox="0 0 24 24"
+        fill="none"
+        style={heroGlyphStyle}
+        aria-hidden
+      >
+        <Circle
+          cx={12}
+          cy={12}
+          r={9}
+          stroke={theme.colors.status.progressEmpty}
+          strokeWidth={2.2}
+        />
+        <Path
+          d="M21 12 a9 9 0 0 0 -9 -9"
+          stroke={theme.colors.text.muted}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+        />
+      </Svg>
+    );
+  }
+  return (
+    <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" style={heroGlyphStyle} aria-hidden>
+      <Circle cx={12} cy={12} r={8.5} stroke={theme.colors.text.muted} strokeWidth={1.9} />
+      <Path
+        d="M12 7.6 V12 L15 14"
+        stroke={theme.colors.text.muted}
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+// Nudged onto the first line's cap height rather than its box top.
+const heroGlyphStyle = { marginTop: 8, flexShrink: 0 } as const;
 
 // .18s ease micro-transitions (README "Hover / focus micro-states") — web only.
 const transition = (props: string): object =>
@@ -451,6 +546,10 @@ function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
   const { isTracked, toggleTrack } = useBillTracking();
   const { isDesktop, isMobile } = useResponsive();
+  // ONE homepage, not two (#1034). Only the hero region branches on auth;
+  // everything below it — Bills Moving, Find My Legislator, the footer, the nav —
+  // is identical either way, so signing in never takes a capability away.
+  const { isSignedIn, user } = useAuth();
   // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
   // would fire these queries and contend with the visible screen's first load.
@@ -487,6 +586,42 @@ function HomeSignedOutDesktop() {
       return;
     }
     navigation.navigate('FindMyLegislator', { address });
+  };
+
+  // The signed-in hero's inputs. Both queries are gated on being signed in AND on
+  // Home being the visible screen, like the feed queries above.
+  const trackedQuery = useTrackedBills(isSignedIn && isFocused ? user?.id : undefined);
+  // READS the last-looked mark and never advances it (#1034). Only opening the
+  // tracked list itself advances it — a glance at a card showing two of six moved
+  // bills must not mark all six as seen.
+  const lastVisitQuery = useLastVisitWithoutAdvancing(
+    isSignedIn && isFocused ? user?.id : undefined,
+  );
+  const lastVisitData = lastVisitQuery.data;
+  const trackedBills = trackedQuery.data;
+  const watchNow = useRef(new Date()).current;
+  const watch = useMemo(() => {
+    const lastVisit = lastVisitFrom(lastVisitData);
+    // The tracked list itself is still loading, so we do not yet know what to
+    // compare — the same "we have not asked" case, and it renders as pending
+    // rather than as an empty watchlist (#1026, #1034).
+    if (!trackedBills) return sessionWatch([], { state: 'not-checked' }, watchNow, '');
+    const visitedOn =
+      lastVisit.state === 'previous-visit' ? formatNiceDate(localDay(lastVisit.at)) : '';
+    return sessionWatch(trackedBills, lastVisit, watchNow, visitedOn);
+  }, [trackedBills, lastVisitData, watchNow]);
+
+  // "Or start from what's moving now" scrolls to the Bill Activity section already
+  // further down this page, so someone tracking nothing is never at a dead end.
+  // scrollIntoView rather than an anchor href: the section is a View, not a routed
+  // location, and RN-Web drops a bare `id` (memory: RN-Web sticky/scroll-spy).
+  const billActivityRef = useRef<View>(null);
+  const scrollToBillActivity = () => {
+    if (!isWeb || !billActivityRef.current) return;
+    (billActivityRef.current as unknown as HTMLElement).scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      block: 'start',
+    });
   };
 
   const handleNavigate = (item: IaItem) => {
@@ -560,19 +695,45 @@ function HomeSignedOutDesktop() {
               <View style={[styles.heroGrid, isDesktop && styles.heroGridDesktop]}>
                 {/* LEFT */}
                 <View style={[styles.heroLeft, isDesktop && styles.heroLeftDesktop]}>
-                  <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                  <Text
-                    accessibilityRole="header"
-                    style={[styles.heroH1, !isDesktop && styles.heroH1Mobile]}
-                  >
-                    Grounded answers{'\n'}
-                    <Text style={styles.heroH1Green}>on Minnesota law</Text>
-                  </Text>
-                  <Text style={[styles.heroSubhead, !isDesktop && styles.heroSubheadMobile]}>
-                    We read every bill so you don’t have to — what it says, where it stands, and how
-                    legislators voted. Plain language, with every claim linked to the official
-                    record.
-                  </Text>
+                  {isSignedIn ? (
+                    <>
+                      {/* The STATE LINE is the headline and the greeting is a small
+                          eyebrow above it. The news is why someone returns, not being
+                          recognised — but the greeting stays rather than vanishing: it
+                          carries a secondary account confirmation inside the reading
+                          flow, which matters on a shared device, and it gives a stable
+                          anchor above a line whose length swings from "Checking…" to
+                          "11 of the 14 bills…". */}
+                      <Text style={styles.heroGreeting}>
+                        Welcome back{user?.name ? `, ${firstName(user.name)}` : ''}
+                      </Text>
+                      <View style={styles.heroStateRow}>
+                        <HeroStateGlyph glyph={watch.glyph} />
+                        <Text
+                          accessibilityRole="header"
+                          style={[styles.heroStateLine, !isDesktop && styles.heroStateLineMobile]}
+                        >
+                          {watch.heroLine}
+                        </Text>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
+                      <Text
+                        accessibilityRole="header"
+                        style={[styles.heroH1, !isDesktop && styles.heroH1Mobile]}
+                      >
+                        Grounded answers{'\n'}
+                        <Text style={styles.heroH1Green}>on Minnesota law</Text>
+                      </Text>
+                      <Text style={[styles.heroSubhead, !isDesktop && styles.heroSubheadMobile]}>
+                        We read every bill so you don’t have to — what it says, where it stands, and
+                        how legislators voted. Plain language, with every claim linked to the
+                        official record.
+                      </Text>
+                    </>
+                  )}
 
                   {/* ENTRY POINTS. Two real links replace the earlier free-form Ask
                       field + prompt chips (free-form Ask is roadmap, not shipped, and
@@ -594,9 +755,22 @@ function HomeSignedOutDesktop() {
                   </View>
                 </View>
 
-                {/* RIGHT: answer card */}
+                {/* RIGHT: the Session watch card replaces the example answer card in
+                    the same slot, footprint and shadow — not a band above the hero,
+                    which would stack two heroes and make a signed-in reader scroll
+                    past a pitch that already worked. */}
                 <View style={[styles.heroRight, isDesktop && styles.heroRightDesktop]}>
-                  <AnswerCard dimmed={openMenu !== null} />
+                  {isSignedIn ? (
+                    <SessionWatchCard
+                      watch={watch}
+                      onBill={(billId) => navigation.navigate('BillDetail', { billId })}
+                      onAllTracked={() => navigation.navigate('Tracked')}
+                      onSearchBills={() => navigation.navigate('Bills')}
+                      onWhatsMoving={scrollToBillActivity}
+                    />
+                  ) : (
+                    <AnswerCard dimmed={openMenu !== null} />
+                  )}
                 </View>
               </View>
             </Container>
@@ -604,7 +778,7 @@ function HomeSignedOutDesktop() {
           </View>
 
           {/* BILLS MOVING THROUGH THE LEGISLATURE */}
-          <View style={styles.billsSection}>
+          <View ref={billActivityRef} style={styles.billsSection}>
             <Container>
               <Text style={styles.sectionEyebrow}>2025–26 LEGISLATIVE SESSION</Text>
               <View style={styles.billsHeadRow}>
@@ -1704,6 +1878,26 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
     maxWidth: 660,
   },
+  // Signed-in hero. The greeting is deliberately SMALL — 18px against the state
+  // line's 38px. An older reference drew it at 52-60px; that spec is stale, and it
+  // put the reader's own name where the news belongs.
+  heroGreeting: {
+    fontFamily: theme.typography.ui,
+    fontSize: theme.fontSizes.subhead,
+    fontWeight: theme.fontWeights.semibold,
+    color: theme.colors.text.muted,
+  },
+  heroStateRow: { marginTop: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  heroStateLine: {
+    flex: 1,
+    fontFamily: theme.typography.title,
+    fontSize: 38,
+    lineHeight: 46,
+    fontWeight: theme.fontWeights.heavy,
+    letterSpacing: -0.76,
+    color: theme.colors.text.primary,
+  },
+  heroStateLineMobile: { fontSize: 30, lineHeight: 38, letterSpacing: -0.6 },
   heroSubheadMobile: { marginTop: 28, fontSize: 22, lineHeight: 33 },
   fieldShell: {
     flexDirection: 'row',

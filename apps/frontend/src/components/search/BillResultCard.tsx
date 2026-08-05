@@ -17,7 +17,7 @@ import {
   type BillChanges,
 } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
-import { changeEyebrow } from '../../lib/trackedBillsChanges';
+import { ChangeBlock } from '../ChangeBlock';
 import { linkProps, pressInsideLink, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
@@ -138,61 +138,6 @@ function HotIssuePill() {
   return (
     <View style={styles.hotPill} accessibilityRole="text" accessibilityLabel="Hot issue">
       <Text style={styles.hotPillText}>🔥 Hot issue</Text>
-    </View>
-  );
-}
-
-// "What moved since you last looked" — a soft green panel INSIDE the card, not a
-// badge on it: a dated report, not an alert (#1009). The mono eyebrow carries the
-// date of the change itself.
-//
-// A change the record states no date for names the absence rather than going
-// quiet: "MOVED · DATE NOT RECORDED", the qualifier in a lighter tone. The
-// Legislature genuinely files undated entries ("Laid on table", conference-
-// committee steps), and the sentence still names what happened — we neither invent
-// a date nor hide a real change (grounded-answers rule 1). Naming it says the
-// silence is the record's, not ours; a bare "MOVED" read as our omission. The
-// eyebrow stays first and stays green in both cases, because dated and undated
-// blocks sit in the same list and one composition is what makes them read as the
-// same thing.
-//
-// The earlier-steps link exists so one sentence never implies it was the only
-// thing that happened. It states a count and no date range: "since your last
-// visit" already gives the range, and the bill's own history shows every date. A
-// plain Pressable rather than an anchor — the card is itself a real <a>, and an
-// <a> inside an <a> is invalid markup that reads as one confused control to a
-// screen reader (the same reason the author name and roll-calls chip are plain).
-function ChangeBlock({ change, onHistory }: { change: BillChanges; onHistory?: () => void }) {
-  const [hovered, hover] = useHover();
-  const earlier = change.earlierCount;
-  // Both branches of the wording live in changeEyebrow (lib/trackedBillsChanges),
-  // where a test pins them; this only decides how the two parts are toned.
-  const eyebrow = changeEyebrow(change.date);
-  return (
-    <View style={styles.change}>
-      {/* One Text, so the two tones stay on one line and wrap as one phrase. */}
-      <Text style={styles.changeEyebrow}>
-        {eyebrow.moved}
-        {eyebrow.qualifier ? (
-          <Text style={styles.changeEyebrowQualifier}>{eyebrow.qualifier}</Text>
-        ) : null}
-      </Text>
-      <Text style={styles.changeText}>{change.label}</Text>
-      {earlier > 0 && onHistory ? (
-        <Pressable
-          accessibilityRole="link"
-          onPress={pressInsideLink(onHistory)}
-          {...hover}
-          style={styles.changeMore}
-        >
-          <Text style={[styles.changeMoreText, hovered && styles.changeMoreTextHover]}>
-            {earlier === 1 ? '1 earlier step' : `${earlier} earlier steps`} since your last visit{' '}
-            <Text style={styles.changeMoreArrow} aria-hidden>
-              →
-            </Text>
-          </Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }
@@ -594,51 +539,6 @@ const styles = StyleSheet.create({
   // 8px on top of the card's own 12px gap = the 20px the design asks for below a
   // title with no summary between it and the block.
   changeAfterTitle: { marginTop: 8 },
-  // The "what moved since you last looked" panel. Soft green, inside the card.
-  change: {
-    maxWidth: 1040,
-    backgroundColor: t.colors.tint.t50,
-    borderWidth: 1,
-    borderColor: t.colors.tint.t300,
-    borderRadius: t.radii.md,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
-    gap: 7,
-  },
-  changeEyebrow: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.caption,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.32,
-    // brand.forest (#0f7a45), not the mockup's #149d5b: at 11px this is small text,
-    // and #149d5b sits at 3.27:1 on the panel — short of WCAG AA's 4.5:1. Forest
-    // measures 5.05:1. Same call, same reason, as the omnibus token's own note
-    // (theme/tokens.ts) — accessibility overrides the spec.
-    color: t.colors.brand.forest,
-  },
-  // The "· DATE NOT RECORDED" half, quieter than the green so it reads as a
-  // qualifier and not a second heading. text.muted (#656c66) rather than the
-  // mock's #6f756f: at 11px that measures 4.41:1 on the panel, just under WCAG
-  // AA's 4.5:1, and #656c66 measures 5.05:1 — the same figure as the green beside
-  // it, so neither half dominates the other.
-  changeEyebrowQualifier: { color: t.colors.text.muted },
-  changeText: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    lineHeight: 24,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.primary,
-  },
-  changeMore: { alignSelf: 'flex-start' },
-  changeMoreText: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 21,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.brand.forest, // 5.05:1 on the panel; see changeEyebrow
-  },
-  changeMoreTextHover: { color: t.colors.text.primary },
-  changeMoreArrow: { fontWeight: t.fontWeights.regular },
   meta: {
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,
