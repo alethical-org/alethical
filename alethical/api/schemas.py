@@ -441,6 +441,10 @@ class AskLegislatorBillRef(BaseModel):
     file_type: str
     file_number: int
     title: str
+    # Which session the bill is from, served only when it is not the Legislature's
+    # regular session — the same rule as BillListItem.session, for the same reason:
+    # a special session reuses file numbers, so "HF 5" alone names two bills (#810).
+    session: "AskSessionRef | None" = None
 
 
 class AskLegislatorRow(BaseModel):

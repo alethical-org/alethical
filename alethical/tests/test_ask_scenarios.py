@@ -1465,3 +1465,51 @@ def test_saying_the_word_session_is_not_naming_one(client, monkeypatch):
     ).json()["data"]["answer"]
     assert answer is not None, "an incidental 'session' must not refuse the question"
     assert answer["bill"]["id"] == "94-2025-SF2483"
+
+
+def test_a_bill_number_we_do_not_have_refuses_instead_of_matching_another_bill(
+    client, monkeypatch
+):
+    """A written number that matches nothing must stop the resolver, not hand the
+    question to title matching — which would answer about a different bill entirely,
+    with a correct-looking citation on it (grounded rule 1)."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post(
+        "/api/v1/ask",
+        json={"content": "What's in HF 8842, the higher education bill?"},
+    ).json()["data"]["answer"]
+    assert answer is None or answer.get("bill", {}).get("id") != "94-2025-SF2483"
+
+
+def test_the_common_ways_a_reader_names_a_session_all_work(client, monkeypatch):
+    """ "the first special session", "the 1st special session" and a bare "the special
+    session" are all how people write it. Declining any of them refuses a question we
+    can answer (#810)."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    for phrase in (
+        "the first special session",
+        "the 1st special session",
+        "the special session",
+        "the 2025 special session",
+    ):
+        answer = client.post(
+            "/api/v1/ask", json={"content": f"What's in HF 5 from {phrase}?"}
+        ).json()["data"]["answer"]
+        assert answer is not None, f"{phrase!r} names one session we hold"
+        assert answer["bill"]["id"] == "94-2025s1-HF5", f"{phrase!r} resolved elsewhere"
+
+
+def test_a_question_about_another_legislature_is_refused(client, monkeypatch):
+    """Nothing in the ordinal map knows WHOSE special session, so a question naming
+    the 93rd Legislature would otherwise be answered from the 94th's."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post(
+        "/api/v1/ask",
+        json={
+            "content": "What's in HF 5 from the 93rd Legislature first special session?"
+        },
+    ).json()["data"]["answer"]
+    assert answer is None or answer.get("bill", {}).get("id") != "94-2025s1-HF5"

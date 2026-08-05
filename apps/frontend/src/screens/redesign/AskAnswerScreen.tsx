@@ -444,8 +444,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // (2025 - 2026) Regular Session") — one vocabulary on every page (§9.5
   // decision 8). No date here: the page's single date is the source line
   // (§9.5 decision 8a, docs/design/ui-copy-guide.md § Dates on a page).
+  // The BILL's own session wins over the answer-wide one. The answer-wide field
+  // names the ground the search covered (the Legislature); this line sits under the
+  // answer to one bill, and printing "2025–2026 Legislative Session" above an answer
+  // about a special-session law states the wrong session for it (#810).
   const sessionLine = backBill
-    ? bienniumEyebrow(backBill.id, answer?.sessionName)
+    ? bienniumEyebrow(backBill.id, backBill.sessionName ?? answer?.sessionName)
     : bienniumEyebrow('', answer?.sessionName);
   // The answering bill's OWN date, through the SAME helper the bill's page uses, so
   // the two pages cannot print different dates for one bill — which is the binding
@@ -855,10 +859,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
             )}
           >
-            <Text style={styles.viewBillLink}>
-              See all {answer.totalBills} {answer.topic}{' '}
-              {answer.totalBills === 1 ? 'bill' : 'bills'} in Search →
-            </Text>
+            {/* No count, for the same reason as the topic list's link: an Ask
+                covers the whole Legislature and Search browses one session, so a
+                number here promises a page Search cannot show (#810). */}
+            <Text style={styles.viewBillLink}>See all {answer.topic} bills in Search →</Text>
           </Pressable>
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />

@@ -150,17 +150,60 @@ SPECIAL_SESSION_ORDINALS = {
 # reference we could not pin down made every such question refuse outright.
 QUESTION_NAMES_A_SESSION = re.compile(r"special\s+session", re.I)
 
+# A Legislature named in the question itself ("93rd Legislature", "the 94th"). The
+# ordinal map below only knows which special session; nothing in it knows WHOSE, so
+# without this "93rd Legislature first special session" would be answered from the
+# 94th's — a wrong answer about a different Legislature entirely (#810).
+# "Legislature" is REQUIRED, not optional. Without it this matched the "1st" in
+# "1st special session" and read it as the 1st Legislature, declining a question
+# that had named its session perfectly well.
+QUESTION_NAMES_A_LEGISLATURE = re.compile(
+    r"\b(?P<number>\d{1,3})(?:st|nd|rd|th)\s+legislature\b", re.I
+)
+
+# Words that can sit where an ordinal would and mean "no ordinal given" rather than
+# "an ordinal I do not recognise". A reader writes "the special session" and "that
+# special session"; a source row never does. Treating those as unknown declined
+# ordinary questions. Anything OUTSIDE this list still declines, which is what keeps
+# "Fourth Special Session" from silently widening to the first.
+_ORDINAL_STOP_WORDS = frozenset({"the", "a", "an", "that", "this", "its", "our", "one"})
+
 
 def named_special_session_in_question(text: str, legislature: int) -> str | None | bool:
     """``named_special_session`` for a reader's own words rather than a source row.
 
-    Identical once a special session really is named — same ordinals, same
-    decline-on-ambiguity. The only difference is what counts as naming one at all:
-    "what happened in the last session?" names nothing and must not refuse (#810).
+    Same ordinals and the same decline-on-ambiguity once a special session really is
+    named. Three differences, all because a question is written by a person:
+
+    * "session" alone names nothing — "what happened in the last session?" must not
+      refuse;
+    * a determiner in the ordinal slot ("the special session") names no ordinal
+      rather than an unrecognised one;
+    * a question naming a DIFFERENT Legislature ("93rd Legislature first special
+      session") is declined, because everything below is scoped to one Legislature
+      and would otherwise answer from the wrong one.
     """
     if not QUESTION_NAMES_A_SESSION.search(text):
         return False
-    return named_special_session(text, legislature)
+    named_legislature = QUESTION_NAMES_A_LEGISLATURE.search(text)
+    if named_legislature and int(named_legislature.group("number")) != legislature:
+        return None
+    match = NAMED_SPECIAL_SESSION.search(text)
+    if match is None:
+        return None
+    qualifier = (match.group("qualifier") or "").lower()
+    if not qualifier or qualifier in _ORDINAL_STOP_WORDS:
+        ordinal = None
+    elif qualifier in SPECIAL_SESSION_ORDINALS:
+        ordinal = SPECIAL_SESSION_ORDINALS[qualifier]
+    else:
+        # An unrecognised word in the ordinal slot ("fourth", "June"). Declined, for
+        # the same reason as the source-row path: reading it as "no ordinal given" is
+        # how a question asking for a session we do not hold gets answered from the
+        # only one we do.
+        return None
+    year = int(match.group("year")) if match.group("year") else None
+    return special_session_slug(legislature, ordinal, year)
 
 
 def known_special_sessions() -> list[tuple[int, int, int, str]]:
@@ -225,6 +268,17 @@ def named_special_session(text: str, legislature: int) -> str | None | bool:
         # would fall through to the Legislature's only special session and match the
         # first one. Unrecognised means declined.
         return None
+    return special_session_slug(legislature, ordinal, year)
+
+
+def special_session_slug(legislature: int, ordinal: int | None, year: int | None):
+    """The one special session matching these facts, or ``None`` if not exactly one.
+
+    Split out so a caller that has already worked out the ordinal can ask directly,
+    instead of rewriting the sentence and re-parsing it. That round trip is how the
+    word before the phrase ("in the special session") slid into the ordinal slot and
+    declined a question that had named its session perfectly well.
+    """
     candidates = {
         slug
         for candidate_legislature, candidate_ordinal, candidate_year, slug in (

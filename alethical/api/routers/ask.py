@@ -118,7 +118,11 @@ def _bill_session_ref(scope: LegislatureScope, bill) -> AskSessionRef | None:
     already assumes; served only when the bill comes from somewhere else, so a
     special-session bill can never be shown under the biennium's name.
     """
-    row = scope.by_id(bill.session_id)
+    return _session_ref_for(scope, bill.session_id)
+
+
+def _session_ref_for(scope: LegislatureScope, session_id) -> AskSessionRef | None:
+    row = scope.by_id(session_id)
     if row is None or row.id == scope.primary.id:
         return None
     return AskSessionRef(slug=row.slug, name=row.name)
@@ -246,6 +250,7 @@ def _topic_legislators_answer(
             District.code.label("district"),
             Sponsorship.role,
             Bill.id.label("bill_id"),
+            Bill.session_id,
             Bill.bill_key,
             Bill.file_type,
             Bill.file_number,
@@ -302,6 +307,10 @@ def _topic_legislators_answer(
             file_type=row.file_type,
             file_number=row.file_number,
             title=row.title,
+            # Same rule as a bill card: served only when the bill is not from the
+            # regular session, so two references both reading "HF 5" are not
+            # presented as one bill (#810).
+            session=_session_ref_for(scope, row.session_id),
         )
 
     # Deterministic order for the shareable ?q= link: most bills first, then
@@ -388,6 +397,12 @@ class _NumberMatch:
 
     bill: object | None = None
     collisions: tuple = ()
+    # Whether the question actually wrote an HF/SF number. Distinguishes "no number
+    # to look up" from "the number you gave matches nothing", which have to end
+    # differently: the first falls through to title and meaning-based matching, and
+    # the second must not. "HF 99: K-12 education funding" naming no HF 99 would
+    # otherwise be answered by the title match with some other bill entirely.
+    searched: bool = False
 
 
 def _question_session_ids(scope: LegislatureScope, content: str):
@@ -456,10 +471,10 @@ def _resolve_bill(db: Session, session_ids, content: str) -> _NumberMatch:
         ).all()
     )
     if len(matches) == 1:
-        return _NumberMatch(bill=matches[0])
+        return _NumberMatch(bill=matches[0], searched=True)
     if len(matches) > 1:
-        return _NumberMatch(collisions=matches)
-    return _NumberMatch()
+        return _NumberMatch(collisions=matches, searched=True)
+    return _NumberMatch(searched=True)
 
 
 # Question scaffolding stripped to isolate the bill's title phrase for a fuzzy
@@ -862,6 +877,11 @@ def _bill_text_answer(
     if by_number.collisions:
         # One number, two bills, no evidence to choose. Hand the reader both.
         return _ambiguous_number_answer(db, scope, by_number.collisions)
+    if by_number.searched and by_number.bill is None:
+        # The reader named a bill number and we do not have it. Title and
+        # meaning-based matching would happily return a different bill, which is a
+        # wrong answer wearing a correct citation. Refuse instead (grounded rule 1).
+        return None
     resolved = (
         by_number.bill
         or _resolve_bill_by_title(db, session_ids, content)
@@ -952,11 +972,14 @@ def _vote_deflection_answer(
 
     session_ids = _question_session_ids(scope, content)
     if session_ids is None:
+        # Names a session we cannot pin down. An unrestricted topic list here would
+        # answer a question about the fourth special session with bills from the
+        # sessions we do hold, which is the same wrong answer the bill path refuses.
         return AskVoteDeflectionAnswer(
             session=session_ref,
             data_as_of=data_as_of,
             resolved_bill=None,
-            topic_bills=_topic_bills_answer(db, topic),
+            topic_bills=None,
         )
     by_number = _resolve_bill(db, session_ids, content)
     if by_number.collisions:
