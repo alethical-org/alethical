@@ -27,6 +27,7 @@ paid for" references, and are the place to start if you're new.
 - [Bill search screen spec](product-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Bill Text tab spec](product-onboarding/bill-text-tab-spec.md) — how a bill's official text is parsed, marked up, and rendered, plus the section-index rail and citation anchors
 - [Answer quality bar](product-onboarding/answer-quality-bar.md) — what a good generated answer is, how the eval measures it, and the judge calibration behind the scores
+- [Tracked-bill notifications](product-onboarding/tracked-bill-notifications-spec.md) — the plan for telling people their bill moved: what an email would say, how often, what it costs, and how a live send stays gated until it is proven. Nothing built yet
 - [Data ingestion onboarding guide](product-onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
 - [AI models & billing](product-onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
 - [How Search works (plain English)](product-onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
