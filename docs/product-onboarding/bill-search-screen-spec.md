@@ -161,7 +161,13 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   neutral generated headline is scannable while official data still leads on the detail
   page; Phase 1 clamp [#303](https://github.com/alethical-org/alethical/pull/303),
   short_title [#304](https://github.com/alethical-org/alethical/pull/304).)
-- **AI summary** — 2–3 lines, no eyebrow label. (`AIEnrichment` `bill_summary`.) This
+- **AI summary** — 2–3 lines, no eyebrow label. (`AIEnrichment` `bill_summary`.) Always
+  present *on this screen*, because its backing query still requires one
+  (`bill_list_stmt` gates on `Bill.has_current_summary`) — but the shared card itself no
+  longer guarantees a summary line, and omits it entirely rather than falling back to the
+  official statutory title when a surface hands it a bill with no summary yet
+  ([#1007](https://github.com/alethical-org/alethical/issues/1007), the Tracked page). Read
+  this bullet as this screen's contract, not the component's. This
   originally specified a small purple "AI SUMMARY" eyebrow so official record and AI
   analysis were "distinguishable at a glance". That label was removed for a cleaner card in
   [#345](https://github.com/alethical-org/alethical/pull/345), and **the removal is the
@@ -217,9 +223,20 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   the bill on the watchlist and reads "Tracked". This reverses the Jul 2026 roadmap-preview
   decision, where the button was an inert `aria-disabled` preview. Ink is the color role
   reserved for Track (green stays for other forward actions). The Track **nav** dropdown
-  already offered Bills as a live entry; the on-card button now agrees. The remaining part of
-  #976 is rebuilding the Tracked page in the redesign. On the card, the tap is swallowed
-  (`pressInsideLink`) so it toggles instead of following the card's link to the bill.
+  already offered Bills as a live entry; the on-card button now agrees. The Tracked page
+  rebuild that #976's remaining part called for has since shipped
+  ([#986](https://github.com/alethical-org/alethical/pull/986)), closing #976. On the card,
+  the tap is swallowed (`pressInsideLink`) so it toggles instead of following the card's link
+  to the bill.
+- **Track stays off this screen's phone layout — and that is now a choice this screen makes,
+  not something the card lacks** ([#1007](https://github.com/alethical-org/alethical/issues/1007)).
+  `BillResultCard`'s phone layout used to render no Track control at all, so every surface
+  using the card was Track-less on a phone; it now honours the same `showTrackButton` prop
+  the desktop layout does, in its own third header row. This screen keeps passing
+  `showTrackButton={isDesktop}`, so the crowded-top-row decision of
+  [#596](https://github.com/alethical-org/alethical/pull/596) is unchanged here. Surfaces
+  that do not pass the prop (the Tracked page, the Ask answer card) now show it on a phone,
+  where a 44pt-minimum `size="mobile"` button is used rather than the 39px `size="card"`.
 - **Card link → bill Overview** (`/bills/:billId`), the detail screen (not yet redesigned;
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a

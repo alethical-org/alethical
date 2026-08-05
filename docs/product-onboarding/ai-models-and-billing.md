@@ -357,8 +357,15 @@ happens when a reply exceeds it depends entirely on which writer produced the re
 **Turning it into a hard limit on the Claude path would be worse than leaving it advisory.**
 A failed check makes `_call_anthropic` ask again, four times, and then give up on the bill —
 so a genuine omnibus that honestly needs 13 points would cost four paid attempts and end
-with no summary at all. A bill with no summary is **hidden from every list on the site**,
-which is far worse for a reader than a summary that runs long.
+with no summary at all. A bill with no summary is **hidden from every list a reader
+browses** — search, the session browse, the issue-chip counts, Ask's topic results, all of
+which gate on `Bill.has_current_summary` — which is far worse for a reader than a summary
+that runs long. **One list is deliberately not gated: the reader's own Tracked page**
+([#1007](https://github.com/alethical-org/alethical/issues/1007)). There they picked the
+bill personally, so dropping it would delete something they saved from the one page whose
+job is showing what they saved; it appears with its number, title and status, and no
+summary line. That exception does not soften the case above — it is a smaller audience (one
+person's watchlist) seeing a plainly incomplete row, not the whole corpus losing a bill.
 
 **So over-ceiling replies are counted and reported, never rejected**
 ([#836](https://github.com/alethical-org/alethical/issues/836)). The end-of-run output from

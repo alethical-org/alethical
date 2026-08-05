@@ -665,7 +665,9 @@ Purpose:
 
 - tracked bills screen
 
-Filters (**planned, none built yet** — the shipped endpoint takes no query parameters and returns every tracked bill in one page, ordered by `tracked_bills_stmt` in `alethical/db/models.py`):
+The shipped endpoint returns **every** bill the user tracks, in one page, newest-tracked first (`tracked_bills_stmt` in `alethical/db/models.py` orders by `tracked_bill.created_at DESC, id DESC`). Two things this deliberately does not do, both since [#1007](https://github.com/alethical-org/alethical/issues/1007): it does not order by the bill's own latest action (useful, but it reshuffles as the Legislature acts, which is a "what changed since you last looked" signal that needs a design first), and it does not gate on `Bill.has_current_summary` the way the browse and search statements do — a bill the reader saved appears whether or not we have written its AI summary yet.
+
+Filters (**planned, none built yet** — the shipped endpoint takes no query parameters):
 
 - `sort` — would follow the `/bills` values (`relevance` / `latest_action` / `progress` / `introduced`), not the `updated_at|latest_action_at` sketched here
 - `limit`
