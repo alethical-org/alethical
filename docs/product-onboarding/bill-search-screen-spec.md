@@ -244,7 +244,7 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   pressing Track upserts and the refetch repairs the label, making the button its own retry.
   All three forms share one box per size, because the labels do not: `+ Track` → `✓ Tracked`
   grew the button **16 to 18px** at every size, nudging each list row sideways on every press.
-  Boxes are **`web` 128×46, `mobile` 112×44, `card` 120×44**, min-width with an explicit
+  Boxes are **`web` 128×46, `mobile` 112×44, `card` 124×44**, min-width with an explicit
   height (a label's line box is taller than the spinner's, so a min-height would bind on the
   spinner form alone and the box would shrink on resolve).
 - **Track stays off this screen's phone layout — and that is now a choice this screen makes,

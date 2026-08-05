@@ -199,20 +199,18 @@ const styles = StyleSheet.create({
     height: 44,
   },
   // Card: the compact button on bill lists / home / the Ask answer card.
-  // Radius 10, 10/18, gap 8, 14/700. Box 120 x 44 — and both numbers are
-  // deliberate departures from what this size was:
-  //   * 120, not the 116 the design specifies: "✓ Tracked" measures 116.28px here,
-  //     so a 116 box would still grow by 0.28px on every resolve, which is the exact
-  //     artifact the fixed box exists to remove.
-  //   * 44, not the 39 it rendered at: this size is NOT desktop-only. The Ask answer
-  //     page's own bill card uses it and renders on phones, where 39px is under the
-  //     44px minimum touch target. Growing it 5px is an accessibility fix.
+  // Radius 10, 10/18, gap 8, 14/700. Box 124 x 44, and the height is a change:
+  // this size rendered at 39px, and it is NOT desktop-only — the Ask answer page's
+  // own bill card uses it and renders on phones, where 39px is under the 44px
+  // minimum touch target. Growing it 5px is an accessibility fix, not just a lock.
+  // (The width went 116 -> 124 in the design reference after "✓ Tracked" was measured
+  // at 116.28px here, which a 116 box would still have grown past.)
   btnCard: {
     gap: 8,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 18,
-    minWidth: 120,
+    minWidth: 124,
     height: 44,
   },
   btnHover: { backgroundColor: TRACK_INK_HOVER, borderColor: TRACK_INK_HOVER },
