@@ -29,12 +29,15 @@ export function useBillTracking() {
   // can name the bill the person asked to track. Optional: a surface that only
   // holds the id still gets the dialog, worded generically.
   const toggleTrack = useCallback(
-    (billId: string, billCode?: string) => {
+    (billId: string, billCode?: string, onSaved?: () => void) => {
       if (!isSignedIn) {
         openSignIn({ intent: 'track', returnTo: trackSignInReturnTo(billId), billCode });
         return;
       }
-      toggleTrackedBill.mutate(billId);
+      // `onSaved` runs only once the server has confirmed it, so a caller can
+      // say "Now tracking HF 4138" without the risk of announcing a save that
+      // never happened (grounded-answers.md rule 6).
+      toggleTrackedBill.mutate(billId, onSaved ? { onSuccess: () => onSaved() } : undefined);
     },
     [isSignedIn, openSignIn, toggleTrackedBill],
   );

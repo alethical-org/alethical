@@ -11,6 +11,8 @@ import { useBillTracking } from '../../hooks/useBillTracking';
 import { bienniumEyebrow, chiefAuthor, pulledLabel } from '../../lib/billDetail';
 import { isHotIssueBill } from '../../lib/hotIssues';
 import { SearchPageShell } from '../../components/search/searchPieces';
+import { ReturnToast } from '../../components/search/ReturnToast';
+import { shouldAnnounceTrack, trackReturnAction } from '../../lib/trackReturn';
 import { BillHeader, DetailTab } from '../../components/billDetail/BillHeader';
 import { SummaryTab } from '../../components/billDetail/SummaryTab';
 import { ActionsTab } from '../../components/billDetail/ActionsTab';
@@ -61,11 +63,26 @@ export function BillDetailWebScreen() {
   // ?track=1. Once signed in and the tracked list has loaded, complete the track
   // (unless already tracked) and clear the param so a refresh doesn't repeat it.
   const autoTrackFired = useRef(false);
+  const [justTracked, setJustTracked] = useState<string | null>(null);
   useEffect(() => {
-    if (!route.params?.track || !isSignedIn || !bill || trackedLoading) return;
-    if (!autoTrackFired.current && !trackedIds.has(bill.id)) {
+    const action = trackReturnAction({
+      requestedOnReturn: Boolean(route.params?.track),
+      signedIn: isSignedIn,
+      billLoaded: Boolean(bill),
+      trackedListLoading: trackedLoading,
+      alreadyTracked: Boolean(bill && trackedIds.has(bill.id)),
+      alreadyFired: autoTrackFired.current,
+    });
+    if (action === 'wait' || !bill) return;
+    if (action === 'track') {
       autoTrackFired.current = true;
-      toggleTrack(bill.id);
+      // The message waits for the server to confirm the save. Announcing on the
+      // attempt would claim a bill was tracked when the request had failed.
+      toggleTrack(
+        bill.id,
+        bill.identifier,
+        shouldAnnounceTrack(action) ? () => setJustTracked(bill.identifier) : undefined,
+      );
     }
     navigation.setParams({ track: undefined });
   }, [route.params?.track, isSignedIn, bill, trackedLoading, trackedIds, toggleTrack, navigation]);
@@ -123,6 +140,15 @@ export function BillDetailWebScreen() {
 
   const shell = (children: React.ReactNode, hero: React.ReactNode) => (
     <SearchPageShell
+      // Pinned outside the scroll, so the confirmation stays put while the page
+      // moves under it. Only ever set by a return from sign-in (#1015).
+      overlay={
+        <ReturnToast
+          visible={Boolean(justTracked)}
+          billCode={justTracked ?? ''}
+          onDismiss={() => setJustTracked(null)}
+        />
+      }
       openMenu={openMenu}
       onOpenMenuChange={setOpenMenu}
       onNavigate={handleNavigate}
