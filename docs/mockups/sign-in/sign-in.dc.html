@@ -357,6 +357,94 @@
     </div>
   </div>
 
+  <!-- ============ TRACK CONTROL · THREE FORMS ============ -->
+  <div style="margin-top:14px;padding-top:34px;border-top:1px solid rgba(17,21,15,0.12);">
+    <div style="max-width:760px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.16em;color:#149d5b;">TRACK CONTROL · THIRD FORM</div>
+      <h2 style="margin:10px 0 0;font-size:28px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">When we don't know yet</h2>
+      <p style="margin:10px 0 0;font-size:16px;line-height:1.6;color:#4f5651;">Returning from Google reloads the page cold, so for a moment the app hasn't retrieved which bills this person tracks. The button has two honest forms and needs a third that asserts neither. Switch forms with the band below — the box must not move.</p>
+    </div>
+
+    <div style="margin-top:26px;display:flex;gap:22px;flex-wrap:wrap;">
+
+      <div style="flex:1;min-width:270px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 24px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">BILL PAGE · DESKTOP</div>
+        <div style="margin-top:16px;min-height:52px;display:flex;align-items:center;">
+          <sc-if value="{{ trackIdle }}" hint-placeholder-val="{{ false }}">
+            <button style="min-width:128px;height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px 12px 17px;background:#11150f;border:1px solid #11150f;border-radius:12px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;cursor:pointer;" style-hover="background:#2c322c;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 V19 M5 12 H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>Track</button>
+          </sc-if>
+          <sc-if value="{{ trackOn }}" hint-placeholder-val="{{ false }}">
+            <button style="min-width:128px;height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px 12px 17px;background:#11150f;border:1px solid #11150f;border-radius:12px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;cursor:pointer;" style-hover="background:#2c322c;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>Tracked</button>
+          </sc-if>
+          <sc-if value="{{ trackUnknown }}" hint-placeholder-val="{{ true }}">
+            <button disabled aria-busy="true" aria-label="Checking your tracked bills" style="min-width:128px;height:46px;display:inline-flex;align-items:center;justify-content:center;padding:12px 20px;background:#11150f;border:1px solid #11150f;border-radius:12px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;cursor:default;opacity:0.62;"><span style="width:18px;height:18px;border-radius:50%;border:2.2px solid rgba(255,255,255,0.32);border-top-color:#ffffff;display:inline-block;animation:spin 0.7s linear infinite;"></span></button>
+          </sc-if>
+        </div>
+        <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6f756f;">BOX LOCKED AT 128 × 46</div>
+      </div>
+
+      <div style="flex:1;min-width:270px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 24px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">BILL PAGE · PHONE</div>
+        <div style="margin-top:16px;min-height:52px;display:flex;align-items:center;">
+          <sc-if value="{{ trackIdle }}" hint-placeholder-val="{{ false }}">
+            <button style="min-width:112px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 14px 11px 11px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;cursor:pointer;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 V19 M5 12 H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>Track</button>
+          </sc-if>
+          <sc-if value="{{ trackOn }}" hint-placeholder-val="{{ false }}">
+            <button style="min-width:112px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 14px 11px 11px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;cursor:pointer;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>Tracked</button>
+          </sc-if>
+          <sc-if value="{{ trackUnknown }}" hint-placeholder-val="{{ true }}">
+            <button disabled aria-busy="true" aria-label="Checking your tracked bills" style="min-width:112px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:11px 14px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;cursor:default;opacity:0.62;"><span style="width:17px;height:17px;border-radius:50%;border:2.2px solid rgba(255,255,255,0.32);border-top-color:#ffffff;display:inline-block;animation:spin 0.7s linear infinite;"></span></button>
+          </sc-if>
+        </div>
+        <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6f756f;">BOX LOCKED AT 112 × 44</div>
+      </div>
+
+      <div style="flex:1;min-width:270px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 24px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">COMPACT · CARDS &amp; LISTS · RADIUS 10</div>
+        <div style="margin-top:16px;min-height:52px;display:flex;align-items:center;">
+          <sc-if value="{{ trackIdle }}" hint-placeholder-val="{{ false }}">
+            <button style="min-width:124px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px 10px 15px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 5 V19 M5 12 H19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg>Track</button>
+          </sc-if>
+          <sc-if value="{{ trackOn }}" hint-placeholder-val="{{ false }}">
+            <button style="min-width:124px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px 10px 15px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>Tracked</button>
+          </sc-if>
+          <sc-if value="{{ trackUnknown }}" hint-placeholder-val="{{ true }}">
+            <button disabled aria-busy="true" aria-label="Checking your tracked bills" style="min-width:124px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:default;opacity:0.62;"><span style="width:16px;height:16px;border-radius:50%;border:2.2px solid rgba(255,255,255,0.32);border-top-color:#ffffff;display:inline-block;animation:spin 0.7s linear infinite;"></span></button>
+          </sc-if>
+        </div>
+        <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6f756f;">BOX LOCKED AT 124 × 44</div>
+      </div>
+    </div>
+
+    <div style="margin-top:22px;display:flex;gap:22px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:420px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 24px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#149d5b;">THE THIRD FORM</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:13px;font-size:14.5px;line-height:1.55;color:#4f5651;">
+          <div><strong style="color:#11150f;">Same black pill, no words.</strong> Any label would assert a state, so the unknown form drops the label and centres a small white spinner in the same black box at 62% opacity. Black keeps it recognisable as Track; the motion says "deciding", not "broken"; the dimming says "not yet yours to press". It is <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">disabled</code> with <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">aria-busy="true"</code> and an <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">aria-label</code> of "Checking your tracked bills", so a screen reader is told the same thing sighted users are.</div>
+          <div><strong style="color:#11150f;">The footprint is fixed for all three forms, not just this one.</strong> Each size gets a min-width set <strong>above</strong> its widest form ("✓ Tracked") with content centred, so subpixel rounding and font fallback can't reintroduce a shift: <strong>128 × 46</strong> desktop (widest shipped form 127.31), <strong>112 × 44</strong> phone (107.48), <strong>124 × 44</strong> compact (116.28). Desktop needs an explicit <em>height</em>, not a min-height — a 16px/600 label makes a taller line box than an 18px spinner, so a min-height binds on the spinner form only and the box would shrink 1.5px on resolve. These numbers are the whole guarantee; measure all three forms after building and confirm they're identical.</div>
+          <div><strong style="color:#11150f;">This also fixes an artifact nobody flagged, and it is bigger than it looked.</strong> "+ Track" and "✓ Tracked" are different widths in every size — measured on shipped code, compact runs <strong>100.13 → 116.28px</strong>, a <strong>16px</strong> jump, and desktop and phone jump 16–18px too. So every ordinary track and untrack currently shoves its whole row sideways by that much. Locking the box removes it everywhere, not just after sign-in.</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:420px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 24px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#a76a1a;">SHOULD A DURATION THRESHOLD GOVERN IT?</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:13px;font-size:14.5px;line-height:1.55;color:#4f5651;">
+          <div><strong style="color:#11150f;">Yes — but on the spinner, not on the state.</strong> Two separate things are being decided, and only one should be timed. The <em>state</em> is unconditional: the button must never claim "+ Track" before it knows, however brief the window, because a wrong assertion is worse than a blank one. So the dimmed fixed-size box shows from the first frame, always.</div>
+          <div><strong style="color:#11150f;">The spinner waits ~300ms.</strong> Motion that appears and vanishes inside a couple of hundred milliseconds registers as a flicker, and on a list of ten cards it is ten flickers. So hold the spinner back until the window exceeds roughly 300ms; under that, the reader sees only a briefly quiet button and nothing twitches. If your measurement comes back consistently under ~150ms, the spinner may never be worth showing at all — keep it in the build behind the threshold and let the number decide.</div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="Preview state controls" style="margin-top:26px;background:#0a0e0c;border-radius:16px;padding:20px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">TRACK FORM</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <sc-for list="{{ trackBtns }}" as="btn" hint-placeholder-count="3">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:8px 14px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;background:transparent;border:1px solid rgba(255,255,255,0.16);color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
   <!-- PREVIEW STATE CONTROLS -->
   <div data-screen-label="Preview state controls" style="background:#0a0e0c;border-radius:16px;padding:20px 24px;display:flex;flex-direction:column;gap:16px;">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -383,7 +471,7 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { intent: 'track', ui: 'idle', acct: 'out' };
+  state = { intent: 'track', ui: 'idle', acct: 'out', track: 'unknown' };
 
   renderVals() {
     const intents = {
@@ -449,7 +537,18 @@ class Component extends DCLogic {
     ];
     const acctBtns = acctDefs.map(d => ({ label: d.label, active: acct === d.key, inactive: acct !== d.key, select: () => this.setState({ acct: d.key }) }));
 
+    // ---- Track control, three forms (the third is "we don't know yet") ----
+    const tr = this.state.track;
+    const trackDefs = [
+      { key: 'idle', label: '+ Track' },
+      { key: 'tracked', label: '✓ Tracked' },
+      { key: 'unknown', label: 'Unknown (checking)' },
+    ];
+    const trackBtns = trackDefs.map(d => ({ label: d.label, active: tr === d.key, inactive: tr !== d.key, select: () => this.setState({ track: d.key }) }));
+
     return {
+      trackIdle: tr === 'idle', trackOn: tr === 'tracked', trackUnknown: tr === 'unknown',
+      trackBtns,
       acctOut: acct === 'out',
       acctSignedIn: acct !== 'out',
       acctMenu: acct === 'menu',
