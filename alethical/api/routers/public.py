@@ -403,13 +403,16 @@ def member_party_by_legislator(db: Session, legislator_ids) -> dict[str, str | N
         .where(LegislatorServicePeriod.legislator_id.in_(ids))
         .distinct(LegislatorServicePeriod.legislator_id)
         # Order the current period first; among non-current periods, the newest
-        # session wins. service_period.start_date is always null (#343) and
-        # period_sequence is always 1, so both are useless tiebreakers here; the
+        # session wins. service_period.start_date is always null (#343), so the
         # session's populated start_date is what makes the pick deterministic.
+        # period_sequence (later period within a session) then the row id are
+        # final tiebreakers so two periods in the same session never tie.
         .order_by(
             LegislatorServicePeriod.legislator_id,
             LegislatorServicePeriod.is_current.desc(),
             LegislativeSession.start_date.desc().nullslast(),
+            LegislatorServicePeriod.period_sequence.desc(),
+            LegislatorServicePeriod.id.desc(),
         )
     ).all()
     return {str(legislator_id): party for legislator_id, party in rows}
