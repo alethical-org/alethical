@@ -38,6 +38,19 @@ draft of this section used `SearchBillsScreen.tsx` and did exactly that.
 `Docs check:` line in the body saying what the author concluded. "None needed" passes — the
 check forces the *look*, not an edit.
 
+**Two things about that line trip people up, and the second costs a wasted CI cycle**
+([#1008](https://github.com/alethical-org/alethical/pull/1008), 2026-08-05, hit both):
+
+- **The colon is load-bearing.** The matcher is `docs\s*check\s*:` (case-insensitive), so a
+  markdown heading — `## Docs check` — does **not** satisfy it, however thorough the section
+  underneath. Write a real `Docs check: …` line, then put the detail below it.
+- **Editing the PR body does not re-arm the check, and neither does re-running the job.** The
+  body reaches the script through `github.event.pull_request.body`, and a bare `pull_request:`
+  trigger fires on opened / synchronize / reopened — not on `edited`. Re-running the failed job
+  replays the *stored* event payload, so it re-reads the old body and fails again identically.
+  **Push a commit** to raise a fresh `synchronize` event with the current body. (Adding this
+  paragraph is the commit that did it.)
+
 Measured on 2026-08-03: **11 of 52 docs** declare anything (this said 9 of 47 a few hours earlier the same day; `production-database-schema-drift.md` and the two specs added to the index since both declare code now), and the check **fires on 26 of the
 last 60 merged PRs (43%)**, naming 54 doc-review prompts in total.
 
