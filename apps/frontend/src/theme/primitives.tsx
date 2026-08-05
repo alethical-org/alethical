@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Linking,
   Modal,
   Platform,
@@ -20,6 +21,13 @@ import { theme } from './tokens';
 import { IaItem, MenuKey, MENUS, navDropdownItems } from '../navigation/ia';
 import { linkProps, routePath } from '../navigation/links';
 import { useResponsive } from '../hooks/useResponsive';
+import { useAuth } from '../providers/AuthProvider';
+import { useSignInModal } from '../providers/signInModalContext';
+import {
+  AccountAvatarButton,
+  AccountDrawerRow,
+  AccountNavButton,
+} from '../components/auth/AccountControl';
 
 // Reusable primitives for the redesign, built on the green token system
 // (see theme/tokens.ts, extracted from docs/mockups/*.html). Web-first.
@@ -532,7 +540,6 @@ export function TopNav({
   onOpenMenuChange,
   onNavigate,
   onHome,
-  onSignIn,
   onAsk,
 }: {
   variant?: NavVariant;
@@ -540,10 +547,14 @@ export function TopNav({
   onOpenMenuChange?: (menu: MenuKey | null) => void;
   onNavigate?: (item: IaItem) => void;
   onHome?: () => void;
-  onSignIn?: () => void;
   onAsk?: () => void;
 }) {
   const { isDesktop } = useResponsive();
+  // Sign-in is opened from here rather than handed down from every screen: the
+  // nav is the same on all of them, and a per-screen callback was how the button
+  // ended up inert on every one at once.
+  const { isSignedIn } = useAuth();
+  const { openSignIn } = useSignInModal();
   const [openMenuState, setOpenMenuState] = useState<MenuKey | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openMenu = openMenuProp !== undefined ? openMenuProp : openMenuState;
@@ -673,15 +684,19 @@ export function TopNav({
                 />
               ))}
             </View>
-            {/* Visible but inert: sign-in isn't available yet (no post-login
-                experience shipped), so the button shows without routing anywhere. */}
-            <PrimaryButton label="Sign in" onPress={undefined} />
+            {isSignedIn ? (
+              <AccountNavButton />
+            ) : (
+              <PrimaryButton label="Sign in" onPress={() => openSignIn({ intent: 'nav' })} />
+            )}
           </View>
         ) : (
           <View style={styles.navMobileRight}>
-            {/* Visible but inert: sign-in isn't available yet (no post-login
-                experience shipped), so the button shows without routing anywhere. */}
-            <PrimaryButton label="Sign in" onPress={undefined} />
+            {isSignedIn ? (
+              <AccountAvatarButton />
+            ) : (
+              <PrimaryButton label="Sign in" onPress={() => openSignIn({ intent: 'nav' })} />
+            )}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={drawerOpen ? 'Close menu' : 'Open menu'}
@@ -760,7 +775,18 @@ export function TopNav({
               </View>
             </ScrollView>
             <View style={styles.menuFooter}>
-              <PrimaryButton label="Sign in" size="lg" onPress={() => setDrawerOpen(false)} />
+              {isSignedIn ? (
+                <AccountDrawerRow onSignedOut={() => setDrawerOpen(false)} />
+              ) : (
+                <PrimaryButton
+                  label="Sign in"
+                  size="lg"
+                  onPress={() => {
+                    setDrawerOpen(false);
+                    openSignIn({ intent: 'nav' });
+                  }}
+                />
+              )}
             </View>
           </View>
         </View>
@@ -977,17 +1003,52 @@ function GoogleG({ size = 20 }: { size?: number }) {
   );
 }
 
-export function GoogleButton({ onPress }: { onPress?: () => void }) {
+/**
+ * The one "Continue with Google" button. `label` carries the sign-in dialog's
+ * "Try again" state; `busy` is the redirect in progress — the button goes inert
+ * and shows a spinner in place of its label, or `busyLabel` when the person has
+ * asked for less motion and a spinner would be wrong.
+ */
+export function GoogleButton({
+  onPress,
+  label = 'Continue with Google',
+  busy = false,
+  busyLabel,
+  size = 'md',
+}: {
+  onPress?: () => void;
+  label?: string;
+  busy?: boolean;
+  busyLabel?: string;
+  size?: 'md' | 'lg';
+}) {
   const [hovered, hoverProps] = useHover();
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={onPress}
+      accessibilityLabel={busy ? 'Signing in with Google' : label}
+      accessibilityState={{ busy, disabled: busy }}
+      onPress={busy ? undefined : onPress}
       {...hoverProps}
-      style={[styles.googleBtn, hovered && { borderColor: t.colors.borders.strong }]}
+      style={[
+        styles.googleBtn,
+        size === 'lg' && styles.googleBtnLg,
+        hovered && !busy && { borderColor: t.colors.borders.strong },
+        busy && styles.googleBtnBusy,
+      ]}
     >
-      <GoogleG size={22} />
-      <Text style={styles.googleBtnText}>Continue with Google</Text>
+      {busy ? (
+        busyLabel ? (
+          <Text style={styles.googleBtnText}>{busyLabel}</Text>
+        ) : (
+          <ActivityIndicator size="small" color={t.colors.brand.deep} />
+        )
+      ) : (
+        <>
+          <GoogleG size={22} />
+          <Text style={styles.googleBtnText}>{label}</Text>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -1463,6 +1524,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     ...(t.shadows.sm as object),
   },
+  googleBtnLg: { paddingVertical: 17, minHeight: 56 },
+  googleBtnBusy: { opacity: 0.75, borderColor: t.colors.alpha.ink14 },
   googleBtnText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.bodyLg,

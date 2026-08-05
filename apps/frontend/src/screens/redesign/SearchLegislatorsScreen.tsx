@@ -41,7 +41,6 @@ function matchesParty(filter: PartyFilter, stored: string): boolean {
 export function SearchLegislatorsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { signInWithGoogle } = useAuth();
   const { isDesktop } = useResponsive();
   const { scrollAnchorProps, onPageChange } = usePaginatedListScroll();
 
@@ -180,7 +179,6 @@ export function SearchLegislatorsScreen() {
       onOpenMenuChange={setOpenMenu}
       onNavigate={handleNavigate}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-      onSignIn={() => void signInWithGoogle()}
       onAsk={() => navigation.navigate('Ask')}
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}

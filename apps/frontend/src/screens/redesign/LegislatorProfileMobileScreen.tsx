@@ -23,7 +23,6 @@ import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../.
 import { buildAskChips, splitOfficeAddress } from '../../lib/legislatorProfile';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../navigation/links';
-import { useAuth } from '../../providers/AuthProvider';
 import { useLegislator, useLegislatorBills, useSessions } from '../../hooks/useAppQueries';
 import { Bill, Legislator } from '../../data/types';
 
@@ -478,7 +477,6 @@ function AskCard({
 export function LegislatorProfileMobileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { signInWithGoogle } = useAuth();
 
   const params: Record<string, unknown> = route.params ?? {};
   const legislatorId = typeof params.legislatorId === 'string' ? params.legislatorId : '';
@@ -543,7 +541,6 @@ export function LegislatorProfileMobileScreen() {
     onOpenMenuChange: setOpenMenu,
     onNavigate: handleNavigate,
     onHome: () => navigation.navigate('Tabs', { screen: 'Home' }),
-    onSignIn: () => void signInWithGoogle(),
     onAsk: () => navigation.navigate('Ask'),
   };
 

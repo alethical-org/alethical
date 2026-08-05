@@ -330,7 +330,7 @@ export function BillDetailScreen() {
 function BillDetailMobileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { signInWithGoogle, isSignedIn } = useAuth();
+  const { isSignedIn } = useAuth();
   const { isMobile } = useResponsive();
 
   const params: Record<string, unknown> = route.params ?? {};
@@ -345,7 +345,7 @@ function BillDetailMobileScreen() {
   const { trackedIds, isTracked, toggleTrack, trackedLoading } = useBillTracking();
   const tracked = bill ? isTracked(bill.id) : false;
   const onTrack = useCallback(() => {
-    if (bill) toggleTrack(bill.id);
+    if (bill) toggleTrack(bill.id, bill.identifier);
   }, [bill, toggleTrack]);
 
   // Intent-preserving track: a signed-out user who tapped Track returns here with
@@ -634,7 +634,6 @@ function BillDetailMobileScreen() {
     onOpenMenuChange: setOpenMenu,
     onNavigate: handleNavigate,
     onHome: () => navigation.navigate('Tabs', { screen: 'Home' }),
-    onSignIn: () => void signInWithGoogle(),
     onAsk: () => navigation.navigate('Ask'),
   };
 

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#e6e9ec;}
+  a{color:#149d5b;text-decoration:none;}
+  a:hover{color:#11832b;}
+  @keyframes ovFade{from{opacity:0;}to{opacity:1;}}
+  @keyframes cardPop{from{opacity:0;transform:translateY(10px) scale(0.98);}to{opacity:1;transform:none;}}
+  @keyframes sheetUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  /* a11y: keyboard focus ring — WCAG 2.4.7 + 1.4.11 (visible on light & dark) */
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[tabindex]:focus-visible,[role="button"]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}
+</style>
+</helmet>
+
+<div style="font-family:'Libre Franklin',Helvetica,Arial,sans-serif;padding:48px;display:flex;flex-direction:column;gap:34px;">
+
+  <!-- INTRO -->
+  <div style="max-width:760px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.16em;color:#149d5b;">SIGN IN · GOOGLE SSO</div>
+    <h1 style="margin:10px 0 0;font-size:34px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">One sign-in surface, intent-aware</h1>
+    <p style="margin:12px 0 0;font-size:16px;line-height:1.6;color:#4f5651;">One reusable component. The headline and subcopy adapt to <strong>why</strong> the person hit it — a gated Track action, a gated votes view, or the plain nav button. One "Continue with Google" (the account is created implicitly on first sign-in). Sign-in is a <strong>full-page redirect</strong> to Google: on success we return them <strong>silently</strong> to where they were headed; on failure they land back here with the modal reopened in an error state. Web renders it as a centered <strong>overlay</strong>; mobile as a <strong>bottom sheet</strong>. Use the band at the bottom to switch intent and walk the states.</p>
+  </div>
+
+  <!-- SURFACES -->
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start;">
+
+    <!-- ============ WEB OVERLAY ============ -->
+    <div style="flex:1;min-width:640px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;margin-bottom:12px;">WEB — MODAL OVERLAY</div>
+      <div style="position:relative;height:620px;border-radius:18px;overflow:hidden;border:1px solid rgba(17,21,15,0.12);box-shadow:0 20px 50px rgba(17,21,15,0.10);">
+
+        <!-- faux page behind -->
+        <div style="position:absolute;inset:0;background:#fbfcfd;">
+          <div style="height:64px;border-bottom:1px solid rgba(17,21,15,0.08);display:flex;align-items:center;justify-content:space-between;padding:0 26px;background:#ffffff;">
+            <div style="display:flex;align-items:center;gap:9px;"><svg width="22" height="22" viewBox="8 9 84 84" fill="none"><path d="M8,92 L46,10 L46,92 Z" fill="#11150f"></path><path d="M92,92 L54,10 L54,92 Z" fill="#11150f"></path></svg><span style="font-size:19px;font-weight:600;letter-spacing:-0.01em;color:#11150f;">Alethical</span></div>
+            <div style="display:flex;align-items:center;gap:20px;color:#4f5651;font-size:14px;font-weight:600;"><span>Search</span><span>Track</span><span style="background:#11150f;color:#fff;padding:9px 16px;border-radius:10px;">Sign in</span></div>
+          </div>
+          <div style="padding:30px 26px;">
+            <div style="height:16px;width:220px;border-radius:6px;background:#eceef0;"></div>
+            <div style="height:34px;width:60%;border-radius:8px;background:#eceef0;margin-top:16px;"></div>
+            <div style="height:180px;border-radius:14px;background:#f2f4f6;margin-top:22px;"></div>
+          </div>
+        </div>
+
+        <!-- overlay -->
+        <div style="position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:rgba(10,14,12,0.55);padding:28px;animation:ovFade 0.16s ease;">
+          <div style="width:460px;max-width:100%;background:#ffffff;border-radius:20px;padding:34px 34px 30px;box-shadow:0 30px 80px rgba(10,14,12,0.4);position:relative;animation:cardPop 0.2s ease;">
+            <button aria-label="Close" style="position:absolute;top:18px;right:18px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:9px;cursor:pointer;color:#6f756f;" style-hover="background:#f1f1f4;color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+
+            <!-- icon tile -->
+            <sc-if value="{{ isSignedIn }}" hint-placeholder-val="{{ false }}">
+              <span style="width:52px;height:52px;border-radius:14px;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#149d5b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+            </sc-if>
+            <sc-if value="{{ isFormState }}" hint-placeholder-val="{{ true }}">
+              <span style="width:52px;height:52px;border-radius:14px;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;">
+                <sc-if value="{{ isNav }}" hint-placeholder-val="{{ false }}"><svg width="27" height="27" viewBox="0 0 24 24" fill="none"><path d="M3 21 L11 4 L11 21 Z" fill="#149d5b"></path><path d="M21 21 L13 4 L13 21 Z" fill="#149d5b"></path></svg></sc-if>
+                <sc-if value="{{ isTrack }}" hint-placeholder-val="{{ true }}"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M18 8 a6 6 0 0 0-12 0 c0 7-3 9-3 9 h18 s-3-2-3-9" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M10.5 21 a1.8 1.8 0 0 0 3 0" stroke="#149d5b" stroke-width="2" stroke-linecap="round"></path></svg></sc-if>
+                <sc-if value="{{ isVotes }}" hint-placeholder-val="{{ false }}"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 9 L12 4 L20 9" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M6 9 V17 M10 9 V17 M14 9 V17 M18 9 V17" stroke="#149d5b" stroke-width="2" stroke-linecap="round"></path><path d="M4 20 H20" stroke="#149d5b" stroke-width="2" stroke-linecap="round"></path></svg></sc-if>
+              </span>
+            </sc-if>
+
+            <h3 style="margin:20px 0 0;font-size:25px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ headline }}</h3>
+            <p style="margin:10px 0 0;font-size:16px;line-height:1.5;color:#6b716b;">{{ subcopy }}</p>
+
+            <!-- SIGNED-IN body -->
+            <sc-if value="{{ isSignedIn }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ onContinue }}" style="margin-top:24px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:10px;background:#2ed47e;color:#06231a;border:none;border-radius:12px;padding:16px 22px;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:700;cursor:pointer;" style-hover="background:#28bf71;">Continue</button>
+              <button onClick="{{ onSwitch }}" style="margin-top:12px;width:100%;background:transparent;border:none;color:#6f756f;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;cursor:pointer;" style-hover="color:#11150f;">Use a different account</button>
+            </sc-if>
+
+            <!-- FORM body (idle / loading / error) -->
+            <sc-if value="{{ isFormState }}" hint-placeholder-val="{{ true }}">
+
+              <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+                <div role="alert" style="margin-top:20px;display:flex;align-items:flex-start;gap:11px;background:#fdecec;border:1px solid #f4c9c6;border-radius:12px;padding:13px 15px;">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9" stroke="#c0392b" stroke-width="2"></circle><path d="M12 7.5 V13" stroke="#c0392b" stroke-width="2" stroke-linecap="round"></path><circle cx="12" cy="16.3" r="1.15" fill="#c0392b"></circle></svg>
+                  <div style="font-size:14px;line-height:1.5;color:#8f2a20;">{{ errorMsg }}</div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+                <button disabled aria-label="Signing in with Google" style="margin-top:24px;width:100%;display:inline-flex;align-items:center;justify-content:center;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.14);border-radius:12px;padding:15px 22px;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;cursor:default;opacity:0.75;box-shadow:0 1px 3px rgba(17,21,15,0.06);">
+                  <span style="width:20px;height:20px;border-radius:50%;border:2.5px solid #dfe3e6;border-top-color:#149d5b;display:inline-block;animation:spin 0.7s linear infinite;"></span>
+                </button>
+              </sc-if>
+
+              <sc-if value="{{ isButton }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ onGoogle }}" style="margin-top:24px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:12px;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.18);border-radius:12px;padding:15px 22px;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(17,21,15,0.06);" style-hover="background:#f7f8fa;border-color:rgba(17,21,15,0.3);">
+                  <img src="assets/google-g.png" width="20" height="20" alt="" style="display:block;flex:none;" />
+                  {{ buttonLabel }}
+                </button>
+              </sc-if>
+
+              <p style="margin:16px 0 0;font-size:12.5px;line-height:1.5;color:#8a908a;">By continuing you agree to our <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer">Terms of Use</a> and <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>
+            </sc-if>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MOBILE BOTTOM SHEET ============ -->
+    <div style="flex:none;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;margin-bottom:12px;">MOBILE — BOTTOM SHEET</div>
+      <div style="width:390px;background:#0a0e0c;border-radius:46px;padding:11px;box-shadow:0 30px 70px rgba(17,21,15,0.28);">
+        <div style="background:#fbfcfd;border-radius:37px;overflow:hidden;height:760px;position:relative;">
+
+          <!-- faux page behind -->
+          <div style="position:absolute;inset:0;">
+            <div style="height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid rgba(17,21,15,0.08);background:#fff;">
+              <svg width="20" height="20" viewBox="8 9 84 84" fill="none"><path d="M8,92 L46,10 L46,92 Z" fill="#11150f"></path><path d="M92,92 L54,10 L54,92 Z" fill="#11150f"></path></svg>
+              <div style="width:24px;height:16px;display:flex;flex-direction:column;justify-content:space-between;"><span style="height:2px;background:#11150f;"></span><span style="height:2px;background:#11150f;"></span><span style="height:2px;background:#11150f;"></span></div>
+            </div>
+            <div style="padding:22px 20px;">
+              <div style="height:14px;width:60%;border-radius:6px;background:#eceef0;"></div>
+              <div style="height:28px;width:82%;border-radius:8px;background:#eceef0;margin-top:14px;"></div>
+              <div style="height:150px;border-radius:14px;background:#f2f4f6;margin-top:20px;"></div>
+            </div>
+          </div>
+
+          <!-- scrim -->
+          <div style="position:absolute;inset:0;background:rgba(10,14,12,0.5);animation:ovFade 0.16s ease;"></div>
+
+          <!-- sheet -->
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#ffffff;border-radius:26px 26px 0 0;padding:12px 24px 30px;box-shadow:0 -18px 50px rgba(10,14,12,0.28);animation:sheetUp 0.26s cubic-bezier(0.22,1,0.36,1);">
+            <div style="width:40px;height:5px;border-radius:999px;background:#dfe3e6;margin:0 auto 6px;"></div>
+            <button aria-label="Close" style="position:absolute;top:16px;right:16px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;background:#f4f5f7;border:none;border-radius:10px;cursor:pointer;color:#6f756f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+
+            <div style="padding-top:14px;">
+              <sc-if value="{{ isSignedIn }}" hint-placeholder-val="{{ false }}">
+                <span style="width:56px;height:56px;border-radius:15px;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#149d5b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+              </sc-if>
+              <sc-if value="{{ isFormState }}" hint-placeholder-val="{{ true }}">
+                <span style="width:56px;height:56px;border-radius:15px;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;">
+                  <sc-if value="{{ isNav }}" hint-placeholder-val="{{ false }}"><svg width="29" height="29" viewBox="0 0 24 24" fill="none"><path d="M3 21 L11 4 L11 21 Z" fill="#149d5b"></path><path d="M21 21 L13 4 L13 21 Z" fill="#149d5b"></path></svg></sc-if>
+                  <sc-if value="{{ isTrack }}" hint-placeholder-val="{{ true }}"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M18 8 a6 6 0 0 0-12 0 c0 7-3 9-3 9 h18 s-3-2-3-9" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M10.5 21 a1.8 1.8 0 0 0 3 0" stroke="#149d5b" stroke-width="2" stroke-linecap="round"></path></svg></sc-if>
+                  <sc-if value="{{ isVotes }}" hint-placeholder-val="{{ false }}"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M4 9 L12 4 L20 9" stroke="#149d5b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M6 9 V17 M10 9 V17 M14 9 V17 M18 9 V17" stroke="#149d5b" stroke-width="2" stroke-linecap="round"></path><path d="M4 20 H20" stroke="#149d5b" stroke-width="2" stroke-linecap="round"></path></svg></sc-if>
+                </span>
+              </sc-if>
+
+              <h3 style="margin:18px 0 0;font-size:23px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ headline }}</h3>
+              <p style="margin:9px 0 0;font-size:16px;line-height:1.5;color:#6b716b;">{{ subcopy }}</p>
+
+              <sc-if value="{{ isSignedIn }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ onContinue }}" style="margin-top:22px;width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#2ed47e;color:#06231a;border:none;border-radius:13px;padding:17px;font-family:'Libre Franklin',sans-serif;font-size:18px;font-weight:700;cursor:pointer;">Continue</button>
+                <button onClick="{{ onSwitch }}" style="margin-top:12px;width:100%;background:transparent;border:none;color:#6f756f;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:600;cursor:pointer;padding:6px;">Use a different account</button>
+              </sc-if>
+
+              <sc-if value="{{ isFormState }}" hint-placeholder-val="{{ true }}">
+                <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+                  <div role="alert" style="margin-top:18px;display:flex;align-items:flex-start;gap:11px;background:#fdecec;border:1px solid #f4c9c6;border-radius:13px;padding:14px 15px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9" stroke="#c0392b" stroke-width="2"></circle><path d="M12 7.5 V13" stroke="#c0392b" stroke-width="2" stroke-linecap="round"></path><circle cx="12" cy="16.3" r="1.15" fill="#c0392b"></circle></svg>
+                    <div style="font-size:15px;line-height:1.5;color:#8f2a20;">{{ errorMsg }}</div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+                  <button disabled aria-label="Signing in with Google" style="margin-top:22px;width:100%;display:flex;align-items:center;justify-content:center;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.14);border-radius:13px;padding:17px;font-family:'Libre Franklin',sans-serif;font-size:18px;font-weight:600;cursor:default;opacity:0.75;box-shadow:0 1px 3px rgba(17,21,15,0.06);">
+                    <span style="width:22px;height:22px;border-radius:50%;border:2.5px solid #dfe3e6;border-top-color:#149d5b;display:inline-block;animation:spin 0.7s linear infinite;"></span>
+                  </button>
+                </sc-if>
+
+                <sc-if value="{{ isButton }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ onGoogle }}" style="margin-top:22px;width:100%;display:flex;align-items:center;justify-content:center;gap:12px;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.18);border-radius:13px;padding:17px;font-family:'Libre Franklin',sans-serif;font-size:18px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(17,21,15,0.06);" style-active="background:#f4f5f7;">
+                    <img src="assets/google-g.png" width="22" height="22" alt="" style="display:block;flex:none;" />
+                    {{ buttonLabel }}
+                  </button>
+                </sc-if>
+
+                <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#8a908a;">By continuing you agree to our <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer">Terms of Use</a> and <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:16px;width:390px;background:#ffffff;border:1px dashed rgba(17,21,15,0.28);border-radius:14px;padding:16px 18px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#6f756f;line-height:1.6;">KEPT FOR NATIVE APP — NOT SHIPPED. Mobile web uses the same full-page redirect as desktop, so it gets the button spinner above. This waiting panel applies only if a native app ships.</div>
+          <div style="margin-top:12px;width:100%;display:flex;align-items:center;justify-content:center;gap:12px;background:#f4f5f7;color:#6f756f;border:1px solid rgba(17,21,15,0.1);border-radius:13px;padding:17px;font-size:17px;font-weight:600;">
+            <span style="width:20px;height:20px;border-radius:50%;border:2.5px solid #cdd3d0;border-top-color:#149d5b;display:inline-block;animation:spin 0.7s linear infinite;"></span>
+            Waiting for Google…
+          </div>
+          <p style="margin:10px 0 0;font-size:14px;line-height:1.5;color:#8a908a;text-align:center;">Taking you to Google to finish signing in.</p>
+        </div>
+      </sc-if>
+    </div>
+
+  </div>
+
+  <!-- ============ C · SIGNED-IN ACCOUNT CONTROL ============ -->
+  <div style="margin-top:14px;padding-top:34px;border-top:1px solid rgba(17,21,15,0.12);">
+    <div style="max-width:760px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.16em;color:#149d5b;">ACCOUNT CONTROL · TOP NAV</div>
+      <h2 style="margin:10px 0 0;font-size:28px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">What replaces "Sign in" once you're in</h2>
+      <p style="margin:10px 0 0;font-size:16px;line-height:1.6;color:#4f5651;">Three placements, same account identity: a compact avatar control on web with a right-aligned dropdown, an avatar tap-target on the mobile top bar opening a bottom sheet, and a signed-in row in the mobile drawer footer. Use the band below this section to switch signed out / signed in / menu open.</p>
+    </div>
+
+    <!-- 1 · WEB DESKTOP NAV -->
+    <div style="margin-top:26px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;margin-bottom:12px;">1 · WEB DESKTOP NAV</div>
+      <div style="position:relative;height:280px;border-radius:18px;border:1px solid rgba(17,21,15,0.12);background:#fbfcfd;overflow:hidden;box-shadow:0 20px 50px rgba(17,21,15,0.08);">
+        <div style="height:64px;background:#ffffff;border-bottom:1px solid rgba(17,21,15,0.08);display:flex;align-items:center;justify-content:space-between;padding:0 26px;position:relative;z-index:40;">
+          <div style="display:flex;align-items:center;gap:9px;"><svg width="22" height="22" viewBox="8 9 84 84" fill="none"><path d="M8,92 L46,10 L46,92 Z" fill="#11150f"></path><path d="M92,92 L54,10 L54,92 Z" fill="#11150f"></path></svg><span style="font-size:19px;font-weight:600;letter-spacing:-0.01em;color:#11150f;">Alethical</span></div>
+          <div style="display:flex;align-items:center;gap:22px;color:#4f5651;font-size:14px;font-weight:600;">
+            <span>Search</span><span>Track</span><span>About</span>
+            <sc-if value="{{ acctOut }}" hint-placeholder-val="{{ true }}">
+              <button style="background:#11150f;color:#ffffff;border:none;padding:10px 18px;border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Sign in</button>
+            </sc-if>
+            <sc-if value="{{ acctSignedIn }}" hint-placeholder-val="{{ false }}">
+              <div style="position:relative;z-index:40;">
+                <button onClick="{{ toggleMenu }}" aria-haspopup="menu" aria-expanded="{{ acctMenu }}" style="display:inline-flex;align-items:center;gap:9px;background:#ffffff;border:1px solid rgba(17,21,15,0.14);border-radius:999px;padding:5px 12px 5px 5px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:600;color:#11150f;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.3);background:#f7f8fa;">
+                  <span style="width:30px;height:30px;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#149d5b;">{{ userInitial }}</span>
+                  {{ userFirst }}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 10 L12 16 L18 10" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </button>
+                <sc-if value="{{ acctMenu }}" hint-placeholder-val="{{ false }}">
+                  <div role="menu" style="position:absolute;z-index:1;top:calc(100% + 10px);right:0;width:268px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;box-shadow:0 18px 44px rgba(17,21,15,0.16);overflow:hidden;animation:cardPop 0.14s ease;">
+                    <div style="display:flex;align-items:center;gap:11px;padding:14px 15px;">
+                      <span style="width:38px;height:38px;flex:none;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#149d5b;">{{ userInitial }}</span>
+                      <div style="min-width:0;">
+                        <div style="font-size:14.5px;font-weight:700;color:#11150f;">{{ userName }}</div>
+                        <div style="font-size:13px;color:#6f756f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ userEmail }}</div>
+                      </div>
+                    </div>
+                    <div style="height:1px;background:rgba(17,21,15,0.08);"></div>
+                    <button role="menuitem" style="width:100%;display:flex;align-items:center;gap:10px;padding:13px 15px;background:transparent;border:none;font-family:'Libre Franklin',sans-serif;font-size:14.5px;font-weight:600;color:#11150f;cursor:pointer;text-align:left;" style-hover="background:#f4f5f7;">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M13 4 H7 a2 2 0 0 0-2 2 v12 a2 2 0 0 0 2 2 h6" stroke="#6f756f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 12 H21 M18.5 8.5 L21 12 L18.5 15.5" stroke="#6f756f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                      Sign out
+                    </button>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="padding:26px;">
+          <div style="height:14px;width:200px;border-radius:6px;background:#eceef0;"></div>
+          <div style="height:110px;border-radius:14px;background:#f2f4f6;margin-top:18px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 + 3 · MOBILE -->
+    <div style="margin-top:30px;display:flex;gap:34px;flex-wrap:wrap;">
+
+      <div style="flex:none;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;margin-bottom:12px;">2 · MOBILE NAV</div>
+        <div style="width:330px;background:#0a0e0c;border-radius:40px;padding:10px;box-shadow:0 24px 60px rgba(17,21,15,0.26);">
+          <div style="background:#fbfcfd;border-radius:32px;overflow:hidden;height:520px;position:relative;">
+            <div style="height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid rgba(17,21,15,0.08);background:#fff;">
+              <svg width="20" height="20" viewBox="8 9 84 84" fill="none"><path d="M8,92 L46,10 L46,92 Z" fill="#11150f"></path><path d="M92,92 L54,10 L54,92 Z" fill="#11150f"></path></svg>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <sc-if value="{{ acctOut }}" hint-placeholder-val="{{ true }}">
+                  <button style="background:#11150f;color:#ffffff;border:none;padding:9px 16px;border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">Sign in</button>
+                </sc-if>
+                <sc-if value="{{ acctSignedIn }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ toggleMenu }}" aria-label="Account menu" aria-expanded="{{ acctMenu }}" style="width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;cursor:pointer;padding:0;">
+                    <span style="width:34px;height:34px;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#149d5b;">{{ userInitial }}</span>
+                  </button>
+                </sc-if>
+                <div style="width:24px;height:16px;display:flex;flex-direction:column;justify-content:space-between;"><span style="height:2px;background:#11150f;"></span><span style="height:2px;background:#11150f;"></span><span style="height:2px;background:#11150f;"></span></div>
+              </div>
+            </div>
+            <div style="padding:20px 18px;">
+              <div style="height:13px;width:58%;border-radius:6px;background:#eceef0;"></div>
+              <div style="height:120px;border-radius:13px;background:#f2f4f6;margin-top:16px;"></div>
+            </div>
+            <sc-if value="{{ acctMenu }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;background:rgba(10,14,12,0.5);animation:ovFade 0.16s ease;"></div>
+              <div role="dialog" aria-label="Account" style="position:absolute;left:0;right:0;bottom:0;background:#ffffff;border-radius:24px 24px 0 0;padding:12px 22px 26px;box-shadow:0 -18px 50px rgba(10,14,12,0.28);animation:sheetUp 0.26s cubic-bezier(0.22,1,0.36,1);">
+                <div style="width:40px;height:5px;border-radius:999px;background:#dfe3e6;margin:0 auto 18px;"></div>
+                <div style="display:flex;align-items:center;gap:13px;">
+                  <span style="width:48px;height:48px;flex:none;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;color:#149d5b;">{{ userInitial }}</span>
+                  <div style="min-width:0;">
+                    <div style="font-size:17px;font-weight:700;color:#11150f;">{{ userName }}</div>
+                    <div style="font-size:14px;color:#6f756f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ userEmail }}</div>
+                  </div>
+                </div>
+                <button onClick="{{ toggleMenu }}" style="margin-top:20px;width:100%;display:flex;align-items:center;justify-content:center;gap:9px;background:#ffffff;border:1px solid rgba(17,21,15,0.18);border-radius:13px;padding:16px;font-family:'Libre Franklin',sans-serif;font-size:17px;font-weight:600;color:#11150f;cursor:pointer;" style-active="background:#f4f5f7;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M13 4 H7 a2 2 0 0 0-2 2 v12 a2 2 0 0 0 2 2 h6" stroke="#11150f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 12 H21 M18.5 8.5 L21 12 L18.5 15.5" stroke="#11150f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  Sign out
+                </button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:none;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;margin-bottom:12px;">3 · MOBILE DRAWER FOOTER</div>
+        <div style="width:330px;background:#0a0e0c;border-radius:40px;padding:10px;box-shadow:0 24px 60px rgba(17,21,15,0.26);">
+          <div style="background:#ffffff;border-radius:32px;overflow:hidden;height:520px;position:relative;display:flex;flex-direction:column;">
+            <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:18px 18px 8px;">
+              <svg width="28" height="28" viewBox="8 9 84 84" fill="none"><path d="M8,92 L46,10 L46,92 Z" fill="#11150f"></path><path d="M92,92 L54,10 L54,92 Z" fill="#11150f"></path></svg>
+              <button aria-label="Close menu" style="width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:11px;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="#11150f" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+            </div>
+            <div style="flex:1;min-height:0;padding:14px 22px;display:flex;flex-direction:column;gap:20px;">
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.16em;color:#149d5b;margin-bottom:12px;">SEARCH</div>
+                <div style="display:flex;flex-direction:column;gap:14px;">
+                  <span style="font-size:23px;font-weight:800;color:#11150f;">Bills</span>
+                  <span style="font-size:23px;font-weight:800;color:#11150f;">Legislators</span>
+                </div>
+              </div>
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.16em;color:#149d5b;margin-bottom:12px;">TRACK</div>
+                <span style="font-size:23px;font-weight:800;color:#11150f;">Bills</span>
+              </div>
+            </div>
+            <div style="flex:none;padding:14px 22px 22px;border-top:1px solid rgba(17,21,15,0.08);">
+              <sc-if value="{{ acctOut }}" hint-placeholder-val="{{ true }}">
+                <button style="width:100%;background:#2ed47e;color:#06231a;border:none;border-radius:14px;padding:16px;font-family:'Libre Franklin',sans-serif;font-size:19px;font-weight:700;cursor:pointer;">Sign in</button>
+              </sc-if>
+              <sc-if value="{{ acctSignedIn }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <span style="width:44px;height:44px;flex:none;border-radius:50%;background:#e4f8ee;border:1px solid #bfeacf;display:inline-flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#149d5b;">{{ userInitial }}</span>
+                  <div style="min-width:0;">
+                    <div style="font-size:16px;font-weight:700;color:#11150f;">{{ userName }}</div>
+                    <div style="font-size:13.5px;color:#6f756f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ userEmail }}</div>
+                  </div>
+                </div>
+                <button style="margin-top:12px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:none;padding:8px 0;font-family:'Libre Franklin',sans-serif;font-size:16px;font-weight:600;color:#11150f;cursor:pointer;" style-active="color:#4f5651;">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M13 4 H7 a2 2 0 0 0-2 2 v12 a2 2 0 0 0 2 2 h6" stroke="#6f756f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 12 H21 M18.5 8.5 L21 12 L18.5 15.5" stroke="#6f756f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  Sign out
+                </button>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ACCOUNT PREVIEW BAND -->
+    <div data-screen-label="Preview state controls" style="margin-top:28px;background:#0a0e0c;border-radius:16px;padding:20px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;width:56px;">ACCOUNT</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <sc-for list="{{ acctBtns }}" as="btn" hint-placeholder-count="3">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:8px 14px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;background:transparent;border:1px solid rgba(255,255,255,0.16);color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREVIEW STATE CONTROLS -->
+  <div data-screen-label="Preview state controls" style="background:#0a0e0c;border-radius:16px;padding:20px 24px;display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;width:56px;">INTENT</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <sc-for list="{{ intentBtns }}" as="btn" hint-placeholder-count="3">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:8px 14px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;background:transparent;border:1px solid rgba(255,255,255,0.16);color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;width:56px;">STATE</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <sc-for list="{{ stateBtns }}" as="btn" hint-placeholder-count="5">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:8px 14px;border-radius:9px;background:#2ed47e;border:none;color:#06231a;cursor:pointer;white-space:nowrap;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;background:transparent;border:1px solid rgba(255,255,255,0.16);color:#cfd6d2;cursor:pointer;white-space:nowrap;" style-hover="background:rgba(255,255,255,0.1);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { intent: 'track', ui: 'idle', acct: 'out' };
+
+  renderVals() {
+    const intents = {
+      nav:   { hl: 'Sign in to Alethical',
+               sub: 'Track bills across sessions and pick up right where you left off. Your tracked list is saved to your account.',
+               trust: 'We only save what you choose to track. Nothing else.' },
+      track: { hl: 'Sign in to track this bill',
+               sub: 'Save HF 4138 to your tracked bills and check where it stands whenever you come back.',
+               trust: 'We only save the bills you track. Nothing else.' },
+      votes: { hl: 'Sign in to see how your legislators voted',
+               sub: 'Save your district once and every roll call shows how your senator and representative voted.',
+               trust: 'We only save your district. Nothing else.' },
+    };
+    const c = intents[this.state.intent] || intents.nav;
+    const ui = this.state.ui;
+
+    const isSignedIn = ui === 'signedin';
+    const isLoading  = ui === 'loading';
+    const isErrNet   = ui === 'errnet';
+    const isErrPopup = ui === 'errpopup';
+    const isError    = isErrNet || isErrPopup;
+    const isFormState = !isSignedIn;
+    const isButton = isFormState && !isLoading;
+
+    let headline = c.hl, subcopy = c.sub;
+    if (isSignedIn) {
+      headline = 'You’re already signed in';
+      subcopy  = 'Signed in as jordan@example.com — pick up right where you left off.';
+    }
+
+    let buttonLabel = 'Continue with Google';
+    if (isError) buttonLabel = 'Try again';
+
+    let errorMsg = '';
+    if (isErrNet)   errorMsg = 'Something went wrong reaching Google. Check your connection and try again.';
+    if (isErrPopup) errorMsg = 'Sign-in didn’t finish. The Google step was closed or cancelled before you were signed in. Try again when you’re ready.';
+
+    const setUi = (v) => () => this.setState({ ui: v });
+    const setIntent = (v) => () => this.setState({ intent: v });
+
+    const intentDefs = [
+      { key: 'nav',   label: 'Nav (generic)' },
+      { key: 'track', label: 'Track a bill' },
+      { key: 'votes', label: 'Legislator votes' },
+    ];
+    const stateDefs = [
+      { key: 'idle',     label: 'Idle' },
+      { key: 'loading',  label: 'Connecting' },
+      { key: 'errnet',   label: 'Error · network' },
+      { key: 'errpopup', label: 'Error · cancelled' },
+      { key: 'signedin', label: 'Already signed in' },
+    ];
+
+    const intentBtns = intentDefs.map(d => ({ label: d.label, active: this.state.intent === d.key, inactive: this.state.intent !== d.key, select: setIntent(d.key) }));
+    const stateBtns  = stateDefs.map(d => ({ label: d.label, active: ui === d.key, inactive: ui !== d.key, select: setUi(d.key) }));
+
+    // ---- signed-in account control (top nav) ----
+    const acct = this.state.acct;
+    const acctDefs = [
+      { key: 'out',  label: 'Signed out' },
+      { key: 'in',   label: 'Signed in' },
+      { key: 'menu', label: 'Menu open' },
+    ];
+    const acctBtns = acctDefs.map(d => ({ label: d.label, active: acct === d.key, inactive: acct !== d.key, select: () => this.setState({ acct: d.key }) }));
+
+    return {
+      acctOut: acct === 'out',
+      acctSignedIn: acct !== 'out',
+      acctMenu: acct === 'menu',
+      acctBtns,
+      userName: 'Jordan Reyes', userFirst: 'Jordan', userInitial: 'J', userEmail: 'jordan@example.com',
+      toggleMenu: () => this.setState({ acct: this.state.acct === 'menu' ? 'in' : 'menu' }),
+      headline, subcopy, trust: c.trust, buttonLabel, errorMsg,
+      isNav: this.state.intent === 'nav', isTrack: this.state.intent === 'track', isVotes: this.state.intent === 'votes',
+      isSignedIn, isFormState, isLoading, isError, isButton,
+      onGoogle: () => this.setState({ ui: 'loading' }),
+      onContinue: () => this.setState({ ui: 'idle' }),
+      onSwitch: () => this.setState({ ui: 'idle' }),
+      intentBtns, stateBtns,
+    };
+  }
+}
+</script>
+</body>
+</html>

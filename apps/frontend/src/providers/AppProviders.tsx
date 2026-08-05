@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider } from './AuthProvider';
+import { SignInModalProvider } from './SignInModalProvider';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(
@@ -28,8 +29,12 @@ export function AppProviders({ children }: PropsWithChildren) {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <StatusBar style="dark" />
-          {children}
+          {/* Under AuthProvider so the one sign-in dialog can read the session,
+              and above everything else so any button on any screen can open it. */}
+          <SignInModalProvider>
+            <StatusBar style="dark" />
+            {children}
+          </SignInModalProvider>
         </AuthProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

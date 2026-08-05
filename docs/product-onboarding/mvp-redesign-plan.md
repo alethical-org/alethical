@@ -89,9 +89,30 @@ roadmap noted for direction.
 - **Search page split:** the current combined Bills+Legislators search becomes two
   dedicated pages. Bill search screen specified in `docs/product-onboarding/bill-search-screen-spec.md`
   (three small backend deltas tracked in [#134](https://github.com/alethical-org/alethical/issues/134); browse rail deferred to [#130](https://github.com/alethical-org/alethical/issues/130)).
-- **Sign-out UX / account menu:** "Sign in" button is *replaced* by an account menu
-  (avatar ▾) when signed in — not a Sign-in→Sign-out toggle. Menu = Account, Tracked,
-  Notification preferences, Sign out (see `ACCOUNT_MENU` in `ia.ts`). Resolves O9.
+- **Sign-in experience (SHIPPED, Aug 2026 — [#1006](https://github.com/alethical-org/alethical/issues/1006)):**
+  one reusable, intent-aware Google sign-in surface — a centered overlay on a
+  desktop-width browser, a bottom sheet on a phone, from a single component
+  (`components/auth/SignInDialog.tsx`), opened app-wide by
+  `useSignInModal().openSignIn({ intent, returnTo, billCode })`. The three previously
+  inert nav "Sign in" buttons now open it; so does a signed-out Track tap, which returns
+  to the bill at `?track=1` and finishes the track with no second click. Design and
+  deviations: `docs/mockups/sign-in/`. Gate scope is **bill tracking only** — the
+  legislator-votes intent is configured with `live: false` and cannot be opened, because
+  nothing saves a district ([#456](https://github.com/alethical-org/alethical/issues/456)).
+  No copy anywhere mentions an email or push alert: sending is not built
+  ([#36](https://github.com/alethical-org/alethical/issues/36)).
+- **Sign-out UX / account menu (SHIPPED, revised Aug 2026):** the "Sign in" button is
+  *replaced* by an account control when signed in — not a Sign-in→Sign-out toggle. Three
+  placements: an avatar + first name pill with a dropdown on desktop, an avatar opening a
+  sheet on the phone top bar, and a row in the phone drawer's footer. The menu is
+  **header + Sign out only**. The original plan's "Account, Tracked, Notification
+  preferences" rows were dropped: the built Account page is pre-redesign, fixture-wired,
+  and its URL already redirects Home, so a row would point at a broken surface. The unused
+  `ACCOUNT_MENU` constant that described those rows was removed with #1006. Resolves O9.
+- **Chat and Account are off the sidebar and the phone tab row (Aug 2026).** Both are
+  pre-redesign screens; with sign-in live, a link to either would land someone on a page we
+  stopped maintaining. Their URLs already redirect Home. Bill-scoped chat is untouched — it
+  opens from a bill page, not from a tab (`.claude/rules/grounded-answers.md` rule 8).
 - **Logged-out Ask AI funnel (LOCKED):** anonymous visitors get one grounded, cited
   answer as a **stateless one-shot** (not a persisted `ChatSession`); follow-ups,
   history, and tracking gate behind sign-in. Preserve the question+answer through auth.
@@ -218,7 +239,7 @@ router and had diverged from the live redirect behavior).
 | Search → Legislators | `/legislators`, detail `/legislators/:legislatorId` | Find-My-Rep CTA; deep link `/find-my-legislator` (unchanged, avoids `:legislatorId` collision) |
 | Track → Bills | `/tracked` | live nav entry (#976); `/tracked` resolves to the Tracked page (sign-in card when signed out), no longer redirected to Home; auth-gated |
 | About | `/about`, `/about/trust`, `/about/contact` | static |
-| Auth / account | `/sign-in`, `/account`, `/account/notifications` | |
+| Auth / account | none — sign-in is a dialog, not a page | #1006: `openSignIn()` opens it over whatever page you are on, so there is nothing to route to and nothing to come back from. `/account` still redirects Home |
 | Legal (footer) | `/privacy`, `/terms` | not in About menu |
 | Roadmap (hidden) | `/search/{issues,policies,laws,candidates,news}`, `/track/{issues,policies,legislators,laws,candidates}` | declared, not rendered |
 
@@ -241,8 +262,9 @@ because it would break the running old-IA app before screens/tokens exist):**
    and `pathnameFromNavigationState` with registry paths. (Redirects for retired
    routes like `/search` → `/bills` are handled inline in `targetFromPathname`; the
    unused `REDIRECTS` constant was removed.)
-2. Add list routes `/bills`, `/legislators`; add `/ask`, `/track/bills`, `/about*`,
-   `/sign-in`, `/account`.
+2. Add list routes `/bills`, `/legislators`; add `/ask`, `/track/bills`, `/about*`.
+   (No `/sign-in` route in the end — #1006 shipped sign-in as a dialog over the current
+   page. `/account` stays a redirect to Home.)
 3. Replace the tab-based shell with a top-nav shell (desktop) driven by `MENUS` +
    `visibleMenuItems`; derive mobile nav likewise.
 4. Split `SearchScreen` → `BillsScreen` + `LegislatorsScreen`; extract a shared
@@ -273,8 +295,8 @@ Frontend track (after Phase 0; parallel with backend track)
   design-review decisions (Locked decisions above). Follow-ups tracked separately:
   #291 (authored-count bug), #292 (progress-sort), #293 (companion link)
 - [ ] About static pages (About Us / Trust & Integrity / Contact Us); Trust page as real brand copy
-- [ ] Account menu + nav-after-sign-in; move Privacy/Terms into footer
-- [ ] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect
+- [x] Account menu + nav-after-sign-in — [#1006](https://github.com/alethical-org/alethical/issues/1006); Privacy/Terms in the footer still open
+- [x] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect — #976 and [#1006](https://github.com/alethical-org/alethical/issues/1006)
 - [x] Green token flip (web; re-skins the native iOS/Android clients for free via shared tokens) — [#136](https://github.com/alethical-org/alethical/issues/136); landed with the signed-out home ship (PR #67)
 - [ ] Upgrade Ask hero to the one-free-answer funnel when the backend un-stub is live
       — *partially delivered by PR #227 (topic → bills answers live from the hero);

@@ -260,16 +260,12 @@ export const ROUTES = {
   terms: '/terms',
 } as const;
 
-/**
- * Signed-in account menu (replaces the "Sign in" button when authenticated).
- * Resolves open item O9.
- */
-export const ACCOUNT_MENU: { id: string; label: string; path?: string; action?: 'signOut' }[] = [
-  { id: 'account', label: 'Account', path: ROUTES.account },
-  { id: 'tracked', label: 'Tracked', path: '/track/bills' },
-  { id: 'notifications', label: 'Notification preferences', path: ROUTES.notificationPrefs },
-  { id: 'sign-out', label: 'Sign out', action: 'signOut' },
-];
+// An `ACCOUNT_MENU` constant used to sit here, listing Account / Tracked /
+// Notification preferences / Sign out. Nothing ever read it, and the menu that
+// shipped with #1006 is header + Sign out only — the Account page it named is
+// pre-redesign and its URL redirects Home, so a row would point at a broken
+// surface. Removed rather than left describing a menu we deliberately did not
+// build; the shipped one lives in components/auth/AccountControl.tsx.
 
 // --- Selectors: keep every router/nav derivation in one place ---
 
