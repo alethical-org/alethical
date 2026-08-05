@@ -1020,26 +1020,53 @@ def test_summary_schema_lists_every_property_as_required() -> None:
     breaks the OpenAI path the next time it is used. Removing a field means removing
     it from BOTH lists, which is what #817 did for the nine unread fields.
 
-    It also does not save anything to make a field optional here: the schema is
-    pasted into the prompt as text either way, so the model is still told about the
-    field and still free to write it. The only way to stop paying for a field is to
-    delete it (#773).
+    Nor is making a field optional a way to save money. It shaves ~17 characters of
+    input off the pasted schema and nothing else: the field is still described in the
+    text, so the model is still free to write it, and whether it does is not
+    something this repo can promise either way. Deleting the field is the only change
+    that makes writing it impossible (#773).
     """
-    props = set(ai_enrichment.SUMMARY_SCHEMA["properties"])
-    required = set(ai_enrichment.SUMMARY_SCHEMA["required"])
+    schema = ai_enrichment.SUMMARY_SCHEMA
 
-    assert props == required, (
-        "OpenAI strict Structured Outputs rejects a schema whose `required` omits a "
-        f"property. Only in properties: {sorted(props - required)}. Only in "
-        f"required: {sorted(required - props)}."
-    )
-    # `required` is a list in the schema, so a duplicated entry would compare equal
-    # as a set while still shipping malformed JSON Schema.
-    assert len(ai_enrichment.SUMMARY_SCHEMA["required"]) == len(required)
+    # Checked at every level, not just the top. `key_point_citations` carries its own
+    # nested `required` for point / section_id / quote, and strict Structured Outputs
+    # applies the same rule there — so making `quote` optional inside a citation is
+    # the identical bug, one level down, where a top-level-only check cannot see it.
+    def every_object(node: object, path: str = "SUMMARY_SCHEMA"):
+        if isinstance(node, dict):
+            if isinstance(node.get("properties"), dict):
+                yield path, node
+            for key, value in node.items():
+                yield from every_object(value, f"{path}.{key}")
+        elif isinstance(node, list):
+            for i, value in enumerate(node):
+                yield from every_object(value, f"{path}[{i}]")
 
-    # Every field a reader consumes is present. This is the list that may only ever
-    # grow: #817 removed nine unread fields and none of these, and anything dropped
-    # from here silently empties a surface.
+    objects = list(every_object(schema))
+    # The walk has to actually reach the nested citation object, or this test would
+    # quietly go back to being a top-level-only check.
+    assert len(objects) >= 2, "expected the nested citation object to be walked too"
+
+    for path, node in objects:
+        props = set(node["properties"])
+        required_list = node.get("required", [])
+        required = set(required_list)
+        assert props == required, (
+            f"{path}: OpenAI strict Structured Outputs rejects a schema whose "
+            f"`required` omits a property. Only in properties: "
+            f"{sorted(props - required)}. Only in required: {sorted(required - props)}."
+        )
+        # `required` is a list, so a duplicated entry compares equal as a set while
+        # still shipping malformed JSON Schema.
+        assert len(required_list) == len(required), f"{path}: duplicate in `required`"
+
+    # Every field a reader consumes is present. This list may only ever grow:
+    # anything dropped from it silently empties a surface. Deliberately NOT including
+    # `confidence` — it is generated, but `ai_analysis_payload_for_enrichment`
+    # (`serializers.py`) never serves it and the frontend never asks for it, so it is
+    # an unread field like the seven in #773, not a product dependency. The
+    # `confidence` in `schemas.py` is the Ask router's own float score, a different
+    # thing entirely.
     for field in (
         "short_title",
         "summary",
@@ -1047,10 +1074,11 @@ def test_summary_schema_lists_every_property_as_required() -> None:
         "key_points",
         "key_point_citations",
         "policy_areas",
-        "confidence",
         "question_prompts",
     ):
-        assert field in props, f"{field} is read by the product and must be generated"
+        assert field in schema["properties"], (
+            f"{field} is read by the product and must be generated"
+        )
 
 
 # ---------------------------------------------------------------------------
