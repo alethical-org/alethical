@@ -873,16 +873,33 @@ function dedupeActions(actions: BillAction[]): BillAction[] {
   });
 }
 
-function normalizeBillIdForApi(billId: string) {
-  const canonical = billId.match(/^\d{2,3}-\d{4}-(SF|HF)\d+$/i);
-  if (canonical) {
-    return billId.toUpperCase();
+// A stored bill key, e.g. "94-2026-HF4138" or the special-session shape
+// "94-2025s1-HF5". Matched so it passes straight through — the client never
+// rebuilds a key from parts, so it can't guess the wrong session-year (#224).
+const CANONICAL_BILL_KEY = /^\d{2,3}-\d{4}[a-z0-9]*-(SF|HF)\d+$/i;
+
+// Uppercase only the chamber in the tail; the session segment (e.g. "2025s1")
+// keeps its stored casing so a special-session key still matches exactly.
+function normalizeCanonicalBillKey(key: string) {
+  return key.replace(
+    /-(sf|hf)(\d+)$/i,
+    (_match, chamber, num) => `-${chamber.toUpperCase()}${num}`,
+  );
+}
+
+export function normalizeBillIdForApi(billId: string) {
+  if (CANONICAL_BILL_KEY.test(billId)) {
+    return normalizeCanonicalBillKey(billId);
   }
 
+  // Legacy local id ("bill-sf1832") → chamber-prefixed number alias the backend
+  // resolves within the current session. No session-year is fabricated here:
+  // the 94th biennium stamps bills both 94-2025- and 94-2026-, so the year is
+  // not derivable from the number on the client (#224).
   const legacy = billId.match(/^bill-(sf|hf)(\d+)$/i);
   if (legacy) {
     const [, fileType, fileNumber] = legacy;
-    return `94-2025-${fileType.toUpperCase()}${fileNumber}`;
+    return `${fileType.toUpperCase()}${fileNumber}`;
   }
 
   return billId;
@@ -1282,21 +1299,23 @@ function mapBillDetail(
   };
 }
 
-function normalizeBillSubjectId(subjectId?: string, subjectLabel?: string) {
-  if (subjectId?.match(/^\d{2,3}-\d{4}-(SF|HF)\d+$/i)) {
-    return subjectId.toUpperCase();
+export function normalizeBillSubjectId(subjectId?: string, subjectLabel?: string) {
+  if (subjectId && CANONICAL_BILL_KEY.test(subjectId)) {
+    return normalizeCanonicalBillKey(subjectId);
   }
 
+  // A bare label ("SF 1832") or legacy local id → chamber-prefixed number alias;
+  // no session-year fabricated client-side (#224, same rationale as above).
   const fromLabel = subjectLabel?.match(/^(SF|HF)\s*(\d+)$/i);
   if (fromLabel) {
     const [, fileType, fileNumber] = fromLabel;
-    return `94-2025-${fileType.toUpperCase()}${fileNumber}`;
+    return `${fileType.toUpperCase()}${fileNumber}`;
   }
 
   const fromLocalId = subjectId?.match(/^bill-(sf|hf)(\d+)$/i);
   if (fromLocalId) {
     const [, fileType, fileNumber] = fromLocalId;
-    return `94-2025-${fileType.toUpperCase()}${fileNumber}`;
+    return `${fileType.toUpperCase()}${fileNumber}`;
   }
 
   return undefined;
