@@ -246,10 +246,12 @@ export function BillResultCard({
         // badge + optional OMNIBUS tag), row 2 the status/progress unit — so the
         // progress bar sits in the same place whether or not an omnibus tag is
         // present, instead of reflowing card-to-card. Track, when the surface asks
-        // for it, gets its OWN third row rather than being squeezed onto row 2:
-        // status + progress already fill ~250 of the ~315px a 375px card has, so
-        // sharing the row would let the button wrap on some cards and not others —
-        // the card-to-card reflow this header exists to avoid.
+        // for it, gets its OWN third row rather than being squeezed onto row 2.
+        // Measured at a 375px viewport: the card leaves 265px of content width, the
+        // progress bar alone takes 166px of it and the Track button 107px, so the
+        // two cannot share a row even before the status word — they would wrap, and
+        // wrap at different points per card, which is the reflow this header exists
+        // to avoid.
         <View style={styles.headerMobile}>
           <View style={styles.headerRow}>
             <View style={styles.badge}>
