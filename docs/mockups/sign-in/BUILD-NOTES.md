@@ -8,6 +8,14 @@ render HTML/CSS).
 Handoff from Claude Design, Aug 5 2026. Built and shipped by
 [#1006](https://github.com/alethical-org/alethical/issues/1006).
 
+## What shipped
+Captured from the running app against the production API, both surfaces showing the
+track intent (`shipped/`).
+
+| Web — centered overlay | Phone — bottom sheet |
+| --- | --- |
+| ![Sign-in overlay on a desktop-width browser](shipped/web-overlay.png) | ![Sign-in bottom sheet at phone width](shipped/phone-sheet.png) |
+
 ## Where it lives in the app
 - `apps/frontend/src/lib/signIn.ts` — the copy config and the state machine, as plain data
   so a test can read them (`src/lib/__tests__/signIn.test.ts`).
