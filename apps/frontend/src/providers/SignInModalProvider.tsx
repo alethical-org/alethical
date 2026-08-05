@@ -11,6 +11,7 @@ import {
   urlWithoutAuthError,
 } from '../lib/signIn';
 import { SignInModalContext } from './signInModalContext';
+import { signInHeldConnecting } from '../lib/devSignInHold';
 import { useAuth } from './AuthProvider';
 
 // One dialog for the whole app. Any button anywhere calls `openSignIn(...)` with
@@ -63,6 +64,9 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
 
   const onContinue = useCallback(() => {
     dispatch({ type: 'connect' });
+    // Development builds only: stop here so the connecting state can be looked at
+    // (lib/devSignInHold.ts). Nothing is stashed because nothing is coming back.
+    if (signInHeldConnecting()) return;
     stashPendingSignIn({
       intent: state.intent,
       returnTo: state.returnTo,
