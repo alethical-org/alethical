@@ -23,6 +23,28 @@ def get_auth_service():
         return None
 
 
+def _reconcile_identity_fields(user, identity, principal) -> bool:
+    """Backfill email fields only when a value actually changes.
+
+    Assigning an equal value would still mark the row dirty, so each branch
+    guards on a real difference. Returns whether anything changed, so callers
+    on the read path can skip committing when nothing did.
+    """
+    changed = False
+    if principal.email:
+        normalized_email = principal.email.lower()
+        if user.primary_email is None:
+            user.primary_email = normalized_email
+            changed = True
+        if identity.email != normalized_email:
+            identity.email = normalized_email
+            changed = True
+    if principal.email_verified and identity.email_verified_at is None:
+        identity.email_verified_at = datetime.now(timezone.utc)
+        changed = True
+    return changed
+
+
 def get_optional_current_user(
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
@@ -56,46 +78,49 @@ def get_optional_current_user(
         )
     )
     if identity is not None:
+        # Resolution path (the common case, including every read request):
+        # look the user up read-only and commit only if a field genuinely
+        # changed, so authenticated GETs are side-effect-free (#108).
         user = db.scalar(select(UserAccount).where(UserAccount.id == identity.user_id))
         if user is None:
             raise problem_exception(
                 401, "Unauthorized", "Mapped user account not found"
             )
-    else:
-        user = None
-        if principal.email:
-            user = db.scalar(
-                select(UserAccount).where(
-                    UserAccount.primary_email == principal.email.lower()
-                )
-            )
-        if user is None:
-            display_name = principal.email.split("@", 1)[0] if principal.email else None
-            user = UserAccount(
-                display_name=display_name,
-                primary_email=principal.email.lower() if principal.email else None,
-            )
-            db.add(user)
-            db.flush()
-        identity = AuthIdentity(
-            user_id=user.id,
-            provider=principal.provider,
-            provider_subject=principal.provider_subject,
-            email=principal.email.lower() if principal.email else None,
-            email_verified_at=datetime.now(timezone.utc)
-            if principal.email_verified
-            else None,
-        )
-        db.add(identity)
+        if _reconcile_identity_fields(user, identity, principal):
+            db.commit()
+        return user
 
+    # Provisioning path (first sign-in for this identity): create the user
+    # and/or identity and commit once. last_used_at / last_signed_in_at are set
+    # here rather than per request -- nothing reads them, and per-request bumps
+    # were the read-path write this dependency used to do on every call.
+    user = None
     if principal.email:
-        normalized_email = principal.email.lower()
-        user.primary_email = user.primary_email or normalized_email
-        identity.email = normalized_email
-    if principal.email_verified and identity.email_verified_at is None:
-        identity.email_verified_at = datetime.now(timezone.utc)
-    identity.last_used_at = datetime.now(timezone.utc)
-    user.last_signed_in_at = datetime.now(timezone.utc)
+        user = db.scalar(
+            select(UserAccount).where(
+                UserAccount.primary_email == principal.email.lower()
+            )
+        )
+    if user is None:
+        display_name = principal.email.split("@", 1)[0] if principal.email else None
+        user = UserAccount(
+            display_name=display_name,
+            primary_email=principal.email.lower() if principal.email else None,
+        )
+        db.add(user)
+        db.flush()
+    now = datetime.now(timezone.utc)
+    identity = AuthIdentity(
+        user_id=user.id,
+        provider=principal.provider,
+        provider_subject=principal.provider_subject,
+        email=principal.email.lower() if principal.email else None,
+        email_verified_at=now if principal.email_verified else None,
+        last_used_at=now,
+    )
+    db.add(identity)
+    _reconcile_identity_fields(user, identity, principal)
+    user.last_signed_in_at = now
     db.commit()
     db.refresh(user)
     return user
