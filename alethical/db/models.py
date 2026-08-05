@@ -1710,10 +1710,15 @@ def tracked_bills_stmt(user_id: uuid.UUID):
     ``created_at`` descending is the order, so the list reads newest-saved-first
     and — because a tracked row's ``created_at`` never changes — looks identical
     on every visit. Ordering by the bill's latest action instead would be more
-    useful but reshuffles as the Legislature acts, which is the "what changed
-    since you last looked" signal that needs a design first (#1007 out-of-scope).
-    ``id`` breaks a same-timestamp tie so the order is total, not merely mostly
-    stable.
+    useful but reshuffles as the Legislature acts. ``id`` breaks a same-timestamp
+    tie so the order is total, not merely mostly stable.
+
+    "What changed since you last looked" shipped as #1009 WITHOUT changing this
+    order (the sentence here used to say it needed a design first, which is no
+    longer true). The page groups the bills that moved above the ones that did
+    not, client-side, and within each group this order is what it falls back to.
+    So the base order still has to be stable per visit — a server order that
+    reshuffled would move a bill between visits even inside its group.
     """
     return (
         select(TrackedBill)

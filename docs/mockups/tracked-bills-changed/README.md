@@ -24,7 +24,16 @@ the treatment, the ordering rules and the copy are authoritative.
 
 ![The built phone layout at 375px, on a bill carrying both labels](assets/built-phone-375-both-labels.png)
 
-Both captured from the running app against the local seeded database. The phone shot is the
+![A change the record gives no date for, on a card with no summary](assets/built-web-undated-and-no-summary.png)
+
+All three captured from the running app against the local seeded database. The third is the
+two states added in round 3, in one shot and in the same list as dated blocks: the eyebrow
+names the absence, and the change block takes 20px below the title where the summary would
+otherwise sit. Measured on that card: `MOVED` is `#0f7a45`, `· DATE NOT RECORDED` is
+`#656c66`, both on one line in the same mono caps, and the title-to-panel gap is 20px
+against 72px on the card above it that has a summary.
+
+The phone shot is the
 crowded case the design calls out: HF 4138 carries the code badge, the OMNIBUS tag and the
 hot-issue pill, which wrap inside their own group while the Track button holds the right
 edge — the same spot it holds on SF 1832 below it, which carries one label. Measured at
@@ -34,11 +43,15 @@ edge — the same spot it holds on SF 1832 below it, which carries one label. Me
 
 Every difference from the reference, so nobody has to guess whether one was intended.
 
-- **An undated change shows the eyebrow `MOVED` with no date.** The reference has no state
-  for this because it assumes every change carries a date. `bill_action.action_at` is
-  nullable and the Legislature genuinely files undated entries, so the choice was between
-  hiding a real change and printing a date we do not have. Neither is acceptable, so the
-  block reports the change and states no date. Decided in the issue, not here.
+- **One claim in `HANDOFF.md` is factually wrong: "on phone this case is invisible — the
+  phone card never rendered a summary line".** It does, and always has. In
+  `apps/frontend/src/components/search/BillResultCard.tsx` the `isMobile ? (…) : (…)`
+  branch covers the **header only** and closes before the title; the title and the summary
+  are rendered once, outside it, by both layouts. Committed proof at 375px:
+  `docs/verification/1007-tracked-bills-phone/tracked-page-375px.png`, where two bills show
+  a full summary paragraph and the unenriched one shows none. So the no-summary composition
+  is **not** web-only and the 20px treatment is applied on both surfaces. Flagged so the
+  reference can be corrected; the bundle itself is left as the designer wrote it.
 - **The earlier-steps link counts every classified change, not only the big ones.** The
   issue asked for "meaningful milestones". Counting only milestones makes the link disappear
   on a busy day — the exact day it exists for — and understates what happened. It counts the
@@ -50,6 +63,10 @@ Every difference from the reference, so nobody has to guess whether one was inte
   `#149d5b`.** At 11px and 14px on the panel's green, `#149d5b` measures 3.27:1 — short of
   WCAG AA's 4.5:1 for small text. `#0f7a45` measures 5.05:1. The same call, for the same
   reason, as the omnibus token's own note in `apps/frontend/src/theme/tokens.ts`.
+- **"· DATE NOT RECORDED" is `#656c66`, not the reference's `#6f756f`,** for the same
+  reason: at 11px the reference grey measures 4.41:1 on the panel, just under AA, and
+  `#656c66` (the existing `text.muted` token) measures 5.05:1 — the same figure as the green
+  beside it, so neither half of the eyebrow dominates the other.
 - **The panel uses the existing green tokens** (`tint.t50` `#f2f9f5`, `tint.t300` `#cbeed6`)
   rather than the reference's `#f2fbf6` / `#cdeedd`. The pairs are visually identical, and a
   near-duplicate palette entry is a thing that later drifts.

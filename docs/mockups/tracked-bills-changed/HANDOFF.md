@@ -1,13 +1,13 @@
-# Handoff — Tracked bills: "what changed since you last looked" (round 2)
+# Handoff — Tracked bills: "what changed since you last looked" (FINAL)
 
-**Round 2** — Claude Code's review is applied, plus two label cases that weren't in round 1
-(omnibus, hot issue). The page keeps everything it has (eyebrow, "N bills" count, card stack with
+**Design final** — Claude Code's three rounds of review are all applied and agreed; nothing is
+outstanding on the design side. The page keeps everything it has (eyebrow, "N bills" count, card stack with
 status, 5-step progress bar, latest action + date). **Web + phone.**
 
 ## What's in this bundle
-- `NEXT Tracked bills.dc.html` — the reference design. Web page on top, phone below, four states in
-  the preview band: **Bills moved · Nothing moved · First visit · Nothing tracked**. The
-  DECISIONS / DECLINED cards beside the phone are notes for you, not product UI.
+- `LIVE Tracked bills.dc.html` — the reference design. Web page on top, phone below, **five** states in
+  the preview band: **Bills moved · Change with no date · Nothing moved · First visit · Nothing
+  tracked**. The DECISIONS / DECLINED cards beside the phone are notes for you, not product UI.
 
 Bills, dates, statuses, and change sentences are **illustrative placeholder** — do not reconcile or
 reproduce them. Only the design is authoritative.
@@ -72,6 +72,32 @@ separate untrack treatment.
 - **Subhead drops the add-and-remove instruction** on purpose: `✓ Tracked` is now on every card on
   both surfaces, so the instruction labels a visible affordance. The empty state still explains how
   to add a first bill.
+
+## A change with no date (new)
+The eyebrow stays first and green, and names the absence: **`MOVED · DATE NOT RECORDED`** — "MOVED"
+in `#149d5b`, "· DATE NOT RECORDED" in `#6f756f`, same mono caps. Sentence and earlier-steps link
+unchanged. Eyebrow-first was kept deliberately: dated and undated blocks sit in the same list, so one
+composition is what makes them read as the same component. Naming the absence (rather than a bare
+"MOVED") explains it as the record's silence, not our omission. Preview state: **Change with no
+date** — it shows the dateless block *beside* dated ones on purpose.
+
+## A card with no written summary (new)
+Composition holds: amber code badge (+ OMNIBUS if omnibus), title, status + progress, then the green
+change block with **20px** of air below the title (up from 18 — after a 25px bold title, 18 read
+tight). Nothing else shifts and the change reads more prominently. Shown in the crowded case: SF 2417
+has no summary **and** OMNIBUS **and** the hot-issue pill **and** a change block.
+**Finding:** on phone this case is invisible — the phone card never rendered a summary line, so a
+no-summary bill is indistinguishable there. The composition question is web-only.
+
+## Two smaller specifics
+- **Subhead measure:** the subhead sits on **one line** at desktop width — cap the measure at
+  **~980px** (not ~760px, which broke the line after "record"), so it wraps only when the viewport
+  forces it and never runs ~150 characters on a wide monitor.
+- **No Share control on this page, deliberately.** Our convention gives every shareable artifact a
+  header Share (Copy link primary, then LinkedIn · X · Facebook · Instagram · Email as monochrome ink
+  glyphs on `#f1f1f4` circles) — but that's for a screen showing one citable **public** thing. A
+  tracked list is private and per-user; a per-card share would duplicate the bill page one tap away
+  and crowd the identity row. A share entry point here is out of spec.
 
 ## Deviation
 Deviate with good reason (data reality, a11y, a better in-repo pattern, a place this spec is
