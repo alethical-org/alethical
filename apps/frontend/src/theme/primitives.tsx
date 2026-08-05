@@ -18,6 +18,7 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 import { ChevronDown, ChevronUp, Menu, Plus, X } from 'lucide-react-native';
 
 import { theme } from './tokens';
+import { useUnavailableControl } from '../components/billDetail/interactions';
 import { IaItem, MenuKey, MENUS, navDropdownItems } from '../navigation/ia';
 import { linkProps, routePath } from '../navigation/links';
 import { useResponsive } from '../hooks/useResponsive';
@@ -1023,8 +1024,16 @@ export function GoogleButton({
   size?: 'md' | 'lg';
 }) {
   const [hovered, hoverProps] = useHover();
+  // accessibilityState alone renders NOTHING on RN-Web, and this button has no
+  // `disabled` prop to fall back on — it gates by swapping onPress for undefined. So
+  // until #1025 the connecting state announced as an ordinary pressable button and
+  // stayed a tab stop: someone on a screen reader pressed "Continue with Google" and
+  // heard nothing to say it was working, on the only path into an account. The state
+  // prop stays for native, where it is the real mechanism.
+  const busyRef = useUnavailableControl(Boolean(busy), { busy: true });
   return (
     <Pressable
+      ref={busyRef}
       accessibilityRole="button"
       accessibilityLabel={busy ? 'Signing in with Google' : label}
       accessibilityState={{ busy, disabled: busy }}

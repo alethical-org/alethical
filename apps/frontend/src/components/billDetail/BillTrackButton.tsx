@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   GestureResponderEvent,
@@ -11,7 +11,7 @@ import { Check, Plus, RefreshCw } from 'lucide-react-native';
 
 import { useTrackedListState } from '../../hooks/useAppQueries';
 import { theme as t } from '../../theme/tokens';
-import { isWeb, useHover } from './interactions';
+import { isWeb, useHover, useUnavailableControl } from './interactions';
 
 // Bill Detail header Track control — the one live tracking affordance on a bill
 // profile, and the shared Track control on bill cards / home / Ask answers. INK
@@ -73,7 +73,7 @@ export function BillTrackButton({
   const { state: resolveState, recheck } = useTrackedListState();
   const state = resolveState(tracked);
   const spinnerVisible = useDelayed(state === 'checking', SPINNER_DELAY_MS);
-  const unknownRef = useInertBusyNode(state === 'checking');
+  const unknownRef = useUnavailableControl(state === 'checking', { busy: true });
   const glyph = size === 'web' ? 17 : 16;
   const btnSize =
     size === 'web' ? styles.btnWeb : size === 'mobile' ? styles.btnMobile : styles.btnCard;
@@ -161,27 +161,6 @@ function pressRecheck(recheck: () => void) {
     event?.preventDefault?.();
     recheck();
   };
-}
-
-// Mark the unknown form as a busy, unavailable, unfocusable button on the DOM node.
-//
-// It has to be done here rather than through props, because RN-Web drops all three.
-// Verified in a browser on this version: `accessibilityState={{ disabled: true,
-// busy: true }}` rendered neither `aria-disabled` nor `aria-busy`, and
-// `accessibilityRole="button"` gave the box `tabindex="0"` — so without this the
-// checking form was a tab stop that announced as an ordinary, pressable button.
-// Same escape hatch BillResultCard uses for its title tooltip; React never manages
-// these attributes, so it does not clobber them.
-function useInertBusyNode(active: boolean) {
-  const ref = useRef<View>(null);
-  useEffect(() => {
-    if (!isWeb || !active || !ref.current) return;
-    const node = ref.current as unknown as HTMLElement;
-    node.setAttribute('aria-busy', 'true');
-    node.setAttribute('aria-disabled', 'true');
-    node.setAttribute('tabindex', '-1');
-  }, [active]);
-  return ref;
 }
 
 // Follow `value` up, but only after it has stayed true for `delayMs`. Resets the
