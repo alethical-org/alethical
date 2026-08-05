@@ -72,6 +72,25 @@ export function mostRecentChangeLabel(bills: WithActions[]): string {
   return bestRaw ? formatNiceDate(bestRaw) : '';
 }
 
+/** The change block's mono eyebrow, in two parts so a surface can tone them
+ *  separately: "MOVED MAR 18, 2026" when the record dates the change, and
+ *  "MOVED" + " · DATE NOT RECORDED" when it does not.
+ *
+ *  MOVED leads in both cases and the eyebrow keeps one shape, because dated and
+ *  undated blocks sit in the same list and often next to each other — one
+ *  composition is what makes them read as the same thing. The absence is NAMED
+ *  rather than left silent: a bare "MOVED" reads as our omission, where the
+ *  qualifier says the silence is the record's. `bill_action.action_at` is
+ *  nullable and the Legislature genuinely files undated entries, so this is a
+ *  normal state, not a data defect.
+ *
+ *  A pure function so both branches are pinned by a test rather than only ever
+ *  checked by looking at the screen. */
+export function changeEyebrow(date: string): { moved: string; qualifier: string | null } {
+  if (!date) return { moved: 'MOVED', qualifier: ' · DATE NOT RECORDED' };
+  return { moved: `MOVED ${date.toUpperCase()}`, qualifier: null };
+}
+
 /** The dated caption under the count. One sentence, no terminal period.
  *
  *  It never says or implies that anything will be sent: the product cannot send

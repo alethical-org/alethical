@@ -21,6 +21,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { changesSince } from '../billDetail';
 import type { BillAction } from '../../data/types';
 import {
+  changeEyebrow,
   groupTrackedBillsByChange,
   mostRecentChangeLabel,
   trackedBillsSummaryLine,
@@ -202,6 +203,33 @@ describe('the earlier-steps count is of what happened, not of feed rows', () => 
       }),
     ];
     expect(changesSince(actions, LAST_VISIT, NOW)!.earlierCount).toBe(1);
+  });
+});
+
+describe('the eyebrow names a missing date instead of going quiet', () => {
+  it('states the date when the record has one', () => {
+    expect(changeEyebrow('Mar 18, 2026')).toEqual({ moved: 'MOVED MAR 18, 2026', qualifier: null });
+  });
+
+  it('names the absence when it does not', () => {
+    // A bare "MOVED" reads as OUR omission. Naming it says the silence is the
+    // record's, which is the true thing: bill_action.action_at is nullable and the
+    // Legislature genuinely files undated entries.
+    expect(changeEyebrow('')).toEqual({ moved: 'MOVED', qualifier: ' · DATE NOT RECORDED' });
+  });
+
+  it('leads with MOVED either way, so both blocks read as the same component', () => {
+    // Dated and undated blocks sit in the same list, often next to each other.
+    for (const date of ['Mar 18, 2026', '']) {
+      expect(changeEyebrow(date).moved.startsWith('MOVED')).toBe(true);
+    }
+  });
+
+  it('never invents a date, whatever it is handed', () => {
+    for (const date of ['', '   ']) {
+      const { moved, qualifier } = changeEyebrow(date.trim());
+      expect(`${moved}${qualifier ?? ''}`).not.toMatch(/\d/);
+    }
   });
 });
 
