@@ -856,6 +856,18 @@ export interface TimelineRow {
    *  row, naming what that bill is and where it got to (#757) — see
    *  `crossReferenceTargets(row)`. */
   links?: { code: string; id: string; title?: string; status?: string }[];
+  /** The latest moment this row's event could have happened, in epoch milliseconds.
+   *  For comparing a row against a reader's last visit (`changesSince`) — NEVER
+   *  displayed, and never a claim about a time the record does not state.
+   *
+   *  A dated row uses the END of its day: the Legislature dates an action to a day
+   *  and not a time, so measuring from the start of that day would silently hide a
+   *  step filed later the same day someone last looked. A dateless row falls back
+   *  to when we first saw the action (`firstSeenAt`) — the only honest marker an
+   *  undated entry has, and a stable one, because ingestion upserts actions on
+   *  (bill, action number, chamber) and never deletes them. Undefined when the row
+   *  has neither. */
+  latestPossibleAtMs?: number;
 }
 
 /** One piece of a rendered title: plain text, or text that links to a bill page. */
@@ -1272,6 +1284,13 @@ export function buildActionTimeline(
       // Kept only when the code is actually visible in the rendered title, so a
       // surface can trust that every link it is handed has somewhere to attach.
       links: item.links?.filter((l) => title.includes(l.code)),
+      // An author group spans days, so its latest moment is the END of the run —
+      // measuring from the first name added would treat later names as already
+      // seen. Every other row has a single date, where endDate is unset.
+      latestPossibleAtMs: latestPossibleMoment(
+        item.endDate || item.rawDate,
+        actions[item.idx]?.firstSeenAt,
+      ),
     };
   });
 
@@ -1338,23 +1357,37 @@ export function latestActionEntry(
   sponsors?: BillSponsor[],
 ): { label: string; date: string; kind: EventKind } | null {
   const { rows } = buildActionTimeline(actions, [], now, undefined, sponsors);
+  const row = headlineRow(rows);
+  if (!row) return null;
+  return { label: compactRowLabel(row), date: formatNiceDate(row.date), kind: row.kind };
+}
+
+// The one row that speaks for a set of timeline rows. Enacted status is terminal
+// and dominates: a signed bill reads as law however its feed is dated (the
+// "Chapter number" signing row is often dateless, so it may not fall on the
+// literal newest day). Grounded-answers rule 7 — enacted law must never read as a
+// pending step ("Co-author added"). The signing row is collapsed to one, anchored
+// to the governor-approval date. Otherwise the newest day's headline beat: the tab
+// keeps source order within a day, so pick the most significant kind rather than
+// the first-listed one. Null for an empty set.
+function headlineRow(rows: TimelineRow[]): TimelineRow | null {
   if (!rows.length) return null;
-  // Enacted status is terminal and dominates: a signed bill reads as law however
-  // its feed is dated (the "Chapter number" signing row is often dateless, so it
-  // may not fall on the literal newest day). Grounded-answers rule 7 — enacted
-  // law must never read as a pending step ("Co-author added"). The signing row is
-  // collapsed to one, anchored to the governor-approval date.
   const signing = rows.find((r) => r.kind === 'signing');
-  if (signing) {
-    return { label: 'Signed by the Governor', date: formatNiceDate(signing.date), kind: 'signing' };
-  }
-  // Otherwise the newest day's headline beat: within a day the tab keeps source
-  // order, so pick the most significant kind rather than the first-listed one.
+  if (signing) return signing;
   const newestDay = rows[0].date;
-  const row = rows
+  return rows
     .filter((r) => r.date === newestDay)
     .reduce((best, r) => (KIND_SIGNIFICANCE[r.kind] >= KIND_SIGNIFICANCE[best.kind] ? r : best));
-  const date = formatNiceDate(row.date);
+}
+
+// How a timeline row reads in a one-line summary beside a status pill. Milestone
+// kinds get a short phrasing that COMPLEMENTS the status rather than echoing it
+// ("Passed the House", "Signed by the Governor", "Vetoed by the Governor"); every
+// other kind keeps the Actions tab's plain-language title. Shared by the card's
+// "Latest action:" line and the tracked page's change block, so one event can
+// never be described two different ways on two surfaces (#1009).
+function compactRowLabel(row: TimelineRow): string {
+  if (row.kind === 'signing') return 'Signed by the Governor';
   if (row.kind === 'passage') {
     const verb = /^repass/i.test(row.title) ? 'Repassed' : 'Passed';
     const chamber = /\bSenate\b/.test(row.title)
@@ -1362,13 +1395,9 @@ export function latestActionEntry(
       : /\bHouse\b/.test(row.title)
         ? 'House'
         : null;
-    return {
-      label: chamber ? `${verb} the ${chamber}` : `${verb} on third reading`,
-      date,
-      kind: row.kind,
-    };
+    return chamber ? `${verb} the ${chamber}` : `${verb} on third reading`;
   }
-  if (row.kind === 'veto') return { label: 'Vetoed by the Governor', date, kind: row.kind };
+  if (row.kind === 'veto') return 'Vetoed by the Governor';
   // An author group states its COUNT and stops. This is a one-line summary beside
   // a status pill, and 30 production bills have a run of 24 or more names as their
   // newest action — HF 683 adds 31 in one go. The names belong on the Actions
@@ -1376,9 +1405,70 @@ export function latestActionEntry(
   // (The row's own title used to name whichever member happened to be first, which
   // read as "one person signed on" for a row that was really 31.)
   if (row.kind === 'authorAdd' && (row.authors?.length ?? 0) > 1) {
-    return { label: `${row.authors!.length} co-authors added`, date, kind: row.kind };
+    return `${row.authors!.length} co-authors added`;
   }
-  return { label: row.title, date, kind: row.kind };
+  return row.title;
+}
+
+/** What a bill did since a reader last looked at their tracked list (#1009). */
+export interface BillChanges {
+  /** The change to lead with, worded exactly as the card's "Latest action:" line
+   *  would word that same event. */
+  label: string;
+  /** Humanized date of that change ("Mar 18, 2026"), or '' when the record states
+   *  none. Never a borrowed or inferred date — an undated step is reported with no
+   *  date rather than dropped or dated by guess. */
+  date: string;
+  kind: EventKind;
+  /** How many OTHER changes happened in the same window. The headline sentence
+   *  alone would imply nothing else did. */
+  earlierCount: number;
+}
+
+// The latest moment an event could have happened, in epoch ms — see
+// TimelineRow.latestPossibleAtMs for why a dated row measures from the END of its
+// day and an undated one falls back to when we first saw it.
+function latestPossibleMoment(rawDate: string, firstSeenAt?: string): number | undefined {
+  const dated = parseActionDate(rawDate);
+  if (dated) return dated.getTime() + DAY_MS - 1;
+  const seen = firstSeenAt ? new Date(firstSeenAt) : null;
+  return seen && !isNaN(seen.getTime()) ? seen.getTime() : undefined;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Everything this bill did since `since`, or null if it did nothing.
+ *
+ *  Runs the SAME pipeline the Actions tab and the card's "Latest action:" line run
+ *  (`buildActionTimeline`), so the tracked page can never phrase an event a second
+ *  way. Two things it deliberately does not do:
+ *
+ *  - It does not read the feed's order as chronological. Actions arrive grouped by
+ *    chamber, and `action_number` is per-chamber, so a bill's House block can
+ *    precede its earlier Senate block. Every comparison is against the action's own
+ *    date, never its position.
+ *  - It does not count raw action rows. `buildActionTimeline` first collapses an
+ *    author run, a floor-passage cluster and the repeated signing rows into one
+ *    entry each and drops the duplicate rows both chamber journals record, so a
+ *    busy day is reported as the handful of things that actually happened.
+ *
+ *  Cross-reference rows are left out: "See also HF 2446" is a pointer to another
+ *  bill, not a step this one took. */
+export function changesSince(actions: BillAction[], since: Date, now: Date): BillChanges | null {
+  const { rows } = buildActionTimeline(actions, [], now);
+  const cutoff = since.getTime();
+  const changed = rows.filter(
+    (r) =>
+      r.kind !== 'crossReference' && r.latestPossibleAtMs != null && r.latestPossibleAtMs > cutoff,
+  );
+  const row = headlineRow(changed);
+  if (!row) return null;
+  return {
+    label: compactRowLabel(row),
+    date: formatNiceDate(row.date),
+    kind: row.kind,
+    earlierCount: changed.length - 1,
+  };
 }
 
 function dotForRow(kind: EventKind, upcoming: boolean, hasTally: boolean): TimelineDot {

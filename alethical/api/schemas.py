@@ -143,6 +143,15 @@ class BillActionPayload(BaseModel):
     action_at: datetime | None = None
     journal_page: str | None = None
     roll_call_text: str | None = None
+    # When this action first appeared in our copy of the record (its ``created_at``).
+    # NOT a claim about when the Legislature took the step — ``action_at`` is that,
+    # and it is genuinely absent on entries the Legislature files undated ("Laid on
+    # table", conference-committee steps). It exists so the tracked-bills page can
+    # still place an undated action relative to a reader's last visit instead of
+    # dropping it, which would make "nothing has moved" false (#1009). Honest
+    # because ``replace_actions`` upserts on (bill_id, action_number, chamber_id)
+    # and never deletes, so it survives re-ingests.
+    first_seen_at: datetime | None = None
     # Served by the bill DETAIL route only, where the Actions timeline renders these
     # as links. The list routes deliberately skip the resolving query — their card
     # shows one latest-action line, which never carries a link (#745).

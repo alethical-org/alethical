@@ -259,6 +259,7 @@ interface ApiBillActionPayload {
   action_description?: string | null;
   committee_name?: string | null;
   action_at?: string | null;
+  first_seen_at?: string | null;
   roll_call_text?: string | null;
   cross_references?:
     | { code: string; id: string; title?: string | null; status_key?: string | null }[]
@@ -848,6 +849,7 @@ function mapBillAction(action: ApiBillActionPayload, billId: string): BillAction
     committee: committee || undefined,
     tally: action.roll_call_text?.trim() || undefined,
     actionNumber: action.action_number,
+    firstSeenAt: action.first_seen_at ?? undefined,
     crossReferences: action.cross_references?.length
       ? action.cross_references.map((ref) => ({
           code: ref.code,
@@ -1817,6 +1819,22 @@ export async function listTrackedBillsFromApi(
   return response.data
     .filter((tracked) => tracked.bill)
     .map((tracked) => mapBillSummary(tracked.bill as ApiBillListItemPayload));
+}
+
+/** Tell the API this reader has opened their tracked list, and get back when they
+ *  opened it BEFORE — the comparison point the page's "what moved" blocks measure
+ *  against (#1009). `null` means no recorded visit yet, i.e. their first look.
+ *
+ *  Read and advance are one call because they must not interleave: two tabs, or a
+ *  retry, could otherwise hand the second caller a mark it had just written, and
+ *  the page would say nothing had moved. */
+export async function markTrackedBillsViewedFromApi(accessToken: string): Promise<string | null> {
+  const response = await apiRequest<DetailResponse<{ previous_viewed_at: string | null }>>(
+    '/me/tracked-bills/viewed',
+    { method: 'POST' },
+    accessToken,
+  );
+  return response.data?.previous_viewed_at ?? null;
 }
 
 export async function toggleTrackedBillFromApi(accessToken: string, billId: string): Promise<void> {

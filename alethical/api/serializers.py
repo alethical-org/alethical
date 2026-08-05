@@ -409,6 +409,7 @@ def bill_action_payload(action) -> api_schemas.BillActionPayload:
         action_at=action.action_at,
         journal_page=action.journal_page,
         roll_call_text=action.roll_call_text,
+        first_seen_at=action.created_at,
     )
 
 

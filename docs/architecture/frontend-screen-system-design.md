@@ -654,6 +654,13 @@ Requirements:
 
 ## 10. Tracked Bills
 
+> **Superseded by what shipped.** Per-screen truth is `docs/mockups/tracked-bills-changed/`.
+> The sketches below show an All / Updates tab pair and a "Sort by latest update" control;
+> both were considered and **declined** ([#1009](https://github.com/alethical-org/alethical/issues/1009)):
+> a watchlist is short and self-curated, so the page groups what moved above what did not
+> and needs no control to discover. The shipped page is a card list, not a table, and says
+> in one dated sentence what changed since the reader last looked.
+
 ### Mobile
 
 ```text
@@ -871,8 +878,10 @@ Requirements:
 ### Empty
 
 ```text
-No tracked bills yet.
-[ Explore Bills ]
+You're not tracking any bills yet
+Find a bill in search and tap Track. It shows up here, and
+anything that moves shows up with it.
+[ Search bills ]
 ```
 
 ### Error

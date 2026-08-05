@@ -14,6 +14,7 @@ import {
   formatNiceDate,
   latestActionEntry,
   plainBillSummary,
+  type BillChanges,
 } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
 import { linkProps, pressInsideLink, routePath } from '../../navigation/links';
@@ -69,6 +70,14 @@ interface BillResultCardProps {
   // row). The editor marks which bills carry it via lib/hotIssues.ts; off by
   // default so nothing shows it unasked.
   hotIssue?: boolean;
+  // What this bill did since the reader last looked, from lib/billDetail's
+  // changesSince (#1009). Supplied only by the Tracked page, which is the one
+  // surface with a per-reader comparison point. When present the card shows the
+  // green change block and DROPS its "Latest action:" row — the block already
+  // states that same fact, and printing both says one thing twice.
+  change?: BillChanges;
+  // Opens the bill's full history, for the change block's earlier-steps link.
+  onChangeHistory?: () => void;
 }
 
 type Tone = 'neutral' | 'green' | 'vetoed';
@@ -132,6 +141,49 @@ function HotIssuePill() {
   );
 }
 
+// "What moved since you last looked" — a soft green panel INSIDE the card, not a
+// badge on it: a dated report, not an alert (#1009). The mono eyebrow carries the
+// date of the change itself.
+//
+// A change the record states no date for prints "MOVED" and nothing more. The
+// Legislature genuinely files undated entries ("Laid on table", conference-
+// committee steps), and the sentence still names what happened — we neither invent
+// a date nor hide a real change (grounded-answers rule 1).
+//
+// The earlier-steps link exists so one sentence never implies it was the only
+// thing that happened. It states a count and no date range: "since your last
+// visit" already gives the range, and the bill's own history shows every date. A
+// plain Pressable rather than an anchor — the card is itself a real <a>, and an
+// <a> inside an <a> is invalid markup that reads as one confused control to a
+// screen reader (the same reason the author name and roll-calls chip are plain).
+function ChangeBlock({ change, onHistory }: { change: BillChanges; onHistory?: () => void }) {
+  const [hovered, hover] = useHover();
+  const earlier = change.earlierCount;
+  return (
+    <View style={styles.change}>
+      <Text style={styles.changeEyebrow}>
+        {change.date ? `MOVED ${change.date.toUpperCase()}` : 'MOVED'}
+      </Text>
+      <Text style={styles.changeText}>{change.label}</Text>
+      {earlier > 0 && onHistory ? (
+        <Pressable
+          accessibilityRole="link"
+          onPress={pressInsideLink(onHistory)}
+          {...hover}
+          style={styles.changeMore}
+        >
+          <Text style={[styles.changeMoreText, hovered && styles.changeMoreTextHover]}>
+            {earlier === 1 ? '1 earlier step' : `${earlier} earlier steps`} since your last visit{' '}
+            <Text style={styles.changeMoreArrow} aria-hidden>
+              →
+            </Text>
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 // The chief author's NAME is the only link (green, → arrow), spelled-out honorific
 // sits outside it. pressInsideLink keeps the card's own press — and the card
 // anchor's own URL — from firing when the name is tapped. Own hover state so only
@@ -175,6 +227,8 @@ export function BillResultCard({
   tracked = false,
   onToggleTrack,
   hotIssue = false,
+  change,
+  onChangeHistory,
 }: BillResultCardProps) {
   const [hovered, setHovered] = useState(false);
   const { isMobile } = useResponsive();
@@ -243,53 +297,54 @@ export function BillResultCard({
     >
       {isMobile ? (
         // Mobile: a stable two-row header on EVERY card — row 1 identity (code
-        // badge + optional OMNIBUS tag), row 2 the status/progress unit — so the
-        // progress bar sits in the same place whether or not an omnibus tag is
-        // present, instead of reflowing card-to-card. Track, when the surface asks
-        // for it, gets its OWN third row rather than being squeezed onto row 2.
-        // Measured at a 375px viewport: the card leaves 265px of content width, the
-        // progress bar alone takes 166px of it and the Track button 107px, so the
-        // two cannot share a row even before the status word — they would wrap, and
-        // wrap at different points per card, which is the reflow this header exists
-        // to avoid.
+        // badge, optional OMNIBUS tag, optional hot-issue pill) with Track holding
+        // the right edge, row 2 the status/progress unit — so the progress bar sits
+        // in the same place whether or not a label is present, instead of reflowing
+        // card-to-card. Measured at a 375px viewport: the card leaves 265px of
+        // content width, the progress bar alone takes 166px of it and the Track
+        // button 107px, so Track and the progress bar cannot share a row even
+        // before the status word.
+        //
+        // Row 1's shape is load-bearing, and it is the constraint that keeps this
+        // card off the path that got the phone Track button removed once before
+        // (#596, crowded top row). The label group is flex:1 with minWidth:0 and
+        // wraps INTERNALLY; Track is flex:none with marginLeft:auto. So the button
+        // sits in the identical spot whether a bill carries zero, one or both
+        // labels — a two-label bill wraps its labels onto a second line underneath
+        // themselves rather than pushing the button onto a line of its own.
         <View style={styles.headerMobile}>
-          <View style={styles.headerRow}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{bill.identifier}</Text>
+          <View style={styles.headerTopRow}>
+            <View style={styles.headerLabels}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{bill.identifier}</Text>
+              </View>
+              {bill.isOmnibus ? <OmnibusPill /> : null}
+              {hotIssue ? <HotIssuePill /> : null}
             </View>
-            {bill.isOmnibus ? <OmnibusPill /> : null}
-            {/* Hot-issue flag sits on the right of the identity row — the same spot
-                the home mobile card uses. Same neutral pill / 13px as web. */}
-            {hotIssue ? (
-              <>
-                <View style={styles.topSpacer} />
-                <HotIssuePill />
-              </>
+            {/* The phone card used to render NO Track control at all, so a bill could
+                be tracked but never untracked from a phone — while the Tracked page's
+                own subhead told the reader to "Tap Track on any bill to add or remove
+                it" (#1007). It honours the same showTrackButton prop the desktop
+                branch does, so Search still opts out on mobile (#596's crowded-top-row
+                decision, which it makes by passing the prop) and every other surface
+                gets the control. size="mobile" rather than "card": it is the variant
+                that carries the 44pt minimum touch target, and it is narrower than
+                "card" (11/14 vs 18/18 horizontal padding), so it also fits the
+                narrower viewport better. Same size the mobile bill-detail header uses. */}
+            {showTrackButton && onToggleTrack ? (
+              <View style={styles.headerTrackSlot}>
+                <BillTrackButton
+                  size="mobile"
+                  tracked={tracked}
+                  onPress={pressInsideLink(onToggleTrack)}
+                />
+              </View>
             ) : null}
           </View>
           <View style={styles.headerRow}>
             <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
             <ProgressBar index={index} tone={tone} />
           </View>
-          {/* The phone card used to render NO Track control at all, so a bill could
-              be tracked but never untracked from a phone — while the Tracked page's
-              own subhead told the reader to "Tap Track on any bill to add or remove
-              it" (#1007). It now honours the same showTrackButton prop the desktop
-              branch does, so Search still opts out on mobile (#596's crowded-top-row
-              decision, which it makes by passing the prop) and every other surface
-              gets the control. size="mobile" rather than "card": it is the variant
-              that carries the 44pt minimum touch target, and it is narrower than
-              "card" (11/14 vs 18/18 horizontal padding), so it also fits the
-              narrower viewport better. Same size the mobile bill-detail header uses. */}
-          {showTrackButton && onToggleTrack ? (
-            <View style={styles.headerTrackRow}>
-              <BillTrackButton
-                size="mobile"
-                tracked={tracked}
-                onPress={pressInsideLink(onToggleTrack)}
-              />
-            </View>
-          ) : null}
         </View>
       ) : (
         <View style={styles.topRow}>
@@ -333,6 +388,8 @@ export function BillResultCard({
 
       {summary ? <Text style={styles.summary}>{summary}</Text> : null}
 
+      {change ? <ChangeBlock change={change} onHistory={onChangeHistory} /> : null}
+
       <View style={styles.meta}>
         <View style={styles.metaRow}>
           <Text style={[styles.metaText, styles.metaLabel]}>Chief author: </Text>
@@ -345,7 +402,9 @@ export function BillResultCard({
             <Text style={styles.metaText}>Unavailable</Text>
           )}
         </View>
-        {actionLabel || actionDate ? (
+        {/* Dropped when the change block is showing: the block states this same
+            action, so printing both puts one fact on the card twice. */}
+        {!change && (actionLabel || actionDate) ? (
           <View style={[styles.metaRow, styles.actionRow]}>
             <Text style={[styles.metaText, styles.metaLabel]}>Latest action:</Text>
             {actionLabel ? (
@@ -435,8 +494,22 @@ const styles = StyleSheet.create({
   // steady ~11px vertical gap between them.
   headerMobile: { gap: 11 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  // Track's own header row, right-aligned to match its top-right spot on desktop.
-  headerTrackRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+  // Mobile row 1. It does NOT wrap: the labels wrap inside their own group and the
+  // Track button holds the right edge, so the button lands in the same place on
+  // every card whatever labels a bill carries. flex-start rather than center so a
+  // two-line label group grows downward instead of pushing the button off-centre.
+  headerTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  // minWidth 0 is what makes flex:1 actually shrinkable here — without it the
+  // group's content sets a floor and long labels push Track off the card.
+  headerLabels: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  headerTrackSlot: { flexShrink: 0, marginLeft: 'auto' },
   badge: {
     backgroundColor: t.colors.omnibus.fill,
     borderWidth: 1,
@@ -493,6 +566,45 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
     maxWidth: 1040,
   },
+  // The "what moved since you last looked" panel. Soft green, inside the card.
+  change: {
+    maxWidth: 1040,
+    backgroundColor: t.colors.tint.t50,
+    borderWidth: 1,
+    borderColor: t.colors.tint.t300,
+    borderRadius: t.radii.md,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+    gap: 7,
+  },
+  changeEyebrow: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.32,
+    // brand.forest (#0f7a45), not the mockup's #149d5b: at 11px this is small text,
+    // and #149d5b sits at 3.27:1 on the panel — short of WCAG AA's 4.5:1. Forest
+    // measures 5.05:1. Same call, same reason, as the omnibus token's own note
+    // (theme/tokens.ts) — accessibility overrides the spec.
+    color: t.colors.brand.forest,
+  },
+  changeText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.bodyLg,
+    lineHeight: 24,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.text.primary,
+  },
+  changeMore: { alignSelf: 'flex-start' },
+  changeMoreText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.brand.forest, // 5.05:1 on the panel; see changeEyebrow
+  },
+  changeMoreTextHover: { color: t.colors.text.primary },
+  changeMoreArrow: { fontWeight: t.fontWeights.regular },
   meta: {
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,

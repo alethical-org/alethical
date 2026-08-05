@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -621,6 +622,35 @@ def tracked_bills(
         )
     return CollectionResponse(
         data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
+
+
+@router.post("/me/tracked-bills/viewed", response_model=DetailResponse)
+def mark_tracked_bills_viewed(
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
+    """Return when this user PREVIOUSLY opened the tracked-bills page, then advance
+    the mark to now (#1009).
+
+    Read-and-advance in one call on purpose. The page needs the *previous* visit as
+    its comparison point, so a separate read and write could interleave — two tabs
+    opening at once, or a retry — and hand the second caller a mark it had just
+    written itself, which reads on screen as "nothing has moved".
+
+    The caller holds ``previous_viewed_at`` for the whole browser session and calls
+    this once, so reloading the page does not erase what changed. ``null`` means no
+    recorded visit yet: the page's first-visit state, not "everything moved".
+    """
+    previous = current_user.tracked_bills_last_viewed_at
+    current_user.tracked_bills_last_viewed_at = datetime.now(timezone.utc)
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return DetailResponse(
+        data={
+            "previous_viewed_at": previous.isoformat() if previous else None,
+            "viewed_at": current_user.tracked_bills_last_viewed_at.isoformat(),
+        }
     )
 
 

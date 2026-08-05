@@ -895,6 +895,18 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_signed_in_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
+    # When this user last opened the tracked-bills page — the comparison point the
+    # page's "what moved since you last looked" block is measured against (#1009).
+    # NULL means no recorded visit yet, which the page renders as its first-visit
+    # state rather than as "everything moved".
+    #
+    # Deliberately NOT ``last_signed_in_at``: ``alethical/api/auth.py`` rewrites that
+    # on every authenticated request, so it is always "just now" by the time a page
+    # renders and nothing can ever be newer than it. Only
+    # ``POST /me/tracked-bills/viewed`` writes this column.
+    tracked_bills_last_viewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     auth_identities: Mapped[list["AuthIdentity"]] = relationship(back_populates="user")
     tracked_bills: Mapped[list["TrackedBill"]] = relationship(back_populates="user")

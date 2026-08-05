@@ -35,7 +35,9 @@ The product is successful if a user can:
 - Open a bill and understand what it does, who sponsored it, where it is in the process, and how votes broke down when roll calls exist
 - Search legislators and inspect their profiles and sponsored bills
 - Find their representatives by address or city
-- Sign in to track bills and receive basic updates
+- Sign in to track bills, and see on the tracked page what moved since the last visit
+  ([#1009](https://github.com/alethical-org/alethical/issues/1009)). Nothing is sent — see
+  "Not built yet — accounts and notifications".
 - Ask grounded questions about Minnesota legislation and get answers with citations back to official or ingested sources; persistent chat sessions (history, follow-ups) require sign-in
 
 Alethical is a reliable legislative data and analysis product. It is deliberately not a
@@ -486,8 +488,14 @@ Native iOS and Android apps are not built yet ([#91](https://github.com/alethica
 
 ### Not built yet — accounts and notifications
 
-None of these is refused; none is built. Email-first notification is the shipped default,
-so each of these is an addition rather than a change of direction:
+None of these is refused; none is built. **Nothing is delivered to anyone today, by any
+channel.** Email-first is the chosen *direction*, not a shipped default: the
+`NotificationEvent` model and its writer exist, but the digest job that would send them and
+stamp `sent_at` is unbuilt and behind config, so recording an event sends nothing
+([#36](https://github.com/alethical-org/alethical/issues/36)). That is precisely why
+[#1009](https://github.com/alethical-org/alethical/issues/1009) makes the tracked-bills page
+report what moved: returning to the page is the only way a person learns a bill they saved
+has moved. Each item below is an addition rather than a change of direction:
 
 - Push notifications — email covers the current need; nothing blocks adding push
 - Fine-grained notification preferences — one channel toggle today
@@ -616,8 +624,10 @@ Still genuinely undecided:
   Ask; cross-bill synthesis is tracked as
   [#87](https://github.com/alethical-org/alethical/issues/87) and until it ships those
   questions get a cited bill list.
-- *Push notifications at launch?* Email-first, and that is what shipped. Push is unbuilt,
-  not required.
+- *Push notifications at launch?* No, and neither is email — no channel delivers anything
+  yet ([#36](https://github.com/alethical-org/alethical/issues/36)). Email is the chosen
+  first channel when one gets built. Until then the tracked-bills page carries the signal
+  itself ([#1009](https://github.com/alethical-org/alethical/issues/1009)).
 - *How much admin tooling before launch?* CLI and internal endpoints have been sufficient;
   richer tooling is listed under "Not built yet — admin and operations."
 
