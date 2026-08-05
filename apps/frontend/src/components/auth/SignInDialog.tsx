@@ -145,9 +145,11 @@ export function SignInDialog({
   const errorMessage = state.errorKind ? SIGN_IN_ERROR_MESSAGES[state.errorKind] : null;
   const connecting = state.status === 'connecting';
 
-  // Web a11y wiring. react-native-web renders Views as divs, so the dialog
-  // semantics are set on the real nodes: no RN prop maps to aria-modal, and
-  // `accessibilityViewIsModal` is native-only and does nothing here.
+  // Web a11y wiring, set on the real DOM nodes. react-native-web's Modal renders
+  // an `aria-modal="true"` wrapper but no role, and `aria-modal` on a node that
+  // is not a dialog is ignored — so the card carries the dialog semantics, and
+  // `accessibilityViewIsModal` is native-only and does nothing here. Verified in
+  // a browser: exactly one `[role="dialog"]` is on the page while it is open.
   useEffect(() => {
     if (!isWeb || !state.open) return;
     const card = cardRef.current as unknown as HTMLElement | null;

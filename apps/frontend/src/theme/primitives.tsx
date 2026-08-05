@@ -1331,7 +1331,11 @@ const styles = StyleSheet.create({
   },
   menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   menuList: { flex: 1, marginTop: 40 },
-  menuFooter: {},
+  // Opaque and padded because the footer is now two lines tall when signed in
+  // (name + email, then Sign out), and the scrolling list above it ends flush
+  // against it — without a background the last roadmap pill showed through the
+  // name (measured: 5px of overlap in a 375px-wide browser).
+  menuFooter: { backgroundColor: t.colors.surfaces.base, paddingTop: 12 },
   primaryBtn: {
     borderRadius: t.radii.md,
     paddingVertical: 12,

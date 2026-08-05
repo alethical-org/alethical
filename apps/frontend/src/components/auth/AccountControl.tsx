@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -13,6 +13,22 @@ import { useAuth } from '../../providers/AuthProvider';
 // someone to a broken surface.
 
 const isWeb = Platform.OS === 'web';
+
+/**
+ * Set a DOM attribute react-native-web won't. `accessibilityState={{ expanded }}`
+ * renders nothing on web — Pressable manages that attribute itself — so an
+ * expandable control has to write `aria-expanded` on its own node. Verified in a
+ * browser: without this the trigger announced no expanded state at all.
+ */
+function useWebAttribute(ref: RefObject<unknown>, name: string, value: string | null) {
+  useEffect(() => {
+    if (!isWeb) return;
+    const node = ref.current as HTMLElement | null;
+    if (!node) return;
+    if (value === null) node.removeAttribute(name);
+    else node.setAttribute(name, value);
+  }, [ref, name, value]);
+}
 
 function displayName(name: string | undefined, email: string | undefined) {
   const trimmed = (name ?? '').trim();
@@ -90,6 +106,13 @@ export function AccountNavButton() {
   const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<View>(null);
+  const triggerRef = useRef<View>(null);
+  const panelRef = useRef<View>(null);
+  useWebAttribute(triggerRef, 'aria-haspopup', 'menu');
+  useWebAttribute(triggerRef, 'aria-expanded', open ? 'true' : 'false');
+  // The value changes with `open` on purpose: the panel only exists while open,
+  // so a constant value would leave the effect never re-running once it mounts.
+  useWebAttribute(panelRef, 'role', open ? 'menu' : null);
 
   // Any click outside the button + panel closes the menu, matching how the nav's
   // own dropdowns behave (a full-screen overlay would swallow the panel's rows).
@@ -118,9 +141,9 @@ export function AccountNavButton() {
   return (
     <View ref={wrapRef} style={styles.navWrap}>
       <Pressable
+        ref={triggerRef}
         accessibilityRole="button"
         accessibilityLabel={`Account menu for ${name}`}
-        accessibilityState={{ expanded: open }}
         onPress={() => setOpen((value) => !value)}
         style={({ pressed }) => [styles.navPill, pressed && styles.navPillPressed]}
       >
@@ -131,7 +154,7 @@ export function AccountNavButton() {
         <ChevronIcon />
       </Pressable>
       {open ? (
-        <View style={styles.menuPanel}>
+        <View ref={panelRef} style={styles.menuPanel}>
           <View style={styles.menuHeader}>
             <Identity name={name} email={user?.email ?? ''} avatar={38} />
           </View>
@@ -158,13 +181,16 @@ export function AccountAvatarButton() {
   const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const name = displayName(user?.name, user?.email);
+  const triggerRef = useRef<View>(null);
+  useWebAttribute(triggerRef, 'aria-haspopup', 'dialog');
+  useWebAttribute(triggerRef, 'aria-expanded', open ? 'true' : 'false');
 
   return (
     <>
       <Pressable
+        ref={triggerRef}
         accessibilityRole="button"
         accessibilityLabel="Account menu"
-        accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
         style={styles.avatarButton}
       >
