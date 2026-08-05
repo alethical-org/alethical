@@ -2646,9 +2646,30 @@ def test_tracked_bills_last_visit_is_read_once_then_advanced(client, auth_header
             ).one()
         assert unchanged is not None
         assert unchanged.isoformat() == first_mark
-        assert signed_in is not None and signed_in > unchanged, (
-            "last_signed_in_at is expected to move on every authenticated request "
-            "-- that is exactly why the tracked-bills mark cannot reuse it"
+        # ``last_signed_in_at`` is NOT the tracked-bills mark and cannot stand in for
+        # it. This assertion used to prove that by the opposite fact -- that the read
+        # path rewrote it on every authenticated request, so it always read "just
+        # now". #990 stopped those writes (#108), so it is now set only when an
+        # identity is first provisioned. Both facts rule it out, for opposite
+        # reasons: it used to be always-now, and it is now effectively fixed at
+        # sign-up. What matters either way is that it does not track *looking at your
+        # tracked list*, so the two must move independently.
+        assert signed_in != unchanged, (
+            "last_signed_in_at and the tracked-bills mark must be distinct values -- "
+            "if they ever coincide, one is standing in for the other"
+        )
+        signed_in_before_more_reads = signed_in
+        client.get("/api/v1/me", headers=auth_headers)
+        client.get("/api/v1/me/tracked-bills", headers=auth_headers)
+        with Session(get_engine()) as db:
+            signed_in_after = db.scalar(
+                select(schema.UserAccount.last_signed_in_at).where(
+                    schema.UserAccount.id == user_id
+                )
+            )
+        assert signed_in_after == signed_in_before_more_reads, (
+            "ordinary authenticated reads must not write last_signed_in_at (#108); "
+            "if this fails, the read path has started writing again"
         )
 
         # The second visit is handed the FIRST visit's mark, and moves it on.

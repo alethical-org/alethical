@@ -691,7 +691,7 @@ Takes no body. Returns the user's **previous** visit and advances the mark to no
 
 Read and advance are deliberately one call. Split into a GET and a PUT they could interleave — two tabs opening at once, or a retry — and hand the second caller a mark the first had just written, which reads on screen as "nothing has moved". The client asks once per browser session and holds the answer in `sessionStorage`, so reloading the page does not erase what changed.
 
-Backed by `user_account.tracked_bills_last_viewed_at` (alembic `0025`), a column of its own. `last_signed_in_at` cannot serve: `alethical/api/auth.py` rewrites it on every authenticated request, so it always reads "just now" by the time a page renders and nothing can ever be newer than it.
+Backed by `user_account.tracked_bills_last_viewed_at` (alembic `0025`), a column of its own. `last_signed_in_at` cannot serve, and has been unusable for two opposite reasons in turn: it used to be rewritten by `alethical/api/auth.py` on every authenticated request, so it always read "just now" and nothing could ever be newer than it; since [#990](https://github.com/alethical-org/alethical/pull/990) ([#108](https://github.com/alethical-org/alethical/issues/108)) the read path does not write at all, so it is set only when an identity is first provisioned and barely moves. Either way it answers "when did you sign in", never "when did you last look at your tracked list".
 
 ##### Before you add a SECOND surface that shows "what moved"
 

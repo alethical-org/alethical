@@ -6,10 +6,16 @@ send email (#36), returning to the page is the only way a person learns a bill
 they saved has moved, so the page has to carry that signal itself — and that
 needs a per-user comparison point (#1009).
 
-``user_account.last_signed_in_at`` is NOT usable for this. ``alethical/api/auth.py``
-overwrites it on every authenticated request, so by the time the page renders it
-already reads "just now" and nothing is ever newer than it. Hence a column of its
-own, written only by ``POST /me/tracked-bills/viewed``.
+``user_account.last_signed_in_at`` is NOT usable for this. Hence a column of its own,
+written only by ``POST /me/tracked-bills/viewed``.
+
+(As written, this revision said the reason was that ``alethical/api/auth.py``
+overwrote that column on every authenticated request, so it always read "just now".
+That was true when this shipped and stopped being true days later: #990 (#108) removed
+the read-path writes, so it is now set only when an identity is first provisioned.
+The conclusion is unchanged and the migration is unaffected — the note is corrected
+here rather than rewritten away, because an applied revision is a record of what was
+believed when it ran.)
 
 Additive and reversible: one nullable timestamptz on an existing table, with no
 default, no backfill, no index and no constraint. Every existing row keeps NULL,
