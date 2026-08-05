@@ -693,6 +693,18 @@ Read and advance are deliberately one call. Split into a GET and a PUT they coul
 
 Backed by `user_account.tracked_bills_last_viewed_at` (alembic `0025`), a column of its own. `last_signed_in_at` cannot serve: `alethical/api/auth.py` rewrites it on every authenticated request, so it always reads "just now" by the time a page renders and nothing can ever be newer than it.
 
+##### Before you add a SECOND surface that shows "what moved"
+
+Written down in advance because the signed-in homepage is designed to carry a "Session watch" card using the same change blocks, and because the first mistake here is invisible in review. Decided Aug 2026 between the sessions that built #1009 and the homepage design; nothing below is built yet.
+
+**Only the tracked list may advance the mark.** A surface showing a *subset* must read without advancing. The homepage card shows up to two bills; if a glance at it moved the mark for the whole set, a reader with six moved bills would see two and the other four would never be reported — information loss dressed as a feature.
+
+**The trap: a missing comparison point currently reads as "first visit", which renders as "nothing moved".** `readHeldLastVisit` (`apps/frontend/src/lib/trackedBillsLastVisit.ts`) is pure and never triggers the POST, so it is safe to call — but on a cold load with nothing held it returns `null`, `lastVisitDate(null)` returns `null`, and `groupTrackedBillsByChange` reads a null comparison point as a first visit and puts **every bill in the unchanged group**. So a card doing the obvious `lastVisitDate(readHeldLastVisit(userId))` would state that nothing had moved on a session where six bills had. Every individual line of that is correct, which is why it would pass review. **A second surface needs a third condition — "we have not asked yet" — that renders neither a change nor an absence.**
+
+**What a read-only path needs, and it is two things.** A `GET /api/v1/me/tracked-bills/last-viewed` returning the mark without touching it; **and** a split in what the client holds. Today one held value means both "here is the comparison point" and "this session has already advanced the mark". If the homepage loads first and holds what it read, the tracked list then finds something held, skips its POST, and the mark never advances for the rest of that browser session. Hold the comparison point (shared, written by whichever surface asks first) separately from an advanced-this-session flag (written only by the tracked list).
+
+**The window is deliberately allowed to grow without bound.** Someone who only ever glances at the homepage never advances the mark, so their "since your last visit" window keeps widening and eventually reports months of activity. That is honest — they genuinely have not looked at the list — and it is the choice that can never lose a change. The alternative, a homepage glance advancing the mark for the bills it showed, needs a mark per tracked bill rather than one per user: much larger, and it can drop a change. Recorded as a decision, not a default.
+
 #### `PUT /api/v1/me/tracked-bills/{bill_id}`
 
 Purpose:
