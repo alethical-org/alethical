@@ -18,6 +18,18 @@ record of what was asked for, so a later change can tell a deliberate difference
 were never reconciled against the real corpus and must not be. Only the layout, the states,
 the treatment, the ordering rules and the copy are authoritative.
 
+## What shipped
+
+![The built web page in the bills-moved state](assets/built-web-bills-moved.png)
+
+![The built phone layout at 375px, on a bill carrying both labels](assets/built-phone-375-both-labels.png)
+
+Both captured from the running app against the local seeded database. The phone shot is the
+crowded case the design calls out: HF 4138 carries the code badge, the OMNIBUS tag and the
+hot-issue pill, which wrap inside their own group while the Track button holds the right
+edge — the same spot it holds on SF 1832 below it, which carries one label. Measured at
+375px, the button's right edge is at 320px with zero, one and two labels.
+
 ## What the built page does differently, and why
 
 Every difference from the reference, so nobody has to guess whether one was intended.
