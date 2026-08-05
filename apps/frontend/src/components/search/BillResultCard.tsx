@@ -52,8 +52,11 @@ interface BillResultCardProps {
   onPress?: () => void;
   onSponsorPress?: (legislatorId: string) => void;
   onRollCalls?: () => void;
-  // Whether to show the Track button in the top row. Search hides it on the
-  // mobile-web layout; defaults on so other surfaces are unchanged.
+  // Whether to show the Track button in the card header — honoured by BOTH the
+  // desktop and the phone layout (#1007; the phone layout used to ignore it and
+  // render no control at all). Search passes false on the mobile-web layout to
+  // keep its top row uncluttered (#596); defaults on so other surfaces are
+  // unchanged.
   showTrackButton?: boolean;
   // Whether this bill is on the signed-in user's watchlist (flips the button to
   // "Tracked"). Supplied by the screen via useBillTracking.
@@ -192,7 +195,15 @@ export function BillResultCard({
   // with it repeats itself, and a statute citation reads as legalese
   // (grounded-answers rule 9). No firstSentenceOnly — this card shows the whole
   // summary, so truncating to one sentence would drop content it means to show.
-  const summary = plainBillSummary(bill.aiAnalysis?.summary) || bill.title;
+  //
+  // Empty when the bill has no AI summary yet, and the summary line is then
+  // dropped entirely rather than falling back to bill.title (#1007). The title
+  // line right above already prints that same title in this case, so the fallback
+  // showed it twice; and the statutory title is the legalese the plain-language
+  // summary exists to replace, so repeating it as the summary is worse than
+  // showing no summary (grounded-answers rule 10). The Ask answer card already
+  // renders its summary this way (AskAnswerScreen's AskAnswerBillCard).
+  const summary = plainBillSummary(bill.aiAnalysis?.summary);
   const policyAreas = bill.aiAnalysis?.policyAreas ?? [];
   const { index, tone } = billStage(bill.status);
   const statusColor =
@@ -234,8 +245,11 @@ export function BillResultCard({
         // Mobile: a stable two-row header on EVERY card — row 1 identity (code
         // badge + optional OMNIBUS tag), row 2 the status/progress unit — so the
         // progress bar sits in the same place whether or not an omnibus tag is
-        // present, instead of reflowing card-to-card. Track is already hidden on
-        // the mobile-web card (showTrackButton=false, #596).
+        // present, instead of reflowing card-to-card. Track, when the surface asks
+        // for it, gets its OWN third row rather than being squeezed onto row 2:
+        // status + progress already fill ~250 of the ~315px a 375px card has, so
+        // sharing the row would let the button wrap on some cards and not others —
+        // the card-to-card reflow this header exists to avoid.
         <View style={styles.headerMobile}>
           <View style={styles.headerRow}>
             <View style={styles.badge}>
@@ -255,6 +269,25 @@ export function BillResultCard({
             <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
             <ProgressBar index={index} tone={tone} />
           </View>
+          {/* The phone card used to render NO Track control at all, so a bill could
+              be tracked but never untracked from a phone — while the Tracked page's
+              own subhead told the reader to "Tap Track on any bill to add or remove
+              it" (#1007). It now honours the same showTrackButton prop the desktop
+              branch does, so Search still opts out on mobile (#596's crowded-top-row
+              decision, which it makes by passing the prop) and every other surface
+              gets the control. size="mobile" rather than "card": it is the variant
+              that carries the 44pt minimum touch target, and it is narrower than
+              "card" (11/14 vs 18/18 horizontal padding), so it also fits the
+              narrower viewport better. Same size the mobile bill-detail header uses. */}
+          {showTrackButton && onToggleTrack ? (
+            <View style={styles.headerTrackRow}>
+              <BillTrackButton
+                size="mobile"
+                tracked={tracked}
+                onPress={pressInsideLink(onToggleTrack)}
+              />
+            </View>
+          ) : null}
         </View>
       ) : (
         <View style={styles.topRow}>
@@ -296,7 +329,7 @@ export function BillResultCard({
         {bill.aiAnalysis?.shortTitle ?? bill.title}
       </Text>
 
-      <Text style={styles.summary}>{summary}</Text>
+      {summary ? <Text style={styles.summary}>{summary}</Text> : null}
 
       <View style={styles.meta}>
         <View style={styles.metaRow}>
@@ -327,24 +360,30 @@ export function BillResultCard({
             <Text style={[styles.metaText, styles.actionValue]}>{effectiveDate}</Text>
           </View>
         ) : null}
-        <View style={styles.tagRow}>
-          {policyAreas.map((topic) => (
-            <View key={topic} style={styles.tag}>
-              <Text style={styles.tagText}>{titleCaseIssue(topic)}</Text>
-            </View>
-          ))}
-          {bill.rollCallCount > 0 ? (
-            <Pressable
-              accessibilityRole="link"
-              onPress={pressInsideLink(() => onRollCalls?.())}
-              style={styles.rollCalls}
-            >
-              <Text style={styles.rollCallsText}>
-                {bill.rollCallCount} {bill.rollCallCount === 1 ? 'vote' : 'votes'}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
+        {/* Skipped entirely when there is nothing to put in it: the issue tags come
+            from the AI enrichment, so a bill still awaiting one has none, and with
+            no roll calls either the row would render empty and still collect the
+            meta block's 11px gap as a stray space under the card (#1007). */}
+        {policyAreas.length > 0 || bill.rollCallCount > 0 ? (
+          <View style={styles.tagRow}>
+            {policyAreas.map((topic) => (
+              <View key={topic} style={styles.tag}>
+                <Text style={styles.tagText}>{titleCaseIssue(topic)}</Text>
+              </View>
+            ))}
+            {bill.rollCallCount > 0 ? (
+              <Pressable
+                accessibilityRole="link"
+                onPress={pressInsideLink(() => onRollCalls?.())}
+                style={styles.rollCalls}
+              >
+                <Text style={styles.rollCallsText}>
+                  {bill.rollCallCount} {bill.rollCallCount === 1 ? 'vote' : 'votes'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -394,6 +433,8 @@ const styles = StyleSheet.create({
   // steady ~11px vertical gap between them.
   headerMobile: { gap: 11 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  // Track's own header row, right-aligned to match its top-right spot on desktop.
+  headerTrackRow: { flexDirection: 'row', justifyContent: 'flex-end' },
   badge: {
     backgroundColor: t.colors.omnibus.fill,
     borderWidth: 1,

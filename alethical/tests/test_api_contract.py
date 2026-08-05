@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
@@ -2466,6 +2467,122 @@ def test_signed_in_bill_tracking_and_notification_preferences(client, auth_heade
     )
     assert update_pref_response.status_code == 200
     assert update_pref_response.json()["data"]["channel"] == "email"
+
+
+def test_tracked_bills_are_newest_first_and_keep_a_bill_with_no_summary(
+    client, auth_headers
+):
+    """#1007, two defects in one statement (``tracked_bills_stmt``).
+
+    **Order.** The statement had no ``order_by``, so Postgres returned the saved
+    rows in whatever order it liked and a watchlist could reshuffle between
+    visits. Newest-tracked-first now, with the bill's ``id`` breaking a
+    same-timestamp tie so the order is total.
+
+    **The dropped row.** The statement also filtered on ``has_current_summary``,
+    the precompute the browse/search statements use (#505). On a page whose whole
+    job is showing what the reader saved, that silently deleted a bill they had
+    saved -- present in the database, absent from the response, with nothing on
+    screen to say a row was missing. It must come back, summary or no summary.
+
+    The fixture bill ``94-2025-HF9901`` (``seed_bill_without_rag_chunks``) has no
+    AI enrichment at all, so it is exactly the row the old filter dropped -- the
+    test asserts that up front, so a fixture that quietly gained an enrichment
+    fails here instead of making this pass for the wrong reason.
+    """
+    schema = load_schema()
+    no_summary_key = "94-2025-HF9901"
+    with Session(get_engine()) as db:
+        user_id = db.scalar(
+            select(schema.UserAccount.id).where(
+                schema.UserAccount.primary_email == "ada@example.com"
+            )
+        )
+        assert user_id is not None
+        bill_id, has_summary = db.execute(
+            select(schema.Bill.id, schema.Bill.has_current_summary).where(
+                schema.Bill.bill_key == no_summary_key
+            )
+        ).one()
+        assert has_summary is False, (
+            f"{no_summary_key} is meant to be the fixture bill with no AI summary; "
+            "it now has one, so this test no longer covers the dropped-row defect"
+        )
+        already_tracked = db.scalar(
+            select(schema.TrackedBill.id).where(
+                schema.TrackedBill.user_id == user_id,
+                schema.TrackedBill.bill_id == bill_id,
+            )
+        )
+        assert already_tracked is None
+
+    try:
+        with Session(get_engine()) as db:
+            # Newest of the user's tracked rows, so it must come FIRST. It is also
+            # the most recently inserted, which an unordered query would tend to
+            # return LAST -- that is what makes "first" evidence of the order_by
+            # rather than of Postgres's physical row order.
+            db.add(
+                schema.TrackedBill(
+                    user_id=user_id,
+                    bill_id=bill_id,
+                    alerts_enabled=True,
+                    created_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                )
+            )
+            db.commit()
+
+        # The order the statement promises, computed from the rows themselves.
+        with Session(get_engine()) as db:
+            expected_keys = [
+                key
+                for (key,) in db.execute(
+                    select(schema.Bill.bill_key)
+                    .join(
+                        schema.TrackedBill,
+                        schema.TrackedBill.bill_id == schema.Bill.id,
+                    )
+                    .where(schema.TrackedBill.user_id == user_id)
+                    .order_by(
+                        schema.TrackedBill.created_at.desc(),
+                        schema.TrackedBill.id.desc(),
+                    )
+                ).all()
+            ]
+
+        first = client.get("/api/v1/me/tracked-bills", headers=auth_headers)
+        assert first.status_code == 200
+        rows = first.json()["data"]
+        keys = [row["bill_id"] for row in rows]
+
+        # Every saved row is served -- so the page's "Tracking N bills" count,
+        # which counts the rows it renders, cannot contradict the list under it.
+        assert keys == expected_keys
+        assert no_summary_key in keys
+        assert keys[0] == no_summary_key
+
+        # Served without an AI summary rather than withheld for lacking one, and
+        # carrying the record's own facts, which is what the card renders.
+        served = next(row for row in rows if row["bill_id"] == no_summary_key)
+        assert served["bill"].get("ai_analysis") is None
+        assert served["bill"]["file_type"] == "HF"
+        assert served["bill"]["file_number"] == 9901
+        assert served["bill"]["title"]
+
+        # Same order on a second visit, which is the actual promise -- one ordered
+        # response could still be luck.
+        second = client.get("/api/v1/me/tracked-bills", headers=auth_headers)
+        assert second.status_code == 200
+        assert [row["bill_id"] for row in second.json()["data"]] == keys
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(
+                delete(schema.TrackedBill).where(
+                    schema.TrackedBill.user_id == user_id,
+                    schema.TrackedBill.bill_id == bill_id,
+                )
+            )
+            db.commit()
 
 
 def test_signed_in_chat_session_and_message_flow(client, auth_headers, monkeypatch):

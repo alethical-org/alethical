@@ -1683,21 +1683,38 @@ def find_my_legislator_stmt(session_id: uuid.UUID, district_ids: list[uuid.UUID]
 
 
 def tracked_bills_stmt(user_id: uuid.UUID):
-    """Load tracked bills with bill cards and chief sponsors in bounded queries."""
+    """Load a user's tracked bills, newest-tracked first, in bounded queries.
+
+    Deliberately NOT filtered on ``has_current_summary`` (#1007), unlike the
+    browse and search statements above. There the gate is a precompute for a
+    list the reader never asked for by name, so a bill still awaiting its AI
+    summary is merely absent. Here the reader picked each row personally: gating
+    it drops a bill they saved, from the one page whose whole job is showing
+    what they saved, with nothing on screen to say a row is missing. Serving it
+    unsummarized is honest (the record's number, title and status are all real);
+    hiding it is not. The card renders no summary line rather than inventing one
+    (``BillResultCard``).
+
+    ``created_at`` descending is the order, so the list reads newest-saved-first
+    and — because a tracked row's ``created_at`` never changes — looks identical
+    on every visit. Ordering by the bill's latest action instead would be more
+    useful but reshuffles as the Legislature acts, which is the "what changed
+    since you last looked" signal that needs a design first (#1007 out-of-scope).
+    ``id`` breaks a same-timestamp tie so the order is total, not merely mostly
+    stable.
+    """
     return (
         select(TrackedBill)
-        .where(
-            TrackedBill.user_id == user_id,
-            # Precomputed gate (#505) — identical to the semi-join it replaces.
-            TrackedBill.bill.has(Bill.has_current_summary.is_(True)),
-        )
+        .where(TrackedBill.user_id == user_id)
         .options(
             selectinload(TrackedBill.bill).selectinload(Bill.stats),
             selectinload(TrackedBill.bill).selectinload(Bill.enrichments),
+            selectinload(TrackedBill.bill).selectinload(Bill.actions),
             selectinload(TrackedBill.bill)
             .selectinload(Bill.chief_sponsorships)
             .selectinload(Sponsorship.legislator),
         )
+        .order_by(TrackedBill.created_at.desc(), TrackedBill.id.desc())
     )
 
 
