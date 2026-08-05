@@ -137,9 +137,7 @@ def load_local_payloads(
                     # source_order rides along so the target section can be
                     # matched on the column the database actually keys on. See
                     # load_prod_section_map for why that matters.
-                    _chunk_payloads(
-                        str(bill.file_type), bill.file_number, bill, section
-                    )
+                    _chunk_payloads(str(bill.file_type), bill.file_number, section)
                     | {"source_order": section.source_order}
                     for section in sections
                 ],
@@ -220,7 +218,6 @@ def upsert_batch(
                         "bill_version_section_id": prod_section_id,
                         "citation_label": payload["citation_label"],
                         "clean_text": payload["clean_text"],
-                        "search_text": payload["search_text"],
                         "cleaning_version": rag_text.CLEANING_VERSION,
                         "source_hash": payload["source_hash"],
                         "word_count": payload["word_count"],
@@ -265,7 +262,6 @@ def upsert_batch(
                     "bill_id": excluded_section.bill_id,
                     "citation_label": excluded_section.citation_label,
                     "clean_text": excluded_section.clean_text,
-                    "search_text": excluded_section.search_text,
                     "source_hash": excluded_section.source_hash,
                     "word_count": excluded_section.word_count,
                 },

@@ -379,30 +379,6 @@ def compact_chunk_prefix(
     return "\n".join(lines).strip()
 
 
-def full_section_prefix(
-    file_type: str,
-    file_number: str,
-    bill_title: str,
-    article_meta: Dict[str, str],
-    section: Dict[str, str],
-) -> str:
-    prefix_parts = [
-        f"Bill: {file_type} {file_number}.",
-        f"Bill title: {bill_title}",
-    ]
-    if article_meta.get("article_number") or article_meta.get("article_heading"):
-        prefix_parts.append(
-            f"Article: {article_meta.get('article_number', '')} {article_meta.get('article_heading', '')}".strip()
-        )
-    if section.get("heading"):
-        prefix_parts.append(f"Section: {section['heading']}")
-    if section.get("statute_heading"):
-        prefix_parts.append(f"Statute heading: {section['statute_heading']}")
-    if section.get("cite_heading"):
-        prefix_parts.append(f"Citation heading: {section['cite_heading']}")
-    return "\n".join(part for part in prefix_parts if part)
-
-
 def source_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
@@ -443,9 +419,6 @@ def build_rag_payload(bill_payload: Dict[str, object]) -> Dict[str, object]:
             citation_parts.append(section["heading"])
         citation_label = ", ".join(citation_parts)
 
-        section_prefix = full_section_prefix(
-            file_type, file_number, bill_title, article_meta, section
-        )
         chunk_prefix = compact_chunk_prefix(
             file_type, file_number, article_meta, section
         )
@@ -466,7 +439,6 @@ def build_rag_payload(bill_payload: Dict[str, object]) -> Dict[str, object]:
             "citation_label": citation_label,
             "raw_text": section.get("text", ""),
             "clean_text": clean_text,
-            "search_text": f"{section_prefix}\n\n{clean_text}".strip(),
             "cleaning_version": CLEANING_VERSION,
             "source_hash": source_hash(section.get("text", "")),
             "clean_metrics": clean_metrics,

@@ -1173,8 +1173,12 @@ class RagSectionDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("bill_version_section.id")
     )
     citation_label: Mapped[str] = mapped_column(Text, nullable=False)
+    # No search_text here, deliberately (#715, migration 0024): sections carry only
+    # their cleaned text. The lexical arm of hybrid retrieval (#380) ranks *chunks*
+    # so it can fuse with the chunk-level vector arm, so it indexes
+    # RagChunk.search_text below -- a section-level copy had no reader. Reasoning:
+    # docs/product-onboarding/grounded-ask-spec.md section 7 (Out of scope).
     clean_text: Mapped[str] = mapped_column(Text, nullable=False)
-    search_text: Mapped[str] = mapped_column(Text, nullable=False)
     cleaning_version: Mapped[str] = mapped_column(String(50), nullable=False)
     source_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     word_count: Mapped[int] = mapped_column(Integer, nullable=False)
