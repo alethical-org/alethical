@@ -998,6 +998,61 @@ def test_key_points_schema_ceiling_is_a_runaway_guard_not_the_target() -> None:
     assert "target" in desc and "not a quota" in desc
 
 
+def test_summary_schema_lists_every_property_as_required() -> None:
+    """`required` must name every key in `properties`, because ONE of the two
+    callers of this schema cannot tolerate anything less.
+
+    The two paths validate completely differently, and the stricter one is easy to
+    forget because it is not the one that runs day to day:
+
+    * The **OpenAI batch path** sends the schema with ``"strict": True`` to
+      ``/v1/responses`` (``batch_request``). OpenAI's strict Structured Outputs
+      rejects a schema outright unless every property is also required — the call
+      fails, it does not silently return less.
+    * The **Anthropic path that actually runs production** pastes the schema into
+      the prompt as text (``_SCHEMA_NOTE`` in ``anthropic_enrichment.py``) and calls
+      plain ``/v1/messages``. Its own checker (``validate_summary_shape``) reports a
+      missing key only when that key is in ``required`` and skips absent properties
+      entirely, so on this path an optional field is perfectly legal.
+
+    That asymmetry is the trap. Dropping a field from ``required`` to make it
+    optional looks harmless, works fine on every Claude run anyone tests with, and
+    breaks the OpenAI path the next time it is used. Removing a field means removing
+    it from BOTH lists, which is what #817 did for the nine unread fields.
+
+    It also does not save anything to make a field optional here: the schema is
+    pasted into the prompt as text either way, so the model is still told about the
+    field and still free to write it. The only way to stop paying for a field is to
+    delete it (#773).
+    """
+    props = set(ai_enrichment.SUMMARY_SCHEMA["properties"])
+    required = set(ai_enrichment.SUMMARY_SCHEMA["required"])
+
+    assert props == required, (
+        "OpenAI strict Structured Outputs rejects a schema whose `required` omits a "
+        f"property. Only in properties: {sorted(props - required)}. Only in "
+        f"required: {sorted(required - props)}."
+    )
+    # `required` is a list in the schema, so a duplicated entry would compare equal
+    # as a set while still shipping malformed JSON Schema.
+    assert len(ai_enrichment.SUMMARY_SCHEMA["required"]) == len(required)
+
+    # Every field a reader consumes is present. This is the list that may only ever
+    # grow: #817 removed nine unread fields and none of these, and anything dropped
+    # from here silently empties a surface.
+    for field in (
+        "short_title",
+        "summary",
+        "plain_language_summary",
+        "key_points",
+        "key_point_citations",
+        "policy_areas",
+        "confidence",
+        "question_prompts",
+    ):
+        assert field in props, f"{field} is read by the product and must be generated"
+
+
 # ---------------------------------------------------------------------------
 # The five-column identity of an enrichment row (#927)
 # ---------------------------------------------------------------------------
