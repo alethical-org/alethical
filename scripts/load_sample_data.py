@@ -826,7 +826,6 @@ def _seed_minimal_retrievable_text(session: Session, bill: Any, title: str) -> N
         bill_version_section_id=section.id,
         citation_label=f"{bill.file_type} {bill.file_number}, Sec. 1",
         clean_text=title,
-        search_text=title,
         cleaning_version="sample",
         source_hash=bill.bill_key,
         word_count=len(title.split()),
