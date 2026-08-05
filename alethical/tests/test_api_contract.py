@@ -2585,6 +2585,117 @@ def test_tracked_bills_are_newest_first_and_keep_a_bill_with_no_summary(
             db.commit()
 
 
+def test_tracked_bills_last_visit_is_read_once_then_advanced(client, auth_headers):
+    """The comparison point behind "what moved since you last looked" (#1009).
+
+    The page has one job here and one way to get it wrong. It must be handed the
+    reader's PREVIOUS visit -- the mark as it stood before this page load -- and
+    then the mark must move forward. Read and advance are one call precisely so
+    the two cannot interleave: a separate read and write would let a second tab,
+    or a retry, be handed a mark the first had just written, and the page would
+    report that nothing had moved.
+
+    Also pinned here: this is a column of its own, NOT ``last_signed_in_at``.
+    ``alethical/api/auth.py`` rewrites that on every authenticated request, so by
+    the time any page rendered it would already read "just now" and nothing could
+    ever be newer than it. An ordinary authenticated GET must leave the new column
+    exactly where it was.
+    """
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        user_id = db.scalar(
+            select(schema.UserAccount.id).where(
+                schema.UserAccount.primary_email == "ada@example.com"
+            )
+        )
+        assert user_id is not None
+        original = db.scalar(
+            select(schema.UserAccount.tracked_bills_last_viewed_at).where(
+                schema.UserAccount.id == user_id
+            )
+        )
+
+    try:
+        # A reader with no recorded visit gets null, not an epoch or a "now" that
+        # would make their first look report every bill as having just moved.
+        with Session(get_engine()) as db:
+            db.execute(
+                schema.UserAccount.__table__.update()
+                .where(schema.UserAccount.id == user_id)
+                .values(tracked_bills_last_viewed_at=None)
+            )
+            db.commit()
+
+        first = client.post("/api/v1/me/tracked-bills/viewed", headers=auth_headers)
+        assert first.status_code == 200
+        assert first.json()["data"]["previous_viewed_at"] is None
+        first_mark = first.json()["data"]["viewed_at"]
+        assert first_mark
+
+        # An ordinary authenticated read must not touch the mark. This is the
+        # last_signed_in_at trap: that column WOULD have moved here.
+        me_before = client.get("/api/v1/me", headers=auth_headers)
+        assert me_before.status_code == 200
+        client.get("/api/v1/me/tracked-bills", headers=auth_headers)
+        with Session(get_engine()) as db:
+            unchanged, signed_in = db.execute(
+                select(
+                    schema.UserAccount.tracked_bills_last_viewed_at,
+                    schema.UserAccount.last_signed_in_at,
+                ).where(schema.UserAccount.id == user_id)
+            ).one()
+        assert unchanged is not None
+        assert unchanged.isoformat() == first_mark
+        assert signed_in is not None and signed_in > unchanged, (
+            "last_signed_in_at is expected to move on every authenticated request "
+            "-- that is exactly why the tracked-bills mark cannot reuse it"
+        )
+
+        # The second visit is handed the FIRST visit's mark, and moves it on.
+        second = client.post("/api/v1/me/tracked-bills/viewed", headers=auth_headers)
+        assert second.status_code == 200
+        assert second.json()["data"]["previous_viewed_at"] == first_mark
+        assert second.json()["data"]["viewed_at"] > first_mark
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(
+                schema.UserAccount.__table__.update()
+                .where(schema.UserAccount.id == user_id)
+                .values(tracked_bills_last_viewed_at=original)
+            )
+            db.commit()
+
+
+def test_bill_actions_carry_a_first_seen_mark_for_the_undated_ones(client):
+    """Every action ships ``first_seen_at`` (#1009).
+
+    ``bill_action.action_at`` is nullable and the Legislature genuinely files
+    undated entries, so an undated action cannot be placed against a reader's last
+    visit by its own date. ``created_at`` is the one honest marker it has:
+    ``replace_actions`` upserts on (bill_id, action_number, chamber_id) and never
+    deletes, so it records when we first saw the entry and survives re-ingests.
+
+    Served on the LIST route, not only the detail route, because the tracked-bills
+    page is a list and this is the field it compares on.
+    """
+    listed = client.get("/api/v1/bills?limit=5")
+    assert listed.status_code == 200
+    actions = [
+        action
+        for bill in listed.json()["data"]
+        for action in (bill.get("actions") or [])
+    ]
+    assert actions, "no bill in the sample data carries actions to check"
+    for action in actions:
+        assert action["first_seen_at"], (
+            "first_seen_at must be present on every action -- it is what an "
+            "undated one is compared on"
+        )
+    # It is a distinct fact from action_at, never a stand-in for it. A row with no
+    # date keeps no date; the first-seen mark does not fill the gap on screen.
+    assert any(action.get("action_at") for action in actions)
+
+
 def test_signed_in_chat_session_and_message_flow(client, auth_headers, monkeypatch):
     openai_calls = []
 

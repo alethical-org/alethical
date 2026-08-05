@@ -61,6 +61,14 @@ export interface BillAction {
    */
   actionNumber?: number;
   /**
+   * When this action first appeared in our copy of the record (the API's
+   * `first_seen_at`). NOT when the Legislature took the step — `date` is that, and
+   * it is genuinely empty on entries the Legislature files undated. Used only to
+   * place such an entry relative to a reader's last visit, so the tracked-bills
+   * page can report it as a change instead of dropping it (#1009). Never displayed.
+   */
+  firstSeenAt?: string;
+  /**
    * Bills this action's target names, already resolved to a bill_key by the API
    * (detail route only). The Actions timeline renders each `code` as a link to
    * `/bills/{id}`. Absent when the row names nothing we serve a page for — a
