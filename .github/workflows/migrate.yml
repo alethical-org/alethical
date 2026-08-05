@@ -159,10 +159,19 @@ jobs:
       # side is right is a judgement call, and six of the audit's eleven findings
       # went production's way, so drift is a thing to read rather than a build to
       # break.
+      # Once, not once per output format. Each run opens production and builds a
+      # throwaway database from the whole migration history, so running it again
+      # for a human-readable log would double the work and — worse — could
+      # disagree with the JSON if production changed in between, leaving two
+      # different answers in one job. Render the log from the same JSON the next
+      # step decides on.
       - name: Compare production against the migration history
         run: |
           uv run python scripts/check_schema_drift.py --against-production --json > drift.json
-          uv run python scripts/check_schema_drift.py --against-production
+          jq -r '
+            "production vs migrations: \(.differences | length) difference(s)",
+            (.differences[] | "  \(.category) \(.key): production=\(.production // "absent") migrations=\(.migrations // "absent")")
+          ' drift.json
 
       # Reporting into a log nobody opens is the same as not checking. File it.
       - name: Open an issue if production has drifted
