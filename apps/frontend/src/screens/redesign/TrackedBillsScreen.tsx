@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { theme as t } from '../../theme/tokens';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
+import { useSignInModal } from '../../providers/signInModalContext';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useTrackedBills } from '../../hooks/useAppQueries';
 import { useBillTracking } from '../../hooks/useBillTracking';
@@ -21,7 +22,8 @@ const SKELETON_ROWS = [0, 1, 2];
 // the now-live Track button toggles a bill straight off this list.
 export function TrackedBillsScreen() {
   const navigation = useNavigation<any>();
-  const { signInWithGoogle, isSignedIn, user } = useAuth();
+  const { isSignedIn, user } = useAuth();
+  const { openSignIn } = useSignInModal();
   const { isTracked, toggleTrack } = useBillTracking();
   const { isMobile } = useResponsive();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
@@ -67,7 +69,7 @@ export function TrackedBillsScreen() {
         heading="Track the bills you care about"
         body="Sign in to build a watchlist that stays in sync across devices, so the bills you’re following and their current status stay in one place. You can browse and search everything without an account."
         ctaLabel="Sign in"
-        onPress={() => void signInWithGoogle('/tracked')}
+        onPress={() => openSignIn({ intent: 'nav', returnTo: '/tracked' })}
       />
     );
   } else if (trackedQuery.isLoading) {
@@ -128,7 +130,6 @@ export function TrackedBillsScreen() {
       onOpenMenuChange={setOpenMenu}
       onNavigate={handleNavigate}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-      onSignIn={() => void signInWithGoogle('/tracked')}
       onAsk={() => navigation.navigate('Ask')}
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}
