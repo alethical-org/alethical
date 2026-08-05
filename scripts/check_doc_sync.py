@@ -194,7 +194,14 @@ def main() -> int:
     print("Any of those passes. The point is that the doc got looked at, and that")
     print("you say what you concluded. Editing part of a doc is not the same as")
     print("having read it: a partial edit passed this check twice and shipped a")
-    print("page that contradicted itself.")
+    print("page that contradicted itself.\n")
+    print("Two things that look like they should work and do not:")
+    print("  - The colon is part of what is matched. A '## Docs check' heading with")
+    print("    no colon does not count; write 'Docs check:' somewhere in the body.")
+    print("  - Editing the PR body does NOT fix an already-failed run. This job")
+    print("    reads the body from the event that started it, and re-running a job")
+    print("    replays that same event. Push a commit, or close and reopen the PR,")
+    print("    to get a run that sees the new body.")
     return 1
 
 
