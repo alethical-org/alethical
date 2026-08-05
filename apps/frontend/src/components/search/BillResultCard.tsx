@@ -17,6 +17,7 @@ import {
   type BillChanges,
 } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
+import { changeEyebrow } from '../../lib/trackedBillsChanges';
 import { linkProps, pressInsideLink, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
@@ -164,16 +165,17 @@ function HotIssuePill() {
 function ChangeBlock({ change, onHistory }: { change: BillChanges; onHistory?: () => void }) {
   const [hovered, hover] = useHover();
   const earlier = change.earlierCount;
+  // Both branches of the wording live in changeEyebrow (lib/trackedBillsChanges),
+  // where a test pins them; this only decides how the two parts are toned.
+  const eyebrow = changeEyebrow(change.date);
   return (
     <View style={styles.change}>
       {/* One Text, so the two tones stay on one line and wrap as one phrase. */}
       <Text style={styles.changeEyebrow}>
-        MOVED
-        {change.date ? (
-          ` ${change.date.toUpperCase()}`
-        ) : (
-          <Text style={styles.changeEyebrowQualifier}> · DATE NOT RECORDED</Text>
-        )}
+        {eyebrow.moved}
+        {eyebrow.qualifier ? (
+          <Text style={styles.changeEyebrowQualifier}>{eyebrow.qualifier}</Text>
+        ) : null}
       </Text>
       <Text style={styles.changeText}>{change.label}</Text>
       {earlier > 0 && onHistory ? (
