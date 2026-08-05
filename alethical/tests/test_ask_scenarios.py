@@ -1303,3 +1303,254 @@ def test_the_completeness_guard_returns_untouched_text_byte_for_byte():
     out = strip_list_completeness_claims(with_claim)
     assert "These are all" not in out
     assert out == "Grants go to Silver Lake."
+
+
+# --- The Legislature's special session is answerable, and its reused file numbers
+#     never resolve by guessing (#810) -------------------------------------------
+#
+# The 94th Legislature numbered its special-session files from 1 again, so "HF 5"
+# names a regular-session tax bill AND the special session's K-12 education finance
+# act. `seed_special_session_collision` (scripts/load_sample_data.py) seeds that real
+# pair, which is what makes these assertions mean something: the wrong answer here is
+# not a refusal, it is a confident answer about the other bill.
+
+
+def test_a_bare_colliding_number_shows_both_bills_rather_than_picking_one(
+    client, monkeypatch
+):
+    """Grounded rule 1, cite or refuse: "HF 5" alone carries no evidence of which
+    HF 5 is meant, so the answer names both and lets the reader choose. Preferring
+    the regular session would answer about a tax bill for someone asking about
+    schools, with every trust signal firing correctly on the wrong bill."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post("/api/v1/ask", json={"content": "What's in HF 5?"}).json()[
+        "data"
+    ]["answer"]
+    assert answer is not None
+    assert answer["ambiguous_reference"] == "HF 5", (
+        "the page has to know this is a collision, not a topic match"
+    )
+    assert answer["total_matches"] == 2
+    ids = {bill["id"] for bill in answer["bills"]}
+    assert ids == {"94-2025-HF5", "94-2025s1-HF5"}
+    # There is no generated prose here at all — nothing was answered.
+    assert "answer" not in answer
+
+
+def test_each_offered_bill_says_which_session_it_is_from(client, monkeypatch):
+    """Two cards both reading "HF 5" are indistinguishable, which would make the
+    choice above meaningless. The special-session card carries its own session; the
+    regular one omits it, because that is what a reader already assumes."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post("/api/v1/ask", json={"content": "What's in HF 5?"}).json()[
+        "data"
+    ]["answer"]
+    by_id = {bill["id"]: bill for bill in answer["bills"]}
+    assert by_id["94-2025-HF5"]["session"] is None
+    special = by_id["94-2025s1-HF5"]["session"]
+    assert special is not None
+    assert special["slug"] == "94-2025-special-1"
+    assert "Special Session" in special["name"]
+
+
+def test_naming_the_special_session_resolves_to_its_bill(client, monkeypatch):
+    """The reader supplied the missing evidence, so there is nothing to guess."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post(
+        "/api/v1/ask",
+        json={"content": "What's in HF 5 from the first special session?"},
+    ).json()["data"]["answer"]
+    assert answer is not None
+    assert answer.get("ambiguous_reference") is None
+    assert answer["bill"]["id"] == "94-2025s1-HF5"
+    assert answer["bill"]["session"]["slug"] == "94-2025-special-1"
+
+
+def test_naming_a_session_we_do_not_hold_refuses_rather_than_widening(
+    client, monkeypatch
+):
+    """Two ways a session name fails, and neither may fall back to "the only special
+    session we have".
+
+    "Fourth Special Session" is a recognised ordinal for a session that does not
+    exist. "Budget special session" is not a recognised ordinal at all — the case
+    #804 hit in the cross-reference resolver, where treating an unknown word as "no
+    ordinal given" silently widened to the first special session and produced a
+    confidently wrong link. Both decline here, through the code #804 wrote."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    for phrase in ("the fourth special session", "the budget special session"):
+        answer = client.post(
+            "/api/v1/ask", json={"content": f"What's in HF 5 from {phrase}?"}
+        ).json()["data"]["answer"]
+        resolved = (answer or {}).get("bill") or {}
+        assert resolved.get("id") != "94-2025s1-HF5", (
+            f"{phrase!r} must not resolve to the one special session we do hold"
+        )
+
+
+def test_a_regular_session_number_answers_exactly_as_it_did_before(client, monkeypatch):
+    """The regular-session bills whose number the special session never reused —
+    every one of the 10,471 but the 46 it did — must be untouched by any of this.
+    SF 2483 is the seeded bill the fuzzy-title test above resolves; the special
+    session has no SF 2483, so this number still names exactly one bill."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post("/api/v1/ask", json={"content": "What's in SF 2483?"}).json()[
+        "data"
+    ]["answer"]
+    assert answer is not None
+    assert answer["bill"]["id"] == "94-2025-SF2483"
+    assert answer["bill"]["session"] is None
+    assert answer.get("ambiguous_reference") is None
+    _assert_cite_or_refuse(answer, "bill_text")
+
+
+def test_the_answer_names_the_legislature_consistently_in_every_shape(
+    client, monkeypatch
+):
+    """The answer-wide `session` always means the ground covered, never the resolved
+    bill's session — otherwise the same field would mean two different things
+    depending on which answer came back."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    special = client.post(
+        "/api/v1/ask",
+        json={"content": "What's in HF 5 from the first special session?"},
+    ).json()["data"]["answer"]
+    assert special["session"]["slug"] == "94-2025-regular"
+    assert special["bill"]["session"]["slug"] == "94-2025-special-1"
+
+
+def test_a_declined_session_name_is_not_undone_by_the_other_resolvers(
+    client, monkeypatch
+):
+    """The refusal has to survive the whole resolver, not just the number step.
+
+    "HF 5 from the fourth special session" names a session we do not hold. The number
+    step declines — but title and semantic resolution know nothing about the name, so
+    if the decline only lived there the question would fall through and be answered
+    from whichever session those steps liked. The scope is decided once, above all
+    three (#810)."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    for phrase in (
+        "What's in HF 5 from the fourth special session?",
+        # No number at all, so ONLY the title/semantic steps can answer it — the
+        # exact path the number step's decline could not reach.
+        "What's in the education bill from the fourth special session?",
+    ):
+        answer = client.post("/api/v1/ask", json={"content": phrase}).json()["data"][
+            "answer"
+        ]
+        assert answer is None, (
+            f"{phrase!r} named a session we do not hold, so nothing may answer it"
+        )
+
+
+def test_saying_the_word_session_is_not_naming_one(client, monkeypatch):
+    """A reader writes "session" casually and means nothing by it.
+
+    The cross-reference resolver treats a bare "session" as naming another session,
+    because a Revisor row is terse and always does. A question is not: "what passed
+    this session?" names nothing, and reading it as a session we could not pin down
+    made every such question refuse outright (#810)."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post(
+        "/api/v1/ask", json={"content": "What's in SF 2483 this session?"}
+    ).json()["data"]["answer"]
+    assert answer is not None, "an incidental 'session' must not refuse the question"
+    assert answer["bill"]["id"] == "94-2025-SF2483"
+
+
+def test_a_bill_number_we_do_not_have_refuses_instead_of_matching_another_bill(
+    client, monkeypatch
+):
+    """A written number that matches nothing must stop the resolver, not hand the
+    question to title matching — which would answer about a different bill entirely,
+    with a correct-looking citation on it (grounded rule 1)."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post(
+        "/api/v1/ask",
+        json={"content": "What's in HF 8842, the higher education bill?"},
+    ).json()["data"]["answer"]
+    assert answer is None or answer.get("bill", {}).get("id") != "94-2025-SF2483"
+
+
+def test_the_common_ways_a_reader_names_a_session_all_work(client, monkeypatch):
+    """ "the first special session", "the 1st special session" and a bare "the special
+    session" are all how people write it. Declining any of them refuses a question we
+    can answer (#810)."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    for phrase in (
+        "the first special session",
+        "the 1st special session",
+        "the special session",
+        "the 2025 special session",
+    ):
+        answer = client.post(
+            "/api/v1/ask", json={"content": f"What's in HF 5 from {phrase}?"}
+        ).json()["data"]["answer"]
+        assert answer is not None, f"{phrase!r} names one session we hold"
+        assert answer["bill"]["id"] == "94-2025s1-HF5", f"{phrase!r} resolved elsewhere"
+
+
+def test_a_question_about_another_legislature_is_refused(client, monkeypatch):
+    """Nothing in the ordinal map knows WHOSE special session, so a question naming
+    the 93rd Legislature would otherwise be answered from the 94th's."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    answer = client.post(
+        "/api/v1/ask",
+        json={
+            "content": "What's in HF 5 from the 93rd Legislature first special session?"
+        },
+    ).json()["data"]["answer"]
+    assert answer is None or answer.get("bill", {}).get("id") != "94-2025s1-HF5"
+
+
+def test_the_semantic_search_is_scoped_in_the_query_not_after_it():
+    """The acceptance tests above run on the fallback embedding model, where the
+    semantic step returns nothing — so none of them would notice if the session
+    filter were dropped from it. This checks the statement itself.
+
+    It has to be IN the query: the statement takes the nearest N chunks, so a filter
+    applied to the results instead lets a bill outside the scope spend a slot an
+    in-scope bill needed (#810)."""
+    import uuid as _uuid
+
+    from alethical.db.schema import load_schema
+
+    schema = load_schema()
+    one, two = _uuid.uuid4(), _uuid.uuid4()
+    scoped = str(schema.semantic_rag_chunk_stmt([0.1] * 1536, session_id=(one, two)))
+    assert "JOIN bill ON" in scoped, "the scope must be joined into the statement"
+    assert "bill.session_id IN" in scoped
+    assert "LIMIT" in scoped
+    assert scoped.index("bill.session_id IN") < scoped.index("LIMIT"), (
+        "the filter has to be applied before the row limit, or it is not a scope"
+    )
+    # And it stays absent when nothing asked for it, so bill-scoped chat and the
+    # coverage count are untouched.
+    unscoped = str(schema.semantic_rag_chunk_stmt([0.1] * 1536))
+    assert "JOIN bill ON" not in unscoped
+
+
+def test_one_session_still_compares_by_equality():
+    """`bill_list_stmt` is on every bill list in the product. A single id must keep
+    producing the query it always did, so its index plans do not change (#810)."""
+    import uuid as _uuid
+
+    from alethical.db.schema import load_schema
+
+    schema = load_schema()
+    one, two = _uuid.uuid4(), _uuid.uuid4()
+    assert "bill.session_id = " in str(schema.bill_list_stmt(one))
+    assert "bill.session_id = " in str(schema.bill_list_stmt([one]))
+    assert "bill.session_id IN" in str(schema.bill_list_stmt([one, two]))

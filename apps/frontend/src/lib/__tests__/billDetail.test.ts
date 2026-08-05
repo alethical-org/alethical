@@ -18,6 +18,7 @@ import {
   billOverviewUrl,
   buildActionTimeline,
   citationChipLabel,
+  scopedChipQuery,
   completeStatusText,
   citationsBySection,
   completeDanglingTitle,
@@ -1045,5 +1046,31 @@ describe('completeStatusText names the committee behind a referral status', () =
   it('returns nothing for a missing status, so the caller can omit the line', () => {
     expect(completeStatusText(null, [])).toBeUndefined();
     expect(completeStatusText('   ', [])).toBeUndefined();
+  });
+});
+
+// A chip on a special session's bill page has to carry its session, or the Ask it
+// submits names two bills and comes back as "pick one" instead of an answer about
+// the page the reader is standing on (#810).
+describe('scopedChipQuery keeps a chip on its own bill', () => {
+  it('adds nothing for a regular-session bill', () => {
+    expect(
+      scopedChipQuery(
+        'HF 5',
+        'What does it change?',
+        '94th Legislature (2025 - 2026) Regular Session',
+      ),
+    ).toBe('HF 5: What does it change?');
+    expect(scopedChipQuery('HF 5', 'What does it change?')).toBe('HF 5: What does it change?');
+  });
+
+  it('names the special session, in the wording the Ask router understands', () => {
+    expect(
+      scopedChipQuery(
+        'HF 5',
+        'What does it change?',
+        '94th Legislature (2025) First Special Session',
+      ),
+    ).toBe('HF 5 in the first special session: What does it change?');
   });
 });

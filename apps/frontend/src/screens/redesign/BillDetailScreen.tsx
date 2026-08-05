@@ -968,6 +968,7 @@ function BillDetailMobileScreen() {
               {/* Ask about this bill */}
               <AskCard
                 identifier={bill.identifier}
+                sessionLabel={bill.sessionLabel}
                 questionPrompts={bill.questionPrompts}
                 onAsk={goAsk}
               />
@@ -2006,10 +2007,12 @@ function VersionRow({
 // already chips-only, and stays identical to the web SummaryTab Ask module.
 function AskCard({
   identifier,
+  sessionLabel,
   questionPrompts,
   onAsk,
 }: {
   identifier: string;
+  sessionLabel?: string;
   questionPrompts: string[] | undefined;
   onAsk: (q?: string) => void;
 }) {
@@ -2029,7 +2032,7 @@ function AskCard({
       {chips.length ? (
         <View style={styles.askChips}>
           {chips.map((chip) => {
-            const scoped = scopedChipQuery(identifier, chip);
+            const scoped = scopedChipQuery(identifier, chip, sessionLabel);
             return (
               <SuggestedQuestionChip
                 key={chip}

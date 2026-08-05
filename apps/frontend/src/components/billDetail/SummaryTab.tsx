@@ -122,7 +122,12 @@ export function SummaryTab({
           ) : null}
 
           {showAsk ? (
-            <AskModule identifier={bill.identifier} chips={askChipList} onAsk={onAsk} />
+            <AskModule
+              identifier={bill.identifier}
+              sessionLabel={bill.sessionLabel}
+              chips={askChipList}
+              onAsk={onAsk}
+            />
           ) : null}
         </View>
 
@@ -154,10 +159,12 @@ export function SummaryTab({
 // already chips-only. Heading + subhead + a wrap of starter chips, nothing typable.
 function AskModule({
   identifier,
+  sessionLabel,
   chips,
   onAsk,
 }: {
   identifier: string;
+  sessionLabel?: string;
   chips: string[];
   onAsk: (question: string) => void;
 }) {
@@ -174,7 +181,7 @@ function AskModule({
       {chips.length ? (
         <View style={styles.askChips}>
           {chips.map((chip) => {
-            const scoped = scopedChipQuery(identifier, chip);
+            const scoped = scopedChipQuery(identifier, chip, sessionLabel);
             return (
               <SuggestedQuestionChip
                 key={chip}

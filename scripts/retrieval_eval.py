@@ -51,14 +51,25 @@ FIXTURE = (
 )
 RESOLVE_TOP_CHUNKS = 25  # matches ask.py _BILL_TEXT_RESOLVE_CHUNK_LIMIT
 
-# The retrievable pool: chunks on current versions of current-session, citable,
-# AI-summarized bills — the exact set _semantic_candidate_bills can return.
+# The retrievable pool: chunks on current versions of citable, AI-summarized bills
+# of the Legislature currently sitting — the exact set _semantic_candidate_bills
+# can return.
+#
+# The session join matches on the Legislature's NUMBER, not on ``is_current``, for
+# the same reason the answer path does (#810): a special session is a separate row
+# that is never flagged current, so keying on the flag would score retrieval over
+# the regular session alone while the shipped path searches both. That would make
+# this eval quietly stop measuring the thing it gates.
 POOL_JOIN = """
   from rag_chunk rc
   join rag_section_document rsd on rsd.id = rc.rag_section_document_id
   join bill_version bv on bv.id = rsd.bill_version_id and bv.is_current
   join bill b on b.id = rsd.bill_id
-  join legislative_session ls on ls.id = b.session_id and ls.is_current
+  join legislative_session ls on ls.id = b.session_id
+  join legislative_session cur
+    on cur.is_current
+   and cur.session_number = ls.session_number
+   and cur.jurisdiction_id = ls.jurisdiction_id
   where b.official_url is not null and b.has_current_summary is true
 """
 

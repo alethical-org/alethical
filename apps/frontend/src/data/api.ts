@@ -100,6 +100,7 @@ interface ApiBillListItemPayload {
   file_type: string;
   file_number: number;
   title: string;
+  session?: { slug: string; name: string } | null;
   current_status?: string | null;
   status_key?: string | null;
   latest_action_at?: string | null;
@@ -125,6 +126,7 @@ interface ApiAskTopicBillsAnswerPayload {
   data_as_of?: string | null;
   total_matches: number;
   bills: ApiBillListItemPayload[];
+  ambiguous_reference?: string | null;
 }
 
 interface ApiAskLegislatorBillPayload {
@@ -1483,6 +1485,7 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
   const answer = payload.answer;
 
   const mapBill = (bill: ApiBillListItemPayload): AskAnswerBill => ({
+    sessionName: bill.session?.name,
     id: bill.id,
     identifier: formatBillIdentifier(bill.file_type, bill.file_number),
     title: bill.title,
@@ -1540,6 +1543,10 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
     topic:
       billsAnswer?.topic ?? (answer && 'topic' in answer ? (answer.topic ?? undefined) : undefined),
     sessionName: answer?.session.name,
+    ambiguousReference:
+      answer && 'ambiguous_reference' in answer
+        ? (answer.ambiguous_reference ?? undefined)
+        : undefined,
     dataAsOf: answer?.data_as_of ?? undefined,
     totalMatches:
       billsAnswer?.total_matches ??

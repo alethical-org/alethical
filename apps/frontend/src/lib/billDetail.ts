@@ -2070,8 +2070,15 @@ export function askCardPrompts(questionPrompts: string[] | undefined): {
 // Scope a system-suggested chip to its bill so the /ask bill_text path resolves
 // it via the HF/SF regex — a chip can never dead-end in a refusal
 // (grounded-answers rule 2). The user's own typed text is left as-is.
-export function scopedChipQuery(identifier: string, chip: string): string {
-  return `${identifier}: ${chip}`;
+export function scopedChipQuery(identifier: string, chip: string, sessionLabel?: string): string {
+  // A special session numbers its files from 1 again, so "HF 5: …" sent from the
+  // special session's own page names two bills and comes back as "pick one" instead
+  // of an answer about the page you are standing on (#810). Naming the session in
+  // the submitted question is what keeps a chip on its own bill. Only added when the
+  // bill is not from the regular session, so every other chip is unchanged.
+  const special = (sessionLabel || '').match(/\b(\w+)\s+special session\b/i);
+  const scope = special ? ` in the ${special[1].toLowerCase()} special session` : '';
+  return `${identifier}${scope}: ${chip}`;
 }
 
 // The chief author for THIS file's own chamber. A companion-paired bill carries

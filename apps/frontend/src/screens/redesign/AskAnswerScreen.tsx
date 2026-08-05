@@ -149,6 +149,13 @@ function AnswerBillCard({
           <Text style={[styles.billStatus, { color: statusColor(bill.statusKey) }]}>
             {bill.status}
           </Text>
+          {/* Served only for a bill outside the Legislature's regular session, so
+              two cards both reading "HF 5" can be told apart — they are different
+              laws (#810). Same vocabulary as every other session label on the site
+              (2025 FIRST SPECIAL SESSION), through the same helper. */}
+          {bill.sessionName ? (
+            <Text style={styles.billSessionTag}>{bienniumEyebrow(bill.id, bill.sessionName)}</Text>
+          ) : null}
         </View>
         {/* Live Track button, consistent site-wide (#976). The card is a View, not
             a link wrapper, so no press-swallowing is needed here. */}
@@ -437,8 +444,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // (2025 - 2026) Regular Session") — one vocabulary on every page (§9.5
   // decision 8). No date here: the page's single date is the source line
   // (§9.5 decision 8a, docs/design/ui-copy-guide.md § Dates on a page).
+  // The BILL's own session wins over the answer-wide one. The answer-wide field
+  // names the ground the search covered (the Legislature); this line sits under the
+  // answer to one bill, and printing "2025–2026 Legislative Session" above an answer
+  // about a special-session law states the wrong session for it (#810).
   const sessionLine = backBill
-    ? bienniumEyebrow(backBill.id, answer?.sessionName)
+    ? bienniumEyebrow(backBill.id, backBill.sessionName ?? answer?.sessionName)
     : bienniumEyebrow('', answer?.sessionName);
   // The answering bill's OWN date, through the SAME helper the bill's page uses, so
   // the two pages cannot print different dates for one bill — which is the binding
@@ -607,7 +618,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             {/* Unresolved bill → degrade to the topic_bills list, each card
                 deep-linking its Votes tab (§4.5 / §9.4). */}
             <Text style={styles.bodyText}>
-              No specific bill was named. Here are current-session bills on
+              No specific bill was named. Here are bills on
               <Text style={styles.topicPill}> {answer.topic ?? 'this topic'} </Text>— open any to
               see its roll-call votes:
             </Text>
@@ -788,8 +799,8 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       <View style={styles.narrowColumn}>
         <Text style={styles.bodyText}>
           {isLegislators
-            ? 'No current-session legislators are on the record for'
-            : 'No current-session bills match'}{' '}
+            ? 'No legislators of this Legislature are on the record for'
+            : 'No bills of this Legislature match'}{' '}
           {answer?.topic ? (
             <Text style={styles.topicPill}> {answer.topic} </Text>
           ) : (
@@ -848,10 +859,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
             )}
           >
-            <Text style={styles.viewBillLink}>
-              See all {answer.totalBills} {answer.topic}{' '}
-              {answer.totalBills === 1 ? 'bill' : 'bills'} in Search →
-            </Text>
+            {/* No count, for the same reason as the topic list's link: an Ask
+                covers the whole Legislature and Search browses one session, so a
+                number here promises a page Search cannot show (#810). */}
+            <Text style={styles.viewBillLink}>See all {answer.topic} bills in Search →</Text>
           </Pressable>
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
@@ -863,13 +874,26 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   if (hasMatches && answer) {
     return shell(
       <View style={styles.narrowColumn}>
-        <Text style={styles.bodyText}>
-          Current-session bills matching
-          <Text style={styles.topicPill}> {answer.topic} </Text>, by legislative progress:
-        </Text>
-        <Text style={styles.provenance}>
-          {shownBills.length} of {answer.totalMatches} matching bills
-        </Text>
+        {answer.ambiguousReference ? (
+          /* Not a topic result: the number named more than one bill. Saying so is
+             the whole point — two "HF 5" cards with a topic heading above them
+             would read as two bills about one subject, which they are not (#810). */
+          <Text style={styles.bodyText}>
+            <Text style={styles.topicPill}> {answer.ambiguousReference} </Text> is the number of
+            more than one bill. A special session numbers its files from 1 again, so these are
+            different laws. Open the one you meant:
+          </Text>
+        ) : (
+          <Text style={styles.bodyText}>
+            Bills matching
+            <Text style={styles.topicPill}> {answer.topic} </Text>, by legislative progress:
+          </Text>
+        )}
+        {answer.ambiguousReference ? null : (
+          <Text style={styles.provenance}>
+            {shownBills.length} of {answer.totalMatches} matching bills
+          </Text>
+        )}
         <View style={styles.cardsColumn}>
           {shownBills.map((listed) => (
             <AnswerBillCard
@@ -887,9 +911,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
             )}
           >
-            <Text style={styles.viewBillLink}>
-              See all {answer.totalMatches} {answer.topic} bills in Search →
-            </Text>
+            {/* No count in the link. An Ask covers the whole Legislature, including
+                its special session, while Search browses ONE session at a time and
+                defaults to the regular one — so promising a specific number here
+                would promise a page Search cannot show (#810). The count above still
+                says how many the answer matched. */}
+            <Text style={styles.viewBillLink}>See all {answer.topic} bills in Search →</Text>
           </Pressable>
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
@@ -1295,6 +1322,16 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.ui,
     fontSize: 13,
     fontWeight: '600',
+  },
+  // The session label beside the status, in the same small-caps treatment the
+  // bill page's eyebrow uses — it is a qualifier on the bill number, not a second
+  // status, so it reads quieter than the status it sits next to (#810).
+  billSessionTag: {
+    fontFamily: t.typography.ui,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    color: t.colors.text.faint,
   },
   billTitle: {
     fontFamily: t.typography.body,
