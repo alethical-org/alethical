@@ -25,16 +25,18 @@ import {
   groupTrackedBillsByChange,
   mostRecentChangeLabel,
   trackedBillsSummaryLine,
+  type LastVisit,
 } from '../trackedBillsChanges';
 import {
   forgetHeldLastVisits,
   holdLastVisit,
-  lastVisitDate,
+  lastVisitFrom,
   readHeldLastVisit,
 } from '../trackedBillsLastVisit';
 
 const NOW = new Date('2026-04-01');
 const LAST_VISIT = new Date('2026-03-12T14:00:00Z');
+const VISITED = { state: 'previous-visit', at: LAST_VISIT } as const;
 
 function action(fields: Partial<BillAction> & { actionNumber: number }): BillAction {
   return {
@@ -248,13 +250,13 @@ describe('grouping puts what moved first, and says so once', () => {
   };
 
   it('orders the moved group most recent first and leaves the rest as they were', () => {
-    const groups = groupTrackedBillsByChange([quiet, movedEarlier, movedRecently], LAST_VISIT, NOW);
+    const groups = grouped([quiet, movedEarlier, movedRecently], VISITED);
     expect(groups.moved.map((entry) => entry.bill.id)).toEqual(['b1', 'b2']);
     expect(groups.unchanged.map((bill) => bill.id)).toEqual(['b3']);
   });
 
   it('treats a first visit as nothing moved, not as everything moving at once', () => {
-    const groups = groupTrackedBillsByChange([movedRecently, quiet], null, NOW);
+    const groups = grouped([movedRecently, quiet], { state: 'first-visit' });
     expect(groups.moved).toEqual([]);
     expect(groups.unchanged.map((bill) => bill.id)).toEqual(['b1', 'b3']);
   });
@@ -271,13 +273,50 @@ describe('grouping puts what moved first, and says so once', () => {
         }),
       ],
     };
-    const groups = groupTrackedBillsByChange([undated, movedEarlier], LAST_VISIT, NOW);
+    const groups = grouped([undated, movedEarlier], VISITED);
     expect(groups.moved.map((entry) => entry.bill.id)).toEqual(['b2', 'b4']);
+  });
+
+  it('refuses to group at all when nobody asked when the reader last looked', () => {
+    // #1026, and the case that had no caller when it was written. A bill that
+    // plainly moved must NOT come back in `unchanged`, because a caller rendering
+    // that list would be stating "nothing moved" on a session where it did. The
+    // result deliberately carries no lists, so there is nothing to render by
+    // accident and the compiler makes the caller notice.
+    const groups = groupTrackedBillsByChange([movedRecently, quiet], { state: 'not-checked' }, NOW);
+    expect(groups.state).toBe('not-checked');
+    expect(groups).toEqual({ state: 'not-checked' });
+    expect('moved' in groups).toBe(false);
+    expect('unchanged' in groups).toBe(false);
+  });
+
+  it('says nothing in the caption when nobody asked, rather than reassuring', () => {
+    // The caption and the list have to agree. "Nothing has moved" here would be
+    // the false reassurance; no sentence at all is the honest answer.
+    expect(
+      trackedBillsSummaryLine({
+        total: 4,
+        movedCount: 0,
+        lastVisit: { state: 'not-checked' },
+        mostRecentChange: 'Mar 3, 2026',
+      }),
+    ).toBeNull();
   });
 });
 
+// Narrow to the grouped case, so the tests above can read `.moved` directly. Fails
+// loudly rather than silently returning empty lists if the state is ever wrong.
+function grouped<T extends { id: string; actions?: BillAction[] }>(
+  bills: T[],
+  lastVisit: LastVisit,
+) {
+  const groups = groupTrackedBillsByChange(bills, lastVisit, NOW);
+  if (groups.state !== 'grouped') throw new Error(`expected grouped, got ${groups.state}`);
+  return groups;
+}
+
 describe('the page caption states the case it is in, and promises nothing', () => {
-  const args = { total: 4, movedCount: 2, since: LAST_VISIT, mostRecentChange: 'Mar 3, 2026' };
+  const args = { total: 4, movedCount: 2, lastVisit: VISITED, mostRecentChange: 'Mar 3, 2026' };
 
   it('dates the window when something moved', () => {
     expect(trackedBillsSummaryLine(args)).toBe(
@@ -298,7 +337,7 @@ describe('the page caption states the case it is in, and promises nothing', () =
   });
 
   it('explains a first visit rather than showing a "since" it does not have', () => {
-    expect(trackedBillsSummaryLine({ ...args, since: null })).toBe(
+    expect(trackedBillsSummaryLine({ ...args, lastVisit: { state: 'first-visit' } })).toBe(
       'This is your first look at your tracked list, so there is no “since” yet — from now on, anything that moves shows up here',
     );
   });
@@ -307,7 +346,7 @@ describe('the page caption states the case it is in, and promises nothing', () =
     const lines = [
       trackedBillsSummaryLine(args),
       trackedBillsSummaryLine({ ...args, movedCount: 0 }),
-      trackedBillsSummaryLine({ ...args, since: null }),
+      trackedBillsSummaryLine({ ...args, lastVisit: { state: 'first-visit' } }),
     ];
     for (const line of lines) {
       expect(line).not.toMatch(/email|alert|notif|remind|we[’']ll (let|tell)|send/i);
@@ -368,7 +407,7 @@ describe('the comparison point survives a refresh', () => {
     holdLastVisit('user-1', '');
     forgetHeldLastVisits();
     expect(readHeldLastVisit('user-1')).toBe('');
-    expect(lastVisitDate(readHeldLastVisit('user-1'))).toBeNull();
+    expect(lastVisitFrom(readHeldLastVisit('user-1'))).toEqual({ state: 'first-visit' });
   });
 
   it('survives storage being unavailable, rather than taking the page down with it', () => {
@@ -382,11 +421,22 @@ describe('the comparison point survives a refresh', () => {
     expect(readHeldLastVisit('user-1')).toBe('2026-03-12T14:00:00Z');
   });
 
-  it('reads a first visit from a missing or unusable mark', () => {
-    expect(lastVisitDate(null)).toBeNull();
-    expect(lastVisitDate('')).toBeNull();
-    expect(lastVisitDate('not a date')).toBeNull();
-    expect(lastVisitDate('2026-03-12T14:00:00Z')?.toISOString()).toBe('2026-03-12T14:00:00.000Z');
+  it('tells "we never asked" apart from "they have never been here"', () => {
+    // The whole of #1026. These two used to be the same null, and the collapse
+    // read on screen as "nothing has moved".
+    expect(lastVisitFrom(null)).toEqual({ state: 'not-checked' });
+    expect(lastVisitFrom(undefined)).toEqual({ state: 'not-checked' });
+    expect(lastVisitFrom('')).toEqual({ state: 'first-visit' });
+    expect(lastVisitFrom('2026-03-12T14:00:00Z')).toEqual({
+      state: 'previous-visit',
+      at: new Date('2026-03-12T14:00:00Z'),
+    });
+  });
+
+  it('treats a mark it cannot read as not-checked, never as a first visit', () => {
+    // We asked and got something unusable, so we still do not know. Calling that a
+    // first visit would put "this is your first look" on screen with no basis.
+    expect(lastVisitFrom('not a date')).toEqual({ state: 'not-checked' });
   });
 });
 

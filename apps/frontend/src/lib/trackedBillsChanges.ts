@@ -14,37 +14,61 @@ export interface MovedBill<T> {
   change: BillChanges;
 }
 
-export interface TrackedBillGroups<T> {
-  /** Bills that moved, most recent change first. */
-  moved: Array<MovedBill<T>>;
-  /** Everything else, in the order the list already had. */
-  unchanged: T[];
-}
+/** What a surface knows about when this reader last opened their tracked list.
+ *
+ *  Three cases, all real, and the whole point of this type is that the third one
+ *  cannot be spelled the same way as the second (#1026). It used to be a
+ *  `Date | null`, where null meant "first visit" to the page that wrote it and
+ *  would have meant "we have not asked yet" to the signed-in homepage — the same
+ *  value carrying opposite meanings, which no reviewer could have caught. */
+export type LastVisit =
+  /** We asked, and they had been here before. Group changes against `at`. */
+  | { state: 'previous-visit'; at: Date }
+  /** We asked, and this is their first look. Nothing can have moved "since". */
+  | { state: 'first-visit' }
+  /** We have NOT asked. Say nothing about what moved, in either direction —
+   *  "nothing has moved" is as false a claim here as naming a change would be. */
+  | { state: 'not-checked' };
+
+export type TrackedBillGroups<T> =
+  | {
+      state: 'grouped';
+      /** Bills that moved, most recent change first. */
+      moved: Array<MovedBill<T>>;
+      /** Everything else, in the order the list already had. */
+      unchanged: T[];
+    }
+  /** No grouping exists, because nothing was compared. Deliberately carries no
+   *  bill lists: a caller has to notice this case rather than reading an empty
+   *  `moved` as "nothing moved". */
+  | { state: 'not-checked' };
 
 type WithActions = { actions?: BillAction[] };
 
 /** Split the saved list into what moved and what did not.
  *
- *  `since` is null on a reader's first visit, where nothing can be "since" — the
- *  whole list comes back unchanged rather than every bill claiming to have moved.
+ *  On a genuine first visit nothing can be "since", so the whole list comes back
+ *  unchanged rather than every bill claiming to have moved. That is a real answer.
  *
- *  CALLERS: null here means "there is genuinely no previous visit", NOT "we have
- *  not looked it up yet". Those are different facts and this function cannot tell
- *  them apart. Pass null from a surface that simply has not asked and it will
- *  report every bill as unchanged — which reads on screen as "nothing moved" on a
- *  session where plenty did, a false statement that looks completely correct.
- *  A surface that reads the mark without advancing it (the signed-in homepage's
- *  planned Session watch card) gets null on a cold load and must render its own
- *  third state rather than calling this. Spelled out in
+ *  When the caller has not asked, this returns `{ state: 'not-checked' }` and no
+ *  lists at all. That is deliberate and it is the point of the type: an empty
+ *  `moved` array would read as "nothing moved", which is a false reassurance on a
+ *  session where plenty did — and every line of the code producing it would look
+ *  correct. The signed-in homepage's planned Session watch card reads the mark
+ *  WITHOUT advancing it, so it hits this case on a cold load. Background:
  *  `docs/architecture/backend-api-system-design.md` § "Before you add a SECOND
  *  surface that shows 'what moved'".
  */
 export function groupTrackedBillsByChange<T extends WithActions>(
   bills: T[],
-  since: Date | null,
+  lastVisit: LastVisit,
   now: Date,
 ): TrackedBillGroups<T> {
-  if (!since) return { moved: [], unchanged: bills };
+  if (lastVisit.state === 'not-checked') return { state: 'not-checked' };
+  if (lastVisit.state === 'first-visit') {
+    return { state: 'grouped', moved: [], unchanged: bills };
+  }
+  const since = lastVisit.at;
 
   const moved: Array<MovedBill<T> & { at: number; order: number }> = [];
   const unchanged: T[] = [];
@@ -62,7 +86,11 @@ export function groupTrackedBillsByChange<T extends WithActions>(
   });
 
   moved.sort((a, b) => b.at - a.at || a.order - b.order);
-  return { moved: moved.map(({ bill, change }) => ({ bill, change })), unchanged };
+  return {
+    state: 'grouped',
+    moved: moved.map(({ bill, change }) => ({ bill, change })),
+    unchanged,
+  };
 }
 
 /** The newest dated action across every saved bill, humanized ("Mar 3, 2026"), or
@@ -104,21 +132,27 @@ export function changeEyebrow(date: string): { moved: string; qualifier: string 
 
 /** The dated caption under the count. One sentence, no terminal period.
  *
+ *  **`null` when the caller has not asked when the reader last looked** — there is
+ *  no honest sentence for that case, so the surface prints none rather than
+ *  reaching for "nothing has moved", which would be a false reassurance. This is
+ *  the same three-way distinction `groupTrackedBillsByChange` makes, so the
+ *  caption and the list beneath it cannot disagree (#1026).
+ *
  *  It never says or implies that anything will be sent: the product cannot send
  *  email (#36), and this page is the whole delivery mechanism. */
 export function trackedBillsSummaryLine(args: {
   total: number;
   movedCount: number;
-  /** The reader's previous visit, or null on their first. */
-  since: Date | null;
+  lastVisit: LastVisit;
   /** From mostRecentChangeLabel — only read when nothing moved. */
   mostRecentChange: string;
-}): string {
-  const { total, movedCount, since, mostRecentChange } = args;
-  if (!since) {
+}): string | null {
+  const { total, movedCount, lastVisit, mostRecentChange } = args;
+  if (lastVisit.state === 'not-checked') return null;
+  if (lastVisit.state === 'first-visit') {
     return 'This is your first look at your tracked list, so there is no “since” yet — from now on, anything that moves shows up here';
   }
-  const visited = formatNiceDate(localDay(since));
+  const visited = formatNiceDate(localDay(lastVisit.at));
   if (movedCount === 0) {
     return mostRecentChange
       ? `Nothing has moved since your last visit on ${visited} — the most recent change was ${mostRecentChange}`

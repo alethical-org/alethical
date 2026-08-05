@@ -13,6 +13,8 @@
 // Kept free of React and react-native imports so it is testable on its own — the
 // test runner can't load a module that pulls in components.
 
+import type { LastVisit } from './trackedBillsChanges';
+
 const HELD_IN_MEMORY = new Map<string, string>();
 
 // Per user: two people sharing a browser must not inherit each other's mark.
@@ -34,9 +36,9 @@ function sessionStore(): Storage | null {
  *  held yet and the caller should ask the API.
  *
  *  Safe for a read-only caller — this never asks the API and so never advances
- *  the mark. But do NOT feed its `null` straight into `lastVisitDate` and then
- *  into `groupTrackedBillsByChange`: that chain turns "we have not asked yet"
- *  into "nothing has moved". See the note on `groupTrackedBillsByChange`. */
+ *  the mark. Pass whatever it returns through `lastVisitFrom`, which maps its
+ *  `null` to `not-checked` and only its `''` to `first-visit`; those two used to
+ *  collapse into one value and the collapse read as "nothing has moved" (#1026). */
 export function readHeldLastVisit(userId: string): string | null {
   const inMemory = HELD_IN_MEMORY.get(userId);
   if (inMemory !== undefined) return inMemory;
@@ -72,11 +74,23 @@ export function forgetHeldLastVisits(): void {
   HELD_IN_MEMORY.clear();
 }
 
-/** The held value as a date to compare actions against: `null` on a first visit
- *  (nothing held, or a value that is not a usable timestamp), which the page
- *  renders as its first-visit state rather than as "everything moved". */
-export function lastVisitDate(held: string | null | undefined): Date | null {
-  if (!held) return null;
+/** Turn what the API or the hold gave us into the three-way answer the page needs
+ *  (`LastVisit`, lib/trackedBillsChanges). This is where the two meanings of "no
+ *  value" used to collapse into one null, which is the bug #1026 removed:
+ *
+ *  - **nothing at all** (`null`/`undefined`) — we have NOT asked. Not the same as
+ *    a first visit, and it must not be reported as one.
+ *  - **an empty string** — we asked, and the server has no previous visit for this
+ *    reader. That is a genuine first visit.
+ *  - **a usable timestamp** — we asked, and they had been here before.
+ *  - **a non-empty string we cannot parse** — we asked and got something we cannot
+ *    read, so we still do not know. Reported as not-checked, never as a first
+ *    visit: "this is your first look" would be a claim we have no basis for. */
+export function lastVisitFrom(held: string | null | undefined): LastVisit {
+  if (held == null) return { state: 'not-checked' };
+  if (held === '') return { state: 'first-visit' };
   const parsed = new Date(held);
-  return isNaN(parsed.getTime()) ? null : parsed;
+  return isNaN(parsed.getTime())
+    ? { state: 'not-checked' }
+    : { state: 'previous-visit', at: parsed };
 }
