@@ -231,6 +231,24 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   ([#986](https://github.com/alethical-org/alethical/pull/986)), closing #976. On the card,
   the tap is swallowed (`pressInsideLink`) so it toggles instead of following the card's link
   to the bill.
+- **Three forms, one fixed box** ([#1013](https://github.com/alethical-org/alethical/issues/1013)).
+  Beyond `+ Track` and `✓ Tracked` there is a third form for **"we don't know yet"**: the same
+  ink box with **no words**, a small white spinner, 62% opacity, and unpressable
+  (`aria-busy`, `aria-disabled`, `tabindex="-1"`, all set on the DOM node because RN-Web drops
+  them from `accessibilityState`). It shows only while a **signed-in** reader's watchlist has
+  not arrived, because the button must never claim `+ Track` on a bill it has not checked —
+  a wrong assertion is worse than a blank one. **A signed-out visitor never sees it**: they
+  track nothing, so `+ Track` is correct and immediate. The spinner inside the box waits
+  ~300ms so a fast answer never flickers; the box itself is not delayed. In ordinary use the
+  form never appears — `/me/tracked-bills` answers in ~144ms while the bill's own request
+  takes ~2,462ms, so the answer is known before the button paints — it is a **fault** state,
+  and a failed request falls back to the label rather than holding the spinner, because
+  pressing Track upserts and the refetch repairs the label, making the button its own retry.
+  All three forms share one box per size, because the labels do not: `+ Track` → `✓ Tracked`
+  grew the button **16 to 18px** at every size, nudging each list row sideways on every press.
+  Boxes are **`web` 128×46, `mobile` 112×44, `card` 124×44**, min-width with an explicit
+  height (a label's line box is taller than the spinner's, so a min-height would bind on the
+  spinner form alone and the box would shrink on resolve).
 - **Track stays off this screen's phone layout — and that is now a choice this screen makes,
   not something the card lacks** ([#1007](https://github.com/alethical-org/alethical/issues/1007)).
   `BillResultCard`'s phone layout used to render no Track control at all, so every surface
@@ -246,7 +264,11 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   `showTrackButton={isDesktop}`, so the crowded-top-row decision of
   [#596](https://github.com/alethical-org/alethical/pull/596) is unchanged here. Surfaces
   that do not pass the prop (the Tracked page, the Ask answer card) now show it on a phone,
-  where a 44pt-minimum `size="mobile"` button is used rather than the 39px `size="card"`.
+  where `size="mobile"` is used rather than `size="card"`. (That choice was originally made
+  because `card` rendered at 39px, under the 44px touch minimum. It no longer does —
+  [#1013](https://github.com/alethical-org/alethical/issues/1013) took `card` to 44px, since
+  the Ask answer page's own bill card uses that size and renders on phones. `mobile` is still
+  the right size on a phone card: it is *narrower*, 11/14 against 18/18 horizontal padding.)
 - **Card link → bill Overview** (`/bills/:billId`), the detail screen (not yet redesigned;
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a

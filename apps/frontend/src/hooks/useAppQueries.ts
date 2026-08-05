@@ -29,6 +29,7 @@ import {
   updateNotificationPreference,
 } from '../data/mockData';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
+import { isTrackedStateUnknown } from '../lib/trackedState';
 import { useAuth } from '../providers/AuthProvider';
 
 export function useCurrentUser() {
@@ -208,6 +209,22 @@ export function useTrackedBills(userId?: string) {
     queryFn: () => listTrackedBillsFromApi(accessToken ?? ''),
     enabled: Boolean(userId && accessToken),
     retry: false,
+  });
+}
+
+// Whether the Track button can honestly say anything about this reader's tracked
+// state yet (#1013). Kept next to the query it reads so the two cannot drift, and
+// deliberately NOT derived from `isLoading` or `isPending` — see the comment block in
+// `lib/trackedState.ts` for why neither flag alone is correct on this version of
+// React Query. Every Track button on a page subscribes to the same query key, so the
+// extra observers share one cache entry and one request.
+export function useTrackedStateUnknown(): boolean {
+  const { isSignedIn, user } = useAuth();
+  const trackedQuery = useTrackedBills(user?.id);
+  return isTrackedStateUnknown({
+    isSignedIn,
+    hasList: trackedQuery.data !== undefined,
+    isError: trackedQuery.isError,
   });
 }
 
