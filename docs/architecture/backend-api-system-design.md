@@ -765,8 +765,13 @@ Purpose:
 - user notification history
 
 The `NotificationEvent` model and a writer service (`alethical/api/services/notifications.py`)
-both exist, so events can be recorded; nothing can read them back over HTTP. Story 7 below
-depends on this route and was marked "Status: pass" regardless.
+both exist, but **no event has ever been recorded and none can be** — the writer has no
+caller outside its own tests, and it compares a column (`Bill.current_status_code`) that is
+NULL on all 10,517 production bills, so it returns empty on every call. Production holds 0
+rows. Nothing can read them back over HTTP either. Story 7 below depends on this route and
+was marked "Status: pass" regardless. Both faults and the fix are in
+`docs/product-onboarding/tracked-bill-notifications-spec.md` §1.1-§1.2 and are being closed
+by [#1048](https://github.com/alethical-org/alethical/issues/1048).
 
 ### Chat
 

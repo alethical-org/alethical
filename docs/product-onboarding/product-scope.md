@@ -489,9 +489,12 @@ Native iOS and Android apps are not built yet ([#91](https://github.com/alethica
 ### Not built yet — accounts and notifications
 
 None of these is refused; none is built. **Nothing is delivered to anyone today, by any
-channel.** Email-first is the chosen *direction*, not a shipped default: the
-`NotificationEvent` model and its writer exist, but the digest job that would send them and
-stamp `sent_at` is unbuilt and behind config, so recording an event sends nothing
+channel.** Email-first is the chosen *direction*, not a shipped default. The
+`NotificationEvent` model and its writer exist, but **the writer has never recorded
+anything and cannot**: nothing calls it, and it compares a bill column that is empty on
+every bill we hold, so it returns nothing on every call (production: 0 event rows). The
+digest job that would send those events is likewise unbuilt. The full plan, with costings
+and the safety design, is `docs/product-onboarding/tracked-bill-notifications-spec.md`
 ([#36](https://github.com/alethical-org/alethical/issues/36)). That is precisely why
 [#1009](https://github.com/alethical-org/alethical/issues/1009) makes the tracked-bills page
 report what moved: returning to the page is the only way a person learns a bill they saved
