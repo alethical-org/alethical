@@ -25,6 +25,12 @@ dependencies = [
   "httpx>=0.28.1",
   "pytest-asyncio>=1.4.0",
   "supabase>=2.31.0",
+  # Imported directly by alethical/tests/test_auth_token_verification.py for
+  # AuthInvalidJwtError, the error a rejected or expired sign-in token really
+  # raises. `supabase` re-exports the AuthError base class but not this subclass,
+  # so the token tests reach past it, and it arrived here only through supabase's
+  # own requirements (#115).
+  "supabase-auth>=2.31.0",
   # Imported directly by the retrieval eval harness. It arrived only via
   # supabase's requirements, and supabase 2.31.0 drops it (#693), which is how
   # the missing declaration surfaced.

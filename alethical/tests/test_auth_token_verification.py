@@ -33,6 +33,11 @@ from alethical.api.services.auth import (
     SupabaseAuthService,
 )
 
+# The error a rejected or expired token really raises. `supabase` re-exports the
+# AuthError base class but not this subclass, so `supabase-auth` is declared in
+# pyproject.toml rather than reached through supabase's own requirements (#701).
+from supabase_auth.errors import AuthInvalidJwtError
+
 SUPABASE_ENV = {
     "SUPABASE_URL": "https://project.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_test",
@@ -185,8 +190,6 @@ def test_a_token_without_a_subject_is_refused(claims):
 
 def test_a_token_the_verifier_rejects_raises_rather_than_returning_a_principal():
     """An expired or forged token surfaces the library's own error."""
-    from supabase_auth.errors import AuthInvalidJwtError
-
     service, _ = _service_returning(error=AuthInvalidJwtError("JWT has expired"))
 
     with pytest.raises(AuthInvalidJwtError, match="JWT has expired"):
@@ -339,8 +342,6 @@ def test_a_malformed_authorization_header_is_unauthorized(header):
 
 
 def test_a_rejected_token_is_unauthorized_rather_than_a_server_error():
-    from supabase_auth.errors import AuthInvalidJwtError
-
     response = _client_with_real_verification(
         error=AuthInvalidJwtError("Invalid JWT signature")
     ).get("/api/v1/me", headers={"Authorization": "Bearer forged.jwt.value"})
