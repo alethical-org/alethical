@@ -386,9 +386,8 @@ def member_slug_by_legislator(db: Session, legislator_ids) -> dict[str, str]:
 def member_party_by_legislator(db: Session, legislator_ids) -> dict[str, str | None]:
     """Current/latest party per legislator id, batched in one query for a whole
     roll call (no per-member N+1). Picks each legislator's current period, else
-    the most recent one (ORDER BY is_current DESC, start_date DESC NULLS LAST),
-    via DISTINCT ON. Party is served raw (prod has 'DFL', 'R', and a stray
-    'Republican'). Feeds the /votes per-member records (#83)."""
+    the most recent one, via DISTINCT ON. Party is served raw (prod has 'DFL',
+    'R', and a stray 'Republican'). Feeds the /votes per-member records (#83)."""
     ids = list(legislator_ids)
     if not ids:
         return {}
@@ -397,12 +396,20 @@ def member_party_by_legislator(db: Session, legislator_ids) -> dict[str, str | N
             LegislatorServicePeriod.legislator_id,
             LegislatorServicePeriod.party,
         )
+        .join(
+            LegislativeSession,
+            LegislatorServicePeriod.session_id == LegislativeSession.id,
+        )
         .where(LegislatorServicePeriod.legislator_id.in_(ids))
         .distinct(LegislatorServicePeriod.legislator_id)
+        # Order the current period first; among non-current periods, the newest
+        # session wins. service_period.start_date is always null (#343) and
+        # period_sequence is always 1, so both are useless tiebreakers here; the
+        # session's populated start_date is what makes the pick deterministic.
         .order_by(
             LegislatorServicePeriod.legislator_id,
             LegislatorServicePeriod.is_current.desc(),
-            LegislatorServicePeriod.start_date.desc().nullslast(),
+            LegislativeSession.start_date.desc().nullslast(),
         )
     ).all()
     return {str(legislator_id): party for legislator_id, party in rows}

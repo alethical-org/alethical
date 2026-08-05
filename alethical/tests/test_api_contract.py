@@ -1686,6 +1686,114 @@ def test_bill_votes_records_carry_legislator_name_and_party(client):
                 db.commit()
 
 
+def test_member_party_prefers_newest_session_without_a_current_period(client):
+    """When a legislator has several non-current service periods, the party pick
+    comes from the newest legislative session. service_period.start_date is always
+    null (#343) and period_sequence always 1, so the tiebreak must ride on the
+    session's populated start_date; otherwise the DISTINCT ON pick is arbitrary.
+    Exercises member_party_by_legislator's ordering directly."""
+    schema = load_schema()
+    from datetime import datetime, timezone
+
+    from alethical.api.routers.public import member_party_by_legislator
+
+    created: dict[str, object] = {}
+    try:
+        with Session(get_engine()) as db:
+            chamber = db.scalar(
+                select(schema.Chamber).where(schema.Chamber.slug == "senate")
+            )
+            assert chamber
+            older = schema.LegislativeSession(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="party-order-older",
+                session_number=9101,
+                session_type=schema.SessionType.regular,
+                year_start=2021,
+                year_end=2022,
+                name="Party order older session",
+                start_date=datetime(2021, 1, 5, tzinfo=timezone.utc),
+                is_current=False,
+            )
+            newer = schema.LegislativeSession(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="party-order-newer",
+                session_number=9102,
+                session_type=schema.SessionType.regular,
+                year_start=2025,
+                year_end=2026,
+                name="Party order newer session",
+                start_date=datetime(2025, 1, 14, tzinfo=timezone.utc),
+                is_current=False,
+            )
+            db.add_all([older, newer])
+            db.flush()
+            district = schema.District(
+                jurisdiction_id=chamber.jurisdiction_id,
+                chamber_id=chamber.id,
+                code="PARTY-ORDER-TEST",
+                label="Party Order District",
+            )
+            db.add(district)
+            db.flush()
+            member = schema.Legislator(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="party-order-member",
+                external_key="party-order-member",
+                full_name="Orderia Sessiontest",
+                sort_name="Sessiontest, Orderia",
+            )
+            db.add(member)
+            db.flush()
+            # Both non-current, both start_date null (the #343 reality). The older
+            # session carries 'R', the newer 'DFL'; the newer session must win.
+            db.add_all(
+                [
+                    schema.LegislatorServicePeriod(
+                        legislator_id=member.id,
+                        session_id=older.id,
+                        chamber_id=chamber.id,
+                        district_id=district.id,
+                        party="R",
+                        is_current=False,
+                    ),
+                    schema.LegislatorServicePeriod(
+                        legislator_id=member.id,
+                        session_id=newer.id,
+                        chamber_id=chamber.id,
+                        district_id=district.id,
+                        party="DFL",
+                        is_current=False,
+                    ),
+                ]
+            )
+            db.commit()
+            created = {
+                "member": member.id,
+                "district": district.id,
+                "older": older.id,
+                "newer": newer.id,
+            }
+
+            result = member_party_by_legislator(db, [member.id])
+            assert result[str(member.id)] == "DFL"
+    finally:
+        with Session(get_engine()) as db:
+            if created:
+                for sp in db.scalars(
+                    select(schema.LegislatorServicePeriod).where(
+                        schema.LegislatorServicePeriod.legislator_id
+                        == created["member"]
+                    )
+                ).all():
+                    db.delete(sp)
+                db.delete(db.get(schema.Legislator, created["member"]))
+                db.delete(db.get(schema.District, created["district"]))
+                db.delete(db.get(schema.LegislativeSession, created["older"]))
+                db.delete(db.get(schema.LegislativeSession, created["newer"]))
+                db.commit()
+
+
 def test_bill_detail_serves_sponsor_party_and_district(client):
     """chief_sponsors and all_sponsors carry the sponsor's real party + district
     (label). Since #302 merged the bill-author row into its roster row, the

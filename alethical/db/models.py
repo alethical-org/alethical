@@ -243,6 +243,10 @@ class District(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     label: Mapped[str] = mapped_column(String(100), nullable=False)
     gis_identifier: Mapped[Optional[str]] = mapped_column(String(100))
+    # valid_from/valid_to are intentionally unpopulated (#343): no official
+    # source supplies redistricting validity dates and nothing reads them. Kept
+    # nullable for a future redistricting-history model; do not backfill session
+    # or ingest dates here, which are not district validity dates.
     valid_from: Mapped[Optional[date]] = mapped_column(Date)
     valid_to: Mapped[Optional[date]] = mapped_column(Date)
 
@@ -325,6 +329,11 @@ class LegislatorServicePeriod(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # official LRL legislator record (#551). Powers the Bill Profile author card's
     # "{City} (SD 51)" line; stays null when the source states no residence.
     represented_city: Mapped[Optional[str]] = mapped_column(String(120))
+    # start_date/end_date are intentionally unpopulated (#343): the roster/profile
+    # source carries no per-member service dates, and a period's session start/end
+    # must not be copied here as person-level dates (members can join or leave
+    # mid-session). Tenure is served from the election-history table (#486), so
+    # these are unneeded; kept nullable for a future multi-period model.
     start_date: Mapped[Optional[date]] = mapped_column(Date)
     end_date: Mapped[Optional[date]] = mapped_column(Date)
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -452,6 +461,10 @@ class CommitteeMembership(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("legislator.id"), nullable=False
     )
     role: Mapped[Optional[str]] = mapped_column(String(50))
+    # start_date/end_date are intentionally unpopulated (#343): committee data is
+    # a current-snapshot rebuild (memberships are cleared and re-inserted each
+    # ingest), so join/leave dates cannot be established and no source supplies
+    # them. No reader today; kept nullable for a future membership-history model.
     start_date: Mapped[Optional[date]] = mapped_column(Date)
     end_date: Mapped[Optional[date]] = mapped_column(Date)
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
