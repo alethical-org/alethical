@@ -1794,6 +1794,88 @@ def test_member_party_prefers_newest_session_without_a_current_period(client):
                 db.commit()
 
 
+def test_member_party_tiebreaks_same_session_by_period_sequence(client):
+    """Two non-current periods in the *same* session tie on session start_date, so
+    the pick falls to period_sequence (later period wins) then the row id. Not
+    reachable from current ingestion (which always writes sequence 1), but the
+    schema permits it, so the ordering must stay deterministic (#343 follow-up)."""
+    schema = load_schema()
+
+    from alethical.api.routers.public import member_party_by_legislator
+
+    created: dict[str, object] = {}
+    try:
+        with Session(get_engine()) as db:
+            chamber = db.scalar(
+                select(schema.Chamber).where(schema.Chamber.slug == "senate")
+            )
+            session_row = db.scalar(
+                select(schema.LegislativeSession).where(
+                    schema.LegislativeSession.slug == "94-2025-regular"
+                )
+            )
+            assert chamber and session_row
+            district = schema.District(
+                jurisdiction_id=chamber.jurisdiction_id,
+                chamber_id=chamber.id,
+                code="SEQ-TIEBREAK-TEST",
+                label="Sequence Tiebreak District",
+            )
+            db.add(district)
+            db.flush()
+            member = schema.Legislator(
+                jurisdiction_id=chamber.jurisdiction_id,
+                slug="seq-tiebreak-member",
+                external_key="seq-tiebreak-member",
+                full_name="Sequa Tiebreak",
+                sort_name="Tiebreak, Sequa",
+            )
+            db.add(member)
+            db.flush()
+            # Same session, both non-current; sequence 2 (the later period) carries
+            # 'DFL' and must win over sequence 1's 'R'.
+            db.add_all(
+                [
+                    schema.LegislatorServicePeriod(
+                        legislator_id=member.id,
+                        session_id=session_row.id,
+                        chamber_id=chamber.id,
+                        district_id=district.id,
+                        period_sequence=1,
+                        party="R",
+                        is_current=False,
+                    ),
+                    schema.LegislatorServicePeriod(
+                        legislator_id=member.id,
+                        session_id=session_row.id,
+                        chamber_id=chamber.id,
+                        district_id=district.id,
+                        period_sequence=2,
+                        party="DFL",
+                        is_current=False,
+                    ),
+                ]
+            )
+            db.commit()
+            created = {"member": member.id, "district": district.id}
+
+            result = member_party_by_legislator(db, [member.id])
+            assert result[str(member.id)] == "DFL"
+    finally:
+        with Session(get_engine()) as db:
+            if created:
+                for sp in db.scalars(
+                    select(schema.LegislatorServicePeriod).where(
+                        schema.LegislatorServicePeriod.legislator_id
+                        == created["member"]
+                    )
+                ).all():
+                    db.delete(sp)
+                db.delete(db.get(schema.Legislator, created["member"]))
+                db.delete(db.get(schema.District, created["district"]))
+                db.commit()
+
+
 def test_bill_detail_serves_sponsor_party_and_district(client):
     """chief_sponsors and all_sponsors carry the sponsor's real party + district
     (label). Since #302 merged the bill-author row into its roster row, the

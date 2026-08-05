@@ -461,10 +461,11 @@ class CommitteeMembership(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("legislator.id"), nullable=False
     )
     role: Mapped[Optional[str]] = mapped_column(String(50))
-    # start_date/end_date are intentionally unpopulated (#343): committee data is
-    # a current-snapshot rebuild (memberships are cleared and re-inserted each
-    # ingest), so join/leave dates cannot be established and no source supplies
-    # them. No reader today; kept nullable for a future membership-history model.
+    # start_date/end_date are intentionally unpopulated (#343): the committee
+    # source carries only name/role/code (no join or leave dates), and the
+    # dedicated committee refresh rebuilds the current snapshot wholesale, so
+    # membership dates cannot be established either way. No reader today; kept
+    # nullable for a future membership-history model.
     start_date: Mapped[Optional[date]] = mapped_column(Date)
     end_date: Mapped[Optional[date]] = mapped_column(Date)
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
