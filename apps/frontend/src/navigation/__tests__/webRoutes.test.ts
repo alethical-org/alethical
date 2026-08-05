@@ -41,6 +41,13 @@ describe('old-design URLs land on a shipped page', () => {
     expect(targetFromPathname('/search')).toEqual({ kind: 'bills', params: {} });
   });
 
+  it('carries a bookmarked /search query + filters over to the bill list', () => {
+    expect(targetFromPathname('/search?q=education&status=passed')).toEqual({
+      kind: 'bills',
+      params: { q: 'education', status: 'passed' },
+    });
+  });
+
   // Bill tracking ships, so the Track dropdown's live "Bills" row links to the
   // Tracked page; /tracked resolves to it instead of redirecting to Home. A
   // signed-out visitor still lands there and is prompted to sign in.

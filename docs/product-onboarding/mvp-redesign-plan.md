@@ -204,8 +204,10 @@ Rework fear is contained to 3 seams: (A) token/primitive vocabulary, (B) IA/nav 
 
 ## Route / IA registry (spec)
 
-Source of truth: `apps/frontend/src/navigation/ia.ts` (`IA`, `ROUTES`, `REDIRECTS`,
-`ACCOUNT_MENU`, selectors). Delivered additively; nothing consumes it yet.
+Source of truth: `apps/frontend/src/navigation/ia.ts` (`IA`, `ROUTES`,
+`ACCOUNT_MENU`, selectors). Delivered additively. `webRoutes.ts` owns routing and
+redirects directly; the unused `REDIRECTS` constant was removed (it never fed the
+router and had diverged from the live redirect behavior).
 
 **Path scheme:**
 
@@ -235,8 +237,10 @@ THE ROADMAP. Desktop keeps the page-aware ✦ Ask top-level entry (`AskNavEntry`
 
 **webRoutes.ts / RootNavigator migration steps (apply during the frontend track — NOT now,
 because it would break the running old-IA app before screens/tokens exist):**
-1. Import `IA`/`ROUTES`/`REDIRECTS`; replace magic path strings in `targetFromPathname`
-   and `pathnameFromNavigationState` with registry paths; honor `REDIRECTS`.
+1. Import `IA`/`ROUTES`; replace magic path strings in `targetFromPathname`
+   and `pathnameFromNavigationState` with registry paths. (Redirects for retired
+   routes like `/search` → `/bills` are handled inline in `targetFromPathname`; the
+   unused `REDIRECTS` constant was removed.)
 2. Add list routes `/bills`, `/legislators`; add `/ask`, `/track/bills`, `/about*`,
    `/sign-in`, `/account`.
 3. Replace the tab-based shell with a top-nav shell (desktop) driven by `MENUS` +
@@ -264,10 +268,10 @@ Frontend track (after Phase 0; parallel with backend track)
 - [ ] Option 1 marketing hero: green primitives, placeholder copy, example-question chips, interim Ask → sign-in
 - [x] Find My Legislator Option C band + MN map — shipped; Find wired to the lookup and
       the screen's URL made shareable (#873, #764)
-- [ ] Search split → `BillsScreen` + `LegislatorsScreen` + shared filter hook — driven by
-  the 2026-07-15 design-review decisions (Locked decisions above); build blockers/follow-ups
-  #291 (authored-count bug, blocks the legislators activity line), #292 (progress-sort, fast
-  follow), #293 (companion link, deferred)
+- [x] Search split → `SearchBillsScreen` + `SearchLegislatorsScreen` + shared filter hook —
+  shipped, and the legacy combined `SearchScreen` retired (#313); driven by the 2026-07-15
+  design-review decisions (Locked decisions above). Follow-ups tracked separately:
+  #291 (authored-count bug), #292 (progress-sort), #293 (companion link)
 - [ ] About static pages (About Us / Trust & Integrity / Contact Us); Trust page as real brand copy
 - [ ] Account menu + nav-after-sign-in; move Privacy/Terms into footer
 - [ ] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect

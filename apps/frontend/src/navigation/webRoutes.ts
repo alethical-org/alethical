@@ -103,10 +103,11 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'find-my-legislator') {
       return { kind: 'findMyLegislator', address: searchParams.get('address') ?? undefined };
     }
-    // '/search' is old-design — redirect a stray bookmark/link to the live bill
-    // list instead of resolving to it.
+    // '/search' is the retired old-design route — forward a stray bookmark/link to
+    // the live bill list, carrying any query/filter params so a bookmarked search
+    // (e.g. /search?q=education) still lands filtered (grounded-answers.md rule 5).
     if (segments[0] === 'search') {
-      return { kind: 'bills', params: {} };
+      return { kind: 'bills', params: billsFilterParams(searchParams) };
     }
     // '/tracked' is the tracked-bills page (the Track dropdown's live "Bills" row
     // links here). Signed-out visitors get a "sign in to track" card, not Home, so
@@ -200,8 +201,6 @@ export function pathForRoute(activeRoute: {
   switch (activeRoute.name) {
     case 'Home':
       return '/';
-    case 'Search':
-      return '/search';
     case 'Bills': {
       const params = new URLSearchParams();
       for (const key of BILLS_FILTER_PARAMS) {
@@ -304,7 +303,7 @@ export function pathnameFromNavigationState(
   return pathForRoute(activeRoute);
 }
 
-const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Search', 'Tracked', 'Chat', 'Account'];
+const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Tracked', 'Chat', 'Account'];
 
 function tabState(screen: keyof MainTabParamList): PartialState<NavigationState> {
   return {
