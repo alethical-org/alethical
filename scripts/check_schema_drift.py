@@ -561,22 +561,29 @@ def main(argv: list[str] | None = None) -> int:
     if not differences:
         return 0
 
+    # The advice below is for a person reading a terminal. Under --json it would
+    # be appended after the closing brace, so stdout stops being JSON at exactly
+    # the moment there is something to parse -- and the caller that breaks is the
+    # post-deploy production check in .github/workflows/migrate.yml, which reads
+    # this output to decide whether to file an issue.
     if mode == "production-vs-migrations":
         # Production drift is a finding to read and decide on, not a build to
         # break -- deciding which side is right is a judgement call, and six of
         # the audit's eleven went production's way. Nothing exits non-zero here.
-        print(
-            "\nThese are findings, not failures. Which side is right is a "
-            "judgement call -- see docs/operations/production-database-schema-drift.md."
-        )
+        if not args.json:
+            print(
+                "\nThese are findings, not failures. Which side is right is a "
+                "judgement call -- see docs/operations/production-database-schema-drift.md."
+            )
         return 0
 
-    print(
-        "\nThe migration history and models.py no longer build the same schema.\n"
-        "Write the migration that carries your models.py change to an existing\n"
-        "database, or correct models.py to match what the migrations build.\n"
-        "Background: docs/operations/production-database-schema-drift.md"
-    )
+    if not args.json:
+        print(
+            "\nThe migration history and models.py no longer build the same schema.\n"
+            "Write the migration that carries your models.py change to an existing\n"
+            "database, or correct models.py to match what the migrations build.\n"
+            "Background: docs/operations/production-database-schema-drift.md"
+        )
     return 1
 
 
