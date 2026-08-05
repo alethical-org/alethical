@@ -158,8 +158,14 @@ def _matched_bill_ids_select(session_ids, topic_value: str):
     )
 
 
-def _topic_bills_answer(db: Session, topic: str | None) -> AskTopicBillsAnswer:
+def _topic_bills_answer(
+    db: Session, topic: str | None, *, session_ids=None
+) -> AskTopicBillsAnswer:
+    # ``session_ids`` narrows the list to a session the QUESTION named, so a
+    # degraded answer to "education bills in the first special session" does not
+    # come back full of regular-session bills. Defaults to the whole Legislature.
     scope = current_legislature_scope(db)
+    session_ids = tuple(session_ids) if session_ids else scope.ids
     data_as_of = db.scalar(
         select(func.max(IngestionRun.finished_at)).where(
             IngestionRun.status == IngestionStatus.succeeded
@@ -177,8 +183,8 @@ def _topic_bills_answer(db: Session, topic: str | None) -> AskTopicBillsAnswer:
             bills=[],
         )
 
-    stmt = bill_list_stmt(scope.ids).where(
-        Bill.id.in_(_matched_bill_ids_select(scope.ids, topic_value))
+    stmt = bill_list_stmt(session_ids).where(
+        Bill.id.in_(_matched_bill_ids_select(session_ids, topic_value))
     )
     rows = db.scalars(stmt).all()
     ranked = sorted(rows, key=_progress_sort_key)
@@ -384,18 +390,43 @@ class _NumberMatch:
     collisions: tuple = ()
 
 
-def _resolve_bill(db: Session, scope: LegislatureScope, content: str) -> _NumberMatch:
+def _question_session_ids(scope: LegislatureScope, content: str):
+    """Which sessions a question is asking about, decided ONCE for every resolver.
+
+    Three outcomes:
+
+    * the whole Legislature — the question names no session, which is almost every
+      question;
+    * one session's id — the question names a session we hold ("in the first special
+      session"), so nothing outside it may answer;
+    * ``None`` — it names a session we cannot pin down to exactly one, so the caller
+      refuses.
+
+    Deciding this once, above the resolvers, is the point. When the number step alone
+    owned the session name, a question naming a session we do not hold declined *there*
+    and then fell straight through to title and semantic resolution, which knew nothing
+    about the name and would happily answer from either session — the decline bought
+    nothing (caught in review before shipping, #810).
+    """
+    named = named_special_session(content, scope.primary.session_number)
+    if named is False:
+        return scope.ids
+    if named is None:
+        return None
+    ids = tuple(row.id for row in scope.sessions if row.slug == named)
+    return ids or None
+
+
+def _resolve_bill(db: Session, session_ids, content: str) -> _NumberMatch:
     """Resolve a free-text ask to a single bill by its HF/SF number (§4.6).
 
     A Legislature numbers its special-session files from 1 all over again, so "HF 5"
     names a tax bill in the 94th's regular session and the K-12 education finance act
-    in its first special session (#746). Three outcomes:
+    in its first special session (#746). Within the sessions ``_question_session_ids``
+    settled on, two outcomes:
 
-    * the question names a session ("HF 5 in the first special session") — resolved
-      there, or refused when the name does not pin down exactly one session we hold;
-    * the number matches once across the Legislature — resolved, which is every one
-      of the 10,471 regular-session bills whose number the special session never
-      reused;
+    * the number matches once — resolved, which is every one of the 10,471
+      regular-session bills whose number the special session never reused;
     * it matches more than once — returned as collisions, NOT resolved.
 
     That last case is why this returns a result object rather than a bill. Preferring
@@ -412,20 +443,11 @@ def _resolve_bill(db: Session, scope: LegislatureScope, content: str) -> _Number
     if reference is None:
         return _NumberMatch()
     file_type, file_number = reference
-    named = named_special_session(content, scope.primary.session_number)
-    if named is None:
-        # Named a session we cannot pin down to one. Refuse rather than pick.
-        return _NumberMatch()
-    session_ids = scope.ids
-    if named is not False:
-        session_ids = tuple(row.id for row in scope.sessions if row.slug == named)
-        if not session_ids:
-            return _NumberMatch()
     matches = tuple(
         db.scalars(
             select(Bill)
             .where(
-                Bill.session_id.in_(session_ids),
+                Bill.session_id.in_(tuple(session_ids)),
                 Bill.file_type == file_type,
                 Bill.file_number == file_number,
                 Bill.official_url.isnot(None),
@@ -829,19 +851,26 @@ def _bill_text_answer(
     # HNSW, which recovered recall and cut ~9s search latency.)
     db.execute(text("SET LOCAL hnsw.ef_search = 100"))
 
-    by_number = _resolve_bill(db, scope, content)
+    session_ids = _question_session_ids(scope, content)
+    if session_ids is None:
+        # Names a session we cannot pin down to one we hold. Refusing here rather
+        # than in the number step is what makes the refusal stick: title and
+        # semantic resolution below know nothing about the name, so falling through
+        # to them would answer from a session the reader did not ask about.
+        return None
+    by_number = _resolve_bill(db, session_ids, content)
     if by_number.collisions:
         # One number, two bills, no evidence to choose. Hand the reader both.
         return _ambiguous_number_answer(db, scope, by_number.collisions)
     resolved = (
         by_number.bill
-        or _resolve_bill_by_title(db, scope.ids, content)
-        or _resolve_bill_by_content(db, scope.ids, model, content, embedding)
+        or _resolve_bill_by_title(db, session_ids, content)
+        or _resolve_bill_by_content(db, session_ids, model, content, embedding)
     )
     if resolved is None:
         phrase = _bill_title_phrase(content)
         if phrase:
-            degraded = _topic_bills_answer(db, phrase)
+            degraded = _topic_bills_answer(db, phrase, session_ids=session_ids)
             if degraded.total_matches:
                 return degraded
         return None
@@ -921,7 +950,15 @@ def _vote_deflection_answer(
     )
     session_ref = _scope_session_ref(scope)
 
-    by_number = _resolve_bill(db, scope, content)
+    session_ids = _question_session_ids(scope, content)
+    if session_ids is None:
+        return AskVoteDeflectionAnswer(
+            session=session_ref,
+            data_as_of=data_as_of,
+            resolved_bill=None,
+            topic_bills=_topic_bills_answer(db, topic),
+        )
+    by_number = _resolve_bill(db, session_ids, content)
     if by_number.collisions:
         return AskVoteDeflectionAnswer(
             session=session_ref,
@@ -942,7 +979,7 @@ def _vote_deflection_answer(
         session=session_ref,
         data_as_of=data_as_of,
         resolved_bill=None,
-        topic_bills=_topic_bills_answer(db, topic),
+        topic_bills=_topic_bills_answer(db, topic, session_ids=session_ids),
     )
 
 

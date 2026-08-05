@@ -1423,3 +1423,29 @@ def test_the_answer_names_the_legislature_consistently_in_every_shape(
     ).json()["data"]["answer"]
     assert special["session"]["slug"] == "94-2025-regular"
     assert special["bill"]["session"]["slug"] == "94-2025-special-1"
+
+
+def test_a_declined_session_name_is_not_undone_by_the_other_resolvers(
+    client, monkeypatch
+):
+    """The refusal has to survive the whole resolver, not just the number step.
+
+    "HF 5 from the fourth special session" names a session we do not hold. The number
+    step declines — but title and semantic resolution know nothing about the name, so
+    if the decline only lived there the question would fall through and be answered
+    from whichever session those steps liked. The scope is decided once, above all
+    three (#810)."""
+    _mock_llm_intent(monkeypatch, "bill_text")
+    _mock_rag(monkeypatch)
+    for phrase in (
+        "What's in HF 5 from the fourth special session?",
+        # No number at all, so ONLY the title/semantic steps can answer it — the
+        # exact path the number step's decline could not reach.
+        "What's in the education bill from the fourth special session?",
+    ):
+        answer = client.post("/api/v1/ask", json={"content": phrase}).json()["data"][
+            "answer"
+        ]
+        assert answer is None, (
+            f"{phrase!r} named a session we do not hold, so nothing may answer it"
+        )
