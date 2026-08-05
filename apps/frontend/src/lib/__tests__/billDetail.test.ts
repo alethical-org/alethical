@@ -962,17 +962,18 @@ describe('citationsBySection shows each cited section once', () => {
   });
 });
 
-// `completeStatusText` applies the same no-dangling-preposition rule to the bill's
-// CURRENT STATUS, which the timeline has had since #599 and the "Latest action"
-// line never did (#812). Every string below is a real production status, and the
-// committee beside it is the one stored on that bill's matching action row.
-describe('completeStatusText finishes a status that stops on a preposition', () => {
+// `completeStatusText` is what the surfaces that read a bill's STATUS (rather than
+// its actions) show as the latest action — the home page's Bill Activity card, and
+// the latest-action rail's fallback when a bill's actions are absent (#812). Every
+// string below is a real production status, and the committee beside it is the one
+// stored on that bill's matching action row.
+describe('completeStatusText names the committee behind a referral status', () => {
   const action = (action_text: string, committee_name: string) => [
     { action_text: 'Introduction and first reading', committee_name: null },
     { action_text, committee_name },
   ];
 
-  it('names the committee on the two most common statuses (5,680 production bills)', () => {
+  it('rewrites the clerk wording AND names the committee (5,680 production bills)', () => {
     expect(
       completeStatusText(
         'Introduction and first reading, referred to',
@@ -981,15 +982,25 @@ describe('completeStatusText finishes a status that stops on a preposition', () 
           'Environment and Natural Resources Finance and Policy',
         ),
       ),
-    ).toBe(
-      'Introduction and first reading, referred to Environment and Natural Resources Finance and Policy',
-    );
+    ).toBe('Introduced and referred to Environment and Natural Resources Finance and Policy');
     expect(completeStatusText('Referred to', action('Referred to', 'Capital Investment'))).toBe(
       'Referred to Capital Investment',
     );
   });
 
-  it('handles the re-refer and returned-to wordings too', () => {
+  it('keeps the generic wording when no committee is stored, never dropping to "Referred"', () => {
+    // What these two read as today, and must keep reading as when the record has
+    // no committee to name.
+    expect(completeStatusText('Introduction and first reading, referred to', [])).toBe(
+      'Introduced and referred to committee',
+    );
+    expect(completeStatusText('Referred to', undefined)).toBe('Referred to committee');
+    expect(
+      completeStatusText('Referred to', [{ action_text: 'Referred to', committee_name: '' }]),
+    ).toBe('Referred to committee');
+  });
+
+  it('finishes the rarer referral and returned-to wordings too', () => {
     expect(
       completeStatusText(
         'Comm report: To pass as amended and re-refer to',
@@ -1004,6 +1015,11 @@ describe('completeStatusText finishes a status that stops on a preposition', () 
     ).toBe('House rule 4.20, interim disposition of bills, returned to Education Policy');
   });
 
+  it('drops the unfinished clause on a rarer wording rather than inventing a target', () => {
+    expect(completeStatusText('Withdrawn and re-referred to', [])).toBe('Withdrawn');
+    expect(completeStatusText('Rule 47, returned to', [])).toBe('Rule 47');
+  });
+
   it('matches the action by its text, not by position', () => {
     expect(
       completeStatusText('Referred to', [
@@ -1013,21 +1029,6 @@ describe('completeStatusText finishes a status that stops on a preposition', () 
     ).toBe('Referred to Taxes');
   });
 
-  it('drops the unfinished clause rather than inventing a committee', () => {
-    // No matching action, an action with no committee, and no actions at all —
-    // all three lose the clause that was waiting on a value, and none of them
-    // ends on a preposition.
-    expect(completeStatusText('Introduction and first reading, referred to', [])).toBe(
-      'Introduction and first reading',
-    );
-    expect(
-      completeStatusText('Introduction and first reading, referred to', [
-        { action_text: 'Introduction and first reading, referred to', committee_name: '' },
-      ]),
-    ).toBe('Introduction and first reading');
-    expect(completeStatusText('Referred to', undefined)).toBe('Referred');
-  });
-
   it('leaves a status that already reads as a finished sentence alone', () => {
     for (const status of [
       'Chapter number',
@@ -1035,6 +1036,7 @@ describe('completeStatusText finishes a status that stops on a preposition', () 
       'Introduction and first reading, referred to Taxes',
       'Governor vetoed',
       'Effective date',
+      'Author stricken',
     ]) {
       expect(completeStatusText(status, [])).toBe(status);
     }

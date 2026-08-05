@@ -148,20 +148,44 @@ export function completeDanglingTitle(title: string, target: string): string {
     lastClause > 0
       ? withoutPreposition.slice(0, lastClause)
       : withoutPreposition.replace(/\s+\S+$/, '');
-  return kept.trim() || withoutPreposition.trim();
+  const dropped = kept.trim() || withoutPreposition.trim();
+  // Dropping one clause can uncover another dangling word: "Withdrawn and
+  // re-referred to" loses "re-referred" and lands on "Withdrawn and", which breaks
+  // the same rule this function exists to enforce. So repeat until the tail is a
+  // real word. Only reachable when the record has no target to name, which is why
+  // it went unnoticed — every production referral carries its committee (#812).
+  return dropped === title ? dropped : completeDanglingTitle(dropped, '');
 }
 
+// The clerk's two referral phrasings, rewritten the way a person says them. The
+// home page's Bill Activity card has read them this way all along; keeping the map
+// here lets the same rewrite carry the committee's real name (below) instead of
+// stopping at the generic word.
+const STATUS_PLAIN_STEM: Record<string, string> = {
+  'introduction and first reading, referred to': 'Introduced and referred to',
+  'referred to': 'Referred to',
+};
+
 // The same standing rule, applied to the bill's CURRENT STATUS rather than to a
-// timeline row. `bill.current_status` is the source's action text verbatim, so it
-// inherits the same dangling preposition — 6,078 production bills read "Referred
-// to" or "Introduction and first reading, referred to" with the committee missing,
-// even though the matching action row carries it in committee_name (#812). The
-// timeline has completed these since #599; the "Latest action" line never did.
+// timeline row (#812). `bill.current_status` is the source's action text verbatim,
+// so it inherits the same dangling preposition — 6,078 of 10,517 production bills
+// end on one — even though the matching action row carries the committee in
+// committee_name.
 //
-// The committee is looked up by matching the status against the action rows the
-// same payload already carries, so nothing is inferred: a status with no matching
-// action, or a matching action with no committee, falls through to
-// completeDanglingTitle's own fallback and simply loses the unfinished clause.
+// This is a narrower fix than the raw count suggests, because every surface that
+// builds its latest-action line from the ACTIONS already completes the phrase
+// (`latestActionEntry`, since #599): over 100 real bills, 74 had a dangling status
+// and 0 produced a dangling line. What this changes is the surfaces that read the
+// STATUS instead — the home page's Bill Activity card, and the latest-action rail's
+// fallback for a bill whose actions are absent. There, "Referred to committee"
+// becomes "Referred to Judiciary and Public Safety": complete either way, but the
+// second names the committee we already hold rather than a generic word.
+//
+// Nothing is inferred. The committee is looked up by matching the status against
+// the action rows the same payload already carries. A status with no matching
+// action keeps today's generic "committee" for the two known referral wordings, and
+// any other wording falls through to completeDanglingTitle's own fallback, which
+// drops the unfinished clause rather than name a target the record does not have.
 export function completeStatusText(
   status: string | null | undefined,
   actions?: readonly { action_text?: string | null; committee_name?: string | null }[] | null,
@@ -173,7 +197,10 @@ export function completeStatusText(
   const match = (actions || []).find(
     (action) => (action.action_text || '').trim().toLowerCase() === key,
   );
-  return completeDanglingTitle(text, (match?.committee_name || '').trim());
+  const committee = (match?.committee_name || '').trim();
+  const stem = STATUS_PLAIN_STEM[key];
+  if (stem) return completeDanglingTitle(stem, committee || 'committee');
+  return completeDanglingTitle(text, committee);
 }
 
 // Ordered clerk-phrasing → plain-language rules. First match wins, so put the
