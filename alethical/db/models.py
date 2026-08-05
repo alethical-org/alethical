@@ -900,10 +900,13 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # NULL means no recorded visit yet, which the page renders as its first-visit
     # state rather than as "everything moved".
     #
-    # Deliberately NOT ``last_signed_in_at``: ``alethical/api/auth.py`` rewrites that
-    # on every authenticated request, so it is always "just now" by the time a page
-    # renders and nothing can ever be newer than it. Only
-    # ``POST /me/tracked-bills/viewed`` writes this column.
+    # Deliberately NOT ``last_signed_in_at``, which has never been able to serve —
+    # first for one reason and now for the opposite one. It used to be rewritten on
+    # every authenticated request, so it always read "just now" and nothing could be
+    # newer than it. Since #990 (#108) the read path does not write at all, so it is
+    # now set only when an identity is first provisioned and barely moves. Either
+    # way it answers "when did you sign in", never "when did you last look at your
+    # tracked list". Only ``POST /me/tracked-bills/viewed`` writes this column.
     tracked_bills_last_viewed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
