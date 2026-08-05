@@ -86,7 +86,7 @@
       <div style="padding-bottom:22px;border-bottom:1px solid rgba(17,21,15,0.09);">
         <div style="display:flex;align-items:baseline;gap:10px;">
           <span style="font-size:26px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ trackedCount }}</span>
-          <span style="font-size:17px;color:#6b716b;">{{ billNoun }} <span style="font-size:14px;color:#6f756f;">in the 2025–2026 Legislative Session</span></span>
+          <span style="font-size:17px;color:#6b716b;">{{ billNoun }} <span style="font-size:14px;color:#6f756f;">in the 2025–26 Legislative Session</span></span>
         </div>
         <div style="margin-top:10px;display:flex;align-items:flex-start;gap:9px;">
           <sc-if value="{{ hasMoved }}" hint-placeholder-val="{{ true }}">
@@ -137,14 +137,14 @@
                     <sc-if value="{{ bill.moved }}" hint-placeholder-val="{{ true }}">
                       <div style="margin-top:20px;max-width:900px;background:#f2fbf6;border:1px solid #cdeedd;border-radius:12px;padding:14px 16px;">
                         <sc-if value="{{ bill.datedChange }}" hint-placeholder-val="{{ true }}">
-                          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#149d5b;">MOVED {{ bill.changeDateCaps }}</div>
+                          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#0f7a45;">MOVED {{ bill.changeDateCaps }}</div>
                         </sc-if>
                         <sc-if value="{{ bill.undatedChange }}" hint-placeholder-val="{{ false }}">
-                          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#149d5b;">MOVED <span style="color:#6f756f;">· DATE NOT RECORDED</span></div>
+                          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#0f7a45;">MOVED <span style="color:#656c66;">· DATE NOT RECORDED</span></div>
                         </sc-if>
                         <div style="margin-top:7px;font-size:16px;line-height:1.5;color:#11150f;font-weight:600;">{{ bill.changeText }}</div>
                         <sc-if value="{{ bill.hasEarlier }}" hint-placeholder-val="{{ true }}">
-                          <a data-tlink="1" href="LIVE Bill profile web.dc.html" style="position:relative;z-index:2;margin-top:9px;display:inline-block;font-size:14px;color:#149d5b;font-weight:600;text-decoration:none;">{{ bill.earlierLabel }} <span aria-hidden="true" style="font-weight:400;">→</span></a>
+                          <a data-tlink="1" href="LIVE Bill profile web.dc.html" style="position:relative;z-index:2;margin-top:9px;display:inline-block;font-size:14px;color:#0f7a45;font-weight:600;text-decoration:none;">{{ bill.earlierLabel }} <span aria-hidden="true" style="font-weight:400;">→</span></a>
                         </sc-if>
                       </div>
                     </sc-if>
@@ -165,7 +165,7 @@
                     <sc-if value="{{ bill.isHot }}" hint-placeholder-val="{{ false }}">
                       <span style="display:inline-flex;align-items:center;background:#f1f1f4;border:1px solid rgba(17,21,15,0.08);color:#4f5651;border-radius:999px;padding:7px 13px;font-size:13px;font-weight:700;white-space:nowrap;">🔥 Hot issue</span>
                     </sc-if>
-                    <button onClick="{{ bill.untrack }}" aria-label="Untrack {{ bill.code }}" style="position:relative;z-index:2;flex:none;min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:10px 18px 10px 15px;background:#11150f;border:1px solid #11150f;border-radius:12px;color:#ffffff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Libre Franklin',sans-serif;white-space:nowrap;" style-hover="background:#2c322c;border-color:#2c322c;">
+                    <button onClick="{{ bill.untrack }}" aria-label="Untrack {{ bill.code }}" style="position:relative;z-index:2;flex:none;min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:10px 18px 10px 15px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Libre Franklin',sans-serif;white-space:nowrap;" style-hover="background:#2c322c;border-color:#2c322c;">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                       Tracked
                     </button>
@@ -215,7 +215,7 @@
     <div style="flex:none;">
       <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;margin-bottom:12px;">PHONE</div>
       <div style="width:414px;background:#0a0e0c;border-radius:48px;padding:12px;box-shadow:0 30px 70px rgba(17,21,15,0.28);">
-        <div style="background:#fbfcfd;border-radius:38px;overflow:hidden;height:1240px;position:relative;display:flex;flex-direction:column;">
+        <div style="background:#fbfcfd;border-radius:38px;overflow:hidden;height:1400px;position:relative;display:flex;flex-direction:column;">
 
           <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;background:#ffffff;border-bottom:1px solid rgba(17,21,15,0.08);">
             <svg width="24" height="24" viewBox="0 0 64 64" fill="none" style="flex:none;">
@@ -240,7 +240,7 @@
               <div style="padding-bottom:16px;border-bottom:1px solid rgba(17,21,15,0.09);">
                 <div style="display:flex;align-items:baseline;gap:8px;">
                   <span style="font-size:22px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ trackedCount }}</span>
-                  <span style="font-size:15px;color:#6b716b;">{{ billNoun }} <span style="font-size:13px;color:#6f756f;">in the 2025–2026 Legislative Session</span></span>
+                  <span style="font-size:15px;color:#6b716b;">{{ billNoun }} <span style="font-size:13px;color:#6f756f;">in the 2025–26 Legislative Session</span></span>
                 </div>
                 <div style="margin-top:9px;display:flex;align-items:flex-start;gap:8px;">
                   <sc-if value="{{ hasMoved }}" hint-placeholder-val="{{ true }}">
@@ -276,7 +276,7 @@
                               <span style="display:inline-flex;align-items:center;background:#f1f1f4;border:1px solid rgba(17,21,15,0.08);color:#4f5651;border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:700;white-space:nowrap;">🔥 Hot issue</span>
                             </sc-if>
                           </div>
-                          <button onClick="{{ bill.untrack }}" aria-label="Untrack {{ bill.code }}" style="position:relative;z-index:2;flex:none;margin-left:auto;min-height:44px;display:inline-flex;align-items:center;gap:7px;padding:11px 15px 11px 12px;background:#11150f;border:1px solid #11150f;border-radius:11px;color:#ffffff;font-size:14px;font-weight:700;font-family:'Libre Franklin',sans-serif;cursor:pointer;white-space:nowrap;" style-active="background:#2c322c;border-color:#2c322c;">
+                          <button onClick="{{ bill.untrack }}" aria-label="Untrack {{ bill.code }}" style="position:relative;z-index:2;flex:none;margin-left:auto;min-height:44px;display:inline-flex;align-items:center;gap:7px;padding:11px 15px 11px 12px;background:#11150f;border:1px solid #11150f;border-radius:10px;color:#ffffff;font-size:14px;font-weight:700;font-family:'Libre Franklin',sans-serif;cursor:pointer;white-space:nowrap;" style-active="background:#2c322c;border-color:#2c322c;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12.5 L10 17.5 L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             Tracked
                           </button>
@@ -291,17 +291,23 @@
                           </div>
                         </div>
                         <h3 style="margin:12px 0 0;font-size:19px;line-height:1.3;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ bill.title }}</h3>
+                        <sc-if value="{{ bill.hasSummary }}" hint-placeholder-val="{{ true }}">
+                          <p style="margin:9px 0 0;font-size:15px;line-height:1.5;color:#4f5651;">{{ bill.summary }}</p>
+                        </sc-if>
+                        <sc-if value="{{ bill.noSummary }}" hint-placeholder-val="{{ false }}">
+                          <div style="height:4px;"></div>
+                        </sc-if>
                         <sc-if value="{{ bill.moved }}" hint-placeholder-val="{{ true }}">
                           <div style="margin-top:12px;background:#f2fbf6;border:1px solid #cdeedd;border-radius:11px;padding:11px 13px;">
                             <sc-if value="{{ bill.datedChange }}" hint-placeholder-val="{{ true }}">
-                              <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#149d5b;">MOVED {{ bill.changeDateCaps }}</div>
+                              <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#0f7a45;">MOVED {{ bill.changeDateCaps }}</div>
                             </sc-if>
                             <sc-if value="{{ bill.undatedChange }}" hint-placeholder-val="{{ false }}">
-                              <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#149d5b;">MOVED <span style="color:#6f756f;">· DATE NOT RECORDED</span></div>
+                              <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#0f7a45;">MOVED <span style="color:#656c66;">· DATE NOT RECORDED</span></div>
                             </sc-if>
                             <div style="margin-top:6px;font-size:15px;line-height:1.45;color:#11150f;font-weight:600;">{{ bill.changeText }}</div>
                             <sc-if value="{{ bill.hasEarlier }}" hint-placeholder-val="{{ true }}">
-                              <a data-tlink="1" href="LIVE Bill Profile mobile.dc.html" style="position:relative;z-index:2;margin-top:8px;display:inline-block;font-size:14px;color:#149d5b;font-weight:600;text-decoration:none;">{{ bill.earlierLabel }} <span aria-hidden="true" style="font-weight:400;">→</span></a>
+                              <a data-tlink="1" href="LIVE Bill Profile mobile.dc.html" style="position:relative;z-index:2;margin-top:8px;display:inline-block;font-size:14px;color:#0f7a45;font-weight:600;text-decoration:none;">{{ bill.earlierLabel }} <span aria-hidden="true" style="font-weight:400;">→</span></a>
                             </sc-if>
                           </div>
                         </sc-if>
@@ -343,7 +349,7 @@
           <div><strong style="color:#11150f;">Nothing moved</strong> names the fact and stays useful: it dates the last change instead of implying the page is empty. No group headers in this state — one list, no ceremony.</div>
           <div><strong style="color:#11150f;">First visit</strong> says plainly that there is no "since" yet, and what will happen from now on.</div>
           <div><strong style="color:#11150f;">A change with no date keeps the same shape.</strong> The eyebrow stays first and stays green — it just becomes <strong>MOVED · DATE NOT RECORDED</strong>, with the qualifier in grey so "MOVED" still leads and the absence recedes. We kept eyebrow-first rather than leading with the sentence: in a list where dated and undated blocks sit together, one composition is what lets the eye read them as the same thing. Saying the date is not recorded (instead of just "MOVED") also explains the gap, so it reads as the record's silence rather than our omission. Considered and rejected: a trailing sentence like "The record does not date this step" — more words, repeated per card, for the same fact.</div>
-          <div><strong style="color:#11150f;">A card with no written summary holds fine.</strong> Number, title, status and progress, then the green change block — the block simply moves up where the summary was, with 20px of air below the title. Nothing else shifts, and the change actually reads <em>more</em> prominently. Note: the phone card never showed a summary, so on phone the no-summary case is indistinguishable from any other — this composition question is web-only.</div>
+          <div><strong style="color:#11150f;">A card with no written summary holds fine.</strong> Number, title, status and progress, then the green change block — the block simply moves up where the summary was, with 20px of air below the title. Nothing else shifts, and the change actually reads <em>more</em> prominently. This applies on <strong>both surfaces</strong> — the phone card renders a summary paragraph too, so the no-summary case is visible there as well (SF 2417 on the phone frame).</div>
           <div><strong style="color:#11150f;">Omnibus and hot-issue labels coexist with the change block.</strong> OMNIBUS is the <em>ghosted</em> amber chip (transparent, border <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">#e3c17f</code>, text <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">#a76a1a</code>) sitting next to the filled amber code badge — ghosted is what keeps the two apart in the same context. "🔥 Hot issue" is the neutral pill (<code style="font-family:'JetBrains Mono',monospace;font-size:13px;">#f1f1f4</code>) and never amber, because it is an editorial flag, not a code. On web it sits to the LEFT of the Track button with a 16px gap; on phone both labels join the code badge in the top row, which wraps. SF 1832 in this mock carries both at once — the crowded case — and neither competes with the green change block below.</div>
           <div><strong style="color:#11150f;">Several changes since your last visit</strong> — the normal case while the Legislature sits. The block leads with the most recent change as its sentence, then a quiet dated count of the rest ("2 earlier steps since your last visit →") that opens the bill's full history. One sentence alone would imply nothing else happened.</div>
           <div><strong style="color:#11150f;">Phone gains the tracked control</strong> — the shared ✓ Tracked button (black <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">#11150f</code>, white text, 44px minimum) in each card's top row, next to the code badge. Black is reserved for Track alone; pressing it again untracks — the same flip both surfaces already use, with no separate untrack treatment.</div>
