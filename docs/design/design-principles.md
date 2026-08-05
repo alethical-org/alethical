@@ -147,7 +147,19 @@ one: see the box below before writing one.**
 > This is how the Search Bills filters hid their own state: the button read "All statuses" on screen
 > and its computed accessible name was "Filter by status", so the current filter was announced
 > nowhere. If the visible text carries a value, the label has to carry it too
-> ("Filter by status: All statuses").
+> ("Filter by status: All statuses"). The reverse also applies — where the visible text is already a
+> complete, natural name, adding a label only makes it worse, which is why the sort trigger has none
+> and reads "Sorted by legislative progress" rather than "Sort results, sorted by …".
+>
+> **A decorative glyph inside a control lands in its accessible name.** Measured: a "✓" marking the
+> chosen dropdown row produced the computed name "All statuses ✓", which a screen reader reads out
+> as "check mark" on top of the `aria-current` that already said it. Put `aria-hidden` on any text
+> node that is a picture rather than a word.
+>
+> **Read the computed accessible NAME, not the attributes** — CDP's
+> `Accessibility.getPartialAXTree`, or the Accessibility pane in devtools. Both traps above are
+> invisible in an attribute dump, and the second review of this work caught the first one precisely
+> because it stopped reading `aria-label` and started reading `name`.
 >
 > **For "this control is unavailable", use the one helper instead: `useUnavailableControl`**
 > (`apps/frontend/src/components/billDetail/interactions.ts`). Spread its ref onto the node. It
