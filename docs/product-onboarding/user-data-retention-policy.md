@@ -38,6 +38,18 @@ people. The oldest account was created on 29 March 2026. The oldest typed questi
 129 days old. Nothing we hold is old enough for any retention rule below to have expired
 yet, which makes this the cheapest possible moment to adopt one.
 
+**The work this document implies** is filed and on the board, so nothing here sits as a
+recommendation with no owner:
+[#1040](https://github.com/alethical-org/alethical/issues/1040) (build deletion) ·
+[#1041](https://github.com/alethical-org/alethical/issues/1041) (fix the public Privacy
+Policy) · [#1042](https://github.com/alethical-org/alethical/issues/1042) (drop the nine
+dead columns) · [#1043](https://github.com/alethical-org/alethical/issues/1043) (the
+unwired "active" switch) ·
+[#1045](https://github.com/alethical-org/alethical/issues/1045) (the timestamp whose name
+lies) · [#1046](https://github.com/alethical-org/alethical/issues/1046) (logs nobody can
+read) · [#1047](https://github.com/alethical-org/alethical/issues/1047) (backup retention
+and the leftover test account).
+
 | What it is, in plain words | Where it lives | Rows in production |
 | --- | --- | --- |
 | An account — a name and an email address | `user_account` | 5 |
@@ -73,7 +85,7 @@ we ever show a display name to anyone but its owner.
 defaults to on, and no code anywhere checks it. Signing in does not look at it. This is
 worse than an unused column: it is a switch that looks like it disables an account and
 does not. Someone will reach for it the first time we need to lock someone out, and it
-will silently do nothing. Tracked as its own issue (§8).
+will silently do nothing. Tracked as [#1043](https://github.com/alethical-org/alethical/issues/1043).
 
 **One timestamp does not mean what its name says.** `last_signed_in_at` reads like "the
 last time this person signed in." Since [#990](https://github.com/alethical-org/alethical/pull/990)
@@ -82,7 +94,7 @@ merged on 5 August 2026 it is written only when an account gains a *new* sign-in
 today were written by the older behaviour, which updated it on every single request, so
 from today onward they are frozen and misleading. Nothing reads the column, so nothing
 is currently wrong; the moment a support question makes someone read it, it will be.
-Same story for `auth_identity.last_used_at`.
+Same story for `auth_identity.last_used_at`. Tracked as [#1045](https://github.com/alethical-org/alethical/issues/1045).
 
 **Retention: as long as the account exists.** An account with no email address cannot
 be signed into, so this is the record the account *is*.
@@ -122,7 +134,7 @@ screen only reads the list. So the whole feature is a read path over an empty ta
 the most sensitive thing we would ever store, and the rule should be written before the
 first row is written, not after. The proposal is in §5.
 
-**The five unreachable columns should be dropped, not given a retention rule** (§8). The
+**The five unreachable columns should be dropped, not given a retention rule** ([#1042](https://github.com/alethical-org/alethical/issues/1042)). The
 best retention policy for a home address we cannot save is to not have a column for it.
 
 ### 2.4 Bills someone chose to follow
@@ -176,7 +188,7 @@ titles in production follow that pattern. A title is safe to show; a message is 
 
 **Three columns here are dead.** `chat_session.retrieval_profile` is empty on all 37
 rows and read by nothing. `chat_message.model_name`, `input_tokens` and `output_tokens`
-are set on none of the 82 rows and read by nothing. See §8.
+are set on none of the 82 rows and read by nothing. See §8 and [#1042](https://github.com/alethical-org/alethical/issues/1042).
 
 **41 messages in production are text a reader typed.** This is the most sensitive thing
 we hold, and §5 is about it.
@@ -237,8 +249,7 @@ sign-in and never reads the caller's account.
 **The bad half.** A reader's typed question leaves our systems on every single Ask and
 every chat message, and the Privacy Policy's list of who we share information with
 names only "Supabase (authentication and database) and Google (sign-in)." That is a
-factual gap between what the published page says and what the code does. Fixing the page
-is its own issue (§8).
+factual gap between what the published page says and what the code does. Fixing the page is [#1041](https://github.com/alethical-org/alethical/issues/1041).
 
 ---
 
@@ -329,7 +340,7 @@ engineering decision that turns a deletion into a move.
   reason to soften the promise, but the promise should be worded as "we delete it, and
   it ages out of our backups on the backup schedule" rather than implying instant
   erasure everywhere. **The exact backup retention on our Supabase plan is not recorded
-  anywhere in this repo and should be confirmed and written into
+  anywhere in this repo ([#1047](https://github.com/alethical-org/alethical/issues/1047)) and should be confirmed and written into
   [`docs/operations/repo-and-service-settings.md`](../operations/repo-and-service-settings.md)** —
   it is a setting that controls the product and does not live in the code, which is
   exactly what that doc is for.
@@ -352,7 +363,7 @@ The API can delete a followed bill and a saved place; that is all
 account is not possible. If someone emails `ask@alethical.com` today and asks us to
 delete their data, honouring it means someone hand-writing SQL against production with
 nothing to check their work against. **Everything in §6 above is a proposal, not a
-description.**
+description.** Building it is [#1040](https://github.com/alethical-org/alethical/issues/1040).
 
 **The published Privacy Policy is narrower than what we collect.** The live page
 (`apps/frontend/src/screens/LegalScreens.tsx`, effective 16 June 2026) says under
@@ -364,7 +375,7 @@ the Minnesota GIS service — all four of which receive reader-supplied text or 
 today (§4). Under *Data Retention* it says we keep things "as long as your account is
 active," which is a real answer but not a per-category one. Under *Your Rights* it
 offers access, correction, export and deletion on request, which is a promise we
-currently have no mechanism to keep.
+currently have no mechanism to keep. Bringing the page in line is [#1041](https://github.com/alethical-org/alethical/issues/1041).
 
 **There are no meaningful server-side logs, which is luck rather than design.** The API
 routes its logs to a rotating file inside its own container (`alethical/logging.py`),
@@ -373,8 +384,9 @@ is wiped on each redeploy, so those logs are gone within days and nobody reads t
 practical result is that almost nothing gets logged anywhere durable, so there is
 currently very little to redact. **That is an accident of configuration, not a
 protection.** One line adding a console handler, or one Sentry integration, and every
-error report starts carrying whatever was in the request. So the redaction rule is worth
-writing now, while it costs nothing:
+error report starts carrying whatever was in the request. Making the logs readable, without making them a leak, is
+[#1046](https://github.com/alethical-org/alethical/issues/1046). So the redaction rule is
+worth writing now, while it costs nothing:
 
 > **Log redaction rule.** Server logs may record a request's method, path, status,
 > duration, and the account's internal id. They may never record an email address, a
@@ -410,7 +422,7 @@ The best retention policy for data we never use is not collecting it. Each of th
 confirmed by searching the whole repository for a reader and by counting the rows in
 production.
 
-**Recommended for removal.** Each is filed as its own issue, because dropping a column
+**Recommended for removal**, as [#1042](https://github.com/alethical-org/alethical/issues/1042). Filed rather than done here, because dropping a column
 here has a real procedure to follow first — four production checks and one trap where a
 `NOT NULL` column breaks the running code before the migration lands. Nothing is dropped
 in the change that adds this document.
@@ -428,7 +440,7 @@ in the change that adds this document.
 | `chat_message.output_tokens` | nothing | nothing | unset on all 82 |
 
 **A different problem, not a dead column.** `user_account.is_active` is read by nothing,
-but it should not be dropped without a decision — it is the switch we would need the
+but it should not be dropped without a decision ([#1043](https://github.com/alethical-org/alethical/issues/1043)) — it is the switch we would need the
 first time we have to lock an account, and today it is a switch wired to nothing. Either
 wire it up at sign-in or remove it; leaving it is the worst of the three.
 
@@ -436,7 +448,7 @@ wire it up at sign-in or remove it; leaving it is the worst of the three.
 `auth_identity.last_used_at`, and `auth_identity.email_verified_at`. Unlike a latitude
 we could recompute from a live lookup, a timestamp cannot be reconstructed after the
 fact — once you did not write it down, it is gone. All three have obvious future
-readers: answering "when did this person last use the account," investigating abuse, and
+readers: answering "when did this person last use the account" (once [#1045](https://github.com/alethical-org/alethical/issues/1045) makes that true), investigating abuse, and
 knowing whether an address was ever confirmed. They keep the account's retention period.
 The naming problem in §2.1 is a separate fix.
 
