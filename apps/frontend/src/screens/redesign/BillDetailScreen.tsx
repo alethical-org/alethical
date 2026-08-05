@@ -1271,7 +1271,7 @@ function JumpChip({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: active }}
+      aria-current={active ? 'location' : undefined}
       onPress={onPress}
       {...hover}
       style={[styles.jumpChip, active ? styles.jumpChipActive : hovered && styles.jumpChipHover]}
@@ -1626,7 +1626,7 @@ function MobileVotesSection({
         <View style={styles.howTo}>
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ expanded: howToOpen }}
+            aria-expanded={howToOpen}
             onPress={() => setHowToOpen((v) => !v)}
             style={styles.howToHead}
           >
@@ -1722,7 +1722,7 @@ function MobileRollCard({
     <View style={styles.rollCard}>
       <Pressable
         accessibilityRole={hasMembers ? 'button' : undefined}
-        accessibilityState={hasMembers ? { expanded: open } : undefined}
+        aria-expanded={hasMembers ? open : undefined}
         accessibilityLabel={
           hasMembers
             ? `${chamberLabel} ${norm.title}. ${yes} yes, ${no} no, ${passed ? 'passed' : 'failed'}. ${open ? 'Hide' : 'Show'} member votes.`
@@ -1937,7 +1937,7 @@ function FilterSeg({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: active }}
+      aria-pressed={active}
       onPress={onPress}
       style={({ pressed }) => [
         styles.seg,

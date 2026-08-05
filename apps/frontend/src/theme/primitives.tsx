@@ -453,7 +453,7 @@ function NavDropdownTrigger({
     <View style={styles.navTriggerWrap} {...hoverRegionProps(onHoverOpen, onHoverClose)}>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
+        aria-expanded={open}
         onPress={onToggle}
         {...hoverProps}
         onLayout={(e) => setTriggerLayout(e.nativeEvent.layout)}

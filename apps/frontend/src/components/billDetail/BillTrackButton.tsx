@@ -135,7 +135,7 @@ export function BillTrackButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={tracked ? 'Untrack this bill' : 'Track this bill'}
-      accessibilityState={{ selected: tracked }}
+      aria-pressed={tracked}
       onPress={onPress}
       {...hover}
       style={[styles.btn, btnSize, hovered && styles.btnHover]}

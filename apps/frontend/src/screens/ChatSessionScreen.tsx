@@ -379,6 +379,7 @@ export function ChatSessionScreen({ route }: Props) {
                                     key={citation.id}
                                     accessibilityRole="button"
                                     accessibilityLabel={`Show citation ${index + 1}`}
+                                    aria-pressed={selected}
                                     onPress={() => setSelectedCitation(citation)}
                                     style={({ pressed }) => [
                                       styles.citationToggle,

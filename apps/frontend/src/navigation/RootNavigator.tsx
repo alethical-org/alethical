@@ -182,8 +182,8 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: RailRouteName }) {
             <Pressable
               key={route.name}
               {...(asLink ?? { onPress: route.navigate })}
-              accessibilityRole="tab"
-              accessibilityState={focused ? { selected: true } : {}}
+              accessibilityRole={asLink ? 'link' : 'button'}
+              aria-current={focused ? 'page' : undefined}
               style={({ pressed }) => [
                 styles.railItem,
                 focused && styles.railItemActive,
@@ -241,9 +241,9 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
           <Pressable
             key={route.key}
             {...(home ?? { onPress: navigateToTab })}
-            accessibilityRole="tab"
+            accessibilityRole={home ? 'link' : 'button'}
             accessibilityLabel={label}
-            accessibilityState={focused ? { selected: true } : {}}
+            aria-current={focused ? 'page' : undefined}
             style={({ pressed }) => [
               styles.mobileTabItem,
               focused && styles.mobileTabItemActive,
