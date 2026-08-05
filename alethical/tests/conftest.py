@@ -17,6 +17,21 @@ ROOT = Path(__file__).resolve().parents[2]
 # .env and normalizes the driver prefix, which reading os.environ here did not.
 DATABASE_URL = get_database_url()
 
+# Two signed-in people, not one, so tests can prove that one account never sees
+# the other's rows (#13). The real Supabase service hands back a distinct
+# provider_subject per account; these stand in for two of them. Keyed by the
+# bearer token a test sends, because that is all the fake has to go on.
+FAKE_AUTH_USERS: dict[str, dict[str, str]] = {
+    "test-supabase-token": {
+        "provider_subject": "supabase-user-ada",
+        "email": "ada@example.com",
+    },
+    "test-supabase-token-grace": {
+        "provider_subject": "supabase-user-grace",
+        "email": "grace@example.com",
+    },
+}
+
 
 def pytest_configure(config: pytest.Config) -> None:
     assert_local_database(DATABASE_URL, os.environ.get("ALETHICAL_DATABASE_TARGET"))
@@ -54,12 +69,13 @@ def client(seed_database: None) -> TestClient:
 
     class FakeSupabaseAuthService:
         def authenticate(self, bearer_token: str) -> AuthenticatedPrincipal:
-            if bearer_token != "test-supabase-token":
+            claims = FAKE_AUTH_USERS.get(bearer_token)
+            if claims is None:
                 raise ValueError("Invalid test token")
             return AuthenticatedPrincipal(
                 provider="supabase",
-                provider_subject="supabase-user-ada",
-                email="ada@example.com",
+                provider_subject=claims["provider_subject"],
+                email=claims["email"],
                 email_verified=True,
             )
 
@@ -103,6 +119,14 @@ def client(seed_database: None) -> TestClient:
 @pytest.fixture()
 def auth_headers() -> dict[str, str]:
     return {"Authorization": "Bearer test-supabase-token"}
+
+
+@pytest.fixture()
+def second_auth_headers() -> dict[str, str]:
+    """A second, unrelated signed-in person -- the other half of every isolation
+    test (#13). Same `client` fixture, different bearer token, so both users go
+    through the one app instance exactly as two browsers would."""
+    return {"Authorization": "Bearer test-supabase-token-grace"}
 
 
 TEST_INTERNAL_TOKEN = "test-internal-token"
