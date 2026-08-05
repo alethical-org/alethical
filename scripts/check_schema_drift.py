@@ -17,12 +17,14 @@ Two modes, both read-only against anything that matters:
     difference means someone changed ``models.py`` without writing the migration
     that carries the change to an existing database.
 
-``--mode production-vs-migrations`` (a person runs this, never CI)
+``--mode production-vs-migrations`` (the deploy workflow, or a person)
     Diff live production against a throwaway ``alembic upgrade head`` database, so
     "what production actually is" can be re-measured. Read-only: it opens
-    production with a plain ``SELECT`` connection and creates nothing there. CI has
-    no production credentials and must never have them, which is why this mode is
-    opt-in rather than the default.
+    production with a plain ``SELECT`` connection and creates nothing there. Runs
+    as its own job in ``.github/workflows/migrate.yml`` after that workflow
+    applies migrations to production, and files an issue if it finds anything.
+    **Not in ci.yml**: pull-request CI has no production credentials and must
+    never be given any, which is why this mode is opt-in rather than the default.
 
 Both modes share one snapshot function, so the two comparisons are the same
 comparison pointed at different databases.
