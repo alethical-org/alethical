@@ -674,7 +674,7 @@ Filters:
 
 Purpose:
 
-- find my legislator by address, city, or pinned map location
+- find my legislator by full street address or pinned map location
 
 Request body:
 

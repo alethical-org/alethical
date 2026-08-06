@@ -273,7 +273,7 @@ the published Privacy Policy.
 | Supabase | The same, plus it hosts the whole database | Always | Yes |
 | **OpenAI** | **The reader's question, word for word** | Every Ask, every chat message | **No** |
 | **Anthropic** | **The reader's question, word for word** | Every chat message, when configured to Claude | **No** |
-| **US Census Bureau** | **The address as typed** | Every Find My Legislator search | **No** |
+| **US Census Bureau** | **The full street address, with surrounding spaces removed** | Every Find My Legislator address search | **No** |
 | **Minnesota GIS (`gis.lcc.mn.gov`)** | Latitude and longitude | Every Find My Legislator search | **No** |
 | Vercel | Hosts the web app, so its request logs see every page address (§7) | Every page load | No, and it should be |
 | Cloudflare | Sits in front of the API | Every API call | No, and it should be |

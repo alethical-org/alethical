@@ -296,21 +296,13 @@ Frontend track (after Phase 0; parallel with backend track)
 - [ ] Option 1 marketing hero: green primitives, placeholder copy, example-question chips, interim Ask → sign-in
 - [x] Find My Legislator Option C band + MN map — shipped; Find wired to the lookup and
       the screen's URL made shareable (#873, #764)
-- [ ] **Find My Legislator screen itself — still pre-redesign, and now the only reachable
-      screen that is.** The home band above sends real traffic to `/find-my-legislator`,
-      which still renders the old grey `ScreenView` + monospace field + generic drag-pin
-      map. Design brief written and grounded against the live payload:
-      `docs/mockups/find-my-legislator/NEXT-find-my-legislator-design-prompt.md` (8 states,
-      desktop + phone). Two capability facts settled while writing it: the MN GIS call we
-      already make returns the **real district boundary polygons** (currently discarded, so
-      the map can draw the true outline), and free keyless address typeahead over Minnesota
-      street addresses is available from `photon.komoot.io` (OpenStreetMap), which settles
-      the "how" on [#53](https://github.com/alethical-org/alethical/issues/53). Serving the
-      design also needs committees + represented city added to the two legislator payloads
-      in `/representative-lookups` (both already held; additive). Design folds in #53 and
-      [#882](https://github.com/alethical-org/alethical/issues/882) rather than patching
-      them separately. Saving an address stays out — never built
-      (`docs/product-onboarding/user-data-retention-policy.md` §2.3).
+- [x] **Find My Legislator screen redesign:** the full page now carries the accepted desktop
+      and phone layouts, address choices, browser location, real district boundaries,
+      representative details, all lookup failures, and a shareable address-only URL. The
+      homepage band is an entry point only and uses the same full-address and temporary
+      location handoff. Coordinates, location failures, and focus requests are never stored
+      in the URL. Saving an address stays out (`docs/product-onboarding/user-data-retention-policy.md`
+      §2.3).
 - [x] Search split → `SearchBillsScreen` + `SearchLegislatorsScreen` + shared filter hook —
   shipped, and the legacy combined `SearchScreen` retired (#313); driven by the 2026-07-15
   design-review decisions (Locked decisions above). Follow-ups tracked separately:
