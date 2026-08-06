@@ -29,6 +29,7 @@ import {
   formatAuthorDistrict,
   isKnownDistrict,
   latestActionEntry,
+  partyFull,
   plainBillSummary,
   plainKeyPoints,
   POINTER_CAPTION,
@@ -36,6 +37,13 @@ import {
   titleSegments,
 } from '../billDetail';
 import { BillAction, BillSponsor, BillVersion, Citation } from '../../data/types';
+
+describe('partyFull', () => {
+  it('spells out the party codes used by legislator records', () => {
+    expect(partyFull('DFL')).toBe('Democratic-Farmer-Labor');
+    expect(partyFull('R')).toBe('Republican');
+  });
+});
 
 describe('plainBillSummary drops what is scaffolding', () => {
   it('drops a leading amendatory clause', () => {

@@ -3,6 +3,7 @@ import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 
 import { Legislator } from '../../data/types';
 import { usePrefetchLegislator } from '../../hooks/useAppQueries';
+import { partyFull } from '../../lib/billDetail';
 import { billAuthorshipLabel } from '../../lib/legislatorSearch';
 import { linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
@@ -119,7 +120,7 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
           <View style={styles.nameRow}>
             <Text style={styles.name}>{legislator.name}</Text>
             <View style={styles.partyChip}>
-              <Text style={styles.partyText}>{legislator.party}</Text>
+              <Text style={styles.partyText}>{partyFull(legislator.party)}</Text>
             </View>
           </View>
           <Text style={styles.subMeta}>
