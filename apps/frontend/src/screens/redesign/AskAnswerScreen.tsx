@@ -756,6 +756,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                       label={section.label}
                       sectionTopic={section.sectionTopic}
                       excerpts={section.excerpts}
+                      variant="answer"
                       accessibilityLabel={
                         target === 'official'
                           ? `Open the official source for ${section.chipLabel}`
