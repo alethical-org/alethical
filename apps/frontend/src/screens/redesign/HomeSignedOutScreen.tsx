@@ -549,7 +549,7 @@ export function HomeSignedOutScreen() {
 function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
   const { isTracked, toggleTrack } = useBillTracking();
-  const { isDesktop, isMobile } = useResponsive();
+  const { isDesktop } = useResponsive();
   // ONE homepage, not two (#1034). Only the hero region branches on auth;
   // everything below it — Bills Moving, Find My Legislator, the footer, the nav —
   // is identical either way, so signing in never takes a capability away.
@@ -721,14 +721,11 @@ function HomeSignedOutDesktop() {
                   ) : (
                     <>
                       <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                      <Text
-                        accessibilityRole="header"
-                        style={[styles.heroH1, !isDesktop && styles.heroH1Mobile]}
-                      >
+                      <Text accessibilityRole="header" style={styles.heroH1}>
                         Grounded answers{'\n'}
                         <Text style={styles.heroH1Green}>on Minnesota law</Text>
                       </Text>
-                      <Text style={[styles.heroSubhead, !isDesktop && styles.heroSubheadMobile]}>
+                      <Text style={styles.heroSubhead}>
                         We read every bill so you don’t have to — what it says, where it stands, and
                         how legislators voted. Plain language, with every claim linked to the
                         official record.
@@ -783,10 +780,7 @@ function HomeSignedOutDesktop() {
             <Container>
               <Text style={styles.sectionEyebrow}>2025–26 LEGISLATIVE SESSION</Text>
               <View style={styles.billsHeadRow}>
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.billsH2, !isDesktop && styles.billsH2Mobile]}
-                >
+                <Text accessibilityRole="header" style={styles.billsH2}>
                   Bills Moving Through the Legislature
                 </Text>
               </View>
@@ -852,23 +846,18 @@ function HomeSignedOutDesktop() {
             <Container>
               <View style={[styles.finderGrid, isDesktop && styles.finderGridDesktop]}>
                 <View style={styles.finderLeft}>
-                  <Text
-                    accessibilityRole="header"
-                    style={[styles.finderH2, !isDesktop && styles.finderH2Mobile]}
-                  >
+                  <Text accessibilityRole="header" style={styles.finderH2}>
                     Find My Legislator
                   </Text>
                   <Text style={styles.finderSub}>
                     Find who represents you — their profile, committees, and the bills they’ve
                     authored.
                   </Text>
-                  {/* Find field. Mobile stacks a full-width Find button below the field
-                      (matching the Ask hero); desktop keeps the Find button inline. */}
-                  <View style={[styles.finderFieldWrap, isMobile && styles.askFieldMobile]}>
-                    <FieldShell
-                      focused={finderFocused}
-                      style={isMobile ? styles.finderShellMobileInner : styles.finderShellInner}
-                    >
+                  {/* Find field, with the Find button inline. The narrow-width variant
+                      lives in HomeSignedOutMobile, which is the component that renders
+                      below 1100px — this one never does (#1076). */}
+                  <View style={styles.finderFieldWrap}>
+                    <FieldShell focused={finderFocused} style={styles.finderShellInner}>
                       <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
                       <TextInput
                         ref={finderInputRef}
@@ -882,17 +871,8 @@ function HomeSignedOutDesktop() {
                         placeholderTextColor={t.colors.text.faint}
                         style={styles.finderInput}
                       />
-                      {!isMobile && <PrimaryButton label="Find" onPress={openFinder} />}
+                      <PrimaryButton label="Find" onPress={openFinder} />
                     </FieldShell>
-                    {isMobile && (
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={openFinder}
-                        style={styles.askButtonMobile}
-                      >
-                        <Text style={styles.askButtonText}>Find</Text>
-                      </Pressable>
-                    )}
                   </View>
                 </View>
                 {isDesktop ? (
@@ -1980,7 +1960,6 @@ const styles = StyleSheet.create({
     letterSpacing: -1.4,
     color: t.colors.text.primary,
   },
-  heroH1Mobile: { fontSize: 44, lineHeight: 44, letterSpacing: -0.9 },
   heroH1Green: { color: t.colors.brand.deep },
   heroSubhead: {
     marginTop: 36,
@@ -2009,7 +1988,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.76,
     color: theme.colors.text.primary,
   },
-  heroSubheadMobile: { marginTop: 28, fontSize: 22, lineHeight: 33 },
   fieldShell: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2057,21 +2035,6 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: t.fontWeights.regular,
     color: t.colors.brand.deep,
-  },
-  askButtonText: {
-    fontFamily: t.typography.ui,
-    fontSize: 20,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.darkest,
-  },
-  // Mobile: field row + full-width Ask/Find button stacked in a column (Find field).
-  askFieldMobile: { gap: 12 },
-  askButtonMobile: {
-    backgroundColor: t.colors.brand.base,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
@@ -2249,7 +2212,6 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     color: t.colors.text.primary,
   },
-  finderH2Mobile: { fontSize: 40, lineHeight: 42 },
   finderSub: {
     marginTop: 22,
     fontFamily: t.typography.body,
@@ -2264,7 +2226,6 @@ const styles = StyleSheet.create({
   finderShellInner: { paddingLeft: 24 },
   // Mobile: balance right padding now that the inline Find button is gone (the default
   // fieldShell paddingRight of 6 assumes an inline trailing button).
-  finderShellMobileInner: { paddingLeft: 24, paddingRight: 24 },
   finderInput: {
     flex: 1,
     minWidth: 0,
@@ -2300,7 +2261,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     flexShrink: 1,
   },
-  billsH2Mobile: { fontSize: 32, lineHeight: 36 },
   billGroups: { marginTop: 30, gap: 40 },
   billGroupLabel: {
     fontFamily: t.typography.ui,
