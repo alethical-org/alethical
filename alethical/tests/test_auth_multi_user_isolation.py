@@ -97,6 +97,33 @@ def _client_for(subject: str, email: str | None, *, email_verified: bool = True)
     return TestClient(app)
 
 
+def _client_that_can_confirm_its_email(subject: str, email: str):
+    """A TestClient whose principal starts unconfirmed and can be flipped later.
+
+    Returns the client and a callable that switches the principal to confirmed,
+    so one test can walk the sequence that matters: provision while the address
+    is unproven, then come back once the provider reports it confirmed.
+    """
+    state = {"email_verified": False}
+
+    class FakeAuthService:
+        def authenticate(self, bearer_token: str) -> AuthenticatedPrincipal:
+            return AuthenticatedPrincipal(
+                provider="supabase",
+                provider_subject=subject,
+                email=email,
+                email_verified=state["email_verified"],
+            )
+
+    app = create_app()
+    app.dependency_overrides[get_auth_service] = lambda: FakeAuthService()
+
+    def confirm_the_email() -> None:
+        state["email_verified"] = True
+
+    return TestClient(app), confirm_the_email
+
+
 ANY_TOKEN = {"Authorization": "Bearer any"}
 
 
@@ -167,8 +194,8 @@ def test_a_second_identity_with_the_same_verified_email_joins_the_existing_accou
     where two identities can reach the same tracked bills -- so it is worth a
     test that fails loudly if the lookup is ever widened or removed.
 
-    The match does NOT currently consult ``principal.email_verified``; see
-    the unverified-email case below and #1039.
+    The match consults ``principal.email_verified`` as well as the address; see
+    the unconfirmed-email cases below and #1039.
     """
     first_subject = "supabase-user-shared-email-a-13"
     second_subject = "supabase-user-shared-email-b-13"
@@ -194,44 +221,128 @@ def test_a_second_identity_with_the_same_verified_email_joins_the_existing_accou
     _delete_accounts(first_subject, second_subject)
 
 
-def test_an_unverified_email_currently_joins_an_existing_account():
-    """Documents today's behaviour, which is looser than the field it ignores.
+def test_an_unconfirmed_email_gets_its_own_account_instead_of_joining():
+    """The guard, facing forwards: an unproven address reaches nobody's account.
 
-    The provisioning lookup matches on ``primary_email`` alone, so an identity
-    whose email the provider has NOT confirmed still lands on the existing
-    account and inherits its tracked bills. Whether a token can reach this path
-    at all depends on a Supabase project setting (whether unconfirmed accounts
-    may sign in) that this repository neither controls nor records, so the risk
-    is real but unquantified from here.
+    Joining on email is what lets one person with two sign-in methods keep one
+    account, and the address is the only thing the join trusts -- so an address
+    the provider never confirmed must not be able to present it. Before #1039 it
+    could: this same sequence landed the unconfirmed identity on the established
+    account, with its tracked bills, chat sessions and saved places.
 
-    Left as-is deliberately: tightening it changes who can reach an existing
-    account on a live auth path, which is a separate, scoped change (#1039).
-    Flip this assertion when that ships.
+    It gets a new account rather than a refusal on purpose. A refusal punishes a
+    real person for provider state they can neither see nor fix and leaves them
+    nowhere to go; a separate account is recoverable, because two accounts can be
+    merged later and a dead end cannot be undone.
     """
-    verified_subject = "supabase-user-unverified-email-a-13"
-    unverified_subject = "supabase-user-unverified-email-b-13"
+    established_subject = "supabase-user-unverified-email-a-13"
+    unconfirmed_subject = "supabase-user-unverified-email-b-13"
     shared_email = "unverified-email-13@example.com"
-    _delete_accounts(verified_subject, unverified_subject)
+    _delete_accounts(established_subject, unconfirmed_subject)
 
-    established = _me(_client_for(verified_subject, shared_email), ANY_TOKEN)
-    unverified = _me(
-        _client_for(unverified_subject, shared_email, email_verified=False), ANY_TOKEN
+    established = _me(_client_for(established_subject, shared_email), ANY_TOKEN)
+    unconfirmed = _me(
+        _client_for(unconfirmed_subject, shared_email, email_verified=False), ANY_TOKEN
     )
 
-    assert unverified["id"] == established["id"]
+    assert unconfirmed["id"] != established["id"], (
+        "an identity whose address nobody confirmed must not land on the "
+        "account that address belongs to"
+    )
+    assert established["primary_email"] == shared_email
+    assert unconfirmed["primary_email"] is None, (
+        "primary_email is the key the join reads, so an unconfirmed address "
+        "must not be written there either"
+    )
 
     with Session(get_engine()) as db:
         identity = db.scalar(
             select(AuthIdentity).where(
-                AuthIdentity.provider_subject == unverified_subject
+                AuthIdentity.provider_subject == unconfirmed_subject
             )
         )
-        assert identity.email_verified_at is None, (
-            "the identity is recorded as unverified even though it joined the "
-            "account -- the join simply does not read that field"
+        assert identity.email == shared_email, (
+            "the address the provider claimed is still recorded on the identity "
+            "row, which is not unique and grants nothing"
+        )
+        assert identity.email_verified_at is None
+
+    _delete_accounts(established_subject, unconfirmed_subject)
+
+
+def test_an_unconfirmed_email_cannot_reserve_an_address_for_a_later_sign_in():
+    """The same guard facing backwards, which is the half easy to miss.
+
+    Blocking the join alone would leave the hole open in the other direction: an
+    unconfirmed identity arriving *first* would claim ``primary_email``, and the
+    person who genuinely owns the address would then join the squatter's account
+    when they signed in. So an unconfirmed address is never written to that
+    column, and the confirmed sign-in that follows gets its own account and the
+    address with it.
+    """
+    squatter_subject = "supabase-user-unconfirmed-first-a-1039"
+    owner_subject = "supabase-user-unconfirmed-first-b-1039"
+    contested_email = "unconfirmed-first-1039@example.com"
+    _delete_accounts(squatter_subject, owner_subject)
+
+    squatter = _me(
+        _client_for(squatter_subject, contested_email, email_verified=False), ANY_TOKEN
+    )
+    owner = _me(_client_for(owner_subject, contested_email), ANY_TOKEN)
+
+    assert owner["id"] != squatter["id"], (
+        "signing in first with an unconfirmed address must not reserve it"
+    )
+    assert squatter["primary_email"] is None
+    assert owner["primary_email"] == contested_email
+
+    _delete_accounts(squatter_subject, owner_subject)
+
+
+def test_an_account_does_not_claim_an_address_another_account_already_holds():
+    """Confirming later must not 500 the read path (#1039).
+
+    An account provisioned from an unconfirmed sign-in has no ``primary_email``,
+    so the reconcile step will try to claim the address the moment the provider
+    starts reporting it confirmed. ``user_account.primary_email`` is unique, so
+    an unguarded claim would raise on commit and turn every authenticated read
+    for that person into a 500. The address stays unclaimed instead; the two
+    accounts are not merged here.
+    """
+    holder_subject = "supabase-user-late-confirm-a-1039"
+    late_subject = "supabase-user-late-confirm-b-1039"
+    contested_email = "late-confirm-1039@example.com"
+    _delete_accounts(holder_subject, late_subject)
+
+    holder = _me(_client_for(holder_subject, contested_email), ANY_TOKEN)
+    late_client, confirm_the_email = _client_that_can_confirm_its_email(
+        late_subject, contested_email
+    )
+    late = _me(late_client, ANY_TOKEN)
+    assert late["id"] != holder["id"]
+
+    confirm_the_email()
+    reread = _me(late_client, ANY_TOKEN)
+
+    assert reread["id"] == late["id"], "the person stays in their own account"
+    assert reread["primary_email"] is None, (
+        "the address is already held, so it stays unclaimed rather than raising"
+    )
+    with Session(get_engine()) as db:
+        identity = db.scalar(
+            select(AuthIdentity).where(AuthIdentity.provider_subject == late_subject)
+        )
+        assert identity.email_verified_at is not None, (
+            "the confirmation itself is still recorded on the identity row"
+        )
+        holder_row = db.scalar(
+            select(UserAccount).where(UserAccount.id == holder["id"])
+        )
+        assert str(holder_row.primary_email) == contested_email, (
+            "the account that does hold the address keeps it"
         )
 
-    _delete_accounts(verified_subject, unverified_subject)
+    _delete_accounts(holder_subject, late_subject)
 
 
 def test_tracked_bills_are_visible_only_to_their_owner(

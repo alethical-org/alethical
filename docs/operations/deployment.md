@@ -100,6 +100,39 @@ http://127.0.0.1:19006/**
 alethical://auth/callback
 ```
 
+## Can an unconfirmed account sign in?
+
+**Status: unanswered as of 5 August 2026.** Nobody has looked, and the answer cannot be
+read from this repository — it is a Supabase project setting, and the code has no view of
+it. Whoever checks it should replace this paragraph with the answer and the date.
+
+**Why it is worth knowing.** The backend joins a new sign-in to an existing account when
+the email addresses match, which is how one person with two sign-in methods keeps one
+account. Since [#1039](https://github.com/alethical-org/alethical/issues/1039) that join
+requires the sign-in service to have *confirmed* the address, so an unconfirmed one now
+gets its own separate account instead. That guard is in place either way. This setting
+only decides how often it has anything to do: if unconfirmed accounts cannot get in at
+all, it never fires; if they can, it is the thing standing between a stranger and someone
+else's tracked bills and typed questions.
+
+**How to check it** (Supabase dashboard, project `naakzorbkqqgbsreulqi`):
+
+1. Open [supabase.com/dashboard](https://supabase.com/dashboard) and pick the Alethical project.
+2. In the left sidebar click **Authentication**.
+3. Click **Sign In / Providers**.
+4. Look at the **Email** provider. Note whether it is **enabled** at all — if it is off,
+   nobody can create an email-and-password account and the question is moot.
+5. If it is enabled, open it and note whether **Confirm email** is on or off.
+6. Still under Authentication, open **Emails** (or **Email Templates**) and note whether
+   anything there turns confirmation off.
+
+**How to read what you find.** *Email provider off* means no unconfirmed account can
+exist, so the guard is pure insurance. *Email provider on with "Confirm email" on* means
+an unconfirmed sign-up is blocked at Supabase and never reaches us. *Email provider on
+with "Confirm email" off* is the one that matters: Supabase marks every new sign-up
+confirmed without checking, so an address nobody proved arrives looking proven, and the
+guard cannot tell the difference. In that last case turn confirmation on.
+
 ## iOS Builds
 
 > **Not shipped.** The web app is the client that ships today (see `docs/product-onboarding/product-scope.md` § Frontend Scope).

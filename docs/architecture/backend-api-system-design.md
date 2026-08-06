@@ -331,8 +331,8 @@ and pinned by `alethical/tests/test_auth_multi_user_isolation.py`,
   ([#108](https://github.com/alethical-org/alethical/issues/108)); both columns are
   now written at provisioning only.
 - **Provisioning** — first sign-in for that identity. Look for an existing
-  `user_account` whose `primary_email` equals the principal's email; create one if
-  there is none; then create the `auth_identity` and commit once.
+  `user_account` whose `primary_email` equals the principal's **confirmed** email;
+  create one if there is none; then create the `auth_identity` and commit once.
 
 **The email lookup is deliberate.** One person who signs in with Google today and a
 second method tomorrow gets two `auth_identity` rows on the *same* `user_account`,
@@ -341,16 +341,50 @@ rather than silently starting over with an empty one — which is the whole reas
 is `unique=True`, so at most one account can hold a given address and the lookup
 cannot pick the wrong one of two.
 
-**Its one open question:** the lookup reads `principal.email` and does *not* consult
-`principal.email_verified`, so an identity whose address the provider never confirmed
-would still join the existing account. Google always confirms, and whether an
+**Only a confirmed address may take part in it**
+([#1039](https://github.com/alethical-org/alethical/issues/1039), Aug 5 2026). The
+address is the *only* thing the join trusts, so `_confirmed_email` gates both halves of
+it, and the second half is the one easy to miss:
+
+- **Matching.** The lookup runs only when `principal.email_verified` is true. An
+  identity whose address the provider never confirmed cannot present it to reach an
+  existing account and its tracked bills, chat sessions and saved places.
+- **Claiming.** `primary_email` is never *written* from an unconfirmed address either
+  — not at provisioning, not by `_reconcile_identity_fields`. Guarding only the match
+  leaves the same hole facing backwards: an unconfirmed identity arriving first would
+  reserve the address, and the person who genuinely owns it would join *their* account
+  on arrival. So an account provisioned from an unconfirmed sign-in has
+  `primary_email = NULL`; the claimed address is still recorded on `auth_identity.email`,
+  which is not unique and grants nothing.
+
+**An unconfirmed sign-in gets its own new account, not a refusal.** A refusal punishes a
+real person for provider state they can neither see nor fix and leaves them nowhere to
+go; a separate account is recoverable, because two accounts can be merged later and a
+dead end cannot be undone. There is no merge tooling today — an account-merge flow is the
+follow-on this decision implies, not something it delivers.
+
+**Confirming later does not merge, and must not 500.** Once an account exists with
+`primary_email = NULL`, `_reconcile_identity_fields` will try to claim the address the
+moment the provider starts reporting it confirmed. The column is unique, so an unguarded
+claim would raise on commit and turn every authenticated read for that person into a 500.
+It therefore skips the claim when another account already holds the address; the person
+stays in their own account and the address stays unclaimed.
+
+**`email_verified` means a confirmed email and nothing else.** It used to be set from
+`email_confirmed_at` **or** `phone_confirmed_at`, so a phone-verified account with an
+unconfirmed address arrived claiming the address was proven — and that flag is precisely
+what now decides whether an identity may join an existing account. It reads
+`email_confirmed_at` alone.
+
+**Still outstanding, and it bounds the guard rather than merely sizing it.** Whether an
 unconfirmed account can obtain a token at all is a Supabase project setting this
-repository neither controls nor records — so the exposure is real in shape and
-unquantified in size. Decision tracked in
-[#1039](https://github.com/alethical-org/alethical/issues/1039), with the current
-behaviour pinned by a test so a change has to be deliberate. Related: `email_verified`
-is set from `email_confirmed_at` **or** `phone_confirmed_at`, so a phone-verified
-account reads as having a verified email.
+repository neither controls nor records. Two of the three possible answers make the guard
+insurance that never fires. The third defeats it: with Supabase's **Confirm email** turned
+*off*, every new sign-up is marked confirmed without anything being checked, so
+`email_confirmed_at` arrives set on an address nobody proved and `email_verified` cannot
+tell the difference. **A guard on a claim is only as good as whoever issues the claim.**
+The setting has not been read — steps and how to read the result are in
+`docs/operations/deployment.md` § "Can an unconfirmed account sign in?".
 
 Public endpoints:
 
