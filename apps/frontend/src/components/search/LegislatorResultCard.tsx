@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Legislator } from '../../data/types';
 import { usePrefetchLegislator } from '../../hooks/useAppQueries';
@@ -14,7 +14,15 @@ const isWeb = Platform.OS === 'web';
 
 type LegislatorCardData = Pick<
   Legislator,
-  'id' | 'slug' | 'name' | 'chamber' | 'district' | 'party' | 'committees' | 'focusAreas'
+  | 'id'
+  | 'slug'
+  | 'name'
+  | 'chamber'
+  | 'district'
+  | 'party'
+  | 'committees'
+  | 'focusAreas'
+  | 'photoUrl'
 > & { authoredCount?: number };
 
 interface LegislatorResultCardProps {
@@ -46,6 +54,10 @@ function authoredCount(data: LegislatorCardData): number {
 
 export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCardProps) {
   const [hovered, setHovered] = useState(false);
+  // Fall back to initials when the portrait 404s, not just when the record has no
+  // URL — the photos are hosted on lrl.mn.gov, so a member's file can disappear
+  // without our record changing. Same treatment as the profile hero's Portrait.
+  const [photoFailed, setPhotoFailed] = useState(false);
   const prefetchLegislator = usePrefetchLegislator();
   // Warm the profile cache on navigation intent so the profile opens without its
   // "Loading legislator…" spinner.
@@ -70,7 +82,20 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
     >
       <View style={styles.topRow}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials(legislator.name)}</Text>
+          {legislator.photoUrl && !photoFailed ? (
+            // Decorative: the name is already text beside it, so labelling the
+            // portrait would make a screen reader read the name twice inside
+            // this one link.
+            <Image
+              aria-hidden
+              source={{ uri: legislator.photoUrl }}
+              resizeMode="cover"
+              onError={() => setPhotoFailed(true)}
+              style={styles.avatarPhoto}
+            />
+          ) : (
+            <Text style={styles.avatarText}>{initials(legislator.name)}</Text>
+          )}
         </View>
         <View style={styles.info}>
           <View style={styles.nameRow}>
@@ -138,7 +163,10 @@ const styles = StyleSheet.create({
     borderColor: t.colors.tint.border,
     alignItems: 'center',
     justifyContent: 'center',
+    // Clips the portrait to the circle.
+    overflow: 'hidden',
   },
+  avatarPhoto: { width: '100%', height: '100%' },
   avatarText: {
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.subhead,
