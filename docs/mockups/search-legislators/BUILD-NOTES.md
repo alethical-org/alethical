@@ -28,15 +28,16 @@ design-review decisions (2026-07-15)".
 - **Authored count** was 0 for everyone (attribution bug); fixed by
   [#291](https://github.com/alethical-org/alethical/issues/291) / PR #299 — the activity
   line depends on that landing to show real numbers.
-- **Committee-name chips + "DFL" party label** need the list API additions in
+- **Committee-name chips + the stored party code** needed the list API additions in
   [#296](https://github.com/alethical-org/alethical/issues/296) (sequenced after #291).
   Until #296, show what the list serves today (committee count; party via existing
-  mapping) and swap to named chips + "DFL" when #296 lands.
+  mapping) and swap to named chips + the real party code when #296 lands. The shipped
+  card now turns that stored code into "Democratic-Farmer-Labor" or "Republican".
 
 ## Invariants
 
-- Party displayed **neutrally** (no partisan color) — grounded-answers rule 3;
-  MN terminology (author/co-author, DFL).
+- Party displayed **neutrally** and spelled out (no partisan color) —
+  "Democratic-Farmer-Labor" / "Republican".
 - Tokens + primitives: `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx`.
 - Shared nav/footer = reuse the app's components (`TopNav`).
 - ~~Legislator avatars use **initials**, not photos.~~ **Superseded (2026-08-05).** The
