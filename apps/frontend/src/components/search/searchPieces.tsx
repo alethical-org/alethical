@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -19,6 +20,11 @@ import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fi
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { useResponsive } from '../../hooks/useResponsive';
 import { IaItem, MenuKey } from '../../navigation/ia';
+import {
+  LEGISLATOR_ROSTER_NOTE_TEXT,
+  LEGISLATOR_SEAT_SOURCE_TEXT,
+  LEGISLATOR_SEAT_SOURCE_URL,
+} from '../../lib/legislatorRosterHeader';
 import { useUnavailableControl } from '../billDetail/interactions';
 
 // Shared building blocks for the redesigned Search Bills / Search Legislators
@@ -298,11 +304,14 @@ export function ChamberSegmented({
   value,
   onChange,
   onHoverOption,
+  counts,
 }: {
   value: ChamberFilter;
   onChange: (value: ChamberFilter) => void;
   /** Fires on hover of a chamber option — used to prefetch its filtered list. */
   onHoverOption?: (value: ChamberFilter) => void;
+  /** Officeholder totals for a roster. Omit on pages whose chamber control has no counts. */
+  counts?: Record<ChamberFilter, number>;
 }) {
   return (
     <View style={styles.segmented}>
@@ -312,6 +321,7 @@ export function ChamberSegmented({
           <SegmentButton
             key={option}
             label={option}
+            count={counts?.[option]}
             active={active}
             onPress={() => onChange(option)}
             onHoverIn={onHoverOption ? () => onHoverOption(option) : undefined}
@@ -324,11 +334,13 @@ export function ChamberSegmented({
 
 function SegmentButton({
   label,
+  count,
   active,
   onPress,
   onHoverIn,
 }: {
   label: string;
+  count?: number;
   active: boolean;
   onPress: () => void;
   /** Fires the prefetch on hover (web) and touch-down (mobile — see onPressIn). */
@@ -360,6 +372,9 @@ function SegmentButton({
       >
         {label}
       </Text>
+      {typeof count === 'number' ? (
+        <Text style={[styles.segmentCount, active && styles.segmentCountActive]}>{count}</Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -665,6 +680,8 @@ export function ResultsHeader({
   sortControl,
   sortLabel,
   nativeID,
+  uniformDetails = false,
+  showRosterNote = false,
 }: {
   count: number;
   /** Singular unit noun ("bill"); pluralized unless the count is exactly 1. */
@@ -678,6 +695,10 @@ export function ResultsHeader({
   /** Scroll anchor for pagination (usePaginatedListScroll): a page change lands
    *  this count/sort row at the top of the viewport, first card just beneath it. */
   nativeID?: string;
+  /** Keep the noun and date in one 17px muted run, as used by Search Legislators. */
+  uniformDetails?: boolean;
+  /** Show the static seat clarification beneath a complete current roster count. */
+  showRosterNote?: boolean;
 }) {
   const { isMobile } = useResponsive();
   const asOf = formatAsOf(dataAsOf);
@@ -688,7 +709,7 @@ export function ResultsHeader({
       nativeID={nativeID}
       style={[styles.resultsHeader, isMobile && styles.resultsHeaderMobile]}
     >
-      <View style={styles.resultsHeaderMain}>
+      <View style={[styles.resultsHeaderMain, isMobile && styles.resultsHeaderMainMobile]}>
         <View style={[styles.resultsCountRow, isMobile && styles.resultsCountRowMobile]}>
           <Text style={[styles.resultsCount, isMobile && styles.resultsCountMobile]}>
             {count.toLocaleString('en-US')}
@@ -696,18 +717,52 @@ export function ResultsHeader({
           {/* The date is nested INSIDE the unit-noun span, one word space apart. A
               third flex child would inherit the row's gap and read as a double
               space; a middot or any other separator glyph is wrong here. */}
-          <Text style={[styles.resultsNoun, isMobile && styles.resultsNounMobile]}>
-            {asOf ? `${unit} ` : unit}
-            {asOf ? (
-              <Text style={[styles.resultsAsOf, isMobile && styles.resultsAsOfMobile]}>{asOf}</Text>
-            ) : null}
-          </Text>
+          {uniformDetails ? (
+            <Text style={styles.resultsNoun}>{asOf ? `${unit} ${asOf}` : unit}</Text>
+          ) : (
+            <Text style={[styles.resultsNoun, isMobile && styles.resultsNounMobile]}>
+              {asOf ? `${unit} ` : unit}
+              {asOf ? (
+                <Text style={[styles.resultsAsOf, isMobile && styles.resultsAsOfMobile]}>
+                  {asOf}
+                </Text>
+              ) : null}
+            </Text>
+          )}
         </View>
+        {showRosterNote ? <RosterCountNote /> : null}
       </View>
       {meta ? (
         <View style={[styles.resultsMetaRow, isMobile && styles.resultsMetaRowMobile]}>{meta}</View>
       ) : null}
     </View>
+  );
+}
+
+function RosterCountNote() {
+  const [hovered, hover] = useHover();
+  const sourceProps = isWeb
+    ? {
+        accessibilityRole: 'link' as const,
+        href: LEGISLATOR_SEAT_SOURCE_URL,
+        hrefAttrs: { target: '_blank' as const, rel: 'noopener' },
+      }
+    : {
+        accessibilityRole: 'link' as const,
+        onPress: () => void Linking.openURL(LEGISLATOR_SEAT_SOURCE_URL),
+      };
+
+  return (
+    <Text style={styles.rosterCountNote}>
+      <Text
+        {...sourceProps}
+        {...hover}
+        style={[styles.rosterCountNoteLink, hovered && styles.rosterCountNoteLinkHover]}
+      >
+        {LEGISLATOR_SEAT_SOURCE_TEXT}
+      </Text>{' '}
+      {LEGISLATOR_ROSTER_NOTE_TEXT}
+    </Text>
   );
 }
 
@@ -1368,6 +1423,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   segmentBtn: {
+    flexDirection: 'row',
+    gap: 8,
     borderRadius: 9,
     paddingVertical: 9,
     paddingHorizontal: 20,
@@ -1383,6 +1440,13 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   segmentTextActive: { color: t.colors.white, fontWeight: t.fontWeights.bold },
+  segmentCount: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    fontWeight: t.fontWeights.semibold,
+    color: '#6f756f',
+  },
+  segmentCountActive: { color: 'rgba(255,255,255,0.55)' },
 
   // dropdown — wrapper z-index:40 + menu (absolute) z-index:1, the shared recipe
   // every dropdown/menu on this screen uses so it opens in front of the content
@@ -1561,7 +1625,8 @@ const styles = StyleSheet.create({
     flexWrap: 'nowrap',
     gap: 18,
   },
-  resultsHeaderMain: { minWidth: 0, flexShrink: 1 },
+  resultsHeaderMain: { minWidth: 0, flexShrink: 1, gap: 5 },
+  resultsHeaderMainMobile: { width: '100%' },
   // baseline + wrap so a narrow phone drops the trailing "as of {date}" onto its
   // own line instead of truncating it.
   resultsCountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' },
@@ -1590,6 +1655,16 @@ const styles = StyleSheet.create({
     color: '#6f756f',
   },
   resultsAsOfMobile: { fontSize: 15 },
+  rosterCountNote: {
+    width: '100%',
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 20.3,
+    color: '#6f756f',
+    ...(isWeb ? ({ textWrap: 'pretty' } as object) : null),
+  },
+  rosterCountNoteLink: { color: '#6f756f', textDecorationLine: 'underline' },
+  rosterCountNoteLinkHover: { color: '#0f7a45' },
   // flexShrink + maxWidth keep the sort control inside the viewport rather than
   // overflowing (and being clipped) off the right edge.
   resultsMetaRow: {

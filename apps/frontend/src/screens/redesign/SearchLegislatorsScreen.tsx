@@ -21,6 +21,10 @@ import {
   SearchPageShell,
 } from '../../components/search/searchPieces';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
+import {
+  deriveLegislatorRosterHeader,
+  type LegislatorPartyFilter,
+} from '../../lib/legislatorRosterHeader';
 import { Skeleton } from '../../components/Skeleton';
 
 // Placeholder cards shown while the first page of legislators loads.
@@ -31,12 +35,6 @@ const SKELETON_CARDS = [0, 1, 2, 3, 4, 5];
 // browsable 2-column card grid. No follow/track, no sign-in modal, no toast.
 
 const PAGE_SIZE = 12;
-
-type PartyFilter = 'All' | 'DFL' | 'R' | 'I';
-
-function matchesParty(filter: PartyFilter, stored: string): boolean {
-  return filter === 'All' || stored === filter;
-}
 
 export function SearchLegislatorsScreen() {
   const navigation = useNavigation<any>();
@@ -53,7 +51,7 @@ export function SearchLegislatorsScreen() {
   const query = typeof params.q === 'string' ? params.q : '';
   const chamber: ChamberFilter =
     params.chamber === 'House' || params.chamber === 'Senate' ? params.chamber : 'All';
-  const party: PartyFilter =
+  const party: LegislatorPartyFilter =
     params.party === 'DFL' || params.party === 'R' || params.party === 'I' ? params.party : 'All';
   const session = typeof params.session === 'string' ? params.session : '';
   const page = Math.max(1, Number.parseInt(String(params.page ?? ''), 10) || 1);
@@ -75,9 +73,9 @@ export function SearchLegislatorsScreen() {
   };
 
   const sessionsQuery = useSessions();
-  const currentSession =
-    sessionsQuery.data?.find((item) => item.isCurrent) ?? sessionsQuery.data?.[0];
-  const sessionSlug = session || currentSession?.slug || '';
+  const currentSession = sessionsQuery.data?.find((item) => item.isCurrent);
+  const defaultSession = currentSession ?? sessionsQuery.data?.[0];
+  const sessionSlug = session || defaultSession?.slug || '';
   const sessionName = sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name;
   const sessionLabel = sessionName ? formatSessionLabel(sessionName) : SESSION_LABEL_FALLBACK;
 
@@ -96,12 +94,16 @@ export function SearchLegislatorsScreen() {
   ];
   const partyLabel = partyOptions.find((option) => option.value === party)?.label ?? 'All parties';
 
-  const filtered = allLegislators
-    .filter(
-      (legislator) =>
-        (chamber === 'All' || legislator.chamber === chamber) &&
-        matchesParty(party, legislator.party),
-    )
+  const rosterHeader = deriveLegislatorRosterHeader(allLegislators, {
+    chamber,
+    party,
+    query,
+    queryInput,
+    sessionSlug,
+    currentSessionSlug: currentSession?.slug,
+    rosterLoaded: legislatorsQuery.isSuccess,
+  });
+  const filtered = rosterHeader.displayedOfficeholders
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -147,6 +149,7 @@ export function SearchLegislatorsScreen() {
     <View style={styles.filterRow}>
       <ChamberSegmented
         value={chamber}
+        counts={rosterHeader.chamberCounts}
         onChange={(value) => updateFilters({ chamber: value === 'All' ? undefined : value })}
       />
       <FilterDropdown
@@ -204,6 +207,8 @@ export function SearchLegislatorsScreen() {
         noun="legislator"
         sortLabel="Sorted by name (A–Z)"
         dataAsOf={metaQuery.data?.dataAsOf}
+        uniformDetails
+        showRosterNote={rosterHeader.unnarrowed}
       />
 
       {legislatorsQuery.isLoading ? (

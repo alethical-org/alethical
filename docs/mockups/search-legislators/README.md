@@ -24,8 +24,12 @@ results patterns; build them consistently. `<sc-for>`/`<sc-if>`/`{{ }}` = loop/i
   (pin icon → Find My Legislator), green "Search" button. Filter row: chamber segmented
   (**All · House · Senate**), "All parties" dropdown, **"94th Legislature (2025–2026) Regular
   Session"** dropdown. **No focus-area pill row.**
-- **Results header:** "**201 legislators**" (24px/800) + "**Sorted by name (A–Z)**" (sort
-  icon) + "AS OF MAR 21, 2026". (201 = Minnesota's 134 House + 67 Senate seats.)
+- **Results header:** the officeholder count from the returned roster (24px/800), followed by
+  the newest successful Alethical data-update date in the same 17px muted text. The selected
+  chamber's count and chamber buttons come from that same roster response. Below a complete,
+  current, unfiltered roster, a quiet linked note says Minnesota has 201 seats and that vacant
+  seats are not listed. Any search, filter, past session, partial load, or no-results state hides
+  the note.
 - **Layout: 2-column card grid** (`grid-template-columns:1fr 1fr; gap:18px`) — a people
   directory is more scannable as a grid.
 - **Legislator card** (white, 1px `rgba(17,21,15,0.08)`, radius 18, pad 24/26, shadow
@@ -52,6 +56,8 @@ results patterns; build them consistently. `<sc-for>`/`<sc-if>`/`{{ }}` = loop/i
 3. **Default sort = name (A–Z).**
 4. **Role = chamber title** ("State Senator" / "State Representative"), never a committee role.
 5. **Session label** always full: "94th Legislature (2025–2026) Regular Session".
+6. **Person counts come only from the roster response.** The seat total appears only in the
+   linked note and is never used as a person count or to calculate a vacancy count.
 
 ## Design tokens
 Same Alethical system as Search Bills (see that bundle for the full palette). Screen-specific:
