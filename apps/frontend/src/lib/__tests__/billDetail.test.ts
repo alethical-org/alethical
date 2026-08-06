@@ -14,15 +14,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  authorTitleLabel,
   bienniumEyebrow,
   billOverviewUrl,
   buildActionTimeline,
+  chiefAuthor,
   citationChipLabel,
   scopedChipQuery,
   completeStatusText,
   citationsBySection,
   completeDanglingTitle,
   crossReferenceTargets,
+  districtRowLabel,
+  formatAuthorDistrict,
+  isKnownDistrict,
   latestActionEntry,
   plainBillSummary,
   plainKeyPoints,
@@ -30,7 +35,7 @@ import {
   readDocumentLink,
   titleSegments,
 } from '../billDetail';
-import { BillAction, BillVersion, Citation } from '../../data/types';
+import { BillAction, BillSponsor, BillVersion, Citation } from '../../data/types';
 
 describe('plainBillSummary drops what is scaffolding', () => {
   it('drops a leading amendatory clause', () => {
@@ -1072,5 +1077,128 @@ describe('scopedChipQuery keeps a chip on its own bill', () => {
         '94th Legislature (2025) First Special Session',
       ),
     ).toBe('HF 5 in the first special session: What does it change?');
+  });
+});
+
+// The chief-author block on the bill page (#834). Two mechanisms keep it honest and
+// neither had a test, which is why a regression here would have been invisible:
+//
+// 1. `chiefAuthor` must pick THIS file's author. A companion-paired MN bill carries
+//    chief-author rows for BOTH chambers as its own sponsorships — 27 of 60 bills
+//    sampled from production do — each with `source_order: 1` and no tiebreak, so
+//    `find(role === 'chief_author')` alone is undefined between them.
+// 2. Every row is guarded, so a value we do not have HIDES its row rather than
+//    printing a label with nothing after it. #834 reported three empty labelled rows
+//    on SF 334; empty rows are the one outcome these guards must never produce.
+//
+// The fixture is the real production payload for 94-2025-SF334 (Senate file, companion
+// HF 744), mapped through `mapSponsor`, so the shape is the shipped one rather than an
+// invented one.
+const SF334_SPONSORS: BillSponsor[] = [
+  {
+    name: 'Senator Melissa H. Wiklund',
+    role: 'chief_author',
+    legislatorId: 'e792277d-18bb-482a-aa85-998277aaff29',
+    slug: 'melissa-h-wiklund',
+    chamber: 'Senate',
+    party: 'DFL',
+    district: 'District 51',
+    representedCity: 'Bloomington',
+  },
+  {
+    name: 'Paul Torkelson',
+    role: 'chief_author',
+    legislatorId: '6a56791d-8d41-4473-9a10-89b8492ed7de',
+    slug: 'paul-torkelson',
+    chamber: 'House',
+    party: 'R',
+    district: 'District 15B',
+    representedCity: 'Hanska',
+  },
+];
+
+describe('chiefAuthor picks this file’s author, not the companion’s', () => {
+  it('takes the Senate author on a Senate file', () => {
+    expect(chiefAuthor({ sponsors: SF334_SPONSORS, chamber: 'Senate' })?.name).toBe(
+      'Senator Melissa H. Wiklund',
+    );
+  });
+
+  it('takes the Senate author on a Senate file even when the House row comes first', () => {
+    // This case, not the one above, is what actually pins the chamber filter. Both
+    // rows carry `source_order: 1` with no tiebreak, so the served order between
+    // them is undefined — and in the production payload the Senate row happens to
+    // arrive first, which means the assertion above still passes if the filter is
+    // deleted. Reversing the fixture removes that coincidence. Confirmed by
+    // mutation: deleting the filter fails this and leaves the one above green.
+    const reversed = [...SF334_SPONSORS].reverse();
+    expect(chiefAuthor({ sponsors: reversed, chamber: 'Senate' })?.name).toBe(
+      'Senator Melissa H. Wiklund',
+    );
+  });
+
+  it('takes the House author when the same rows sit on a House file', () => {
+    expect(chiefAuthor({ sponsors: SF334_SPONSORS, chamber: 'House' })?.name).toBe(
+      'Paul Torkelson',
+    );
+  });
+
+  // No case for "the bill has no chamber". `chiefAuthor` guards for it
+  // (`bill.chamber ? … : []`), but `Bill['chamber']` is a required `Chamber` and all
+  // four callers pass it, so that branch is unreachable and TypeScript rejects a test
+  // that tries to reach it. Left as harmless defensiveness rather than removed here.
+
+  it('returns undefined when there are no sponsors at all, so the block can hide', () => {
+    expect(chiefAuthor({ sponsors: [], chamber: 'Senate' })).toBeUndefined();
+  });
+
+  it('still resolves an author when only the other chamber has rows', () => {
+    // A Senate file whose own-chamber rows are missing: the filter must not strip the
+    // list down to nothing and blank the block.
+    expect(chiefAuthor({ sponsors: [SF334_SPONSORS[1]], chamber: 'Senate' })?.name).toBe(
+      'Paul Torkelson',
+    );
+  });
+});
+
+describe('a missing author value hides its row instead of printing an empty one (#834)', () => {
+  it('treats the two placeholder districts as unknown', () => {
+    expect(isKnownDistrict('S-unknown')).toBe(false);
+    expect(isKnownDistrict('*-unknown')).toBe(false);
+  });
+
+  it('treats an absent or blank district as unknown', () => {
+    expect(isKnownDistrict(undefined)).toBe(false);
+    expect(isKnownDistrict('')).toBe(false);
+  });
+
+  it('accepts a real district, so the row is not hidden when we do have it', () => {
+    expect(isKnownDistrict('District 51')).toBe(true);
+    expect(isKnownDistrict('District 15B')).toBe(true);
+  });
+});
+
+describe('author row labels never claim a chamber the record does not have', () => {
+  it('names the office when the chamber is known', () => {
+    expect(authorTitleLabel('Senate')).toBe('Senator');
+    expect(authorTitleLabel('House')).toBe('Representative');
+    expect(districtRowLabel('Senate')).toBe('Senate District');
+    expect(districtRowLabel('House')).toBe('House District');
+  });
+
+  it('stays neutral when the chamber is unknown, rather than guessing one', () => {
+    expect(authorTitleLabel(undefined)).toBe('Author');
+    expect(districtRowLabel(undefined)).toBe('District');
+  });
+});
+
+describe('formatAuthorDistrict', () => {
+  it('reads city then bare code when the city is ingested', () => {
+    expect(formatAuthorDistrict('District 51', 'Bloomington')).toBe('Bloomington (51)');
+    expect(formatAuthorDistrict('District 15B', 'Hanska')).toBe('Hanska (15B)');
+  });
+
+  it('shows the code alone rather than guessing a city', () => {
+    expect(formatAuthorDistrict('District 51', undefined)).toBe('51');
   });
 });
