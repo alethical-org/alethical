@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -73,31 +73,40 @@ def _reconcile_identity_fields(db: Session, user, identity, principal) -> bool:
     return changed
 
 
-def _refuse_if_deactivated(user) -> None:
-    """Stop a deactivated account being used, on every path that resolves one.
+def _mark_deactivated(request: Request) -> None:
+    """Record that this request's token belongs to a locked account, and go on.
 
     ``user_account.is_active`` existed from the first migration and nothing read
     it, so it was a switch that looked like a lock and was not one (#1043). It is
-    honoured here rather than per-router so there is one place to read and no
+    read here rather than per-router, so there is one place to change and no
     endpoint can be added that forgets.
 
-    Deliberately a hard refusal even on the endpoints that take a token
-    *optionally*, rather than quietly falling back to treating the request as
-    signed-out. Silently anonymous means the caller can never tell "signed out"
-    from "locked out" -- the same class of silent failure this column already
-    was. It costs a locked-out reader nothing real: every optional-auth endpoint
-    is public, so the same pages are there without a token at all.
+    **A locked account resolves to anonymous, it does not error.** Three of the
+    call sites take a token only to personalise an otherwise public page
+    (``alethical/api/routers/public.py`` bill list and bill detail,
+    ``alethical/api/routers/ask.py``). Erroring there would lock someone out of
+    the *public legislative record* because their account is locked, and public
+    legibility of that record is what this product is for (``docs/philosophy.md``).
+    "They can sign out and read it" is a workaround for a break we chose to
+    create.
+
+    Resolving to anonymous also gets the no-write property for free: the caller
+    returns before ``_reconcile_identity_fields`` runs, so a locked account
+    cannot leave a row behind.
+
+    The flag is what stops this collapsing back into the silent failure #1043
+    exists to remove. Without it, "no token" and "token for a locked account"
+    both arrive as ``None`` and nothing can tell a signed-out reader from a
+    locked-out one. ``get_current_user`` reads it and refuses loudly, so every
+    genuinely authenticated endpoint -- including ``GET /me``, which is how the
+    frontend learns to clear the session and say what happened -- still says
+    *deactivated* rather than *signed out*.
     """
-    if not user.is_active:
-        raise problem_exception(
-            403,
-            "Forbidden",
-            "This account has been deactivated.",
-            type_slug="account-deactivated",
-        )
+    request.state.account_deactivated = True
 
 
 def get_optional_current_user(
+    request: Request,
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
     auth_service=Depends(get_auth_service),
@@ -138,8 +147,10 @@ def get_optional_current_user(
             raise problem_exception(
                 401, "Unauthorized", "Mapped user account not found"
             )
-        # Before the reconcile, so a deactivated account cannot write either.
-        _refuse_if_deactivated(user)
+        # Before the reconcile, so a locked account cannot write on its way out.
+        if not user.is_active:
+            _mark_deactivated(request)
+            return None
         if _reconcile_identity_fields(db, user, identity, principal):
             db.commit()
         return user
@@ -163,7 +174,9 @@ def get_optional_current_user(
         # A second sign-in method must not become a way back into a locked
         # account. Checked before the identity row is written, so a refused
         # sign-in leaves nothing behind.
-        _refuse_if_deactivated(user)
+        if not user.is_active:
+            _mark_deactivated(request)
+            return None
     else:
         display_name = principal.email.split("@", 1)[0] if principal.email else None
         user = UserAccount(
@@ -189,7 +202,18 @@ def get_optional_current_user(
     return user
 
 
-def get_current_user(user=Depends(get_optional_current_user)):
+def get_current_user(request: Request, user=Depends(get_optional_current_user)):
     if user is None:
+        # A locked account also arrives as None, and the two must not read the
+        # same. Signed-out is a 401 the caller fixes by signing in; locked is a
+        # 403 that signing in again will never fix, and the frontend needs to
+        # tell the reader which one happened (#1043).
+        if getattr(request.state, "account_deactivated", False):
+            raise problem_exception(
+                403,
+                "Forbidden",
+                "This account has been deactivated.",
+                type_slug="account-deactivated",
+            )
         raise problem_exception(401, "Unauthorized", "Authentication required")
     return user
