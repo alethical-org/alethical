@@ -9,13 +9,12 @@ import {
   StyleProp,
   StyleSheet,
   Text,
-  TextStyle,
   View,
   ViewProps,
   ViewStyle,
 } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
-import { ChevronDown, ChevronUp, Menu, Plus, X } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Menu, X } from 'lucide-react-native';
 
 import { theme } from './tokens';
 import { useUnavailableControl } from '../components/billDetail/interactions';
@@ -94,7 +93,7 @@ export function PageBackground({
 // Page-relative dot grid: place as the first child of the scroll content (which
 // must be position: relative). Scrolls with the page and fades near the top and
 // just above the footer, so the white cards below sit on plainer background.
-export function PageDots() {
+function PageDots() {
   if (!isWeb) {
     return null;
   }
@@ -127,24 +126,6 @@ export function Container({
   );
 }
 
-export function MetaStripe({
-  left,
-  right,
-  rightMobile,
-}: {
-  left: string;
-  right: string;
-  rightMobile?: string;
-}) {
-  const { isMobile } = useResponsive();
-  return (
-    <View style={[styles.metaStripe, isMobile && styles.metaStripeMobile]}>
-      <Text style={styles.metaText}>{left}</Text>
-      <Text style={styles.metaText}>{isMobile ? (rightMobile ?? right) : right}</Text>
-    </View>
-  );
-}
-
 // --- Brand logo: twin-peak mark (two sharp triangles) + the ALETHICAL wordmark
 //     as live Space Grotesk text (weight 500, letter-spacing 0.16em, vertically
 //     centered on the mark) — matching the brand lockup SVG. `variant`: 'nav'
@@ -162,7 +143,7 @@ function LogoMark({ height, fill }: { height: number; fill: string }) {
   );
 }
 
-export function Logo({
+function Logo({
   tone = 'dark',
   variant = 'nav',
 }: {
@@ -215,13 +196,7 @@ export function Logo({
 // --- v2 nav dropdowns (docs/mockups/home-signed-out-v2) ---
 
 /** Sparkle glyph — the AI affordance (ASKED eyebrow, Grounded Ask pill, ✦ Ask entry). */
-export function Sparkle({
-  size = 11,
-  color = t.colors.purple.base,
-}: {
-  size?: number;
-  color?: string;
-}) {
+function Sparkle({ size = 11, color = t.colors.purple.base }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -533,7 +508,7 @@ export function PrimaryButton({
 //     full-screen overlay, which stacked above the panel and swallowed row
 //     hover/clicks. A panel opens on hover as well as on click (hover-capable
 //     pointers only). Rows render from the ia.ts registry. ---
-export type NavVariant = 'home' | 'page';
+type NavVariant = 'home' | 'page';
 
 export function TopNav({
   variant = 'home',
@@ -796,72 +771,6 @@ export function TopNav({
   );
 }
 
-export function Badge({ children }: { children: ReactNode }) {
-  return (
-    <View style={styles.badge}>
-      <Text style={styles.badgeText}>{children}</Text>
-    </View>
-  );
-}
-
-export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.card, t.shadows.lg as ViewStyle, style]}>{children}</View>;
-}
-
-export function Eyebrow({ children }: { children: string }) {
-  return (
-    <View style={styles.eyebrow}>
-      <View style={styles.eyebrowSquare} />
-      <Text style={styles.eyebrowText}>{children}</Text>
-    </View>
-  );
-}
-
-// Green mono section label (no square), e.g. "WHAT YOU CAN DO"
-export function SectionLabel({ children }: { children: string }) {
-  return <Text style={styles.sectionLabel}>{children}</Text>;
-}
-
-export function LabelMono({
-  children,
-  style,
-}: {
-  children: ReactNode;
-  style?: StyleProp<TextStyle>;
-}) {
-  return <Text style={[styles.labelMono, style]}>{children}</Text>;
-}
-
-// --- Section heading (big display h2 + optional action button) ---
-export function SectionHeading({
-  title,
-  actionLabel,
-  onAction,
-}: {
-  title: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  const [hovered, hoverProps] = useHover();
-  return (
-    <View style={styles.sectionHeadingRow}>
-      <Text style={styles.sectionHeading}>{title}</Text>
-      {actionLabel ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onAction}
-          {...hoverProps}
-          style={[styles.viewAll, hovered && { borderColor: t.colors.brand.base }]}
-        >
-          <Text style={[styles.viewAllText, hovered && { color: t.colors.brand.deep }]}>
-            {actionLabel}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
 // --- Info card ("What you can do") — icon SVGs lifted from the mockup ---
 type IconName = 'search' | 'map' | 'bookmark' | 'chat';
 function CardIcon({ name }: { name: IconName }) {
@@ -897,86 +806,6 @@ function CardIcon({ name }: { name: IconName }) {
         />
       ) : null}
     </Svg>
-  );
-}
-
-export function InfoCard({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: IconName;
-  title: string;
-  subtitle: string;
-}) {
-  const { isMobile } = useResponsive();
-  return (
-    <View style={[styles.infoCard, isMobile && styles.infoCardMobile]}>
-      <View style={styles.infoIcon}>
-        <CardIcon name={icon} />
-      </View>
-      <View style={styles.infoText}>
-        <Text style={styles.infoTitle}>{title}</Text>
-        <Text style={styles.infoSubtitle}>{subtitle}</Text>
-      </View>
-    </View>
-  );
-}
-
-// --- Tag (bill category chip) ---
-export function Tag({ children }: { children: string }) {
-  return (
-    <View style={styles.tag}>
-      <Text style={styles.tagText}>{children}</Text>
-    </View>
-  );
-}
-
-// --- Dark "+ Track" button ---
-export function TrackButton({ onPress }: { onPress?: () => void }) {
-  const [hovered, hoverProps] = useHover();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Track bill"
-      onPress={onPress}
-      {...hoverProps}
-      style={[styles.trackBtn, hovered && { opacity: 0.9 }]}
-    >
-      <Plus size={15} color={t.colors.white} strokeWidth={2.6} />
-      <Text style={styles.trackBtnText}>Track</Text>
-    </Pressable>
-  );
-}
-
-// --- Bill card ---
-export interface Bill {
-  billId: string;
-  description: string;
-  chamber: string;
-  status: string;
-  author: string;
-  tags: string[];
-}
-
-export function BillCard({ bill }: { bill: Bill }) {
-  return (
-    <View style={styles.billCard}>
-      <View style={styles.billTop}>
-        <Badge>{bill.billId}</Badge>
-        <TrackButton />
-      </View>
-      <Text style={styles.billDesc}>{bill.description}</Text>
-      <LabelMono style={styles.billMeta}>{`${bill.chamber} · ${bill.status}`}</LabelMono>
-      <Text style={styles.billAuthor}>
-        Author: <Text style={styles.billAuthorName}>{bill.author}</Text>
-      </Text>
-      <View style={styles.billTags}>
-        {bill.tags.map((tag) => (
-          <Tag key={tag}>{tag}</Tag>
-        ))}
-      </View>
-    </View>
   );
 }
 
@@ -1156,23 +985,6 @@ const styles = StyleSheet.create({
   pageBg: { flex: 1 },
   container: { width: '100%', paddingHorizontal: 56 },
   containerMobile: { paddingHorizontal: 24 },
-  metaStripe: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 56,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: t.colors.borders.base,
-  },
-  metaStripeMobile: { paddingHorizontal: 24 },
-  metaText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.medium,
-    letterSpacing: 1.9,
-    color: t.colors.text.faint,
-  },
   logoLink: { alignSelf: 'center' },
   logoLinkPressed: { opacity: 0.72 },
   navRow: { paddingTop: 26, paddingBottom: 8, zIndex: 60 },
@@ -1360,170 +1172,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.onGreen,
   },
   primaryBtnTextLg: { fontSize: t.fontSizes.h4, fontWeight: t.fontWeights.bold },
-  badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: t.colors.tint.t150,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    borderRadius: t.radii.badge,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  badgeText: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.4,
-    color: t.colors.brand.deep,
-  },
-  card: {
-    backgroundColor: t.colors.surfaces.base,
-    borderRadius: 20,
-    paddingVertical: 32,
-    paddingHorizontal: 34,
-  },
-  eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  eyebrowSquare: { width: 13, height: 13, borderRadius: 0, backgroundColor: t.colors.brand.base },
-  eyebrowText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.semibold,
-    letterSpacing: 2.4,
-    color: t.colors.brand.deep,
-  },
-  sectionLabel: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 2,
-    color: t.colors.brand.deep,
-  },
-  labelMono: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.medium,
-    letterSpacing: 1.2,
-    color: t.colors.text.muted,
-  },
-  sectionHeadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  sectionHeading: {
-    fontFamily: t.typography.title,
-    fontSize: t.fontSizes.displayLg,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -1.2,
-    color: t.colors.text.primary,
-  },
-  viewAll: {
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink20,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginRight: 18,
-  },
-  viewAllText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.6,
-    color: t.colors.text.primary,
-  },
-  infoCard: {
-    flex: 1,
-    minWidth: 140,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.borders.base,
-    borderRadius: t.radii.lg,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-  },
-  infoCardMobile: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 18,
-    paddingVertical: 20,
-  },
-  infoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: t.radii.sm,
-    backgroundColor: t.colors.tint.t150,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoText: { flex: 1, minWidth: 0, gap: 3 },
-  infoTitle: {
-    fontFamily: t.typography.title,
-    fontSize: t.fontSizes.subhead,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-  },
-  infoSubtitle: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    color: t.colors.text.secondary,
-  },
-  tag: {
-    backgroundColor: t.colors.surfaces.s400,
-    borderRadius: t.radii.sm,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  tagText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.7,
-    color: t.colors.text.secondary,
-  },
-  trackBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: t.colors.ink,
-    borderRadius: t.radii.sm,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  trackBtnText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.white,
-  },
-  billCard: {
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.borders.base,
-    borderRadius: t.radii.lg,
-    padding: 24,
-    gap: 12,
-  },
-  billTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  billDesc: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.subhead,
-    lineHeight: 27,
-    color: t.colors.text.primary,
-  },
-  billMeta: { marginTop: 2 },
-  billAuthor: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    color: t.colors.text.secondary,
-  },
-  billAuthorName: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
-  billTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
