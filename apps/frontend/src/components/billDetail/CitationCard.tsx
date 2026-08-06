@@ -44,10 +44,11 @@ export function CitationCard({
   onPress,
   linkProps,
   accessibilityLabel,
+  variant = 'default',
 }: {
   label: string;
   sectionTopic?: string;
-  /** Every passage quoted from this section, each under its own green rule. The
+  /** Every passage quoted from this section, each under its own light-purple rule. The
    *  Summary tab passes one; the Ask answer page passes all of the section's, because
    *  a section that contributed three passages contributed three different facts
    *  (grounded-ask-spec §9.5 decision 1). */
@@ -55,6 +56,9 @@ export function CitationCard({
   onPress?: () => void;
   linkProps?: object;
   accessibilityLabel?: string;
+  /** Answer groups several passages under one source chip. Its purple rules and
+   *  wider quote-to-quote spacing are deliberately not used by Bill Detail. */
+  variant?: 'default' | 'answer';
 }) {
   const [hovered, hover] = useHover();
   const { focused, focusProps } = useFieldFocus();
@@ -89,7 +93,15 @@ export function CitationCard({
         </View>
       </View>
       {excerpts.map((excerpt, i) => (
-        <Text key={i} style={styles.quote}>
+        <Text
+          key={i}
+          style={[
+            styles.quote,
+            variant === 'answer' ? styles.answerQuote : styles.defaultQuote,
+            variant === 'answer' &&
+              (i === 0 ? styles.firstAnswerQuote : styles.followingAnswerQuote),
+          ]}
+        >
           {citationExcerpt(excerpt)}
         </Text>
       ))}
@@ -190,16 +202,18 @@ const styles = StyleSheet.create({
     top: -2.6,
   },
   quote: {
-    marginTop: 9,
     paddingLeft: 12,
     borderLeftWidth: 3,
-    borderLeftColor: t.colors.tint.border,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.small,
     lineHeight: 21,
     color: t.colors.text.secondary,
     fontStyle: 'italic',
   },
+  defaultQuote: { marginTop: 9, borderLeftColor: t.colors.tint.border },
+  answerQuote: { borderLeftColor: t.colors.purple.quoteRule },
+  firstAnswerQuote: { marginTop: 8 },
+  followingAnswerQuote: { marginTop: 15 },
   askChip: {
     ...(isWeb ? ({ display: 'inline-flex', overflowWrap: 'anywhere' } as object) : null),
     maxWidth: '100%',

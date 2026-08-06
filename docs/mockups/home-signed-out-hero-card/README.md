@@ -41,9 +41,9 @@ styling — it is already correct on live.**
 
 ## Color roles (don't regress to the wrong token)
 - **Amber** = bill-code identity (HF badge — already live, don't touch).
-- **Green** = actions/links AND the cited/verified motif: the ✓ check and the excerpt's green
-  left-border (a deliberate "grounded in the record" signal — keep green, do not purple it).
-- **Purple** = citation reference markers (the numbered squares) + focus.
+- **Green** = actions/links and the cited/verified ✓ check.
+- **Purple** = the excerpt's light-purple `#bda6ee` left rule + focus. Numbered citation squares
+  are removed because they only repeated the passages' order.
 
 ## Do not touch
 The "BILL" label, the summary paragraph text, the "Such as infinite scrolling…" gloss under

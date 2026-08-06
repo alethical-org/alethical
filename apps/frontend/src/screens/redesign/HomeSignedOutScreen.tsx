@@ -265,23 +265,10 @@ const HF4138_BILL_ID = '94-2026-HF4138';
 // badge and footer link. Her official House profile is reachable from that profile page.
 const PEGGY_SCOTT_LEGISLATOR_ID = '2ebc386c-bf7e-4b9c-9d81-81f3bef1f971';
 
-function CitedSectionCard({
-  n,
-  title,
-  quote,
-  note,
-}: {
-  n: string;
-  title: string;
-  quote: string;
-  note?: string;
-}) {
+function CitedSectionCard({ title, quote, note }: { title: string; quote: string; note?: string }) {
   return (
     <View style={styles.sectionCardBox}>
       <View style={styles.sectionCardHead}>
-        <View style={styles.sectionCardNum}>
-          <Text style={styles.sectionCardNumText}>{n}</Text>
-        </View>
         <Text style={styles.sectionCardTitle}>{title}</Text>
       </View>
       <View style={styles.sectionCardQuote}>
@@ -448,18 +435,15 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
 
       <View style={styles.sectionCardStack}>
         <CitedSectionCard
-          n="1"
           title="Parental consent"
           quote="A covered social media platform may not create an account for a user identified as a child … without first obtaining verifiable parental consent."
         />
         <CitedSectionCard
-          n="2"
           title="Addictive features"
           quote="A covered social media platform may not present addictive interface features in the display or feed of any account of a child."
           note="Such as infinite scrolling, autoplay video, and push notifications"
         />
         <CitedSectionCard
-          n="3"
           title="Privacy by default"
           quote="An account for a child shall have all privacy settings set by default at the most private levels."
         />
@@ -2003,23 +1987,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
   },
-  sectionCardHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  sectionCardNum: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    backgroundColor: t.colors.purple.tint,
-    borderWidth: 1,
-    borderColor: t.colors.purple.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionCardNumText: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.purple.base,
-  },
+  sectionCardHead: { flexDirection: 'row', alignItems: 'center' },
   sectionCardTitle: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.body,
@@ -2030,7 +1998,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingLeft: 12,
     borderLeftWidth: 3,
-    borderLeftColor: t.colors.tint.border,
+    borderLeftColor: t.colors.purple.quoteRule,
   },
   sectionCardQuoteText: {
     fontFamily: t.typography.body,

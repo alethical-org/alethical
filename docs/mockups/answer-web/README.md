@@ -106,8 +106,9 @@ Full rules in `LIVE-answer-spec.md`. The short version:
 - **"From the bill" rail** — heading + **"Cited Sections"** with the green circle-check.
   Cards are Bill Detail's excerpt cards: `#f7f9f8`, radius 14, no shadow, whole card links
   to the passage, **hover lifts to white** with a purple border and a 3px purple ring. One
-  purple mono chip per card (`Art. 1, Sec. N · Title →`), italic quote under a green rule,
-  **no quotation marks**.
+  purple mono chip per card (`Art. 1, Sec. N · Title →`), italic quote under a 3px
+  light-purple `#bda6ee` rule, **no quotation marks**. The chip sits 8px above the first quote;
+  later quotes in the same section are 15px apart.
 - **Bill card** — the Search Bills result-card structure: amber code badge, ghosted amber
   OMNIBUS, stage label + 5-step bar, **dashed** Track (roadmap) right-aligned; plain title
   (never the full official title); plain-language summary; meta rows; issue chips + the
@@ -140,7 +141,7 @@ This class of bug has shipped twice (Legislator Profile session filter; Bill Sea
 - Amber — **fill distinguishes meaning:** FILLED (`#fbf1e2` / `#f0d6a8` / `#a76a1a`) = bill
   **CODE** badge; GHOSTED (transparent / `#e3c17f` / `#a76a1a`) = **OMNIBUS** tag.
 - Surfaces: page `#fbfcfd`; white cards; quiet card `#f7f9f8`; issue chip `#f1f1f4`; vote
-  chip `#e4f8ee`; quote rule `#bfeacf`; hairlines `rgba(17,21,15,0.07–0.16)`.
+  chip `#e4f8ee`; quote rule `#bda6ee`; hairlines `rgba(17,21,15,0.07–0.16)`.
 
 **Type** (Google Fonts): **Libre Franklin** (UI/body), **JetBrains Mono** (bill codes, meta,
 chips, eyebrows). Scale: H1 42 · H2 21–22 · answer 19 · body 14–16 · mono meta 11–13.
