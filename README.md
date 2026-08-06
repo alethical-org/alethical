@@ -56,7 +56,7 @@ The Find My Legislator map uses raster map tiles. For Android/native builds, set
 
 ```bash
 EXPO_PUBLIC_MAP_TILE_URL=https://tile.openstreetmap.org/{z}/{x}/{y}.png
-EXPO_PUBLIC_MAP_TILE_USER_AGENT="Alethical/0.1 (+https://alethical-web.vercel.app)"
+EXPO_PUBLIC_MAP_TILE_USER_AGENT="Alethical/0.1 (+https://www.alethical.com)"
 ```
 
 Manual Supabase setup:
@@ -66,7 +66,9 @@ Manual Supabase setup:
 3. Copy the Google client ID and client secret into the Supabase Google provider settings.
 4. In Supabase Authentication > URL Configuration, set the site URL to the deployed web app URL when production is ready.
 5. Add redirect URLs for local web, production web, and native deep links:
-   `http://localhost:19006/**`, `http://127.0.0.1:19006/**`, `https://alethical-web.vercel.app/**`, and `alethical://auth/callback`.
+   `http://localhost:19006/**`, `http://127.0.0.1:19006/**`, `https://www.alethical.com/**`,
+   `https://alethical.com/**`, and `alethical://auth/callback`. Do not add any other host: a
+   redirect target that is allow-listed here is a host Google sign-in will return people to.
 6. If you use a different local Expo web port, add that exact wildcard origin too, for example `http://localhost:19007/**`.
 
 If a port is already in use, override it when starting Compose:

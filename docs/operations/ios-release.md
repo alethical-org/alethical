@@ -66,7 +66,7 @@ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 EAS simulator, preview, and TestFlight builds are configured in `apps/frontend/eas.json` to use production services:
 
 ```bash
-EXPO_PUBLIC_FRONTEND_URL=https://alethical-web.vercel.app
+EXPO_PUBLIC_FRONTEND_URL=https://www.alethical.com
 EXPO_PUBLIC_API_URL=https://alethical-api-production.up.railway.app
 EXPO_PUBLIC_SUPABASE_URL=https://naakzorbkqqgbsreulqi.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
