@@ -1778,6 +1778,33 @@ def bill_version_payloads(bill_row) -> list[dict[str, Any]]:
     return payloads
 
 
+def same_legislature_session_ids(db: Session, session_id) -> tuple:
+    """The other sessions convened by the same Legislature as ``session_id``.
+
+    A special session is the same Legislature as its regular session: the same
+    members hold the same seats and nobody is elected in between, so a member's
+    service period from either one answers for the other (#1104). Production
+    records 0 service periods against the 2025 First Special Session, which is
+    why all 46 of its bills served an author's name and nothing else.
+
+    Matched on ``session_number`` within one jurisdiction, never wider. Across
+    bienniums a member may have been redistricted or replaced, so a broader
+    fallback would state a district they did not hold.
+    """
+    own = db.get(LegislativeSession, session_id)
+    if own is None:
+        return ()
+    return tuple(
+        db.scalars(
+            select(LegislativeSession.id).where(
+                LegislativeSession.jurisdiction_id == own.jurisdiction_id,
+                LegislativeSession.session_number == own.session_number,
+                LegislativeSession.id != session_id,
+            )
+        ).all()
+    )
+
+
 @router.get("/bills/{bill_id}", response_model=DetailResponse)
 def bill_detail(
     bill_id: str,
@@ -1822,6 +1849,10 @@ def bill_detail(
     # Both effective-date fields come from ONE resolve so the rail's value and the
     # timeline's rows can never disagree, and the sections load only once.
     schedule = effective_schedule_payload(db, row)
+    # Resolved once for the whole response, not per sponsor: the sponsor payloads
+    # fall back to a same-Legislature session when the bill's own session has no
+    # service period, which is every special-session bill (#1104).
+    biennium_session_ids = same_legislature_session_ids(db, row.session_id)
     payload = {
         "id": row.bill_key,
         "title": row.title,
@@ -1882,6 +1913,7 @@ def bill_detail(
             for item in sponsor_payloads(
                 row.chief_sponsorships,
                 session_id=row.session_id,
+                biennium_session_ids=biennium_session_ids,
             )
         ],
         "tracking": tracking_payload(row.tracked_by).model_dump()
@@ -1901,6 +1933,7 @@ def bill_detail(
             for item in sponsor_payloads(
                 row.sponsorships,
                 session_id=row.session_id,
+                biennium_session_ids=biennium_session_ids,
             )
         ]
     if "progress" in include_set:

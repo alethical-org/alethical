@@ -5408,3 +5408,180 @@ def test_sponsor_party_survives_an_author_who_left_office(client):
     serving = sponsors["Senator Test Serving"]
     assert serving["party"] == "DFL"
     assert serving["district"] == "District Left Office Test"
+
+
+def test_sponsor_party_falls_back_within_the_same_legislature(client):
+    """A special-session bill serves its author's party and district from the
+    same Legislature's regular session (#1104).
+
+    A special session is convened by the same Legislature: the same members hold
+    the same seats and nobody is elected in between, so a member's regular-session
+    party and district are what they held during the special session too. Reading
+    them is the correct answer, not a guess. Production records 0 service periods
+    against the 2025 First Special Session, so all 46 of its bills served an
+    author's name and nothing else.
+
+    Pins the scope as well as the fallback: a member whose only period belongs to
+    a DIFFERENT Legislature is not borrowed from, because across bienniums they
+    may have been redistricted or replaced, and a wrong district is worse than
+    none.
+    """
+    from sqlalchemy import select
+
+    from alethical.db.schema import load_schema
+    from alethical.db.session import get_session_factory
+
+    schema = load_schema()
+    regular_slug = "test-biennium-regular"
+    special_slug = "test-biennium-special"
+    other_slug = "test-other-legislature"
+    bill_key = f"{special_slug}-SF7201"
+    with get_session_factory()() as db:
+        base = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        chamber = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "senate")
+        )
+        assert base is not None and chamber is not None
+
+        def ensure_session(slug, number, session_type, year, name):
+            row = db.scalar(
+                select(schema.LegislativeSession).where(
+                    schema.LegislativeSession.slug == slug
+                )
+            )
+            if row is None:
+                row = schema.LegislativeSession(
+                    jurisdiction_id=base.jurisdiction_id,
+                    slug=slug,
+                    session_number=number,
+                    session_type=session_type,
+                    year_start=year,
+                    year_end=year + 1,
+                    name=name,
+                    is_current=False,
+                )
+                db.add(row)
+                db.flush()
+            return row
+
+        # Two sessions of the SAME Legislature (number 9105), plus one from a
+        # different Legislature (9106) that must never be borrowed from.
+        regular = ensure_session(
+            regular_slug, 9105, schema.SessionType.regular, 2905, "Biennium regular"
+        )
+        special = ensure_session(
+            special_slug, 9105, schema.SessionType.special, 2905, "Biennium special"
+        )
+        other = ensure_session(
+            other_slug, 9106, schema.SessionType.regular, 2907, "Other Legislature"
+        )
+        district = db.scalar(
+            select(schema.District).where(schema.District.code == "BIENNIUM-TEST")
+        )
+        if district is None:
+            district = schema.District(
+                jurisdiction_id=chamber.jurisdiction_id,
+                chamber_id=chamber.id,
+                code="BIENNIUM-TEST",
+                label="District Biennium Test",
+            )
+            db.add(district)
+            db.flush()
+
+        # "sameleg" holds a period in the sibling regular session -> must resolve.
+        # "otherleg" holds one only in a different Legislature -> must NOT.
+        members = {}
+        for key, period_session in (("sameleg", regular), ("otherleg", other)):
+            member = db.scalar(
+                select(schema.Legislator).where(
+                    schema.Legislator.external_key == f"{special_slug}-{key}"
+                )
+            )
+            if member is None:
+                member = schema.Legislator(
+                    jurisdiction_id=chamber.jurisdiction_id,
+                    slug=f"{special_slug}-{key}",
+                    external_key=f"{special_slug}-{key}",
+                    full_name=f"Senator Biennium {key.title()}",
+                    sort_name=f"{key.title()}, Biennium",
+                )
+                db.add(member)
+                db.flush()
+                db.add(
+                    schema.LegislatorServicePeriod(
+                        legislator_id=member.id,
+                        session_id=period_session.id,
+                        chamber_id=chamber.id,
+                        district_id=district.id,
+                        party="DFL",
+                        is_current=False,
+                    )
+                )
+            members[key] = member
+
+        if (
+            db.scalar(select(schema.Bill).where(schema.Bill.bill_key == bill_key))
+            is None
+        ):
+            bill = schema.Bill(
+                session_id=special.id,
+                chamber_id=chamber.id,
+                bill_key=bill_key,
+                file_type="SF",
+                file_number=7201,
+                title="Special-session author fixture",
+                description="fixture",
+                current_status="Referred to committee",
+                official_url="https://example.test/sf7201",
+                is_omnibus=False,
+            )
+            db.add(bill)
+            db.flush()
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=bill.id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={"summary": "Fixture."},
+                    is_current=True,
+                )
+            )
+            for order, key in enumerate(("sameleg", "otherleg"), start=1):
+                db.add(
+                    schema.Sponsorship(
+                        bill_id=bill.id,
+                        legislator_id=members[key].id,
+                        role=schema.SponsorshipRole.chief_author
+                        if key == "sameleg"
+                        else schema.SponsorshipRole.co_author,
+                        source_order=order,
+                        source_chamber="senate",
+                    )
+                )
+        db.commit()
+
+    response = client.get(
+        f"/api/v1/bills/{bill_key}", params={"include": "all_sponsors"}
+    )
+    assert response.status_code == 200
+    sponsors = {s["name"]: s for s in response.json()["data"]["all_sponsors"]}
+
+    # The fallback: same Legislature, so the regular session's record answers.
+    same = sponsors["Senator Biennium Sameleg"]
+    assert same["party"] == "DFL", (
+        "a special-session bill must serve the author's party from the same "
+        "Legislature's regular session"
+    )
+    assert same["district"] == "District Biennium Test"
+
+    # The scope: a different Legislature is never borrowed from, because the
+    # member may have been redistricted or replaced in between.
+    other_member = sponsors["Senator Biennium Otherleg"]
+    assert other_member["party"] is None, (
+        "a period from a different Legislature must not be used"
+    )
+    assert other_member["district"] is None
