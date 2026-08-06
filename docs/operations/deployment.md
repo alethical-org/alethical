@@ -102,16 +102,48 @@ alethical://auth/callback
 
 ## Can an unconfirmed account sign in?
 
-**Status: unanswered as of 5 August 2026.** Nobody has looked, and the answer cannot be
-read from this repository — it is a Supabase project setting, and the code has no view of
-it. Whoever checks it should replace this paragraph with the answer and the date.
+**Status: answered 6 August 2026. The guard is real insurance, not bypassable.** Email
+sign-in *is* enabled, and confirmation *is* required, so an unproven address never arrives
+looking proven. No action needed.
 
-**Why it is worth knowing.** The backend joins a new sign-in to an existing account when
+**And the answer did not need the dashboard.** Supabase publishes these settings on a
+read-only endpoint, reachable with the publishable key that already ships in every
+visitor's browser, so anyone can re-check it in one command with no login:
+
+```bash
+curl -s https://naakzorbkqqgbsreulqi.supabase.co/auth/v1/settings \
+  -H "apikey: $(curl -s https://www.alethical.com/$(curl -s https://www.alethical.com/ \
+  | grep -oE '_expo/static/js/web/index-[a-f0-9]+\.js' | head -1) \
+  | grep -oE 'sb_publishable_[A-Za-z0-9_-]+' | head -1)"
+```
+
+Read on 6 August 2026:
+
+| Field | Value | What it means |
+|---|---|---|
+| `external.email` | `true` | Email sign-in is on, so the unconfirmed path is reachable and the guard has something to do. |
+| **`mailer_autoconfirm`** | **`false`** | **Confirmation is required.** Supabase does not stamp an address as confirmed on its own. |
+| `external.google` | `true` | Google sign-in on, as expected. |
+| `external.phone`, `phone_autoconfirm` | `false` | Phone sign-in is off, so the `phone_confirmed_at` leak [#1039](https://github.com/alethical-org/alethical/issues/1039) closed was not reachable in production. Closing it is still correct: the setting can be turned on later. |
+| `external.anonymous_users` | `false` | No anonymous sign-in. |
+| `disable_signup` | `false` | New sign-ups allowed. |
+
+One honest limit on that reading: `mailer_autoconfirm: false` maps to "Confirm email is on"
+by Supabase's naming, where `mailer_autoconfirm: true` is the auto-confirm-without-checking
+mode. That mapping is read from the field name and the dashboard label, not proved by
+signing up with an unconfirmed address, which would mean creating an account in production.
+If anyone wants it proved rather than read, that is the test, and it needs a throwaway
+address and Eugene's say-so.
+
+The dashboard walkthrough below is kept as the way to *change* the setting, and as a
+cross-check if the endpoint above ever disagrees with it.
+
+**Why it was worth knowing.** The backend joins a new sign-in to an existing account when
 the email addresses match, which is how one person with two sign-in methods keeps one
 account. Since [#1039](https://github.com/alethical-org/alethical/issues/1039) that join
 requires the sign-in service to have *confirmed* the address, so an unconfirmed one now
 gets its own separate account instead. That guard is in place either way. This setting
-only decides how often it has anything to do: if unconfirmed accounts cannot get in at
+only decided how often it has anything to do: if unconfirmed accounts cannot get in at
 all, it never fires; if they can, it is the thing standing between a stranger and someone
 else's tracked bills and typed questions.
 
