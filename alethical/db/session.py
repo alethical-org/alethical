@@ -78,9 +78,19 @@ DEFAULT_LOCAL_DATABASE_URL = (
 _LOCAL_DATABASE_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "db", ""})
 
 
-def _ambient_database_url() -> str:
-    """Resolve ``DATABASE_URL`` with no target check. Only callers who have
-    already established which database they mean should use this."""
+def local_database_url() -> str:
+    """Resolve ``DATABASE_URL`` with **no** target check.
+
+    For the callers that specifically want the machine-local database *while*
+    ``ALETHICAL_DATABASE_TARGET=production`` is set, which is a real and correct
+    combination: ``scripts/check_schema_drift.py --against-production`` builds
+    throwaway local databases to compare production against, and
+    ``scripts/backfill_rag_bulk.py --source-target local`` reads local and writes
+    production. Both have already established which database they mean, so the
+    guard in ``get_database_url`` would only second-guess them.
+
+    If you are reaching for this to read data, you almost certainly want
+    ``database_url_for_target`` instead."""
     return normalize_database_url(
         os.environ.get("DATABASE_URL", DEFAULT_LOCAL_DATABASE_URL)
     )
@@ -131,7 +141,7 @@ def _refuse_local_url_when_target_is_production(url: str) -> None:
 
 
 def get_database_url() -> str:
-    url = _ambient_database_url()
+    url = local_database_url()
     _refuse_local_url_when_target_is_production(url)
     return url
 
@@ -183,7 +193,7 @@ def database_url_for_target(target: str | None, explicit_url: str | None = None)
         # The unguarded resolution: a caller naming "local" outright has already
         # said which database it means, so the ambient-target check below would
         # only second-guess an explicit choice.
-        return _ambient_database_url()
+        return local_database_url()
     if target == "production":
         url = supabase_database_url()
         if not url:

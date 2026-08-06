@@ -10,6 +10,7 @@ from alethical.db.session import (
     database_url_for_target,
     get_database_url,
     load_dotenv_if_present,
+    local_database_url,
     supabase_database_url,
 )
 from alethical.tests.local_database_guard import assert_local_database
@@ -276,3 +277,24 @@ def test_naming_local_outright_beats_an_ambient_production_target(
     monkeypatch.delenv("DATABASE_URL", raising=False)
 
     assert database_url_for_target("local") == DEFAULT_LOCAL_DATABASE_URL
+
+
+def test_the_deliberate_local_callers_are_not_caught_by_the_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two real callers want local *while* the target says production (#1090).
+
+    ``scripts/check_schema_drift.py --against-production`` is documented as being
+    run with ``ALETHICAL_DATABASE_TARGET=production`` and still needs the local
+    server, to build the throwaway databases it compares production against.
+    ``scripts/backfill_rag_bulk.py --source-target local`` reads local and writes
+    production. A guard that caught them would have broken a documented ops
+    command, which is why ``local_database_url`` exists as its own name rather
+    than the guard having an exception in it.
+    """
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    assert local_database_url() == DEFAULT_LOCAL_DATABASE_URL
+    with pytest.raises(RuntimeError):
+        get_database_url()
