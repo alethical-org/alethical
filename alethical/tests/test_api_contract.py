@@ -5254,3 +5254,157 @@ def test_legislator_bills_carry_co_author_count_and_companion(client):
     assert companion_payload["id"] == sf_key
     assert companion_payload["code"] == "SF 7012"
     assert "status_key" in companion_payload
+
+
+def test_sponsor_party_survives_an_author_who_left_office(client):
+    """A sponsor's party and district come from the service period matching the
+    bill's session, whether or not that period is still flagged current (#834).
+
+    A member who authored a bill and later left office still held that party and
+    that district *during that session*, and the bill is a record of the session.
+    Requiring ``is_current`` as well hid the party and district on 124 production
+    bills — data we hold, in the right session, discarded by the flag. This test
+    pins both halves: the not-current period is served, and the current one still
+    is, so the fix cannot regress into either extreme.
+    """
+    from sqlalchemy import select
+
+    from alethical.db.schema import load_schema
+    from alethical.db.session import get_session_factory
+
+    schema = load_schema()
+    slug = "test-left-office-fixture"
+    bill_key = f"{slug}-SF7101"
+    with get_session_factory()() as db:
+        base = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
+        )
+        chamber = db.scalar(
+            select(schema.Chamber).where(schema.Chamber.slug == "senate")
+        )
+        assert base is not None and chamber is not None
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == slug
+            )
+        )
+        if session_row is None:
+            session_row = schema.LegislativeSession(
+                jurisdiction_id=base.jurisdiction_id,
+                slug=slug,
+                session_number=9103,
+                session_type=schema.SessionType.regular,
+                year_start=2903,
+                year_end=2904,
+                name="Left-office fixture session",
+                is_current=False,
+            )
+            db.add(session_row)
+            db.flush()
+        district = db.scalar(
+            select(schema.District).where(schema.District.code == "LEFT-OFFICE-TEST")
+        )
+        if district is None:
+            district = schema.District(
+                jurisdiction_id=chamber.jurisdiction_id,
+                chamber_id=chamber.id,
+                code="LEFT-OFFICE-TEST",
+                label="District Left Office Test",
+            )
+            db.add(district)
+            db.flush()
+        # Two authors on one bill, alike except for the is_current flag, so the
+        # assertion isolates that flag as the only variable.
+        members = {}
+        for key, is_current in (("departed", False), ("serving", True)):
+            member = db.scalar(
+                select(schema.Legislator).where(
+                    schema.Legislator.external_key == f"{slug}-{key}"
+                )
+            )
+            if member is None:
+                member = schema.Legislator(
+                    jurisdiction_id=chamber.jurisdiction_id,
+                    slug=f"{slug}-{key}",
+                    external_key=f"{slug}-{key}",
+                    full_name=f"Senator Test {key.title()}",
+                    sort_name=f"{key.title()}, Test",
+                )
+                db.add(member)
+                db.flush()
+                db.add(
+                    schema.LegislatorServicePeriod(
+                        legislator_id=member.id,
+                        session_id=session_row.id,
+                        chamber_id=chamber.id,
+                        district_id=district.id,
+                        party="DFL",
+                        is_current=is_current,
+                    )
+                )
+            members[key] = member
+        if (
+            db.scalar(select(schema.Bill).where(schema.Bill.bill_key == bill_key))
+            is None
+        ):
+            bill = schema.Bill(
+                session_id=session_row.id,
+                chamber_id=chamber.id,
+                bill_key=bill_key,
+                file_type="SF",
+                file_number=7101,
+                title="Left-office author fixture",
+                description="fixture",
+                current_status="Referred to committee",
+                official_url="https://example.test/sf7101",
+                is_omnibus=False,
+            )
+            db.add(bill)
+            db.flush()
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=bill.id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={"summary": "Fixture."},
+                    is_current=True,
+                )
+            )
+            db.add(
+                schema.Sponsorship(
+                    bill_id=bill.id,
+                    legislator_id=members["departed"].id,
+                    role=schema.SponsorshipRole.chief_author,
+                    source_order=1,
+                    source_chamber="senate",
+                )
+            )
+            db.add(
+                schema.Sponsorship(
+                    bill_id=bill.id,
+                    legislator_id=members["serving"].id,
+                    role=schema.SponsorshipRole.co_author,
+                    source_order=2,
+                    source_chamber="senate",
+                )
+            )
+        db.commit()
+
+    response = client.get(
+        f"/api/v1/bills/{bill_key}", params={"include": "all_sponsors"}
+    )
+    assert response.status_code == 200
+    sponsors = {s["name"]: s for s in response.json()["data"]["all_sponsors"]}
+
+    departed = sponsors["Senator Test Departed"]
+    assert departed["party"] == "DFL", (
+        "a departed author's recorded party must still show"
+    )
+    assert departed["district"] == "District Left Office Test"
+    assert departed["chamber"] == "senate"
+
+    serving = sponsors["Senator Test Serving"]
+    assert serving["party"] == "DFL"
+    assert serving["district"] == "District Left Office Test"

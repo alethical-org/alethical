@@ -22,12 +22,21 @@ def sponsor_payloads(
 ) -> list[api_schemas.SponsorSummary]:
     """Serialize bill sponsors.
 
-    Party + district come from the sponsor's own current service period for the
-    bill's session. Since #302 merged each bill-author row into its roster row,
-    the sponsor row *is* the canonical row, so its own service period carries the
+    Party + district come from the sponsor's own service period for the bill's
+    session. Since #302 merged each bill-author row into its roster row, the
+    sponsor row *is* the canonical row, so its own service period carries the
     real party + district — no suffix resolution to a separate roster row needed.
     Callers without a ``session_id`` (e.g. bill_list_item) get no service period,
     so party/district stay null.
+
+    The match is on session alone, deliberately: a period already scoped to the
+    bill's session must not also be required to be ``is_current``. A member who
+    has since left office still held that party and that district *during that
+    session*, and the bill is a record of that session (#834). Requiring both
+    hid the party and district on 124 production bills whose author had left —
+    data we hold, in the right session, discarded by the flag. A (legislator,
+    session) pair is unique in production, so dropping the flag cannot pick a
+    different row where one was already being found.
     """
     payloads: list[api_schemas.SponsorSummary] = []
     for sponsorship in sponsorships:
@@ -42,7 +51,7 @@ def sponsor_payloads(
                 (
                     period
                     for period in sponsorship.legislator.service_periods
-                    if period.session_id == session_id and period.is_current
+                    if period.session_id == session_id
                 ),
                 None,
             )
