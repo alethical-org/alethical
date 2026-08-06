@@ -61,5 +61,10 @@ Gutter 56px.
 
 ## Assets & files
 - Icons are inline SVG; legislator avatars use **initials**, not photos. (No image assets.)
+  **No longer what ships (2026-08-05).** The built card shows the member's official portrait
+  in the same 54px circle, with initials kept as the fallback. This bundle was authored with
+  no image assets and still shows initials, so it is not the reference for that element. See
+  `BUILD-NOTES.md` for what shipped, and the portrait treatment itself has not been designed
+  ([#1082](https://github.com/alethical-org/alethical/issues/1082)).
 - `LIVE Search Legislators.dc.html` — the design reference. `support.js` — DC runtime (not
   product). Nav/footer shared. Matched pair with **Search Bills**.
