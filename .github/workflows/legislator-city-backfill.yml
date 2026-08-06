@@ -1,0 +1,76 @@
+name: Backfill legislator residence cities
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Write supported cities after the preview
+        required: true
+        type: boolean
+        default: false
+      legislator:
+        description: Optional name or ID for a one-member check
+        required: false
+        type: string
+
+concurrency:
+  group: production-legislator-city-backfill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      LEGISLATOR: ${{ inputs.legislator }}
+      APPLY: ${{ inputs.apply }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check database secrets are set
+        run: test -n "$SUPABASE_PROJECT_URL" && test -n "$SUPABASE_DB_PASSWORD"
+
+      - name: Preview and backfill missing residence cities
+        shell: bash
+        run: |
+          args=(--city-only --only-missing)
+          if [[ -n "$LEGISLATOR" ]]; then
+            args+=(--legislator "$LEGISLATOR")
+          fi
+
+          echo "Previewing the exact rows and official values before any write."
+          env -u DATABASE_URL uv run python -m alethical.pipeline.legislator_bio_backfill \
+            --dry-run "${args[@]}"
+
+          if [[ "$APPLY" != "true" ]]; then
+            echo "Preview complete. No production data was changed."
+            exit 0
+          fi
+
+          echo "Writing only supported cities into rows where the city is still empty."
+          env -u DATABASE_URL uv run python -m alethical.pipeline.legislator_bio_backfill \
+            --write "${args[@]}"
+
+          echo "Reading the same scope again. Remaining rows stay empty when the official source has no city."
+          env -u DATABASE_URL uv run python -m alethical.pipeline.legislator_bio_backfill \
+            --dry-run "${args[@]}"
