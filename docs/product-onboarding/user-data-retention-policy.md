@@ -91,11 +91,26 @@ display name (`alethical/api/auth.py`). So a reader who has never given us a nam
 has one on file, and it is a slice of their email address. That is worth knowing before
 we ever show a display name to anyone but its owner.
 
-**The "active" switch is not wired to anything.** `user_account.is_active` exists,
-defaults to on, and no code anywhere checks it. Signing in does not look at it. This is
-worse than an unused column: it is a switch that looks like it disables an account and
-does not. Someone will reach for it the first time we need to lock someone out, and it
-will silently do nothing. Tracked as [#1043](https://github.com/alethical-org/alethical/issues/1043).
+**The "active" switch now works** ([#1043](https://github.com/alethical-org/alethical/issues/1043),
+6 August 2026). It used to be the worst kind of dead code: `user_account.is_active`
+existed, defaulted to on, and no code anywhere checked it, so it looked like a switch
+that disables an account and was not one. Someone would have reached for it the first
+time we had to lock somebody out and watched nothing happen.
+
+Turning it off now refuses every request from that account, on the signed-in pages and
+the public ones alike, with a 403 saying the account has been deactivated. The refusal
+comes *before* anything is written, so a locked account cannot leave rows behind on its
+way to being turned away, and a second sign-in method cannot be used to walk back in.
+Turning it off is still a database edit — there is no screen for it, and #1043
+deliberately did not add one. The decision was to make the switch behave as labelled,
+not to build a lockout console; who may flip it and where that gets recorded are
+questions for [#1040](https://github.com/alethical-org/alethical/issues/1040), which
+builds account deletion.
+
+All 6 accounts in production are active, and none has ever been set inactive (checked
+6 August 2026). That is 6, not the 5 in §1: the census there is dated 5 August 2026 and
+is left as the snapshot it says it is, but one account has been added since, so read §1
+as history rather than as today's numbers.
 
 **One timestamp does not mean what its name says.** `last_signed_in_at` reads like "the
 last time this person signed in." Since [#990](https://github.com/alethical-org/alethical/pull/990)
@@ -455,10 +470,10 @@ in the change that adds this document.
 | `chat_message.input_tokens` | nothing | nothing | unset on all 82 |
 | `chat_message.output_tokens` | nothing | nothing | unset on all 82 |
 
-**A different problem, not a dead column.** `user_account.is_active` is read by nothing,
-but it should not be dropped without a decision ([#1043](https://github.com/alethical-org/alethical/issues/1043)) — it is the switch we would need the
-first time we have to lock an account, and today it is a switch wired to nothing. Either
-wire it up at sign-in or remove it; leaving it is the worst of the three.
+**`user_account.is_active` was on this list and has been fixed rather than dropped**
+([#1043](https://github.com/alethical-org/alethical/issues/1043), 6 August 2026). It is
+now read on every authenticated request, so it locks the account it claimed to lock. See
+§2.1.
 
 **Deliberately kept even though nothing reads them.** `user_account.last_signed_in_at`,
 `auth_identity.last_used_at`, and `auth_identity.email_verified_at`. Unlike a latitude
