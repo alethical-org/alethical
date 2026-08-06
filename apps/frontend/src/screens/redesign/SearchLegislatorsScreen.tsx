@@ -22,6 +22,14 @@ import {
 } from '../../components/search/searchPieces';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import {
+  LEGISLATOR_SEARCH_LABEL,
+  clearAllLegislatorSearchParams,
+  clearLegislatorFilterParams,
+  clearLegislatorSearchParams,
+  deriveLegislatorEmptyState,
+  paginateLegislatorResults,
+} from '../../lib/legislatorSearch';
+import {
   deriveLegislatorRosterHeader,
   type LegislatorPartyFilter,
 } from '../../lib/legislatorRosterHeader';
@@ -30,11 +38,9 @@ import { Skeleton } from '../../components/Skeleton';
 // Placeholder cards shown while the first page of legislators loads.
 const SKELETON_CARDS = [0, 1, 2, 3, 4, 5];
 
-// Search Legislators (docs/mockups/search-legislators). Name / district / party
-// search over the current session with chamber + party + session filters and a
+// Search Legislators (docs/mockups/search-legislators). Name search over the
+// current session with chamber + party + session filters and a
 // browsable 2-column card grid. No follow/track, no sign-in modal, no toast.
-
-const PAGE_SIZE = 12;
 
 export function SearchLegislatorsScreen() {
   const navigation = useNavigation<any>();
@@ -81,6 +87,9 @@ export function SearchLegislatorsScreen() {
 
   // The list API serves the full roster (no server pagination); chamber + party
   // filtering and paging happen client-side.
+  // Keep an unsearched roster request alongside a name search so an empty special
+  // session is recognized as missing data, not as a failed search or filter.
+  const rosterQuery = useLegislators(undefined, sessionSlug || undefined, {});
   const legislatorsQuery = useLegislators(query || undefined, sessionSlug || undefined, {});
   const metaQuery = useMeta();
 
@@ -107,9 +116,7 @@ export function SearchLegislatorsScreen() {
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pagination = paginateLegislatorResults(filtered, page);
 
   const submitSearch = () => {
     updateFilters({ q: queryInput.trim() || undefined });
@@ -120,11 +127,32 @@ export function SearchLegislatorsScreen() {
   // immediately via submitSearch).
   useDebouncedSearchCommit(queryInput, query, (value) => updateFilters({ q: value || undefined }));
 
-  // Mirror the prior Clear: reset keyword/chamber/party/page but keep the
-  // chosen session (matches Search Bills clearFilters).
-  const clearFilters = () => {
-    updateFilters({ q: undefined, chamber: undefined, party: undefined });
+  const clearSearch = () => {
+    setQueryInput('');
+    updateFilters(clearLegislatorSearchParams());
   };
+
+  // Clear only narrowing filters and keep the chosen session.
+  const clearFilters = () => {
+    updateFilters(clearLegislatorFilterParams());
+  };
+
+  const clearAll = () => {
+    updateFilters(clearAllLegislatorSearchParams());
+  };
+
+  const emptyState = deriveLegislatorEmptyState({
+    query,
+    chamber,
+    party,
+    hasSessionData: (rosterQuery.data?.length ?? 0) > 0,
+  });
+  const clearEmptyState =
+    emptyState?.action === 'Clear search'
+      ? clearSearch
+      : emptyState?.action === 'Clear all'
+        ? clearAll
+        : clearFilters;
 
   const handleNavigate = (item: IaItem) => {
     switch (item.id) {
@@ -188,14 +216,12 @@ export function SearchLegislatorsScreen() {
       hero={
         <SearchHero
           title="Search legislators"
-          placeholder="Search by name, district, or party"
+          placeholder={LEGISLATOR_SEARCH_LABEL}
           query={queryInput}
           onQueryChange={setQueryInput}
+          onClear={clearSearch}
           onSubmit={submitSearch}
           variant="legislators"
-          // Find My Legislator is on the roadmap — the link stays visible but
-          // doesn't route anywhere yet.
-          onFindByAddress={() => {}}
           filters={filterRow}
         />
       }
@@ -211,7 +237,7 @@ export function SearchLegislatorsScreen() {
         showRosterNote={rosterHeader.unnarrowed}
       />
 
-      {legislatorsQuery.isLoading ? (
+      {rosterQuery.isLoading || legislatorsQuery.isLoading ? (
         <View style={styles.grid} accessible accessibilityLabel="Loading legislators">
           {SKELETON_CARDS.map((i) => (
             <View key={i} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
@@ -219,18 +245,26 @@ export function SearchLegislatorsScreen() {
             </View>
           ))}
         </View>
-      ) : legislatorsQuery.isError ? (
+      ) : rosterQuery.isError || legislatorsQuery.isError ? (
         <View style={styles.stateBox}>
           <Text style={styles.stateText}>
             We couldn’t load legislators right now. Please try again in a moment.
           </Text>
         </View>
+      ) : filtered.length === 0 && !emptyState ? (
+        <View style={styles.stateBox} accessibilityLiveRegion="polite">
+          <Text style={styles.stateText}>No legislator data is available for this session.</Text>
+        </View>
       ) : filtered.length === 0 ? (
-        <NoResults variant="legislators" total={allLegislators.length} onClear={clearFilters} />
+        <NoResults
+          variant="legislators"
+          legislatorState={emptyState ?? undefined}
+          onClear={clearEmptyState}
+        />
       ) : (
         <>
           <View style={styles.grid}>
-            {paged.map((legislator) => (
+            {pagination.items.map((legislator) => (
               <View key={legislator.id} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
                 <LegislatorResultCard
                   legislator={legislator}
@@ -244,14 +278,16 @@ export function SearchLegislatorsScreen() {
             ))}
           </View>
           <Pagination
-            page={safePage}
-            totalPages={totalPages}
-            hasPrev={safePage > 1}
-            hasNext={safePage < totalPages}
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            hasPrev={pagination.page > 1}
+            hasNext={pagination.page < pagination.totalPages}
             onPrev={() =>
-              navigation.setParams({ page: safePage > 2 ? String(safePage - 1) : undefined })
+              navigation.setParams({
+                page: pagination.page > 2 ? String(pagination.page - 1) : undefined,
+              })
             }
-            onNext={() => navigation.setParams({ page: String(safePage + 1) })}
+            onNext={() => navigation.setParams({ page: String(pagination.page + 1) })}
             onPageChange={onPageChange}
           />
         </>

@@ -13,7 +13,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { ChevronDown, ChevronLeft, ChevronRight, MapPin, Search, X } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react-native';
 
 import { theme } from '../../theme/tokens';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
@@ -25,6 +25,7 @@ import {
   LEGISLATOR_SEAT_SOURCE_TEXT,
   LEGISLATOR_SEAT_SOURCE_URL,
 } from '../../lib/legislatorRosterHeader';
+import { CLEAR_SEARCH_TARGET_SIZE } from '../../lib/legislatorSearch';
 import { useUnavailableControl } from '../billDetail/interactions';
 
 // Shared building blocks for the redesigned Search Bills / Search Legislators
@@ -154,9 +155,9 @@ export function SearchHero({
   placeholder,
   query,
   onQueryChange,
+  onClear,
   onSubmit,
   variant,
-  onFindByAddress,
   helper,
   filters,
 }: {
@@ -164,20 +165,16 @@ export function SearchHero({
   placeholder: string;
   query: string;
   onQueryChange: (value: string) => void;
+  /** Optional immediate clear handler for a screen that owns URL search state. */
+  onClear?: () => void;
   onSubmit: () => void;
   variant: 'bills' | 'legislators';
-  onFindByAddress?: () => void;
   /** Optional helper line below the field (e.g. bills' "match every word" hint). */
   helper?: ReactNode;
   filters: ReactNode;
 }) {
   const { isMobile } = useResponsive();
   const { focused, focusProps } = useFieldFocus();
-
-  const findByAddress =
-    variant === 'legislators' && onFindByAddress ? (
-      <FindByAddressLink onPress={onFindByAddress} />
-    ) : null;
 
   return (
     <View>
@@ -207,24 +204,14 @@ export function SearchHero({
             onSubmitEditing={onSubmit}
             returnKeyType="search"
             placeholder={placeholder}
+            accessibilityLabel={placeholder}
             placeholderTextColor={t.colors.text.faint}
-            style={[styles.searchInput, fieldOutlineReset]}
+            style={[styles.searchInput, isMobile && styles.searchInputMobile, fieldOutlineReset]}
           />
-          {/* Bills is as-you-type (SearchHelperLine: "Results update as you
-              type") — no submit button, just a clear (×) once there's text. The
-              legislators variant keeps Find-by-address + the Search button. */}
-          {variant === 'bills' && query.length > 0 ? (
-            <ClearFieldButton onPress={() => onQueryChange('')} />
+          {query.length > 0 ? (
+            <ClearFieldButton onPress={onClear ?? (() => onQueryChange(''))} />
           ) : null}
-          {variant === 'legislators' && !isMobile ? findByAddress : null}
-          {variant === 'legislators' && !isMobile ? <HeroSearchButton onPress={onSubmit} /> : null}
         </View>
-        {variant === 'legislators' && isMobile ? (
-          <View style={styles.searchBarMobileActions}>
-            {findByAddress}
-            <HeroSearchButton onPress={onSubmit} full />
-          </View>
-        ) : null}
       </View>
 
       {helper ? <View style={styles.helperRow}>{helper}</View> : null}
@@ -244,36 +231,6 @@ export function SearchHelperLine() {
     <Text style={[styles.helperText, isMobile && styles.helperTextMobile]}>
       Results update as you type — bills match <Text style={styles.helperStrong}>every</Text> word
     </Text>
-  );
-}
-
-function FindByAddressLink({ onPress }: { onPress: () => void }) {
-  const [hovered, hover] = useHover();
-  return (
-    <Pressable accessibilityRole="link" onPress={onPress} {...hover} style={styles.findByAddress}>
-      <MapPin size={16} color={hovered ? t.colors.brand.deep : '#4b524b'} strokeWidth={2} />
-      <Text style={[styles.findByAddressText, hovered && { color: t.colors.brand.deep }]}>
-        Find by address
-      </Text>
-    </Pressable>
-  );
-}
-
-function HeroSearchButton({ onPress, full }: { onPress: () => void; full?: boolean }) {
-  const [hovered, hover] = useHover();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      {...hover}
-      style={[
-        styles.searchButton,
-        full && styles.searchButtonFull,
-        { backgroundColor: hovered ? t.colors.brand.hover : t.colors.brand.base },
-      ]}
-    >
-      <Text style={styles.searchButtonText}>Search</Text>
-    </Pressable>
   );
 }
 
@@ -1056,24 +1013,31 @@ function SortIcon() {
 // changed, never cleared).
 export function NoResults({
   variant,
-  total,
   filterCount,
   query,
+  legislatorState,
   onClear,
 }: {
   variant: 'bills' | 'legislators';
-  total?: number | null;
   /** Bills only: how many removable filter chips are active. Drives the copy. */
   filterCount?: number;
   /** Bills only: the search term, when one is active. */
   query?: string;
+  /** Legislator-specific copy, derived from the active search and filters. */
+  legislatorState?: {
+    heading: string;
+    body: string;
+    action: 'Clear search' | 'Clear filters' | 'Clear all';
+  };
   onClear: () => void;
 }) {
-  const noun = variant === 'bills' ? 'bills' : 'legislators';
+  const { isMobile } = useResponsive();
+  const legislatorMobile = variant === 'legislators' && isMobile;
   // Bills copy branches on the filter stack, because one generic message is wrong
   // in the most common zero-result state — a typo'd search with nothing else
   // applied — where it names a filter stack the user never built. None of the
-  // three takes a terminal period. Legislators keeps its existing copy.
+  // three takes a terminal period. Legislators receives its exact copy from the
+  // screen's real search and filter state.
   //
   // A count of 0 is practically unreachable (no filters returns every bill), so it
   // falls through to the multi-filter wording rather than earning a fourth state.
@@ -1082,15 +1046,8 @@ export function NoResults({
   let heading: string;
   let body: string;
   if (variant === 'legislators') {
-    heading = 'No legislators match your search';
-    // A multi-sentence body paragraph, so it keeps normal punctuation (unlike the
-    // one-line captions and readouts on this screen, which take no terminal
-    // period). Without a `total` to quote, the fallback used to be the fragment
-    // "Try broadening or clearing them." — "them" with no antecedent.
-    body =
-      typeof total === 'number'
-        ? `Your filters returned 0 of ${total.toLocaleString('en-US')} ${noun}. Try broadening or clearing them.`
-        : 'That’s the overlap of everything you’ve selected. Remove one above, or clear them all, to widen your search.';
+    heading = legislatorState?.heading ?? 'No legislators match these filters';
+    body = legislatorState?.body ?? 'Remove a filter or clear them all.';
   } else if (onlyFilterIsQuery) {
     // Curly quotes, matching the keyword chip's own label.
     heading = `No bills match “${query}”`;
@@ -1106,7 +1063,10 @@ export function NoResults({
     body = 'Remove filters above, or clear them all, to widen your search';
   }
   return (
-    <View style={styles.noResults}>
+    <View
+      {...(isWeb ? ({ role: 'status' } as object) : {})}
+      style={[styles.noResults, legislatorMobile && styles.noResultsLegislatorsMobile]}
+    >
       <View style={styles.noResultsIcon}>
         <Svg width={30} height={30} viewBox="0 0 24 24" fill="none">
           {variant === 'bills' ? (
@@ -1129,12 +1089,26 @@ export function NoResults({
       </View>
       <Text
         accessibilityRole="header"
-        style={[styles.noResultsHeading, variant === 'bills' && WRAP_ANYWHERE]}
+        style={[
+          styles.noResultsHeading,
+          variant === 'bills' && WRAP_ANYWHERE,
+          legislatorMobile && styles.noResultsHeadingMobile,
+        ]}
       >
         {heading}
       </Text>
-      <Text style={styles.noResultsBody}>{body}</Text>
-      <ClearButton variant={variant} onPress={onClear} />
+      <Text style={[styles.noResultsBody, legislatorMobile && styles.noResultsBodyMobile]}>
+        {body}
+      </Text>
+      <ClearButton
+        label={
+          variant === 'legislators' ? (legislatorState?.action ?? 'Clear filters') : 'Clear all'
+        }
+        accessibilityLabel={variant === 'bills' ? 'Clear all filters' : undefined}
+        pill={variant === 'bills'}
+        fullWidth={legislatorMobile}
+        onPress={onClear}
+      />
     </View>
   );
 }
@@ -1152,24 +1126,34 @@ const WRAP_ANYWHERE = { overflowWrap: 'anywhere' } as unknown as TextStyle;
 // Black, not green: green is reserved for forward actions (Sign in, Track, Copy).
 // Legislators keeps its own label and rounded-rect until that card is revisited.
 function ClearButton({
-  variant,
+  label,
+  accessibilityLabel,
+  pill,
+  fullWidth,
   onPress,
 }: {
-  variant: 'bills' | 'legislators';
+  label: string;
+  accessibilityLabel?: string;
+  pill: boolean;
+  fullWidth: boolean;
   onPress: () => void;
 }) {
   const [hovered, hover] = useHover();
-  const isBills = variant === 'bills';
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={isBills ? 'Clear all filters' : undefined}
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       {...hover}
-      style={[styles.clearBtn, isBills && styles.clearBtnPill, hovered && styles.clearBtnHover]}
+      style={[
+        styles.clearBtn,
+        pill && styles.clearBtnPill,
+        fullWidth && styles.clearBtnFullWidth,
+        hovered && styles.clearBtnHover,
+      ]}
     >
       <X size={15} color={t.colors.white} strokeWidth={2.2} />
-      <Text style={styles.clearBtnText}>{isBills ? 'Clear all' : 'Clear filters'}</Text>
+      <Text style={styles.clearBtnText}>{label}</Text>
     </Pressable>
   );
 }
@@ -1326,36 +1310,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 4,
   },
-  searchBarMobileActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  findByAddress: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    // Leading pin glyph, so 3px less on the left (see `clearBtn`).
-    paddingLeft: 7,
-    paddingRight: 10,
-    minHeight: 44,
-  },
-  findByAddressText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.semibold,
-    color: '#4b524b',
-  },
-  searchButton: {
-    borderRadius: 11,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchButtonFull: { flex: 1 },
-  searchButtonText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.lg,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.darkest,
-  },
+  searchInputMobile: { fontSize: 16 },
   // 44px invisible hit cushion; the visible glyph is inset by centering it, so
   // the × mirrors the leading magnifier's distance from the field edge (~20px on
   // web) instead of jamming against the border. borderRadius rounds the app-wide
@@ -1364,9 +1319,9 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
     flexBasis: 'auto',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: CLEAR_SEARCH_TARGET_SIZE,
+    height: CLEAR_SEARCH_TARGET_SIZE,
+    borderRadius: CLEAR_SEARCH_TARGET_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1838,6 +1793,7 @@ const styles = StyleSheet.create({
     paddingVertical: 64,
     paddingHorizontal: 48,
   },
+  noResultsLegislatorsMobile: { marginTop: 18, paddingVertical: 32, paddingHorizontal: 20 },
   noResultsIcon: {
     width: 64,
     height: 64,
@@ -1855,6 +1811,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     textAlign: 'center',
   },
+  noResultsHeadingMobile: { fontSize: 20, lineHeight: 25 },
   noResultsBody: {
     marginTop: 12,
     fontFamily: t.typography.body,
@@ -1863,6 +1820,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
     textAlign: 'center',
   },
+  noResultsBodyMobile: { fontSize: 15, lineHeight: 22 },
   clearBtn: {
     marginTop: 26,
     flexDirection: 'row',
@@ -1879,6 +1837,7 @@ const styles = StyleSheet.create({
     paddingRight: 26,
   },
   clearBtnPill: { borderRadius: 999 },
+  clearBtnFullWidth: { width: '100%', minHeight: 46, justifyContent: 'center' },
   clearBtnHover: { backgroundColor: '#000000' },
   clearBtnText: {
     fontFamily: t.typography.ui,

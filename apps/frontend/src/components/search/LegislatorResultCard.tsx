@@ -3,6 +3,7 @@ import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 
 import { Legislator } from '../../data/types';
 import { usePrefetchLegislator } from '../../hooks/useAppQueries';
+import { billAuthorshipLabel } from '../../lib/legislatorSearch';
 import { linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
@@ -68,6 +69,7 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
   const shown = committees.slice(0, 2);
   const extra = committees.length - shown.length;
   const authored = authoredCount(legislator);
+  const authorshipLabel = billAuthorshipLabel(authored);
 
   return (
     <Pressable
@@ -145,7 +147,7 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
 
       <Text style={styles.activity}>
         <Text style={styles.activityNum}>{authored}</Text>
-        {authored === 1 ? ' bill authored' : ' bills authored'}
+        {authorshipLabel.slice(String(authored).length)}
       </Text>
     </Pressable>
   );
