@@ -23,6 +23,8 @@ import {
   addressChoiceKey,
   districtMapVisible,
   legislatureLabel,
+  prepareAddressLookup,
+  shouldFocusFindMyLegislator,
   viewStateForLookup,
 } from '../lib/findMyLegislator';
 import type { IaItem, MenuKey } from '../navigation/ia';
@@ -100,8 +102,15 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const [choiceClosed, setChoiceClosed] = useState(false);
   const lookup = useRepresentativeLookup();
   const autoRanFor = useRef<string | null>(null);
-  const autoRanCoordinate = useRef(false);
   const addressInput = useRef<TextInput>(null);
+  const focusOnFirstRender = useRef(
+    shouldFocusFindMyLegislator({
+      address: requestedAddress,
+      coordinate: requestedCoordinate,
+      focusAddress: route.params?.focusAddress,
+      locationFailure: route.params?.locationFailure,
+    }),
+  ).current;
   const geolocation = browserGeolocation();
   const result = lookup.data ?? undefined;
   const choices =
@@ -124,14 +133,21 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       : null;
 
   const runAddress = (value: string) => {
-    const raw = value.trim();
-    if (!raw) return;
+    const { serviceAddress } = prepareAddressLookup(value);
+    if (!serviceAddress) return;
+    setAddress(value);
     setLocationError(false);
     setChoiceClosed(false);
     setChoiceIndex(0);
-    autoRanFor.current = raw;
-    navigation.setParams({ address: value, coordinate: undefined, locationFailure: undefined });
-    lookup.mutate(raw);
+    autoRanFor.current = serviceAddress;
+    navigation.setParams({
+      address: value,
+      coordinate: undefined,
+      focusAddress: undefined,
+      lookupAddress: undefined,
+      locationFailure: undefined,
+    });
+    lookup.mutate(serviceAddress);
   };
   const runCoordinate = (coordinate: RepresentativeLookupCoordinates) => {
     setLocationError(false);
@@ -144,22 +160,64 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   };
 
   useEffect(() => {
-    const serviceAddress = requestedAddress?.trim();
+    if (route.params?.lookupAddress) return;
+    const serviceAddress = requestedAddress
+      ? prepareAddressLookup(requestedAddress).serviceAddress
+      : undefined;
     if (!serviceAddress || autoRanFor.current === serviceAddress) return;
     autoRanFor.current = serviceAddress;
     lookup.mutate(serviceAddress);
-  }, [lookup.mutate, requestedAddress]);
+  }, [lookup.mutate, requestedAddress, route.params?.lookupAddress]);
 
   useEffect(() => {
-    if (!requestedCoordinate || autoRanCoordinate.current) return;
-    autoRanCoordinate.current = true;
+    if (!route.params?.lookupAddress || !requestedAddress) return;
+    runAddress(requestedAddress);
+  }, [requestedAddress, route.params?.lookupAddress]);
+
+  useEffect(() => {
+    if (!requestedCoordinate) return;
+    setAddress('');
+    navigation.setParams({
+      address: undefined,
+      coordinate: undefined,
+      focusAddress: undefined,
+      lookupAddress: undefined,
+      locationFailure: undefined,
+    });
     runCoordinate(requestedCoordinate);
   }, [requestedCoordinate]);
 
   useEffect(() => {
-    if (requestedAddress?.trim() || requestedCoordinate || route.params?.locationFailure) return;
+    if (!route.params?.locationFailure) return;
+    setAddress('');
+    lookup.reset();
+    setChoiceClosed(false);
+    setChoiceIndex(0);
+    setLocationError(true);
+    navigation.setParams({
+      address: undefined,
+      coordinate: undefined,
+      focusAddress: undefined,
+      lookupAddress: undefined,
+      locationFailure: undefined,
+    });
+  }, [route.params?.locationFailure]);
+
+  useEffect(() => {
+    if (!focusOnFirstRender) return;
     addressInput.current?.focus();
-  }, [requestedAddress, requestedCoordinate, route.params?.locationFailure]);
+  }, [focusOnFirstRender]);
+
+  useEffect(() => {
+    if (!route.params?.focusAddress) return;
+    setAddress('');
+    setLocationError(false);
+    setChoiceClosed(false);
+    setChoiceIndex(0);
+    lookup.reset();
+    addressInput.current?.focus();
+    navigation.setParams({ focusAddress: undefined });
+  }, [route.params?.focusAddress]);
 
   const useLocation = () => {
     if (!geolocation) {

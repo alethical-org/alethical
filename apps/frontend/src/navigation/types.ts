@@ -2,6 +2,8 @@ import { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/n
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import type { HomeLocationFailure } from '../lib/homeLegislatorFinder';
+
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<MainTabParamList>;
   Ask: { q?: string };
@@ -38,10 +40,14 @@ export type RootStackParamList = {
   FindMyLegislator:
     | {
         address?: string;
+        /** One-time empty-homepage handoff. webRoutes deliberately never serializes it. */
+        focusAddress?: boolean;
+        /** One-time homepage lookup request. webRoutes deliberately never serializes it. */
+        lookupAddress?: boolean;
         /** One-time homepage handoff. webRoutes deliberately never serializes it. */
         coordinate?: { latitude: number; longitude: number };
         /** One-time browser refusal/unavailability handoff, also never serialized. */
-        locationFailure?: boolean;
+        locationFailure?: HomeLocationFailure;
       }
     | undefined;
   Privacy: undefined;

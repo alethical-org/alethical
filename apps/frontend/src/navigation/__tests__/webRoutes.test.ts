@@ -117,7 +117,9 @@ describe('Find My Legislator round-trips through its URL', () => {
         params: {
           address: ' 350 S 5th St ',
           coordinate: { latitude: 44.97683, longitude: -93.26579 },
-          locationFailure: true,
+          focusAddress: true,
+          lookupAddress: true,
+          locationFailure: 'permission-denied',
         },
       }),
     ).toBe('/find-my-legislator?address=%20350%20S%205th%20St%20');

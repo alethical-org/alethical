@@ -9,6 +9,27 @@ export type FindLegislatorState =
   | 'vacant'
   | 'service-down';
 
+export function prepareAddressLookup(rawAddress: string): {
+  displayAddress: string;
+  serviceAddress: string | undefined;
+} {
+  const serviceAddress = rawAddress.trim();
+  return {
+    displayAddress: rawAddress,
+    serviceAddress: serviceAddress || undefined,
+  };
+}
+
+export function shouldFocusFindMyLegislator(input: {
+  address?: string;
+  coordinate?: { latitude: number; longitude: number };
+  focusAddress?: boolean;
+  locationFailure?: string;
+}): boolean {
+  if (input.focusAddress) return true;
+  return !input.address?.trim() && !input.coordinate && !input.locationFailure;
+}
+
 export function viewStateForLookup(input: {
   pending?: boolean;
   found?: boolean;
