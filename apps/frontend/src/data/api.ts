@@ -493,17 +493,77 @@ interface ApiChatMessagePayload {
  */
 export class ApiError extends Error {
   readonly status: number;
+  /**
+   * The API's machine-readable reason, from the RFC7807 `type` field, reduced to
+   * its last path segment (`account-deactivated`). Null when the body was not a
+   * problem document, which covers every non-JSON error the fetch can produce.
+   *
+   * The status code alone is not enough to act on: two different 403s mean two
+   * different things to the reader, and until #1092 nothing could tell them
+   * apart because the body was only ever kept as an unparsed string.
+   */
+  readonly problem: string | null;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, problem: string | null = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.problem = problem;
   }
+}
+
+/** The `type` slug out of an RFC7807 body, or null if this is not one. */
+function problemSlug(body: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    const type = (parsed as { type?: unknown }).type;
+    return typeof type === 'string' ? (type.split('/').pop() ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+function apiError(status: number, body: string): ApiError {
+  return new ApiError(status, body || `API request failed with ${status}`, problemSlug(body));
 }
 
 /** True when the API said the thing does not exist, so there is nothing to retry. */
 export function isNotFoundError(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
+}
+
+/**
+ * True when the API refused because this account has been deactivated.
+ *
+ * Matched on the problem type rather than the 403 alone: signing the reader out
+ * is the right answer to *this* refusal and the wrong answer to any other one.
+ */
+export function isAccountDeactivatedError(error: unknown): boolean {
+  return (
+    error instanceof ApiError && error.status === 403 && error.problem === 'account-deactivated'
+  );
+}
+
+type DeactivatedHandler = () => void;
+let deactivatedHandler: DeactivatedHandler | null = null;
+
+/**
+ * Register what to do when any request finds the account deactivated. The auth
+ * provider owns the answer (drop the dead session and say so); this module only
+ * notices, because it is the one place every authenticated request goes through.
+ *
+ * Returns an unsubscribe so a re-mount cannot leave two handlers behind.
+ */
+export function onAccountDeactivated(handler: DeactivatedHandler): () => void {
+  deactivatedHandler = handler;
+  return () => {
+    if (deactivatedHandler === handler) {
+      deactivatedHandler = null;
+    }
+  };
 }
 
 function apiUrl(path: string) {
@@ -534,8 +594,14 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new ApiError(response.status, text || `API request failed with ${response.status}`);
+    const error = apiError(response.status, await response.text());
+    if (isAccountDeactivatedError(error)) {
+      // Every authenticated request comes through here, so whichever one the
+      // reader happened to trigger is enough to notice. Without this the app
+      // keeps showing them as signed in while nothing of theirs works (#1092).
+      deactivatedHandler?.();
+    }
+    throw error;
   }
 
   if (response.status === 204) {
@@ -554,8 +620,7 @@ async function publicApiRequest<T>(path: string): Promise<T> {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new ApiError(response.status, text || `API request failed with ${response.status}`);
+    throw apiError(response.status, await response.text());
   }
 
   return (await response.json()) as T;
@@ -572,8 +637,7 @@ async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new ApiError(response.status, text || `API request failed with ${response.status}`);
+    throw apiError(response.status, await response.text());
   }
 
   return (await response.json()) as T;

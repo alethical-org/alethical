@@ -15,7 +15,7 @@ export type SignInIntent = 'nav' | 'track' | 'votes' | 'account';
 export type SignInStatus = 'idle' | 'connecting' | 'error';
 
 /** Why sign-in failed, which picks the message. */
-export type SignInErrorKind = 'cancelled' | 'failed';
+export type SignInErrorKind = 'cancelled' | 'failed' | 'deactivated';
 
 export interface SignInRequest {
   intent: SignInIntent;
@@ -91,6 +91,10 @@ export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
   failed: 'Something went wrong reaching Google. Check your connection and try again.',
   cancelled:
     'Sign-in didn’t finish. The Google step was closed or cancelled before you were signed in. Try again when you’re ready.',
+  // Not a failure the reader can retry their way out of, so it says what happened
+  // and who to ask rather than inviting another attempt (#1092).
+  deactivated:
+    'This account has been deactivated, so we’ve signed you out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
 };
 
 export const SIGN_IN_BUTTON_LABEL = 'Continue with Google';

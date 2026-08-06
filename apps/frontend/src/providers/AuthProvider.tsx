@@ -13,7 +13,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { Session } from '@supabase/supabase-js';
 
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { SignInErrorKind, signInErrorKind } from '../lib/signIn';
+import { SIGN_IN_ERROR_MESSAGES, SignInErrorKind, signInErrorKind } from '../lib/signIn';
+import { onAccountDeactivated } from '../data/api';
 
 interface AuthUser {
   id: string;
@@ -100,6 +101,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setAuthErrorKind(null);
   }, []);
 
+  // A deactivated account still holds a perfectly valid Supabase token, so
+  // nothing here would ever notice on its own: the reader stays "signed in",
+  // their name keeps showing, and every feature of theirs quietly fails. The API
+  // layer tells us, and the honest response is to drop the dead session and say
+  // what happened -- which also puts the public pages back within reach, since
+  // they load fine with no token at all (#1092).
+  useEffect(
+    () =>
+      onAccountDeactivated(() => {
+        void supabase.auth.signOut().finally(() => {
+          setSession(null);
+          failWith(SIGN_IN_ERROR_MESSAGES.deactivated, 'deactivated');
+        });
+      }),
+    [failWith],
+  );
+
   useEffect(() => {
     let mounted = true;
 
@@ -117,7 +135,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setIsLoading(false);
-      clearAuthError();
+      // Only a session arriving clears the error. A session going *away* fires
+      // this too, and the deactivation path signs the reader out on purpose --
+      // clearing there would wipe the one message explaining why (#1092).
+      if (nextSession) {
+        clearAuthError();
+      }
     });
 
     return () => {
