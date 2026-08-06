@@ -23,7 +23,23 @@ def get_auth_service():
         return None
 
 
-def _reconcile_identity_fields(user, identity, principal) -> bool:
+def _confirmed_email(principal) -> str | None:
+    """The principal's address, normalized, but only if the provider confirmed it.
+
+    ``user_account.primary_email`` is the key one identity joins another's
+    account on, so an unconfirmed address must never reach that column -- not to
+    match a row, and not to claim one for a later sign-in to match (#1039).
+    Claiming is the same hole facing the other way: reserve an address you never
+    proved you own, and the person who does own it joins *your* account when they
+    arrive. An unconfirmed address is still recorded on ``auth_identity.email``,
+    which is not unique and grants nothing.
+    """
+    if principal.email and principal.email_verified:
+        return principal.email.lower()
+    return None
+
+
+def _reconcile_identity_fields(db: Session, user, identity, principal) -> bool:
     """Backfill email fields only when a value actually changes.
 
     Assigning an equal value would still mark the row dirty, so each branch
@@ -33,11 +49,23 @@ def _reconcile_identity_fields(user, identity, principal) -> bool:
     changed = False
     if principal.email:
         normalized_email = principal.email.lower()
-        if user.primary_email is None:
-            user.primary_email = normalized_email
-            changed = True
         if identity.email != normalized_email:
             identity.email = normalized_email
+            changed = True
+    confirmed_email = _confirmed_email(principal)
+    if confirmed_email and user.primary_email is None:
+        # The column is unique, so claiming an address another account already
+        # holds would raise on commit and turn an ordinary authenticated read
+        # into a 500. Accounts are never merged here; the address simply stays
+        # unclaimed on this one.
+        already_held = db.scalar(
+            select(UserAccount.id).where(
+                UserAccount.primary_email == confirmed_email,
+                UserAccount.id != user.id,
+            )
+        )
+        if already_held is None:
+            user.primary_email = confirmed_email
             changed = True
     if principal.email_verified and identity.email_verified_at is None:
         identity.email_verified_at = datetime.now(timezone.utc)
@@ -86,7 +114,7 @@ def get_optional_current_user(
             raise problem_exception(
                 401, "Unauthorized", "Mapped user account not found"
             )
-        if _reconcile_identity_fields(user, identity, principal):
+        if _reconcile_identity_fields(db, user, identity, principal):
             db.commit()
         return user
 
@@ -94,18 +122,22 @@ def get_optional_current_user(
     # and/or identity and commit once. last_used_at / last_signed_in_at are set
     # here rather than per request -- nothing reads them, and per-request bumps
     # were the read-path write this dependency used to do on every call.
+    #
+    # The join is on the *confirmed* address only. An unconfirmed one falls
+    # through to a brand-new account with no primary_email, which is recoverable
+    # (the accounts can be merged later) where a refusal would leave a real
+    # person stuck behind provider state they cannot see or fix (#1039).
+    confirmed_email = _confirmed_email(principal)
     user = None
-    if principal.email:
+    if confirmed_email:
         user = db.scalar(
-            select(UserAccount).where(
-                UserAccount.primary_email == principal.email.lower()
-            )
+            select(UserAccount).where(UserAccount.primary_email == confirmed_email)
         )
     if user is None:
         display_name = principal.email.split("@", 1)[0] if principal.email else None
         user = UserAccount(
             display_name=display_name,
-            primary_email=principal.email.lower() if principal.email else None,
+            primary_email=confirmed_email,
         )
         db.add(user)
         db.flush()
@@ -119,7 +151,7 @@ def get_optional_current_user(
         last_used_at=now,
     )
     db.add(identity)
-    _reconcile_identity_fields(user, identity, principal)
+    _reconcile_identity_fields(db, user, identity, principal)
     user.last_signed_in_at = now
     db.commit()
     db.refresh(user)
