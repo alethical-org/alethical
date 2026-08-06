@@ -319,7 +319,12 @@ def parse_bio(html_text: str, profile_url: str, chamber_slug: str) -> ParsedBio:
 
 
 def current_service_rows(
-    db: Session, *, only_missing: bool, legislator: str | None, chamber: str | None
+    db: Session,
+    *,
+    only_missing: bool,
+    legislator: str | None,
+    chamber: str | None,
+    city_only: bool = False,
 ) -> list[tuple[LegislatorServicePeriod, Legislator, str]]:
     stmt = (
         select(LegislatorServicePeriod, Legislator, Chamber.slug)
@@ -332,18 +337,20 @@ def current_service_rows(
         .order_by(Chamber.slug, Legislator.sort_name)
     )
     if only_missing:
-        # A row is "missing" if its elected+term were never captured OR its city
-        # is still null (the newer represented_city field, #551) -- so a
-        # city-only re-run picks up members whose elected/term already landed.
-        stmt = stmt.where(
-            or_(
-                and_(
-                    LegislatorServicePeriod.elected.is_(None),
-                    LegislatorServicePeriod.term.is_(None),
-                ),
-                LegislatorServicePeriod.represented_city.is_(None),
+        if city_only:
+            stmt = stmt.where(LegislatorServicePeriod.represented_city.is_(None))
+        else:
+            # A row is "missing" if its elected+term were never captured OR its
+            # city is still null (the newer represented_city field, #551).
+            stmt = stmt.where(
+                or_(
+                    and_(
+                        LegislatorServicePeriod.elected.is_(None),
+                        LegislatorServicePeriod.term.is_(None),
+                    ),
+                    LegislatorServicePeriod.represented_city.is_(None),
+                )
             )
-        )
     if chamber:
         stmt = stmt.where(Chamber.slug == chamber)
     if legislator:
@@ -373,10 +380,15 @@ def backfill(
     limit: int | None,
     legislator: str | None,
     chamber: str | None,
+    city_only: bool = False,
 ) -> BackfillStats:
     stats = BackfillStats()
     rows = current_service_rows(
-        db, only_missing=only_missing, legislator=legislator, chamber=chamber
+        db,
+        only_missing=only_missing,
+        legislator=legislator,
+        chamber=chamber,
+        city_only=city_only,
     )
     if limit is not None:
         rows = rows[:limit]
@@ -390,15 +402,17 @@ def backfill(
         if not profile_url:
             stats.no_profile_url += 1
             continue
-        try:
-            html_text = fetch_text(sess, profile_url)
-        except Exception as exc:  # noqa: BLE001
-            stats.fetch_errors += 1
-            print(f"fetch error: {legislator_row.full_name} {profile_url}: {exc}")
-            continue
-        stats.profiles_fetched += 1
-
-        parsed = parse_bio(html_text, profile_url, chamber_slug)
+        if city_only:
+            parsed = ParsedBio(elected=None, term=None, biography=None)
+        else:
+            try:
+                html_text = fetch_text(sess, profile_url)
+            except Exception as exc:  # noqa: BLE001
+                stats.fetch_errors += 1
+                print(f"fetch error: {legislator_row.full_name} {profile_url}: {exc}")
+                continue
+            stats.profiles_fetched += 1
+            parsed = parse_bio(html_text, profile_url, chamber_slug)
 
         # The LRL record supplies the current city of residence for EVERY member,
         # and doubles as the bio fallback when the member page carries none (the
@@ -415,7 +429,7 @@ def backfill(
             try:
                 lrl_html = fetch_text(sess, lrl_url)
                 city = parse_lrl_city(lrl_html)
-                if biography is None:
+                if biography is None and not city_only:
                     biography = parse_lrl_bio(lrl_html)
                 lrl_ok = True
             except Exception as exc:  # noqa: BLE001
@@ -447,6 +461,17 @@ def backfill(
         # Per-record commit isolates a write failure to its own row (leaving it
         # to be retried on a re-run) rather than crashing the whole backfill.
         try:
+            if city_only:
+                # Launch backfills are additive: write a supported city only
+                # into rows selected as missing, and never touch biography,
+                # elected, or term data.
+                if city is None:
+                    continue
+                period.represented_city = city
+                db.commit()
+                stats.written += 1
+                continue
+
             period.elected = parsed.elected
             period.term = parsed.term
             # Only touch the city when LRL actually answered, so a transient LRL
@@ -491,6 +516,11 @@ def main() -> None:
         help="Only rows still missing data: elected+term never captured, or "
         "represented_city (#551) still null.",
     )
+    parser.add_argument(
+        "--city-only",
+        action="store_true",
+        help="Write only supported missing residence cities; leave all other fields unchanged.",
+    )
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(
         "--legislator",
@@ -505,6 +535,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    if args.city_only and not args.only_missing:
+        raise SystemExit(
+            "--city-only requires --only-missing so existing cities are never overwritten."
+        )
     if not args.dry_run and not args.write:
         raise SystemExit("Pass --dry-run to preview or --write to commit.")
 
@@ -524,6 +558,7 @@ def main() -> None:
             limit=args.limit,
             legislator=args.legislator,
             chamber=args.chamber,
+            city_only=args.city_only,
         )
     print(stats)
 
