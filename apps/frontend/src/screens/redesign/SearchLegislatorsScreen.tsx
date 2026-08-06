@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
@@ -34,9 +34,30 @@ import {
   type LegislatorPartyFilter,
 } from '../../lib/legislatorRosterHeader';
 import { Skeleton } from '../../components/Skeleton';
+import { linkProps, routePath } from '../../navigation/links';
 
 // Placeholder cards shown while the first page of legislators loads.
 const SKELETON_CARDS = [0, 1, 2, 3, 4, 5];
+
+function FindMyLegislatorLink({ mobile, onPress }: { mobile?: boolean; onPress: () => void }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Pressable
+      {...linkProps(routePath.findMyLegislator(), onPress)}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={[styles.addressLink, mobile && styles.addressLinkMobile]}
+    >
+      <Text style={[styles.addressLinkText, hovered && styles.addressLinkTextHover]}>
+        Find your legislator by address
+      </Text>
+      <Text aria-hidden style={styles.addressLinkArrow}>
+        →
+      </Text>
+    </Pressable>
+  );
+}
 
 // Search Legislators (docs/mockups/search-legislators). Name search over the
 // current session with chamber + party + session filters and a
@@ -45,7 +66,7 @@ const SKELETON_CARDS = [0, 1, 2, 3, 4, 5];
 export function SearchLegislatorsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { isDesktop } = useResponsive();
+  const { isDesktop, isMobile } = useResponsive();
   const { scrollAnchorProps, onPageChange } = usePaginatedListScroll();
 
   // URL-addressable filter state, mirroring Search Bills: filters live in the
@@ -173,6 +194,13 @@ export function SearchLegislatorsScreen() {
     }
   };
 
+  const addressLink = (
+    <FindMyLegislatorLink
+      mobile={isMobile}
+      onPress={() => navigation.navigate('FindMyLegislator')}
+    />
+  );
+
   const filterRow = (
     <View style={styles.filterRow}>
       <ChamberSegmented
@@ -201,6 +229,7 @@ export function SearchLegislatorsScreen() {
         onOpenChange={(next) => setOpenFilter(next ? 'session' : null)}
         onSelect={(value) => updateFilters({ session: value || undefined })}
       />
+      {!isMobile ? addressLink : null}
     </View>
   );
 
@@ -222,6 +251,7 @@ export function SearchLegislatorsScreen() {
           onClear={clearSearch}
           onSubmit={submitSearch}
           variant="legislators"
+          helper={isMobile ? addressLink : undefined}
           filters={filterRow}
         />
       }
@@ -298,6 +328,28 @@ export function SearchLegislatorsScreen() {
 
 const styles = StyleSheet.create({
   filterRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
+  addressLink: {
+    minHeight: 44,
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  addressLinkMobile: { marginLeft: 0, alignSelf: 'flex-start' },
+  addressLinkText: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    fontWeight: t.fontWeights.bold,
+    color: '#0f7a45',
+  },
+  addressLinkTextHover: { textDecorationLine: 'underline' },
+  addressLinkArrow: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    fontWeight: t.fontWeights.regular,
+    color: '#0f7a45',
+  },
   grid: { marginTop: 22, flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
   gridItem: { flexBasis: '48%', flexGrow: 1, minWidth: 0 },
   gridItemMobile: { flexBasis: '100%', width: '100%' },

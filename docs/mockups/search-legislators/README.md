@@ -26,7 +26,9 @@ results patterns; build them consistently. `<sc-for>`/`<sc-if>`/`{{ }}` = loop/i
   visible and spoken label "Search by name", and a 44×44 **"Clear search"** control only when
   text is present. Enter submits. Filter row: chamber segmented
   (**All · House · Senate**), "All parties" dropdown, **"94th Legislature (2025–2026) Regular
-  Session"** dropdown. **No focus-area pill row.**
+  Session"** dropdown, then **"Find your legislator by address →"** at the far right. On phones,
+  that address link sits directly below the search field instead of joining the wrapping filters.
+  The link stays visible in every result, loading, error, and empty state. **No focus-area pill row.**
 - **Results header:** the officeholder count from the returned roster (24px/800), followed by
   the newest successful Alethical data-update date in the same 17px muted text. The selected
   chamber's count and chamber buttons come from that same roster response. Below a complete,
@@ -70,6 +72,8 @@ rgba(17,21,15,0.10)`). **Whole card is a link** to the legislator profile (absol
    roles. Clearing text keeps chamber, party, and session selections, then returns to page 1.
 8. **Every search or narrowing-filter change returns to page 1.** Only Previous and Next change
    pages. The 3 empty-state actions keep the selected session.
+9. **Address lookup stays discoverable beside name search.** The link is an alternate search method,
+   not a second primary action, and always opens `/find-my-legislator`.
 
 ## Design tokens
 
