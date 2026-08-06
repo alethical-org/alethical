@@ -485,6 +485,8 @@ export function RootNavigator() {
   const isSignedOutHome = useIsSignedOutHome(
     activeRailRoute === 'FindMyLegislator' ? undefined : activeRailRoute,
   );
+  const usesOwnPageChrome =
+    isSignedOutHome || activeRailRoute === 'Tracked' || activeRailRoute === 'FindMyLegislator';
 
   useEffect(() => {
     if (!isWeb) {
@@ -557,12 +559,9 @@ export function RootNavigator() {
       }}
     >
       <View style={isDesktop ? styles.globalShell : styles.globalShellMobile}>
-        {/* Tracked is a redesign page that brings its own chrome (SearchPageShell's
-            top nav + footer), like the /bills stack pages — so it opts out of the
-            old desktop rail, the same way the signed-out home does (#976). */}
-        {isDesktop && !isSignedOutHome && activeRailRoute !== 'Tracked' ? (
-          <DesktopRail activeRouteName={activeRailRoute} />
-        ) : null}
+        {/* Redesign pages bring their own top nav and footer, so they opt out of
+            the old desktop rail instead of rendering both navigation systems. */}
+        {isDesktop && !usesOwnPageChrome ? <DesktopRail activeRouteName={activeRailRoute} /> : null}
         <View style={styles.globalContent}>
           <Stack.Navigator
             screenOptions={({ navigation }) => ({

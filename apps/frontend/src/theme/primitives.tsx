@@ -1132,7 +1132,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   hamburger: {
-    padding: 9,
+    padding: 10,
     borderRadius: 10,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
