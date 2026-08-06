@@ -97,10 +97,18 @@ existed, defaulted to on, and no code anywhere checked it, so it looked like a s
 that disables an account and was not one. Someone would have reached for it the first
 time we had to lock somebody out and watched nothing happen.
 
-Turning it off now refuses every request from that account, on the signed-in pages and
-the public ones alike, with a 403 saying the account has been deactivated. The refusal
-comes *before* anything is written, so a locked account cannot leave rows behind on its
-way to being turned away, and a second sign-in method cannot be used to walk back in.
+Turning it off now shuts the account out of everything that is *theirs* — their followed
+bills, their conversations, their saved places — with a clear "this account has been
+deactivated" rather than a vague "please sign in", so nobody signs in again wondering why
+it did not work. The shut-out happens *before* anything is written, so a locked account
+cannot leave rows behind on its way out, and signing in a second way with the same email
+address cannot be used to walk back in.
+
+**It does not shut them out of the public record.** Bill pages and the rest of the
+public archive still load for someone whose account is locked, exactly as they load for
+someone who never signed in. Locking an account is about the account; the legislative
+record is public, and making it unreadable to a person we locked out would be the
+opposite of the point of this product.
 Turning it off is still a database edit — there is no screen for it, and #1043
 deliberately did not add one. The decision was to make the switch behave as labelled,
 not to build a lockout console; who may flip it and where that gets recorded are
