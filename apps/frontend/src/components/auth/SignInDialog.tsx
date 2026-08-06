@@ -37,7 +37,7 @@ function focusableChildren(node: HTMLElement | null): HTMLElement[] {
 /** The green icon tile above the headline; the glyph follows the intent. */
 function IntentIcon({ icon, size }: { icon: 'brand' | 'bookmark' | 'capitol'; size: number }) {
   const glyph = Math.round(size * 0.5);
-  const green = t.colors.brand.deep;
+  const green = t.colors.brand.graphics;
   return (
     <View style={[styles.iconTile, { width: size, height: size }]}>
       <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none">

@@ -69,14 +69,14 @@ function HeroStateGlyph({ glyph }: { glyph: 'trend' | 'clock' | 'spinner' }) {
       >
         <Path
           d="M5 16 L11 10 L14 13 L19 8"
-          stroke={theme.colors.brand.deep}
+          stroke={theme.colors.brand.graphics}
           strokeWidth={2.2}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <Path
           d="M14.5 8 H19 V12.5"
-          stroke={theme.colors.brand.deep}
+          stroke={theme.colors.brand.graphics}
           strokeWidth={2.2}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -220,7 +220,7 @@ function HeroEntryButton({
   fullWidth?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
-  const green = t.colors.brand.deep;
+  const green = t.colors.brand.graphics;
   return (
     <Pressable
       {...linkProps(href, onPress)}
@@ -456,10 +456,10 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       <View style={styles.citedRow}>
         <Text style={styles.citedLabel}>CITED SECTIONS</Text>
         <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-          <Circle cx={12} cy={12} r={9} stroke={t.colors.brand.deep} strokeWidth={2} />
+          <Circle cx={12} cy={12} r={9} stroke={t.colors.brand.graphics} strokeWidth={2} />
           <Path
             d="M8.5 12.2 L11 14.7 L15.7 9.6"
-            stroke={t.colors.brand.deep}
+            stroke={t.colors.brand.graphics}
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -518,7 +518,7 @@ function ProgressSteps({ filled, vetoed }: { filled: number; vetoed?: boolean })
                 backgroundColor: isVetoedStep
                   ? t.colors.status.vetoedStep
                   : isFilled
-                    ? t.colors.brand.deep
+                    ? t.colors.brand.graphics
                     : t.colors.status.progressEmpty,
               },
             ]}
@@ -971,7 +971,7 @@ function SeeMore({ href, onPress }: { href: string; onPress: () => void }) {
       <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" style={m.seeMoreArrow}>
         <Path
           d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
-          stroke={hovered ? t.colors.brand.deep : t.colors.text.primary}
+          stroke={hovered ? t.colors.brand.graphics : t.colors.text.primary}
           strokeWidth={1.8}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -1592,7 +1592,7 @@ const m = StyleSheet.create({
     letterSpacing: -0.8,
     color: t.colors.text.primary,
   },
-  heroH1Green: { color: t.colors.brand.deep },
+  heroH1Green: { color: t.colors.brand.display },
   // Signed-in hero, narrow (#1069). The state line is the headline at every width;
   // the greeting stays a small eyebrow above it.
   heroGreeting: {
@@ -1957,7 +1957,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.4,
     color: t.colors.text.primary,
   },
-  heroH1Green: { color: t.colors.brand.deep },
+  heroH1Green: { color: t.colors.brand.display },
   heroSubhead: {
     marginTop: 36,
     fontFamily: t.typography.body,
@@ -2031,7 +2031,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.ui,
     fontSize: 19,
     fontWeight: t.fontWeights.regular,
-    color: t.colors.brand.deep,
+    color: t.colors.brand.graphics,
   },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },

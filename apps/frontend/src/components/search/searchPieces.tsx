@@ -1619,7 +1619,7 @@ const styles = StyleSheet.create({
     ...(isWeb ? ({ textWrap: 'pretty' } as object) : null),
   },
   rosterCountNoteLink: { color: '#6f756f', textDecorationLine: 'underline' },
-  rosterCountNoteLinkHover: { color: '#0f7a45' },
+  rosterCountNoteLinkHover: { color: t.colors.text.greenOnLight },
   // flexShrink + maxWidth keep the sort control inside the viewport rather than
   // overflowing (and being clipped) off the right edge.
   resultsMetaRow: {

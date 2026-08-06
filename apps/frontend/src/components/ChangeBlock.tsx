@@ -102,9 +102,9 @@ const styles = StyleSheet.create({
     // measures 5.05:1. Same call, same reason, as the omnibus token's own note
     // (theme/tokens.ts) — accessibility overrides the spec.
     //
-    // This travels with the component ON PURPOSE. #6f756f and #149d5b are the right
-    // values on WHITE and are used that way across the app; inside this pale green
-    // panel they fail AA. Reusing the block in a new container must not mean
+    // This travels with the component ON PURPOSE. #6f756f is the right value on white;
+    // #149d5b is reserved for graphics and large display text. Inside this pale green
+    // panel, both this green and the old muted gray fail AA. Reusing the block in a new container must not mean
     // re-picking these from the on-white palette.
     color: t.colors.brand.forest,
   },

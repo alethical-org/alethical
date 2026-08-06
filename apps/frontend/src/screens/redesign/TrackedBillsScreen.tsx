@@ -230,14 +230,14 @@ function TrendGlyph() {
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" style={styles.glyph}>
       <Path
         d="M5 16 L11 10 L14 13 L19 8"
-        stroke={t.colors.brand.deep}
+        stroke={t.colors.brand.graphics}
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <Path
         d="M14.5 8 H19 V12.5"
-        stroke={t.colors.brand.deep}
+        stroke={t.colors.brand.graphics}
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
       ? ({ transitionProperty: 'background-color', transitionDuration: '0.15s' } as object)
       : null),
   },
-  ctaHover: { backgroundColor: t.colors.brand.deep },
+  ctaHover: { backgroundColor: t.colors.brand.graphics },
   ctaText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.bodyLg,
