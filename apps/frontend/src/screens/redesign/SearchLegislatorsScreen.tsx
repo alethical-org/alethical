@@ -21,6 +21,7 @@ import {
   SearchPageShell,
 } from '../../components/search/searchPieces';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
+import { sessionFilterForApi } from '../../lib/sessionFilterForApi';
 import {
   LEGISLATOR_SEARCH_LABEL,
   clearAllLegislatorSearchParams,
@@ -82,6 +83,7 @@ export function SearchLegislatorsScreen() {
   const currentSession = sessionsQuery.data?.find((item) => item.isCurrent);
   const defaultSession = currentSession ?? sessionsQuery.data?.[0];
   const sessionSlug = session || defaultSession?.slug || '';
+  const apiSession = sessionFilterForApi(session);
   const sessionName = sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name;
   const sessionLabel = sessionName ? formatSessionLabel(sessionName) : SESSION_LABEL_FALLBACK;
 
@@ -89,8 +91,8 @@ export function SearchLegislatorsScreen() {
   // filtering and paging happen client-side.
   // Keep an unsearched roster request alongside a name search so an empty special
   // session is recognized as missing data, not as a failed search or filter.
-  const rosterQuery = useLegislators(undefined, sessionSlug || undefined, {});
-  const legislatorsQuery = useLegislators(query || undefined, sessionSlug || undefined, {});
+  const rosterQuery = useLegislators(undefined, apiSession, {});
+  const legislatorsQuery = useLegislators(query || undefined, apiSession, {});
   const metaQuery = useMeta();
 
   const allLegislators = legislatorsQuery.data ?? [];
