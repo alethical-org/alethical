@@ -182,9 +182,13 @@ about, and a running list of `chat_message` rows. Each message has a role (reade
 assistant) and its full text. The assistant's messages also carry the passages they
 cited.
 
-**The title is generated, not typed.** It is built by the app as `"HF 1234 analysis"`
-from the bill's identifier (`apps/frontend/src/screens/BillDetailScreen.tsx`). All 37
-titles in production follow that pattern. A title is safe to show; a message is not.
+**The title is generated, not typed.** All 37 titles in production read
+`"HF 1234 analysis"` — the bill's identifier plus one word. The screen that built them
+that way was the pre-redesign bill page, deleted as unreachable in
+[#1067](https://github.com/alethical-org/alethical/issues/1067); no shipped surface
+starts a bill conversation today, so no new titles are being written. `ChatSessionScreen`
+still takes a title from its route params, but nothing reachable navigates to it. A
+title is safe to show; a message is not.
 
 **Three columns here are dead.** `chat_session.retrieval_profile` is empty on all 37
 rows and read by nothing. `chat_message.model_name`, `input_tokens` and `output_tokens`
