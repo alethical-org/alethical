@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addressChoiceKey,
   contactEmail,
+  districtMapVisible,
   legislatureLabel,
   senateProfileUrl,
   viewStateForLookup,
@@ -57,5 +58,11 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(
       senateProfileUrl('http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=15245'),
     ).toBe('https://www.senate.mn/members/member_bio.html?leg_id=15245');
+  });
+
+  it('does not mount map tiles on a collapsed phone panel', () => {
+    expect(districtMapVisible(false, false)).toBe(true);
+    expect(districtMapVisible(true, false)).toBe(false);
+    expect(districtMapVisible(true, true)).toBe(true);
   });
 });
