@@ -414,7 +414,7 @@ for Track features** — don't reuse ink fills for other chips.)
 
 ## Tracking — header Track button now live (was removed)
 The header now carries a live **Track** button, immediately left of Share
-(`BillTrackButton`, ink-filled): signed out it opens sign-in and returns to
+(`BillTrackButton`, ink-filled when untracked and mint-filled when tracked): signed out it opens sign-in and returns to
 `?track=1` to finish the track; signed in it toggles the bill on the watchlist.
 This reverses the original handoff, which removed all Track controls from bill
 detail and deferred them to roadmap. The votes empty state still has no tracking,

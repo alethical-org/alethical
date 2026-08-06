@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Linking,
@@ -20,6 +21,7 @@ import { theme } from './tokens';
 import { useUnavailableControl } from '../components/billDetail/interactions';
 import { IaItem, MenuKey, MENUS, navDropdownItems } from '../navigation/ia';
 import { linkProps, routePath } from '../navigation/links';
+import { navigateTopNavItem } from '../navigation/topNavRoutes';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAuth } from '../providers/AuthProvider';
 import { useSignInModal } from '../providers/signInModalContext';
@@ -526,6 +528,7 @@ export function TopNav({
   onAsk?: () => void;
 }) {
   const { isDesktop } = useResponsive();
+  const navigation = useNavigation<any>();
   // Sign-in is opened from here rather than handed down from every screen: the
   // nav is the same on all of them, and a per-screen callback was how the button
   // ended up inert on every one at once.
@@ -624,6 +627,12 @@ export function TopNav({
       } else {
         void Linking.openURL(CONTACT_MAILTO);
       }
+      return;
+    }
+    // Live dropdown routes belong to the shared nav, not to each host page.
+    // In particular, Tracked is nested under Tabs and cannot be reached by a
+    // root-stack screen with a bare `navigate('Tracked')` call.
+    if (navigateTopNavItem(navigation, item)) {
       return;
     }
     onNavigate?.(item);
