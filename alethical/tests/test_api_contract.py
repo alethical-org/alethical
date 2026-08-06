@@ -5399,7 +5399,9 @@ def test_sponsor_party_survives_an_author_who_left_office(client):
     sponsors = {s["name"]: s for s in response.json()["data"]["all_sponsors"]}
 
     departed = sponsors["Senator Test Departed"]
-    assert departed["party"] == "DFL", "a departed author's recorded party must still show"
+    assert departed["party"] == "DFL", (
+        "a departed author's recorded party must still show"
+    )
     assert departed["district"] == "District Left Office Test"
     assert departed["chamber"] == "senate"
 
