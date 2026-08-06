@@ -18,7 +18,7 @@ def tracking_payload(tracked_rows) -> api_schemas.TrackingState | None:
 
 
 def sponsor_payloads(
-    sponsorships, *, session_id=None
+    sponsorships, *, session_id=None, biennium_session_ids=()
 ) -> list[api_schemas.SponsorSummary]:
     """Serialize bill sponsors.
 
@@ -37,6 +37,20 @@ def sponsor_payloads(
     data we hold, in the right session, discarded by the flag. A (legislator,
     session) pair is unique in production, so dropping the flag cannot pick a
     different row where one was already being found.
+
+    ``biennium_session_ids`` are the other sessions of the *same Legislature*,
+    tried in order only when the bill's own session has no period (#1104). A
+    special session is convened by the same Legislature, with the same members
+    holding the same seats — nobody is elected in between — so a member's
+    regular-session party and district are what they held during the special
+    session too. Reading them is the correct answer, not a guess. Production
+    records 0 service periods against the 2025 First Special Session, so all 46
+    of its bills showed an author's name and nothing else.
+
+    Scoped to one Legislature deliberately, never "any session": across
+    bienniums a member may have been redistricted or replaced, so a wider
+    fallback would state a district they did not hold — a confidently wrong fact
+    on a core page, which is worse than the name-only row it replaces.
     """
     payloads: list[api_schemas.SponsorSummary] = []
     for sponsorship in sponsorships:
@@ -47,14 +61,18 @@ def sponsor_payloads(
         slug = sponsorship.legislator.slug if sponsorship.legislator else None
         service_period = None
         if sponsorship.legislator and session_id is not None:
-            service_period = next(
-                (
-                    period
-                    for period in sponsorship.legislator.service_periods
-                    if period.session_id == session_id
-                ),
-                None,
-            )
+            periods = sponsorship.legislator.service_periods
+            for candidate_session_id in (session_id, *biennium_session_ids):
+                service_period = next(
+                    (
+                        period
+                        for period in periods
+                        if period.session_id == candidate_session_id
+                    ),
+                    None,
+                )
+                if service_period:
+                    break
         district = None
         if service_period:
             district = service_period.district.label or service_period.district.code
