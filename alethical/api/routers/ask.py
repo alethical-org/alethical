@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import os
 import re
 
 from fastapi import APIRouter, Depends
@@ -11,7 +13,9 @@ from alethical.api.auth import get_optional_current_user
 from alethical.api.problems import problem_exception
 from alethical.api.routers.me import (
     BillTextCoverage,
+    DEFAULT_RAG_CHAT_MODEL,
     build_query_embedding,
+    rag_chat_prompt_fingerprint,
     synthesize_grounded_answer,
 )
 from alethical.api.schemas import (
@@ -56,6 +60,8 @@ BillVersionSection = schema.BillVersionSection
 RagChunk = schema.RagChunk
 RagSectionDocument = schema.RagSectionDocument
 AIEnrichment = schema.AIEnrichment
+AskSuggestedAnswerCache = schema.AskSuggestedAnswerCache
+SourceArtifact = schema.SourceArtifact
 Chamber = schema.Chamber
 District = schema.District
 EnrichmentType = schema.EnrichmentType
@@ -72,7 +78,9 @@ semantic_rag_chunk_stmt = schema.semantic_rag_chunk_stmt
 
 router = APIRouter()
 
-# Both Ask endpoints make an OpenAI classify call, so they share one budget (#98).
+# Both Ask endpoints can make a paid model call, so they share one budget (#98).
+# Exact public suggestions skip classification and reuse a saved answer, but their
+# first request still writes one and must remain inside the same abuse limit.
 _ask_rate_limit = rate_limit("ask_limiter", "ask")
 
 # Display order per docs/product-onboarding/grounded-ask-spec.md §4.2 (topic_bills formatter):
@@ -98,6 +106,12 @@ _AUTHORSHIP_ROLES = (SponsorshipRole.chief_author, SponsorshipRole.co_author)
 # regex + fuzzy title); fuzzy title match lands with the bill_text path, where
 # a titled bill is the realistic input. Leading zeros are tolerated and dropped.
 _BILL_REFERENCE_RE = re.compile(r"\b([HS])\.?\s*F\.?\s*0*(\d{1,5})\b", re.IGNORECASE)
+
+# The exact shape ``scopedChipQuery`` emits before a public suggestion. This cheap
+# gate keeps ordinary reader-written questions out before any cache lookup query.
+_SUGGESTED_QUERY_PREFIX_RE = re.compile(
+    r"^(?:HF|SF) [1-9]\d{0,4}(?: in the \w+ special session)?$"
+)
 
 
 def _scope_session_ref(scope: LegislatureScope) -> AskSessionRef:
@@ -475,6 +489,97 @@ def _resolve_bill(db: Session, session_ids, content: str) -> _NumberMatch:
     if len(matches) > 1:
         return _NumberMatch(collisions=matches, searched=True)
     return _NumberMatch(searched=True)
+
+
+@dataclass(frozen=True)
+class _SuggestedQuestionMatch:
+    """One request proven to equal a current public suggestion for one bill."""
+
+    bill: object
+    bill_version: object
+    enrichment: object
+    suggestion_index: int
+    suggestion_fingerprint: str
+    bill_text_fingerprint: str
+
+
+def _suggested_question_match(
+    db: Session, content: str
+) -> _SuggestedQuestionMatch | None:
+    """Match only the bill-scoped questions Alethical placed on bill pages.
+
+    The text after the first colon must equal a current ``question_prompts`` item
+    byte for byte after trimming its outer whitespace. Nothing from an unmatched
+    request is hashed or stored.
+    """
+    prefix, separator, suggested_question = content.partition(":")
+    if (
+        not separator
+        or not _SUGGESTED_QUERY_PREFIX_RE.fullmatch(prefix.strip())
+        or not suggested_question.strip()
+    ):
+        return None
+
+    scope = current_legislature_scope(db)
+    session_ids = _question_session_ids(scope, content)
+    if session_ids is None:
+        return None
+    match = _resolve_bill(db, session_ids, content)
+    if match.bill is None or match.collisions:
+        return None
+
+    expected_prefix = f"{match.bill.file_type} {match.bill.file_number}"
+    bill_session = scope.by_id(match.bill.session_id)
+    if bill_session is not None and bill_session.id != scope.primary.id:
+        special = re.search(r"\b(\w+)\s+special session\b", bill_session.name, re.I)
+        if special is None:
+            return None
+        expected_prefix += f" in the {special.group(1).lower()} special session"
+    if prefix.strip() != expected_prefix:
+        return None
+
+    enrichment = current_bill_summary_enrichment(match.bill.enrichments)
+    if enrichment is None:
+        return None
+    prompts = (enrichment.content_json or {}).get("question_prompts")
+    if not isinstance(prompts, list):
+        return None
+    requested = suggested_question.strip()
+    suggestion_index = next(
+        (
+            index
+            for index, prompt in enumerate(prompts)
+            if isinstance(prompt, str) and prompt.strip() == requested
+        ),
+        None,
+    )
+    if suggestion_index is None:
+        return None
+
+    bill_version = db.scalar(
+        select(BillVersion).where(
+            BillVersion.bill_id == match.bill.id,
+            BillVersion.is_current.is_(True),
+        )
+    )
+    if bill_version is None:
+        return None
+    bill_text_fingerprint = db.scalar(
+        select(SourceArtifact.content_hash).where(
+            SourceArtifact.id == bill_version.source_artifact_id
+        )
+    )
+    if not bill_text_fingerprint:
+        return None
+    suggestion = prompts[suggestion_index].strip()
+    return _SuggestedQuestionMatch(
+        bill=match.bill,
+        bill_version=bill_version,
+        enrichment=enrichment,
+        suggestion_index=suggestion_index,
+        suggestion_fingerprint=hashlib.sha256(suggestion.encode("utf-8")).hexdigest(),
+        bill_text_fingerprint=bill_text_fingerprint,
+    )
 
 
 # Question scaffolding stripped to isolate the bill's title phrase for a fuzzy
@@ -953,6 +1058,95 @@ def _bill_text_answer(
     )
 
 
+def _suggested_cache_identity(match: _SuggestedQuestionMatch) -> dict:
+    """Every input that can change a generated answer, with no request text."""
+    return {
+        "bill_id": match.bill.id,
+        "bill_version_id": match.bill_version.id,
+        "bill_summary_enrichment_id": match.enrichment.id,
+        "suggestion_index": match.suggestion_index,
+        "suggestion_fingerprint": match.suggestion_fingerprint,
+        "bill_text_fingerprint": match.bill_text_fingerprint,
+        "prompt_fingerprint": rag_chat_prompt_fingerprint(),
+        "answer_model": os.environ.get(
+            "OPENAI_RAG_CHAT_MODEL", DEFAULT_RAG_CHAT_MODEL
+        ).strip(),
+        "embedding_model": effective_embedding_model(DEFAULT_RAG_MODEL),
+    }
+
+
+def _suggested_cache_row(db: Session, identity: dict):
+    return db.scalar(
+        select(AskSuggestedAnswerCache).where(
+            *(
+                getattr(AskSuggestedAnswerCache, field) == value
+                for field, value in identity.items()
+            )
+        )
+    )
+
+
+def _suggested_cache_lock_key(identity: dict) -> int:
+    """A transaction lock key derived only from the public cache identity."""
+    material = "\0".join(str(value) for value in identity.values())
+    digest = hashlib.sha256(material.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], byteorder="big", signed=True)
+
+
+def _hydrate_suggested_answer(
+    db: Session, scope: LegislatureScope, bill, payload: dict
+) -> AskBillTextAnswer:
+    """Combine saved prose/evidence with the bill's live status and date."""
+    data_as_of = db.scalar(
+        select(func.max(IngestionRun.finished_at)).where(
+            IngestionRun.status == IngestionStatus.succeeded
+        )
+    )
+    return AskBillTextAnswer.model_validate(
+        {
+            **payload,
+            "bill": bill_list_item(bill, session=_bill_session_ref(scope, bill)),
+            "session": _scope_session_ref(scope),
+            "data_as_of": data_as_of,
+        }
+    )
+
+
+def _suggested_bill_text_answer(
+    db: Session, content: str, match: _SuggestedQuestionMatch
+) -> AskBillTextAnswer | None:
+    """Return a saved public answer, or generate and save it exactly once.
+
+    The transaction-scoped database lock makes simultaneous first visits wait for
+    the same answer instead of paying for several copies. The second lookup after
+    the lock is essential: another request may have filled the cache while this one
+    waited.
+    """
+    identity = _suggested_cache_identity(match)
+    scope = current_legislature_scope(db)
+    cached = _suggested_cache_row(db, identity)
+    if cached is not None:
+        return _hydrate_suggested_answer(db, scope, match.bill, cached.answer_payload)
+
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:lock_key)"),
+        {"lock_key": _suggested_cache_lock_key(identity)},
+    )
+    cached = _suggested_cache_row(db, identity)
+    if cached is not None:
+        return _hydrate_suggested_answer(db, scope, match.bill, cached.answer_payload)
+
+    answer = _bill_text_answer(db, content)
+    if not isinstance(answer, AskBillTextAnswer):
+        return None
+    answer_payload = answer.model_dump(
+        mode="json", include={"answer", "citations", "coverage"}
+    )
+    db.add(AskSuggestedAnswerCache(**identity, answer_payload=answer_payload))
+    db.commit()
+    return answer
+
+
 def _vote_deflection_answer(
     db: Session, content: str, topic: str | None
 ) -> AskVoteDeflectionAnswer:
@@ -1048,6 +1242,20 @@ def ask(
     content = request.content.strip()
     if not content:
         raise problem_exception(400, "Bad Request", "content must not be empty")
+
+    suggested = _suggested_question_match(db, content)
+    if suggested is not None:
+        suggested_answer = _suggested_bill_text_answer(db, content, suggested)
+        if suggested_answer is not None:
+            return DetailResponse(
+                data=AskAnswerPayload(
+                    intent=AskIntent.BILL_TEXT.value,
+                    source="predefined",
+                    confidence=1.0,
+                    answer=suggested_answer,
+                ),
+                links={"self": "/api/v1/ask"},
+            )
 
     result = classify_query(content)
     answer = None
