@@ -71,22 +71,36 @@ after which:
 railway up --ci --service alethical-api --environment production
 ```
 
-Order matters when a migration is involved: apply it before the backend deploys,
-or the API looks for a column that is not there
-(`ALETHICAL_DATABASE_TARGET=production uv run alembic upgrade head`).
+Order matters when a migration is involved: apply it first, or the API looks for a
+column that is not there.
+
+```bash
+ALETHICAL_DATABASE_TARGET=production uv run alembic upgrade head
+```
+
+**Nothing enforces that order automatically, including today.** `migrate.yml` and
+`railway-deploy.yml` are separate workflows both triggered by the same push, with
+no `needs:` between them (separate workflows cannot depend on each other), so they
+start in parallel. The migration usually wins because Alembic takes seconds and a
+Railway build takes minutes, but that is a timing accident, not a guarantee. The
+exposure is bounded rather than dangerous: our migrations are additive only
+(`.claude/rules/workflow.md` rule 10), so the worst case is new code briefly
+erroring on a column that lands a moment later, not data loss. Tracked in
+[#1124](https://github.com/alethical-org/alethical/issues/1124).
 
 **Why we route through Actions anyway**, so nobody removes it as redundant: it
 scopes each deploy by path so a docs-only commit does not rebuild the site, it
-sequences the migration ahead of the backend deploy, it rewrites the commit author
-that Vercel's Hobby plan requires (`VERCEL_GIT_AUTHOR_NAME`), and it keeps every
-production credential in one place instead of two provider dashboards.
+rewrites the commit author that Vercel's Hobby plan requires
+(`VERCEL_GIT_AUTHOR_NAME`), and it keeps every production credential in one place
+instead of two provider dashboards.
 
 **The provider integrations are the real alternative.** Vercel and Railway can
 each watch the repository and deploy on push with no Actions involved, and on
 Aug 6 that would have kept working: GitHub's code hosting, webhooks and API all
 stayed `operational` and only Actions and Pages broke. The cost is that the path
-scoping, the ordering, and the author rewrite above would have to be rebuilt or
-given up.
+scoping and the author rewrite above would have to be rebuilt in each provider's
+dashboard or given up. Ordering is not a cost of switching, because we do not have
+it either way.
 
 A failed or cancelled deploy still tells nobody — that gap is
 [#1122](https://github.com/alethical-org/alethical/issues/1122).
