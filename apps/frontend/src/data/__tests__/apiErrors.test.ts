@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { ApiError, isAccountDeactivatedError, isNotFoundError } from '../api';
+import { ApiError, apiErrorFromBody, isAccountDeactivatedError, isNotFoundError } from '../api';
 
 /** The exact body the backend sends, from `alethical/api/problems.py`. */
 const DEACTIVATED_BODY = JSON.stringify({
@@ -23,15 +23,15 @@ const DEACTIVATED_BODY = JSON.stringify({
 
 describe('isAccountDeactivatedError', () => {
   it('recognises the real refusal', () => {
-    const error = new ApiError(403, DEACTIVATED_BODY, 'account-deactivated');
+    const error = apiErrorFromBody(403, DEACTIVATED_BODY);
+    expect(error.problem).toBe('account-deactivated');
     expect(isAccountDeactivatedError(error)).toBe(true);
   });
 
   it('does not fire on a different 403', () => {
-    const forbidden = new ApiError(
+    const forbidden = apiErrorFromBody(
       403,
       JSON.stringify({ type: 'https://api.alethical.com/problems/forbidden', status: 403 }),
-      'forbidden',
     );
     expect(isAccountDeactivatedError(forbidden)).toBe(false);
   });
@@ -39,26 +39,27 @@ describe('isAccountDeactivatedError', () => {
   it('does not fire on a 403 whose body is not a problem document', () => {
     // A proxy or gateway can return an HTML 403. Signing the reader out because
     // Cloudflare said no would be worse than the problem being solved.
-    expect(isAccountDeactivatedError(new ApiError(403, '<html>Forbidden</html>'))).toBe(false);
-    expect(isAccountDeactivatedError(new ApiError(403, ''))).toBe(false);
+    expect(isAccountDeactivatedError(apiErrorFromBody(403, '<html>Forbidden</html>'))).toBe(false);
+    expect(apiErrorFromBody(403, '<html>Forbidden</html>').problem).toBeNull();
+    expect(isAccountDeactivatedError(apiErrorFromBody(403, ''))).toBe(false);
+    expect(isAccountDeactivatedError(apiErrorFromBody(403, 'null'))).toBe(false);
+    expect(isAccountDeactivatedError(apiErrorFromBody(403, '"account-deactivated"'))).toBe(false);
+    expect(isAccountDeactivatedError(apiErrorFromBody(403, '{"type": 42}'))).toBe(false);
   });
 
   it('does not fire on the signed-out 401, which is the one this must not be confused with', () => {
     // Signed out is fixed by signing in; deactivated never will be. Treating the
     // 401 as deactivation would tell a reader with an expired token that their
     // account was locked.
-    const unauthorized = new ApiError(
+    const unauthorized = apiErrorFromBody(
       401,
       JSON.stringify({ type: 'https://api.alethical.com/problems/unauthorized', status: 401 }),
-      'unauthorized',
     );
     expect(isAccountDeactivatedError(unauthorized)).toBe(false);
   });
 
   it('needs the status as well as the slug', () => {
-    expect(
-      isAccountDeactivatedError(new ApiError(500, DEACTIVATED_BODY, 'account-deactivated')),
-    ).toBe(false);
+    expect(isAccountDeactivatedError(apiErrorFromBody(500, DEACTIVATED_BODY))).toBe(false);
   });
 
   it('is safe on things that are not ApiErrors at all', () => {
@@ -70,11 +71,12 @@ describe('isAccountDeactivatedError', () => {
 
 describe('ApiError', () => {
   it('carries no problem slug unless one is given', () => {
+    expect(apiErrorFromBody(404, 'nope').problem).toBeNull();
     expect(new ApiError(404, 'nope').problem).toBeNull();
   });
 
   it('leaves the existing 404 helper alone', () => {
     expect(isNotFoundError(new ApiError(404, 'nope'))).toBe(true);
-    expect(isNotFoundError(new ApiError(403, DEACTIVATED_BODY, 'account-deactivated'))).toBe(false);
+    expect(isNotFoundError(apiErrorFromBody(403, DEACTIVATED_BODY))).toBe(false);
   });
 });

@@ -526,7 +526,14 @@ function problemSlug(body: string): string | null {
   }
 }
 
-function apiError(status: number, body: string): ApiError {
+/**
+ * Build the error from a raw response body, parsing the problem type out of it.
+ *
+ * Exported because this is the seam that actually decides whether a reader gets
+ * signed out: `isAccountDeactivatedError` only compares two fields, so a test
+ * that constructs `ApiError` by hand proves nothing about the parsing (#1092).
+ */
+export function apiErrorFromBody(status: number, body: string): ApiError {
   return new ApiError(status, body || `API request failed with ${status}`, problemSlug(body));
 }
 
@@ -594,7 +601,7 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
   });
 
   if (!response.ok) {
-    const error = apiError(response.status, await response.text());
+    const error = apiErrorFromBody(response.status, await response.text());
     if (isAccountDeactivatedError(error)) {
       // Every authenticated request comes through here, so whichever one the
       // reader happened to trigger is enough to notice. Without this the app
@@ -620,7 +627,7 @@ async function publicApiRequest<T>(path: string): Promise<T> {
   });
 
   if (!response.ok) {
-    throw apiError(response.status, await response.text());
+    throw apiErrorFromBody(response.status, await response.text());
   }
 
   return (await response.json()) as T;
@@ -637,7 +644,7 @@ async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
   });
 
   if (!response.ok) {
-    throw apiError(response.status, await response.text());
+    throw apiErrorFromBody(response.status, await response.text());
   }
 
   return (await response.json()) as T;
