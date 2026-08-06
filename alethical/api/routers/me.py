@@ -11,6 +11,7 @@ from sqlalchemy import case, select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_current_user
+from alethical.api.bill_lookup import get_bill_by_key
 from alethical.api.schemas import (
     ChatMessageCreateRequest,
     ChatSessionCreateRequest,
@@ -69,11 +70,9 @@ RAG_CHAT_SYSTEM_PROMPT = (
 )
 
 
-def get_bill_by_key(db: Session, bill_key: str):
-    bill = db.scalar(select(Bill).where(Bill.bill_key == bill_key))
-    if bill is None:
-        raise HTTPException(status_code=404, detail="bill not found")
-    return bill
+# Signed-in tracking writes and the bill-scoped chat subject resolve by exact
+# key only (no number-alias fallback) so they land on exactly the bill named
+# (#224). Shared with the exact-lookup helper in alethical/api/bill_lookup.py.
 
 
 def build_query_embedding(text: str) -> list[float]:

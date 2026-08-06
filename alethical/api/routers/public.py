@@ -12,6 +12,7 @@ from sqlalchemy import and_, case, func, or_, select, text, tuple_
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
+from alethical.api.bill_lookup import resolve_bill_by_key
 from alethical.api.issue_taxonomy import aliases_for
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit
@@ -333,11 +334,11 @@ def get_session_by_slug(db: Session, slug: str | None):
     return session_row
 
 
-def get_bill_by_key(db: Session, bill_key: str):
-    bill = db.scalar(select(Bill).where(Bill.bill_key == bill_key))
-    if bill is None:
-        raise HTTPException(status_code=404, detail="bill not found")
-    return bill
+# Public read routes resolve a chamber-prefixed number alias ("/bills/HF4138")
+# in addition to the exact key, so shared or hand-typed bill-number links work
+# without the client guessing the session-year stamp (#224). Shared logic lives
+# in alethical/api/bill_lookup.py; signed-in tracking writes keep the exact-only
+# get_bill_by_key.
 
 
 def get_legislator_by_id(db: Session, legislator_id: str):
@@ -1813,7 +1814,7 @@ def bill_detail(
     current_user=Depends(get_optional_current_user),
     response: Response = None,  # type: ignore[assignment]
 ):
-    bill_row = get_bill_by_key(db, bill_id)
+    bill_row = resolve_bill_by_key(db, bill_id)
     include_set = {item.strip() for item in include.split(",")} if include else set()
     # Cacheable unless the response carries per-user tracking state (see /bills).
     response.headers["Cache-Control"] = (
@@ -1971,7 +1972,7 @@ def bill_detail(
 
 @router.get("/bills/{bill_id}/actions", response_model=CollectionResponse)
 def bill_actions(bill_id: str, db: Session = Depends(get_db)):
-    bill_row = get_bill_by_key(db, bill_id)
+    bill_row = resolve_bill_by_key(db, bill_id)
     row = db.scalar(bill_detail_stmt(bill_row.id))
     data = [
         {
@@ -1993,7 +1994,7 @@ def bill_actions(bill_id: str, db: Session = Depends(get_db)):
 
 @router.get("/bills/{bill_id}/versions", response_model=CollectionResponse)
 def bill_versions(bill_id: str, db: Session = Depends(get_db)):
-    bill_row = get_bill_by_key(db, bill_id)
+    bill_row = resolve_bill_by_key(db, bill_id)
     row = db.scalar(bill_detail_stmt(bill_row.id))
     data = bill_version_payloads(row)
     return CollectionResponse(
@@ -2003,7 +2004,7 @@ def bill_versions(bill_id: str, db: Session = Depends(get_db)):
 
 @router.get("/bills/{bill_id}/versions/{version_code}", response_model=DetailResponse)
 def bill_version_detail(bill_id: str, version_code: str, db: Session = Depends(get_db)):
-    bill_row = get_bill_by_key(db, bill_id)
+    bill_row = resolve_bill_by_key(db, bill_id)
     version = db.scalar(
         select(BillVersion).where(
             BillVersion.bill_id == bill_row.id, BillVersion.version_code == version_code
@@ -2032,7 +2033,7 @@ def bill_version_text(
     format: str = "structured",
     db: Session = Depends(get_db),
 ):
-    bill_row = get_bill_by_key(db, bill_id)
+    bill_row = resolve_bill_by_key(db, bill_id)
     version = db.scalar(
         select(BillVersion).where(
             BillVersion.bill_id == bill_row.id, BillVersion.version_code == version_code
@@ -2092,7 +2093,7 @@ def bill_votes(
 ):
     # Vote records carry no per-user data — always publicly cacheable.
     response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
-    bill_row = get_bill_by_key(db, bill_id)
+    bill_row = resolve_bill_by_key(db, bill_id)
     row = db.scalar(bill_detail_stmt(bill_row.id))
     # Resolve each voter's name + party once for the whole roll call, batched
     # across every vote event, so party-grouped attribution renders (#83).
