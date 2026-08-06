@@ -1124,6 +1124,19 @@ describe('chiefAuthor picks this file’s author, not the companion’s', () => 
     );
   });
 
+  it('takes the Senate author on a Senate file even when the House row comes first', () => {
+    // This case, not the one above, is what actually pins the chamber filter. Both
+    // rows carry `source_order: 1` with no tiebreak, so the served order between
+    // them is undefined — and in the production payload the Senate row happens to
+    // arrive first, which means the assertion above still passes if the filter is
+    // deleted. Reversing the fixture removes that coincidence. Confirmed by
+    // mutation: deleting the filter fails this and leaves the one above green.
+    const reversed = [...SF334_SPONSORS].reverse();
+    expect(chiefAuthor({ sponsors: reversed, chamber: 'Senate' })?.name).toBe(
+      'Senator Melissa H. Wiklund',
+    );
+  });
+
   it('takes the House author when the same rows sit on a House file', () => {
     expect(chiefAuthor({ sponsors: SF334_SPONSORS, chamber: 'House' })?.name).toBe(
       'Paul Torkelson',
