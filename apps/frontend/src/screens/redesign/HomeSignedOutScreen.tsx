@@ -549,7 +549,6 @@ export function HomeSignedOutScreen() {
 function HomeSignedOutDesktop() {
   const navigation = useNavigation<any>();
   const { isTracked, toggleTrack } = useBillTracking();
-  const { isDesktop } = useResponsive();
   // ONE homepage, not two (#1034). Only the hero region branches on auth;
   // everything below it — Bills Moving, Find My Legislator, the footer, the nav —
   // is identical either way, so signing in never takes a capability away.
@@ -696,9 +695,9 @@ function HomeSignedOutDesktop() {
             />
 
             <Container style={styles.heroBody}>
-              <View style={[styles.heroGrid, isDesktop && styles.heroGridDesktop]}>
+              <View style={[styles.heroGrid, styles.heroGridDesktop]}>
                 {/* LEFT */}
-                <View style={[styles.heroLeft, isDesktop && styles.heroLeftDesktop]}>
+                <View style={[styles.heroLeft, styles.heroLeftDesktop]}>
                   {isSignedIn ? (
                     <>
                       {/* The STATE LINE is the headline and the greeting is a small
@@ -757,7 +756,7 @@ function HomeSignedOutDesktop() {
                     the same slot, footprint and shadow — not a band above the hero,
                     which would stack two heroes and make a signed-in reader scroll
                     past a pitch that already worked. */}
-                <View style={[styles.heroRight, isDesktop && styles.heroRightDesktop]}>
+                <View style={[styles.heroRight, styles.heroRightDesktop]}>
                   {isSignedIn ? (
                     <SessionWatchCard
                       watch={watch}
@@ -844,7 +843,7 @@ function HomeSignedOutDesktop() {
               />
             ) : null}
             <Container>
-              <View style={[styles.finderGrid, isDesktop && styles.finderGridDesktop]}>
+              <View style={[styles.finderGrid, styles.finderGridDesktop]}>
                 <View style={styles.finderLeft}>
                   <Text accessibilityRole="header" style={styles.finderH2}>
                     Find My Legislator
@@ -875,11 +874,9 @@ function HomeSignedOutDesktop() {
                     </FieldShell>
                   </View>
                 </View>
-                {isDesktop ? (
-                  <View style={styles.finderMap}>
-                    <MNMap size={330} />
-                  </View>
-                ) : null}
+                <View style={styles.finderMap}>
+                  <MNMap size={330} />
+                </View>
               </View>
             </Container>
           </View>
