@@ -467,14 +467,49 @@ def current_service_payload(service_period) -> api_schemas.CurrentServicePayload
         chamber=service_period.chamber.slug,
         party=service_period.party,
         district=district_payload(service_period.district),
-        email=service_period.email,
+        email=clean_contact_email(service_period.email),
         phone=service_period.phone,
-        office_address=service_period.office_address,
-        profile_url=service_period.profile_url,
+        office_address=clean_office_address(service_period.office_address),
+        profile_url=normalize_legislator_profile_url(service_period.profile_url),
         photo_url=service_period.photo_url,
         elected=service_period.elected,
         term=service_period.term,
+        represented_city=service_period.represented_city,
     )
+
+
+def clean_contact_email(value: str | None) -> str | None:
+    text = (value or "").strip()
+    if text.lower().startswith("mailto:"):
+        text = text[7:].strip()
+    return text if re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", text) else None
+
+
+def normalize_legislator_profile_url(value: str | None) -> str | None:
+    text = (value or "").strip()
+    match = re.search(r"[?&]leg_id=(\d+)", text, re.IGNORECASE)
+    if match:
+        return f"https://www.senate.mn/members/member_bio.html?leg_id={match.group(1)}"
+    return re.sub(r"^http:", "https:", text, flags=re.IGNORECASE) or None
+
+
+def clean_office_address(value: str | None) -> str | None:
+    lines = []
+    for raw_line in re.split(r"[\r\n|]+", value or ""):
+        line = raw_line.strip(" ,")
+        if not line or line == "*":
+            continue
+        if re.search(
+            r"^(?:capitol office|toll free|e-?mail|email updates|subscribe|click to subscribe|meeting request)|(?:newsletter|minority leader|majority leader)$",
+            line,
+            re.IGNORECASE,
+        ):
+            continue
+        if re.fullmatch(r"[\d\s().+\-]{7,}", line):
+            continue
+        if line not in lines:
+            lines.append(line)
+    return "\n".join(lines) or None
 
 
 def service_history_payload(
@@ -537,24 +572,37 @@ def legislator_list_item(
     total_bill_count: int | None = None,
     chief_bill_count: int | None = None,
     committee_names: list[str] | None = None,
+    committee_assignments: list[tuple[str, str | None]] | None = None,
+    current_service=None,
+    election_history=None,
+    issue_areas: list[str] | None = None,
 ) -> api_schemas.LegislatorListItem:
-    current_service = next(iter(legislator.service_periods), None)
-    committees = (
-        [api_schemas.CommitteePayload(name=name) for name in committee_names]
-        if committee_names
-        else None
-    )
+    service = current_service or next(iter(legislator.service_periods), None)
+    committees = None
+    if committee_assignments:
+        committees = [
+            api_schemas.CommitteePayload(name=name, role=role)
+            for name, role in committee_assignments
+        ]
+    elif committee_names:
+        committees = [
+            api_schemas.CommitteePayload(name=name) for name in committee_names
+        ]
     return api_schemas.LegislatorListItem(
         id=str(legislator.id),
         slug=legislator.slug,
         full_name=legislator.full_name,
-        current_service=current_service_payload(current_service),
+        current_service=current_service_payload(service),
         committees=committees,
         stats=legislator_stats_payload(
             legislator.stats,
             total_bill_count=total_bill_count,
             chief_bill_count=chief_bill_count,
         ),
+        service_history=service_history_payload(election_history)
+        if election_history
+        else None,
+        issue_areas=issue_areas or None,
     )
 
 

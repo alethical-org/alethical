@@ -599,6 +599,14 @@ Authored Bills uses the same server-backed `limit` and `offset` contract as the 
 
 ## 9. Find My Legislator
 
+> **Superseded by what shipped.** Per-screen truth is the full page in
+> `apps/frontend/src/screens/FindMyLegislatorScreen.tsx` and the shared homepage entry point
+> in `apps/frontend/src/components/home/HomeLegislatorFinder.tsx`. The shipped page requires
+> a full Minnesota street address or browser location, keeps results and errors on the full
+> page, and never saves an address or coordinates. The sketches below remain as original
+> design intent only; city entry, saved places, and a separate lookup click after moving the
+> pin did not ship.
+
 ### Mobile
 
 ```text

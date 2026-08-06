@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  GestureResponderEvent,
   Image,
   Linking,
   PanResponder,
@@ -10,726 +9,534 @@ import {
   Text,
   View,
 } from 'react-native';
-import Svg, { Polygon, Polyline } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 import { MINNESOTA_BOUNDARY, isCoordinateInMinnesota } from '../data/minnesotaBoundary';
-import { RepresentativeLookupCoordinates } from '../data/types';
+import type { GeoJsonGeometry, RepresentativeLookupCoordinates } from '../data/types';
+import { arrowMovedCoordinate, visibleTileKeys } from '../lib/districtMap';
 import { externalLinkProps } from '../navigation/links';
-import { theme } from '../theme/tokens';
-
-interface MapPinPickerProps {
-  coordinate: RepresentativeLookupCoordinates;
-  onCoordinateChange: (coordinate: RepresentativeLookupCoordinates) => void;
-}
-
-interface Size {
-  width: number;
-  height: number;
-}
+import { theme as t } from '../theme/tokens';
 
 const TILE_SIZE = 256;
-const DEFAULT_ZOOM = 14;
-const MIN_ZOOM = 10;
-const MAX_ZOOM = 18;
-const TILE_RADIUS = 2;
-const DRAG_THRESHOLD = 4;
-const OPENSTREETMAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const OPENSTREETMAP_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
-const MAP_TILE_USER_AGENT =
-  process.env.EXPO_PUBLIC_MAP_TILE_USER_AGENT || 'Alethical/0.1 (+https://www.alethical.com)';
-const tileTemplate =
-  process.env.EXPO_PUBLIC_OPENSTREETMAP_TILE_URL ||
-  process.env.EXPO_PUBLIC_MAP_TILE_URL ||
-  OPENSTREETMAP_TILE_URL;
-const webMapSurfaceStyle = {
-  cursor: 'grab',
-  touchAction: 'none',
-} as any;
-const DEFAULT_COORDINATE = {
-  latitude: 44.97683,
-  longitude: -93.26579,
-};
+const MIN_ZOOM = 5;
+const MAX_ZOOM = 15;
+const OSM_COPYRIGHT = 'https://www.openstreetmap.org/copyright';
+const GIS_CREDIT = 'https://gis.lcc.mn.gov/';
+const isWeb = Platform.OS === 'web';
 
-export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerProps) {
-  const [size, setSize] = useState<Size>({ width: 0, height: 0 });
-  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
-  const safeCoordinate = isValidCoordinate(coordinate) ? coordinate : DEFAULT_COORDINATE;
-  const tileGrid = useMemo(
-    () => buildTileGrid(safeCoordinate, size, zoom),
-    [safeCoordinate, size, zoom],
-  );
-  const boundaryPoints = useMemo(
-    () => buildBoundaryPoints(safeCoordinate, size, zoom),
-    [safeCoordinate, size, zoom],
-  );
-  const isInMinnesota = isCoordinateInMinnesota(safeCoordinate);
-  const dragStartCoordinateRef = useRef<RepresentativeLookupCoordinates>(safeCoordinate);
-  const pointerDragRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    coordinate: RepresentativeLookupCoordinates;
-    moved: boolean;
-  } | null>(null);
-  const suppressNextPressRef = useRef(false);
+type Size = { width: number; height: number };
 
-  useEffect(() => {
-    if (!isValidCoordinate(coordinate)) {
-      onCoordinateChange(DEFAULT_COORDINATE);
-    }
-  }, [coordinate, onCoordinateChange]);
-
-  function handlePress(event: GestureResponderEvent) {
-    if (suppressNextPressRef.current) {
-      suppressNextPressRef.current = false;
-      return;
-    }
-
-    const pressLocation = pressLocationFromEvent(event);
-    if (!isValidSize(size)) {
-      return;
-    }
-    if (!pressLocation) {
-      return;
-    }
-
-    const nextCoordinate = screenPointToCoordinate(
-      pressLocation.x,
-      pressLocation.y,
-      safeCoordinate,
-      size,
-      zoom,
-    );
-    if (isValidCoordinate(nextCoordinate)) {
-      onCoordinateChange(nextCoordinate);
-    }
-  }
-
-  function handleZoomStep(delta: number) {
-    const nextZoom = clamp(zoom + delta, MIN_ZOOM, MAX_ZOOM);
-    if (nextZoom === zoom || !isValidSize(size)) {
-      return;
-    }
-
-    setZoom(nextZoom);
-    const nextCoordinate = zoomAroundScreenPoint(
-      size.width / 2,
-      size.height / 2,
-      safeCoordinate,
-      size,
-      zoom,
-      nextZoom,
-    );
-    if (isValidCoordinate(nextCoordinate)) {
-      onCoordinateChange(nextCoordinate);
-    }
-  }
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gestureState) =>
-          Math.abs(gestureState.dx) > DRAG_THRESHOLD || Math.abs(gestureState.dy) > DRAG_THRESHOLD,
-        onPanResponderGrant: () => {
-          dragStartCoordinateRef.current = safeCoordinate;
-        },
-        onPanResponderMove: (_event, gestureState) => {
-          if (!isValidSize(size)) {
-            return;
-          }
-
-          const nextCoordinate = dragOffsetToCoordinate(
-            gestureState.dx,
-            gestureState.dy,
-            dragStartCoordinateRef.current,
-            zoom,
-          );
-          if (isValidCoordinate(nextCoordinate)) {
-            onCoordinateChange(nextCoordinate);
-          }
-        },
-      }),
-    [onCoordinateChange, safeCoordinate, size, zoom],
-  );
-
-  const webGestureHandlers =
-    Platform.OS === 'web'
-      ? ({
-          onPointerDown: (event: any) => {
-            if (event.button != null && event.button !== 0) {
-              return;
-            }
-            pointerDragRef.current = {
-              pointerId: event.pointerId,
-              startX: event.clientX,
-              startY: event.clientY,
-              coordinate: safeCoordinate,
-              moved: false,
-            };
-            event.currentTarget?.setPointerCapture?.(event.pointerId);
-          },
-          onPointerMove: (event: any) => {
-            const drag = pointerDragRef.current;
-            if (!drag || drag.pointerId !== event.pointerId) {
-              return;
-            }
-
-            const dx = event.clientX - drag.startX;
-            const dy = event.clientY - drag.startY;
-            if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
-              drag.moved = true;
-            }
-
-            if (!drag.moved) {
-              return;
-            }
-
-            event.preventDefault?.();
-            const nextCoordinate = dragOffsetToCoordinate(dx, dy, drag.coordinate, zoom);
-            if (isValidCoordinate(nextCoordinate)) {
-              onCoordinateChange(nextCoordinate);
-            }
-          },
-          onPointerUp: (event: any) => {
-            if (pointerDragRef.current?.moved) {
-              suppressNextPressRef.current = true;
-            }
-            event.currentTarget?.releasePointerCapture?.(event.pointerId);
-            pointerDragRef.current = null;
-          },
-          onPointerCancel: (event: any) => {
-            event.currentTarget?.releasePointerCapture?.(event.pointerId);
-            pointerDragRef.current = null;
-          },
-          onWheel: (event: any) => {
-            if (!isValidSize(size)) {
-              return;
-            }
-
-            event.preventDefault?.();
-            const nextZoom = clamp(zoom + (event.deltaY < 0 ? 1 : -1), MIN_ZOOM, MAX_ZOOM);
-            if (nextZoom === zoom) {
-              return;
-            }
-
-            const pressLocation = eventLocationFromClientPoint(event, event.currentTarget);
-            if (!pressLocation) {
-              setZoom(nextZoom);
-              return;
-            }
-
-            const nextCoordinate = zoomAroundScreenPoint(
-              pressLocation.x,
-              pressLocation.y,
-              safeCoordinate,
-              size,
-              zoom,
-              nextZoom,
-            );
-            setZoom(nextZoom);
-            if (isValidCoordinate(nextCoordinate)) {
-              onCoordinateChange(nextCoordinate);
-            }
-          },
-          onClick: (event: any) => {
-            if (suppressNextPressRef.current) {
-              event.preventDefault?.();
-            }
-          },
-        } as any)
-      : null;
-
-  return (
-    <View style={styles.container}>
-      {/* The surface is a plain View, not a Pressable: the zoom controls and the
-          attribution link live inside it, and a button may not contain a button
-          or a link (#882). The pin-drop target is a sibling of those controls
-          below, filling the surface. Keeping the surface styles here means the
-          absolutely-positioned children still measure against the same box. */}
-      <View
-        onLayout={(event) => {
-          const { width, height } = event.nativeEvent.layout;
-          setSize({ width, height });
-        }}
-        style={styles.mapSurface}
-      >
-        {tileGrid.length === 0 ? (
-          <View style={styles.loadingState}>
-            <Text style={styles.loadingText}>Loading map</Text>
-          </View>
-        ) : null}
-        {tileGrid.map((tile, index) => (
-          <Image
-            key={`${tile.z}-${tile.x}-${tile.y}-${index}`}
-            source={tileImageSource(tile.x, tile.y, tile.z)}
-            style={[
-              styles.tile,
-              {
-                left: tile.left,
-                top: tile.top,
-              },
-            ]}
-          />
-        ))}
-        {boundaryPoints ? (
-          <Svg style={styles.boundaryOverlay} width={size.width} height={size.height}>
-            <Polygon points={boundaryPoints} fill="rgba(214, 39, 40, 0.06)" stroke="none" />
-            <Polyline
-              points={boundaryPoints}
-              fill="none"
-              stroke={theme.colors.accent}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={3}
-            />
-          </Svg>
-        ) : null}
-        <View style={styles.crosshairHorizontal} />
-        <View style={styles.crosshairVertical} />
-        <View style={styles.pin} />
-        {!isInMinnesota ? (
-          <View style={styles.coverageBadge}>
-            <Text style={styles.coverageBadgeText}>Outside Minnesota lookup area</Text>
-          </View>
-        ) : null}
-        {/* The pin-drop target. It fills the surface and sits before the zoom
-            controls and the attribution, so those paint above it and receive
-            their own presses instead of being nested inside it. */}
-        <Pressable
-          {...panResponder.panHandlers}
-          {...webGestureHandlers}
-          accessibilityLabel="Map pin location"
-          accessibilityRole="button"
-          testID="representative-map-pin-picker"
-          onPress={handlePress}
-          style={[StyleSheet.absoluteFill, webMapSurfaceStyle]}
-        />
-        <View style={styles.zoomControls}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Zoom map in"
-            onPress={() => {
-              handleZoomStep(1);
-            }}
-            style={({ pressed }) => [styles.zoomButton, pressed ? styles.zoomButtonPressed : null]}
-          >
-            <Text style={styles.zoomButtonText}>+</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Zoom map out"
-            onPress={() => {
-              handleZoomStep(-1);
-            }}
-            style={({ pressed }) => [styles.zoomButton, pressed ? styles.zoomButtonPressed : null]}
-          >
-            <Text style={styles.zoomButtonText}>-</Text>
-          </Pressable>
-        </View>
-        <Pressable
-          {...externalLinkProps(OPENSTREETMAP_COPYRIGHT_URL)}
-          accessibilityLabel="Open OpenStreetMap copyright"
-          onPress={() => {
-            // On web, externalLinkProps has made this a real anchor and its own
-            // target="_blank" opens the tab, so there is nothing to do here.
-            // Linking.openURL is only the native fallback, where there is no
-            // anchor at all.
-            if (Platform.OS !== 'web') {
-              void Linking.openURL(OPENSTREETMAP_COPYRIGHT_URL);
-            }
-          }}
-          style={({ pressed }) => [styles.attribution, pressed ? styles.attributionPressed : null]}
-        >
-          <Text style={styles.attributionText}>(c) OpenStreetMap contributors</Text>
-        </Pressable>
-      </View>
-      <View style={styles.coordinateRow}>
-        <Text testID="representative-map-pin-latitude" style={styles.coordinateText}>
-          {safeCoordinate.latitude.toFixed(5)}
-        </Text>
-        <Text testID="representative-map-pin-longitude" style={styles.coordinateText}>
-          {safeCoordinate.longitude.toFixed(5)}
-        </Text>
-        <Text
-          style={[
-            styles.coordinateText,
-            isInMinnesota ? styles.coverageInsideText : styles.coverageOutsideText,
-          ]}
-        >
-          {isInMinnesota ? 'MN lookup area' : 'Outside MN lookup area'}
-        </Text>
-      </View>
-    </View>
-  );
+export interface MapPinPickerProps {
+  coordinate?: RepresentativeLookupCoordinates;
+  houseGeometry?: GeoJsonGeometry;
+  senateGeometry?: GeoJsonGeometry;
+  houseDistrict?: string;
+  senateDistrict?: string;
+  otherHouseDistrict?: string;
+  onCoordinateChange: (coordinate: RepresentativeLookupCoordinates) => void;
+  mobile?: boolean;
 }
 
-function pressLocationFromEvent(event: GestureResponderEvent): { x: number; y: number } | null {
-  const nativeEvent = event.nativeEvent as GestureResponderEvent['nativeEvent'] & {
-    clientX?: number;
-    clientY?: number;
-    offsetX?: number;
-    offsetY?: number;
-  };
-  if (Number.isFinite(nativeEvent.locationX) && Number.isFinite(nativeEvent.locationY)) {
-    return { x: nativeEvent.locationX, y: nativeEvent.locationY };
-  }
-  const offsetX = nativeEvent.offsetX;
-  const offsetY = nativeEvent.offsetY;
-  if (Number.isFinite(offsetX) && Number.isFinite(offsetY)) {
-    return { x: offsetX as number, y: offsetY as number };
-  }
-
-  const clientX = nativeEvent.clientX;
-  const clientY = nativeEvent.clientY;
-  const target = event.currentTarget as unknown as { getBoundingClientRect?: () => DOMRect };
-  if (target?.getBoundingClientRect && Number.isFinite(clientX) && Number.isFinite(clientY)) {
-    const rect = target.getBoundingClientRect();
-    return {
-      x: (clientX as number) - rect.left,
-      y: (clientY as number) - rect.top,
-    };
-  }
-  return null;
-}
-
-function buildTileGrid(coordinate: RepresentativeLookupCoordinates, size: Size, zoom: number) {
-  if (!isValidCoordinate(coordinate) || !isValidSize(size)) {
-    return [];
-  }
-
-  const center = coordinateToWorldPixel(coordinate, zoom);
-  if (!Number.isFinite(center.x) || !Number.isFinite(center.y)) {
-    return [];
-  }
-
-  const topLeft = {
-    x: center.x - size.width / 2,
-    y: center.y - size.height / 2,
-  };
-  const centerTileX = Math.floor(center.x / TILE_SIZE);
-  const centerTileY = Math.floor(center.y / TILE_SIZE);
-  const tiles = [];
-
-  for (let dx = -TILE_RADIUS; dx <= TILE_RADIUS; dx += 1) {
-    for (let dy = -TILE_RADIUS; dy <= TILE_RADIUS; dy += 1) {
-      const x = centerTileX + dx;
-      const y = centerTileY + dy;
-      tiles.push({
-        x,
-        y,
-        z: zoom,
-        left: x * TILE_SIZE - topLeft.x,
-        top: y * TILE_SIZE - topLeft.y,
-      });
-    }
-  }
-
-  return tiles;
-}
-
-function screenPointToCoordinate(
-  x: number,
-  y: number,
-  centerCoordinate: RepresentativeLookupCoordinates,
-  size: Size,
-  zoom: number,
-): RepresentativeLookupCoordinates {
-  const center = coordinateToWorldPixel(centerCoordinate, zoom);
-  const worldPoint = {
-    x: center.x + x - size.width / 2,
-    y: center.y + y - size.height / 2,
-  };
-  return worldPixelToCoordinate(worldPoint, zoom);
-}
-
-function zoomAroundScreenPoint(
-  x: number,
-  y: number,
-  centerCoordinate: RepresentativeLookupCoordinates,
-  size: Size,
-  currentZoom: number,
-  nextZoom: number,
-): RepresentativeLookupCoordinates {
-  const targetCoordinate = screenPointToCoordinate(x, y, centerCoordinate, size, currentZoom);
-  const targetWorldPoint = coordinateToWorldPixel(targetCoordinate, nextZoom);
-  return worldPixelToCoordinate(
-    {
-      x: targetWorldPoint.x - x + size.width / 2,
-      y: targetWorldPoint.y - y + size.height / 2,
-    },
-    nextZoom,
-  );
-}
-
-function coordinateToWorldPixel(coordinate: RepresentativeLookupCoordinates, zoom: number) {
+function worldPoint(coordinate: RepresentativeLookupCoordinates, zoom: number) {
   const scale = TILE_SIZE * 2 ** zoom;
-  const latitude = clamp(coordinate.latitude, -85.05112878, 85.05112878);
-  const sinLatitude = Math.sin((latitude * Math.PI) / 180);
+  const sin = Math.sin((coordinate.latitude * Math.PI) / 180);
   return {
     x: ((coordinate.longitude + 180) / 360) * scale,
-    y: (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * scale,
+    y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale,
   };
 }
 
-function worldPixelToCoordinate(
-  point: { x: number; y: number },
-  zoom: number,
-): RepresentativeLookupCoordinates {
+function coordinateAt(point: { x: number; y: number }, zoom: number) {
   const scale = TILE_SIZE * 2 ** zoom;
   const longitude = (point.x / scale) * 360 - 180;
   const n = Math.PI - (2 * Math.PI * point.y) / scale;
-  const latitude = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-  return {
-    latitude: clamp(latitude, -90, 90),
-    longitude: clamp(longitude, -180, 180),
-  };
+  return { latitude: (180 / Math.PI) * Math.atan(Math.sinh(n)), longitude };
 }
 
-function buildBoundaryPoints(
-  centerCoordinate: RepresentativeLookupCoordinates,
+function screenPoint(
+  coordinate: RepresentativeLookupCoordinates,
+  center: RepresentativeLookupCoordinates,
   size: Size,
   zoom: number,
 ) {
-  if (!isValidCoordinate(centerCoordinate) || !isValidSize(size)) {
-    return null;
-  }
-
-  const center = coordinateToWorldPixel(centerCoordinate, zoom);
-  return MINNESOTA_BOUNDARY.map(([latitude, longitude]) => {
-    const point = coordinateToWorldPixel({ latitude, longitude }, zoom);
-    const x = point.x - center.x + size.width / 2;
-    const y = point.y - center.y + size.height / 2;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
+  const point = worldPoint(coordinate, zoom);
+  const origin = worldPoint(center, zoom);
+  return { x: size.width / 2 + point.x - origin.x, y: size.height / 2 + point.y - origin.y };
 }
 
-function tileUrl(x: number, y: number, z: number) {
-  const max = 2 ** z;
-  const wrappedX = ((x % max) + max) % max;
-  const clampedY = clamp(y, 0, max - 1);
-  return tileTemplate
-    .replace('{z}', String(z))
-    .replace('{x}', String(wrappedX))
-    .replace('{y}', String(clampedY));
-}
-
-function tileImageSource(x: number, y: number, z: number) {
-  const uri = tileUrl(x, y, z);
-  if (Platform.OS === 'web') {
-    return { uri };
-  }
-
-  return {
-    uri,
-    headers: {
-      'User-Agent': MAP_TILE_USER_AGENT,
-    },
-  };
-}
-
-function dragOffsetToCoordinate(
-  dx: number,
-  dy: number,
-  centerCoordinate: RepresentativeLookupCoordinates,
+function coordinateForScreen(
+  x: number,
+  y: number,
+  center: RepresentativeLookupCoordinates,
+  size: Size,
   zoom: number,
-): RepresentativeLookupCoordinates {
-  const center = coordinateToWorldPixel(centerCoordinate, zoom);
-  return worldPixelToCoordinate(
-    {
-      x: center.x - dx,
-      y: center.y - dy,
-    },
+) {
+  const origin = worldPoint(center, zoom);
+  return coordinateAt(
+    { x: origin.x + x - size.width / 2, y: origin.y + y - size.height / 2 },
     zoom,
   );
 }
 
-function eventLocationFromClientPoint(
-  event: { clientX?: number; clientY?: number },
-  target: unknown,
-) {
-  const element = target as { getBoundingClientRect?: () => DOMRect };
-  if (
-    !element?.getBoundingClientRect ||
-    !Number.isFinite(event.clientX) ||
-    !Number.isFinite(event.clientY)
-  ) {
-    return null;
-  }
+function geometryPoints(geometry?: GeoJsonGeometry) {
+  if (!geometry) return [] as number[][][][];
+  return geometry.type === 'Polygon'
+    ? [geometry.coordinates as number[][][]]
+    : (geometry.coordinates as number[][][][]);
+}
 
-  const rect = element.getBoundingClientRect();
+function boundsForGeometry(geometry?: GeoJsonGeometry) {
+  const points = geometryPoints(geometry).flat(3) as number[];
+  if (!points.length) return null;
+  const pairs: number[][] = [];
+  for (let index = 0; index < points.length; index += 2)
+    pairs.push([points[index], points[index + 1]]);
   return {
-    x: (event.clientX as number) - rect.left,
-    y: (event.clientY as number) - rect.top,
+    minLongitude: Math.min(...pairs.map((p) => p[0])),
+    maxLongitude: Math.max(...pairs.map((p) => p[0])),
+    minLatitude: Math.min(...pairs.map((p) => p[1])),
+    maxLatitude: Math.max(...pairs.map((p) => p[1])),
   };
 }
 
-function isValidCoordinate(coordinate: RepresentativeLookupCoordinates) {
-  return Number.isFinite(coordinate.latitude) && Number.isFinite(coordinate.longitude);
+function fitView(geometry: GeoJsonGeometry | undefined, size: Size) {
+  const bounds = boundsForGeometry(geometry);
+  if (!bounds || size.width < 1 || size.height < 1) return null;
+  const center = {
+    latitude: (bounds.minLatitude + bounds.maxLatitude) / 2,
+    longitude: (bounds.minLongitude + bounds.maxLongitude) / 2,
+  };
+  for (let zoom = MAX_ZOOM; zoom >= MIN_ZOOM; zoom -= 1) {
+    const a = worldPoint({ latitude: bounds.maxLatitude, longitude: bounds.minLongitude }, zoom);
+    const b = worldPoint({ latitude: bounds.minLatitude, longitude: bounds.maxLongitude }, zoom);
+    if (Math.abs(b.x - a.x) <= size.width - 48 && Math.abs(b.y - a.y) <= size.height - 48) {
+      return { center, zoom };
+    }
+  }
+  return { center, zoom: MIN_ZOOM };
 }
 
-function isValidSize(size: Size) {
+function geoPath(
+  geometry: GeoJsonGeometry | undefined,
+  center: RepresentativeLookupCoordinates,
+  size: Size,
+  zoom: number,
+) {
+  return geometryPoints(geometry)
+    .map((polygon) =>
+      polygon
+        .map(
+          (ring) =>
+            ring
+              .map(([longitude, latitude], index) => {
+                const point = screenPoint({ latitude, longitude }, center, size, zoom);
+                return `${index ? 'L' : 'M'}${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+              })
+              .join(' ') + ' Z',
+        )
+        .join(' '),
+    )
+    .join(' ');
+}
+
+function tileStyle(key: string, center: RepresentativeLookupCoordinates, size: Size, zoom: number) {
+  const [, rawX, rawY] = key.split('/').map(Number);
+  const origin = worldPoint(center, zoom);
+  return {
+    position: 'absolute' as const,
+    left: size.width / 2 + rawX * TILE_SIZE - origin.x,
+    top: size.height / 2 + rawY * TILE_SIZE - origin.y,
+    width: TILE_SIZE,
+    height: TILE_SIZE,
+  };
+}
+
+export function MapPinPicker({
+  coordinate,
+  houseGeometry,
+  senateGeometry,
+  houseDistrict,
+  senateDistrict,
+  otherHouseDistrict,
+  onCoordinateChange,
+  mobile = false,
+}: MapPinPickerProps) {
+  const [size, setSize] = useState<Size>({ width: 0, height: 0 });
+  const [center, setCenter] = useState<RepresentativeLookupCoordinates>({
+    latitude: 46.3,
+    longitude: -94.4,
+  });
+  const [zoom, setZoom] = useState(6);
+  const [tilesLoaded, setTilesLoaded] = useState(false);
+  const [displayCoordinate, setDisplayCoordinate] = useState(coordinate);
+  const [dragPin, setDragPin] = useState<{ x: number; y: number } | null>(null);
+  const fittedFor = useRef<GeoJsonGeometry | undefined>(undefined);
+  const keyboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const panStart = useRef(center);
+
+  useEffect(() => {
+    if (!senateGeometry || fittedFor.current === senateGeometry) return;
+    const fitted = fitView(senateGeometry, size);
+    if (fitted) {
+      fittedFor.current = senateGeometry;
+      setCenter(fitted.center);
+      setZoom(fitted.zoom);
+    }
+  }, [senateGeometry, size]);
+
+  useEffect(
+    () => () => {
+      if (keyboardTimer.current) clearTimeout(keyboardTimer.current);
+    },
+    [],
+  );
+
+  useEffect(() => setDisplayCoordinate(coordinate), [coordinate]);
+
+  const tiles = useMemo(
+    () => (size.width ? visibleTileKeys(center, size, zoom) : []),
+    [center, size, zoom],
+  );
+  const pinPoint = displayCoordinate ? screenPoint(displayCoordinate, center, size, zoom) : null;
+  const housePath = geoPath(houseGeometry, center, size, zoom);
+  const senatePath = geoPath(senateGeometry, center, size, zoom);
+
+  const mapPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dx) + Math.abs(gesture.dy) > 4,
+        onPanResponderGrant: () => {
+          panStart.current = center;
+        },
+        onPanResponderMove: (_, gesture) => {
+          const origin = worldPoint(panStart.current, zoom);
+          setCenter(coordinateAt({ x: origin.x - gesture.dx, y: origin.y - gesture.dy }, zoom));
+        },
+        onPanResponderRelease: (event, gesture) => {
+          if (Math.abs(gesture.dx) + Math.abs(gesture.dy) <= 4) {
+            const chosen = coordinateForScreen(
+              event.nativeEvent.locationX,
+              event.nativeEvent.locationY,
+              center,
+              size,
+              zoom,
+            );
+            if (isCoordinateInMinnesota(chosen)) {
+              setDisplayCoordinate(chosen);
+              onCoordinateChange(chosen);
+            }
+          }
+        },
+      }),
+    [center, onCoordinateChange, size, zoom],
+  );
+
+  const pinPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => setDragPin(pinPoint),
+        onPanResponderMove: (_, gesture) => {
+          if (pinPoint) setDragPin({ x: pinPoint.x + gesture.dx, y: pinPoint.y + gesture.dy });
+        },
+        onPanResponderRelease: (_, gesture) => {
+          if (!pinPoint) return;
+          const chosen = coordinateForScreen(
+            pinPoint.x + gesture.dx,
+            pinPoint.y + gesture.dy,
+            center,
+            size,
+            zoom,
+          );
+          setDragPin(null);
+          if (isCoordinateInMinnesota(chosen)) {
+            setDisplayCoordinate(chosen);
+            onCoordinateChange(chosen);
+          }
+        },
+      }),
+    [center, onCoordinateChange, pinPoint, size, zoom],
+  );
+
+  const movePinByKey = (event: {
+    nativeEvent?: { key?: string; shiftKey?: boolean };
+    preventDefault?: () => void;
+  }) => {
+    const key = event.nativeEvent?.key ?? '';
+    if (!displayCoordinate || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key))
+      return;
+    event.preventDefault?.();
+    const moved = arrowMovedCoordinate(
+      displayCoordinate,
+      key,
+      Boolean(event.nativeEvent?.shiftKey),
+    );
+    if (!isCoordinateInMinnesota(moved)) return;
+    setDisplayCoordinate(moved);
+    const nextPoint = screenPoint(moved, center, size, zoom);
+    if (
+      nextPoint.x < 30 ||
+      nextPoint.x > size.width - 30 ||
+      nextPoint.y < 30 ||
+      nextPoint.y > size.height - 30
+    ) {
+      setCenter(moved);
+    }
+    if (keyboardTimer.current) clearTimeout(keyboardTimer.current);
+    keyboardTimer.current = setTimeout(() => onCoordinateChange(moved), 500);
+  };
+
+  const otherPill =
+    senateGeometry && otherHouseDistrict ? screenPoint(center, center, size, zoom) : null;
+
   return (
-    Number.isFinite(size.width) && Number.isFinite(size.height) && size.width > 0 && size.height > 0
+    <View style={styles.wrap}>
+      <View
+        {...mapPan.panHandlers}
+        onLayout={(event) => setSize(event.nativeEvent.layout)}
+        style={[
+          styles.map,
+          mobile && styles.mapMobile,
+          isWeb ? ({ touchAction: 'none' } as object) : null,
+        ]}
+        accessibilityLabel="Minnesota district map"
+      >
+        {tiles.map((key) => (
+          <Image
+            key={key}
+            source={{ uri: `https://tile.openstreetmap.org/${key}.png` }}
+            style={tileStyle(key, center, size, zoom)}
+            onLoad={() => setTilesLoaded(true)}
+            onError={() => undefined}
+          />
+        ))}
+        <Svg
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          width={size.width}
+          height={size.height}
+        >
+          {housePath ? (
+            <Path
+              d={housePath}
+              fill="rgba(45,212,126,0.16)"
+              stroke="white"
+              strokeWidth={7}
+              fillRule="evenodd"
+            />
+          ) : null}
+          {housePath ? (
+            <Path
+              d={housePath}
+              fill="rgba(45,212,126,0.16)"
+              stroke={t.colors.brand.deep}
+              strokeWidth={3}
+              strokeDasharray="8 7"
+              fillRule="evenodd"
+            />
+          ) : null}
+          {senatePath ? <Path d={senatePath} fill="none" stroke="white" strokeWidth={7} /> : null}
+          {senatePath ? (
+            <Path d={senatePath} fill="none" stroke={t.colors.purple.base} strokeWidth={3} />
+          ) : null}
+        </Svg>
+
+        {houseDistrict && pinPoint ? (
+          <View
+            pointerEvents="none"
+            style={[styles.codePill, { left: pinPoint.x + 18, top: pinPoint.y - 52 }]}
+          >
+            <Text style={styles.houseCode}>HOUSE {houseDistrict}</Text>
+          </View>
+        ) : null}
+        {senateDistrict && pinPoint ? (
+          <View
+            pointerEvents="none"
+            style={[styles.senatePill, { left: pinPoint.x + 18, top: pinPoint.y - 20 }]}
+          >
+            <Text style={styles.senateCode}>SENATE {senateDistrict}</Text>
+          </View>
+        ) : null}
+        {otherPill ? (
+          <View pointerEvents="none" style={[styles.otherPill, { left: 16, bottom: 56 }]}>
+            <Text style={styles.houseCode}>HOUSE {otherHouseDistrict}</Text>
+            <Text style={styles.otherText}>NOT YOUR HOUSE DISTRICT</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {pinPoint ? (
+        <Pressable
+          {...pinPan.panHandlers}
+          accessibilityRole="button"
+          accessibilityLabel="Selected location. Use arrow keys to move it"
+          {...({ onKeyDown: movePinByKey } as object)}
+          style={[
+            styles.pinTarget,
+            { left: (dragPin ?? pinPoint).x - 22, top: (dragPin ?? pinPoint).y - 38 },
+          ]}
+        >
+          <View style={styles.pinHead} />
+          <View style={styles.pinPoint} />
+        </Pressable>
+      ) : null}
+
+      <View style={styles.zoomControls}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Zoom in"
+          onPress={() => setZoom((value) => Math.min(MAX_ZOOM, value + 1))}
+          style={styles.zoomButton}
+        >
+          <Text style={styles.zoomText}>+</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Zoom out"
+          onPress={() => setZoom((value) => Math.max(MIN_ZOOM, value - 1))}
+          style={styles.zoomButton}
+        >
+          <Text style={styles.zoomText}>−</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.credits}>
+        <Pressable
+          {...externalLinkProps(GIS_CREDIT, () => void Linking.openURL(GIS_CREDIT))}
+          accessibilityLabel="Minnesota GIS, opens in a new tab"
+        >
+          <Text style={styles.creditLink}>Minnesota GIS</Text>
+        </Pressable>
+        {tilesLoaded ? (
+          <Pressable
+            {...externalLinkProps(OSM_COPYRIGHT, () => void Linking.openURL(OSM_COPYRIGHT))}
+            accessibilityLabel="OpenStreetMap, opens in a new tab"
+          >
+            <Text style={styles.creditLink}>OpenStreetMap</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      <Text style={styles.helper}>
+        {displayCoordinate
+          ? mobile
+            ? 'Drag the pin or tap the map to move it'
+            : 'Drag the pin, click the map, or use the arrow keys to move it'
+          : mobile
+            ? 'Tap the map to choose a location.'
+            : 'Click the map to choose a location.'}
+      </Text>
+    </View>
   );
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
 const styles = StyleSheet.create({
-  container: {
-    gap: theme.spacing.sm,
-  },
-  mapSurface: {
-    position: 'relative',
-    minHeight: 260,
+  wrap: { position: 'relative' },
+  map: {
+    height: 430,
+    borderRadius: 18,
     overflow: 'hidden',
-    borderRadius: theme.radii.md,
+    backgroundColor: '#e7ebe5',
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
+    borderColor: t.colors.alpha.ink14,
   },
-  tile: {
-    position: 'absolute',
-    width: TILE_SIZE,
-    height: TILE_SIZE,
-    pointerEvents: 'none',
-  },
-  boundaryOverlay: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    pointerEvents: 'none',
-  },
-  loadingState: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    pointerEvents: 'none',
-  },
-  loadingText: {
-    color: theme.colors.mutedInk,
-    fontFamily: theme.typography.ui,
-    fontSize: 13,
-  },
-  crosshairHorizontal: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '50%',
-    height: 1,
-    backgroundColor: 'rgba(17, 17, 17, 0.22)',
-    pointerEvents: 'none',
-  },
-  crosshairVertical: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: '50%',
-    width: 1,
-    backgroundColor: 'rgba(17, 17, 17, 0.22)',
-    pointerEvents: 'none',
-  },
-  pin: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    width: 24,
-    height: 24,
-    marginLeft: -12,
-    marginTop: -12,
-    borderRadius: 12,
+  mapMobile: { height: 340 },
+  pinTarget: { position: 'absolute', width: 44, height: 44, zIndex: 8, alignItems: 'center' },
+  pinHead: {
+    width: 25,
+    height: 25,
+    borderRadius: 13,
+    backgroundColor: t.colors.brand.deep,
     borderWidth: 4,
-    borderColor: theme.colors.surface,
-    backgroundColor: theme.colors.accent,
-    pointerEvents: 'none',
+    borderColor: 'white',
+    ...(t.shadows.md as object),
   },
-  coverageBadge: {
-    position: 'absolute',
-    left: theme.spacing.md,
-    right: theme.spacing.md,
-    bottom: 34,
-    alignItems: 'center',
-    pointerEvents: 'none',
+  pinPoint: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 13,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: t.colors.brand.deep,
+    marginTop: -3,
   },
-  coverageBadgeText: {
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
-    backgroundColor: 'rgba(249, 249, 247, 0.94)',
-    color: theme.colors.accent,
-    fontFamily: theme.typography.ui,
-    fontSize: 12,
-    fontWeight: '700',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 5,
-    textTransform: 'uppercase',
-  },
-  zoomControls: {
-    position: 'absolute',
-    left: theme.spacing.xs,
-    top: theme.spacing.xs,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
+  zoomControls: { position: 'absolute', right: 12, top: 12, zIndex: 10, gap: 6 },
   zoomButton: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  zoomButtonPressed: {
-    backgroundColor: theme.colors.surfaceAlt,
-  },
-  zoomButtonText: {
-    color: theme.colors.ink,
-    fontFamily: theme.typography.ui,
-    fontSize: 20,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  attribution: {
-    position: 'absolute',
-    right: theme.spacing.xs,
-    bottom: theme.spacing.xs,
-    backgroundColor: 'rgba(249, 249, 247, 0.88)',
     borderWidth: 1,
-    borderColor: 'rgba(17, 17, 17, 0.18)',
-    paddingHorizontal: theme.spacing.xs,
-    paddingVertical: 3,
+    borderColor: t.colors.alpha.ink14,
   },
-  attributionPressed: {
-    opacity: 0.72,
-  },
-  attributionText: {
-    color: theme.colors.ink,
-    fontFamily: theme.typography.ui,
-    fontSize: 10,
-  },
-  coordinateRow: {
+  zoomText: { fontFamily: t.typography.ui, fontSize: 24, color: t.colors.ink },
+  credits: {
+    position: 'absolute',
+    left: 10,
+    top: 10,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 7,
   },
-  coordinateText: {
-    color: theme.colors.mutedInk,
-    fontFamily: theme.typography.mono,
-    fontSize: 12,
+  creditLink: {
+    fontFamily: t.typography.body,
+    fontSize: 11,
+    color: t.colors.text.secondary,
+    textDecorationLine: 'underline',
   },
-  coverageInsideText: {
-    color: theme.colors.mutedInk,
+  helper: {
+    marginTop: 10,
+    fontFamily: t.typography.body,
+    fontSize: 13,
+    color: t.colors.text.muted,
   },
-  coverageOutsideText: {
-    color: theme.colors.accent,
+  codePill: {
+    position: 'absolute',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  senatePill: {
+    position: 'absolute',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  otherPill: {
+    position: 'absolute',
+    backgroundColor: 'white',
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  houseCode: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
     fontWeight: '700',
+    color: t.colors.brand.deep,
+  },
+  senateCode: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    color: t.colors.purple.base,
+  },
+  otherText: {
+    fontFamily: t.typography.mono,
+    fontSize: 8,
+    marginTop: 2,
+    color: t.colors.text.faint,
   },
 });

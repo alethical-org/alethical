@@ -70,3 +70,30 @@ describe('mapLegislator slug', () => {
     expect(mapLegislator(REAL_PAYLOAD as never).slug).toBe('patty-acomb');
   });
 });
+
+describe('mapLegislator Find My Legislator facts', () => {
+  it('carries residence, authored totals, committee roles, and issues without stand-ins', () => {
+    const mapped = mapLegislator({
+      ...REAL_PAYLOAD,
+      current_service: {
+        ...REAL_PAYLOAD.current_service,
+        represented_city: 'Plymouth',
+        email: 'mailto:rep.patty.acomb@house.mn.gov',
+      },
+      committees: [{ name: 'Ways and Means', role: 'Chair' }],
+      issue_areas: ['Education', 'Health care'],
+      service_history: {
+        term: 3,
+        periods: [{ chamber: 'house', initial_year: 2020, reelection_years: [2022, 2024] }],
+      },
+    } as never);
+
+    expect(mapped.representedCity).toBe('Plymouth');
+    expect(mapped.email).toBe('rep.patty.acomb@house.mn.gov');
+    expect(mapped.committeeAssignments).toEqual([{ name: 'Ways and Means', role: 'Chair' }]);
+    expect(mapped.issueAreas).toEqual(['Education', 'Health care']);
+    expect(mapped.totalAuthoredBills).toBe(116);
+    expect(mapped.chiefAuthoredBills).toBe(28);
+    expect(mapped.legislativeService?.lines[0].elected).toContain('re-elected 2022, 2024');
+  });
+});

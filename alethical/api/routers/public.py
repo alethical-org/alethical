@@ -12,7 +12,7 @@ from sqlalchemy import and_, case, func, or_, select, text, tuple_
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
-from alethical.api.issue_taxonomy import aliases_for
+from alethical.api.issue_taxonomy import aliases_for, canonicalize_areas
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit
 from alethical.api.schemas import (
@@ -40,7 +40,9 @@ from alethical.api.services.legislative_sessions import (
 )
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
+    RepresentativeLookupChoices,
     RepresentativeLookupNotFound,
+    RepresentativeLookupOutsideMinnesota,
     RepresentativeLookupService,
     RepresentativeLookupUpstreamError,
     get_representative_lookup_service,
@@ -162,7 +164,12 @@ def authored_bill_counts(db: Session, legislator_ids) -> dict[str, tuple[int, in
                 )
             ).label("chief"),
         )
-        .where(Sponsorship.legislator_id.in_(ids))
+        .where(
+            Sponsorship.legislator_id.in_(ids),
+            Sponsorship.role.in_(
+                [SponsorshipRole.chief_author, SponsorshipRole.co_author]
+            ),
+        )
         .group_by(Sponsorship.legislator_id)
     ).all()
     return {str(row.legislator_id): (row.total, row.chief) for row in rows}
@@ -214,6 +221,88 @@ def current_committee_names(db: Session, legislator_ids) -> dict[str, list[str]]
     for legislator_id, name in rows:
         result.setdefault(str(legislator_id), []).append(name)
     return result
+
+
+def current_committee_assignments(
+    db: Session, legislator_ids
+) -> dict[str, list[tuple[str, str | None]]]:
+    ids = list(legislator_ids)
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(
+            CommitteeMembership.legislator_id,
+            Committee.name,
+            CommitteeMembership.role,
+        )
+        .join(Committee, Committee.id == CommitteeMembership.committee_id)
+        .where(
+            CommitteeMembership.legislator_id.in_(ids),
+            CommitteeMembership.is_current.is_(True),
+        )
+        .order_by(Committee.name.asc())
+    ).all()
+    result: dict[str, list[tuple[str, str | None]]] = {}
+    for legislator_id, name, role in rows:
+        result.setdefault(str(legislator_id), []).append((name, role))
+    return result
+
+
+def authored_issue_areas(db: Session, legislator_ids) -> dict[str, list[str]]:
+    """Issue labels from current bill summaries for author and co-author roles."""
+    ids = list(legislator_ids)
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(Sponsorship.legislator_id, AIEnrichment.content_json)
+        .join(AIEnrichment, AIEnrichment.bill_id == Sponsorship.bill_id)
+        .where(
+            Sponsorship.legislator_id.in_(ids),
+            Sponsorship.role.in_(
+                [SponsorshipRole.chief_author, SponsorshipRole.co_author]
+            ),
+            AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+            AIEnrichment.is_current.is_(True),
+        )
+    ).all()
+    raw: dict[str, list[str]] = defaultdict(list)
+    for legislator_id, content in rows:
+        values = (content or {}).get("policy_areas")
+        if isinstance(values, list):
+            raw[str(legislator_id)].extend(
+                value for value in values if isinstance(value, str) and value.strip()
+            )
+    return {key: canonicalize_areas(values) for key, values in raw.items()}
+
+
+def representative_source_updated_at(db: Session, legislator_ids) -> datetime | None:
+    """Oldest successful refresh among the displayed roster and authored bills."""
+    ids = list(legislator_ids)
+    dates: list[datetime] = []
+    roster_date = db.scalar(
+        select(func.max(IngestionRun.finished_at)).where(
+            IngestionRun.adapter == "minnesota_live",
+            IngestionRun.target_type == "legislator_roster",
+            IngestionRun.status == IngestionStatus.succeeded,
+        )
+    )
+    if roster_date:
+        dates.append(roster_date)
+    bill_date = db.scalar(
+        select(func.min(IngestionRun.finished_at))
+        .join(Bill, Bill.ingestion_run_id == IngestionRun.id)
+        .join(Sponsorship, Sponsorship.bill_id == Bill.id)
+        .where(
+            Sponsorship.legislator_id.in_(ids),
+            Sponsorship.role.in_(
+                [SponsorshipRole.chief_author, SponsorshipRole.co_author]
+            ),
+            IngestionRun.status == IngestionStatus.succeeded,
+        )
+    )
+    if bill_date:
+        dates.append(bill_date)
+    return min(dates) if dates else None
 
 
 _BILL_NUMBER_QUERY_RE = re.compile(r"^\s*([A-Za-z]{2})?\s*0*(\d+)\s*$")
@@ -2371,6 +2460,32 @@ def representative_lookup(
                 longitude=request.longitude,
             )
             input_mode = "coordinates"
+    except RepresentativeLookupChoices as exc:
+        return DetailResponse(
+            data={
+                "status": "address-choice",
+                "resolved_place": {
+                    "input_mode": "address",
+                    "address_text": request.address_text,
+                },
+                "address_choices": [
+                    {
+                        "matched_address": choice.matched_address,
+                        "latitude": choice.latitude,
+                        "longitude": choice.longitude,
+                        "state_code": choice.state_code,
+                    }
+                    for choice in exc.choices
+                ],
+            }
+        )
+    except RepresentativeLookupOutsideMinnesota as exc:
+        raise problem_exception(
+            422,
+            "Outside Minnesota",
+            str(exc),
+            type_slug="representative-lookup-outside-minnesota",
+        ) from None
     except RepresentativeLookupNotFound as exc:
         raise problem_exception(
             404, "Not Found", str(exc), type_slug="representative-lookup-not-found"
@@ -2433,8 +2548,19 @@ def representative_lookup(
             if period is not None
         ],
     )
+    legislator_ids = [
+        period.legislator.id
+        for period in (house_period, senate_period)
+        if period is not None
+    ]
+    committee_assignments = current_committee_assignments(db, legislator_ids)
+    issue_areas = authored_issue_areas(db, legislator_ids)
+    source_updated_at = representative_source_updated_at(db, legislator_ids)
     geocoded = lookup_result.geocoded_address
     payload = {
+        "status": "found",
+        "session": {"name": current_session.name},
+        "source_updated_at": source_updated_at,
         "resolved_place": {
             "input_mode": input_mode,
             "address_text": request.address_text,
@@ -2444,11 +2570,29 @@ def representative_lookup(
             "state_code": geocoded.state_code,
             "house_district": house_district.code if house_district else None,
             "senate_district": senate_district.code if senate_district else None,
+            "other_house_district": (
+                f"{lookup_result.senate_district.district_code}{'B' if lookup_result.house_district and lookup_result.house_district.district_code.endswith('A') else 'A'}"
+                if lookup_result.senate_district and lookup_result.house_district
+                else None
+            ),
+            "congressional_district": lookup_result.congressional_district,
+            "house_geometry": lookup_result.house_district.geometry
+            if lookup_result.house_district
+            else None,
+            "senate_geometry": lookup_result.senate_district.geometry
+            if lookup_result.senate_district
+            else None,
         },
         "house_legislator": legislator_list_item(
             house_period.legislator,
             total_bill_count=rep_counts.get(str(house_period.legislator.id), (0, 0))[0],
             chief_bill_count=rep_counts.get(str(house_period.legislator.id), (0, 0))[1],
+            committee_assignments=committee_assignments.get(
+                str(house_period.legislator.id)
+            ),
+            current_service=house_period,
+            election_history=house_period.legislator.election_history,
+            issue_areas=issue_areas.get(str(house_period.legislator.id)),
         ).model_dump(exclude_none=True)
         if house_period
         else None,
@@ -2460,6 +2604,12 @@ def representative_lookup(
             chief_bill_count=rep_counts.get(str(senate_period.legislator.id), (0, 0))[
                 1
             ],
+            committee_assignments=committee_assignments.get(
+                str(senate_period.legislator.id)
+            ),
+            current_service=senate_period,
+            election_history=senate_period.legislator.election_history,
+            issue_areas=issue_areas.get(str(senate_period.legislator.id)),
         ).model_dump(exclude_none=True)
         if senate_period
         else None,

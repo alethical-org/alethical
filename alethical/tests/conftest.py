@@ -226,6 +226,7 @@ def client(seed_database: None) -> TestClient:
                 ),
                 house_district=DistrictMatch(chamber="house", district_code="51A"),
                 senate_district=DistrictMatch(chamber="senate", district_code="35"),
+                congressional_district="4",
             )
 
     app.dependency_overrides[get_auth_service] = lambda: FakeSupabaseAuthService()
