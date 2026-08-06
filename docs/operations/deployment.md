@@ -39,92 +39,165 @@ actions current".
 ## Deploying when GitHub Actions is down
 
 Every production path above runs on GitHub Actions, so when Actions stops, we
-cannot ship. This is not hypothetical: on Aug 6 2026 GitHub ran a `major_outage`
-on Actions for hours, the push-triggered frontend deploy for
+cannot ship. On Aug 6 2026 the push-triggered frontend deploy for
 [#1116](https://github.com/alethical-org/alethical/pull/1116) was never created at
 all, the one for [#1112](https://github.com/alethical-org/alethical/pull/1112)
 queued 46 minutes and was killed before running a step, and alethical.com quietly
 served a six-hour-old build until someone re-dispatched the workflow by hand.
 
-**Nor is it rare, which is the part worth writing down.** GitHub's own status feed
-lists **12 Actions-affecting incidents between Jun 6 and Aug 6 2026**, 9 of them in
-July: Jul 7, 9, 13, 19, 22, 23, 24, 25 (twice) and 29, then Aug 6. Four were rated
-`critical`. Anyone reasoning from a single outage will call this a rare event and
-under-invest; the feed says it is closer to weekly. Three of the 12 also degraded
-**Webhooks**, which matters because a provider's own Git integration depends on
-GitHub's push notice — so moving off Actions shrinks this exposure without removing
-it.
+### How often, and for how long
+
+GitHub's status feed lists **13 incidents whose affected-components list includes
+Actions, between Jun 8 and Aug 6 2026** — Jun 8, Jun 25, Jul 7, 9, 13, 19, 22, 23,
+24, 25 (twice), 29, and Aug 6. That is the whole rule: any incident GitHub tagged
+as affecting Actions, regardless of what its title says. Five were rated `critical`.
+
+**"13 incidents affected Actions" is not "13 times we could not ship."** Several
+only slowed a fraction of jobs, and one is titled for signed-out Pull Requests.
+Overstating this is as unhelpful as calling it rare, because it invites someone to
+check the feed once and discount the whole argument.
+
+Duration is the part that decides how to react. Of the 12 resolved incidents:
+
+| | |
+| --- | --- |
+| Median | 1h21m |
+| Ended within 2h03m | 10 of 12 |
+| The 2 long ones | 5h09m (Jul 19) and 9h17m (Jul 9) |
+| Aug 6 | 6h55m at GitHub's last update, second-longest in the sample |
+
+So the common case resolves inside about 2 hours, and the tail is real.
+
+### Which means: wait, unless it is urgent
+
+- **Routine changes: wait.** Wait for GitHub to mark the incident resolved, then
+  confirm with one test release before merging a queue of work. Manual releases
+  during an outage cost more in care than the wait costs in delay.
+- **An urgent production fix: do not wait.** Use the fallback below immediately.
+  Estimating an outage's remaining length off a sample of 12 is not a basis for
+  making a broken production wait.
+
+### What to hold, and what not to replay
+
+**Hold merges whose services have no proven path to production.** A finished change
+should sit in its pull request, with its owning task open and reporting "ready, not
+live", rather than merging into a `main` that cannot reach production. That is a
+narrower rule than "stop merging": a docs-only change is unaffected.
+
+**If work already merged, publish only the newest reviewed commit, never replay the
+missed ones.** Each release supersedes the last, so replaying is pure risk. Order,
+when more than one service is involved: database update, then API, then frontend
+last if it needs the new API.
+
+**Before any manual or provider release, cancel that service's older queued Actions
+runs.** A queued run can start hours later, finish after yours, and put the older
+commit back into production. `scripts/deploy-reviewed-commit.sh` refuses to run
+while any exist rather than trusting you to remember. After GitHub recovers, run
+one release for the newest commit, not one per missed commit.
+
+### The fallback
 
 **Nothing about the deploys requires Actions.** Both workflows just run the
-provider's own CLI, so the same deploy runs from a laptop. Deploy from a clean
-checkout of `origin/main`, never from a worktree with local edits, or you publish
-unreviewed code:
+provider's own CLI, so the same deploy runs from a laptop. Use the script, not
+loose commands:
 
 ```bash
-git -C /tmp clone --depth 1 https://github.com/alethical-org/alethical.git alethical-deploy
+scripts/deploy-reviewed-commit.sh frontend <40-char-commit-sha>
+scripts/deploy-reviewed-commit.sh backend  <40-char-commit-sha>
 ```
 
-Frontend (Vercel), verified working Aug 6 2026 — the laptop login is
-`alethical-dev` on the `alethical` scope, project `alethical-web`:
+It fetches that exact commit into a fresh temporary directory, **refuses any commit
+that is not an ancestor of `origin/main`**, refuses a dirty tree, names the provider
+account, project, service and environment explicitly, pins both CLI versions, and
+passes the source directory to the CLI as an argument. Every one of those replaces a
+way the loose commands could publish something unreviewed: the earlier version of
+this section told you to clone into a fixed path and then ran `vercel deploy` with
+no `cd`, which deploys whatever directory you happened to be standing in.
 
-```bash
-vercel deploy --prod --yes --archive=tgz --scope alethical
-```
+Its guards are tested: a branch name, a short SHA, and a real-but-unmerged commit
+are each refused, and a merged commit passes. The queued-run refusal is the one
+branch not exercised against a live queued run.
 
-Backend (Railway) — **this fallback does not work today.** `railway whoami`
-returns `Unauthorized`, so the backend has no path to production except Actions.
-Restoring it needs a browser sign-in only Eugene can complete (`railway login`),
-after which:
+State of each half as of Aug 6 2026:
 
-```bash
-railway up --ci --service alethical-api --environment production
-```
+- **Frontend (Vercel): works.** The laptop is signed in as `alethical-dev` on the
+  `alethical` scope, project `alethical-web`.
+- **Backend (Railway): does not.** `railway whoami` returns `Unauthorized`, so the
+  backend has no path to production except Actions. Restore it with a **project
+  token scoped to this project and the `production` environment**, exported as
+  `RAILWAY_TOKEN`. Not a browser login (`railway login`) — that lives on one laptop
+  and expires, so it is not a fallback anyone else can use. `railway up` has no
+  `--project` flag (checked on CLI 4.5.3), which is the other reason the token has
+  to carry the project.
 
-Order matters when a migration is involved: apply it first, or the API looks for a
-column that is not there.
+**Prefer Vercel's dashboard rebuild of an exact commit over the script** when
+GitHub's Git hosting is up: it builds from the repository rather than from files on
+a laptop. Keep the script for a wider outage where Vercel cannot reach GitHub either.
+
+**A laptop upload may not carry the provider's Git metadata**, so the deployed build
+can end up not knowing which commit it is. Pass the reviewed commit into the build
+yourself and have both services report it
+([#1122](https://github.com/alethical-org/alethical/issues/1122)). Removing the
+Vercel author rewrite helps but does not solve this on its own.
+
+**After any manual release, read the live commit back and exercise one real page and
+one real API request.** A command that exits 0 means the provider accepted an
+upload, not that the right code reached users.
+
+### Migrations: order matters and nothing enforces it
+
+Apply the migration first, or the API looks for a column that is not there.
 
 ```bash
 ALETHICAL_DATABASE_TARGET=production uv run alembic upgrade head
 ```
 
-**Nothing enforces that order automatically, including today.** `migrate.yml` and
-`railway-deploy.yml` are separate workflows both triggered by the same push, with
-no `needs:` between them (separate workflows cannot depend on each other), so they
-start in parallel. The migration usually wins because Alembic takes seconds and a
-Railway build takes minutes, but that is a timing accident, not a guarantee.
+`migrate.yml` and `railway-deploy.yml` are separate workflows both triggered by the
+same push, with no `needs:` between them (separate workflows cannot depend on each
+other), so they start in parallel. The migration usually wins because Alembic takes
+seconds and a Railway build takes minutes, but that is a timing accident.
 
 **Additive-only migrations do not make this safe, and reading them as a safety net
 is the trap.** Additive-only (`.claude/rules/workflow.md` rule 10) means *old* code
 survives a *newer* database, because an unused extra column harms nothing. It says
 nothing about the direction that actually happens here: *new* code against an
-*older* database, which errors on a column that is not there. And the exposure is
-not brief. Aug 6 2026 is the proof — a Railway deploy can succeed while the
-migration workflow is never created at all, in which case the new code queries a
-missing column until somebody notices and applies the migration by hand. Tracked in
-[#1124](https://github.com/alethical-org/alethical/issues/1124), with the fix being
-Railway's own `preDeployCommand` so a failed migration keeps the old API serving.
+*older* database, which errors. And the exposure is not brief. Aug 6 2026 is the
+proof: a Railway deploy can succeed while the migration workflow is never created at
+all, in which case the new code queries a missing column until somebody notices.
+Tracked in [#1124](https://github.com/alethical-org/alethical/issues/1124), with the
+fix being Railway's own `preDeployCommand` so a failed migration keeps the old API
+serving.
 
-**Why we route through Actions anyway**, so nobody removes it as redundant: it
-scopes each deploy by path so a docs-only commit does not rebuild the site, and it
-keeps every production credential in one place instead of two provider dashboards.
+### Why we route through Actions anyway
+
+So nobody removes it as redundant: it scopes each deploy by path so a docs-only
+commit does not rebuild the site, and it keeps every production credential in one
+place instead of two provider dashboards.
 
 It also rewrites the deployed commit's author (`VERCEL_GIT_AUTHOR_NAME`), and that
 step is **probably obsolete**. Both the workflow and the settings doc described it
 as a Hobby-plan requirement; **we are on Vercel Pro**, where the restriction it
 worked around does not apply. Worth removing rather than leaving alone, because the
-rewrite means the deployed source's commit hash is not the hash that is on `main`,
-which quietly breaks any "which commit is live?" check
-([#1122](https://github.com/alethical-org/alethical/issues/1122)). Do not delete it
-untested — verify with one laptop deploy of the already-live commit first.
+rewrite means the deployed source's commit hash is not the hash on `main`, which
+quietly breaks any "which commit is live?" check. Do not delete it untested — verify
+with one deploy of the already-live commit first.
 
-**The provider integrations are the real alternative, and they are only available
-to us because we pay for both services.** Vercel and Railway can each watch the
-repository and deploy on push with no Actions involved, and on Aug 6 that would
-have kept working: GitHub's code hosting, webhooks and API all stayed `operational`
-and only Actions and Pages broke. On Vercel's **Hobby** plan this route does not
-exist at all — its own limits page states a Hobby team cannot connect a project to
-a repository owned by a Git organization, and `alethical-org` is exactly that. We
-are on **Pro**, so it is open to us. Tracked as
+### The provider integrations, and what is already connected
+
+**Vercel is already linked to GitHub.** It built 6 preview deployments during this
+outage, including one for [#1123](https://github.com/alethical-org/alethical/pull/1123),
+and posts a check on every pull request. So the work is to enable and test
+**production** releases from `main`, not to connect Vercel from scratch.
+
+**Do not claim provider releases "would have kept working" on Aug 6.** GitHub
+reported delayed outgoing messages during this incident, and a provider's Git
+integration depends on GitHub delivering the commit notice. The accurate claim: they
+would likely have avoided the broken job runner, while still depending on GitHub for
+the notice. Three of the 13 incidents degraded **Webhooks** directly.
+
+This route is only open to us because we pay: Vercel's own limits page states a
+**Hobby** team cannot connect a project to a repository owned by a Git organization,
+and `alethical-org` is exactly that. We are on **Pro**. Tracked as
 [#1125](https://github.com/alethical-org/alethical/issues/1125).
 
 The cost is smaller than it first looks, because most of what would appear to move
@@ -132,11 +205,22 @@ into a dashboard can stay in the repo: `vercel.json` takes the skip rule
 (`ignoreCommand`) and `railway.json` takes the watched paths (`watchPatterns`) and
 the before-deploy migration (`preDeployCommand`). What genuinely cannot move is the
 linked repository, the production branch, the automatic-deploy switch, the domains,
-and the credentials. Ordering is not a cost of switching, because we do not have it
-either way.
+and the credentials — and note that
+[#703](https://github.com/alethical-org/alethical/pull/703)'s drift check reads
+**GitHub settings only** (`api.github.com`), so covering those five needs it
+extended or a second check written. Ordering is not a cost of switching, because we
+do not have it either way.
 
-A failed or cancelled deploy still tells nobody — that gap is
-[#1122](https://github.com/alethical-org/alethical/issues/1122).
+### The gap none of this closes
+
+A deploy that fails, is cancelled, or is never created still tells nobody. That is
+[#1122](https://github.com/alethical-org/alethical/issues/1122), and it is the
+highest-value item here because every other protection on this page depends on
+somebody noticing. Two things it has to get right, both learned the hard way on
+Aug 6: the alert cannot be a GitHub issue alone, because an issue wakes nobody; and
+it must compare each service against the newest `main` commit touching **that
+service's** paths, not against `main`'s tip, or a docs-only merge makes the web app
+look stale and the alarm gets muted.
 
 ## Backend on Railway
 
