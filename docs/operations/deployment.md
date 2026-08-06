@@ -46,6 +46,15 @@ all, the one for [#1112](https://github.com/alethical-org/alethical/pull/1112)
 queued 46 minutes and was killed before running a step, and alethical.com quietly
 served a six-hour-old build until someone re-dispatched the workflow by hand.
 
+**Nor is it rare, which is the part worth writing down.** GitHub's own status feed
+lists **12 Actions-affecting incidents between Jun 6 and Aug 6 2026**, 9 of them in
+July: Jul 7, 9, 13, 19, 22, 23, 24, 25 (twice) and 29, then Aug 6. Four were rated
+`critical`. Anyone reasoning from a single outage will call this a rare event and
+under-invest; the feed says it is closer to weekly. Three of the 12 also degraded
+**Webhooks**, which matters because a provider's own Git integration depends on
+GitHub's push notice — so moving off Actions shrinks this exposure without removing
+it.
+
 **Nothing about the deploys requires Actions.** Both workflows just run the
 provider's own CLI, so the same deploy runs from a laptop. Deploy from a clean
 checkout of `origin/main`, never from a worktree with local edits, or you publish
@@ -82,11 +91,18 @@ ALETHICAL_DATABASE_TARGET=production uv run alembic upgrade head
 `railway-deploy.yml` are separate workflows both triggered by the same push, with
 no `needs:` between them (separate workflows cannot depend on each other), so they
 start in parallel. The migration usually wins because Alembic takes seconds and a
-Railway build takes minutes, but that is a timing accident, not a guarantee. The
-exposure is bounded rather than dangerous: our migrations are additive only
-(`.claude/rules/workflow.md` rule 10), so the worst case is new code briefly
-erroring on a column that lands a moment later, not data loss. Tracked in
-[#1124](https://github.com/alethical-org/alethical/issues/1124).
+Railway build takes minutes, but that is a timing accident, not a guarantee.
+
+**Additive-only migrations do not make this safe, and reading them as a safety net
+is the trap.** Additive-only (`.claude/rules/workflow.md` rule 10) means *old* code
+survives a *newer* database, because an unused extra column harms nothing. It says
+nothing about the direction that actually happens here: *new* code against an
+*older* database, which errors on a column that is not there. And the exposure is
+not brief. Aug 6 2026 is the proof — a Railway deploy can succeed while the
+migration workflow is never created at all, in which case the new code queries a
+missing column until somebody notices and applies the migration by hand. Tracked in
+[#1124](https://github.com/alethical-org/alethical/issues/1124), with the fix being
+Railway's own `preDeployCommand` so a failed migration keeps the old API serving.
 
 **Why we route through Actions anyway**, so nobody removes it as redundant: it
 scopes each deploy by path so a docs-only commit does not rebuild the site, it
