@@ -111,8 +111,14 @@ roadmap noted for direction.
   `ACCOUNT_MENU` constant that described those rows was removed with #1006. Resolves O9.
 - **Chat and Account are off the sidebar and the phone tab row (Aug 2026).** Both are
   pre-redesign screens; with sign-in live, a link to either would land someone on a page we
-  stopped maintaining. Their URLs already redirect Home. Bill-scoped chat is untouched — it
-  opens from a bill page, not from a tab (`.claude/rules/grounded-answers.md` rule 8).
+  stopped maintaining. Their URLs already redirect Home. This bullet used to close with
+  "Bill-scoped chat is untouched — it opens from a bill page, not from a tab", which was
+  **false**: `webRoutes.ts` redirects `/chat/new` and `/chat/sessions/{id}` to Home too, and
+  the bill-page entry it named was deleted with `BillDetailScreen.tsx`
+  ([#1071](https://github.com/alethical-org/alethical/pull/1071)). The chat screen and its
+  server endpoints still work; only the way in is gone. Tracked in
+  [#1032](https://github.com/alethical-org/alethical/issues/1032); the detail lives in
+  `.claude/rules/grounded-answers.md` rule 8.
 - **Logged-out Ask AI funnel (LOCKED):** anonymous visitors get one grounded, cited
   answer as a **stateless one-shot** (not a persisted `ChatSession`); follow-ups,
   history, and tracking gate behind sign-in. Preserve the question+answer through auth.
