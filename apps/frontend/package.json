@@ -9,7 +9,7 @@
     "android:sync-network": "node ./scripts/sync-android-dev-network-security.mjs",
     "ios": "node ./scripts/start-expo.mjs --ios",
     "web": "node ./scripts/start-expo.mjs --web",
-    "build": "node ./scripts/start-expo.mjs export --platform web",
+    "build": "node ./scripts/start-expo.mjs export --platform web && node ./scripts/check-release-assets.mjs",
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
