@@ -36,8 +36,7 @@ const DRAG_THRESHOLD = 4;
 const OPENSTREETMAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OPENSTREETMAP_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 const MAP_TILE_USER_AGENT =
-  process.env.EXPO_PUBLIC_MAP_TILE_USER_AGENT ||
-  'Alethical/0.1 (+https://alethical-web.vercel.app)';
+  process.env.EXPO_PUBLIC_MAP_TILE_USER_AGENT || 'Alethical/0.1 (+https://www.alethical.com)';
 const tileTemplate =
   process.env.EXPO_PUBLIC_OPENSTREETMAP_TILE_URL ||
   process.env.EXPO_PUBLIC_MAP_TILE_URL ||
