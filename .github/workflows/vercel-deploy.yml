@@ -47,7 +47,12 @@ jobs:
           : "${VERCEL_GIT_AUTHOR_NAME:?Missing VERCEL_GIT_AUTHOR_NAME secret}"
           : "${VERCEL_GIT_AUTHOR_EMAIL:?Missing VERCEL_GIT_AUTHOR_EMAIL secret}"
 
-      - name: Override HEAD author for Vercel Hobby deploys
+      # Added for a Vercel Hobby-plan attribution restriction. We are on Pro, where
+      # that restriction does not apply, so this is probably dead weight — and it
+      # has a cost: amending HEAD means the deployed source's commit hash is not
+      # the hash on `main`, which breaks any "which commit is live?" check (#1122).
+      # Removal is tracked in #1125 and needs one verified deploy without it first.
+      - name: Override the deployed commit's author
         run: |
           git config user.name "$VERCEL_GIT_AUTHOR_NAME"
           git config user.email "$VERCEL_GIT_AUTHOR_EMAIL"

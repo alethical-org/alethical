@@ -105,18 +105,35 @@ missing column until somebody notices and applies the migration by hand. Tracked
 Railway's own `preDeployCommand` so a failed migration keeps the old API serving.
 
 **Why we route through Actions anyway**, so nobody removes it as redundant: it
-scopes each deploy by path so a docs-only commit does not rebuild the site, it
-rewrites the commit author that Vercel's Hobby plan requires
-(`VERCEL_GIT_AUTHOR_NAME`), and it keeps every production credential in one place
-instead of two provider dashboards.
+scopes each deploy by path so a docs-only commit does not rebuild the site, and it
+keeps every production credential in one place instead of two provider dashboards.
 
-**The provider integrations are the real alternative.** Vercel and Railway can
-each watch the repository and deploy on push with no Actions involved, and on
-Aug 6 that would have kept working: GitHub's code hosting, webhooks and API all
-stayed `operational` and only Actions and Pages broke. The cost is that the path
-scoping and the author rewrite above would have to be rebuilt in each provider's
-dashboard or given up. Ordering is not a cost of switching, because we do not have
-it either way.
+It also rewrites the deployed commit's author (`VERCEL_GIT_AUTHOR_NAME`), and that
+step is **probably obsolete**. Both the workflow and the settings doc described it
+as a Hobby-plan requirement; **we are on Vercel Pro**, where the restriction it
+worked around does not apply. Worth removing rather than leaving alone, because the
+rewrite means the deployed source's commit hash is not the hash that is on `main`,
+which quietly breaks any "which commit is live?" check
+([#1122](https://github.com/alethical-org/alethical/issues/1122)). Do not delete it
+untested — verify with one laptop deploy of the already-live commit first.
+
+**The provider integrations are the real alternative, and they are only available
+to us because we pay for both services.** Vercel and Railway can each watch the
+repository and deploy on push with no Actions involved, and on Aug 6 that would
+have kept working: GitHub's code hosting, webhooks and API all stayed `operational`
+and only Actions and Pages broke. On Vercel's **Hobby** plan this route does not
+exist at all — its own limits page states a Hobby team cannot connect a project to
+a repository owned by a Git organization, and `alethical-org` is exactly that. We
+are on **Pro**, so it is open to us. Tracked as
+[#1125](https://github.com/alethical-org/alethical/issues/1125).
+
+The cost is smaller than it first looks, because most of what would appear to move
+into a dashboard can stay in the repo: `vercel.json` takes the skip rule
+(`ignoreCommand`) and `railway.json` takes the watched paths (`watchPatterns`) and
+the before-deploy migration (`preDeployCommand`). What genuinely cannot move is the
+linked repository, the production branch, the automatic-deploy switch, the domains,
+and the credentials. Ordering is not a cost of switching, because we do not have it
+either way.
 
 A failed or cancelled deploy still tells nobody — that gap is
 [#1122](https://github.com/alethical-org/alethical/issues/1122).
