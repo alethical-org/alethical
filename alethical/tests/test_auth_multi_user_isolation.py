@@ -124,6 +124,22 @@ def _client_that_can_confirm_its_email(subject: str, email: str):
     return TestClient(app), confirm_the_email
 
 
+BILLS_PATH = "/api/v1/bills?session=94-2025-regular"
+
+
+def _deactivate(user_id: str) -> None:
+    """Flip ``is_active`` off the only way anything ever does -- straight in the DB.
+
+    There is no product surface for this and #1043 deliberately did not add one:
+    the decision was to make the switch behave as labelled, not to build a
+    lockout console. So the tests flip it exactly as an operator would.
+    """
+    with Session(get_engine()) as db:
+        user = db.scalar(select(UserAccount).where(UserAccount.id == user_id))
+        user.is_active = False
+        db.commit()
+
+
 ANY_TOKEN = {"Authorization": "Bearer any"}
 
 
@@ -580,3 +596,106 @@ def test_notification_preferences_are_per_user(
     assert ada_preference["frequency"] == "daily_digest"
     assert grace_preference["is_enabled"] is False
     assert grace_preference["frequency"] == "weekly_digest"
+
+
+def test_a_deactivated_account_is_refused_on_a_signed_in_request():
+    """The switch marked "active" actually locks the account now (#1043).
+
+    ``user_account.is_active`` shipped in the first migration, defaulted to on,
+    and nothing anywhere read it -- a switch that looked like a lock and was not
+    one. The first person to reach for it would have flipped it, watched nothing
+    happen, and found out later. It is honoured on every authenticated request.
+    """
+    subject = "supabase-user-deactivated-1043"
+    _delete_accounts(subject)
+    client = _client_for(subject, "deactivated-1043@example.com")
+
+    user = _me(client, ANY_TOKEN)
+    _deactivate(user["id"])
+
+    response = client.get("/api/v1/me", headers=ANY_TOKEN)
+    assert response.status_code == 403
+    body = response.json()
+    assert body["title"] == "Forbidden"
+    assert body["detail"] == "This account has been deactivated."
+    assert body["type"].endswith("/account-deactivated"), (
+        "a distinct problem type, so a caller can tell a locked account from any "
+        "other refusal"
+    )
+
+    _delete_accounts(subject)
+
+
+def test_a_deactivated_account_is_refused_on_public_pages_too_rather_than_going_anonymous():
+    """A locked account is told it is locked, not quietly signed out.
+
+    ``/bills`` takes a token optionally, to fill in per-reader tracking state.
+    Falling back to anonymous there would leave the caller unable to tell "signed
+    out" from "locked out", which is the same silent failure the unread column
+    already was. The page itself stays reachable without a token at all, so this
+    costs a locked reader nothing they cannot get by signing out.
+    """
+    subject = "supabase-user-deactivated-public-1043"
+    _delete_accounts(subject)
+    client = _client_for(subject, "deactivated-public-1043@example.com")
+
+    user = _me(client, ANY_TOKEN)
+    assert client.get(BILLS_PATH, headers=ANY_TOKEN).status_code == 200
+
+    _deactivate(user["id"])
+
+    assert client.get(BILLS_PATH, headers=ANY_TOKEN).status_code == 403
+    assert client.get(BILLS_PATH).status_code == 200, (
+        "the same page is still public to someone with no token"
+    )
+
+    _delete_accounts(subject)
+
+
+def test_a_second_sign_in_method_is_not_a_way_back_into_a_locked_account():
+    """Locking has to hold on the provisioning path, not only on resolution.
+
+    A locked account still owns its email address, and joining on that address is
+    exactly how a second sign-in method reaches an existing account. Without a
+    check here, "sign in with something else" would walk straight back in and
+    leave a fresh identity row behind on the way.
+    """
+    first_subject = "supabase-user-locked-join-a-1043"
+    second_subject = "supabase-user-locked-join-b-1043"
+    shared_email = "locked-join-1043@example.com"
+    _delete_accounts(first_subject, second_subject)
+
+    established = _me(_client_for(first_subject, shared_email), ANY_TOKEN)
+    _deactivate(established["id"])
+
+    second = _client_for(second_subject, shared_email).get(
+        "/api/v1/me", headers=ANY_TOKEN
+    )
+    assert second.status_code == 403
+
+    with Session(get_engine()) as db:
+        identity = db.scalar(
+            select(AuthIdentity).where(AuthIdentity.provider_subject == second_subject)
+        )
+        assert identity is None, "a refused sign-in must leave no identity row behind"
+
+    _delete_accounts(first_subject, second_subject)
+
+
+def test_a_brand_new_account_is_active_and_works():
+    """The guard must not lock people out by default.
+
+    ``is_active`` defaults to on, and until #1043 nothing depended on that being
+    true. Now everything does, so it gets its own assertion rather than riding on
+    the other tests passing.
+    """
+    subject = "supabase-user-active-by-default-1043"
+    _delete_accounts(subject)
+
+    user = _me(_client_for(subject, "active-default-1043@example.com"), ANY_TOKEN)
+
+    with Session(get_engine()) as db:
+        row = db.scalar(select(UserAccount).where(UserAccount.id == user["id"]))
+        assert row.is_active is True
+
+    _delete_accounts(subject)

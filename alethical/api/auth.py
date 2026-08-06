@@ -73,6 +73,30 @@ def _reconcile_identity_fields(db: Session, user, identity, principal) -> bool:
     return changed
 
 
+def _refuse_if_deactivated(user) -> None:
+    """Stop a deactivated account being used, on every path that resolves one.
+
+    ``user_account.is_active`` existed from the first migration and nothing read
+    it, so it was a switch that looked like a lock and was not one (#1043). It is
+    honoured here rather than per-router so there is one place to read and no
+    endpoint can be added that forgets.
+
+    Deliberately a hard refusal even on the endpoints that take a token
+    *optionally*, rather than quietly falling back to treating the request as
+    signed-out. Silently anonymous means the caller can never tell "signed out"
+    from "locked out" -- the same class of silent failure this column already
+    was. It costs a locked-out reader nothing real: every optional-auth endpoint
+    is public, so the same pages are there without a token at all.
+    """
+    if not user.is_active:
+        raise problem_exception(
+            403,
+            "Forbidden",
+            "This account has been deactivated.",
+            type_slug="account-deactivated",
+        )
+
+
 def get_optional_current_user(
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
@@ -114,6 +138,8 @@ def get_optional_current_user(
             raise problem_exception(
                 401, "Unauthorized", "Mapped user account not found"
             )
+        # Before the reconcile, so a deactivated account cannot write either.
+        _refuse_if_deactivated(user)
         if _reconcile_identity_fields(db, user, identity, principal):
             db.commit()
         return user
@@ -133,7 +159,12 @@ def get_optional_current_user(
         user = db.scalar(
             select(UserAccount).where(UserAccount.primary_email == confirmed_email)
         )
-    if user is None:
+    if user is not None:
+        # A second sign-in method must not become a way back into a locked
+        # account. Checked before the identity row is written, so a refused
+        # sign-in leaves nothing behind.
+        _refuse_if_deactivated(user)
+    else:
         display_name = principal.email.split("@", 1)[0] if principal.email else None
         user = UserAccount(
             display_name=display_name,
