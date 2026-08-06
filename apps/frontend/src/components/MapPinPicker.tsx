@@ -241,18 +241,17 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
 
   return (
     <View style={styles.container}>
-      <Pressable
-        {...panResponder.panHandlers}
-        {...webGestureHandlers}
-        accessibilityLabel="Map pin location"
-        accessibilityRole="button"
-        testID="representative-map-pin-picker"
+      {/* The surface is a plain View, not a Pressable: the zoom controls and the
+          attribution link live inside it, and a button may not contain a button
+          or a link (#882). The pin-drop target is a sibling of those controls
+          below, filling the surface. Keeping the surface styles here means the
+          absolutely-positioned children still measure against the same box. */}
+      <View
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
           setSize({ width, height });
         }}
-        onPress={handlePress}
-        style={[styles.mapSurface, webMapSurfaceStyle]}
+        style={styles.mapSurface}
       >
         {tileGrid.length === 0 ? (
           <View style={styles.loadingState}>
@@ -293,12 +292,23 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
             <Text style={styles.coverageBadgeText}>Outside Minnesota lookup area</Text>
           </View>
         ) : null}
+        {/* The pin-drop target. It fills the surface and sits before the zoom
+            controls and the attribution, so those paint above it and receive
+            their own presses instead of being nested inside it. */}
+        <Pressable
+          {...panResponder.panHandlers}
+          {...webGestureHandlers}
+          accessibilityLabel="Map pin location"
+          accessibilityRole="button"
+          testID="representative-map-pin-picker"
+          onPress={handlePress}
+          style={[StyleSheet.absoluteFill, webMapSurfaceStyle]}
+        />
         <View style={styles.zoomControls}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Zoom map in"
-            onPress={(event) => {
-              event.stopPropagation();
+            onPress={() => {
               handleZoomStep(1);
             }}
             style={({ pressed }) => [styles.zoomButton, pressed ? styles.zoomButtonPressed : null]}
@@ -308,8 +318,7 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Zoom map out"
-            onPress={(event) => {
-              event.stopPropagation();
+            onPress={() => {
               handleZoomStep(-1);
             }}
             style={({ pressed }) => [styles.zoomButton, pressed ? styles.zoomButtonPressed : null]}
@@ -320,15 +329,11 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
         <Pressable
           {...externalLinkProps(OPENSTREETMAP_COPYRIGHT_URL)}
           accessibilityLabel="Open OpenStreetMap copyright"
-          onPress={(event) => {
-            // Always stop here — this sits inside the map surface's own
-            // Pressable (onPress drops a pin), and unlike externalLinkProps'
-            // usual case this outer element is NOT a link itself, so
-            // pressInsideLink's preventDefault would be wrong: on web the
-            // anchor's own target="_blank" is what should open the tab.
-            // Linking.openURL is only needed as the native fallback, where
-            // there's no anchor at all.
-            event.stopPropagation();
+          onPress={() => {
+            // On web, externalLinkProps has made this a real anchor and its own
+            // target="_blank" opens the tab, so there is nothing to do here.
+            // Linking.openURL is only the native fallback, where there is no
+            // anchor at all.
             if (Platform.OS !== 'web') {
               void Linking.openURL(OPENSTREETMAP_COPYRIGHT_URL);
             }
@@ -337,7 +342,7 @@ export function MapPinPicker({ coordinate, onCoordinateChange }: MapPinPickerPro
         >
           <Text style={styles.attributionText}>(c) OpenStreetMap contributors</Text>
         </Pressable>
-      </Pressable>
+      </View>
       <View style={styles.coordinateRow}>
         <Text testID="representative-map-pin-latitude" style={styles.coordinateText}>
           {safeCoordinate.latitude.toFixed(5)}
