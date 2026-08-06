@@ -1143,9 +1143,10 @@ describe('chiefAuthor picks this file’s author, not the companion’s', () => 
     );
   });
 
-  it('falls back to the whole list when the bill has no chamber, rather than returning nothing', () => {
-    expect(chiefAuthor({ sponsors: SF334_SPONSORS, chamber: undefined })).toBeDefined();
-  });
+  // No case for "the bill has no chamber". `chiefAuthor` guards for it
+  // (`bill.chamber ? … : []`), but `Bill['chamber']` is a required `Chamber` and all
+  // four callers pass it, so that branch is unreachable and TypeScript rejects a test
+  // that tries to reach it. Left as harmless defensiveness rather than removed here.
 
   it('returns undefined when there are no sponsors at all, so the block can hide', () => {
     expect(chiefAuthor({ sponsors: [], chamber: 'Senate' })).toBeUndefined();
