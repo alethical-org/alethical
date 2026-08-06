@@ -220,7 +220,7 @@ export function BillResultCard({
   const { index, tone } = billStage(bill.status);
   const statusColor =
     tone === 'green'
-      ? t.colors.brand.deep
+      ? t.colors.text.green
       : tone === 'vetoed'
         ? t.colors.status.vetoedText
         : t.colors.text.secondary;
@@ -592,6 +592,6 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.label,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.4,
-    color: t.colors.brand.deep,
+    color: t.colors.text.green,
   },
 });

@@ -128,7 +128,7 @@ just "Filter by status", so the current filter reached a screen reader nowhere a
 | Session / year | dropdown: every ingested session, newest first, plus two inert greyed-out prior bienniums. Reads as its years ("2025–2026 Legislative Session"), except a special session, which keeps those words ("2025 First Special Session") — years alone cannot tell it apart from the biennium it sits inside ([#746](https://github.com/alethical-org/alethical/issues/746)) | `session` |
 | Omnibus | toggle "Omnibus only" | `omnibus` |
 | Policy area | selectable pills **with live bill counts** ("Education 214") | `policy_area` (counts from `GET /policy-areas`) |
-| Sort order | "Sorted by" dropdown: Best match (offered, and the default, only while a keyword query is present) / Legislative progress / Latest action, plus an inert "Most tracked" roadmap row | `sort` — `relevance` / `progress` / `latest_action` |
+| Sort order | "Sorted by" dropdown: Best match (offered, and the default, only while a keyword query is present) / Legislative progress / Latest action / Introduction date, plus an inert "Most tracked" roadmap row | `sort` — `relevance` / `progress` / `latest_action` / `introduced` |
 
 Each sort option must genuinely reorder the results, so keyword relevance is applied
 **only** to `sort=relevance` ("Best match"). The API originally prepended relevance to
@@ -139,6 +139,10 @@ reordered *within* bands of equal relevance — measured on the production corpu
 from no visible change at all ("social media minors", a bill-number lookup) to one swapped
 pair ("guns"). Omitting `sort` on a free-text search still ranks best-match-first, so
 relevance stays the search default for every API caller ([#573](https://github.com/alethical-org/alethical/issues/573)).
+"Introduction date" orders bills by their real introduction date, newest first. Its URL
+value is `sort=introduced`, and the frontend passes the API's existing `introduced`
+ordering through unchanged. The homepage's "See more recently introduced" link uses
+this order so its destination keeps the promise made by the link.
 
 No author filter in v1 — possible on the ingested data, but out of scope for this screen.
 

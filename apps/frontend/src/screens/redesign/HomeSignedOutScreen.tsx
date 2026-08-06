@@ -19,6 +19,7 @@ import { BillResultCard } from '../../components/search/BillResultCard';
 import { formatNiceDate, plainBillSummary } from '../../lib/billDetail';
 import { HOT_ISSUE_BILL_KEYS } from '../../lib/hotIssues';
 import { HomeLegislatorFinder } from '../../components/home/HomeLegislatorFinder';
+import { HOME_BILL_GROUP_CONTINUATIONS } from '../../lib/homepage';
 import type { Bill } from '../../data/types';
 
 // The v2 signed-out home — docs/mockups/home-signed-out-v2 (README = state/token/copy
@@ -174,13 +175,42 @@ function TextLink({
           fontFamily: t.typography.ui,
           fontSize: size,
           fontWeight: weight,
-          color: hovered ? t.colors.brand.forest : t.colors.brand.deep,
+          color: t.colors.text.green,
           textDecorationLine: hovered ? 'underline' : 'none',
         }}
       >
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+function BillGroupContinuationLink({
+  label,
+  params,
+  onPress,
+}: {
+  label: string;
+  params: { status?: string; sort: string };
+  onPress: () => void;
+}) {
+  const [hovered, hoverProps] = useHover();
+  return (
+    <View style={styles.billGroupContinuationRow}>
+      <Pressable {...linkProps(routePath.bills(params), onPress)} {...hoverProps}>
+        <Text
+          style={[
+            styles.billGroupContinuationText,
+            hovered && styles.billGroupContinuationTextHover,
+          ]}
+        >
+          {label}{' '}
+          <Text style={styles.billGroupContinuationArrow} aria-hidden>
+            →
+          </Text>
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -754,6 +784,13 @@ function HomeSignedOutDesktop() {
                         />
                       ))}
                     </View>
+                    <BillGroupContinuationLink
+                      label={HOME_BILL_GROUP_CONTINUATIONS.passed.label}
+                      params={HOME_BILL_GROUP_CONTINUATIONS.passed.params}
+                      onPress={() =>
+                        navigation.navigate('Bills', HOME_BILL_GROUP_CONTINUATIONS.passed.params)
+                      }
+                    />
                   </View>
                 ) : null}
                 {(recentlyIntroduced.data?.data ?? []).length > 0 ? (
@@ -777,6 +814,16 @@ function HomeSignedOutDesktop() {
                         />
                       ))}
                     </View>
+                    <BillGroupContinuationLink
+                      label={HOME_BILL_GROUP_CONTINUATIONS.introduced.label}
+                      params={HOME_BILL_GROUP_CONTINUATIONS.introduced.params}
+                      onPress={() =>
+                        navigation.navigate(
+                          'Bills',
+                          HOME_BILL_GROUP_CONTINUATIONS.introduced.params,
+                        )
+                      }
+                    />
                   </View>
                 ) : null}
               </View>
@@ -899,7 +946,7 @@ function SeeMore({ href, onPress }: { href: string; onPress: () => void }) {
         hovered && { borderColor: t.colors.brand.base },
       ]}
     >
-      <Text style={[m.seeMoreText, hovered && { color: t.colors.brand.deep }]}>See more</Text>
+      <Text style={[m.seeMoreText, hovered && { color: t.colors.text.green }]}>See more</Text>
       <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" style={m.seeMoreArrow}>
         <Path
           d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
@@ -1484,7 +1531,7 @@ const m = StyleSheet.create({
     fontSize: 15,
     fontWeight: t.fontWeights.semibold,
     letterSpacing: 2.4,
-    color: t.colors.brand.deep,
+    color: t.colors.text.green,
   },
   heroH1: {
     marginTop: 14,
@@ -1506,8 +1553,8 @@ const m = StyleSheet.create({
   },
   heroStateRow: { marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
   // The size ladder is PINNED rather than left to judgment: this is the largest and
-  // most variable string on the page, and the worst real case is "11 of the 14 bills
-  // you're tracking moved since you last opened your tracked bills on Mar 12".
+  // most variable string on the page, and the worst real case is "11 of your 14
+  // tracked bills moved since you last opened the list on Mar 12".
   // 26px/6 lines under 768, 32px/4 lines on a tablet, 38px/4 on desktop.
   heroStateLine: {
     flex: 1,
@@ -1548,7 +1595,7 @@ const m = StyleSheet.create({
     fontSize: 15,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 2.4,
-    color: t.colors.brand.deep,
+    color: t.colors.text.green,
   },
   sectionH2: {
     marginTop: 8,
@@ -1814,7 +1861,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: t.fontWeights.medium,
     letterSpacing: 2.7,
-    color: t.colors.brand.deep,
+    color: t.colors.text.green,
     marginBottom: 36,
   },
   heroH1: {
@@ -2032,7 +2079,7 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.meta,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 2.6,
-    color: t.colors.brand.deep,
+    color: t.colors.text.green,
     marginBottom: 22,
   },
 
@@ -2092,6 +2139,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   billStack: { gap: 18 },
+  billGroupContinuationRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  billGroupContinuationText: {
+    fontFamily: t.typography.ui,
+    fontSize: 15,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.green,
+  },
+  billGroupContinuationTextHover: { textDecorationLine: 'underline' },
+  billGroupContinuationArrow: { fontWeight: t.fontWeights.regular },
   billCard: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -2171,7 +2231,7 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.lg,
     color: t.colors.text.secondary,
   },
-  billAuthor: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
+  billAuthor: { color: t.colors.text.green, fontWeight: t.fontWeights.bold },
   billAction: { color: t.colors.text.primary, fontWeight: t.fontWeights.semibold },
   billActionDate: { color: t.colors.text.faint },
   billVotesRow: {
@@ -2237,7 +2297,7 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.caption,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.3,
-    color: t.colors.brand.deep,
+    color: t.colors.text.green,
   },
 
   // account card

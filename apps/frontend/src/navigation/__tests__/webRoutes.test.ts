@@ -73,6 +73,17 @@ describe('live URLs still resolve to themselves', () => {
     });
   });
 
+  it('keeps homepage bill-group filters through reload or sharing', () => {
+    expect(targetFromPathname('/bills?status=signed_into_law&sort=action')).toEqual({
+      kind: 'bills',
+      params: { status: 'signed_into_law', sort: 'action' },
+    });
+    expect(targetFromPathname('/bills?sort=introduced')).toEqual({
+      kind: 'bills',
+      params: { sort: 'introduced' },
+    });
+  });
+
   it('resolves the pages that have no redesigned replacement', () => {
     expect(targetFromPathname('/privacy')).toEqual({ kind: 'privacy' });
     expect(targetFromPathname('/terms')).toEqual({ kind: 'terms' });

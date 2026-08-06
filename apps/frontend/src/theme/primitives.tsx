@@ -424,7 +424,7 @@ function NavDropdownTrigger({
   const [hovered, hoverProps] = useHover();
   const [triggerLayout, setTriggerLayout] = useState({ width: 0, height: 0 });
   const width = PANEL_WIDTHS[menu] ?? 452;
-  const color = open ? t.colors.brand.deep : hovered ? t.colors.text.primary : '#4b524b';
+  const color = open ? t.colors.text.green : hovered ? t.colors.text.primary : '#4b524b';
   const Caret = open ? ChevronUp : ChevronDown;
   return (
     <View style={styles.navTriggerWrap} {...hoverRegionProps(onHoverOpen, onHoverClose)}>
