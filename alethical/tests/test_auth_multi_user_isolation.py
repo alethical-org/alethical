@@ -626,14 +626,19 @@ def test_a_deactivated_account_is_refused_on_a_signed_in_request():
     _delete_accounts(subject)
 
 
-def test_a_deactivated_account_is_refused_on_public_pages_too_rather_than_going_anonymous():
-    """A locked account is told it is locked, not quietly signed out.
+def test_a_deactivated_account_can_still_read_the_public_record():
+    """Locking an account does not lock anyone out of the public archive.
 
-    ``/bills`` takes a token optionally, to fill in per-reader tracking state.
-    Falling back to anonymous there would leave the caller unable to tell "signed
-    out" from "locked out", which is the same silent failure the unread column
-    already was. The page itself stays reachable without a token at all, so this
-    costs a locked reader nothing they cannot get by signing out.
+    ``/bills`` takes a token only to fill in per-reader tracking state; the page
+    is public. Erroring there would mean a locked account cannot read the
+    *legislative record*, and public legibility of that record is what this
+    product is for (``docs/philosophy.md``). "They can sign out and read it" is a
+    workaround for a break we chose to create, so the token resolves to anonymous
+    on these endpoints instead.
+
+    The refusal is not lost, it moves: `GET /me` still says deactivated, which is
+    the test below. Anonymous-here plus loud-there is what keeps "signed out" and
+    "locked out" distinguishable while leaving the public pages alone.
     """
     subject = "supabase-user-deactivated-public-1043"
     _delete_accounts(subject)
@@ -644,10 +649,40 @@ def test_a_deactivated_account_is_refused_on_public_pages_too_rather_than_going_
 
     _deactivate(user["id"])
 
-    assert client.get(BILLS_PATH, headers=ANY_TOKEN).status_code == 403
-    assert client.get(BILLS_PATH).status_code == 200, (
-        "the same page is still public to someone with no token"
+    assert client.get(BILLS_PATH, headers=ANY_TOKEN).status_code == 200, (
+        "a locked account must still be able to read a public page"
     )
+    assert client.get(BILLS_PATH).status_code == 200
+
+    _delete_accounts(subject)
+
+
+def test_a_locked_account_is_not_confused_with_a_signed_out_one():
+    """The distinction #1043 exists to protect, now that both resolve to None.
+
+    Falling back to anonymous on the optional paths means a locked account and a
+    reader with no token arrive at ``get_current_user`` looking identical. If
+    that flattened them, the frontend would show "please sign in" to someone
+    whose account is locked, they would sign in again, and it would work -- which
+    is the same silent failure the unread column was, wearing a new coat.
+
+    Signed out is a 401 that signing in fixes. Locked is a 403 that signing in
+    never will.
+    """
+    subject = "supabase-user-locked-vs-signed-out-1043"
+    _delete_accounts(subject)
+    client = _client_for(subject, "locked-vs-signed-out-1043@example.com")
+
+    user = _me(client, ANY_TOKEN)
+    _deactivate(user["id"])
+
+    locked = client.get("/api/v1/me", headers=ANY_TOKEN)
+    signed_out = client.get("/api/v1/me")
+
+    assert locked.status_code == 403
+    assert signed_out.status_code == 401
+    assert locked.json()["type"].endswith("/account-deactivated")
+    assert not signed_out.json()["type"].endswith("/account-deactivated")
 
     _delete_accounts(subject)
 
