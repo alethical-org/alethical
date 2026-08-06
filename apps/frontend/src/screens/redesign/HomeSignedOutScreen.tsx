@@ -713,10 +713,7 @@ function HomeSignedOutDesktop() {
                       </Text>
                       <View style={styles.heroStateRow}>
                         <HeroStateGlyph glyph={watch.glyph} />
-                        <Text
-                          accessibilityRole="header"
-                          style={[styles.heroStateLine, !isDesktop && styles.heroStateLineMobile]}
-                        >
+                        <Text accessibilityRole="header" style={styles.heroStateLine}>
                           {watch.heroLine}
                         </Text>
                       </View>
@@ -2012,7 +2009,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.76,
     color: theme.colors.text.primary,
   },
-  heroStateLineMobile: { fontSize: 30, lineHeight: 38, letterSpacing: -0.6 },
   heroSubheadMobile: { marginTop: 28, fontSize: 22, lineHeight: 33 },
   fieldShell: {
     flexDirection: 'row',
