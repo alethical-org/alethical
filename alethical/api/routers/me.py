@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from dataclasses import dataclass
@@ -66,6 +67,13 @@ RAG_CHAT_SYSTEM_PROMPT = (
     "plain-language conclusion even if the wording is indirect. If the context partially "
     "answers the question, answer the supported part and say what is not covered. Only say "
     "the bill text does not answer the question when none of the provided context is relevant."
+)
+
+# The user-message wrapper is prompt material too. Keeping it named lets the
+# public suggested-answer cache invalidate itself when this wording changes,
+# exactly as it does for either system-prompt branch.
+RAG_CHAT_USER_PROMPT_TEMPLATE = (
+    "Bill: {bill_key}\nQuestion: {question}\n\nContext:\n{context}"
 )
 
 
@@ -307,6 +315,25 @@ def rag_chat_system_prompt(coverage: BillTextCoverage | None = None) -> str:
     return f"{RAG_CHAT_SYSTEM_PROMPT}\n\n{_coverage_rule(coverage)}"
 
 
+def rag_chat_prompt_fingerprint() -> str:
+    """Fingerprint every possible prompt wrapper used to write an Ask answer.
+
+    Both coverage branches are included because a cache lookup happens before
+    retrieval establishes which branch applies. Changing any prompt wording then
+    invalidates every old answer automatically, without a version number someone
+    has to remember to bump.
+    """
+    prompt_material = "\0".join(
+        (
+            RAG_CHAT_SYSTEM_PROMPT,
+            _COMPLETE_COVERAGE_RULE,
+            _PARTIAL_COVERAGE_RULE,
+            RAG_CHAT_USER_PROMPT_TEMPLATE,
+        )
+    )
+    return hashlib.sha256(prompt_material.encode("utf-8")).hexdigest()
+
+
 # Subject phrases that make a claim about the whole bill, and the non-existence
 # predicates that turn such a claim into an absence claim. Kept as two halves so
 # the pattern fires only on "<the bill> <asserts nothing of a kind>" and never on
@@ -529,7 +556,9 @@ def synthesize_grounded_answer(
     # If either ever has to differ by provider, that stops being true and the eval
     # has to resolve them for the provider of the arm it is scoring.
     system_prompt = rag_chat_system_prompt(coverage)
-    user_prompt = f"Bill: {bill_key}\nQuestion: {question}\n\nContext:\n{context}"
+    user_prompt = RAG_CHAT_USER_PROMPT_TEMPLATE.format(
+        bill_key=bill_key, question=question, context=context
+    )
     try:
         if anthropic:
             response = requests.post(
