@@ -385,10 +385,21 @@ every request that resolves a user, returning `403` with the problem type
   row is written.** A locked account still owns its confirmed address, and joining on
   that address is exactly how a second sign-in method reaches an existing account, so
   without this "sign in with something else" walks straight back in.
-- **It refuses on the optional-auth endpoints too**, rather than falling back to
-  anonymous. Silently anonymous leaves a caller unable to tell "signed out" from "locked
-  out" — the same silent failure the unread column already was — and costs a locked
-  reader nothing, since those endpoints are public without a token at all.
+- **On the optional-auth endpoints it resolves to anonymous rather than erroring, and
+  the difference is carried on the request instead.** Those three call sites
+  (`public.py` bill list and bill detail, `ask.py`) take a token only to personalise an
+  otherwise public page. Erroring there would lock someone out of the *public
+  legislative record* because their account is locked, which is the opposite of what
+  this product is for (`docs/philosophy.md`), and "they can sign out and read it" is a
+  workaround for a break we chose to create.
+
+  Falling back to anonymous alone would recreate the exact silent failure #1043 exists
+  to remove: a locked account and a reader with no token both arrive as `None`, so the
+  app shows "please sign in", the reader signs in, and it works. So
+  `_mark_deactivated` sets `request.state.account_deactivated`, and `get_current_user`
+  reads it — **signed out is a 401 that signing in fixes, locked is a 403 that signing
+  in never will.** `GET /me` is required-auth, so that is where the frontend learns to
+  clear the session and say what happened.
 
 There is deliberately **no interface for flipping it**: the decision was to make the
 switch behave as labelled, not to build a lockout console. Who may flip it, and where
