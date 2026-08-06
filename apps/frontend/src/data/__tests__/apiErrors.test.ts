@@ -45,6 +45,10 @@ describe('isAccountDeactivatedError', () => {
     expect(isAccountDeactivatedError(apiErrorFromBody(403, 'null'))).toBe(false);
     expect(isAccountDeactivatedError(apiErrorFromBody(403, '"account-deactivated"'))).toBe(false);
     expect(isAccountDeactivatedError(apiErrorFromBody(403, '{"type": 42}'))).toBe(false);
+    // Asserted on the slug itself, not just the boolean: a coercing parser
+    // (String(type)) still answers false here while quietly inventing "42".
+    expect(apiErrorFromBody(403, '{"type": 42}').problem).toBeNull();
+    expect(apiErrorFromBody(403, '{"title": "Forbidden"}').problem).toBeNull();
   });
 
   it('does not fire on the signed-out 401, which is the one this must not be confused with', () => {
