@@ -41,6 +41,7 @@ import {
   SortOption,
 } from '../../components/search/searchPieces';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
+import { sessionFilterForApi } from '../../lib/sessionFilterForApi';
 import { Skeleton } from '../../components/Skeleton';
 
 // Placeholder card rows shown while the first page of bills loads.
@@ -162,6 +163,7 @@ export function SearchBillsScreen() {
   const currentSession =
     sessionsQuery.data?.find((item) => item.isCurrent) ?? sessionsQuery.data?.[0];
   const sessionSlug = session || currentSession?.slug || '';
+  const apiSession = sessionFilterForApi(session);
   const sessionName = sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name;
   const sessionLabel = sessionName ? formatSessionLabel(sessionName) : SESSION_LABEL_FALLBACK;
 
@@ -202,7 +204,7 @@ export function SearchBillsScreen() {
     updateFilters({ issue: issuesToParam(next) });
   };
 
-  const billsQuery = useBills(query || undefined, sessionSlug || undefined, filters, {
+  const billsQuery = useBills(query || undefined, apiSession, filters, {
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   });
@@ -218,12 +220,12 @@ export function SearchBillsScreen() {
   const prefetchFilter = (override: Partial<BillListFilters>) =>
     prefetchBills(
       query || undefined,
-      sessionSlug || undefined,
+      apiSession,
       { ...filters, ...override },
       { limit: PAGE_SIZE, offset: 0 },
     );
   const metaQuery = useMeta();
-  const policyAreasQuery = usePolicyAreas(sessionSlug || undefined);
+  const policyAreasQuery = usePolicyAreas(apiSession);
 
   const bills = billsQuery.data?.data ?? [];
   const total = billsQuery.data?.page.total ?? null;
