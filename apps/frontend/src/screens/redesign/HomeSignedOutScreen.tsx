@@ -210,11 +210,14 @@ function HeroEntryButton({
   label,
   href,
   onPress,
+  fullWidth = false,
 }: {
   icon: 'search' | 'person';
   label: string;
   href: string;
   onPress: () => void;
+  /** Phones stack these full-width; every wider layout sizes them to content. */
+  fullWidth?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
   const green = t.colors.brand.deep;
@@ -224,6 +227,7 @@ function HeroEntryButton({
       {...hoverProps}
       style={[
         styles.heroEntryButton,
+        fullWidth && styles.heroEntryButtonFull,
         transition('border-color, box-shadow'),
         hovered && styles.heroEntryButtonHover,
         hovered && heroEntryHoverShadow,
@@ -709,10 +713,7 @@ function HomeSignedOutDesktop() {
                       </Text>
                       <View style={styles.heroStateRow}>
                         <HeroStateGlyph glyph={watch.glyph} />
-                        <Text
-                          accessibilityRole="header"
-                          style={[styles.heroStateLine, !isDesktop && styles.heroStateLineMobile]}
-                        >
+                        <Text accessibilityRole="header" style={styles.heroStateLine}>
                           {watch.heroLine}
                         </Text>
                       </View>
@@ -1195,6 +1196,12 @@ function SkeletonCard({ lines }: { lines: number }) {
 
 function HomeSignedOutMobile() {
   const navigation = useNavigation<any>();
+  // Same branch as desktop: only the HERO changes on auth, and everything below it
+  // is identical either way (#1034, #1069). This component serves BOTH narrow
+  // breakpoints — phone under 768 and tablet 768-1100 — which differ in layout, not
+  // in content.
+  const { isSignedIn, user } = useAuth();
+  const { isTablet } = useResponsive();
   const [finderFocused, setFinderFocused] = useState(false);
   const [finderValue, setFinderValue] = useState('');
   const finderInputRef = useRef<TextInput>(null);
@@ -1203,6 +1210,31 @@ function HomeSignedOutMobile() {
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
   // would fire these queries and contend with the visible screen's first load.
   const isFocused = useIsFocused();
+  // The signed-in hero's inputs. READS the last-looked mark and never advances it —
+  // only opening the tracked list does that (#1034).
+  const trackedQuery = useTrackedBills(isSignedIn && isFocused ? user?.id : undefined);
+  const lastVisitQuery = useLastVisitWithoutAdvancing(
+    isSignedIn && isFocused ? user?.id : undefined,
+  );
+  const lastVisitData = lastVisitQuery.data;
+  const trackedBills = trackedQuery.data;
+  const watchNow = useRef(new Date()).current;
+  const watch = useMemo(() => {
+    const lastVisit = lastVisitFrom(lastVisitData);
+    if (!trackedBills) return sessionWatch([], { state: 'not-checked' }, watchNow, '');
+    const visitedOn =
+      lastVisit.state === 'previous-visit' ? formatNiceDate(localDay(lastVisit.at)) : '';
+    return sessionWatch(trackedBills, lastVisit, watchNow, visitedOn);
+  }, [trackedBills, lastVisitData, watchNow]);
+  const billActivityRef = useRef<View>(null);
+  const scrollToBillActivity = () => {
+    if (!isWeb || !billActivityRef.current) return;
+    (billActivityRef.current as unknown as HTMLElement).scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      block: 'start',
+    });
+  };
+
   // In the News — two pinned bills by key (bypasses the /bills AI-summary gate).
   const news0 = useBill(IN_THE_NEWS[0].key, { enabled: isFocused });
   const news1 = useBill(IN_THE_NEWS[1].key, { enabled: isFocused });
@@ -1329,15 +1361,67 @@ function HomeSignedOutMobile() {
 
             {/* HERO COPY (headline + subhead only — no ask field) */}
             <Container style={m.heroBody}>
-              <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-              <Text accessibilityRole="header" style={m.heroH1}>
-                Grounded answers{'\n'}
-                <Text style={m.heroH1Green}>on Minnesota law</Text>
-              </Text>
-              <Text style={m.heroSubhead}>
-                We read every bill so you don’t have to — what it says, where it stands, and how
-                legislators voted. Plain language, every answer linked to official sources.
-              </Text>
+              {isSignedIn ? (
+                /* Order is fixed at both narrow widths: greeting, the news, the card,
+                   then the actions. The actions stay BELOW the card deliberately —
+                   search is one tap away in the hamburger drawer on every narrow
+                   screen, so these are a convenience duplicate rather than a gated
+                   capability, and putting them above would bury what the person came
+                   back for (#1069). */
+                <>
+                  <Text style={m.heroGreeting}>
+                    Welcome back{user?.name ? `, ${firstName(user.name)}` : ''}
+                  </Text>
+                  <View style={m.heroStateRow}>
+                    <HeroStateGlyph glyph={watch.glyph} />
+                    <Text
+                      accessibilityRole="header"
+                      style={[m.heroStateLine, isTablet && m.heroStateLineTablet]}
+                      numberOfLines={isTablet ? 4 : 6}
+                    >
+                      {watch.heroLine}
+                    </Text>
+                  </View>
+                  <View style={m.heroWatchCard}>
+                    <SessionWatchCard
+                      watch={watch}
+                      onBill={(billId) => navigation.navigate('BillDetail', { billId })}
+                      onAllTracked={() => navigation.navigate('Tracked')}
+                      onSearchBills={openSearchBills}
+                      onWhatsMoving={scrollToBillActivity}
+                    />
+                  </View>
+                  {/* Side by side on a tablet, stacked full-width on a phone. */}
+                  <View style={[m.heroActions, isTablet && m.heroActionsTablet]}>
+                    <HeroEntryButton
+                      icon="search"
+                      label="Search Bills"
+                      href={routePath.bills()}
+                      onPress={openSearchBills}
+                      fullWidth={!isTablet}
+                    />
+                    <HeroEntryButton
+                      icon="person"
+                      label="Search Legislators"
+                      href={routePath.legislators()}
+                      onPress={() => navigation.navigate('Legislators')}
+                      fullWidth={!isTablet}
+                    />
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
+                  <Text accessibilityRole="header" style={m.heroH1}>
+                    Grounded answers{'\n'}
+                    <Text style={m.heroH1Green}>on Minnesota law</Text>
+                  </Text>
+                  <Text style={m.heroSubhead}>
+                    We read every bill so you don’t have to — what it says, where it stands, and how
+                    legislators voted. Plain language, every answer linked to official sources.
+                  </Text>
+                </>
+              )}
             </Container>
           </View>
 
@@ -1532,6 +1616,34 @@ const m = StyleSheet.create({
     color: t.colors.text.primary,
   },
   heroH1Green: { color: t.colors.brand.deep },
+  // Signed-in hero, narrow (#1069). The state line is the headline at every width;
+  // the greeting stays a small eyebrow above it.
+  heroGreeting: {
+    fontFamily: theme.typography.ui,
+    fontSize: theme.fontSizes.bodyLg,
+    fontWeight: theme.fontWeights.semibold,
+    color: theme.colors.text.muted,
+  },
+  heroStateRow: { marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
+  // The size ladder is PINNED rather than left to judgment: this is the largest and
+  // most variable string on the page, and the worst real case is "11 of the 14 bills
+  // you're tracking moved since you last opened your tracked bills on Mar 12".
+  // 26px/6 lines under 768, 32px/4 lines on a tablet, 38px/4 on desktop.
+  heroStateLine: {
+    flex: 1,
+    fontFamily: theme.typography.title,
+    fontSize: 26,
+    lineHeight: 33,
+    fontWeight: theme.fontWeights.heavy,
+    letterSpacing: -0.52,
+    color: theme.colors.text.primary,
+    ...(isWeb ? ({ textWrap: 'pretty' } as object) : null),
+  },
+  heroStateLineTablet: { fontSize: 32, lineHeight: 40, letterSpacing: -0.64 },
+  heroWatchCard: { marginTop: 22 },
+  // Stacked and full-width on a phone; side by side on a tablet.
+  heroActions: { marginTop: 20, gap: 12 },
+  heroActionsTablet: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   heroSubhead: {
     marginTop: 18,
     fontFamily: t.typography.body,
@@ -1897,7 +2009,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.76,
     color: theme.colors.text.primary,
   },
-  heroStateLineMobile: { fontSize: 30, lineHeight: 38, letterSpacing: -0.6 },
   heroSubheadMobile: { marginTop: 28, fontSize: 22, lineHeight: 33 },
   fieldShell: {
     flexDirection: 'row',
@@ -1912,6 +2023,7 @@ const styles = StyleSheet.create({
     paddingLeft: 26,
   },
   // Hero entry buttons — two side-by-side links; wrap to stacked in a narrow column.
+  heroEntryButtonFull: { alignSelf: 'stretch', justifyContent: 'center' },
   heroEntryRow: {
     marginTop: 44,
     flexDirection: 'row',
