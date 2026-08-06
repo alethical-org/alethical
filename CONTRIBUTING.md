@@ -95,25 +95,43 @@ sees. To reproduce CI exactly: `uvx ruff@0.15.0 check alethical scripts`,
 `uvx ruff@0.15.0 format alethical scripts`, `uvx ty@0.0.63 check alethical/db`. Two PRs
 failed on this in one night, each on a file `just format` had already formatted.
 
-### One local Postgres, many worktrees
+### One local Postgres, one database per worktree
 
-Every worktree shares the **same** local Postgres on `:54329`, and the test suite runs
-`alembic upgrade head` against it at setup. That makes two failures common, and neither
-error message points at the cause:
+Every worktree shares the same local Postgres server on `:54329`, but since
+[#898](https://github.com/alethical-org/alethical/issues/898) each gets its **own
+database** on it, named after the worktree. Nothing to set up and nothing to remember:
+`uv run pytest` in a fresh worktree creates it, migrates it, seeds it, and reuses it on
+later runs. Databases whose worktree has been deleted are dropped automatically at the
+start of the next run, so they do not pile up.
 
-- **`FAILED: Can't locate revision identified by '00xx_…'`, every test erroring at
-  setup.** The database is stamped with a revision your branch does not contain, because
-  another worktree ran its own migration, or because you renumbered yours after running
-  it. Fix: `uv run alembic stamp <the-revision-before-it> --purge`, then
-  `uv run alembic upgrade head`. Where the stamp came from another worktree still using
-  it, build a throwaway database instead of re-stamping the shared one out from under
-  them.
-- **A red suite that looks like your change broke everything.** Check the stamp before
-  believing it. A dependency bump was briefly blamed for 502 failing tests that were
-  entirely a stamp mismatch.
+**What that fixed.** The suite runs `alembic upgrade head` and re-seeds at setup, against
+whatever database it is pointed at. One shared database therefore produced two failures
+regularly, and neither error message pointed at the cause:
 
-A worktree created with plain `git worktree add` has **no `.env`**, and every test errors
-without it. Use `just worktree <branch>`, which links it.
+- **Two sessions testing at once wiped each other's tables**, and the loser's whole suite
+  errored during setup — which reads exactly like "your branch broke 459 tests". The tell
+  was the runtime: ~20s run alone, dead in ~5s when it collided.
+- **`Can't locate revision identified by '00xx_…'`, every test erroring at setup.** One
+  worktree's migration stamped the shared database with a revision no other branch
+  contained. A dependency bump was once blamed for 502 failing tests that were entirely
+  this.
+
+Both are now impossible between worktrees. The second is also self-healing *within* one:
+if the database is left stamped with a revision your tree cannot locate — after a rebase,
+or switching branches in place — the suite drops and rebuilds it rather than dying.
+
+**What is still shared, and the one case not covered.** The Postgres server, role and
+port are shared; only the database name splits. Two `pytest` processes started in the
+*same* worktree at once still share a database and can still collide. Each session gets
+its own worktree, so that is not the failure anyone has hit, and splitting per process
+would mean a full migrate-and-seed on every run.
+
+**Escape hatch.** `ALETHICAL_TEST_DATABASE_URL` overrides the whole thing if you need a
+specific database. CI is untouched: it pins `DATABASE_URL` to port 5432, and only 54329
+is split.
+
+A worktree created with plain `git worktree add` has **no `.env`**. Use
+`just worktree <branch>`, which links it.
 
 ### Frontend tests
 
