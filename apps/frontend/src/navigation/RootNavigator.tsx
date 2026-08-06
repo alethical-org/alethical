@@ -93,8 +93,15 @@ const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> 
  * Chat and Account are deliberately absent: both are pre-redesign screens wired
  * to fixture data, and now that signing in works, a link to either would land
  * someone on a page we stopped maintaining. Their URLs already redirect Home
- * (navigation/webRoutes.ts), and the bill-scoped chat is untouched — it opens
- * from a bill page, not from a tab (grounded-answers.md rule 8).
+ * (navigation/webRoutes.ts).
+ *
+ * This comment used to add "and the bill-scoped chat is untouched — it opens
+ * from a bill page". That is false and was false when written: webRoutes.ts
+ * redirects /chat/new and /chat/sessions/{id} to Home as well, so hiding the tab
+ * is not the only thing standing between a reader and a chat, and the bill-page
+ * entry it referred to was deleted with BillDetailScreen.tsx (#1071). The screen
+ * and the server endpoints both still work — only the way in is gone. Tracked in
+ * #1032; grounded-answers.md rule 8 carries the detail.
  */
 const VISIBLE_TABS: ReadonlySet<keyof MainTabParamList> = new Set(['Home', 'Tracked']);
 const railRoutes: Array<{
