@@ -145,8 +145,8 @@ export function sessionWatch<T extends WithActions>(
       // Dates the last change rather than reading as empty. The card still lists
       // tracked bills with their latest action, so the page is never blank.
       heroLine: mostRecent
-        ? `Nothing has moved since you last opened your tracked bills on ${visitedOn} — the most recent change was ${mostRecent}`
-        : `Nothing has moved since you last opened your tracked bills on ${visitedOn}`,
+        ? `Nothing has moved since you last opened the list on ${visitedOn} — the most recent change was ${mostRecent}`
+        : `Nothing has moved since you last opened the list on ${visitedOn}`,
       glyph: 'clock',
     };
   }
@@ -156,7 +156,7 @@ export function sessionWatch<T extends WithActions>(
     rows,
     movedCount,
     capCaption,
-    heroLine: `${movedCount} of the ${bills.length} ${bills.length === 1 ? 'bill' : 'bills'} you’re tracking moved since you last opened your tracked bills on ${visitedOn}`,
+    heroLine: `${movedCount} of your ${bills.length} tracked ${bills.length === 1 ? 'bill' : 'bills'} moved since you last opened the list on ${visitedOn}`,
     glyph: 'trend',
   };
 }

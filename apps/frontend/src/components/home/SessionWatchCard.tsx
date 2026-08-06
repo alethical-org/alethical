@@ -438,8 +438,8 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.deep,
+    color: t.colors.text.green,
   },
-  cardLinkTextHover: { color: t.colors.brand.forest },
+  cardLinkTextHover: { color: t.colors.text.green },
   cardLinkArrow: { fontWeight: t.fontWeights.regular },
 });

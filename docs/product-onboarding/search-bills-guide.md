@@ -76,8 +76,8 @@ Above the list you always see:
   the list: **Best match** (offered, and the default, only once you've typed a search)
   puts the closest wording first, **Legislative progress** puts the bills furthest
   along first, so signed-into-law bills lead, and **Latest action** puts the most
-  recent activity first. **Most tracked** is shown as a planned option and can't be
-  picked yet.
+  recent activity first. **Introduction date** puts the newest introductions first.
+  **Most tracked** is shown as a planned option and can't be picked yet.
 
 ---
 

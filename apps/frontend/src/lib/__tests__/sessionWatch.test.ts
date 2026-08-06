@@ -72,7 +72,7 @@ describe('the five frames are chosen by what we actually know', () => {
     const watch = sessionWatch([quiet('b1'), quiet('b2')], VISITED, NOW, 'Mar 20');
     expect(watch.state).toBe('quiet');
     expect(watch.heroLine).toBe(
-      'Nothing has moved since you last opened your tracked bills on Mar 20 — the most recent change was Jan 5, 2026',
+      'Nothing has moved since you last opened the list on Mar 20 — the most recent change was Jan 5, 2026',
     );
     // The card still lists the bills, so the page is never blank.
     expect(watch.rows).toHaveLength(2);
@@ -81,9 +81,7 @@ describe('the five frames are chosen by what we actually know', () => {
 
   it('drops the trailing clause when no tracked bill has a dated action at all', () => {
     const watch = sessionWatch([{ id: 'b1', actions: [] }], VISITED, NOW, 'Mar 20');
-    expect(watch.heroLine).toBe(
-      'Nothing has moved since you last opened your tracked bills on Mar 20',
-    );
+    expect(watch.heroLine).toBe('Nothing has moved since you last opened the list on Mar 20');
   });
 
   it('renders MOVED with the count and the date', () => {
@@ -91,7 +89,7 @@ describe('the five frames are chosen by what we actually know', () => {
     const watch = sessionWatch(bills, VISITED, NOW, 'Mar 12');
     expect(watch.state).toBe('moved');
     expect(watch.heroLine).toBe(
-      '2 of the 4 bills you’re tracking moved since you last opened your tracked bills on Mar 12',
+      '2 of your 4 tracked bills moved since you last opened the list on Mar 12',
     );
     expect(watch.glyph).toBe('trend');
   });
@@ -123,7 +121,7 @@ describe('the card never lets two rows pass themselves off as the whole set', ()
     expect(watch.rows).toHaveLength(SESSION_WATCH_ROWS);
     expect(watch.capCaption).toBe('Showing the 2 most recent of 11 that moved');
     expect(watch.heroLine).toBe(
-      '11 of the 14 bills you’re tracking moved since you last opened your tracked bills on Mar 12',
+      '11 of your 14 tracked bills moved since you last opened the list on Mar 12',
     );
   });
 

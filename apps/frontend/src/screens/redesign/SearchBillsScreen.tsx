@@ -43,6 +43,11 @@ import {
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import { sessionFilterForApi } from '../../lib/sessionFilterForApi';
 import { Skeleton } from '../../components/Skeleton';
+import {
+  BILL_SEARCH_SORT_OPTIONS,
+  BILL_SEARCH_SORT_TO_API,
+  resolveBillSearchSort,
+} from '../../lib/billSearchSort';
 
 // Placeholder card rows shown while the first page of bills loads.
 const SKELETON_ROWS = [0, 1, 2, 3, 4];
@@ -90,18 +95,6 @@ const STATUS_OPTIONS = [
   { label: 'Vetoed', value: 'vetoed' },
 ];
 
-// Sort keys map to the API's `sort` param. "Best match" (sort=relevance) ranks by
-// keyword closeness (#573) tie-broken by progress, so it is offered only while a
-// query is present and defaults there; the other two order by stage and by recency
-// with no relevance ahead of them, so each option really does reorder the results.
-// "Most tracked" is a roadmap option — inert, shown once.
-type SortKey = 'best' | 'progress' | 'action';
-const SORT_TO_API: Record<SortKey, 'relevance' | 'progress' | 'latest_action'> = {
-  best: 'relevance',
-  progress: 'progress',
-  action: 'latest_action',
-};
-
 export function SearchBillsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -132,15 +125,7 @@ export function SearchBillsScreen() {
   // when searching (relevance leads) and legislative progress otherwise. A stale
   // 'best' with no query falls back to progress.
   const hasQuery = query.trim().length > 0;
-  const sortParam = typeof params.sort === 'string' ? params.sort : '';
-  const sortKey: SortKey =
-    sortParam === 'best' || sortParam === 'progress' || sortParam === 'action'
-      ? sortParam === 'best' && !hasQuery
-        ? 'progress'
-        : sortParam
-      : hasQuery
-        ? 'best'
-        : 'progress';
+  const sortKey = resolveBillSearchSort(params.sort, hasQuery);
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [openFilter, setOpenFilter] = useState<'status' | 'session' | 'sort' | null>(null);
@@ -190,7 +175,7 @@ export function SearchBillsScreen() {
     status: status || undefined,
     policyAreas: selectedIssues.length ? selectedIssues : undefined,
     omnibus: omnibusOnly ? true : undefined,
-    sort: SORT_TO_API[sortKey],
+    sort: BILL_SEARCH_SORT_TO_API[sortKey],
   };
 
   // Toggle an issue in/out of the selected set and write the comma-joined result
@@ -435,8 +420,7 @@ export function SearchBillsScreen() {
   // house rule: never a "coming soon" label, one clear roadmap marker).
   const sortOptions: SortOption[] = [
     ...(hasQuery ? [{ key: 'best', label: 'Best match' }] : []),
-    { key: 'progress', label: 'Legislative progress' },
-    { key: 'action', label: 'Latest action' },
+    ...BILL_SEARCH_SORT_OPTIONS,
     { key: 'tracked', label: 'Most tracked', roadmap: true },
   ];
   const sortControl = (

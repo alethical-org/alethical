@@ -17,6 +17,7 @@ export type RootStackParamList = {
         session?: string;
         issue?: string;
         omnibus?: string;
+        sort?: string;
         page?: string;
       }
     | undefined;

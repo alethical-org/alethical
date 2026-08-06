@@ -58,6 +58,13 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.ask()).toBe('/ask');
   });
 
+  it('builds the 2 filtered homepage bill-group destinations', () => {
+    expect(routePath.bills({ status: 'signed_into_law', sort: 'action' })).toBe(
+      '/bills?status=signed_into_law&sort=action',
+    );
+    expect(routePath.bills({ sort: 'introduced' })).toBe('/bills?sort=introduced');
+  });
+
   it('escapes an id so a link can never produce a malformed URL', () => {
     expect(routePath.bill('a b/c')).toBe('/bills/a%20b%2Fc');
     expect(routePath.legislator('a b/c')).toBe('/legislators/a%20b%2Fc');
