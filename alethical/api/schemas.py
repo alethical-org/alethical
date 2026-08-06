@@ -271,6 +271,7 @@ class CurrentServicePayload(BaseModel):
     photo_url: str | None = None
     elected: str | None = None
     term: str | None = None
+    represented_city: str | None = None
 
 
 class ElectionPeriodPayload(BaseModel):
@@ -305,6 +306,8 @@ class LegislatorListItem(BaseModel):
     current_service: CurrentServicePayload | None = None
     committees: list[CommitteePayload] | None = None
     stats: LegislatorStatsPayload | None = None
+    service_history: ServiceHistoryPayload | None = None
+    issue_areas: list[str] | None = None
 
 
 class LegislatorDetailPayload(BaseModel):

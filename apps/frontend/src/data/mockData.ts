@@ -507,11 +507,13 @@ const savedPlaces: SavedPlace[] = [
 
 const addressIndex: Record<string, RepresentativeLookupResult> = {
   'south minneapolis, mn 55409': {
+    status: 'found',
     address: 'South Minneapolis, MN 55409',
     districtSummary: 'Senate 62, House 61B',
     legislators: [legislators[0], legislators[1]],
   },
   'saint paul, mn 55104': {
+    status: 'found',
     address: 'Saint Paul, MN 55104',
     districtSummary: 'Senate 66, House 64B',
     legislators: [legislators[2]],
@@ -719,6 +721,7 @@ export async function getRepresentativeLookup(
   }
 
   return {
+    status: 'found',
     address,
     districtSummary: 'Closest available match in demo mode',
     legislators: clone(legislators.slice(0, 2)),

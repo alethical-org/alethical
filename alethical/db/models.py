@@ -1691,8 +1691,14 @@ def find_my_legislator_stmt(session_id: uuid.UUID, district_ids: list[uuid.UUID]
             LegislatorServicePeriod.district_id.in_(district_ids),
         )
         .options(
-            selectinload(LegislatorServicePeriod.legislator),
+            selectinload(LegislatorServicePeriod.legislator)
+            .selectinload(Legislator.election_history)
+            .selectinload(LegislatorElectionHistory.chamber),
             selectinload(LegislatorServicePeriod.district),
+            selectinload(LegislatorServicePeriod.chamber),
+            selectinload(LegislatorServicePeriod.legislator).selectinload(
+                Legislator.stats.and_(LegislatorStats.session_id == session_id)
+            ),
         )
     )
 

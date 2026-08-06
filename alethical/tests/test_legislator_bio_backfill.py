@@ -10,6 +10,7 @@ that used a fabricated source format, #328).
 """
 
 from alethical.pipeline.legislator_bio_backfill import (
+    backfill,
     bio_sentence,
     lrl_id_from_profile_url,
     parse_house_bio,
@@ -256,3 +257,60 @@ def test_lrl_id_extracted_from_both_chamber_profile_urls():
     assert lrl_id_from_profile_url(senate_url) == "15245"
     assert lrl_id_from_profile_url(house_url) == "15610"
     assert lrl_id_from_profile_url("") is None
+
+
+def test_city_backfill_dry_run_handles_supported_and_missing_records(monkeypatch):
+    class Row:
+        elected = None
+        term = None
+        represented_city = None
+
+        def __init__(self, profile_url):
+            self.profile_url = profile_url
+
+    class Member:
+        biography = None
+
+        def __init__(self, name):
+            self.full_name = name
+
+    supported = Row("https://www.house.mn.gov/members/profile/15389")
+    missing = Row("https://www.house.mn.gov/members/profile/19999")
+    monkeypatch.setattr(
+        "alethical.pipeline.legislator_bio_backfill.current_service_rows",
+        lambda *args, **kwargs: [
+            (supported, Member("Supported City"), "house"),
+            (missing, Member("Missing City"), "house"),
+        ],
+    )
+
+    def fake_fetch(_session, url):
+        if "fulldetail" not in url:
+            return CLEAN_HTML
+        return LRL_RESIDENCE_MULTI_TERM if "15389" in url else LRL_NO_RESIDENCE
+
+    monkeypatch.setattr(
+        "alethical.pipeline.legislator_bio_backfill.fetch_text", fake_fetch
+    )
+
+    class Db:
+        commits = 0
+
+        def commit(self):
+            self.commits += 1
+
+    db = Db()
+    stats = backfill(
+        db,
+        dry_run=True,
+        only_missing=True,
+        limit=None,
+        legislator=None,
+        chamber=None,
+    )
+
+    assert stats.service_periods_seen == 2
+    assert stats.city_parsed == 1
+    assert db.commits == 0
+    assert supported.represented_city is None
+    assert missing.represented_city is None
