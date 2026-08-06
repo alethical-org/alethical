@@ -7,18 +7,19 @@ Alethical deploys as two services:
 
 ## Workflows at a glance
 
-Six GitHub Actions workflows in `.github/workflows/`. Which ones a PR can prove
-matters: four of them never run on a PR, so a change to them is only verified
+Seven GitHub Actions workflows in `.github/workflows/`. Which ones a PR can prove
+matters: five of them never run on a PR, so a change to them is only verified
 after merge.
 
-| Workflow                | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
-| ----------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- |
-| `ci.yml`                | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                       | Yes                              |
-| `migrate.yml`           | push to `main` touching migrations, models, `alembic.ini`, deps, or itself | Applies Alembic migrations to the production database; opens an alert issue on failure | No                               |
-| `railway-deploy.yml`    | push to `main` touching backend paths or itself                            | Deploys the API to Railway production                                                  | No                               |
-| `vercel-deploy.yml`     | push to `main` touching frontend paths or itself                           | Deploys the web frontend to Vercel production                                          | No                               |
-| `vote-backfill.yml`     | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
-| `bill-section-gaps.yml` | daily at 11:00 UTC, or by hand                                             | Read-only check that no bill is missing sections its page published; opens an alert issue | No — dispatch it by hand to test |
+| Workflow                 | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
+| ------------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- |
+| `ci.yml`                 | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                       | Yes                              |
+| `migrate.yml`            | push to `main` touching migrations, models, `alembic.ini`, deps, or itself | Applies Alembic migrations to the production database; opens an alert issue on failure | No                               |
+| `railway-deploy.yml`     | push to `main` touching backend paths or itself                            | Deploys the API to Railway production                                                  | No                               |
+| `vercel-deploy.yml`      | push to `main` touching frontend paths or itself                           | Deploys the web frontend to Vercel production                                          | No                               |
+| `vote-backfill.yml`      | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
+| `bill-section-gaps.yml`  | daily at 11:00 UTC, or by hand                                             | Read-only check that no bill is missing sections its page published; opens an alert issue | No — dispatch it by hand to test |
+| `rag-coverage-gaps.yml`  | daily at 12:00 UTC, or by hand                                             | Read-only check that no stored bill is missing its search embeddings; opens an alert issue | No — dispatch it by hand to test |
 
 `bill-section-gaps.yml` is a schedule rather than a PR check for a structural
 reason: the damage it looks for is created by an **ingest**, and ingests are
@@ -34,6 +35,61 @@ paths, so changing one of them triggers it on merge. That is the intended
 post-merge verification. For why the borrowed steps inside them need periodic
 bumping, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md) § "Keeping the workflow
 actions current".
+
+## Deploying when GitHub Actions is down
+
+Every production path above runs on GitHub Actions, so when Actions stops, we
+cannot ship. This is not hypothetical: on Aug 6 2026 GitHub ran a `major_outage`
+on Actions for hours, the push-triggered frontend deploy for
+[#1116](https://github.com/alethical-org/alethical/pull/1116) was never created at
+all, the one for [#1112](https://github.com/alethical-org/alethical/pull/1112)
+queued 46 minutes and was killed before running a step, and alethical.com quietly
+served a six-hour-old build until someone re-dispatched the workflow by hand.
+
+**Nothing about the deploys requires Actions.** Both workflows just run the
+provider's own CLI, so the same deploy runs from a laptop. Deploy from a clean
+checkout of `origin/main`, never from a worktree with local edits, or you publish
+unreviewed code:
+
+```bash
+git -C /tmp clone --depth 1 https://github.com/alethical-org/alethical.git alethical-deploy
+```
+
+Frontend (Vercel), verified working Aug 6 2026 — the laptop login is
+`alethical-dev` on the `alethical` scope, project `alethical-web`:
+
+```bash
+vercel deploy --prod --yes --archive=tgz --scope alethical
+```
+
+Backend (Railway) — **this fallback does not work today.** `railway whoami`
+returns `Unauthorized`, so the backend has no path to production except Actions.
+Restoring it needs a browser sign-in only Eugene can complete (`railway login`),
+after which:
+
+```bash
+railway up --ci --service alethical-api --environment production
+```
+
+Order matters when a migration is involved: apply it before the backend deploys,
+or the API looks for a column that is not there
+(`ALETHICAL_DATABASE_TARGET=production uv run alembic upgrade head`).
+
+**Why we route through Actions anyway**, so nobody removes it as redundant: it
+scopes each deploy by path so a docs-only commit does not rebuild the site, it
+sequences the migration ahead of the backend deploy, it rewrites the commit author
+that Vercel's Hobby plan requires (`VERCEL_GIT_AUTHOR_NAME`), and it keeps every
+production credential in one place instead of two provider dashboards.
+
+**The provider integrations are the real alternative.** Vercel and Railway can
+each watch the repository and deploy on push with no Actions involved, and on
+Aug 6 that would have kept working: GitHub's code hosting, webhooks and API all
+stayed `operational` and only Actions and Pages broke. The cost is that the path
+scoping, the ordering, and the author rewrite above would have to be rebuilt or
+given up.
+
+A failed or cancelled deploy still tells nobody — that gap is
+[#1122](https://github.com/alethical-org/alethical/issues/1122).
 
 ## Backend on Railway
 
