@@ -699,3 +699,46 @@ def test_a_brand_new_account_is_active_and_works():
         assert row.is_active is True
 
     _delete_accounts(subject)
+
+
+def test_a_deactivated_account_cannot_write_on_its_way_to_being_refused():
+    """The refusal has to come before the reconcile, not after it.
+
+    ``_reconcile_identity_fields`` backfills email fields and commits. Put the
+    lock after it and every request from a locked account still writes a row on
+    its way to a 403 -- refused in the response, active in the database. Nothing
+    else in this file pins the ordering: moving the check one line down leaves
+    all the other deactivation tests green.
+
+    Driven through the one field that reliably changes: sign in while the address
+    is unconfirmed so ``email_verified_at`` stays NULL, deactivate, then come back
+    with the provider reporting it confirmed. That is a write the reconcile wants
+    to make, and it must not happen.
+    """
+    subject = "supabase-user-locked-no-write-1043"
+    _delete_accounts(subject)
+    client, confirm_the_email = _client_that_can_confirm_its_email(
+        subject, "locked-no-write-1043@example.com"
+    )
+
+    user = _me(client, ANY_TOKEN)
+    with Session(get_engine()) as db:
+        identity = db.scalar(
+            select(AuthIdentity).where(AuthIdentity.provider_subject == subject)
+        )
+        assert identity.email_verified_at is None
+
+    _deactivate(user["id"])
+    confirm_the_email()
+
+    assert client.get("/api/v1/me", headers=ANY_TOKEN).status_code == 403
+
+    with Session(get_engine()) as db:
+        identity = db.scalar(
+            select(AuthIdentity).where(AuthIdentity.provider_subject == subject)
+        )
+        assert identity.email_verified_at is None, (
+            "a locked account must not write anything on its way to a refusal"
+        )
+
+    _delete_accounts(subject)

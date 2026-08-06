@@ -370,6 +370,31 @@ claim would raise on commit and turn every authenticated read for that person in
 It therefore skips the claim when another account already holds the address; the person
 stays in their own account and the address stays unclaimed.
 
+**A deactivated account is refused on both paths**
+([#1043](https://github.com/alethical-org/alethical/issues/1043), Aug 6 2026).
+`user_account.is_active` shipped in the first migration and nothing read it, so it was a
+switch that looked like a lock and was not one. `_refuse_if_deactivated` now runs on
+every request that resolves a user, returning `403` with the problem type
+`account-deactivated`. Three details are load-bearing and each has its own test:
+
+- **On the resolution path it runs *before* `_reconcile_identity_fields`.** Move it after
+  and a locked account still writes a row on its way to being refused — refused in the
+  response, active in the database. Every other deactivation test stays green through
+  that move, which is why the ordering is pinned separately.
+- **On the provisioning path it runs on the *joined* account, before the `auth_identity`
+  row is written.** A locked account still owns its confirmed address, and joining on
+  that address is exactly how a second sign-in method reaches an existing account, so
+  without this "sign in with something else" walks straight back in.
+- **It refuses on the optional-auth endpoints too**, rather than falling back to
+  anonymous. Silently anonymous leaves a caller unable to tell "signed out" from "locked
+  out" — the same silent failure the unread column already was — and costs a locked
+  reader nothing, since those endpoints are public without a token at all.
+
+There is deliberately **no interface for flipping it**: the decision was to make the
+switch behave as labelled, not to build a lockout console. Who may flip it, and where
+that is recorded, belong to
+[#1040](https://github.com/alethical-org/alethical/issues/1040) (account deletion).
+
 **`email_verified` means a confirmed email and nothing else.** It used to be set from
 `email_confirmed_at` **or** `phone_confirmed_at`, so a phone-verified account with an
 unconfirmed address arrived claiming the address was proven — and that flag is precisely
