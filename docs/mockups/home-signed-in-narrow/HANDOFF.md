@@ -1,0 +1,48 @@
+# Handoff — Signed-in narrow hero: mobile + tablet · FINAL BUILD
+
+**Agreed on both sides — build this.** Full prompt in `Prompts.dc.html` ("Signed-in narrow hero —
+FINAL BUILD HANDOFF"). Reference renamed NEXT → LIVE.
+
+## What's in this bundle
+- `LIVE Home mobile signed in.dc.html` — MOBILE (<768) and TABLET (768–1100) frames side by side; the
+  preview band drives both across all five states (Tracking nothing · Bills moved · Nothing moved ·
+  Not asked yet · First visit). A visible legend + per-frame labels name the state-line sizes.
+
+Counts/bills/name are illustrative placeholder — do not reconcile or reproduce; the list renders from
+live tracked data. Only the design + the rules below are authoritative.
+
+## Breakpoints (build truth)
+Mobile `<768`, tablet `768–1100`, desktop `1100+`. The shared section wrapper caps width, centres,
+and switches at 768; the hero inherits it. Nav = the shipped shared component (logo + hamburger +
+account avatar), not a placeholder.
+
+## Mobile (<768)
+One column, full-bleed. Order **eyebrow → state line → Session watch card → two Search actions
+(full-width, stacked)**. Identity row wraps; change block spans the full column, never squeezed.
+Buttons may fall below the card in the heavy "moved" state — fine, because search is always reachable
+from the top nav hamburger drawer. Order is NOT reversed.
+
+## Tablet (768–1100)
+One column inside the centred capped wrapper. **State line 32px; the two Search actions side by side;
+card full-width matching sibling sections.** Everything else identical to mobile. Not two columns.
+
+## State-line size ladder (pin these — largest, most variable string)
+- **Mobile <768:** 26px / 800 — wraps ≤ 6 lines.
+- **Tablet 768–1100:** 32px / 800 — wraps ≤ 4 lines.
+- **Desktop 1100+:** 38px / 800 — wraps ≤ 4 lines.
+Hold against: "11 of the 14 bills you're tracking moved since you last opened your tracked bills on
+Mar 12". `text-wrap: pretty` at every width.
+
+## Earlier-steps label
+Short **"N earlier steps →"** on both surfaces via the shared change-block component; change the
+tracked-bills page in the SAME PR so the two never disagree.
+
+## Logo note
+The reference nav still draws the stale three-bars glyph — NOT the spec. The real mark is the two
+leaning triangles in `assets/alethical-favicon.svg`, ink on this product-light surface. Build the nav
+from the shipped component, which already uses the correct mark.
+
+## Working approach & deviation
+One screen, two breakpoints, five states — likely one session; match the cheapest model tier that
+won't need rework. Reuse the shared change-block + shipped nav. Deviate with good reason, but **list
+every deviation** (what the spec said, what you did, why) in your final response.
