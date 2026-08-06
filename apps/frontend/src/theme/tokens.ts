@@ -136,14 +136,24 @@ export const theme = {
       muted: palette.ink300,
       faint: palette.ink200,
       onGreen: palette.ink800, // dark ink on green fills (confirmed)
-      green: palette.green600, // green TEXT / links / labels
+      // Green text on a light surface needs 4.5:1 contrast at UI sizes. The
+      // darker token also keeps small, anti-aliased letterforms reading like
+      // the same green as the brighter display and graphic treatment.
+      green: palette.green700,
+      greenOnLight: palette.green700,
     },
     brand: {
       bright: palette.green300,
       base: palette.green400, // fills / CTAs
       hover: palette.green500,
-      deep: palette.green600, // text on light
+      // Existing text consumers keep the accessible value. New text should use
+      // text.greenOnLight; this name remains while the older screens migrate.
+      deep: palette.green700,
       forest: palette.green700,
+      // #149d5b clears the 3:1 graphics/large-display threshold, but not the
+      // 4.5:1 threshold for normal UI text on light surfaces.
+      graphics: palette.green600,
+      display: palette.green600,
       darkest: palette.green900,
     },
     tint: {

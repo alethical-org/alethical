@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   // distinct. No exact theme token at this value (sits between text.muted #656c66
   // and text.faint #70776f); AA-compliant on the card surface (~4.7:1 on white).
   metaLabel: { color: '#6f756f' },
-  authorLink: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold }, // #149d5b bold
+  authorLink: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
   authorLinkHover: { color: t.colors.brand.forest }, // #0f7a45
   nameArrow: { fontWeight: t.fontWeights.regular }, // arrow at weight 400 inside the bold link
   actionValue: { color: t.colors.text.primary, fontWeight: t.fontWeights.semibold }, // #11150f / 600

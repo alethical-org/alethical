@@ -209,7 +209,7 @@ function Sparkle({ size = 11, color = t.colors.purple.base }: { size?: number; c
 
 /** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
 function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {
-  const c = disabled ? '#a4aba5' : t.colors.brand.deep;
+  const c = disabled ? '#a4aba5' : t.colors.brand.graphics;
   return (
     <View style={[styles.menuRowIconTile, disabled && styles.menuRowIconTileDisabled]}>
       <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
@@ -774,7 +774,7 @@ export function TopNav({
 // --- Info card ("What you can do") — icon SVGs lifted from the mockup ---
 type IconName = 'search' | 'map' | 'bookmark' | 'chat';
 function CardIcon({ name }: { name: IconName }) {
-  const c = t.colors.brand.deep;
+  const c = t.colors.brand.graphics;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       {name === 'search' ? (
@@ -879,7 +879,7 @@ export function GoogleButton({
         busyLabel ? (
           <Text style={styles.googleBtnText}>{busyLabel}</Text>
         ) : (
-          <ActivityIndicator size="small" color={t.colors.brand.deep} />
+          <ActivityIndicator size="small" color={t.colors.brand.graphics} />
         )
       ) : (
         <>
@@ -922,7 +922,7 @@ export function MNMap({ size = 330 }: { size?: number }) {
         <Path
           d={MN_OUTLINE_PATH}
           fill="none"
-          stroke={t.colors.brand.deep}
+          stroke={t.colors.brand.graphics}
           strokeWidth={40}
           strokeLinejoin="round"
           strokeLinecap="round"

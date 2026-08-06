@@ -49,6 +49,12 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   is reserved specifically for the "Grounded Ask" / AI affordance and focus — it is a *meaning*, not
   decoration. A red ramp is reserved for genuine danger/veto status. Green fills carry **dark ink
   text, never white** (a deliberate contrast choice — see §3).
+- **Green roles on light surfaces.** UI-sized green text, including links such as
+  `revisor.mn.gov →`, uses `text.greenOnLight` (`#0f7a45`). SVG strokes/fills use
+  `brand.graphics` (`#149d5b`), and large bold display text may use
+  `brand.display` (`#149d5b`). The values intentionally differ: small letterforms lose apparent
+  color at their anti-aliased edges, so the darker token makes them read like the brighter display
+  and graphic green. Green text on dark surfaces and green button fills are separate roles.
 - **Type.** One humanist sans (**Libre Franklin**) does titles, body, and UI; a monospace
   (**JetBrains Mono**) is reserved for data, metadata, dates, and labels — the "record" texture.
   Hierarchy comes from weight and size, not from decorative fonts. (No serifs — that was the retired
@@ -196,6 +202,10 @@ one: see the box below before writing one.**
 - **Contrast holds — and accessibility overrides the spec.** Body text and essential UI meet WCAG AA
   against their background (4.5:1 for normal text, 3:1 for large/bold ≥18.66px and for essential UI).
   The dark-ink-on-green-fill rule exists for this reason — bright green with white text fails contrast.
+  `#149d5b` is legal only for SVG strokes/fills and large bold display text on light surfaces; it is
+  about 3.5:1 on white and is not UI text. `#0f7a45` is the light-surface UI-text token and meets
+  the 4.5:1 rule. Do not replace both with one value: the split preserves the same perceived green
+  at small and display sizes.
   **When a prompt, mockup, or explicit instruction specifies a color that fails AA, nudge it to the
   nearest acceptable value rather than shipping the failing one — regardless of the original
   instruction.** Prefer converging on an existing AA-safe token so the fix stays **consistent

@@ -623,7 +623,7 @@ function LinkChip({
         {icon === 'companion' ? (
           <Path
             d="M4 8 H17 M13.5 4.5 L17 8 L13.5 11.5 M20 16 H7 M10.5 12.5 L7 16 L10.5 19.5"
-            stroke={t.colors.brand.deep}
+            stroke={t.colors.brand.graphics}
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -631,7 +631,7 @@ function LinkChip({
         ) : (
           <Path
             d="M5 20 V10 M12 20 V4 M19 20 V14"
-            stroke={t.colors.brand.deep}
+            stroke={t.colors.brand.graphics}
             strokeWidth={2}
             strokeLinecap="round"
           />
@@ -777,7 +777,7 @@ function SessionFilter() {
               <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                 <Path
                   d="M5 12.5 L10 17.5 L19 7"
-                  stroke={t.colors.brand.deep}
+                  stroke={t.colors.brand.graphics}
                   strokeWidth={2.4}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -958,13 +958,13 @@ function ClaimModal({ legislatorName, onClose }: { legislatorName: string; onClo
             <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
               <Path
                 d="M12 3 L20 6 V11 c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10 V6 Z"
-                stroke={t.colors.brand.deep}
+                stroke={t.colors.brand.graphics}
                 strokeWidth={2}
                 strokeLinejoin="round"
               />
               <Path
                 d="M8.5 12 L11 14.5 L15.5 9.5"
-                stroke={t.colors.brand.deep}
+                stroke={t.colors.brand.graphics}
                 strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -989,7 +989,7 @@ function ClaimModal({ legislatorName, onClose }: { legislatorName: string; onClo
                   <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
                     <Path
                       d="M5 12.5 L10 17.5 L19 7"
-                      stroke={t.colors.brand.deep}
+                      stroke={t.colors.brand.graphics}
                       strokeWidth={2.4}
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1645,7 +1645,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 1,
   },
-  voteCheckMark: { fontSize: 15, fontWeight: '800', color: t.colors.brand.deep },
+  voteCheckMark: { fontSize: 15, fontWeight: '800', color: t.colors.brand.graphics },
   votePreviewBody: { flex: 1, minWidth: 0 },
   votePreviewHead: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   voteYes: {

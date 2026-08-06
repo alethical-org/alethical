@@ -161,3 +161,12 @@ startup update script refreshes dependencies only (`uv sync` + `pnpm install
 - **The DB starts empty; full ingestion is not required to see content.** The sample
   data seeded above (e.g. bill `SF 1832`) is what the web app renders for a quick
   end-to-end check.
+
+## Workflow exclusions
+
+- **Do not use linked-intent development (LID) in Alethical.** Do not invoke the
+  `linked-intent-dev` or `update-lid` skills, create LID planning files, or add LID
+  instructions here. Those workflows belong to CommercialDeals, not this project.
+- This project rule overrides a general skill that says it applies to every code
+  change. Alethical uses its existing design documents, focused tests, and the rules
+  in `.claude/rules/` instead.
