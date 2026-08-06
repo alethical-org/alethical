@@ -35,9 +35,11 @@ class SupabaseAuthService:
         if not subject:
             raise ValueError("Supabase JWT missing subject")
         email = claims.get("email")
-        email_verified = bool(
-            claims.get("email_confirmed_at") or claims.get("phone_confirmed_at")
-        )
+        # Only a confirmed *email* counts. ``phone_confirmed_at`` used to satisfy
+        # this too, which meant a phone-verified account with an unconfirmed
+        # address arrived claiming the address was proven -- and that flag is what
+        # decides whether an identity may join an existing account (#1039).
+        email_verified = bool(claims.get("email_confirmed_at"))
         return AuthenticatedPrincipal(
             provider="supabase",
             provider_subject=subject,

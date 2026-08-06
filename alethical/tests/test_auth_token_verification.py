@@ -218,12 +218,13 @@ def test_an_unconfirmed_email_is_carried_but_marked_unverified():
     assert principal.email_verified is False
 
 
-def test_a_confirmed_phone_alone_currently_marks_the_email_verified():
-    """Pins today's mapping, which is looser than the field name suggests.
+def test_a_confirmed_phone_alone_does_not_mark_the_email_verified():
+    """A confirmed phone number is not a confirmed email address (#1039).
 
-    `email_verified` is set from `email_confirmed_at` OR `phone_confirmed_at`,
-    so a phone-verified account with an unconfirmed email arrives marked
-    verified. Recorded rather than endorsed -- see #1039.
+    ``phone_confirmed_at`` used to satisfy `email_verified` as well, so a
+    phone-verified account with an unconfirmed address arrived claiming the
+    address was proven. That flag is what decides whether an identity may join
+    an existing account, so the two are now kept apart.
     """
     service, _ = _service_returning(
         {
@@ -235,7 +236,24 @@ def test_a_confirmed_phone_alone_currently_marks_the_email_verified():
         }
     )
 
-    assert service.authenticate("token").email_verified is True
+    assert service.authenticate("token").email_verified is False
+
+
+def test_a_confirmed_email_marks_the_email_verified_whatever_the_phone_says():
+    """The one claim that does count, with and without a phone alongside it."""
+    for claims in (
+        {"sub": "confirmed-subject", "email": "confirmed@example.com"},
+        {
+            "sub": "confirmed-subject",
+            "email": "confirmed@example.com",
+            "phone_confirmed_at": "2026-08-01T12:00:00Z",
+        },
+    ):
+        service, _ = _service_returning(
+            {"claims": {**claims, "email_confirmed_at": "2026-08-01T12:00:00Z"}}
+        )
+
+        assert service.authenticate("token").email_verified is True
 
 
 def test_the_local_dev_service_accepts_only_its_own_token():

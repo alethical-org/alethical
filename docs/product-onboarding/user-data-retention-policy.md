@@ -52,7 +52,7 @@ and the leftover test account).
 
 | What it is, in plain words | Where it lives | Rows in production |
 | --- | --- | --- |
-| An account — a name and an email address | `user_account` | 5 |
+| An account — a name, and an email address once the sign-in service has confirmed one | `user_account` | 5 |
 | The link between that account and Google | `auth_identity` | 5 (4 Google, 1 test) |
 | A saved home address | `saved_place` | **0** |
 | Bills someone chose to follow | `tracked_bill` | 4 |
@@ -71,9 +71,19 @@ the job that queues them is not wired into anything yet (§2.5).
 
 ### 2.1 The account itself
 
-**What it holds.** A display name, an email address, a switch marked "active", the
-moment the account was first created, and the last time the reader opened their
-tracked-bills page.
+**What it holds.** A display name, a switch marked "active", the moment the account was
+first created, the last time the reader opened their tracked-bills page, and — only once
+the sign-in service has confirmed it — an email address.
+
+**Why "only once confirmed".** `user_account.primary_email` is the address one sign-in
+method uses to find and join an account another sign-in method already made, so it is a
+key, not a contact detail. Since [#1039](https://github.com/alethical-org/alethical/issues/1039)
+nothing writes an unconfirmed address there, in either direction: an unconfirmed sign-in
+cannot use it to reach an existing account, and cannot reserve it so that the person who
+does own the address later joins *theirs*. All 5 accounts in production today came from
+Google, which always confirms, so all 5 have one. An account created from an unconfirmed
+sign-in would have none, and the address that sign-in claimed would sit on the Google-link
+row (`auth_identity.email`) instead, where it is not a key and opens nothing.
 
 **Where the name comes from.** Nobody types it. When someone signs in for the first
 time we take the part of their email address before the `@` and use that as their
@@ -96,8 +106,10 @@ from today onward they are frozen and misleading. Nothing reads the column, so n
 is currently wrong; the moment a support question makes someone read it, it will be.
 Same story for `auth_identity.last_used_at`. Tracked as [#1045](https://github.com/alethical-org/alethical/issues/1045).
 
-**Retention: as long as the account exists.** An account with no email address cannot
-be signed into, so this is the record the account *is*.
+**Retention: as long as the account exists.** This row *is* the account — everything else
+a reader has hangs off it — so it lasts exactly as long as the account does. Note that an
+account with no email address on it can still be signed into perfectly well: a repeat
+sign-in is matched on the Google-link row, which never looks at the email.
 
 ### 2.2 The link to Google
 
@@ -462,7 +474,7 @@ The naming problem in §2.1 is a separate fix.
 
 | What | How long | Why that long |
 | --- | --- | --- |
-| Account, name, email | Life of the account | It is the account |
+| Account, name, and a confirmed email if there is one | Life of the account | It is the account |
 | Google link | Life of the account | Removing it orphans the person |
 | Followed bills, alert settings | Life of the account | The feature they signed in for |
 | Saved address (if ever built) | Life of the account, deletable on its own | Most sensitive thing we would hold; the reader should be able to remove it without losing everything else |
