@@ -401,7 +401,7 @@ function BillCardView({
               <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
                 <Path
                   d="M5 20 V10 M12 20 V4 M19 20 V14"
-                  stroke={t.colors.brand.deep}
+                  stroke={t.colors.brand.graphics}
                   strokeWidth={2}
                   strokeLinecap="round"
                 />
@@ -783,7 +783,7 @@ export function LegislatorProfileMobileScreen() {
                           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                             <Path
                               d="M5 12.5 L10 17.5 L19 7"
-                              stroke={t.colors.brand.deep}
+                              stroke={t.colors.brand.graphics}
                               strokeWidth={2.4}
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -1034,7 +1034,7 @@ export function LegislatorProfileMobileScreen() {
         label="Claim profile sheet"
       >
         <View style={styles.sheetIconGreen}>
-          <ShieldCheck color={t.colors.brand.deep} size={24} />
+          <ShieldCheck color={t.colors.brand.graphics} size={24} />
         </View>
         <View style={styles.claimTitleRow}>
           <Text accessibilityRole="header" style={styles.sheetTitle}>
@@ -1066,7 +1066,7 @@ export function LegislatorProfileMobileScreen() {
                 <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                   <Path
                     d="M5 12.5 L10 17.5 L19 7"
-                    stroke={t.colors.brand.deep}
+                    stroke={t.colors.brand.graphics}
                     strokeWidth={2.4}
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -1848,7 +1848,7 @@ const styles = StyleSheet.create({
   votePreviewCheckText: {
     fontSize: 14,
     fontWeight: t.fontWeights.heavy,
-    color: t.colors.brand.deep,
+    color: t.colors.brand.graphics,
   },
   votePreviewBody: { flex: 1, minWidth: 0 },
   votePreviewTopRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },

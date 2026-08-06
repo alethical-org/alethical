@@ -2,6 +2,8 @@ import { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/n
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import type { HomeLocationFailure } from '../lib/homeLegislatorFinder';
+
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<MainTabParamList>;
   Ask: { q?: string };
@@ -35,7 +37,19 @@ export type RootStackParamList = {
   // page's Find field can hand off what the visitor typed, and so the results
   // are reload-safe / shareable (grounded-answers.md rule 5). Absent = the
   // screen opens with its own starting address and waits for input.
-  FindMyLegislator: { address?: string } | undefined;
+  FindMyLegislator:
+    | {
+        address?: string;
+        /** One-time empty-homepage handoff. webRoutes deliberately never serializes it. */
+        focusAddress?: boolean;
+        /** One-time homepage lookup request. webRoutes deliberately never serializes it. */
+        lookupAddress?: boolean;
+        /** One-time homepage handoff. webRoutes deliberately never serializes it. */
+        coordinate?: { latitude: number; longitude: number };
+        /** One-time browser refusal/unavailability handoff, also never serialized. */
+        locationFailure?: HomeLocationFailure;
+      }
+    | undefined;
   Privacy: undefined;
   Terms: undefined;
   VoteDetail: { billId: string; voteEventId: string };

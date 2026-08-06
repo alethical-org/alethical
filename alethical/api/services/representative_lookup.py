@@ -8,6 +8,8 @@ import logging
 from dataclasses import asdict, dataclass
 
 import requests
+from shapely.geometry import Point, mapping, shape
+from shapely.geometry.base import BaseGeometry
 
 from alethical.logging import configure_logging
 
@@ -20,6 +22,16 @@ class RepresentativeLookupError(Exception):
 
 class RepresentativeLookupNotFound(RepresentativeLookupError):
     pass
+
+
+class RepresentativeLookupOutsideMinnesota(RepresentativeLookupError):
+    pass
+
+
+class RepresentativeLookupChoices(RepresentativeLookupError):
+    def __init__(self, choices: list[GeocodedAddress]) -> None:
+        super().__init__("more than one Minnesota address matched")
+        self.choices = choices
 
 
 class RepresentativeLookupUpstreamError(RepresentativeLookupError):
@@ -41,6 +53,7 @@ class DistrictMatch:
     district_code: str
     member_name: str | None = None
     party: str | None = None
+    geometry: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +61,93 @@ class RepresentativeLookupResult:
     geocoded_address: GeocodedAddress
     house_district: DistrictMatch | None = None
     senate_district: DistrictMatch | None = None
+    congressional_district: str | None = None
+
+
+# The GIS service uses WGS84 longitude/latitude coordinates. At Minnesota's
+# latitude, this is no more than 5 metres in either direction and is therefore a
+# conservative simplification allowance.
+GEOMETRY_REDUCTION_DEGREES = 5 / 111_320
+MAX_SHARED_EDGE_DIFFERENCE_FRACTION = 0.001
+
+
+def _geometry(value: dict) -> BaseGeometry:
+    try:
+        parsed = shape(value)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise RepresentativeLookupUpstreamError(
+            "GIS response has invalid geometry"
+        ) from exc
+    if (
+        parsed.is_empty
+        or not parsed.is_valid
+        or parsed.geom_type
+        not in {
+            "Polygon",
+            "MultiPolygon",
+        }
+    ):
+        raise RepresentativeLookupUpstreamError("GIS response has invalid geometry")
+    return parsed
+
+
+def geometry_covers_point(geometry: dict, *, longitude: float, latitude: float) -> bool:
+    """Boundary-inclusive point check for Polygon and MultiPolygon GeoJSON."""
+    return _geometry(geometry).covers(Point(longitude, latitude))
+
+
+def prepare_district_geometry(
+    geometry: dict, *, longitude: float, latitude: float
+) -> dict:
+    """Reduce a district shape only when its topology and selected point survive."""
+    original = _geometry(geometry)
+    selected = Point(longitude, latitude)
+    if not original.covers(selected):
+        raise RepresentativeLookupUpstreamError(
+            "selected point is not covered by returned district geometry"
+        )
+    reduced = original.simplify(GEOMETRY_REDUCTION_DEGREES, preserve_topology=True)
+    if (
+        reduced.is_empty
+        or not reduced.is_valid
+        or not reduced.buffer(GEOMETRY_REDUCTION_DEGREES).covers(selected)
+    ):
+        reduced = original
+    return mapping(reduced)
+
+
+def validate_district_containment(
+    house_geometry: dict,
+    senate_geometry: dict,
+    *,
+    house_code: str,
+    senate_code: str,
+) -> None:
+    """Validate nesting while allowing tiny source shared-edge slivers.
+
+    Minnesota reduces House and Senate shapes separately, so large rural
+    districts do not carry byte-identical copies of their shared outside edge.
+    The interior point and area cap test logical containment away from that edge.
+    """
+    house = _geometry(house_geometry)
+    senate = _geometry(senate_geometry)
+    expected_senate = re.sub(r"[A-Z]$", "", house_code).lstrip("0") or "0"
+    normalized_senate = senate_code.lstrip("0") or "0"
+    if expected_senate != normalized_senate:
+        raise RepresentativeLookupUpstreamError(
+            "House and Senate district codes do not nest"
+        )
+    if not senate.buffer(GEOMETRY_REDUCTION_DEGREES).covers(
+        house.representative_point()
+    ):
+        raise RepresentativeLookupUpstreamError(
+            "House district interior is outside Senate district geometry"
+        )
+    outside_fraction = house.difference(senate).area / house.area
+    if outside_fraction > MAX_SHARED_EDGE_DIFFERENCE_FRACTION:
+        raise RepresentativeLookupUpstreamError(
+            "House district geometry is not contained by Senate district geometry"
+        )
 
 
 class CensusGeocoder:
@@ -69,7 +169,7 @@ class CensusGeocoder:
             os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10")
         )
 
-    def geocode(self, address_text: str) -> GeocodedAddress:
+    def geocode_matches(self, address_text: str) -> list[GeocodedAddress]:
         response = requests.get(
             self.base_url,
             params={
@@ -81,28 +181,50 @@ class CensusGeocoder:
         )
         response.raise_for_status()
         payload = response.json()
-        matches = payload.get("result", {}).get("addressMatches", [])
-        if not matches:
+        raw_matches = payload.get("result", {}).get("addressMatches", [])
+        if not isinstance(raw_matches, list) or not raw_matches:
             raise RepresentativeLookupNotFound("address could not be geocoded")
 
-        match = matches[0]
-        coordinates = match.get("coordinates") or {}
-        address_components = match.get("addressComponents") or {}
-        matched_address = match.get("matchedAddress")
-        latitude = coordinates.get("y")
-        longitude = coordinates.get("x")
-        if matched_address is None or latitude is None or longitude is None:
+        matches: list[GeocodedAddress] = []
+        for match in raw_matches:
+            coordinates = match.get("coordinates") or {}
+            address_components = match.get("addressComponents") or {}
+            matched_address = match.get("matchedAddress")
+            latitude = coordinates.get("y")
+            longitude = coordinates.get("x")
+            if matched_address is None or latitude is None or longitude is None:
+                continue
+            matches.append(
+                GeocodedAddress(
+                    requested_address=address_text,
+                    matched_address=str(matched_address),
+                    latitude=float(latitude),
+                    longitude=float(longitude),
+                    state_code=self._state_code(address_components.get("state")),
+                )
+            )
+        if not matches:
             raise RepresentativeLookupUpstreamError(
                 "geocoder response missing coordinates"
             )
+        minnesota_matches = [match for match in matches if match.state_code == "MN"]
+        if not minnesota_matches:
+            raise RepresentativeLookupOutsideMinnesota(
+                "address resolved outside Minnesota"
+            )
+        return minnesota_matches[:5]
 
-        return GeocodedAddress(
-            requested_address=address_text,
-            matched_address=matched_address,
-            latitude=float(latitude),
-            longitude=float(longitude),
-            state_code=address_components.get("state"),
-        )
+    def geocode(self, address_text: str) -> GeocodedAddress:
+        """Compatibility helper for callers that require exactly one match."""
+        matches = self.geocode_matches(address_text)
+        if len(matches) > 1:
+            raise RepresentativeLookupChoices(matches)
+        return matches[0]
+
+    @staticmethod
+    def _state_code(value) -> str | None:
+        text = str(value).strip().upper() if value is not None else ""
+        return text or None
 
 
 class MinnesotaGisLookupClient:
@@ -122,7 +244,7 @@ class MinnesotaGisLookupClient:
 
     def lookup(
         self, *, latitude: float, longitude: float
-    ) -> tuple[DistrictMatch | None, DistrictMatch | None]:
+    ) -> tuple[DistrictMatch | None, DistrictMatch | None, str | None]:
         response = requests.get(
             self.base_url,
             params={"lat": latitude, "lng": longitude},
@@ -136,24 +258,49 @@ class MinnesotaGisLookupClient:
 
         house_match: DistrictMatch | None = None
         senate_match: DistrictMatch | None = None
+        congressional_district: str | None = None
         for feature in features:
             properties = feature.get("properties") or {}
             district_code = self._extract_district_code(properties)
             chamber = self._infer_chamber(properties, district_code)
-            if not district_code or chamber not in {"house", "senate"}:
+            if not district_code or chamber not in {"house", "senate", "congress"}:
                 continue
+            if chamber == "congress":
+                congressional_district = congressional_district or district_code
+                continue
+            raw_geometry = feature.get("geometry")
+            if not isinstance(raw_geometry, dict):
+                raise RepresentativeLookupUpstreamError(
+                    "GIS response missing district geometry"
+                )
             match = DistrictMatch(
                 chamber=chamber,
                 district_code=district_code,
                 member_name=self._string_or_none(properties.get("name")),
                 party=self._string_or_none(properties.get("party")),
+                geometry=prepare_district_geometry(
+                    raw_geometry, longitude=longitude, latitude=latitude
+                ),
             )
             if chamber == "house" and house_match is None:
                 house_match = match
             if chamber == "senate" and senate_match is None:
                 senate_match = match
 
-        return house_match, senate_match
+        if (
+            house_match
+            and senate_match
+            and house_match.geometry
+            and senate_match.geometry
+        ):
+            validate_district_containment(
+                house_match.geometry,
+                senate_match.geometry,
+                house_code=house_match.district_code,
+                senate_code=senate_match.district_code,
+            )
+
+        return house_match, senate_match, congressional_district
 
     def _extract_district_code(self, properties: dict) -> str | None:
         for key in ("district", "district_code", "districtCode", "code", "name"):
@@ -162,11 +309,18 @@ class MinnesotaGisLookupClient:
                 continue
             cleaned = value.strip().upper()
             if re.fullmatch(r"\d{1,2}[A-Z]?", cleaned):
-                return cleaned
+                return self._canonical_district_code(cleaned)
             match = re.search(r"\b(\d{1,2}[A-Z]?)\b", cleaned)
             if match:
-                return match.group(1)
+                return self._canonical_district_code(match.group(1))
         return None
+
+    @staticmethod
+    def _canonical_district_code(value: str) -> str:
+        match = re.fullmatch(r"(\d{1,2})([A-Z]?)", value)
+        if not match:
+            return value
+        return f"{int(match.group(1))}{match.group(2)}"
 
     def _infer_chamber(self, properties: dict, district_code: str | None) -> str | None:
         chamber_text = " ".join(
@@ -235,9 +389,10 @@ class RepresentativeLookupService:
         self.gis_client = gis_client or MinnesotaGisLookupClient()
 
     def lookup(self, address_text: str) -> RepresentativeLookupResult:
-        geocoded = self.geocoder.geocode(address_text)
-        if geocoded.state_code and geocoded.state_code.upper() != "MN":
-            raise RepresentativeLookupNotFound("address resolved outside Minnesota")
+        matches = self.geocoder.geocode_matches(address_text)
+        if len(matches) > 1:
+            raise RepresentativeLookupChoices(matches)
+        geocoded = matches[0]
 
         return self.lookup_coordinates(
             latitude=geocoded.latitude,
@@ -263,7 +418,7 @@ class RepresentativeLookupService:
             longitude=longitude,
             state_code=state_code,
         )
-        house_match, senate_match = self.gis_client.lookup(
+        house_match, senate_match, congressional_district = self.gis_client.lookup(
             latitude=geocoded.latitude,
             longitude=geocoded.longitude,
         )
@@ -276,6 +431,7 @@ class RepresentativeLookupService:
             geocoded_address=geocoded,
             house_district=house_match,
             senate_district=senate_match,
+            congressional_district=congressional_district,
         )
 
 
@@ -292,6 +448,7 @@ def result_to_dict(result: RepresentativeLookupResult) -> dict:
         "senate_district": asdict(result.senate_district)
         if result.senate_district
         else None,
+        "congressional_district": result.congressional_district,
     }
 
 

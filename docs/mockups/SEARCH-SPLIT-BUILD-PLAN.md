@@ -61,8 +61,9 @@ pages = `"page"` (shows the top-level ✦ Ask entry, per the IA locked decision)
   `sponsorNames`/`chiefSponsorIds` (author link), `rollCallCount` (pill → `/bills/:id?tab=votes`),
   omnibus badge (from topics/flag if present), policy chips (`aiAnalysis.policyAreas`).
   "+N co-authors" only if a count is available (else omit) until #295.
-- **Legislator card**: initials from `name`, `party` chip (map `D`→"DFL" for display until
-  #296 serves raw DFL; neutral, no partisan color), `chamber · district`, role line =
+- **Legislator card**: initials from `name`, `party` chip (stored codes display as
+  "Democratic-Farmer-Labor" / "Republican"; neutral, no partisan color), `chamber ·
+  district`, role line =
   **chamber-derived title** ("State Senator"/"State Representative"), committee chips from
   `committees` (up to 2 + "+N more"), activity line "{n} bills authored" (real after #291/
   PR #299 merges; may read 0 until then). NO follow.

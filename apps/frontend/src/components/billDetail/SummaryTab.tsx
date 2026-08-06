@@ -92,10 +92,16 @@ export function SummaryTab({
                 <View style={styles.citedLabel}>
                   <Text style={styles.citedLabelText}>Cited Sections</Text>
                   <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                    <Circle cx={12} cy={12} r={9} stroke={t.colors.brand.deep} strokeWidth={2} />
+                    <Circle
+                      cx={12}
+                      cy={12}
+                      r={9}
+                      stroke={t.colors.brand.graphics}
+                      strokeWidth={2}
+                    />
                     <Path
                       d="M8.5 12.2 L11 14.7 L15.7 9.6"
-                      stroke={t.colors.brand.deep}
+                      stroke={t.colors.brand.graphics}
                       strokeWidth={2}
                       strokeLinecap="round"
                       strokeLinejoin="round"

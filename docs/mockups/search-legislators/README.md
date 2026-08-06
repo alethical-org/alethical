@@ -43,8 +43,9 @@ rgba(17,21,15,0.10)`). **Whole card is a link** to the legislator profile (absol
   - Top row: **initials avatar** (54px circle, green-tint `#e4f8ee`/`#bfeacf`/`#149d5b`,
     18px/800) + name (20px/800) + **party chip** + chamber · district (`#6b716b`, 14px) +
     **role line**.
-  - **Party chip:** NEUTRAL — `#f1f1f4` bg, `#4f5651` text, 11px/700, pill. Shows "DFL" / "R".
-    Deliberately non-partisan (no red/blue); do not color by party.
+  - **Party chip:** NEUTRAL — `#f1f1f4` bg, `#4f5651` text, 11px/700, pill. Shows
+    "Democratic-Farmer-Labor" / "Republican". Deliberately non-partisan (no red/blue); do
+    not color by party. The identity row may wrap the longer label on narrow cards.
   - **Role line:** the legislator's **chamber-derived title only** — "State Senator" (Senate)
     or "State Representative" (House) — green `#149d5b`, 13px/700, with a green dot. **Do not
     show a committee chairship.**

@@ -322,6 +322,7 @@ export interface Legislator {
   email?: string;
   phone?: string;
   officeAddress?: string;
+  representedCity?: string;
   profileUrl?: string;
   /** Official portrait URL (senate.mn / lrl.mn.gov headshot). Undefined for the
    *  handful of members without a scraped photo — render an initials fallback. */
@@ -331,6 +332,9 @@ export interface Legislator {
    *  rows. `committees` keeps the flattened name-only strings for older screens.
    *  Optional: only the live API mapper populates it (mock data omits it). */
   committeeAssignments?: CommitteeAssignment[];
+  issueAreas?: string[];
+  totalAuthoredBills?: number;
+  chiefAuthoredBills?: number;
   focusAreas: string[];
   serviceHistory: ServicePeriod[];
   /** Ordered Legislative Service history from the official bio (issue #486).
@@ -381,9 +385,31 @@ export interface UserAccount {
 }
 
 export interface RepresentativeLookupResult {
+  status: 'found' | 'address-choice';
   address: string;
   districtSummary: string;
   legislators: Legislator[];
+  houseLegislator?: Legislator;
+  senateLegislator?: Legislator;
+  choices?: RepresentativeAddressChoice[];
+  coordinate?: RepresentativeLookupCoordinates;
+  houseDistrict?: string;
+  senateDistrict?: string;
+  otherHouseDistrict?: string;
+  congressionalDistrict?: string;
+  houseGeometry?: GeoJsonGeometry;
+  senateGeometry?: GeoJsonGeometry;
+  sessionName?: string;
+  sourceUpdatedAt?: string;
+}
+
+export interface RepresentativeAddressChoice extends RepresentativeLookupCoordinates {
+  matchedAddress: string;
+}
+
+export interface GeoJsonGeometry {
+  type: 'Polygon' | 'MultiPolygon';
+  coordinates: number[][][][] | number[][][];
 }
 
 export interface RepresentativeLookupCoordinates {

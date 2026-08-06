@@ -14,7 +14,9 @@ from alethical.db.session import get_engine
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
     GeocodedAddress,
+    RepresentativeLookupChoices,
     RepresentativeLookupNotFound,
+    RepresentativeLookupOutsideMinnesota,
     RepresentativeLookupResult,
     get_representative_lookup_service,
 )
@@ -2003,6 +2005,74 @@ def test_representative_lookup_maps_service_district_codes_to_legislators(client
     assert payload["resolved_place"]["senate_district"] == "35"
     assert payload["house_legislator"]["current_service"]["district"]["code"] == "51A"
     assert payload["senate_legislator"]["current_service"]["district"]["code"] == "35"
+    assert payload["status"] == "found"
+    assert payload["resolved_place"]["congressional_district"] == "4"
+    assert (
+        payload["session"]["name"] == "94th Legislature (2025 - 2026) Regular Session"
+    )
+    assert (
+        "represented_city" not in payload["house_legislator"]["current_service"]
+        or payload["house_legislator"]["current_service"]["represented_city"] is None
+    )
+    assert "service_history" in payload["house_legislator"]
+
+
+def test_representative_lookup_returns_address_choices_without_district_lookup(client):
+    class ChoiceLookupService:
+        def lookup(self, address_text: str):
+            raise RepresentativeLookupChoices(
+                [
+                    GeocodedAddress(
+                        address_text,
+                        "350 5TH ST N, MINNEAPOLIS, MN",
+                        44.99,
+                        -93.27,
+                        "MN",
+                    ),
+                    GeocodedAddress(
+                        address_text,
+                        "350 S 5TH ST, MINNEAPOLIS, MN",
+                        44.97,
+                        -93.26,
+                        "MN",
+                    ),
+                ]
+            )
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        ChoiceLookupService()
+    )
+    response = client.post(
+        "/api/v1/representative-lookups", json={"address_text": "350 5th St"}
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["status"] == "address-choice"
+    assert payload["resolved_place"]["address_text"] == "350 5th St"
+    assert [choice["matched_address"] for choice in payload["address_choices"]] == [
+        "350 5TH ST N, MINNEAPOLIS, MN",
+        "350 S 5TH ST, MINNEAPOLIS, MN",
+    ]
+    assert "house_legislator" not in payload
+
+
+def test_representative_lookup_distinguishes_outside_minnesota(client):
+    class OutsideLookupService:
+        def lookup(self, _address_text: str):
+            raise RepresentativeLookupOutsideMinnesota(
+                "address resolved outside Minnesota"
+            )
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        OutsideLookupService()
+    )
+    response = client.post(
+        "/api/v1/representative-lookups", json={"address_text": "Fargo, ND"}
+    )
+
+    assert response.status_code == 422
+    assert response.json()["type"].endswith("representative-lookup-outside-minnesota")
 
 
 def test_representative_lookup_accepts_coordinate_pin_input(client):
@@ -2302,10 +2372,10 @@ def test_legislator_directory_authored_count_uses_live_sponsorships(client):
             bills = db.scalars(
                 select(schema.Bill)
                 .where(schema.Bill.session_id == session_row.id)
-                .limit(2)
+                .limit(3)
             ).all()
             assert session_row is not None and chamber is not None
-            assert len(bills) >= 2
+            assert len(bills) >= 3
 
             real_district = schema.District(
                 jurisdiction_id=chamber.jurisdiction_id,
@@ -2347,6 +2417,14 @@ def test_legislator_directory_authored_count_uses_live_sponsorships(client):
                         legislator_id=canonical.id,
                         role=schema.SponsorshipRole.co_author,
                         source_order=2,
+                    ),
+                    # The source's distinct sponsor role is not authorship and
+                    # must not raise a count labelled "authored".
+                    schema.Sponsorship(
+                        bill_id=bills[2].id,
+                        legislator_id=canonical.id,
+                        role=schema.SponsorshipRole.sponsor,
+                        source_order=3,
                     ),
                     # Stored stats of 0 must not suppress the real live count.
                     schema.LegislatorStats(

@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontFamily: t.typography.ui,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.deep,
+    color: t.colors.brand.display,
   },
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   identityText: { flex: 1, minWidth: 0 },

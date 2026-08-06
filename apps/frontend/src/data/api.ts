@@ -6,6 +6,7 @@ import {
   TRAILING_RETURN,
 } from '../lib/billDetail';
 import type { SourceBlock } from '../lib/billText';
+import { contactEmail } from '../lib/findMyLegislator';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -281,6 +282,7 @@ interface ApiCurrentServicePayload {
   office_address?: string | null;
   profile_url?: string | null;
   photo_url?: string | null;
+  represented_city?: string | null;
 }
 
 interface ApiLegislatorStatsPayload {
@@ -302,6 +304,8 @@ interface ApiLegislatorListItemPayload {
   current_service?: ApiCurrentServicePayload | null;
   committees?: ApiCommitteePayload[] | null;
   stats?: ApiLegislatorStatsPayload | null;
+  service_history?: ApiServiceHistoryPayload | null;
+  issue_areas?: string[] | null;
 }
 
 interface ApiElectionPeriodPayload {
@@ -321,6 +325,9 @@ interface ApiLegislatorDetailPayload extends ApiLegislatorListItemPayload {
 }
 
 interface ApiRepresentativeLookupPayload {
+  status: 'found' | 'address-choice';
+  session?: { name: string } | null;
+  source_updated_at?: string | null;
   resolved_place: {
     input_mode?: string | null;
     address_text?: string | null;
@@ -329,7 +336,16 @@ interface ApiRepresentativeLookupPayload {
     longitude?: number | null;
     house_district?: string | null;
     senate_district?: string | null;
+    other_house_district?: string | null;
+    congressional_district?: string | null;
+    house_geometry?: RepresentativeLookupResult['houseGeometry'] | null;
+    senate_geometry?: RepresentativeLookupResult['senateGeometry'] | null;
   };
+  address_choices?: Array<{
+    matched_address: string;
+    latitude: number;
+    longitude: number;
+  }> | null;
   house_legislator?: ApiLegislatorListItemPayload | null;
   senate_legislator?: ApiLegislatorListItemPayload | null;
 }
@@ -1087,6 +1103,8 @@ function cleanOfficeAddress(value?: string | null) {
         !/^capitol office$/i.test(line) &&
         !/^subscribe to (my )?newsletter/i.test(line) &&
         !/^meeting request:/i.test(line) &&
+        !/^toll free:/i.test(line) &&
+        !/(?:newsletter|minority leader|majority leader)$/i.test(line) &&
         !/^[\d\s().+-]{7,}$/.test(line),
     );
   const unique = lines.filter((line, index) => lines.indexOf(line) === index);
@@ -1156,13 +1174,17 @@ export function mapLegislator(
     // exact string back out, so the sentence had to stay spelled identically in
     // three files to keep working. Undefined instead: every surface checks.
     bio: ('biography' in payload ? payload.biography : null) ?? undefined,
-    email: service?.email ?? undefined,
+    email: contactEmail(service?.email),
     phone: service?.phone ?? undefined,
     officeAddress: cleanOfficeAddress(service?.office_address),
+    representedCity: service?.represented_city ?? undefined,
     profileUrl: service?.profile_url ?? undefined,
     photoUrl: service?.photo_url ?? undefined,
     committees,
     committeeAssignments,
+    issueAreas: payload.issue_areas ?? undefined,
+    totalAuthoredBills: stats?.total_bill_count,
+    chiefAuthoredBills: stats?.chief_bill_count,
     focusAreas,
     // Legislative Service history now comes from the scraped bio (issue #486);
     // the old fabricated single "2025–present" entry is gone.
@@ -1181,9 +1203,15 @@ export function mapLegislator(
 function mapRepresentativeLookup(
   payload: ApiRepresentativeLookupPayload,
 ): RepresentativeLookupResult {
-  const legislators = [payload.house_legislator, payload.senate_legislator]
-    .filter((item): item is ApiLegislatorListItemPayload => Boolean(item))
-    .map(mapLegislator);
+  const houseLegislator = payload.house_legislator
+    ? mapLegislator(payload.house_legislator)
+    : undefined;
+  const senateLegislator = payload.senate_legislator
+    ? mapLegislator(payload.senate_legislator)
+    : undefined;
+  const legislators = [senateLegislator, houseLegislator].filter((item): item is Legislator =>
+    Boolean(item),
+  );
   const districts = [
     payload.resolved_place.senate_district
       ? `Senate ${payload.resolved_place.senate_district}`
@@ -1197,12 +1225,35 @@ function mapRepresentativeLookup(
       : 'Selected location';
 
   return {
+    status: payload.status,
     address:
       payload.resolved_place.matched_address ??
       payload.resolved_place.address_text ??
       coordinateLabel,
     districtSummary: districts.join(', ') || 'No districts returned',
     legislators,
+    houseLegislator,
+    senateLegislator,
+    choices: payload.address_choices?.map((choice) => ({
+      matchedAddress: choice.matched_address,
+      latitude: choice.latitude,
+      longitude: choice.longitude,
+    })),
+    coordinate:
+      payload.resolved_place.latitude != null && payload.resolved_place.longitude != null
+        ? {
+            latitude: payload.resolved_place.latitude,
+            longitude: payload.resolved_place.longitude,
+          }
+        : undefined,
+    houseDistrict: payload.resolved_place.house_district ?? undefined,
+    senateDistrict: payload.resolved_place.senate_district ?? undefined,
+    otherHouseDistrict: payload.resolved_place.other_house_district ?? undefined,
+    congressionalDistrict: payload.resolved_place.congressional_district ?? undefined,
+    houseGeometry: payload.resolved_place.house_geometry ?? undefined,
+    senateGeometry: payload.resolved_place.senate_geometry ?? undefined,
+    sessionName: payload.session?.name ?? undefined,
+    sourceUpdatedAt: payload.source_updated_at ?? undefined,
   };
 }
 

@@ -1,21 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { MapPin } from 'lucide-react-native';
 
 import { theme, prefersReducedMotion } from '../../theme/tokens';
-import {
-  Container,
-  Footer,
-  MNMap,
-  PageBackground,
-  PrimaryButton,
-  TopNav,
-} from '../../theme/primitives';
+import { Container, Footer, MNMap, PageBackground, TopNav } from '../../theme/primitives';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
-import { fieldFocusRing } from '../../theme/fieldFocus';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { useBill, useBills, useTrackedBills } from '../../hooks/useAppQueries';
@@ -27,6 +18,7 @@ import { lastVisitFrom } from '../../lib/trackedBillsLastVisit';
 import { BillResultCard } from '../../components/search/BillResultCard';
 import { formatNiceDate, plainBillSummary } from '../../lib/billDetail';
 import { HOT_ISSUE_BILL_KEYS } from '../../lib/hotIssues';
+import { HomeLegislatorFinder } from '../../components/home/HomeLegislatorFinder';
 import type { Bill } from '../../data/types';
 
 // The v2 signed-out home — docs/mockups/home-signed-out-v2 (README = state/token/copy
@@ -69,14 +61,14 @@ function HeroStateGlyph({ glyph }: { glyph: 'trend' | 'clock' | 'spinner' }) {
       >
         <Path
           d="M5 16 L11 10 L14 13 L19 8"
-          stroke={theme.colors.brand.deep}
+          stroke={theme.colors.brand.graphics}
           strokeWidth={2.2}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <Path
           d="M14.5 8 H19 V12.5"
-          stroke={theme.colors.brand.deep}
+          stroke={theme.colors.brand.graphics}
           strokeWidth={2.2}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -220,7 +212,7 @@ function HeroEntryButton({
   fullWidth?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
-  const green = t.colors.brand.deep;
+  const green = t.colors.brand.graphics;
   return (
     <Pressable
       {...linkProps(href, onPress)}
@@ -261,19 +253,6 @@ function HeroEntryButton({
       <Text style={styles.heroEntryArrow}>→</Text>
     </Pressable>
   );
-}
-
-/** Ask / Finder input shell with the purple focus ring. */
-function FieldShell({
-  children,
-  focused,
-  style,
-}: {
-  children: React.ReactNode;
-  focused: boolean;
-  style?: object;
-}) {
-  return <View style={[styles.fieldShell, ...fieldFocusRing(focused), style]}>{children}</View>;
 }
 
 // --- Hero answer card (static sample answer — HF 4138) ---
@@ -456,10 +435,10 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       <View style={styles.citedRow}>
         <Text style={styles.citedLabel}>CITED SECTIONS</Text>
         <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-          <Circle cx={12} cy={12} r={9} stroke={t.colors.brand.deep} strokeWidth={2} />
+          <Circle cx={12} cy={12} r={9} stroke={t.colors.brand.graphics} strokeWidth={2} />
           <Path
             d="M8.5 12.2 L11 14.7 L15.7 9.6"
-            stroke={t.colors.brand.deep}
+            stroke={t.colors.brand.graphics}
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -518,7 +497,7 @@ function ProgressSteps({ filled, vetoed }: { filled: number; vetoed?: boolean })
                 backgroundColor: isVetoedStep
                   ? t.colors.status.vetoedStep
                   : isFilled
-                    ? t.colors.brand.deep
+                    ? t.colors.brand.graphics
                     : t.colors.status.progressEmpty,
               },
             ]}
@@ -577,20 +556,6 @@ function HomeSignedOutDesktop() {
     { enabled: isFocused },
   );
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [finderFocused, setFinderFocused] = useState(false);
-  const [finderValue, setFinderValue] = useState('');
-  const finderInputRef = useRef<TextInput>(null);
-  // Find hands the typed address to Find My Legislator, which looks it up on
-  // arrival (#873). Empty field focuses instead of navigating, same as Ask above.
-  const openFinder = () => {
-    const address = finderValue.trim();
-    if (!address) {
-      finderInputRef.current?.focus();
-      return;
-    }
-    navigation.navigate('FindMyLegislator', { address });
-  };
-
   // The signed-in hero's inputs. Both queries are gated on being signed in AND on
   // Home being the visible screen, like the feed queries above.
   const trackedQuery = useTrackedBills(isSignedIn && isFocused ? user?.id : undefined);
@@ -852,27 +817,10 @@ function HomeSignedOutDesktop() {
                     Find who represents you — their profile, committees, and the bills they’ve
                     authored.
                   </Text>
-                  {/* Find field, with the Find button inline. The narrow-width variant
-                      lives in HomeSignedOutMobile, which is the component that renders
-                      below 1100px — this one never does (#1076). */}
-                  <View style={styles.finderFieldWrap}>
-                    <FieldShell focused={finderFocused} style={styles.finderShellInner}>
-                      <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
-                      <TextInput
-                        ref={finderInputRef}
-                        // No accessibilityLabel: the placeholder names the field (see ask input above).
-                        value={finderValue}
-                        onChangeText={setFinderValue}
-                        onFocus={() => setFinderFocused(true)}
-                        onBlur={() => setFinderFocused(false)}
-                        onSubmitEditing={openFinder}
-                        placeholder="Enter your street address, city, and ZIP"
-                        placeholderTextColor={t.colors.text.faint}
-                        style={styles.finderInput}
-                      />
-                      <PrimaryButton label="Find" onPress={openFinder} />
-                    </FieldShell>
-                  </View>
+                  <HomeLegislatorFinder
+                    layout="desktop"
+                    onNavigate={(params) => navigation.navigate('FindMyLegislator', params)}
+                  />
                 </View>
                 <View style={styles.finderMap}>
                   <MNMap size={330} />
@@ -971,7 +919,7 @@ function SeeMore({ href, onPress }: { href: string; onPress: () => void }) {
       <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" style={m.seeMoreArrow}>
         <Path
           d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
-          stroke={hovered ? t.colors.brand.deep : t.colors.text.primary}
+          stroke={hovered ? t.colors.brand.graphics : t.colors.text.primary}
           strokeWidth={1.8}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -1179,10 +1127,6 @@ function HomeSignedOutMobile() {
   // in content.
   const { isSignedIn, user } = useAuth();
   const { isTablet } = useResponsive();
-  const [finderFocused, setFinderFocused] = useState(false);
-  const [finderValue, setFinderValue] = useState('');
-  const finderInputRef = useRef<TextInput>(null);
-
   // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
   // would fire these queries and contend with the visible screen's first load.
@@ -1242,18 +1186,6 @@ function HomeSignedOutMobile() {
   // variant's cards above and Search Bills' result cards.
   const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
   const openSearchBills = () => navigation.navigate('Bills');
-  // Find hands the typed address to Find My Legislator, which looks it up on
-  // arrival (#873). Empty field focuses instead of navigating — a blank lookup
-  // has nothing to answer.
-  const openFinder = () => {
-    const address = finderValue.trim();
-    if (!address) {
-      finderInputRef.current?.focus();
-      return;
-    }
-    navigation.navigate('FindMyLegislator', { address });
-  };
-
   const newsBills = [
     { pin: IN_THE_NEWS[0], bill: news0.data },
     { pin: IN_THE_NEWS[1], bill: news1.data },
@@ -1528,23 +1460,10 @@ function HomeSignedOutMobile() {
                   Find who represents you — their profile, committees, and the bills they’ve
                   authored.
                 </Text>
-                <FieldShell focused={finderFocused} style={m.finderShell}>
-                  <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} />
-                  <TextInput
-                    ref={finderInputRef}
-                    value={finderValue}
-                    onChangeText={setFinderValue}
-                    onFocus={() => setFinderFocused(true)}
-                    onBlur={() => setFinderFocused(false)}
-                    onSubmitEditing={openFinder}
-                    placeholder="Enter your street address, city, and ZIP"
-                    placeholderTextColor={t.colors.text.faint}
-                    style={m.finderInput}
-                  />
-                </FieldShell>
-                <Pressable accessibilityRole="button" onPress={openFinder} style={m.findButton}>
-                  <Text style={m.findButtonText}>Find</Text>
-                </Pressable>
+                <HomeLegislatorFinder
+                  layout={isTablet ? 'tablet' : 'phone'}
+                  onNavigate={(params) => navigation.navigate('FindMyLegislator', params)}
+                />
               </Container>
             </View>
 
@@ -1592,7 +1511,7 @@ const m = StyleSheet.create({
     letterSpacing: -0.8,
     color: t.colors.text.primary,
   },
-  heroH1Green: { color: t.colors.brand.deep },
+  heroH1Green: { color: t.colors.brand.display },
   // Signed-in hero, narrow (#1069). The state line is the headline at every width;
   // the greeting stays a small eyebrow above it.
   heroGreeting: {
@@ -1859,41 +1778,6 @@ const m = StyleSheet.create({
     lineHeight: 25,
     color: t.colors.text.secondary,
   },
-  finderShell: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  finderInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: t.typography.body,
-    fontSize: 19,
-    color: t.colors.text.primary,
-    paddingVertical: 4,
-    ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
-  },
-  findButton: {
-    marginTop: 12,
-    backgroundColor: t.colors.brand.base,
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  findButtonText: {
-    fontFamily: t.typography.ui,
-    fontSize: 19,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.onGreen,
-  },
   accountCard: {
     marginTop: 8,
     backgroundColor: t.colors.tint.t50,
@@ -1957,7 +1841,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.4,
     color: t.colors.text.primary,
   },
-  heroH1Green: { color: t.colors.brand.deep },
+  heroH1Green: { color: t.colors.brand.display },
   heroSubhead: {
     marginTop: 36,
     fontFamily: t.typography.body,
@@ -1984,18 +1868,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeights.heavy,
     letterSpacing: -0.76,
     color: theme.colors.text.primary,
-  },
-  fieldShell: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: 14,
-    paddingVertical: 6,
-    paddingRight: 6,
-    paddingLeft: 26,
   },
   // Hero entry buttons — two side-by-side links; wrap to stacked in a narrow column.
   heroEntryButtonFull: { alignSelf: 'stretch', justifyContent: 'center' },
@@ -2031,7 +1903,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.ui,
     fontSize: 19,
     fontWeight: t.fontWeights.regular,
-    color: t.colors.brand.deep,
+    color: t.colors.brand.graphics,
   },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
@@ -2216,22 +2088,6 @@ const styles = StyleSheet.create({
     lineHeight: 33,
     color: t.colors.text.secondary,
     maxWidth: 820,
-  },
-  // Field-group wrapper (positioning); mirrors askShell so the mobile stacked Find
-  // button and the field share the 600px cap and align.
-  finderFieldWrap: { marginTop: 38, maxWidth: 600 },
-  finderShellInner: { paddingLeft: 24 },
-  // Mobile: balance right padding now that the inline Find button is gone (the default
-  // fieldShell paddingRight of 6 assumes an inline trailing button).
-  finderInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.h4,
-    color: t.colors.text.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 6,
-    ...(isWeb ? ({ outlineStyle: 'none' } as object) : null),
   },
   finderMap: { flex: 0.85, alignItems: 'center', justifyContent: 'center' },
 

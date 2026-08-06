@@ -182,7 +182,7 @@ function TrackFirstBillFrame({
         <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" aria-hidden>
           <Path
             d="M7 4 h10 v16 l-5 -4 l-5 4 Z"
-            stroke={t.colors.brand.deep}
+            stroke={t.colors.brand.graphics}
             strokeWidth={2}
             strokeLinejoin="round"
           />
