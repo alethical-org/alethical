@@ -57,7 +57,7 @@ from alethical.db import models as schema
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
     database_url_for_target,
-    get_database_url,
+    local_database_url,
 )
 from alethical.pipeline import rag as rag_text
 from alethical.pipeline.rag_ingest import _build_embeddings, _chunk_payloads
@@ -471,7 +471,10 @@ def main() -> None:
     args = parser.parse_args()
 
     source_url = (
-        get_database_url()
+        # local_database_url(): --source-target local means local even when
+        # ALETHICAL_DATABASE_TARGET=production is set, which it usually is here
+        # because the destination is production (#1090).
+        local_database_url()
         if args.source_target == "local"
         else database_url_for_target("production", None)
     )

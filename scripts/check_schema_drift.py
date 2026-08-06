@@ -59,7 +59,7 @@ from alethical.db import models  # noqa: E402
 from alethical.db.session import (  # noqa: E402
     NO_PREPARED_STATEMENTS,
     database_url_for_target,
-    get_database_url,
+    local_database_url,
 )
 
 # ---------------------------------------------------------------------------
@@ -431,7 +431,12 @@ def build_by_models(scratch: ScratchDatabase) -> None:
 
 
 def _local_base_url() -> URL:
-    url = make_url(get_database_url())
+    # local_database_url(), not get_database_url(): the --against-production mode
+    # runs with ALETHICAL_DATABASE_TARGET=production set (that is the documented
+    # command) and still needs the *local* server here, to build the throwaway
+    # databases it compares production against. get_database_url() refuses that
+    # combination on purpose (#1090).
+    url = make_url(local_database_url())
     if url.host not in {"localhost", "127.0.0.1", "::1", "db"}:
         raise SystemExit(
             "Refusing to create throwaway databases on a non-local server "

@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from sqlalchemy import URL, create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 # The production path connects through the Supabase pgbouncer pooler in
@@ -68,13 +69,81 @@ def normalize_database_url(url: str) -> str:
     return url
 
 
-def get_database_url() -> str:
+DEFAULT_LOCAL_DATABASE_URL = (
+    "postgresql+psycopg://alethical:alethical@localhost:54329/alethical"
+)
+
+# Hosts that mean "the database on this machine". ``db`` is the local Postgres
+# service name in docker-compose.yml.
+_LOCAL_DATABASE_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "db", ""})
+
+
+def local_database_url() -> str:
+    """Resolve ``DATABASE_URL`` with **no** target check.
+
+    For the callers that specifically want the machine-local database *while*
+    ``ALETHICAL_DATABASE_TARGET=production`` is set, which is a real and correct
+    combination: ``scripts/check_schema_drift.py --against-production`` builds
+    throwaway local databases to compare production against, and
+    ``scripts/backfill_rag_bulk.py --source-target local`` reads local and writes
+    production. Both have already established which database they mean, so the
+    guard in ``get_database_url`` would only second-guess them.
+
+    If you are reaching for this to read data, you almost certainly want
+    ``database_url_for_target`` instead."""
     return normalize_database_url(
-        os.environ.get(
-            "DATABASE_URL",
-            "postgresql+psycopg://alethical:alethical@localhost:54329/alethical",
-        )
+        os.environ.get("DATABASE_URL", DEFAULT_LOCAL_DATABASE_URL)
     )
+
+
+def _refuse_local_url_when_target_is_production(url: str) -> None:
+    """Stop a command that asked for production quietly reading the local DB.
+
+    ``ALETHICAL_DATABASE_TARGET`` is read by ``database_url_for_target`` and by
+    nothing else -- in particular **not** by ``get_database_url`` or
+    ``get_engine``. So ``ALETHICAL_DATABASE_TARGET=production python -c "...
+    get_engine() ..."`` used to connect to local Postgres with no error and no
+    warning (#1090).
+
+    Two properties made that expensive rather than merely wrong. It **fails
+    toward plausibility**: a connection error is caught in seconds, whereas
+    fixture data that resembles production cannot be spotted from the output at
+    all. And the wrongness **compounds** -- on 6 Aug 2026 a row count read this
+    way became "an account was deleted", became "probably the test account",
+    became doubt cast on an unrelated issue, and reached Eugene before anyone
+    caught it. Production had *more* accounts, not fewer.
+
+    Deliberately a refusal, not a redirect. Making ``get_engine`` honour the
+    variable would silently change which database existing scripts connect to,
+    which is a far larger and riskier change than making the mismatch loud.
+
+    Deliberately narrow, too: it fires only when the resolved URL is *local*.
+    A deployed container whose ``DATABASE_URL`` points at any remote passes
+    untouched, so this can never take production down -- which matters, because
+    the compose production path exports ``DATABASE_URL`` itself and Railway's
+    environment is not described in this repository.
+    """
+    target = os.environ.get("ALETHICAL_DATABASE_TARGET", "").strip()
+    if target in {"", "local"}:
+        return
+    host = (make_url(url).host or "").lower()
+    if host not in _LOCAL_DATABASE_HOSTS:
+        return
+    raise RuntimeError(
+        f"ALETHICAL_DATABASE_TARGET={target} but the resolved database is local "
+        f"(host {host!r}). ALETHICAL_DATABASE_TARGET is read only by "
+        "database_url_for_target(); get_database_url() and get_engine() ignore it "
+        "and fall back to local Postgres. Either build the engine explicitly with "
+        'create_engine(database_url_for_target("production")), or set DATABASE_URL '
+        "to the production URL. Refusing rather than guessing, because the local "
+        "database returns believable numbers (#1090)."
+    )
+
+
+def get_database_url() -> str:
+    url = local_database_url()
+    _refuse_local_url_when_target_is_production(url)
+    return url
 
 
 def supabase_database_url() -> str | None:
@@ -121,7 +190,10 @@ def database_url_for_target(target: str | None, explicit_url: str | None = None)
     if explicit_url:
         return normalize_database_url(explicit_url)
     if target in {None, "", "local"}:
-        return get_database_url()
+        # The unguarded resolution: a caller naming "local" outright has already
+        # said which database it means, so the ambient-target check below would
+        # only second-guess an explicit choice.
+        return local_database_url()
     if target == "production":
         url = supabase_database_url()
         if not url:

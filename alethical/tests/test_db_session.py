@@ -6,8 +6,11 @@ from urllib.parse import unquote, urlparse
 import pytest
 
 from alethical.db.session import (
+    DEFAULT_LOCAL_DATABASE_URL,
     database_url_for_target,
+    get_database_url,
     load_dotenv_if_present,
+    local_database_url,
     supabase_database_url,
 )
 from alethical.tests.local_database_guard import assert_local_database
@@ -176,3 +179,122 @@ def test_dotenv_strips_inline_comment_but_keeps_quoted_hash(
         # The loader writes straight to os.environ, which monkeypatch can't undo.
         os.environ.pop("ALETHICAL_TEST_TARGET", None)
         os.environ.pop("ALETHICAL_TEST_PASSWORD", None)
+
+
+# --- The silent wrong-database read (#1090) ---------------------------------
+#
+# ALETHICAL_DATABASE_TARGET is read by database_url_for_target() and by nothing
+# else. get_database_url() and get_engine() ignore it, so a command that set it
+# and reached for either used to connect to local Postgres with no error and no
+# warning. These pin the guard that now refuses.
+
+
+def test_asking_for_production_and_getting_local_refuses_instead_of_connecting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The exact shape of the 6 Aug 2026 incident, created on purpose.
+
+    Nobody makes this state deliberately, which is precisely why it needs a test
+    that does. The old behaviour returned a local URL here and the caller went on
+    to print believable numbers.
+    """
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        get_database_url()
+
+    message = str(excinfo.value)
+    assert "ALETHICAL_DATABASE_TARGET=production" in message
+    assert "localhost" in message, "the message must name the host actually resolved"
+    assert "database_url_for_target" in message, (
+        "the message must carry the correct call, not send the reader hunting "
+        "through two functions to work out which one reads which variable"
+    )
+
+
+def test_the_guard_reads_the_resolved_url_not_just_the_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit DATABASE_URL pointing at local is the same mistake."""
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+psycopg://alethical:alethical@127.0.0.1:54329/alethical",
+    )
+
+    with pytest.raises(RuntimeError, match="127.0.0.1"):
+        get_database_url()
+
+
+def test_a_remote_database_url_passes_so_a_deployed_container_cannot_be_broken(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The guard must never fire on a real deployment.
+
+    docker-compose's production path exports DATABASE_URL to the pooler itself,
+    and Railway's environment is not described in this repository. So the check
+    is narrow on purpose: local-while-claiming-production only. Anything remote
+    passes untouched.
+    """
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    remote = (
+        "postgresql+psycopg://postgres.abcdefghij:pw"
+        "@aws-1-us-east-2.pooler.supabase.com:6543/postgres?sslmode=require"
+    )
+    monkeypatch.setenv("DATABASE_URL", remote)
+
+    assert get_database_url() == remote
+
+
+@pytest.mark.parametrize("target", ["", "local"])
+def test_local_development_is_untouched_and_stays_quiet(
+    monkeypatch: pytest.MonkeyPatch, target: str
+) -> None:
+    """The common case must not get noisier -- no raise, no warning."""
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", target)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    assert get_database_url() == DEFAULT_LOCAL_DATABASE_URL
+
+
+def test_no_target_set_at_all_is_untouched(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    assert get_database_url() == DEFAULT_LOCAL_DATABASE_URL
+
+
+def test_naming_local_outright_beats_an_ambient_production_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit argument is a decision; the environment variable is ambient.
+
+    ``database_url_for_target("local")`` says which database it means, so the
+    guard would only be second-guessing a caller who has already been explicit.
+    """
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    assert database_url_for_target("local") == DEFAULT_LOCAL_DATABASE_URL
+
+
+def test_the_deliberate_local_callers_are_not_caught_by_the_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two real callers want local *while* the target says production (#1090).
+
+    ``scripts/check_schema_drift.py --against-production`` is documented as being
+    run with ``ALETHICAL_DATABASE_TARGET=production`` and still needs the local
+    server, to build the throwaway databases it compares production against.
+    ``scripts/backfill_rag_bulk.py --source-target local`` reads local and writes
+    production. A guard that caught them would have broken a documented ops
+    command, which is why ``local_database_url`` exists as its own name rather
+    than the guard having an exception in it.
+    """
+    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    assert local_database_url() == DEFAULT_LOCAL_DATABASE_URL
+    with pytest.raises(RuntimeError):
+        get_database_url()
