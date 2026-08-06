@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { createElement, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Legislator } from '../../data/types';
@@ -86,13 +86,29 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
             // Decorative: the name is already text beside it, so labelling the
             // portrait would make a screen reader read the name twice inside
             // this one link.
-            <Image
-              aria-hidden
-              source={{ uri: legislator.photoUrl }}
-              resizeMode="cover"
-              onError={() => setPhotoFailed(true)}
-              style={styles.avatarPhoto}
-            />
+            isWeb ? (
+              createElement('img', {
+                'aria-hidden': true,
+                alt: '',
+                src: legislator.photoUrl,
+                onError: () => setPhotoFailed(true),
+                style: {
+                  display: 'block',
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center top',
+                },
+              })
+            ) : (
+              <Image
+                accessibilityElementsHidden
+                source={{ uri: legislator.photoUrl }}
+                resizeMode="cover"
+                onError={() => setPhotoFailed(true)}
+                style={styles.avatarPhoto}
+              />
+            )
           ) : (
             <Text style={styles.avatarText}>{initials(legislator.name)}</Text>
           )}
@@ -155,15 +171,16 @@ const styles = StyleSheet.create({
   },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 64,
+    height: 74,
+    borderRadius: 12,
+    flexShrink: 0,
     backgroundColor: t.colors.tint.t150,
     borderWidth: 1,
     borderColor: t.colors.tint.border,
     alignItems: 'center',
     justifyContent: 'center',
-    // Clips the portrait to the circle.
+    // Clips the portrait and initials fallback to the same rounded rectangle.
     overflow: 'hidden',
   },
   avatarPhoto: { width: '100%', height: '100%' },
