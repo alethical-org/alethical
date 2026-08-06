@@ -35,4 +35,11 @@ design-review decisions (2026-07-15)".
   MN terminology (author/co-author, DFL).
 - Tokens + primitives: `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx`.
 - Shared nav/footer = reuse the app's components (`TopNav`).
-- Legislator avatars use **initials**, not photos.
+- ~~Legislator avatars use **initials**, not photos.~~ **Superseded (2026-08-05).** The
+  card now shows the member's official portrait in the same 54px circle, because the list
+  API already serves one (`current_service.photo_url`) for all 200 sitting members. The
+  mockup and `search-legislators.dc.html` still show initials — they predate the change
+  and were authored with no image assets, so they are not the reference for this element.
+  Initials remain the fallback, used when a member has no portrait **or** when the stored
+  one fails to load (the files are hosted on lrl.mn.gov, so one can 404 without our record
+  changing).
