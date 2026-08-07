@@ -691,12 +691,6 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
           </View>
 
           {state !== 'empty' ? renderMapSection() : null}
-          <View style={styles.notices}>
-            <Text style={styles.notice}>
-              This product uses the Census Bureau Data API but is not endorsed or certified by the
-              Census Bureau.
-            </Text>
-          </View>
           {sourceDate && (state === 'found' || state === 'vacant') ? (
             <View style={styles.source}>
               <Text style={styles.sourceText}>Source: </Text>
@@ -995,12 +989,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: t.colors.brand.deep,
-  },
-  notices: { marginTop: 26, gap: 7 },
-  notice: {
-    fontFamily: t.typography.body,
-    fontSize: 12,
-    lineHeight: 18,
-    color: t.colors.text.faint,
   },
 });

@@ -21,6 +21,7 @@ const TILE_SIZE = 256;
 const MIN_ZOOM = 5;
 const MAX_ZOOM = 15;
 const OSM_COPYRIGHT = 'https://www.openstreetmap.org/copyright';
+const GIS_CREDIT = 'https://gis.lcc.mn.gov/';
 const isWeb = Platform.OS === 'web';
 
 const MINNESOTA_GEOMETRY: GeoJsonGeometry = {
@@ -57,26 +58,21 @@ function MapCredit({ href, label }: { href: string; label: string }) {
   return (
     <Pressable
       {...externalLinkProps(href, () => void Linking.openURL(href))}
+      accessibilityLabel={`${label}, opens in a new tab`}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       style={styles.creditTarget}
     >
-      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>{label}</Text>
-      <Svg
-        width={11}
-        height={11}
-        viewBox="0 0 12 12"
-        fill="none"
-        stroke={t.colors.brand.deep}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        {...({ 'aria-hidden': true } as object)}
-      >
-        <Path d="M4 8 8 4M5 4h3v3" />
-      </Svg>
-      <Text style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}>
-        {' (opens in a new tab)'}
+      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>
+        {label}
+        <Text aria-hidden style={styles.creditArrow}>
+          {' →'}
+        </Text>
+        <Text
+          style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}
+        >
+          {' (opens in a new tab)'}
+        </Text>
       </Text>
     </Pressable>
   );
@@ -504,21 +500,29 @@ export function MapPinPicker({
         </Pressable>
       </View>
 
-      <View testID="district-map-credits" style={styles.credits}>
-        {tilesLoaded ? (
-          <MapCredit href={OSM_COPYRIGHT} label="© OpenStreetMap contributors" />
-        ) : null}
-      </View>
-
       <Text style={styles.helper}>
         {displayCoordinate
           ? mobile
-            ? 'Tap the map to adjust your location. Use + or − to zoom if needed.'
-            : 'Click the map to adjust your location. Use + or − to zoom if needed.'
+            ? 'Tap the map to adjust your location. Use + or − to zoom if needed'
+            : 'Click the map to adjust your location. Use + or − to zoom if needed'
           : mobile
             ? 'Tap the map to choose a location'
             : 'Click the map to choose a location'}
       </Text>
+
+      <View testID="district-map-credits" style={styles.credits}>
+        {tilesLoaded ? (
+          <MapCredit href={OSM_COPYRIGHT} label="© OpenStreetMap contributors" />
+        ) : null}
+        <View style={styles.creditRow}>
+          <Text style={styles.creditText}>District lines from </Text>
+          <MapCredit href={GIS_CREDIT} label="Minnesota’s Legislature" />
+        </View>
+        <Text style={styles.creditText}>
+          This product uses the Census Bureau Data API but is not endorsed or certified by the
+          Census Bureau
+        </Text>
+      </View>
     </View>
   );
 }
@@ -573,21 +577,30 @@ const styles = StyleSheet.create({
   },
   zoomText: { fontFamily: t.typography.ui, fontSize: 24, color: t.colors.ink },
   credits: {
-    alignSelf: 'flex-end',
-    alignItems: 'flex-end',
+    alignSelf: 'stretch',
+    alignItems: 'flex-start',
     flexDirection: 'column',
-    gap: 4,
-    marginTop: 8,
+    gap: 6,
+    marginTop: 16,
   },
-  creditTarget: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  creditRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  creditTarget: { flexDirection: 'row', alignItems: 'center' },
+  creditText: {
+    fontFamily: t.typography.body,
+    fontSize: 12,
+    lineHeight: 18,
+    color: t.colors.text.faint,
+  },
   creditLink: {
     fontFamily: t.typography.body,
-    fontSize: 11.5,
+    fontSize: 12,
+    lineHeight: 18,
     fontWeight: '600',
     color: t.colors.brand.deep,
-    textDecorationLine: 'underline',
+    textDecorationLine: 'none',
   },
-  creditLinkHovered: { opacity: 0.78 },
+  creditLinkHovered: { textDecorationLine: 'underline' },
+  creditArrow: { fontWeight: '400' },
   visuallyHidden: {
     position: 'absolute',
     width: 1,
@@ -595,9 +608,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   helper: {
-    marginTop: 10,
+    marginTop: 6,
     fontFamily: t.typography.body,
-    fontSize: 13,
+    fontSize: 15,
+    lineHeight: 22,
     color: t.colors.text.muted,
   },
   codePill: {
