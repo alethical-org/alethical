@@ -108,4 +108,16 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).not.toContain('neighborhood');
     expect(source).not.toContain('borderLeftWidth: 4');
   });
+
+  it('gives phone member cards a definite full width for their primary action', () => {
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toMatch(/cards:\s*\{[^}]*alignItems: 'flex-start'/);
+    expect(source).toMatch(
+      /cardsMobile:\s*\{[^}]*flexDirection: 'column'[^}]*alignItems: 'stretch'/,
+    );
+  });
 });
