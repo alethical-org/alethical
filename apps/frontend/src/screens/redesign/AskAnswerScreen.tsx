@@ -518,9 +518,6 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       onOpenMenuChange={setOpenMenu}
       onNavigate={handleNavigate}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-      // The shell passes variant="home" to the nav, which hides the ✦ Ask entry —
-      // right here, where there is deliberately nothing to type into.
-      onAsk={() => navigation.navigate('Ask', {})}
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}
       hero={hero}

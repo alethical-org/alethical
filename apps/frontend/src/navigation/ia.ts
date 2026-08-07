@@ -1,11 +1,9 @@
 /**
  * Phase-0 IA contract — single source of truth for the new top-nav information
- * architecture (✦ Ask · Search · Track · About · auth).
+ * architecture (Search · Track · About · auth).
  *
- * The ask entry is PAGE-AWARE (O10, ratified 2026-07-12 — docs/design/ui-copy-guide.md
- * § Feature naming): on the signed-out home the hero IS the ask surface, so the
- * nav shows no ask entry (Search → Bills carries the "Grounded Ask" badge);
- * every non-home page restores "✦ Ask" as a top-level entry.
+ * Ask stays reachable through its answer route and in-page actions, but it is not
+ * a global navigation item. Every page now shares the same Ask-free menu.
  *
  * The web router (navigation/webRoutes.ts) and nav chrome migrate onto this
  * registry during the frontend track; the v2 home TopNav (theme/primitives.tsx)
@@ -16,7 +14,7 @@
  * See docs/product-onboarding/mvp-redesign-plan.md for decisions and the migration steps.
  */
 
-export type MenuKey = 'ask' | 'search' | 'track' | 'about';
+export type MenuKey = 'search' | 'track' | 'about';
 
 export type Availability = 'mvp' | 'roadmap';
 
@@ -44,9 +42,8 @@ export interface IaItem {
   note?: string;
 }
 
-/** Top-level menus, in nav order. `ask` is page-aware — see the header note. */
+/** Top-level menus, in nav order. */
 export const MENUS: { key: MenuKey; label: string }[] = [
-  { key: 'ask', label: '✦ Ask' },
   { key: 'search', label: 'Search' },
   { key: 'track', label: 'Track' },
   { key: 'about', label: 'About' },
@@ -58,16 +55,16 @@ export const MENUS: { key: MenuKey; label: string }[] = [
  * hidden in MVP nav (see `visibleMenuItems`).
  */
 export const IA: IaItem[] = [
-  // ✦ Ask — top-level on non-home pages only (page-aware, see header note).
+  // Ask route — reached from in-page actions, not the global navigation.
   // Anonymous one-shot cited answer; follow-ups/history gate on auth.
   {
     id: 'ask',
     label: '✦ Ask',
     path: '/ask',
-    menu: 'ask',
+    menu: null,
     availability: 'mvp',
     authGated: false,
-    note: 'Anonymous users get one stateless cited answer; follow-ups, history, and saved sessions require sign-in. Hidden on the signed-out home (the hero is the ask surface).',
+    note: 'Anonymous users get one stateless cited answer; follow-ups, history, and saved sessions require sign-in. Reached from in-page actions rather than the global navigation.',
   },
 
   // Search — public discovery ("the library").

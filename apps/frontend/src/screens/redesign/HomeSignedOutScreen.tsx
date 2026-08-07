@@ -666,7 +666,6 @@ function HomeSignedOutDesktop() {
             ) : null}
 
             <TopNav
-              variant="home"
               openMenu={openMenu}
               onOpenMenuChange={setOpenMenu}
               onNavigate={handleNavigate}
@@ -1294,7 +1293,6 @@ function HomeSignedOutMobile() {
               />
             ) : null}
             <TopNav
-              variant="home"
               onNavigate={(item: IaItem) => {
                 switch (item.id) {
                   case 'search-bills':

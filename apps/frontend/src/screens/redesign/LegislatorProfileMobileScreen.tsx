@@ -536,12 +536,10 @@ export function LegislatorProfileMobileScreen() {
   };
 
   const shellProps = {
-    variant: 'page' as const,
     openMenu,
     onOpenMenuChange: setOpenMenu,
     onNavigate: handleNavigate,
     onHome: () => navigation.navigate('Tabs', { screen: 'Home' }),
-    onAsk: () => navigation.navigate('Ask'),
   };
 
   const shareUrl = leg
