@@ -22,7 +22,7 @@ type LegalDocumentContent = {
 
 const privacyContent: LegalDocumentContent = {
   title: 'Privacy Policy',
-  meta: 'Effective date: June 16, 2026 · Last updated: June 16, 2026',
+  meta: 'Effective date: June 16, 2026 · Last updated: August 7, 2026',
   sections: [
     {
       blocks: [
@@ -103,6 +103,8 @@ const privacyContent: LegalDocumentContent = {
             'Service providers who help us operate the Service under contractual confidentiality obligations — including Supabase (authentication and database) and Google (sign-in).',
             'AI providers who generate answers and summaries — Anthropic and OpenAI. When you ask a question, the question text and the bill passages it is answered from are sent to them. We do not send your name, email address, or account identifier with it.',
             'The United States Census Bureau, when you look up your legislators by address. The address you type is sent to its public geocoding service to find your district. We do not store it.',
+            'The Minnesota Geospatial Information Office, only when the Census Bureau cannot match a Minnesota address. We send only the house number and street name to its public address list, not the city or ZIP. We do not store it.',
+            'The Minnesota Legislative Coordinating Commission, when an address or map point has been located. We send latitude and longitude to its public district service. We do not send the address you typed or store the location.',
             'Legal authorities when required by law, regulation, or valid legal process.',
             'A successor entity in connection with a merger, acquisition, or sale of assets, subject to this Policy.',
           ],

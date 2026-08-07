@@ -6,7 +6,7 @@
 Alethical stores about a reader, why each piece exists, how long we keep it, and what
 happens when someone asks us to delete their account. It also says the two things that
 are not true yet: there is no way to delete an account, and the published Privacy Policy
-does not name everything we collect or everyone we send it to.
+does not yet explain everything we collect or every host that can see it.
 
 **Why this doc exists.** Google sign-in went live on 5 August 2026. Before that, an
 account was a thing we had designed but almost nobody had. Now real people have real
@@ -271,10 +271,11 @@ the published Privacy Policy.
 | --- | --- | --- | --- |
 | Google (through Supabase) | Name, email address, profile picture, a sign-in id | Every sign-in | Yes |
 | Supabase | The same, plus it hosts the whole database | Always | Yes |
-| **OpenAI** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **No** |
-| **Anthropic** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **No** |
-| **US Census Bureau** | **The full street address, with surrounding spaces removed** | Every Find My Legislator address search | **No** |
-| **Minnesota GIS (`gis.lcc.mn.gov`)** | Latitude and longitude | Every Find My Legislator search | **No** |
+| **OpenAI** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes** |
+| **Anthropic** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes** |
+| **US Census Bureau** | **The full street address, with surrounding spaces removed** | Every Find My Legislator address search | **Yes** |
+| **Minnesota Geospatial Information Office** | **The house number and street name, without city or ZIP** | Only after both Census attempts find no match | **Yes** |
+| **Minnesota Legislative Coordinating Commission (`gis.lcc.mn.gov`)** | Latitude and longitude | Every successful Find My Legislator search | **Yes** |
 | Vercel | Hosts the web app, so its request logs see every page address (§7) | Every page load | No, and it should be |
 | Cloudflare | Sits in front of the API | Every API call | No, and it should be |
 
@@ -282,13 +283,15 @@ the published Privacy Policy.
 built from the bill's identifier, the reader's question, and passages of bill text
 (`synthesize_grounded_answer`, `alethical/api/routers/me.py`). There is no user id, no
 email address, no name, and no address in it. The address that goes to the Census
-Bureau carries no account identifier either — the lookup endpoint does not require
-sign-in and never reads the caller's account.
+Bureau carries no account identifier either. If Census finds nothing, the Minnesota
+address-point request carries only the house number and street name, not the city or ZIP.
+The lookup endpoint does not require sign-in and never reads the caller's account.
 
 **The bad half.** A reader's typed question leaves our systems on every single Ask and
-every chat message, and the Privacy Policy's list of who we share information with
-names only "Supabase (authentication and database) and Google (sign-in)." That is a
-factual gap between what the published page says and what the code does. Fixing the page is [#1041](https://github.com/alethical-org/alethical/issues/1041).
+every chat message. The Privacy Policy now names the AI and government services that
+receive question or location data, but it still does not name the hosting layers that
+see requests or explain every category we collect. Closing the remaining gap is
+[#1041](https://github.com/alethical-org/alethical/issues/1041).
 
 ---
 
@@ -415,14 +418,15 @@ nothing to check their work against. **Everything in §6 above is a proposal, no
 description.** Building it is [#1040](https://github.com/alethical-org/alethical/issues/1040).
 
 **The published Privacy Policy is narrower than what we collect.** The live page
-(`apps/frontend/src/screens/LegalScreens.tsx`, effective 16 June 2026) says under
+(`apps/frontend/src/screens/LegalScreens.tsx`, effective 16 June 2026, updated 7 August 2026) says under
 *Information We Collect* that we collect Google profile information, authentication
 data, and usage data. It does not mention the questions people type, the bills they
 follow, their alert settings, or a saved address. Under *How We Share Information* it
-names Supabase and Google, and does not name OpenAI, Anthropic, the US Census Bureau, or
-the Minnesota GIS service — all four of which receive reader-supplied text or location
-today (§4). Under *Data Retention* it says we keep things "as long as your account is
-active," which is a real answer but not a per-category one. Under *Your Rights* it
+names Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota
+Geospatial Information Office, and the Minnesota Legislative Coordinating Commission.
+It still does not name Vercel or Cloudflare (§4). Under *Data Retention* it says we keep
+things "as long as your account is active," which is a real answer but not a
+per-category one. Under *Your Rights* it
 offers access, correction, export and deletion on request, which is a promise we
 currently have no mechanism to keep. Bringing the page in line is [#1041](https://github.com/alethical-org/alethical/issues/1041).
 
