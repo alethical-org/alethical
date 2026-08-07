@@ -28,6 +28,7 @@ import { useHistoryScrollRestoration } from '../hooks/useHistoryScrollRestoratio
 import { useRepresentativeLookup } from '../hooks/useAppQueries';
 import {
   addressChoiceKey,
+  confirmedAddressForLookup,
   districtMapVisible,
   legislatureLabel,
   prepareAddressLookup,
@@ -281,6 +282,19 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (!settledResult?.coordinate) return;
     setSelectedCoordinate(settledResult.coordinate);
   }, [settledResult?.coordinate]);
+
+  useEffect(() => {
+    const confirmedAddress = confirmedAddressForLookup(lookup.variables, settledResult, address);
+    if (!confirmedAddress) return;
+    setAddress(confirmedAddress);
+    autoRanFor.current = confirmedAddress;
+    navigation.setParams({
+      address: confirmedAddress,
+      coordinate: undefined,
+      lookupAddress: undefined,
+      locationFailure: undefined,
+    });
+  }, [address, lookup.variables, navigation, settledResult]);
 
   const runAddress = (value: string) => {
     const { serviceAddress } = prepareAddressLookup(value);
