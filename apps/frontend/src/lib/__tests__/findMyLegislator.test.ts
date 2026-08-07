@@ -139,6 +139,25 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source.match(/alignSections=\{alignRepresentativeSections\}/g)).toHaveLength(2);
   });
 
+  it('matches the accepted result summary on desktop and phone', () => {
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('<View aria-hidden style={styles.foundHeaderPin}>');
+    expect(source).toContain(
+      'd="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z"',
+    );
+    expect(source).toMatch(/!isMobile \? \([\s\S]*styles\.foundHeaderPin/);
+    expect(source).toMatch(/isMobile &&[\s\S]*<DistrictChips[\s\S]*mobile/);
+    expect(source).toMatch(/!isMobile &&[\s\S]*<DistrictChips[\s\S]*mobile=\{false\}/);
+    expect(source).toContain("backgroundColor: '#ffffff'");
+    expect(source).toContain("senateDistrictChip: { borderColor: '#d8c9f7', color: '#5b30d6' }");
+    expect(source).toContain("houseDistrictChip: { borderColor: '#bfeacf', color: '#0f7a45' }");
+    expect(source).toContain('districtArrowMobile: { fontSize: 11 }');
+  });
+
   it('keeps the accepted result mounted while a map-selected lookup is pending', () => {
     const source = readFileSync(
       join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
