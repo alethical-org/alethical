@@ -1514,7 +1514,7 @@ function assignOrderKeys<T extends { actionNumber: number; rawDate: string; idx:
   return items.map((item, i) => ({ item, key: key[i] }));
 }
 
-// Web eyebrow "2025–2026 LEGISLATIVE SESSION". Built from the session the API serves
+// Web eyebrow "2025–26 LEGISLATIVE SESSION". Built from the session the API serves
 // for the bill (`sessionLabel`), not derived from its id: a special session is its own
 // session, so no arithmetic on the id can name it, and reading the served value means
 // the eyebrow cannot disagree with the session filter (#746). "Legislative" is kept —
@@ -1522,7 +1522,7 @@ function assignOrderKeys<T extends { actionNumber: number; rawDate: string; idx:
 //
 // The id fallback stays for the pre-load render and for anything served without a
 // session. It reads the biennium out of the id's year segment
-// (94-2025-SF334 → 2025 → 2025–2026), and now returns "" rather than a bare
+// (94-2025-SF334 → 2025 → 2025–26), and now returns "" rather than a bare
 // "LEGISLATIVE SESSION" when it cannot: on `94-2025s1-HF5` the segment is "2025s1", so
 // the old regex missed and every special-session page showed a session eyebrow that
 // named no session at all.
@@ -1536,14 +1536,16 @@ export function bienniumEyebrow(billId: string, sessionLabel?: string): string {
   const served = (sessionLabel || '').trim();
   if (served && served !== 'Current session') {
     // "94th Legislature (2025) First Special Session" → "2025 FIRST SPECIAL SESSION";
-    // "94th Legislature (2025 - 2026) Regular Session" → "2025–2026 LEGISLATIVE SESSION".
-    return formatSessionLabel(served).toUpperCase();
+    // "94th Legislature (2025 - 2026) Regular Session" → "2025–26 LEGISLATIVE SESSION".
+    return formatSessionLabel(served)
+      .replace(/\b(20\d{2})–20(\d{2})\b/, '$1–$2')
+      .toUpperCase();
   }
   const m = (billId || '').match(/^\d+-(\d{4})-/);
   const year = m ? Number(m[1]) : NaN;
   if (!Number.isNaN(year)) {
     const start = year % 2 === 1 ? year : year - 1;
-    return `${start}–${start + 1} LEGISLATIVE SESSION`;
+    return `${start}–${String(start + 1).slice(-2)} LEGISLATIVE SESSION`;
   }
   return '';
 }
