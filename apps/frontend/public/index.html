@@ -29,6 +29,47 @@
   </head>
 
   <body>
+    <script id="alethical-release-recovery">
+      (function () {
+        var reloadKey = 'alethical.release-program-reload';
+
+        window.addEventListener(
+          'error',
+          function (event) {
+            var target = event.target;
+            if (!(target instanceof HTMLScriptElement) || !target.src) {
+              return;
+            }
+
+            var source;
+            try {
+              source = new URL(target.src, window.location.href);
+            } catch (_error) {
+              return;
+            }
+
+            if (
+              source.origin !== window.location.origin ||
+              !/^\/_expo\/static\/js\/web\/index-[^/]+\.js$/.test(source.pathname)
+            ) {
+              return;
+            }
+
+            try {
+              if (window.sessionStorage.getItem(reloadKey)) {
+                return;
+              }
+              window.sessionStorage.setItem(reloadKey, '1');
+            } catch (_error) {
+              return;
+            }
+
+            window.location.reload();
+          },
+          true,
+        );
+      })();
+    </script>
     <noscript>
       You need to enable JavaScript to run this app.
     </noscript>

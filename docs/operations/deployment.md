@@ -1,3 +1,5 @@
+<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx -->
+
 # Deployment
 
 Alethical deploys as two services:
@@ -86,6 +88,31 @@ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
 After Vercel assigns the production domain, update Railway's `ALETHICAL_CORS_ORIGINS` with that exact Vercel origin and redeploy the backend.
+
+### Frontend first-load recovery
+
+The successful path stays direct: a public read makes 1 request with no retry delay, and
+the release page does no recovery work unless its main program file fails to load.
+
+- Public GET requests have a 5-second limit per attempt and get at most 2 attempts total.
+  Only a network failure, timeout, or `5xx` server response gets the second attempt. A
+  `4xx` response, including an honest missing record, is final and keeps its normal page
+  behavior.
+- Restoring a saved sign-in has a 5-second limit. The public home renders while that check
+  runs, and every success, service error, rejected request, or timeout ends the loading
+  state.
+- An unexpected render failure anywhere below the app root shows a recovery page with a
+  reload button.
+- The static HTML listens only for a failed same-origin release program matching
+  `/_expo/static/js/web/index-*.js`. It reloads at most once per browser session. If
+  browser-session storage cannot prove that guard, it does not reload. Missing API
+  records, other assets, cross-origin scripts, and ordinary program errors never trigger
+  this rule.
+
+The missing-program rule belongs in the static HTML because the app cannot recover from a
+program that failed before the app started. It preserves the single-program release rule
+from [#1110](https://github.com/alethical-org/alethical/issues/1110) and does not add route
+program splitting or a service worker.
 
 ## Supabase Auth URLs
 

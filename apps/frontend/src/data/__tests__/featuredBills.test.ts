@@ -37,7 +37,7 @@ describe('getFeaturedBillsFromApi', () => {
     expect(bills.map((bill) => bill.id)).toEqual([FEATURED_BILL.id]);
   });
 
-  it('keeps a short network failure as one rejected request', async () => {
+  it('uses the single public-read retry before returning a network failure', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('Network request failed'));
     vi.stubGlobal('fetch', fetchMock);
     const { getFeaturedBillsFromApi } = await loadFeaturedBillsApi();
@@ -45,6 +45,6 @@ describe('getFeaturedBillsFromApi', () => {
     await expect(getFeaturedBillsFromApi([FEATURED_BILL.id, '94-2025-SF856'])).rejects.toThrow(
       'Network request failed',
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

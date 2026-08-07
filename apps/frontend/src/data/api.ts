@@ -7,6 +7,7 @@ import {
 } from '../lib/billDetail';
 import type { SourceBlock } from '../lib/billText';
 import { contactEmail } from '../lib/findMyLegislator';
+import { publicReadResponse } from '../lib/publicRead';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -636,7 +637,7 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
 }
 
 async function publicApiRequest<T>(path: string): Promise<T> {
-  const response = await fetch(publicApiUrl(path), {
+  const response = await publicReadResponse(publicApiUrl(path), {
     method: 'GET',
     headers: {
       Accept: 'application/json',

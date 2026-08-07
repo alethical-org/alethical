@@ -73,6 +73,7 @@ export function useBills(
     queryFn: () => listBillsFromApi(query, session, filters, pagination),
     placeholderData: keepPreviousData,
     enabled: options.enabled ?? true,
+    retry: false,
   });
 }
 
@@ -80,6 +81,7 @@ export function usePolicyAreas(session?: string) {
   return useQuery({
     queryKey: ['policy-areas', session ?? 'current'],
     queryFn: () => listPolicyAreasFromApi(session),
+    retry: false,
   });
 }
 
@@ -87,6 +89,7 @@ export function useSessions() {
   return useQuery({
     queryKey: ['sessions'],
     queryFn: listSessionsFromApi,
+    retry: false,
   });
 }
 
@@ -94,6 +97,7 @@ export function useMeta() {
   return useQuery({
     queryKey: ['meta'],
     queryFn: getMetaFromApi,
+    retry: false,
   });
 }
 
@@ -178,6 +182,7 @@ export function usePrefetchBill() {
     void queryClient.prefetchQuery({
       queryKey: ['bill', billId],
       queryFn: () => getBillFromApi(billId),
+      retry: false,
     });
 }
 
@@ -196,6 +201,7 @@ export function usePrefetchLegislator() {
     void queryClient.prefetchQuery({
       queryKey: ['legislator', legislatorId],
       queryFn: () => getLegislatorFromApi(legislatorId),
+      retry: false,
     });
 }
 
@@ -224,6 +230,7 @@ export function usePrefetchBills() {
         pagination.offset ?? 0,
       ],
       queryFn: () => listBillsFromApi(query, session, filters, pagination),
+      retry: false,
     });
 }
 

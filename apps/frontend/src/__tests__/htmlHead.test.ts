@@ -14,7 +14,7 @@ describe('exported HTML connection hints', () => {
     const fileFontHint = '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />';
 
     expect(headEnd).toBeGreaterThan(-1);
-    expect(firstScript).toBe(-1);
+    expect(firstScript).toBeGreaterThan(headEnd);
     expect(htmlTemplate.indexOf(apiHint)).toBeGreaterThan(-1);
     expect(htmlTemplate.indexOf(cssFontHint)).toBeGreaterThan(-1);
     expect(htmlTemplate.indexOf(fileFontHint)).toBeGreaterThan(-1);

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { AppProviders } from './src/providers/AppProviders';
+import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { unregisterServiceWorkers } from './src/lib/serviceWorkerCleanup';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
@@ -74,11 +75,13 @@ export default function App() {
   }, []);
 
   return (
-    <View style={styles.app}>
-      <AppProviders>
-        <RootNavigator />
-      </AppProviders>
-    </View>
+    <AppErrorBoundary>
+      <View style={styles.app}>
+        <AppProviders>
+          <RootNavigator />
+        </AppProviders>
+      </View>
+    </AppErrorBoundary>
   );
 }
 
