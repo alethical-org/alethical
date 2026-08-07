@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { IA, navDropdownItems } from '../ia';
+import { IA, MENUS, navDropdownItems } from '../ia';
 import { pathForRoute, targetFromPathname } from '../webRoutes';
 
 describe('old-design URLs land on a shipped page', () => {
@@ -87,6 +87,12 @@ describe('live URLs still resolve to themselves', () => {
   it('resolves the pages that have no redesigned replacement', () => {
     expect(targetFromPathname('/privacy')).toEqual({ kind: 'privacy' });
     expect(targetFromPathname('/terms')).toEqual({ kind: 'terms' });
+  });
+});
+
+describe('shared top navigation', () => {
+  it('offers Search, Track and About without an active Ask entry', () => {
+    expect(MENUS.map((menu) => menu.key)).toEqual(['search', 'track', 'about']);
   });
 });
 

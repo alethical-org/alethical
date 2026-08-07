@@ -194,18 +194,6 @@ function Logo({
 
 // --- v2 nav dropdowns (docs/mockups/home-signed-out-v2) ---
 
-/** Sparkle glyph — the AI affordance (ASKED eyebrow, Grounded Ask pill, ✦ Ask entry). */
-function Sparkle({ size = 11, color = t.colors.purple.base }: { size?: number; color?: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M12 2.5 L13.9 9.4 L21 12 L13.9 14.6 L12 21.5 L10.1 14.6 L3 12 L10.1 9.4 Z"
-        fill={color}
-      />
-    </Svg>
-  );
-}
-
 /** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
 function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {
   const c = disabled ? '#a4aba5' : t.colors.brand.graphics;
@@ -453,25 +441,6 @@ function NavDropdownTrigger({
   );
 }
 
-/** Purple top-level "✦ Ask" entry — non-home pages only (page-aware nav, O10). */
-function AskNavEntry({ onPress }: { onPress?: () => void }) {
-  const [hovered, hoverProps] = useHover();
-  return (
-    <Pressable {...linkProps(routePath.ask(), onPress)} {...hoverProps} style={styles.navTrigger}>
-      <Sparkle size={14} />
-      <Text
-        style={[
-          styles.navTriggerText,
-          { color: t.colors.purple.base },
-          hovered && { textDecorationLine: 'underline' },
-        ]}
-      >
-        Ask
-      </Text>
-    </Pressable>
-  );
-}
-
 export function PrimaryButton({
   label,
   onPress,
@@ -499,30 +468,23 @@ export function PrimaryButton({
   );
 }
 
-// --- Top navigation: v2 dropdowns on desktop, drawer on mobile. PAGE-AWARE
-//     (O10): `variant="home"` hides the ✦ Ask entry (the hero is the ask
-//     surface); `variant="page"` restores it top-level. Dropdown state can be
-//     controlled by the host screen (it drives the answer-card blur overlay).
+// --- Top navigation: v2 dropdowns on desktop, drawer on mobile. Every page uses
+//     the same Ask-free menu. Dropdown state can be controlled by the host screen
+//     (it drives the answer-card blur overlay).
 //     Outside-click close is handled here on web via a document listener — NOT a
 //     full-screen overlay, which stacked above the panel and swallowed row
 //     hover/clicks. A panel opens on hover as well as on click (hover-capable
 //     pointers only). Rows render from the ia.ts registry. ---
-type NavVariant = 'home' | 'page';
-
 export function TopNav({
-  variant = 'home',
   openMenu: openMenuProp,
   onOpenMenuChange,
   onNavigate,
   onHome,
-  onAsk,
 }: {
-  variant?: NavVariant;
   openMenu?: MenuKey | null;
   onOpenMenuChange?: (menu: MenuKey | null) => void;
   onNavigate?: (item: IaItem) => void;
   onHome?: () => void;
-  onAsk?: () => void;
 }) {
   const { isDesktop } = useResponsive();
   const navigation = useNavigation<any>();
@@ -592,7 +554,7 @@ export function TopNav({
     if (pointerOverTrigger.current) return;
     setOpenMenu(null);
   };
-  const dropdownMenus = MENUS.filter((menu) => menu.key !== 'ask');
+  const dropdownMenus = MENUS;
   // Mobile flattens the roadmap into one pill row: the named Search/Track chips
   // first, then "More Tracking" — one compact, non-committal catch-all for the
   // rest of tracking's expansion (legislators, candidates …) rather than
@@ -652,7 +614,6 @@ export function TopNav({
         {isDesktop ? (
           <View style={styles.navLinks}>
             <View ref={navTriggerGroupRef as never} style={styles.navTriggerGroup}>
-              {variant === 'page' ? <AskNavEntry onPress={onAsk} /> : null}
               {dropdownMenus.map((menu) => (
                 <NavDropdownTrigger
                   key={menu.key}
@@ -723,9 +684,7 @@ export function TopNav({
               </Pressable>
             </View>
             <ScrollView style={styles.menuList}>
-              {/* No "✦ Ask" row: the mobile drawer is one Ask-free menu on every
-                  screen (Ask is roadmap, not shipped). The top-level ✦ Ask entry
-                  stays on the desktop web nav for non-home pages (AskNavEntry). */}
+              {/* The shared menu is Ask-free on every screen and at every width. */}
               {dropdownMenus.map((menu) => {
                 const { live } = navDropdownItems(menu.key);
                 if (live.length === 0) return null;

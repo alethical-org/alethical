@@ -268,12 +268,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     <PageBackground>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <TopNav
-          variant="page"
           openMenu={openMenu}
           onOpenMenuChange={setOpenMenu}
           onNavigate={navigateFromMenu}
           onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-          onAsk={() => navigation.navigate('Ask', {})}
         />
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <View style={styles.intro}>

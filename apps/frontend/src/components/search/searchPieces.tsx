@@ -68,7 +68,6 @@ export function SearchPageShell({
   onOpenMenuChange,
   onNavigate,
   onHome,
-  onAsk,
   onPrivacy,
   onTerms,
   heroEndsWithRule,
@@ -81,7 +80,6 @@ export function SearchPageShell({
   onOpenMenuChange: (menu: MenuKey | null) => void;
   onNavigate: (item: IaItem) => void;
   onHome?: () => void;
-  onAsk: () => void;
   onPrivacy?: () => void;
   onTerms?: () => void;
   /**
@@ -121,14 +119,10 @@ export function SearchPageShell({
             ) : null}
 
             <TopNav
-              // Search pages suppress the top-level ✦ Ask entry (variant="home"
-              // is the Ask-hidden nav) — the search hero is the primary action here.
-              variant="home"
               openMenu={openMenu}
               onOpenMenuChange={onOpenMenuChange}
               onNavigate={onNavigate}
               onHome={onHome}
-              onAsk={onAsk}
             />
 
             <Container style={[styles.heroBody, heroEndsWithRule && styles.heroBodyFlush]}>
