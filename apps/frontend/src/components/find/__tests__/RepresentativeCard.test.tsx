@@ -228,7 +228,9 @@ describe('RepresentativeCard accepted layout', () => {
   });
 
   it('lets phone cards grow with their content and keeps the final action inside', () => {
-    expect(componentSource).toContain('<View style={[styles.card, mobile && styles.cardMobile]}>');
+    expect(componentSource).toMatch(
+      /<View\s+style=\{\[styles\.card,[^\]]*mobile && styles\.cardMobile\]\}/,
+    );
     expect(componentSource).toMatch(
       /<View\s+style=\{\[styles\.vacant, mobile && styles\.vacantMobile\]\}/,
     );
@@ -241,6 +243,14 @@ describe('RepresentativeCard accepted layout', () => {
     expect(componentSource).toMatch(
       /profileButtonMobile:\s*\{[^}]*width: '100%'[^}]*minHeight: 46[^}]*marginTop: 13/,
     );
+  });
+
+  it('aligns each desktop section with the matching section in the neighboring card', () => {
+    expect(componentSource).toContain('alignSections = false');
+    expect(componentSource).toContain("gridTemplateRows: 'subgrid'");
+    expect(componentSource).toContain("gridRow: 'span 7'");
+    expect(componentSource).toContain("justifySelf: 'start'");
+    expect(componentSource.match(/alignedRowStyle\([1-7]\)/g)).toHaveLength(7);
   });
 
   it('keeps initials beneath a decorative image layer without an error handler', () => {

@@ -128,6 +128,17 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source.match(/<VacantSeatCard[\s\S]*?mobile=\{isMobile\}/g)).toHaveLength(2);
   });
 
+  it('shares matching row heights between the 2 desktop member cards only', () => {
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'");
+    expect(source).toContain('const alignRepresentativeSections = Boolean(');
+    expect(source.match(/alignSections=\{alignRepresentativeSections\}/g)).toHaveLength(2);
+  });
+
   it('keeps the accepted result mounted while a map-selected lookup is pending', () => {
     const source = readFileSync(
       join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
