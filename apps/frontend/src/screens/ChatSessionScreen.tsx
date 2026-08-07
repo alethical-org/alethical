@@ -23,8 +23,8 @@ import { useChatSession, useCreateChatSession, useSendChatMessage } from '../hoo
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
+import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 import { theme } from '../theme/tokens';
-import { fieldFocusRing } from '../theme/fieldFocus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatSession'>;
 type ChatParams = RootStackParamList['ChatSession'];
@@ -37,7 +37,6 @@ type DisplayMessage = {
   isTyping?: boolean;
 };
 
-const webInputFocusReset = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null;
 const pendingBillChatStorageKey = 'alethical.pendingBillChat';
 
 function hasBillChatSubject(params: Partial<ChatParams>) {
@@ -112,7 +111,7 @@ export function ChatSessionScreen({ route }: Props) {
     return readPendingBillChat() ?? routeParams;
   }, [routeParams]);
   const [draft, setDraft] = useState('');
-  const [composerFocused, setComposerFocused] = useState(false);
+  const { focused: composerFocused, focusProps: composerFocusProps } = useFieldFocus();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sessionId, setSessionId] = useState(params.sessionId);
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
@@ -410,11 +409,11 @@ export function ChatSessionScreen({ route }: Props) {
                       caretHidden={false}
                       cursorColor={theme.colors.ink}
                       selectionColor={theme.colors.ink}
-                      style={[styles.input, webInputFocusReset]}
+                      style={[styles.input, fieldOutlineReset]}
                       value={draft}
                       onChangeText={setDraft}
-                      onFocus={() => setComposerFocused(true)}
-                      onBlur={() => setComposerFocused(false)}
+                      onFocus={composerFocusProps.onFocus}
+                      onBlur={composerFocusProps.onBlur}
                       onKeyPress={(event) => {
                         const nativeEvent = event.nativeEvent as {
                           key?: string;
