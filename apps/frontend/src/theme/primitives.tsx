@@ -15,7 +15,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
-import { ChevronDown, ChevronUp, Menu, X } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Menu, X } from '../components/icons';
 
 import { theme } from './tokens';
 import { getPageBackgroundStyle, type PageBackgroundVariant } from './pageBackground';

@@ -6,7 +6,7 @@ const { renderToStaticMarkup } = require('react-dom/server') as {
   renderToStaticMarkup: (node: React.ReactNode) => string;
 };
 
-vi.mock('lucide-react-native', () => ({
+vi.mock('../../icons', () => ({
   MapPin: () => <span aria-hidden="true" />,
   Navigation: () => <span aria-hidden="true" />,
 }));

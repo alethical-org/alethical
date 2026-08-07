@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Check, Plus, RefreshCw } from 'lucide-react-native';
+import { Check, Plus, RefreshCw } from '../icons';
 
 import { useTrackedListState } from '../../hooks/useAppQueries';
 import { theme as t } from '../../theme/tokens';
