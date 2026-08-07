@@ -292,8 +292,10 @@ endpoints env-overridable. The second stage runs only when the first finds nothi
    type, and direction rank the official results; equally close results become choices.
    The fallback refuses a close match when the state says its result list was cut short.
 3. **District:** `GET https://gis.lcc.mn.gov/api/?lat=...&lng=...` → GeoJSON
-   `features` → house/senate district codes. House-within-Senate safety checks use the
-   original government outlines; geometry is reduced only for the browser map afterward.
+   `features` → house/senate district codes. The returned shapes must cover the selected
+   point, and the House and Senate district numbers must nest. Their full outlines are not
+   compared because the API prepares the 2 response shapes separately. Geometry is reduced
+   only for the browser map afterward.
 
 Overrides: `ALETHICAL_CENSUS_GEOCODER_URL`, `ALETHICAL_CENSUS_BENCHMARK`,
 `ALETHICAL_MN_ADDRESS_POINTS_URL`, `ALETHICAL_MN_GIS_LOOKUP_URL`,

@@ -393,8 +393,17 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     runAddress(address);
   };
   const chooseAddress = (choice: RepresentativeAddressChoice) => {
+    const { serviceAddress } = prepareAddressLookup(choice.matchedAddress);
+    setAddress(choice.matchedAddress);
     setChoiceClosed(true);
     setPreserveMapViewport(false);
+    autoRanFor.current = serviceAddress || null;
+    navigation.setParams({
+      address: choice.matchedAddress,
+      coordinate: undefined,
+      lookupAddress: undefined,
+      locationFailure: undefined,
+    });
     runCoordinate({ latitude: choice.latitude, longitude: choice.longitude }, 'choice');
   };
   const onChoiceKey = (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => {
@@ -407,6 +416,13 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       setChoiceClosed(true);
       addressInputRef.current?.focus();
     }
+  };
+  const onChoiceListKey = (event: {
+    nativeEvent?: { key?: string };
+    preventDefault?: () => void;
+  }) => {
+    if (event.nativeEvent?.key === 'Enter') return;
+    onChoiceKey(event);
   };
   const navigateFromMenu = (item: IaItem) => {
     if (item.id === 'search-bills') navigation.navigate('Bills');
@@ -551,6 +567,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
           <View style={styles.addressArea}>
             <View style={[styles.controlRow, isMobile && styles.controlRowMobile]}>
               <View
+                {...(isWeb ? ({ onKeyDownCapture: onChoiceKey } as object) : null)}
                 style={[
                   styles.inputShell,
                   isMobile && styles.inputShellMobile,
@@ -563,7 +580,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   accessibilityLabel="Full Minnesota street address"
                   aria-describedby={addressError ? ADDRESS_ERROR_ID : undefined}
                   aria-invalid={addressError ? true : undefined}
-                  onKeyPress={onChoiceKey}
+                  {...(!isWeb ? ({ onKeyPress: onChoiceKey } as object) : null)}
                   {...({
                     role: 'combobox',
                     'aria-expanded': choices.length > 0,
@@ -614,6 +631,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   nativeID={ADDRESS_CHOICES_ID}
                   {...({ role: 'listbox' } as object)}
                   accessibilityLabel="Matching Minnesota addresses"
+                  {...(isWeb ? ({ onKeyDownCapture: onChoiceListKey } as object) : null)}
                   style={styles.choiceList}
                 >
                   {choices.map((choice, index) => (
@@ -623,6 +641,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                       {...({ role: 'option' } as object)}
                       aria-selected={index === choiceIndex}
                       onFocus={() => setChoiceIndex(index)}
+                      onHoverIn={() => setChoiceIndex(index)}
                       onPress={() => chooseAddress(choice)}
                       style={[styles.choiceRow, index === choiceIndex && styles.choiceRowActive]}
                     >
@@ -631,7 +650,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   ))}
                 </View>
                 <Text style={styles.choiceHelp}>
-                  Use ↑ and ↓ to move, Enter to choose, Esc to close
+                  Use <Text style={styles.choiceKey}>↑</Text> and{' '}
+                  <Text style={styles.choiceKey}>↓</Text> to move,{' '}
+                  <Text style={styles.choiceKey}>Enter</Text> to choose,{' '}
+                  <Text style={styles.choiceKey}>Esc</Text> to close
                 </Text>
               </View>
             ) : null}
@@ -986,6 +1008,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6f756f',
   },
+  choiceKey: { fontWeight: '700' },
   choiceList: { marginTop: 8, borderTopWidth: 1, borderColor: t.colors.alpha.ink08 },
   choiceRow: {
     minHeight: 44,
