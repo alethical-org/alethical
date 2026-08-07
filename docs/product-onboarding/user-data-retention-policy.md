@@ -341,8 +341,11 @@ dangerous one.
 `question_prompts` and shows them as buttons. An exact, unedited match may therefore reuse
 a public saved answer ([#1119](https://github.com/alethical-org/alethical/issues/1119)).
 The saved row contains the answer, public citations, and fingerprints of public system
-inputs. It has no question-text field and never hashes request text. Editing even one word
-sends the request through the ordinary reader-written path and saves no cache row.
+inputs. Its answer-pipeline fingerprint changes with the prompt, cleaning, chunking,
+retrieval, coverage, answer assembly, guards, and citation rules that shape the answer
+([#1140](https://github.com/alethical-org/alethical/issues/1140)). It has no
+question-text field and never hashes request text. Editing even one word sends the request
+through the ordinary reader-written path and saves no cache row.
 
 **What we are deliberately not doing.** We are not shortening this to a few weeks. A
 reader following a bill needs to come back to their own thread months later, and a

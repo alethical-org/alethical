@@ -51,7 +51,12 @@ from alethical.api.services.ask_router import (
 )
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
-from alethical.pipeline.rag_ingest import DEFAULT_RAG_MODEL, effective_embedding_model
+from alethical.pipeline import rag as rag_text
+from alethical.pipeline.rag_ingest import (
+    DEFAULT_RAG_MODEL,
+    VECTOR_DIMENSIONS,
+    effective_embedding_model,
+)
 
 schema = load_schema()
 Bill = schema.Bill
@@ -677,6 +682,11 @@ _LIST_QUESTION_WORD_BUDGET = 20_000
 # most of them away.
 _LIST_QUESTION_CHUNK_CEILING = 200
 
+# HNSW search-beam width for both bill resolution and within-bill retrieval. It
+# changes which passages can win a nearest-neighbour search, so it is part of the
+# saved public-answer pipeline fingerprint below.
+_HNSW_EF_SEARCH = 100
+
 # How many passages the answer SHOWS as citations, however many it read. Reading and
 # showing are different jobs: the synthesizer gets everything inside the word budget,
 # while a citation is something a person checks the answer against, and the first
@@ -969,7 +979,7 @@ def _bill_text_answer(
     # exceed the retrieval LIMIT (25 here) for good recall — 100 gives headroom at
     # negligible latency. (Was ivfflat.probes=10; the ivfflat index was replaced by
     # HNSW, which recovered recall and cut ~9s search latency.)
-    db.execute(text("SET LOCAL hnsw.ef_search = 100"))
+    db.execute(text(f"SET LOCAL hnsw.ef_search = {_HNSW_EF_SEARCH}"))
 
     session_ids = _question_session_ids(scope, content)
     if session_ids is None:
@@ -1058,6 +1068,50 @@ def _bill_text_answer(
     )
 
 
+SUGGESTED_ANSWER_PIPELINE_VERSION = "1"
+
+
+def _suggested_answer_pipeline_fingerprint() -> str:
+    """Identify every public-answer rule not already carried by the bill key.
+
+    Most settings are included by value, so changing a chunk size, prompt,
+    retrieval budget, citation limit, or RAG data version invalidates old answers
+    automatically. ``SUGGESTED_ANSWER_PIPELINE_VERSION`` covers logic whose meaning
+    cannot be reduced to a constant: query construction and ordering, coverage
+    calculation, prompt assembly, provider request options, answer guards, citation
+    shaping, and the saved payload. Bump it whenever one of those rules changes.
+
+    This material is application configuration only. It never includes request text;
+    the separate suggestion fingerprint is derived only after an exact match to a
+    current public question.
+    """
+    fields = (
+        ("answer_pipeline", SUGGESTED_ANSWER_PIPELINE_VERSION),
+        ("answer_prompt", rag_chat_prompt_fingerprint()),
+        ("rag_cleaning", rag_text.CLEANING_VERSION),
+        ("rag_chunking", rag_text.CHUNKING_VERSION),
+        ("rag_target_words", rag_text.TARGET_CHUNK_WORDS),
+        ("rag_max_words", rag_text.MAX_CHUNK_WORDS),
+        ("rag_min_words", rag_text.MIN_CHUNK_WORDS),
+        ("rag_overlap_blocks", rag_text.OVERLAP_BLOCKS),
+        ("rag_low_info_words", rag_text.LOW_INFO_WORDS),
+        ("rag_banned_markers", "\x1e".join(rag_text.BANNED_MARKERS)),
+        ("vector_dimensions", VECTOR_DIMENSIONS),
+        ("enumerating_pattern", _LIST_QUESTION_RE.pattern),
+        ("enumerating_flags", _LIST_QUESTION_RE.flags),
+        ("specific_question_limit", _BILL_TEXT_CHUNK_LIMIT),
+        ("list_question_word_budget", _LIST_QUESTION_WORD_BUDGET),
+        ("list_question_chunk_ceiling", _LIST_QUESTION_CHUNK_CEILING),
+        ("hnsw_ef_search", _HNSW_EF_SEARCH),
+        ("served_citation_limit", _SERVED_CITATION_LIMIT),
+        ("excerpt_max_chars", _EXCERPT_MAX_CHARS),
+        ("chunk_prefix_pattern", _CHUNK_PREFIX_LINE_RE.pattern),
+        ("chunk_prefix_flags", _CHUNK_PREFIX_LINE_RE.flags),
+    )
+    material = "\0".join(f"{name}={value}" for name, value in fields)
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
 def _suggested_cache_identity(match: _SuggestedQuestionMatch) -> dict:
     """Every input that can change a generated answer, with no request text."""
     return {
@@ -1067,7 +1121,7 @@ def _suggested_cache_identity(match: _SuggestedQuestionMatch) -> dict:
         "suggestion_index": match.suggestion_index,
         "suggestion_fingerprint": match.suggestion_fingerprint,
         "bill_text_fingerprint": match.bill_text_fingerprint,
-        "prompt_fingerprint": rag_chat_prompt_fingerprint(),
+        "answer_pipeline_fingerprint": _suggested_answer_pipeline_fingerprint(),
         "answer_model": os.environ.get(
             "OPENAI_RAG_CHAT_MODEL", DEFAULT_RAG_CHAT_MODEL
         ).strip(),
