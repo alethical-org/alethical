@@ -42,7 +42,7 @@ scannable, cited overview, NOT a prose paragraph duplicated by bullets.
   purple citation chips already show it's cited. Just do it, don't label it.
 - Key-point bullets are **round, ink `#11150f`** (not green squares).
 - **"From the bill" excerpt cards match the home hero badge:** purple number
-  chip + short descriptive label, italic green-left-border quote. NO "Section"
+  chip + short descriptive label, flush-left italic grey quote. NO "Section"
   word in each card, NO page number, NO per-card revisor line. A single **"Cited
   Sections ✓"** label (mono grey + green circle-check) sits beside the "From the
   bill" heading — no enumerated § numbers (the per-card chips carry traceability).

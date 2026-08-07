@@ -2085,8 +2085,8 @@ function sentenceCaseHeading(raw: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-// "From the bill" excerpt, for display. The italic type and the green left rule
-// already read as a quotation, so the excerpt carries no quotation marks; and it
+// "From the bill" excerpt, for display. The italic grey type already reads as a
+// quotation, so the excerpt carries no quotation marks; and it
 // never ends unpunctuated, which reads as a rendering bug rather than a quote
 // ("…consists of the following members"). Where the source was cut, close with a
 // single ellipsis character (U+2026), never three periods.

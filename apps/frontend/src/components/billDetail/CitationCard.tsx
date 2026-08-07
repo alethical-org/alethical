@@ -4,6 +4,7 @@ import { theme as t, prefersReducedMotion } from '../../theme/tokens';
 import { citationChipLabel, citationExcerpt } from '../../lib/billDetail';
 import { useFieldFocus } from '../../theme/fieldFocus';
 import { useHover } from './interactions';
+import { useResponsive } from '../../hooks/useResponsive';
 
 const isWeb = Platform.OS === 'web';
 
@@ -48,7 +49,7 @@ export function CitationCard({
 }: {
   label: string;
   sectionTopic?: string;
-  /** Every passage quoted from this section, each under its own light-purple rule. The
+  /** Every passage quoted from this section, set in italic grey type. The
    *  Summary tab passes one; the Ask answer page passes all of the section's, because
    *  a section that contributed three passages contributed three different facts
    *  (grounded-ask-spec §9.5 decision 1). */
@@ -56,10 +57,11 @@ export function CitationCard({
   onPress?: () => void;
   linkProps?: object;
   accessibilityLabel?: string;
-  /** Answer groups several passages under one source chip. Its purple rules and
-   *  wider quote-to-quote spacing are deliberately not used by Bill Detail. */
+  /** Answer groups several passages under one source chip. Its wider
+   *  quote-to-quote spacing is deliberately not used by Bill Detail. */
   variant?: 'default' | 'answer';
 }) {
+  const { isMobile } = useResponsive();
   const [hovered, hover] = useHover();
   const { focused, focusProps } = useFieldFocus();
   const pressable = !!onPress || !!linkProps;
@@ -97,7 +99,8 @@ export function CitationCard({
           key={i}
           style={[
             styles.quote,
-            variant === 'answer' ? styles.answerQuote : styles.defaultQuote,
+            isMobile && styles.quoteMobile,
+            variant === 'answer' ? null : styles.defaultQuote,
             variant === 'answer' &&
               (i === 0 ? styles.firstAnswerQuote : styles.followingAnswerQuote),
           ]}
@@ -202,16 +205,14 @@ const styles = StyleSheet.create({
     top: -2.6,
   },
   quote: {
-    paddingLeft: 12,
-    borderLeftWidth: 3,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.small,
     lineHeight: 21,
     color: t.colors.text.secondary,
     fontStyle: 'italic',
   },
-  defaultQuote: { marginTop: 9, borderLeftColor: t.colors.tint.border },
-  answerQuote: { borderLeftColor: t.colors.purple.quoteRule },
+  quoteMobile: { fontSize: 16, lineHeight: 24 },
+  defaultQuote: { marginTop: 9 },
   firstAnswerQuote: { marginTop: 8 },
   followingAnswerQuote: { marginTop: 15 },
   askChip: {

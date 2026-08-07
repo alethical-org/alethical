@@ -102,9 +102,9 @@ so the band is omitted rather than left decorative.
 - Each card carries ONE purple mono chip: `Art. 1, Sec. {N} · {Section title} →`
   (bg `#f0ebfc`, border `#d8c9f7`, text `#5b30d6`, mono 13px/700, radius 7, padding
   `3px 9px`, trailing "→" glyph at weight 400). Sentence case on the title.
-- Quotes below the chip: `padding-left:12px`, `border-left:3px solid #bda6ee`, italic,
-  14px/1.5, `#4f5651`. The chip-to-first-quote gap is 8px; later quotes in that section
-  are 15px apart. **No quotation marks** — the rule and the italic already mark them as quoted.
+- Quotes below the chip: flush left, italic, 14px/1.5 on web and 16px/1.5 on phone,
+  `#4f5651`. The chip-to-first-quote gap is 8px; later quotes in that section are 15px
+  apart. **No quotation marks** — italic type marks them as quoted.
 - Where the bill text carries a grant label and amount, keep them ahead of the sentence
   (`Freeport; I-94 Interchange | 6,000,000 — For a grant to…`).
 - **Truncation ends at a whole word with an ellipsis.** Live currently cuts mid-word

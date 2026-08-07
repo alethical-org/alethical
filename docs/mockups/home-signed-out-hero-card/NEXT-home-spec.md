@@ -32,8 +32,8 @@ Anatomy, top → bottom:
    left = Signed / Effective, right = Chief author / **House–Senate vote counts**.
 4. Plain-language summary paragraph (heavier/darker type — reads as a new section on its own).
 5. **"CITED SECTIONS"** header + green circle-check (✓). No statute number in the label.
-6. Up to **3 cited-section cards**: **plain-language title only** + italic excerpt under a 3px
-   light-purple (`#bda6ee`) left rule. No numbered chips.
+6. Up to **3 cited-section cards**: **plain-language title only** + flush-left italic excerpt.
+   No numbered chips and no decorative rule.
 
 Rules:
 - **No companion-bill line.** Votes live in the right meta column (keeps two balanced columns).
@@ -42,13 +42,13 @@ Rules:
 - **Header** is "CITED SECTIONS" + green ✓ — the statute number is NOT in the label.
 - **Section titles** are plain-language only — no "3(b) —" subsection-number prefixes (that detail
   is bill-profile territory).
-- **Excerpts** are italic with a light-purple left-border and **no surrounding quotation marks** (matches
-  the bill profile's "From the bill").
+- **Excerpts** are flush-left italic with **no surrounding quotation marks** (matches the bill
+  profile's "From the bill").
 - **Footer:** a single internal **"View bill profile →"** (green text link) to our bill profile.
   The external source-text link ("Read the full law" / "Read the bill text") lives on the bill
   profile, NOT here.
 - **Color roles:** amber = bill-code identity; green = actions/links and the cited/verified ✓;
-  purple = citation quote rules + focus.
+  purple = citation chips + focus.
 
 ## Bill Activity — data-driven (most recent), NOT curated
 The cards under **Bill Activity** are selected automatically from the ingested bill data. The
