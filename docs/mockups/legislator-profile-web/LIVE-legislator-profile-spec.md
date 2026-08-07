@@ -22,9 +22,11 @@ place.
 
 ## Committees — show leadership
 Render the member's real committee assignments, and surface **leadership roles**
-as a badge on the row: **Chair** / **Vice Chair** (green-tint pill). Non-leadership
-rows are plain. (Fateh: Higher Education — Chair; Human Services — Vice Chair;
-Health and Human Services; State and Local Government.)
+as a badge after the committee name: **Chair** / **Vice Chair** / **Co-Chair** /
+**Ranking Minority Member**. The green-tint pill uses `#e4f8ee`, a 1px
+`#bfeacf` border, fully rounded ends, and 10px bold uppercase mono text in
+`#0f7a45`. Rows wrap so the longest role stays whole. Non-leadership rows show
+the name alone, with no empty badge or placeholder.
 
 ## Legislative Service — MULTI-CHAMBER model (important, CONFIRMED)
 The official "Legislative Service" block is an **ordered list of election lines**
@@ -77,15 +79,29 @@ divider — NOT a bold black h2 (that over-weights not-yet-live features vs. rea
 record sections). Subtitle non-committal: "Features we plan to build." NEVER
 "coming soon"/"SOON"; never a delivery commitment (see CLAUDE.md roadmap rule). Two
 de-emphasized dashed cards, laid out as a horizontal 2-up pair.
-1. **Claim this profile (Zillow-style).** Claiming links the legislator to the
+
+1. **Claimed Profiles.** The depicted action still reads **Claim this profile**
+   and keeps its shield, but it is a static `<span aria-disabled="true">`, never a
+   link or button. It uses a pale mint `#e4f8ee` fill, a 1px `#bfeacf` border, and
+   `#0f7a45` text and shield. It has no click handler, modal, sheet, or popup.
+   Claiming links the legislator to the
    **existing** record (do not restate "never a separate profile" — implied). Once
    verified against official legislative records, a claimed legislator can: manage
    their biography, write up the bills they've worked on, and add their own context
-   alongside the public facts. (Match these verbs to the claim modal's three rows.)
+   alongside the public facts. A roadmap item may depict its action but never offer
+   a click target.
 2. **Vote explanations ("Why the votes?").** Framed as an OPTION, never a guarantee:
-   "Once claimed, a legislator will have the option to explain any vote they cast."
+   "Wonder why {name} voted that way? Once claimed, a legislator will have the
+   option to explain any vote they cast."
    The explanation layer lives on the profile. Reciprocal "jump from a vote to here"
    link on Bill/Votes pages is the other half (not yet wired).
+
+## Ask about this legislator
+
+Match the bill profile's Ask pattern: heading, **"Answers cite the public record"**,
+then the 3 preset questions. There is no free-text field or separate Ask button.
+The answerable topic questions remain the grounded-answers exception to the
+illustrative design copy until person-scoped answers ship.
 
 ## "See more" button (chief-authored bills)
 - Full-width outline button, centered content, label **"See more"** + a long

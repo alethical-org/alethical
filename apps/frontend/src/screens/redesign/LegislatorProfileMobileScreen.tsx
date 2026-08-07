@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -9,14 +9,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
-import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { Skeleton } from '../../components/Skeleton';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
@@ -35,6 +33,21 @@ const AMBER_TEXT = t.colors.omnibus.text;
 const CODE_BADGE_FILL = t.colors.omnibus.fill;
 const CODE_BADGE_BORDER = t.colors.omnibus.border;
 const BREADCRUMB_GREY = '#4b524b';
+const claimPreviewStyle: CSSProperties = {
+  alignItems: 'center',
+  backgroundColor: t.colors.tint.t150,
+  border: `1px solid ${t.colors.tint.border}`,
+  borderRadius: 12,
+  color: t.colors.brand.deep,
+  cursor: 'default',
+  display: 'inline-flex',
+  fontFamily: t.typography.ui,
+  fontSize: 15,
+  fontWeight: t.fontWeights.bold,
+  gap: 9,
+  marginTop: 16,
+  padding: '13px 20px 13px 17px',
+};
 
 // ── small helpers ─────────────────────────────────────────────────────────────
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
@@ -416,47 +429,15 @@ function BillCardView({
 }
 
 // ── Ask about this legislator ─────────────────────────────────────────────────
-// Stacked (mobile): full-width field, full-width Ask button below, then starter
-// chips. Hands off to the one-shot Ask answer flow (grounded-answers §9: the
+// Preset question rows hand off to the one-shot Ask answer flow (grounded-answers §9: the
 // router produces an answer page, never opens chat directly).
-function AskCard({
-  shortName,
-  chips,
-  onAsk,
-}: {
-  shortName: string;
-  chips: string[];
-  onAsk: (q?: string) => void;
-}) {
-  const { focused, focusProps } = useFieldFocus();
-  const [q, setQ] = useState('');
+function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void }) {
   return (
     <View style={styles.askCard}>
       <Text accessibilityRole="header" style={styles.askTitle}>
         Ask about this legislator
       </Text>
-      <Text style={styles.askSub}>No account needed — answers cite the public record.</Text>
-      <View style={[styles.askField, ...fieldFocusRing(focused)]}>
-        <TextInput
-          value={q}
-          onChangeText={setQ}
-          onFocus={focusProps.onFocus}
-          onBlur={focusProps.onBlur}
-          onSubmitEditing={() => onAsk(q.trim() || undefined)}
-          returnKeyType="search"
-          placeholder={`Ask about ${shortName}’s record`}
-          placeholderTextColor={t.colors.text.faint}
-          style={[styles.askInput, fieldOutlineReset]}
-        />
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Ask"
-        onPress={() => onAsk(q.trim() || undefined)}
-        style={styles.askBtn}
-      >
-        <Text style={styles.askBtnText}>Ask</Text>
-      </Pressable>
+      <Text style={styles.askSub}>Answers cite the public record</Text>
       <View style={styles.askChips}>
         {chips.map((chip) => (
           <Pressable
@@ -487,7 +468,6 @@ export function LegislatorProfileMobileScreen() {
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [claimOpen, setClaimOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [showAllBills, setShowAllBills] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -858,9 +838,8 @@ export function LegislatorProfileMobileScreen() {
             <View style={styles.section}>
               <View style={styles.column}>
                 <AskCard
-                  shortName={leg.shortName}
                   chips={buildAskChips(allBills)}
-                  onAsk={(q) => navigation.navigate('Ask', q ? { q } : undefined)}
+                  onAsk={(q) => navigation.navigate('Ask', { q })}
                 />
               </View>
             </View>
@@ -882,14 +861,10 @@ export function LegislatorProfileMobileScreen() {
                       worked on, and add your own context. Verified against official legislative
                       records.
                     </Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setClaimOpen(true)}
-                      style={styles.claimBtn}
-                    >
-                      <ShieldCheck color={t.colors.brand.darkest} />
+                    <span aria-disabled={true} style={claimPreviewStyle}>
+                      <ShieldCheck color={t.colors.brand.deep} />
                       <Text style={styles.claimBtnText}>Claim this profile</Text>
-                    </Pressable>
+                    </span>
                   </View>
 
                   <View style={styles.roadmapCard}>
@@ -897,9 +872,9 @@ export function LegislatorProfileMobileScreen() {
                       Why the votes?
                     </Text>
                     <Text style={styles.roadmapCardBody}>
-                      See a roll call and wonder why {leg.shortName} voted that way? Once claimed, a
-                      legislator will have the option to explain any vote they cast — right here, in
-                      their own words, alongside the record.
+                      Wonder why {leg.shortName} voted that way? Once claimed, a legislator will
+                      have the option to explain any vote they cast — right here, in their own
+                      words, alongside the record.
                     </Text>
                     {/* Ghosted sample-vote preview — a dimmed illustration of the explanation
                         layer, clearly not a live record. */}
@@ -1023,81 +998,6 @@ export function LegislatorProfileMobileScreen() {
             />
           </View>
         </View>
-      </BottomSheet>
-
-      {/* CLAIM SHEET */}
-      <BottomSheet
-        visible={claimOpen}
-        onClose={() => setClaimOpen(false)}
-        label="Claim profile sheet"
-      >
-        <View style={styles.sheetIconGreen}>
-          <ShieldCheck color={t.colors.brand.graphics} size={24} />
-        </View>
-        <View style={styles.claimTitleRow}>
-          <Text accessibilityRole="header" style={styles.sheetTitle}>
-            Claim your profile
-          </Text>
-          <View style={styles.roadmapTag}>
-            <Text style={styles.roadmapTagText}>ON THE ROADMAP</Text>
-          </View>
-        </View>
-        <Text style={styles.sheetSub}>
-          You’re claiming the profile Alethical already keeps for{' '}
-          {leg ? honorificName(leg.name, leg.chamber) : 'this legislator'}. Claiming links you to
-          this existing record.
-        </Text>
-        <View style={styles.claimRows}>
-          {[
-            ['Manage your biography', 'Add or refine the bio shown at the top of this profile.'],
-            [
-              'Write up your bills',
-              'Explain the bills you’ve worked on in your own words, alongside the record.',
-            ],
-            [
-              'Add your own context',
-              'Give constituents your perspective — without changing the public facts.',
-            ],
-          ].map(([title, body]) => (
-            <View key={title} style={styles.claimRow}>
-              <View style={styles.claimCheck}>
-                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                  <Path
-                    d="M5 12.5 L10 17.5 L19 7"
-                    stroke={t.colors.brand.graphics}
-                    strokeWidth={2.4}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </Svg>
-              </View>
-              <View style={styles.claimRowBody}>
-                <Text style={styles.claimRowTitle}>{title}</Text>
-                <Text style={styles.claimRowSub}>{body}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-        <View style={styles.claimVerifyNote}>
-          <Text style={styles.claimVerifyText}>
-            We verify every claim against official legislative records before your additions go
-            live.
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setClaimOpen(false)}
-          style={styles.claimPrimary}
-        >
-          <Text style={styles.claimPrimaryText}>Start verification</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setClaimOpen(false)}
-          style={styles.claimSecondary}
-        >
-          <Text style={styles.claimSecondaryText}>Maybe later</Text>
-        </Pressable>
       </BottomSheet>
     </PageBackground>
   );
@@ -1287,7 +1187,7 @@ const styles = StyleSheet.create({
   },
   leadershipBadge: {
     paddingVertical: 3,
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     backgroundColor: t.colors.tint.t150,
     borderWidth: 1,
     borderColor: t.colors.tint.border,
@@ -1295,7 +1195,7 @@ const styles = StyleSheet.create({
   },
   leadershipBadgeText: {
     fontFamily: t.typography.mono,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.9,
     color: t.colors.brand.deep,
@@ -1571,24 +1471,11 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     color: t.colors.text.secondary,
   },
-  claimBtn: {
-    marginTop: 16,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    backgroundColor: t.colors.brand.base,
-    borderRadius: 12,
-    paddingVertical: 13,
-    // Leading shield glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
-    paddingLeft: 17,
-    paddingRight: 20,
-  },
   claimBtnText: {
     fontFamily: t.typography.ui,
     fontSize: 15,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.text.onGreen,
+    color: t.colors.brand.deep,
   },
 
   // bottom sheet
@@ -1622,16 +1509,6 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.purple.tint,
     borderWidth: 1,
     borderColor: t.colors.purple.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetIconGreen: {
-    width: 48,
-    height: 48,
-    borderRadius: 13,
-    backgroundColor: t.colors.tint.t150,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1705,97 +1582,6 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.s400,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  // claim sheet
-  claimTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  roadmapTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    backgroundColor: t.colors.surfaces.s400,
-    borderRadius: 999,
-  },
-  roadmapTagText: {
-    fontFamily: t.typography.mono,
-    fontSize: 10,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1,
-    color: t.colors.text.faint,
-  },
-  claimRows: { marginTop: 20, gap: 14 },
-  claimRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  claimCheck: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: t.colors.tint.t150,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  claimRowBody: { flex: 1 },
-  claimRowTitle: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-  },
-  claimRowSub: {
-    marginTop: 2,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 20,
-    color: t.colors.text.muted,
-  },
-  claimVerifyNote: {
-    marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: t.colors.surfaces.s200,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    borderRadius: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
-  },
-  claimVerifyText: {
-    flex: 1,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 21,
-    color: t.colors.text.secondary,
-  },
-  claimPrimary: {
-    marginTop: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: t.colors.brand.base,
-    borderRadius: 12,
-    paddingVertical: 15,
-  },
-  claimPrimaryText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.subhead,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.onGreen,
-  },
-  claimSecondary: {
-    marginTop: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-  },
-  claimSecondaryText: {
-    fontFamily: t.typography.ui,
-    fontSize: 15,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.faint,
   },
 
   // co-author link + companion chip
@@ -1909,38 +1695,6 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     color: t.colors.text.muted,
-  },
-  askField: {
-    marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-  },
-  askInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    color: t.colors.text.primary,
-    paddingVertical: 13,
-  },
-  askBtn: {
-    marginTop: 10,
-    backgroundColor: t.colors.purple.base,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  askBtnText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.subhead,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.white,
   },
   askChips: { marginTop: 14, gap: 8 },
   askChip: {
