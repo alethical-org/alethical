@@ -15,7 +15,6 @@ import {
   useSessions,
 } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
-import { useResponsive } from '../../hooks/useResponsive';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { usePaginatedListScroll } from '../../hooks/usePaginatedListScroll';
 import { BillResultCard } from '../../components/search/BillResultCard';
@@ -98,7 +97,6 @@ const STATUS_OPTIONS = [
 export function SearchBillsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { isDesktop } = useResponsive();
   const { isTracked, toggleTrack } = useBillTracking();
   const { scrollAnchorProps, onPageChange } = usePaginatedListScroll();
 
@@ -506,9 +504,6 @@ export function SearchBillsScreen() {
                 // Editorial "🔥 Hot issue" flag — same list that drives the home
                 // Bill Activity cards (lib/hotIssues.ts). Data-driven, not per-card.
                 hotIssue={isHotIssueBill(bill.id)}
-                // Hide Track on the mobile-web layout to keep the card's top row
-                // uncluttered (desktop keeps it).
-                showTrackButton={isDesktop}
                 tracked={isTracked(bill.id)}
                 onToggleTrack={() => toggleTrack(bill.id, bill.identifier)}
                 // Bill detail now ships as the redesigned mobile screen, so the

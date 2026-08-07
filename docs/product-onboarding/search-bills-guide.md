@@ -100,11 +100,12 @@ Above the list you always see:
 - **Issue tags** for the bill.
 - **A votes link** when there were recorded votes, taking you straight to how
   everyone voted.
-- **A black "+ Track" button** on desktop. Click it to save the bill to your
+- **A black "+ Track" button** on every card, on phones and larger screens. Tap or
+  click it to save the bill to your
   watchlist; if you are not signed in, a box opens asking you to sign in with
   Google and naming the bill, and the bill is saved for you when you come back.
   Once saved, it turns mint and reads "Tracked", so saved bills stand out without
-  reading every button. Press it again to remove the bill. It doesn't appear on a phone.
+  reading every button. Press it again to remove the bill.
 
 Tap a card to open the full bill; results are split into pages with Previous / Next.
 

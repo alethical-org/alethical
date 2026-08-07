@@ -56,9 +56,8 @@ interface BillResultCardProps {
   onRollCalls?: () => void;
   // Whether to show the Track button in the card header — honoured by BOTH the
   // desktop and the phone layout (#1007; the phone layout used to ignore it and
-  // render no control at all). Search passes false on the mobile-web layout to
-  // keep its top row uncluttered (#596); defaults on so other surfaces are
-  // unchanged.
+  // render no control at all). Defaults on so both responsive layouts expose the
+  // same action.
   showTrackButton?: boolean;
   // Whether this bill is on the signed-in user's watchlist (flips the button to
   // "Tracked"). Supplied by the screen via useBillTracking.
@@ -283,10 +282,9 @@ export function BillResultCard({
                 be tracked but never untracked from a phone — while the Tracked page's
                 own subhead told the reader to "Tap Track on any bill to add or remove
                 it" (#1007). It honours the same showTrackButton prop the desktop
-                branch does, so Search still opts out on mobile (#596's crowded-top-row
-                decision, which it makes by passing the prop) and every other surface
-                gets the control. Bill cards use the compact size at every viewport;
-                all three sizes carry the same 44px minimum touch target. */}
+                branch does and shows the action by default at every viewport (#1138).
+                Bill cards use the compact size at every viewport; all three sizes
+                carry the same 44px minimum touch target. */}
             {showTrackButton && onToggleTrack ? (
               <View style={styles.headerTrackSlot}>
                 <BillTrackButton
