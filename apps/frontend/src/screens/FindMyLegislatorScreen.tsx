@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
   },
   congressional: { fontFamily: t.typography.body, fontSize: 14, color: t.colors.text.muted },
   cards: { flexDirection: 'row', gap: 18, alignItems: 'flex-start' },
-  cardsMobile: { flexDirection: 'column' },
+  cardsMobile: { flexDirection: 'column', alignItems: 'stretch' },
   source: {
     paddingLeft: 17,
     marginTop: 8,
