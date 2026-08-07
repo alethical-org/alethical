@@ -18,7 +18,7 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 import { ChevronDown, ChevronUp, Menu, X } from '../components/icons';
 
 import { theme } from './tokens';
-import { getPageBackgroundStyle, type PageBackgroundVariant } from './pageBackground';
+import { getPageBackgroundStyle } from './pageBackground';
 import { useUnavailableControl } from '../components/billDetail/interactions';
 import { IaItem, MenuKey, MENUS, navDropdownItems } from '../navigation/ia';
 import { linkProps, routePath } from '../navigation/links';
@@ -73,17 +73,10 @@ function navRowLinkProps(item: IaItem, onPress?: (item: IaItem) => void) {
   return href ? linkProps(href, press) : { accessibilityRole: 'link' as const, onPress: press };
 }
 
-// --- Page background: desktop gradient + green wash. Phone widths use the plain
-//     base color so the decorative wash never appears in a mobile corner. ---
-export function PageBackground({
-  children,
-  variant = 'page',
-}: {
-  children: ReactNode;
-  variant?: PageBackgroundVariant;
-}) {
+// --- Neutral page background. Phone widths use the plain base color. ---
+export function PageBackground({ children }: { children: ReactNode }) {
   const { isMobile } = useResponsive();
-  const backgroundStyle = getPageBackgroundStyle(isMobile, variant);
+  const backgroundStyle = getPageBackgroundStyle(isMobile);
   // Dots are drawn page-relative inside the scroll content (see PageDots), not here,
   // so they scroll with the page and fade near the top and bottom like the mockup.
   return <View style={[styles.pageBg, backgroundStyle]}>{children}</View>;
