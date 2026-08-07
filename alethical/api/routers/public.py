@@ -558,11 +558,18 @@ def district_for_match(db: Session, match: DistrictMatch | None):
         chamber_type = ChamberType.senate
     else:
         return None
+    service_code = match.district_code.upper()
+    code_match = re.fullmatch(r"(\d{1,2})([A-Z]?)", service_code)
+    database_code = (
+        f"{int(code_match.group(1)):02d}{code_match.group(2)}"
+        if code_match
+        else service_code
+    )
     return db.scalar(
         select(District)
         .join(Chamber, Chamber.id == District.chamber_id)
         .where(
-            District.code == match.district_code.upper(),
+            District.code == database_code,
             Chamber.chamber_type == chamber_type,
         )
     )

@@ -716,6 +716,7 @@ Rationale:
 - address lookup first asks the US Census for the full address, then retries the house and street with Minnesota when a wrong postal city or ZIP hid a real match
 - if both Census attempts find nothing, the backend asks Minnesota's public statewide address-point list using only the house number and street name; several distinct matches become choices rather than a guess
 - House and Senate come from the Minnesota Legislative Coordinating Commission lookup service; Congress is read from the commission's official 2022 district map stored with the backend, so a person's precise point is not sent to another outside service and number-only rows are not mistaken for congressional districts
+- single-digit House and Senate numbers from that map are padded before the saved district lookup (`4A`/`4` becomes `04A`/`04`), matching the official records instead of falsely reporting no address match
 - House-within-Senate validation uses the original government outlines; the smaller browser copy is made only after that safety check so drawing cleanup cannot reject a valid district
 
 ### Cross-Entity Search
