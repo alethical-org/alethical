@@ -103,6 +103,9 @@ importers:
       eas-cli:
         specifier: 20.0.0
         version: 20.0.0(@types/node@25.6.0)(typescript@5.9.3)
+      pngjs:
+        specifier: 7.0.0
+        version: 7.0.0
       prettier:
         specifier: 3.4.2
         version: 3.4.2
