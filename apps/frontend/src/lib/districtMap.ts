@@ -6,13 +6,20 @@ export function arrowMovedCoordinate(
   coordinate: RepresentativeLookupCoordinates,
   key: string,
   shifted: boolean,
+  zoom: number,
 ): RepresentativeLookupCoordinates {
-  const step = shifted ? 0.005 : 0.001;
-  return {
-    latitude: coordinate.latitude + (key === 'ArrowUp' ? step : key === 'ArrowDown' ? -step : 0),
-    longitude:
-      coordinate.longitude + (key === 'ArrowRight' ? step : key === 'ArrowLeft' ? -step : 0),
+  const point = {
+    x: TILE_SIZE * longitudeToTileX(coordinate.longitude, zoom),
+    y: TILE_SIZE * latitudeToTileY(coordinate.latitude, zoom),
   };
+  const step = shifted ? 48 : 16;
+  return coordinateAtWorldPoint(
+    {
+      x: point.x + (key === 'ArrowRight' ? step : key === 'ArrowLeft' ? -step : 0),
+      y: point.y + (key === 'ArrowDown' ? step : key === 'ArrowUp' ? -step : 0),
+    },
+    zoom,
+  );
 }
 
 function longitudeToTileX(longitude: number, zoom: number) {
@@ -22,6 +29,13 @@ function longitudeToTileX(longitude: number, zoom: number) {
 function latitudeToTileY(latitude: number, zoom: number) {
   const radians = (latitude * Math.PI) / 180;
   return ((1 - Math.log(Math.tan(radians) + 1 / Math.cos(radians)) / Math.PI) / 2) * 2 ** zoom;
+}
+
+function coordinateAtWorldPoint(point: { x: number; y: number }, zoom: number) {
+  const scale = TILE_SIZE * 2 ** zoom;
+  const longitude = (point.x / scale) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * point.y) / scale;
+  return { latitude: (180 / Math.PI) * Math.atan(Math.sinh(n)), longitude };
 }
 
 export function visibleTileKeys(

@@ -24,6 +24,11 @@ const OSM_COPYRIGHT = 'https://www.openstreetmap.org/copyright';
 const GIS_CREDIT = 'https://gis.lcc.mn.gov/';
 const isWeb = Platform.OS === 'web';
 
+const MINNESOTA_GEOMETRY: GeoJsonGeometry = {
+  type: 'Polygon',
+  coordinates: [MINNESOTA_BOUNDARY.map(([latitude, longitude]) => [longitude, latitude])],
+};
+
 type Size = { width: number; height: number };
 
 export interface MapPinPickerProps {
@@ -34,7 +39,18 @@ export interface MapPinPickerProps {
   senateDistrict?: string;
   otherHouseDistrict?: string;
   onCoordinateChange: (coordinate: RepresentativeLookupCoordinates) => void;
+  onOutsideMinnesota?: (coordinate: RepresentativeLookupCoordinates) => void;
   mobile?: boolean;
+}
+
+export function tileUrlForKey(key: string) {
+  const template = [
+    process.env.EXPO_PUBLIC_OPENSTREETMAP_TILE_URL,
+    process.env.EXPO_PUBLIC_MAP_TILE_URL,
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  ].find((value) => value?.trim());
+  const [z, x, y] = key.split('/');
+  return template!.replaceAll('{z}', z).replaceAll('{x}', x).replaceAll('{y}', y);
 }
 
 function MapCredit({ href, label }: { href: string; label: string }) {
@@ -173,6 +189,7 @@ export function MapPinPicker({
   senateDistrict,
   otherHouseDistrict,
   onCoordinateChange,
+  onOutsideMinnesota,
   mobile = false,
 }: MapPinPickerProps) {
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
@@ -181,22 +198,25 @@ export function MapPinPicker({
     longitude: -94.4,
   });
   const [zoom, setZoom] = useState(6);
-  const [tilesLoaded, setTilesLoaded] = useState(false);
+  const [tileState, setTileState] = useState({ requestKey: '', loaded: false, failed: 0 });
   const [displayCoordinate, setDisplayCoordinate] = useState(coordinate);
   const [dragPin, setDragPin] = useState<{ x: number; y: number } | null>(null);
+  const [pinFocused, setPinFocused] = useState(false);
   const fittedFor = useRef<GeoJsonGeometry | undefined>(undefined);
   const keyboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pinTargetRef = useRef<View | null>(null);
   const panStart = useRef(center);
+  const geometryToFit = senateGeometry ?? MINNESOTA_GEOMETRY;
 
   useEffect(() => {
-    if (!senateGeometry || fittedFor.current === senateGeometry) return;
-    const fitted = fitView(senateGeometry, size);
+    if (fittedFor.current === geometryToFit) return;
+    const fitted = fitView(geometryToFit, size);
     if (fitted) {
-      fittedFor.current = senateGeometry;
+      fittedFor.current = geometryToFit;
       setCenter(fitted.center);
       setZoom(fitted.zoom);
     }
-  }, [senateGeometry, size]);
+  }, [geometryToFit, size]);
 
   useEffect(
     () => () => {
@@ -211,9 +231,29 @@ export function MapPinPicker({
     () => (size.width ? visibleTileKeys(center, size, zoom) : []),
     [center, size, zoom],
   );
+  const tileRequestKey = tiles.join('|');
+  const tilesLoaded = tileState.requestKey === tileRequestKey && tileState.loaded;
   const pinPoint = displayCoordinate ? screenPoint(displayCoordinate, center, size, zoom) : null;
+  const statePath = geoPath(MINNESOTA_GEOMETRY, center, size, zoom);
   const housePath = geoPath(houseGeometry, center, size, zoom);
   const senatePath = geoPath(senateGeometry, center, size, zoom);
+
+  useEffect(() => {
+    setTileState({ requestKey: tileRequestKey, loaded: false, failed: 0 });
+  }, [tileRequestKey]);
+
+  const markTileLoaded = () => {
+    setTileState((current) =>
+      current.requestKey === tileRequestKey ? { ...current, loaded: true } : current,
+    );
+  };
+  const markTileFailed = () => {
+    setTileState((current) =>
+      current.requestKey === tileRequestKey
+        ? { ...current, failed: Math.min(current.failed + 1, tiles.length) }
+        : current,
+    );
+  };
 
   const mapPan = useMemo(
     () =>
@@ -237,14 +277,13 @@ export function MapPinPicker({
               size,
               zoom,
             );
-            if (isCoordinateInMinnesota(chosen)) {
-              setDisplayCoordinate(chosen);
-              onCoordinateChange(chosen);
-            }
+            if (!isCoordinateInMinnesota(chosen)) return onOutsideMinnesota?.(chosen);
+            setDisplayCoordinate(chosen);
+            onCoordinateChange(chosen);
           }
         },
       }),
-    [center, onCoordinateChange, size, zoom],
+    [center, onCoordinateChange, onOutsideMinnesota, size, zoom],
   );
 
   const pinPan = useMemo(
@@ -266,29 +305,22 @@ export function MapPinPicker({
             zoom,
           );
           setDragPin(null);
-          if (isCoordinateInMinnesota(chosen)) {
-            setDisplayCoordinate(chosen);
-            onCoordinateChange(chosen);
-          }
+          if (!isCoordinateInMinnesota(chosen)) return onOutsideMinnesota?.(chosen);
+          setDisplayCoordinate(chosen);
+          onCoordinateChange(chosen);
         },
       }),
-    [center, onCoordinateChange, pinPoint, size, zoom],
+    [center, onCoordinateChange, onOutsideMinnesota, pinPoint, size, zoom],
   );
 
-  const movePinByKey = (event: {
-    nativeEvent?: { key?: string; shiftKey?: boolean };
-    preventDefault?: () => void;
-  }) => {
-    const key = event.nativeEvent?.key ?? '';
+  const movePinByKey = (key: string, shiftKey = false) => {
     if (!displayCoordinate || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key))
-      return;
-    event.preventDefault?.();
-    const moved = arrowMovedCoordinate(
-      displayCoordinate,
-      key,
-      Boolean(event.nativeEvent?.shiftKey),
-    );
-    if (!isCoordinateInMinnesota(moved)) return;
+      return false;
+    const moved = arrowMovedCoordinate(displayCoordinate, key, shiftKey, zoom);
+    if (!isCoordinateInMinnesota(moved)) {
+      onOutsideMinnesota?.(moved);
+      return true;
+    }
     setDisplayCoordinate(moved);
     const nextPoint = screenPoint(moved, center, size, zoom);
     if (
@@ -301,7 +333,18 @@ export function MapPinPicker({
     }
     if (keyboardTimer.current) clearTimeout(keyboardTimer.current);
     keyboardTimer.current = setTimeout(() => onCoordinateChange(moved), 500);
+    return true;
   };
+
+  useEffect(() => {
+    const target = pinTargetRef.current as unknown as HTMLElement | null;
+    if (!isWeb || !target) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (movePinByKey(event.key, event.shiftKey)) event.preventDefault();
+    };
+    target.addEventListener('keydown', handleKeyDown);
+    return () => target.removeEventListener('keydown', handleKeyDown);
+  }, [movePinByKey]);
 
   const otherPill =
     senateGeometry && otherHouseDistrict ? screenPoint(center, center, size, zoom) : null;
@@ -322,10 +365,10 @@ export function MapPinPicker({
         {tiles.map((key) => (
           <Image
             key={key}
-            source={{ uri: `https://tile.openstreetmap.org/${key}.png` }}
+            source={{ uri: tileUrlForKey(key) }}
             style={tileStyle(key, center, size, zoom)}
-            onLoad={() => setTilesLoaded(true)}
-            onError={() => undefined}
+            onLoad={markTileLoaded}
+            onError={markTileFailed}
           />
         ))}
         <Svg
@@ -334,6 +377,31 @@ export function MapPinPicker({
           width={size.width}
           height={size.height}
         >
+          {statePath ? (
+            <Path
+              d={`M0 0H${size.width}V${size.height}H0Z ${statePath}`}
+              fill="rgba(255,255,255,0.4)"
+              fillRule="evenodd"
+            />
+          ) : null}
+          {statePath ? (
+            <Path
+              d={statePath}
+              fill="none"
+              stroke="white"
+              strokeWidth={5.5}
+              strokeLinejoin="round"
+            />
+          ) : null}
+          {statePath ? (
+            <Path
+              d={statePath}
+              fill="none"
+              stroke="rgba(17,21,15,0.55)"
+              strokeWidth={2.5}
+              strokeLinejoin="round"
+            />
+          ) : null}
           {housePath ? (
             <Path
               d={housePath}
@@ -385,12 +453,15 @@ export function MapPinPicker({
 
       {pinPoint ? (
         <Pressable
+          ref={pinTargetRef}
           {...pinPan.panHandlers}
           accessibilityRole="button"
           accessibilityLabel="Selected location. Use arrow keys to move it"
-          {...({ onKeyDown: movePinByKey } as object)}
+          onFocus={() => setPinFocused(true)}
+          onBlur={() => setPinFocused(false)}
           style={[
             styles.pinTarget,
+            pinFocused && styles.pinTargetFocused,
             { left: (dragPin ?? pinPoint).x - 22, top: (dragPin ?? pinPoint).y - 38 },
           ]}
         >
@@ -431,8 +502,8 @@ export function MapPinPicker({
             ? 'Drag the pin or tap the map to move it'
             : 'Drag the pin, click the map, or use the arrow keys to move it'
           : mobile
-            ? 'Tap the map to choose a location.'
-            : 'Click the map to choose a location.'}
+            ? 'Tap the map to choose a location'
+            : 'Click the map to choose a location'}
       </Text>
     </View>
   );
@@ -450,6 +521,11 @@ const styles = StyleSheet.create({
   },
   mapMobile: { height: 340 },
   pinTarget: { position: 'absolute', width: 44, height: 44, zIndex: 8, alignItems: 'center' },
+  pinTargetFocused: {
+    borderWidth: 3,
+    borderColor: '#7c5cff',
+    borderRadius: 22,
+  },
   pinHead: {
     width: 25,
     height: 25,
@@ -494,8 +570,9 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '600',
     color: t.colors.brand.deep,
+    textDecorationLine: 'underline',
   },
-  creditLinkHovered: { textDecorationLine: 'underline' },
+  creditLinkHovered: { opacity: 0.78 },
   helper: {
     marginTop: 10,
     fontFamily: t.typography.body,

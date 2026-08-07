@@ -42,9 +42,41 @@ describe('district map credits', () => {
     expect(source).toContain('label="© OpenStreetMap contributors"');
     expect(source).toContain('accessibilityLabel={`${label}, opens in a new tab`}');
     expect(source).toContain('{label} ↗');
-    expect(source).toContain("creditLinkHovered: { textDecorationLine: 'underline' }");
+    expect(source).toMatch(/creditLink:\s*\{[\s\S]*textDecorationLine: 'underline'/);
     expect(source.indexOf('© OpenStreetMap contributors')).toBeLessThan(
       source.indexOf('District boundaries: Minnesota Legislature GIS'),
     );
+  });
+
+  it('fits Minnesota before a district is selected and keeps the state context below districts', () => {
+    expect(source).toContain('const MINNESOTA_GEOMETRY: GeoJsonGeometry');
+    expect(source).toContain('const geometryToFit = senateGeometry ?? MINNESOTA_GEOMETRY');
+    expect(source).toContain('fill="rgba(255,255,255,0.4)"');
+    expect(source).toContain('stroke="rgba(17,21,15,0.55)"');
+    expect(source.indexOf('statePath')).toBeLessThan(source.indexOf('housePath'));
+  });
+
+  it('keeps unresolved helper text clean and hands outside map selections to the screen', () => {
+    expect(source).toContain("'Tap the map to choose a location'");
+    expect(source).toContain("'Click the map to choose a location'");
+    expect(source).not.toContain("'Tap the map to choose a location.'");
+    expect(source).not.toContain("'Click the map to choose a location.'");
+    expect(source).toContain('onOutsideMinnesota?:');
+    expect(source).toContain('onOutsideMinnesota?.(chosen)');
+  });
+
+  it('uses the configured tile source and only credits a successful tile request', () => {
+    expect(source).toContain('EXPO_PUBLIC_OPENSTREETMAP_TILE_URL');
+    expect(source).toContain('EXPO_PUBLIC_MAP_TILE_URL');
+    expect(source).toContain('tileUrlForKey(key)');
+    expect(source).toContain('tileState.requestKey === tileRequestKey && tileState.loaded');
+    expect(source).toContain('const markTileFailed');
+  });
+
+  it('gives the keyboard pin a visible focus ring', () => {
+    expect(source).toContain("target.addEventListener('keydown', handleKeyDown)");
+    expect(source).toContain('onFocus={() => setPinFocused(true)}');
+    expect(source).toContain('pinFocused && styles.pinTargetFocused');
+    expect(source).toContain("borderColor: '#7c5cff'");
   });
 });

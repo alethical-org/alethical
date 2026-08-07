@@ -125,6 +125,13 @@ export const Crosshair = createIcon(
     <Path d="M12 2v3M12 19v3M22 12h-3M5 12H2" />
   </>,
 );
+export const AlertCircle = createIcon(
+  <>
+    <Circle cx="12" cy="12" r="9" />
+    <Path d="M12 7v6" />
+    <Path d="M12 17h.01" />
+  </>,
+);
 
 export const usedIconNames = [
   'ArrowLeft',
@@ -145,4 +152,5 @@ export const usedIconNames = [
   'RefreshCw',
   'Navigation',
   'Crosshair',
+  'AlertCircle',
 ] as const;

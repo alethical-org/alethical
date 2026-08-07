@@ -13,11 +13,11 @@ vi.mock('react-native-svg', () => ({
   Polygon: (props: Record<string, unknown>) => <polygon {...props} />,
 }));
 
-import { ArrowLeft, Crosshair, MapPin, usedIconNames } from '../icons';
+import { AlertCircle, ArrowLeft, Crosshair, MapPin, usedIconNames } from '../icons';
 
 describe('local icons', () => {
-  it('keeps the 18 shipped icons and their Lucide SVG defaults', () => {
-    expect(usedIconNames).toHaveLength(18);
+  it('keeps the 19 shipped icons and their Lucide SVG defaults', () => {
+    expect(usedIconNames).toHaveLength(19);
 
     const html = renderToStaticMarkup(<ArrowLeft size={32} color="#123456" strokeWidth={2.4} />);
 
@@ -41,5 +41,13 @@ describe('local icons', () => {
     expect(html).toContain('r="3.4"');
     expect(html).toContain('r="8.5"');
     expect(html).toContain('d="M12 2v3M12 19v3M22 12h-3M5 12H2"');
+  });
+
+  it('draws a decorative warning that does not rely on color alone', () => {
+    const html = renderToStaticMarkup(<AlertCircle size={14} aria-hidden />);
+
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toContain('r="9"');
+    expect(html).toContain('d="M12 7v6"');
   });
 });

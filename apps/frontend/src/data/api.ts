@@ -6,7 +6,7 @@ import {
   TRAILING_RETURN,
 } from '../lib/billDetail';
 import type { SourceBlock } from '../lib/billText';
-import { contactEmail } from '../lib/findMyLegislator';
+import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
 import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
 import {
@@ -1208,7 +1208,7 @@ export function mapLegislator(
     phone: service?.phone ?? undefined,
     officeAddress: cleanOfficeAddress(service?.office_address),
     representedCity: service?.represented_city ?? undefined,
-    profileUrl: service?.profile_url ?? undefined,
+    profileUrl: senateProfileUrl(service?.profile_url ?? undefined),
     photoUrl: service?.photo_url ?? undefined,
     committees,
     committeeAssignments,

@@ -83,5 +83,27 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain("color: '#06231a'");
     expect(source).not.toContain('disabled={!address.trim()');
     expect(source).not.toContain('Minnesota district shapes are provided by Minnesota GIS.');
+    expect(source).toContain('Every address has one House district and one Senate district');
+    expect(source).toContain('Looking up your districts');
+    expect(source).toContain('setShimmerEnabled(true)');
+    expect(source).toContain("role: 'combobox'");
+    expect(source).toContain("role: 'listbox'");
+    expect(source).toContain("role: 'option'");
+    expect(source).toContain('aria-activedescendant');
+    expect(source).toContain('onKeyPress={onChoiceKey}');
+    expect(source).toMatch(/const runCoordinate[\s\S]*setChoiceClosed\(true\)/);
+    expect(source).toContain(
+      'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415.',
+    );
+    expect(source).toContain('LOCATION_ERROR_ID');
+    expect(source).toContain('onOutsideMinnesota');
+    expect(source).toContain("alignItems: 'flex-start'");
+    expect(source).toContain("inputShellMobile: { width: '100%' }");
+    expect(source).toContain('addressInputRef.current?.focus()');
+    expect(source).toContain('paddingLeft: 17');
+    expect(source).not.toContain('Your Minnesota legislators will appear here.');
+    expect(source).not.toContain('Matching it to Minnesota districts…');
+    expect(source).not.toContain('neighborhood');
+    expect(source).not.toContain('borderLeftWidth: 4');
   });
 });

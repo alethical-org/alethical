@@ -579,7 +579,7 @@ def legislator_list_item(
 ) -> api_schemas.LegislatorListItem:
     service = current_service or next(iter(legislator.service_periods), None)
     committees = None
-    if committee_assignments:
+    if committee_assignments is not None:
         committees = [
             api_schemas.CommitteePayload(name=name, role=role)
             for name, role in committee_assignments
