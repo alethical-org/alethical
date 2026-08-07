@@ -24,11 +24,11 @@ import {
   districtMapVisible,
   legislatureLabel,
   prepareAddressLookup,
-  shouldFocusFindMyLegislator,
   viewStateForLookup,
 } from '../lib/findMyLegislator';
 import type { IaItem, MenuKey } from '../navigation/ia';
 import type { RootStackParamList } from '../navigation/types';
+import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme as t } from '../theme/tokens';
 
@@ -100,17 +100,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [choiceClosed, setChoiceClosed] = useState(false);
+  const { focused: addressFocused, focusProps: addressFocusProps } = useFieldFocus();
   const lookup = useRepresentativeLookup();
   const autoRanFor = useRef<string | null>(null);
-  const addressInput = useRef<TextInput>(null);
-  const focusOnFirstRender = useRef(
-    shouldFocusFindMyLegislator({
-      address: requestedAddress,
-      coordinate: requestedCoordinate,
-      focusAddress: route.params?.focusAddress,
-      locationFailure: route.params?.locationFailure,
-    }),
-  ).current;
   const geolocation = browserGeolocation();
   const result = lookup.data ?? undefined;
   const choices =
@@ -143,7 +135,6 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     navigation.setParams({
       address: value,
       coordinate: undefined,
-      focusAddress: undefined,
       lookupAddress: undefined,
       locationFailure: undefined,
     });
@@ -180,7 +171,6 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     navigation.setParams({
       address: undefined,
       coordinate: undefined,
-      focusAddress: undefined,
       lookupAddress: undefined,
       locationFailure: undefined,
     });
@@ -197,27 +187,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     navigation.setParams({
       address: undefined,
       coordinate: undefined,
-      focusAddress: undefined,
       lookupAddress: undefined,
       locationFailure: undefined,
     });
   }, [route.params?.locationFailure]);
-
-  useEffect(() => {
-    if (!focusOnFirstRender) return;
-    addressInput.current?.focus();
-  }, [focusOnFirstRender]);
-
-  useEffect(() => {
-    if (!route.params?.focusAddress) return;
-    setAddress('');
-    setLocationError(false);
-    setChoiceClosed(false);
-    setChoiceIndex(0);
-    lookup.reset();
-    addressInput.current?.focus();
-    navigation.setParams({ focusAddress: undefined });
-  }, [route.params?.focusAddress]);
 
   const useLocation = () => {
     if (!geolocation) {
@@ -284,9 +257,14 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             </Text>
           </View>
           <View style={styles.addressArea}>
-            <View style={[styles.inputShell, activeError && styles.inputShellError]}>
+            <View
+              style={[
+                styles.inputShell,
+                activeError && styles.inputShellError,
+                ...fieldFocusRing(addressFocused),
+              ]}
+            >
               <TextInput
-                ref={addressInput}
                 accessibilityLabel="Full Minnesota street address"
                 aria-describedby={activeError ? ADDRESS_ERROR_ID : undefined}
                 aria-invalid={activeError ? true : undefined}
@@ -300,7 +278,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   setLocationError(false);
                 }}
                 onSubmitEditing={() => runAddress(address)}
-                style={styles.input}
+                style={[styles.input, fieldOutlineReset]}
+                {...addressFocusProps}
                 {...({ name: 'street-address' } as object)}
               />
               <Pressable

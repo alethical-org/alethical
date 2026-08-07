@@ -21,7 +21,7 @@ import {
   locationFailureFromBrowserError,
 } from '../../lib/homeLegislatorFinder';
 import type { HomeFinderDestination, HomeFinderLayout } from '../../lib/homeLegislatorFinder';
-import { fieldFocusRing } from '../../theme/fieldFocus';
+import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 
 export const HOME_FINDER_HELP_ID = 'home-finder-address-help';
@@ -177,7 +177,7 @@ export function HomeLegislatorFinderForm({
             placeholder={HOME_FINDER_EXAMPLE}
             placeholderTextColor={t.colors.text.faint}
             returnKeyType="search"
-            style={[styles.input, desktop && styles.inputDesktop]}
+            style={[styles.input, desktop && styles.inputDesktop, fieldOutlineReset]}
             value={value}
           />
           {desktop ? findButton : null}
