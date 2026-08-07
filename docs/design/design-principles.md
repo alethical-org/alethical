@@ -43,8 +43,9 @@ credibility first.
 
 Character summary. **Exact values live in `tokens.ts`** — read it for hex, scale, and spacing.
 
-- **Color intent.** A light, warm-neutral page with a soft green radial wash; green is the single
-  brand accent, used with intent (brand fills, CTAs, links, focus), not sprinkled. Text is a
+- **Color intent.** A light, warm-neutral page with a soft green radial wash on wider screens and a
+  plain warm-neutral background on phone widths; green is the single brand accent, used with intent
+  (brand fills, CTAs, links, focus), not sprinkled. Text is a
   near-black **green-tinted ink**, not pure black, so the page reads warm and calm. A purple accent
   is reserved specifically for the "Grounded Ask" / AI affordance and focus — it is a *meaning*, not
   decoration. A red ramp is reserved for genuine danger/veto status. Green fills carry **dark ink
