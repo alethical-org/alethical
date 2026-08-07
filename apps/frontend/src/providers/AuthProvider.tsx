@@ -14,6 +14,7 @@ import { Session } from '@supabase/supabase-js';
 
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SIGN_IN_ERROR_MESSAGES, SignInErrorKind, signInErrorKind } from '../lib/signIn';
+import { restoreAuthSession } from '../lib/authRestore';
 import { onAccountDeactivated } from '../data/api';
 
 interface AuthUser {
@@ -121,16 +122,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let mounted = true;
 
-    void supabase.auth.getSession().then(({ data, error }) => {
-      if (!mounted) {
-        return;
-      }
-      if (error) {
-        failWith(error.message);
-      }
-      setSession(data.session);
-      setIsLoading(false);
-    });
+    void restoreAuthSession<Session>(() => supabase.auth.getSession())
+      .then(({ session: restoredSession, errorMessage }) => {
+        if (!mounted) {
+          return;
+        }
+        setSession(restoredSession);
+        if (errorMessage) {
+          failWith(errorMessage);
+        }
+      })
+      .catch((error) => {
+        if (mounted) {
+          setSession(null);
+          failWith(error instanceof Error ? error.message : 'Sign-in could not be restored.');
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);

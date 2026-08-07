@@ -233,19 +233,13 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
 // TopNav — see #143), signed in or out. Signing in works now (#1006), but a
 // signed-in home page is not built, so there is nothing else to send anyone to;
 // what changes when you sign in is the nav's account control, not this page.
-// While the session restores, render nothing rather than flashing the wrong home.
 function HomeRoute(_props: MainTabScreenProps<'Home'>) {
-  const { isLoading } = useAuth();
-  if (isLoading) {
-    return null;
-  }
   return <HomeSignedOutScreen />;
 }
 
-/** True when the current surface is the signed-out marketing home (hides the app chrome). */
-function useIsSignedOutHome(activeTab: keyof MainTabParamList | undefined) {
-  const { isLoading } = useAuth();
-  return !isLoading && activeTab === 'Home';
+/** True when the marketing home owns the page chrome. */
+function useIsHome(activeTab: keyof MainTabParamList | undefined) {
+  return activeTab === 'Home';
 }
 
 function MainTabs() {
@@ -261,7 +255,7 @@ function MainTabs() {
               const activeTab = props.state.routes[props.state.index]?.name as
                 | keyof MainTabParamList
                 | undefined;
-              if (!isSignedIn && !isLoading && activeTab === 'Home') {
+              if ((isLoading || !isSignedIn) && activeTab === 'Home') {
                 return null;
               }
               // Tracked owns its chrome (SearchPageShell), so it hides the bottom
@@ -482,11 +476,9 @@ export function RootNavigator() {
   const { isDesktop } = useResponsive();
   const lastPathRef = useRef('/');
   const [activeRailRoute, setActiveRailRoute] = useState<RailRouteName | undefined>('Home');
-  const isSignedOutHome = useIsSignedOutHome(
-    activeRailRoute === 'FindMyLegislator' ? undefined : activeRailRoute,
-  );
+  const isHome = useIsHome(activeRailRoute === 'FindMyLegislator' ? undefined : activeRailRoute);
   const usesOwnPageChrome =
-    isSignedOutHome || activeRailRoute === 'Tracked' || activeRailRoute === 'FindMyLegislator';
+    isHome || activeRailRoute === 'Tracked' || activeRailRoute === 'FindMyLegislator';
 
   useEffect(() => {
     if (!isWeb) {
