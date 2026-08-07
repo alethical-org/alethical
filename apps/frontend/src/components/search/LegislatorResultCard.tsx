@@ -4,7 +4,13 @@ import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import { Legislator } from '../../data/types';
 import { usePrefetchLegislator } from '../../hooks/useAppQueries';
 import { partyFull } from '../../lib/billDetail';
-import { billAuthorshipLabel } from '../../lib/legislatorSearch';
+import {
+  LEGISLATOR_PORTRAIT_HEIGHT,
+  LEGISLATOR_PORTRAIT_WIDTH,
+  billAuthorshipLabel,
+  legislatorPortraitImageProps,
+  shouldShowLegislatorPortrait,
+} from '../../lib/legislatorSearch';
 import { linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
@@ -30,6 +36,7 @@ type LegislatorCardData = Pick<
 interface LegislatorResultCardProps {
   legislator: LegislatorCardData;
   onPress?: () => void;
+  portraitEager?: boolean;
 }
 
 function initials(name: string): string {
@@ -54,7 +61,11 @@ function authoredCount(data: LegislatorCardData): number {
   return 0;
 }
 
-export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCardProps) {
+export function LegislatorResultCard({
+  legislator,
+  onPress,
+  portraitEager = true,
+}: LegislatorResultCardProps) {
   const [hovered, setHovered] = useState(false);
   // Fall back to initials when the portrait 404s, not just when the record has no
   // URL — the photos are hosted on lrl.mn.gov, so a member's file can disappear
@@ -85,14 +96,13 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
     >
       <View style={styles.topRow}>
         <View style={styles.avatar}>
-          {legislator.photoUrl && !photoFailed ? (
+          {shouldShowLegislatorPortrait(legislator.photoUrl, photoFailed) ? (
             // Decorative: the name is already text beside it, so labelling the
             // portrait would make a screen reader read the name twice inside
             // this one link.
             isWeb ? (
               createElement('img', {
-                'aria-hidden': true,
-                alt: '',
+                ...legislatorPortraitImageProps(portraitEager),
                 src: legislator.photoUrl,
                 onError: () => setPhotoFailed(true),
                 style: {
@@ -174,8 +184,8 @@ const styles = StyleSheet.create({
   },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   avatar: {
-    width: 64,
-    height: 74,
+    width: LEGISLATOR_PORTRAIT_WIDTH,
+    height: LEGISLATOR_PORTRAIT_HEIGHT,
     borderRadius: 12,
     flexShrink: 0,
     backgroundColor: t.colors.tint.t150,

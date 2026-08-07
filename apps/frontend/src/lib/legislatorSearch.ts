@@ -1,6 +1,8 @@
 export const LEGISLATOR_SEARCH_LABEL = 'Search by name';
 export const CLEAR_SEARCH_TARGET_SIZE = 44;
 export const LEGISLATOR_PAGE_SIZE = 12;
+export const LEGISLATOR_PORTRAIT_WIDTH = 64;
+export const LEGISLATOR_PORTRAIT_HEIGHT = 74;
 
 type ChamberFilter = 'All' | 'House' | 'Senate';
 type PartyFilter = 'All' | 'DFL' | 'R' | 'I';
@@ -86,6 +88,32 @@ export function paginateLegislatorResults<T>(items: readonly T[], requestedPage:
   const start = (page - 1) * LEGISLATOR_PAGE_SIZE;
 
   return { total, totalPages, page, items: items.slice(start, start + LEGISLATOR_PAGE_SIZE) };
+}
+
+export function isLegislatorPortraitEager(cardIndex: number, isDesktop: boolean) {
+  // The first results row is 2 cards on desktop and 1 card on phone. Keep that
+  // row immediate; native browser lazy loading can look ahead for later cards
+  // without making every portrait compete with the page's first paint.
+  return cardIndex < (isDesktop ? 2 : 1);
+}
+
+export function legislatorPortraitImageProps(eager: boolean) {
+  return {
+    'aria-hidden': true,
+    alt: '',
+    decoding: 'async' as const,
+    fetchPriority: eager ? ('high' as const) : ('low' as const),
+    height: LEGISLATOR_PORTRAIT_HEIGHT,
+    loading: eager ? ('eager' as const) : ('lazy' as const),
+    width: LEGISLATOR_PORTRAIT_WIDTH,
+  };
+}
+
+export function shouldShowLegislatorPortrait(
+  photoUrl: string | null | undefined,
+  photoFailed: boolean,
+) {
+  return Boolean(photoUrl) && !photoFailed;
 }
 
 export function billAuthorshipLabel(count: number) {
