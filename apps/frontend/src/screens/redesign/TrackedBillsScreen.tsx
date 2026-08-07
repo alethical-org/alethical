@@ -110,7 +110,7 @@ export function TrackedBillsScreen() {
         heading="Track the bills you care about"
         body="Sign in to build a watchlist that stays in sync across devices, so the bills you’re following and their current status stay in one place. You can browse and search everything without an account."
         ctaLabel="Sign in"
-        onPress={() => openSignIn({ intent: 'nav', returnTo: '/tracked' })}
+        onPress={() => openSignIn({ intent: 'track', returnTo: '/tracked' })}
       />
     );
     // The comparison point is part of the page's answer, not a decoration, so the

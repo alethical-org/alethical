@@ -60,4 +60,5 @@ consent screen names what we receive before anyone can finish.
 
 ## Intent scope
 There are exactly 2 intents: generic sign-in uses the Alethical mark, and Track uses a bell.
-Both use the neutral tile. Vote records are not gated, so there is no votes intent.
+The tracked-bills page's signed-out prompt uses Track; plain navigation and account prompts use
+generic sign-in. Both use the neutral tile. Vote records are not gated, so there is no votes intent.
