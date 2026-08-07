@@ -37,7 +37,7 @@ export interface MapPinPickerProps {
   senateGeometry?: GeoJsonGeometry;
   houseDistrict?: string;
   senateDistrict?: string;
-  otherHouseDistrict?: string;
+  preserveViewport?: boolean;
   onCoordinateChange: (coordinate: RepresentativeLookupCoordinates) => void;
   onOutsideMinnesota?: (coordinate: RepresentativeLookupCoordinates) => void;
   mobile?: boolean;
@@ -198,7 +198,7 @@ export function MapPinPicker({
   senateGeometry,
   houseDistrict,
   senateDistrict,
-  otherHouseDistrict,
+  preserveViewport = false,
   onCoordinateChange,
   onOutsideMinnesota,
   mobile = false,
@@ -220,6 +220,10 @@ export function MapPinPicker({
   const geometryToFit = senateGeometry ?? MINNESOTA_GEOMETRY;
 
   useEffect(() => {
+    if (preserveViewport) {
+      fittedFor.current = geometryToFit;
+      return;
+    }
     if (fittedFor.current === geometryToFit) return;
     const fitted = fitView(geometryToFit, size);
     if (fitted) {
@@ -227,7 +231,7 @@ export function MapPinPicker({
       setCenter(fitted.center);
       setZoom(fitted.zoom);
     }
-  }, [geometryToFit, size]);
+  }, [geometryToFit, preserveViewport, size]);
 
   useEffect(
     () => () => {
@@ -255,12 +259,14 @@ export function MapPinPicker({
 
   const markTileLoaded = () => {
     setTileState((current) =>
-      current.requestKey === tileRequestKey ? { ...current, loaded: true } : current,
+      current.requestKey === tileRequestKey && !current.loaded
+        ? { ...current, loaded: true }
+        : current,
     );
   };
   const markTileFailed = () => {
     setTileState((current) =>
-      current.requestKey === tileRequestKey
+      current.requestKey === tileRequestKey && current.failed < tiles.length
         ? { ...current, failed: Math.min(current.failed + 1, tiles.length) }
         : current,
     );
@@ -357,9 +363,6 @@ export function MapPinPicker({
     return () => target.removeEventListener('keydown', handleKeyDown);
   }, [movePinByKey]);
 
-  const otherPill =
-    senateGeometry && otherHouseDistrict ? screenPoint(center, center, size, zoom) : null;
-
   return (
     <View style={styles.wrap}>
       <View
@@ -452,12 +455,6 @@ export function MapPinPicker({
             style={[styles.senatePill, { left: pinPoint.x + 18, top: pinPoint.y - 20 }]}
           >
             <Text style={styles.senateCode}>SENATE {senateDistrict}</Text>
-          </View>
-        ) : null}
-        {otherPill ? (
-          <View pointerEvents="none" style={[styles.otherPill, { left: 16, bottom: 56 }]}>
-            <Text style={styles.houseCode}>HOUSE {otherHouseDistrict}</Text>
-            <Text style={styles.otherText}>NOT YOUR HOUSE DISTRICT</Text>
           </View>
         ) : null}
       </View>
@@ -641,13 +638,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
-  otherPill: {
-    position: 'absolute',
-    backgroundColor: 'white',
-    borderRadius: 9,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
   houseCode: {
     fontFamily: t.typography.mono,
     fontSize: 11,
@@ -659,11 +649,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: t.colors.purple.base,
-  },
-  otherText: {
-    fontFamily: t.typography.mono,
-    fontSize: 8,
-    marginTop: 2,
-    color: t.colors.text.faint,
   },
 });

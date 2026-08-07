@@ -148,6 +148,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const [selectedCoordinate, setSelectedCoordinate] = useState<
     RepresentativeLookupCoordinates | undefined
   >(requestedCoordinate);
+  const [preserveMapViewport, setPreserveMapViewport] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(initialMapExpanded);
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [choiceIndex, setChoiceIndex] = useState(0);
@@ -216,6 +217,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (!serviceAddress) return;
     setAddress(value);
     setClientError(null);
+    setPreserveMapViewport(false);
     setSelectedCoordinate(undefined);
     setChoiceClosed(false);
     setChoiceIndex(0);
@@ -262,6 +264,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (!requestedCoordinate) return;
     setAddress('');
+    setPreserveMapViewport(false);
     navigation.setParams({
       address: undefined,
       coordinate: undefined,
@@ -291,6 +294,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (findingLocation || lookup.isPending) return;
     setAddress('');
     lookup.reset();
+    setPreserveMapViewport(false);
     setSelectedCoordinate(undefined);
     setClientError(null);
     if (!geolocation) {
@@ -323,6 +327,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   };
   const chooseAddress = (choice: RepresentativeAddressChoice) => {
     setChoiceClosed(true);
+    setPreserveMapViewport(false);
     runCoordinate({ latitude: choice.latitude, longitude: choice.longitude }, 'choice');
   };
   const onChoiceKey = (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => {
@@ -351,11 +356,15 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       senateGeometry={mapResult?.senateGeometry}
       houseDistrict={mapResult?.houseDistrict}
       senateDistrict={mapResult?.senateDistrict}
-      otherHouseDistrict={mapResult?.otherHouseDistrict}
+      preserveViewport={preserveMapViewport}
       mobile={isMobile}
-      onCoordinateChange={(coordinate) => runCoordinate(coordinate, 'map')}
+      onCoordinateChange={(coordinate) => {
+        setPreserveMapViewport(true);
+        runCoordinate(coordinate, 'map');
+      }}
       onOutsideMinnesota={() => {
         lookup.reset();
+        setPreserveMapViewport(true);
         setSelectedCoordinate(undefined);
         setClientError('outside-minnesota');
       }}
