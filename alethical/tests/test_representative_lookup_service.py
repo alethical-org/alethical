@@ -1,9 +1,11 @@
 import json
 
 import pytest
+import requests
 
 from alethical.api.services.representative_lookup import (
     CensusGeocoder,
+    DistrictMatch,
     GeocodedAddress,
     MinnesotaAddressPointGeocoder,
     MinnesotaGisLookupClient,
@@ -19,10 +21,15 @@ from alethical.api.services.representative_lookup import (
 
 
 class FakeResponse:
-    def __init__(self, payload):
+    def __init__(self, payload, *, status_code=200):
         self.payload = payload
+        self.status_code = status_code
 
     def raise_for_status(self):
+        if self.status_code >= 400:
+            response = requests.Response()
+            response.status_code = self.status_code
+            raise requests.HTTPError(response=response)
         return None
 
     def json(self):
@@ -55,6 +62,49 @@ def test_census_returns_no_match_without_silently_choosing(monkeypatch):
         RepresentativeLookupNotFound, match="address could not be geocoded"
     ):
         CensusGeocoder().geocode_matches("1428 Nonesuch Ave")
+
+
+def test_census_retries_a_brief_source_failure(monkeypatch):
+    calls = []
+    waits = []
+
+    def get(*args, **kwargs):
+        calls.append((args, kwargs))
+        if len(calls) == 1:
+            raise requests.Timeout("brief timeout")
+        return FakeResponse(
+            census_payload(census_match("350 S 5TH ST, MINNEAPOLIS, MN 55415"))
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.time.sleep", waits.append
+    )
+
+    matches = CensusGeocoder().geocode_matches("350 S 5th St, Minneapolis, MN 55415")
+
+    assert len(calls) == 2
+    assert waits == [0.2]
+    assert matches[0].matched_address == "350 S 5TH ST, MINNEAPOLIS, MN 55415"
+
+
+def test_census_does_not_retry_a_permanent_bad_request(monkeypatch):
+    calls = []
+
+    def get(*args, **kwargs):
+        calls.append((args, kwargs))
+        return FakeResponse({}, status_code=400)
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    with pytest.raises(requests.HTTPError):
+        CensusGeocoder().geocode_matches("not an address")
+
+    assert len(calls) == 1
 
 
 def test_census_retries_a_minnesota_street_without_the_wrong_locality(monkeypatch):
@@ -800,6 +850,45 @@ def test_single_minnesota_match_continues_to_district_lookup(monkeypatch):
         )
 
 
+def test_lookup_uses_minnesota_addresses_when_census_stays_unavailable():
+    address = "350 S 5th St, Minneapolis, MN 55415"
+    match = GeocodedAddress(
+        requested_address=address,
+        matched_address="350 S 5th St, Minneapolis, MN 55415",
+        latitude=44.98,
+        longitude=-93.27,
+        state_code="MN",
+    )
+
+    class UnavailableCensus:
+        def geocode_matches(self, address_text):
+            assert address_text == address
+            raise requests.Timeout("Census stayed unavailable")
+
+    class MinnesotaAddresses:
+        def geocode_matches(self, address_text):
+            assert address_text == address
+            return [match]
+
+    class Districts:
+        def lookup(self, *, latitude, longitude):
+            assert (latitude, longitude) == (44.98, -93.27)
+            return (
+                DistrictMatch(chamber="house", district_code="62A"),
+                DistrictMatch(chamber="senate", district_code="62"),
+                "5",
+            )
+
+    result = RepresentativeLookupService(
+        geocoder=UnavailableCensus(),
+        address_point_geocoder=MinnesotaAddresses(),
+        gis_client=Districts(),
+    ).lookup(address)
+
+    assert result.geocoded_address == match
+    assert result.house_district and result.house_district.district_code == "62A"
+
+
 def test_multiple_minnesota_matches_are_returned_as_choices(monkeypatch):
     monkeypatch.setattr(
         "alethical.api.services.representative_lookup.requests.get",
@@ -850,93 +939,21 @@ def test_geometry_reduction_keeps_selected_point_and_reduces_large_fixture():
     assert len(json.dumps(prepared)) < len(json.dumps(geometry))
 
 
-def test_gis_uses_local_congressional_layer_and_keeps_legislative_geometry(monkeypatch):
-    house_geometry = {
-        "type": "Polygon",
-        "coordinates": [[[-95, 45], [-94, 45], [-94, 46], [-95, 46], [-95, 45]]],
-    }
-    senate_geometry = {
-        "type": "Polygon",
-        "coordinates": [[[-96, 44], [-93, 44], [-93, 47], [-96, 47], [-96, 44]]],
-    }
-    payload = {
-        "features": [
-            {
-                "geometry": house_geometry,
-                "properties": {"district": "59B", "memid": "1"},
-            },
-            {
-                "geometry": senate_geometry,
-                "properties": {"district": "59", "memid": "2"},
-            },
-            {
-                "geometry": senate_geometry,
-                # The mixed response's number-only row is deliberately wrong.
-                # Congress must come from the official local map instead.
-                "properties": {"district": "6", "memid": "none"},
-            },
-        ]
-    }
-
-    def get(url, *, params, timeout):
-        return FakeResponse(payload)
-
+def test_gis_uses_local_legislative_and_congressional_maps(monkeypatch):
     monkeypatch.setattr(
-        "alethical.api.services.representative_lookup.requests.get", get
+        "alethical.api.services.representative_lookup.requests.get",
+        lambda *args, **kwargs: pytest.fail(
+            "district lookup must not call the network"
+        ),
     )
 
     house, senate, congress = MinnesotaGisLookupClient().lookup(
-        latitude=45.4558, longitude=-94.4289
+        latitude=44.9551, longitude=-93.1022
     )
 
-    assert house and house.district_code == "59B" and house.geometry
-    assert senate and senate.district_code == "59" and senate.geometry
-    assert congress == "7"
-
-
-def test_maple_grove_source_shapes_are_checked_before_browser_reduction(monkeypatch):
-    # The real House 37B outline around 7840 Main St is within the 0.1% source
-    # allowance, but browser reduction pushes it just over. These small shapes
-    # reproduce that same boundary condition without storing a large GIS response.
-    house_geometry = {
-        "type": "Polygon",
-        "coordinates": [[[0, 0], [0.02003, 0], [0.02003, 0.02], [0, 0.02], [0, 0]]],
-    }
-    senate_geometry = {
-        "type": "Polygon",
-        "coordinates": [
-            [
-                [0, 0],
-                [0.02, 0],
-                [0.02003, 0.001],
-                [0.02003, 0.019],
-                [0.02, 0.02],
-                [0, 0.02],
-                [0, 0],
-            ]
-        ],
-    }
-    payload = {
-        "features": [
-            {
-                "geometry": house_geometry,
-                "properties": {"district": "1A", "memid": "1"},
-            },
-            {
-                "geometry": senate_geometry,
-                "properties": {"district": "1", "memid": "2"},
-            },
-        ]
-    }
-    monkeypatch.setattr(
-        "alethical.api.services.representative_lookup.requests.get",
-        lambda *args, **kwargs: FakeResponse(payload),
-    )
-
-    house, senate, _ = MinnesotaGisLookupClient().lookup(latitude=0.01, longitude=0.01)
-
-    assert house and house.geometry != house_geometry
-    assert senate and senate.geometry != senate_geometry
+    assert house and house.district_code == "65B" and house.geometry
+    assert senate and senate.district_code == "65" and senate.geometry
+    assert congress == "4"
 
 
 def test_local_congressional_map_covers_cold_spring_without_sharing_the_point():
@@ -953,10 +970,6 @@ def test_rural_codes_and_source_shared_edge_sliver_are_handled():
         "type": "Polygon",
         "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
     }
-    client = MinnesotaGisLookupClient()
-
-    assert client._canonical_district_code("01A") == "1A"
-    assert client._canonical_district_code("01") == "1"
     validate_district_containment(house, senate, house_code="1A", senate_code="1")
 
 

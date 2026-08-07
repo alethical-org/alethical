@@ -8,12 +8,13 @@ import {
   contactEmail,
   districtMapVisible,
   legislatureLabel,
+  retryWaitSeconds,
   senateProfileUrl,
   viewStateForLookup,
 } from '../findMyLegislator';
 
 describe('Find My Legislator state and copy helpers', () => {
-  it('keeps all 9 page states distinct', () => {
+  it('keeps all 10 page states distinct', () => {
     expect([
       viewStateForLookup({}),
       viewStateForLookup({ pending: true }),
@@ -23,6 +24,7 @@ describe('Find My Legislator state and copy helpers', () => {
       viewStateForLookup({ error: 'outside-minnesota' }),
       viewStateForLookup({ error: 'location' }),
       viewStateForLookup({ found: true, vacant: true }),
+      viewStateForLookup({ error: 'rate-limited' }),
       viewStateForLookup({ error: 'service-down' }),
     ]).toEqual([
       'empty',
@@ -33,8 +35,16 @@ describe('Find My Legislator state and copy helpers', () => {
       'outside-minnesota',
       'location-error',
       'vacant',
+      'rate-limited',
       'service-down',
     ]);
+  });
+
+  it('uses a safe 60-second maximum for the lookup wait', () => {
+    expect(retryWaitSeconds()).toBe(60);
+    expect(retryWaitSeconds(7)).toBe(7);
+    expect(retryWaitSeconds(0)).toBe(1);
+    expect(retryWaitSeconds(99)).toBe(60);
   });
 
   it('moves, selects, and closes address choices from the keyboard', () => {
@@ -171,6 +181,12 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain("alignItems: 'flex-start'");
     expect(source).toContain("inputShellMobile: { width: '100%' }");
     expect(source).toContain('addressInputRef.current?.focus()');
+    expect(source).toContain("field: 'Too many lookups'");
+    expect(source).toContain("answer: 'Try again in up to 60 seconds'");
+    expect(source).not.toContain("answer: 'Try again in up to 60 seconds.'");
+    expect(source).toContain('disabled={lookupDisabled}');
+    expect(source).toContain('disabled={locationDisabled}');
+    expect(source).toContain('Try again in ${rateLimitSeconds}s');
     expect(source).not.toContain('Your Minnesota legislators will appear here.');
     expect(source).not.toContain('Matching it to Minnesota districts…');
     expect(source).not.toContain('neighborhood');
