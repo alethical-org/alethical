@@ -17,8 +17,8 @@ rule 13). Milestone claims in particular go stale: check the tracker, not the pr
 ## Product & Onboarding
 
 What we're building and what we deliberately aren't, plus the guides for learning how it
-works. The specs come first; the last three are the "how does this actually work / how is it
-paid for" references, and are the place to start if you're new.
+works. The specs come first; the guides and operating references near the end explain how
+things work in practice and are the place to start if you're new.
 
 - [Scope](product-onboarding/product-scope.md) — what the product is, its core principles, and what it deliberately does not do
 - [What we keep about readers](product-onboarding/user-data-retention-policy.md) — every piece of reader data we store, why it exists, how long we keep it, what deletion should mean, and the gaps that are not closed yet
@@ -32,6 +32,7 @@ paid for" references, and are the place to start if you're new.
 - [Data ingestion onboarding guide](product-onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
 - [AI models & billing](product-onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
 - [How Search works (plain English)](product-onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
+- [How Find My Legislator works (plain English)](product-onboarding/find-my-legislator-guide.md) — how to search by address, browser location, or map; what a match shows; and what location data leaves Alethical
 
 ## Design
 
