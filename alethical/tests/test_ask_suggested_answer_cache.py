@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 import json
 import time
 
 import pytest
 from sqlalchemy import delete, func, select
 
+from alethical.api.routers import ask
 from alethical.api.services.ask_router import AskClassification, AskIntent
 from alethical.db.schema import load_schema
 from alethical.db.session import get_session_factory
+from alethical.pipeline import rag as rag_text
 
 schema = load_schema()
 AskSuggestedAnswerCache = schema.AskSuggestedAnswerCache
@@ -123,6 +126,78 @@ def test_prompt_or_answer_model_change_generates_a_fresh_answer(client, monkeypa
     assert client.post("/api/v1/ask", json={"content": question}).status_code == 200
 
     assert len(generated) == 3
+
+
+def test_chunking_version_change_generates_a_fresh_answer(client, monkeypatch):
+    question = "SF 2483: How is student financial aid changing?"
+    generated: list[str] = []
+
+    def fake_synthesis(*args, **kwargs):
+        generated.append(question)
+        return f"Chunked answer {len(generated)}."
+
+    monkeypatch.setattr(
+        "alethical.api.routers.ask.synthesize_grounded_answer", fake_synthesis
+    )
+
+    assert client.post("/api/v1/ask", json={"content": question}).status_code == 200
+    monkeypatch.setattr(rag_text, "CHUNKING_VERSION", "changed-for-test")
+    assert client.post("/api/v1/ask", json={"content": question}).status_code == 200
+
+    assert len(generated) == 2
+
+
+def test_answer_pipeline_fingerprint_tracks_retrieval_code_version(monkeypatch):
+    before = ask._suggested_answer_pipeline_fingerprint()
+    monkeypatch.setattr(ask, "SUGGESTED_ANSWER_PIPELINE_VERSION", "changed-for-test")
+    assert ask._suggested_answer_pipeline_fingerprint() != before
+
+
+def test_legacy_prompt_only_row_is_not_reused(client, monkeypatch):
+    question = "SF 2483: How is student financial aid changing?"
+    generated: list[str] = []
+    pipeline_fingerprint = ask._suggested_answer_pipeline_fingerprint
+
+    def fake_synthesis(*args, **kwargs):
+        generated.append(question)
+        return f"Pipeline answer {len(generated)}."
+
+    monkeypatch.setattr(ask, "synthesize_grounded_answer", fake_synthesis)
+    monkeypatch.setattr(
+        ask, "_suggested_answer_pipeline_fingerprint", ask.rag_chat_prompt_fingerprint
+    )
+    assert client.post("/api/v1/ask", json={"content": question}).status_code == 200
+
+    monkeypatch.setattr(
+        ask, "_suggested_answer_pipeline_fingerprint", pipeline_fingerprint
+    )
+    assert client.post("/api/v1/ask", json={"content": question}).status_code == 200
+
+    assert len(generated) == 2
+
+
+def test_cache_identity_tracks_text_suggestion_and_embedding_model(
+    seed_database, monkeypatch
+):
+    question = "SF 2483: How is student financial aid changing?"
+    with get_session_factory()() as db:
+        match = ask._suggested_question_match(db, question)
+        assert match is not None
+
+        monkeypatch.setattr(ask, "effective_embedding_model", lambda _model: "embed-a")
+        original = ask._suggested_cache_identity(match)
+        changed_text = ask._suggested_cache_identity(
+            replace(match, bill_text_fingerprint="different-bill-text")
+        )
+        changed_suggestion = ask._suggested_cache_identity(
+            replace(match, suggestion_fingerprint="different-suggestion")
+        )
+        monkeypatch.setattr(ask, "effective_embedding_model", lambda _model: "embed-b")
+        changed_embedding = ask._suggested_cache_identity(match)
+
+    assert changed_text != original
+    assert changed_suggestion != original
+    assert changed_embedding != original
 
 
 @pytest.mark.parametrize(

@@ -1154,6 +1154,11 @@ class AskSuggestedAnswerCache(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     after matching a current ``question_prompts`` entry exactly, and only that
     public prompt's fingerprint is retained. Reader-written questions never reach
     this table (docs/product-onboarding/user-data-retention-policy.md).
+
+    ``answer_pipeline_fingerprint`` maps to the table's original
+    ``prompt_fingerprint`` column. That compatibility name avoids a database change
+    and its release-order risk (#1124). Rows written before #1140 contain the old
+    prompt-only hash, so the stronger fingerprint misses them safely.
     """
 
     __tablename__ = "ask_suggested_answer_cache"
@@ -1170,7 +1175,9 @@ class AskSuggestedAnswerCache(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     suggestion_index: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     suggestion_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     bill_text_fingerprint: Mapped[str] = mapped_column(String(128), nullable=False)
-    prompt_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    answer_pipeline_fingerprint: Mapped[str] = mapped_column(
+        "prompt_fingerprint", String(64), nullable=False
+    )
     answer_model: Mapped[str] = mapped_column(String(100), nullable=False)
     embedding_model: Mapped[str] = mapped_column(String(100), nullable=False)
     answer_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
