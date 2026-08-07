@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { MapPin, Navigation } from '../components/icons';
+import { Crosshair, MapPin, Search } from '../components/icons';
 
 import { MapPinPicker } from '../components/MapPinPicker';
 import { RepresentativeCard, VacantSeatCard } from '../components/find/RepresentativeCard';
@@ -35,6 +35,7 @@ import { theme as t } from '../theme/tokens';
 type Props = NativeStackScreenProps<RootStackParamList, 'FindMyLegislator'>;
 const EXAMPLE_ADDRESS = '350 S 5th St, Minneapolis, MN 55415';
 const ADDRESS_ERROR_ID = 'find-legislator-address-error';
+const isWeb = Platform.OS === 'web';
 
 function browserGeolocation(): Geolocation | null {
   if (Platform.OS !== 'web') return null;
@@ -100,9 +101,13 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [choiceClosed, setChoiceClosed] = useState(false);
+  const [findingLocation, setFindingLocation] = useState(false);
+  const [findHovered, setFindHovered] = useState(false);
+  const [locationHovered, setLocationHovered] = useState(false);
   const { focused: addressFocused, focusProps: addressFocusProps } = useFieldFocus();
   const lookup = useRepresentativeLookup();
   const autoRanFor = useRef<string | null>(null);
+  const addressInputRef = useRef<TextInput | null>(null);
   const geolocation = browserGeolocation();
   const result = lookup.data ?? undefined;
   const choices =
@@ -193,17 +198,32 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   }, [route.params?.locationFailure]);
 
   const useLocation = () => {
+    if (findingLocation || lookup.isPending) return;
     if (!geolocation) {
       setLocationError(true);
       return;
     }
     setLocationError(false);
+    setFindingLocation(true);
     geolocation.getCurrentPosition(
-      (position) =>
-        runCoordinate({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
-      () => setLocationError(true),
+      (position) => {
+        setFindingLocation(false);
+        runCoordinate({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+      },
+      () => {
+        setFindingLocation(false);
+        setLocationError(true);
+      },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
     );
+  };
+  const findAddress = () => {
+    if (lookup.isPending) return;
+    if (!address.trim()) {
+      addressInputRef.current?.focus();
+      return;
+    }
+    runAddress(address);
   };
   const chooseAddress = (choice: RepresentativeAddressChoice) => {
     setChoiceClosed(true);
@@ -236,6 +256,54 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     />
   );
   const sourceDate = formatSourceDate(result?.sourceUpdatedAt);
+  const locationLabel = findingLocation ? 'Finding your location…' : 'Use my location';
+  const locationBusy = findingLocation || lookup.isPending;
+  const foundHeaderGradient: object = isWeb
+    ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' }
+    : { backgroundColor: '#f2f9f5' };
+  const renderFindButton = (mobile: boolean) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Find legislators"
+      accessibilityState={{ busy: lookup.isPending, disabled: lookup.isPending }}
+      onHoverIn={() => setFindHovered(true)}
+      onHoverOut={() => setFindHovered(false)}
+      onPress={findAddress}
+      style={({ pressed }) => [
+        styles.findButton,
+        mobile && styles.fullWidthButton,
+        findHovered && styles.findButtonHovered,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Search size={17} color="#06231a" aria-hidden />
+      <Text style={[styles.findButtonText, mobile && styles.findButtonTextMobile]}>Find</Text>
+    </Pressable>
+  );
+  const renderLocationButton = (mobile: boolean) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={locationLabel}
+      accessibilityState={{ busy: locationBusy, disabled: locationBusy }}
+      onHoverIn={() => setLocationHovered(true)}
+      onHoverOut={() => setLocationHovered(false)}
+      onPress={useLocation}
+      style={({ pressed }) => [
+        styles.locationButton,
+        mobile && styles.locationButtonMobile,
+        locationHovered && styles.locationButtonHovered,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Crosshair size={19} color={locationHovered ? '#0f7a45' : '#11150f'} aria-hidden />
+      <Text
+        accessibilityLiveRegion="polite"
+        style={[styles.locationText, locationHovered && styles.locationTextHovered]}
+      >
+        {locationLabel}
+      </Text>
+    </Pressable>
+  );
 
   return (
     <PageBackground>
@@ -257,44 +325,36 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             </Text>
           </View>
           <View style={styles.addressArea}>
-            <View
-              style={[
-                styles.inputShell,
-                activeError && styles.inputShellError,
-                ...fieldFocusRing(addressFocused),
-              ]}
-            >
-              <TextInput
-                accessibilityLabel="Full Minnesota street address"
-                aria-describedby={activeError ? ADDRESS_ERROR_ID : undefined}
-                aria-invalid={activeError ? true : undefined}
-                autoComplete="street-address"
-                placeholder={EXAMPLE_ADDRESS}
-                placeholderTextColor={t.colors.text.faint}
-                value={address}
-                onChangeText={(value) => {
-                  setAddress(value);
-                  lookup.reset();
-                  setLocationError(false);
-                }}
-                onSubmitEditing={() => runAddress(address)}
-                style={[styles.input, fieldOutlineReset]}
-                {...addressFocusProps}
-                {...({ name: 'street-address' } as object)}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Find legislators"
-                onPress={() => runAddress(address)}
-                disabled={!address.trim() || lookup.isPending}
-                style={({ pressed }) => [
-                  styles.findButton,
-                  (!address.trim() || lookup.isPending) && styles.disabled,
-                  pressed && styles.pressed,
+            <View style={[styles.controlRow, isMobile && styles.controlRowMobile]}>
+              <View
+                style={[
+                  styles.inputShell,
+                  activeError && styles.inputShellError,
+                  ...fieldFocusRing(addressFocused),
                 ]}
               >
-                <Text style={styles.findButtonText}>Find</Text>
-              </Pressable>
+                <TextInput
+                  ref={addressInputRef}
+                  accessibilityLabel="Full Minnesota street address"
+                  aria-describedby={activeError ? ADDRESS_ERROR_ID : undefined}
+                  aria-invalid={activeError ? true : undefined}
+                  autoComplete="street-address"
+                  placeholder={EXAMPLE_ADDRESS}
+                  placeholderTextColor={t.colors.text.faint}
+                  value={address}
+                  onChangeText={(value) => {
+                    setAddress(value);
+                    lookup.reset();
+                    setLocationError(false);
+                  }}
+                  onSubmitEditing={findAddress}
+                  style={[styles.input, isMobile && styles.inputMobile, fieldOutlineReset]}
+                  {...addressFocusProps}
+                  {...({ name: 'street-address' } as object)}
+                />
+                {!isMobile ? renderFindButton(false) : null}
+              </View>
+              {!isMobile ? renderLocationButton(false) : null}
             </View>
             {activeError ? (
               <Text
@@ -305,15 +365,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 {activeError.field}
               </Text>
             ) : null}
-            <Pressable
-              accessibilityRole="button"
-              onPress={useLocation}
-              disabled={lookup.isPending}
-              style={({ pressed }) => [styles.locationButton, pressed && styles.pressed]}
-            >
-              <Navigation size={17} color={t.colors.brand.deep} />
-              <Text style={styles.locationText}>Use my location</Text>
-            </Pressable>
+            {isMobile ? renderFindButton(true) : null}
+            {isMobile ? renderLocationButton(true) : null}
           </View>
 
           <View style={styles.answer} accessibilityLiveRegion="polite">
@@ -368,7 +421,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             ) : null}
             {(state === 'found' || state === 'vacant') && result ? (
               <View style={styles.foundWrap}>
-                <View style={styles.foundHeader}>
+                <View style={[styles.foundHeader, foundHeaderGradient]}>
                   <Text accessibilityRole="header" aria-level={2} style={styles.answerTitle}>
                     Your Minnesota legislators
                   </Text>
@@ -445,9 +498,6 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
           )}
           <View style={styles.notices}>
             <Text style={styles.notice}>
-              Minnesota district shapes are provided by Minnesota GIS.
-            </Text>
-            <Text style={styles.notice}>
               This product uses the Census Bureau Data API but is not endorsed or certified by the
               Census Bureau.
             </Text>
@@ -482,18 +532,22 @@ const styles = StyleSheet.create({
     lineHeight: 29,
     color: t.colors.text.secondary,
   },
-  addressArea: { marginTop: 34, maxWidth: 900, gap: 8 },
+  addressArea: { marginTop: 34, maxWidth: 900, width: '100%', gap: 8 },
+  controlRow: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  controlRowMobile: { flexDirection: 'column' },
   inputShell: {
-    minHeight: 60,
+    flex: 1,
+    minWidth: 0,
+    minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: t.colors.alpha.ink14,
-    paddingLeft: 18,
-    paddingRight: 6,
-    ...(t.shadows.card as object),
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.16)',
+    paddingVertical: 4,
+    paddingLeft: 20,
+    paddingRight: 8,
   },
   inputShellError: { borderColor: t.colors.ink },
   input: {
@@ -501,20 +555,35 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: 52,
     fontFamily: t.typography.body,
-    fontSize: 16,
+    fontSize: 18,
     color: t.colors.ink,
   },
+  inputMobile: { fontSize: 16 },
   findButton: {
-    minWidth: 86,
-    minHeight: 48,
-    borderRadius: 11,
-    backgroundColor: t.colors.brand.deep,
+    minHeight: 44,
+    flexDirection: 'row',
+    gap: 9,
+    borderRadius: 12,
+    backgroundColor: '#2ed47e',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingTop: 13,
+    paddingRight: 26,
+    paddingBottom: 13,
+    paddingLeft: 23,
   },
-  findButtonText: { fontFamily: t.typography.ui, fontSize: 15, fontWeight: '700', color: 'white' },
-  disabled: { opacity: 0.5 },
+  findButtonHovered: { backgroundColor: '#28bf71' },
+  fullWidthButton: {
+    width: '100%',
+    minHeight: 48,
+  },
+  findButtonText: {
+    fontFamily: t.typography.ui,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#06231a',
+  },
+  findButtonTextMobile: { fontSize: 16 },
   pressed: { opacity: 0.72 },
   fieldError: {
     fontFamily: t.typography.body,
@@ -523,20 +592,27 @@ const styles = StyleSheet.create({
     color: t.colors.ink,
   },
   locationButton: {
-    minHeight: 44,
+    height: 62,
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 2,
+    justifyContent: 'center',
+    gap: 9,
+    paddingHorizontal: 22,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.16)',
+    borderRadius: 14,
   },
+  locationButtonMobile: { width: '100%', minHeight: 48, height: 48, borderRadius: 12 },
+  locationButtonHovered: { borderColor: '#2ed47e' },
   locationText: {
     fontFamily: t.typography.ui,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
-    color: t.colors.brand.deep,
-    textDecorationLine: 'underline',
+    color: '#11150f',
   },
+  locationTextHovered: { color: '#0f7a45' },
   answer: { marginTop: 22 },
   emptyAnswer: {
     minHeight: 110,
@@ -616,11 +692,12 @@ const styles = StyleSheet.create({
   errorText: { fontFamily: t.typography.body, fontSize: 17, lineHeight: 26, color: t.colors.ink },
   foundWrap: { gap: 20 },
   foundHeader: {
-    backgroundColor: t.colors.tint.t100,
+    backgroundColor: '#f2f9f5',
     borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    borderRadius: 18,
-    padding: 24,
+    borderColor: '#cbeed6',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
     gap: 7,
   },
   answerTitle: {

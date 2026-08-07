@@ -13,11 +13,11 @@ vi.mock('react-native-svg', () => ({
   Polygon: (props: Record<string, unknown>) => <polygon {...props} />,
 }));
 
-import { ArrowLeft, MapPin, usedIconNames } from '../icons';
+import { ArrowLeft, Crosshair, MapPin, usedIconNames } from '../icons';
 
 describe('local icons', () => {
-  it('keeps the 17 shipped icons and their Lucide SVG defaults', () => {
-    expect(usedIconNames).toHaveLength(17);
+  it('keeps the 18 shipped icons and their Lucide SVG defaults', () => {
+    expect(usedIconNames).toHaveLength(18);
 
     const html = renderToStaticMarkup(<ArrowLeft size={32} color="#123456" strokeWidth={2.4} />);
 
@@ -33,5 +33,13 @@ describe('local icons', () => {
     const html = renderToStaticMarkup(<MapPin aria-hidden />);
 
     expect(html).toContain('aria-hidden="true"');
+  });
+
+  it('draws the location action as a crosshair rather than a send arrow', () => {
+    const html = renderToStaticMarkup(<Crosshair size={19} aria-hidden />);
+
+    expect(html).toContain('r="3.4"');
+    expect(html).toContain('r="8.5"');
+    expect(html).toContain('d="M12 2v3M12 19v3M22 12h-3M5 12H2"');
   });
 });
