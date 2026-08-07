@@ -20,6 +20,7 @@ import {
   Legislator,
   RepresentativeLookupInput,
   RepresentativeLookupResult,
+  VoteEvent,
 } from './types';
 
 function androidHostOrigin(origin: string) {
@@ -1381,36 +1382,40 @@ function mapBillDetail(
       versionCode: version.version_code,
       isCurrent: version.is_current ?? false,
     })),
-    votes: votes.map((vote) => ({
-      id: vote.id,
-      motion: vote.motion_text ?? 'Vote',
-      date: formatOptionalDate(vote.occurred_at),
-      result: vote.result_text ?? 'Result unavailable',
-      chamber: toOptionalChamber(vote.chamber),
-      officialUrl: vote.official_url ?? undefined,
-      breakdown: {
-        yes: vote.yes_count ?? 0,
-        no: vote.no_count ?? 0,
-        // Members who did not vote yes/no. Only ingested when the source records
-        // it; today these columns are 0, so nothing "didn't vote" is claimed (#83).
-        absent: (vote.absent_count ?? 0) + (vote.excused_count ?? 0) + (vote.present_count ?? 0),
-      },
-      // Per-member records carry name + party inline (the /legislators list doesn't
-      // serve party), so the roster grid groups by party without a second lookup.
-      votes: (vote.records ?? []).map((record) => ({
-        legislatorId: record.legislator_id,
-        slug: record.slug ?? undefined,
-        name: record.legislator_name ?? undefined,
-        party: record.party ?? undefined,
-        vote: record.vote_value === 'yes' ? 'YES' : record.vote_value === 'no' ? 'NO' : 'ABSENT',
-      })),
-    })),
+    votes: mapBillVotes(votes),
     citations: citationsFromAnalysis(payload.ai_analysis),
     officialLinks: payload.official_url
       ? [{ id: `${payload.id}-official`, label: 'Official bill page', url: payload.official_url }]
       : [],
     sponsorNames: payload.chief_sponsors.map((sponsor) => sponsor.name),
   };
+}
+
+function mapBillVotes(votes: ApiBillVotePayload[]): VoteEvent[] {
+  return votes.map((vote) => ({
+    id: vote.id,
+    motion: vote.motion_text ?? 'Vote',
+    date: formatOptionalDate(vote.occurred_at),
+    result: vote.result_text ?? 'Result unavailable',
+    chamber: toOptionalChamber(vote.chamber),
+    officialUrl: vote.official_url ?? undefined,
+    breakdown: {
+      yes: vote.yes_count ?? 0,
+      no: vote.no_count ?? 0,
+      // Members who did not vote yes/no. Only ingested when the source records
+      // it; today these columns are 0, so nothing "didn't vote" is claimed (#83).
+      absent: (vote.absent_count ?? 0) + (vote.excused_count ?? 0) + (vote.present_count ?? 0),
+    },
+    // Per-member records carry name + party inline (the /legislators list doesn't
+    // serve party), so the roster grid groups by party without a second lookup.
+    votes: (vote.records ?? []).map((record) => ({
+      legislatorId: record.legislator_id,
+      slug: record.slug ?? undefined,
+      name: record.legislator_name ?? undefined,
+      party: record.party ?? undefined,
+      vote: record.vote_value === 'yes' ? 'YES' : record.vote_value === 'no' ? 'NO' : 'ABSENT',
+    })),
+  }));
 }
 
 function normalizeBillSubjectId(subjectId?: string, subjectLabel?: string) {
@@ -1812,16 +1817,20 @@ export async function getBillFromApi(
   billId: string,
 ): Promise<(Bill & { sponsorNames: string[] }) | null> {
   const apiBillId = normalizeBillIdForApi(billId);
-  const [detailResponse, votesResponse] = await Promise.all([
-    publicApiRequest<DetailResponse<ApiBillDetailPayload>>(
-      `/bills/${encodeURIComponent(apiBillId)}?include=all_sponsors,actions,versions,topics,ai_analysis,progress`,
-    ),
-    publicApiRequest<PageResponse<ApiBillVotePayload>>(
-      `/bills/${encodeURIComponent(apiBillId)}/votes`,
-    ),
-  ]);
+  const detailResponse = await publicApiRequest<DetailResponse<ApiBillDetailPayload>>(
+    `/bills/${encodeURIComponent(apiBillId)}?include=all_sponsors,actions,versions,topics,ai_analysis,progress`,
+  );
 
-  return mapBillDetail(detailResponse.data, votesResponse.data);
+  return mapBillDetail(detailResponse.data, []);
+}
+
+export async function getBillVotesFromApi(billId: string): Promise<VoteEvent[]> {
+  const apiBillId = normalizeBillIdForApi(billId);
+  const votesResponse = await publicApiRequest<PageResponse<ApiBillVotePayload>>(
+    `/bills/${encodeURIComponent(apiBillId)}/votes`,
+  );
+
+  return mapBillVotes(votesResponse.data);
 }
 
 export interface BillVersionSectionText {

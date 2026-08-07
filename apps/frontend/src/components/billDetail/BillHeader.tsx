@@ -42,6 +42,7 @@ export function BillHeader({
   onTrack,
   activeTab,
   onSelectTab,
+  onTabIntent,
   onAllBills,
 }: {
   title: string;
@@ -62,6 +63,7 @@ export function BillHeader({
   onTrack: () => void;
   activeTab: DetailTab;
   onSelectTab: (tab: DetailTab) => void;
+  onTabIntent?: (tab: DetailTab) => void;
   onAllBills: () => void;
 }) {
   const { isMobile } = useResponsive();
@@ -98,6 +100,7 @@ export function BillHeader({
               key={tab.key}
               label={tab.label}
               active={tab.key === activeTab}
+              onPressIn={() => onTabIntent?.(tab.key)}
               onPress={() => onSelectTab(tab.key)}
             />
           ))}
@@ -144,10 +147,12 @@ function Breadcrumb({ onPress, isMobile }: { onPress: () => void; isMobile: bool
 function TabButton({
   label,
   active,
+  onPressIn,
   onPress,
 }: {
   label: string;
   active: boolean;
+  onPressIn: () => void;
   onPress: () => void;
 }) {
   const [hovered, hover] = useHover();
@@ -156,6 +161,7 @@ function TabButton({
       accessibilityRole="button"
       accessibilityLabel={`${label} tab`}
       aria-current={active ? 'page' : undefined}
+      onPressIn={onPressIn}
       onPress={onPress}
       {...hover}
       style={[styles.tab, active && styles.tabActive]}
