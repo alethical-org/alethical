@@ -4,7 +4,7 @@ import {
   ISSUE_ANSWER_SORT_OPTIONS,
   issueAnswerBills,
   issueAnswerFollowUps,
-  issueAnswerUpdatedLabel,
+  issueAnswerHasMore,
   resolveIssueAnswerSort,
 } from '../issueAnswer';
 
@@ -41,9 +41,9 @@ describe('issue answer list behavior', () => {
     ]);
   });
 
-  it('formats the served freshness date for the one source line', () => {
-    expect(issueAnswerUpdatedLabel('2026-08-07T16:02:31Z')).toBe('Updated Aug 7, 2026');
-    expect(issueAnswerUpdatedLabel(undefined)).toBe('');
-    expect(issueAnswerUpdatedLabel('not-a-date')).toBe('');
+  it('shows the Search link only when some matching bills are not rendered', () => {
+    expect(issueAnswerHasMore(18, 5)).toBe(true);
+    expect(issueAnswerHasMore(3, 3)).toBe(false);
+    expect(issueAnswerHasMore(0, 0)).toBe(false);
   });
 });

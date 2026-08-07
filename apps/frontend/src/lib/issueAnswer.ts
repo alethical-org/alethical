@@ -31,19 +31,8 @@ export function issueAnswerFollowUps(topic: string) {
   ];
 }
 
-/** The topic answer has a corpus freshness date rather than 1 bill's pull date.
- * It appears once, in the shared source line. */
-export function issueAnswerUpdatedLabel(dataAsOf: string | undefined): string {
-  const match = dataAsOf?.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return '';
-  const [, year, month, day] = match;
-  const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return '';
-  const formatted = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(date);
-  return `Updated ${formatted}`;
+/** The total names everything that matched. Search is useful only when the
+ * five-card answer window leaves at least one matching bill undisplayed. */
+export function issueAnswerHasMore(totalMatches: number, shownCount: number): boolean {
+  return totalMatches > shownCount;
 }
