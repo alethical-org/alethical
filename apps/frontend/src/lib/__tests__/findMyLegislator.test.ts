@@ -144,6 +144,9 @@ describe('Find My Legislator state and copy helpers', () => {
       join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
       'utf8',
     );
+    const summaryHeading = source.indexOf('Your Minnesota legislators');
+    const mobileDistrictChips = source.indexOf('{isMobile &&', summaryHeading);
+    const nestingSentence = source.indexOf('<Text style={styles.nesting}>', summaryHeading);
 
     expect(source).toContain('<View aria-hidden style={styles.foundHeaderPin}>');
     expect(source).toContain(
@@ -152,6 +155,8 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toMatch(/!isMobile \? \([\s\S]*styles\.foundHeaderPin/);
     expect(source).toMatch(/isMobile &&[\s\S]*<DistrictChips[\s\S]*mobile/);
     expect(source).toMatch(/!isMobile &&[\s\S]*<DistrictChips[\s\S]*mobile=\{false\}/);
+    expect(summaryHeading).toBeLessThan(mobileDistrictChips);
+    expect(mobileDistrictChips).toBeLessThan(nestingSentence);
     expect(source).toContain("backgroundColor: '#ffffff'");
     expect(source).toContain("senateDistrictChip: { borderColor: '#d8c9f7', color: '#5b30d6' }");
     expect(source).toContain("houseDistrictChip: { borderColor: '#bfeacf', color: '#0f7a45' }");

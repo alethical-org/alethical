@@ -690,18 +690,18 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     <Text accessibilityRole="header" aria-level={2} style={styles.answerTitle}>
                       Your Minnesota legislators
                     </Text>
-                    {displayedResult.houseDistrict && displayedResult.senateDistrict ? (
-                      <Text style={styles.nesting}>
-                        House District {displayedResult.houseDistrict} is one of two House districts
-                        inside Senate District {displayedResult.senateDistrict}
-                      </Text>
-                    ) : null}
                     {isMobile && displayedResult.houseDistrict && displayedResult.senateDistrict ? (
                       <DistrictChips
                         houseDistrict={displayedResult.houseDistrict}
                         senateDistrict={displayedResult.senateDistrict}
                         mobile
                       />
+                    ) : null}
+                    {displayedResult.houseDistrict && displayedResult.senateDistrict ? (
+                      <Text style={styles.nesting}>
+                        House District {displayedResult.houseDistrict} is one of two House districts
+                        inside Senate District {displayedResult.senateDistrict}
+                      </Text>
                     ) : null}
                     {displayedResult.congressionalDistrict ? (
                       <Text style={styles.congressional}>
