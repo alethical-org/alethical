@@ -28,6 +28,7 @@ import {
   clearLegislatorFilterParams,
   clearLegislatorSearchParams,
   deriveLegislatorEmptyState,
+  filterLegislatorsByName,
   paginateLegislatorResults,
 } from '../../lib/legislatorSearch';
 import {
@@ -108,16 +109,14 @@ export function SearchLegislatorsScreen() {
   const sessionName = sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name;
   const sessionLabel = sessionName ? formatSessionLabel(sessionName) : SESSION_LABEL_FALLBACK;
 
-  // The list API serves the full roster (no server pagination); chamber + party
-  // filtering and paging happen client-side.
-  // Keep an unsearched roster request alongside a name search so an empty special
-  // session is recognized as missing data, not as a failed search or filter.
+  // The complete selected-session roster is read once. Name, chamber, party, and
+  // paging choices then update from the saved roster without another request.
   const rosterQuery = useLegislators(undefined, apiSession, {});
-  const legislatorsQuery = useLegislators(query || undefined, apiSession, {});
   const metaQuery = useMeta();
 
-  const allLegislators = legislatorsQuery.data ?? [];
-  const hasIndependent = allLegislators.some((legislator) => legislator.party === 'I');
+  const allLegislators = rosterQuery.data ?? [];
+  const matchingLegislators = filterLegislatorsByName(allLegislators, query);
+  const hasIndependent = matchingLegislators.some((legislator) => legislator.party === 'I');
   const partyOptions = [
     { label: 'All parties', value: 'All' },
     { label: 'Democratic-Farmer-Labor', value: 'DFL' },
@@ -126,14 +125,14 @@ export function SearchLegislatorsScreen() {
   ];
   const partyLabel = partyOptions.find((option) => option.value === party)?.label ?? 'All parties';
 
-  const rosterHeader = deriveLegislatorRosterHeader(allLegislators, {
+  const rosterHeader = deriveLegislatorRosterHeader(matchingLegislators, {
     chamber,
     party,
     query,
     queryInput,
     sessionSlug,
     currentSessionSlug: currentSession?.slug,
-    rosterLoaded: legislatorsQuery.isSuccess,
+    rosterLoaded: rosterQuery.isSuccess,
   });
   const filtered = rosterHeader.displayedOfficeholders
     .slice()
@@ -269,7 +268,7 @@ export function SearchLegislatorsScreen() {
         showRosterNote={rosterHeader.unnarrowed}
       />
 
-      {rosterQuery.isLoading || legislatorsQuery.isLoading ? (
+      {rosterQuery.isLoading ? (
         <View style={styles.grid} accessible accessibilityLabel="Loading legislators">
           {SKELETON_CARDS.map((i) => (
             <View key={i} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
@@ -277,7 +276,7 @@ export function SearchLegislatorsScreen() {
             </View>
           ))}
         </View>
-      ) : rosterQuery.isError || legislatorsQuery.isError ? (
+      ) : rosterQuery.isError ? (
         <View style={styles.stateBox}>
           <Text style={styles.stateText}>
             We couldn’t load legislators right now. Please try again in a moment.

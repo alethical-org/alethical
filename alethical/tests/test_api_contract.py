@@ -2230,6 +2230,16 @@ def test_legislator_directory_limit_search_no_results_and_missing_profile(client
     assert len(limited_payload["data"]) == 1
     assert limited_payload["page"]["limit"] == 1
 
+    complete_roster_response = client.get(
+        "/api/v1/legislators", params={"session": "94-2025-regular", "limit": 250}
+    )
+    assert complete_roster_response.status_code == 200
+    complete_roster_payload = complete_roster_response.json()
+    assert complete_roster_payload["page"]["has_more"] is False
+    assert (
+        len(complete_roster_payload["data"]) == complete_roster_payload["page"]["total"]
+    )
+
     matching_response = client.get(
         "/api/v1/legislators", params={"q": "Howard", "limit": 10}
     )

@@ -9,6 +9,7 @@ import {
   clearLegislatorFilterParams,
   clearLegislatorSearchParams,
   deriveLegislatorEmptyState,
+  filterLegislatorsByName,
   paginateLegislatorResults,
 } from '../legislatorSearch';
 
@@ -87,6 +88,13 @@ describe('Search Legislators presentation', () => {
     expect(result.totalPages).toBe(2);
     expect(result.page).toBe(2);
     expect(result.items).toEqual(['legislator-13']);
+  });
+
+  it('filters the saved roster by every word in a name search', () => {
+    const roster = [{ name: 'Ada Lovelace' }, { name: 'Grace Hopper' }, { name: 'Ada Grace' }];
+
+    expect(filterLegislatorsByName(roster, 'ada grace')).toEqual([{ name: 'Ada Grace' }]);
+    expect(filterLegislatorsByName(roster, '')).toEqual(roster);
   });
 
   it('uses the approved singular and plural bill wording', () => {
