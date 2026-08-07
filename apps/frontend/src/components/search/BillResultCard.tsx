@@ -23,6 +23,11 @@ import { ChangeBlock } from '../ChangeBlock';
 import { VoteCountLinkChip } from '../VoteCountLinkChip';
 import { linkProps, pressInsideLink, routePath } from '../../navigation/links';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
+import {
+  CARD_CONTENT_LAYER,
+  CARD_CONTROL_LAYER,
+  CARD_LINK_LAYER,
+} from '../../lib/billCardControlLayers';
 
 const isWeb = Platform.OS === 'web';
 
@@ -324,6 +329,7 @@ export function BillResultCard({
               {!issueAnswer && showTrackButton && onToggleTrack ? (
                 <View style={[styles.headerTrackSlot, styles.interactiveLayer]}>
                   <BillTrackButton
+                    billId={bill.id}
                     size="card"
                     tracked={tracked}
                     onPress={pressInsideLink(onToggleTrack)}
@@ -371,6 +377,7 @@ export function BillResultCard({
                   // clicking Track would follow the card's href to the bill.
                   <View style={styles.interactiveLayer}>
                     <BillTrackButton
+                      billId={bill.id}
                       size="card"
                       tracked={tracked}
                       onPress={pressInsideLink(onToggleTrack)}
@@ -471,6 +478,7 @@ export function BillResultCard({
       {issueAnswer && isMobile && showTrackButton && onToggleTrack ? (
         <View style={[styles.issueAnswerMobileTrack, styles.interactiveLayer]}>
           <BillTrackButton
+            billId={bill.id}
             size="mobile"
             fullWidth
             tracked={tracked}
@@ -506,19 +514,18 @@ const styles = StyleSheet.create({
       : (t.shadows.lg as object)),
   },
   cardOverlay: {
-    position: 'absolute',
+    ...CARD_LINK_LAYER,
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    zIndex: 1,
     borderRadius: 18,
   },
   cardOverlayIssueAnswer: { borderRadius: 16 },
   cardOverlayIssueAnswerMobile: { borderRadius: 14 },
-  cardMain: { gap: 12 },
+  cardMain: { gap: 12, ...(isWeb ? CARD_CONTENT_LAYER : null) },
   cardMainIssueAnswer: { gap: 13 },
-  interactiveLayer: { position: 'relative', zIndex: 2 },
+  interactiveLayer: CARD_CONTROL_LAYER,
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 14, flexWrap: 'wrap' },
   topSpacer: { flex: 1 },
   // Right-aligned group holding the Hot-issue flag + Track, 16px apart.
@@ -650,7 +657,13 @@ const styles = StyleSheet.create({
   // aligns flush-left under "Latest action:" instead of the ragged indent a
   // marginLeft would leave. row-gap keeps a small breath between wrapped lines.
   actionRow: { columnGap: 8, rowGap: 2 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    ...(isWeb ? CARD_CONTENT_LAYER : null),
+  },
   tag: {
     backgroundColor: t.colors.surfaces.s400,
     borderRadius: t.radii.sm,

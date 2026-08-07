@@ -21,8 +21,12 @@ export interface SignInRequest {
   intent: SignInIntent;
   /** Where to send the person after Google. Absent = back to the current page. */
   returnTo?: string;
+  /** Bill the reader asked to track, persisted across Google's full-page redirect. */
+  billId?: string;
   /** Bill identifier ("HF 4138") for the track intent, so the copy names it. */
   billCode?: string;
+  /** Exact web scroll position to restore after the redirect. */
+  scrollY?: number;
 }
 
 interface IntentConfig {
@@ -48,8 +52,7 @@ export const SIGN_IN_INTENTS: Record<SignInIntent, IntentConfig> = {
   track: {
     icon: 'bell',
     headline: 'Sign in to track this bill',
-    subcopy: (billCode?: string) =>
-      `Save ${billCode ?? 'this bill'} to your tracked bills and check where it stands whenever you come back.`,
+    subcopy: () => GENERIC_SUBCOPY,
   },
 };
 
@@ -88,7 +91,9 @@ export interface SignInDialogState {
   open: boolean;
   intent: SignInIntent;
   returnTo?: string;
+  billId?: string;
   billCode?: string;
+  scrollY?: number;
   status: SignInStatus;
   errorKind: SignInErrorKind | null;
 }
@@ -115,7 +120,9 @@ export function signInReducer(state: SignInDialogState, action: SignInAction): S
         open: true,
         intent: action.request.intent,
         returnTo: action.request.returnTo,
+        billId: action.request.billId,
         billCode: action.request.billCode,
+        scrollY: action.request.scrollY,
         status: 'idle',
         errorKind: null,
       };
@@ -124,7 +131,9 @@ export function signInReducer(state: SignInDialogState, action: SignInAction): S
         open: true,
         intent: action.request.intent,
         returnTo: action.request.returnTo,
+        billId: action.request.billId,
         billCode: action.request.billCode,
+        scrollY: action.request.scrollY,
         status: 'error',
         errorKind: action.kind,
       };

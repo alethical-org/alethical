@@ -29,8 +29,9 @@ pages = `"page"` (shows the top-level ✦ Ask entry, per the IA locked decision)
 - **Field focus**: reuse `theme/fieldFocus.ts` (`useFieldFocus`, `fieldFocusRing`,
   `fieldOutlineReset`) for the purple search-bar focus ring.
 - **Hooks** (`hooks/useAppQueries.ts`): `useBills`, `useLegislators`, `usePolicyAreas`,
-  `useSessions`, `useMeta`, `useTrackedBills`, `useToggleTrackedBill`; `useAuth` for
-  sign-in + tracking gate; `trackSignInReturnTo` from `navigation/webRoutes`.
+  `useSessions`, `useMeta`, `useTrackedBills`, `useSetTrackedBill`; `useAuth` for
+  sign-in + tracking gate. The shipped same-page return flow now lives in
+  `docs/product-onboarding/bill-tracking-spec.md`.
 - **Filter controls**: the existing `SearchFilterPanel` already wires chamber segmented +
   status/session dropdowns + omnibus toggle + policy pills to real data. The bills hero
   filter row mirrors it; the legislators row is a subset (chamber + party + session, NO

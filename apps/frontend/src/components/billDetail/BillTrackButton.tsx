@@ -10,6 +10,8 @@ import {
 import { Check, Plus, RefreshCw } from '../icons';
 
 import { useTrackedListState } from '../../hooks/useAppQueries';
+import { CARD_CONTROL_LAYER } from '../../lib/billCardControlLayers';
+import { useTrackedBillWrite } from '../../providers/trackedBillWriteContext';
 import { theme as t } from '../../theme/tokens';
 import {
   BillTrackButtonSize,
@@ -25,8 +27,8 @@ import { isWeb, useHover, useUnavailableControl } from './interactions';
 // the compact on-card button.
 //
 // It is functional (this replaced the retired inert RoadmapTrackButton, #976):
-// onPress toggles the bill on the signed-in user's watchlist, or routes a
-// signed-out user through sign-in (see hooks/useBillTracking). It reflects state
+// onPress toggles the bill on the signed-in user's watchlist, or opens sign-in in
+// place for a signed-out user (see hooks/useBillTracking). It reflects state
 // (Track / Tracked) because a live toggle cannot honestly keep showing "+ Track"
 // on a bill the reader already tracks.
 //
@@ -53,11 +55,13 @@ import { isWeb, useHover, useUnavailableControl } from './interactions';
 // surface gets all four forms without threading a flag down through five screens.
 //
 export function BillTrackButton({
+  billId,
   tracked,
   onPress,
   size,
   fullWidth = false,
 }: {
+  billId: string;
   tracked: boolean;
   // Matches Pressable's onPress so a link surface can pass a pressInsideLink handler
   // (which receives the event to swallow it); header callers pass a plain () => void.
@@ -72,7 +76,9 @@ export function BillTrackButton({
 }) {
   const [hovered, hover] = useHover();
   const { state: resolveState, recheck } = useTrackedListState();
-  const state = resolveState(tracked);
+  const { failures, retryTrackedBill } = useTrackedBillWrite();
+  const writeFailed = failures[billId] !== undefined;
+  const state = writeFailed ? 'unavailable' : resolveState(tracked);
   const spinnerVisible = useDelayed(state === 'checking', SPINNER_DELAY_MS);
   const unknownRef = useUnavailableControl(state === 'checking', { busy: true });
   const { glyphSize, fontSize, fontWeight, ...buttonSizeStyle } = trackButtonSize(size);
@@ -132,8 +138,12 @@ export function BillTrackButton({
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Couldn't check whether you track this bill. Press to check again."
-        onPress={pressRecheck(recheck)}
+        accessibilityLabel={
+          writeFailed
+            ? "Couldn't save your Track change. Press to try again."
+            : "Couldn't check whether you track this bill. Press to check again."
+        }
+        onPress={pressRecheck(writeFailed ? () => retryTrackedBill(billId) : recheck)}
         {...hover}
         style={[
           styles.btn,
@@ -211,6 +221,7 @@ const SPINNER_DELAY_MS = 300;
 
 const styles = StyleSheet.create({
   btn: {
+    ...CARD_CONTROL_LAYER,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

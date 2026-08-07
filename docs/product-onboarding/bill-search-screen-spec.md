@@ -245,9 +245,11 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   hover `#2c322c`). Tracked uses mint (`#cdeedd`, border `#8ed3ae`, text `#06231a`, check
   `#0f7a45`; hover `#b9e6cd` with border `#6cc596`). Both states use `aria-pressed`, and
   pressing the tracked state untracks the bill. A signed-out tap opens the shared
-  sign-in dialog naming this bill (`components/auth/SignInDialog.tsx`, [#1006](https://github.com/alethical-org/alethical/issues/1006)),
-  then returns to the bill at `?track=1` to complete the track; signed in it toggles
-  the bill on the watchlist and reads "Tracked". This reverses the Jul 2026 roadmap-preview
+  sign-in dialog in place (`components/auth/SignInDialog.tsx`, [#1006](https://github.com/alethical-org/alethical/issues/1006)),
+  then returns to the exact page and scroll position and completes the track; signed in it
+  toggles the bill on the watchlist and reads "Tracked". The site-wide return, failure, and
+  full-card layering rules live in `docs/product-onboarding/bill-tracking-spec.md`. This
+  reverses the Jul 2026 roadmap-preview
   decision, where the button was an inert `aria-disabled` preview. Ink is the color role
   reserved for Track (green stays for other forward actions). The Track **nav** dropdown
   already offered Bills as a live entry; the on-card button now agrees. The Tracked page
@@ -327,7 +329,7 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   `size="card"` on both layouts, with the 44px minimum height established in
   [#1013](https://github.com/alethical-org/alethical/issues/1013). Signed-out, tracked,
   untracked, checking, and retry states keep the shared behavior above; pressing the nested
-  control uses `pressInsideLink`, so it never opens the surrounding bill link.
+  control uses the shared card-control layer, so it never opens the surrounding bill link.
 - **Card link → bill Overview** (`/bills/:billId`), the detail screen (not yet redesigned;
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a
@@ -341,8 +343,8 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   cannot drift apart.
 - **The vote count is a separate real link beside the card body**, so right-click, modified click,
   middle-click and copy-link all lead to the Votes tab without nesting one `<a>` inside another.
-  The chief-author and Track controls still cancel the surrounding card-body click with
-  `pressInsideLink`; the author's remaining new-tab gap stays tracked in
+  The chief-author and Track controls sit in the shared card-control layer above the
+  surrounding bill link; the author's remaining new-tab gap stays tracked in
   [#760](https://github.com/alethical-org/alethical/issues/760).
 
 **Deliberately excluded:** key points (too heavy to scan), version count (low value),

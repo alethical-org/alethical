@@ -36,6 +36,13 @@ import {
 } from '../../hooks/useAppQueries';
 import { Bill, Legislator } from '../../data/types';
 import { formatLegislatureLabel } from '../../lib/sessionLabel';
+import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
+import { useBillTracking } from '../../hooks/useBillTracking';
+import {
+  CARD_CONTENT_LAYER,
+  CARD_CONTROL_LAYER,
+  CARD_LINK_LAYER,
+} from '../../lib/billCardControlLayers';
 
 const isWeb = Platform.OS === 'web';
 const COLUMN_MAX = 640;
@@ -297,12 +304,16 @@ function BillCardView({
   onOpen,
   onVotes,
   onOpenLegislator,
+  tracked,
+  onToggleTrack,
 }: {
   bill: Bill;
   legislatorId: string;
   onOpen: () => void;
   onVotes: () => void;
   onOpenLegislator: (id: string) => void;
+  tracked: boolean;
+  onToggleTrack: () => void;
 }) {
   const filled = statusSegments(bill.status);
   const tags = bill.aiAnalysis?.policyAreas ?? [];
@@ -319,10 +330,24 @@ function BillCardView({
   const movedDate = formatMonoDate(bill.updatedAt);
   return (
     <View style={styles.billCard}>
-      <Pressable {...linkProps(routePath.bill(bill.id), onOpen)}>
+      <Pressable
+        {...linkProps(routePath.bill(bill.id), onOpen)}
+        accessibilityLabel={`Open ${bill.identifier}`}
+        style={styles.billCardOverlay}
+      />
+      <View style={styles.billCardContent}>
         <View style={styles.billTopRow}>
           <Text style={styles.codeBadge}>{bill.identifier}</Text>
           <Text style={styles.billStage}>{bill.status}</Text>
+          <View style={styles.billTopSpacer} />
+          <View style={styles.billCardControl}>
+            <BillTrackButton
+              billId={bill.id}
+              size="card"
+              tracked={tracked}
+              onPress={pressInsideLink(onToggleTrack)}
+            />
+          </View>
         </View>
         <View style={styles.progressRow}>
           {Array.from({ length: 5 }, (_, i) => (
@@ -344,11 +369,9 @@ function BillCardView({
                   <Text key={s.legislatorId ?? s.name}>
                     {i > 0 ? ', ' : ''}
                     <Text
-                      style={styles.coAuthorLink}
-                      // Nested inside the card's own link (above): stopPropagation
-                      // alone would stop the card's handler but not the anchor's
-                      // default action, so the browser would still follow the
-                      // card's href on top of opening this name.
+                      style={[styles.coAuthorLink, styles.billCardControl]}
+                      // This link sits above the full-card bill link. Cancel the
+                      // underlying link as a second guard for web pointer events.
                       onPress={
                         s.legislatorId
                           ? pressInsideLink(() => onOpenLegislator(s.legislatorId!))
@@ -366,9 +389,9 @@ function BillCardView({
             )}
           </Text>
         ) : null}
-      </Pressable>
+      </View>
       {tags.length > 0 || bill.companion || bill.rollCallCount > 0 ? (
-        <View style={styles.tagRow}>
+        <View style={[styles.tagRow, styles.billCardContent]}>
           {tags.slice(0, 3).map((tag) => (
             <View key={tag} style={styles.tag}>
               <Text style={styles.tagText}>{tag.toUpperCase()}</Text>
@@ -381,11 +404,13 @@ function BillCardView({
               </Text>
             </View>
           ) : null}
-          <VoteCountLinkChip
-            count={bill.rollCallCount}
-            href={routePath.bill(bill.id, { tab: 'votes' })}
-            onPress={pressInsideLink(onVotes)}
-          />
+          <View style={styles.billCardControl}>
+            <VoteCountLinkChip
+              count={bill.rollCallCount}
+              href={routePath.bill(bill.id, { tab: 'votes' })}
+              onPress={pressInsideLink(onVotes)}
+            />
+          </View>
         </View>
       ) : null}
     </View>
@@ -428,6 +453,7 @@ function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void
 export function LegislatorProfileMobileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { isTracked, toggleTrack } = useBillTracking();
 
   const params: Record<string, unknown> = route.params ?? {};
   const legislatorId = typeof params.legislatorId === 'string' ? params.legislatorId : '';
@@ -787,6 +813,8 @@ export function LegislatorProfileMobileScreen() {
                         onOpenLegislator={(id) =>
                           navigation.navigate('LegislatorProfile', { legislatorId: id })
                         }
+                        tracked={isTracked(bill.id)}
+                        onToggleTrack={() => toggleTrack(bill.id, bill.identifier)}
                       />
                     ))}
                     {allBills.length > 2 && !showAllBills ? (
@@ -1260,6 +1288,7 @@ const styles = StyleSheet.create({
   },
   billList: { gap: 14 },
   billCard: {
+    position: 'relative',
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
@@ -1267,7 +1296,18 @@ const styles = StyleSheet.create({
     padding: 20,
     ...(t.shadows.card as object),
   },
+  billCardOverlay: {
+    ...CARD_LINK_LAYER,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 18,
+  },
+  billCardContent: isWeb ? CARD_CONTENT_LAYER : {},
+  billCardControl: CARD_CONTROL_LAYER,
   billTopRow: { flexDirection: 'row', alignItems: 'center', gap: 11, flexWrap: 'wrap' },
+  billTopSpacer: { flex: 1 },
   codeBadge: {
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.body,

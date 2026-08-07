@@ -218,6 +218,7 @@ export function BillDetailWebScreen() {
 
   const hero = (
     <BillHeader
+      billId={bill.id}
       title={bill.aiAnalysis?.shortTitle ?? bill.title}
       fullTitle={bill.title}
       eyebrow={eyebrow}

@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider } from './AuthProvider';
 import { SignInModalProvider } from './SignInModalProvider';
+import { TrackedBillWriteProvider } from './TrackedBillWriteProvider';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(
@@ -29,12 +30,14 @@ export function AppProviders({ children }: PropsWithChildren) {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          {/* Under AuthProvider so the one sign-in dialog can read the session,
-              and above everything else so any button on any screen can open it. */}
-          <SignInModalProvider>
-            <StatusBar style="dark" />
-            {children}
-          </SignInModalProvider>
+          <TrackedBillWriteProvider>
+            {/* Under AuthProvider so the one sign-in dialog can read the session,
+                and above everything else so any button on any screen can open it. */}
+            <SignInModalProvider>
+              <StatusBar style="dark" />
+              {children}
+            </SignInModalProvider>
+          </TrackedBillWriteProvider>
         </AuthProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

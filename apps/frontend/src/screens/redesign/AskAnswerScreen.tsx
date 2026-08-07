@@ -173,7 +173,7 @@ function AnswerBillCard({
         </View>
         {/* Live Track button, consistent site-wide (#976). The card is a View, not
             a link wrapper, so no press-swallowing is needed here. */}
-        <BillTrackButton size="card" tracked={tracked} onPress={onToggleTrack} />
+        <BillTrackButton billId={bill.id} size="card" tracked={tracked} onPress={onToggleTrack} />
       </View>
       {/* The PLAIN title, with the statutory one kept as a hover tooltip and the
           screen-reader name — the treatment BillHeader and the search card already

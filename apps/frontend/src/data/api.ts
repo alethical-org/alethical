@@ -2070,15 +2070,12 @@ export async function markTrackedBillsViewedFromApi(accessToken: string): Promis
   return response.data?.previous_viewed_at ?? null;
 }
 
-export async function toggleTrackedBillFromApi(accessToken: string, billId: string): Promise<void> {
-  const trackedBills = await apiRequest<CollectionResponse<ApiTrackedBillPayload>>(
-    '/me/tracked-bills',
-    { method: 'GET' },
-    accessToken,
-  );
-  const isTracked = trackedBills.data.some((tracked) => tracked.bill_id === billId);
-
-  if (isTracked) {
+export async function setTrackedBillFromApi(
+  accessToken: string,
+  billId: string,
+  tracked: boolean,
+): Promise<void> {
+  if (!tracked) {
     await apiRequest<void>(
       `/me/tracked-bills/${encodeURIComponent(billId)}`,
       { method: 'DELETE' },

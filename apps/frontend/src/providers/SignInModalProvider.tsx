@@ -10,9 +10,11 @@ import {
   signInReducer,
   urlWithoutAuthError,
 } from '../lib/signIn';
+import { pendingSignInRequest } from '../lib/trackIntent';
 import { SignInModalContext } from './signInModalContext';
 import { signInHeldConnecting } from '../lib/devSignInHold';
 import { useAuth } from './AuthProvider';
+import { useTrackedBillWrite } from './trackedBillWriteContext';
 
 // One dialog for the whole app. Any button anywhere calls `openSignIn(...)` with
 // why it is asking; nothing re-implements a sign-in box per screen.
@@ -35,24 +37,43 @@ function stashPendingSignIn(request: SignInRequest) {
   }
 }
 
-function takePendingSignIn(): SignInRequest | null {
+function readPendingSignIn(): SignInRequest | null {
   if (!isWeb || typeof window === 'undefined') return null;
   try {
-    const raw = window.sessionStorage.getItem(PENDING_KEY);
-    window.sessionStorage.removeItem(PENDING_KEY);
-    if (!raw) return null;
-    const request = JSON.parse(raw) as Partial<SignInRequest>;
-    return request.intent === 'nav' || request.intent === 'track'
-      ? (request as SignInRequest)
-      : null;
+    return pendingSignInRequest(window.sessionStorage.getItem(PENDING_KEY));
   } catch {
     return null;
   }
 }
 
+function clearPendingSignIn() {
+  if (!isWeb || typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(PENDING_KEY);
+  } catch {
+    // The page still works when browser storage is unavailable.
+  }
+}
+
+function restoreScrollPosition(scrollY?: number) {
+  if (!isWeb || typeof window === 'undefined' || !scrollY) return () => {};
+  const startedAt = Date.now();
+  const restore = () => {
+    window.scrollTo({ top: scrollY, left: 0, behavior: 'auto' });
+    if (Math.abs(window.scrollY - scrollY) <= 1 || Date.now() - startedAt > 15_000) {
+      window.clearInterval(timer);
+    }
+  };
+  const timer = window.setInterval(restore, 100);
+  restore();
+  return () => window.clearInterval(timer);
+}
+
 export function SignInModalProvider({ children }: PropsWithChildren) {
   const { isSignedIn, authError, authErrorKind, signInWithGoogle } = useAuth();
+  const { setTrackedBill } = useTrackedBillWrite();
   const [state, dispatch] = useReducer(signInReducer, initialSignInState);
+  const pendingRequest = useRef<SignInRequest | null>(readPendingSignIn());
 
   const openSignIn = useCallback(
     (request: SignInRequest) => {
@@ -64,27 +85,46 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     [isSignedIn],
   );
 
-  const close = useCallback(() => dispatch({ type: 'close' }), []);
+  const close = useCallback(() => {
+    pendingRequest.current = null;
+    clearPendingSignIn();
+    dispatch({ type: 'close' });
+  }, []);
 
   const onContinue = useCallback(() => {
     dispatch({ type: 'connect' });
     // Development builds only: stop here so the connecting state can be looked at
     // (lib/devSignInHold.ts). Nothing is stashed because nothing is coming back.
     if (signInHeldConnecting()) return;
-    stashPendingSignIn({
+    const request: SignInRequest = {
       intent: state.intent,
       returnTo: state.returnTo,
+      billId: state.billId,
       billCode: state.billCode,
-    });
+      scrollY: state.scrollY,
+    };
+    pendingRequest.current = request;
+    stashPendingSignIn(request);
     void signInWithGoogle(state.returnTo);
-  }, [signInWithGoogle, state.billCode, state.intent, state.returnTo]);
+  }, [signInWithGoogle, state.billCode, state.billId, state.intent, state.returnTo, state.scrollY]);
 
-  // Signing in anywhere — including a second tab — closes the dialog.
+  // Signing in anywhere — including a second tab — closes the dialog. When this
+  // tab came back from a Track request, finish that exact idempotent write first.
+  const authWasSignedIn = useRef(isSignedIn);
   useEffect(() => {
-    if (isSignedIn && state.open) {
-      dispatch({ type: 'close' });
+    const justSignedIn = isSignedIn && !authWasSignedIn.current;
+    authWasSignedIn.current = isSignedIn;
+    if (!isSignedIn || (!justSignedIn && !pendingRequest.current)) return;
+    const request = pendingRequest.current;
+    pendingRequest.current = null;
+    clearPendingSignIn();
+    const stopRestoringScroll = restoreScrollPosition(request?.scrollY);
+    if (request?.intent === 'track' && request.billId) {
+      setTrackedBill(request.billId, true);
     }
-  }, [isSignedIn, state.open]);
+    dispatch({ type: 'close' });
+    return stopRestoringScroll;
+  }, [isSignedIn, setTrackedBill]);
 
   // A failure we can see live: the native Google sheet being dismissed, or
   // Supabase refusing before any redirect happens.
@@ -102,8 +142,10 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     if (!isWeb || typeof window === 'undefined' || returnHandled.current) return;
     returnHandled.current = true;
     const failure = parseAuthError(window.location.search, window.location.hash);
-    const pending = takePendingSignIn();
+    const pending = pendingRequest.current;
     if (!failure) return;
+    pendingRequest.current = null;
+    clearPendingSignIn();
     dispatch({
       type: 'reopenWithError',
       request: pending ?? { intent: 'nav' },
