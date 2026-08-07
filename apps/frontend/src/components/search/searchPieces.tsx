@@ -27,6 +27,7 @@ import {
 } from '../../lib/legislatorRosterHeader';
 import { CLEAR_SEARCH_TARGET_SIZE } from '../../lib/legislatorSearch';
 import { useUnavailableControl } from '../billDetail/interactions';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 
 // Shared building blocks for the redesigned Search Bills / Search Legislators
 // screens (docs/mockups/search-bills + search-legislators). The two screens
@@ -90,6 +91,7 @@ export function SearchPageShell({
    */
   heroEndsWithRule?: boolean;
 }) {
+  const historyScrollProps = useHistoryScrollRestoration();
   const heroGradientWeb: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%)' }
     : { backgroundColor: t.colors.surfaces.s300 };
@@ -107,7 +109,11 @@ export function SearchPageShell({
   return (
     <PageBackground>
       <View style={styles.root}>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          {...historyScrollProps}
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+        >
           {/* HERO WRAPPER — sits above the results section so filter dropdowns
               overlay it (rather than being painted under the white block). */}
           <View style={[styles.heroWrap, heroGradientWeb]}>

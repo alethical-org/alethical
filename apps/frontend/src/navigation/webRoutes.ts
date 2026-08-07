@@ -93,6 +93,8 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
         params: {
           q: searchParams.get('q') ?? undefined,
           sort: searchParams.get('sort') ?? undefined,
+          billId: searchParams.get('bill') ?? undefined,
+          legislatorId: searchParams.get('legislator') ?? undefined,
         },
       };
     }
@@ -242,6 +244,12 @@ export function pathForRoute(activeRoute: {
       }
       if (activeRoute.params?.sort) {
         params.set('sort', String(activeRoute.params.sort));
+      }
+      if (activeRoute.params?.billId) {
+        params.set('bill', String(activeRoute.params.billId));
+      }
+      if (activeRoute.params?.legislatorId) {
+        params.set('legislator', String(activeRoute.params.legislatorId));
       }
       const query = params.toString();
       return query ? `/ask?${query}` : '/ask';

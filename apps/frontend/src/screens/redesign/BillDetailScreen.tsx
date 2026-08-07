@@ -74,6 +74,7 @@ import {
 import { citationSectionAnchor } from '../../lib/billText';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton } from '../../components/Skeleton';
+import { GoBackLink } from '../../components/GoBackLink';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
@@ -102,8 +103,6 @@ const AMBER_TEXT = t.colors.omnibus.text; // #8f5a12
 const CODE_BADGE_FILL = t.colors.omnibus.fill;
 const CODE_BADGE_BORDER = t.colors.omnibus.border;
 const GHOST_AMBER_BORDER = t.colors.omnibus.ghostBorder; // #e3c17f — shared ghosted omnibus border
-// Breadcrumb grey (palette.ink500) — no semantic text alias maps to it.
-const BREADCRUMB_GREY = '#4b524b';
 
 // Page ground — ONE flat cool-grey. Every zone (header + each content section) is
 // a white surface (surfaces.base) sitting on this; the ground shows only in the
@@ -471,14 +470,10 @@ function BillDetailMobileScreen() {
     }
   };
 
-  // "‹ All bills" is a back affordance: when the search list is the screen
-  // beneath us (the user drilled in from it), pop back so its URL-encoded
-  // filters are restored intact. When we arrived directly (a shared link, no
-  // list below), open a fresh unfiltered list instead. Mirrors #535.
+  // Native uses the navigation stack when it has one, then the bill list. Web's
+  // shared GoBackLink makes the stricter decision from marked browser history.
   const goToBillList = () => {
-    const state = navigation.getState?.();
-    const prev = state?.routes?.[(state.index ?? 1) - 1];
-    if (prev?.name === 'Bills') {
+    if (navigation.canGoBack?.()) {
       navigation.goBack();
     } else {
       navigation.navigate('Bills');
@@ -505,7 +500,7 @@ function BillDetailMobileScreen() {
 
   // --- ask ---
   const goAsk = (q?: string) => {
-    navigation.navigate('Ask', q ? { q } : undefined);
+    navigation.navigate('Ask', q ? { q, billId } : { billId });
   };
 
   // Roll-call member chips link to the member's profile (grounded-answers rule 5 —
@@ -716,14 +711,14 @@ function BillDetailMobileScreen() {
             <Text style={styles.stateText}>
               We couldn’t load this bill right now. Please try again in a moment.
             </Text>
-            <TextLink label="Back to all bills →" href={routePath.bills()} onPress={goToBillList} />
+            <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
           </View>
         ) : (
           <>
             {/* 1 — bill header */}
             <View style={styles.headerOuter}>
               <View style={styles.column}>
-                <Breadcrumb onPress={goToBillList} />
+                <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
                 <Text
                   accessibilityRole="header"
                   accessibilityLabel={bill.title}
@@ -988,6 +983,7 @@ function BillDetailMobileScreen() {
 
               {/* Ask about this bill */}
               <AskCard
+                billId={bill.id}
                 identifier={bill.identifier}
                 sessionLabel={bill.sessionLabel}
                 questionPrompts={bill.questionPrompts}
@@ -1213,32 +1209,6 @@ function BillDetailMobileScreen() {
 }
 
 // --- sub-components ---------------------------------------------------------
-
-// "‹ All bills" back-link — first element in the header, above the title. The whole
-// link darkens from grey to ink on press/hover. Links back to the Search Bills screen.
-function Breadcrumb({ onPress }: { onPress: () => void }) {
-  const [hovered, hover] = useHover();
-  const color = hovered ? t.colors.ink : BREADCRUMB_GREY;
-  return (
-    <Pressable
-      accessibilityLabel="All bills"
-      {...linkProps(routePath.bills(), onPress)}
-      {...hover}
-      style={styles.breadcrumb}
-    >
-      <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M15 6 L9 12 L15 18"
-          stroke={color}
-          strokeWidth={2.2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-      <Text style={[styles.breadcrumbLabel, { color }]}>All bills</Text>
-    </Pressable>
-  );
-}
 
 function ShareButton({ onPress }: { onPress: () => void }) {
   const [hovered, hover] = useHover();
@@ -2027,11 +1997,13 @@ function VersionRow({
 // would over-promise. Matches the Answer page's "Ask another question", which is
 // already chips-only, and stays identical to the web SummaryTab Ask module.
 function AskCard({
+  billId,
   identifier,
   sessionLabel,
   questionPrompts,
   onAsk,
 }: {
+  billId: string;
   identifier: string;
   sessionLabel?: string;
   questionPrompts: string[] | undefined;
@@ -2058,7 +2030,7 @@ function AskCard({
               <SuggestedQuestionChip
                 key={chip}
                 label={chip}
-                linkProps={linkProps(routePath.ask({ q: scoped }), () => onAsk(scoped))}
+                linkProps={linkProps(routePath.ask({ q: scoped, billId }), () => onAsk(scoped))}
               />
             );
           })}
@@ -2207,18 +2179,6 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.base,
     paddingTop: 26,
     paddingBottom: 18,
-  },
-  breadcrumb: {
-    marginBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-  },
-  breadcrumbLabel: {
-    fontFamily: t.typography.ui,
-    fontSize: 15,
-    fontWeight: t.fontWeights.semibold,
   },
   h1: {
     fontFamily: t.typography.title,

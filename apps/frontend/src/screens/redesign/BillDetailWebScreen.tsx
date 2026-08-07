@@ -22,6 +22,8 @@ import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { isNotFoundError } from '../../data/api';
 import { Skeleton } from '../../components/Skeleton';
+import { GoBackLink } from '../../components/GoBackLink';
+import { routePath } from '../../navigation/links';
 import {
   billDetailNeedsVotes,
   billDetailVotePrefetchIsUseful,
@@ -114,7 +116,7 @@ export function BillDetailWebScreen() {
     navigation.push('BillDetail', { billId: nextBillId });
   };
   const askAboutBill = (question: string) => {
-    navigation.navigate('Ask', { q: question || undefined });
+    navigation.navigate('Ask', { q: question || undefined, billId });
   };
 
   const handleNavigate = (item: IaItem) => {
@@ -136,14 +138,10 @@ export function BillDetailWebScreen() {
     }
   };
 
-  // "‹ All bills" is a back affordance: when the search list is the screen
-  // beneath us (the user drilled in from it), pop back so its URL-encoded
-  // filters are restored intact. When we arrived directly (a shared link, no
-  // list below), open a fresh unfiltered list instead. Mirrors #535.
+  // Native uses the navigation stack when it has one, then the bill list. Web's
+  // shared GoBackLink makes the stricter decision from marked browser history.
   const goToBillList = () => {
-    const state = navigation.getState?.();
-    const prev = state?.routes?.[(state.index ?? 1) - 1];
-    if (prev?.name === 'Bills') {
+    if (navigation.canGoBack?.()) {
       navigation.goBack();
     } else {
       navigation.navigate('Bills');
@@ -185,11 +183,14 @@ export function BillDetailWebScreen() {
   // a way out, instead of inviting a retry that can never work (#720).
   if (isNotFoundError(billQuery.error)) {
     return shell(
-      <BillNotFound
-        billId={billId}
-        onBrowseBills={goToBillList}
-        onAsk={() => navigation.navigate('Ask')}
-      />,
+      <View>
+        <GoBackLink href={routePath.bills()} onPress={goToBillList} />
+        <BillNotFound
+          billId={billId}
+          onBrowseBills={goToBillList}
+          onAsk={() => navigation.navigate('Ask')}
+        />
+      </View>,
       null,
     );
   }
@@ -197,6 +198,7 @@ export function BillDetailWebScreen() {
   if (billQuery.isError || !bill) {
     return shell(
       <View style={styles.stateBox}>
+        <GoBackLink href={routePath.bills()} onPress={goToBillList} />
         <Text style={styles.stateText}>
           We couldn’t load this bill right now. Please try again in a moment.
         </Text>

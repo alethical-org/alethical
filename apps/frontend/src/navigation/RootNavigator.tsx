@@ -34,6 +34,7 @@ import { TrackedBillsScreen as TrackedScreen } from '../screens/redesign/Tracked
 import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
 import { linkProps, routePath } from './links';
+import { initializeWebHistory, pushWebHistory } from './webHistory';
 import { MainTabParamList, MainTabScreenProps, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { theme } from '../theme/tokens';
@@ -509,6 +510,7 @@ export function RootNavigator() {
     }
 
     lastPathRef.current = `${window.location.pathname}${window.location.search}` || '/';
+    initializeWebHistory();
     return stateFromPathname(lastPathRef.current);
   }, [isWeb]);
 
@@ -545,7 +547,7 @@ export function RootNavigator() {
         const nextPath = pathnameFromNavigationState(state);
 
         if (nextPath !== lastPathRef.current) {
-          window.history.pushState({}, '', nextPath);
+          pushWebHistory(nextPath);
           lastPathRef.current = nextPath;
         }
       }}

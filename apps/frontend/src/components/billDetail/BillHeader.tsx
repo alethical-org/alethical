@@ -3,8 +3,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
-import { linkProps, routePath } from '../../navigation/links';
+import { routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
+import { GoBackLink } from '../GoBackLink';
 import { BillTrackButton } from './BillTrackButton';
 import { SharePopover } from './SharePopover';
 import { isWeb, useHover } from './interactions';
@@ -78,7 +79,12 @@ export function BillHeader({
   }, [fullTitle]);
   return (
     <View>
-      <Breadcrumb onPress={onAllBills} isMobile={isMobile} />
+      <GoBackLink
+        href={routePath.bills()}
+        onPress={onAllBills}
+        mobile={isMobile}
+        style={styles.backLink}
+      />
       <Text
         ref={headingRef}
         accessibilityRole="header"
@@ -113,34 +119,6 @@ export function BillHeader({
         </View>
       </View>
     </View>
-  );
-}
-
-// "‹ All bills" back-link — first element in the header, above the title. Whole
-// link darkens from grey to ink on hover. Links back to the Search Bills screen.
-function Breadcrumb({ onPress, isMobile }: { onPress: () => void; isMobile: boolean }) {
-  const [hovered, hover] = useHover();
-  const color = hovered ? t.colors.ink : BREADCRUMB_GREY;
-  return (
-    <Pressable
-      accessibilityLabel="All bills"
-      {...linkProps(routePath.bills(), onPress)}
-      {...hover}
-      style={styles.breadcrumb}
-    >
-      <Svg width={isMobile ? 17 : 18} height={isMobile ? 17 : 18} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M15 6 L9 12 L15 18"
-          stroke={color}
-          strokeWidth={2.2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-      <Text style={[styles.breadcrumbLabel, isMobile && styles.breadcrumbLabelMobile, { color }]}>
-        All bills
-      </Text>
-    </Pressable>
   );
 }
 
@@ -204,27 +182,10 @@ function HotIssuePill() {
   );
 }
 
-// Breadcrumb grey (palette.ink500) — no semantic text alias maps to it, so it's a
-// local const like the other bespoke header colors.
-const BREADCRUMB_GREY = '#4b524b';
-
 const styles = StyleSheet.create({
   // ~8px added on top of SearchPageShell's 36px hero paddingTop → ~44px from the
-  // nav to the breadcrumb, and ~20px down to the title.
-  breadcrumb: {
-    marginTop: 8,
-    marginBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-  },
-  breadcrumbLabel: {
-    fontFamily: t.typography.ui,
-    fontSize: 16,
-    fontWeight: t.fontWeights.semibold,
-  },
-  breadcrumbLabelMobile: { fontSize: 15 },
+  // nav to the back link, and ~20px down to the title.
+  backLink: { marginTop: 8 },
   h1: {
     fontFamily: t.typography.title,
     fontSize: 42,

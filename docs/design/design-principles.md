@@ -1,6 +1,6 @@
 # Alethical design principles — the green system
 
-<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx -->
+<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/hooks/useHistoryScrollRestoration.ts -->
 
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
@@ -253,6 +253,11 @@ one: see the box below before writing one.**
 - **State lives in the URL.** Filters, tabs, pagination, and expanded panels are URL-addressable, not
   buried in component state — this is also `grounded-answers.md` rule 5 (anything linked-to must be
   URL-addressable). Same principle, restated for design.
+- **Every detail-page back link says “Go back” and tells the truth.** It stays a real link whose
+  address is the safe list or parent page. A normal click returns to the earlier Alethical page in
+  that browser tab when one exists, including its filters, page number, and scroll position; a fresh
+  or shared visit follows the fallback address instead. Modified clicks stay native browser actions.
+  Top-level pages do not show this control.
 - **Loading and empty and error are designed states,** not afterthoughts. A refusal / "no matches" is
   a first-class, dignified state (`grounded-answers.md` rule 1), never a broken-looking blank.
 - **Destructive actions confirm** (confirmation or undo window) — never fire immediately.

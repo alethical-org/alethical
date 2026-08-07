@@ -57,6 +57,23 @@ describe('old-design URLs land on a shipped page', () => {
 });
 
 describe('live URLs still resolve to themselves', () => {
+  it('keeps an answer question and its safe fallback parent through reload or sharing', () => {
+    expect(targetFromPathname('/ask?q=Which+bills%3F&legislator=erin-murphy')).toEqual({
+      kind: 'ask',
+      params: {
+        q: 'Which bills?',
+        billId: undefined,
+        legislatorId: 'erin-murphy',
+      },
+    });
+    expect(
+      pathForRoute({
+        name: 'Ask',
+        params: { q: 'What changed?', billId: '94-2025-HF719' },
+      }),
+    ).toBe('/ask?q=What+changed%3F&bill=94-2025-HF719');
+  });
+
   it('leaves a plain bill link alone', () => {
     expect(targetFromPathname('/bills/94-2025-SF334')).toEqual({
       kind: 'bill',
