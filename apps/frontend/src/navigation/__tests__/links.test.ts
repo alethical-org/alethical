@@ -18,7 +18,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GestureResponderEvent } from 'react-native';
 
-import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../links';
+import { backLinkProps, externalLinkProps, linkProps, pressInsideLink, routePath } from '../links';
 
 /** A click event shaped like the one react-native-web hands to `onPress` on web. */
 function clickEvent(modifiers: Record<string, boolean | number> = {}) {
@@ -61,6 +61,12 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.ask()).toBe('/ask');
   });
 
+  it('carries the legislator an issue answer falls back to', () => {
+    expect(
+      routePath.ask({ q: 'Which housing bills did they author?', legislatorId: 'erin-murphy' }),
+    ).toBe('/ask?q=Which+housing+bills+did+they+author%3F&legislator=erin-murphy');
+  });
+
   it('builds the 2 filtered homepage bill-group destinations', () => {
     expect(routePath.bills({ status: 'signed_into_law', sort: 'action' })).toBe(
       '/bills?status=signed_into_law&sort=action',
@@ -71,6 +77,42 @@ describe('routePath builds the URL the router will land on', () => {
   it('escapes an id so a link can never produce a malformed URL', () => {
     expect(routePath.bill('a b/c')).toBe('/bills/a%20b%2Fc');
     expect(routePath.legislator('a b/c')).toBe('/legislators/a%20b%2Fc');
+  });
+});
+
+describe('backLinkProps keeps the fallback URL while preferring in-app history', () => {
+  it('exposes the fallback URL as a real link', () => {
+    const props = backLinkProps('/bills', vi.fn());
+    expect(props.href).toBe('/bills');
+    expect(props.accessibilityRole).toBe('link');
+  });
+
+  it('goes back for a plain click when this tab has an earlier app page', () => {
+    const fallback = vi.fn();
+    const goBack = vi.fn();
+    const event = clickEvent();
+    press(backLinkProps('/bills', fallback, { hasBack: () => true, goBack }), event);
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(goBack).toHaveBeenCalledOnce();
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it('lets the browser follow the fallback href when this tab has no earlier app page', () => {
+    const fallback = vi.fn();
+    const goBack = vi.fn();
+    const event = clickEvent();
+    press(backLinkProps('/bills', fallback, { hasBack: () => false, goBack }), event);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(goBack).not.toHaveBeenCalled();
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it('leaves new-tab and new-window clicks to the browser', () => {
+    const goBack = vi.fn();
+    const event = clickEvent({ metaKey: true });
+    press(backLinkProps('/bills', vi.fn(), { hasBack: () => true, goBack }), event);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(goBack).not.toHaveBeenCalled();
   });
 });
 

@@ -13,6 +13,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
+import { GoBackLink } from '../../components/GoBackLink';
 import { profilePartyBadgeAppearance } from '../../theme/legislatorBadgeAppearance';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../navigation/links';
@@ -86,7 +87,7 @@ export function LegislatorProfileWebScreen() {
   const openBillVotes = (billId: string) =>
     navigation.navigate('BillDetail', { billId, tab: 'votes' });
   const openLegislator = (id: string) => navigation.push('LegislatorProfile', { legislatorId: id });
-  const openAsk = (q: string) => navigation.navigate('Ask', { q: q || undefined });
+  const openAsk = (q: string) => navigation.navigate('Ask', { q: q || undefined, legislatorId });
   // Starter chips for the Ask box, derived from the issues THIS member works on
   // (their chief bills' policy areas). Phrased as topic questions the grounded
   // router actually answers (topic_bills) — never person- or vote-scoped, which
@@ -112,14 +113,10 @@ export function LegislatorProfileWebScreen() {
     }
   };
 
-  // "← All legislators" is a back affordance: when the search list is the screen
-  // beneath us (the user drilled in from it), pop back so its URL-encoded filters
-  // are restored intact. When we arrived directly (a shared link, no list below),
-  // open a fresh unfiltered list instead.
+  // Native uses the navigation stack when it has one, then the directory. Web's
+  // shared GoBackLink makes the stricter decision from marked browser history.
   const goToLegislatorList = () => {
-    const state = navigation.getState?.();
-    const prev = state?.routes?.[(state.index ?? 1) - 1];
-    if (prev?.name === 'Legislators') {
+    if (navigation.canGoBack?.()) {
       navigation.goBack();
     } else {
       navigation.navigate('Legislators');
@@ -147,6 +144,7 @@ export function LegislatorProfileWebScreen() {
   if (legislatorQuery.isError || !legislator) {
     return shell(
       <View style={styles.stateBox}>
+        <GoBackLink href={routePath.legislators()} onPress={goToLegislatorList} />
         <Text style={styles.stateText}>
           We couldn’t load this legislator right now. Please try again in a moment.
         </Text>
@@ -367,7 +365,11 @@ function Hero({
 }) {
   return (
     <View>
-      <Breadcrumb onPress={onAllLegislators} />
+      <GoBackLink
+        href={routePath.legislators()}
+        onPress={onAllLegislators}
+        style={styles.backLink}
+      />
       <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
       <View style={[styles.heroRow, !isDesktop && styles.heroRowMobile]}>
         <View style={styles.identityRow}>
@@ -420,30 +422,6 @@ function Portrait({ uri, name }: { uri?: string; name: string }) {
     <View style={[styles.portrait, styles.portraitFallback]} accessibilityLabel={name}>
       <Text style={styles.portraitInitials}>{initials}</Text>
     </View>
-  );
-}
-
-function Breadcrumb({ onPress }: { onPress: () => void }) {
-  const [hovered, hover] = useHover();
-  const color = hovered ? t.colors.text.primary : BREADCRUMB_GREY;
-  return (
-    <Pressable
-      {...linkProps(routePath.legislators(), onPress)}
-      accessibilityLabel="All legislators"
-      {...hover}
-      style={styles.breadcrumb}
-    >
-      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M15 6 L9 12 L15 18"
-          stroke={color}
-          strokeWidth={2.2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-      <Text style={[styles.breadcrumbLabel, { color }]}>All legislators</Text>
-    </Pressable>
   );
 }
 
@@ -847,7 +825,6 @@ function VoteExplanationPreview({ vote }: { vote: LegislatorVote }) {
   );
 }
 
-const BREADCRUMB_GREY = '#4b524b';
 const CODE_BADGE_FILL = t.colors.omnibus.fill;
 const CODE_BADGE_BORDER = t.colors.omnibus.border;
 const claimPreviewStyle: CSSProperties = {
@@ -915,20 +892,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   // --- Hero ---
-  breadcrumb: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-  },
-  breadcrumbLabel: {
-    fontFamily: t.typography.ui,
-    fontSize: 16,
-    fontWeight: t.fontWeights.semibold,
-  },
+  backLink: { marginTop: 8 },
   eyebrow: {
-    marginTop: 24,
+    marginTop: 4,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,
     fontWeight: t.fontWeights.bold,

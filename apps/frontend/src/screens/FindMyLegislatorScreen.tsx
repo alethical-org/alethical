@@ -18,6 +18,7 @@ import { ApiError } from '../data/api';
 import { isCoordinateInMinnesota } from '../data/minnesotaBoundary';
 import type { RepresentativeAddressChoice, RepresentativeLookupCoordinates } from '../data/types';
 import { useResponsive } from '../hooks/useResponsive';
+import { useHistoryScrollRestoration } from '../hooks/useHistoryScrollRestoration';
 import { useRepresentativeLookup } from '../hooks/useAppQueries';
 import {
   addressChoiceKey,
@@ -92,6 +93,7 @@ function formatSourceDate(value?: string) {
 
 export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const { isMobile } = useResponsive();
+  const historyScrollProps = useHistoryScrollRestoration();
   const requestedAddress =
     typeof route.params?.address === 'string' ? route.params.address : undefined;
   const requestedCoordinate = route.params?.coordinate;
@@ -307,7 +309,11 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
 
   return (
     <PageBackground>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        {...historyScrollProps}
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+      >
         <TopNav
           openMenu={openMenu}
           onOpenMenuChange={setOpenMenu}

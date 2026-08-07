@@ -18,6 +18,7 @@ import { theme as t } from '../../theme/tokens';
 import { profilePartyBadgeAppearance } from '../../theme/legislatorBadgeAppearance';
 import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { Skeleton } from '../../components/Skeleton';
+import { GoBackLink } from '../../components/GoBackLink';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
 import {
@@ -43,7 +44,6 @@ const COLUMN_MAX = 640;
 const AMBER_TEXT = t.colors.omnibus.text;
 const CODE_BADGE_FILL = t.colors.omnibus.fill;
 const CODE_BADGE_BORDER = t.colors.omnibus.border;
-const BREADCRUMB_GREY = '#4b524b';
 const claimPreviewStyle: CSSProperties = {
   alignSelf: 'flex-start',
   alignItems: 'center',
@@ -98,30 +98,6 @@ function statusSegments(status: string): number {
 }
 
 // ── shared inline components ────────────────────────────────────────────────
-function Breadcrumb({ onPress }: { onPress: () => void }) {
-  const [hovered, hover] = useHover();
-  const color = hovered ? t.colors.ink : BREADCRUMB_GREY;
-  return (
-    <Pressable
-      {...linkProps(routePath.legislators(), onPress)}
-      accessibilityLabel="All legislators"
-      {...hover}
-      style={styles.breadcrumb}
-    >
-      <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M15 6 L9 12 L15 18"
-          stroke={color}
-          strokeWidth={2.2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-      <Text style={[styles.breadcrumbLabel, { color }]}>All legislators</Text>
-    </Pressable>
-  );
-}
-
 // Inline text link with the "→" text glyph appended by the caller (house style).
 // Serves both an in-app destination (default) and an external one (`external`) —
 // the two calls below need different anchor behaviour, so the caller says which.
@@ -505,14 +481,10 @@ export function LegislatorProfileMobileScreen() {
     }
   };
 
-  // "← All legislators" is a back affordance: when the search list is the screen
-  // beneath us (the user drilled in from it), pop back so its URL-encoded filters
-  // are restored intact. When we arrived directly (a shared link, no list below),
-  // open a fresh unfiltered list instead.
+  // Native uses the navigation stack when it has one, then the directory. Web's
+  // shared GoBackLink makes the stricter decision from marked browser history.
   const goToLegislatorList = () => {
-    const state = navigation.getState?.();
-    const prev = state?.routes?.[(state.index ?? 1) - 1];
-    if (prev?.name === 'Legislators') {
+    if (navigation.canGoBack?.()) {
       navigation.goBack();
     } else {
       navigation.navigate('Legislators');
@@ -578,18 +550,14 @@ export function LegislatorProfileMobileScreen() {
         ) : legQuery.isError || !leg ? (
           <View style={styles.stateBox}>
             <Text style={styles.stateText}>We couldn’t load this legislator.</Text>
-            <TextLink
-              label="All legislators →"
-              href={routePath.legislators()}
-              onPress={goToLegislatorList}
-            />
+            <GoBackLink href={routePath.legislators()} onPress={goToLegislatorList} mobile />
           </View>
         ) : (
           <>
             {/* HERO */}
             <View style={styles.heroOuter}>
               <View style={styles.column}>
-                <Breadcrumb onPress={goToLegislatorList} />
+                <GoBackLink href={routePath.legislators()} onPress={goToLegislatorList} mobile />
                 <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
                 <View style={styles.heroIdentity}>
                   <View style={styles.portrait}>
@@ -846,7 +814,7 @@ export function LegislatorProfileMobileScreen() {
               <View style={styles.column}>
                 <AskCard
                   chips={buildAskChips(allBills)}
-                  onAsk={(q) => navigation.navigate('Ask', { q })}
+                  onAsk={(q) => navigation.navigate('Ask', { q, legislatorId })}
                 />
               </View>
             </View>
@@ -1040,18 +1008,6 @@ const styles = StyleSheet.create({
 
   // hero
   heroOuter: { paddingTop: 22, paddingBottom: 8 },
-  breadcrumb: {
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-  },
-  breadcrumbLabel: {
-    fontFamily: t.typography.ui,
-    fontSize: 15,
-    fontWeight: t.fontWeights.semibold,
-  },
   eyebrow: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.label,

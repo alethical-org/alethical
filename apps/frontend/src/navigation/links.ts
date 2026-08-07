@@ -22,6 +22,7 @@
 import { Platform, type GestureResponderEvent } from 'react-native';
 
 import type { RootStackParamList } from './types';
+import { hasInAppBackEntry } from './webHistory';
 import { pathForRoute } from './webRoutes';
 
 const isWeb = Platform.OS === 'web';
@@ -117,6 +118,48 @@ export function linkProps(
       // whole app instead of transitioning to the next screen in place.
       (event as unknown as WebClickFields)?.preventDefault?.();
       onPress?.(event);
+    },
+  };
+}
+
+type BackHistory = {
+  hasBack: () => boolean;
+  goBack: () => void;
+};
+
+const browserBackHistory: BackHistory = {
+  hasBack: hasInAppBackEntry,
+  goBack: () => window.history.back(),
+};
+
+/**
+ * Props for the universal "Go back" anchor. A normal web click uses the prior
+ * entry only when this tab created one inside Alethical. Otherwise the browser
+ * follows the real href, which is the page's safe fallback. Modified clicks are
+ * always native browser actions, preserving open-in-new-tab and link previews.
+ */
+export function backLinkProps(
+  href: string,
+  onNativePress: (event: GestureResponderEvent) => void,
+  history: BackHistory = browserBackHistory,
+): {
+  accessibilityRole: 'link';
+  href?: string;
+  onPress: (event: GestureResponderEvent) => void;
+} {
+  if (!isWeb) {
+    return { accessibilityRole: 'link', onPress: onNativePress };
+  }
+
+  return {
+    accessibilityRole: 'link',
+    href,
+    onPress: (event: GestureResponderEvent) => {
+      if (browserHandlesClick(event) || !history.hasBack()) {
+        return;
+      }
+      (event as unknown as WebClickFields)?.preventDefault?.();
+      history.goBack();
     },
   };
 }

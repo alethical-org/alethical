@@ -8,6 +8,7 @@ import { BillResultCard } from '../../components/search/BillResultCard';
 import { CitationCard, SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
 import { SourceLine } from '../../components/billDetail/SourceLine';
 import { Skeleton } from '../../components/Skeleton';
+import { GoBackLink } from '../../components/GoBackLink';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { RootScreenProps } from '../../navigation/types';
@@ -44,7 +45,7 @@ import {
   resolveSectionAnchor,
   sectionAnchorId,
 } from '../../lib/billText';
-import { STICKY_RAIL, useHover } from '../../components/billDetail/interactions';
+import { STICKY_RAIL } from '../../components/billDetail/interactions';
 import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
 const t = theme;
@@ -264,43 +265,6 @@ function AnswerLegislatorRow({
   );
 }
 
-// "← Back to HF 719". Required, not decorative: a chip on Bill Detail is the only
-// way onto this page, so the way back has to be on it (§9.5 Layout). The target
-// comes from the ANSWERING BILL in the payload, never from reading the question
-// text — so it is right even when the bill was resolved by meaning rather than by
-// name (§9.5 decision 10 / issue #859 task 10).
-function BackToBill({
-  identifier,
-  billId,
-  onPress,
-}: {
-  identifier: string;
-  billId: string;
-  onPress: () => void;
-}) {
-  const [hovered, hover] = useHover();
-  const color = hovered ? t.colors.ink : BACK_LINK_GREY;
-  return (
-    <Pressable
-      accessibilityLabel={`Back to ${identifier}`}
-      {...linkProps(routePath.bill(billId), onPress)}
-      {...hover}
-      style={styles.backLink}
-    >
-      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M15 6 L9 12 L15 18"
-          stroke={color}
-          strokeWidth={2.2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-      <Text style={[styles.backLinkLabel, { color }]}>Back to {identifier}</Text>
-    </Pressable>
-  );
-}
-
 export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const question = route.params?.q?.trim() ?? '';
   const { isTracked, toggleTrack } = useBillTracking();
@@ -464,13 +428,39 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // The bill the back link returns to: the answering bill on a bill_text answer,
   // the resolved bill on a vote deflection. Both come from the payload.
   const backBill = answeringBill ?? resolvedBill;
+  const fallbackBillId = backBill?.id ?? route.params?.billId;
+  const fallbackLegislatorId = route.params?.legislatorId;
+  const fallbackHref = fallbackBillId
+    ? routePath.bill(fallbackBillId)
+    : fallbackLegislatorId
+      ? routePath.legislator(fallbackLegislatorId)
+      : isLegislators
+        ? routePath.legislators()
+        : routePath.bills();
+  const goBackOrFallback = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (fallbackBillId) {
+      navigation.navigate('BillDetail', { billId: fallbackBillId });
+    } else if (fallbackLegislatorId) {
+      navigation.navigate('LegislatorProfile', { legislatorId: fallbackLegislatorId });
+    } else if (isLegislators) {
+      navigation.navigate('Legislators');
+    } else {
+      navigation.navigate('Bills');
+    }
+  };
   // Share is on the answered states only (§9.2). The deflection's CTA already
   // routes to the shareable artifact, and a refusal has nothing to share.
   const showShare = Boolean(answer?.hasAnswer) && !isVoteDeflection;
   const shareUrl =
     isWeb && typeof window !== 'undefined'
       ? window.location.href
-      : `https://alethical.com${routePath.ask({ q: question })}`;
+      : `https://alethical.com${routePath.ask({
+          q: question,
+          billId: route.params?.billId,
+          legislatorId: route.params?.legislatorId,
+        })}`;
   // From the existing helper, not the served session name ("94th Legislature
   // (2025 - 2026) Regular Session") — one vocabulary on every page (§9.5
   // decision 8). No date here: the page's single date is the source line
@@ -516,13 +506,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const hero = question ? (
     <View style={[styles.header, isIssueAnswer && styles.headerIssueAnswer]}>
       <View style={styles.headerMain}>
-        {backBill ? (
-          <BackToBill
-            identifier={backBill.identifier}
-            billId={backBill.id}
-            onPress={() => openBill(backBill.id)}
-          />
-        ) : null}
+        <GoBackLink href={fallbackHref} onPress={goBackOrFallback} mobile={!isDesktop} />
         {eyebrow ? (
           <View style={styles.eyebrowRow}>
             <Text style={[styles.eyebrow, eyebrow.muted && styles.eyebrowMuted]}>
@@ -722,8 +706,13 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                       <SuggestedQuestionChip
                         key={chip}
                         label={chip}
-                        linkProps={linkProps(routePath.ask({ q: submit }), () =>
-                          askFollowUp(submit),
+                        linkProps={linkProps(
+                          routePath.ask({
+                            q: submit,
+                            billId: fallbackBillId,
+                            legislatorId: fallbackLegislatorId,
+                          }),
+                          () => askFollowUp(submit),
                         )}
                       />
                     );
@@ -1087,9 +1076,6 @@ function passageLinkProps(href: string, onPress: () => void) {
   return { accessibilityRole: 'link' as const, href };
 }
 
-// Back-link grey, matching Bill Detail's breadcrumb (palette.ink500).
-const BACK_LINK_GREY = '#4b524b';
-
 const styles = StyleSheet.create({
   // --- Header (on the gradient) ---
   header: {
@@ -1104,18 +1090,6 @@ const styles = StyleSheet.create({
   },
   headerIssueAnswer: { paddingBottom: 0, borderBottomWidth: 0 },
   headerMain: { minWidth: 0, flexShrink: 1, flexGrow: 1, flexBasis: 320 },
-  backLink: {
-    marginBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-  },
-  backLinkLabel: {
-    fontFamily: t.typography.ui,
-    fontSize: 16,
-    fontWeight: t.fontWeights.semibold,
-  },
   h1: {
     fontFamily: t.typography.title,
     fontSize: 42,

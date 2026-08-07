@@ -129,6 +129,7 @@ export function SummaryTab({
 
           {showAsk ? (
             <AskModule
+              billId={bill.id}
               identifier={bill.identifier}
               sessionLabel={bill.sessionLabel}
               chips={askChipList}
@@ -164,11 +165,13 @@ export function SummaryTab({
 // would over-promise. Matches the Answer page's "Ask another question", which is
 // already chips-only. Heading + subhead + a wrap of starter chips, nothing typable.
 function AskModule({
+  billId,
   identifier,
   sessionLabel,
   chips,
   onAsk,
 }: {
+  billId: string;
   identifier: string;
   sessionLabel?: string;
   chips: string[];
@@ -192,7 +195,7 @@ function AskModule({
               <SuggestedQuestionChip
                 key={chip}
                 label={chip}
-                linkProps={linkProps(routePath.ask({ q: scoped }), () => onAsk(scoped))}
+                linkProps={linkProps(routePath.ask({ q: scoped, billId }), () => onAsk(scoped))}
               />
             );
           })}
