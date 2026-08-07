@@ -80,6 +80,11 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   state repeats the chip row's "Clear all" verbatim, as a black pill, because both are on screen at
   once and two names for one action make the user wonder whether one of them spares their search text
   ([#720](https://github.com/alethical-org/alethical/pull/720)).
+- **Text below rounded cards.** A footnote, gloss, caveat, or trailing action row placed underneath a
+  rounded card or card group starts 17px inside the group's left edge (`spacing.underCardText`). The
+  inset keeps the line visually attached to the rounded shape. It applies on web and mobile. It does
+  not apply to headings above cards, text inside cards, or full-width page furniture such as source
+  lines.
 - **Roll-call reference chips.** A vote shortcut in card metadata is one outlined white link with a
   tally glyph, monospace type, and the uppercase recorded count ("1 VOTE" / "3 VOTES"). It is absent
   when the count is zero. Never use the old green fill or the instruction "VIEW VOTES": the count

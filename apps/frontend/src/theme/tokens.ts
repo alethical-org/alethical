@@ -214,6 +214,8 @@ export const theme = {
     xs: 6,
     sm: 10,
     md: 16,
+    // Text below a rounded card starts at its optical inner edge.
+    underCardText: 17,
     lg: 24,
     xl: 32,
     xxl: 48,

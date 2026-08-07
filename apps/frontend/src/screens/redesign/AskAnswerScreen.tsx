@@ -733,12 +733,6 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   </Svg>
                 </View>
               </View>
-              {/* These cards show passage openings on both layouts. Say why they
-                  stop early before the first card, where nobody can mistake the
-                  cut-off for missing bill text. */}
-              <Text style={styles.railGloss}>
-                Each quote is the opening of a longer section — open one to read it in full.
-              </Text>
               <View style={styles.railCards}>
                 {sections.map((section) => {
                   // The anchor value the Bill Text tab answers to — id AND position
@@ -792,6 +786,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   );
                 })}
               </View>
+              {/* This closes the card group as a quiet footnote on both layouts.
+                  The trailing ellipsis already shows that each quote is cut off;
+                  this line tells the reader how to get the rest. */}
+              <Text style={styles.railGloss}>
+                Each quote is the opening of a longer section — open one to read it in full
+              </Text>
             </View>
           ) : null}
         </View>
@@ -1189,9 +1189,10 @@ const styles = StyleSheet.create({
   railGloss: {
     fontFamily: t.typography.body,
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 19.5,
     color: '#6f756f',
-    marginTop: 7,
+    marginTop: 14,
+    paddingLeft: t.spacing.underCardText,
   },
   railCards: { marginTop: 14, gap: 12 },
 

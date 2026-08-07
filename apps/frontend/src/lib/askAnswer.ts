@@ -258,7 +258,7 @@ export function partialCoverageNote(
   const { used, total, enumerating } = coverage;
   if (!(used > 0) || !(total > 0)) return null;
   if (total > used) {
-    return `This answer draws on ${used} of the ${total} passages in this bill, so there may be more it doesn’t cover.`;
+    return `This answer draws on ${used} of the ${total} passages in this bill, so there may be more it doesn’t cover`;
   }
   if (enumerating) {
     return `This answer draws on all ${total} passages in this bill, but a list like this can still leave items out — check the bill’s own text for the full set.`;

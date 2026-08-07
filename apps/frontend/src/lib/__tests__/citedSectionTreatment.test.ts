@@ -7,6 +7,7 @@ const SRC = join(__dirname, '..', '..');
 const home = readFileSync(join(SRC, 'screens/redesign/HomeSignedOutScreen.tsx'), 'utf8');
 const answer = readFileSync(join(SRC, 'screens/redesign/AskAnswerScreen.tsx'), 'utf8');
 const citationCard = readFileSync(join(SRC, 'components/billDetail/CitationCard.tsx'), 'utf8');
+const tokens = readFileSync(join(SRC, 'theme/tokens.ts'), 'utf8');
 
 describe('cited sections distinguish quoted statute without decorative rules', () => {
   it('removes the homepage cards numbered 1, 2, and 3', () => {
@@ -32,19 +33,29 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(citationCard).toContain('defaultQuote: { marginTop: 9 }');
   });
 
-  it('explains on every Answer layout why cited quotes stop early', () => {
-    const gloss = 'Each quote is the opening of a longer section — open one to read it in full.';
+  it('closes every Answer quote list with an indented reading gloss', () => {
+    const gloss = 'Each quote is the opening of a longer section — open one to read it in full';
     expect(answer).toMatch(
-      /<Text style={styles\.railGloss}>\s*Each quote is the opening of a longer section — open one to read it in full\.\s*<\/Text>/,
+      /<Text style={styles\.railGloss}>\s*Each quote is the opening of a longer section — open one to read it in full\s*<\/Text>/,
     );
-    expect(answer.indexOf(gloss)).toBeLessThan(answer.indexOf('<View style={styles.railCards}>'));
+    expect(answer.indexOf(gloss)).toBeGreaterThan(
+      answer.indexOf('<View style={styles.railCards}>'),
+    );
     expect(answer).toContain('railGloss: {\n    fontFamily: t.typography.body,\n    fontSize: 13,');
+    expect(answer).toContain('lineHeight: 19.5,');
     expect(answer).toContain("color: '#6f756f',");
+    expect(answer).toContain('marginTop: 14,\n    paddingLeft: t.spacing.underCardText,');
   });
 
   it('separates the homepage gloss without indenting or italicizing it', () => {
     expect(home).toContain('sectionCardNote: {\n    marginTop: 10,');
     expect(home).not.toContain('paddingLeft: 15');
     expect(home).toContain("lineHeight: 20.3,\n    color: '#6f756f',");
+  });
+
+  it('reuses the 17px under-card inset on trailing rows and footnotes', () => {
+    expect(tokens).toContain('underCardText: 17,');
+    expect(home).toContain('paddingLeft: t.spacing.underCardText,');
+    expect(answer).toContain('paddingLeft: t.spacing.underCardText,');
   });
 });
