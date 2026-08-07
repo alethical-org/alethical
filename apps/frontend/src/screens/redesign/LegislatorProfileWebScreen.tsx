@@ -20,7 +20,12 @@ import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../
 import { Bill, Legislator, LegislatorVote } from '../../data/types';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
-import { useLegislator, useLegislatorBills, useLegislatorVotes } from '../../hooks/useAppQueries';
+import {
+  useLegislator,
+  useLegislatorBills,
+  useLegislatorVotes,
+  useSessions,
+} from '../../hooks/useAppQueries';
 import {
   billStage,
   coAuthorCount,
@@ -39,6 +44,7 @@ import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { Skeleton } from '../../components/Skeleton';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
+import { formatLegislatureLabel, type SessionDisplaySource } from '../../lib/sessionLabel';
 
 // Web Legislator Profile (docs/mockups/legislator-profile-web). Aggregates a
 // member's public record — identity, committees (with leadership), chief-authored
@@ -56,8 +62,10 @@ import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 // and clearly not-live; its vote specimen uses real record facts so it never
 // redacts information the public record already holds.
 
-const CURRENT_SESSION_LABEL = '94th Legislature (2025–2026)';
-const PAST_SESSIONS = ['93rd Legislature (2023–2024)', '92nd Legislature (2021–2022)'];
+const PAST_SESSIONS: SessionDisplaySource[] = [
+  { sessionNumber: 93, yearStart: 2023, yearEnd: 2024 },
+  { sessionNumber: 92, yearStart: 2021, yearEnd: 2022 },
+];
 // The current biennium's Revisor session code (094 + 2025). Only this session is
 // ingested; past-session chief-author lists are on the roadmap.
 const REVISOR_SESSION_CODE = '0942025';
@@ -76,6 +84,12 @@ export function LegislatorProfileWebScreen() {
   // full chief-author list on the Revisor (the official source).
   const billsQuery = useLegislatorBills(legislatorId, { role: 'chief_author', limit: 2 });
   const votesQuery = useLegislatorVotes(legislatorId, 1);
+  const sessionsQuery = useSessions();
+  const currentSession =
+    sessionsQuery.data?.find((session) => session.isCurrent) ?? sessionsQuery.data?.[0];
+  const currentSessionLabel = currentSession
+    ? formatLegislatureLabel(currentSession)
+    : 'Current Legislature';
   const chiefBills = billsQuery.data?.data ?? [];
   const previewVote = votesQuery.data?.[0];
 
@@ -214,7 +228,7 @@ export function LegislatorProfileWebScreen() {
         <View>
           <View style={styles.authoredHead}>
             <Text style={styles.h2}>Chief-Authored Bills</Text>
-            <SessionFilter />
+            <SessionFilter currentSessionLabel={currentSessionLabel} />
           </View>
           <View style={styles.billStack}>
             {billsQuery.isLoading ? (
@@ -239,7 +253,7 @@ export function LegislatorProfileWebScreen() {
             ) : (
               <View style={styles.card}>
                 <Text style={styles.emptyNote}>
-                  No chief-authored bills in the {CURRENT_SESSION_LABEL} on record yet.
+                  No chief-authored bills in the {currentSessionLabel} on record yet.
                 </Text>
               </View>
             )}
@@ -652,7 +666,7 @@ function SeeMoreButton({ href, onPress }: { href: string; onPress: () => void })
 }
 
 // --- Session filter (current session live; past sessions are roadmap) ---
-function SessionFilter() {
+function SessionFilter({ currentSessionLabel }: { currentSessionLabel: string }) {
   const [open, setOpen] = useState(false);
   const [hovered, hover] = useHover();
   return (
@@ -664,7 +678,7 @@ function SessionFilter() {
         {...hover}
         style={[styles.sessionBtn, hovered && styles.sessionBtnHover]}
       >
-        <Text style={styles.sessionBtnText}>{CURRENT_SESSION_LABEL}</Text>
+        <Text style={styles.sessionBtnText}>{currentSessionLabel}</Text>
         <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
           <Path
             d="M6 9 L12 15 L18 9"
@@ -688,7 +702,7 @@ function SessionFilter() {
               onPress={() => setOpen(false)}
               style={styles.sessionActive}
             >
-              <Text style={styles.sessionActiveText}>{CURRENT_SESSION_LABEL}</Text>
+              <Text style={styles.sessionActiveText}>{currentSessionLabel}</Text>
               <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                 <Path
                   d="M5 12.5 L10 17.5 L19 7"
@@ -699,12 +713,15 @@ function SessionFilter() {
                 />
               </Svg>
             </Pressable>
-            {PAST_SESSIONS.map((session) => (
-              <View key={session} style={styles.sessionPast}>
-                <Text style={styles.sessionPastText}>{session}</Text>
-                <LockIcon />
-              </View>
-            ))}
+            {PAST_SESSIONS.map((session) => {
+              const label = formatLegislatureLabel(session);
+              return (
+                <View key={label} style={styles.sessionPast}>
+                  <Text style={styles.sessionPastText}>{label}</Text>
+                  <LockIcon />
+                </View>
+              );
+            })}
             <Text style={styles.sessionNote}>
               Past-session archives — including retired legislators — are on the roadmap
             </Text>

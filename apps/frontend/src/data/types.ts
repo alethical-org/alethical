@@ -259,6 +259,9 @@ export interface Bill {
    *  per bill because a special session is its own session, so a page must not
    *  assume the current one (#746). "Current session" where not served. */
   sessionLabel: string;
+  /** The session record behind the display label. Older cached list rows may not
+   *  carry it, so the raw name above remains as a safe fallback. */
+  session?: LegislativeSession;
   topics: string[];
   chiefSponsorIds: string[];
   /** Readable profile-URL slug per chief sponsor, index-aligned with
@@ -291,6 +294,15 @@ export interface ServicePeriod {
   district: string;
   party: Party;
   role: string;
+}
+
+export interface LegislativeSession {
+  slug: string;
+  name: string;
+  isCurrent: boolean;
+  sessionNumber: number;
+  yearStart: number;
+  yearEnd: number;
 }
 
 /** One chamber tenure in a member's Legislative Service history (issue #486),
@@ -411,7 +423,7 @@ export interface RepresentativeLookupResult {
   congressionalDistrict?: string;
   houseGeometry?: GeoJsonGeometry;
   senateGeometry?: GeoJsonGeometry;
-  sessionName?: string;
+  session?: LegislativeSession;
   sourceUpdatedAt?: string;
 }
 
@@ -449,7 +461,7 @@ export interface AskAnswerBill {
    *  regular session (#810). A special session numbers its files from 1 again, so
    *  two cards can both read "HF 5" and mean different laws; this is what tells
    *  them apart. Absent for every regular-session bill. */
-  sessionName?: string;
+  session?: LegislativeSession;
 }
 
 // One routed Ask answer (POST /api/v1/ask). `hasAnswer` is false for intents
@@ -480,7 +492,7 @@ export interface AskAnswer {
   intent: string;
   hasAnswer: boolean;
   topic?: string;
-  sessionName?: string;
+  session?: LegislativeSession;
   dataAsOf?: string;
   // For topic_bills this counts bills; for topic_legislators it counts
   // legislators, with totalBills carrying the underlying bill count.

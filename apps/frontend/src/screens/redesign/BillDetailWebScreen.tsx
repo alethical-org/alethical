@@ -207,7 +207,7 @@ export function BillDetailWebScreen() {
     );
   }
 
-  const eyebrow = bienniumEyebrow(bill.id, bill.sessionLabel);
+  const eyebrow = bienniumEyebrow(bill.id, bill.session ?? bill.sessionLabel);
   const shareUrl = `https://alethical.com/bills/${bill.id}`;
   const shareTitle = `${bill.identifier} — ${bill.title}`;
   // ONE value for the whole page (every tab's source line shows the same stamp).

@@ -38,6 +38,9 @@ class SessionSummary(BaseModel):
     slug: str
     name: str
     is_current: bool
+    session_number: int
+    year_start: int
+    year_end: int
 
 
 class MetaPayload(BaseModel):
@@ -423,6 +426,10 @@ class AskClassificationPayload(BaseModel):
 class AskSessionRef(BaseModel):
     slug: str
     name: str
+    is_current: bool
+    session_number: int
+    year_start: int
+    year_end: int
 
 
 class AskTopicBillsAnswer(BaseModel):

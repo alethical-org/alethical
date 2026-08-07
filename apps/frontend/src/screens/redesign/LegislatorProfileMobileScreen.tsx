@@ -35,6 +35,7 @@ import {
   useSessions,
 } from '../../hooks/useAppQueries';
 import { Bill, Legislator } from '../../data/types';
+import { formatLegislatureLabel } from '../../lib/sessionLabel';
 
 const isWeb = Platform.OS === 'web';
 const COLUMN_MAX = 640;
@@ -289,16 +290,6 @@ function CommitteeRow({ name, role }: { name: string; role?: string | null }) {
 }
 
 // ── chief-authored bill card ──────────────────────────────────────────────────
-
-// "94th Legislature (2025 - 2026) Regular Session" → "94th Legislature (2025–2026)"
-// (en-dash the year range, drop the "Regular Session" suffix), per the design.
-function formatSessionChip(name: string | undefined): string {
-  if (!name) return 'Current session';
-  return name
-    .replace(/\s*-\s*/, '–')
-    .replace(/\s+Regular Session\s*$/i, '')
-    .trim();
-}
 
 function BillCardView({
   bill,
@@ -709,7 +700,7 @@ export function LegislatorProfileMobileScreen() {
                     style={styles.sessionBtn}
                   >
                     <Text style={styles.sessionBtnText}>
-                      {formatSessionChip(currentSession?.name)}
+                      {currentSession ? formatLegislatureLabel(currentSession) : 'Current session'}
                     </Text>
                     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                       <Path
@@ -731,7 +722,9 @@ export function LegislatorProfileMobileScreen() {
                       <View style={styles.popover} accessibilityRole="menu">
                         <View style={styles.popoverActive}>
                           <Text style={styles.popoverActiveText}>
-                            {formatSessionChip(currentSession?.name)}
+                            {currentSession
+                              ? formatLegislatureLabel(currentSession)
+                              : 'Current session'}
                           </Text>
                           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                             <Path
@@ -745,7 +738,7 @@ export function LegislatorProfileMobileScreen() {
                         </View>
                         {pastSessions.map((s) => (
                           <View key={s.slug} style={styles.popoverPast}>
-                            <Text style={styles.popoverPastText}>{s.name}</Text>
+                            <Text style={styles.popoverPastText}>{formatLegislatureLabel(s)}</Text>
                             <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                               <Path
                                 d="M5 11 h14 v9 h-14 Z"
@@ -777,7 +770,8 @@ export function LegislatorProfileMobileScreen() {
                   </View>
                 ) : allBills.length === 0 ? (
                   <Text style={styles.emptyBills}>
-                    No chief-authored bills in {formatSessionChip(currentSession?.name)}.
+                    No chief-authored bills in{' '}
+                    {currentSession ? formatLegislatureLabel(currentSession) : 'this session'}.
                   </Text>
                 ) : (
                   <View style={styles.billList}>

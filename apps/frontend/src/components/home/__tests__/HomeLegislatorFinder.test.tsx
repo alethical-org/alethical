@@ -69,7 +69,7 @@ describe('homepage legislator finder form', () => {
       'utf8',
     );
     const mobile = source.slice(
-      source.indexOf('function HomeSignedOutMobile()'),
+      source.indexOf('function HomeSignedOutMobile'),
       source.indexOf('const m = StyleSheet.create'),
     );
 

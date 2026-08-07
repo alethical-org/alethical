@@ -9,7 +9,12 @@ import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBillTracking } from '../../hooks/useBillTracking';
-import { useBills, useFeaturedBills, useTrackedBills } from '../../hooks/useAppQueries';
+import {
+  useBills,
+  useFeaturedBills,
+  useSessions,
+  useTrackedBills,
+} from '../../hooks/useAppQueries';
 import { useLastVisitWithoutAdvancing } from '../../hooks/useTrackedBillsLastVisit';
 import { useAuth } from '../../providers/AuthProvider';
 import { SessionWatchCard } from '../../components/home/SessionWatchCard';
@@ -20,6 +25,7 @@ import { formatNiceDate, plainBillSummary } from '../../lib/billDetail';
 import { HOT_ISSUE_BILL_KEYS } from '../../lib/hotIssues';
 import { HomeLegislatorFinder } from '../../components/home/HomeLegislatorFinder';
 import { HOME_BILL_GROUP_CONTINUATIONS } from '../../lib/homepage';
+import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import type { Bill } from '../../data/types';
 
 // The v2 signed-out home — docs/mockups/home-signed-out-v2 (README = state/token/copy
@@ -533,7 +539,16 @@ function ProgressSteps({ filled, vetoed }: { filled: number; vetoed?: boolean })
 // hook order stable across a resize that crosses the breakpoint.
 export function HomeSignedOutScreen() {
   const { isDesktop } = useResponsive();
-  return isDesktop ? <HomeSignedOutDesktop /> : <HomeSignedOutMobile />;
+  const isFocused = useIsFocused();
+  const sessionsQuery = useSessions({ enabled: isFocused });
+  const currentSession =
+    sessionsQuery.data?.find((session) => session.isCurrent) ?? sessionsQuery.data?.[0];
+  const sessionLabel = formatSessionLabel(currentSession ?? SESSION_LABEL_FALLBACK).toUpperCase();
+  return isDesktop ? (
+    <HomeSignedOutDesktop sessionLabel={sessionLabel} />
+  ) : (
+    <HomeSignedOutMobile sessionLabel={sessionLabel} />
+  );
 }
 
 // Editorially flagged "🔥 Hot issue" bills (NEXT-home-spec §Bill Activity — Card
@@ -542,7 +557,7 @@ export function HomeSignedOutScreen() {
 // flagged bill shows the pill when it happens to appear in the top-2 passed /
 // top-3 introduced.
 
-function HomeSignedOutDesktop() {
+function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   const navigation = useNavigation<any>();
   const { isTracked, toggleTrack } = useBillTracking();
   // ONE homepage, not two (#1034). Only the hero region branches on auth;
@@ -758,7 +773,7 @@ function HomeSignedOutDesktop() {
           {/* BILLS MOVING THROUGH THE LEGISLATURE */}
           <View ref={billActivityRef} style={styles.billsSection}>
             <Container>
-              <Text style={styles.sectionEyebrow}>2025–26 LEGISLATIVE SESSION</Text>
+              <Text style={styles.sectionEyebrow}>{sessionLabel}</Text>
               <View style={styles.billsHeadRow}>
                 <Text accessibilityRole="header" style={styles.billsH2}>
                   Bills Moving Through the Legislature
@@ -1161,7 +1176,7 @@ function SkeletonCard({ lines }: { lines: number }) {
   );
 }
 
-function HomeSignedOutMobile() {
+function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   const navigation = useNavigation<any>();
   // Same branch as desktop: only the HERO changes on auth, and everything below it
   // is identical either way (#1034, #1069). This component serves BOTH narrow
@@ -1423,7 +1438,7 @@ function HomeSignedOutMobile() {
           {activityLoading ? (
             <Container style={[m.section, m.activitySectionBottom]}>
               <Text ref={billActivityRef} style={m.eyebrow}>
-                2025–2026 SESSION
+                {sessionLabel}
               </Text>
               <Text accessibilityRole="header" aria-level={2} style={m.sectionH2}>
                 Legislative Bill Activity
@@ -1452,7 +1467,7 @@ function HomeSignedOutMobile() {
           ) : introducedBills.length > 0 || signedBills.length > 0 ? (
             <Container style={[m.section, m.activitySectionBottom]}>
               <Text ref={billActivityRef} style={m.eyebrow}>
-                2025–2026 SESSION
+                {sessionLabel}
               </Text>
               <Text accessibilityRole="header" aria-level={2} style={m.sectionH2}>
                 Legislative Bill Activity

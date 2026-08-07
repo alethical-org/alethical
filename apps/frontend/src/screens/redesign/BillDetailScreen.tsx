@@ -380,9 +380,11 @@ function BillDetailMobileScreen() {
   // The bill's OWN session, not whichever one is current: a special-session bill
   // belongs to a different session than the biennium, and labelling it with the
   // biennium's years would state the wrong thing about it (#746).
-  const sessionLabel = bill?.sessionLabel
-    ? formatSessionLabel(bill.sessionLabel)
-    : SESSION_LABEL_FALLBACK;
+  const sessionLabel = bill?.session
+    ? formatSessionLabel(bill.session)
+    : bill?.sessionLabel
+      ? formatSessionLabel(bill.sessionLabel)
+      : SESSION_LABEL_FALLBACK;
 
   // chrome + overlays
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);

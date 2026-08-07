@@ -10,7 +10,7 @@ import {
 } from '../data/types';
 import { citationSectionAnchor } from './billText';
 import { normalizeMotion } from './motionNormalize';
-import { formatSessionLabel } from './sessionLabel';
+import { formatSessionLabel, type SessionDisplaySource } from './sessionLabel';
 
 // Shared logic for the redesign Bill Detail page (screens/redesign/BillDetailScreen).
 // Kept framework-free (pure functions) so it is unit-testable and reused by the tab
@@ -1532,14 +1532,12 @@ function assignOrderKeys<T extends { actionNumber: number; rawDate: string; idx:
 // rows), so a fourth statement is redundant. Mobile has no rail and so keeps the
 // full "SENATE · 2025 FIRST SPECIAL SESSION" form, built inline in
 // screens/redesign/BillDetailScreen — deliberately not shared with this helper.
-export function bienniumEyebrow(billId: string, sessionLabel?: string): string {
-  const served = (sessionLabel || '').trim();
+export function bienniumEyebrow(billId: string, session?: string | SessionDisplaySource): string {
+  const served = typeof session === 'string' ? session.trim() : (session?.name ?? '').trim();
   if (served && served !== 'Current session') {
     // "94th Legislature (2025) First Special Session" → "2025 FIRST SPECIAL SESSION";
     // "94th Legislature (2025 - 2026) Regular Session" → "2025–26 LEGISLATIVE SESSION".
-    return formatSessionLabel(served)
-      .replace(/\b(20\d{2})–20(\d{2})\b/, '$1–$2')
-      .toUpperCase();
+    return formatSessionLabel(session ?? served).toUpperCase();
   }
   const m = (billId || '').match(/^\d+-(\d{4})-/);
   const year = m ? Number(m[1]) : NaN;

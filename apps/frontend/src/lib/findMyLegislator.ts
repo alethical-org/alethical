@@ -1,3 +1,5 @@
+import { formatLegislatureLabel, type SessionDisplaySource } from './sessionLabel';
+
 export type FindLegislatorState =
   | 'empty'
   | 'looking'
@@ -51,11 +53,8 @@ export function addressChoiceKey(
   return null;
 }
 
-export function legislatureLabel(name: string): string {
-  const match = name.match(/(\d+(?:st|nd|rd|th))\s+Legislature\s+\((\d{4})\s*[–-]\s*(\d{4})\)/i);
-  return match
-    ? `${match[1].toUpperCase()} LEGISLATURE (${match[2]}–${match[3]})`
-    : name.toUpperCase();
+export function legislatureLabel(session: string | SessionDisplaySource): string {
+  return formatLegislatureLabel(session).toUpperCase();
 }
 
 export function contactEmail(value?: string | null): string | undefined {

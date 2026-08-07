@@ -431,8 +431,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   <Text accessibilityRole="header" aria-level={2} style={styles.answerTitle}>
                     Your Minnesota legislators
                   </Text>
-                  {result.sessionName ? (
-                    <Text style={styles.sessionLabel}>{legislatureLabel(result.sessionName)}</Text>
+                  {result.session ? (
+                    <Text style={styles.sessionLabel}>{legislatureLabel(result.session)}</Text>
                   ) : null}
                   {result.houseDistrict && result.senateDistrict ? (
                     <Text style={styles.nesting}>

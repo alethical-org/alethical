@@ -86,11 +86,12 @@ export function usePolicyAreas(session?: string) {
   });
 }
 
-export function useSessions() {
+export function useSessions(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['sessions'],
     queryFn: listSessionsFromApi,
     retry: false,
+    enabled: options.enabled ?? true,
   });
 }
 

@@ -43,12 +43,12 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(addressChoiceKey('Escape', 2, 4)).toEqual({ index: 2, action: 'close' });
   });
 
-  it('uses the full official Legislature range', () => {
+  it('uses the shared short Legislature range', () => {
     expect(legislatureLabel('94th Legislature (2025–2026) Regular Session')).toBe(
-      '94TH LEGISLATURE (2025–2026)',
+      '94TH LEGISLATURE (2025–26)',
     );
     expect(legislatureLabel('94th Legislature (2025 - 2026) Regular Session')).toBe(
-      '94TH LEGISLATURE (2025–2026)',
+      '94TH LEGISLATURE (2025–26)',
     );
   });
 

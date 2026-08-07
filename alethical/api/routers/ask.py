@@ -129,7 +129,18 @@ def _scope_session_ref(scope: LegislatureScope) -> AskSessionRef:
     so the page can say which session that bill is from without this field ever
     meaning two different things depending on the answer (#810).
     """
-    return AskSessionRef(slug=scope.primary.slug, name=scope.primary.name)
+    return _session_ref(scope.primary)
+
+
+def _session_ref(row) -> AskSessionRef:
+    return AskSessionRef(
+        slug=row.slug,
+        name=row.name,
+        is_current=row.is_current,
+        session_number=row.session_number,
+        year_start=row.year_start,
+        year_end=row.year_end,
+    )
 
 
 def _bill_session_ref(scope: LegislatureScope, bill) -> AskSessionRef | None:
@@ -146,7 +157,7 @@ def _session_ref_for(scope: LegislatureScope, session_id) -> AskSessionRef | Non
     row = scope.by_id(session_id)
     if row is None or row.id == scope.primary.id:
         return None
-    return AskSessionRef(slug=row.slug, name=row.name)
+    return _session_ref(row)
 
 
 def _progress_sort_key(bill):

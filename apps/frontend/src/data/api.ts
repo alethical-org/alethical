@@ -8,6 +8,7 @@ import {
 import type { SourceBlock } from '../lib/billText';
 import { contactEmail } from '../lib/findMyLegislator';
 import { publicReadResponse } from '../lib/publicRead';
+import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -18,6 +19,7 @@ import {
   ChatSession,
   Citation,
   LegislativeService,
+  LegislativeSession,
   Legislator,
   LegislatorVote,
   RepresentativeLookupInput,
@@ -104,7 +106,7 @@ interface ApiBillListItemPayload {
   file_type: string;
   file_number: number;
   title: string;
-  session?: { slug: string; name: string } | null;
+  session?: ApiSessionPayload | null;
   current_status?: string | null;
   status_key?: string | null;
   latest_action_at?: string | null;
@@ -126,7 +128,7 @@ interface ApiPolicyAreaPayload {
 
 interface ApiAskTopicBillsAnswerPayload {
   topic?: string | null;
-  session: { slug: string; name: string };
+  session: ApiSessionPayload;
   data_as_of?: string | null;
   total_matches: number;
   bills: ApiBillListItemPayload[];
@@ -156,7 +158,7 @@ interface ApiAskLegislatorPayload {
 
 interface ApiAskTopicLegislatorsAnswerPayload {
   topic?: string | null;
-  session: { slug: string; name: string };
+  session: ApiSessionPayload;
   data_as_of?: string | null;
   total_matches: number;
   total_bills: number;
@@ -164,7 +166,7 @@ interface ApiAskTopicLegislatorsAnswerPayload {
 }
 
 interface ApiAskVoteDeflectionAnswerPayload {
-  session: { slug: string; name: string };
+  session: ApiSessionPayload;
   data_as_of?: string | null;
   resolved_bill?: ApiBillListItemPayload | null;
   topic_bills?: ApiAskTopicBillsAnswerPayload | null;
@@ -184,7 +186,7 @@ interface ApiAskBillTextAnswerPayload {
   answer: string;
   citations: ApiAskCitationPayload[];
   bill: ApiBillListItemPayload;
-  session: { slug: string; name: string };
+  session: ApiSessionPayload;
   data_as_of?: string | null;
   coverage?: { used: number; total: number; enumerating?: boolean } | null;
 }
@@ -209,13 +211,23 @@ export interface PolicyArea {
 interface ApiSessionPayload {
   slug: string;
   name: string;
-  is_current: boolean;
+  is_current?: boolean;
+  session_number?: number;
+  year_start?: number;
+  year_end?: number;
 }
 
-export interface LegislativeSession {
-  slug: string;
-  name: string;
-  isCurrent: boolean;
+function mapSession(payload: ApiSessionPayload): LegislativeSession {
+  const years = payload.name.match(/\b(20\d{2})\b(?:\s*[-–]\s*(20\d{2}))?/);
+  const number = payload.name.match(/\b(\d+)(?:st|nd|rd|th)\s+Legislature\b/i);
+  return {
+    slug: payload.slug,
+    name: payload.name,
+    isCurrent: payload.is_current ?? false,
+    sessionNumber: payload.session_number ?? Number(number?.[1] ?? 0),
+    yearStart: payload.year_start ?? Number(years?.[1] ?? 0),
+    yearEnd: payload.year_end ?? Number(years?.[2] ?? years?.[1] ?? 0),
+  };
 }
 
 export type BillSort = 'relevance' | 'latest_action' | 'progress' | 'introduced';
@@ -330,7 +342,7 @@ interface ApiLegislatorDetailPayload extends ApiLegislatorListItemPayload {
 
 interface ApiRepresentativeLookupPayload {
   status: 'found' | 'address-choice';
-  session?: { name: string } | null;
+  session?: ApiSessionPayload | null;
   source_updated_at?: string | null;
   resolved_place: {
     input_mode?: string | null;
@@ -837,7 +849,7 @@ function versionDisplayName(code: string, name?: string | null): string {
     return 'Current version';
   }
 
-  return raw || trimmedCode || 'Bill version';
+  return normalizeLegislativeYearRanges(raw || trimmedCode || 'Bill version');
 }
 
 // The action's canonical label is action_text (e.g. "Author added", "Third
@@ -1266,7 +1278,7 @@ function mapRepresentativeLookup(
     congressionalDistrict: payload.resolved_place.congressional_district ?? undefined,
     houseGeometry: payload.resolved_place.house_geometry ?? undefined,
     senateGeometry: payload.resolved_place.senate_geometry ?? undefined,
-    sessionName: payload.session?.name ?? undefined,
+    session: payload.session ? mapSession(payload.session) : undefined,
     sourceUpdatedAt: payload.source_updated_at ?? undefined,
   };
 }
@@ -1283,6 +1295,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
     effectiveDate: payload.effective_date ?? undefined,
     updatedAt: formatUpdatedAt(payload.latest_action_at),
     sessionLabel: 'Current session',
+    session: payload.session ? mapSession(payload.session) : undefined,
     topics: [],
     chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
     chiefSponsorSlugs: payload.chief_sponsors.map((sponsor) => sponsor.slug ?? null),
@@ -1363,6 +1376,7 @@ function mapBillDetail(
         }
       : undefined,
     sessionLabel: payload.session?.name ?? 'Current session',
+    session: payload.session ? mapSession(payload.session) : undefined,
     topics: (payload.topics ?? []).map((topic) => topic.name),
     chiefSponsorIds: payload.chief_sponsors.map((sponsor) => sponsor.legislator_id ?? sponsor.name),
     chiefSponsorSlugs: payload.chief_sponsors.map((sponsor) => sponsor.slug ?? null),
@@ -1627,7 +1641,7 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
   const answer = payload.answer;
 
   const mapBill = (bill: ApiBillListItemPayload): AskAnswerBill => ({
-    sessionName: bill.session?.name,
+    session: bill.session ? mapSession(bill.session) : undefined,
     id: bill.id,
     identifier: formatBillIdentifier(bill.file_type, bill.file_number),
     title: bill.title,
@@ -1645,6 +1659,11 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
   const mapCardBill = (bill: ApiBillListItemPayload) => ({
     ...mapBillSummary(bill),
     sessionLabel: bill.session?.name ?? answer?.session.name ?? 'Current session',
+    session: bill.session
+      ? mapSession(bill.session)
+      : answer?.session
+        ? mapSession(answer.session)
+        : undefined,
   });
 
   // legislator_vote (§4.5 vote deflection) carries a resolved bill and/or a
@@ -1692,7 +1711,7 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
       : undefined,
     topic:
       billsAnswer?.topic ?? (answer && 'topic' in answer ? (answer.topic ?? undefined) : undefined),
-    sessionName: answer?.session.name,
+    session: answer?.session ? mapSession(answer.session) : undefined,
     ambiguousReference:
       answer && 'ambiguous_reference' in answer
         ? (answer.ambiguous_reference ?? undefined)
@@ -1828,12 +1847,7 @@ export async function getMetaFromApi(): Promise<Meta> {
 
 export async function listSessionsFromApi(): Promise<LegislativeSession[]> {
   const response = await publicApiRequest<PageResponse<ApiSessionPayload>>('/sessions');
-
-  return response.data.map((session) => ({
-    slug: session.slug,
-    name: session.name,
-    isCurrent: session.is_current,
-  }));
+  return response.data.map(mapSession);
 }
 
 export async function getBillFromApi(
