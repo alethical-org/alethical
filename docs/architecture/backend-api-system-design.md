@@ -713,8 +713,10 @@ Rationale:
 - this is a noun resource, not an RPC verb endpoint
 - POST is appropriate because the lookup payload can be structured and may exceed simple query-string ergonomics
 - map-pin lookup should bypass address geocoding and resolve districts directly from latitude and longitude
-- address lookup first asks the US Census for the full address, then retries the house and street with Minnesota when a wrong postal city or ZIP hid a real match
-- if both Census attempts find nothing, the backend asks Minnesota's public statewide address-point list using only the house number and street name; several distinct matches become choices rather than a guess
+- address lookup first asks the US Census for the address as typed; if it finds nothing, punctuation-free Minnesota input is split into house, street, city, state, and ZIP before Census retries the house and street with Minnesota
+- the parser ignores commas, periods, repeated spaces, common street abbreviations, and full street endings found in Minnesota's official address list; `St`, `Mt`, and `Ft` city forms are normalized for ranking
+- if Census finds nothing, the backend asks Minnesota's public statewide address-point list using only the exact house number and street name; it tries an exact street first, then allows 1 added, missing, changed, or swapped character only in a word with at least 5 characters
+- exact ZIP and close city matches rank official results, while the supplied street type and direction break remaining ties; equally close addresses become choices, and an incomplete state result list is refused rather than guessed
 - House and Senate come from the Minnesota Legislative Coordinating Commission lookup service; Congress is read from the commission's official 2022 district map stored with the backend, so a person's precise point is not sent to another outside service and number-only rows are not mistaken for congressional districts
 - single-digit House and Senate numbers from that map are padded before the saved district lookup (`4A`/`4` becomes `04A`/`04`), matching the official records instead of falsely reporting no address match
 - House-within-Senate validation uses the original government outlines; the smaller browser copy is made only after that safety check so drawing cleanup cannot reject a valid district

@@ -84,6 +84,79 @@ def test_census_retries_a_minnesota_street_without_the_wrong_locality(monkeypatc
     assert matches[0].matched_address == "4255 215TH ST E, HAMPTON, MN 55031"
 
 
+@pytest.mark.parametrize(
+    ("requested", "relaxed"),
+    [
+        (
+            "4255 215th St E Farmington MN 55024",
+            "4255 215th St E, MN",
+        ),
+        (
+            "4255   215th Street East   Farmington Minnesota 55024",
+            "4255 215th Street East, MN",
+        ),
+        (
+            "4255 215th St. E. Farmington MN 55024",
+            "4255 215th St E, MN",
+        ),
+        (
+            "4255 215th St. E. Farmington MN. 55024.",
+            "4255 215th St E, MN",
+        ),
+    ],
+)
+def test_census_address_input_eval_accepts_punctuation_free_forms(
+    monkeypatch, requested, relaxed
+):
+    matched = census_match(
+        "4255 215TH ST E, HAMPTON, MN 55031",
+        latitude=44.637605981025,
+        longitude=-93.020281271416,
+    )
+    requests = []
+
+    def get(url, *, params, timeout):
+        requests.append(params["address"])
+        return FakeResponse(
+            census_payload(matched)
+            if params["address"] == relaxed
+            else census_payload()
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    matches = CensusGeocoder().geocode_matches(requested)
+
+    assert requests[0] == requested
+    assert requests[-1] == relaxed
+    assert matches[0].matched_address == "4255 215TH ST E, HAMPTON, MN 55031"
+
+
+def test_census_address_input_eval_keeps_saint_paul_out_of_the_street(monkeypatch):
+    requested = "350 S 5th St St Paul MN 55102"
+    relaxed = "350 S 5th St, MN"
+    requests = []
+
+    def get(url, *, params, timeout):
+        requests.append(params["address"])
+        return FakeResponse(
+            census_payload(census_match("350 S 5TH ST, SAINT PAUL, MN 55102"))
+            if params["address"] == relaxed
+            else census_payload()
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    matches = CensusGeocoder().geocode_matches(requested)
+
+    assert relaxed in requests
+    assert matches[0].matched_address == "350 S 5TH ST, SAINT PAUL, MN 55102"
+
+
 def test_census_does_not_relax_an_address_without_a_minnesota_locality(monkeypatch):
     requests = []
 
@@ -152,6 +225,414 @@ def test_state_address_fallback_sends_only_house_number_and_street(monkeypatch):
             longitude=-93.02000538,
             state_code="MN",
         )
+    ]
+
+
+def test_state_address_input_eval_accepts_no_commas_without_sharing_locality(
+    monkeypatch,
+):
+    requested = "4255 215th St E Farmington MN 55024"
+    seen_params = {}
+
+    def get(url, *, params, timeout):
+        seen_params.update(params)
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=4255,
+                        st_name="215th",
+                        st_pos_typ="Street",
+                        st_pos_dir="East",
+                        postcomm="Hampton",
+                        ctu_name="Vermillion Township",
+                        zip="55031",
+                        state_code="MN",
+                        longitude=-93.02000538,
+                        latitude=44.64011409,
+                        status="Active",
+                    )
+                ]
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    matches = MinnesotaAddressPointGeocoder().geocode_matches(requested)
+
+    assert "anumber = 4255" in seen_params["where"]
+    assert "215TH" in seen_params["where"]
+    assert "Farmington" not in str(seen_params)
+    assert "55024" not in str(seen_params)
+    assert matches[0].matched_address == "4255 215th Street East, Hampton, MN 55031"
+
+
+def test_state_address_input_eval_uses_one_small_street_typo(monkeypatch):
+    requested = "4255 215ht St E Farmington MN 55024"
+    seen_where = []
+
+    def get(url, *, params, timeout):
+        seen_where.append(params["where"])
+        if "LIKE" not in params["where"]:
+            return FakeResponse({"features": []})
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=4255,
+                        st_name="215th",
+                        st_pos_typ="Street",
+                        st_pos_dir="East",
+                        postcomm="Hampton",
+                        zip="55031",
+                        state_code="MN",
+                        longitude=-93.02000538,
+                        latitude=44.64011409,
+                        status="Active",
+                    )
+                ]
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    matches = MinnesotaAddressPointGeocoder().geocode_matches(requested)
+
+    assert len(seen_where) == 2
+    assert all("anumber = 4255" in where for where in seen_where)
+    assert all(
+        "FARMINGTON" not in where and "55024" not in where for where in seen_where
+    )
+    assert matches[0].matched_address == "4255 215th Street East, Hampton, MN 55031"
+
+
+@pytest.mark.parametrize(
+    "requested",
+    [
+        "10 Pine Cv Bemidji MN 56601",
+        "10 Pine Cove Bemidji Minnesota 56601",
+        "10 Pine Stret Bemidji MN 56601",
+    ],
+)
+def test_state_address_input_eval_accepts_official_types_and_a_long_type_typo(
+    monkeypatch, requested
+):
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get",
+        lambda *args, **kwargs: FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=10,
+                        st_name="Pine",
+                        st_pos_typ="Cove" if "Stret" not in requested else "Street",
+                        postcomm="Bemidji",
+                        zip="56601",
+                        state_code="MN",
+                        longitude=-94.88,
+                        latitude=47.47,
+                        status="Active",
+                    )
+                ]
+            }
+        ),
+    )
+
+    matches = MinnesotaAddressPointGeocoder().geocode_matches(requested)
+
+    assert matches[0].matched_address.startswith("10 Pine ")
+
+
+def test_state_address_input_eval_does_not_fuzzy_match_a_short_street(monkeypatch):
+    requests = []
+
+    def get(url, *, params, timeout):
+        requests.append(params)
+        return FakeResponse({"features": []})
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    with pytest.raises(RepresentativeLookupNotFound):
+        MinnesotaAddressPointGeocoder().geocode_matches("10 Mian St Ada MN 56510")
+
+    assert len(requests) == 1
+    assert "LIKE" not in requests[0]["where"]
+
+
+def test_state_address_input_eval_does_not_hide_a_short_typo_in_a_long_street(
+    monkeypatch,
+):
+    calls = 0
+
+    def get(url, *, params, timeout):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return FakeResponse({"features": []})
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=10,
+                        st_name="Old Main",
+                        st_pos_typ="Street",
+                        postcomm="Ada",
+                        zip="56510",
+                        state_code="MN",
+                        longitude=-96.5,
+                        latitude=47.3,
+                        status="Active",
+                    )
+                ]
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    with pytest.raises(RepresentativeLookupNotFound):
+        MinnesotaAddressPointGeocoder().geocode_matches(
+            "10 Old Mian Street Ada Minnesota 56510"
+        )
+
+
+def test_state_address_input_eval_never_changes_the_house_number(monkeypatch):
+    seen_where = []
+
+    def get(url, *, params, timeout):
+        seen_where.append(params["where"])
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=4255,
+                        st_name="215th",
+                        st_pos_typ="Street",
+                        st_pos_dir="East",
+                        postcomm="Hampton",
+                        zip="55031",
+                        state_code="MN",
+                        longitude=-93.02000538,
+                        latitude=44.64011409,
+                        status="Active",
+                    )
+                ]
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get",
+        get,
+    )
+
+    with pytest.raises(RepresentativeLookupNotFound):
+        MinnesotaAddressPointGeocoder().geocode_matches(
+            "4256 215th St E Farmington MN 55024"
+        )
+
+    assert seen_where
+    assert all("anumber = 4256" in where for where in seen_where)
+
+
+def test_state_address_input_eval_rejects_a_materially_different_long_street(
+    monkeypatch,
+):
+    calls = 0
+
+    def get(url, *, params, timeout):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return FakeResponse({"features": []})
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=10,
+                        st_name="Lakeside",
+                        st_pos_typ="Road",
+                        postcomm="Ada",
+                        zip="56510",
+                        state_code="MN",
+                        longitude=-96.5,
+                        latitude=47.3,
+                        status="Active",
+                    )
+                ]
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    with pytest.raises(RepresentativeLookupNotFound):
+        MinnesotaAddressPointGeocoder().geocode_matches(
+            "10 Riverside Road Ada Minnesota 56510"
+        )
+
+
+def test_state_address_input_eval_refuses_an_incomplete_close_match_set(monkeypatch):
+    calls = 0
+
+    def get(url, *, params, timeout):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return FakeResponse({"features": []})
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=4255,
+                        st_name="215th",
+                        st_pos_typ="Street",
+                        st_pos_dir="East",
+                        postcomm="Hampton",
+                        zip="55031",
+                        state_code="MN",
+                        longitude=-93.02000538,
+                        latitude=44.64011409,
+                        status="Active",
+                    )
+                ],
+                "exceededTransferLimit": True,
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    with pytest.raises(RepresentativeLookupNotFound):
+        MinnesotaAddressPointGeocoder().geocode_matches(
+            "4255 215ht St E Farmington MN 55024"
+        )
+
+
+def test_state_address_input_eval_uses_a_supplied_direction_to_remove_a_false_choice(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get",
+        lambda *args, **kwargs: FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=4255,
+                        st_name="215th",
+                        st_pos_typ="Street",
+                        st_pos_dir=direction,
+                        postcomm="Hampton",
+                        zip="55031",
+                        state_code="MN",
+                        longitude=longitude,
+                        latitude=44.64,
+                        status="Active",
+                    )
+                    for direction, longitude in (
+                        ("East", -93.02),
+                        ("West", -93.03),
+                    )
+                ]
+            }
+        ),
+    )
+
+    matches = MinnesotaAddressPointGeocoder().geocode_matches(
+        "4255 215th St E Hampton Minnesota 55031"
+    )
+
+    assert [match.matched_address for match in matches] == [
+        "4255 215th Street East, Hampton, MN 55031"
+    ]
+
+
+def test_state_address_input_eval_prefers_a_close_locality_without_guessing_street(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get",
+        lambda *args, **kwargs: FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=10,
+                        st_name="Main",
+                        st_pos_typ="Street",
+                        postcomm=city,
+                        zip=zip_code,
+                        state_code="MN",
+                        longitude=longitude,
+                        latitude=45.0,
+                        status="Active",
+                    )
+                    for city, zip_code, longitude in (
+                        ("Minneapolis", "55401", -93.27),
+                        ("Anoka", "55303", -93.39),
+                    )
+                ]
+            }
+        ),
+    )
+
+    matches = MinnesotaAddressPointGeocoder().geocode_matches(
+        "10 Main Street Minneaplis Minnesota"
+    )
+
+    assert [match.matched_address for match in matches] == [
+        "10 Main Street, Minneapolis, MN 55401"
+    ]
+
+
+def test_state_address_input_eval_returns_equally_close_streets_as_choices(monkeypatch):
+    calls = 0
+
+    def get(url, *, params, timeout):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return FakeResponse({"features": []})
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=10,
+                        st_name=street,
+                        st_pos_typ="Road",
+                        postcomm=city,
+                        zip=zip_code,
+                        state_code="MN",
+                        longitude=longitude,
+                        latitude=45.0,
+                        status="Active",
+                    )
+                    for street, city, zip_code, longitude in (
+                        ("Northern", "Ada", "56510", -96.5),
+                        ("Norten", "Anoka", "55303", -93.4),
+                    )
+                ]
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    matches = MinnesotaAddressPointGeocoder().geocode_matches(
+        "10 Nortern Road Somewhere Minnesota"
+    )
+
+    assert [match.matched_address for match in matches] == [
+        "10 Northern Road, Ada, MN 56510",
+        "10 Norten Road, Anoka, MN 55303",
     ]
 
 
