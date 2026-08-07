@@ -35,12 +35,6 @@ export default function App() {
       if (document.getElementById('alethical-fonts')) {
         return;
       }
-      const preconnect = document.createElement('link');
-      preconnect.rel = 'preconnect';
-      preconnect.href = 'https://fonts.gstatic.com';
-      preconnect.crossOrigin = 'anonymous';
-      document.head.appendChild(preconnect);
-
       const link = document.createElement('link');
       link.id = 'alethical-fonts';
       link.rel = 'stylesheet';
