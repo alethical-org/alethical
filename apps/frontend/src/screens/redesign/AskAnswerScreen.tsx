@@ -733,6 +733,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   </Svg>
                 </View>
               </View>
+              {/* These cards show passage openings on both layouts. Say why they
+                  stop early before the first card, where nobody can mistake the
+                  cut-off for missing bill text. */}
+              <Text style={styles.railGloss}>
+                Each quote is the opening of a longer section — open one to read it in full.
+              </Text>
               <View style={styles.railCards}>
                 {sections.map((section) => {
                   // The anchor value the Bill Text tab answers to — id AND position
@@ -1179,6 +1185,13 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.7,
     color: t.colors.text.muted,
+  },
+  railGloss: {
+    fontFamily: t.typography.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#6f756f',
+    marginTop: 7,
   },
   railCards: { marginTop: 14, gap: 12 },
 

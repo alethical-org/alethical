@@ -544,7 +544,7 @@ describe('the plain-language key explains the pointer row, without claiming a me
 describe('bienniumEyebrow names the session the bill is actually from', () => {
   it('uses the served session name, not arithmetic on the bill id', () => {
     expect(bienniumEyebrow('94-2025-SF334', '94th Legislature (2025 - 2026) Regular Session')).toBe(
-      '2025–2026 LEGISLATIVE SESSION',
+      '2025–26 LEGISLATIVE SESSION',
     );
   });
 
@@ -558,10 +558,8 @@ describe('bienniumEyebrow names the session the bill is actually from', () => {
   });
 
   it('falls back to the id while the session is still loading', () => {
-    expect(bienniumEyebrow('94-2026-HF4138')).toBe('2025–2026 LEGISLATIVE SESSION');
-    expect(bienniumEyebrow('94-2025-SF334', 'Current session')).toBe(
-      '2025–2026 LEGISLATIVE SESSION',
-    );
+    expect(bienniumEyebrow('94-2026-HF4138')).toBe('2025–26 LEGISLATIVE SESSION');
+    expect(bienniumEyebrow('94-2025-SF334', 'Current session')).toBe('2025–26 LEGISLATIVE SESSION');
   });
 
   it('says nothing rather than naming a session it cannot identify', () => {

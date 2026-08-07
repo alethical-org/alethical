@@ -32,6 +32,16 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(citationCard).toContain('defaultQuote: { marginTop: 9 }');
   });
 
+  it('explains on every Answer layout why cited quotes stop early', () => {
+    const gloss = 'Each quote is the opening of a longer section — open one to read it in full.';
+    expect(answer).toMatch(
+      /<Text style={styles\.railGloss}>\s*Each quote is the opening of a longer section — open one to read it in full\.\s*<\/Text>/,
+    );
+    expect(answer.indexOf(gloss)).toBeLessThan(answer.indexOf('<View style={styles.railCards}>'));
+    expect(answer).toContain('railGloss: {\n    fontFamily: t.typography.body,\n    fontSize: 13,');
+    expect(answer).toContain("color: '#6f756f',");
+  });
+
   it('separates the homepage gloss without indenting or italicizing it', () => {
     expect(home).toContain('sectionCardNote: {\n    marginTop: 10,');
     expect(home).not.toContain('paddingLeft: 15');
