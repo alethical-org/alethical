@@ -1747,6 +1747,27 @@ export async function listBillsFromApi(
   };
 }
 
+/** The small editorial set on phone Home, which may span legislative sessions. */
+export async function getFeaturedBillsFromApi(
+  billIds: readonly string[],
+): Promise<(Bill & { sponsorNames: string[] })[]> {
+  const requestedIds = [...new Set(billIds.map((billId) => billId.trim()).filter(Boolean))];
+  if (requestedIds.length === 0) return [];
+
+  const params = new URLSearchParams();
+  for (const billId of requestedIds) {
+    params.append('bill_id', billId);
+  }
+  const response = await publicApiRequest<CollectionResponse<ApiBillListItemPayload>>(
+    `/bills/featured?${params.toString()}`,
+  );
+  const summariesById = new Map(response.data.map((item) => [item.id, mapBillSummary(item)]));
+  return requestedIds.flatMap((billId) => {
+    const summary = summariesById.get(billId);
+    return summary ? [summary] : [];
+  });
+}
+
 export async function listPolicyAreasFromApi(session?: string): Promise<PolicyArea[]> {
   const params = new URLSearchParams();
   params.set('limit', '50');

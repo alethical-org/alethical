@@ -9,7 +9,7 @@ import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBillTracking } from '../../hooks/useBillTracking';
-import { useBill, useBills, useTrackedBills } from '../../hooks/useAppQueries';
+import { useBills, useFeaturedBills, useTrackedBills } from '../../hooks/useAppQueries';
 import { useLastVisitWithoutAdvancing } from '../../hooks/useTrackedBillsLastVisit';
 import { useAuth } from '../../providers/AuthProvider';
 import { SessionWatchCard } from '../../components/home/SessionWatchCard';
@@ -1187,9 +1187,12 @@ function HomeSignedOutMobile() {
     });
   };
 
-  // In the News — two pinned bills by key (bypasses the /bills AI-summary gate).
-  const news0 = useBill(IN_THE_NEWS[0].key, { enabled: isFocused });
-  const news1 = useBill(IN_THE_NEWS[1].key, { enabled: isFocused });
+  // In the News — the 2 pins can span sessions, so their summaries share 1
+  // cacheable public read rather than each opening a bill-detail and votes read.
+  const news = useFeaturedBills(
+    IN_THE_NEWS.map((bill) => bill.key),
+    { enabled: isFocused },
+  );
   // Bill Activity — live, date-ordered now that action dates are ingested (#329):
   //   • Recently Introduced = newest by real introduction date (sort=introduced).
   //   • Recently Passed = most recently enacted bills (status=signed_into_law,
@@ -1217,10 +1220,11 @@ function HomeSignedOutMobile() {
   // variant's cards above and Search Bills' result cards.
   const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
   const openSearchBills = () => navigation.navigate('Bills');
-  const newsBills = [
-    { pin: IN_THE_NEWS[0], bill: news0.data },
-    { pin: IN_THE_NEWS[1], bill: news1.data },
-  ].filter((n) => n.bill != null) as { pin: (typeof IN_THE_NEWS)[number]; bill: Bill }[];
+  const newsById = new Map(news.data?.map((bill) => [bill.id, bill]));
+  const newsBills = IN_THE_NEWS.flatMap((pin) => {
+    const bill = newsById.get(pin.key);
+    return bill ? [{ pin, bill }] : [];
+  });
   const introducedBills = introduced.data?.data ?? [];
   const signedBills = signed.data?.data ?? [];
 
@@ -1232,7 +1236,7 @@ function HomeSignedOutMobile() {
   // render skeletons in its slot so the page holds its final order from the first
   // paint (no content-driven layout shift). On error/empty the section still
   // collapses to null, unchanged.
-  const newsLoading = news0.isLoading || news1.isLoading;
+  const newsLoading = news.isLoading;
   const activityLoading = introduced.isLoading || signed.isLoading;
 
   // Masked dot textures — only two sections carry them (Hero, Find My

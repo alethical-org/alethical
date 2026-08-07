@@ -161,6 +161,40 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
     ]
 
 
+def test_featured_bills_returns_requested_summaries_in_order_and_skips_missing(client):
+    """The phone home page fetches its 2 editorial cards in 1 cacheable read.
+
+    The featured cards may span legislative sessions, so this route must not
+    inherit the normal current-session filter. A missing editorial pin is not a
+    broken whole page: return the remaining card and let the client render it.
+    """
+    source = client.get("/api/v1/bills", params={"limit": 2})
+    assert source.status_code == 200
+    first_id, second_id = [item["id"] for item in source.json()["data"]]
+
+    response = client.get(
+        "/api/v1/bills/featured",
+        params=[("bill_id", second_id), ("bill_id", first_id)],
+    )
+
+    assert response.status_code == 200
+    assert (
+        response.headers["cache-control"]
+        == "public, max-age=60, stale-while-revalidate=300"
+    )
+    cards = response.json()["data"]
+    assert [card["id"] for card in cards] == [second_id, first_id]
+    assert all(card["ai_analysis"]["summary"] for card in cards)
+    assert all("votes" not in card for card in cards)
+
+    partial = client.get(
+        "/api/v1/bills/featured",
+        params=[("bill_id", first_id), ("bill_id", "missing-featured-bill")],
+    )
+    assert partial.status_code == 200
+    assert [card["id"] for card in partial.json()["data"]] == [first_id]
+
+
 def test_bill_and_legislator_lists_support_search_filter_contract(client):
     policy_areas_response = client.get(
         "/api/v1/policy-areas",
