@@ -6,7 +6,7 @@ import { theme as t } from '../../theme/tokens';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
-import { useBill } from '../../hooks/useAppQueries';
+import { useBill, usePrefetchBillVotes } from '../../hooks/useAppQueries';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { bienniumEyebrow, chiefAuthor, pulledLabel } from '../../lib/billDetail';
 import { isHotIssueBill } from '../../lib/hotIssues';
@@ -22,6 +22,10 @@ import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { isNotFoundError } from '../../data/api';
 import { Skeleton } from '../../components/Skeleton';
+import {
+  billDetailNeedsVotes,
+  billDetailVotePrefetchIsUseful,
+} from '../../lib/billDetailRequestMode';
 
 const isWeb = Platform.OS === 'web';
 const TABS: DetailTab[] = ['summary', 'actions', 'votes', 'text', 'versions'];
@@ -50,8 +54,11 @@ export function BillDetailWebScreen() {
   // after it mounts (inactive tabs are unmounted on web).
   const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
 
-  const billQuery = useBill(billId);
+  const billQuery = useBill(billId, {
+    includeVotes: billDetailNeedsVotes(true, activeTab),
+  });
   const bill = billQuery.data;
+  const prefetchBillVotes = usePrefetchBillVotes();
 
   const { trackedIds, isTracked, toggleTrack, trackedLoading } = useBillTracking();
   const tracked = bill ? isTracked(bill.id) : false;
@@ -89,6 +96,11 @@ export function BillDetailWebScreen() {
 
   const selectTab = (tab: DetailTab) => {
     navigation.setParams({ tab: tab === 'summary' ? undefined : tab });
+  };
+  const prefetchVotes = (tab: DetailTab) => {
+    if (bill && billDetailVotePrefetchIsUseful(tab)) {
+      prefetchBillVotes(bill.id);
+    }
   };
 
   const openUrl = (url: string) => {
@@ -216,6 +228,7 @@ export function BillDetailWebScreen() {
       onTrack={onTrack}
       activeTab={activeTab}
       onSelectTab={selectTab}
+      onTabIntent={prefetchVotes}
       onAllBills={goToBillList}
     />
   );
@@ -240,7 +253,9 @@ export function BillDetailWebScreen() {
       />
     );
   } else if (activeTab === 'actions') {
-    body = (
+    body = billQuery.voteError ? (
+      <VoteLoadError />
+    ) : (
       <ActionsTab
         bill={bill}
         onViewVotes={() => selectTab('votes')}
@@ -250,7 +265,9 @@ export function BillDetailWebScreen() {
       />
     );
   } else if (activeTab === 'votes') {
-    body = (
+    body = billQuery.voteError ? (
+      <VoteLoadError />
+    ) : (
       <VotesTab
         bill={bill}
         chiefParty={author?.party}
@@ -274,6 +291,16 @@ export function BillDetailWebScreen() {
   }
 
   return shell(body, hero);
+}
+
+function VoteLoadError() {
+  return (
+    <View style={styles.stateBox} accessibilityRole="alert">
+      <Text style={styles.stateText}>
+        We couldn’t load this bill’s votes right now. Please try again in a moment.
+      </Text>
+    </View>
+  );
 }
 
 // Loading skeletons — mirror the hero band (breadcrumb · title · eyebrow · tabs)

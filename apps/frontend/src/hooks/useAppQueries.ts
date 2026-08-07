@@ -7,6 +7,7 @@ import {
   fetchBillVersionText,
   getFeaturedBillsFromApi,
   getBillFromApi,
+  getBillVotesFromApi,
   getChatSessionFromApi,
   getCurrentUserFromApi,
   getLegislatorBillsFromApi,
@@ -96,13 +97,34 @@ export function useMeta() {
   });
 }
 
-export function useBill(billId: string, options: { enabled?: boolean } = {}) {
-  return useQuery({
+export function useBill(
+  billId: string,
+  options: { enabled?: boolean; includeVotes?: boolean } = {},
+) {
+  const enabled = options.enabled ?? true;
+  const includeVotes = options.includeVotes ?? true;
+  const billQuery = useQuery({
     queryKey: ['bill', billId],
     queryFn: () => getBillFromApi(billId),
     retry: false,
-    enabled: options.enabled ?? true,
+    enabled,
   });
+  const votesQuery = useQuery({
+    queryKey: ['bill-votes', billId],
+    queryFn: () => getBillVotesFromApi(billId),
+    retry: false,
+    enabled: enabled && includeVotes,
+  });
+
+  const bill = billQuery.data;
+  const votes = votesQuery.data;
+  return {
+    ...billQuery,
+    data: bill && votes ? { ...bill, votes, rollCallCount: votes.length } : bill,
+    isLoading: billQuery.isLoading || (includeVotes && votesQuery.isLoading),
+    voteError: votesQuery.error,
+    voteIsLoading: includeVotes && votesQuery.isLoading,
+  };
 }
 
 export function useFeaturedBills(billIds: readonly string[], options: { enabled?: boolean } = {}) {
@@ -156,6 +178,15 @@ export function usePrefetchBill() {
     void queryClient.prefetchQuery({
       queryKey: ['bill', billId],
       queryFn: () => getBillFromApi(billId),
+    });
+}
+
+export function usePrefetchBillVotes() {
+  const queryClient = useQueryClient();
+  return (billId: string) =>
+    void queryClient.prefetchQuery({
+      queryKey: ['bill-votes', billId],
+      queryFn: () => getBillVotesFromApi(billId),
     });
 }
 
