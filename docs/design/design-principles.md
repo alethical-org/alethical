@@ -58,6 +58,13 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   `brand.display` (`#149d5b`). The values intentionally differ: small letterforms lose apparent
   color at their anti-aliased edges, so the darker token makes them read like the brighter display
   and graphic green. Green text on dark surfaces and green button fills are separate roles.
+- **Party is neutral identity, never a color role.** Every party badge spells out the party name
+  ("Republican" / "Democratic-Farmer-Labor") and uses a neutral `#f1f1f4` fill with no border and
+  `#4f5651` text. The badge is fully rounded, uses Libre Franklin at weight 700 with `0.06em`
+  letter spacing, and never wraps. Large-screen padding is 6px × 14px at 14px type; phone padding
+  is 5px × 12px at 12px type. Never use party-specific red/blue or Alethical's green action color
+  for party identity. Committee leadership badges are a separate role and keep their mint fill,
+  green border, and green text.
 - **Type.** One humanist sans (**Libre Franklin**) does titles, body, and UI; a monospace
   (**JetBrains Mono**) is reserved for data, metadata, dates, and labels — the "record" texture.
   Hierarchy comes from weight and size, not from decorative fonts. (No serifs — that was the retired

@@ -15,7 +15,10 @@ place.
 - District line **place-led, spelled out**: `{City} · {Chamber} District {n}`
   (e.g. "Minneapolis · Senate District 62"). NOTE divergence: the Bill Profile
   rail uses the compact "Minneapolis (SD 62)"; reconcile the two later.
-- Party **spelled out** ("Democratic-Farmer-Labor", not "DFL") site-wide.
+- Party **spelled out** ("Democratic-Farmer-Labor", not "DFL") site-wide. The party badge is
+  neutral identity metadata: `#f1f1f4` fill, no border, fully rounded ends, 6px × 14px padding,
+  and 14px bold Libre Franklin text in `#4f5651` with `0.06em` letter spacing. It never wraps.
+  Never use party-specific red/blue or the green action treatment for party identity.
 - **Portrait** from the official source photo (framed `<img>`, not the drop-slot).
 - **"← All legislators"** breadcrumb → legislators directory (LIVE Search
   Legislators). Directory cards → this profile (round-trip both ways).
