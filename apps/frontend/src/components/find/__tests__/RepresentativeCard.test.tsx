@@ -227,6 +227,22 @@ describe('RepresentativeCard accepted layout', () => {
     expect(componentSource).toContain("overflowWrap: 'anywhere'");
   });
 
+  it('lets phone cards grow with their content and keeps the final action inside', () => {
+    expect(componentSource).toContain('<View style={[styles.card, mobile && styles.cardMobile]}>');
+    expect(componentSource).toMatch(
+      /<View\s+style=\{\[styles\.vacant, mobile && styles\.vacantMobile\]\}/,
+    );
+    expect(componentSource).toMatch(
+      /cardMobile:\s*\{[^}]*flexGrow: 0[^}]*flexShrink: 0[^}]*flexBasis: 'auto'/,
+    );
+    expect(componentSource).toMatch(
+      /vacantMobile:\s*\{[^}]*flexGrow: 0[^}]*flexShrink: 0[^}]*flexBasis: 'auto'/,
+    );
+    expect(componentSource).toMatch(
+      /profileButtonMobile:\s*\{[^}]*width: '100%'[^}]*minHeight: 46[^}]*marginTop: 13/,
+    );
+  });
+
   it('keeps initials beneath a decorative image layer without an error handler', () => {
     expect(componentSource).toContain("position: 'absolute'");
     expect(componentSource).not.toContain('onError=');
