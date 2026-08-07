@@ -281,7 +281,7 @@ describe('partialCoverageNote warns only when the answer really is partial', () 
     // 4 of 102 was the real production ratio, and the case the note exists for: that
     // answer named 19 of the bill's 98 cities and denied the counties it names.
     expect(partialCoverageNote({ used: 4, total: 102 })).toBe(
-      'This answer draws on 4 of the 102 passages in this bill, so there may be more it doesn’t cover.',
+      'This answer draws on 4 of the 102 passages in this bill, so there may be more it doesn’t cover',
     );
   });
 
@@ -302,7 +302,7 @@ describe('partialCoverageNote warns only when the answer really is partial', () 
     );
     // And the partial wording still wins when the read was also short.
     expect(partialCoverageNote({ used: 152, total: 1484, enumerating: true })).toBe(
-      'This answer draws on 152 of the 1484 passages in this bill, so there may be more it doesn’t cover.',
+      'This answer draws on 152 of the 1484 passages in this bill, so there may be more it doesn’t cover',
     );
     // A specific question on a fully-read bill is still silent.
     expect(partialCoverageNote({ used: 102, total: 102, enumerating: false })).toBeNull();

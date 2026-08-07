@@ -2095,7 +2095,7 @@ const styles = StyleSheet.create({
   },
   answerFooter: {
     marginTop: 12,
-    paddingLeft: 17,
+    paddingLeft: t.spacing.underCardText,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,

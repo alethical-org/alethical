@@ -241,7 +241,7 @@ Design handoff: `docs/mockups/answer-web/` (README.md · LIVE-answer-spec.md · 
 
     **Deliberately not `citationsBySection`** (`apps/frontend/src/lib/billDetail.ts`), which the mobile bill page uses. That surface shows the section label *alone*, so a repeat carries no information and is dropped; here every repeat carries a different passage. The two rules are different on purpose, and that helper's own comment says so.
 
-    **The rail explains why every quote stops early, on phone and desktop.** Directly under the "From the bill" heading row and before the first section chip, it says: *"Each quote is the opening of a longer section — open one to read it in full."* This line owns truncation only; the partial-coverage note above the answer owns how many passages the answer used.
+    **The rail explains how to open each shortened quote, on phone and desktop.** The heading row contains only "From the bill" and "Cited Sections"; the cards follow immediately. Under the last card, a quiet footnote says *"Each quote is the opening of a longer section — open one to read it in full"* with 14px above and the shared 17px under-card inset (`spacing.underCardText`). On a long rail it can sit well down the column by design: it is a caveat, not an instruction. The partial-coverage note above the answer owns how many passages the answer used.
 
     Grouped on the section's **anchor — id AND position**, not the id alone: `section_id_text` is not unique within a version (#854), so two genuinely different sections can share one and grouping by id would merge them into a single card.
 
@@ -299,7 +299,7 @@ Design handoff: `docs/mockups/answer-web/` (README.md · LIVE-answer-spec.md · 
 
     **`enumerating` exists because a complete read is not a complete list**, and that is the correction this decision needed within hours of being written. §4.4a now reads the whole bill for a list question, so HF 719 serves `used == total == 102` — and the answer still listed 26–35 of the bill's 98 cities. A page keying its caveat on `used < total` alone would therefore have dropped the note from precisely the answer that most needs one, as a *side effect of reading more of the bill*. So there are two sentences, not one:
 
-    - **`used < total`** → *"This answer draws on 4 of the 102 passages in this bill, so there may be more it doesn't cover."*
+    - **`used < total`** → *"This answer draws on 4 of the 102 passages in this bill, so there may be more it doesn't cover"* (no terminal period; this is a quiet annotation, not body copy)
     - **`used == total` and `enumerating`** → *"This answer draws on all 102 passages in this bill, but a list like this can still leave items out — check the bill's own text for the full set."*
     - **`used == total` and not `enumerating`** → nothing, which is where "a caveat on every answer teaches people to ignore it" still holds: on "when does this take effect?" there is no list to caveat.
 
