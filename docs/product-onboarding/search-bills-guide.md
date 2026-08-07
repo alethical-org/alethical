@@ -1,6 +1,6 @@
 # How Search works on Alethical (plain-English guide)
 
-<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py, alethical/pipeline/sessions.py -->
+<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/services/topic_bills.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py, alethical/pipeline/sessions.py -->
 
 A quick, non-technical walkthrough of the **Search Bills** page — what you type, what
 you can narrow by, and what each result shows. This is the "browse the library" page:
@@ -41,10 +41,10 @@ stack: every filter you add trims the list down more.
 - **Stage** — where a bill is in the process: Introduced → In Committee → Passed House
   → Passed Senate → Passed both chambers → Signed into Law, plus Vetoed as a separate
   end state.
-- **Session** — which legislative session. Two are loaded: the 2025–26 session, and
+- **Session** — the whole 2025–26 Legislature, or one legislative session. Two sessions are loaded: the 2025–26 regular session, and
   the 2025 First Special Session, the two-day sitting in June 2025 that finished the
   budget. Its bills are numbered from 1 all over again, so "HF 5" there is a different
-  bill from "HF 5" in the regular session, and you only see one session's bills at a time.
+  bill from "HF 5" in the regular session. A bill from the special session says so on its card.
 - **Omnibus only** — show just the big, bundled "omnibus" bills.
 - **Issues** — pick from tagged issues like Health, Education, Taxation. Each shows a
   live count of how many bills fall under it. You can **pick several at once**, and
@@ -56,6 +56,14 @@ stack: every filter you add trims the list down more.
 ## Your active filters, at a glance
 
 Every filter you turn on shows up as a little removable tag near the top:
+
+- An Ask handoff shows **Topic: {topic}** and **Scope: 2025–26 Legislature**. That
+  page uses the same topic rule as Ask, so its total and bills match Ask exactly.
+- A phrase typed into the search box still shows **Search: “{words}”** and looks for
+  those words in bill titles and descriptions. It is a different, literal search.
+
+Ask asks, “Is this bill about taxation?” Typed Search asks, “Do the bill’s title or
+summary use the word taxation?” Each page counts every bill that passes its rule.
 
 - Tap the **✕** on any tag to drop just that one filter — the rest stay put.
 - **Clear all** wipes them all in one go (your chosen session stays).

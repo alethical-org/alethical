@@ -1,6 +1,6 @@
 # Bill search screen spec
 
-<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/lib/hotIssues.ts, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
+<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/lib/hotIssues.ts, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/services/topic_bills.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
 
 Status: v1 build spec. Companion to `docs/product-onboarding/mvp-redesign-plan.md` (§ "Search page split")
 and `docs/product-onboarding/grounded-ask-spec.md` (the Ask answer pages link into this screen). Durable
@@ -26,7 +26,7 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
     cross-page navigation and can only target URL state
     (`.claude/rules/grounded-answers.md` #5). This slice lands with #79.
   - **Shipped (full serialization):** every filter serialises *out* to the URL
-    (`/bills?q=&chamber=&status=&issue=&omnibus=&session=&sort=&page=`) so reload, share,
+    (`/bills?q=&topic=&scope=&chamber=&status=&issue=&omnibus=&session=&sort=&page=`) so reload, share,
     and back/forward reproduce the exact search. #135 closed; the route params are the
     single source of truth in `SearchBillsScreen.tsx` (only the search-box draft and the
     issue-list expander stay local). Note the issue param is `issue=` (comma-joined
@@ -124,9 +124,10 @@ just "Filter by status", so the current filter reached a screen reader nowhere a
 | Filter | Control | API param |
 |---|---|---|
 | Keyword / bill number | search input | `q` — matches title/description by word: exact, common word-forms (plurals/-ing/-ed), and typo-tolerant (fuzzy matching applies to words of 5+ letters). Ranked best-match-first, with title matches weighted over description ([#573](https://github.com/alethical-org/alethical/issues/573)) — but that ranking is `sort=relevance` only, which is where a query defaults; see the Sort order row. A bill number ("SF 334", "334") is an exclusive ID lookup, not free text ([#134](https://github.com/alethical-org/alethical/issues/134)/[#569](https://github.com/alethical-org/alethical/pull/569)) |
+| Ask topic handoff | removable `Topic: {topic}` chip; the search input stays empty | `topic` + `scope=legislature` — uses Ask's exact policy-label/title/description predicate across every session of the current Legislature, so the count and first cards match Ask. This is deliberately distinct from a reader typing the same words into `q`. |
 | Chamber | segmented All / House / Senate | `chamber` |
 | Status | dropdown: All statuses / Signed into Law / Passed both chambers / Passed Senate / Passed House / In Committee / Introduced / Vetoed (most-progressed first, matching `sort=progress`; "Passed both chambers" landed with [#607](https://github.com/alethical-org/alethical/issues/607)) | `status` |
-| Session / year | dropdown: every ingested session, newest first, plus two inert greyed-out prior bienniums. Reads as its years ("2025–26 Legislative Session"), except a special session, which keeps those words ("2025 First Special Session") — years alone cannot tell it apart from the biennium it sits inside ([#746](https://github.com/alethical-org/alethical/issues/746)) | `session` |
+| Session / year | dropdown: the current Legislature across regular + special sessions, every individual ingested session, newest first, plus two inert greyed-out prior bienniums. Individual sessions keep the existing labels; the combined choice reads "2025–26 Legislature". A special-session result card carries its own session label because its bill numbers start over ([#746](https://github.com/alethical-org/alethical/issues/746)). | `scope=legislature` or `session` |
 | Omnibus | toggle "Omnibus only" | `omnibus` |
 | Policy area | selectable pills **with live bill counts** ("Education 214") | `policy_area` (counts from `GET /policy-areas`) |
 | Sort order | "Sorted by" dropdown: Best match (offered, and the default, only while a keyword query is present) / Legislative progress / Latest action / Introduction date, plus an inert "Most tracked" roadmap row | `sort` — `relevance` / `progress` / `latest_action` / `introduced` |

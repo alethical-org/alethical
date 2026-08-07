@@ -101,6 +101,20 @@ describe('live URLs still resolve to themselves', () => {
     });
   });
 
+  it('keeps an Ask topic handoff through reload or sharing', () => {
+    const path = '/bills?topic=consumer+protection&scope=legislature&sort=action';
+    expect(targetFromPathname(path)).toEqual({
+      kind: 'bills',
+      params: { topic: 'consumer protection', scope: 'legislature', sort: 'action' },
+    });
+    expect(
+      pathForRoute({
+        name: 'Bills',
+        params: { topic: 'consumer protection', scope: 'legislature', sort: 'action' },
+      }),
+    ).toBe(path);
+  });
+
   it('keeps an issue-answer sort through reload or sharing', () => {
     expect(targetFromPathname('/ask?q=housing+bills&sort=action')).toEqual({
       kind: 'ask',

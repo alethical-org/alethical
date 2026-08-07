@@ -36,8 +36,10 @@ from alethical.api.serializers import (
     tracking_payload,
 )
 from alethical.api.services.legislative_sessions import (
+    current_legislature_scope,
     named_special_session,
 )
+from alethical.api.services.topic_bills import MIN_TOPIC_LENGTH, matched_topic_bill_ids
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
     RepresentativeLookupChoices,
@@ -646,10 +648,15 @@ def current_session(db: Session = Depends(get_db)):
 @router.get("/policy-areas", response_model=CollectionResponse)
 def policy_areas(
     session: str | None = None,
+    scope: Literal["session", "legislature"] = "session",
     limit: int = Query(default=50, le=100),
     db: Session = Depends(get_db),
 ):
-    session_row = get_session_by_slug(db, session)
+    session_rows = (
+        current_legislature_scope(db).sessions
+        if scope == "legislature"
+        else (get_session_by_slug(db, session),)
+    )
     # The AI enrichment emits ~7,600 distinct free-text policy areas with heavy
     # casing/synonym fragmentation; each raw value rolls up to a curated canonical
     # issue (alethical/api/issue_taxonomy.py) and we count distinct bills per
@@ -661,21 +668,23 @@ def policy_areas(
     # The stored counts are byte-identical to the live rollup; fall back to
     # computing live for any session never refreshed, so a missing precompute
     # degrades safely to the correct-but-slower path rather than serving nothing.
-    rows = db.execute(
-        text(
-            """
-            SELECT canonical_name AS name, bill_count
-            FROM policy_area_count
-            WHERE session_id = :sid ::uuid
-            ORDER BY bill_count DESC, name ASC
-            LIMIT :limit
-            """
-        ),
-        {"sid": str(session_row.id), "limit": limit},
-    ).all()
-    if not rows:
-        rows = compute_policy_area_counts(db, session_row.id)[:limit]
-    data = [{"name": name, "bill_count": count} for name, count in rows]
+    counts: Counter[str] = Counter()
+    for session_row in session_rows:
+        rows = db.execute(
+            text(
+                """
+                SELECT canonical_name AS name, bill_count
+                FROM policy_area_count
+                WHERE session_id = :sid ::uuid
+                """
+            ),
+            {"sid": str(session_row.id)},
+        ).all()
+        if not rows:
+            rows = compute_policy_area_counts(db, session_row.id)
+        counts.update({name: count for name, count in rows})
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]
+    data = [{"name": name, "bill_count": count} for name, count in ranked]
     return CollectionResponse(
         data=data,
         page={"limit": limit, "next_cursor": None, "has_more": False},
@@ -687,6 +696,8 @@ def policy_areas(
 def bills(
     session: str | None = None,
     q: str | None = None,
+    topic: str | None = None,
+    scope: Literal["session", "legislature"] = "session",
     chamber: str | None = None,
     status: str | None = None,
     policy_area: list[str] | None = Query(default=None),
@@ -699,7 +710,14 @@ def bills(
     current_user=Depends(get_optional_current_user),
     response: Response = None,  # type: ignore[assignment]
 ):
-    session_row = get_session_by_slug(db, session)
+    legislature_scope = (
+        current_legislature_scope(db) if scope == "legislature" else None
+    )
+    session_ids = (
+        legislature_scope.ids
+        if legislature_scope is not None
+        else (get_session_by_slug(db, session).id,)
+    )
     include_set = {item.strip() for item in include.split(",")} if include else set()
     # Cacheable only when the response carries no per-user data: anonymous and
     # no tracking include. (Anonymous + tracking already 401s upstream.)
@@ -720,7 +738,7 @@ def bills(
     effective_sort = sort or ("relevance" if free_text else "latest_action")
     text_query = free_text if effective_sort == "relevance" else None
     stmt = bill_list_stmt(
-        session_row.id,
+        session_ids,
         user_id=tracking_user_id(include_set, current_user),
         sort=effective_sort,
         text_query=text_query,
@@ -736,6 +754,14 @@ def bills(
             keyword_clause = keyword_search_clause([Bill.title, Bill.description], q)
             if keyword_clause is not None:
                 stmt = stmt.where(keyword_clause)
+    topic_value = (topic or "").strip()
+    if topic is not None:
+        if len(topic_value) < MIN_TOPIC_LENGTH:
+            stmt = stmt.where(Bill.id.is_(None))
+        else:
+            stmt = stmt.where(
+                Bill.id.in_(matched_topic_bill_ids(session_ids, topic_value))
+            )
     if chamber:
         stmt = stmt.where(Bill.chamber.has(Chamber.slug == chamber.strip().lower()))
     if status:
@@ -777,12 +803,29 @@ def bills(
     )
     co_author_counts = bill_co_author_counts(db, [row.id for row in rows])
     effective_dates = bill_effective_dates(db, rows)
+
+    def special_session_ref(row):
+        if legislature_scope is None or row.session_id == legislature_scope.primary.id:
+            return None
+        session_row = legislature_scope.by_id(row.session_id)
+        if session_row is None:
+            return None
+        return {
+            "slug": session_row.slug,
+            "name": session_row.name,
+            "is_current": session_row.is_current,
+            "session_number": session_row.session_number,
+            "year_start": session_row.year_start,
+            "year_end": session_row.year_end,
+        }
+
     data = [
         bill_list_item(
             row,
             include_tracking="tracking" in include_set and current_user is not None,
             co_author_count=co_author_counts.get(str(row.id), 0),
             effective_date=effective_dates.get(str(row.id)),
+            session=special_session_ref(row),
         )
         for row in rows
     ]

@@ -6,7 +6,7 @@ import os
 import re
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import String, and_, cast, func, or_, select, text
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
@@ -44,6 +44,7 @@ from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
     named_special_session_in_question,
 )
+from alethical.api.services.topic_bills import MIN_TOPIC_LENGTH, matched_topic_bill_ids
 from alethical.api.services.ask_router import (
     AskIntent,
     classify_query,
@@ -64,12 +65,10 @@ BillVersion = schema.BillVersion
 BillVersionSection = schema.BillVersionSection
 RagChunk = schema.RagChunk
 RagSectionDocument = schema.RagSectionDocument
-AIEnrichment = schema.AIEnrichment
 AskSuggestedAnswerCache = schema.AskSuggestedAnswerCache
 SourceArtifact = schema.SourceArtifact
 Chamber = schema.Chamber
 District = schema.District
-EnrichmentType = schema.EnrichmentType
 IngestionRun = schema.IngestionRun
 IngestionStatus = schema.IngestionStatus
 LegislativeSession = schema.LegislativeSession
@@ -101,7 +100,6 @@ _LEGISLATOR_DISPLAY_LIMIT = 6
 
 # ILIKE on one or two characters matches almost everything; below this the
 # topic carries too little signal and the ask gets the NO MATCHES state.
-_MIN_TOPIC_LENGTH = 3
 
 # Only chief/co-authorship counts toward the authored/co-authored numbers.
 # The `sponsor` role and committee-target rows are held out until the §5.3
@@ -165,40 +163,14 @@ def _progress_sort_key(bill):
     action_ts = (
         bill.latest_action_at.timestamp() if bill.latest_action_at else float("-inf")
     )
-    return (rank, -action_ts, bill.file_number, bill.bill_key)
+    return (rank, -action_ts, bill.file_number, str(bill.id))
 
 
 def _latest_action_sort_key(bill):
     action_ts = (
         bill.latest_action_at.timestamp() if bill.latest_action_at else float("-inf")
     )
-    return (-action_ts, bill.file_number, bill.bill_key)
-
-
-def _matched_bill_ids_select(session_ids, topic_value: str):
-    """Bill ids matching a topic in the current Legislature — the single predicate
-    both topic answer paths share so their result sets stay in lockstep.
-
-    A bill matches on a policy-area tag OR a title/description keyword hit,
-    restricted to bills of the sessions in scope that carry an AI summary. Scope is
-    every session of the Legislature sitting, not just the regular one, so a reader
-    asking about 2025 law reaches its special session too (#810)."""
-    pattern = f"%{topic_value}%"
-    matching_policy_area_bills = select(AIEnrichment.bill_id).where(
-        AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
-        AIEnrichment.is_current.is_(True),
-        cast(AIEnrichment.content_json["policy_areas"], String).ilike(pattern),
-    )
-    return select(Bill.id).where(
-        Bill.session_id.in_(tuple(session_ids)),
-        # Precomputed gate (#505) — identical to the semi-join it replaces.
-        Bill.has_current_summary.is_(True),
-        or_(
-            Bill.id.in_(matching_policy_area_bills),
-            Bill.title.ilike(pattern),
-            Bill.description.ilike(pattern),
-        ),
-    )
+    return (-action_ts, bill.file_number, str(bill.id))
 
 
 def _topic_bills_answer(
@@ -217,7 +189,7 @@ def _topic_bills_answer(
     session_ref = _scope_session_ref(scope)
 
     topic_value = (topic or "").strip()
-    if len(topic_value) < _MIN_TOPIC_LENGTH:
+    if len(topic_value) < MIN_TOPIC_LENGTH:
         return AskTopicBillsAnswer(
             topic=topic_value or None,
             session=session_ref,
@@ -227,7 +199,7 @@ def _topic_bills_answer(
         )
 
     stmt = bill_list_stmt(session_ids).where(
-        Bill.id.in_(_matched_bill_ids_select(session_ids, topic_value))
+        Bill.id.in_(matched_topic_bill_ids(session_ids, topic_value))
     )
     rows = db.scalars(stmt).all()
     ranked = sorted(rows, key=_progress_sort_key)
@@ -268,10 +240,10 @@ def _topic_legislators_answer(
         total_bills=0,
         legislators=[],
     )
-    if len(topic_value) < _MIN_TOPIC_LENGTH:
+    if len(topic_value) < MIN_TOPIC_LENGTH:
         return empty
 
-    matched_bill_ids = _matched_bill_ids_select(scope.ids, topic_value)
+    matched_bill_ids = matched_topic_bill_ids(scope.ids, topic_value)
     total_bills = db.scalar(
         select(func.count()).select_from(matched_bill_ids.subquery())
     )

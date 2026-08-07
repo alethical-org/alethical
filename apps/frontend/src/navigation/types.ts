@@ -12,6 +12,8 @@ export type RootStackParamList = {
   Bills:
     | {
         q?: string;
+        topic?: string;
+        scope?: 'legislature';
         chamber?: string;
         status?: string;
         session?: string;

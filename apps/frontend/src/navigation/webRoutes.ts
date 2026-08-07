@@ -35,6 +35,8 @@ function searchParamsFromPathname(pathname: string) {
 // directions so the query string and the Bills route params stay in lockstep.
 const BILLS_FILTER_PARAMS = [
   'q',
+  'topic',
+  'scope',
   'chamber',
   'status',
   'session',

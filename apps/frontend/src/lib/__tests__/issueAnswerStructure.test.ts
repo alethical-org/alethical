@@ -8,6 +8,7 @@ const answer = readFileSync(join(SRC, 'screens/redesign/AskAnswerScreen.tsx'), '
 const card = readFileSync(join(SRC, 'components/search/BillResultCard.tsx'), 'utf8');
 const searchPieces = readFileSync(join(SRC, 'components/search/searchPieces.tsx'), 'utf8');
 const sourceLine = readFileSync(join(SRC, 'components/billDetail/SourceLine.tsx'), 'utf8');
+const api = readFileSync(join(SRC, 'data/api.ts'), 'utf8');
 
 describe('issue answer page structure', () => {
   it('uses full shared cards and removes the matched issue from each card', () => {
@@ -28,7 +29,9 @@ describe('issue answer page structure', () => {
   it('uses the total and served date in the Search-style count row', () => {
     expect(answer).toContain('count={answer.totalMatches}');
     expect(answer).toContain('dataAsOf={answer.dataAsOf}');
-    expect(answer).toContain('>matching</Text>');
+    expect(answer).toContain('countSuffix="matching"');
+    expect(searchPieces).toContain('{` ${countSuffix}`}');
+    expect(answer).not.toContain('>matching</Text>');
     expect(answer).not.toContain('of {answer.totalMatches} matching');
   });
 
@@ -43,6 +46,16 @@ describe('issue answer page structure', () => {
     expect(answer).toContain('issueAnswerHasMore(answer.totalMatches, shownIssueBills.length)');
     expect(answer).toContain('See all {issueTopic} bills in Search →');
     expect(answer).not.toContain('See all {answer.totalMatches}');
+  });
+
+  it('hands Search the same topic and whole-Legislature scope as Ask', () => {
+    expect(answer).toContain("topic: answer.topic, scope: 'legislature', sort: issueSort");
+    expect(answer).not.toContain('q: answer.topic');
+  });
+
+  it('labels only a special-session card with its own session', () => {
+    expect(api).toContain('session: bill.session ? mapSession(bill.session) : undefined');
+    expect(api).not.toContain('answer?.session\n        ? mapSession(answer.session)');
   });
 
   it('uses the standard follow-up heading and removes the repeated lead sentence', () => {
