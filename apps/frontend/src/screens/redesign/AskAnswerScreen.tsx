@@ -116,6 +116,7 @@ function FollowUpChips({
     <View style={styles.followupBlock}>
       <Text
         accessibilityRole="header"
+        aria-level={2}
         style={[styles.followupHeading, isMobile && styles.followupHeadingMobile]}
       >
         Ask another question
@@ -705,7 +706,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
             {chips.length ? (
               <View style={styles.askAnotherBlock}>
-                <Text accessibilityRole="header" style={styles.h2}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                   Ask another question
                 </Text>
                 <View style={styles.chipRow}>
