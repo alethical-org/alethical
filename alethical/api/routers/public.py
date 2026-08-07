@@ -2277,7 +2277,7 @@ def legislators(
     session: str | None = None,
     q: str | None = None,
     chamber: str | None = None,
-    limit: int = Query(default=20, ge=0, le=100),
+    limit: int = Query(default=20, ge=0, le=250),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):

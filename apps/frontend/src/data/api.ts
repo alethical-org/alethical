@@ -1863,44 +1863,38 @@ export async function fetchBillVersionText(
   }));
 }
 
-// The API paginates the legislator list (max 100 per page) and has no party
-// filter, while the directory screen wants the whole roster to filter, count,
-// and page client-side. So page through until has_more is false and return the
-// full set. Two requests at ~200 members today; the guard caps a pathological
-// loop.
-const LEGISLATOR_PAGE_LIMIT = 100;
-const LEGISLATOR_MAX_PAGES = 50;
+// The directory needs the whole selected-session roster to filter, count, and
+// page in the browser. Minnesota's 201 seats fit in this one public response;
+// reject a partial response rather than silently dropping a person if that
+// ceiling ever becomes too small.
+const LEGISLATOR_ROSTER_LIMIT = 250;
 
 export async function listLegislatorsFromApi(
   query?: string,
   session?: string,
   filters: LegislatorListFilters = {},
 ): Promise<Legislator[]> {
-  const items: ApiLegislatorListItemPayload[] = [];
-  for (let pageIndex = 0; pageIndex < LEGISLATOR_MAX_PAGES; pageIndex += 1) {
-    const params = new URLSearchParams();
-    params.set('limit', String(LEGISLATOR_PAGE_LIMIT));
-    params.set('offset', String(pageIndex * LEGISLATOR_PAGE_LIMIT));
-    if (query?.trim()) {
-      params.set('q', query.trim());
-    }
-    if (session?.trim()) {
-      params.set('session', session.trim());
-    }
-    if (filters.chamber) {
-      params.set('chamber', filters.chamber.toLowerCase());
-    }
-
-    const response = await publicApiRequest<PageResponse<ApiLegislatorListItemPayload>>(
-      `/legislators?${params.toString()}`,
-    );
-    items.push(...response.data);
-    if (!response.page?.has_more || response.data.length === 0) {
-      break;
-    }
+  const params = new URLSearchParams();
+  params.set('limit', String(LEGISLATOR_ROSTER_LIMIT));
+  params.set('offset', '0');
+  if (query?.trim()) {
+    params.set('q', query.trim());
+  }
+  if (session?.trim()) {
+    params.set('session', session.trim());
+  }
+  if (filters.chamber) {
+    params.set('chamber', filters.chamber.toLowerCase());
   }
 
-  return items.map(mapLegislator);
+  const response = await publicApiRequest<PageResponse<ApiLegislatorListItemPayload>>(
+    `/legislators?${params.toString()}`,
+  );
+  if (response.page?.has_more || response.page?.total !== response.data.length) {
+    throw new Error('Legislator roster response is incomplete.');
+  }
+
+  return response.data.map(mapLegislator);
 }
 
 export async function lookupRepresentativeFromApi(

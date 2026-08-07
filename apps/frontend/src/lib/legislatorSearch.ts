@@ -66,6 +66,19 @@ export function clearAllLegislatorSearchParams() {
   return { ...clearLegislatorSearchParams(), ...clearLegislatorFilterParams() };
 }
 
+export function filterLegislatorsByName<T extends { name: string }>(
+  legislators: readonly T[],
+  query: string,
+) {
+  const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return legislators;
+
+  return legislators.filter((legislator) => {
+    const name = legislator.name.toLocaleLowerCase();
+    return words.every((word) => name.includes(word));
+  });
+}
+
 export function paginateLegislatorResults<T>(items: readonly T[], requestedPage: number) {
   const total = items.length;
   const totalPages = Math.max(1, Math.ceil(total / LEGISLATOR_PAGE_SIZE));
