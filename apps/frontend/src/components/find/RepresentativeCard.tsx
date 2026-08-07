@@ -48,6 +48,8 @@ export function RepresentativeCard({
   const [photoFailed, setPhotoFailed] = useState(false);
   const assignments = legislator.committeeAssignments ?? [];
   const issues = legislator.issueAreas ?? [];
+  const shownIssues = issues.slice(0, 6);
+  const remainingIssueCount = issues.length - shownIssues.length;
   const officialUrl = legislator.profileUrl;
   return (
     <View style={styles.card}>
@@ -139,12 +141,15 @@ export function RepresentativeCard({
         <View style={styles.section}>
           <Text style={styles.label}>ISSUES ON BILLS AUTHORED</Text>
           <View style={styles.chips}>
-            {issues.map((issue) => (
+            {shownIssues.map((issue) => (
               <View key={issue} style={styles.issueChip}>
                 <Text style={styles.issueText}>{issue}</Text>
               </View>
             ))}
           </View>
+          {remainingIssueCount ? (
+            <Text style={styles.moreIssues}>+{remainingIssueCount} more</Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -251,14 +256,30 @@ const styles = StyleSheet.create({
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   issueChip: {
-    backgroundColor: t.colors.tint.t100,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    borderRadius: 99,
-    paddingHorizontal: 10,
+    maxWidth: '100%',
+    backgroundColor: t.colors.surfaces.s400,
+    borderRadius: 8,
+    paddingHorizontal: 11,
     paddingVertical: 5,
+    ...(isWeb
+      ? ({ display: 'inline-flex', whiteSpace: 'normal', overflowWrap: 'anywhere' } as object)
+      : null),
   },
-  issueText: { fontFamily: t.typography.ui, fontSize: 12, color: t.colors.brand.deep },
+  issueText: {
+    flexShrink: 1,
+    fontFamily: t.typography.ui,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: t.colors.text.secondary,
+    ...(isWeb ? ({ overflowWrap: 'anywhere' } as object) : null),
+  },
+  moreIssues: {
+    marginTop: 7,
+    fontFamily: t.typography.ui,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#6f756f',
+  },
   contact: { gap: 4 },
   links: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, alignItems: 'center' },
   linkTarget: { minHeight: 44, justifyContent: 'center' },

@@ -37,6 +37,20 @@ export interface MapPinPickerProps {
   mobile?: boolean;
 }
 
+function MapCredit({ href, label }: { href: string; label: string }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Pressable
+      {...externalLinkProps(href, () => void Linking.openURL(href))}
+      accessibilityLabel={`${label}, opens in a new tab`}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+    >
+      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>{label} ↗</Text>
+    </Pressable>
+  );
+}
+
 function worldPoint(coordinate: RepresentativeLookupCoordinates, zoom: number) {
   const scale = TILE_SIZE * 2 ** zoom;
   const sin = Math.sin((coordinate.latitude * Math.PI) / 180);
@@ -302,6 +316,7 @@ export function MapPinPicker({
           mobile && styles.mapMobile,
           isWeb ? ({ touchAction: 'none' } as object) : null,
         ]}
+        testID="district-map-canvas"
         accessibilityLabel="Minnesota district map"
       >
         {tiles.map((key) => (
@@ -403,21 +418,11 @@ export function MapPinPicker({
         </Pressable>
       </View>
 
-      <View style={styles.credits}>
-        <Pressable
-          {...externalLinkProps(GIS_CREDIT, () => void Linking.openURL(GIS_CREDIT))}
-          accessibilityLabel="Minnesota GIS, opens in a new tab"
-        >
-          <Text style={styles.creditLink}>Minnesota GIS</Text>
-        </Pressable>
+      <View testID="district-map-credits" style={styles.credits}>
         {tilesLoaded ? (
-          <Pressable
-            {...externalLinkProps(OSM_COPYRIGHT, () => void Linking.openURL(OSM_COPYRIGHT))}
-            accessibilityLabel="OpenStreetMap, opens in a new tab"
-          >
-            <Text style={styles.creditLink}>OpenStreetMap</Text>
-          </Pressable>
+          <MapCredit href={OSM_COPYRIGHT} label="© OpenStreetMap contributors" />
         ) : null}
+        <MapCredit href={GIS_CREDIT} label="District boundaries: Minnesota Legislature GIS" />
       </View>
 
       <Text style={styles.helper}>
@@ -478,22 +483,19 @@ const styles = StyleSheet.create({
   },
   zoomText: { fontFamily: t.typography.ui, fontSize: 24, color: t.colors.ink },
   credits: {
-    position: 'absolute',
-    left: 10,
-    top: 10,
-    flexDirection: 'row',
-    gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 7,
+    alignSelf: 'flex-end',
+    alignItems: 'flex-end',
+    flexDirection: 'column',
+    gap: 4,
+    marginTop: 8,
   },
   creditLink: {
     fontFamily: t.typography.body,
-    fontSize: 11,
-    color: t.colors.text.secondary,
-    textDecorationLine: 'underline',
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: t.colors.brand.deep,
   },
+  creditLinkHovered: { textDecorationLine: 'underline' },
   helper: {
     marginTop: 10,
     fontFamily: t.typography.body,

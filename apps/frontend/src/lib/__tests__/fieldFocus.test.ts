@@ -33,10 +33,15 @@ describe('site-wide editable text field focus', () => {
     },
   );
 
-  it('does not focus the Find My Legislator field from page-opening code', () => {
+  it('focuses the Find My Legislator field only after an empty Find press', () => {
     const source = readFileSync(join(SRC, 'screens/FindMyLegislatorScreen.tsx'), 'utf8');
+    const findAddress = source.slice(
+      source.indexOf('const findAddress = () =>'),
+      source.indexOf('const chooseAddress ='),
+    );
 
-    expect(source).not.toContain('.focus()');
+    expect(source.match(/\.focus\(\)/g)).toHaveLength(1);
+    expect(findAddress).toContain('addressInputRef.current?.focus()');
   });
 
   it('excludes only the non-editable share-link display', () => {

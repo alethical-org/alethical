@@ -118,6 +118,13 @@ export const RefreshCw = createIcon(
   </>,
 );
 export const Navigation = createIcon(<Polygon points="3 11 22 2 13 21 11 13 3 11" />);
+export const Crosshair = createIcon(
+  <>
+    <Circle cx="12" cy="12" r="3.4" />
+    <Circle cx="12" cy="12" r="8.5" />
+    <Path d="M12 2v3M12 19v3M22 12h-3M5 12H2" />
+  </>,
+);
 
 export const usedIconNames = [
   'ArrowLeft',
@@ -137,4 +144,5 @@ export const usedIconNames = [
   'Plus',
   'RefreshCw',
   'Navigation',
+  'Crosshair',
 ] as const;

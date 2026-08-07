@@ -254,7 +254,11 @@ def authored_issue_areas(db: Session, legislator_ids) -> dict[str, list[str]]:
     if not ids:
         return {}
     rows = db.execute(
-        select(Sponsorship.legislator_id, AIEnrichment.content_json)
+        select(
+            Sponsorship.legislator_id,
+            Sponsorship.bill_id,
+            AIEnrichment.content_json,
+        )
         .join(AIEnrichment, AIEnrichment.bill_id == Sponsorship.bill_id)
         .where(
             Sponsorship.legislator_id.in_(ids),
@@ -265,14 +269,21 @@ def authored_issue_areas(db: Session, legislator_ids) -> dict[str, list[str]]:
             AIEnrichment.is_current.is_(True),
         )
     ).all()
-    raw: dict[str, list[str]] = defaultdict(list)
-    for legislator_id, content in rows:
+    bills_by_label: dict[str, dict[str, set[str]]] = defaultdict(
+        lambda: defaultdict(set)
+    )
+    for legislator_id, bill_id, content in rows:
         values = (content or {}).get("policy_areas")
         if isinstance(values, list):
-            raw[str(legislator_id)].extend(
-                value for value in values if isinstance(value, str) and value.strip()
+            labels = canonicalize_areas(
+                [value for value in values if isinstance(value, str) and value.strip()]
             )
-    return {key: canonicalize_areas(values) for key, values in raw.items()}
+            for label in labels:
+                bills_by_label[str(legislator_id)][label].add(str(bill_id))
+    return {
+        legislator_id: sorted(labels, key=lambda label: (-len(labels[label]), label))
+        for legislator_id, labels in bills_by_label.items()
+    }
 
 
 def representative_source_updated_at(db: Session, legislator_ids) -> datetime | None:
