@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { AlertCircle, Crosshair, Search } from '../components/icons';
 
 import { MapPinPicker } from '../components/MapPinPicker';
@@ -147,6 +148,38 @@ function errorCopy(state: 'not-found' | 'outside-minnesota' | 'location-error' |
     field: 'Lookup unavailable right now',
     answer: 'Your address is fine — a public lookup service isn’t responding. Try again later.',
   };
+}
+
+function DistrictChips({
+  houseDistrict,
+  senateDistrict,
+  mobile,
+}: {
+  houseDistrict: string;
+  senateDistrict: string;
+  mobile: boolean;
+}) {
+  return (
+    <View style={[styles.districtChips, mobile && styles.districtChipsMobile]}>
+      <Text
+        style={[
+          styles.districtChip,
+          styles.senateDistrictChip,
+          mobile && styles.districtChipMobile,
+        ]}
+      >
+        SENATE {senateDistrict}
+      </Text>
+      <Text aria-hidden style={[styles.districtArrow, mobile && styles.districtArrowMobile]}>
+        ▸
+      </Text>
+      <Text
+        style={[styles.districtChip, styles.houseDistrictChip, mobile && styles.districtChipMobile]}
+      >
+        HOUSE {houseDistrict}
+      </Text>
+    </View>
+  );
 }
 
 export function FindMyLegislatorScreen({ navigation, route }: Props) {
@@ -637,32 +670,48 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 accessibilityState={{ busy: Boolean(retainedMapResult) }}
               >
                 <View style={[styles.foundHeader, foundHeaderGradient]}>
-                  <Text accessibilityRole="header" aria-level={2} style={styles.answerTitle}>
-                    Your Minnesota legislators
-                  </Text>
-                  {displayedResult.houseDistrict && displayedResult.senateDistrict ? (
-                    <View style={styles.districtChips}>
-                      <Text style={[styles.districtChip, styles.senateDistrictChip]}>
-                        SENATE {displayedResult.senateDistrict}
-                      </Text>
-                      <Text aria-hidden style={styles.districtArrow}>
-                        ▸
-                      </Text>
-                      <Text style={[styles.districtChip, styles.houseDistrictChip]}>
-                        HOUSE {displayedResult.houseDistrict}
-                      </Text>
+                  {!isMobile ? (
+                    <View aria-hidden style={styles.foundHeaderPin}>
+                      <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                        <Path
+                          d="M12 21 C 12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C 19 14.5 12 21 12 21 Z"
+                          stroke="#149d5b"
+                          strokeWidth={2}
+                          strokeLinejoin="round"
+                        />
+                        <Circle cx={12} cy={9.5} r={2.6} stroke="#149d5b" strokeWidth={2} />
+                      </Svg>
                     </View>
                   ) : null}
-                  {displayedResult.houseDistrict && displayedResult.senateDistrict ? (
-                    <Text style={styles.nesting}>
-                      House District {displayedResult.houseDistrict} is one of two House districts
-                      inside Senate District {displayedResult.senateDistrict}
+                  <View style={styles.foundHeaderText}>
+                    <Text accessibilityRole="header" aria-level={2} style={styles.answerTitle}>
+                      Your Minnesota legislators
                     </Text>
-                  ) : null}
-                  {displayedResult.congressionalDistrict ? (
-                    <Text style={styles.congressional}>
-                      Congressional district {displayedResult.congressionalDistrict}
-                    </Text>
+                    {displayedResult.houseDistrict && displayedResult.senateDistrict ? (
+                      <Text style={styles.nesting}>
+                        House District {displayedResult.houseDistrict} is one of two House districts
+                        inside Senate District {displayedResult.senateDistrict}
+                      </Text>
+                    ) : null}
+                    {isMobile && displayedResult.houseDistrict && displayedResult.senateDistrict ? (
+                      <DistrictChips
+                        houseDistrict={displayedResult.houseDistrict}
+                        senateDistrict={displayedResult.senateDistrict}
+                        mobile
+                      />
+                    ) : null}
+                    {displayedResult.congressionalDistrict ? (
+                      <Text style={styles.congressional}>
+                        Congressional district {displayedResult.congressionalDistrict}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {!isMobile && displayedResult.houseDistrict && displayedResult.senateDistrict ? (
+                    <DistrictChips
+                      houseDistrict={displayedResult.houseDistrict}
+                      senateDistrict={displayedResult.senateDistrict}
+                      mobile={false}
+                    />
                   ) : null}
                 </View>
                 <View
@@ -985,6 +1034,25 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 20,
     paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 20,
+  },
+  foundHeaderPin: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#e4f8ee',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+  },
+  foundHeaderText: {
+    flex: 1,
+    minWidth: 260,
     gap: 7,
   },
   answerTitle: {
@@ -994,19 +1062,38 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: t.colors.ink,
   },
-  districtChips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  districtChips: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+  },
+  districtChipsMobile: { flexWrap: 'wrap', gap: 7 },
   districtChip: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    fontFamily: t.typography.mono,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.52,
+    ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
+  },
+  districtChipMobile: {
     borderRadius: 8,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontFamily: t.typography.mono,
+    paddingVertical: 5,
     fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+    letterSpacing: 0.44,
   },
-  senateDistrictChip: { backgroundColor: '#f1ecfa', color: t.colors.purple.base },
-  houseDistrictChip: { backgroundColor: '#e8f6ed', color: t.colors.brand.deep },
-  districtArrow: { fontFamily: t.typography.mono, fontSize: 13, color: t.colors.text.faint },
+  senateDistrictChip: { borderColor: '#d8c9f7', color: '#5b30d6' },
+  houseDistrictChip: { borderColor: '#bfeacf', color: '#0f7a45' },
+  districtArrow: { fontFamily: t.typography.mono, fontSize: 13, color: '#adb4ae' },
+  districtArrowMobile: { fontSize: 11 },
   nesting: {
     fontFamily: t.typography.body,
     fontSize: 15,
