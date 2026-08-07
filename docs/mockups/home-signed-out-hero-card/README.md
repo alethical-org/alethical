@@ -42,13 +42,14 @@ styling — it is already correct on live.**
 ## Color roles (don't regress to the wrong token)
 - **Amber** = bill-code identity (HF badge — already live, don't touch).
 - **Green** = actions/links and the cited/verified ✓ check.
-- **Purple** = the excerpt's light-purple `#bda6ee` left rule + focus. Numbered citation squares
-  are removed because they only repeated the passages' order.
+- **Purple** = citation chips + focus. Numbered citation squares are removed because they only
+  repeated the passages' order; quoted excerpts use italic grey type with no decorative rule.
 
 ## Do not touch
-The "BILL" label, the summary paragraph text, the "Such as infinite scrolling…" gloss under
-Addictive features, the bill badge's amber styling, the hero's left-column buttons, and everything
-below the hero (Bill Activity, account card, finder band, footer).
+The "BILL" label, the summary paragraph text, the bill badge's amber styling, the hero's
+left-column buttons, and everything below the hero (Bill Activity, account card, finder band,
+footer). The "Such as infinite scrolling…" gloss is flush left, roman 14px/1.45 in `#6f756f`,
+with a 10px gap above it.
 
 ## Deviation
 You may deviate where you have good reason (a component reality, an a11y issue, a better in-repo

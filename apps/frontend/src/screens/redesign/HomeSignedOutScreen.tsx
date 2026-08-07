@@ -296,13 +296,16 @@ const HF4138_BILL_ID = '94-2026-HF4138';
 const PEGGY_SCOTT_LEGISLATOR_ID = '2ebc386c-bf7e-4b9c-9d81-81f3bef1f971';
 
 function CitedSectionCard({ title, quote, note }: { title: string; quote: string; note?: string }) {
+  const { isMobile } = useResponsive();
   return (
     <View style={styles.sectionCardBox}>
       <View style={styles.sectionCardHead}>
         <Text style={styles.sectionCardTitle}>{title}</Text>
       </View>
       <View style={styles.sectionCardQuote}>
-        <Text style={styles.sectionCardQuoteText}>{quote}</Text>
+        <Text style={[styles.sectionCardQuoteText, isMobile && styles.sectionCardQuoteTextMobile]}>
+          {quote}
+        </Text>
       </View>
       {note ? <Text style={styles.sectionCardNote}>{note}</Text> : null}
     </View>
@@ -2074,9 +2077,6 @@ const styles = StyleSheet.create({
   },
   sectionCardQuote: {
     marginTop: 8,
-    paddingLeft: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: t.colors.purple.quoteRule,
   },
   sectionCardQuoteText: {
     fontFamily: t.typography.body,
@@ -2085,15 +2085,13 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
     fontStyle: 'italic',
   },
+  sectionCardQuoteTextMobile: { fontSize: 16, lineHeight: 24 },
   sectionCardNote: {
-    marginTop: 6,
-    paddingLeft: 15,
+    marginTop: 10,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.small,
-    lineHeight: 20,
-    // muted, not faint: this note sits on the tinted card bg (#f7f9f8), where faint
-    // (#70776f) is only 4.36:1 — below WCAG AA. muted (#656c66) is ~5.0:1 there.
-    color: t.colors.text.muted,
+    lineHeight: 20.3,
+    color: '#6f756f',
   },
   answerFooter: {
     marginTop: 12,

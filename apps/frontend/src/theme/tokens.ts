@@ -58,7 +58,6 @@ const palette = {
   purple: '#5b30d6',
   purpleTint: '#f0ebfc',
   purpleBorder: '#d8c9f7',
-  purpleQuoteRule: '#bda6ee',
   vetoedText: '#d64545',
   vetoedStep: '#e5484d',
   amber: '#9a7b1f',
@@ -192,7 +191,6 @@ export const theme = {
       base: palette.purple,
       tint: palette.purpleTint,
       border: palette.purpleBorder,
-      quoteRule: palette.purpleQuoteRule,
     },
     // v2 home: bill-card status colors
     status: {
