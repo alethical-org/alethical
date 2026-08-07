@@ -1,14 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import {
   ActivityIndicator,
   Image,
   Linking,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -34,7 +32,6 @@ import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { Skeleton } from '../../components/Skeleton';
-import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 
 // Web Legislator Profile (docs/mockups/legislator-profile-web). Aggregates a
 // member's public record — identity, committees (with leadership), chief-authored
@@ -45,9 +42,8 @@ import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fi
 // Grounded-answers notes: the "Legislative Service" card renders the member's
 // ordered election history + current-chamber term, ingested from the official
 // bios into legislator_election_history (issue #486); it shows only when real
-// data is present. The "Ask about this legislator" card ships with the mock's
-// heading + personalized placeholder, but its starter chips stay topic-scoped and
-// answerable — the mock's literal person/vote chips would refuse or deflect today
+// data is present. The "Ask about this legislator" card uses starter chips that
+// stay topic-scoped and answerable — the mock's literal person/vote chips would refuse or deflect today
 // (no person-scoped Ask answer path; that's #484), and grounded-answers rule 2
 // forbids chips that lead to a refusal. The roadmap zone is static, non-committal,
 // and clearly not-live.
@@ -65,7 +61,6 @@ export function LegislatorProfileWebScreen() {
 
   const legislatorId = String(route.params?.legislatorId ?? '');
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [claimOpen, setClaimOpen] = useState(false);
 
   const legislatorQuery = useLegislator(legislatorId);
   const legislator = legislatorQuery.data;
@@ -122,7 +117,7 @@ export function LegislatorProfileWebScreen() {
     }
   };
 
-  const shell = (children: React.ReactNode, hero: React.ReactNode, overlay?: React.ReactNode) => (
+  const shell = (children: React.ReactNode, hero: React.ReactNode) => (
     <SearchPageShell
       openMenu={openMenu}
       onOpenMenuChange={setOpenMenu}
@@ -131,7 +126,6 @@ export function LegislatorProfileWebScreen() {
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}
       hero={hero}
-      overlay={overlay}
     >
       {children}
     </SearchPageShell>
@@ -245,7 +239,7 @@ export function LegislatorProfileWebScreen() {
           </View>
         </View>
 
-        <RoadmapZone legislatorName={displayName} onClaim={() => setClaimOpen(true)} />
+        <RoadmapZone legislatorName={displayName} />
       </View>
 
       {/* RIGHT COLUMN — contact / source of record */}
@@ -304,16 +298,12 @@ export function LegislatorProfileWebScreen() {
           </View>
         ) : null}
 
-        <AskCard displayName={displayName} chips={askChips} onAsk={openAsk} />
+        <AskCard chips={askChips} onAsk={openAsk} />
       </View>
     </View>
   );
 
-  const overlay = claimOpen ? (
-    <ClaimModal legislatorName={displayName} onClose={() => setClaimOpen(false)} />
-  ) : null;
-
-  return shell(body, hero, overlay);
+  return shell(body, hero);
 }
 
 // Build the member's chief-author list URL on the Revisor (the official source
@@ -344,16 +334,6 @@ function officialName(name: string, chamber: string): string {
   const bare = name.replace(/^(sen\.|senator|rep\.|representative)\s+/i, '').trim();
   const title = chamber === 'Senate' ? 'Sen.' : chamber === 'House' ? 'Rep.' : '';
   return title ? `${title} ${bare}` : bare;
-}
-
-// Short form of an official name for inline copy: title + last name only
-// ("Rep. Patty Acomb" → "Rep. Acomb"). Used in the Ask placeholder.
-function shortOfficialName(displayName: string): string {
-  const parts = displayName.trim().split(/\s+/);
-  if (parts.length <= 1) return displayName;
-  const title = /^(rep\.|sen\.)$/i.test(parts[0]) ? parts[0] : '';
-  const last = parts[parts.length - 1];
-  return title ? `${title} ${last}` : last;
 }
 
 // --- Hero: breadcrumb + eyebrow + portrait + identity + Share ---
@@ -642,53 +622,18 @@ function LinkChip({
   );
 }
 
-// --- Ask box (right rail) ---
-// Heading + placeholder match the mock ("Ask about this legislator" / "Ask about
-// {Rep./Sen. Lastname}'s record"). Honest deviation on the chips: the box + chips
-// route to the shipped grounded Ask (bill/topic), which cites the public record.
+// --- Ask chips (right rail) ---
+// The chips route to the shipped grounded Ask (bill/topic), which cites the public record.
 // The mock's literal person/vote chips ("what bills has this legislator led / how
 // did they vote / which committees") refuse or deflect today — there is no
 // person-scoped answer path (#484), so shipping them would violate grounded-
 // answers rule 2 (chips must never lead to a refusal). Until #484 lands the chips
 // stay topic-scoped and answerable.
-function AskCard({
-  displayName,
-  chips,
-  onAsk,
-}: {
-  displayName: string;
-  chips: string[];
-  onAsk: (q: string) => void;
-}) {
-  const [value, setValue] = useState('');
-  const { focused, focusProps } = useFieldFocus();
-  const submit = () => onAsk(value.trim());
-  const shortName = shortOfficialName(displayName);
+function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void }) {
   return (
     <View style={styles.card}>
       <Text style={styles.h3}>Ask about this legislator</Text>
-      <Text style={styles.askSubtext}>No account needed — answers cite the public record.</Text>
-      <View style={[styles.askField, ...fieldFocusRing(focused)]}>
-        <TextInput
-          value={value}
-          onChangeText={setValue}
-          onSubmitEditing={submit}
-          onFocus={focusProps.onFocus}
-          onBlur={focusProps.onBlur}
-          placeholder={`Ask about ${shortName}’s record`}
-          placeholderTextColor={t.colors.text.muted}
-          accessibilityLabel={`Ask about ${shortName}’s record`}
-          style={[styles.askInput, fieldOutlineReset]}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Ask"
-          onPress={submit}
-          style={styles.askButton}
-        >
-          <Text style={styles.askButtonText}>Ask</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.askSubtext}>Answers cite the public record</Text>
       <View style={styles.askChipRow}>
         {chips.map((chip) => (
           <AskChip key={chip} label={chip} onPress={() => onAsk(chip)} />
@@ -833,7 +778,7 @@ function SourceLink({
 }
 
 // --- On the roadmap zone (clearly not-live) ---
-function RoadmapZone({ legislatorName, onClaim }: { legislatorName: string; onClaim: () => void }) {
+function RoadmapZone({ legislatorName }: { legislatorName: string }) {
   const { isDesktop } = useResponsive();
   return (
     <View style={styles.roadmap}>
@@ -847,14 +792,14 @@ function RoadmapZone({ legislatorName, onClaim }: { legislatorName: string; onCl
             your biography, write up the bills you’ve worked on, and add your own context. Verified
             against official legislative records.
           </Text>
-          <ClaimButton onPress={onClaim} />
+          <ClaimPreview />
         </View>
         <View style={styles.dashedCard}>
           <Text style={styles.roadmapH3}>Why the votes?</Text>
           <Text style={styles.roadmapBody}>
-            See a roll call and wonder why {legislatorName} voted that way? Once claimed, a
-            legislator will have the option to explain any vote they cast — right here, in their own
-            words, alongside the record.
+            Wonder why {legislatorName} voted that way? Once claimed, a legislator will have the
+            option to explain any vote they cast — right here, in their own words, alongside the
+            record.
           </Text>
           <VoteExplanationPreview />
         </View>
@@ -863,33 +808,26 @@ function RoadmapZone({ legislatorName, onClaim }: { legislatorName: string; onCl
   );
 }
 
-function ClaimButton({ onPress }: { onPress: () => void }) {
-  const [hovered, hover] = useHover();
+function ClaimPreview() {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Claim this profile"
-      onPress={onPress}
-      {...hover}
-      style={[styles.claimBtn, hovered && styles.claimBtnHover]}
-    >
+    <span aria-disabled={true} style={claimPreviewStyle}>
       <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
         <Path
           d="M12 3 L20 6 V11 c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10 V6 Z"
-          stroke={t.colors.brand.darkest}
+          stroke={t.colors.brand.deep}
           strokeWidth={2}
           strokeLinejoin="round"
         />
         <Path
           d="M8.5 12 L11 14.5 L15.5 9.5"
-          stroke={t.colors.brand.darkest}
+          stroke={t.colors.brand.deep}
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
       </Svg>
       <Text style={styles.claimBtnText}>Claim this profile</Text>
-    </Pressable>
+    </span>
   );
 }
 
@@ -915,116 +853,24 @@ function VoteExplanationPreview() {
   );
 }
 
-// --- Claim modal (roadmap, not-live) ---
-function ClaimModal({ legislatorName, onClose }: { legislatorName: string; onClose: () => void }) {
-  const rows = [
-    {
-      title: 'Manage your biography',
-      body: 'Add or refine the bio shown at the top of this profile.',
-    },
-    {
-      title: 'Write up your bills',
-      body: 'Explain the bills you’ve worked on in your own words, alongside the record.',
-    },
-    {
-      title: 'Add your own context',
-      body: 'Give constituents your perspective — without changing the public facts.',
-    },
-  ];
-  return (
-    <Modal transparent animationType="fade" visible onRequestClose={onClose}>
-      <Pressable style={styles.modalScrim} onPress={onClose} accessibilityLabel="Close">
-        <Pressable
-          style={styles.modalCard}
-          onPress={(event) => event.stopPropagation?.()}
-          accessibilityRole={isWeb ? undefined : 'none'}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            onPress={onClose}
-            style={styles.modalClose}
-          >
-            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M6 6 L18 18 M18 6 L6 18"
-                stroke={t.colors.text.muted}
-                strokeWidth={2.2}
-                strokeLinecap="round"
-              />
-            </Svg>
-          </Pressable>
-          <View style={styles.modalIcon}>
-            <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M12 3 L20 6 V11 c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10 V6 Z"
-                stroke={t.colors.brand.graphics}
-                strokeWidth={2}
-                strokeLinejoin="round"
-              />
-              <Path
-                d="M8.5 12 L11 14.5 L15.5 9.5"
-                stroke={t.colors.brand.graphics}
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </View>
-          <View style={styles.modalTitleRow}>
-            <Text style={styles.modalTitle}>Claim your profile</Text>
-            <View style={styles.modalRoadmapPill}>
-              <Text style={styles.modalRoadmapPillText}>ON THE ROADMAP</Text>
-            </View>
-          </View>
-          <Text style={styles.modalIntro}>
-            You’re claiming the profile Alethical already keeps for{' '}
-            <Text style={styles.modalStrong}>{legislatorName}</Text>. Claiming links you to this
-            existing record.
-          </Text>
-          <View style={styles.modalRows}>
-            {rows.map((row) => (
-              <View key={row.title} style={styles.modalRow}>
-                <View style={styles.modalRowCheck}>
-                  <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
-                    <Path
-                      d="M5 12.5 L10 17.5 L19 7"
-                      stroke={t.colors.brand.graphics}
-                      strokeWidth={2.4}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </Svg>
-                </View>
-                <View style={styles.modalRowText}>
-                  <Text style={styles.modalRowTitle}>{row.title}</Text>
-                  <Text style={styles.modalRowBody}>{row.body}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-          <View style={styles.modalVerify}>
-            <LockIcon />
-            <Text style={styles.modalVerifyText}>
-              We verify every claim against official legislative records before your additions go
-              live.
-            </Text>
-          </View>
-          <Pressable accessibilityRole="button" onPress={onClose} style={styles.modalPrimary}>
-            <Text style={styles.modalPrimaryText}>Start verification</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={onClose} style={styles.modalSecondary}>
-            <Text style={styles.modalSecondaryText}>Maybe later</Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
 const BREADCRUMB_GREY = '#4b524b';
 const CODE_BADGE_FILL = t.colors.omnibus.fill;
 const CODE_BADGE_BORDER = t.colors.omnibus.border;
+const claimPreviewStyle: CSSProperties = {
+  alignItems: 'center',
+  backgroundColor: t.colors.tint.t150,
+  border: `1px solid ${t.colors.tint.border}`,
+  borderRadius: t.radii.md,
+  color: t.colors.brand.deep,
+  cursor: 'default',
+  display: 'inline-flex',
+  fontFamily: t.typography.ui,
+  fontSize: 16,
+  fontWeight: t.fontWeights.bold,
+  gap: 9,
+  marginTop: 18,
+  padding: '13px 22px 13px 19px',
+};
 
 // Loading skeletons — mirror the hero (breadcrumb · portrait + identity) and the
 // two-column body (record cards + contact sidebar), rendered inside the same
@@ -1485,40 +1331,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: t.colors.text.faint,
   },
-  askField: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: t.radii.md,
-    paddingVertical: 5,
-    paddingRight: 5,
-    paddingLeft: 18,
-  },
-  askInput: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: 'transparent',
-    fontFamily: t.typography.body,
-    fontSize: 16,
-    color: t.colors.text.primary,
-    paddingVertical: 13,
-  },
-  askButton: {
-    backgroundColor: t.colors.purple.base,
-    borderRadius: 9,
-    paddingVertical: 13,
-    paddingHorizontal: 26,
-  },
-  askButtonText: {
-    fontFamily: t.typography.ui,
-    fontSize: 16,
-    fontWeight: t.fontWeights.bold,
-    color: '#ffffff',
-  },
   askChipRow: {
     marginTop: 14,
     flexDirection: 'row',
@@ -1594,27 +1406,11 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: t.colors.text.secondary,
   },
-  claimBtn: {
-    marginTop: 18,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    backgroundColor: t.colors.brand.base,
-    borderWidth: 1,
-    borderColor: t.colors.brand.base,
-    borderRadius: t.radii.md,
-    paddingVertical: 13,
-    // Leading shield glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
-    paddingLeft: 19,
-    paddingRight: 22,
-  },
-  claimBtnHover: { backgroundColor: '#28bf71', borderColor: '#28bf71' },
   claimBtnText: {
     fontFamily: t.typography.ui,
     fontSize: 16,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.darkest,
+    color: t.colors.brand.deep,
   },
   // vote-explanation preview (static illustration)
   votePreview: {
@@ -1665,147 +1461,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.1,
-    color: t.colors.text.muted,
-  },
-  // --- Claim modal ---
-  modalScrim: {
-    flex: 1,
-    backgroundColor: 'rgba(10,14,12,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    width: 540,
-    maxWidth: '100%',
-    backgroundColor: t.colors.surfaces.base,
-    borderRadius: 20,
-    paddingVertical: 34,
-    paddingHorizontal: 34,
-    ...(t.shadows.lg as object),
-  },
-  modalClose: {
-    position: 'absolute',
-    top: 18,
-    right: 18,
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 9,
-  },
-  modalIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: t.colors.tint.t150,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalTitleRow: {
-    marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  modalTitle: {
-    fontFamily: t.typography.title,
-    fontSize: 27,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.4,
-    color: t.colors.text.primary,
-  },
-  modalRoadmapPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 11,
-    backgroundColor: t.colors.surfaces.s400,
-    borderRadius: t.radii.pill,
-  },
-  modalRoadmapPillText: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.1,
-    color: t.colors.text.muted,
-  },
-  modalIntro: {
-    marginTop: 10,
-    fontFamily: t.typography.body,
-    fontSize: 17,
-    lineHeight: 26,
-    color: t.colors.text.secondary,
-  },
-  modalStrong: { color: t.colors.text.primary, fontWeight: t.fontWeights.bold },
-  modalRows: { marginTop: 22, gap: 14 },
-  modalRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 13 },
-  modalRowCheck: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: t.colors.tint.t150,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  modalRowText: { flex: 1, minWidth: 0 },
-  modalRowTitle: {
-    fontFamily: t.typography.body,
-    fontSize: 17,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-  },
-  modalRowBody: {
-    marginTop: 2,
-    fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 22,
-    color: t.colors.text.faint,
-  },
-  modalVerify: {
-    marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#f7f9f8',
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    borderRadius: t.radii.md,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
-  },
-  modalVerifyText: {
-    flex: 1,
-    fontFamily: t.typography.body,
-    fontSize: 14,
-    lineHeight: 21,
-    color: t.colors.text.secondary,
-  },
-  modalPrimary: {
-    marginTop: 22,
-    backgroundColor: t.colors.brand.base,
-    borderRadius: t.radii.md,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  modalPrimaryText: {
-    fontFamily: t.typography.ui,
-    fontSize: 17,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.darkest,
-  },
-  modalSecondary: { marginTop: 10, paddingVertical: 6, alignItems: 'center' },
-  modalSecondaryText: {
-    fontFamily: t.typography.ui,
-    fontSize: 15,
-    fontWeight: t.fontWeights.semibold,
     color: t.colors.text.muted,
   },
 });
