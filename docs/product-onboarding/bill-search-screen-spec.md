@@ -1,6 +1,6 @@
 # Bill search screen spec
 
-<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/lib/hotIssues.ts, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
+<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/lib/hotIssues.ts, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
 
 Status: v1 build spec. Companion to `docs/product-onboarding/mvp-redesign-plan.md` (§ "Search page split")
 and `docs/product-onboarding/grounded-ask-spec.md` (the Ask answer pages link into this screen). Durable
@@ -230,9 +230,12 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   `alethical/api/routers/public.py`). Never inferred from the Minn. Stat. 645.02 default, so
   a law with no stated date simply omits the line.
 - **Policy-area pills** — up to 3.
-- **Roll-call chip** — "N roll calls", shown only when votes exist, links to the bill's
-  Votes tab (`/bills/:billId?tab=votes`; the tab ships in v1 per grounded-ask §9.3).
-  Puts "how everyone voted" one click from search.
+- **Roll-call chip** — an outlined white, tally-glyph, monospace link showing the uppercase
+  recorded count ("1 VOTE" / "3 VOTES"). It is absent at zero, never disabled and never says
+  "0 VOTES". On phone widths its 44px target comes from `minHeight`, not extra vertical padding.
+  It links to the bill's Votes tab (`/bills/:billId?tab=votes`; the tab ships in v1 per
+  grounded-ask §9.3). `VoteCountLinkChip` is the one shared implementation used by Search, Home,
+  Ask answers and legislator-profile bill cards.
 
 **Actions**
 - **Track button — now live, Aug 2026 ([#976](https://github.com/alethical-org/alethical/issues/976)).**
@@ -328,19 +331,18 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a
   deep link to the tab, the card link is to the bill's top-level detail.
-- **The card is a real `<a href>`, not a pressable div.** Right-click → "Open link in new
+- **The card body is a real `<a href>`, not a pressable div.** Right-click → "Open link in new
   tab", ⌘/Ctrl-click, middle-click and "Copy link address" all work on it, and the URL
   shows in the browser's status bar on hover; a plain left click is still a client-side
   transition with no page reload. Via the shared `linkProps` / `routePath` helpers
   (`apps/frontend/src/navigation/links.ts`), which generate the `href` from the same
   route → path switch the address bar uses, so a card's link and the URL it lands on
   cannot drift apart.
-- **The controls inside the card stay plain pressables** — chief author, roll-call chip,
-  Track. An `<a>` nested in an `<a>` is invalid markup and reads as one confused control
-  to a screen reader, so each uses `pressInsideLink` instead: it cancels the click so the
-  surrounding card's URL is not followed on top of the control's own action. Their own
-  new-tab behaviour needs the card markup restructured (stretched-link overlay) and is
-  tracked in [#760](https://github.com/alethical-org/alethical/issues/760).
+- **The vote count is a separate real link beside the card body**, so right-click, modified click,
+  middle-click and copy-link all lead to the Votes tab without nesting one `<a>` inside another.
+  The chief-author and Track controls still cancel the surrounding card-body click with
+  `pressInsideLink`; the author's remaining new-tab gap stays tracked in
+  [#760](https://github.com/alethical-org/alethical/issues/760).
 
 **Deliberately excluded:** key points (too heavy to scan), version count (low value),
 per-card official-source links (provenance lives one click away on detail). Keep it a

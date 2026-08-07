@@ -1,5 +1,7 @@
 # Alethical design principles — the green system
 
+<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx -->
+
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
 > single source of truth for the green system, which replaced the earlier Newsprint identity.
@@ -71,6 +73,13 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   state repeats the chip row's "Clear all" verbatim, as a black pill, because both are on screen at
   once and two names for one action make the user wonder whether one of them spares their search text
   ([#720](https://github.com/alethical-org/alethical/pull/720)).
+- **Roll-call reference chips.** A vote shortcut in card metadata is one outlined white link with a
+  tally glyph, monospace type, and the uppercase recorded count ("1 VOTE" / "3 VOTES"). It is absent
+  when the count is zero. Never use the old green fill or the instruction "VIEW VOTES": the count
+  tells the reader what is there, while the outline, type, and glyph distinguish the link from an
+  issue label without relying on color alone. On phones, its 44px target comes from a minimum height,
+  not inflated vertical padding. The shared implementation is `VoteCountLinkChip`; the action
+  timeline's per-action "View votes →" text link is a different element and stays unchanged.
 - **Optical centering for icon + label buttons.** Our icons are drawn on a 24-unit viewBox with the
   marks inset to roughly the middle 50% (the ✕ runs 6,6 → 18,18; chevrons 6 → 18; the plus 5 → 19), so
   at our 13–17px sizes an icon carries ~3px of empty box on its outer side. Symmetric padding then

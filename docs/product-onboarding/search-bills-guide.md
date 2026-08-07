@@ -1,6 +1,6 @@
 # How Search works on Alethical (plain-English guide)
 
-<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py, alethical/pipeline/sessions.py -->
+<!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py, alethical/pipeline/sessions.py -->
 
 A quick, non-technical walkthrough of the **Search Bills** page — what you type, what
 you can narrow by, and what each result shows. This is the "browse the library" page:
@@ -98,8 +98,9 @@ Above the list you always see:
 - **The latest action and its date** — e.g. "Referred to Ways and Means · Mar 12, 2026".
 - **Effective date** — for bills that became law, when the law takes effect.
 - **Issue tags** for the bill.
-- **A votes link** when there were recorded votes, taking you straight to how
-  everyone voted.
+- **An outlined votes link** when there were recorded votes. It shows the count, such as
+  "1 VOTE" or "3 VOTES", and takes you straight to how everyone voted. Bills with no recorded
+  votes show no votes link.
 - **A black "+ Track" button** on every card, on phones and larger screens. Tap or
   click it to save the bill to your
   watchlist; if you are not signed in, a box opens asking you to sign in with
@@ -112,8 +113,8 @@ Tap a card to open the full bill; results are split into pages with Previous / N
 Cards behave like ordinary web links, so you can right-click one and pick "Open link in
 new tab" (or hold ⌘ / Ctrl and click, or middle-click) to line several bills up in tabs
 instead of going back and forth. Hovering shows the bill's address in the corner of the
-browser. Two things on the card are exceptions for now and only respond to a normal
-click: the author's name and the "N votes" shortcut.
+browser. The votes count is a normal web link too. The author's name is the remaining
+exception and only responds to a normal click.
 
 ---
 

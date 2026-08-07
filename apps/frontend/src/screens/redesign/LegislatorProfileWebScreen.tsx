@@ -32,6 +32,7 @@ import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { Skeleton } from '../../components/Skeleton';
+import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 
 // Web Legislator Profile (docs/mockups/legislator-profile-web). Aggregates a
 // member's public record — identity, committees (with leadership), chief-authored
@@ -562,15 +563,13 @@ function ChiefBillCard({
               label={`COMPANION ${companion.identifier} · ${(companion.status || '').toUpperCase()}`}
               href={routePath.bill(companion.id)}
               onPress={() => onOpenBill(companion.id)}
-              icon="companion"
             />
           ) : null}
           {hasVotes ? (
-            <LinkChip
-              label="VIEW VOTES"
+            <VoteCountLinkChip
+              count={bill.rollCallCount}
               href={routePath.bill(bill.id, { tab: 'votes' })}
               onPress={onViewVotes}
-              icon="votes"
             />
           ) : null}
         </View>
@@ -579,18 +578,8 @@ function ChiefBillCard({
   );
 }
 
-// Outline chip that links out from a bill card (companion bill / view votes).
-function LinkChip({
-  label,
-  href,
-  onPress,
-  icon,
-}: {
-  label: string;
-  href: string;
-  onPress: () => void;
-  icon: 'companion' | 'votes';
-}) {
+// Outline chip that links from a bill card to its companion bill.
+function LinkChip({ label, href, onPress }: { label: string; href: string; onPress: () => void }) {
   const [hovered, hover] = useHover();
   return (
     <Pressable
@@ -600,22 +589,13 @@ function LinkChip({
       style={[styles.linkChip, hovered && styles.linkChipHover]}
     >
       <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
-        {icon === 'companion' ? (
-          <Path
-            d="M4 8 H17 M13.5 4.5 L17 8 L13.5 11.5 M20 16 H7 M10.5 12.5 L7 16 L10.5 19.5"
-            stroke={t.colors.brand.graphics}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ) : (
-          <Path
-            d="M5 20 V10 M12 20 V4 M19 20 V14"
-            stroke={t.colors.brand.graphics}
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-        )}
+        <Path
+          d="M4 8 H17 M13.5 4.5 L17 8 L13.5 11.5 M20 16 H7 M10.5 12.5 L7 16 L10.5 19.5"
+          stroke={t.colors.brand.graphics}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </Svg>
       <Text style={styles.linkChipText}>{label}</Text>
     </Pressable>
