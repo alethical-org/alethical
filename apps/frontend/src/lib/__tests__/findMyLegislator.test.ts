@@ -76,7 +76,7 @@ describe('Find My Legislator state and copy helpers', () => {
 
     expect(source).toContain('linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)');
     expect(source).toContain('<Search size={17} color="#06231a" aria-hidden />');
-    expect(source).toMatch(/<Crosshair\s+size=\{19\}/);
+    expect(source).toMatch(/<Crosshair\s+size=\{mobile \? 18 : 19\}/);
     expect(source).toContain('const locationLabel = findingLocation');
     expect(source).toContain('Finding your location…');
     expect(source).toContain("backgroundColor: '#2ed47e'");

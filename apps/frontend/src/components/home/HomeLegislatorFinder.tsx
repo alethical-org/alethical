@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { MapPin, Navigation } from '../icons';
+import { Crosshair, MapPin } from '../icons';
 
 import {
   homeAddressDestination,
@@ -36,7 +36,7 @@ function browserGeolocation(): BrowserGeolocation | null {
   return typeof navigator !== 'undefined' && navigator.geolocation ? navigator.geolocation : null;
 }
 
-function LocationSpinner({ reduceMotion }: { reduceMotion: boolean }) {
+function LocationSpinner({ reduceMotion, size }: { reduceMotion: boolean; size: 18 | 19 }) {
   const spin = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (reduceMotion) return;
@@ -53,7 +53,7 @@ function LocationSpinner({ reduceMotion }: { reduceMotion: boolean }) {
   }, [reduceMotion, spin]);
 
   const glyph = (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
       <Circle cx={12} cy={12} r={9} stroke="#d7dbd9" strokeWidth={2.4} />
       <Path
         d="M21 12 a9 9 0 0 0 -9 -9"
@@ -63,11 +63,12 @@ function LocationSpinner({ reduceMotion }: { reduceMotion: boolean }) {
       />
     </Svg>
   );
-  if (reduceMotion) return <View style={styles.locationIcon}>{glyph}</View>;
+  const iconStyle = [styles.locationIcon, size === 19 && styles.locationIconDesktop];
+  if (reduceMotion) return <View style={iconStyle}>{glyph}</View>;
   return (
     <Animated.View
       style={[
-        styles.locationIcon,
+        ...iconStyle,
         {
           transform: [
             { rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
@@ -109,6 +110,7 @@ export function HomeLegislatorFinderForm({
 }: FormProps) {
   const desktop = layout === 'desktop';
   const tablet = layout === 'tablet';
+  const [locationHovered, setLocationHovered] = useState(false);
   const locationLabel = findingLocation ? 'Finding your location…' : 'Use my location';
   const findButton = (
     <Pressable
@@ -131,6 +133,8 @@ export function HomeLegislatorFinderForm({
     <Pressable
       accessibilityRole="button"
       aria-busy={findingLocation || undefined}
+      onHoverIn={() => setLocationHovered(true)}
+      onHoverOut={() => setLocationHovered(false)}
       onPress={onUseLocation}
       style={({ pressed }) => [
         styles.locationButton,
@@ -138,15 +142,26 @@ export function HomeLegislatorFinderForm({
         !desktop && styles.actionButtonNarrow,
         tablet && styles.actionButtonTablet,
         findingLocation && styles.locationButtonWaiting,
+        locationHovered && !findingLocation && styles.locationButtonHovered,
         pressed && !findingLocation && styles.locationButtonPressed,
       ]}
     >
       {findingLocation ? (
-        <LocationSpinner reduceMotion={reduceMotion} />
+        <LocationSpinner reduceMotion={reduceMotion} size={desktop ? 19 : 18} />
       ) : (
-        <Navigation size={20} color={t.colors.text.primary} strokeWidth={2} aria-hidden />
+        <Crosshair
+          size={desktop ? 19 : 18}
+          color={locationHovered ? '#0f7a45' : '#11150f'}
+          aria-hidden
+        />
       )}
-      <Text style={[styles.locationText, findingLocation && styles.locationTextWaiting]}>
+      <Text
+        style={[
+          styles.locationText,
+          locationHovered && !findingLocation && styles.locationTextHovered,
+          findingLocation && styles.locationTextWaiting,
+        ]}
+      >
         {locationLabel}
       </Text>
     </Pressable>
@@ -300,11 +315,11 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 6,
     fontFamily: t.typography.body,
-    fontSize: 21,
+    fontSize: 16,
     color: t.colors.text.primary,
     ...(webOnly ? ({ outlineStyle: 'none' } as object) : null),
   },
-  inputDesktop: { fontSize: 20, paddingVertical: 16 },
+  inputDesktop: { fontSize: 18, paddingVertical: 16 },
   findButton: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -323,31 +338,35 @@ const styles = StyleSheet.create({
   actions: { marginTop: 10, width: '100%', gap: 10 },
   actionsTablet: { flexDirection: 'row' },
   actionButtonNarrow: { width: '100%', minHeight: 48 },
-  actionButtonTablet: { flex: 1, width: 'auto', paddingHorizontal: 0 },
+  actionButtonTablet: { flex: 1, width: 'auto' },
   locationButton: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
     paddingHorizontal: 22,
-    backgroundColor: t.colors.surfaces.base,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: t.colors.alpha.ink16,
+    borderColor: 'rgba(17,21,15,0.16)',
     borderRadius: 12,
   },
-  locationButtonDesktop: { minWidth: 264, minHeight: 70, borderRadius: 14 },
+  locationButtonDesktop: { height: 62, borderRadius: 14 },
   locationButtonWaiting: {
     backgroundColor: t.colors.surfaces.s300,
     borderColor: t.colors.alpha.ink14,
   },
+  locationButtonHovered: { borderColor: '#2ed47e' },
   locationButtonPressed: { borderColor: t.colors.brand.base },
-  locationIcon: { width: 20, height: 20 },
+  locationIcon: { width: 18, height: 18 },
+  locationIconDesktop: { width: 19, height: 19 },
   locationText: {
     fontFamily: t.typography.ui,
-    fontSize: 17,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#11150f',
   },
+  locationTextHovered: { color: '#0f7a45' },
   locationTextWaiting: { color: t.colors.text.secondary },
   help: {
     marginTop: 12,

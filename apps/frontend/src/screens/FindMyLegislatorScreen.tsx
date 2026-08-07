@@ -297,7 +297,11 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
         pressed && styles.pressed,
       ]}
     >
-      <Crosshair size={19} color={locationHovered ? '#0f7a45' : '#11150f'} aria-hidden />
+      <Crosshair
+        size={mobile ? 18 : 19}
+        color={locationHovered ? '#0f7a45' : '#11150f'}
+        aria-hidden
+      />
       <Text
         accessibilityLiveRegion="polite"
         style={[styles.locationText, locationHovered && styles.locationTextHovered]}
