@@ -274,7 +274,7 @@ the published Privacy Policy.
 | **OpenAI** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes** |
 | **Anthropic** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes** |
 | **US Census Bureau** | **The full street address, with surrounding spaces removed** | Every Find My Legislator address search | **Yes** |
-| **Minnesota Geospatial Information Office** | **The house number and street name, without city or ZIP** | Only after both Census attempts find no match | **Yes** |
+| **Minnesota Geospatial Information Office** | **The house number and street name, without city or ZIP** | Only after Census and its safe Minnesota-only retries find no match | **Yes** |
 | **Minnesota Legislative Coordinating Commission (`gis.lcc.mn.gov`)** | Latitude and longitude | Every successful Find My Legislator search | **Yes** |
 | Vercel | Hosts the web app, so its request logs see every page address (§7) | Every page load | No, and it should be |
 | Cloudflare | Sits in front of the API | Every API call | No, and it should be |

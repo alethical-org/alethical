@@ -280,14 +280,17 @@ endpoints env-overridable. The second stage runs only when the first finds nothi
 
 1. **Geocode:** `GET https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=...&benchmark=Public_AR_Current&format=json`
    → lat/lng + state (rejects non-MN). It first tries the address as typed. When an
-   address explicitly says Minnesota but has no result, it retries the house and street
-   with `MN`; this recovers homes whose commonly used city or ZIP differs from the postal
-   record without silently changing the selected result.
-2. **Address-point fallback:** after both Census attempts find nothing, query Minnesota's
+   address explicitly says Minnesota but has no result, it ignores punctuation and extra
+   spaces, separates the house and street from the city, and retries each safe reading with
+   `MN`; this recovers homes whose commonly used city or ZIP differs from the postal record.
+2. **Address-point fallback:** after Census finds nothing, query Minnesota's
    public statewide address points at
    `https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_mngeo/loc_addresses_open/FeatureServer/0/query`.
    The request carries only the parsed house number and street name, never the city or ZIP.
-   An exact official result continues; several distinct results are returned as choices.
+   The house number stays exact. The street first matches exactly, then may differ by 1
+   character only in a word with at least 5 characters. Exact ZIP, close city, street
+   type, and direction rank the official results; equally close results become choices.
+   The fallback refuses a close match when the state says its result list was cut short.
 3. **District:** `GET https://gis.lcc.mn.gov/api/?lat=...&lng=...` → GeoJSON
    `features` → house/senate district codes. House-within-Senate safety checks use the
    original government outlines; geometry is reduced only for the browser map afterward.
