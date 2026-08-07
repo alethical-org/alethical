@@ -131,6 +131,15 @@ export const IA: IaItem[] = [
     inNavDropdown: true,
   },
   {
+    id: 'search-claimed-profiles',
+    label: 'Claimed Profiles',
+    path: '/search/claimed-profiles',
+    menu: 'search',
+    availability: 'roadmap',
+    authGated: false,
+    inNavDropdown: true,
+  },
+  {
     // Free-form "Ask AI" is a ROADMAP capability, not the shipped grounded Ask
     // (/ask, mvp above): open-ended AI questions aren't built yet, so this rides
     // in the greyed "ON THE ROADMAP" group as an inert pill. "Ask AI" is a

@@ -160,11 +160,12 @@ describe('Find My Legislator round-trips through its URL', () => {
 });
 
 // Free-form "Ask AI" is a roadmap capability, not the shipped grounded Ask, so it
-// rides in the Search dropdown's greyed "ON THE ROADMAP" row after Candidates.
+// rides in the Search dropdown's greyed "ON THE ROADMAP" row after Candidates
+// and Claimed Profiles.
 describe('Search dropdown roadmap row', () => {
-  it('reads Candidates then Ask AI', () => {
+  it('reads Candidates, Claimed Profiles, then Ask AI', () => {
     const { roadmap } = navDropdownItems('search');
-    expect(roadmap.map((item) => item.label)).toEqual(['Candidates', 'Ask AI']);
+    expect(roadmap.map((item) => item.label)).toEqual(['Candidates', 'Claimed Profiles', 'Ask AI']);
   });
 
   it('keeps Ask AI a greyed roadmap pill, never a live row', () => {

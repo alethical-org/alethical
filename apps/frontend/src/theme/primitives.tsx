@@ -560,7 +560,7 @@ export function TopNav({
   // rest of tracking's expansion (legislators, candidates …) rather than
   // enumerating each. "Ask AI" reads last (it's a Search roadmap chip on web, but
   // on this single flattened row it trails the tracking chips, not sits second).
-  // → Candidates · Campaign Finance · More Tracking · Ask AI.
+  // → Candidates · Claimed Profiles · Campaign Finance · More Tracking · Ask AI.
   const searchRoadmap = navDropdownItems('search').roadmap;
   const trackRoadmap = navDropdownItems('track').roadmap;
   const askAi = searchRoadmap.find((item) => item.id === 'search-ask-ai');
