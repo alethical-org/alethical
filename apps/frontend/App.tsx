@@ -13,13 +13,23 @@ export default function App() {
     }
 
     const ensureManifest = () => {
-      const existing = document.querySelector('link[rel="manifest"]');
-      if (!existing) {
-        const link = document.createElement('link');
+      let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+      if (!link) {
+        link = document.createElement('link');
         link.rel = 'manifest';
-        link.href = '/manifest.json';
         document.head.appendChild(link);
       }
+      link.href = '/manifest.json?brand=twin-peaks';
+    };
+
+    const ensureAppleTouchIcon = () => {
+      let link = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'apple-touch-icon';
+        document.head.appendChild(link);
+      }
+      link.href = '/apple-touch-icon.png?brand=twin-peaks';
     };
 
     const ensureThemeColor = () => {
@@ -63,6 +73,7 @@ export default function App() {
     };
 
     ensureManifest();
+    ensureAppleTouchIcon();
     ensureThemeColor();
     ensureFonts();
     ensureFocusStyles();

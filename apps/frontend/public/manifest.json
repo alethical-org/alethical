@@ -11,13 +11,13 @@
   "theme_color": "#111111",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/icon-192.png?brand=twin-peaks",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icon-512.png?brand=twin-peaks",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

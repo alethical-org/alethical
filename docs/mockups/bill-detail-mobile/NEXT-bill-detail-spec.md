@@ -422,9 +422,9 @@ and Tracking also lives on Search and Tracked Bills. The `votes` sign-in intent
 ("see your legislators") is unchanged. Part of [#976](https://github.com/alethical-org/alethical/issues/976).
 
 ## Logo
-Nav uses the canonical two-peaks mark (assets/alethical-favicon.svg geometry) in
-ink `#11150f` on the light product surface, wordmark ink — one lockup. (Replaces
-the old three-bar glyph.)
+Nav uses the canonical two-peaks mark
+(`apps/frontend/scripts/generate-brand-assets.mjs`) in ink `#11150f` on the light
+product surface, wordmark ink — one lockup. (Replaces the old three-bar glyph.)
 
 ## Ask integration
 "Ask about this bill" included (placement: in-flow, NOT a persistent right-rail
