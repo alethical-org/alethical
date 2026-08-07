@@ -960,16 +960,28 @@ def test_rural_codes_and_source_shared_edge_sliver_are_handled():
     validate_district_containment(house, senate, house_code="1A", senate_code="1")
 
 
-def test_containment_rejects_wrong_parent_or_material_overlap():
+def test_matching_districts_accept_independently_drawn_api_boundaries():
     house = {
         "type": "Polygon",
-        "coordinates": [[[0, 0], [12, 0], [12, 10], [0, 10], [0, 0]]],
+        "coordinates": [[[0, 0], [10.06, 0], [10.06, 10], [0, 10], [0, 0]]],
     }
     senate = {
         "type": "Polygon",
         "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
     }
+
+    validate_district_containment(house, senate, house_code="18B", senate_code="18")
+
+
+def test_containment_rejects_wrong_parent_code():
+    house = {
+        "type": "Polygon",
+        "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
+    }
+    senate = {
+        "type": "Polygon",
+        "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
+    }
+
     with pytest.raises(Exception, match="codes do not nest"):
         validate_district_containment(house, senate, house_code="1A", senate_code="2")
-    with pytest.raises(Exception, match="not contained"):
-        validate_district_containment(house, senate, house_code="1A", senate_code="1")

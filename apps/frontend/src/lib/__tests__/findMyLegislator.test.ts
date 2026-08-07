@@ -43,6 +43,23 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(addressChoiceKey('Escape', 2, 4)).toEqual({ index: 2, action: 'close' });
   });
 
+  it('wires the address choices to real web keyboard, hover, and selected-value behavior', () => {
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('onKeyDownCapture: onChoiceKey');
+    expect(source).toContain("if (event.nativeEvent?.key === 'Enter') return;");
+    expect(source).not.toContain('onKeyPress={onChoiceKey}');
+    expect(source).toContain('setAddress(choice.matchedAddress)');
+    expect(source).toContain('onHoverIn={() => setChoiceIndex(index)}');
+    expect(source).toContain('<Text style={styles.choiceKey}>↑</Text>');
+    expect(source).toContain('<Text style={styles.choiceKey}>↓</Text>');
+    expect(source).toContain('<Text style={styles.choiceKey}>Enter</Text>');
+    expect(source).toContain('<Text style={styles.choiceKey}>Esc</Text>');
+  });
+
   it('uses the shared short Legislature range', () => {
     expect(legislatureLabel('94th Legislature (2025–2026) Regular Session')).toBe(
       '94TH LEGISLATURE (2025–26)',
@@ -96,7 +113,7 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain("role: 'listbox'");
     expect(source).toContain("role: 'option'");
     expect(source).toContain('aria-activedescendant');
-    expect(source).toContain('onKeyPress={onChoiceKey}');
+    expect(source).toContain('onKeyDownCapture: onChoiceKey');
     expect(source).toMatch(/const runCoordinate[\s\S]*setChoiceClosed\(true\)/);
     expect(source).toContain(
       'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415',

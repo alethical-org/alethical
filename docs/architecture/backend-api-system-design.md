@@ -719,7 +719,7 @@ Rationale:
 - exact ZIP and close city matches rank official results, while the supplied street type and direction break remaining ties; equally close addresses become choices, and an incomplete state result list is refused rather than guessed
 - House and Senate come from the Minnesota Legislative Coordinating Commission lookup service; Congress is read from the commission's official 2022 district map stored with the backend, so a person's precise point is not sent to another outside service and number-only rows are not mistaken for congressional districts
 - single-digit House and Senate numbers from that map are padded before the saved district lookup (`4A`/`4` becomes `04A`/`04`), matching the official records instead of falsely reporting no address match
-- House-within-Senate validation uses the original government outlines; the smaller browser copy is made only after that safety check so drawing cleanup cannot reject a valid district
+- each returned House and Senate shape must cover the selected point, their district numbers must nest, and a House interior point must remain inside the Senate shape; their full outlines are not compared because the lookup service prepares those response shapes separately, and the smaller browser copy is made only after these checks
 
 ### Cross-Entity Search
 

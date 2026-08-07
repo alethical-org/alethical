@@ -520,8 +520,8 @@ control, not sentences. (Answer-area guidance IS a sentence and keeps its period
 
 Previously the keyboard hint was JetBrains Mono 11px/700 uppercase in a different grey, which made two
 pieces of neutral help in the same slot look like different classes of thing; mono uppercase is our
-eyebrow/code treatment, not a treatment for a sentence. It now reads "Use ↑ and ↓ to move, Enter to
-choose, Esc to close."
+eyebrow/code treatment, not a treatment for a sentence. It now reads "Use **↑** and **↓** to move,
+**Enter** to choose, **Esc** to close."
 
 ## Error states carry NO action buttons
 An error renders as: a short inline message with a warning icon beside the failing control, then the

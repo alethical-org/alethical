@@ -70,7 +70,6 @@ class RepresentativeLookupResult:
 # latitude, this is no more than 5 metres in either direction and is therefore a
 # conservative simplification allowance.
 GEOMETRY_REDUCTION_DEGREES = 5 / 111_320
-MAX_SHARED_EDGE_DIFFERENCE_FRACTION = 0.001
 CONGRESSIONAL_DISTRICTS_PATH = (
     Path(__file__).resolve().parents[1]
     / "data"
@@ -533,11 +532,12 @@ def validate_district_containment(
     house_code: str,
     senate_code: str,
 ) -> None:
-    """Validate nesting while allowing tiny source shared-edge slivers.
+    """Validate the House/Senate relationship without comparing full outlines.
 
-    Minnesota reduces House and Senate shapes separately, so large rural
-    districts do not carry byte-identical copies of their shared outside edge.
-    The interior point and area cap test logical containment away from that edge.
+    The official API already returns districts that cover the selected point.
+    Its House and Senate response shapes are prepared separately, so their shared
+    edges need not be identical. Codes and a House interior point still catch a
+    mismatched Senate district without rejecting valid lookups over edge slivers.
     """
     house = _geometry(house_geometry)
     senate = _geometry(senate_geometry)
@@ -552,11 +552,6 @@ def validate_district_containment(
     ):
         raise RepresentativeLookupUpstreamError(
             "House district interior is outside Senate district geometry"
-        )
-    outside_fraction = house.difference(senate).area / house.area
-    if outside_fraction > MAX_SHARED_EDGE_DIFFERENCE_FRACTION:
-        raise RepresentativeLookupUpstreamError(
-            "House district geometry is not contained by Senate district geometry"
         )
 
 
