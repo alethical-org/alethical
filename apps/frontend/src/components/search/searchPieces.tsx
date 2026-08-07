@@ -13,7 +13,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from '../icons';
 
 import { theme } from '../../theme/tokens';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';

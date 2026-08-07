@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { MessageSquareText } from 'lucide-react-native';
+import { MessageSquareText } from '../components/icons';
 
 import { AuthRequiredCard } from '../components/AuthRequiredCard';
 import { Card } from '../components/Card';

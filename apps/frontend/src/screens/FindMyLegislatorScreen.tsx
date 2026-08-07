@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { MapPin, Navigation } from 'lucide-react-native';
+import { MapPin, Navigation } from '../components/icons';
 
 import { MapPinPicker } from '../components/MapPinPicker';
 import { RepresentativeCard, VacantSeatCard } from '../components/find/RepresentativeCard';

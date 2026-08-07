@@ -12,8 +12,8 @@ import {
   Home,
   MapPin,
   UserCircle,
-  type LucideIcon,
-} from 'lucide-react-native';
+  type Icon,
+} from '../components/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,7 +41,7 @@ import { theme } from '../theme/tokens';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
-type NavIcon = LucideIcon;
+type NavIcon = Icon;
 type RailRouteName = keyof MainTabParamList | 'FindMyLegislator';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },

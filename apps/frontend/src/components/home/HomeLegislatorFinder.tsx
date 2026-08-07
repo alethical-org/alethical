@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { MapPin, Navigation } from 'lucide-react-native';
+import { MapPin, Navigation } from '../icons';
 
 import {
   homeAddressDestination,
