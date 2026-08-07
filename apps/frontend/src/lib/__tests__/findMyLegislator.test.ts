@@ -208,4 +208,15 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('activeError && !retainedMapResult');
     expect(source).toContain("'Couldn’t update districts'");
   });
+
+  it('keeps the reader at the same page position while lookup content appears', () => {
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('const preserveLookupScrollStyle = isWeb');
+    expect(source).toContain("overflowAnchor: 'none'");
+    expect(source).toContain('style={[styles.scroll, preserveLookupScrollStyle]}');
+  });
 });
