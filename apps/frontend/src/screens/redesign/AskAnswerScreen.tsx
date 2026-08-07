@@ -36,7 +36,7 @@ import {
   ISSUE_ANSWER_SORT_OPTIONS,
   issueAnswerBills,
   issueAnswerFollowUps,
-  issueAnswerUpdatedLabel as formatIssueAnswerUpdatedLabel,
+  issueAnswerHasMore,
   resolveIssueAnswerSort,
 } from '../../lib/issueAnswer';
 import {
@@ -308,7 +308,6 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     answer?.latestActionBillCards ?? [],
     issueSort,
   );
-  const issueAnswerUpdatedLabel = formatIssueAnswerUpdatedLabel(answer?.dataAsOf);
   const isIssueAnswer = Boolean(
     answer?.intent === 'topic_bills' && answer.hasAnswer && !answer.ambiguousReference,
   );
@@ -930,13 +929,13 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
         ) : (
           <>
             <ResultsHeader
-              count={shownIssueBills.length}
+              count={answer.totalMatches}
               noun="bill"
-              dataAsOf={undefined}
+              dataAsOf={answer.dataAsOf}
               showRule={false}
               countTail={
                 <View style={styles.issueCountTail}>
-                  <Text style={styles.issueCountTailText}>of {answer.totalMatches} matching</Text>
+                  <Text style={styles.issueCountTailText}>matching</Text>
                   <View style={[styles.issueTopicChip, isMobile && styles.issueTopicChipMobile]}>
                     <Text style={styles.issueTopicChipText}>{issueTopic}</Text>
                   </View>
@@ -971,23 +970,23 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             </View>
           </>
         )}
-        {!answer.ambiguousReference && answer.totalMatches > shownIssueBills.length ? (
+        {!answer.ambiguousReference &&
+        issueAnswerHasMore(answer.totalMatches, shownIssueBills.length) ? (
           <Pressable
             {...linkProps(routePath.bills(browseParams), () =>
               navigation.navigate('Bills', browseParams),
             )}
             style={styles.issueSeeAllLink}
           >
-            {/* No count in the link. An Ask covers the whole Legislature, including
-                its special session, while Search browses ONE session at a time and
-                defaults to the regular one — so promising a specific number here
-                would promise a page Search cannot show (#810). The count above still
-                says how many the answer matched. */}
+            {/* The total belongs in the header once. This link is the disclosure that
+                the five-card window leaves more matches to browse, so it only renders
+                when `issueAnswerHasMore` proves that a remainder exists. */}
             <Text style={styles.viewBillLink}>See all {issueTopic} bills in Search →</Text>
           </Pressable>
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
-        {!answer.ambiguousReference ? <SourceLine updatedLabel={issueAnswerUpdatedLabel} /> : null}
+        {/* The corpus date appears once, in the Search-style count row above. */}
+        {!answer.ambiguousReference ? <SourceLine updatedLabel="" /> : null}
       </View>,
     );
   }

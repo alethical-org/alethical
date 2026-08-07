@@ -21,8 +21,9 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
 - **URL-addressable filters** — tracked in [#135](https://github.com/alethical-org/alethical/issues/135), split by milestone to keep v1 lean:
   - **Shipped (inbound read):** the screen reads an inbound filter param on load (e.g.
     `?policy=education`) and applies it. Required because the Ask `bills-list` answer's
-    "See all N {topic} bills in Search →" overflow ([#79](https://github.com/alethical-org/alethical/issues/79),
-    grounded-ask §9.1) is cross-page navigation and can only target URL state
+    "See all {topic} bills in Search →" overflow ([#79](https://github.com/alethical-org/alethical/issues/79),
+    `docs/product-onboarding/grounded-ask-spec.md` §9.6 (issue-scope answer page)) is
+    cross-page navigation and can only target URL state
     (`.claude/rules/grounded-answers.md` #5). This slice lands with #79.
   - **Shipped (full serialization):** every filter serialises *out* to the URL
     (`/bills?q=&chamber=&status=&issue=&omnibus=&session=&sort=&page=`) so reload, share,
@@ -67,8 +68,8 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
    beside the results.
 7. **Pagination** — Previous · "Page N of M" · Next (server-backed `limit`/`offset`,
    advances on `has_more`; must not slice a bounded list locally). A page change
-   scrolls the **results header** (item 5, the one-line "{N} bills · Sorted by …"
-   row) to the top of the viewport (smooth, ~20px of air on web / ~12px on mobile),
+   scrolls the **results header** (item 5, the count and sort row) to the top of the
+   viewport (smooth, ~20px of air on web / ~12px on mobile),
    with the first result card directly beneath it, and moves keyboard focus there.
    The header — not the first card — is the anchor: it re-confirms the sort on
    every page and gives a clean "top of results" line for one line of cost. The
@@ -392,8 +393,9 @@ each is still the thing the screen depends on:
 2. **Total result count** — for "312 bills" and "Page N of M", where the endpoint previously
    returned only `has_more`. Shipped: the response carries `total`.
 3. **"Data as of" timestamp** — latest succeeded `IngestionRun.finished_at`, for the
-   provenance strip (also used by the Ask answer pages, grounded-ask §9.2). Shipped as
-   `data_as_of`, and it is what the results header's "as of {date}" prints.
+   results header (also used by the issue-scope answer's count header,
+   `docs/product-onboarding/grounded-ask-spec.md` §9.6). Shipped as `data_as_of`, and it is
+   what the results header's "as of {date}" prints.
 
 Everything else on this screen runs on the current API.
 
