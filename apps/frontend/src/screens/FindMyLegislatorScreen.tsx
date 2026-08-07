@@ -46,6 +46,9 @@ const LOCATION_ERROR_ID = 'find-legislator-location-error';
 const ADDRESS_CHOICES_ID = 'find-legislator-address-choices';
 const MAP_EXPANDED_KEY = 'alethical-find-legislator-map-expanded';
 const isWeb = Platform.OS === 'web';
+// Chrome otherwise anchors to the map when lookup content appears above it,
+// moving the reader down the page. Results should load without moving the page.
+const preserveLookupScrollStyle = isWeb ? ({ overflowAnchor: 'none' } as object) : undefined;
 const alignedCardsStyle = isWeb
   ? ({
       display: 'grid',
@@ -545,7 +548,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     <PageBackground>
       <ScrollView
         {...historyScrollProps}
-        style={styles.scroll}
+        style={[styles.scroll, preserveLookupScrollStyle]}
         contentContainerStyle={styles.scrollContent}
       >
         <TopNav
