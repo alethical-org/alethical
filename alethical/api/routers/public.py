@@ -12,7 +12,7 @@ from sqlalchemy import and_, case, func, or_, select, text, tuple_
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.auth import get_optional_current_user
-from alethical.api.issue_taxonomy import aliases_for, canonical_for
+from alethical.api.issue_taxonomy import canonical_for
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit
 from alethical.api.schemas import (
@@ -39,7 +39,7 @@ from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
     named_special_session,
 )
-from alethical.api.services.topic_bills import MIN_TOPIC_LENGTH, matched_topic_bill_ids
+from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_bill_ids
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
     RepresentativeLookupChoices,
@@ -760,46 +760,20 @@ def bills(
                 stmt = stmt.where(keyword_clause)
     topic_value = (topic or "").strip()
     if topic is not None:
-        if len(topic_value) < MIN_TOPIC_LENGTH:
+        # Backward compatibility for Ask links shared before the Topic badge was
+        # retired. Topic now means the same hidden-label filter as Issue.
+        if len(topic_value) < MIN_ISSUE_LENGTH:
             stmt = stmt.where(Bill.id.is_(None))
         else:
-            stmt = stmt.where(
-                Bill.id.in_(matched_topic_bill_ids(session_ids, topic_value))
-            )
+            stmt = stmt.where(Bill.id.in_(matched_issue_bill_ids([topic_value])))
     if chamber:
         stmt = stmt.where(Bill.chamber.has(Chamber.slug == chamber.strip().lower()))
     if status:
         stmt = stmt.where(status_filter_clause(status))
     if policy_area:
-        # Match any raw policy area that rolls up to a selected canonical issue
-        # (alethical/api/issue_taxonomy.py) — so "Health" catches "healthcare",
-        # "public health", etc. Case-folded whole-element match via unnest (a
-        # whole-array cast + ILIKE would over-match and, with sort=progress, time
-        # out to a 502). aliases_for falls back to the value itself for an
-        # unmapped issue. Measured ~270ms on the production corpus.
-        #
-        # Multi-select is OR *across* issues: unioning each selected issue's
-        # aliases into one match set returns bills tagged ANY of them (the
-        # existing IN already OR'd the aliases *within* one issue). Duplicate
-        # aliases across issues fold away in the set.
-        policy_area_aliases = sorted(
-            {alias for issue in policy_area for alias in aliases_for(issue)}
-        )
-        element = func.jsonb_array_elements_text(
-            AIEnrichment.content_json["policy_areas"]
-        ).table_valued("value")
-        element_matches = (
-            select(1)
-            .select_from(element)
-            .where(func.lower(func.btrim(element.c.value)).in_(policy_area_aliases))
-            .exists()
-        )
-        matching_policy_area_bills = select(AIEnrichment.bill_id).where(
-            AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
-            AIEnrichment.is_current.is_(True),
-            element_matches,
-        )
-        stmt = stmt.where(Bill.id.in_(matching_policy_area_bills))
+        # Ask and Search share this exact whole-label Issue rule. Multi-select is
+        # OR within the Issue facet; every other active facet still intersects it.
+        stmt = stmt.where(Bill.id.in_(matched_issue_bill_ids(policy_area)))
     if omnibus is not None:
         stmt = stmt.where(Bill.is_omnibus.is_(omnibus))
     rows, has_more, total = paginated_scalars_with_total(

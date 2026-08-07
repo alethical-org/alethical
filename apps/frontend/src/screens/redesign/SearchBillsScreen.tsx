@@ -56,7 +56,7 @@ import {
 const SKELETON_ROWS = [0, 1, 2, 3, 4];
 
 // Search Bills (docs/mockups/search-bills). Server-paginated bill discovery over
-// the current session with chamber / status / session / omnibus filters + policy
+// the current Legislature with chamber / status / session / omnibus filters + Issue
 // pills, ordered by legislative progress (sort=progress, #292), with auth-gated
 // per-bill tracking.
 
@@ -113,19 +113,23 @@ export function SearchBillsScreen() {
   // of truth; only the search-box draft and the issue-list expander are local.
   const params: Record<string, unknown> = route.params ?? {};
   const query = typeof params.q === 'string' ? params.q : '';
-  const topic = typeof params.topic === 'string' ? params.topic : '';
-  const legislatureScope = params.scope === 'legislature';
+  // `topic` is accepted only so links shared before the Issue unification keep
+  // working. It is displayed and queried as the same Issue filter as `issue`.
+  const legacyTopic = typeof params.topic === 'string' ? params.topic : '';
   const chamber: ChamberFilter =
     params.chamber === 'House' || params.chamber === 'Senate' ? params.chamber : 'All';
   const status = typeof params.status === 'string' ? params.status : '';
   const session = typeof params.session === 'string' ? params.session : '';
-  const selectedIssues =
-    typeof params.issue === 'string' && params.issue
-      ? params.issue
-          .split(ISSUE_SEPARATOR)
-          .map((issue) => issue.trim())
-          .filter(Boolean)
-      : [];
+  // The resting Search view covers the whole current Legislature. Choosing one
+  // named session is the only action that narrows it.
+  const legislatureScope = params.scope === 'legislature' || !session;
+  const issueParam = typeof params.issue === 'string' && params.issue ? params.issue : legacyTopic;
+  const selectedIssues = issueParam
+    ? issueParam
+        .split(ISSUE_SEPARATOR)
+        .map((issue) => issue.trim())
+        .filter(Boolean)
+    : [];
   const omnibusOnly = params.omnibus === '1';
   const page = Math.max(1, Number.parseInt(String(params.page ?? ''), 10) || 1);
   // Sort: an explicit choice rides the URL; absent one, default to best-match
@@ -192,7 +196,6 @@ export function SearchBillsScreen() {
     chamber: chamber === 'All' ? undefined : chamber,
     status: status || undefined,
     policyAreas: selectedIssues.length ? selectedIssues : undefined,
-    topic: topic || undefined,
     scope: legislatureScope ? 'legislature' : undefined,
     omnibus: omnibusOnly ? true : undefined,
     sort: BILL_SEARCH_SORT_TO_API[sortKey],
@@ -206,7 +209,7 @@ export function SearchBillsScreen() {
     const next = selectedIssues.includes(value)
       ? selectedIssues.filter((issue) => issue !== value)
       : [...selectedIssues, value];
-    updateFilters({ issue: issuesToParam(next) });
+    updateFilters({ issue: issuesToParam(next), topic: undefined });
   };
 
   const billsQuery = useBills(query || undefined, apiSession, filters, {
@@ -258,14 +261,14 @@ export function SearchBillsScreen() {
 
   const submitSearch = () => {
     const value = queryInput.trim();
-    updateFilters({ q: value || undefined, topic: value ? undefined : topic || undefined });
+    updateFilters({ q: value || undefined, topic: undefined });
   };
 
   // Search as the user types: push the debounced draft into the URL so results
   // update without pressing Enter or the Search button (which still submit
   // immediately via submitSearch).
   useDebouncedSearchCommit(queryInput, query, (value) =>
-    updateFilters({ q: value || undefined, topic: value ? undefined : topic || undefined }),
+    updateFilters({ q: value || undefined, topic: undefined }),
   );
 
   // Mirror the prior Clear: reset keyword/chamber/status/issue/omnibus/page but
@@ -282,20 +285,11 @@ export function SearchBillsScreen() {
   };
 
   const statusLabel = STATUS_OPTIONS.find((option) => option.value === status)?.label;
-  const sessionIsDefault = !legislatureScope && (!session || sessionSlug === currentSession?.slug);
+  const sessionIsDefault = legislatureScope;
 
   // Removable, facet-color-coded chips (v2 §D). Fixed order: keyword · chamber ·
   // status · session (only if non-default) · omnibus · issues (one each).
   const chips: FilterChip[] = [];
-  if (topic) {
-    chips.push({
-      key: 'topic',
-      tone: 'issue',
-      label: `Topic: ${titleCaseIssue(topic)}`,
-      removeLabel: 'Clear topic',
-      onRemove: () => updateFilters({ topic: undefined }),
-    });
-  }
   if (query) {
     chips.push({
       key: 'keyword',
@@ -323,20 +317,12 @@ export function SearchBillsScreen() {
       onRemove: () => updateFilters({ status: undefined }),
     });
   }
-  if (legislatureScope) {
-    chips.push({
-      key: 'scope',
-      tone: 'session',
-      label: `Scope: ${legislatureLabel}`,
-      removeLabel: 'Reset to the current regular session',
-      onRemove: () => updateFilters({ scope: undefined }),
-    });
-  } else if (!sessionIsDefault) {
+  if (!sessionIsDefault) {
     chips.push({
       key: 'session',
       tone: 'session',
       label: `Session: ${sessionLabel.replace(' Legislative Session', '')}`,
-      removeLabel: 'Reset to the current session',
+      removeLabel: 'Reset to the current Legislature',
       onRemove: () => updateFilters({ session: undefined }),
     });
   }
@@ -417,7 +403,7 @@ export function SearchBillsScreen() {
           onOpenChange={(next) => setOpenFilter(next ? 'session' : null)}
           onSelect={(value) =>
             value === '__legislature'
-              ? updateFilters({ scope: 'legislature', session: undefined })
+              ? updateFilters({ scope: undefined, session: undefined })
               : updateFilters({ scope: undefined, session: value || undefined })
           }
         />
@@ -529,7 +515,7 @@ export function SearchBillsScreen() {
           // The chip row already counts the active filters, so the empty state's
           // copy branches off it without needing anything new.
           filterCount={chips.length}
-          query={query || topic}
+          query={query}
           onClear={clearFilters}
         />
       ) : (

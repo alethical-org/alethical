@@ -24,6 +24,7 @@ import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { bienniumEyebrow, pulledLabel, scopedChipQuery } from '../../lib/billDetail';
+import { titleCaseIssue } from '../../lib/issues';
 import {
   alphabeticalIndex,
   citedSections,
@@ -838,17 +839,11 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
         </Text>
         <Pressable
           {...linkProps(
-            routePath.bills(
-              answer?.topic
-                ? { topic: answer.topic, scope: 'legislature', sort: 'progress' }
-                : undefined,
-            ),
+            routePath.bills(answer?.topic ? { issue: answer.topic, sort: 'progress' } : undefined),
             () =>
               navigation.navigate(
                 'Bills',
-                answer?.topic
-                  ? { topic: answer.topic, scope: 'legislature', sort: 'progress' }
-                  : undefined,
+                answer?.topic ? { issue: answer.topic, sort: 'progress' } : undefined,
               ),
           )}
         >
@@ -895,22 +890,16 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
         {answer.totalBills && answer.totalBills > 0 ? (
           <Pressable
             {...linkProps(
-              routePath.bills(
-                answer.topic
-                  ? { topic: answer.topic, scope: 'legislature', sort: 'progress' }
-                  : undefined,
-              ),
+              routePath.bills(answer.topic ? { issue: answer.topic, sort: 'progress' } : undefined),
               () =>
                 navigation.navigate(
                   'Bills',
-                  answer.topic
-                    ? { topic: answer.topic, scope: 'legislature', sort: 'progress' }
-                    : undefined,
+                  answer.topic ? { issue: answer.topic, sort: 'progress' } : undefined,
                 ),
             )}
           >
-            {/* Search receives the same topic and whole-Legislature scope as Ask,
-                 so this handoff cannot turn into a smaller literal keyword search. */}
+            {/* Search defaults to the whole Legislature and receives the same
+                Issue filter as Ask, so the total and bill set stay identical. */}
             <Text style={styles.viewBillLink}>See all {answer.topic} bills in Search →</Text>
           </Pressable>
         ) : null}
@@ -921,8 +910,8 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
   // --- topic_bills (§4.2 / §9.4).
   if (hasMatches && answer) {
-    const issueTopic = answer.topic ?? 'this issue';
-    const browseParams = { topic: answer.topic, scope: 'legislature', sort: issueSort } as const;
+    const issueTopic = titleCaseIssue(answer.topic ?? 'this issue');
+    const browseParams = { issue: answer.topic, sort: issueSort } as const;
     return shell(
       <View style={answer.ambiguousReference ? styles.narrowColumn : styles.issueAnswerColumn}>
         {answer.ambiguousReference ? (

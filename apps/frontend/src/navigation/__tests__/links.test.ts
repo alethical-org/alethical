@@ -74,14 +74,13 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.bills({ sort: 'introduced' })).toBe('/bills?sort=introduced');
   });
 
-  it('keeps an Ask topic handoff distinct from a typed keyword search', () => {
+  it('hands an Ask issue to the shared Issue filter', () => {
     expect(
       routePath.bills({
-        topic: 'consumer protection',
-        scope: 'legislature',
+        issue: 'Consumer Protection',
         sort: 'action',
       }),
-    ).toBe('/bills?topic=consumer+protection&scope=legislature&sort=action');
+    ).toBe('/bills?issue=Consumer+Protection&sort=action');
   });
 
   it('escapes an id so a link can never produce a malformed URL', () => {

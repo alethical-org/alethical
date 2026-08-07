@@ -54,7 +54,7 @@ describe('bill detail requests', () => {
     expect(fetchMock.mock.calls[0][0]).toBe(`${apiOrigin}/api/v1/bills/${BILL_ID}/votes`);
   });
 
-  it('keeps an Ask topic separate from a typed keyword search', async () => {
+  it('uses the shared Issue filter for an Ask handoff', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
         data: [],
@@ -64,13 +64,14 @@ describe('bill detail requests', () => {
 
     const { listBillsFromApi } = await import('../api');
     await listBillsFromApi(undefined, undefined, {
-      topic: 'consumer protection',
+      policyAreas: ['Consumer Protection'],
       scope: 'legislature',
     });
 
     const url = String(fetchMock.mock.calls[0][0]);
-    expect(url).toContain('topic=consumer+protection');
+    expect(url).toContain('policy_area=Consumer+Protection');
     expect(url).toContain('scope=legislature');
+    expect(url).not.toContain('topic=');
     expect(url).not.toContain('&q=');
   });
 

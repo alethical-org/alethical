@@ -239,9 +239,6 @@ export interface BillListFilters {
   // matches — Search Bills v2); each is sent as its own repeated `policy_area`
   // query param. Empty/omitted → no issue filter (all issues).
   policyAreas?: string[];
-  // A topic handoff from Ask uses the same grounded matcher as Ask. It is not a
-  // free-text query, so it gets its own parameter and visible chip in Search.
-  topic?: string;
   scope?: 'legislature';
   omnibus?: boolean;
   // Result ordering. Omitted → API default (relevance for a free-text search,
@@ -1773,9 +1770,6 @@ export async function listBillsFromApi(
   for (const issue of filters.policyAreas ?? []) {
     const trimmed = issue.trim();
     if (trimmed) params.append('policy_area', trimmed);
-  }
-  if (filters.topic?.trim()) {
-    params.set('topic', filters.topic.trim());
   }
   if (filters.scope) {
     params.set('scope', filters.scope);

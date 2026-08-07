@@ -3282,7 +3282,7 @@ def test_ask_answers_topic_bills_question_with_cited_list(client, monkeypatch):
     assert data["source"] == "fallback"
 
     answer = data["answer"]
-    assert answer["topic"] == "economic development"
+    assert answer["topic"] == "Economic Development"
     assert answer["session"]["slug"] == "94-2025-regular"
     assert "data_as_of" in answer
     assert answer["total_matches"] >= 1
@@ -3314,35 +3314,123 @@ def test_ask_answers_topic_bills_question_with_cited_list(client, monkeypatch):
     assert again.json()["data"] == data
 
 
-def test_ask_topic_handoff_uses_the_same_bills_and_total_in_search(client, monkeypatch):
+def test_ask_issue_handoff_uses_the_same_bills_and_total_in_search(client, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    ask_response = client.post(
-        "/api/v1/ask",
-        json={"content": "What bills affect economic development?"},
-    )
-    assert ask_response.status_code == 200
-    answer = ask_response.json()["data"]["answer"]
+    # A title-only phrase match must not leak into Ask once Ask and the Issue
+    # chip share one hidden-label rule. The old Topic predicate included it.
+    from sqlalchemy import delete, select
 
-    for sort, ask_key in (
-        ("progress", "bills"),
-        ("latest_action", "latest_action_bills"),
-    ):
-        search_response = client.get(
-            "/api/v1/bills",
-            params={
-                "topic": answer["topic"],
-                "scope": "legislature",
-                "sort": sort,
-                "limit": 5,
-            },
+    from alethical.db.schema import load_schema
+    from alethical.db.session import get_session_factory
+
+    schema = load_schema()
+    fixture_key = "94-2025-HF99001"
+
+    def remove_fixture() -> None:
+        with get_session_factory()() as db:
+            fixture = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == fixture_key)
+            )
+            if fixture is not None:
+                db.execute(
+                    delete(schema.AIEnrichment).where(
+                        schema.AIEnrichment.bill_id == fixture.id
+                    )
+                )
+                db.delete(fixture)
+                db.commit()
+
+    # Also clears a leftover row if a prior interrupted test run stopped before
+    # its finally block.
+    remove_fixture()
+    with get_session_factory()() as db:
+        session_row = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.slug == "94-2025-regular"
+            )
         )
-        assert search_response.status_code == 200
-        search = search_response.json()
-        assert search["page"]["total"] == answer["total_matches"]
-        assert [bill["id"] for bill in search["data"]] == [
-            bill["id"] for bill in answer[ask_key]
-        ]
+        chamber = db.scalar(
+            select(schema.Chamber).where(
+                schema.Chamber.jurisdiction_id == session_row.jurisdiction_id
+            )
+        )
+        title_only = schema.Bill(
+            session_id=session_row.id,
+            chamber_id=chamber.id,
+            bill_key=fixture_key,
+            file_type="HF",
+            file_number=99001,
+            title="Healthcare title-only regression fixture",
+            description="This wording is not its Issue label.",
+            current_status="Introduction and first reading",
+            latest_action_at=datetime(2025, 1, 5, tzinfo=timezone.utc),
+            official_url="https://example.test/title-only-issue-fixture",
+            is_omnibus=False,
+        )
+        db.add(title_only)
+        db.flush()
+        db.add(
+            schema.AIEnrichment(
+                bill_id=title_only.id,
+                enrichment_type=schema.EnrichmentType.bill_summary,
+                model_name="test-fixture",
+                content_json={
+                    "summary": "Fixture summary.",
+                    "policy_areas": ["Education"],
+                },
+                is_current=True,
+            )
+        )
+        db.commit()
+
+    try:
+        ask_response = client.post(
+            "/api/v1/ask",
+            json={"content": "What bills affect healthcare?"},
+        )
+        assert ask_response.status_code == 200
+        answer = ask_response.json()["data"]["answer"]
+        assert answer["topic"] == "Health"
+        assert fixture_key not in {bill["id"] for bill in answer["bills"]}
+
+        for sort, ask_key in (
+            ("progress", "bills"),
+            ("latest_action", "latest_action_bills"),
+        ):
+            search_response = client.get(
+                "/api/v1/bills",
+                params={
+                    "policy_area": answer["topic"],
+                    "scope": "legislature",
+                    "sort": sort,
+                    "limit": 5,
+                },
+            )
+            assert search_response.status_code == 200
+            search = search_response.json()
+            assert search["page"]["total"] == answer["total_matches"]
+            assert [bill["id"] for bill in search["data"]] == [
+                bill["id"] for bill in answer[ask_key]
+            ]
+
+            alias_response = client.get(
+                "/api/v1/bills",
+                params={
+                    "policy_area": "healthcare",
+                    "scope": "legislature",
+                    "sort": sort,
+                    "limit": 5,
+                },
+            )
+            assert alias_response.status_code == 200
+            alias_search = alias_response.json()
+            assert alias_search["page"]["total"] == search["page"]["total"]
+            assert [bill["id"] for bill in alias_search["data"]] == [
+                bill["id"] for bill in search["data"]
+            ]
+    finally:
+        remove_fixture()
 
 
 def test_ask_zero_match_topic_returns_no_matches_payload(client, monkeypatch):
@@ -3358,7 +3446,7 @@ def test_ask_zero_match_topic_returns_no_matches_payload(client, monkeypatch):
     # In-scope topic, zero matches: distinct NO MATCHES payload, never a
     # normal answer with nothing to cite.
     answer = data["answer"]
-    assert answer["topic"] == "healthcare"
+    assert answer["topic"] == "Health"
     assert answer["total_matches"] == 0
     assert answer["bills"] == []
     assert answer["latest_action_bills"] == []
@@ -4123,7 +4211,7 @@ def test_ask_answers_topic_legislators_question_grouped_by_chamber(client, monke
     assert data["intent"] == "topic_legislators"
 
     answer = data["answer"]
-    assert answer["topic"] == "economic development"
+    assert answer["topic"] == "Economic Development"
     assert answer["session"]["slug"] == "94-2025-regular"
     assert answer["total_bills"] >= 1
 
@@ -4159,7 +4247,7 @@ def test_ask_topic_legislators_zero_match_returns_no_matches(client, monkeypatch
     )
     assert response.status_code == 200
     answer = response.json()["data"]["answer"]
-    assert answer["topic"] == "healthcare"
+    assert answer["topic"] == "Health"
     assert answer["total_matches"] == 0
     assert answer["legislators"] == []
 
