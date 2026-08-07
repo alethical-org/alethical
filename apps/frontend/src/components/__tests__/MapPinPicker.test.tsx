@@ -16,28 +16,37 @@ import { MapPinPicker } from '../MapPinPicker';
 const source = readFileSync(join(__dirname, '..', 'MapPinPicker.tsx'), 'utf8');
 
 describe('district map credits', () => {
-  it('places stacked, right-aligned credits after the clickable map', () => {
+  it('places the instruction close to the map and the 3 left-aligned source rows below it', () => {
     const markup = renderToStaticMarkup(<MapPinPicker onCoordinateChange={vi.fn()} />);
 
-    expect(markup.indexOf('district-map-canvas')).toBeLessThan(
-      markup.indexOf('district-map-credits'),
-    );
+    const map = markup.indexOf('district-map-canvas');
+    const instruction = markup.indexOf('Click the map to choose a location');
+    const credits = markup.indexOf('district-map-credits');
+    expect(map).toBeLessThan(instruction);
+    expect(instruction).toBeLessThan(credits);
     expect(source).toMatch(
-      /credits:\s*\{[\s\S]*alignSelf: 'flex-end'[\s\S]*alignItems: 'flex-end'[\s\S]*flexDirection: 'column'/,
+      /credits:\s*\{[\s\S]*alignSelf: 'stretch'[\s\S]*alignItems: 'flex-start'[\s\S]*flexDirection: 'column'/,
     );
+    expect(source).toMatch(/helper:\s*\{[\s\S]*marginTop: 6[\s\S]*fontSize: 15/);
   });
 
-  it('keeps only the required OpenStreetMap credit and its external-source treatment', () => {
+  it('keeps all 3 source rows together and gives both links the profile-card treatment', () => {
     const markup = renderToStaticMarkup(<MapPinPicker onCoordinateChange={vi.fn()} />);
 
     expect(markup).not.toContain('District boundaries: Minnesota Legislature GIS');
-    expect(markup).not.toContain('https://gis.lcc.mn.gov/');
     expect(markup).not.toContain('© OpenStreetMap contributors');
     expect(source).toContain('label="© OpenStreetMap contributors"');
-    expect(source).not.toContain('GIS_CREDIT');
+    expect(markup).toContain('District lines from');
+    expect(markup).toContain('Minnesota’s Legislature');
+    expect(markup).toContain('href="https://gis.lcc.mn.gov/"');
+    expect(markup).toContain(
+      'This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau',
+    );
+    expect(markup).not.toContain('certified by the Census Bureau.');
     expect(source).toContain("{' (opens in a new tab)'}");
-    expect(source).toContain('viewBox="0 0 12 12"');
-    expect(source).toMatch(/creditLink:\s*\{[\s\S]*textDecorationLine: 'underline'/);
+    expect(source).toContain("{' →'}");
+    expect(source).toMatch(/creditLink:\s*\{[\s\S]*color: t.colors.brand.deep/);
+    expect(source).toMatch(/creditLink:\s*\{[\s\S]*textDecorationLine: 'none'/);
   });
 
   it('fits Minnesota before a district is selected and keeps the state context below districts', () => {
@@ -59,11 +68,9 @@ describe('district map credits', () => {
 
   it('describes clicking or tapping as the main way to adjust a selected location', () => {
     expect(source).toContain(
-      "'Click the map to adjust your location. Use + or − to zoom if needed.'",
+      "'Click the map to adjust your location. Use + or − to zoom if needed'",
     );
-    expect(source).toContain(
-      "'Tap the map to adjust your location. Use + or − to zoom if needed.'",
-    );
+    expect(source).toContain("'Tap the map to adjust your location. Use + or − to zoom if needed'");
     expect(source).not.toContain("'Drag the pin, click the map");
     expect(source).not.toContain("'Drag the pin or tap the map");
   });

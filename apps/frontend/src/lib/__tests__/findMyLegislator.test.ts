@@ -83,6 +83,8 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain("color: '#06231a'");
     expect(source).not.toContain('disabled={!address.trim()');
     expect(source).not.toContain('Minnesota district shapes are provided by Minnesota GIS.');
+    expect(source).not.toContain('This product uses the Census Bureau Data API');
+    expect(source).not.toContain('styles.notices');
     expect(source).toContain('Every address has one House district and one Senate district');
     expect(source).toContain('Looking up your districts');
     expect(source).toContain('setShimmerEnabled(true)');
