@@ -52,3 +52,6 @@ design-review decisions (2026-07-15)".
   at card size. Initials remain the fallback, used when a member has no portrait **or**
   when the stored one fails to load (the files are hosted on lrl.mn.gov, so one can 404
   without our record changing).
+  On web, the first visible row loads right away (two portraits on desktop, one on phone);
+  later portraits wait until they approach the screen. Every image declares the same
+  64×74 size as its frame and decodes asynchronously, so waiting does not move the cards.

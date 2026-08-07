@@ -29,6 +29,7 @@ import {
   clearLegislatorSearchParams,
   deriveLegislatorEmptyState,
   filterLegislatorsByName,
+  isLegislatorPortraitEager,
   paginateLegislatorResults,
 } from '../../lib/legislatorSearch';
 import {
@@ -295,10 +296,11 @@ export function SearchLegislatorsScreen() {
       ) : (
         <>
           <View style={styles.grid}>
-            {pagination.items.map((legislator) => (
+            {pagination.items.map((legislator, cardIndex) => (
               <View key={legislator.id} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
                 <LegislatorResultCard
                   legislator={legislator}
+                  portraitEager={isLegislatorPortraitEager(cardIndex, isDesktop)}
                   onPress={() =>
                     navigation.navigate('LegislatorProfile', {
                       legislatorId: legislator.slug ?? legislator.id,

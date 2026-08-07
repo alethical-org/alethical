@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   CLEAR_SEARCH_TARGET_SIZE,
   LEGISLATOR_PAGE_SIZE,
+  LEGISLATOR_PORTRAIT_HEIGHT,
+  LEGISLATOR_PORTRAIT_LOOKAHEAD,
+  LEGISLATOR_PORTRAIT_WIDTH,
   LEGISLATOR_SEARCH_LABEL,
   billAuthorshipLabel,
   clearAllLegislatorSearchParams,
@@ -10,7 +13,11 @@ import {
   clearLegislatorSearchParams,
   deriveLegislatorEmptyState,
   filterLegislatorsByName,
+  isLegislatorPortraitEager,
+  legislatorPortraitFallbackProps,
+  legislatorPortraitImageProps,
   paginateLegislatorResults,
+  shouldShowLegislatorPortrait,
 } from '../legislatorSearch';
 
 describe('Search Legislators presentation', () => {
@@ -102,5 +109,48 @@ describe('Search Legislators presentation', () => {
     expect(billAuthorshipLabel(2)).toBe(
       '2 bills authored or co-authored across available sessions',
     );
+  });
+
+  it('loads only the first visible portrait row eagerly', () => {
+    expect([0, 1, 2].map((index) => isLegislatorPortraitEager(index, true))).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    expect([0, 1].map((index) => isLegislatorPortraitEager(index, false))).toEqual([true, false]);
+  });
+
+  it('gives portrait files a stable size and non-blocking browser hints', () => {
+    expect(LEGISLATOR_PORTRAIT_WIDTH).toBe(64);
+    expect(LEGISLATOR_PORTRAIT_HEIGHT).toBe(74);
+    expect(LEGISLATOR_PORTRAIT_LOOKAHEAD).toBe(320);
+    expect(legislatorPortraitImageProps(true)).toEqual({
+      'aria-hidden': true,
+      alt: '',
+      decoding: 'async',
+      fetchPriority: 'high',
+      height: 74,
+      loading: 'eager',
+      width: 64,
+    });
+    expect(legislatorPortraitImageProps(false)).toEqual({
+      'aria-hidden': true,
+      alt: '',
+      decoding: 'async',
+      fetchPriority: 'low',
+      height: 74,
+      loading: 'lazy',
+      width: 64,
+    });
+    expect(legislatorPortraitFallbackProps()).toEqual({
+      'aria-hidden': true,
+      accessibilityElementsHidden: true,
+    });
+  });
+
+  it('uses initials when a portrait is missing or fails to load', () => {
+    expect(shouldShowLegislatorPortrait('https://example.com/member.jpg', false)).toBe(true);
+    expect(shouldShowLegislatorPortrait('https://example.com/member.jpg', true)).toBe(false);
+    expect(shouldShowLegislatorPortrait(undefined, false)).toBe(false);
   });
 });

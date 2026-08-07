@@ -1,10 +1,18 @@
-import { createElement, useState } from 'react';
+import { createElement, useEffect, useRef, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Legislator } from '../../data/types';
 import { usePrefetchLegislator } from '../../hooks/useAppQueries';
 import { partyFull } from '../../lib/billDetail';
-import { billAuthorshipLabel } from '../../lib/legislatorSearch';
+import {
+  LEGISLATOR_PORTRAIT_HEIGHT,
+  LEGISLATOR_PORTRAIT_LOOKAHEAD,
+  LEGISLATOR_PORTRAIT_WIDTH,
+  billAuthorshipLabel,
+  legislatorPortraitFallbackProps,
+  legislatorPortraitImageProps,
+  shouldShowLegislatorPortrait,
+} from '../../lib/legislatorSearch';
 import { linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
@@ -30,6 +38,66 @@ type LegislatorCardData = Pick<
 interface LegislatorResultCardProps {
   legislator: LegislatorCardData;
   onPress?: () => void;
+  portraitEager?: boolean;
+}
+
+function WebPortrait({
+  eager,
+  onError,
+  photoUrl,
+}: {
+  eager: boolean;
+  onError: () => void;
+  photoUrl: string;
+}) {
+  const [sourceReady, setSourceReady] = useState(eager);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (eager) {
+      setSourceReady(true);
+      return;
+    }
+    if (sourceReady) return;
+    if (typeof window === 'undefined' || typeof window.IntersectionObserver !== 'function') {
+      setSourceReady(true);
+      return;
+    }
+
+    const image = imageRef.current;
+    if (!image) return;
+    let scrollRoot: Element | null = image.parentElement;
+    while (
+      scrollRoot &&
+      !['auto', 'scroll'].includes(window.getComputedStyle(scrollRoot).overflowY)
+    ) {
+      scrollRoot = scrollRoot.parentElement;
+    }
+    const observer = new window.IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setSourceReady(true);
+        observer.disconnect();
+      },
+      { root: scrollRoot, rootMargin: `${LEGISLATOR_PORTRAIT_LOOKAHEAD}px 0px` },
+    );
+    observer.observe(image);
+    return () => observer.disconnect();
+  }, [eager, sourceReady]);
+
+  return createElement('img', {
+    ...legislatorPortraitImageProps(eager),
+    ref: imageRef,
+    src: sourceReady ? photoUrl : undefined,
+    onError,
+    style: {
+      display: 'block',
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      objectPosition: 'center top',
+    },
+  });
 }
 
 function initials(name: string): string {
@@ -54,7 +122,11 @@ function authoredCount(data: LegislatorCardData): number {
   return 0;
 }
 
-export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCardProps) {
+export function LegislatorResultCard({
+  legislator,
+  onPress,
+  portraitEager = true,
+}: LegislatorResultCardProps) {
   const [hovered, setHovered] = useState(false);
   // Fall back to initials when the portrait 404s, not just when the record has no
   // URL — the photos are hosted on lrl.mn.gov, so a member's file can disappear
@@ -71,6 +143,7 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
   const extra = committees.length - shown.length;
   const authored = authoredCount(legislator);
   const authorshipLabel = billAuthorshipLabel(authored);
+  const portraitUrl = legislator.photoUrl;
 
   return (
     <Pressable
@@ -85,35 +158,29 @@ export function LegislatorResultCard({ legislator, onPress }: LegislatorResultCa
     >
       <View style={styles.topRow}>
         <View style={styles.avatar}>
-          {legislator.photoUrl && !photoFailed ? (
+          {shouldShowLegislatorPortrait(portraitUrl, photoFailed) ? (
             // Decorative: the name is already text beside it, so labelling the
             // portrait would make a screen reader read the name twice inside
             // this one link.
             isWeb ? (
-              createElement('img', {
-                'aria-hidden': true,
-                alt: '',
-                src: legislator.photoUrl,
-                onError: () => setPhotoFailed(true),
-                style: {
-                  display: 'block',
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center top',
-                },
-              })
+              <WebPortrait
+                eager={portraitEager}
+                photoUrl={portraitUrl}
+                onError={() => setPhotoFailed(true)}
+              />
             ) : (
               <Image
                 accessibilityElementsHidden
-                source={{ uri: legislator.photoUrl }}
+                source={{ uri: portraitUrl }}
                 resizeMode="cover"
                 onError={() => setPhotoFailed(true)}
                 style={styles.avatarPhoto}
               />
             )
           ) : (
-            <Text style={styles.avatarText}>{initials(legislator.name)}</Text>
+            <Text {...legislatorPortraitFallbackProps()} style={styles.avatarText}>
+              {initials(legislator.name)}
+            </Text>
           )}
         </View>
         <View style={styles.info}>
@@ -174,8 +241,8 @@ const styles = StyleSheet.create({
   },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   avatar: {
-    width: 64,
-    height: 74,
+    width: LEGISLATOR_PORTRAIT_WIDTH,
+    height: LEGISLATOR_PORTRAIT_HEIGHT,
     borderRadius: 12,
     flexShrink: 0,
     backgroundColor: t.colors.tint.t150,
