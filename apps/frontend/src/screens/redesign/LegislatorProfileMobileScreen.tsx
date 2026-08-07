@@ -17,6 +17,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { theme as t } from '../../theme/tokens';
 import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { Skeleton } from '../../components/Skeleton';
+import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
 import { buildAskChips, splitOfficeAddress } from '../../lib/legislatorProfile';
 import { IaItem, MenuKey } from '../../navigation/ia';
@@ -339,53 +340,55 @@ function BillCardView({
   );
   const movedDate = formatMonoDate(bill.updatedAt);
   return (
-    <Pressable {...linkProps(routePath.bill(bill.id), onOpen)} style={styles.billCard}>
-      <View style={styles.billTopRow}>
-        <Text style={styles.codeBadge}>{bill.identifier}</Text>
-        <Text style={styles.billStage}>{bill.status}</Text>
-      </View>
-      <View style={styles.progressRow}>
-        {Array.from({ length: 5 }, (_, i) => (
-          <View
-            key={i}
-            style={[styles.progressSeg, i < filled ? styles.progressOn : styles.progressOff]}
-          />
-        ))}
-      </View>
-      {movedDate ? <Text style={styles.lastMoved}>LAST MOVED {movedDate}</Text> : null}
-      <Text style={styles.billTitle}>{cardTitle}</Text>
-      {summary ? <Text style={styles.billSummary}>{summary}</Text> : null}
-      {coChiefs.length > 0 || coAuthors > 0 ? (
-        <Text style={styles.coAuthor}>
-          {coChiefs.length > 0 ? (
-            <>
-              {coChiefs.length === 1 ? 'Co-chief author: ' : 'Co-chief authors: '}
-              {coChiefs.map((s, i) => (
-                <Text key={s.legislatorId ?? s.name}>
-                  {i > 0 ? ', ' : ''}
-                  <Text
-                    style={styles.coAuthorLink}
-                    // Nested inside the card's own link (above): stopPropagation
-                    // alone would stop the card's handler but not the anchor's
-                    // default action, so the browser would still follow the
-                    // card's href on top of opening this name.
-                    onPress={
-                      s.legislatorId
-                        ? pressInsideLink(() => onOpenLegislator(s.legislatorId!))
-                        : undefined
-                    }
-                  >
-                    {s.name}
+    <View style={styles.billCard}>
+      <Pressable {...linkProps(routePath.bill(bill.id), onOpen)}>
+        <View style={styles.billTopRow}>
+          <Text style={styles.codeBadge}>{bill.identifier}</Text>
+          <Text style={styles.billStage}>{bill.status}</Text>
+        </View>
+        <View style={styles.progressRow}>
+          {Array.from({ length: 5 }, (_, i) => (
+            <View
+              key={i}
+              style={[styles.progressSeg, i < filled ? styles.progressOn : styles.progressOff]}
+            />
+          ))}
+        </View>
+        {movedDate ? <Text style={styles.lastMoved}>LAST MOVED {movedDate}</Text> : null}
+        <Text style={styles.billTitle}>{cardTitle}</Text>
+        {summary ? <Text style={styles.billSummary}>{summary}</Text> : null}
+        {coChiefs.length > 0 || coAuthors > 0 ? (
+          <Text style={styles.coAuthor}>
+            {coChiefs.length > 0 ? (
+              <>
+                {coChiefs.length === 1 ? 'Co-chief author: ' : 'Co-chief authors: '}
+                {coChiefs.map((s, i) => (
+                  <Text key={s.legislatorId ?? s.name}>
+                    {i > 0 ? ', ' : ''}
+                    <Text
+                      style={styles.coAuthorLink}
+                      // Nested inside the card's own link (above): stopPropagation
+                      // alone would stop the card's handler but not the anchor's
+                      // default action, so the browser would still follow the
+                      // card's href on top of opening this name.
+                      onPress={
+                        s.legislatorId
+                          ? pressInsideLink(() => onOpenLegislator(s.legislatorId!))
+                          : undefined
+                      }
+                    >
+                      {s.name}
+                    </Text>
                   </Text>
-                </Text>
-              ))}
-              {coAuthors > 0 ? `   +${coAuthors} co-authors` : ''}
-            </>
-          ) : (
-            `+${coAuthors} co-authors`
-          )}
-        </Text>
-      ) : null}
+                ))}
+                {coAuthors > 0 ? `   +${coAuthors} co-authors` : ''}
+              </>
+            ) : (
+              `+${coAuthors} co-authors`
+            )}
+          </Text>
+        ) : null}
+      </Pressable>
       {tags.length > 0 || bill.companion || bill.rollCallCount > 0 ? (
         <View style={styles.tagRow}>
           {tags.slice(0, 3).map((tag) => (
@@ -400,31 +403,14 @@ function BillCardView({
               </Text>
             </View>
           ) : null}
-          {bill.rollCallCount > 0 ? (
-            // Nested inside the card's own link above (an <a> inside an <a> is
-            // invalid markup — grounded-answers nesting rule), so this stays a
-            // plain pressable rather than a link of its own; pressInsideLink still
-            // cancels the click so the browser doesn't also follow the card's href.
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel="View votes"
-              onPress={pressInsideLink(onVotes)}
-              style={styles.voteChip}
-            >
-              <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M5 20 V10 M12 20 V4 M19 20 V14"
-                  stroke={t.colors.brand.graphics}
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                />
-              </Svg>
-              <Text style={styles.voteChipText}>VIEW VOTES</Text>
-            </Pressable>
-          ) : null}
+          <VoteCountLinkChip
+            count={bill.rollCallCount}
+            href={routePath.bill(bill.id, { tab: 'votes' })}
+            onPress={pressInsideLink(onVotes)}
+          />
         </View>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
@@ -1388,26 +1374,6 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.6,
     color: t.colors.text.secondary,
-  },
-  voteChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    // Leading vote-tally glyph, so 3px less on the left (docs/design/design-principles.md §2, Optical centering).
-    paddingLeft: 8,
-    paddingRight: 11,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink16,
-    borderRadius: 8,
-  },
-  voteChipText: {
-    fontFamily: t.typography.mono,
-    fontSize: 10,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.3,
-    color: t.colors.brand.deep,
   },
   seeMore: {
     marginTop: 0,

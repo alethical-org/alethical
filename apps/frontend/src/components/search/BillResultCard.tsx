@@ -18,6 +18,7 @@ import {
 } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
 import { ChangeBlock } from '../ChangeBlock';
+import { VoteCountLinkChip } from '../VoteCountLinkChip';
 import { linkProps, pressInsideLink, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
@@ -242,107 +243,108 @@ export function BillResultCard({
   const effectiveDate = bill.effectiveDate ? formatNiceDate(bill.effectiveDate) : null;
 
   return (
-    <Pressable
-      {...linkProps(routePath.bill(bill.id), onPress)}
-      onPressIn={warm}
-      onHoverIn={() => {
-        setHovered(true);
-        warm();
-      }}
-      onHoverOut={() => setHovered(false)}
-      style={[styles.card, hovered && styles.cardHover]}
-    >
-      {isMobile ? (
-        // Mobile: a stable two-row header on EVERY card — row 1 identity (code
-        // badge, optional OMNIBUS tag, optional hot-issue pill) with Track holding
-        // the right edge, row 2 the status/progress unit — so the progress bar sits
-        // in the same place whether or not a label is present, instead of reflowing
-        // card-to-card. Measured at a 375px viewport: the card leaves 265px of
-        // content width, the progress bar alone takes 166px of it and the Track
-        // button 107px, so Track and the progress bar cannot share a row even
-        // before the status word.
-        //
-        // Row 1's shape is load-bearing, and it is the constraint that keeps this
-        // card off the path that got the phone Track button removed once before
-        // (#596, crowded top row). The label group is flex:1 with minWidth:0 and
-        // wraps INTERNALLY; Track is flex:none with marginLeft:auto. So the button
-        // sits in the identical spot whether a bill carries zero, one or both
-        // labels — a two-label bill wraps its labels onto a second line underneath
-        // themselves rather than pushing the button onto a line of its own.
-        <View style={styles.headerMobile}>
-          <View style={styles.headerTopRow}>
-            <View style={styles.headerLabels}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{bill.identifier}</Text>
+    <View style={[styles.card, hovered && styles.cardHover]}>
+      <Pressable
+        {...linkProps(routePath.bill(bill.id), onPress)}
+        onPressIn={warm}
+        onHoverIn={() => {
+          setHovered(true);
+          warm();
+        }}
+        onHoverOut={() => setHovered(false)}
+        style={styles.cardMain}
+      >
+        {isMobile ? (
+          // Mobile: a stable two-row header on EVERY card — row 1 identity (code
+          // badge, optional OMNIBUS tag, optional hot-issue pill) with Track holding
+          // the right edge, row 2 the status/progress unit — so the progress bar sits
+          // in the same place whether or not a label is present, instead of reflowing
+          // card-to-card. Measured at a 375px viewport: the card leaves 265px of
+          // content width, the progress bar alone takes 166px of it and the Track
+          // button 107px, so Track and the progress bar cannot share a row even
+          // before the status word.
+          //
+          // Row 1's shape is load-bearing, and it is the constraint that keeps this
+          // card off the path that got the phone Track button removed once before
+          // (#596, crowded top row). The label group is flex:1 with minWidth:0 and
+          // wraps INTERNALLY; Track is flex:none with marginLeft:auto. So the button
+          // sits in the identical spot whether a bill carries zero, one or both
+          // labels — a two-label bill wraps its labels onto a second line underneath
+          // themselves rather than pushing the button onto a line of its own.
+          <View style={styles.headerMobile}>
+            <View style={styles.headerTopRow}>
+              <View style={styles.headerLabels}>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{bill.identifier}</Text>
+                </View>
+                {bill.isOmnibus ? <OmnibusPill /> : null}
+                {hotIssue ? <HotIssuePill /> : null}
               </View>
-              {bill.isOmnibus ? <OmnibusPill /> : null}
-              {hotIssue ? <HotIssuePill /> : null}
-            </View>
-            {/* The phone card used to render NO Track control at all, so a bill could
+              {/* The phone card used to render NO Track control at all, so a bill could
                 be tracked but never untracked from a phone — while the Tracked page's
                 own subhead told the reader to "Tap Track on any bill to add or remove
                 it" (#1007). It honours the same showTrackButton prop the desktop
                 branch does and shows the action by default at every viewport (#1138).
                 Bill cards use the compact size at every viewport; all three sizes
                 carry the same 44px minimum touch target. */}
-            {showTrackButton && onToggleTrack ? (
-              <View style={styles.headerTrackSlot}>
-                <BillTrackButton
-                  size="card"
-                  tracked={tracked}
-                  onPress={pressInsideLink(onToggleTrack)}
-                />
+              {showTrackButton && onToggleTrack ? (
+                <View style={styles.headerTrackSlot}>
+                  <BillTrackButton
+                    size="card"
+                    tracked={tracked}
+                    onPress={pressInsideLink(onToggleTrack)}
+                  />
+                </View>
+              ) : null}
+            </View>
+            <View style={styles.headerRow}>
+              <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
+              <ProgressBar index={index} tone={tone} />
+            </View>
+          </View>
+        ) : (
+          <View style={styles.topRow}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{bill.identifier}</Text>
+            </View>
+            {bill.isOmnibus ? <OmnibusPill /> : null}
+            <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
+            <ProgressBar index={index} tone={tone} />
+            <View style={styles.topSpacer} />
+            {/* Right group: the "🔥 Hot issue" flag sits to the LEFT of Track with a
+              16px gap, on the same row — it adds no card height. */}
+            {hotIssue || showTrackButton ? (
+              <View style={styles.topRight}>
+                {hotIssue ? <HotIssuePill /> : null}
+                {showTrackButton && onToggleTrack ? (
+                  // The card is a real link, so swallow the tap (pressInsideLink) or
+                  // clicking Track would follow the card's href to the bill.
+                  <BillTrackButton
+                    size="card"
+                    tracked={tracked}
+                    onPress={pressInsideLink(onToggleTrack)}
+                  />
+                ) : null}
               </View>
             ) : null}
           </View>
-          <View style={styles.headerRow}>
-            <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
-            <ProgressBar index={index} tone={tone} />
-          </View>
-        </View>
-      ) : (
-        <View style={styles.topRow}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{bill.identifier}</Text>
-          </View>
-          {bill.isOmnibus ? <OmnibusPill /> : null}
-          <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
-          <ProgressBar index={index} tone={tone} />
-          <View style={styles.topSpacer} />
-          {/* Right group: the "🔥 Hot issue" flag sits to the LEFT of Track with a
-              16px gap, on the same row — it adds no card height. */}
-          {hotIssue || showTrackButton ? (
-            <View style={styles.topRight}>
-              {hotIssue ? <HotIssuePill /> : null}
-              {showTrackButton && onToggleTrack ? (
-                // The card is a real link, so swallow the tap (pressInsideLink) or
-                // clicking Track would follow the card's href to the bill.
-                <BillTrackButton
-                  size="card"
-                  tracked={tracked}
-                  onPress={pressInsideLink(onToggleTrack)}
-                />
-              ) : null}
-            </View>
-          ) : null}
-        </View>
-      )}
+        )}
 
-      <Text
-        ref={titleRef}
-        style={styles.title}
-        // Only clamp when falling back to the long statutory title — the
-        // AI-generated short title is already short and shouldn't get an
-        // ellipsis just because it wraps to 3 lines on a narrow viewport.
-        numberOfLines={bill.aiAnalysis?.shortTitle ? undefined : 2}
-        accessibilityLabel={bill.title}
-      >
-        {bill.aiAnalysis?.shortTitle ?? bill.title}
-      </Text>
+        <Text
+          ref={titleRef}
+          style={styles.title}
+          // Only clamp when falling back to the long statutory title — the
+          // AI-generated short title is already short and shouldn't get an
+          // ellipsis just because it wraps to 3 lines on a narrow viewport.
+          numberOfLines={bill.aiAnalysis?.shortTitle ? undefined : 2}
+          accessibilityLabel={bill.title}
+        >
+          {bill.aiAnalysis?.shortTitle ?? bill.title}
+        </Text>
 
-      {summary ? <Text style={styles.summary}>{summary}</Text> : null}
+        {summary ? <Text style={styles.summary}>{summary}</Text> : null}
 
-      {/* With no summary the change block follows the title directly, and the
+        {/* With no summary the change block follows the title directly, and the
           card's own 12px gap reads tight under a 25px bold heading — so it takes
           20px there. On BOTH surfaces: the handoff says this case is invisible on
           a phone because the phone card renders no summary line, and that is
@@ -350,69 +352,62 @@ export function BillResultCard({
           before the title; the title and the summary are rendered once, outside
           it, by both layouts. Verified in this file and in the committed 375px
           screenshots at docs/verification/1007-tracked-bills-phone/. */}
-      {change ? (
-        <View style={summary ? undefined : styles.changeAfterTitle}>
-          <ChangeBlock change={change} onHistory={onChangeHistory} />
+        {change ? (
+          <View style={summary ? undefined : styles.changeAfterTitle}>
+            <ChangeBlock change={change} onHistory={onChangeHistory} />
+          </View>
+        ) : null}
+
+        <View style={styles.meta}>
+          <View style={styles.metaRow}>
+            <Text style={[styles.metaText, styles.metaLabel]}>Chief author: </Text>
+            {chief ? (
+              <>
+                <Text style={styles.metaText}>{authorTitleLabel(chief.chamber)} </Text>
+                <ChiefAuthorLink author={chief} onPress={onSponsorPress} />
+              </>
+            ) : (
+              <Text style={styles.metaText}>Unavailable</Text>
+            )}
+          </View>
+          {/* Dropped when the change block is showing: the block states this same
+            action, so printing both puts one fact on the card twice. */}
+          {!change && (actionLabel || actionDate) ? (
+            <View style={[styles.metaRow, styles.actionRow]}>
+              <Text style={[styles.metaText, styles.metaLabel]}>Latest action:</Text>
+              {actionLabel ? (
+                <Text style={[styles.metaText, styles.actionValue]}>{actionLabel}</Text>
+              ) : null}
+              {actionDate ? (
+                <Text style={[styles.metaText, styles.metaLabel]}>{actionDate}</Text>
+              ) : null}
+            </View>
+          ) : null}
+          {effectiveDate ? (
+            <View style={styles.metaRow}>
+              <Text style={[styles.metaText, styles.metaLabel]}>Effective: </Text>
+              <Text style={[styles.metaText, styles.actionValue]}>{effectiveDate}</Text>
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+      {/* This row sits beside, rather than inside, the card's main link. That keeps
+          the vote count a valid independent link on web. */}
+      {policyAreas.length > 0 || bill.rollCallCount > 0 ? (
+        <View style={styles.tagRow}>
+          {policyAreas.map((topic) => (
+            <View key={topic} style={styles.tag}>
+              <Text style={styles.tagText}>{titleCaseIssue(topic)}</Text>
+            </View>
+          ))}
+          <VoteCountLinkChip
+            count={bill.rollCallCount}
+            href={routePath.bill(bill.id, { tab: 'votes' })}
+            onPress={pressInsideLink(() => onRollCalls?.())}
+          />
         </View>
       ) : null}
-
-      <View style={styles.meta}>
-        <View style={styles.metaRow}>
-          <Text style={[styles.metaText, styles.metaLabel]}>Chief author: </Text>
-          {chief ? (
-            <>
-              <Text style={styles.metaText}>{authorTitleLabel(chief.chamber)} </Text>
-              <ChiefAuthorLink author={chief} onPress={onSponsorPress} />
-            </>
-          ) : (
-            <Text style={styles.metaText}>Unavailable</Text>
-          )}
-        </View>
-        {/* Dropped when the change block is showing: the block states this same
-            action, so printing both puts one fact on the card twice. */}
-        {!change && (actionLabel || actionDate) ? (
-          <View style={[styles.metaRow, styles.actionRow]}>
-            <Text style={[styles.metaText, styles.metaLabel]}>Latest action:</Text>
-            {actionLabel ? (
-              <Text style={[styles.metaText, styles.actionValue]}>{actionLabel}</Text>
-            ) : null}
-            {actionDate ? (
-              <Text style={[styles.metaText, styles.metaLabel]}>{actionDate}</Text>
-            ) : null}
-          </View>
-        ) : null}
-        {effectiveDate ? (
-          <View style={styles.metaRow}>
-            <Text style={[styles.metaText, styles.metaLabel]}>Effective: </Text>
-            <Text style={[styles.metaText, styles.actionValue]}>{effectiveDate}</Text>
-          </View>
-        ) : null}
-        {/* Skipped entirely when there is nothing to put in it: the issue tags come
-            from the AI enrichment, so a bill still awaiting one has none, and with
-            no roll calls either the row would render empty and still collect the
-            meta block's 11px gap as a stray space under the card (#1007). */}
-        {policyAreas.length > 0 || bill.rollCallCount > 0 ? (
-          <View style={styles.tagRow}>
-            {policyAreas.map((topic) => (
-              <View key={topic} style={styles.tag}>
-                <Text style={styles.tagText}>{titleCaseIssue(topic)}</Text>
-              </View>
-            ))}
-            {bill.rollCallCount > 0 ? (
-              <Pressable
-                accessibilityRole="link"
-                onPress={pressInsideLink(() => onRollCalls?.())}
-                style={styles.rollCalls}
-              >
-                <Text style={styles.rollCallsText}>
-                  {bill.rollCallCount} {bill.rollCallCount === 1 ? 'vote' : 'votes'}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -434,6 +429,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(45,212,126,0.55)',
     ...(t.shadows.lg as object),
   },
+  cardMain: { gap: 12 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 14, flexWrap: 'wrap' },
   topSpacer: { flex: 1 },
   // Right-aligned group holding the Hot-issue flag + Track, 16px apart.
@@ -576,20 +572,5 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.7,
     color: t.colors.text.secondary,
-  },
-  rollCalls: {
-    backgroundColor: t.colors.tint.t150,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    borderRadius: t.radii.sm,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  rollCallsText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.4,
-    color: t.colors.text.green,
   },
 });
