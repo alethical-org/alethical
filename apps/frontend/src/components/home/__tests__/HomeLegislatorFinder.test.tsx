@@ -7,8 +7,10 @@ const { renderToStaticMarkup } = require('react-dom/server') as {
 };
 
 vi.mock('../../icons', () => ({
+  Crosshair: ({ size }: { size: number }) => (
+    <svg aria-hidden="true" data-icon="crosshair" data-size={size} />
+  ),
   MapPin: () => <span aria-hidden="true" />,
-  Navigation: () => <span aria-hidden="true" />,
 }));
 vi.mock('react-native-svg', () => ({
   default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,
@@ -61,6 +63,25 @@ describe('homepage legislator finder form', () => {
     expect(html).not.toContain('disabled=""');
     expect(html).not.toContain('disabled="true"');
     expect(html).not.toContain('aria-disabled="true"');
+  });
+
+  it('matches the destination page control without taking width from the address field', () => {
+    const desktop = renderFinder();
+    const phone = renderFinder({ layout: 'phone' });
+    const source = readFileSync(join(__dirname, '..', 'HomeLegislatorFinder.tsx'), 'utf8');
+    const desktopButtonStyle = source.slice(
+      source.indexOf('locationButtonDesktop:'),
+      source.indexOf('locationButtonWaiting:'),
+    );
+    const inputStyle = source.slice(source.indexOf('input: {'), source.indexOf('findButton: {'));
+
+    expect(desktop).toContain('data-icon="crosshair"');
+    expect(desktop).toContain('data-size="19"');
+    expect(phone).toContain('data-size="18"');
+    expect(desktopButtonStyle).toContain('height: 62');
+    expect(desktopButtonStyle).not.toContain('minWidth');
+    expect(inputStyle).toContain('fontSize: 16');
+    expect(inputStyle).toContain('inputDesktop: { fontSize: 18');
   });
 
   it('keeps 1 shared finder below either phone hero', () => {
