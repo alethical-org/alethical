@@ -24,7 +24,9 @@ describe('district map credits', () => {
     const markup = renderToStaticMarkup(<MapPinPicker onCoordinateChange={vi.fn()} />);
 
     const map = markup.indexOf('district-map-canvas');
-    const instruction = markup.indexOf('Click the map to choose your location');
+    const instruction = markup.indexOf(
+      'Drag the map to explore, then click to choose your location',
+    );
     const explanation = markup.indexOf('Every address has one House district');
     const credits = markup.indexOf('district-map-credits');
     expect(map).toBeLessThan(instruction);
@@ -99,20 +101,29 @@ describe('district map credits', () => {
   });
 
   it('keeps unresolved helper text clean and hands outside map selections to the screen', () => {
-    expect(source).toContain("'Tap the map to choose your location'");
-    expect(source).toContain("'Click the map to choose your location'");
-    expect(source).not.toContain("'Tap the map to choose your location.'");
-    expect(source).not.toContain("'Click the map to choose your location.'");
+    expect(source).toContain("'Drag the map to explore, then tap to choose your location'");
+    expect(source).toContain("'Drag the map to explore, then click to choose your location'");
     expect(source).toContain('onOutsideMinnesota?:');
     expect(source).toContain('onOutsideMinnesota?.(chosen)');
   });
 
-  it('describes clicking or tapping as the main way to adjust a selected location', () => {
-    expect(source).toContain("'Click the map to adjust your location'");
-    expect(source).toContain("'Tap the map to adjust your location'");
+  it('describes dragging before clicking or tapping to adjust a selected location', () => {
+    expect(source).toContain("'Drag the map to explore, then click to adjust your location'");
+    expect(source).toContain("'Drag the map to explore, then tap to adjust your location'");
     expect(source).not.toContain('Use + or − to zoom if needed');
     expect(source).not.toContain("'Drag the pin, click the map");
     expect(source).not.toContain("'Drag the pin or tap the map");
+  });
+
+  it('keeps one responder alive for the whole map drag at every zoom level', () => {
+    const mapPanSource = source.slice(
+      source.indexOf('const mapPan'),
+      source.indexOf('const pinPan'),
+    );
+
+    expect(mapPanSource).toContain('mapState.current');
+    expect(mapPanSource).toMatch(/\n\s*\[\],\n\s*\);/);
+    expect(source).toMatch(/touchAction: 'none'[\s\S]*cursor: 'grab'/);
   });
 
   it('keeps the district explanation on the full map width without a final period', () => {
