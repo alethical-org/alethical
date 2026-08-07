@@ -48,7 +48,7 @@ import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 // Grounded-answers notes: the "Legislative Service" card renders the member's
 // ordered election history + current-chamber term, ingested from the official
 // bios into legislator_election_history (issue #486); it shows only when real
-// data is present. The "Ask about this legislator" card uses starter chips that
+// data is present. The "Ask about these issues" card uses starter chips that
 // stay topic-scoped and answerable — the mock's literal person/vote chips would refuse or deflect today
 // (no person-scoped Ask answer path; that's #484), and grounded-answers rule 2
 // forbids chips that lead to a refusal. The roadmap zone stays non-interactive
@@ -622,8 +622,10 @@ function LinkChip({ label, href, onPress }: { label: string; href: string; onPre
 function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void }) {
   return (
     <View style={styles.card}>
-      <Text style={styles.h3}>Ask about this legislator</Text>
-      <Text style={styles.askSubtext}>Answers cite the public record</Text>
+      <Text style={styles.h3}>Ask about these issues</Text>
+      <Text style={styles.askSubtext}>
+        Topics from this legislator’s bills. Answers cite the public record.
+      </Text>
       <View style={styles.askChipRow}>
         {chips.map((chip) => (
           <AskChip key={chip} label={chip} onPress={() => onAsk(chip)} />

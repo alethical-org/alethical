@@ -110,10 +110,12 @@ that placeholder treatment.
    only for the explanation the legislator has not written. If the member has no
    vote carrying all 3 source facts, omit the specimen rather than inventing one.
 
-## Ask about this legislator
+## Ask about these issues
 
-Match the bill profile's Ask pattern: heading, **"Answers cite the public record"**,
-then the 3 preset questions. There is no free-text field or separate Ask button.
+Match the bill profile's Ask pattern: heading, **"Topics from this legislator’s
+bills. Answers cite the public record."**, then the 3 preset questions. The topics
+come from bills the member authored or co-authored; they do not describe the
+member's views or priorities. There is no free-text field or separate Ask button.
 The answerable topic questions remain the grounded-answers exception to the
 illustrative design copy until person-scoped answers ship.
 
