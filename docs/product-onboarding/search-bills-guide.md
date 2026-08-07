@@ -41,7 +41,7 @@ stack: every filter you add trims the list down more.
 - **Stage** — where a bill is in the process: Introduced → In Committee → Passed House
   → Passed Senate → Passed both chambers → Signed into Law, plus Vetoed as a separate
   end state.
-- **Session** — which legislative session. Two are loaded: the 2025–2026 session, and
+- **Session** — which legislative session. Two are loaded: the 2025–26 session, and
   the 2025 First Special Session, the two-day sitting in June 2025 that finished the
   budget. Its bills are numbered from 1 all over again, so "HF 5" there is a different
   bill from "HF 5" in the regular session, and you only see one session's bills at a time.

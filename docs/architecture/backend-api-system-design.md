@@ -456,6 +456,10 @@ Purpose:
 
 - resolve the current session in one call
 
+Session summaries include `session_number`, `year_start`, and `year_end` alongside the
+stored session name. Clients build display labels from those fields so regular bienniums
+use one site-wide range format without rewriting the stored record.
+
 ### Bills
 
 #### `GET /api/v1/bills`
