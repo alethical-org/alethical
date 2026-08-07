@@ -39,6 +39,10 @@ equally close, **Choose your address** appears with up to 5 choices. Click or ta
 right one. With a keyboard, use the up and down arrows, Enter to choose, or Escape to
 close the list.
 
+After a successful search, the address box and the page's browser link use the official
+address that was found. For example, a safe typo match replaces the typo instead of
+leaving it in the box or link.
+
 Alethical refuses to guess when the official result list is incomplete or no safe match
 stands out.
 
@@ -143,9 +147,10 @@ What happens to the location data:
   to Minnesota's Legislative Coordinating Commission to find the state districts.
 - The lookup does not require sign-in and does not read your Alethical account.
 - Alethical does not offer a button that saves this address or point to your account.
-- A typed address appears in the page's browser link so the lookup can reload. Copying
-  or sharing that link also shares the typed address. Browser-location and map-point
-  coordinates are not added to the link.
+- The address in the box appears in the page's browser link so the lookup can reload.
+  After a successful match, both use the official address that was found. Copying or
+  sharing that link also shares that address. Browser-location and map-point coordinates
+  are not added to the link.
 
 The full record of what Alethical keeps and shares is in
 [`docs/product-onboarding/user-data-retention-policy.md`](user-data-retention-policy.md)
