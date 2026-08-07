@@ -17,7 +17,11 @@ import { MapPinPicker } from '../components/MapPinPicker';
 import { RepresentativeCard, VacantSeatCard } from '../components/find/RepresentativeCard';
 import { ApiError } from '../data/api';
 import { isCoordinateInMinnesota } from '../data/minnesotaBoundary';
-import type { RepresentativeAddressChoice, RepresentativeLookupCoordinates } from '../data/types';
+import type {
+  RepresentativeAddressChoice,
+  RepresentativeLookupCoordinates,
+  RepresentativeLookupResult,
+} from '../data/types';
 import { useResponsive } from '../hooks/useResponsive';
 import { useHistoryScrollRestoration } from '../hooks/useHistoryScrollRestoration';
 import { useRepresentativeLookup } from '../hooks/useAppQueries';
@@ -161,9 +165,13 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const lookup = useRepresentativeLookup();
   const autoRanFor = useRef<string | null>(null);
   const addressInputRef = useRef<TextInput | null>(null);
+  const lastFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
   const geolocation = browserGeolocation();
   const result = lookup.data ?? undefined;
   const settledResult = lookup.isPending ? undefined : result;
+  const retainedMapResult =
+    lookup.isPending && preserveMapViewport ? lastFoundResult.current : undefined;
+  const displayedResult = retainedMapResult ?? settledResult;
   const choices =
     settledResult?.status === 'address-choice' && !choiceClosed
       ? (settledResult.choices ?? []).slice(0, 5)
@@ -188,6 +196,12 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       : null;
   const addressError = activeError && state !== 'location-error' ? activeError : null;
   const locationButtonError = state === 'location-error' ? activeError : null;
+
+  useEffect(() => {
+    if (settledResult?.status === 'found') {
+      lastFoundResult.current = settledResult;
+    }
+  }, [settledResult]);
 
   useEffect(() => {
     if (!lookup.isPending) {
@@ -347,7 +361,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (item.id === 'search-find-my-legislator') navigation.navigate('FindMyLegislator');
     if (item.id === 'track-bills') navigation.navigate('Tabs', { screen: 'Tracked' });
   };
-  const mapResult = state === 'found' || state === 'vacant' ? settledResult : undefined;
+  const mapResult = displayedResult?.status === 'found' ? displayedResult : undefined;
   const mapCoordinate = state === 'looking' ? selectedCoordinate : mapResult?.coordinate;
   const map = (
     <MapPinPicker
@@ -575,7 +589,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             style={state === 'empty' ? undefined : styles.answer}
             accessibilityLiveRegion="polite"
           >
-            {state === 'looking' ? (
+            {state === 'looking' && !retainedMapResult ? (
               <View accessible accessibilityLabel="Looking up your districts">
                 <View style={styles.looking}>
                   {reducedMotion() ? (
@@ -598,50 +612,55 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 <Text style={styles.errorText}>{activeError.answer}</Text>
               </View>
             ) : null}
-            {(state === 'found' || state === 'vacant') && settledResult ? (
-              <View style={styles.foundWrap}>
+            {displayedResult?.status === 'found' ? (
+              <View
+                style={styles.foundWrap}
+                accessibilityState={{ busy: Boolean(retainedMapResult) }}
+              >
                 <View style={[styles.foundHeader, foundHeaderGradient]}>
                   <Text accessibilityRole="header" aria-level={2} style={styles.answerTitle}>
                     Your Minnesota legislators
                   </Text>
-                  {settledResult.houseDistrict && settledResult.senateDistrict ? (
+                  {displayedResult.houseDistrict && displayedResult.senateDistrict ? (
                     <View style={styles.districtChips}>
                       <Text style={[styles.districtChip, styles.senateDistrictChip]}>
-                        SENATE {settledResult.senateDistrict}
+                        SENATE {displayedResult.senateDistrict}
                       </Text>
                       <Text aria-hidden style={styles.districtArrow}>
                         ▸
                       </Text>
                       <Text style={[styles.districtChip, styles.houseDistrictChip]}>
-                        HOUSE {settledResult.houseDistrict}
+                        HOUSE {displayedResult.houseDistrict}
                       </Text>
                     </View>
                   ) : null}
-                  {settledResult.houseDistrict && settledResult.senateDistrict ? (
+                  {displayedResult.houseDistrict && displayedResult.senateDistrict ? (
                     <Text style={styles.nesting}>
-                      House District {settledResult.houseDistrict} is one of two House districts
-                      inside Senate District {settledResult.senateDistrict}
+                      House District {displayedResult.houseDistrict} is one of two House districts
+                      inside Senate District {displayedResult.senateDistrict}
                     </Text>
                   ) : null}
-                  {settledResult.congressionalDistrict ? (
+                  {displayedResult.congressionalDistrict ? (
                     <Text style={styles.congressional}>
-                      Congressional district {settledResult.congressionalDistrict}
+                      Congressional district {displayedResult.congressionalDistrict}
                     </Text>
                   ) : null}
                 </View>
                 <View style={[styles.cards, isMobile && styles.cardsMobile]}>
-                  {settledResult.senateLegislator ? (
+                  {displayedResult.senateLegislator ? (
                     <RepresentativeCard
-                      legislator={settledResult.senateLegislator}
+                      legislator={displayedResult.senateLegislator}
                       mobile={isMobile}
                       legislatureLabel={
-                        settledResult.session ? legislatureLabel(settledResult.session) : undefined
+                        displayedResult.session
+                          ? legislatureLabel(displayedResult.session)
+                          : undefined
                       }
                       onProfile={() =>
                         navigation.navigate('LegislatorProfile', {
                           legislatorId:
-                            settledResult.senateLegislator?.slug ??
-                            settledResult.senateLegislator!.id,
+                            displayedResult.senateLegislator?.slug ??
+                            displayedResult.senateLegislator!.id,
                         })
                       }
                     />
@@ -649,24 +668,26 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     <VacantSeatCard
                       mobile={isMobile}
                       districtLabel={
-                        settledResult.senateDistrict
-                          ? `SENATE DISTRICT ${settledResult.senateDistrict}`
+                        displayedResult.senateDistrict
+                          ? `SENATE DISTRICT ${displayedResult.senateDistrict}`
                           : undefined
                       }
                     />
                   )}
-                  {settledResult.houseLegislator ? (
+                  {displayedResult.houseLegislator ? (
                     <RepresentativeCard
-                      legislator={settledResult.houseLegislator}
+                      legislator={displayedResult.houseLegislator}
                       mobile={isMobile}
                       legislatureLabel={
-                        settledResult.session ? legislatureLabel(settledResult.session) : undefined
+                        displayedResult.session
+                          ? legislatureLabel(displayedResult.session)
+                          : undefined
                       }
                       onProfile={() =>
                         navigation.navigate('LegislatorProfile', {
                           legislatorId:
-                            settledResult.houseLegislator?.slug ??
-                            settledResult.houseLegislator!.id,
+                            displayedResult.houseLegislator?.slug ??
+                            displayedResult.houseLegislator!.id,
                         })
                       }
                     />
@@ -674,13 +695,30 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     <VacantSeatCard
                       mobile={isMobile}
                       districtLabel={
-                        settledResult.houseDistrict
-                          ? `HOUSE DISTRICT ${settledResult.houseDistrict}`
+                        displayedResult.houseDistrict
+                          ? `HOUSE DISTRICT ${displayedResult.houseDistrict}`
                           : undefined
                       }
                     />
                   )}
                 </View>
+                {retainedMapResult ? (
+                  <View
+                    accessible
+                    accessibilityLabel="Updating districts"
+                    accessibilityLiveRegion="polite"
+                    style={styles.mapUpdatingOverlay}
+                  >
+                    <View style={styles.mapUpdatingBadge}>
+                      {reducedMotion() ? (
+                        <View style={styles.staticSpinner} />
+                      ) : (
+                        <ActivityIndicator color="#2d7a52" />
+                      )}
+                      <Text style={styles.mapUpdatingText}>Updating districts</Text>
+                    </View>
+                  </View>
+                ) : null}
               </View>
             ) : null}
           </View>
@@ -886,7 +924,31 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: '#4f5651',
   },
-  foundWrap: { gap: 20 },
+  foundWrap: { gap: 20, position: 'relative' },
+  mapUpdatingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(247,248,247,0.58)',
+  },
+  mapUpdatingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    backgroundColor: 'white',
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+  },
+  mapUpdatingText: {
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    fontWeight: '700',
+    color: t.colors.ink,
+  },
   foundHeader: {
     backgroundColor: '#f2f9f5',
     borderWidth: 1,
