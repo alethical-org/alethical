@@ -14,7 +14,7 @@ import {
 import Svg, { Circle, Path } from 'react-native-svg';
 import { AlertCircle, Crosshair, Search } from '../components/icons';
 
-import { MapPinPicker } from '../components/MapPinPicker';
+import { MINNESOTA_MAP_VIEWPORT, MapPinPicker, type MapViewport } from '../components/MapPinPicker';
 import { RepresentativeCard, VacantSeatCard } from '../components/find/RepresentativeCard';
 import { ApiError } from '../data/api';
 import { isCoordinateInMinnesota } from '../data/minnesotaBoundary';
@@ -196,6 +196,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     RepresentativeLookupCoordinates | undefined
   >(requestedCoordinate);
   const [preserveMapViewport, setPreserveMapViewport] = useState(false);
+  const [mapViewport, setMapViewport] = useState<MapViewport>(MINNESOTA_MAP_VIEWPORT);
   const [mapExpanded, setMapExpanded] = useState(initialMapExpanded);
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [choiceIndex, setChoiceIndex] = useState(0);
@@ -423,6 +424,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       houseDistrict={mapResult?.houseDistrict}
       senateDistrict={mapResult?.senateDistrict}
       preserveViewport={preserveMapViewport}
+      initialViewport={mapViewport}
+      onViewportChange={setMapViewport}
       mobile={isMobile}
       onCoordinateChange={(coordinate) => {
         setPreserveMapViewport(true);

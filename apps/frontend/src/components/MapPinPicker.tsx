@@ -31,6 +31,16 @@ const MINNESOTA_GEOMETRY: GeoJsonGeometry = {
 
 type Size = { width: number; height: number };
 
+export interface MapViewport {
+  center: RepresentativeLookupCoordinates;
+  zoom: number;
+}
+
+export const MINNESOTA_MAP_VIEWPORT: MapViewport = {
+  center: { latitude: 46.3, longitude: -94.4 },
+  zoom: 6,
+};
+
 export interface MapPinPickerProps {
   coordinate?: RepresentativeLookupCoordinates;
   houseGeometry?: GeoJsonGeometry;
@@ -38,6 +48,8 @@ export interface MapPinPickerProps {
   houseDistrict?: string;
   senateDistrict?: string;
   preserveViewport?: boolean;
+  initialViewport?: MapViewport;
+  onViewportChange?: (viewport: MapViewport) => void;
   onCoordinateChange: (coordinate: RepresentativeLookupCoordinates) => void;
   onOutsideMinnesota?: (coordinate: RepresentativeLookupCoordinates) => void;
   mobile?: boolean;
@@ -199,16 +211,15 @@ export function MapPinPicker({
   houseDistrict,
   senateDistrict,
   preserveViewport = false,
+  initialViewport = MINNESOTA_MAP_VIEWPORT,
+  onViewportChange,
   onCoordinateChange,
   onOutsideMinnesota,
   mobile = false,
 }: MapPinPickerProps) {
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
-  const [center, setCenter] = useState<RepresentativeLookupCoordinates>({
-    latitude: 46.3,
-    longitude: -94.4,
-  });
-  const [zoom, setZoom] = useState(6);
+  const [center, setCenter] = useState<RepresentativeLookupCoordinates>(initialViewport.center);
+  const [zoom, setZoom] = useState(initialViewport.zoom);
   const [tileState, setTileState] = useState({ requestKey: '', loaded: false, failed: 0 });
   const [displayCoordinate, setDisplayCoordinate] = useState(coordinate);
   const [dragPin, setDragPin] = useState<{ x: number; y: number } | null>(null);
@@ -217,7 +228,7 @@ export function MapPinPicker({
   const keyboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pinTargetRef = useRef<View | null>(null);
   const panStart = useRef(center);
-  const geometryToFit = senateGeometry ?? MINNESOTA_GEOMETRY;
+  const geometryToFit = senateGeometry;
 
   useEffect(() => {
     if (preserveViewport) {
@@ -232,6 +243,10 @@ export function MapPinPicker({
       setZoom(fitted.zoom);
     }
   }, [geometryToFit, preserveViewport, size]);
+
+  useEffect(() => {
+    onViewportChange?.({ center, zoom });
+  }, [center, onViewportChange, zoom]);
 
   useEffect(
     () => () => {

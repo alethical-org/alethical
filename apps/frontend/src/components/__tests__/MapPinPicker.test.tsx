@@ -60,9 +60,9 @@ describe('district map credits', () => {
     expect(source).toMatch(/creditLink:\s*\{[\s\S]*textDecorationLine: 'none'/);
   });
 
-  it('fits Minnesota before a district is selected and keeps the state context below districts', () => {
+  it('keeps the Minnesota outline as context below selected districts', () => {
     expect(source).toContain('const MINNESOTA_GEOMETRY: GeoJsonGeometry');
-    expect(source).toContain('const geometryToFit = senateGeometry ?? MINNESOTA_GEOMETRY');
+    expect(source).toContain('const geometryToFit = senateGeometry');
     expect(source).toContain('fill="rgba(255,255,255,0.4)"');
     expect(source).toContain('stroke="rgba(17,21,15,0.55)"');
     expect(source.indexOf('statePath')).toBeLessThan(source.indexOf('housePath'));
@@ -78,6 +78,18 @@ describe('district map credits', () => {
     expect(screenSource).toMatch(
       /onCoordinateChange=\{\(coordinate\) => \{[\s\S]*setPreserveMapViewport\(true\);[\s\S]*runCoordinate\(coordinate, 'map'\)/,
     );
+  });
+
+  it('starts closer to Minnesota and restores every adjusted camera after the map remounts', () => {
+    expect(source).toContain('export const MINNESOTA_MAP_VIEWPORT');
+    expect(source).toMatch(/MINNESOTA_MAP_VIEWPORT[\s\S]*zoom: 6/);
+    expect(source).toContain('initialViewport?: MapViewport');
+    expect(source).toContain('onViewportChange?: (viewport: MapViewport) => void');
+    expect(source).toContain('const geometryToFit = senateGeometry');
+    expect(screenSource).toContain('const [mapViewport, setMapViewport]');
+    expect(screenSource).toContain('useState<MapViewport>(MINNESOTA_MAP_VIEWPORT)');
+    expect(screenSource).toContain('initialViewport={mapViewport}');
+    expect(screenSource).toContain('onViewportChange={setMapViewport}');
   });
 
   it('does not show the neighboring House district badge', () => {
