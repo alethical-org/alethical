@@ -239,6 +239,10 @@ export interface BillListFilters {
   // matches — Search Bills v2); each is sent as its own repeated `policy_area`
   // query param. Empty/omitted → no issue filter (all issues).
   policyAreas?: string[];
+  // A topic handoff from Ask uses the same grounded matcher as Ask. It is not a
+  // free-text query, so it gets its own parameter and visible chip in Search.
+  topic?: string;
+  scope?: 'legislature';
   omnibus?: boolean;
   // Result ordering. Omitted → API default (relevance for a free-text search,
   // latest_action otherwise). 'relevance' is Search Bills' "Best match": closest
@@ -1659,11 +1663,10 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
   const mapCardBill = (bill: ApiBillListItemPayload) => ({
     ...mapBillSummary(bill),
     sessionLabel: bill.session?.name ?? answer?.session.name ?? 'Current session',
-    session: bill.session
-      ? mapSession(bill.session)
-      : answer?.session
-        ? mapSession(answer.session)
-        : undefined,
+    // The answer-wide session names the Legislature the query covered; it is
+    // not each card's own session. Only special-session bills carry a per-card
+    // value, so regular-session cards do not repeat the scope label.
+    session: bill.session ? mapSession(bill.session) : undefined,
   });
 
   // legislator_vote (§4.5 vote deflection) carries a resolved bill and/or a
@@ -1771,6 +1774,12 @@ export async function listBillsFromApi(
     const trimmed = issue.trim();
     if (trimmed) params.append('policy_area', trimmed);
   }
+  if (filters.topic?.trim()) {
+    params.set('topic', filters.topic.trim());
+  }
+  if (filters.scope) {
+    params.set('scope', filters.scope);
+  }
   if (filters.omnibus !== undefined) {
     params.set('omnibus', String(filters.omnibus));
   }
@@ -1815,11 +1824,17 @@ export async function getFeaturedBillsFromApi(
   });
 }
 
-export async function listPolicyAreasFromApi(session?: string): Promise<PolicyArea[]> {
+export async function listPolicyAreasFromApi(
+  session?: string,
+  scope?: 'legislature',
+): Promise<PolicyArea[]> {
   const params = new URLSearchParams();
   params.set('limit', '50');
   if (session?.trim()) {
     params.set('session', session.trim());
+  }
+  if (scope) {
+    params.set('scope', scope);
   }
 
   const response = await publicApiRequest<PageResponse<ApiPolicyAreaPayload>>(

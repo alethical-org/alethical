@@ -113,6 +113,8 @@ export function SearchBillsScreen() {
   // of truth; only the search-box draft and the issue-list expander are local.
   const params: Record<string, unknown> = route.params ?? {};
   const query = typeof params.q === 'string' ? params.q : '';
+  const topic = typeof params.topic === 'string' ? params.topic : '';
+  const legislatureScope = params.scope === 'legislature';
   const chamber: ChamberFilter =
     params.chamber === 'House' || params.chamber === 'Senate' ? params.chamber : 'All';
   const status = typeof params.status === 'string' ? params.status : '';
@@ -153,11 +155,14 @@ export function SearchBillsScreen() {
   const currentSession =
     sessionsQuery.data?.find((item) => item.isCurrent) ?? sessionsQuery.data?.[0];
   const sessionSlug = session || currentSession?.slug || '';
-  const apiSession = sessionFilterForApi(session);
+  const apiSession = legislatureScope ? undefined : sessionFilterForApi(session);
   const selectedSession = sessionsQuery.data?.find((item) => item.slug === sessionSlug);
   const sessionLabel = selectedSession
     ? formatSessionLabel(selectedSession)
     : SESSION_LABEL_FALLBACK;
+  const legislatureLabel = currentSession
+    ? formatSessionLabel(currentSession).replace('Legislative Session', 'Legislature')
+    : 'Current Legislature';
 
   // Session dropdown options. Only the loaded (current-biennium) session is
   // selectable; the two prior bienniums are shown as greyed-out, unclickable rows
@@ -169,6 +174,10 @@ export function SearchBillsScreen() {
   }));
   const loadedSessionLabels = new Set(loadedSessionOptions.map((option) => option.label));
   const sessionOptions = [
+    {
+      label: legislatureLabel,
+      value: '__legislature',
+    },
     ...loadedSessionOptions,
     ...PRIOR_SESSIONS.map(formatSessionLabel)
       .filter((label) => !loadedSessionLabels.has(label))
@@ -183,6 +192,8 @@ export function SearchBillsScreen() {
     chamber: chamber === 'All' ? undefined : chamber,
     status: status || undefined,
     policyAreas: selectedIssues.length ? selectedIssues : undefined,
+    topic: topic || undefined,
+    scope: legislatureScope ? 'legislature' : undefined,
     omnibus: omnibusOnly ? true : undefined,
     sort: BILL_SEARCH_SORT_TO_API[sortKey],
   };
@@ -219,7 +230,7 @@ export function SearchBillsScreen() {
       { limit: PAGE_SIZE, offset: 0 },
     );
   const metaQuery = useMeta();
-  const policyAreasQuery = usePolicyAreas(apiSession);
+  const policyAreasQuery = usePolicyAreas(apiSession, legislatureScope ? 'legislature' : undefined);
 
   const bills = billsQuery.data?.data ?? [];
   const total = billsQuery.data?.page.total ?? null;
@@ -246,19 +257,23 @@ export function SearchBillsScreen() {
   const hiddenIssueCount = policyOptions.length - INLINE_ISSUE_CHIPS;
 
   const submitSearch = () => {
-    updateFilters({ q: queryInput.trim() || undefined });
+    const value = queryInput.trim();
+    updateFilters({ q: value || undefined, topic: value ? undefined : topic || undefined });
   };
 
   // Search as the user types: push the debounced draft into the URL so results
   // update without pressing Enter or the Search button (which still submit
   // immediately via submitSearch).
-  useDebouncedSearchCommit(queryInput, query, (value) => updateFilters({ q: value || undefined }));
+  useDebouncedSearchCommit(queryInput, query, (value) =>
+    updateFilters({ q: value || undefined, topic: value ? undefined : topic || undefined }),
+  );
 
   // Mirror the prior Clear: reset keyword/chamber/status/issue/omnibus/page but
   // keep the chosen session.
   const clearFilters = () => {
     updateFilters({
       q: undefined,
+      topic: undefined,
       chamber: undefined,
       status: undefined,
       issue: undefined,
@@ -267,11 +282,20 @@ export function SearchBillsScreen() {
   };
 
   const statusLabel = STATUS_OPTIONS.find((option) => option.value === status)?.label;
-  const sessionIsDefault = !session || sessionSlug === currentSession?.slug;
+  const sessionIsDefault = !legislatureScope && (!session || sessionSlug === currentSession?.slug);
 
   // Removable, facet-color-coded chips (v2 §D). Fixed order: keyword · chamber ·
   // status · session (only if non-default) · omnibus · issues (one each).
   const chips: FilterChip[] = [];
+  if (topic) {
+    chips.push({
+      key: 'topic',
+      tone: 'issue',
+      label: `Topic: ${titleCaseIssue(topic)}`,
+      removeLabel: 'Clear topic',
+      onRemove: () => updateFilters({ topic: undefined }),
+    });
+  }
   if (query) {
     chips.push({
       key: 'keyword',
@@ -299,7 +323,15 @@ export function SearchBillsScreen() {
       onRemove: () => updateFilters({ status: undefined }),
     });
   }
-  if (!sessionIsDefault) {
+  if (legislatureScope) {
+    chips.push({
+      key: 'scope',
+      tone: 'session',
+      label: `Scope: ${legislatureLabel}`,
+      removeLabel: 'Reset to the current regular session',
+      onRemove: () => updateFilters({ scope: undefined }),
+    });
+  } else if (!sessionIsDefault) {
     chips.push({
       key: 'session',
       tone: 'session',
@@ -374,14 +406,20 @@ export function SearchBillsScreen() {
         <FilterDropdown
           // Facet chip shows just the years ("2025–2026"); the full "{years}
           // Legislative Session" wording appears only inside the dropdown options.
-          label={sessionLabel.replace(' Legislative Session', '')}
+          label={
+            legislatureScope ? legislatureLabel : sessionLabel.replace(' Legislative Session', '')
+          }
           accessibilityLabel="Filter by session"
           options={sessionOptions}
-          selectedValue={sessionSlug}
+          selectedValue={legislatureScope ? '__legislature' : sessionSlug}
           active={!sessionIsDefault}
           open={openFilter === 'session'}
           onOpenChange={(next) => setOpenFilter(next ? 'session' : null)}
-          onSelect={(value) => updateFilters({ session: value || undefined })}
+          onSelect={(value) =>
+            value === '__legislature'
+              ? updateFilters({ scope: 'legislature', session: undefined })
+              : updateFilters({ scope: undefined, session: value || undefined })
+          }
         />
         <OmnibusToggle
           value={omnibusOnly}
@@ -491,7 +529,7 @@ export function SearchBillsScreen() {
           // The chip row already counts the active filters, so the empty state's
           // copy branches off it without needing anything new.
           filterCount={chips.length}
-          query={query}
+          query={query || topic}
           onClear={clearFilters}
         />
       ) : (

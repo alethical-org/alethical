@@ -19,6 +19,7 @@ import {
   type StageTone,
 } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
+import { formatSessionLabel } from '../../lib/sessionLabel';
 import { ChangeBlock } from '../ChangeBlock';
 import { VoteCountLinkChip } from '../VoteCountLinkChip';
 import { linkProps, pressInsideLink, routePath } from '../../navigation/links';
@@ -52,6 +53,7 @@ type BillCardData = Pick<
   | 'sponsors'
   | 'aiAnalysis'
   | 'rollCallCount'
+  | 'session'
 >;
 
 interface BillResultCardProps {
@@ -316,6 +318,9 @@ export function BillResultCard({
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{bill.identifier}</Text>
                 </View>
+                {bill.session ? (
+                  <Text style={styles.sessionTag}>{formatSessionLabel(bill.session)}</Text>
+                ) : null}
                 {bill.isOmnibus ? <OmnibusPill /> : null}
                 {hotIssue ? <HotIssuePill /> : null}
               </View>
@@ -355,6 +360,9 @@ export function BillResultCard({
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{bill.identifier}</Text>
             </View>
+            {bill.session ? (
+              <Text style={styles.sessionTag}>{formatSessionLabel(bill.session)}</Text>
+            ) : null}
             {bill.isOmnibus ? <OmnibusPill /> : null}
             <Text
               style={[
@@ -582,6 +590,13 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.4,
     color: t.colors.omnibus.text,
+  },
+  sessionTag: {
+    fontFamily: t.typography.ui,
+    fontSize: 11,
+    fontWeight: t.fontWeights.semibold,
+    letterSpacing: 0.5,
+    color: t.colors.text.faint,
   },
   omnibus: {
     flexDirection: 'row',

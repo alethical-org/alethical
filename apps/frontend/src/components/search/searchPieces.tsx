@@ -636,6 +636,7 @@ export function ResultsHeader({
   dataAsOf,
   sortControl,
   sortLabel,
+  countSuffix,
   countTail,
   nativeID,
   uniformDetails = false,
@@ -651,6 +652,8 @@ export function ResultsHeader({
   /** Static "Sorted by …" label — the fallback for screens with no sort control
    *  yet (Search Legislators). Omit both to hide the meta row (e.g. no results). */
   sortLabel?: string;
+  /** Prose appended with one normal word space inside the noun/date text run. */
+  countSuffix?: string;
   /** Extra count words or a matched-value chip, kept inside the shared count row. */
   countTail?: ReactNode;
   /** Scroll anchor for pagination (usePaginatedListScroll): a page change lands
@@ -685,7 +688,10 @@ export function ResultsHeader({
               third flex child would inherit the row's gap and read as a double
               space; a middot or any other separator glyph is wrong here. */}
           {uniformDetails ? (
-            <Text style={styles.resultsNoun}>{asOf ? `${unit} ${asOf}` : unit}</Text>
+            <Text style={styles.resultsNoun}>
+              {asOf ? `${unit} ${asOf}` : unit}
+              {countSuffix ? <Text style={styles.resultsAsOf}>{` ${countSuffix}`}</Text> : null}
+            </Text>
           ) : (
             <Text style={[styles.resultsNoun, isMobile && styles.resultsNounMobile]}>
               {asOf ? `${unit} ` : unit}
@@ -694,6 +700,7 @@ export function ResultsHeader({
                   {asOf}
                 </Text>
               ) : null}
+              {countSuffix ? <Text style={styles.resultsAsOf}>{` ${countSuffix}`}</Text> : null}
             </Text>
           )}
           {countTail}

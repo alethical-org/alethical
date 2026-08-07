@@ -837,8 +837,19 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           . Try another issue, or browse everything in Search.
         </Text>
         <Pressable
-          {...linkProps(routePath.bills(answer?.topic ? { q: answer.topic } : undefined), () =>
-            navigation.navigate('Bills', answer?.topic ? { q: answer.topic } : undefined),
+          {...linkProps(
+            routePath.bills(
+              answer?.topic
+                ? { topic: answer.topic, scope: 'legislature', sort: 'progress' }
+                : undefined,
+            ),
+            () =>
+              navigation.navigate(
+                'Bills',
+                answer?.topic
+                  ? { topic: answer.topic, scope: 'legislature', sort: 'progress' }
+                  : undefined,
+              ),
           )}
         >
           <Text style={styles.viewBillLink}>Search all bills →</Text>
@@ -883,13 +894,23 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
         ))}
         {answer.totalBills && answer.totalBills > 0 ? (
           <Pressable
-            {...linkProps(routePath.bills(answer.topic ? { q: answer.topic } : undefined), () =>
-              navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
+            {...linkProps(
+              routePath.bills(
+                answer.topic
+                  ? { topic: answer.topic, scope: 'legislature', sort: 'progress' }
+                  : undefined,
+              ),
+              () =>
+                navigation.navigate(
+                  'Bills',
+                  answer.topic
+                    ? { topic: answer.topic, scope: 'legislature', sort: 'progress' }
+                    : undefined,
+                ),
             )}
           >
-            {/* No count, for the same reason as the topic list's link: an Ask
-                covers the whole Legislature and Search browses one session, so a
-                number here promises a page Search cannot show (#810). */}
+            {/* Search receives the same topic and whole-Legislature scope as Ask,
+                 so this handoff cannot turn into a smaller literal keyword search. */}
             <Text style={styles.viewBillLink}>See all {answer.topic} bills in Search →</Text>
           </Pressable>
         ) : null}
@@ -901,7 +922,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // --- topic_bills (§4.2 / §9.4).
   if (hasMatches && answer) {
     const issueTopic = answer.topic ?? 'this issue';
-    const browseParams = { q: answer.topic, sort: issueSort };
+    const browseParams = { topic: answer.topic, scope: 'legislature', sort: issueSort } as const;
     return shell(
       <View style={answer.ambiguousReference ? styles.narrowColumn : styles.issueAnswerColumn}>
         {answer.ambiguousReference ? (
@@ -933,12 +954,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               noun="bill"
               dataAsOf={answer.dataAsOf}
               showRule={false}
+              countSuffix="matching"
               countTail={
-                <View style={styles.issueCountTail}>
-                  <Text style={styles.issueCountTailText}>matching</Text>
-                  <View style={[styles.issueTopicChip, isMobile && styles.issueTopicChipMobile]}>
-                    <Text style={styles.issueTopicChipText}>{issueTopic}</Text>
-                  </View>
+                <View style={[styles.issueTopicChip, isMobile && styles.issueTopicChipMobile]}>
+                  <Text style={styles.issueTopicChipText}>{issueTopic}</Text>
                 </View>
               }
               sortControl={
@@ -1274,17 +1293,6 @@ const styles = StyleSheet.create({
   },
   cardsColumn: { gap: t.spacing.md },
   issueCardsColumn: { gap: 14 },
-  issueCountTail: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  issueCountTailText: {
-    fontFamily: t.typography.body,
-    fontSize: 14,
-    color: '#6f756f',
-  },
   issueTopicChip: {
     backgroundColor: '#f0ebfc',
     borderWidth: 1,

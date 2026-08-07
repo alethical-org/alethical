@@ -3297,6 +3297,37 @@ def test_ask_answers_topic_bills_question_with_cited_list(client, monkeypatch):
     assert again.json()["data"] == data
 
 
+def test_ask_topic_handoff_uses_the_same_bills_and_total_in_search(client, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    ask_response = client.post(
+        "/api/v1/ask",
+        json={"content": "What bills affect economic development?"},
+    )
+    assert ask_response.status_code == 200
+    answer = ask_response.json()["data"]["answer"]
+
+    for sort, ask_key in (
+        ("progress", "bills"),
+        ("latest_action", "latest_action_bills"),
+    ):
+        search_response = client.get(
+            "/api/v1/bills",
+            params={
+                "topic": answer["topic"],
+                "scope": "legislature",
+                "sort": sort,
+                "limit": 5,
+            },
+        )
+        assert search_response.status_code == 200
+        search = search_response.json()
+        assert search["page"]["total"] == answer["total_matches"]
+        assert [bill["id"] for bill in search["data"]] == [
+            bill["id"] for bill in answer[ask_key]
+        ]
+
+
 def test_ask_zero_match_topic_returns_no_matches_payload(client, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 

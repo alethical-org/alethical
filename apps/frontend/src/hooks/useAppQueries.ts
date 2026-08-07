@@ -78,10 +78,10 @@ export function useBills(
   });
 }
 
-export function usePolicyAreas(session?: string) {
+export function usePolicyAreas(session?: string, scope?: 'legislature') {
   return useQuery({
-    queryKey: ['policy-areas', session ?? 'current'],
-    queryFn: () => listPolicyAreasFromApi(session),
+    queryKey: ['policy-areas', session ?? 'current', scope ?? 'session'],
+    queryFn: () => listPolicyAreasFromApi(session, scope),
     retry: false,
   });
 }
