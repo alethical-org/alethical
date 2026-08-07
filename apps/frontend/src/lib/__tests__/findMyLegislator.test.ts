@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   addressChoiceKey,
+  confirmedAddressForLookup,
   contactEmail,
   districtMapVisible,
   legislatureLabel,
@@ -58,6 +59,50 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('<Text style={styles.choiceKey}>↓</Text>');
     expect(source).toContain('<Text style={styles.choiceKey}>Enter</Text>');
     expect(source).toContain('<Text style={styles.choiceKey}>Esc</Text>');
+  });
+
+  it('replaces only a successful typed address with the confirmed address', () => {
+    const confirmedResult = {
+      status: 'found' as const,
+      address: '350 ST PETER ST, SAINT PAUL, MN, 55102',
+    };
+
+    expect(
+      confirmedAddressForLookup(
+        '350 St Peer St, St. Paul, MN 55102',
+        confirmedResult,
+        '350 St Peer St, St. Paul, MN 55102',
+      ),
+    ).toBe('350 ST PETER ST, SAINT PAUL, MN, 55102');
+    expect(
+      confirmedAddressForLookup({ latitude: 44.94493, longitude: -93.09528 }, confirmedResult, ''),
+    ).toBeUndefined();
+    expect(
+      confirmedAddressForLookup(
+        '350 St Peer St, St. Paul, MN 55102',
+        {
+          status: 'address-choice',
+          address: '350 St Peer St, St. Paul, MN 55102',
+        },
+        '350 St Peer St, St. Paul, MN 55102',
+      ),
+    ).toBeUndefined();
+    expect(
+      confirmedAddressForLookup(
+        '350 St Peer St, St. Paul, MN 55102',
+        confirmedResult,
+        '700 W 7th St, St. Paul, MN 55102',
+      ),
+    ).toBeUndefined();
+
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('confirmedAddressForLookup(lookup.variables, settledResult, address)');
+    expect(source).toContain('setAddress(confirmedAddress)');
+    expect(source).toContain('autoRanFor.current = confirmedAddress');
+    expect(source).toMatch(/navigation\.setParams\(\{\s*address: confirmedAddress/);
   });
 
   it('uses the shared short Legislature range', () => {

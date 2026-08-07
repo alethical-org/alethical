@@ -1,3 +1,4 @@
+import type { RepresentativeLookupInput, RepresentativeLookupResult } from '../data/types';
 import { formatLegislatureLabel, type SessionDisplaySource } from './sessionLabel';
 
 export type FindLegislatorState =
@@ -20,6 +21,21 @@ export function prepareAddressLookup(rawAddress: string): {
     displayAddress: rawAddress,
     serviceAddress: serviceAddress || undefined,
   };
+}
+
+export function confirmedAddressForLookup(
+  input: RepresentativeLookupInput | undefined,
+  result: Pick<RepresentativeLookupResult, 'status' | 'address'> | null | undefined,
+  currentAddress: string,
+): string | undefined {
+  if (typeof input !== 'string' || result?.status !== 'found') return undefined;
+  if (
+    prepareAddressLookup(input).serviceAddress !==
+    prepareAddressLookup(currentAddress).serviceAddress
+  ) {
+    return undefined;
+  }
+  return prepareAddressLookup(result.address).serviceAddress;
 }
 
 export function viewStateForLookup(input: {
