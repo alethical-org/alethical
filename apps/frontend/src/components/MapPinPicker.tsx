@@ -513,8 +513,8 @@ export function MapPinPicker({
       <Text style={styles.helper}>
         {displayCoordinate
           ? mobile
-            ? 'Drag the pin or tap the map to move it'
-            : 'Drag the pin, click the map, or use the arrow keys to move it'
+            ? 'Tap the map to adjust your location. Use + or − to zoom if needed.'
+            : 'Click the map to adjust your location. Use + or − to zoom if needed.'
           : mobile
             ? 'Tap the map to choose a location'
             : 'Click the map to choose a location'}
