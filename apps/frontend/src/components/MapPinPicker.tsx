@@ -500,16 +500,16 @@ export function MapPinPicker({
       <Text style={styles.helper}>
         {displayCoordinate
           ? mobile
-            ? 'Tap the map to adjust your location. Use + or − to zoom if needed'
-            : 'Click the map to adjust your location. Use + or − to zoom if needed'
+            ? 'Tap the map to adjust your location'
+            : 'Click the map to adjust your location'
           : mobile
-            ? 'Tap the map to choose a location'
-            : 'Click the map to choose a location'}
+            ? 'Tap the map to choose your location'
+            : 'Click the map to choose your location'}
       </Text>
 
       <Text style={styles.districtExplanation}>
         Every address has one House district and one Senate district — we’ll show the legislator for
-        each.
+        each
       </Text>
 
       <View testID="district-map-credits" style={styles.credits}>
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'column',
     gap: 6,
-    marginTop: 22,
+    marginTop: 0,
   },
   creditRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   creditTarget: { flexDirection: 'row', alignItems: 'center' },
@@ -617,8 +617,9 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   districtExplanation: {
-    maxWidth: 720,
-    marginTop: 8,
+    alignSelf: 'stretch',
+    marginTop: 18,
+    marginBottom: 30,
     fontFamily: t.typography.body,
     fontSize: 18,
     lineHeight: 28,

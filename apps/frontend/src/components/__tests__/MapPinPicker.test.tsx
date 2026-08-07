@@ -24,7 +24,7 @@ describe('district map credits', () => {
     const markup = renderToStaticMarkup(<MapPinPicker onCoordinateChange={vi.fn()} />);
 
     const map = markup.indexOf('district-map-canvas');
-    const instruction = markup.indexOf('Click the map to choose a location');
+    const instruction = markup.indexOf('Click the map to choose your location');
     const explanation = markup.indexOf('Every address has one House district');
     const credits = markup.indexOf('district-map-credits');
     expect(map).toBeLessThan(instruction);
@@ -34,8 +34,11 @@ describe('district map credits', () => {
       /credits:\s*\{[\s\S]*alignSelf: 'stretch'[\s\S]*alignItems: 'flex-start'[\s\S]*flexDirection: 'column'/,
     );
     expect(source).toMatch(/helper:\s*\{[\s\S]*marginTop: 6[\s\S]*fontSize: 15/);
-    expect(source).toMatch(/districtExplanation:\s*\{[\s\S]*marginTop: 8[\s\S]*fontSize: 18/);
-    expect(source).toMatch(/credits:\s*\{[\s\S]*marginTop: 22/);
+    expect(source).toMatch(
+      /districtExplanation:\s*\{[\s\S]*alignSelf: 'stretch'[\s\S]*marginTop: 18[\s\S]*marginBottom: 30[\s\S]*fontSize: 18/,
+    );
+    expect(source).not.toMatch(/districtExplanation:\s*\{[\s\S]*maxWidth/);
+    expect(source).toMatch(/credits:\s*\{[\s\S]*marginTop: 0/);
   });
 
   it('keeps all 3 source rows together and gives both links the profile-card treatment', () => {
@@ -84,21 +87,29 @@ describe('district map credits', () => {
   });
 
   it('keeps unresolved helper text clean and hands outside map selections to the screen', () => {
-    expect(source).toContain("'Tap the map to choose a location'");
-    expect(source).toContain("'Click the map to choose a location'");
-    expect(source).not.toContain("'Tap the map to choose a location.'");
-    expect(source).not.toContain("'Click the map to choose a location.'");
+    expect(source).toContain("'Tap the map to choose your location'");
+    expect(source).toContain("'Click the map to choose your location'");
+    expect(source).not.toContain("'Tap the map to choose your location.'");
+    expect(source).not.toContain("'Click the map to choose your location.'");
     expect(source).toContain('onOutsideMinnesota?:');
     expect(source).toContain('onOutsideMinnesota?.(chosen)');
   });
 
   it('describes clicking or tapping as the main way to adjust a selected location', () => {
-    expect(source).toContain(
-      "'Click the map to adjust your location. Use + or − to zoom if needed'",
-    );
-    expect(source).toContain("'Tap the map to adjust your location. Use + or − to zoom if needed'");
+    expect(source).toContain("'Click the map to adjust your location'");
+    expect(source).toContain("'Tap the map to adjust your location'");
+    expect(source).not.toContain('Use + or − to zoom if needed');
     expect(source).not.toContain("'Drag the pin, click the map");
     expect(source).not.toContain("'Drag the pin or tap the map");
+  });
+
+  it('keeps the district explanation on the full map width without a final period', () => {
+    const markup = renderToStaticMarkup(<MapPinPicker onCoordinateChange={vi.fn()} />);
+
+    expect(markup).toContain(
+      'Every address has one House district and one Senate district — we’ll show the legislator for each',
+    );
+    expect(markup).not.toContain('we’ll show the legislator for each.');
   });
 
   it('uses the configured tile source and only credits a successful tile request', () => {
