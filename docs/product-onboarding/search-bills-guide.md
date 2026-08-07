@@ -103,8 +103,8 @@ Above the list you always see:
   votes show no votes link.
 - **A black "+ Track" button** on every card, on phones and larger screens. Tap or
   click it to save the bill to your
-  watchlist; if you are not signed in, a box opens asking you to sign in with
-  Google and naming the bill, and the bill is saved for you when you come back.
+  watchlist; if you are not signed in, a box opens on the same page asking you to sign in
+  with Google. You return to the same place, and the bill is saved for you automatically.
   Once saved, it turns mint and reads "Tracked", so saved bills stand out without
   reading every button. Press it again to remove the bill.
 

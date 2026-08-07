@@ -23,10 +23,10 @@ import { isWeb, useHover } from './interactions';
 // so nothing dishonest ships without it. Whether the notice belongs on those surfaces
 // too is with Design.
 export function TrackedListUnavailableNotice() {
-  const { listUnavailable, recheck } = useBillTracking();
+  const { listUnavailable, writeUnavailable, recheck, retryFailedWrites } = useBillTracking();
   const [hovered, hover] = useHover();
 
-  if (!listUnavailable) return null;
+  if (!listUnavailable && !writeUnavailable) return null;
 
   return (
     <View
@@ -37,17 +37,18 @@ export function TrackedListUnavailableNotice() {
       style={styles.notice}
     >
       <Text style={styles.text}>
-        We couldn’t check which bills you’re tracking. Everything about the bills themselves loaded
-        normally — only your saved list is missing.
+        {writeUnavailable
+          ? 'We couldn’t save that Track change. Everything about the bills themselves loaded normally.'
+          : 'We couldn’t check which bills you’re tracking. Everything about the bills themselves loaded normally — only your saved list is missing.'}
       </Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Check again which bills you’re tracking"
-        onPress={() => recheck()}
+        onPress={() => (writeUnavailable ? retryFailedWrites() : recheck())}
         {...hover}
         style={[styles.action, hovered && styles.actionHover]}
       >
-        <Text style={styles.actionText}>Check again</Text>
+        <Text style={styles.actionText}>{writeUnavailable ? 'Try again' : 'Check again'}</Text>
       </Pressable>
     </View>
   );

@@ -39,6 +39,7 @@ export function BillHeader({
   hotIssue = false,
   shareUrl,
   shareTitle,
+  billId,
   tracked,
   onTrack,
   activeTab,
@@ -57,6 +58,7 @@ export function BillHeader({
   hotIssue?: boolean;
   shareUrl: string;
   shareTitle: string;
+  billId: string;
   // Track button (ink) sits immediately left of Share. `tracked` toggles its
   // label/icon; `onTrack` routes a signed-out user to sign-in or toggles the
   // signed-in user's watchlist.
@@ -113,7 +115,7 @@ export function BillHeader({
         </View>
         <View style={styles.headerActions}>
           <View style={styles.trackSlot}>
-            <BillTrackButton tracked={tracked} onPress={onTrack} size="web" />
+            <BillTrackButton billId={billId} tracked={tracked} onPress={onTrack} size="web" />
           </View>
           <SharePopover url={shareUrl} title={shareTitle} subject="bill" />
         </View>

@@ -14,13 +14,6 @@ type WebRouteTarget =
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
   | { kind: 'ask'; params: RootStackParamList['Ask'] };
 
-// Sign-in returnTo for a signed-out user who tapped Track: land back on the
-// bill and auto-complete the track (see BillDetailScreen). Kept here so every
-// call site shares one URL shape (grounded-answers.md rule 5).
-export function trackSignInReturnTo(billId: string) {
-  return `/bills/${encodeURIComponent(billId)}?track=1`;
-}
-
 function normalizePathname(pathname: string) {
   const trimmed = pathname.split('?')[0].replace(/\/+$/, '');
   return trimmed.length > 0 ? trimmed : '/';

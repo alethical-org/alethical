@@ -24,7 +24,7 @@ import {
   listTrackedBillsFromApi,
   lookupRepresentativeFromApi,
   sendChatMessageToApi,
-  toggleTrackedBillFromApi,
+  setTrackedBillFromApi,
 } from '../data/api';
 import {
   getNotificationPreference,
@@ -303,12 +303,13 @@ export function useTrackedListState(): {
   };
 }
 
-export function useToggleTrackedBill(userId?: string) {
+export function useSetTrackedBill(userId?: string) {
   const queryClient = useQueryClient();
   const { accessToken } = useAuth();
 
   return useMutation({
-    mutationFn: (billId: string) => toggleTrackedBillFromApi(accessToken ?? '', billId),
+    mutationFn: ({ billId, tracked }: { billId: string; tracked: boolean }) =>
+      setTrackedBillFromApi(accessToken ?? '', billId, tracked),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tracked-bills', userId ?? 'anon'] });
       void queryClient.invalidateQueries({ queryKey: ['bills'] });

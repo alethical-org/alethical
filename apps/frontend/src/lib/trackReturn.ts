@@ -1,10 +1,6 @@
-// What to do when someone lands back on a bill after signing in to track it.
-//
-// Signing in to track sends you to `/bills/{id}?track=1`, and the bill screen
-// finishes the job on arrival (grounded-answers.md rule 5, and the sign-in flow
-// in docs/mockups/sign-in). Both bill screens carried an identical copy of this
-// decision inline; it lives here instead so there is one truth and a test can
-// read it. The screens still own the effect, because only they have the route.
+// Backward compatibility for old `/bills/{id}?track=1` sign-in return links.
+// New Track requests return to their exact page and are completed by
+// SignInModalProvider. The bill screens keep accepting these already-issued URLs.
 
 export type TrackReturnAction =
   /** Not enough is known yet. Do nothing and wait for the next render. */

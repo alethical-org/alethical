@@ -40,15 +40,16 @@ describe('intent → copy', () => {
     );
   });
 
-  it('names the bill in the track subcopy when the caller knows it', () => {
+  it('uses the approved Track-intent copy', () => {
     const { headline, subcopy } = signInCopy('track', 'HF 4138');
     expect(headline).toBe('Sign in to track this bill');
-    expect(subcopy).toContain('HF 4138');
+    expect(subcopy).toBe(
+      'Track bills across sessions and pick up where you left off. Your tracked list is saved to your account.',
+    );
   });
 
-  it('falls back to "this bill" when only the id is known', () => {
-    expect(signInCopy('track').subcopy).toContain('this bill');
-    expect(signInCopy('track').subcopy).not.toContain('undefined');
+  it('uses the same Track-intent copy when only the id is known', () => {
+    expect(signInCopy('track').subcopy).toBe(signInCopy('track', 'HF 4138').subcopy);
   });
 
   it('gives every intent a headline and a subcopy', () => {
@@ -102,7 +103,7 @@ describe('no sign-in copy promises a notification', () => {
   });
 
   it('states the payoff we can actually deliver: a saved list', () => {
-    expect(signInCopy('track', 'HF 4138').subcopy.toLowerCase()).toContain('tracked bills');
+    expect(signInCopy('track', 'HF 4138').subcopy.toLowerCase()).toContain('tracked list');
   });
 });
 

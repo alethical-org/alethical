@@ -89,9 +89,10 @@ roadmap noted for direction.
   one reusable, intent-aware Google sign-in surface — a centered overlay on a
   desktop-width browser, a bottom sheet on a phone, from a single component
   (`components/auth/SignInDialog.tsx`), opened app-wide by
-  `useSignInModal().openSignIn({ intent, returnTo, billCode })`. The three previously
+  `useSignInModal().openSignIn({ intent, returnTo, billId, scrollY })`. The three previously
   inert nav "Sign in" buttons now open it; so does a signed-out Track tap, which returns
-  to the bill at `?track=1` and finishes the track with no second click. Design and
+  to the exact page and scroll position and finishes the track with no second click
+  (`docs/product-onboarding/bill-tracking-spec.md`). Design and
   deviations: `docs/mockups/sign-in/`. Gate scope is **bill tracking only**. Vote records
   are public, so there is no legislator-votes sign-in intent.
   No copy anywhere mentions an email or push alert: sending is not built
@@ -127,8 +128,10 @@ roadmap noted for direction.
   hard redirect). Bill tracking began as a not-yet-live roadmap feature (decided Jul 2026),
   but is now **live**: the shared `BillTrackButton` (`useBillTracking`) is functional
   everywhere it appears — the Bill Profile header (web + mobile), bill cards, the home feed,
-  and Ask answers. A signed-out tap routes through sign-in and returns to `?track=1` to
-  complete the track; signed in, it toggles the bill on the watchlist and reads "Tracked".
+  Ask answers, legislator profiles, and the Tracked list. A signed-out tap opens sign-in
+  over the current page, then returns to the same page and scroll position and completes
+  the track; signed in, it toggles the bill on the watchlist and reads "Tracked"
+  (`docs/product-onboarding/bill-tracking-spec.md`).
   The old inert `RoadmapTrackButton` was retired. The intent-preserving sign-in +
   post-auth return-to-action flow is shipped on all of these surfaces. The Tracked page
   itself is now the redesign too (`screens/redesign/TrackedBillsScreen.tsx`): full-bleed

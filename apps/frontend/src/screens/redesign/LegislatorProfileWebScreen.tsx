@@ -45,6 +45,13 @@ import { SharePopover } from '../../components/billDetail/SharePopover';
 import { Skeleton } from '../../components/Skeleton';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { formatLegislatureLabel, type SessionDisplaySource } from '../../lib/sessionLabel';
+import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
+import { useBillTracking } from '../../hooks/useBillTracking';
+import {
+  CARD_CONTENT_LAYER,
+  CARD_CONTROL_LAYER,
+  CARD_LINK_LAYER,
+} from '../../lib/billCardControlLayers';
 
 // Web Legislator Profile (docs/mockups/legislator-profile-web). Aggregates a
 // member's public record — identity, committees (with leadership), chief-authored
@@ -74,6 +81,7 @@ export function LegislatorProfileWebScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isDesktop } = useResponsive();
+  const { isTracked, toggleTrack } = useBillTracking();
 
   const legislatorId = String(route.params?.legislatorId ?? '');
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
@@ -246,6 +254,8 @@ export function LegislatorProfileWebScreen() {
                     onViewVotes={() => openBillVotes(bill.id)}
                     onOpenBill={openBill}
                     onOpenLegislator={openLegislator}
+                    tracked={isTracked(bill.id)}
+                    onToggleTrack={() => toggleTrack(bill.id, bill.identifier)}
                   />
                 ))}
                 <SeeMoreButton href={seeMoreUrl} onPress={() => openUrl(seeMoreUrl)} />
@@ -465,6 +475,8 @@ function ChiefBillCard({
   onViewVotes,
   onOpenBill,
   onOpenLegislator,
+  tracked,
+  onToggleTrack,
 }: {
   bill: Bill;
   legislatorId: string;
@@ -472,6 +484,8 @@ function ChiefBillCard({
   onViewVotes: () => void;
   onOpenBill: (id: string) => void;
   onOpenLegislator: (id: string) => void;
+  tracked: boolean;
+  onToggleTrack: () => void;
 }) {
   const [hovered, hover] = useHover();
   const stage = billStage(bill.status);
@@ -496,7 +510,9 @@ function ChiefBillCard({
         {...linkProps(routePath.bill(bill.id), onPress)}
         accessibilityLabel={`${bill.identifier}: ${title}`}
         {...hover}
-      >
+        style={styles.billCardOverlay}
+      />
+      <View style={styles.billCardContent}>
         <View style={styles.billTopRow}>
           <View style={styles.codeBadge}>
             <Text style={styles.codeBadgeText}>{bill.identifier}</Text>
@@ -518,6 +534,15 @@ function ChiefBillCard({
             ))}
           </View>
           {movedDate ? <Text style={styles.movedText}>LAST MOVED {movedDate}</Text> : null}
+          <View style={styles.billTopSpacer} />
+          <View style={styles.billCardControl}>
+            <BillTrackButton
+              billId={bill.id}
+              size="card"
+              tracked={tracked}
+              onPress={pressInsideLink(onToggleTrack)}
+            />
+          </View>
         </View>
         <Text style={styles.billTitle}>{title}</Text>
         {summary ? <Text style={styles.billSummary}>{summary}</Text> : null}
@@ -530,11 +555,9 @@ function ChiefBillCard({
                   <Text key={sponsor.legislatorId ?? sponsor.name}>
                     {index > 0 ? ', ' : ''}
                     <Text
-                      style={styles.coauthorLink}
-                      // Nested inside the card's own link (just above): a plain
-                      // stopPropagation would stop this Pressable's card handler
-                      // but not the anchor's default action, so the browser would
-                      // still follow the card's href on top of opening this name.
+                      style={[styles.coauthorLink, styles.billCardControl]}
+                      // This link sits above the full-card bill link. Cancel the
+                      // underlying link as a second guard for web pointer events.
                       onPress={
                         sponsor.legislatorId
                           ? pressInsideLink(() => onOpenLegislator(sponsor.legislatorId!))
@@ -552,9 +575,9 @@ function ChiefBillCard({
             )}
           </Text>
         ) : null}
-      </Pressable>
+      </View>
       {topics.length > 0 || companion || hasVotes ? (
-        <View style={styles.topicRow}>
+        <View style={[styles.topicRow, styles.billCardContent]}>
           {topics.slice(0, 3).map((topic) => (
             <View key={topic} style={styles.topicChip}>
               <Text style={styles.topicChipText}>{topic.toUpperCase()}</Text>
@@ -568,11 +591,13 @@ function ChiefBillCard({
             />
           ) : null}
           {hasVotes ? (
-            <VoteCountLinkChip
-              count={bill.rollCallCount}
-              href={routePath.bill(bill.id, { tab: 'votes' })}
-              onPress={onViewVotes}
-            />
+            <View style={styles.billCardControl}>
+              <VoteCountLinkChip
+                count={bill.rollCallCount}
+                href={routePath.bill(bill.id, { tab: 'votes' })}
+                onPress={pressInsideLink(onViewVotes)}
+              />
+            </View>
           ) : null}
         </View>
       ) : null}
@@ -588,7 +613,7 @@ function LinkChip({ label, href, onPress }: { label: string; href: string; onPre
       {...linkProps(href, onPress)}
       accessibilityLabel={label}
       {...hover}
-      style={[styles.linkChip, hovered && styles.linkChipHover]}
+      style={[styles.linkChip, styles.billCardControl, hovered && styles.linkChipHover]}
     >
       <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
         <Path
@@ -1046,6 +1071,7 @@ const styles = StyleSheet.create({
   },
   billStack: { gap: 18, zIndex: 0 },
   billCard: {
+    position: 'relative',
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
@@ -1054,8 +1080,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     ...(t.shadows.card as object),
   },
+  billCardOverlay: {
+    ...CARD_LINK_LAYER,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: t.radii.lg,
+  },
+  billCardContent: isWeb ? CARD_CONTENT_LAYER : {},
+  billCardControl: CARD_CONTROL_LAYER,
   billCardHover: { borderColor: t.colors.alpha.ink16 },
   billTopRow: { flexDirection: 'row', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
+  billTopSpacer: { flex: 1 },
   codeBadge: {
     backgroundColor: CODE_BADGE_FILL,
     borderWidth: 1,

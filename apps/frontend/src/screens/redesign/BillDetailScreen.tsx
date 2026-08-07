@@ -751,7 +751,12 @@ function BillDetailMobileScreen() {
                     ) : null}
                   </View>
                   <View style={styles.headerActions}>
-                    <BillTrackButton tracked={tracked} onPress={onTrack} size="mobile" />
+                    <BillTrackButton
+                      billId={bill.id}
+                      tracked={tracked}
+                      onPress={onTrack}
+                      size="mobile"
+                    />
                     <ShareButton onPress={() => setShareOpen(true)} />
                   </View>
                 </View>

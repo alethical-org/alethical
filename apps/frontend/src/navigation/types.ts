@@ -28,9 +28,8 @@ export type RootStackParamList = {
     // before the Bill Text tab was renamed keep resolving (BillDetailWebScreen's
     // LEGACY_TAB_PARAMS maps it).
     tab?: 'summary' | 'actions' | 'votes' | 'text' | 'versions' | 'fulltext';
-    // Intent-preserving track flow: a signed-out user who taps Track is sent
-    // through sign-in and back to /bills/{id}?track=1; on return the screen
-    // auto-completes the track and clears the param (grounded-answers.md rule 5).
+    // Backward compatibility for old sign-in return links. New Track requests
+    // return to their exact source page and no longer create this parameter.
     track?: boolean;
   };
   LegislatorProfile: { legislatorId: string };
