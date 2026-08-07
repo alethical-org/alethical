@@ -44,7 +44,11 @@ from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
     named_special_session_in_question,
 )
-from alethical.api.services.topic_bills import MIN_TOPIC_LENGTH, matched_topic_bill_ids
+from alethical.api.services.issue_bills import (
+    MIN_ISSUE_LENGTH,
+    matched_issue_bill_ids,
+    public_issue_name,
+)
 from alethical.api.services.ask_router import (
     AskIntent,
     classify_query,
@@ -188,24 +192,25 @@ def _topic_bills_answer(
     )
     session_ref = _scope_session_ref(scope)
 
-    topic_value = (topic or "").strip()
-    if len(topic_value) < MIN_TOPIC_LENGTH:
+    raw_topic = (topic or "").strip()
+    if len(raw_topic) < MIN_ISSUE_LENGTH:
         return AskTopicBillsAnswer(
-            topic=topic_value or None,
+            topic=raw_topic or None,
             session=session_ref,
             data_as_of=data_as_of,
             total_matches=0,
             bills=[],
         )
 
+    issue_name = public_issue_name(raw_topic)
     stmt = bill_list_stmt(session_ids).where(
-        Bill.id.in_(matched_topic_bill_ids(session_ids, topic_value))
+        Bill.id.in_(matched_issue_bill_ids([issue_name]))
     )
     rows = db.scalars(stmt).all()
     ranked = sorted(rows, key=_progress_sort_key)
     latest = sorted(rows, key=_latest_action_sort_key)
     return AskTopicBillsAnswer(
-        topic=topic_value,
+        topic=issue_name,
         session=session_ref,
         data_as_of=data_as_of,
         total_matches=len(rows),
@@ -231,19 +236,24 @@ def _topic_legislators_answer(
     )
     session_ref = _scope_session_ref(scope)
 
-    topic_value = (topic or "").strip()
+    raw_topic = (topic or "").strip()
+    issue_name = public_issue_name(raw_topic)
     empty = AskTopicLegislatorsAnswer(
-        topic=topic_value or None,
+        topic=issue_name or None,
         session=session_ref,
         data_as_of=data_as_of,
         total_matches=0,
         total_bills=0,
         legislators=[],
     )
-    if len(topic_value) < MIN_TOPIC_LENGTH:
+    if len(raw_topic) < MIN_ISSUE_LENGTH:
         return empty
 
-    matched_bill_ids = matched_topic_bill_ids(scope.ids, topic_value)
+    matched_bill_ids = select(Bill.id).where(
+        Bill.session_id.in_(scope.ids),
+        Bill.has_current_summary.is_(True),
+        Bill.id.in_(matched_issue_bill_ids([issue_name])),
+    )
     total_bills = db.scalar(
         select(func.count()).select_from(matched_bill_ids.subquery())
     )
@@ -355,7 +365,7 @@ def _topic_legislators_answer(
         for e in ordered[:_LEGISLATOR_DISPLAY_LIMIT]
     ]
     return AskTopicLegislatorsAnswer(
-        topic=topic_value,
+        topic=issue_name,
         session=session_ref,
         data_as_of=data_as_of,
         total_matches=len(legislators),
@@ -842,7 +852,7 @@ _BILL_TEXT_RESOLVE_MAX_DISTANCE = 0.6
 
 
 def _semantic_candidate_bills(db: Session, session_ids, model: str, embedding):
-    """Top distinct current-session, citable, AI-summarized bills by best matching
+    """Top distinct in-scope, citable, AI-summarized bills by best matching
     passage — the candidate pool the LLM chooses from. Real-model-only."""
     if model != DEFAULT_RAG_MODEL:
         return []

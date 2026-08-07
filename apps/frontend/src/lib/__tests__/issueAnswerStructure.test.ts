@@ -48,8 +48,9 @@ describe('issue answer page structure', () => {
     expect(answer).not.toContain('See all {answer.totalMatches}');
   });
 
-  it('hands Search the same topic and whole-Legislature scope as Ask', () => {
-    expect(answer).toContain("topic: answer.topic, scope: 'legislature', sort: issueSort");
+  it('hands Search the same Issue filter as Ask', () => {
+    expect(answer).toContain('issue: answer.topic, sort: issueSort');
+    expect(answer).not.toContain('topic: answer.topic');
     expect(answer).not.toContain('q: answer.topic');
   });
 

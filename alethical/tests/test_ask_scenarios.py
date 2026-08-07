@@ -209,7 +209,7 @@ def test_topic_legislators_answer_is_cited_and_grounded_by_authorship(
     assert data["source"] == "llm"
 
     answer = data["answer"]
-    assert answer["topic"] == _ECON_TOPIC
+    assert answer["topic"] == "Economic Development"
     assert answer["session"]["slug"] == "94-2025-regular"
     assert "data_as_of" in answer
     assert answer["total_matches"] >= 1
@@ -405,9 +405,9 @@ def test_bill_text_refuses_when_bill_has_no_retrievable_text(client, monkeypatch
 
 def test_bill_text_degrades_to_topic_bills_when_ambiguous(client, monkeypatch):
     """§4.1 fallback: a bill_text question that names no *single* bill (the phrase
-    is ambiguous, matching more than one) degrades to the cited topic_bills list
-    rather than refusing. "appropriations" matches 2 seeded bills by title, so it
-    resolves to no single bill but still names a topic with matches."""
+    is ambiguous) degrades to the cited Issue list rather than refusing.
+    "appropriations" maps to the public Government Finance Issue, so the fallback
+    stays aligned with the Search handoff instead of using a title-only rule."""
     _mock_llm_intent(monkeypatch, "bill_text")
     _mock_rag(monkeypatch)
     data = client.post(
@@ -417,7 +417,8 @@ def test_bill_text_degrades_to_topic_bills_when_ambiguous(client, monkeypatch):
     answer = data["answer"]
     assert answer is not None
     assert "bills" in answer, "an ambiguous bill_text degrades to the topic_bills list"
-    assert answer["total_matches"] >= 2
+    assert answer["topic"] == "Government Finance"
+    assert answer["total_matches"] >= 1
     _assert_cite_or_refuse(answer, "topic_bills")
 
 
@@ -444,7 +445,7 @@ def test_vote_deflection_resolves_named_bill_and_degrades_otherwise(
     _assert_cite_or_refuse(answer, "vote_deflection")
 
     # No bill number → degrade to the cited topic_bills list (§4.5).
-    _mock_llm_intent(monkeypatch, "legislator_vote", topic="jobs")
+    _mock_llm_intent(monkeypatch, "legislator_vote", topic="economic development")
     degraded = client.post(
         "/api/v1/ask",
         json={"content": "How did my senator vote on workforce funding?"},
@@ -507,9 +508,9 @@ def test_topic_below_minimum_length_returns_no_matches_state(client, monkeypatch
     assert answer["bills"] == []
 
 
-def test_topic_matches_by_bill_title_not_only_policy_area(client, monkeypatch):
-    """A topic that appears in a bill's title but not its policy-area tags still
-    matches — the title/description keyword branch of the match predicate."""
+def test_issue_answer_does_not_use_a_title_only_match(client, monkeypatch):
+    """Ask Issue answers use hidden Issue labels, not the separate word-search
+    rule. The Search handoff therefore returns the same bill set and total."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     data = client.post(
         "/api/v1/ask", json={"content": "What bills affect jobs?"}
@@ -517,7 +518,7 @@ def test_topic_matches_by_bill_title_not_only_policy_area(client, monkeypatch):
     assert data["intent"] == "topic_bills"
     answer = data["answer"]
     assert answer["topic"] == "jobs"
-    assert "94-2025-SF1832" in [bill["id"] for bill in answer["bills"]]
+    assert "94-2025-SF1832" not in [bill["id"] for bill in answer["bills"]]
     _assert_cite_or_refuse(answer, "topic_bills")
 
 
