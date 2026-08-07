@@ -1,6 +1,6 @@
 # Alethical design principles — the green system
 
-<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/hooks/useHistoryScrollRestoration.ts -->
+<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
 
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
@@ -269,6 +269,10 @@ one: see the box below before writing one.**
 The generic "make it striking" instinct pulls the wrong way for a civic-records product:
 
 - **No decoration for its own sake** — no gratuitous gradients, glows, or motion that doesn't clarify.
+- **Page backgrounds stay neutral site-wide.** Do not add colored corner washes, green glows, or
+  decorative color flows to the shared page background or to an individual screen, even when a
+  design handoff includes one. Treat that part of the handoff as accidental and keep the neutral
+  page ground.
 - **No luxury / editorial-flash styling** — premium-brand aesthetics read as untrustworthy here.
 - **No manipulative patterns** — no urgency, no dark patterns, no visual nudging toward a position.
 - **No color as opinion** — never use red/green weighting to imply a bill or legislator is bad/good.

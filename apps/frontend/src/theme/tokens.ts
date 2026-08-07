@@ -281,10 +281,8 @@ export const theme = {
     labelWider: '0.16em',
   },
   gradients: {
-    // page background: green radial wash (top-right) over a light vertical gradient
-    page: 'radial-gradient(120% 90% at 88% -10%, rgba(45,212,126,0.10) 0%, rgba(45,212,126,0.0) 45%), linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 60%,#fdfdfe 92%,#ffffff 100%)',
-    // greener page variant (find-my-legislator / legislator)
-    pageGreen: 'linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)',
+    // Neutral page background. Page-level colored washes are deliberately excluded.
+    page: 'linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 60%,#fdfdfe 92%,#ffffff 100%)',
     // dot-grid textures
     dotInk: 'radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px)',
     dotGreen: 'radial-gradient(rgba(20,157,91,0.09) 1.3px, transparent 1.4px)',
