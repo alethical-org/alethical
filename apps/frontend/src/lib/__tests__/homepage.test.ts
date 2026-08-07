@@ -33,4 +33,18 @@ describe('desktop bill groups continue into the matching Bill Search view', () =
     expect(mobileSource).not.toContain('<BillGroupContinuationLink');
     expect(mobileSource).toContain('<SeeMore');
   });
+
+  it('attaches the mobile in-page jump to the top of bill activity while it loads and after it loads', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../screens/redesign/HomeSignedOutScreen.tsx',
+      ),
+      'utf8',
+    );
+    const [, mobileSource = ''] = source.split('// MOBILE HOME');
+    expect(
+      mobileSource.match(/<Text ref=\{billActivityRef\} style=\{m\.eyebrow\}>/g) ?? [],
+    ).toHaveLength(2);
+  });
 });

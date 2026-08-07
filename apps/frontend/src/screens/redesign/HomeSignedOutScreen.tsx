@@ -1178,7 +1178,7 @@ function HomeSignedOutMobile() {
       lastVisit.state === 'previous-visit' ? formatNiceDate(localDay(lastVisit.at)) : '';
     return sessionWatch(trackedBills, lastVisit, watchNow, visitedOn);
   }, [trackedBills, lastVisitData, watchNow]);
-  const billActivityRef = useRef<View>(null);
+  const billActivityRef = useRef<Text>(null);
   const scrollToBillActivity = () => {
     if (!isWeb || !billActivityRef.current) return;
     (billActivityRef.current as unknown as HTMLElement).scrollIntoView({
@@ -1400,7 +1400,9 @@ function HomeSignedOutMobile() {
               together — no stagger. */}
           {activityLoading ? (
             <Container style={[m.section, m.activitySectionBottom]}>
-              <Text style={m.eyebrow}>2025–2026 SESSION</Text>
+              <Text ref={billActivityRef} style={m.eyebrow}>
+                2025–2026 SESSION
+              </Text>
               <Text accessibilityRole="header" style={m.sectionH2}>
                 Legislative Bill Activity
               </Text>
@@ -1423,7 +1425,9 @@ function HomeSignedOutMobile() {
             </Container>
           ) : introducedBills.length > 0 || signedBills.length > 0 ? (
             <Container style={[m.section, m.activitySectionBottom]}>
-              <Text style={m.eyebrow}>2025–2026 SESSION</Text>
+              <Text ref={billActivityRef} style={m.eyebrow}>
+                2025–2026 SESSION
+              </Text>
               <Text accessibilityRole="header" style={m.sectionH2}>
                 Legislative Bill Activity
               </Text>
