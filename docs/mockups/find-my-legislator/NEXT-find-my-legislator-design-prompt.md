@@ -116,8 +116,8 @@ link sitting **inside** it. That is invalid on the web and breaks keyboard use. 
 map with:
 
 - the district outline drawn, the address pinned inside it,
-- a pin that can be dragged, and a map that can be clicked to move the pin (moving the pin
-  re-runs the lookup for that spot),
+- a map that can always be dragged to explore, plus a pin that can be dragged and a map that
+  can be clicked to move the pin (moving the pin re-runs the lookup for that spot),
 - zoom controls and the map-credit link as **separate controls beside or over the map**,
   never inside the map's own clickable area,
 - a phone treatment. The map is the least important thing on a phone and the address answer

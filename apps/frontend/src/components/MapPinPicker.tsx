@@ -228,6 +228,14 @@ export function MapPinPicker({
   const keyboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pinTargetRef = useRef<View | null>(null);
   const panStart = useRef(center);
+  const mapState = useRef({
+    center,
+    zoom,
+    size,
+    onCoordinateChange,
+    onOutsideMinnesota,
+  });
+  mapState.current = { center, zoom, size, onCoordinateChange, onOutsideMinnesota };
   const geometryToFit = senateGeometry;
 
   useEffect(() => {
@@ -294,14 +302,16 @@ export function MapPinPicker({
         onMoveShouldSetPanResponder: (_, gesture) =>
           Math.abs(gesture.dx) + Math.abs(gesture.dy) > 4,
         onPanResponderGrant: () => {
-          panStart.current = center;
+          panStart.current = mapState.current.center;
         },
         onPanResponderMove: (_, gesture) => {
+          const { zoom } = mapState.current;
           const origin = worldPoint(panStart.current, zoom);
           setCenter(coordinateAt({ x: origin.x - gesture.dx, y: origin.y - gesture.dy }, zoom));
         },
         onPanResponderRelease: (event, gesture) => {
           if (Math.abs(gesture.dx) + Math.abs(gesture.dy) <= 4) {
+            const { center, size, zoom, onCoordinateChange, onOutsideMinnesota } = mapState.current;
             const chosen = coordinateForScreen(
               event.nativeEvent.locationX,
               event.nativeEvent.locationY,
@@ -315,7 +325,7 @@ export function MapPinPicker({
           }
         },
       }),
-    [center, onCoordinateChange, onOutsideMinnesota, size, zoom],
+    [],
   );
 
   const pinPan = useMemo(
@@ -386,7 +396,7 @@ export function MapPinPicker({
         style={[
           styles.map,
           mobile && styles.mapMobile,
-          isWeb ? ({ touchAction: 'none' } as object) : null,
+          isWeb ? ({ touchAction: 'none', cursor: 'grab', userSelect: 'none' } as object) : null,
         ]}
         testID="district-map-canvas"
         accessibilityLabel="Minnesota district map"
@@ -515,11 +525,11 @@ export function MapPinPicker({
       <Text style={styles.helper}>
         {displayCoordinate
           ? mobile
-            ? 'Tap the map to adjust your location'
-            : 'Click the map to adjust your location'
+            ? 'Drag the map to explore, then tap to adjust your location'
+            : 'Drag the map to explore, then click to adjust your location'
           : mobile
-            ? 'Tap the map to choose your location'
-            : 'Click the map to choose your location'}
+            ? 'Drag the map to explore, then tap to choose your location'
+            : 'Drag the map to explore, then click to choose your location'}
       </Text>
 
       <Text style={styles.districtExplanation}>
