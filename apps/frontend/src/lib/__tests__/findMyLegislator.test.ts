@@ -99,6 +99,9 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('onKeyPress={onChoiceKey}');
     expect(source).toMatch(/const runCoordinate[\s\S]*setChoiceClosed\(true\)/);
     expect(source).toContain(
+      'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415',
+    );
+    expect(source).not.toContain(
       'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415.',
     );
     expect(source).toContain('LOCATION_ERROR_ID');

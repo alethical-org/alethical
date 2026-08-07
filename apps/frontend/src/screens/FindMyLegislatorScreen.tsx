@@ -120,7 +120,7 @@ function errorCopy(state: 'not-found' | 'outside-minnesota' | 'location-error' |
   if (state === 'not-found')
     return {
       field: 'No match for that address',
-      answer: 'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415.',
+      answer: 'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415',
     };
   if (state === 'outside-minnesota')
     return {
