@@ -145,11 +145,13 @@ roadmap noted for direction.
   Search → Legislators menu entry. Shipped, and wired to the Find My Legislator screen
   in [#873](https://github.com/alethical-org/alethical/issues/873).
   **A street address, not a ZIP or a city:** Minnesota legislative districts are drawn
-  below city level, and the lookup geocodes through the US Census one-line matcher, which
-  only matches a house number + street (`alethical/api/services/representative_lookup.py`,
-  `CensusGeocoder`). A city name or a bare ZIP returns no match, so neither the field's
-  placeholder nor any suggestion chip may offer one (`.claude/rules/grounded-answers.md`
-  rule 2). The band's original city-name chips were removed for exactly this reason.
+  below city level. The lookup first uses the US Census one-line matcher, retries the
+  house and street with Minnesota when a commonly used city or ZIP hides the postal
+  match, then falls back to Minnesota's public statewide address points
+  (`alethical/api/services/representative_lookup.py`). A city name or a bare ZIP still
+  has no house and street to locate, so neither the field's placeholder nor any suggestion
+  chip may offer one (`.claude/rules/grounded-answers.md` rule 2). The band's original
+  city-name chips were removed for exactly this reason.
 - **Search Bills / Search Legislators — design-review decisions (2026-07-15):** the split
   (`SearchScreen` → `BillsScreen` + `LegislatorsScreen`, per the build-sequence + route
   scheme below) is now driven by a matched pair of high-fidelity Claude-design drafts

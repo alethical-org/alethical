@@ -76,6 +76,106 @@ CONGRESSIONAL_DISTRICTS_PATH = (
     / "data"
     / "congressional_districts_2022.geojson"
 )
+MINNESOTA_ADDRESS_POINTS_URL = (
+    "https://enterprise.gisdata.mn.gov/aghost/rest/services/"
+    "us_mn_state_mngeo/loc_addresses_open/FeatureServer/0/query"
+)
+
+_DIRECTION_ALIASES = {
+    "N": "NORTH",
+    "NORTH": "NORTH",
+    "NE": "NORTHEAST",
+    "NORTHEAST": "NORTHEAST",
+    "E": "EAST",
+    "EAST": "EAST",
+    "SE": "SOUTHEAST",
+    "SOUTHEAST": "SOUTHEAST",
+    "S": "SOUTH",
+    "SOUTH": "SOUTH",
+    "SW": "SOUTHWEST",
+    "SOUTHWEST": "SOUTHWEST",
+    "W": "WEST",
+    "WEST": "WEST",
+    "NW": "NORTHWEST",
+    "NORTHWEST": "NORTHWEST",
+}
+_STREET_TYPE_ALIASES = {
+    "AVE": "AVENUE",
+    "AVENUE": "AVENUE",
+    "BLVD": "BOULEVARD",
+    "BOULEVARD": "BOULEVARD",
+    "CIR": "CIRCLE",
+    "CIRCLE": "CIRCLE",
+    "CT": "COURT",
+    "COURT": "COURT",
+    "DR": "DRIVE",
+    "DRIVE": "DRIVE",
+    "HWY": "HIGHWAY",
+    "HIGHWAY": "HIGHWAY",
+    "LN": "LANE",
+    "LANE": "LANE",
+    "PKWY": "PARKWAY",
+    "PARKWAY": "PARKWAY",
+    "PL": "PLACE",
+    "PLACE": "PLACE",
+    "RD": "ROAD",
+    "ROAD": "ROAD",
+    "ST": "STREET",
+    "STREET": "STREET",
+    "TER": "TERRACE",
+    "TERRACE": "TERRACE",
+    "TRL": "TRAIL",
+    "TRAIL": "TRAIL",
+    "WAY": "WAY",
+}
+_STREET_PREFIX_TYPES = (
+    ("COUNTY", "STATE", "AID", "HIGHWAY"),
+    ("COUNTY", "HIGHWAY"),
+    ("COUNTY", "ROAD"),
+    ("COUNTY", "ROUTE"),
+    ("STATE", "HIGHWAY"),
+    ("STATE", "ROUTE"),
+    ("TOWNSHIP", "HIGHWAY"),
+    ("TOWNSHIP", "ROAD"),
+    ("TRUNK", "HIGHWAY"),
+    ("US", "HIGHWAY"),
+    ("US", "ROUTE"),
+    ("U", "S", "HIGHWAY"),
+    ("U", "S", "ROUTE"),
+    ("HIGHWAY",),
+)
+_ADDRESS_POINT_FIELDS = (
+    "anumberpre",
+    "anumber",
+    "anumbersuf",
+    "st_pre_mod",
+    "st_pre_dir",
+    "st_pre_typ",
+    "st_pre_sep",
+    "st_name",
+    "st_pos_typ",
+    "st_pos_dir",
+    "st_pos_mod",
+    "postcomm",
+    "ctu_name",
+    "zip",
+    "state_code",
+    "longitude",
+    "latitude",
+    "status",
+)
+
+
+@dataclass(frozen=True)
+class _AddressPointQuery:
+    house_number: int
+    house_suffix: str | None
+    street_names: tuple[str, ...]
+    street_type: str | None
+    pre_direction: str | None
+    post_direction: str | None
+    locality: str | None
+    zip_code: str | None
 
 
 def _geometry(value: dict) -> BaseGeometry:
@@ -228,36 +328,43 @@ class CensusGeocoder:
         )
 
     def geocode_matches(self, address_text: str) -> list[GeocodedAddress]:
-        response = requests.get(
-            self.base_url,
-            params={
-                "address": address_text,
-                "benchmark": self.benchmark,
-                "format": "json",
-            },
-            timeout=self.timeout_seconds,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        raw_matches = payload.get("result", {}).get("addressMatches", [])
-        if not isinstance(raw_matches, list) or not raw_matches:
+        raw_matches = self._raw_matches(address_text)
+        relaxed_address = self._minnesota_street_only_address(address_text)
+        if (
+            not raw_matches
+            and relaxed_address is not None
+            and relaxed_address.casefold() != address_text.strip().casefold()
+        ):
+            raw_matches = self._raw_matches(relaxed_address)
+        if not raw_matches:
             raise RepresentativeLookupNotFound("address could not be geocoded")
 
         matches: list[GeocodedAddress] = []
         for match in raw_matches:
-            coordinates = match.get("coordinates") or {}
-            address_components = match.get("addressComponents") or {}
+            if not isinstance(match, dict):
+                continue
+            coordinates = match.get("coordinates")
+            if not isinstance(coordinates, dict):
+                coordinates = {}
+            address_components = match.get("addressComponents")
+            if not isinstance(address_components, dict):
+                address_components = {}
             matched_address = match.get("matchedAddress")
             latitude = coordinates.get("y")
             longitude = coordinates.get("x")
             if matched_address is None or latitude is None or longitude is None:
                 continue
+            try:
+                parsed_latitude = float(str(latitude))
+                parsed_longitude = float(str(longitude))
+            except (TypeError, ValueError):
+                continue
             matches.append(
                 GeocodedAddress(
                     requested_address=address_text,
                     matched_address=str(matched_address),
-                    latitude=float(latitude),
-                    longitude=float(longitude),
+                    latitude=parsed_latitude,
+                    longitude=parsed_longitude,
                     state_code=self._state_code(address_components.get("state")),
                 )
             )
@@ -272,6 +379,34 @@ class CensusGeocoder:
             )
         return minnesota_matches[:5]
 
+    def _raw_matches(self, address_text: str) -> list[object]:
+        response = requests.get(
+            self.base_url,
+            params={
+                "address": address_text,
+                "benchmark": self.benchmark,
+                "format": "json",
+            },
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        raw_matches = payload.get("result", {}).get("addressMatches", [])
+        return raw_matches if isinstance(raw_matches, list) else []
+
+    @staticmethod
+    def _minnesota_street_only_address(address_text: str) -> str | None:
+        parts = [part.strip() for part in address_text.split(",")]
+        if len(parts) < 2:
+            return None
+        locality = ", ".join(parts[1:])
+        if re.search(r"\b(?:MN|MINNESOTA)\b", locality, re.IGNORECASE) is None:
+            return None
+        street = parts[0]
+        if re.match(r"^\d+\S*\s+\S", street) is None:
+            return None
+        return f"{street}, MN"
+
     def geocode(self, address_text: str) -> GeocodedAddress:
         """Compatibility helper for callers that require exactly one match."""
         matches = self.geocode_matches(address_text)
@@ -283,6 +418,250 @@ class CensusGeocoder:
     def _state_code(value) -> str | None:
         text = str(value).strip().upper() if value is not None else ""
         return text or None
+
+
+class MinnesotaAddressPointGeocoder:
+    """Use Minnesota's public address points after the Census has no match."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str | None = None,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        self.base_url = base_url or os.environ.get(
+            "ALETHICAL_MN_ADDRESS_POINTS_URL", MINNESOTA_ADDRESS_POINTS_URL
+        )
+        self.timeout_seconds = timeout_seconds or float(
+            os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10")
+        )
+
+    def geocode_matches(self, address_text: str) -> list[GeocodedAddress]:
+        query = self._parse_query(address_text)
+        if query is None:
+            raise RepresentativeLookupNotFound("address could not be geocoded")
+
+        street_names = ", ".join(
+            f"'{name.replace("'", "''")}'" for name in query.street_names
+        )
+        where_parts = [
+            f"anumber = {query.house_number}",
+            f"UPPER(st_name) IN ({street_names})",
+            "(state_code IS NULL OR UPPER(state_code) = 'MN')",
+            "(status IS NULL OR UPPER(status) <> 'RETIRED')",
+        ]
+        if query.house_suffix:
+            suffix = query.house_suffix.replace("'", "''")
+            where_parts.append(f"UPPER(anumbersuf) = '{suffix}'")
+
+        response = requests.get(
+            self.base_url,
+            params={
+                "where": " AND ".join(where_parts),
+                "outFields": ",".join(_ADDRESS_POINT_FIELDS),
+                "returnGeometry": "false",
+                "resultRecordCount": "100",
+                "f": "json",
+            },
+            timeout=self.timeout_seconds,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict) or payload.get("error"):
+            raise RepresentativeLookupUpstreamError(
+                "Minnesota address service returned an error"
+            )
+        features = payload.get("features", [])
+        if not isinstance(features, list):
+            raise RepresentativeLookupUpstreamError(
+                "Minnesota address service response missing features"
+            )
+
+        candidates: list[tuple[GeocodedAddress, str, str]] = []
+        seen_addresses: set[str] = set()
+        for feature in features:
+            if not isinstance(feature, dict):
+                continue
+            attributes = feature.get("attributes")
+            if not isinstance(attributes, dict):
+                continue
+            candidate = self._candidate(address_text, query, attributes)
+            if candidate is None:
+                continue
+            match, locality, zip_code = candidate
+            key = match.matched_address.casefold()
+            if key in seen_addresses:
+                continue
+            seen_addresses.add(key)
+            candidates.append((match, locality, zip_code))
+
+        if not candidates:
+            raise RepresentativeLookupNotFound("address could not be geocoded")
+
+        if query.zip_code:
+            zip_matches = [item for item in candidates if item[2] == query.zip_code]
+            if zip_matches:
+                candidates = zip_matches
+        if query.locality:
+            locality_matches = [
+                item
+                for item in candidates
+                if self._normalize(item[1]) == self._normalize(query.locality)
+            ]
+            if locality_matches:
+                candidates = locality_matches
+        return [match for match, _, _ in candidates[:5]]
+
+    def _candidate(
+        self,
+        requested_address: str,
+        query: _AddressPointQuery,
+        attributes: dict,
+    ) -> tuple[GeocodedAddress, str, str] | None:
+        state = self._normalize(attributes.get("state_code"))
+        if state and state != "MN":
+            return None
+        street_name = self._normalize(attributes.get("st_name"))
+        if street_name not in query.street_names:
+            return None
+        candidate_type = self._street_type(attributes.get("st_pos_typ"))
+        if query.street_type and candidate_type and query.street_type != candidate_type:
+            return None
+        candidate_post_direction = self._direction(attributes.get("st_pos_dir"))
+        if (
+            query.post_direction
+            and candidate_post_direction
+            and query.post_direction != candidate_post_direction
+        ):
+            return None
+        if street_name != query.street_names[0] and query.pre_direction:
+            if self._direction(attributes.get("st_pre_dir")) != query.pre_direction:
+                return None
+        try:
+            latitude = float(attributes["latitude"])
+            longitude = float(attributes["longitude"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        if not (43.0 <= latitude <= 50.0 and -98.0 <= longitude <= -89.0):
+            return None
+
+        street = " ".join(
+            str(attributes.get(field) or "").strip()
+            for field in (
+                "anumberpre",
+                "anumber",
+                "anumbersuf",
+                "st_pre_mod",
+                "st_pre_dir",
+                "st_pre_typ",
+                "st_pre_sep",
+                "st_name",
+                "st_pos_typ",
+                "st_pos_dir",
+                "st_pos_mod",
+            )
+            if str(attributes.get(field) or "").strip()
+        )
+        locality = str(
+            attributes.get("postcomm") or attributes.get("ctu_name") or "Minnesota"
+        ).strip()
+        zip_code = str(attributes.get("zip") or "").strip()
+        matched_address = f"{street}, {locality}, MN"
+        if zip_code:
+            matched_address += f" {zip_code}"
+        return (
+            GeocodedAddress(
+                requested_address=requested_address,
+                matched_address=matched_address,
+                latitude=latitude,
+                longitude=longitude,
+                state_code="MN",
+            ),
+            locality,
+            zip_code,
+        )
+
+    @classmethod
+    def _parse_query(cls, address_text: str) -> _AddressPointQuery | None:
+        parts = [part.strip() for part in address_text.split(",")]
+        if len(parts) < 2:
+            return None
+        locality_text = ", ".join(parts[1:])
+        if re.search(r"\b(?:MN|MINNESOTA)\b", locality_text, re.IGNORECASE) is None:
+            return None
+        street_match = re.match(r"^(\d+)([A-Z]?)\s+(.+)$", parts[0], re.IGNORECASE)
+        if street_match is None:
+            return None
+        house_number = int(street_match.group(1))
+        house_suffix = cls._normalize(street_match.group(2)) or None
+        street_text = re.split(
+            r"\s+(?:APT|APARTMENT|UNIT|SUITE|STE|#)\s*[A-Z0-9-]+\b",
+            street_match.group(3),
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
+        tokens = re.findall(r"[A-Z0-9]+", street_text.upper())
+        if not tokens:
+            return None
+
+        post_direction = cls._direction(tokens[-1])
+        if post_direction:
+            tokens.pop()
+        possible_name_without_type: str | None = None
+        street_type = cls._street_type(tokens[-1]) if tokens else None
+        if street_type:
+            tokens.pop()
+        elif len(tokens) > 1:
+            # Minnesota's standard allows many uncommon street types. Keep a
+            # second candidate that treats the last word as a type so an
+            # unfamiliar abbreviation can still return choices instead of a
+            # false no-match.
+            possible_name_without_type = " ".join(tokens[:-1])
+
+        for prefix in _STREET_PREFIX_TYPES:
+            if tuple(tokens[: len(prefix)]) == prefix and len(tokens) > len(prefix):
+                tokens = tokens[len(prefix) :]
+                break
+        if not tokens:
+            return None
+
+        primary_name = " ".join(tokens)
+        street_names = [primary_name]
+        if (
+            possible_name_without_type
+            and possible_name_without_type not in street_names
+        ):
+            street_names.append(possible_name_without_type)
+        pre_direction = cls._direction(tokens[0]) if len(tokens) > 1 else None
+        if pre_direction:
+            alternate_name = " ".join(tokens[1:])
+            if alternate_name not in street_names:
+                street_names.append(alternate_name)
+
+        locality = parts[1] if len(parts) > 2 else None
+        zip_match = re.search(r"\b(\d{5})(?:-\d{4})?\b", locality_text)
+        return _AddressPointQuery(
+            house_number=house_number,
+            house_suffix=house_suffix,
+            street_names=tuple(street_names),
+            street_type=street_type,
+            pre_direction=pre_direction,
+            post_direction=post_direction,
+            locality=locality,
+            zip_code=zip_match.group(1) if zip_match else None,
+        )
+
+    @staticmethod
+    def _normalize(value) -> str:
+        return " ".join(re.findall(r"[A-Z0-9]+", str(value or "").upper()))
+
+    @classmethod
+    def _direction(cls, value) -> str | None:
+        return _DIRECTION_ALIASES.get(cls._normalize(value))
+
+    @classmethod
+    def _street_type(cls, value) -> str | None:
+        return _STREET_TYPE_ALIASES.get(cls._normalize(value))
 
 
 class MinnesotaGisLookupClient:
@@ -316,6 +695,8 @@ class MinnesotaGisLookupClient:
 
         house_match: DistrictMatch | None = None
         senate_match: DistrictMatch | None = None
+        house_source_geometry: dict | None = None
+        senate_source_geometry: dict | None = None
         congressional_district = congressional_district_for_point(
             longitude=longitude,
             latitude=latitude,
@@ -342,18 +723,22 @@ class MinnesotaGisLookupClient:
             )
             if chamber == "house" and house_match is None:
                 house_match = match
+                house_source_geometry = raw_geometry
             if chamber == "senate" and senate_match is None:
                 senate_match = match
+                senate_source_geometry = raw_geometry
 
         if (
             house_match
             and senate_match
             and house_match.geometry
             and senate_match.geometry
+            and house_source_geometry is not None
+            and senate_source_geometry is not None
         ):
             validate_district_containment(
-                house_match.geometry,
-                senate_match.geometry,
+                house_source_geometry,
+                senate_source_geometry,
                 house_code=house_match.district_code,
                 senate_code=senate_match.district_code,
             )
@@ -430,13 +815,25 @@ class RepresentativeLookupService:
         self,
         *,
         geocoder: CensusGeocoder | None = None,
+        address_point_geocoder: MinnesotaAddressPointGeocoder | None = None,
         gis_client: MinnesotaGisLookupClient | None = None,
     ) -> None:
         self.geocoder = geocoder or CensusGeocoder()
+        self.address_point_geocoder = (
+            address_point_geocoder or MinnesotaAddressPointGeocoder()
+        )
         self.gis_client = gis_client or MinnesotaGisLookupClient()
 
     def lookup(self, address_text: str) -> RepresentativeLookupResult:
-        matches = self.geocoder.geocode_matches(address_text)
+        try:
+            matches = self.geocoder.geocode_matches(address_text)
+        except RepresentativeLookupNotFound:
+            matches = self.address_point_geocoder.geocode_matches(address_text)
+        except RepresentativeLookupOutsideMinnesota as outside_minnesota:
+            try:
+                matches = self.address_point_geocoder.geocode_matches(address_text)
+            except RepresentativeLookupNotFound:
+                raise outside_minnesota
         if len(matches) > 1:
             raise RepresentativeLookupChoices(matches)
         geocoded = matches[0]

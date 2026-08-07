@@ -15,7 +15,8 @@ Alethical ingests **Minnesota legislative data by scraping official public
 government sources** — there is no single vendor API and **no API keys are
 needed for any government source**. Bills come from the MN Revisor (XML + HTML),
 legislators from the joint Legislature roster + chamber profile pages, votes from
-chamber-specific journals/pages, and district lookup from US Census + MN GIS. There are **two** credentialed dependencies: **Anthropic**
+chamber-specific journals/pages, and district lookup from US Census + Minnesota address
+points + MN GIS. There are **two** credentialed dependencies: **Anthropic**
 (`alethical/pipeline/anthropic_enrichment.py` — where every production bill summary
 comes from today) and **OpenAI** (the batch summary backend + RAG chat). This guide
 named only OpenAI, which pointed a new engineer at the wrong one.
@@ -64,13 +65,16 @@ flowchart LR
 
   subgraph RT["Query-time external calls"]
     GEO["US Census geocoder"]
+    AP["MN statewide<br/>address points"]
     GIS["MN LCC-GIS districts"]
     OAI["OpenAI Responses<br/>RAG chat synthesis"]
     OSM["OpenStreetMap tiles"]
   end
 
   CL["Clients<br/>Web (iOS · Android not built yet)"] --> API
-  API -->|"Find My Legislator"| GEO --> GIS
+  API -->|"Find My Legislator"| GEO
+  GEO -->|"matched"| GIS
+  GEO -->|"no match"| AP --> GIS
   API -->|"chat"| OAI
   CL -->|"map tiles"| OSM
 ```
@@ -116,7 +120,7 @@ specifically the ingestion that *builds the retrieval corpus* those depend on.
 | A | Bills, actions, sponsors, versions, text | MN Revisor | HTTP `GET`, XML + HTML | none | [minnesota.py](../../alethical/pipeline/minnesota.py) |
 | B | Legislator roster & profiles, committees | Joint directory + House/Senate member pages | HTTP `GET`, HTML (regex) | none | [minnesota.py](../../alethical/pipeline/minnesota.py), [committee_memberships.py](../../alethical/pipeline/committee_memberships.py) |
 | C | Roll-call votes | House vote pages + Senate journal API→PDF | HTTP `GET`, HTML + JSON + PDF | none | [votes.py](../../alethical/pipeline/votes.py) |
-| D | District lookup (Find My Legislator) | US Census geocoder + MN LCC-GIS | HTTP `GET`, JSON/GeoJSON | none | [representative_lookup.py](../../alethical/api/services/representative_lookup.py) |
+| D | District lookup (Find My Legislator) | US Census geocoder + MN statewide address points + MN LCC-GIS | HTTP `GET`, JSON/GeoJSON | none | [representative_lookup.py](../../alethical/api/services/representative_lookup.py) |
 | E | AI bill summaries | OpenAI Batch API | HTTPS, JSON | `OPENAI_API_KEY` | [ai_enrichment.py](../../alethical/pipeline/ai_enrichment.py) |
 | F | RAG chat synthesis | OpenAI Responses API | HTTPS `POST`, JSON | `OPENAI_API_KEY` | [me.py](../../alethical/api/routers/me.py) |
 | G | Map tiles | OpenStreetMap | HTTP tiles | none | frontend `MapPinPicker.tsx` |
@@ -271,16 +275,26 @@ recorded roll call or the source can't be matched deterministically.
 ## D — District lookup (query-time, not batch)
 
 Powers "Find My Legislator." Called synchronously by
-`POST /api/v1/representative-lookups`. Two hops, both public, 10s timeout, all
-endpoints env-overridable:
+`POST /api/v1/representative-lookups`. Three stages, all public, 10s timeout, all
+endpoints env-overridable. The second stage runs only when the first finds nothing:
 
 1. **Geocode:** `GET https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=...&benchmark=Public_AR_Current&format=json`
-   → lat/lng + state (rejects non-MN).
-2. **District:** `GET https://gis.lcc.mn.gov/api/?lat=...&lng=...` → GeoJSON
-   `features` → house/senate district codes.
+   → lat/lng + state (rejects non-MN). It first tries the address as typed. When an
+   address explicitly says Minnesota but has no result, it retries the house and street
+   with `MN`; this recovers homes whose commonly used city or ZIP differs from the postal
+   record without silently changing the selected result.
+2. **Address-point fallback:** after both Census attempts find nothing, query Minnesota's
+   public statewide address points at
+   `https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_mngeo/loc_addresses_open/FeatureServer/0/query`.
+   The request carries only the parsed house number and street name, never the city or ZIP.
+   An exact official result continues; several distinct results are returned as choices.
+3. **District:** `GET https://gis.lcc.mn.gov/api/?lat=...&lng=...` → GeoJSON
+   `features` → house/senate district codes. House-within-Senate safety checks use the
+   original government outlines; geometry is reduced only for the browser map afterward.
 
 Overrides: `ALETHICAL_CENSUS_GEOCODER_URL`, `ALETHICAL_CENSUS_BENCHMARK`,
-`ALETHICAL_MN_GIS_LOOKUP_URL`, `ALETHICAL_HTTP_TIMEOUT_SECONDS`. CLI:
+`ALETHICAL_MN_ADDRESS_POINTS_URL`, `ALETHICAL_MN_GIS_LOOKUP_URL`,
+`ALETHICAL_HTTP_TIMEOUT_SECONDS`. CLI:
 `python -m alethical.api.services.representative_lookup "<address>" --json`.
 
 ## E & F — the credentialed sources (Anthropic and OpenAI)

@@ -4,6 +4,8 @@ import pytest
 
 from alethical.api.services.representative_lookup import (
     CensusGeocoder,
+    GeocodedAddress,
+    MinnesotaAddressPointGeocoder,
     MinnesotaGisLookupClient,
     RepresentativeLookupChoices,
     RepresentativeLookupNotFound,
@@ -39,6 +41,10 @@ def census_match(address, *, state="MN", latitude=44.98, longitude=-93.27):
     }
 
 
+def address_point_feature(**attributes):
+    return {"attributes": attributes}
+
+
 def test_census_returns_no_match_without_silently_choosing(monkeypatch):
     monkeypatch.setattr(
         "alethical.api.services.representative_lookup.requests.get",
@@ -49,6 +55,213 @@ def test_census_returns_no_match_without_silently_choosing(monkeypatch):
         RepresentativeLookupNotFound, match="address could not be geocoded"
     ):
         CensusGeocoder().geocode_matches("1428 Nonesuch Ave")
+
+
+def test_census_retries_a_minnesota_street_without_the_wrong_locality(monkeypatch):
+    requested = "4255 215th St E, Farmington, MN 55024"
+    matched = census_match(
+        "4255 215TH ST E, HAMPTON, MN 55031",
+        latitude=44.637605981025,
+        longitude=-93.020281271416,
+    )
+    requests = []
+
+    def get(url, *, params, timeout):
+        requests.append(params["address"])
+        if params["address"] == requested:
+            return FakeResponse(census_payload())
+        assert params["address"] == "4255 215th St E, MN"
+        return FakeResponse(census_payload(matched))
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    matches = CensusGeocoder().geocode_matches(requested)
+
+    assert requests == [requested, "4255 215th St E, MN"]
+    assert matches[0].requested_address == requested
+    assert matches[0].matched_address == "4255 215TH ST E, HAMPTON, MN 55031"
+
+
+def test_census_does_not_relax_an_address_without_a_minnesota_locality(monkeypatch):
+    requests = []
+
+    def get(url, *, params, timeout):
+        requests.append(params["address"])
+        return FakeResponse(census_payload())
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    with pytest.raises(RepresentativeLookupNotFound):
+        CensusGeocoder().geocode_matches("4255 215th St E")
+
+    assert requests == ["4255 215th St E"]
+
+
+def test_state_address_fallback_sends_only_house_number_and_street(monkeypatch):
+    requested = "4255 215th St E, Farmington, MN 55024"
+    seen_params = {}
+
+    def get(url, *, params, timeout):
+        seen_params.update(params)
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=4255,
+                        anumberpre=None,
+                        anumbersuf=None,
+                        st_pre_mod=None,
+                        st_pre_dir=None,
+                        st_pre_typ=None,
+                        st_pre_sep=None,
+                        st_name="215th",
+                        st_pos_typ="Street",
+                        st_pos_dir="East",
+                        st_pos_mod=None,
+                        postcomm="Hampton",
+                        ctu_name="Vermillion Township",
+                        zip="55031",
+                        state_code="MN",
+                        longitude=-93.02000538,
+                        latitude=44.64011409,
+                        status="Active",
+                    )
+                ]
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    matches = MinnesotaAddressPointGeocoder().geocode_matches(requested)
+
+    assert "4255" in seen_params["where"]
+    assert "215TH" in seen_params["where"]
+    assert "Farmington" not in str(seen_params)
+    assert "55024" not in str(seen_params)
+    assert matches == [
+        GeocodedAddress(
+            requested_address=requested,
+            matched_address="4255 215th Street East, Hampton, MN 55031",
+            latitude=44.64011409,
+            longitude=-93.02000538,
+            state_code="MN",
+        )
+    ]
+
+
+def test_state_address_fallback_returns_choices_instead_of_guessing(monkeypatch):
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get",
+        lambda *args, **kwargs: FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=10,
+                        st_name="Main",
+                        st_pos_typ="Street",
+                        postcomm=city,
+                        ctu_name=city,
+                        zip=zip_code,
+                        state_code="MN",
+                        longitude=longitude,
+                        latitude=45.0,
+                        status="Active",
+                    )
+                    for city, zip_code, longitude in (
+                        ("Ada", "56510", -96.5),
+                        ("Anoka", "55303", -93.4),
+                    )
+                ]
+            }
+        ),
+    )
+
+    matches = MinnesotaAddressPointGeocoder().geocode_matches(
+        "10 Main St, Somewhere, MN"
+    )
+
+    assert [match.matched_address for match in matches] == [
+        "10 Main Street, Ada, MN 56510",
+        "10 Main Street, Anoka, MN 55303",
+    ]
+
+
+def test_state_address_fallback_accepts_an_uncommon_street_type(monkeypatch):
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get",
+        lambda *args, **kwargs: FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=10,
+                        st_name="Pine",
+                        st_pos_typ="Cove",
+                        postcomm="Bemidji",
+                        ctu_name="Bemidji",
+                        zip="56601",
+                        state_code="MN",
+                        longitude=-94.88,
+                        latitude=47.47,
+                        status="Active",
+                    )
+                ]
+            }
+        ),
+    )
+
+    matches = MinnesotaAddressPointGeocoder().geocode_matches(
+        "10 Pine Cv, Bemidji, MN 56601"
+    )
+
+    assert matches[0].matched_address == "10 Pine Cove, Bemidji, MN 56601"
+
+
+def test_state_address_fallback_rejects_non_minnesota_without_a_request(monkeypatch):
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get",
+        lambda *args, **kwargs: pytest.fail("state address service was called"),
+    )
+
+    with pytest.raises(RepresentativeLookupNotFound):
+        MinnesotaAddressPointGeocoder().geocode_matches("10 Main St, Fargo, ND 58103")
+
+
+def test_lookup_uses_state_addresses_only_after_census_has_no_match():
+    matched = GeocodedAddress(
+        requested_address="10 Main St, Ada, MN",
+        matched_address="10 Main Street, Ada, MN 56510",
+        latitude=47.3,
+        longitude=-96.5,
+        state_code="MN",
+    )
+
+    class Census:
+        def geocode_matches(self, address_text):
+            raise RepresentativeLookupNotFound("address could not be geocoded")
+
+    class AddressPoints:
+        def geocode_matches(self, address_text):
+            return [matched]
+
+    class Gis:
+        def lookup(self, *, latitude, longitude):
+            assert (latitude, longitude) == (47.3, -96.5)
+            return (None, None, "7")
+
+    with pytest.raises(
+        RepresentativeLookupNotFound, match="no Minnesota legislative districts"
+    ):
+        RepresentativeLookupService(
+            geocoder=Census(),
+            address_point_geocoder=AddressPoints(),
+            gis_client=Gis(),
+        ).lookup("10 Main St, Ada, MN")
 
 
 def test_census_filters_minnesota_before_limiting_choices(monkeypatch):
@@ -198,6 +411,51 @@ def test_gis_uses_local_congressional_layer_and_keeps_legislative_geometry(monke
     assert house and house.district_code == "59B" and house.geometry
     assert senate and senate.district_code == "59" and senate.geometry
     assert congress == "7"
+
+
+def test_maple_grove_source_shapes_are_checked_before_browser_reduction(monkeypatch):
+    # The real House 37B outline around 7840 Main St is within the 0.1% source
+    # allowance, but browser reduction pushes it just over. These small shapes
+    # reproduce that same boundary condition without storing a large GIS response.
+    house_geometry = {
+        "type": "Polygon",
+        "coordinates": [[[0, 0], [0.02003, 0], [0.02003, 0.02], [0, 0.02], [0, 0]]],
+    }
+    senate_geometry = {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [0, 0],
+                [0.02, 0],
+                [0.02003, 0.001],
+                [0.02003, 0.019],
+                [0.02, 0.02],
+                [0, 0.02],
+                [0, 0],
+            ]
+        ],
+    }
+    payload = {
+        "features": [
+            {
+                "geometry": house_geometry,
+                "properties": {"district": "1A", "memid": "1"},
+            },
+            {
+                "geometry": senate_geometry,
+                "properties": {"district": "1", "memid": "2"},
+            },
+        ]
+    }
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get",
+        lambda *args, **kwargs: FakeResponse(payload),
+    )
+
+    house, senate, _ = MinnesotaGisLookupClient().lookup(latitude=0.01, longitude=0.01)
+
+    assert house and house.geometry != house_geometry
+    assert senate and senate.geometry != senate_geometry
 
 
 def test_local_congressional_map_covers_cold_spring_without_sharing_the_point():
