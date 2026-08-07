@@ -599,6 +599,11 @@ Authored Bills uses the same server-backed `limit` and `offset` contract as the 
 
 ## 9. Find My Legislator
 
+The current reader-facing instructions live in
+[`docs/product-onboarding/find-my-legislator-guide.md`](../product-onboarding/find-my-legislator-guide.md)
+(How Find My Legislator works). The notes below preserve the original screen plan and
+are not a usage guide.
+
 > **Superseded by what shipped.** Per-screen truth is the full page in
 > `apps/frontend/src/screens/FindMyLegislatorScreen.tsx` and the shared homepage entry point
 > in `apps/frontend/src/components/home/HomeLegislatorFinder.tsx`. The shipped page requires

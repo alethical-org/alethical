@@ -23,7 +23,8 @@ docs/
 │   ├── tracked-bill-notifications-spec.md
 │   ├── ai-models-and-billing.md
 │   ├── data-ingestion-onboarding.md
-│   └── search-bills-guide.md
+│   ├── search-bills-guide.md
+│   └── find-my-legislator-guide.md
 │
 ├── architecture/          How the system is built
 │   ├── backend-api-system-design.md
@@ -90,6 +91,9 @@ Two things keep the folder honest:
 
 - **Add it to `docs/README.md`'s index in the same change** — an unindexed doc is one nobody
   finds.
+- **Give each notable feature page or named navigation destination its own plain-English
+  guide in `product-onboarding/`** — a system design, build spec, or mockup does not replace
+  the reader's guide.
 - **Keep references pointing at real files.** `scripts/check_doc_references.py` runs in CI and
   fails the build if any `docs/...` path or any relative link inside `docs/` points at a
   missing file. So when you move or rename a doc, rewrite the pointers to it in the same

@@ -346,6 +346,21 @@ doc false.** Nobody is careless when it happens — the doc that described the o
 behaviour simply isn't in front of the person changing the code. So one part of
 this is automated, and the rest is on you.
 
+### Every notable feature gets its own guide
+
+A feature that has its own page or named place in navigation is not finished until it
+has a dedicated plain-English guide in `docs/product-onboarding/`. This applies to a
+destination where a reader completes a product task; legal pages and passive status
+pages are not feature guides.
+
+A system design, build spec, mockup, or code comment does not count. The guide must:
+
+- explain what the feature is for and every way a reader can enter it;
+- explain its controls, results, loading, empty, and error states;
+- state its important limits, data sources, and what happens to reader data;
+- include a `<!-- describes: -->` declaration and an entry in `docs/README.md`; and
+- change in the same PR whenever the feature's visible behaviour changes.
+
 ### The part CI enforces
 
 A doc that describes behaviour names the code it describes, in its own text, as a
