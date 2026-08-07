@@ -108,8 +108,8 @@ export function RepresentativeCard({
   const service = serviceSummary(legislator.legislativeService);
   const chamberLabel = legislator.chamber.toUpperCase();
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
+    <View style={[styles.card, mobile && styles.cardMobile]}>
+      <View style={[styles.header, mobile && styles.headerMobile]}>
         <View accessible={false} {...({ 'aria-hidden': true } as object)} style={styles.portrait}>
           <Text style={styles.initials}>{initials(legislator.shortName)}</Text>
           {legislator.photoUrl ? (
@@ -145,7 +145,7 @@ export function RepresentativeCard({
         </View>
       </View>
 
-      <View style={styles.factsRow}>
+      <View style={[styles.factsRow, mobile && styles.factsRowMobile]}>
         <View style={styles.fact}>
           <Text style={styles.label}>PARTY</Text>
           <Text style={styles.factValue}>{partyLabel(legislator.party)}</Text>
@@ -158,9 +158,11 @@ export function RepresentativeCard({
         ) : null}
       </View>
 
-      {service ? <Text style={styles.service}>{service}</Text> : null}
+      {service ? (
+        <Text style={[styles.service, mobile && styles.serviceMobile]}>{service}</Text>
+      ) : null}
 
-      <View style={styles.section}>
+      <View style={[styles.section, mobile && styles.sectionMobile]}>
         <Text style={styles.label}>COMMITTEES</Text>
         {assignments.length ? (
           assignments.map((assignment) => (
@@ -175,7 +177,7 @@ export function RepresentativeCard({
       </View>
 
       {legislator.totalAuthoredBills != null ? (
-        <View style={[styles.section, styles.authoredSection]}>
+        <View style={[styles.section, mobile && styles.sectionMobile, styles.authoredSection]}>
           <Text style={[styles.authored, mobile && styles.authoredMobile]}>
             <Text style={styles.authoredNumber}>{legislator.totalAuthoredBills}</Text>
             {' bills authored'}
@@ -192,7 +194,7 @@ export function RepresentativeCard({
       ) : null}
 
       {issues.length ? (
-        <View style={styles.section}>
+        <View style={[styles.section, mobile && styles.sectionMobile]}>
           <Text style={styles.label}>ISSUES ON BILLS AUTHORED</Text>
           <View style={styles.chips}>
             {shownIssues.map((issue) => (
@@ -208,7 +210,7 @@ export function RepresentativeCard({
       ) : null}
 
       {legislator.email || legislator.phone || legislator.officeAddress || officialUrl ? (
-        <View style={styles.contact}>
+        <View style={[styles.contact, mobile && styles.contactMobile]}>
           {legislator.phone || legislator.email ? (
             <View style={styles.contactChannels}>
               {legislator.phone ? (
@@ -270,13 +272,25 @@ export function RepresentativeCard({
   );
 }
 
-export function VacantSeatCard({ districtLabel }: { districtLabel?: string }) {
+export function VacantSeatCard({
+  districtLabel,
+  mobile = false,
+}: {
+  districtLabel?: string;
+  mobile?: boolean;
+}) {
   return (
-    <View style={styles.vacant} accessible accessibilityRole="summary">
+    <View
+      style={[styles.vacant, mobile && styles.vacantMobile]}
+      accessible
+      accessibilityRole="summary"
+    >
       {districtLabel ? <Text style={styles.vacantDistrict}>{districtLabel}</Text> : <View />}
-      <View>
-        <Text style={styles.name}>Seat vacant</Text>
-        <Text style={styles.vacantText}>No member currently holds this seat.</Text>
+      <View style={mobile && styles.vacantContentMobile}>
+        <Text style={[styles.name, mobile && styles.vacantNameMobile]}>Seat vacant</Text>
+        <Text style={[styles.vacantText, mobile && styles.vacantTextMobile]}>
+          No member currently holds this seat.
+        </Text>
       </View>
     </View>
   );
@@ -294,6 +308,16 @@ const styles = StyleSheet.create({
     gap: 16,
     ...(t.shadows.card as object),
   },
+  cardMobile: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    width: '100%',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 17,
+    gap: 0,
+  },
   vacant: {
     flex: 1,
     minWidth: 0,
@@ -306,6 +330,19 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.s100,
     justifyContent: 'space-between',
   },
+  vacantMobile: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    width: '100%',
+    minHeight: 0,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 17,
+    justifyContent: 'flex-start',
+  },
+  vacantContentMobile: { marginTop: 8 },
+  vacantNameMobile: { fontSize: 19 },
   vacantDistrict: {
     fontFamily: t.typography.mono,
     fontSize: 11,
@@ -320,7 +357,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: t.colors.text.secondary,
   },
+  vacantTextMobile: { marginTop: 6, fontSize: 14.5, lineHeight: 21 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
+  headerMobile: { gap: 13 },
   portrait: {
     width: 64,
     height: 74,
@@ -353,6 +392,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 26,
   },
+  factsRowMobile: { marginTop: 12, paddingTop: 12, gap: 22 },
   fact: { minWidth: 0, gap: 5 },
   factValue: {
     fontFamily: t.typography.body,
@@ -366,7 +406,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: t.colors.text.secondary,
   },
+  serviceMobile: { marginTop: 12, fontSize: 13.5, lineHeight: 20 },
   section: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08, paddingTop: 14, gap: 6 },
+  sectionMobile: { marginTop: 12, paddingTop: 12, gap: 7 },
   label: {
     fontFamily: t.typography.mono,
     fontSize: 10.5,
@@ -420,6 +462,7 @@ const styles = StyleSheet.create({
     color: '#6f756f',
   },
   contact: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08, paddingTop: 14, gap: 4 },
+  contactMobile: { marginTop: 12, paddingTop: 12, gap: 6 },
   contactChannels: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -472,7 +515,12 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.ink,
   },
   profileButtonHovered: { backgroundColor: '#2c322c' },
-  profileButtonMobile: { alignSelf: 'stretch', width: '100%', minHeight: 44 },
+  profileButtonMobile: {
+    alignSelf: 'stretch',
+    width: '100%',
+    minHeight: 46,
+    marginTop: 13,
+  },
   profileLink: {
     fontFamily: t.typography.ui,
     fontSize: 15,

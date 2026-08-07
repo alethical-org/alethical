@@ -117,7 +117,8 @@ describe('Find My Legislator state and copy helpers', () => {
 
     expect(source).toMatch(/cards:\s*\{[^}]*alignItems: 'flex-start'/);
     expect(source).toMatch(
-      /cardsMobile:\s*\{[^}]*flexDirection: 'column'[^}]*alignItems: 'stretch'/,
+      /cardsMobile:\s*\{[^}]*flexDirection: 'column'[^}]*alignItems: 'stretch'[^}]*gap: 12/,
     );
+    expect(source.match(/<VacantSeatCard[\s\S]*?mobile=\{isMobile\}/g)).toHaveLength(2);
   });
 });
