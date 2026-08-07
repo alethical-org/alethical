@@ -3,6 +3,7 @@ export const CLEAR_SEARCH_TARGET_SIZE = 44;
 export const LEGISLATOR_PAGE_SIZE = 12;
 export const LEGISLATOR_PORTRAIT_WIDTH = 64;
 export const LEGISLATOR_PORTRAIT_HEIGHT = 74;
+export const LEGISLATOR_PORTRAIT_LOOKAHEAD = 320;
 
 type ChamberFilter = 'All' | 'House' | 'Senate';
 type PartyFilter = 'All' | 'DFL' | 'R' | 'I';
@@ -92,8 +93,8 @@ export function paginateLegislatorResults<T>(items: readonly T[], requestedPage:
 
 export function isLegislatorPortraitEager(cardIndex: number, isDesktop: boolean) {
   // The first results row is 2 cards on desktop and 1 card on phone. Keep that
-  // row immediate; native browser lazy loading can look ahead for later cards
-  // without making every portrait compete with the page's first paint.
+  // row immediate; later cards get a small lookahead without making every
+  // portrait compete with the page's first paint.
   return cardIndex < (isDesktop ? 2 : 1);
 }
 
@@ -109,10 +110,17 @@ export function legislatorPortraitImageProps(eager: boolean) {
   };
 }
 
+export function legislatorPortraitFallbackProps() {
+  return {
+    'aria-hidden': true,
+    accessibilityElementsHidden: true,
+  } as const;
+}
+
 export function shouldShowLegislatorPortrait(
   photoUrl: string | null | undefined,
   photoFailed: boolean,
-) {
+): photoUrl is string {
   return Boolean(photoUrl) && !photoFailed;
 }
 

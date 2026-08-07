@@ -4,6 +4,7 @@ import {
   CLEAR_SEARCH_TARGET_SIZE,
   LEGISLATOR_PAGE_SIZE,
   LEGISLATOR_PORTRAIT_HEIGHT,
+  LEGISLATOR_PORTRAIT_LOOKAHEAD,
   LEGISLATOR_PORTRAIT_WIDTH,
   LEGISLATOR_SEARCH_LABEL,
   billAuthorshipLabel,
@@ -13,6 +14,7 @@ import {
   deriveLegislatorEmptyState,
   filterLegislatorsByName,
   isLegislatorPortraitEager,
+  legislatorPortraitFallbackProps,
   legislatorPortraitImageProps,
   paginateLegislatorResults,
   shouldShowLegislatorPortrait,
@@ -121,6 +123,7 @@ describe('Search Legislators presentation', () => {
   it('gives portrait files a stable size and non-blocking browser hints', () => {
     expect(LEGISLATOR_PORTRAIT_WIDTH).toBe(64);
     expect(LEGISLATOR_PORTRAIT_HEIGHT).toBe(74);
+    expect(LEGISLATOR_PORTRAIT_LOOKAHEAD).toBe(320);
     expect(legislatorPortraitImageProps(true)).toEqual({
       'aria-hidden': true,
       alt: '',
@@ -138,6 +141,10 @@ describe('Search Legislators presentation', () => {
       height: 74,
       loading: 'lazy',
       width: 64,
+    });
+    expect(legislatorPortraitFallbackProps()).toEqual({
+      'aria-hidden': true,
+      accessibilityElementsHidden: true,
     });
   });
 
