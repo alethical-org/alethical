@@ -16,9 +16,35 @@ describe('Legislator Profile roadmap actions', () => {
     expect(source).toContain('border: `1px solid ${t.colors.tint.border}`');
     expect(source).toContain('color: t.colors.brand.deep');
     expect(source).toContain("cursor: 'default'");
+    expect(source).toContain("alignSelf: 'flex-start'");
+    expect(source).toContain("padding: '12px 20px 12px 17px'");
+    expect(source).toContain('fontSize: 15');
     expect(source).not.toContain('claimOpen');
     expect(source).not.toContain('Claim profile sheet');
     expect(source).not.toContain('function ClaimModal');
+  });
+
+  it.each([
+    ['web', web],
+    ['mobile', mobile],
+  ])('keeps both roadmap cards visually unfinished on %s', (_name, source) => {
+    expect(source).toContain('backgroundColor: t.colors.surfaces.s100');
+    expect(source).toContain("borderStyle: 'dashed'");
+    expect(source).toContain("borderColor: 'rgba(17,21,15,0.22)'");
+    expect(source).toContain('borderRadius: 16');
+  });
+
+  it.each([
+    ['web', web],
+    ['mobile', mobile],
+  ])('builds the vote specimen from a real member vote on %s', (_name, source) => {
+    expect(source).toContain('useLegislatorVotes');
+    expect(source).toMatch(/(?:vote|previewVote)\.billCode/);
+    expect(source).toMatch(/formatMonoDate\((?:vote|previewVote)\.date\)/);
+    expect(source).toMatch(/(?:vote|previewVote)\.chamber\.toUpperCase\(\)/);
+    expect(source).not.toContain('voteSkeletonChip');
+    expect(source).not.toContain('HF 0000');
+    expect(source).not.toContain('MMM 0, 2026');
   });
 
   it.each([

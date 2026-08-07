@@ -132,6 +132,18 @@ export interface VoteEvent {
   officialUrl?: string;
 }
 
+/** One saved roll-call choice for a legislator, with the record facts needed by
+ * the profile's roadmap preview. Missing facts are filtered out by the mapper so
+ * the preview never substitutes a made-up bill or date. */
+export interface LegislatorVote {
+  id: string;
+  vote: 'yes' | 'no' | 'absent' | 'excused' | 'present' | 'abstain';
+  billId: string;
+  billCode: string;
+  date: string;
+  chamber: Chamber;
+}
+
 export interface BillSponsor {
   name: string;
   role: 'chief_author' | 'co_author' | 'sponsor' | string;

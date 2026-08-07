@@ -1,4 +1,4 @@
-import { Bill } from '../data/types';
+import { Bill, LegislatorVote } from '../data/types';
 
 // Shared logic for the Legislator Profile screens (redesign/LegislatorProfileWebScreen
 // + redesign/LegislatorProfileMobileScreen), so the web and mobile layouts stay in
@@ -49,4 +49,21 @@ export function buildAskChips(bills: Bill[]): string[] {
     if (!chips.some((c) => c.toLowerCase() === f.toLowerCase())) chips.push(f);
   }
   return chips.slice(0, 3);
+}
+
+export function legislatorVoteLabel(value: LegislatorVote['vote']): string {
+  switch (value) {
+    case 'yes':
+      return 'Voted Yes';
+    case 'no':
+      return 'Voted No';
+    case 'absent':
+      return 'Absent';
+    case 'excused':
+      return 'Excused';
+    case 'present':
+      return 'Present';
+    case 'abstain':
+      return 'Abstained';
+  }
 }

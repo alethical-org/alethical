@@ -15,10 +15,10 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { theme as t } from '../../theme/tokens';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../navigation/links';
-import { Bill, Legislator } from '../../data/types';
+import { Bill, Legislator, LegislatorVote } from '../../data/types';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
-import { useLegislator, useLegislatorBills } from '../../hooks/useAppQueries';
+import { useLegislator, useLegislatorBills, useLegislatorVotes } from '../../hooks/useAppQueries';
 import {
   billStage,
   coAuthorCount,
@@ -27,7 +27,11 @@ import {
   plainBillSummary,
   stageLabel,
 } from '../../lib/billDetail';
-import { buildAskChips, splitOfficeAddress } from '../../lib/legislatorProfile';
+import {
+  buildAskChips,
+  legislatorVoteLabel,
+  splitOfficeAddress,
+} from '../../lib/legislatorProfile';
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
@@ -46,8 +50,9 @@ import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 // data is present. The "Ask about this legislator" card uses starter chips that
 // stay topic-scoped and answerable — the mock's literal person/vote chips would refuse or deflect today
 // (no person-scoped Ask answer path; that's #484), and grounded-answers rule 2
-// forbids chips that lead to a refusal. The roadmap zone is static, non-committal,
-// and clearly not-live.
+// forbids chips that lead to a refusal. The roadmap zone stays non-interactive
+// and clearly not-live; its vote specimen uses real record facts so it never
+// redacts information the public record already holds.
 
 const CURRENT_SESSION_LABEL = '94th Legislature (2025–2026)';
 const PAST_SESSIONS = ['93rd Legislature (2023–2024)', '92nd Legislature (2021–2022)'];
@@ -68,7 +73,9 @@ export function LegislatorProfileWebScreen() {
   // Show the first two chief-authored bills; "See more" hands off to the member's
   // full chief-author list on the Revisor (the official source).
   const billsQuery = useLegislatorBills(legislatorId, { role: 'chief_author', limit: 2 });
+  const votesQuery = useLegislatorVotes(legislatorId, 1);
   const chiefBills = billsQuery.data?.data ?? [];
+  const previewVote = votesQuery.data?.[0];
 
   const openUrl = (url: string) => {
     if (isWeb && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
@@ -240,7 +247,7 @@ export function LegislatorProfileWebScreen() {
           </View>
         </View>
 
-        <RoadmapZone legislatorName={displayName} />
+        <RoadmapZone legislatorName={displayName} vote={previewVote} />
       </View>
 
       {/* RIGHT COLUMN — contact / source of record */}
@@ -758,7 +765,7 @@ function SourceLink({
 }
 
 // --- On the roadmap zone (clearly not-live) ---
-function RoadmapZone({ legislatorName }: { legislatorName: string }) {
+function RoadmapZone({ legislatorName, vote }: { legislatorName: string; vote?: LegislatorVote }) {
   const { isDesktop } = useResponsive();
   return (
     <View style={styles.roadmap}>
@@ -781,7 +788,7 @@ function RoadmapZone({ legislatorName }: { legislatorName: string }) {
             option to explain any vote they cast — right here, in their own words, alongside the
             record.
           </Text>
-          <VoteExplanationPreview />
+          {vote ? <VoteExplanationPreview vote={vote} /> : null}
         </View>
       </View>
     </View>
@@ -811,24 +818,26 @@ function ClaimPreview() {
   );
 }
 
-// A static, clearly-illustrative preview of the future vote-explanation feature.
-// Deliberately carries NO real bill code / date / tally — it sits inside the
-// dashed, de-emphasized roadmap card as a sketch of what's coming, never a record.
-function VoteExplanationPreview() {
+// The vote facts are real. Only the grey explanation lines are illustrative,
+// because that future text has not been written.
+function VoteExplanationPreview({ vote }: { vote: LegislatorVote }) {
   return (
     <View style={styles.votePreview}>
-      <View style={styles.voteCheck}>
-        <Text style={styles.voteCheckMark}>✓</Text>
-      </View>
-      <View style={styles.votePreviewBody}>
-        <View style={styles.votePreviewHead}>
-          <Text style={styles.voteYes}>Voted Yes</Text>
-          <View style={styles.voteSkeletonChip} />
+      <View style={styles.votePreviewHead}>
+        <View style={styles.voteCheck}>
+          <Text style={styles.voteCheckMark}>✓</Text>
         </View>
+        <Text style={styles.voteYes}>{legislatorVoteLabel(vote.vote)}</Text>
+        <Text style={styles.voteCode}>{vote.billCode}</Text>
+        <Text style={styles.voteMeta}>
+          {formatMonoDate(vote.date)} · {vote.chamber.toUpperCase()}
+        </Text>
+      </View>
+      <View style={styles.voteSkeletonLines}>
         <View style={styles.voteSkeletonLineFull} />
         <View style={styles.voteSkeletonLineShort} />
-        <Text style={styles.voteExplLabel}>LEGISLATOR’S EXPLANATION</Text>
       </View>
+      <Text style={styles.voteExplLabel}>LEGISLATOR’S EXPLANATION</Text>
     </View>
   );
 }
@@ -837,6 +846,7 @@ const BREADCRUMB_GREY = '#4b524b';
 const CODE_BADGE_FILL = t.colors.omnibus.fill;
 const CODE_BADGE_BORDER = t.colors.omnibus.border;
 const claimPreviewStyle: CSSProperties = {
+  alignSelf: 'flex-start',
   alignItems: 'center',
   backgroundColor: t.colors.tint.t150,
   border: `1px solid ${t.colors.tint.border}`,
@@ -845,11 +855,11 @@ const claimPreviewStyle: CSSProperties = {
   cursor: 'default',
   display: 'inline-flex',
   fontFamily: t.typography.ui,
-  fontSize: 16,
+  fontSize: 15,
   fontWeight: t.fontWeights.bold,
   gap: 9,
   marginTop: 18,
-  padding: '13px 22px 13px 19px',
+  padding: '12px 20px 12px 17px',
 };
 
 // Loading skeletons — mirror the hero (breadcrumb · portrait + identity) and the
@@ -1364,11 +1374,11 @@ const styles = StyleSheet.create({
   roadmapGridDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
   dashedCard: {
     flex: 1,
-    backgroundColor: t.colors.surfaces.s50,
+    backgroundColor: t.colors.surfaces.s100,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: t.colors.alpha.ink20,
-    borderRadius: t.radii.lg,
+    borderColor: 'rgba(17,21,15,0.22)',
+    borderRadius: 16,
     paddingVertical: 32,
     paddingHorizontal: 34,
   },
@@ -1388,16 +1398,13 @@ const styles = StyleSheet.create({
   },
   claimBtnText: {
     fontFamily: t.typography.ui,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.deep,
   },
-  // vote-explanation preview (static illustration)
+  // vote-explanation preview (real vote facts, illustrative explanation)
   votePreview: {
     marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
@@ -1415,10 +1422,8 @@ const styles = StyleSheet.create({
     borderColor: t.colors.tint.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 1,
   },
   voteCheckMark: { fontSize: 15, fontWeight: '800', color: t.colors.brand.graphics },
-  votePreviewBody: { flex: 1, minWidth: 0 },
   votePreviewHead: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   voteYes: {
     fontFamily: t.typography.body,
@@ -1426,10 +1431,29 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.deep,
   },
-  voteSkeletonChip: { width: 64, height: 20, borderRadius: 6, backgroundColor: '#eef0f1' },
-  voteSkeletonLineFull: { marginTop: 11, height: 9, borderRadius: 5, backgroundColor: '#eef0f1' },
+  voteCode: {
+    fontFamily: t.typography.mono,
+    fontSize: 13,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.52,
+    color: t.colors.omnibus.text,
+    backgroundColor: CODE_BADGE_FILL,
+    borderWidth: 1,
+    borderColor: CODE_BADGE_BORDER,
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    overflow: 'hidden',
+  },
+  voteMeta: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    letterSpacing: 0.55,
+    color: '#6f756f',
+  },
+  voteSkeletonLines: { marginTop: 11, gap: 7 },
+  voteSkeletonLineFull: { height: 9, borderRadius: 5, backgroundColor: '#eef0f1' },
   voteSkeletonLineShort: {
-    marginTop: 7,
     height: 9,
     width: '72%',
     borderRadius: 5,
@@ -1441,6 +1465,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.1,
-    color: t.colors.text.muted,
+    color: '#6f756f',
   },
 });

@@ -637,6 +637,10 @@ Purpose:
 
 - vote history for legislator profile
 
+Each row includes the member's `vote_value` and `vote_event_id`, plus the joined
+record facts a profile can render without guessing: `bill_id`, `bill_code`,
+`occurred_at`, and the vote event's `chamber`.
+
 Filters (`legislator_votes()` takes two):
 
 - `session`
@@ -1040,7 +1044,7 @@ Economic access:
 
 - one request for directory
 - one request for profile shell
-- lazy secondary tab loads
+- one bounded request for the newest profile vote when the profile opens
 
 ### 4. Find My Legislator
 
