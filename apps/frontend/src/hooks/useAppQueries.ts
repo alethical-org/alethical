@@ -5,6 +5,7 @@ import {
   createChatSessionFromApi,
   BillListFilters,
   fetchBillVersionText,
+  getFeaturedBillsFromApi,
   getBillFromApi,
   getChatSessionFromApi,
   getCurrentUserFromApi,
@@ -101,6 +102,16 @@ export function useBill(billId: string, options: { enabled?: boolean } = {}) {
     queryFn: () => getBillFromApi(billId),
     retry: false,
     enabled: options.enabled ?? true,
+  });
+}
+
+export function useFeaturedBills(billIds: readonly string[], options: { enabled?: boolean } = {}) {
+  const featuredIds = billIds.map((billId) => billId.trim()).filter(Boolean);
+  return useQuery({
+    queryKey: ['featured-bills', featuredIds],
+    queryFn: () => getFeaturedBillsFromApi(featuredIds),
+    retry: false,
+    enabled: (options.enabled ?? true) && featuredIds.length > 0,
   });
 }
 

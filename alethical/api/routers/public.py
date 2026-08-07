@@ -9,7 +9,7 @@ from uuid import UUID
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import and_, case, func, or_, select, text, tuple_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.auth import get_optional_current_user
 from alethical.api.issue_taxonomy import aliases_for, canonicalize_areas
@@ -768,6 +768,47 @@ def bills(
             "total": total,
         },
         links={"self": "/api/v1/bills"},
+    )
+
+
+@router.get("/bills/featured", response_model=CollectionResponse)
+def featured_bills(
+    bill_id: list[str] = Query(min_length=1, max_length=10),
+    db: Session = Depends(get_db),
+    response: Response = None,  # type: ignore[assignment]
+):
+    """Return a small, ordered set of editorial bill cards across sessions.
+
+    This is deliberately separate from ``/bills``: an editorial card can name a
+    prior-session bill, while the normal list always scopes itself to 1 session.
+    Missing pins are omitted so one retired card cannot hide the other card.
+    """
+    requested_ids = list(dict.fromkeys(bill_id))
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+    rows = db.scalars(
+        select(Bill)
+        .where(Bill.bill_key.in_(requested_ids))
+        .options(
+            selectinload(Bill.stats),
+            selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
+            selectinload(Bill.enrichments),
+            selectinload(Bill.actions),
+        )
+    ).all()
+    rows_by_key = {row.bill_key: row for row in rows}
+    ordered_rows = [rows_by_key[key] for key in requested_ids if key in rows_by_key]
+    co_author_counts = bill_co_author_counts(db, [row.id for row in ordered_rows])
+    effective_dates = bill_effective_dates(db, ordered_rows)
+
+    return CollectionResponse(
+        data=[
+            bill_list_item(
+                row,
+                co_author_count=co_author_counts.get(str(row.id), 0),
+                effective_date=effective_dates.get(str(row.id)),
+            ).model_dump(exclude_none=True)
+            for row in ordered_rows
+        ]
     )
 
 
