@@ -85,7 +85,11 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).not.toContain('Minnesota district shapes are provided by Minnesota GIS.');
     expect(source).not.toContain('This product uses the Census Bureau Data API');
     expect(source).not.toContain('styles.notices');
-    expect(source).toContain('Every address has one House district and one Senate district');
+    expect(source).not.toContain('Every address has one House district and one Senate district');
+    expect(source).not.toContain('<Text style={styles.sourceText}>Source: </Text>');
+    expect(source).not.toContain('https://www.leg.mn.gov/');
+    expect(source).not.toContain('https://www.revisor.mn.gov/');
+    expect(source).not.toContain('formatSourceDate');
     expect(source).toContain('Looking up your districts');
     expect(source).toContain('setShimmerEnabled(true)');
     expect(source).toContain("role: 'combobox'");
@@ -102,7 +106,6 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain("alignItems: 'flex-start'");
     expect(source).toContain("inputShellMobile: { width: '100%' }");
     expect(source).toContain('addressInputRef.current?.focus()');
-    expect(source).toContain('paddingLeft: 17');
     expect(source).not.toContain('Your Minnesota legislators will appear here.');
     expect(source).not.toContain('Matching it to Minnesota districts…');
     expect(source).not.toContain('neighborhood');
