@@ -21,14 +21,14 @@ export type StageTone = 'neutral' | 'green' | 'vetoed';
 // 5-stage legislative progress derived from the status text — client-side so the
 // rail's WHERE IT STANDS bar always agrees with the status label (same rule as the
 // list card's ProgressBar, components/search/BillResultCard.tsx billStage).
-// Stages: Introduced 0 · In Committee 1 · Passed House 2 · Passed Senate 3 · Signed 4.
+// Stages: Introduced 0 · In Committee 1 · Passed one chamber 2 · Passed both 3 · Signed 4.
 export function billStage(status: string): { index: number; tone: StageTone } {
   const s = (status || '').toLowerCase();
   if (s.includes('veto')) return { index: 4, tone: 'vetoed' };
   if (s.includes('signed') || s.includes('law') || s.includes('enacted'))
     return { index: 4, tone: 'green' };
-  if (s.includes('senate')) return { index: 3, tone: 'neutral' };
-  if (s.includes('house')) return { index: 2, tone: 'neutral' };
+  if (s.includes('both')) return { index: 3, tone: 'neutral' };
+  if (s.includes('senate') || s.includes('house')) return { index: 2, tone: 'neutral' };
   if (s.includes('committee')) return { index: 1, tone: 'neutral' };
   return { index: 0, tone: 'neutral' };
 }

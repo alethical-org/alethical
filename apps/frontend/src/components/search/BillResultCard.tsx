@@ -10,30 +10,29 @@ import { useHover } from '../billDetail/interactions';
 import {
   authorNameOnly,
   authorTitleLabel,
+  billStage,
   chiefAuthor,
   formatNiceDate,
   latestActionEntry,
   plainBillSummary,
   type BillChanges,
+  type StageTone,
 } from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
 import { ChangeBlock } from '../ChangeBlock';
 import { VoteCountLinkChip } from '../VoteCountLinkChip';
 import { linkProps, pressInsideLink, routePath } from '../../navigation/links';
-import { theme as t } from '../../theme/tokens';
+import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
 
 // Bill card for the redesigned Search Bills screen (docs/mockups/search-bills).
 // The whole card links to the bill detail; Track / author / roll-calls sit above
-// it (stopPropagation) so they stay independently clickable.
+// the full-bleed anchor so they stay independently clickable.
 //
 // The card is a REAL <a href> (navigation/links.ts), so right-click → "Open link
-// in new tab", ⌘-click and middle-click all work on it. The author name and the
-// roll-calls chip stay plain pressables rather than anchors of their own: an <a>
-// inside an <a> is invalid markup and reads as one confused control to a screen
-// reader, and the card is the target worth having (issue #760 tracks giving those
-// two their own new-tab behaviour without nesting).
+// in new tab", ⌘-click and middle-click all work on it. Author and roll-call
+// links are sibling anchors, never anchors nested in anchors.
 
 type BillCardData = Pick<
   Bill,
@@ -79,25 +78,23 @@ interface BillResultCardProps {
   change?: BillChanges;
   // Opens the bill's full history, for the change block's earlier-steps link.
   onChangeHistory?: () => void;
+  /** The issue-answer page uses the same card anatomy at its tighter handoff
+   * measurements, with Track in a full-width phone row. */
+  variant?: 'default' | 'issueAnswer';
+  /** A topic already named in the issue-answer count row is not repeated on
+   * every card beneath it. Comparison is case- and whitespace-insensitive. */
+  excludedPolicyArea?: string;
 }
 
-type Tone = 'neutral' | 'green' | 'vetoed';
-
-// Derive the 5-stage progress + tone from the bill's status text (client-side, so
-// the bar always agrees with the status label shown — no #295 dependency).
-// Stages: Introduced 0 · In Committee 1 · Passed House 2 · Passed Senate 3 · Signed 4.
-function billStage(status: string): { index: number; tone: Tone } {
-  const s = status.toLowerCase();
-  if (s.includes('veto')) return { index: 4, tone: 'vetoed' };
-  if (s.includes('signed') || s.includes('law') || s.includes('enacted'))
-    return { index: 4, tone: 'green' };
-  if (s.includes('senate')) return { index: 3, tone: 'neutral' };
-  if (s.includes('house')) return { index: 2, tone: 'neutral' };
-  if (s.includes('committee')) return { index: 1, tone: 'neutral' };
-  return { index: 0, tone: 'neutral' };
-}
-
-function ProgressBar({ index, tone }: { index: number; tone: Tone }) {
+function ProgressBar({
+  index,
+  tone,
+  compact,
+}: {
+  index: number;
+  tone: StageTone;
+  compact: boolean;
+}) {
   return (
     <View style={styles.progress}>
       {[0, 1, 2, 3, 4].map((i) => {
@@ -107,7 +104,16 @@ function ProgressBar({ index, tone }: { index: number; tone: Tone }) {
         } else if (i <= index) {
           color = t.colors.brand.base;
         }
-        return <View key={i} style={[styles.progressStep, { backgroundColor: color }]} />;
+        return (
+          <View
+            key={i}
+            style={[
+              styles.progressStep,
+              compact && styles.progressStepIssueAnswer,
+              { backgroundColor: color },
+            ]}
+          />
+        );
       })}
     </View>
   );
@@ -143,9 +149,7 @@ function HotIssuePill() {
 }
 
 // The chief author's NAME is the only link (green, → arrow), spelled-out honorific
-// sits outside it. pressInsideLink keeps the card's own press — and the card
-// anchor's own URL — from firing when the name is tapped. Own hover state so only
-// the name (not the whole card) recolors.
+// sits outside it. Own hover state so only the name recolors.
 function ChiefAuthorLink({
   author,
   onPress,
@@ -155,14 +159,15 @@ function ChiefAuthorLink({
 }) {
   const [hovered, hover] = useHover();
   const clickable = Boolean(author.legislatorId && onPress);
+  const destination = author.slug ?? author.legislatorId;
   return (
     <Pressable
-      accessibilityRole={clickable ? 'link' : undefined}
       disabled={!clickable}
-      onPress={pressInsideLink(() => {
-        if (author.legislatorId) onPress?.(author.slug ?? author.legislatorId);
-      })}
+      {...(clickable && destination
+        ? linkProps(routePath.legislator(destination), () => onPress?.(destination))
+        : {})}
       {...hover}
+      style={clickable ? styles.interactiveLayer : undefined}
     >
       <Text style={[styles.metaText, styles.authorLink, hovered && styles.authorLinkHover]}>
         {authorNameOnly(author.name)}{' '}
@@ -187,9 +192,12 @@ export function BillResultCard({
   hotIssue = false,
   change,
   onChangeHistory,
+  variant = 'default',
+  excludedPolicyArea,
 }: BillResultCardProps) {
   const [hovered, setHovered] = useState(false);
   const { isMobile } = useResponsive();
+  const issueAnswer = variant === 'issueAnswer';
   const prefetchBill = usePrefetchBill();
   // Warm the bill-detail cache the instant the card shows navigation intent so
   // the detail page opens without its "Loading bill…" spinner.
@@ -216,14 +224,24 @@ export function BillResultCard({
   // showing no summary (grounded-answers rule 10). The Ask answer card already
   // renders its summary this way (AskAnswerScreen's AskAnswerBillCard).
   const summary = plainBillSummary(bill.aiAnalysis?.summary);
-  const policyAreas = bill.aiAnalysis?.policyAreas ?? [];
-  const { index, tone } = billStage(bill.status);
+  const excludedIssue = excludedPolicyArea?.trim().toLocaleLowerCase();
+  const policyAreas = (bill.aiAnalysis?.policyAreas ?? []).filter(
+    (topic) => !excludedIssue || topic.trim().toLocaleLowerCase() !== excludedIssue,
+  );
+  const stage = billStage(bill.status);
+  // Veto is not the fifth stage in the issue page's five-step bar. A vetoed
+  // bill reached both chambers but was not signed, so leave the final segment
+  // empty and let the adjacent status text carry the veto fact.
+  const { index, tone } =
+    issueAnswer && stage.tone === 'vetoed' ? { index: 3, tone: 'neutral' as const } : stage;
   const statusColor =
     tone === 'green'
       ? t.colors.text.green
-      : tone === 'vetoed'
-        ? t.colors.status.vetoedText
-        : t.colors.text.secondary;
+      : issueAnswer
+        ? t.colors.text.secondary
+        : tone === 'vetoed'
+          ? t.colors.status.vetoedText
+          : t.colors.text.secondary;
   // Per-file chief author only: chiefAuthor scopes to this file's own chamber, so a
   // Senate file shows its Senate chief (not the House companion's author). Co-authors
   // and the count live on the bill profile, not this card.
@@ -243,17 +261,33 @@ export function BillResultCard({
   const effectiveDate = bill.effectiveDate ? formatNiceDate(bill.effectiveDate) : null;
 
   return (
-    <View style={[styles.card, hovered && styles.cardHover]}>
+    <View
+      style={[
+        styles.card,
+        issueAnswer && styles.cardIssueAnswer,
+        issueAnswer && isMobile && styles.cardIssueAnswerMobile,
+        hovered && styles.cardHover,
+      ]}
+    >
+      {/* One full-bleed anchor owns the whole card without wrapping the real
+          controls. Track, author, and votes sit above it as sibling controls, so
+          the web markup never nests buttons or links inside another link. */}
       <Pressable
         {...linkProps(routePath.bill(bill.id), onPress)}
+        accessibilityLabel={`Open ${bill.identifier}`}
         onPressIn={warm}
         onHoverIn={() => {
           setHovered(true);
           warm();
         }}
         onHoverOut={() => setHovered(false)}
-        style={styles.cardMain}
-      >
+        style={[
+          styles.cardOverlay,
+          issueAnswer && styles.cardOverlayIssueAnswer,
+          issueAnswer && isMobile && styles.cardOverlayIssueAnswerMobile,
+        ]}
+      />
+      <View style={[styles.cardMain, issueAnswer && styles.cardMainIssueAnswer]}>
         {isMobile ? (
           // Mobile: a stable two-row header on EVERY card — row 1 identity (code
           // badge, optional OMNIBUS tag, optional hot-issue pill) with Track holding
@@ -287,8 +321,8 @@ export function BillResultCard({
                 branch does and shows the action by default at every viewport (#1138).
                 Bill cards use the compact size at every viewport; all three sizes
                 carry the same 44px minimum touch target. */}
-              {showTrackButton && onToggleTrack ? (
-                <View style={styles.headerTrackSlot}>
+              {!issueAnswer && showTrackButton && onToggleTrack ? (
+                <View style={[styles.headerTrackSlot, styles.interactiveLayer]}>
                   <BillTrackButton
                     size="card"
                     tracked={tracked}
@@ -298,8 +332,16 @@ export function BillResultCard({
               ) : null}
             </View>
             <View style={styles.headerRow}>
-              <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
-              <ProgressBar index={index} tone={tone} />
+              <Text
+                style={[
+                  styles.statusLabel,
+                  issueAnswer && styles.statusLabelIssueAnswer,
+                  { color: statusColor },
+                ]}
+              >
+                {bill.status}
+              </Text>
+              <ProgressBar index={index} tone={tone} compact={issueAnswer} />
             </View>
           </View>
         ) : (
@@ -308,8 +350,16 @@ export function BillResultCard({
               <Text style={styles.badgeText}>{bill.identifier}</Text>
             </View>
             {bill.isOmnibus ? <OmnibusPill /> : null}
-            <Text style={[styles.statusLabel, { color: statusColor }]}>{bill.status}</Text>
-            <ProgressBar index={index} tone={tone} />
+            <Text
+              style={[
+                styles.statusLabel,
+                issueAnswer && styles.statusLabelIssueAnswer,
+                { color: statusColor },
+              ]}
+            >
+              {bill.status}
+            </Text>
+            <ProgressBar index={index} tone={tone} compact={issueAnswer} />
             <View style={styles.topSpacer} />
             {/* Right group: the "🔥 Hot issue" flag sits to the LEFT of Track with a
               16px gap, on the same row — it adds no card height. */}
@@ -319,11 +369,13 @@ export function BillResultCard({
                 {showTrackButton && onToggleTrack ? (
                   // The card is a real link, so swallow the tap (pressInsideLink) or
                   // clicking Track would follow the card's href to the bill.
-                  <BillTrackButton
-                    size="card"
-                    tracked={tracked}
-                    onPress={pressInsideLink(onToggleTrack)}
-                  />
+                  <View style={styles.interactiveLayer}>
+                    <BillTrackButton
+                      size="card"
+                      tracked={tracked}
+                      onPress={pressInsideLink(onToggleTrack)}
+                    />
+                  </View>
                 ) : null}
               </View>
             ) : null}
@@ -353,7 +405,12 @@ export function BillResultCard({
           it, by both layouts. Verified in this file and in the committed 375px
           screenshots at docs/verification/1007-tracked-bills-phone/. */}
         {change ? (
-          <View style={summary ? undefined : styles.changeAfterTitle}>
+          <View
+            style={[
+              summary ? undefined : styles.changeAfterTitle,
+              onChangeHistory && styles.interactiveLayer,
+            ]}
+          >
             <ChangeBlock change={change} onHistory={onChangeHistory} />
           </View>
         ) : null}
@@ -390,20 +447,34 @@ export function BillResultCard({
             </View>
           ) : null}
         </View>
-      </Pressable>
-      {/* This row sits beside, rather than inside, the card's main link. That keeps
-          the vote count a valid independent link on web. */}
+      </View>
       {policyAreas.length > 0 || bill.rollCallCount > 0 ? (
         <View style={styles.tagRow}>
           {policyAreas.map((topic) => (
             <View key={topic} style={styles.tag}>
-              <Text style={styles.tagText}>{titleCaseIssue(topic)}</Text>
+              <Text style={[styles.tagText, issueAnswer && styles.tagTextIssueAnswer]}>
+                {titleCaseIssue(topic)}
+              </Text>
             </View>
           ))}
-          <VoteCountLinkChip
-            count={bill.rollCallCount}
-            href={routePath.bill(bill.id, { tab: 'votes' })}
-            onPress={pressInsideLink(() => onRollCalls?.())}
+          {bill.rollCallCount > 0 ? (
+            <View style={styles.interactiveLayer}>
+              <VoteCountLinkChip
+                count={bill.rollCallCount}
+                href={routePath.bill(bill.id, { tab: 'votes' })}
+                onPress={pressInsideLink(() => onRollCalls?.())}
+              />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+      {issueAnswer && isMobile && showTrackButton && onToggleTrack ? (
+        <View style={[styles.issueAnswerMobileTrack, styles.interactiveLayer]}>
+          <BillTrackButton
+            size="mobile"
+            fullWidth
+            tracked={tracked}
+            onPress={pressInsideLink(onToggleTrack)}
           />
         </View>
       ) : null}
@@ -413,6 +484,7 @@ export function BillResultCard({
 
 const styles = StyleSheet.create({
   card: {
+    position: 'relative',
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
@@ -421,15 +493,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     gap: 12,
     ...(t.shadows.card as object),
-    ...(isWeb
-      ? ({ transitionProperty: 'border-color, box-shadow', transitionDuration: '0.15s' } as object)
+    ...(isWeb && !prefersReducedMotion()
+      ? ({ transitionProperty: 'border-color, box-shadow', transitionDuration: '0.16s' } as object)
       : null),
   },
+  cardIssueAnswer: { borderRadius: 16, paddingVertical: 20, paddingHorizontal: 22, gap: 13 },
+  cardIssueAnswerMobile: { borderRadius: 14, padding: 16 },
   cardHover: {
     borderColor: 'rgba(45,212,126,0.55)',
-    ...(t.shadows.lg as object),
+    ...(isWeb
+      ? ({ boxShadow: '0 14px 34px rgba(17,21,15,0.10)' } as object)
+      : (t.shadows.lg as object)),
   },
+  cardOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 1,
+    borderRadius: 18,
+  },
+  cardOverlayIssueAnswer: { borderRadius: 16 },
+  cardOverlayIssueAnswerMobile: { borderRadius: 14 },
   cardMain: { gap: 12 },
+  cardMainIssueAnswer: { gap: 13 },
+  interactiveLayer: { position: 'relative', zIndex: 2 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 14, flexWrap: 'wrap' },
   topSpacer: { flex: 1 },
   // Right-aligned group holding the Hot-issue flag + Track, 16px apart.
@@ -511,8 +600,10 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.3,
   },
+  statusLabelIssueAnswer: { fontSize: 15 },
   progress: { flexDirection: 'row', gap: 4 },
   progressStep: { width: 30, height: 7, borderRadius: 4 },
+  progressStepIssueAnswer: { width: 22, height: 5, borderRadius: 3 },
   title: {
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.h2,
@@ -573,4 +664,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     color: t.colors.text.secondary,
   },
+  tagTextIssueAnswer: { fontSize: 13, fontWeight: t.fontWeights.semibold, letterSpacing: 0 },
+  issueAnswerMobileTrack: { width: '100%' },
 });

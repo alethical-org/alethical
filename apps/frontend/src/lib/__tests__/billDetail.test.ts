@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 import {
   authorTitleLabel,
   bienniumEyebrow,
+  billStage,
   billOverviewUrl,
   buildActionTimeline,
   chiefAuthor,
@@ -42,6 +43,15 @@ describe('partyFull', () => {
   it('spells out the party codes used by legislator records', () => {
     expect(partyFull('DFL')).toBe('Democratic-Farmer-Labor');
     expect(partyFull('R')).toBe('Republican');
+  });
+});
+
+describe('billStage', () => {
+  it('uses 1 stage for either chamber and the next stage for both chambers', () => {
+    expect(billStage('Passed House').index).toBe(2);
+    expect(billStage('Passed Senate').index).toBe(2);
+    expect(billStage('Passed Both Chambers').index).toBe(3);
+    expect(billStage('Signed into Law').index).toBe(4);
   });
 });
 

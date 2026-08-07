@@ -129,12 +129,13 @@ export function SuggestedQuestionChip({
   onPress?: () => void;
   linkProps?: object;
 }) {
+  const { isMobile } = useResponsive();
   const [hovered, hover] = useHover();
   return (
     <Pressable
       {...hover}
       {...(linkProps ?? { accessibilityRole: 'button' as const, onPress })}
-      style={[styles.askChip, hovered && styles.askChipHover]}
+      style={[styles.askChip, isMobile && styles.askChipMobile, hovered && styles.askChipHover]}
     >
       <Text style={[styles.askChipText, hovered && styles.askChipTextHover]}>{label}</Text>
     </Pressable>
@@ -226,6 +227,7 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink12,
     borderRadius: t.radii.pill,
   },
+  askChipMobile: { minHeight: 44, justifyContent: 'center' },
   askChipHover: {
     borderColor: t.colors.purple.base,
     ...(isWeb

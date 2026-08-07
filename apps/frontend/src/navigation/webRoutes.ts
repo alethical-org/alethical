@@ -88,7 +88,13 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       return { kind: 'legislators', params: legislatorsFilterParams(searchParams) };
     }
     if (segments[0] === 'ask') {
-      return { kind: 'ask', params: { q: searchParams.get('q') ?? undefined } };
+      return {
+        kind: 'ask',
+        params: {
+          q: searchParams.get('q') ?? undefined,
+          sort: searchParams.get('sort') ?? undefined,
+        },
+      };
     }
     if (segments[0] === 'privacy') {
       return { kind: 'privacy' };
@@ -233,6 +239,9 @@ export function pathForRoute(activeRoute: {
       const params = new URLSearchParams();
       if (activeRoute.params?.q) {
         params.set('q', String(activeRoute.params.q));
+      }
+      if (activeRoute.params?.sort) {
+        params.set('sort', String(activeRoute.params.sort));
       }
       const query = params.toString();
       return query ? `/ask?${query}` : '/ask';
