@@ -167,8 +167,8 @@ function AnswerBillCard({
               two cards both reading "HF 5" can be told apart — they are different
               laws (#810). Same vocabulary as every other session label on the site
               (2025 FIRST SPECIAL SESSION), through the same helper. */}
-          {bill.sessionName ? (
-            <Text style={styles.billSessionTag}>{bienniumEyebrow(bill.id, bill.sessionName)}</Text>
+          {bill.session ? (
+            <Text style={styles.billSessionTag}>{bienniumEyebrow(bill.id, bill.session)}</Text>
           ) : null}
         </View>
         {/* Live Track button, consistent site-wide (#976). The card is a View, not
@@ -469,8 +469,8 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // answer to one bill, and printing "2025–2026 Legislative Session" above an answer
   // about a special-session law states the wrong session for it (#810).
   const sessionLine = backBill
-    ? bienniumEyebrow(backBill.id, backBill.sessionName ?? answer?.sessionName)
-    : bienniumEyebrow('', answer?.sessionName);
+    ? bienniumEyebrow(backBill.id, backBill.session ?? answer?.session)
+    : bienniumEyebrow('', answer?.session);
   // The answering bill's OWN date, through the SAME helper the bill's page uses, so
   // the two pages cannot print different dates for one bill — which is the binding
   // half of §9.5 decision 8a. It reads "when we last pulled this bill", not when the

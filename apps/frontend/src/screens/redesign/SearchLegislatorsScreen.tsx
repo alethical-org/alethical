@@ -107,8 +107,10 @@ export function SearchLegislatorsScreen() {
   const defaultSession = currentSession ?? sessionsQuery.data?.[0];
   const sessionSlug = session || defaultSession?.slug || '';
   const apiSession = sessionFilterForApi(session);
-  const sessionName = sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name;
-  const sessionLabel = sessionName ? formatSessionLabel(sessionName) : SESSION_LABEL_FALLBACK;
+  const selectedSession = sessionsQuery.data?.find((item) => item.slug === sessionSlug);
+  const sessionLabel = selectedSession
+    ? formatSessionLabel(selectedSession)
+    : SESSION_LABEL_FALLBACK;
 
   // The complete selected-session roster is read once. Name, chamber, party, and
   // paging choices then update from the saved roster without another request.
@@ -223,7 +225,7 @@ export function SearchLegislatorsScreen() {
         label={sessionLabel}
         accessibilityLabel="Filter by session"
         options={(sessionsQuery.data ?? []).map((item) => ({
-          label: formatSessionLabel(item.name),
+          label: formatSessionLabel(item),
           value: item.slug,
         }))}
         selectedValue={sessionSlug}

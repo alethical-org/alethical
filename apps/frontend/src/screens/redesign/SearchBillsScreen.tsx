@@ -39,7 +39,11 @@ import {
   SortControl,
   SortOption,
 } from '../../components/search/searchPieces';
-import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
+import {
+  formatSessionLabel,
+  SESSION_LABEL_FALLBACK,
+  type SessionDisplaySource,
+} from '../../lib/sessionLabel';
 import { sessionFilterForApi } from '../../lib/sessionFilterForApi';
 import { Skeleton } from '../../components/Skeleton';
 import {
@@ -76,7 +80,10 @@ const ISSUE_SEPARATOR = ',';
 // Prior bienniums shown in the session dropdown as greyed-out, unclickable rows
 // (their bills aren't ingested yet). Newest first; only the loaded current
 // session is selectable.
-const PRIOR_SESSION_LABELS = ['2023–2024 Legislative Session', '2021–2022 Legislative Session'];
+const PRIOR_SESSIONS: SessionDisplaySource[] = [
+  { yearStart: 2023, yearEnd: 2024 },
+  { yearStart: 2021, yearEnd: 2022 },
+];
 
 // Ordered most-progressed first (matching the sort=progress ordering), with the
 // off-path Vetoed state last. Every value maps to a status the /bills filter can
@@ -147,25 +154,29 @@ export function SearchBillsScreen() {
     sessionsQuery.data?.find((item) => item.isCurrent) ?? sessionsQuery.data?.[0];
   const sessionSlug = session || currentSession?.slug || '';
   const apiSession = sessionFilterForApi(session);
-  const sessionName = sessionsQuery.data?.find((item) => item.slug === sessionSlug)?.name;
-  const sessionLabel = sessionName ? formatSessionLabel(sessionName) : SESSION_LABEL_FALLBACK;
+  const selectedSession = sessionsQuery.data?.find((item) => item.slug === sessionSlug);
+  const sessionLabel = selectedSession
+    ? formatSessionLabel(selectedSession)
+    : SESSION_LABEL_FALLBACK;
 
   // Session dropdown options. Only the loaded (current-biennium) session is
   // selectable; the two prior bienniums are shown as greyed-out, unclickable rows
   // because their bills aren't ingested yet (no roadmap tag — just an inert
   // placeholder). Guarded so a prior isn't duplicated if it ever loads for real.
   const loadedSessionOptions = (sessionsQuery.data ?? []).map((item) => ({
-    label: formatSessionLabel(item.name),
+    label: formatSessionLabel(item),
     value: item.slug,
   }));
   const loadedSessionLabels = new Set(loadedSessionOptions.map((option) => option.label));
   const sessionOptions = [
     ...loadedSessionOptions,
-    ...PRIOR_SESSION_LABELS.filter((label) => !loadedSessionLabels.has(label)).map((label) => ({
-      label,
-      value: `__prior:${label}`,
-      disabled: true,
-    })),
+    ...PRIOR_SESSIONS.map(formatSessionLabel)
+      .filter((label) => !loadedSessionLabels.has(label))
+      .map((label) => ({
+        label,
+        value: `__prior:${label}`,
+        disabled: true,
+      })),
   ];
 
   const filters: BillListFilters = {

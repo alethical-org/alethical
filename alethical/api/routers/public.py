@@ -596,6 +596,9 @@ def meta(db: Session = Depends(get_db)):
             "slug": current_session.slug,
             "name": current_session.name,
             "is_current": current_session.is_current,
+            "session_number": current_session.session_number,
+            "year_start": current_session.year_start,
+            "year_end": current_session.year_end,
         },
         data_as_of=latest_ingested_at(db),
     )
@@ -608,7 +611,14 @@ def sessions(db: Session = Depends(get_db)):
         select(LegislativeSession).order_by(LegislativeSession.year_start.desc())
     ).all()
     data = [
-        {"slug": row.slug, "name": row.name, "is_current": row.is_current}
+        {
+            "slug": row.slug,
+            "name": row.name,
+            "is_current": row.is_current,
+            "session_number": row.session_number,
+            "year_start": row.year_start,
+            "year_end": row.year_end,
+        }
         for row in rows
     ]
     return CollectionResponse(
@@ -622,7 +632,14 @@ def current_session(db: Session = Depends(get_db)):
         select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
     )
     return DetailResponse(
-        data={"slug": row.slug, "name": row.name, "is_current": row.is_current}
+        data={
+            "slug": row.slug,
+            "name": row.name,
+            "is_current": row.is_current,
+            "session_number": row.session_number,
+            "year_start": row.year_start,
+            "year_end": row.year_end,
+        }
     )
 
 
@@ -2001,6 +2018,9 @@ def bill_detail(
             "slug": row.session.slug,
             "name": row.session.name,
             "is_current": row.session.is_current,
+            "session_number": row.session.session_number,
+            "year_start": row.session.year_start,
+            "year_end": row.session.year_end,
         },
         "description": row.description,
         "current_status": row.current_status,
@@ -2622,7 +2642,14 @@ def representative_lookup(
     geocoded = lookup_result.geocoded_address
     payload = {
         "status": "found",
-        "session": {"name": current_session.name},
+        "session": {
+            "slug": current_session.slug,
+            "name": current_session.name,
+            "is_current": current_session.is_current,
+            "session_number": current_session.session_number,
+            "year_start": current_session.year_start,
+            "year_end": current_session.year_end,
+        },
         "source_updated_at": source_updated_at,
         "resolved_place": {
             "input_mode": input_mode,

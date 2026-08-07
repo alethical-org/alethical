@@ -33,6 +33,9 @@ def test_health_and_meta_endpoints(client):
     assert payload["data"]["api_version"] == "v1"
     assert payload["data"]["jurisdiction"]["slug"] == "minnesota"
     assert payload["data"]["current_session"]["slug"] == "94-2025-regular"
+    assert payload["data"]["current_session"]["session_number"] == 94
+    assert payload["data"]["current_session"]["year_start"] == 2025
+    assert payload["data"]["current_session"]["year_end"] == 2026
     # "Data as of {date}" provenance strip source (#134): latest succeeded ingestion.
     assert payload["data"]["data_as_of"]
 
@@ -2061,6 +2064,9 @@ def test_representative_lookup_maps_service_district_codes_to_legislators(client
     assert (
         payload["session"]["name"] == "94th Legislature (2025 - 2026) Regular Session"
     )
+    assert payload["session"]["session_number"] == 94
+    assert payload["session"]["year_start"] == 2025
+    assert payload["session"]["year_end"] == 2026
     assert (
         "represented_city" not in payload["house_legislator"]["current_service"]
         or payload["house_legislator"]["current_service"]["represented_city"] is None
