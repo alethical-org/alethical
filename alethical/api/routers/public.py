@@ -2427,11 +2427,22 @@ def legislator_votes(
     rows = db.scalars(
         schema.legislator_vote_history_stmt(legislator.id, session_row.id).limit(limit)
     ).all()
+    chambers = chamber_slug_by_id(db, {row.vote_event.chamber_id for row in rows})
     data = [
         {
             "id": str(row.id),
             "vote_value": row.vote_value.value,
             "vote_event_id": str(row.vote_event_id),
+            "bill_id": row.vote_event.bill.bill_key,
+            "bill_code": (
+                f"{row.vote_event.bill.file_type} {row.vote_event.bill.file_number}"
+            ),
+            "occurred_at": (
+                row.vote_event.occurred_at.astimezone(UTC)
+                if row.vote_event.occurred_at
+                else None
+            ),
+            "chamber": chambers.get(str(row.vote_event.chamber_id)),
         }
         for row in rows
     ]

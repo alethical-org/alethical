@@ -79,11 +79,17 @@ divider — NOT a bold black h2 (that over-weights not-yet-live features vs. rea
 record sections). Subtitle non-committal: "Features we plan to build." NEVER
 "coming soon"/"SOON"; never a delivery commitment (see CLAUDE.md roadmap rule). Two
 de-emphasized dashed cards, laid out as a horizontal 2-up pair.
+Each card uses `#fbfcfd`, a 1px dashed `rgba(17,21,15,0.22)` border, a 16px
+radius, and no shadow. The phone layout stacks the same 2 cards without changing
+that placeholder treatment.
 
 1. **Claimed Profiles.** The depicted action still reads **Claim this profile**
    and keeps its shield, but it is a static `<span aria-disabled="true">`, never a
    link or button. It uses a pale mint `#e4f8ee` fill, a 1px `#bfeacf` border, and
    `#0f7a45` text and shield. It has no click handler, modal, sheet, or popup.
+   The span is `inline-flex` and opts out of its column parent's stretch
+   (`align-self:flex-start`), so it hugs the 17–18px shield, label, and
+   `12px 20px 12px 17px` padding on both layouts. It never uses a full width.
    Claiming links the legislator to the
    **existing** record (do not restate "never a separate profile" — implied). Once
    verified against official legislative records, a claimed legislator can: manage
@@ -95,6 +101,11 @@ de-emphasized dashed cards, laid out as a horizontal 2-up pair.
    option to explain any vote they cast."
    The explanation layer lives on the profile. Reciprocal "jump from a vote to here"
    link on Bill/Votes pages is the other half (not yet wired).
+   The preview header uses the member's newest complete saved vote: verdict,
+   filled amber bill-code badge, date, and vote-event chamber. Those record facts
+   are never blurred or replaced with sample values. The 2 grey lines below stand
+   only for the explanation the legislator has not written. If the member has no
+   vote carrying all 3 source facts, omit the specimen rather than inventing one.
 
 ## Ask about this legislator
 

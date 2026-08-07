@@ -13,6 +13,7 @@ import {
   getLegislatorBillsFromApi,
   getMetaFromApi,
   getLegislatorFromApi,
+  getLegislatorVotesFromApi,
   ListPagination,
   LegislatorListFilters,
   listChatSessionsFromApi,
@@ -166,6 +167,15 @@ export function useLegislator(legislatorId: string) {
   return useQuery({
     queryKey: ['legislator', legislatorId],
     queryFn: () => getLegislatorFromApi(legislatorId),
+    retry: false,
+  });
+}
+
+export function useLegislatorVotes(legislatorId: string, limit = 1) {
+  return useQuery({
+    queryKey: ['legislator-votes', legislatorId, limit],
+    queryFn: () => getLegislatorVotesFromApi(legislatorId, limit),
+    enabled: Boolean(legislatorId),
     retry: false,
   });
 }

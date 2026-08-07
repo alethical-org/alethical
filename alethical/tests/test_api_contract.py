@@ -1577,6 +1577,7 @@ def test_bill_votes_returns_per_member_records_summing_to_the_tally(client):
                 ),
             ]
         )
+        yes_voter_id = str(legislators[0].id)
         db.commit()
         event_id = str(event.id)
 
@@ -1601,6 +1602,22 @@ def test_bill_votes_returns_per_member_records_summing_to_the_tally(client):
         assert rec_yes == roll["yes_count"] == 2
         assert rec_no == roll["no_count"] == 1
         assert rec_yes + rec_no == roll["yes_count"] + roll["no_count"]
+
+        member_response = client.get(
+            f"/api/v1/legislators/{yes_voter_id}/votes",
+            params={"session": "94-2025-regular", "limit": 1},
+        )
+        assert member_response.status_code == 200
+        member_vote = member_response.json()["data"][0]
+        assert member_vote == {
+            "id": member_vote["id"],
+            "vote_value": "yes",
+            "vote_event_id": event_id,
+            "bill_id": "94-2025-SF1832",
+            "bill_code": "SF 1832",
+            "occurred_at": "2025-05-30T00:00:00Z",
+            "chamber": "senate",
+        }
     finally:
         with Session(get_engine()) as db:
             for record in db.scalars(

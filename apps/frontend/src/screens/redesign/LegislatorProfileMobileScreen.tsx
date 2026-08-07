@@ -19,10 +19,19 @@ import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { Skeleton } from '../../components/Skeleton';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
-import { buildAskChips, splitOfficeAddress } from '../../lib/legislatorProfile';
+import {
+  buildAskChips,
+  legislatorVoteLabel,
+  splitOfficeAddress,
+} from '../../lib/legislatorProfile';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../navigation/links';
-import { useLegislator, useLegislatorBills, useSessions } from '../../hooks/useAppQueries';
+import {
+  useLegislator,
+  useLegislatorBills,
+  useLegislatorVotes,
+  useSessions,
+} from '../../hooks/useAppQueries';
 import { Bill, Legislator } from '../../data/types';
 
 const isWeb = Platform.OS === 'web';
@@ -35,6 +44,7 @@ const CODE_BADGE_FILL = t.colors.omnibus.fill;
 const CODE_BADGE_BORDER = t.colors.omnibus.border;
 const BREADCRUMB_GREY = '#4b524b';
 const claimPreviewStyle: CSSProperties = {
+  alignSelf: 'flex-start',
   alignItems: 'center',
   backgroundColor: t.colors.tint.t150,
   border: `1px solid ${t.colors.tint.border}`,
@@ -47,7 +57,7 @@ const claimPreviewStyle: CSSProperties = {
   fontWeight: t.fontWeights.bold,
   gap: 9,
   marginTop: 16,
-  padding: '13px 20px 13px 17px',
+  padding: '12px 20px 12px 17px',
 };
 
 // ── small helpers ─────────────────────────────────────────────────────────────
@@ -450,6 +460,7 @@ export function LegislatorProfileMobileScreen() {
 
   const legQuery = useLegislator(legislatorId);
   const billsQuery = useLegislatorBills(legislatorId, { limit: 100, role: 'chief_author' });
+  const votesQuery = useLegislatorVotes(legislatorId, 1);
   const sessionsQuery = useSessions();
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
@@ -524,6 +535,7 @@ export function LegislatorProfileMobileScreen() {
   };
 
   const allBills = billsQuery.data?.data ?? [];
+  const previewVote = votesQuery.data?.[0];
   const visibleBills = showAllBills ? allBills : allBills.slice(0, 2);
   const hasRealBio = leg?.bio ?? null;
   const committees = leg?.committeeAssignments ?? [];
@@ -862,25 +874,27 @@ export function LegislatorProfileMobileScreen() {
                       have the option to explain any vote they cast — right here, in their own
                       words, alongside the record.
                     </Text>
-                    {/* Ghosted sample-vote preview — a dimmed illustration of the explanation
-                        layer, clearly not a live record. */}
-                    <View style={styles.votePreview}>
-                      <View style={styles.votePreviewCheck}>
-                        <Text style={styles.votePreviewCheckText}>✓</Text>
-                      </View>
-                      <View style={styles.votePreviewBody}>
+                    {previewVote ? (
+                      <View style={styles.votePreview}>
                         <View style={styles.votePreviewTopRow}>
-                          <Text style={styles.votePreviewVoted}>Voted Yes</Text>
-                          <Text style={styles.votePreviewCode}>HF 0000</Text>
+                          <View style={styles.votePreviewCheck}>
+                            <Text style={styles.votePreviewCheckText}>✓</Text>
+                          </View>
+                          <Text style={styles.votePreviewVoted}>
+                            {legislatorVoteLabel(previewVote.vote)}
+                          </Text>
+                          <Text style={styles.votePreviewCode}>{previewVote.billCode}</Text>
+                          <Text style={styles.votePreviewMeta}>
+                            {formatMonoDate(previewVote.date)} · {previewVote.chamber.toUpperCase()}
+                          </Text>
                         </View>
-                        <Text style={styles.votePreviewMeta}>MMM 0, 2026 · {leg.chamber}</Text>
                         <View style={styles.votePreviewLines}>
                           <View style={[styles.votePreviewLine, { width: '100%' }]} />
-                          <View style={[styles.votePreviewLine, { width: '70%' }]} />
+                          <View style={[styles.votePreviewLine, { width: '72%' }]} />
                         </View>
                         <Text style={styles.votePreviewLabel}>LEGISLATOR’S EXPLANATION</Text>
                       </View>
-                    </View>
+                    ) : null}
                   </View>
                 </View>
               </View>
@@ -1416,11 +1430,11 @@ const styles = StyleSheet.create({
   },
   roadmapCard: {
     marginBottom: 14,
-    backgroundColor: t.colors.surfaces.s50,
+    backgroundColor: t.colors.surfaces.s100,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: t.colors.borders.strong,
-    borderRadius: 18,
+    borderColor: 'rgba(17,21,15,0.22)',
+    borderRadius: 16,
     padding: 22,
   },
   roadmapCardTitle: {
@@ -1573,15 +1587,12 @@ const styles = StyleSheet.create({
   // ghosted sample-vote preview (Why the votes?)
   votePreview: {
     marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
     borderRadius: 12,
-    paddingVertical: 15,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
     opacity: 0.7,
   },
   votePreviewCheck: {
@@ -1593,51 +1604,48 @@ const styles = StyleSheet.create({
     borderColor: t.colors.tint.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 1,
   },
   votePreviewCheckText: {
     fontSize: 14,
     fontWeight: t.fontWeights.heavy,
     color: t.colors.brand.graphics,
   },
-  votePreviewBody: { flex: 1, minWidth: 0 },
-  votePreviewTopRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },
+  votePreviewTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   votePreviewVoted: {
-    fontFamily: t.typography.ui,
-    fontSize: 15,
+    fontFamily: t.typography.body,
+    fontSize: 17,
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.deep,
   },
   votePreviewCode: {
     fontFamily: t.typography.mono,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.4,
+    letterSpacing: 0.52,
     color: AMBER_TEXT,
     backgroundColor: CODE_BADGE_FILL,
     borderWidth: 1,
     borderColor: CODE_BADGE_BORDER,
     borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
     overflow: 'hidden',
   },
   votePreviewMeta: {
-    marginTop: 6,
     fontFamily: t.typography.mono,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: t.colors.text.faint,
+    fontSize: 11,
+    letterSpacing: 0.55,
+    color: '#6f756f',
   },
-  votePreviewLines: { marginTop: 10, gap: 6 },
-  votePreviewLine: { height: 9, borderRadius: 5, backgroundColor: t.colors.surfaces.s300 },
+  votePreviewLines: { marginTop: 11, gap: 7 },
+  votePreviewLine: { height: 9, borderRadius: 5, backgroundColor: '#eef0f1' },
   votePreviewLabel: {
-    marginTop: 11,
+    marginTop: 12,
     fontFamily: t.typography.mono,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1,
-    color: t.colors.text.faint,
+    color: '#6f756f',
   },
 
   // ask card

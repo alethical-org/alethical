@@ -19,6 +19,7 @@ import {
   Citation,
   LegislativeService,
   Legislator,
+  LegislatorVote,
   RepresentativeLookupInput,
   RepresentativeLookupResult,
   VoteEvent,
@@ -483,6 +484,16 @@ interface ApiBillVotePayload {
   occurred_at?: string | null;
   official_url?: string | null;
   records?: ApiBillVoteRecordPayload[] | null;
+}
+
+interface ApiLegislatorVotePayload {
+  id: string;
+  vote_value: string;
+  vote_event_id: string;
+  bill_id?: string | null;
+  bill_code?: string | null;
+  occurred_at?: string | null;
+  chamber?: string | null;
 }
 
 interface ApiChatMessagePayload {
@@ -1952,6 +1963,38 @@ export async function getLegislatorBillsFromApi(
       total: response.page?.total ?? null,
     },
   };
+}
+
+export async function getLegislatorVotesFromApi(
+  legislatorId: string,
+  limit = 1,
+): Promise<LegislatorVote[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const response = await publicApiRequest<PageResponse<ApiLegislatorVotePayload>>(
+    `/legislators/${encodeURIComponent(legislatorId)}/votes?${params.toString()}`,
+  );
+  const supportedVotes = new Set(['yes', 'no', 'absent', 'excused', 'present', 'abstain']);
+
+  return response.data.flatMap((vote) => {
+    const normalizedChamber = vote.chamber?.toLowerCase();
+    if (normalizedChamber !== 'house' && normalizedChamber !== 'senate') return [];
+    const chamber = toOptionalChamber(vote.chamber);
+    const value = vote.vote_value.toLowerCase();
+    const billId = vote.bill_id?.trim();
+    const billCode = vote.bill_code?.trim();
+    const date = formatOptionalDate(vote.occurred_at);
+    if (!chamber || !supportedVotes.has(value) || !billId || !billCode || !date) return [];
+    return [
+      {
+        id: vote.id,
+        vote: value as LegislatorVote['vote'],
+        billId,
+        billCode,
+        date,
+        chamber,
+      },
+    ];
+  });
 }
 
 export async function listTrackedBillsFromApi(

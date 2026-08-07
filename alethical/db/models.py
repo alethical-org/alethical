@@ -1726,6 +1726,9 @@ def legislator_vote_history_stmt(legislator_id: uuid.UUID, session_id: uuid.UUID
             VoteRecord.legislator_id == legislator_id,
             Bill.session_id == session_id,
         )
+        .options(
+            selectinload(VoteRecord.vote_event).selectinload(VoteEvent.bill),
+        )
         .order_by(
             VoteEvent.occurred_at.desc().nullslast(), VoteRecord.created_at.desc()
         )
