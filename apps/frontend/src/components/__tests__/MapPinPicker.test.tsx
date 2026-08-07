@@ -14,6 +14,10 @@ vi.mock('react-native-svg', () => ({
 import { MapPinPicker } from '../MapPinPicker';
 
 const source = readFileSync(join(__dirname, '..', 'MapPinPicker.tsx'), 'utf8');
+const screenSource = readFileSync(
+  join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+  'utf8',
+);
 
 describe('district map credits', () => {
   it('places the district explanation between the instruction and the 3 source rows', () => {
@@ -61,6 +65,24 @@ describe('district map credits', () => {
     expect(source.indexOf('statePath')).toBeLessThan(source.indexOf('housePath'));
   });
 
+  it('keeps the current camera view while a map-selected district is loading and updating', () => {
+    expect(source).toContain('preserveViewport?: boolean');
+    expect(source).toMatch(
+      /if \(preserveViewport\) \{[\s\S]*fittedFor\.current = geometryToFit;[\s\S]*return;/,
+    );
+    expect(screenSource).toContain('const [preserveMapViewport, setPreserveMapViewport]');
+    expect(screenSource).toContain('preserveViewport={preserveMapViewport}');
+    expect(screenSource).toMatch(
+      /onCoordinateChange=\{\(coordinate\) => \{[\s\S]*setPreserveMapViewport\(true\);[\s\S]*runCoordinate\(coordinate, 'map'\)/,
+    );
+  });
+
+  it('does not show the neighboring House district badge', () => {
+    expect(source).not.toContain('otherHouseDistrict');
+    expect(source).not.toContain('NOT YOUR HOUSE DISTRICT');
+    expect(screenSource).not.toContain('otherHouseDistrict={mapResult?.otherHouseDistrict}');
+  });
+
   it('keeps unresolved helper text clean and hands outside map selections to the screen', () => {
     expect(source).toContain("'Tap the map to choose a location'");
     expect(source).toContain("'Click the map to choose a location'");
@@ -85,6 +107,8 @@ describe('district map credits', () => {
     expect(source).toContain('tileUrlForKey(key)');
     expect(source).toContain('tileState.requestKey === tileRequestKey && tileState.loaded');
     expect(source).toContain('const markTileFailed');
+    expect(source).toContain('current.requestKey === tileRequestKey && !current.loaded');
+    expect(source).toContain('current.failed < tiles.length');
   });
 
   it('gives the keyboard pin a visible focus ring', () => {
