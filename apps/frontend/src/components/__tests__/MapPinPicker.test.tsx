@@ -27,25 +27,17 @@ describe('district map credits', () => {
     );
   });
 
-  it('uses the full credit wording and keeps the tile credit tied to loaded tiles', () => {
+  it('keeps only the required OpenStreetMap credit and its external-source treatment', () => {
     const markup = renderToStaticMarkup(<MapPinPicker onCoordinateChange={vi.fn()} />);
 
-    expect(markup).toContain('District boundaries: Minnesota Legislature GIS');
-    expect(markup).toContain('District boundaries: Minnesota Legislature GIS ↗');
-    expect(markup).toContain(
-      'aria-label="District boundaries: Minnesota Legislature GIS, opens in a new tab"',
-    );
-    expect(markup).toContain('href="https://gis.lcc.mn.gov/"');
-    expect(markup).toContain('target="_blank"');
-    expect(markup).toContain('rel="noopener noreferrer"');
+    expect(markup).not.toContain('District boundaries: Minnesota Legislature GIS');
+    expect(markup).not.toContain('https://gis.lcc.mn.gov/');
     expect(markup).not.toContain('© OpenStreetMap contributors');
     expect(source).toContain('label="© OpenStreetMap contributors"');
-    expect(source).toContain('accessibilityLabel={`${label}, opens in a new tab`}');
-    expect(source).toContain('{label} ↗');
+    expect(source).not.toContain('GIS_CREDIT');
+    expect(source).toContain("{' (opens in a new tab)'}");
+    expect(source).toContain('viewBox="0 0 12 12"');
     expect(source).toMatch(/creditLink:\s*\{[\s\S]*textDecorationLine: 'underline'/);
-    expect(source.indexOf('© OpenStreetMap contributors')).toBeLessThan(
-      source.indexOf('District boundaries: Minnesota Legislature GIS'),
-    );
   });
 
   it('fits Minnesota before a district is selected and keeps the state context below districts', () => {
