@@ -1,19 +1,28 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const PRIMARY_SEARCH_AND_FIND_FIELDS = [
-  'components/home/HomeLegislatorFinder.tsx',
-  'components/search/searchPieces.tsx',
-  'components/billDetail/VotesTab.tsx',
-  'screens/FindMyLegislatorScreen.tsx',
-  'screens/redesign/BillDetailScreen.tsx',
-];
+const READ_ONLY_TEXT_FIELD = 'components/billDetail/SharePopover.tsx';
 
-describe('site-wide search and find field focus', () => {
-  it.each(PRIMARY_SEARCH_AND_FIND_FIELDS)(
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) return sourceFiles(full);
+    return entry.endsWith('.tsx') && !entry.endsWith('.test.tsx') ? [full] : [];
+  });
+}
+
+const EDITABLE_TEXT_FIELD_SOURCES = sourceFiles(SRC)
+  .filter((file) => {
+    const name = relative(SRC, file);
+    return name !== READ_ONLY_TEXT_FIELD && readFileSync(file, 'utf8').includes('<TextInput');
+  })
+  .map((file) => relative(SRC, file));
+
+describe('site-wide editable text field focus', () => {
+  it.each(EDITABLE_TEXT_FIELD_SOURCES)(
     '%s uses the shared light-purple focus treatment',
     (file) => {
       const source = readFileSync(join(SRC, file), 'utf8');
@@ -28,5 +37,11 @@ describe('site-wide search and find field focus', () => {
     const source = readFileSync(join(SRC, 'screens/FindMyLegislatorScreen.tsx'), 'utf8');
 
     expect(source).not.toContain('.focus()');
+  });
+
+  it('excludes only the non-editable share-link display', () => {
+    const source = readFileSync(join(SRC, READ_ONLY_TEXT_FIELD), 'utf8');
+
+    expect(source).toContain('editable={false}');
   });
 });

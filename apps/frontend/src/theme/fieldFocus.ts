@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 
 import { theme, prefersReducedMotion } from './tokens';
 
-// Site-wide persistent focus glow for primary text-entry fields: while the caret
+// Site-wide persistent focus glow for editable text fields: while the caret
 // is in the field, its bordered element shows the purple border + ring (matching
 // the signed-out home ask/finder fields), easing in/out. Shared so every ask /
 // search / address field gets the identical treatment.

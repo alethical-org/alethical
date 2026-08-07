@@ -34,6 +34,7 @@ import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { Skeleton } from '../../components/Skeleton';
+import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 
 // Web Legislator Profile (docs/mockups/legislator-profile-web). Aggregates a
 // member's public record — identity, committees (with leadership), chief-authored
@@ -660,24 +661,24 @@ function AskCard({
   onAsk: (q: string) => void;
 }) {
   const [value, setValue] = useState('');
-  const [focused, setFocused] = useState(false);
+  const { focused, focusProps } = useFieldFocus();
   const submit = () => onAsk(value.trim());
   const shortName = shortOfficialName(displayName);
   return (
     <View style={styles.card}>
       <Text style={styles.h3}>Ask about this legislator</Text>
       <Text style={styles.askSubtext}>No account needed — answers cite the public record.</Text>
-      <View style={[styles.askField, focused && styles.askFieldFocused]}>
+      <View style={[styles.askField, ...fieldFocusRing(focused)]}>
         <TextInput
           value={value}
           onChangeText={setValue}
           onSubmitEditing={submit}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={focusProps.onFocus}
+          onBlur={focusProps.onBlur}
           placeholder={`Ask about ${shortName}’s record`}
           placeholderTextColor={t.colors.text.muted}
           accessibilityLabel={`Ask about ${shortName}’s record`}
-          style={[styles.askInput, isWeb ? ({ outlineStyle: 'none' } as object) : null]}
+          style={[styles.askInput, fieldOutlineReset]}
         />
         <Pressable
           accessibilityRole="button"
@@ -1496,10 +1497,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingRight: 5,
     paddingLeft: 18,
-  },
-  askFieldFocused: {
-    borderColor: t.colors.purple.base,
-    ...(isWeb ? { boxShadow: '0 0 0 4px rgba(91,48,214,0.14)' } : {}),
   },
   askInput: {
     flex: 1,
