@@ -8,7 +8,7 @@ import {
   homeLocationFailureDestination,
   locationFailureFromBrowserError,
 } from '../homeLegislatorFinder';
-import { prepareAddressLookup, shouldFocusFindMyLegislator } from '../findMyLegislator';
+import { prepareAddressLookup } from '../findMyLegislator';
 
 describe('homepage Find My Legislator handoff', () => {
   it('preserves the typed address for display and trims only the service request', () => {
@@ -26,35 +26,24 @@ describe('homepage Find My Legislator handoff', () => {
     expect(homeAddressDestination(' 350 S 5th St ')).toEqual({
       address: ' 350 S 5th St ',
       coordinate: undefined,
-      focusAddress: undefined,
       lookupAddress: true,
       locationFailure: undefined,
     });
   });
 
-  it('navigates an empty Find to the normal page with a temporary focus request', () => {
+  it('navigates an empty Find without starting the next page focused', () => {
     expect(homeAddressDestination('   ')).toEqual({
       address: undefined,
       coordinate: undefined,
-      focusAddress: true,
       lookupAddress: undefined,
       locationFailure: undefined,
     });
-    expect(
-      shouldFocusFindMyLegislator({
-        address: undefined,
-        coordinate: undefined,
-        focusAddress: true,
-        locationFailure: undefined,
-      }),
-    ).toBe(true);
   });
 
   it('hands a Minnesota location to the full page without an address', () => {
     expect(homeLocationDestination({ latitude: 44.97683, longitude: -93.26579 })).toEqual({
       address: undefined,
       coordinate: { latitude: 44.97683, longitude: -93.26579 },
-      focusAddress: undefined,
       lookupAddress: undefined,
       locationFailure: undefined,
     });
@@ -64,7 +53,6 @@ describe('homepage Find My Legislator handoff', () => {
     expect(homeLocationDestination({ latitude: 41.8781, longitude: -87.6298 })).toEqual({
       address: undefined,
       coordinate: undefined,
-      focusAddress: undefined,
       lookupAddress: undefined,
       locationFailure: 'outside-minnesota',
     });
@@ -84,7 +72,6 @@ describe('homepage Find My Legislator handoff', () => {
     expect(homeLocationFailureDestination('unsupported')).toEqual({
       address: undefined,
       coordinate: undefined,
-      focusAddress: undefined,
       lookupAddress: undefined,
       locationFailure: 'unsupported',
     });

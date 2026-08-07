@@ -7,6 +7,8 @@ import { theme, prefersReducedMotion } from './tokens';
 // is in the field, its bordered element shows the purple border + ring (matching
 // the signed-out home ask/finder fields), easing in/out. Shared so every ask /
 // search / address field gets the identical treatment.
+// Text fields never take focus on page load or navigation; the glow begins only
+// after a visitor taps the field or reaches it with the keyboard.
 
 const focusTransition =
   Platform.OS === 'web'

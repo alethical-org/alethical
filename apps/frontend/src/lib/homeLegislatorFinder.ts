@@ -15,7 +15,6 @@ export type HomeLocationFailure =
 export type HomeFinderDestination = {
   address?: string;
   coordinate?: RepresentativeLookupCoordinates;
-  focusAddress?: true;
   lookupAddress?: true;
   locationFailure?: HomeLocationFailure;
 };
@@ -23,7 +22,6 @@ export type HomeFinderDestination = {
 const clearedDestination: HomeFinderDestination = {
   address: undefined,
   coordinate: undefined,
-  focusAddress: undefined,
   lookupAddress: undefined,
   locationFailure: undefined,
 };
@@ -32,7 +30,7 @@ export function homeAddressDestination(rawAddress: string): HomeFinderDestinatio
   const { serviceAddress } = prepareAddressLookup(rawAddress);
   return serviceAddress
     ? { ...clearedDestination, address: rawAddress, lookupAddress: true }
-    : { ...clearedDestination, focusAddress: true };
+    : clearedDestination;
 }
 
 export function homeLocationDestination(

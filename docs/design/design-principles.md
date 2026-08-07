@@ -198,8 +198,11 @@ one: see the box below before writing one.**
 
 - **Everything actionable is reachable and labeled.** Every control is keyboard-reachable in a
   sensible order; icon-only controls carry an accessibility label.
-- **Focus is always visible.** A clear focus ring on every interactive element (we already have a
-  green focus token). Never remove focus styling without an equivalent replacement.
+- **Focus is always visible.** A clear focus ring appears on every interactive element. Primary
+  search, find, Ask, and address fields use the shared light-purple border and glow
+  (`theme/fieldFocus.ts`) while the cursor is in them. Text fields never receive focus on page load
+  or navigation; the visitor must tap one or reach it with the keyboard. Never remove focus styling
+  without an equivalent replacement.
 - **Contrast holds — and accessibility overrides the spec.** Body text and essential UI meet WCAG AA
   against their background (4.5:1 for normal text, 3:1 for large/bold ≥18.66px and for essential UI).
   The dark-ink-on-green-fill rule exists for this reason — bright green with white text fails contrast.

@@ -41,8 +41,6 @@ export type RootStackParamList = {
   FindMyLegislator:
     | {
         address?: string;
-        /** One-time empty-homepage handoff. webRoutes deliberately never serializes it. */
-        focusAddress?: boolean;
         /** One-time homepage lookup request. webRoutes deliberately never serializes it. */
         lookupAddress?: boolean;
         /** One-time homepage handoff. webRoutes deliberately never serializes it. */

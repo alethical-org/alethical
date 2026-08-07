@@ -289,8 +289,8 @@ Frontend track (after Phase 0; parallel with backend track)
       and phone layouts, address choices, browser location, real district boundaries,
       representative details, all lookup failures, and a shareable address-only URL. The
       homepage band is an entry point only and uses the same full-address and temporary
-      location handoff. Coordinates, location failures, and focus requests are never stored
-      in the URL. Saving an address stays out (`docs/product-onboarding/user-data-retention-policy.md`
+      location handoff. Coordinates and location failures are never stored in the URL.
+      Saving an address stays out (`docs/product-onboarding/user-data-retention-policy.md`
       §2.3).
 - [x] Search split → `SearchBillsScreen` + `SearchLegislatorsScreen` + shared filter hook —
   shipped, and the legacy combined `SearchScreen` retired (#313); driven by the 2026-07-15
