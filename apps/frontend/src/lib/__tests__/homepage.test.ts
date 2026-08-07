@@ -47,4 +47,36 @@ describe('desktop bill groups continue into the matching Bill Search view', () =
       mobileSource.match(/<Text ref=\{billActivityRef\} style=\{m\.eyebrow\}>/g) ?? [],
     ).toHaveLength(2);
   });
+
+  it('keeps 1 main mobile heading and marks the section headings as level 2', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../screens/redesign/HomeSignedOutScreen.tsx',
+      ),
+      'utf8',
+    );
+    const [, mobileSource = ''] = source.split('// MOBILE HOME');
+
+    expect(mobileSource).toMatch(
+      /accessibilityRole="header" aria-level=\{2\} style=\{m\.sectionH2\}>\s*Legislative Bill Activity/,
+    );
+    expect(mobileSource).toMatch(
+      /accessibilityRole="header" aria-level=\{2\} style=\{m\.finderH2\}>\s*Find My Legislator/,
+    );
+  });
+
+  it('gives the 2 visible See more links distinct spoken names', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../screens/redesign/HomeSignedOutScreen.tsx',
+      ),
+      'utf8',
+    );
+    const [, mobileSource = ''] = source.split('// MOBILE HOME');
+
+    expect(mobileSource).toContain('accessibilityLabel="See more In the News bills"');
+    expect(mobileSource).toContain('accessibilityLabel="See more Legislative Bill Activity"');
+  });
 });

@@ -934,11 +934,20 @@ function BillBadge({ label }: { label: string }) {
 }
 
 /** "See more" — full-width outline button → default Search Bills. */
-function SeeMore({ href, onPress }: { href: string; onPress: () => void }) {
+function SeeMore({
+  href,
+  onPress,
+  accessibilityLabel,
+}: {
+  href: string;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
   const [hovered, hoverProps] = useHover();
   return (
     <Pressable
       {...linkProps(href, onPress)}
+      accessibilityLabel={accessibilityLabel}
       {...hoverProps}
       style={[
         m.seeMore,
@@ -1379,7 +1388,11 @@ function HomeSignedOutMobile() {
                 <SkeletonCard lines={4} />
                 <SkeletonCard lines={4} />
               </View>
-              <SeeMore href={routePath.bills()} onPress={openSearchBills} />
+              <SeeMore
+                href={routePath.bills()}
+                onPress={openSearchBills}
+                accessibilityLabel="See more In the News bills"
+              />
             </Container>
           ) : newsBills.length > 0 ? (
             <Container style={m.section}>
@@ -1395,7 +1408,11 @@ function HomeSignedOutMobile() {
                   />
                 ))}
               </View>
-              <SeeMore href={routePath.bills()} onPress={openSearchBills} />
+              <SeeMore
+                href={routePath.bills()}
+                onPress={openSearchBills}
+                accessibilityLabel="See more In the News bills"
+              />
             </Container>
           ) : null}
 
@@ -1407,7 +1424,7 @@ function HomeSignedOutMobile() {
               <Text ref={billActivityRef} style={m.eyebrow}>
                 2025–2026 SESSION
               </Text>
-              <Text accessibilityRole="header" style={m.sectionH2}>
+              <Text accessibilityRole="header" aria-level={2} style={m.sectionH2}>
                 Legislative Bill Activity
               </Text>
               <View style={m.activityGroup}>
@@ -1425,14 +1442,18 @@ function HomeSignedOutMobile() {
                   <SkeletonCard lines={3} />
                 </View>
               </View>
-              <SeeMore href={routePath.bills()} onPress={openSearchBills} />
+              <SeeMore
+                href={routePath.bills()}
+                onPress={openSearchBills}
+                accessibilityLabel="See more Legislative Bill Activity"
+              />
             </Container>
           ) : introducedBills.length > 0 || signedBills.length > 0 ? (
             <Container style={[m.section, m.activitySectionBottom]}>
               <Text ref={billActivityRef} style={m.eyebrow}>
                 2025–2026 SESSION
               </Text>
-              <Text accessibilityRole="header" style={m.sectionH2}>
+              <Text accessibilityRole="header" aria-level={2} style={m.sectionH2}>
                 Legislative Bill Activity
               </Text>
               {signedBills.length > 0 ? (
@@ -1471,7 +1492,11 @@ function HomeSignedOutMobile() {
                   </View>
                 </View>
               ) : null}
-              <SeeMore href={routePath.bills()} onPress={openSearchBills} />
+              <SeeMore
+                href={routePath.bills()}
+                onPress={openSearchBills}
+                accessibilityLabel="See more Legislative Bill Activity"
+              />
             </Container>
           ) : null}
 
@@ -1492,7 +1517,7 @@ function HomeSignedOutMobile() {
                 />
               ) : null}
               <Container style={[m.section, m.lastSectionBottom]}>
-                <Text accessibilityRole="header" style={m.finderH2}>
+                <Text accessibilityRole="header" aria-level={2} style={m.finderH2}>
                   Find My Legislator
                 </Text>
                 <Text style={m.finderSub}>
