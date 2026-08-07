@@ -14,9 +14,10 @@ with the modal reopened in an error state.
   scaffolding, not product UI.
 
 ## Intents (icon + headline + subcopy adapt per intent)
-- **Nav (generic, Alethical mark)** — "Sign in to Alethical"; return to the same page (or tracked-bills list).
-- **Track a bill (bell)** — "Sign in to track this bill" (names the bill); on success, auto-complete the
-  track and return to the bill — no second click.
+- **Nav (generic, Alethical mark)** — "Sign in to Alethical"; used only by plain Sign in controls in
+  the navigation and generic account cards.
+- **Track a bill (bell)** — "Sign in to track this bill"; used by every signed-out Track control and
+  by the signed-out prompt on the tracked-bills page. Name the bill when the caller knows it.
 There is no third intent. Account cards use the generic nav intent. Vote records are not gated.
 Any future gated action must get its own specified glyph before it is added.
 
