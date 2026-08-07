@@ -134,12 +134,26 @@ describe('Find My Legislator state and copy helpers', () => {
       'utf8',
     );
 
-    expect(source).toMatch(
-      /const retainedMapResult =\s*lookup\.isPending[\s\S]*preserveMapViewport[\s\S]*lastFoundResult\.current/,
+    expect(source).toContain(
+      'const retainedMapResult = retainLastFoundResult ? lastFoundResult.current : undefined',
     );
     expect(source).toContain('const displayedResult = retainedMapResult ?? settledResult');
     expect(source).toContain("state === 'looking' && !retainedMapResult");
-    expect(source).toContain('accessibilityLabel="Updating districts"');
+    expect(source).toContain("const mapUpdateLabel = lookup.isPending ? 'Updating districts'");
+    expect(source).toContain('accessibilityLabel={mapUpdateLabel}');
     expect(source).toContain('styles.mapUpdatingOverlay');
+  });
+
+  it('keeps the accepted result mounted when a map-selected lookup fails', () => {
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toMatch(
+      /const retainLastFoundResult =\s*preserveMapViewport[\s\S]*lookup\.isPending[\s\S]*lookup\.error[\s\S]*clientError/,
+    );
+    expect(source).toContain('activeError && !retainedMapResult');
+    expect(source).toContain("'Couldn’t update districts'");
   });
 });

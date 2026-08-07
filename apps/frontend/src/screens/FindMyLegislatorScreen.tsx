@@ -169,8 +169,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const geolocation = browserGeolocation();
   const result = lookup.data ?? undefined;
   const settledResult = lookup.isPending ? undefined : result;
-  const retainedMapResult =
-    lookup.isPending && preserveMapViewport ? lastFoundResult.current : undefined;
+  const retainLastFoundResult =
+    preserveMapViewport && (lookup.isPending || Boolean(lookup.error) || Boolean(clientError));
+  const retainedMapResult = retainLastFoundResult ? lastFoundResult.current : undefined;
   const displayedResult = retainedMapResult ?? settledResult;
   const choices =
     settledResult?.status === 'address-choice' && !choiceClosed
@@ -194,8 +195,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     state === 'service-down'
       ? errorCopy(state)
       : null;
-  const addressError = activeError && state !== 'location-error' ? activeError : null;
+  const addressError =
+    activeError && state !== 'location-error' && !retainedMapResult ? activeError : null;
   const locationButtonError = state === 'location-error' ? activeError : null;
+  const mapUpdateLabel = lookup.isPending ? 'Updating districts' : 'Couldn’t update districts';
 
   useEffect(() => {
     if (settledResult?.status === 'found') {
@@ -607,7 +610,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 </View>
               </View>
             ) : null}
-            {activeError ? (
+            {activeError && !retainedMapResult ? (
               <View accessibilityRole="alert" style={styles.errorAlert}>
                 <Text style={styles.errorText}>{activeError.answer}</Text>
               </View>
@@ -705,17 +708,19 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 {retainedMapResult ? (
                   <View
                     accessible
-                    accessibilityLabel="Updating districts"
+                    accessibilityLabel={mapUpdateLabel}
                     accessibilityLiveRegion="polite"
                     style={styles.mapUpdatingOverlay}
                   >
                     <View style={styles.mapUpdatingBadge}>
-                      {reducedMotion() ? (
+                      {!lookup.isPending ? (
+                        <AlertCircle size={18} color="#a36215" aria-hidden />
+                      ) : reducedMotion() ? (
                         <View style={styles.staticSpinner} />
                       ) : (
                         <ActivityIndicator color="#2d7a52" />
                       )}
-                      <Text style={styles.mapUpdatingText}>Updating districts</Text>
+                      <Text style={styles.mapUpdatingText}>{mapUpdateLabel}</Text>
                     </View>
                   </View>
                 ) : null}
