@@ -13,6 +13,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
+import { profilePartyBadgeAppearance } from '../../theme/legislatorBadgeAppearance';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../navigation/links';
 import { Bill, Legislator, LegislatorVote } from '../../data/types';
@@ -379,7 +380,9 @@ function Hero({
               <Text style={styles.metaText}>{districtLine}</Text>
               <View style={styles.metaDot} />
               <View style={styles.partyPill}>
-                <Text style={styles.partyPillText}>{partyLabel}</Text>
+                <Text numberOfLines={1} style={styles.partyPillText}>
+                  {partyLabel}
+                </Text>
               </View>
             </View>
           </View>
@@ -977,21 +980,8 @@ const styles = StyleSheet.create({
   },
   metaText: { fontFamily: t.typography.body, fontSize: 22, color: t.colors.text.faint },
   metaDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#c3c9c4' },
-  partyPill: {
-    paddingVertical: 5,
-    paddingHorizontal: 13,
-    backgroundColor: t.colors.tint.t150,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    borderRadius: t.radii.pill,
-  },
-  partyPillText: {
-    fontFamily: t.typography.body,
-    fontSize: 14,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.8,
-    color: t.colors.brand.deep,
-  },
+  partyPill: profilePartyBadgeAppearance.web.container,
+  partyPillText: profilePartyBadgeAppearance.web.text,
   // --- Body grid ---
   grid: { gap: 24 },
   gridDesktop: { flexDirection: 'row', alignItems: 'flex-start' },

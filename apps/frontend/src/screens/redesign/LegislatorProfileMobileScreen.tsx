@@ -15,6 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
+import { profilePartyBadgeAppearance } from '../../theme/legislatorBadgeAppearance';
 import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { Skeleton } from '../../components/Skeleton';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
@@ -603,7 +604,9 @@ export function LegislatorProfileMobileScreen() {
                   <View style={styles.metaLeft}>
                     <Text style={styles.metaText}>{`${leg.chamber} District ${leg.district}`}</Text>
                     <View style={styles.partyPill}>
-                      <Text style={styles.partyPillText}>{partyFull(leg.party)}</Text>
+                      <Text numberOfLines={1} style={styles.partyPillText}>
+                        {partyFull(leg.party)}
+                      </Text>
                     </View>
                   </View>
                   <Pressable
@@ -1091,21 +1094,8 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.subhead,
     color: t.colors.text.muted,
   },
-  partyPill: {
-    paddingVertical: 4,
-    paddingHorizontal: 11,
-    backgroundColor: t.colors.tint.t150,
-    borderWidth: 1,
-    borderColor: t.colors.tint.border,
-    borderRadius: 999,
-  },
-  partyPillText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.6,
-    color: t.colors.brand.deep,
-  },
+  partyPill: profilePartyBadgeAppearance.phone.container,
+  partyPillText: profilePartyBadgeAppearance.phone.text,
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
