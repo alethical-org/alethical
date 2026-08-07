@@ -124,4 +124,19 @@ describe('Find My Legislator state and copy helpers', () => {
     );
     expect(source.match(/<VacantSeatCard[\s\S]*?mobile=\{isMobile\}/g)).toHaveLength(2);
   });
+
+  it('keeps the accepted result mounted while a map-selected lookup is pending', () => {
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toMatch(
+      /const retainedMapResult =\s*lookup\.isPending[\s\S]*preserveMapViewport[\s\S]*lastFoundResult\.current/,
+    );
+    expect(source).toContain('const displayedResult = retainedMapResult ?? settledResult');
+    expect(source).toContain("state === 'looking' && !retainedMapResult");
+    expect(source).toContain('accessibilityLabel="Updating districts"');
+    expect(source).toContain('styles.mapUpdatingOverlay');
+  });
 });
