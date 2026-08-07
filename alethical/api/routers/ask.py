@@ -94,8 +94,10 @@ _ask_rate_limit = rate_limit("ask_limiter", "ask")
 # is the precomputed ``Bill.status_rank`` column (``_STATUS_KEY_RANK``), so this
 # ordering, the sort=progress ordering, and the badge all agree.
 
-# Cap the rendered list; overflow routes to Search pre-filtered to the topic.
-_DISPLAY_LIMIT = 6
+# Topic answers show the same 5-card sample used by the homepage, then route
+# overflow to Search. Legislator answers keep their existing 6-person sample.
+_TOPIC_BILL_DISPLAY_LIMIT = 5
+_LEGISLATOR_DISPLAY_LIMIT = 6
 
 # ILIKE on one or two characters matches almost everything; below this the
 # topic carries too little signal and the ask gets the NO MATCHES state.
@@ -155,6 +157,13 @@ def _progress_sort_key(bill):
     return (rank, -action_ts, bill.file_number, bill.bill_key)
 
 
+def _latest_action_sort_key(bill):
+    action_ts = (
+        bill.latest_action_at.timestamp() if bill.latest_action_at else float("-inf")
+    )
+    return (-action_ts, bill.file_number, bill.bill_key)
+
+
 def _matched_bill_ids_select(session_ids, topic_value: str):
     """Bill ids matching a topic in the current Legislature — the single predicate
     both topic answer paths share so their result sets stay in lockstep.
@@ -211,6 +220,7 @@ def _topic_bills_answer(
     )
     rows = db.scalars(stmt).all()
     ranked = sorted(rows, key=_progress_sort_key)
+    latest = sorted(rows, key=_latest_action_sort_key)
     return AskTopicBillsAnswer(
         topic=topic_value,
         session=session_ref,
@@ -218,7 +228,11 @@ def _topic_bills_answer(
         total_matches=len(rows),
         bills=[
             bill_list_item(bill, session=_bill_session_ref(scope, bill))
-            for bill in ranked[:_DISPLAY_LIMIT]
+            for bill in ranked[:_TOPIC_BILL_DISPLAY_LIMIT]
+        ],
+        latest_action_bills=[
+            bill_list_item(bill, session=_bill_session_ref(scope, bill))
+            for bill in latest[:_TOPIC_BILL_DISPLAY_LIMIT]
         ],
     )
 
@@ -355,7 +369,7 @@ def _topic_legislators_answer(
             coauthored_count=len(e["coauthored"]),
             bills=sorted(e["bills"].values(), key=lambda b: b.file_number),
         )
-        for e in ordered[:_DISPLAY_LIMIT]
+        for e in ordered[:_LEGISLATOR_DISPLAY_LIMIT]
     ]
     return AskTopicLegislatorsAnswer(
         topic=topic_value,

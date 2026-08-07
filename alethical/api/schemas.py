@@ -437,6 +437,10 @@ class AskTopicBillsAnswer(BaseModel):
     data_as_of: datetime | None
     total_matches: int
     bills: list[BillListItem]
+    # The same grounded matches under the page's second supported ordering. The
+    # client receives both 5-card windows in one answer so changing a display
+    # control never repeats the question router's paid model call.
+    latest_action_bills: list[BillListItem] = Field(default_factory=list)
     # Set when this list is not a topic result at all, but the answer to a bill
     # number that names more than one bill ("HF 5" exists in both the regular and
     # the first special session, and they are different laws). Carries the number

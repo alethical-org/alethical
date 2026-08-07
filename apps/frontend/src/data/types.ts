@@ -492,6 +492,10 @@ export interface AskAnswer {
    *  offering a choice instead of answering (#810). */
   ambiguousReference?: string;
   bills: AskAnswerBill[];
+  /** The same topic matches in the 2 orderings the issue-answer control offers.
+   * Both are full Bill rows because that page reuses Bill Search's full card. */
+  billCards: Bill[];
+  latestActionBillCards: Bill[];
   legislators: AskAnswerLegislator[];
   // legislator_vote (§4.5 vote deflection): the bill the question named, if it
   // resolved. When absent, the deflection degrades to the `bills` list above.

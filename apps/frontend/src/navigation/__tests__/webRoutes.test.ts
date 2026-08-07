@@ -84,6 +84,16 @@ describe('live URLs still resolve to themselves', () => {
     });
   });
 
+  it('keeps an issue-answer sort through reload or sharing', () => {
+    expect(targetFromPathname('/ask?q=housing+bills&sort=action')).toEqual({
+      kind: 'ask',
+      params: { q: 'housing bills', sort: 'action' },
+    });
+    expect(pathForRoute({ name: 'Ask', params: { q: 'housing bills', sort: 'action' } })).toBe(
+      '/ask?q=housing+bills&sort=action',
+    );
+  });
+
   it('resolves the pages that have no redesigned replacement', () => {
     expect(targetFromPathname('/privacy')).toEqual({ kind: 'privacy' });
     expect(targetFromPathname('/terms')).toEqual({ kind: 'terms' });

@@ -50,11 +50,14 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.findMyLegislator()).toBe('/find-my-legislator');
   });
 
-  it('carries a bill tab and an ask question as query params', () => {
+  it('carries a bill tab and an ask question and sort as query params', () => {
     expect(routePath.bill('94-2025-SF334', { tab: 'votes' })).toBe(
       '/bills/94-2025-SF334?tab=votes',
     );
     expect(routePath.ask({ q: 'who voted yes' })).toBe('/ask?q=who+voted+yes');
+    expect(routePath.ask({ q: 'housing bills', sort: 'action' })).toBe(
+      '/ask?q=housing+bills&sort=action',
+    );
     expect(routePath.ask()).toBe('/ask');
   });
 

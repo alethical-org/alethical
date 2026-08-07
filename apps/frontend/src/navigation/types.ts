@@ -6,7 +6,7 @@ import type { HomeLocationFailure } from '../lib/homeLegislatorFinder';
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<MainTabParamList>;
-  Ask: { q?: string };
+  Ask: { q?: string; sort?: string };
   // Filter state lives in the URL query (issue #135) so a filtered Search Bills
   // view is shareable / bookmarkable / reload-safe. All optional; absent = default.
   Bills:

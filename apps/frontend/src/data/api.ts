@@ -130,6 +130,7 @@ interface ApiAskTopicBillsAnswerPayload {
   data_as_of?: string | null;
   total_matches: number;
   bills: ApiBillListItemPayload[];
+  latest_action_bills?: ApiBillListItemPayload[] | null;
   ambiguous_reference?: string | null;
 }
 
@@ -1638,6 +1639,14 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
     policyAreas: bill.ai_analysis?.policy_areas ?? undefined,
   });
 
+  // Topic answers use the same full card as Bill Search. Keep the narrow mapper
+  // above for single-bill and ambiguity states, but retain the list payload's
+  // author, action, vote, and issue facts for the issue-answer cards.
+  const mapCardBill = (bill: ApiBillListItemPayload) => ({
+    ...mapBillSummary(bill),
+    sessionLabel: bill.session?.name ?? answer?.session.name ?? 'Current session',
+  });
+
   // legislator_vote (§4.5 vote deflection) carries a resolved bill and/or a
   // topic_bills degrade. Treat its topic_bills as the effective bill list so the
   // deflection reuses the topic_bills rendering; surface the resolved bill on
@@ -1695,6 +1704,8 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
     totalBills: answer && 'total_bills' in answer ? answer.total_bills : undefined,
     resolvedBill,
     bills: (billsAnswer?.bills ?? []).map(mapBill),
+    billCards: (billsAnswer?.bills ?? []).map(mapCardBill),
+    latestActionBillCards: (billsAnswer?.latest_action_bills ?? []).map(mapCardBill),
     legislators: legislators.map((leg) => ({
       id: leg.id,
       slug: leg.slug ?? undefined,

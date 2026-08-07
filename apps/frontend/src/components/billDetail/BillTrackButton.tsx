@@ -56,6 +56,7 @@ export function BillTrackButton({
   tracked,
   onPress,
   size,
+  fullWidth = false,
 }: {
   tracked: boolean;
   // Matches Pressable's onPress so a link surface can pass a pressInsideLink handler
@@ -66,6 +67,8 @@ export function BillTrackButton({
    * 'card' matches the compact on-card button (bill lists, home, Ask answer card).
    */
   size: BillTrackButtonSize;
+  /** Fill the available row, used by issue-answer cards on a phone. */
+  fullWidth?: boolean;
 }) {
   const [hovered, hover] = useHover();
   const { state: resolveState, recheck } = useTrackedListState();
@@ -97,7 +100,12 @@ export function BillTrackButton({
         ref={unknownRef}
         accessibilityRole="button"
         accessibilityLabel="Checking your tracked bills"
-        style={[styles.btn, unknownButtonSizeStyle, styles.btnUnknown]}
+        style={[
+          styles.btn,
+          unknownButtonSizeStyle,
+          fullWidth && styles.btnFullWidth,
+          styles.btnUnknown,
+        ]}
       >
         {/* Held back ~300ms. Motion that appears and vanishes inside a couple hundred
             milliseconds reads as a flicker, and on a ten-card list it is ten of them.
@@ -130,6 +138,7 @@ export function BillTrackButton({
         style={[
           styles.btn,
           unknownButtonSizeStyle,
+          fullWidth && styles.btnFullWidth,
           styles.btnRetry,
           hovered && styles.btnRetryHover,
         ]}
@@ -150,6 +159,7 @@ export function BillTrackButton({
       style={[
         styles.btn,
         buttonSizeStyle,
+        fullWidth && styles.btnFullWidth,
         { backgroundColor: appearance.backgroundColor, borderColor: appearance.borderColor },
       ]}
     >
@@ -212,6 +222,7 @@ const styles = StyleSheet.create({
         } as object)
       : null),
   },
+  btnFullWidth: { width: '100%', maxWidth: '100%' },
   btnUnknownWeb: {
     gap: 10,
     borderRadius: 12,

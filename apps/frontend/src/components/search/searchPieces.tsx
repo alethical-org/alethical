@@ -630,9 +630,11 @@ export function ResultsHeader({
   dataAsOf,
   sortControl,
   sortLabel,
+  countTail,
   nativeID,
   uniformDetails = false,
   showRosterNote = false,
+  showRule = true,
 }: {
   count: number;
   /** Singular unit noun ("bill"); pluralized unless the count is exactly 1. */
@@ -643,6 +645,8 @@ export function ResultsHeader({
   /** Static "Sorted by …" label — the fallback for screens with no sort control
    *  yet (Search Legislators). Omit both to hide the meta row (e.g. no results). */
   sortLabel?: string;
+  /** Extra count words or a matched-value chip, kept inside the shared count row. */
+  countTail?: ReactNode;
   /** Scroll anchor for pagination (usePaginatedListScroll): a page change lands
    *  this count/sort row at the top of the viewport, first card just beneath it. */
   nativeID?: string;
@@ -650,6 +654,8 @@ export function ResultsHeader({
   uniformDetails?: boolean;
   /** Show the static seat clarification beneath a complete current roster count. */
   showRosterNote?: boolean;
+  /** Issue answers let the first card supply the next edge instead. */
+  showRule?: boolean;
 }) {
   const { isMobile } = useResponsive();
   const asOf = formatAsOf(dataAsOf);
@@ -658,7 +664,11 @@ export function ResultsHeader({
   return (
     <View
       nativeID={nativeID}
-      style={[styles.resultsHeader, isMobile && styles.resultsHeaderMobile]}
+      style={[
+        styles.resultsHeader,
+        !showRule && styles.resultsHeaderNoRule,
+        isMobile && styles.resultsHeaderMobile,
+      ]}
     >
       <View style={[styles.resultsHeaderMain, isMobile && styles.resultsHeaderMainMobile]}>
         <View style={[styles.resultsCountRow, isMobile && styles.resultsCountRowMobile]}>
@@ -680,6 +690,7 @@ export function ResultsHeader({
               ) : null}
             </Text>
           )}
+          {countTail}
         </View>
         {showRosterNote ? <RosterCountNote /> : null}
       </View>
@@ -781,7 +792,11 @@ export function SortControl({
         aria-expanded={open}
         onPress={() => onOpenChange(!open)}
         {...hover}
-        style={[styles.sortTrigger, (hovered || open) && styles.filterHover]}
+        style={[
+          styles.sortTrigger,
+          open && styles.sortTriggerOpen,
+          (hovered || open) && styles.filterHover,
+        ]}
       >
         <SortIcon />
         <Text
@@ -795,6 +810,15 @@ export function SortControl({
         </Text>
         <ChevronDown size={13} color="#6f756f" strokeWidth={2.2} />
       </Pressable>
+      {open ? (
+        <Pressable
+          aria-hidden
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          onPress={() => onOpenChange(false)}
+          style={styles.sortClickCatcher}
+        />
+      ) : null}
       {open ? (
         <View role="group" accessibilityLabel="Sort results" style={styles.sortMenu}>
           {options.map((option) => (
@@ -1564,6 +1588,7 @@ const styles = StyleSheet.create({
     // because plain divs are position:static).
     zIndex: 40,
   },
+  resultsHeaderNoRule: { paddingBottom: 0, borderBottomWidth: 0 },
   // Mobile stacks the strip: the count line, then the sort control on its OWN
   // row, left-aligned 18px below it. Sharing the count's row and hanging off the
   // right edge read as scattered in a narrow column. Web deliberately keeps the
@@ -1646,6 +1671,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     minHeight: 44,
+    ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
+  },
+  sortTriggerOpen: { position: 'relative', zIndex: 2 },
+  sortClickCatcher: {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 0,
+    ...(isWeb ? ({ position: 'fixed' } as object) : ({ position: 'absolute' } as object)),
   },
   sortMenu: {
     position: 'absolute',

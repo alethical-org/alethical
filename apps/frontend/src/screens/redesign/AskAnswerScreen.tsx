@@ -3,7 +3,7 @@ import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-nati
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme } from '../../theme/tokens';
-import { SearchPageShell } from '../../components/search/searchPieces';
+import { ResultsHeader, SearchPageShell, SortControl } from '../../components/search/searchPieces';
 import { BillResultCard } from '../../components/search/BillResultCard';
 import { CitationCard, SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
 import { SourceLine } from '../../components/billDetail/SourceLine';
@@ -32,6 +32,13 @@ import {
   passageTarget,
 } from '../../lib/askAnswer';
 import {
+  ISSUE_ANSWER_SORT_OPTIONS,
+  issueAnswerBills,
+  issueAnswerFollowUps,
+  issueAnswerUpdatedLabel as formatIssueAnswerUpdatedLabel,
+  resolveIssueAnswerSort,
+} from '../../lib/issueAnswer';
+import {
   citationSectionAnchor,
   parseSectionAnchor,
   resolveSectionAnchor,
@@ -48,10 +55,9 @@ const isWeb = Platform.OS === 'web';
 // decided web design), which supersedes §9.1–§9.2 for the bill_text state; design
 // handoff in docs/mockups/answer-web/.
 //
-// Structure: nav → answer header on the gradient (back link, the question as the
-// H1, the session line, Share, closed by the shell's hairline) → white body, two
-// columns on desktop (the answer, the bill card, "Ask another question" | the
-// sticky "From the bill" rail) → source line → footer.
+// The bill-text state uses the two-column passage design from §9.5. The issue
+// state is the separate full-width, sortable bill-list design from §9.6. Both
+// share the question/session header, Share control, source line, and shell.
 //
 // Deliberately NO question field, Ask button or composer, and nothing gated on
 // sign-in: a suggested chip on Bill Detail is the only way in, so an answer here
@@ -102,18 +108,24 @@ function FollowUpChips({
   chips: { label: string; submit: string }[];
   onAsk: (submit: string) => void;
 }) {
+  const { isMobile } = useResponsive();
   if (chips.length === 0) {
     return null;
   }
   return (
     <View style={styles.followupBlock}>
-      <Text style={styles.followupHeading}>CONTINUE</Text>
+      <Text
+        accessibilityRole="header"
+        style={[styles.followupHeading, isMobile && styles.followupHeadingMobile]}
+      >
+        Ask another question
+      </Text>
       <View style={styles.chipRow}>
         {chips.map((chip) => (
           <SuggestedQuestionChip
             key={chip.submit}
             label={chip.label}
-            onPress={() => onAsk(chip.submit)}
+            linkProps={linkProps(routePath.ask({ q: chip.submit }), () => onAsk(chip.submit))}
           />
         ))}
       </View>
@@ -292,7 +304,8 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const question = route.params?.q?.trim() ?? '';
   const { isTracked, toggleTrack } = useBillTracking();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const { isDesktop } = useResponsive();
+  const [issueSortOpen, setIssueSortOpen] = useState(false);
+  const { isDesktop, isMobile } = useResponsive();
 
   const askQuery = useAskAnswer(question);
 
@@ -316,11 +329,24 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
   const answer = askQuery.data;
   const isLegislators = answer?.intent === 'topic_legislators';
-  const shownBills = answer?.bills ?? [];
+  const compactBills = answer?.bills ?? [];
   const shownLegislators = answer?.legislators ?? [];
   const hasMatches = Boolean(answer?.hasAnswer && answer.totalMatches > 0);
   const noMatches = Boolean(answer?.hasAnswer && answer.totalMatches === 0);
-  const followUpChips = crossIntentChips(answer?.intent, answer?.topic);
+  const followUpChips =
+    answer?.intent === 'topic_bills' && answer.topic
+      ? issueAnswerFollowUps(answer.topic)
+      : crossIntentChips(answer?.intent, answer?.topic);
+  const issueSort = resolveIssueAnswerSort(route.params?.sort);
+  const shownIssueBills = issueAnswerBills(
+    answer?.billCards ?? [],
+    answer?.latestActionBillCards ?? [],
+    issueSort,
+  );
+  const issueAnswerUpdatedLabel = formatIssueAnswerUpdatedLabel(answer?.dataAsOf);
+  const isIssueAnswer = Boolean(
+    answer?.intent === 'topic_bills' && answer.hasAnswer && !answer.ambiguousReference,
+  );
 
   // legislator_vote → the v1 honest vote deflection (§4.5 / §9.4): never a vote
   // answer. A resolved bill deep-links its Votes tab; otherwise it degrades to
@@ -403,7 +429,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // §4.7 rule 4: follow-up chips fire their fully-qualified submit directly
   // (not populate — that is hero-only). Re-runs the Ask in place, updating ?q=.
   const askFollowUp = (submit: string) => {
-    navigation.setParams({ q: submit });
+    navigation.setParams({ q: submit, sort: undefined });
+  };
+
+  const selectIssueSort = (key: string) => {
+    const sort = resolveIssueAnswerSort(key);
+    navigation.setParams({ sort: sort === 'progress' ? undefined : sort });
   };
 
   const openBill = (billId: string) => navigation.navigate('BillDetail', { billId });
@@ -482,7 +513,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             : null;
 
   const hero = question ? (
-    <View style={styles.header}>
+    <View style={[styles.header, isIssueAnswer && styles.headerIssueAnswer]}>
       <View style={styles.headerMain}>
         {backBill ? (
           <BackToBill
@@ -525,7 +556,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       // is the whole gap below it. Left stacked with the hero's own bottom padding
       // the two make ~84px and the answer reads as detached from the question it
       // answers (issue #859, task 3).
-      heroEndsWithRule={Boolean(hero)}
+      heroEndsWithRule={Boolean(hero) && !isIssueAnswer}
     >
       {children}
     </SearchPageShell>
@@ -608,7 +639,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               <Text style={styles.viewBillLink}>See all votes on {resolvedBill.identifier} →</Text>
             </Pressable>
           </View>
-        ) : shownBills.length > 0 ? (
+        ) : compactBills.length > 0 ? (
           <>
             {/* Unresolved bill → degrade to the topic_bills list, each card
                 deep-linking its Votes tab (§4.5 / §9.4). */}
@@ -618,7 +649,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               see its roll-call votes:
             </Text>
             <View style={styles.cardsColumn}>
-              {shownBills.map((listed) => (
+              {compactBills.map((listed) => (
                 <AnswerBillCard
                   key={listed.id}
                   bill={listed}
@@ -880,8 +911,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
   // --- topic_bills (§4.2 / §9.4).
   if (hasMatches && answer) {
+    const issueTopic = answer.topic ?? 'this issue';
+    const browseParams = { q: answer.topic, sort: issueSort };
     return shell(
-      <View style={styles.narrowColumn}>
+      <View style={answer.ambiguousReference ? styles.narrowColumn : styles.issueAnswerColumn}>
         {answer.ambiguousReference ? (
           /* Not a topic result: the number named more than one bill. Saying so is
              the whole point — two "HF 5" cards with a topic heading above them
@@ -891,43 +924,80 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             more than one bill. A special session numbers its files from 1 again, so these are
             different laws. Open the one you meant:
           </Text>
+        ) : null}
+        {answer.ambiguousReference ? (
+          <View style={styles.cardsColumn}>
+            {compactBills.map((listed) => (
+              <AnswerBillCard
+                key={listed.id}
+                bill={listed}
+                onOpen={() => openBill(listed.id)}
+                tracked={isTracked(listed.id)}
+                onToggleTrack={() => toggleTrack(listed.id)}
+              />
+            ))}
+          </View>
         ) : (
-          <Text style={styles.bodyText}>
-            Bills matching
-            <Text style={styles.topicPill}> {answer.topic} </Text>, by legislative progress:
-          </Text>
-        )}
-        {answer.ambiguousReference ? null : (
-          <Text style={styles.provenance}>
-            {shownBills.length} of {answer.totalMatches} matching bills
-          </Text>
-        )}
-        <View style={styles.cardsColumn}>
-          {shownBills.map((listed) => (
-            <AnswerBillCard
-              key={listed.id}
-              bill={listed}
-              onOpen={() => openBill(listed.id)}
-              tracked={isTracked(listed.id)}
-              onToggleTrack={() => toggleTrack(listed.id)}
+          <>
+            <ResultsHeader
+              count={shownIssueBills.length}
+              noun="bill"
+              dataAsOf={undefined}
+              showRule={false}
+              countTail={
+                <View style={styles.issueCountTail}>
+                  <Text style={styles.issueCountTailText}>of {answer.totalMatches} matching</Text>
+                  <View style={[styles.issueTopicChip, isMobile && styles.issueTopicChipMobile]}>
+                    <Text style={styles.issueTopicChipText}>{issueTopic}</Text>
+                  </View>
+                </View>
+              }
+              sortControl={
+                <SortControl
+                  options={[...ISSUE_ANSWER_SORT_OPTIONS]}
+                  value={issueSort}
+                  onSelect={selectIssueSort}
+                  open={issueSortOpen}
+                  onOpenChange={setIssueSortOpen}
+                />
+              }
             />
-          ))}
-        </View>
-        {answer.totalMatches > shownBills.length ? (
+            <View style={styles.issueCardsColumn}>
+              {shownIssueBills.map((listed) => (
+                <BillResultCard
+                  key={listed.id}
+                  variant="issueAnswer"
+                  excludedPolicyArea={answer.topic}
+                  bill={listed}
+                  tracked={isTracked(listed.id)}
+                  onToggleTrack={() => toggleTrack(listed.id)}
+                  onPress={() => openBill(listed.id)}
+                  onSponsorPress={(legislatorId) =>
+                    navigation.navigate('LegislatorProfile', { legislatorId })
+                  }
+                  onRollCalls={() => openVotes(listed.id)}
+                />
+              ))}
+            </View>
+          </>
+        )}
+        {!answer.ambiguousReference && answer.totalMatches > shownIssueBills.length ? (
           <Pressable
-            {...linkProps(routePath.bills(answer.topic ? { q: answer.topic } : undefined), () =>
-              navigation.navigate('Bills', answer.topic ? { q: answer.topic } : undefined),
+            {...linkProps(routePath.bills(browseParams), () =>
+              navigation.navigate('Bills', browseParams),
             )}
+            style={styles.issueSeeAllLink}
           >
             {/* No count in the link. An Ask covers the whole Legislature, including
                 its special session, while Search browses ONE session at a time and
                 defaults to the regular one — so promising a specific number here
                 would promise a page Search cannot show (#810). The count above still
                 says how many the answer matched. */}
-            <Text style={styles.viewBillLink}>See all {answer.topic} bills in Search →</Text>
+            <Text style={styles.viewBillLink}>See all {issueTopic} bills in Search →</Text>
           </Pressable>
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
+        {!answer.ambiguousReference ? <SourceLine updatedLabel={issueAnswerUpdatedLabel} /> : null}
       </View>,
     );
   }
@@ -1031,6 +1101,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink10,
   },
+  headerIssueAnswer: { paddingBottom: 0, borderBottomWidth: 0 },
   headerMain: { minWidth: 0, flexShrink: 1, flexGrow: 1, flexBasis: 320 },
   backLink: {
     marginBottom: 20,
@@ -1100,6 +1171,7 @@ const styles = StyleSheet.create({
   // Single-column states (a refusal, a topic list) read as prose, so they keep a
   // measure rather than running the full 1240px.
   narrowColumn: { maxWidth: 760, gap: t.spacing.md },
+  issueAnswerColumn: { width: '100%', gap: 20 },
 
   h2: {
     fontFamily: t.typography.title,
@@ -1227,14 +1299,47 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   cardsColumn: { gap: t.spacing.md },
-  followupBlock: { gap: t.spacing.sm, marginTop: t.spacing.sm },
-  followupHeading: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    fontWeight: '700',
-    color: t.colors.text.secondary,
+  issueCardsColumn: { gap: 14 },
+  issueCountTail: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 8,
   },
+  issueCountTailText: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    color: '#6f756f',
+  },
+  issueTopicChip: {
+    backgroundColor: '#f0ebfc',
+    borderWidth: 1,
+    borderColor: '#d8c9f7',
+    borderRadius: 7,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  issueTopicChipMobile: { borderRadius: 12 },
+  issueTopicChipText: {
+    fontFamily: t.typography.mono,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#5b30d6',
+  },
+  issueSeeAllLink: {
+    minHeight: 44,
+    alignSelf: 'flex-end',
+    justifyContent: 'center',
+  },
+  followupBlock: { gap: 14, marginTop: 16 },
+  followupHeading: {
+    fontFamily: t.typography.title,
+    fontSize: 22,
+    letterSpacing: -0.3,
+    fontWeight: t.fontWeights.heavy,
+    color: t.colors.text.primary,
+  },
+  followupHeadingMobile: { fontSize: 19 },
   framingNote: {
     fontFamily: t.typography.body,
     fontSize: 13,

@@ -3263,8 +3263,10 @@ def test_ask_answers_topic_bills_question_with_cited_list(client, monkeypatch):
     assert answer["session"]["slug"] == "94-2025-regular"
     assert "data_as_of" in answer
     assert answer["total_matches"] >= 1
-    assert 1 <= len(answer["bills"]) <= 6
+    assert 1 <= len(answer["bills"]) <= 5
+    assert 1 <= len(answer["latest_action_bills"]) <= 5
     assert answer["total_matches"] >= len(answer["bills"])
+    assert answer["total_matches"] >= len(answer["latest_action_bills"])
 
     bill_ids = [bill["id"] for bill in answer["bills"]]
     assert "94-2025-SF1832" in bill_ids
@@ -3272,6 +3274,14 @@ def test_ask_answers_topic_bills_question_with_cited_list(client, monkeypatch):
         # Cite-or-refuse: every card is its own citation, with a summary line.
         assert bill["official_url"]
         assert bill["ai_analysis"]["summary"]
+    for bill in answer["latest_action_bills"]:
+        # The alternate ordering is served from the same grounded bill rows.
+        assert bill["official_url"]
+        assert bill["ai_analysis"]["summary"]
+    latest_dates = [bill["latest_action_at"] for bill in answer["latest_action_bills"]]
+    assert latest_dates == sorted(
+        latest_dates, key=lambda value: value or "", reverse=True
+    )
 
     # Deterministic re-run — the ?q= share link must re-render identically.
     again = client.post(
@@ -3297,6 +3307,7 @@ def test_ask_zero_match_topic_returns_no_matches_payload(client, monkeypatch):
     assert answer["topic"] == "healthcare"
     assert answer["total_matches"] == 0
     assert answer["bills"] == []
+    assert answer["latest_action_bills"] == []
 
 
 def test_ask_non_topic_bills_intent_returns_no_answer(client, monkeypatch):
