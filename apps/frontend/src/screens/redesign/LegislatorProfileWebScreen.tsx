@@ -791,7 +791,7 @@ function SessionFilter() {
               </View>
             ))}
             <Text style={styles.sessionNote}>
-              Past-session archives — including retired legislators — are on the roadmap.
+              Past-session archives — including retired legislators — are on the roadmap
             </Text>
           </View>
         </>
