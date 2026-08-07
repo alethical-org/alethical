@@ -9,10 +9,15 @@ idealized one (a prior ingestion bug shipped a 100%-null column with green tests
 that used a fabricated source format, #328).
 """
 
+import sys
+
+import pytest
+
 from alethical.pipeline.legislator_bio_backfill import (
     backfill,
     bio_sentence,
     lrl_id_from_profile_url,
+    main,
     parse_house_bio,
     parse_lrl_bio,
     parse_lrl_city,
@@ -314,3 +319,71 @@ def test_city_backfill_dry_run_handles_supported_and_missing_records(monkeypatch
     assert db.commits == 0
     assert supported.represented_city is None
     assert missing.represented_city is None
+
+
+def test_city_only_write_never_changes_other_profile_fields(monkeypatch):
+    class Row:
+        profile_url = "https://www.house.mn.gov/members/profile/15389"
+        elected = "2020"
+        term = "3rd"
+        represented_city = None
+
+    class Member:
+        full_name = "Supported City"
+        biography = "Existing official biography."
+
+    row = Row()
+    member = Member()
+    monkeypatch.setattr(
+        "alethical.pipeline.legislator_bio_backfill.current_service_rows",
+        lambda *args, **kwargs: [(row, member, "house")],
+    )
+
+    fetched_urls = []
+
+    def fake_fetch(_session, url):
+        fetched_urls.append(url)
+        return LRL_RESIDENCE_MULTI_TERM
+
+    monkeypatch.setattr(
+        "alethical.pipeline.legislator_bio_backfill.fetch_text", fake_fetch
+    )
+
+    class Db:
+        commits = 0
+
+        def commit(self):
+            self.commits += 1
+
+        def rollback(self):
+            raise AssertionError("city-only write should not roll back")
+
+    db = Db()
+    stats = backfill(
+        db,
+        dry_run=False,
+        only_missing=True,
+        limit=None,
+        legislator=None,
+        chamber=None,
+        city_only=True,
+    )
+
+    assert fetched_urls == ["https://www.lrl.mn.gov/legdb/fulldetail?id=15389"]
+    assert row.represented_city == "Bloomington"
+    assert row.elected == "2020"
+    assert row.term == "3rd"
+    assert member.biography == "Existing official biography."
+    assert db.commits == 1
+    assert stats.written == 1
+
+
+def test_city_only_refuses_to_overwrite_existing_cities(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["legislator_bio_backfill", "--city-only", "--dry-run"],
+    )
+
+    with pytest.raises(SystemExit, match="requires --only-missing"):
+        main()

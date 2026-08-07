@@ -271,8 +271,8 @@ the published Privacy Policy.
 | --- | --- | --- | --- |
 | Google (through Supabase) | Name, email address, profile picture, a sign-in id | Every sign-in | Yes |
 | Supabase | The same, plus it hosts the whole database | Always | Yes |
-| **OpenAI** | **The reader's question, word for word** | Every Ask, every chat message | **No** |
-| **Anthropic** | **The reader's question, word for word** | Every chat message, when configured to Claude | **No** |
+| **OpenAI** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **No** |
+| **Anthropic** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **No** |
 | **US Census Bureau** | **The full street address, with surrounding spaces removed** | Every Find My Legislator address search | **No** |
 | **Minnesota GIS (`gis.lcc.mn.gov`)** | Latitude and longitude | Every Find My Legislator search | **No** |
 | Vercel | Hosts the web app, so its request logs see every page address (§7) | Every page load | No, and it should be |
@@ -336,6 +336,13 @@ dangerous one.
    identifies who asked.** A receipt that carries the question is a second, undeletable
    copy of the most sensitive thing we hold, sitting in the system least likely to be
    swept.
+
+**Public suggestions are not typed questions.** Alethical writes each bill's
+`question_prompts` and shows them as buttons. An exact, unedited match may therefore reuse
+a public saved answer ([#1119](https://github.com/alethical-org/alethical/issues/1119)).
+The saved row contains the answer, public citations, and fingerprints of public system
+inputs. It has no question-text field and never hashes request text. Editing even one word
+sends the request through the ordinary reader-written path and saves no cache row.
 
 **What we are deliberately not doing.** We are not shortening this to a few weeks. A
 reader following a bill needs to come back to their own thread months later, and a

@@ -220,7 +220,7 @@ export function BillResultCard({
   const { index, tone } = billStage(bill.status);
   const statusColor =
     tone === 'green'
-      ? t.colors.brand.deep
+      ? t.colors.text.green
       : tone === 'vetoed'
         ? t.colors.status.vetoedText
         : t.colors.text.secondary;
@@ -285,14 +285,12 @@ export function BillResultCard({
                 it" (#1007). It honours the same showTrackButton prop the desktop
                 branch does, so Search still opts out on mobile (#596's crowded-top-row
                 decision, which it makes by passing the prop) and every other surface
-                gets the control. size="mobile" rather than "card": it is the variant
-                that carries the 44pt minimum touch target, and it is narrower than
-                "card" (11/14 vs 18/18 horizontal padding), so it also fits the
-                narrower viewport better. Same size the mobile bill-detail header uses. */}
+                gets the control. Bill cards use the compact size at every viewport;
+                all three sizes carry the same 44px minimum touch target. */}
             {showTrackButton && onToggleTrack ? (
               <View style={styles.headerTrackSlot}>
                 <BillTrackButton
-                  size="mobile"
+                  size="card"
                   tracked={tracked}
                   onPress={pressInsideLink(onToggleTrack)}
                 />
@@ -594,6 +592,6 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.label,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.4,
-    color: t.colors.brand.deep,
+    color: t.colors.text.green,
   },
 });

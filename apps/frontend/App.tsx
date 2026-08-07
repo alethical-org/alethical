@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { AppProviders } from './src/providers/AppProviders';
+import { unregisterServiceWorkers } from './src/lib/serviceWorkerCleanup';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 export default function App() {
@@ -71,16 +72,11 @@ export default function App() {
     ensureFonts();
     ensureFocusStyles();
 
-    if (process.env.NODE_ENV !== 'production') {
-      void navigator.serviceWorker?.getRegistrations().then((registrations) => {
-        registrations.forEach((registration) => void registration.unregister());
-      });
-      return;
-    }
-
-    if ('serviceWorker' in navigator) {
-      void navigator.serviceWorker.register('/sw.js').catch(() => undefined);
-    }
+    // Releases can change the JavaScript files a page needs. A saved-site worker
+    // can keep serving an older page that requests files the new release no
+    // longer has, leaving a direct link blank. The worker is retired, and this
+    // removes registrations once this app can start.
+    void unregisterServiceWorkers(navigator).catch(() => undefined);
   }, []);
 
   return (

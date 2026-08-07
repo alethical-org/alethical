@@ -83,8 +83,8 @@ White card, radius 20px, shadow `0 18px 44px rgba(17,21,15,0.08)`, width 600px. 
 - "BILL" divider; green bill badge **HF 4138**; Signed/Effective dates; Chief author (Rep. Peggy
   Scott →) + Companion (SF 4696 →); vote line "House 132–2 · Senate 66–0".
 - Summary paragraph (bold act name "Stop Harms from Addictive Social Media Act").
-- "Cited ✓ Section 325M.40"; three quoted section cards (numbered purple chips, green left-rule,
-  italic quotes).
+- "Cited ✓ Section 325M.40"; three quoted section cards (no numbered chips, 3px light-purple
+  `#bda6ee` left rule, italic quotes).
 - "View bill text →" + `revisor.mn.gov`.
 
 ### Capability directory

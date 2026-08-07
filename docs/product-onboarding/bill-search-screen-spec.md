@@ -128,7 +128,7 @@ just "Filter by status", so the current filter reached a screen reader nowhere a
 | Session / year | dropdown: every ingested session, newest first, plus two inert greyed-out prior bienniums. Reads as its years ("2025–2026 Legislative Session"), except a special session, which keeps those words ("2025 First Special Session") — years alone cannot tell it apart from the biennium it sits inside ([#746](https://github.com/alethical-org/alethical/issues/746)) | `session` |
 | Omnibus | toggle "Omnibus only" | `omnibus` |
 | Policy area | selectable pills **with live bill counts** ("Education 214") | `policy_area` (counts from `GET /policy-areas`) |
-| Sort order | "Sorted by" dropdown: Best match (offered, and the default, only while a keyword query is present) / Legislative progress / Latest action, plus an inert "Most tracked" roadmap row | `sort` — `relevance` / `progress` / `latest_action` |
+| Sort order | "Sorted by" dropdown: Best match (offered, and the default, only while a keyword query is present) / Legislative progress / Latest action / Introduction date, plus an inert "Most tracked" roadmap row | `sort` — `relevance` / `progress` / `latest_action` / `introduced` |
 
 Each sort option must genuinely reorder the results, so keyword relevance is applied
 **only** to `sort=relevance` ("Best match"). The API originally prepended relevance to
@@ -139,6 +139,10 @@ reordered *within* bands of equal relevance — measured on the production corpu
 from no visible change at all ("social media minors", a bill-number lookup) to one swapped
 pair ("guns"). Omitting `sort` on a free-text search still ranks best-match-first, so
 relevance stays the search default for every API caller ([#573](https://github.com/alethical-org/alethical/issues/573)).
+"Introduction date" orders bills by their real introduction date, newest first. Its URL
+value is `sort=introduced`, and the frontend passes the API's existing `introduced`
+ordering through unchanged. The homepage's "See more recently introduced" link uses
+this order so its destination keeps the promise made by the link.
 
 No author filter in v1 — possible on the ingested data, but out of scope for this screen.
 
@@ -232,10 +236,11 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
 
 **Actions**
 - **Track button — now live, Aug 2026 ([#976](https://github.com/alethical-org/alethical/issues/976)).**
-  The Track button is functional: it renders as a solid **ink** fill (background `#11150f`,
-  white label with a leading "+" that flips to a check when tracked, 1px `#11150f` border,
-  radius 10px, hovering to `#2c322c`) via the shared `BillTrackButton` (`useBillTracking`),
-  used identically on the answer/bill rail cards and home. A signed-out tap opens the shared
+  The shared `BillTrackButton` is functional across bill pages, cards, home, Ask answers,
+  and the tracked-bills list. Untracked keeps its ink fill (`#11150f`, white text and plus,
+  hover `#2c322c`). Tracked uses mint (`#cdeedd`, border `#8ed3ae`, text `#06231a`, check
+  `#0f7a45`; hover `#b9e6cd` with border `#6cc596`). Both states use `aria-pressed`, and
+  pressing the tracked state untracks the bill. A signed-out tap opens the shared
   sign-in dialog naming this bill (`components/auth/SignInDialog.tsx`, [#1006](https://github.com/alethical-org/alethical/issues/1006)),
   then returns to the bill at `?track=1` to complete the track; signed in it toggles
   the bill on the watchlist and reads "Tracked". This reverses the Jul 2026 roadmap-preview
@@ -246,7 +251,7 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   ([#986](https://github.com/alethical-org/alethical/pull/986)), closing #976. On the card,
   the tap is swallowed (`pressInsideLink`) so it toggles instead of following the card's link
   to the bill.
-- **Four forms, one fixed box** ([#1013](https://github.com/alethical-org/alethical/issues/1013), [#1021](https://github.com/alethical-org/alethical/issues/1021)).
+- **Four forms; the two wordless forms keep their fixed box** ([#1013](https://github.com/alethical-org/alethical/issues/1013), [#1021](https://github.com/alethical-org/alethical/issues/1021)).
   Beyond `+ Track` and `✓ Tracked` there is a third form for **"we don't know yet"**: the same
   ink box with **no words**, a small white spinner, 62% opacity, and unpressable
   (`aria-busy`, `aria-disabled`, `tabindex="-1"`, all set on the DOM node because RN-Web drops
@@ -255,15 +260,10 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   a wrong assertion is worse than a blank one. **A signed-out visitor never sees it**: they
   track nothing, so `+ Track` is correct and immediate. The spinner inside the box waits
   ~300ms so a fast answer never flickers; the box itself is not delayed. In ordinary use the
-  form never appears — `/me/tracked-bills` answers in ~144ms while the bill's own request
-  takes ~2,462ms, so the answer is known before the button paints — it is a **fault** state,
-  and a failed request falls back to the label rather than holding the spinner, because
-  pressing Track upserts and the refetch repairs the label, making the button its own retry.
-  All three forms share one box per size, because the labels do not: `+ Track` → `✓ Tracked`
-  grew the button **16 to 18px** at every size, nudging each list row sideways on every press.
-  Boxes are **`web` 128×46, `mobile` 112×44, `card` 124×44**, min-width with an explicit
-  height (a label's line box is taller than the spinner's, so a min-height would bind on the
-  spinner form alone and the box would shrink on resolve).
+  form normally resolves before the bill paints. A failed request moves to the fourth form
+  below rather than claiming either known state. The known labels size themselves and differ
+  by **16 to 18px**, with a 44px minimum height. The wordless checking form stays fixed at
+  **`web` 128×46, `mobile` 112×44, `card` 124×44** so its spinner cannot shrink the control.
 - **The fourth form: when the check FAILS** ([#1021](https://github.com/alethical-org/alethical/issues/1021)).
   `useTrackedBills` is `retry: false`, so one blip is permanent until something refetches. The
   button then becomes the **outline** of the same box — white fill, 1px border
