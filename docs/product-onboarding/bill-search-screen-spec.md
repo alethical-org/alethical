@@ -308,26 +308,22 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   outlined buttons there. If it is ever added, attach it to the bill-activity *section header*
   rather than the page top, and suppress it whenever the Session watch card is already telling
   the failure story.
-- **Track stays off this screen's phone layout — and that is now a choice this screen makes,
-  not something the card lacks** ([#1007](https://github.com/alethical-org/alethical/issues/1007)).
-  `BillResultCard`'s phone layout used to render no Track control at all, so every surface
-  using the card was Track-less on a phone; it now honours the same `showTrackButton` prop
-  the desktop layout does. Track sits in the phone header's FIRST row, on the right of the
-  code badge and any labels ([#1009](https://github.com/alethical-org/alethical/issues/1009)
-  moved it there from a third row of its own). The row's shape is load-bearing: the label
-  group is `flex:1` with `minWidth:0` and wraps internally, and the button is `flex:none`
-  with `marginLeft:auto`, so the button lands in the identical spot whether a bill carries
-  zero, one or both labels. Measured at 375px: right edge at 320px on all three cases. A
-  button that drops onto its own line in the both-labels case is the crowding that got the
-  phone Track control removed the first time. This screen keeps passing
-  `showTrackButton={isDesktop}`, so the crowded-top-row decision of
-  [#596](https://github.com/alethical-org/alethical/pull/596) is unchanged here. Surfaces
-  that do not pass the prop (the Tracked page, the Ask answer card) now show it on a phone,
-  where `size="mobile"` is used rather than `size="card"`. (That choice was originally made
-  because `card` rendered at 39px, under the 44px touch minimum. It no longer does —
-  [#1013](https://github.com/alethical-org/alethical/issues/1013) took `card` to 44px, since
-  the Ask answer page's own bill card uses that size and renders on phones. `mobile` is still
-  the right size on a phone card: it is *narrower*, 11/14 against 18/18 horizontal padding.)
+- **Track appears on every Search Bills card at every viewport**
+  ([#1138](https://github.com/alethical-org/alethical/issues/1138)). The desktop and phone
+  layouts expose the same live `BillTrackButton`; this screen must not hide it based on
+  `isDesktop` or any other width check. This replaces the roadmap-era exception in
+  [#596](https://github.com/alethical-org/alethical/pull/596), which hid a control that did
+  nothing and predated the phone header built to hold the working action. Track sits in the
+  phone header's first row, on the right of the code badge and any labels
+  ([#1009](https://github.com/alethical-org/alethical/issues/1009) moved it there from a
+  third row of its own); status and progress stay together on the second row. The first
+  row's shape is load-bearing: the label group is `flex:1` with `minWidth:0` and wraps
+  internally, while the button is `flex:none` with `marginLeft:auto`, so zero, one, or both
+  optional labels cannot push Track off the card or onto a row of its own. Bill cards use
+  `size="card"` on both layouts, with the 44px minimum height established in
+  [#1013](https://github.com/alethical-org/alethical/issues/1013). Signed-out, tracked,
+  untracked, checking, and retry states keep the shared behavior above; pressing the nested
+  control uses `pressInsideLink`, so it never opens the surrounding bill link.
 - **Card link → bill Overview** (`/bills/:billId`), the detail screen (not yet redesigned;
   a Claude Design mock currently uses the Bill Votes frame as the stand-in target). This is
   distinct from the **roll-call chip → Votes tab** (`?tab=votes`) above — the chip is a
