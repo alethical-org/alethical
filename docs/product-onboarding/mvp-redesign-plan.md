@@ -92,9 +92,8 @@ roadmap noted for direction.
   `useSignInModal().openSignIn({ intent, returnTo, billCode })`. The three previously
   inert nav "Sign in" buttons now open it; so does a signed-out Track tap, which returns
   to the bill at `?track=1` and finishes the track with no second click. Design and
-  deviations: `docs/mockups/sign-in/`. Gate scope is **bill tracking only** — the
-  legislator-votes intent is configured with `live: false` and cannot be opened, because
-  nothing saves a district ([#456](https://github.com/alethical-org/alethical/issues/456)).
+  deviations: `docs/mockups/sign-in/`. Gate scope is **bill tracking only**. Vote records
+  are public, so there is no legislator-votes sign-in intent.
   No copy anywhere mentions an email or push alert: sending is not built
   ([#36](https://github.com/alethical-org/alethical/issues/36)).
 - **Sign-out UX / account menu (SHIPPED, revised Aug 2026):** the "Sign in" button is

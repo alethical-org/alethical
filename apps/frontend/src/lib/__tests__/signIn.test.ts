@@ -6,7 +6,6 @@ import {
   SIGN_IN_INTENTS,
   SIGN_IN_RETRY_LABEL,
   SignInIntent,
-  canOpenSignIn,
   initialSignInState,
   parseAuthError,
   signInButtonLabel,
@@ -26,6 +25,21 @@ function openedOn(intent: SignInIntent, billCode?: string) {
 }
 
 describe('intent → copy', () => {
+  it('has exactly the two reasons sign-in can open', () => {
+    expect(ALL_INTENTS.sort()).toEqual(['nav', 'track']);
+  });
+
+  it('uses the Alethical mark for plain sign-in and a bell for Track', () => {
+    expect(signInCopy('nav').icon).toBe('brand');
+    expect(signInCopy('track').icon).toBe('bell');
+  });
+
+  it('uses the shorter nav subcopy', () => {
+    expect(signInCopy('nav').subcopy).toBe(
+      'Track bills across sessions and pick up where you left off. Your tracked list is saved to your account.',
+    );
+  });
+
   it('names the bill in the track subcopy when the caller knows it', () => {
     const { headline, subcopy } = signInCopy('track', 'HF 4138');
     expect(headline).toBe('Sign in to track this bill');
@@ -35,10 +49,6 @@ describe('intent → copy', () => {
   it('falls back to "this bill" when only the id is known', () => {
     expect(signInCopy('track').subcopy).toContain('this bill');
     expect(signInCopy('track').subcopy).not.toContain('undefined');
-  });
-
-  it('gives the nav button and the account card the same generic copy', () => {
-    expect(signInCopy('account')).toEqual(signInCopy('nav'));
   });
 
   it('gives every intent a headline and a subcopy', () => {
@@ -93,33 +103,6 @@ describe('no sign-in copy promises a notification', () => {
 
   it('states the payoff we can actually deliver: a saved list', () => {
     expect(signInCopy('track', 'HF 4138').subcopy.toLowerCase()).toContain('tracked bills');
-  });
-});
-
-// grounded-answers.md rule 2: never advertise what we can't answer. Nothing saves
-// a person's district, so the votes gate stays configured and unopenable (#456).
-describe('the legislator-votes gate is designed but not live', () => {
-  it('marks only tracking and the generic intents as live', () => {
-    expect(ALL_INTENTS.filter((intent) => canOpenSignIn(intent)).sort()).toEqual([
-      'account',
-      'nav',
-      'track',
-    ]);
-    expect(canOpenSignIn('votes')).toBe(false);
-  });
-
-  it('refuses to open on the votes intent', () => {
-    expect(openedOn('votes').open).toBe(false);
-  });
-
-  it('shows the generic dialog rather than the votes one if a stale request comes back', () => {
-    const state = signInReducer(initialSignInState, {
-      type: 'reopenWithError',
-      request: { intent: 'votes' },
-      kind: 'failed',
-    });
-    expect(state.open).toBe(true);
-    expect(state.intent).toBe('nav');
   });
 });
 

@@ -34,42 +34,33 @@ function focusableChildren(node: HTMLElement | null): HTMLElement[] {
   );
 }
 
-/** The green icon tile above the headline; the glyph follows the intent. */
-function IntentIcon({ icon, size }: { icon: 'brand' | 'bookmark' | 'capitol'; size: number }) {
-  const glyph = Math.round(size * 0.5);
-  const green = t.colors.brand.graphics;
+/** The neutral icon tile above the headline; the glyph names the intent. */
+function IntentIcon({ icon, size }: { icon: 'brand' | 'bell'; size: number }) {
+  const glyph = size === 52 && icon === 'brand' ? 27 : Math.round(size * 0.5);
+  const ink = t.colors.text.primary;
   return (
-    <View style={[styles.iconTile, { width: size, height: size }]}>
+    <View
+      style={[styles.iconTile, { width: size, height: size, borderRadius: size === 56 ? 15 : 14 }]}
+    >
       <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none">
         {icon === 'brand' ? (
           <>
-            <Path d="M3 21 L11 4 L11 21 Z" fill={green} />
-            <Path d="M21 21 L13 4 L13 21 Z" fill={green} />
+            <Path d="M3 21 L11 4 L11 21 Z" fill={ink} />
+            <Path d="M21 21 L13 4 L13 21 Z" fill={ink} />
           </>
         ) : null}
-        {/* A bookmark, not the design's bell: a bell reads as "we'll notify you",
-            and sending alerts is not built (#36) — grounded-answers.md rule 6. The
-            real payoff is the saved list, which a bookmark states. */}
-        {icon === 'bookmark' ? (
-          <Path
-            d="M6 4 h12 a1 1 0 0 1 1 1 v15 l-7-4 -7 4 V5 a1 1 0 0 1 1-1 Z"
-            stroke={green}
-            strokeWidth={2}
-            strokeLinejoin="round"
-          />
-        ) : null}
-        {icon === 'capitol' ? (
+        {icon === 'bell' ? (
           <>
             <Path
-              d="M4 9 L12 4 L20 9"
-              stroke={green}
+              d="M18 8 a6 6 0 0 0-12 0 c0 7-3 9-3 9 h18 s-3-2-3-9"
+              stroke={ink}
               strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
             <Path
-              d="M6 9 V17 M10 9 V17 M14 9 V17 M18 9 V17 M4 20 H20"
-              stroke={green}
+              d="M10.5 21 a1.8 1.8 0 0 0 3 0"
+              stroke={ink}
               strokeWidth={2}
               strokeLinecap="round"
             />
@@ -359,10 +350,9 @@ const styles = StyleSheet.create({
   },
   closePressed: { backgroundColor: t.colors.surfaces.s400 },
   iconTile: {
-    borderRadius: 14,
-    backgroundColor: t.colors.tint.t150,
+    backgroundColor: t.colors.surfaces.s400,
     borderWidth: 1,
-    borderColor: t.colors.tint.border,
+    borderColor: 'rgba(17,21,15,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -28,7 +28,7 @@ export function AuthRequiredCard({
     <Card>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.bodyText}>{isLoading ? 'Checking your session...' : message}</Text>
-      <PrimaryButton label="Sign in" onPress={() => openSignIn({ intent: 'account', returnTo })} />
+      <PrimaryButton label="Sign in" onPress={() => openSignIn({ intent: 'nav', returnTo })} />
     </Card>
   );
 }

@@ -6,11 +6,12 @@ render HTML/CSS).
 
 ## Provenance
 Handoff from Claude Design, Aug 5 2026. Built and shipped by
-[#1006](https://github.com/alethical-org/alethical/issues/1006).
+[#1006](https://github.com/alethical-org/alethical/issues/1006). Icon and intent rules corrected
+by the Aug 7 2026 handoff.
 
-## What shipped
-Captured from the running app against the production API, both surfaces showing the
-track intent (`shipped/`).
+## Earlier shipped captures
+These captures show the original green tile and are kept only as build history (`shipped/`).
+The current reference is `sign-in.dc.html`.
 
 | Web — centered overlay | Phone — bottom sheet |
 | --- | --- |
@@ -26,11 +27,6 @@ track intent (`shipped/`).
   exposes `openSignIn({ intent, returnTo, billCode })`.
 
 ## Deviations from the reference, and why
-- **The track icon is a bookmark, not the reference's bell.** A bell reads as "we will
-  notify you", and sending is not built ([#36](https://github.com/alethical-org/alethical/issues/36)) —
-  the server records that an alert is due and sends nothing. `.claude/rules/grounded-answers.md`
-  rule 6 forbids claiming it, and an icon makes the claim as surely as a sentence does. A
-  bookmark states the payoff we do deliver: a saved list.
 - **The "Already signed in" panel is not built.** The reference itself prefers proceeding
   without showing it ("ideally just proceed without showing the modal"), so `openSignIn`
   is a no-op when a session already exists, and the dialog closes on its own if a session
@@ -62,9 +58,6 @@ with no terminal period. The `trust` strings are still in the reference's intent
 are deliberately left unrendered: the subcopy already says what is saved, and Google's own
 consent screen names what we receive before anyone can finish.
 
-## Configured but not wired
-The **legislator-votes** intent is in `SIGN_IN_INTENTS` with `live: false`, and
-`openSignIn` refuses it. Nothing saves a person's district — not to the account, not to the
-device, not in memory — and the columns set aside for it are dead. Owned by
-[#456](https://github.com/alethical-org/alethical/issues/456). It stays in the config so
-that work adds an entry rather than a second sign-in box.
+## Intent scope
+There are exactly 2 intents: generic sign-in uses the Alethical mark, and Track uses a bell.
+Both use the neutral tile. Vote records are not gated, so there is no votes intent.

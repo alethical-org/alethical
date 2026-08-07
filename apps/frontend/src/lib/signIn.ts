@@ -6,10 +6,10 @@
 //  - rule 6: no copy may promise an email or a push alert. Sending is not built
 //    (#36) — the server records that an alert is due and sends nothing. The track
 //    payoff we state is the saved list, which is real.
-//  - rule 2: `votes` is configured but NOT live. A person's district is saved
-//    nowhere, so nothing may route into it until #456 ships district persistence.
+//  - rule 2: bill tracking is the only gated product action. Public vote records
+//    stay public, so there is no votes sign-in intent.
 
-export type SignInIntent = 'nav' | 'track' | 'votes' | 'account';
+export type SignInIntent = 'nav' | 'track';
 
 /** Where the dialog is in its one flow: waiting, redirecting, or explaining a failure. */
 export type SignInStatus = 'idle' | 'connecting' | 'error';
@@ -27,64 +27,35 @@ export interface SignInRequest {
 
 interface IntentConfig {
   /** Which icon tile the dialog shows. */
-  icon: 'brand' | 'bookmark' | 'capitol';
+  icon: 'brand' | 'bell';
   headline: string;
   /** `billCode` is only read by the track intent. */
   subcopy: (billCode?: string) => string;
-  /**
-   * False = configured for a future gate, never openable today. `openSignIn`
-   * refuses it, so wiring a dead gate is a no-op rather than a promise we can't
-   * keep (grounded-answers.md rule 2).
-   */
-  live: boolean;
 }
 
-// The generic copy, shared by the plain nav button and the account/chat cards —
-// the design treats "Account card" as the generic intent (docs/mockups/sign-in).
+// The generic copy is shared by every plain Sign in button. Only a Track action
+// gets a different reason and glyph (docs/mockups/sign-in).
 const GENERIC_HEADLINE = 'Sign in to Alethical';
 const GENERIC_SUBCOPY =
-  'Track bills across sessions and pick up right where you left off. Your tracked list is saved to your account.';
+  'Track bills across sessions and pick up where you left off. Your tracked list is saved to your account.';
 
 export const SIGN_IN_INTENTS: Record<SignInIntent, IntentConfig> = {
   nav: {
     icon: 'brand',
     headline: GENERIC_HEADLINE,
     subcopy: () => GENERIC_SUBCOPY,
-    live: true,
-  },
-  account: {
-    icon: 'brand',
-    headline: GENERIC_HEADLINE,
-    subcopy: () => GENERIC_SUBCOPY,
-    live: true,
   },
   track: {
-    icon: 'bookmark',
+    icon: 'bell',
     headline: 'Sign in to track this bill',
     subcopy: (billCode?: string) =>
       `Save ${billCode ?? 'this bill'} to your tracked bills and check where it stands whenever you come back.`,
-    live: true,
-  },
-  // Designed, deliberately unwired: nothing saves a district today — not to the
-  // account, not to the device, not even in memory — and the columns set aside
-  // for it are dead. Owned by #456.
-  votes: {
-    icon: 'capitol',
-    headline: 'Sign in to see how your legislators voted',
-    subcopy: () =>
-      'Save your district once and every roll call shows how your senator and representative voted.',
-    live: false,
   },
 };
 
 export function signInCopy(intent: SignInIntent, billCode?: string) {
   const config = SIGN_IN_INTENTS[intent];
   return { headline: config.headline, subcopy: config.subcopy(billCode), icon: config.icon };
-}
-
-/** False for an intent that is designed but has no shipped capability behind it. */
-export function canOpenSignIn(intent: SignInIntent): boolean {
-  return SIGN_IN_INTENTS[intent].live;
 }
 
 export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
@@ -140,10 +111,6 @@ export const initialSignInState: SignInDialogState = {
 export function signInReducer(state: SignInDialogState, action: SignInAction): SignInDialogState {
   switch (action.type) {
     case 'open':
-      // A gate with nothing behind it never opens (grounded-answers.md rule 2).
-      if (!canOpenSignIn(action.request.intent)) {
-        return state;
-      }
       return {
         open: true,
         intent: action.request.intent,
@@ -155,7 +122,7 @@ export function signInReducer(state: SignInDialogState, action: SignInAction): S
     case 'reopenWithError':
       return {
         open: true,
-        intent: canOpenSignIn(action.request.intent) ? action.request.intent : 'nav',
+        intent: action.request.intent,
         returnTo: action.request.returnTo,
         billCode: action.request.billCode,
         status: 'error',
