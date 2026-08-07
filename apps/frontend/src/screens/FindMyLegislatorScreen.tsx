@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -30,7 +29,6 @@ import {
   viewStateForLookup,
 } from '../lib/findMyLegislator';
 import type { IaItem, MenuKey } from '../navigation/ia';
-import { externalLinkProps } from '../navigation/links';
 import type { RootStackParamList } from '../navigation/types';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
@@ -135,16 +133,6 @@ function errorCopy(state: 'not-found' | 'outside-minnesota' | 'location-error' |
     field: 'Lookup unavailable right now',
     answer: 'Your address is fine — a public lookup service isn’t responding. Try again later.',
   };
-}
-
-function formatSourceDate(value?: string) {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? null
-    : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(
-        date,
-      );
 }
 
 export function FindMyLegislatorScreen({ navigation, route }: Props) {
@@ -373,7 +361,6 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       }}
     />
   );
-  const sourceDate = formatSourceDate(settledResult?.sourceUpdatedAt);
   const locationLabel = findingLocation ? 'Finding your location…' : 'Use my location';
   const locationBusy = findingLocation || lookup.isPending;
   const toggleMap = () => {
@@ -575,13 +562,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
           </View>
 
           {state === 'empty' ? renderMapSection() : null}
-          <View style={styles.answer} accessibilityLiveRegion="polite">
-            {state === 'empty' ? (
-              <Text style={styles.emptyText}>
-                Every address has one House district and one Senate district — we’ll show the
-                legislator for each.
-              </Text>
-            ) : null}
+          <View
+            style={state === 'empty' ? undefined : styles.answer}
+            accessibilityLiveRegion="polite"
+          >
             {state === 'looking' ? (
               <View accessible accessibilityLabel="Looking up your districts">
                 <View style={styles.looking}>
@@ -693,29 +677,6 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
           </View>
 
           {state !== 'empty' ? renderMapSection() : null}
-          {sourceDate && (state === 'found' || state === 'vacant') ? (
-            <View style={styles.source}>
-              <Text style={styles.sourceText}>Source: </Text>
-              <Pressable
-                {...externalLinkProps(
-                  'https://www.leg.mn.gov/',
-                  () => void Linking.openURL('https://www.leg.mn.gov/'),
-                )}
-              >
-                <Text style={styles.sourceLink}>Minnesota Legislature</Text>
-              </Pressable>
-              <Text style={styles.sourceText}> · </Text>
-              <Pressable
-                {...externalLinkProps(
-                  'https://www.revisor.mn.gov/',
-                  () => void Linking.openURL('https://www.revisor.mn.gov/'),
-                )}
-              >
-                <Text style={styles.sourceLink}>revisor.mn.gov</Text>
-              </Pressable>
-              <Text style={styles.sourceText}> · Updated {sourceDate}</Text>
-            </View>
-          ) : null}
         </Container>
         <Footer
           onPrivacy={() => navigation.navigate('Privacy')}
@@ -830,13 +791,6 @@ const styles = StyleSheet.create({
   },
   locationTextHovered: { color: '#0f7a45' },
   answer: { marginTop: 22 },
-  emptyText: {
-    maxWidth: 720,
-    fontFamily: t.typography.body,
-    fontSize: 18,
-    lineHeight: 28,
-    color: '#4f5651',
-  },
   looking: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -962,20 +916,6 @@ const styles = StyleSheet.create({
   congressional: { fontFamily: t.typography.body, fontSize: 14, color: t.colors.text.muted },
   cards: { flexDirection: 'row', gap: 18, alignItems: 'flex-start' },
   cardsMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 12 },
-  source: {
-    paddingLeft: 17,
-    marginTop: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  sourceText: { fontFamily: t.typography.body, fontSize: 12, color: t.colors.text.faint },
-  sourceLink: {
-    fontFamily: t.typography.body,
-    fontSize: 12,
-    color: t.colors.brand.deep,
-    textDecorationLine: 'underline',
-  },
   mapSection: { marginTop: 28 },
   mapToggle: {
     minHeight: 44,

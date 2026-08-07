@@ -510,6 +510,11 @@ export function MapPinPicker({
             : 'Click the map to choose a location'}
       </Text>
 
+      <Text style={styles.districtExplanation}>
+        Every address has one House district and one Senate district — we’ll show the legislator for
+        each.
+      </Text>
+
       <View testID="district-map-credits" style={styles.credits}>
         {tilesLoaded ? (
           <MapCredit href={OSM_COPYRIGHT} label="© OpenStreetMap contributors" />
@@ -581,7 +586,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'column',
     gap: 6,
-    marginTop: 16,
+    marginTop: 22,
   },
   creditRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   creditTarget: { flexDirection: 'row', alignItems: 'center' },
@@ -613,6 +618,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: t.colors.text.muted,
+  },
+  districtExplanation: {
+    maxWidth: 720,
+    marginTop: 8,
+    fontFamily: t.typography.body,
+    fontSize: 18,
+    lineHeight: 28,
+    color: '#4f5651',
   },
   codePill: {
     position: 'absolute',

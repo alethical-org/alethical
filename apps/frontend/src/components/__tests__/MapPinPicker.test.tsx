@@ -16,18 +16,22 @@ import { MapPinPicker } from '../MapPinPicker';
 const source = readFileSync(join(__dirname, '..', 'MapPinPicker.tsx'), 'utf8');
 
 describe('district map credits', () => {
-  it('places the instruction close to the map and the 3 left-aligned source rows below it', () => {
+  it('places the district explanation between the instruction and the 3 source rows', () => {
     const markup = renderToStaticMarkup(<MapPinPicker onCoordinateChange={vi.fn()} />);
 
     const map = markup.indexOf('district-map-canvas');
     const instruction = markup.indexOf('Click the map to choose a location');
+    const explanation = markup.indexOf('Every address has one House district');
     const credits = markup.indexOf('district-map-credits');
     expect(map).toBeLessThan(instruction);
-    expect(instruction).toBeLessThan(credits);
+    expect(instruction).toBeLessThan(explanation);
+    expect(explanation).toBeLessThan(credits);
     expect(source).toMatch(
       /credits:\s*\{[\s\S]*alignSelf: 'stretch'[\s\S]*alignItems: 'flex-start'[\s\S]*flexDirection: 'column'/,
     );
     expect(source).toMatch(/helper:\s*\{[\s\S]*marginTop: 6[\s\S]*fontSize: 15/);
+    expect(source).toMatch(/districtExplanation:\s*\{[\s\S]*marginTop: 8[\s\S]*fontSize: 18/);
+    expect(source).toMatch(/credits:\s*\{[\s\S]*marginTop: 22/);
   });
 
   it('keeps all 3 source rows together and gives both links the profile-card treatment', () => {
