@@ -22,6 +22,9 @@ design-review decisions (2026-07-15)".
 - **Role line = chamber-derived title** ("State Senator" / "State Representative"),
   never a committee chairship (committee `role` isn't ingested).
 - **Session label = "94th Legislature (2025–2026) Regular Session"** (spelled out).
+- **Find by address stays visible as a peer search method** — at the filter row's right edge on web
+  and directly below the name field on phones. The nav menu alone does not make it discoverable to
+  someone who does not know a legislator's name.
 
 ## Held / interim behavior at build time
 
