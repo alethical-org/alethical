@@ -35,6 +35,7 @@ describe('issue answer page structure', () => {
 
   it('uses the standard follow-up heading and removes the repeated lead sentence', () => {
     expect(answer).toContain('Ask another question');
+    expect(answer.match(/accessibilityRole="header"\s+aria-level=\{2\}/g)).toHaveLength(2);
     expect(answer).not.toContain('Bills matching');
   });
 });
