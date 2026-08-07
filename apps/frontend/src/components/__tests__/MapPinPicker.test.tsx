@@ -57,6 +57,17 @@ describe('district map credits', () => {
     expect(source).toContain('onOutsideMinnesota?.(chosen)');
   });
 
+  it('describes clicking or tapping as the main way to adjust a selected location', () => {
+    expect(source).toContain(
+      "'Click the map to adjust your location. Use + or − to zoom if needed.'",
+    );
+    expect(source).toContain(
+      "'Tap the map to adjust your location. Use + or − to zoom if needed.'",
+    );
+    expect(source).not.toContain("'Drag the pin, click the map");
+    expect(source).not.toContain("'Drag the pin or tap the map");
+  });
+
   it('uses the configured tile source and only credits a successful tile request', () => {
     expect(source).toContain('EXPO_PUBLIC_OPENSTREETMAP_TILE_URL');
     expect(source).toContain('EXPO_PUBLIC_MAP_TILE_URL');
