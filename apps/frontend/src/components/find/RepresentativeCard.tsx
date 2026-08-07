@@ -7,6 +7,10 @@ import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
 
+function alignedRowStyle(row: number) {
+  return isWeb ? ({ gridRow: row } as object) : undefined;
+}
+
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
   return `${parts[0]?.[0] ?? ''}${parts.at(-1)?.[0] ?? ''}`.toUpperCase();
@@ -91,11 +95,13 @@ export function RepresentativeCard({
   legislator,
   onProfile,
   mobile = false,
+  alignSections = false,
   legislatureLabel,
 }: {
   legislator: Legislator;
   onProfile: () => void;
   mobile?: boolean;
+  alignSections?: boolean;
   /** The lookup screen owns this current-session value. Omit it rather than guessing. */
   legislatureLabel?: string;
 }) {
@@ -108,8 +114,10 @@ export function RepresentativeCard({
   const service = serviceSummary(legislator.legislativeService);
   const chamberLabel = legislator.chamber.toUpperCase();
   return (
-    <View style={[styles.card, mobile && styles.cardMobile]}>
-      <View style={[styles.header, mobile && styles.headerMobile]}>
+    <View style={[styles.card, alignSections && styles.alignedCard, mobile && styles.cardMobile]}>
+      <View
+        style={[styles.header, alignSections && alignedRowStyle(1), mobile && styles.headerMobile]}
+      >
         <View accessible={false} {...({ 'aria-hidden': true } as object)} style={styles.portrait}>
           <Text style={styles.initials}>{initials(legislator.shortName)}</Text>
           {legislator.photoUrl ? (
@@ -145,24 +153,38 @@ export function RepresentativeCard({
         </View>
       </View>
 
-      <View style={[styles.factsRow, mobile && styles.factsRowMobile]}>
-        <View style={styles.fact}>
-          <Text style={styles.label}>PARTY</Text>
-          <Text style={styles.factValue}>{partyLabel(legislator.party)}</Text>
-        </View>
-        {legislator.representedCity ? (
+      <View
+        style={[
+          styles.biography,
+          alignSections && alignedRowStyle(2),
+          mobile && styles.biographyMobile,
+        ]}
+      >
+        <View style={[styles.factsRow, mobile && styles.factsRowMobile]}>
           <View style={styles.fact}>
-            <Text style={styles.label}>RESIDENCE</Text>
-            <Text style={styles.factValue}>{legislator.representedCity}</Text>
+            <Text style={styles.label}>PARTY</Text>
+            <Text style={styles.factValue}>{partyLabel(legislator.party)}</Text>
           </View>
+          {legislator.representedCity ? (
+            <View style={styles.fact}>
+              <Text style={styles.label}>RESIDENCE</Text>
+              <Text style={styles.factValue}>{legislator.representedCity}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {service ? (
+          <Text style={[styles.service, mobile && styles.serviceMobile]}>{service}</Text>
         ) : null}
       </View>
 
-      {service ? (
-        <Text style={[styles.service, mobile && styles.serviceMobile]}>{service}</Text>
-      ) : null}
-
-      <View style={[styles.section, mobile && styles.sectionMobile]}>
+      <View
+        style={[
+          styles.section,
+          alignSections && alignedRowStyle(3),
+          mobile && styles.sectionMobile,
+        ]}
+      >
         <Text style={styles.label}>COMMITTEES</Text>
         {assignments.length ? (
           assignments.map((assignment) => (
@@ -177,7 +199,14 @@ export function RepresentativeCard({
       </View>
 
       {legislator.totalAuthoredBills != null ? (
-        <View style={[styles.section, mobile && styles.sectionMobile, styles.authoredSection]}>
+        <View
+          style={[
+            styles.section,
+            mobile && styles.sectionMobile,
+            styles.authoredSection,
+            alignSections && alignedRowStyle(4),
+          ]}
+        >
           <Text style={[styles.authored, mobile && styles.authoredMobile]}>
             <Text style={styles.authoredNumber}>{legislator.totalAuthoredBills}</Text>
             {' bills authored'}
@@ -194,7 +223,13 @@ export function RepresentativeCard({
       ) : null}
 
       {issues.length ? (
-        <View style={[styles.section, mobile && styles.sectionMobile]}>
+        <View
+          style={[
+            styles.section,
+            alignSections && alignedRowStyle(5),
+            mobile && styles.sectionMobile,
+          ]}
+        >
           <Text style={styles.label}>ISSUES ON BILLS AUTHORED</Text>
           <View style={styles.chips}>
             {shownIssues.map((issue) => (
@@ -210,7 +245,13 @@ export function RepresentativeCard({
       ) : null}
 
       {legislator.email || legislator.phone || legislator.officeAddress || officialUrl ? (
-        <View style={[styles.contact, mobile && styles.contactMobile]}>
+        <View
+          style={[
+            styles.contact,
+            alignSections && alignedRowStyle(6),
+            mobile && styles.contactMobile,
+          ]}
+        >
           {legislator.phone || legislator.email ? (
             <View style={styles.contactChannels}>
               {legislator.phone ? (
@@ -257,6 +298,8 @@ export function RepresentativeCard({
         onHoverOut={() => setProfileHovered(false)}
         style={({ pressed }) => [
           styles.profileButton,
+          alignSections && alignedRowStyle(7),
+          alignSections && styles.alignedProfileButton,
           mobile && styles.profileButtonMobile,
           (profileHovered || pressed) && styles.profileButtonHovered,
         ]}
@@ -317,6 +360,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 17,
     gap: 0,
+  },
+  alignedCard: {
+    ...(isWeb
+      ? ({ display: 'grid', gridRow: 'span 7', gridTemplateRows: 'subgrid' } as object)
+      : null),
   },
   vacant: {
     flex: 1,
@@ -384,6 +432,8 @@ const styles = StyleSheet.create({
     color: t.colors.brand.deep,
   },
   districtEyebrowMobile: { fontSize: 11, letterSpacing: 1.32 },
+  biography: { gap: 16 },
+  biographyMobile: { gap: 0 },
   factsRow: {
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,
@@ -515,6 +565,9 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.ink,
   },
   profileButtonHovered: { backgroundColor: '#2c322c' },
+  alignedProfileButton: {
+    ...(isWeb ? ({ justifySelf: 'start' } as object) : null),
+  },
   profileButtonMobile: {
     alignSelf: 'stretch',
     width: '100%',

@@ -45,6 +45,16 @@ const LOCATION_ERROR_ID = 'find-legislator-location-error';
 const ADDRESS_CHOICES_ID = 'find-legislator-address-choices';
 const MAP_EXPANDED_KEY = 'alethical-find-legislator-map-expanded';
 const isWeb = Platform.OS === 'web';
+const alignedCardsStyle = isWeb
+  ? ({
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      gridAutoRows: 'auto',
+      columnGap: 18,
+      rowGap: 16,
+      alignItems: 'stretch',
+    } as object)
+  : undefined;
 
 type ClientError = 'location' | 'outside-minnesota' | null;
 
@@ -173,6 +183,12 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     preserveMapViewport && (lookup.isPending || Boolean(lookup.error) || Boolean(clientError));
   const retainedMapResult = retainLastFoundResult ? lastFoundResult.current : undefined;
   const displayedResult = retainedMapResult ?? settledResult;
+  const alignRepresentativeSections = Boolean(
+    !isMobile &&
+      displayedResult?.status === 'found' &&
+      displayedResult.senateLegislator &&
+      displayedResult.houseLegislator,
+  );
   const choices =
     settledResult?.status === 'address-choice' && !choiceClosed
       ? (settledResult.choices ?? []).slice(0, 5)
@@ -649,11 +665,18 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     </Text>
                   ) : null}
                 </View>
-                <View style={[styles.cards, isMobile && styles.cardsMobile]}>
+                <View
+                  style={[
+                    styles.cards,
+                    alignRepresentativeSections && alignedCardsStyle,
+                    isMobile && styles.cardsMobile,
+                  ]}
+                >
                   {displayedResult.senateLegislator ? (
                     <RepresentativeCard
                       legislator={displayedResult.senateLegislator}
                       mobile={isMobile}
+                      alignSections={alignRepresentativeSections}
                       legislatureLabel={
                         displayedResult.session
                           ? legislatureLabel(displayedResult.session)
@@ -681,6 +704,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     <RepresentativeCard
                       legislator={displayedResult.houseLegislator}
                       mobile={isMobile}
+                      alignSections={alignRepresentativeSections}
                       legislatureLabel={
                         displayedResult.session
                           ? legislatureLabel(displayedResult.session)
