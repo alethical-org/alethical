@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-import os
-import re
 import argparse
 import json
 import logging
+import os
+import re
 from dataclasses import asdict, dataclass
+from functools import lru_cache
+from pathlib import Path
 
 import requests
 from shapely.geometry import Point, mapping, shape
@@ -69,6 +71,11 @@ class RepresentativeLookupResult:
 # conservative simplification allowance.
 GEOMETRY_REDUCTION_DEGREES = 5 / 111_320
 MAX_SHARED_EDGE_DIFFERENCE_FRACTION = 0.001
+CONGRESSIONAL_DISTRICTS_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "congressional_districts_2022.geojson"
+)
 
 
 def _geometry(value: dict) -> BaseGeometry:
@@ -148,6 +155,57 @@ def validate_district_containment(
         raise RepresentativeLookupUpstreamError(
             "House district geometry is not contained by Senate district geometry"
         )
+
+
+@lru_cache(maxsize=1)
+def _congressional_district_geometries() -> tuple[tuple[str, BaseGeometry], ...]:
+    try:
+        payload = json.loads(CONGRESSIONAL_DISTRICTS_PATH.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RepresentativeLookupUpstreamError(
+            "Congressional district map could not be loaded"
+        ) from exc
+
+    features = payload.get("features", [])
+    if not isinstance(features, list):
+        raise RepresentativeLookupUpstreamError(
+            "Congressional district map is missing features"
+        )
+
+    districts: list[tuple[str, BaseGeometry]] = []
+    for feature in features:
+        properties = feature.get("properties") or {}
+        district_code = str(properties.get("district", "")).strip()
+        geometry = feature.get("geometry")
+        if not re.fullmatch(r"[1-8]", district_code) or not isinstance(geometry, dict):
+            raise RepresentativeLookupUpstreamError(
+                "Congressional district map has an invalid feature"
+            )
+        districts.append((district_code, _geometry(geometry)))
+
+    if {district for district, _ in districts} != {
+        str(number) for number in range(1, 9)
+    }:
+        raise RepresentativeLookupUpstreamError(
+            "Congressional district map is incomplete"
+        )
+    return tuple(districts)
+
+
+def congressional_district_for_point(
+    *, longitude: float, latitude: float
+) -> str | None:
+    point = Point(longitude, latitude)
+    matches = [
+        district
+        for district, geometry in _congressional_district_geometries()
+        if geometry.covers(point)
+    ]
+    if len(matches) > 1:
+        raise RepresentativeLookupUpstreamError(
+            "Point falls on more than one congressional district boundary"
+        )
+    return matches[0] if matches else None
 
 
 class CensusGeocoder:
@@ -258,15 +316,15 @@ class MinnesotaGisLookupClient:
 
         house_match: DistrictMatch | None = None
         senate_match: DistrictMatch | None = None
-        congressional_district: str | None = None
+        congressional_district = congressional_district_for_point(
+            longitude=longitude,
+            latitude=latitude,
+        )
         for feature in features:
             properties = feature.get("properties") or {}
             district_code = self._extract_district_code(properties)
             chamber = self._infer_chamber(properties, district_code)
-            if not district_code or chamber not in {"house", "senate", "congress"}:
-                continue
-            if chamber == "congress":
-                congressional_district = congressional_district or district_code
+            if not district_code or chamber not in {"house", "senate"}:
                 continue
             raw_geometry = feature.get("geometry")
             if not isinstance(raw_geometry, dict):
@@ -338,9 +396,6 @@ class MinnesotaGisLookupClient:
             return "senate"
         if "house" in chamber_text or "state house" in chamber_text:
             return "house"
-        if "congress" in chamber_text or "congressional" in chamber_text:
-            return "congress"
-
         memid = self._string_or_none(properties.get("memid"))
         if (
             district_code
@@ -349,14 +404,6 @@ class MinnesotaGisLookupClient:
             and memid.lower() != "none"
         ):
             return "senate"
-        if (
-            district_code
-            and re.fullmatch(r"\d{1,2}", district_code)
-            and memid
-            and memid.lower() == "none"
-        ):
-            return "congress"
-
         member_name = self._string_or_none(properties.get("name")) or ""
         lowered_name = member_name.lower()
         if district_code and re.fullmatch(r"\d{1,2}[A-Z]", district_code):

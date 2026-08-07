@@ -2074,6 +2074,23 @@ def test_representative_lookup_maps_service_district_codes_to_legislators(client
     assert "service_history" in payload["house_legislator"]
 
 
+def test_representative_lookup_preserves_an_empty_committee_list(client, monkeypatch):
+    monkeypatch.setattr(
+        "alethical.api.routers.public.current_committee_assignments",
+        lambda _db, _legislator_ids: {},
+    )
+
+    response = client.post(
+        "/api/v1/representative-lookups",
+        json={"address_text": "75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["house_legislator"]["committees"] == []
+    assert payload["senate_legislator"]["committees"] == []
+
+
 def test_representative_lookup_returns_address_choices_without_district_lookup(client):
     class ChoiceLookupService:
         def lookup(self, address_text: str):

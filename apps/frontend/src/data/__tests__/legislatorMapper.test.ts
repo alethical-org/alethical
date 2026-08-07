@@ -96,4 +96,17 @@ describe('mapLegislator Find My Legislator facts', () => {
     expect(mapped.chiefAuthoredBills).toBe(28);
     expect(mapped.legislativeService?.lines[0].elected).toContain('re-elected 2022, 2024');
   });
+
+  it('uses the current Senate profile address in the mapped card data', () => {
+    const mapped = mapLegislator({
+      ...REAL_PAYLOAD,
+      current_service: {
+        ...REAL_PAYLOAD.current_service,
+        chamber: 'senate',
+        profile_url: 'http://www.senate.leg.state.mn.us/members/member_bio.php?leg_id=15245',
+      },
+    } as never);
+
+    expect(mapped.profileUrl).toBe('https://www.senate.mn/members/member_bio.html?leg_id=15245');
+  });
 });

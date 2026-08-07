@@ -2,6 +2,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -10,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Crosshair, MapPin, Search } from '../components/icons';
+import { AlertCircle, Crosshair, Search } from '../components/icons';
 
 import { MapPinPicker } from '../components/MapPinPicker';
 import { RepresentativeCard, VacantSeatCard } from '../components/find/RepresentativeCard';
@@ -28,6 +30,7 @@ import {
   viewStateForLookup,
 } from '../lib/findMyLegislator';
 import type { IaItem, MenuKey } from '../navigation/ia';
+import { externalLinkProps } from '../navigation/links';
 import type { RootStackParamList } from '../navigation/types';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
@@ -36,7 +39,61 @@ import { theme as t } from '../theme/tokens';
 type Props = NativeStackScreenProps<RootStackParamList, 'FindMyLegislator'>;
 const EXAMPLE_ADDRESS = '350 S 5th St, Minneapolis, MN 55415';
 const ADDRESS_ERROR_ID = 'find-legislator-address-error';
+const LOCATION_ERROR_ID = 'find-legislator-location-error';
+const ADDRESS_CHOICES_ID = 'find-legislator-address-choices';
+const MAP_EXPANDED_KEY = 'alethical-find-legislator-map-expanded';
 const isWeb = Platform.OS === 'web';
+
+type ClientError = 'location' | 'outside-minnesota' | null;
+
+function initialMapExpanded() {
+  if (!isWeb || typeof sessionStorage === 'undefined') return false;
+  return sessionStorage.getItem(MAP_EXPANDED_KEY) === 'true';
+}
+
+function LoadingCard({ animate }: { animate: boolean }) {
+  const motion = useRef(new Animated.Value(0)).current;
+  const reduceMotion = reducedMotion();
+
+  useEffect(() => {
+    if (!animate || reduceMotion) return;
+    const loop = Animated.loop(
+      Animated.timing(motion, { toValue: 1, duration: 1050, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [animate, motion, reduceMotion]);
+
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={styles.skeletonCard}
+    >
+      <View style={styles.skeletonIdentity} />
+      <View style={styles.skeletonLineWide} />
+      <View style={styles.skeletonLine} />
+      <View style={styles.skeletonBlock} />
+      {animate && !reduceMotion ? (
+        <Animated.View
+          style={[
+            styles.shimmer,
+            {
+              transform: [
+                {
+                  translateX: motion.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-320, 520],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      ) : null}
+    </View>
+  );
+}
 
 function browserGeolocation(): Geolocation | null {
   if (Platform.OS !== 'web') return null;
@@ -61,8 +118,7 @@ function errorCopy(state: 'not-found' | 'outside-minnesota' | 'location-error' |
   if (state === 'not-found')
     return {
       field: 'No match for that address',
-      answer:
-        'Check the house number and street name, then try again. If there’s more than one match, choose your address.',
+      answer: 'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415.',
     };
   if (state === 'outside-minnesota')
     return {
@@ -98,12 +154,18 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     typeof route.params?.address === 'string' ? route.params.address : undefined;
   const requestedCoordinate = route.params?.coordinate;
   const [address, setAddress] = useState(requestedAddress ?? '');
-  const [locationError, setLocationError] = useState(Boolean(route.params?.locationFailure));
-  const [mapExpanded, setMapExpanded] = useState(false);
+  const [clientError, setClientError] = useState<ClientError>(
+    route.params?.locationFailure ? 'location' : null,
+  );
+  const [selectedCoordinate, setSelectedCoordinate] = useState<
+    RepresentativeLookupCoordinates | undefined
+  >(requestedCoordinate);
+  const [mapExpanded, setMapExpanded] = useState(initialMapExpanded);
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [choiceClosed, setChoiceClosed] = useState(false);
   const [findingLocation, setFindingLocation] = useState(false);
+  const [shimmerEnabled, setShimmerEnabled] = useState(false);
   const [findHovered, setFindHovered] = useState(false);
   const [locationHovered, setLocationHovered] = useState(false);
   const { focused: addressFocused, focusProps: addressFocusProps } = useFieldFocus();
@@ -112,16 +174,21 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const addressInputRef = useRef<TextInput | null>(null);
   const geolocation = browserGeolocation();
   const result = lookup.data ?? undefined;
+  const settledResult = lookup.isPending ? undefined : result;
   const choices =
-    result?.status === 'address-choice' && !choiceClosed ? (result.choices ?? []) : [];
-  const found = result?.status === 'found';
-  const hasVacancy = Boolean(found && (!result.houseLegislator || !result.senateLegislator));
+    settledResult?.status === 'address-choice' && !choiceClosed
+      ? (settledResult.choices ?? []).slice(0, 5)
+      : [];
+  const found = settledResult?.status === 'found';
+  const hasVacancy = Boolean(
+    found && (!settledResult.houseLegislator || !settledResult.senateLegislator),
+  );
   const state = viewStateForLookup({
     pending: lookup.isPending,
     found,
     choices: choices.length,
     vacant: hasVacancy,
-    error: locationError ? 'location' : lookup.error ? errorKind(lookup.error) : undefined,
+    error: clientError ?? (lookup.error ? errorKind(lookup.error) : undefined),
   });
   const activeError =
     state === 'not-found' ||
@@ -130,12 +197,38 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     state === 'service-down'
       ? errorCopy(state)
       : null;
+  const addressError = activeError && state !== 'location-error' ? activeError : null;
+  const locationButtonError = state === 'location-error' ? activeError : null;
+
+  useEffect(() => {
+    if (!lookup.isPending) {
+      setShimmerEnabled(false);
+      return;
+    }
+    const timer = setTimeout(() => setShimmerEnabled(true), 250);
+    return () => clearTimeout(timer);
+  }, [lookup.isPending]);
+
+  useEffect(() => {
+    if (
+      address.trim() &&
+      (state === 'not-found' || state === 'outside-minnesota' || state === 'service-down')
+    ) {
+      addressInputRef.current?.focus();
+    }
+  }, [address, state]);
+
+  useEffect(() => {
+    if (!settledResult?.coordinate) return;
+    setSelectedCoordinate(settledResult.coordinate);
+  }, [settledResult?.coordinate]);
 
   const runAddress = (value: string) => {
     const { serviceAddress } = prepareAddressLookup(value);
     if (!serviceAddress) return;
     setAddress(value);
-    setLocationError(false);
+    setClientError(null);
+    setSelectedCoordinate(undefined);
     setChoiceClosed(false);
     setChoiceIndex(0);
     autoRanFor.current = serviceAddress;
@@ -147,13 +240,19 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     });
     lookup.mutate(serviceAddress);
   };
-  const runCoordinate = (coordinate: RepresentativeLookupCoordinates) => {
-    setLocationError(false);
-    setChoiceClosed(false);
+  const runCoordinate = (
+    coordinate: RepresentativeLookupCoordinates,
+    source: 'choice' | 'location' | 'map' = 'map',
+  ) => {
+    setClientError(null);
+    setChoiceClosed(true);
     if (!isCoordinateInMinnesota(coordinate)) {
-      setLocationError(true);
+      lookup.reset();
+      setSelectedCoordinate(undefined);
+      setClientError(source === 'location' ? 'location' : 'outside-minnesota');
       return;
     }
+    setSelectedCoordinate(source === 'choice' ? undefined : coordinate);
     lookup.mutate(coordinate);
   };
 
@@ -181,7 +280,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       lookupAddress: undefined,
       locationFailure: undefined,
     });
-    runCoordinate(requestedCoordinate);
+    runCoordinate(requestedCoordinate, 'map');
   }, [requestedCoordinate]);
 
   useEffect(() => {
@@ -190,7 +289,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     lookup.reset();
     setChoiceClosed(false);
     setChoiceIndex(0);
-    setLocationError(true);
+    setClientError('location');
+    setSelectedCoordinate(undefined);
     navigation.setParams({
       address: undefined,
       coordinate: undefined,
@@ -201,20 +301,26 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
 
   const useLocation = () => {
     if (findingLocation || lookup.isPending) return;
+    setAddress('');
+    lookup.reset();
+    setSelectedCoordinate(undefined);
+    setClientError(null);
     if (!geolocation) {
-      setLocationError(true);
+      setClientError('location');
       return;
     }
-    setLocationError(false);
     setFindingLocation(true);
     geolocation.getCurrentPosition(
       (position) => {
         setFindingLocation(false);
-        runCoordinate({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        runCoordinate(
+          { latitude: position.coords.latitude, longitude: position.coords.longitude },
+          'location',
+        );
       },
       () => {
         setFindingLocation(false);
-        setLocationError(true);
+        setClientError('location');
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
     );
@@ -229,7 +335,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   };
   const chooseAddress = (choice: RepresentativeAddressChoice) => {
     setChoiceClosed(true);
-    runCoordinate({ latitude: choice.latitude, longitude: choice.longitude });
+    runCoordinate({ latitude: choice.latitude, longitude: choice.longitude }, 'choice');
   };
   const onChoiceKey = (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => {
     const action = addressChoiceKey(event.nativeEvent?.key ?? '', choiceIndex, choices.length);
@@ -237,7 +343,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     event.preventDefault?.();
     setChoiceIndex(action.index);
     if (action.action === 'choose') chooseAddress(choices[action.index]);
-    if (action.action === 'close') setChoiceClosed(true);
+    if (action.action === 'close') {
+      setChoiceClosed(true);
+      addressInputRef.current?.focus();
+    }
   };
   const navigateFromMenu = (item: IaItem) => {
     if (item.id === 'search-bills') navigation.navigate('Bills');
@@ -245,21 +354,37 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (item.id === 'search-find-my-legislator') navigation.navigate('FindMyLegislator');
     if (item.id === 'track-bills') navigation.navigate('Tabs', { screen: 'Tracked' });
   };
+  const mapResult = state === 'found' || state === 'vacant' ? settledResult : undefined;
+  const mapCoordinate = state === 'looking' ? selectedCoordinate : mapResult?.coordinate;
   const map = (
     <MapPinPicker
-      coordinate={result?.coordinate}
-      houseGeometry={result?.houseGeometry}
-      senateGeometry={result?.senateGeometry}
-      houseDistrict={result?.houseDistrict}
-      senateDistrict={result?.senateDistrict}
-      otherHouseDistrict={result?.otherHouseDistrict}
+      coordinate={mapCoordinate}
+      houseGeometry={mapResult?.houseGeometry}
+      senateGeometry={mapResult?.senateGeometry}
+      houseDistrict={mapResult?.houseDistrict}
+      senateDistrict={mapResult?.senateDistrict}
+      otherHouseDistrict={mapResult?.otherHouseDistrict}
       mobile={isMobile}
-      onCoordinateChange={runCoordinate}
+      onCoordinateChange={(coordinate) => runCoordinate(coordinate, 'map')}
+      onOutsideMinnesota={() => {
+        lookup.reset();
+        setSelectedCoordinate(undefined);
+        setClientError('outside-minnesota');
+      }}
     />
   );
-  const sourceDate = formatSourceDate(result?.sourceUpdatedAt);
+  const sourceDate = formatSourceDate(settledResult?.sourceUpdatedAt);
   const locationLabel = findingLocation ? 'Finding your location…' : 'Use my location';
   const locationBusy = findingLocation || lookup.isPending;
+  const toggleMap = () => {
+    setMapExpanded((value) => {
+      const next = !value;
+      if (isWeb && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(MAP_EXPANDED_KEY, String(next));
+      }
+      return next;
+    });
+  };
   const foundHeaderGradient: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' }
     : { backgroundColor: '#f2f9f5' };
@@ -279,7 +404,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       ]}
     >
       <Search size={17} color="#06231a" aria-hidden />
-      <Text style={[styles.findButtonText, mobile && styles.findButtonTextMobile]}>Find</Text>
+      <Text style={[styles.findButtonText, mobile && styles.findButtonTextMobile]}>
+        {mobile ? 'Find my legislator' : 'Find'}
+      </Text>
     </Pressable>
   );
   const renderLocationButton = (mobile: boolean) => (
@@ -287,6 +414,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       accessibilityRole="button"
       accessibilityLabel={locationLabel}
       accessibilityState={{ busy: locationBusy, disabled: locationBusy }}
+      aria-describedby={locationButtonError ? LOCATION_ERROR_ID : undefined}
       onHoverIn={() => setLocationHovered(true)}
       onHoverOut={() => setLocationHovered(false)}
       onPress={useLocation}
@@ -310,6 +438,27 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       </Text>
     </Pressable>
   );
+  const renderMapSection = () =>
+    isMobile ? (
+      <View style={styles.mapSection}>
+        <Pressable
+          accessibilityRole="button"
+          aria-expanded={mapExpanded}
+          aria-controls="district-map-panel"
+          onPress={toggleMap}
+          style={styles.mapToggle}
+        >
+          <Text style={styles.mapToggleText}>
+            {mapExpanded ? 'Hide district map' : 'Show district map'}
+          </Text>
+        </Pressable>
+        {districtMapVisible(isMobile, mapExpanded) ? (
+          <View nativeID="district-map-panel">{map}</View>
+        ) : null}
+      </View>
+    ) : (
+      <View style={styles.mapSection}>{map}</View>
+    );
 
   return (
     <PageBackground>
@@ -330,8 +479,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
               Find my legislator
             </Text>
             <Text style={styles.explainer}>
-              Enter your full street address. Minnesota districts can divide a city, so a city,
-              neighborhood, or ZIP alone cannot identify your legislators.
+              Enter a full street address. Minnesota’s districts split cities, so a city or ZIP
+              alone can’t tell us who represents you.
             </Text>
           </View>
           <View style={styles.addressArea}>
@@ -339,15 +488,24 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
               <View
                 style={[
                   styles.inputShell,
-                  activeError && styles.inputShellError,
+                  isMobile && styles.inputShellMobile,
+                  addressError && styles.inputShellError,
                   ...fieldFocusRing(addressFocused),
                 ]}
               >
                 <TextInput
                   ref={addressInputRef}
                   accessibilityLabel="Full Minnesota street address"
-                  aria-describedby={activeError ? ADDRESS_ERROR_ID : undefined}
-                  aria-invalid={activeError ? true : undefined}
+                  aria-describedby={addressError ? ADDRESS_ERROR_ID : undefined}
+                  aria-invalid={addressError ? true : undefined}
+                  onKeyPress={onChoiceKey}
+                  {...({
+                    role: 'combobox',
+                    'aria-expanded': choices.length > 0,
+                    'aria-controls': choices.length > 0 ? ADDRESS_CHOICES_ID : undefined,
+                    'aria-activedescendant':
+                      choices.length > 0 ? `find-legislator-choice-${choiceIndex}` : undefined,
+                  } as object)}
                   autoComplete="street-address"
                   placeholder={EXAMPLE_ADDRESS}
                   placeholderTextColor={t.colors.text.faint}
@@ -355,7 +513,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   onChangeText={(value) => {
                     setAddress(value);
                     lookup.reset();
-                    setLocationError(false);
+                    setClientError(null);
+                    setSelectedCoordinate(undefined);
+                    setChoiceClosed(false);
                   }}
                   onSubmitEditing={findAddress}
                   style={[styles.input, isMobile && styles.inputMobile, fieldOutlineReset]}
@@ -366,52 +526,35 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
               </View>
               {!isMobile ? renderLocationButton(false) : null}
             </View>
-            {activeError ? (
-              <Text
-                nativeID={ADDRESS_ERROR_ID}
-                style={styles.fieldError}
-                accessibilityLiveRegion="polite"
-              >
-                {activeError.field}
-              </Text>
-            ) : null}
-            {isMobile ? renderFindButton(true) : null}
-            {isMobile ? renderLocationButton(true) : null}
-          </View>
-
-          <View style={styles.answer} accessibilityLiveRegion="polite">
-            {state === 'empty' ? (
-              <View style={styles.emptyAnswer}>
-                <MapPin size={21} color={t.colors.brand.deep} />
-                <Text style={styles.emptyText}>Your Minnesota legislators will appear here.</Text>
+            {addressError ? (
+              <View nativeID={ADDRESS_ERROR_ID} style={styles.fieldErrorRow}>
+                <AlertCircle size={14} color="#a36215" aria-hidden />
+                <Text style={styles.fieldError} accessibilityLiveRegion="polite">
+                  {addressError.field}
+                </Text>
               </View>
             ) : null}
-            {state === 'looking' ? (
-              <View style={styles.looking} accessible accessibilityLabel="Looking up your address">
-                {reducedMotion() ? (
-                  <View style={styles.staticSpinner} />
-                ) : (
-                  <ActivityIndicator color={t.colors.brand.deep} />
-                )}
-                <View>
-                  <Text style={styles.lookingTitle}>Looking up your address</Text>
-                  <Text style={styles.lookingText}>Matching it to Minnesota districts…</Text>
-                </View>
+            {locationButtonError ? (
+              <View nativeID={LOCATION_ERROR_ID} style={styles.fieldErrorRow}>
+                <AlertCircle size={14} color="#a36215" aria-hidden />
+                <Text style={styles.fieldError} accessibilityLiveRegion="polite">
+                  {locationButtonError.field}
+                </Text>
               </View>
             ) : null}
-            {state === 'choice' ? (
-              <View style={styles.choiceCard}>
+            {choices.length ? (
+              <View style={styles.choiceWrap}>
                 <Text style={styles.choiceTitle}>Choose your address</Text>
-                <Text style={styles.choiceHelp}>More than 1 Minnesota address matched.</Text>
                 <View
+                  nativeID={ADDRESS_CHOICES_ID}
                   {...({ role: 'listbox' } as object)}
                   accessibilityLabel="Matching Minnesota addresses"
-                  {...({ onKeyDown: onChoiceKey } as object)}
                   style={styles.choiceList}
                 >
                   {choices.map((choice, index) => (
                     <Pressable
                       key={`${choice.matchedAddress}-${choice.latitude}-${choice.longitude}`}
+                      nativeID={`find-legislator-choice-${index}`}
                       {...({ role: 'option' } as object)}
                       aria-selected={index === choiceIndex}
                       onFocus={() => setChoiceIndex(index)}
@@ -422,6 +565,39 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     </Pressable>
                   ))}
                 </View>
+                <Text style={styles.choiceHelp}>
+                  Use ↑ and ↓ to move, Enter to choose, Esc to close
+                </Text>
+              </View>
+            ) : null}
+            {isMobile ? renderFindButton(true) : null}
+            {isMobile ? renderLocationButton(true) : null}
+          </View>
+
+          {state === 'empty' ? renderMapSection() : null}
+          <View style={styles.answer} accessibilityLiveRegion="polite">
+            {state === 'empty' ? (
+              <Text style={styles.emptyText}>
+                Every address has one House district and one Senate district — we’ll show the
+                legislator for each.
+              </Text>
+            ) : null}
+            {state === 'looking' ? (
+              <View accessible accessibilityLabel="Looking up your districts">
+                <View style={styles.looking}>
+                  {reducedMotion() ? (
+                    <View style={styles.staticSpinner} />
+                  ) : (
+                    <ActivityIndicator color="#6f756f" />
+                  )}
+                  <Text style={[styles.lookingTitle, isMobile && styles.lookingTitleMobile]}>
+                    Looking up your districts
+                  </Text>
+                </View>
+                <View style={[styles.skeletonCards, isMobile && styles.skeletonCardsMobile]}>
+                  <LoadingCard animate={shimmerEnabled} />
+                  <LoadingCard animate={shimmerEnabled} />
+                </View>
               </View>
             ) : null}
             {activeError ? (
@@ -429,89 +605,121 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 <Text style={styles.errorText}>{activeError.answer}</Text>
               </View>
             ) : null}
-            {(state === 'found' || state === 'vacant') && result ? (
+            {(state === 'found' || state === 'vacant') && settledResult ? (
               <View style={styles.foundWrap}>
                 <View style={[styles.foundHeader, foundHeaderGradient]}>
                   <Text accessibilityRole="header" aria-level={2} style={styles.answerTitle}>
                     Your Minnesota legislators
                   </Text>
-                  {result.session ? (
-                    <Text style={styles.sessionLabel}>{legislatureLabel(result.session)}</Text>
+                  {settledResult.houseDistrict && settledResult.senateDistrict ? (
+                    <View style={styles.districtChips}>
+                      <Text style={[styles.districtChip, styles.senateDistrictChip]}>
+                        SENATE {settledResult.senateDistrict}
+                      </Text>
+                      <Text aria-hidden style={styles.districtArrow}>
+                        ▸
+                      </Text>
+                      <Text style={[styles.districtChip, styles.houseDistrictChip]}>
+                        HOUSE {settledResult.houseDistrict}
+                      </Text>
+                    </View>
                   ) : null}
-                  {result.houseDistrict && result.senateDistrict ? (
+                  {settledResult.houseDistrict && settledResult.senateDistrict ? (
                     <Text style={styles.nesting}>
-                      House District {result.houseDistrict} is one of two House districts inside
-                      Senate District {result.senateDistrict}
+                      House District {settledResult.houseDistrict} is one of two House districts
+                      inside Senate District {settledResult.senateDistrict}
                     </Text>
                   ) : null}
-                  {result.congressionalDistrict ? (
+                  {settledResult.congressionalDistrict ? (
                     <Text style={styles.congressional}>
-                      Congressional district {result.congressionalDistrict}
+                      Congressional district {settledResult.congressionalDistrict}
                     </Text>
                   ) : null}
                 </View>
                 <View style={[styles.cards, isMobile && styles.cardsMobile]}>
-                  {result.senateLegislator ? (
+                  {settledResult.senateLegislator ? (
                     <RepresentativeCard
-                      legislator={result.senateLegislator}
+                      legislator={settledResult.senateLegislator}
+                      mobile={isMobile}
+                      legislatureLabel={
+                        settledResult.session ? legislatureLabel(settledResult.session) : undefined
+                      }
                       onProfile={() =>
                         navigation.navigate('LegislatorProfile', {
                           legislatorId:
-                            result.senateLegislator?.slug ?? result.senateLegislator!.id,
+                            settledResult.senateLegislator?.slug ??
+                            settledResult.senateLegislator!.id,
                         })
                       }
                     />
                   ) : (
-                    <VacantSeatCard />
+                    <VacantSeatCard
+                      districtLabel={
+                        settledResult.senateDistrict
+                          ? `SENATE DISTRICT ${settledResult.senateDistrict}`
+                          : undefined
+                      }
+                    />
                   )}
-                  {result.houseLegislator ? (
+                  {settledResult.houseLegislator ? (
                     <RepresentativeCard
-                      legislator={result.houseLegislator}
+                      legislator={settledResult.houseLegislator}
+                      mobile={isMobile}
+                      legislatureLabel={
+                        settledResult.session ? legislatureLabel(settledResult.session) : undefined
+                      }
                       onProfile={() =>
                         navigation.navigate('LegislatorProfile', {
-                          legislatorId: result.houseLegislator?.slug ?? result.houseLegislator!.id,
+                          legislatorId:
+                            settledResult.houseLegislator?.slug ??
+                            settledResult.houseLegislator!.id,
                         })
                       }
                     />
                   ) : (
-                    <VacantSeatCard />
+                    <VacantSeatCard
+                      districtLabel={
+                        settledResult.houseDistrict
+                          ? `HOUSE DISTRICT ${settledResult.houseDistrict}`
+                          : undefined
+                      }
+                    />
                   )}
                 </View>
-                {sourceDate ? (
-                  <Text style={styles.source}>
-                    Source: Minnesota Legislature · revisor.mn.gov · Updated {sourceDate}
-                  </Text>
-                ) : null}
               </View>
             ) : null}
           </View>
 
-          {isMobile ? (
-            <View style={styles.mapSection}>
-              <Pressable
-                accessibilityRole="button"
-                aria-expanded={mapExpanded}
-                aria-controls="district-map-panel"
-                onPress={() => setMapExpanded((value) => !value)}
-                style={styles.mapToggle}
-              >
-                <Text style={styles.mapToggleText}>
-                  {mapExpanded ? 'Hide district map' : 'Show district map'}
-                </Text>
-              </Pressable>
-              {districtMapVisible(isMobile, mapExpanded) ? (
-                <View nativeID="district-map-panel">{map}</View>
-              ) : null}
-            </View>
-          ) : (
-            <View style={styles.mapSection}>{map}</View>
-          )}
+          {state !== 'empty' ? renderMapSection() : null}
           <View style={styles.notices}>
             <Text style={styles.notice}>
               This product uses the Census Bureau Data API but is not endorsed or certified by the
               Census Bureau.
             </Text>
           </View>
+          {sourceDate && (state === 'found' || state === 'vacant') ? (
+            <View style={styles.source}>
+              <Text style={styles.sourceText}>Source: </Text>
+              <Pressable
+                {...externalLinkProps(
+                  'https://www.leg.mn.gov/',
+                  () => void Linking.openURL('https://www.leg.mn.gov/'),
+                )}
+              >
+                <Text style={styles.sourceLink}>Minnesota Legislature</Text>
+              </Pressable>
+              <Text style={styles.sourceText}> · </Text>
+              <Pressable
+                {...externalLinkProps(
+                  'https://www.revisor.mn.gov/',
+                  () => void Linking.openURL('https://www.revisor.mn.gov/'),
+                )}
+              >
+                <Text style={styles.sourceLink}>revisor.mn.gov</Text>
+              </Pressable>
+              <Text style={styles.sourceText}> · Updated {sourceDate}</Text>
+            </View>
+          ) : null}
         </Container>
         <Footer
           onPrivacy={() => navigation.navigate('Privacy')}
@@ -559,7 +767,8 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 8,
   },
-  inputShellError: { borderColor: t.colors.ink },
+  inputShellMobile: { width: '100%' },
+  inputShellError: { borderColor: '#a3421a' },
   input: {
     flex: 1,
     minWidth: 0,
@@ -595,11 +804,12 @@ const styles = StyleSheet.create({
   },
   findButtonTextMobile: { fontSize: 16 },
   pressed: { opacity: 0.72 },
+  fieldErrorRow: { minHeight: 24, flexDirection: 'row', alignItems: 'center', gap: 7 },
   fieldError: {
     fontFamily: t.typography.body,
     fontSize: 14,
-    fontWeight: '700',
-    color: t.colors.ink,
+    fontWeight: '600',
+    color: '#a36215',
   },
   locationButton: {
     height: 62,
@@ -624,61 +834,80 @@ const styles = StyleSheet.create({
   },
   locationTextHovered: { color: '#0f7a45' },
   answer: { marginTop: 22 },
-  emptyAnswer: {
-    minHeight: 110,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.62)',
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 10,
+  emptyText: {
+    maxWidth: 720,
+    fontFamily: t.typography.body,
+    fontSize: 18,
+    lineHeight: 28,
+    color: '#4f5651',
   },
-  emptyText: { fontFamily: t.typography.body, fontSize: 16, color: t.colors.text.muted },
   looking: {
-    minHeight: 110,
-    borderRadius: 18,
-    backgroundColor: 'white',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    padding: 24,
-    ...(t.shadows.card as object),
+    gap: 11,
   },
   staticSpinner: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 3,
-    borderColor: t.colors.brand.deep,
+    borderColor: '#6f756f',
   },
   lookingTitle: {
-    fontFamily: t.typography.title,
-    fontSize: 19,
-    fontWeight: '800',
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    fontWeight: '700',
     color: t.colors.ink,
   },
-  lookingText: {
-    fontFamily: t.typography.body,
-    fontSize: 14,
-    marginTop: 3,
-    color: t.colors.text.muted,
-  },
-  choiceCard: {
-    backgroundColor: 'white',
+  lookingTitleMobile: { fontSize: 15 },
+  skeletonCards: { marginTop: 20, flexDirection: 'row', alignItems: 'flex-start', gap: 18 },
+  skeletonCardsMobile: { flexDirection: 'column' },
+  skeletonCard: {
+    flex: 1,
+    width: '100%',
+    minHeight: 330,
+    overflow: 'hidden',
     borderRadius: 18,
-    padding: 22,
-    gap: 7,
-    ...(t.shadows.card as object),
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    backgroundColor: '#f1f3f2',
+    padding: 24,
+    gap: 16,
+  },
+  skeletonIdentity: { width: '62%', height: 74, borderRadius: 12, backgroundColor: '#e2e5e4' },
+  skeletonLineWide: { width: '88%', height: 18, borderRadius: 6, backgroundColor: '#e2e5e4' },
+  skeletonLine: { width: '68%', height: 14, borderRadius: 6, backgroundColor: '#e2e5e4' },
+  skeletonBlock: { width: '100%', height: 112, borderRadius: 12, backgroundColor: '#e2e5e4' },
+  shimmer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 140,
+    backgroundColor: 'rgba(255,255,255,0.42)',
+    transform: [{ rotate: '12deg' }],
+  },
+  choiceWrap: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    overflow: 'hidden',
   },
   choiceTitle: {
-    fontFamily: t.typography.title,
-    fontSize: 22,
-    fontWeight: '800',
+    paddingHorizontal: 14,
+    paddingTop: 13,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    fontWeight: '700',
     color: t.colors.ink,
   },
-  choiceHelp: { fontFamily: t.typography.body, fontSize: 14, color: t.colors.text.muted },
+  choiceHelp: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    color: '#6f756f',
+  },
   choiceList: { marginTop: 8, borderTopWidth: 1, borderColor: t.colors.alpha.ink08 },
   choiceRow: {
     minHeight: 44,
@@ -690,16 +919,14 @@ const styles = StyleSheet.create({
   choiceRowActive: { backgroundColor: t.colors.tint.t100 },
   choiceText: { fontFamily: t.typography.body, fontSize: 15, color: t.colors.ink },
   errorAlert: {
-    minHeight: 100,
-    borderRadius: 18,
-    backgroundColor: 'white',
-    borderLeftWidth: 4,
-    borderLeftColor: t.colors.brand.base,
-    padding: 24,
-    justifyContent: 'center',
-    ...(t.shadows.card as object),
+    maxWidth: 720,
   },
-  errorText: { fontFamily: t.typography.body, fontSize: 17, lineHeight: 26, color: t.colors.ink },
+  errorText: {
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    lineHeight: 26,
+    color: '#4f5651',
+  },
   foundWrap: { gap: 20 },
   foundHeader: {
     backgroundColor: '#f2f9f5',
@@ -717,13 +944,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: t.colors.ink,
   },
-  sessionLabel: {
+  districtChips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  districtChip: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     fontFamily: t.typography.mono,
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.8,
-    color: t.colors.brand.deep,
+    letterSpacing: 0.6,
   },
+  senateDistrictChip: { backgroundColor: '#f1ecfa', color: t.colors.purple.base },
+  houseDistrictChip: { backgroundColor: '#e8f6ed', color: t.colors.brand.deep },
+  districtArrow: { fontFamily: t.typography.mono, fontSize: 13, color: t.colors.text.faint },
   nesting: {
     fontFamily: t.typography.body,
     fontSize: 15,
@@ -731,9 +964,22 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   congressional: { fontFamily: t.typography.body, fontSize: 14, color: t.colors.text.muted },
-  cards: { flexDirection: 'row', gap: 18, alignItems: 'stretch' },
+  cards: { flexDirection: 'row', gap: 18, alignItems: 'flex-start' },
   cardsMobile: { flexDirection: 'column' },
-  source: { fontFamily: t.typography.body, fontSize: 12, color: t.colors.text.faint },
+  source: {
+    paddingLeft: 17,
+    marginTop: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  sourceText: { fontFamily: t.typography.body, fontSize: 12, color: t.colors.text.faint },
+  sourceLink: {
+    fontFamily: t.typography.body,
+    fontSize: 12,
+    color: t.colors.brand.deep,
+    textDecorationLine: 'underline',
+  },
   mapSection: { marginTop: 28 },
   mapToggle: {
     minHeight: 44,

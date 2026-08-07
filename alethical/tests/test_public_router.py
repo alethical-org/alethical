@@ -1,3 +1,4 @@
+from alethical.api.issue_taxonomy import CANONICAL_ISSUES
 from alethical.api.routers.public import authored_issue_areas
 
 
@@ -53,3 +54,29 @@ def test_authored_issue_areas_ranks_distinct_bills_and_breaks_ties_alphabeticall
     assert result == {
         legislator_id: ["Transportation", "Education", "Health", "Housing"]
     }
+
+
+def test_authored_issue_areas_only_returns_approved_labels_and_caps_remainder():
+    legislator_id = "legislator-1"
+    result = authored_issue_areas(
+        _Session(
+            [
+                (
+                    legislator_id,
+                    "bill-1",
+                    {
+                        "policy_areas": [
+                            *CANONICAL_ISSUES,
+                            "unapproved free-text label",
+                        ]
+                    },
+                )
+            ]
+        ),
+        [legislator_id],
+    )
+
+    labels = result[legislator_id]
+    assert labels == sorted(CANONICAL_ISSUES)
+    assert len(labels) == 26
+    assert len(labels) - 6 == 20

@@ -3,13 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { arrowMovedCoordinate, visibleTileKeys } from '../districtMap';
 
 describe('district map movement and tile loading', () => {
-  it('moves the selected point by a small step and a larger Shift step', () => {
+  it('moves the selected point by a screen-sized step that shrinks as zoom increases', () => {
     const start = { latitude: 44.98, longitude: -93.27 };
-    const small = arrowMovedCoordinate(start, 'ArrowRight', false);
-    const large = arrowMovedCoordinate(start, 'ArrowRight', true);
+    const atWideZoom = arrowMovedCoordinate(start, 'ArrowRight', false, 6);
+    const atCloseZoom = arrowMovedCoordinate(start, 'ArrowRight', false, 12);
+    const shifted = arrowMovedCoordinate(start, 'ArrowRight', true, 12);
 
-    expect(small.latitude).toBe(start.latitude);
-    expect(large.longitude - start.longitude).toBeGreaterThan(small.longitude - start.longitude);
+    expect(atWideZoom.latitude).toBeCloseTo(start.latitude, 10);
+    expect(atWideZoom.longitude - start.longitude).toBeGreaterThan(
+      atCloseZoom.longitude - start.longitude,
+    );
+    expect(shifted.longitude - start.longitude).toBeGreaterThan(
+      atCloseZoom.longitude - start.longitude,
+    );
   });
 
   it('loads only the visible viewport plus a 1-tile margin', () => {

@@ -713,6 +713,7 @@ Rationale:
 - this is a noun resource, not an RPC verb endpoint
 - POST is appropriate because the lookup payload can be structured and may exceed simple query-string ergonomics
 - map-pin lookup should bypass address geocoding and resolve districts directly from latitude and longitude
+- House and Senate come from the Minnesota Legislative Coordinating Commission lookup service; Congress is read from the commission's official 2022 district map stored with the backend, so a person's precise point is not sent to another outside service and number-only rows are not mistaken for congressional districts
 
 ### Cross-Entity Search
 

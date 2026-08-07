@@ -9,6 +9,7 @@ from alethical.api.services.representative_lookup import (
     RepresentativeLookupNotFound,
     RepresentativeLookupOutsideMinnesota,
     RepresentativeLookupService,
+    congressional_district_for_point,
     geometry_covers_point,
     prepare_district_geometry,
     validate_district_containment,
@@ -155,14 +156,14 @@ def test_geometry_reduction_keeps_selected_point_and_reduces_large_fixture():
     assert len(json.dumps(prepared)) < len(json.dumps(geometry))
 
 
-def test_gis_keeps_house_senate_congress_and_geometry(monkeypatch):
+def test_gis_uses_local_congressional_layer_and_keeps_legislative_geometry(monkeypatch):
     house_geometry = {
         "type": "Polygon",
-        "coordinates": [[[-94, 44], [-93, 44], [-93, 45], [-94, 45], [-94, 44]]],
+        "coordinates": [[[-95, 45], [-94, 45], [-94, 46], [-95, 46], [-95, 45]]],
     }
     senate_geometry = {
         "type": "Polygon",
-        "coordinates": [[[-95, 43], [-92, 43], [-92, 46], [-95, 46], [-95, 43]]],
+        "coordinates": [[[-96, 44], [-93, 44], [-93, 47], [-96, 47], [-96, 44]]],
     }
     payload = {
         "features": [
@@ -176,22 +177,32 @@ def test_gis_keeps_house_senate_congress_and_geometry(monkeypatch):
             },
             {
                 "geometry": senate_geometry,
-                "properties": {"district": "5", "memid": "none"},
+                # The mixed response's number-only row is deliberately wrong.
+                # Congress must come from the official local map instead.
+                "properties": {"district": "6", "memid": "none"},
             },
         ]
     }
+
+    def get(url, *, params, timeout):
+        return FakeResponse(payload)
+
     monkeypatch.setattr(
-        "alethical.api.services.representative_lookup.requests.get",
-        lambda *args, **kwargs: FakeResponse(payload),
+        "alethical.api.services.representative_lookup.requests.get", get
     )
 
     house, senate, congress = MinnesotaGisLookupClient().lookup(
-        latitude=44.5, longitude=-93.5
+        latitude=45.4558, longitude=-94.4289
     )
 
     assert house and house.district_code == "59B" and house.geometry
     assert senate and senate.district_code == "59" and senate.geometry
-    assert congress == "5"
+    assert congress == "7"
+
+
+def test_local_congressional_map_covers_cold_spring_without_sharing_the_point():
+    assert congressional_district_for_point(longitude=-94.4289, latitude=45.4558) == "7"
+    assert congressional_district_for_point(longitude=0, latitude=0) is None
 
 
 def test_rural_codes_and_source_shared_edge_sliver_are_handled():

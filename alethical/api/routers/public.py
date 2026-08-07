@@ -12,7 +12,7 @@ from sqlalchemy import and_, case, func, or_, select, text, tuple_
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.auth import get_optional_current_user
-from alethical.api.issue_taxonomy import aliases_for, canonicalize_areas
+from alethical.api.issue_taxonomy import aliases_for, canonical_for
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit
 from alethical.api.schemas import (
@@ -277,9 +277,13 @@ def authored_issue_areas(db: Session, legislator_ids) -> dict[str, list[str]]:
     for legislator_id, bill_id, content in rows:
         values = (content or {}).get("policy_areas")
         if isinstance(values, list):
-            labels = canonicalize_areas(
-                [value for value in values if isinstance(value, str) and value.strip()]
-            )
+            labels = [
+                canonical
+                for value in values
+                if isinstance(value, str)
+                and value.strip()
+                and (canonical := canonical_for(value)) is not None
+            ]
             for label in labels:
                 bills_by_label[str(legislator_id)][label].add(str(bill_id))
     return {
@@ -2721,7 +2725,7 @@ def representative_lookup(
             total_bill_count=rep_counts.get(str(house_period.legislator.id), (0, 0))[0],
             chief_bill_count=rep_counts.get(str(house_period.legislator.id), (0, 0))[1],
             committee_assignments=committee_assignments.get(
-                str(house_period.legislator.id)
+                str(house_period.legislator.id), []
             ),
             current_service=house_period,
             election_history=house_period.legislator.election_history,
@@ -2738,7 +2742,7 @@ def representative_lookup(
                 1
             ],
             committee_assignments=committee_assignments.get(
-                str(senate_period.legislator.id)
+                str(senate_period.legislator.id), []
             ),
             current_service=senate_period,
             election_history=senate_period.legislator.election_history,
