@@ -2074,6 +2074,50 @@ def test_representative_lookup_maps_service_district_codes_to_legislators(client
     assert "service_history" in payload["house_legislator"]
 
 
+def test_representative_lookup_matches_single_digit_district_codes(client):
+    schema = load_schema()
+    from alethical.api.routers.public import district_for_match
+
+    created_ids = []
+    try:
+        with Session(get_engine()) as db:
+            house_chamber = db.scalar(
+                select(schema.Chamber).where(schema.Chamber.slug == "house")
+            )
+            senate_chamber = db.scalar(
+                select(schema.Chamber).where(schema.Chamber.slug == "senate")
+            )
+            assert house_chamber and senate_chamber
+
+            for chamber, code in ((house_chamber, "04A"), (senate_chamber, "04")):
+                district = schema.District(
+                    jurisdiction_id=chamber.jurisdiction_id,
+                    chamber_id=chamber.id,
+                    code=code,
+                    label=f"District {code}",
+                )
+                db.add(district)
+                db.flush()
+                created_ids.append(district.id)
+            db.commit()
+
+            house = district_for_match(
+                db, DistrictMatch(chamber="house", district_code="4A")
+            )
+            senate = district_for_match(
+                db, DistrictMatch(chamber="senate", district_code="4")
+            )
+
+            assert house is not None and house.code == "04A"
+            assert senate is not None and senate.code == "04"
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(
+                delete(schema.District).where(schema.District.id.in_(created_ids))
+            )
+            db.commit()
+
+
 def test_representative_lookup_preserves_an_empty_committee_list(client, monkeypatch):
     monkeypatch.setattr(
         "alethical.api.routers.public.current_committee_assignments",
