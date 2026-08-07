@@ -1,6 +1,10 @@
-# 2022 Minnesota Congressional Districts
+# 2022 Minnesota Congressional and Legislative Districts
 
-Source: [Minnesota Legislative Coordinating Commission GIS Office](https://gis.lcc.mn.gov/metadata/cong22.htm)
+Sources: [Minnesota Congressional Districts](https://gis.lcc.mn.gov/metadata/cong22.htm),
+[Minnesota House Districts](https://gis.lcc.mn.gov/metadata/L2022.html), and
+[Minnesota Senate Districts](https://gis.lcc.mn.gov/metadata/S2022.htm), published
+by the Minnesota Legislative Coordinating Commission GIS Office. The legislative
+district files contain the May 26, 2023 corrections to the 2022 districts.
 
 The Geographic Information System (GIS) Data to which this notice is attached are
 made available pursuant to the Minnesota Government Data Practices Act (Minnesota
