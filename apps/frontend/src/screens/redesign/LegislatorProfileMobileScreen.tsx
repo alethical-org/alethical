@@ -425,16 +425,22 @@ function BillCardView({
   );
 }
 
-// ── Ask about this legislator ─────────────────────────────────────────────────
+// ── Ask about these issues ────────────────────────────────────────────────────
 // Preset question rows hand off to the one-shot Ask answer flow (grounded-answers §9: the
 // router produces an answer page, never opens chat directly).
 function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void }) {
   return (
     <View style={styles.askCard}>
-      <Text accessibilityRole="header" style={styles.askTitle}>
-        Ask about this legislator
+      <Text
+        accessibilityRole="header"
+        accessibilityLabel="Ask about these issues"
+        style={styles.askTitle}
+      >
+        Ask about these issues
       </Text>
-      <Text style={styles.askSub}>Answers cite the public record</Text>
+      <Text style={styles.askSub}>
+        Topics from this legislator’s bills. Answers cite the public record.
+      </Text>
       <View style={styles.askChips}>
         {chips.map((chip) => (
           <Pressable

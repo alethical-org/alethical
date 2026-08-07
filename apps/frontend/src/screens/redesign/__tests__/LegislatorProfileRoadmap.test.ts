@@ -51,10 +51,17 @@ describe('Legislator Profile roadmap actions', () => {
     ['web', web],
     ['mobile', mobile],
   ])('keeps Ask on preset questions only on %s', (_name, source) => {
-    expect(source).toContain('Answers cite the public record');
+    expect(source).toContain('Ask about these issues');
+    expect(source).toContain(
+      'Topics from this legislator’s bills. Answers cite the public record.',
+    );
     expect(source).not.toContain('No account needed — answers cite the public record');
     expect(source).not.toContain('<TextInput');
     expect(source).not.toContain('accessibilityLabel="Ask"');
+  });
+
+  it('gives the mobile Ask section the same spoken name as its heading', () => {
+    expect(mobile).toContain('accessibilityLabel="Ask about these issues"');
   });
 
   it.each([
