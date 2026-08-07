@@ -21,7 +21,6 @@ const TILE_SIZE = 256;
 const MIN_ZOOM = 5;
 const MAX_ZOOM = 15;
 const OSM_COPYRIGHT = 'https://www.openstreetmap.org/copyright';
-const GIS_CREDIT = 'https://gis.lcc.mn.gov/';
 const isWeb = Platform.OS === 'web';
 
 const MINNESOTA_GEOMETRY: GeoJsonGeometry = {
@@ -58,11 +57,27 @@ function MapCredit({ href, label }: { href: string; label: string }) {
   return (
     <Pressable
       {...externalLinkProps(href, () => void Linking.openURL(href))}
-      accessibilityLabel={`${label}, opens in a new tab`}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
+      style={styles.creditTarget}
     >
-      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>{label} ↗</Text>
+      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>{label}</Text>
+      <Svg
+        width={11}
+        height={11}
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke={t.colors.brand.deep}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        {...({ 'aria-hidden': true } as object)}
+      >
+        <Path d="M4 8 8 4M5 4h3v3" />
+      </Svg>
+      <Text style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}>
+        {' (opens in a new tab)'}
+      </Text>
     </Pressable>
   );
 }
@@ -493,7 +508,6 @@ export function MapPinPicker({
         {tilesLoaded ? (
           <MapCredit href={OSM_COPYRIGHT} label="© OpenStreetMap contributors" />
         ) : null}
-        <MapCredit href={GIS_CREDIT} label="District boundaries: Minnesota Legislature GIS" />
       </View>
 
       <Text style={styles.helper}>
@@ -565,6 +579,7 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 8,
   },
+  creditTarget: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   creditLink: {
     fontFamily: t.typography.body,
     fontSize: 11.5,
@@ -573,6 +588,12 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   creditLinkHovered: { opacity: 0.78 },
+  visuallyHidden: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
+  },
   helper: {
     marginTop: 10,
     fontFamily: t.typography.body,

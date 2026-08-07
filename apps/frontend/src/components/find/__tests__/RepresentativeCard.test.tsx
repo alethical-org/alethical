@@ -9,6 +9,8 @@ const { renderToStaticMarkup } = require('react-dom/server') as {
 import { RepresentativeCard, VacantSeatCard } from '../RepresentativeCard';
 import type { Legislator } from '../../../data/types';
 
+const componentSource = readFileSync(join(__dirname, '..', 'RepresentativeCard.tsx'), 'utf8');
+
 const baseLegislator: Legislator = {
   id: 'legislator-1',
   slug: 'alex-representative',
@@ -130,8 +132,9 @@ describe('RepresentativeCard accepted layout', () => {
     expect(html).toContain('COMMITTEES');
     expect(html).not.toContain('COMMITTEES &amp; LEADERSHIP');
     expect(html).toContain('Finance, Chair');
-    expect(html).toContain('156 bills authored');
-    expect(html).toContain('Including 70 as chief author');
+    expect(html).toContain('156</span> bills authored · <span');
+    expect(html).toContain('70</span> as chief author');
+    expect(html).not.toContain('Including');
     expect(html).toContain('94TH LEGISLATURE (2025–26)');
     expect(html).toContain('Elected to the Senate: 2020, re-elected 2024.');
     expect(html).toContain('Current chamber term: 2nd.');
@@ -145,28 +148,89 @@ describe('RepresentativeCard accepted layout', () => {
     expect(html).toContain('None recorded');
   });
 
-  it('keeps contacts together and makes the internal profile action primary', () => {
+  it('orders phone, email, office, official profile, and the final Alethical action', () => {
     const html = renderCard({ legislator: detailedLegislator });
 
-    expect(html).toContain('sen.alex@example.mn');
-    expect(html).toContain('651-555-0100');
-    expect(html).toContain('100 Example Building');
-    expect(html).toContain('Official Senate page');
-    expect(html).toContain('↗');
-    expect(html).toContain('View profile');
-    expect(html).toContain('→');
+    expect(html).toContain('href="tel:+16515550100"');
+    expect(html).toContain('href="mailto:sen.alex@example.mn"');
+    expect(html).toContain('Official Senate profile');
+    expect(html).not.toContain('Official Senate page');
+    expect(html).not.toContain('↗');
+    expect(html).toContain('target="_blank"');
+    expect(html).toMatch(/rel="[^"]*noopener[^"]*"/);
+    expect(html).toContain('Official Senate profile<span aria-hidden="true"');
+    expect(html).toContain('View profile <span aria-hidden="true"');
+
+    const phone = html.indexOf('651-555-0100');
+    const separator = html.indexOf('>·<', phone);
+    const email = html.indexOf('sen.alex@example.mn');
+    const office = html.indexOf('100 Example Building');
+    const official = html.indexOf('Official Senate profile');
+    const profile = html.indexOf('View profile');
+    expect(phone).toBeLessThan(separator);
+    expect(separator).toBeLessThan(email);
+    expect(email).toBeLessThan(office);
+    expect(office).toBeLessThan(official);
+    expect(official).toBeLessThan(profile);
   });
 
-  it('uses the phone-specific profile label', () => {
-    expect(renderCard({ mobile: true })).toContain('View full profile');
+  it('keeps the same View profile label on phone', () => {
+    const html = renderCard({ mobile: true });
+
+    expect(html).toContain('View profile');
+    expect(html).not.toContain('View full profile');
+  });
+
+  it('omits an unavailable public email and its separator', () => {
+    const html = renderCard({
+      legislator: { ...detailedLegislator, email: undefined },
+    });
+
+    expect(html).toContain('href="tel:+16515550100"');
+    expect(html).not.toContain('mailto:');
+    expect(html).not.toContain('>·<');
+  });
+
+  it('caps committee assignments at 3', () => {
+    const html = renderCard({
+      legislator: {
+        ...detailedLegislator,
+        committeeAssignments: [
+          { name: 'Committee 1', role: null },
+          { name: 'Committee 2', role: null },
+          { name: 'Committee 3', role: null },
+          { name: 'Committee 4', role: null },
+        ],
+      },
+    });
+
+    expect(html).toContain('Committee 1');
+    expect(html).toContain('Committee 3');
+    expect(html).not.toContain('Committee 4');
+  });
+
+  it('carries the accepted desktop and phone type and action styles', () => {
+    expect(componentSource).toMatch(
+      /districtEyebrow:\s*\{[\s\S]*fontSize: 11\.5[\s\S]*color: t\.colors\.brand\.deep/,
+    );
+    expect(componentSource).toMatch(
+      /districtEyebrowMobile:\s*\{[^}]*fontSize: 11[^}]*letterSpacing: 1\.32/,
+    );
+    expect(componentSource).toMatch(/authoredMobile:\s*\{[^}]*fontSize: 15/);
+    expect(componentSource).toMatch(/authoredNumber:\s*\{[^}]*fontWeight: '800'/);
+    expect(componentSource).toMatch(/contactLinkMobile:\s*\{[^}]*fontSize: 13\.5/);
+    expect(componentSource).toMatch(
+      /profileButton:\s*\{[\s\S]*alignSelf: 'flex-start'[\s\S]*paddingHorizontal: 22[\s\S]*paddingVertical: 13/,
+    );
+    expect(componentSource).toMatch(/profileButtonMobile:\s*\{[^}]*width: '100%'/);
+    expect(componentSource).toContain("backgroundColor: '#2c322c'");
+    expect(componentSource).toContain("overflowWrap: 'anywhere'");
   });
 
   it('keeps initials beneath a decorative image layer without an error handler', () => {
-    const source = readFileSync(join(__dirname, '..', 'RepresentativeCard.tsx'), 'utf8');
-
-    expect(source).toContain("position: 'absolute'");
-    expect(source).not.toContain('onError=');
-    expect(source).not.toContain('onError:');
+    expect(componentSource).toContain("position: 'absolute'");
+    expect(componentSource).not.toContain('onError=');
+    expect(componentSource).not.toContain('onError:');
   });
 
   it('gives a vacancy its district and deliberate empty-card treatment', () => {

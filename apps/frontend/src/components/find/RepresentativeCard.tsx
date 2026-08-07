@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, useState } from 'react';
 import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Legislator } from '../../data/types';
@@ -29,28 +29,52 @@ function serviceSummary(service: Legislator['legislativeService']) {
   return sentences.join(' ');
 }
 
-function ExternalLink({
+function phoneHref(phone: string) {
+  const digits = phone.replace(/\D/g, '');
+  const nationalDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  return `tel:+1${nationalDigits}`;
+}
+
+function ContactLink({
   label,
   url,
   newTab = true,
-  showExternalMark = false,
+  trailingArrow = false,
+  mobile = false,
+  wrap = false,
 }: {
   label: string;
   url: string;
   newTab?: boolean;
-  showExternalMark?: boolean;
+  trailingArrow?: boolean;
+  mobile?: boolean;
+  wrap?: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <Pressable
       {...(newTab
         ? externalLinkProps(url, () => void Linking.openURL(url))
-        : { accessibilityRole: 'link' as const, onPress: () => void Linking.openURL(url) })}
+        : linkProps(url, () => void Linking.openURL(url)))}
       accessibilityLabel={newTab ? `${label}, opens in a new tab` : label}
-      style={styles.linkTarget}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={[styles.linkTarget, wrap && styles.wrappingLinkTarget]}
     >
-      <Text style={styles.link}>
+      <Text
+        style={[
+          styles.contactLink,
+          mobile && styles.contactLinkMobile,
+          wrap && styles.wrappingLink,
+          hovered && styles.contactLinkHovered,
+        ]}
+      >
         {label}
-        {showExternalMark ? <Text aria-hidden> ↗</Text> : null}
+        {trailingArrow ? (
+          <Text aria-hidden style={styles.contactArrow}>
+            {' →'}
+          </Text>
+        ) : null}
         {newTab ? (
           <Text
             style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}
@@ -75,7 +99,8 @@ export function RepresentativeCard({
   /** The lookup screen owns this current-session value. Omit it rather than guessing. */
   legislatureLabel?: string;
 }) {
-  const assignments = legislator.committeeAssignments ?? [];
+  const [profileHovered, setProfileHovered] = useState(false);
+  const assignments = (legislator.committeeAssignments ?? []).slice(0, 3);
   const issues = (legislator.issueAreas ?? []).slice(0, 26);
   const shownIssues = issues.slice(0, 6);
   const remainingIssueCount = issues.length - shownIssues.length;
@@ -113,7 +138,7 @@ export function RepresentativeCard({
         </View>
         <View style={styles.heading}>
           <Text style={styles.name}>{legislator.shortName}</Text>
-          <Text style={styles.districtEyebrow}>
+          <Text style={[styles.districtEyebrow, mobile && styles.districtEyebrowMobile]}>
             {roleTitle(legislator.chamber).toUpperCase()} · {chamberLabel} DISTRICT{' '}
             {legislator.district}
           </Text>
@@ -150,13 +175,18 @@ export function RepresentativeCard({
       </View>
 
       {legislator.totalAuthoredBills != null ? (
-        <View style={styles.section}>
-          <Text style={styles.authored}>{legislator.totalAuthoredBills} bills authored</Text>
-          {legislator.chiefAuthoredBills != null ? (
-            <Text style={styles.authoredDetail}>
-              Including {legislator.chiefAuthoredBills} as chief author
-            </Text>
-          ) : null}
+        <View style={[styles.section, styles.authoredSection]}>
+          <Text style={[styles.authored, mobile && styles.authoredMobile]}>
+            <Text style={styles.authoredNumber}>{legislator.totalAuthoredBills}</Text>
+            {' bills authored'}
+            {legislator.chiefAuthoredBills != null ? (
+              <>
+                {' · '}
+                <Text style={styles.authoredNumber}>{legislator.chiefAuthoredBills}</Text>
+                {' as chief author'}
+              </>
+            ) : null}
+          </Text>
           {legislatureLabel ? <Text style={styles.legislature}>{legislatureLabel}</Text> : null}
         </View>
       ) : null}
@@ -179,24 +209,41 @@ export function RepresentativeCard({
 
       {legislator.email || legislator.phone || legislator.officeAddress || officialUrl ? (
         <View style={styles.contact}>
-          {legislator.email ? (
-            <ExternalLink
-              label={legislator.email}
-              url={`mailto:${legislator.email}`}
-              newTab={false}
-            />
-          ) : null}
-          {legislator.phone ? (
-            <ExternalLink label={legislator.phone} url={`tel:${legislator.phone}`} newTab={false} />
+          {legislator.phone || legislator.email ? (
+            <View style={styles.contactChannels}>
+              {legislator.phone ? (
+                <ContactLink
+                  label={legislator.phone}
+                  url={phoneHref(legislator.phone)}
+                  newTab={false}
+                  mobile={mobile}
+                />
+              ) : null}
+              {legislator.phone && legislator.email ? (
+                <Text aria-hidden style={styles.contactSeparator}>
+                  ·
+                </Text>
+              ) : null}
+              {legislator.email ? (
+                <ContactLink
+                  label={legislator.email}
+                  url={`mailto:${legislator.email}`}
+                  newTab={false}
+                  mobile={mobile}
+                  wrap
+                />
+              ) : null}
+            </View>
           ) : null}
           {legislator.officeAddress ? (
             <Text style={styles.contactValue}>{legislator.officeAddress}</Text>
           ) : null}
           {officialUrl ? (
-            <ExternalLink
-              label={`Official ${legislator.chamber} page`}
+            <ContactLink
+              label={`Official ${legislator.chamber} profile`}
               url={officialUrl}
-              showExternalMark
+              trailingArrow
+              mobile={mobile}
             />
           ) : null}
         </View>
@@ -204,10 +251,19 @@ export function RepresentativeCard({
 
       <Pressable
         {...linkProps(routePath.legislator(legislator.slug ?? legislator.id), onProfile)}
-        style={[styles.profileButton, mobile && styles.profileButtonMobile]}
+        onHoverIn={() => setProfileHovered(true)}
+        onHoverOut={() => setProfileHovered(false)}
+        style={({ pressed }) => [
+          styles.profileButton,
+          mobile && styles.profileButtonMobile,
+          (profileHovered || pressed) && styles.profileButtonHovered,
+        ]}
       >
         <Text style={styles.profileLink}>
-          {mobile ? 'View full profile' : 'View profile'} <Text aria-hidden>→</Text>
+          View profile{' '}
+          <Text aria-hidden style={styles.profileArrow}>
+            →
+          </Text>
         </Text>
       </Pressable>
     </View>
@@ -288,6 +344,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.38,
     color: t.colors.brand.deep,
   },
+  districtEyebrowMobile: { fontSize: 11, letterSpacing: 1.32 },
   factsRow: {
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,
@@ -324,9 +381,12 @@ const styles = StyleSheet.create({
     color: t.colors.ink,
   },
   emptyCommittee: { fontFamily: t.typography.body, fontSize: 15, lineHeight: 21, color: '#6f756f' },
-  authored: { fontFamily: t.typography.body, fontSize: 16, color: t.colors.ink },
-  authoredDetail: { fontFamily: t.typography.body, fontSize: 14.5, color: t.colors.text.secondary },
+  authoredSection: { gap: 0 },
+  authored: { fontFamily: t.typography.body, fontSize: 16, lineHeight: 22, color: t.colors.ink },
+  authoredMobile: { fontSize: 15, lineHeight: 21 },
+  authoredNumber: { fontWeight: '800' },
   legislature: {
+    marginTop: 4,
     fontFamily: t.typography.mono,
     fontSize: 11,
     fontWeight: '700',
@@ -360,19 +420,39 @@ const styles = StyleSheet.create({
     color: '#6f756f',
   },
   contact: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08, paddingTop: 14, gap: 4 },
+  contactChannels: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
+  contactSeparator: {
+    fontFamily: t.typography.body,
+    fontSize: 14.5,
+    color: '#c2c8c3',
+  },
   contactValue: {
     fontFamily: t.typography.body,
     fontSize: 14.5,
     lineHeight: 22,
-    color: t.colors.text.secondary,
+    color: '#4f5651',
   },
-  linkTarget: { minHeight: 44, justifyContent: 'center' },
-  link: {
+  linkTarget: { minHeight: 44, maxWidth: '100%', justifyContent: 'center' },
+  wrappingLinkTarget: { flexShrink: 1, minWidth: 0 },
+  contactLink: {
     fontFamily: t.typography.body,
-    fontSize: 14,
+    fontSize: 14.5,
+    fontWeight: '600',
     color: t.colors.brand.deep,
-    textDecorationLine: 'underline',
+    textDecorationLine: 'none',
   },
+  contactLinkMobile: { fontSize: 13.5 },
+  contactLinkHovered: { textDecorationLine: 'underline' },
+  wrappingLink: {
+    flexShrink: 1,
+    ...(isWeb ? ({ overflowWrap: 'anywhere' } as object) : null),
+  },
+  contactArrow: { fontWeight: '400' },
   visuallyHidden: {
     position: 'absolute',
     width: 1,
@@ -386,16 +466,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
     borderRadius: 11,
     backgroundColor: t.colors.ink,
   },
-  profileButtonMobile: { alignSelf: 'stretch', minHeight: 46 },
+  profileButtonHovered: { backgroundColor: '#2c322c' },
+  profileButtonMobile: { alignSelf: 'stretch', width: '100%', minHeight: 44 },
   profileLink: {
     fontFamily: t.typography.ui,
     fontSize: 15,
     fontWeight: '700',
     color: t.colors.white,
   },
+  profileArrow: { fontWeight: '400' },
 });
