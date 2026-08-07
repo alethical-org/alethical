@@ -83,4 +83,10 @@ describe('ApiError', () => {
     expect(isNotFoundError(new ApiError(404, 'nope'))).toBe(true);
     expect(isNotFoundError(apiErrorFromBody(403, DEACTIVATED_BODY))).toBe(false);
   });
+
+  it('carries a numeric Retry-After wait without inventing one', () => {
+    expect(apiErrorFromBody(429, '{"status":429}', '37').retryAfterSeconds).toBe(37);
+    expect(apiErrorFromBody(429, '{"status":429}', 'not-a-number').retryAfterSeconds).toBeNull();
+    expect(apiErrorFromBody(500, '{"status":500}').retryAfterSeconds).toBeNull();
+  });
 });

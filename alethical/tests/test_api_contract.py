@@ -4354,6 +4354,7 @@ def test_ask_endpoint_enforces_rate_limit(client, monkeypatch):
     assert body["status"] == 429
     assert body["title"] == "Too Many Requests"
     assert body["type"].endswith("/rate-limited")
+    assert 1 <= int(blocked.headers["Retry-After"]) <= 60
 
 
 def test_representative_lookup_enforces_rate_limit(client):
@@ -4369,6 +4370,7 @@ def test_representative_lookup_enforces_rate_limit(client):
     blocked = client.post("/api/v1/representative-lookups", json=payload)
     assert blocked.status_code == 429
     assert blocked.json()["title"] == "Too Many Requests"
+    assert 1 <= int(blocked.headers["Retry-After"]) <= 60
 
 
 def test_ask_classifier_degrades_to_fallback_when_openai_errors(client, monkeypatch):
