@@ -40,7 +40,11 @@ function takePendingSignIn(): SignInRequest | null {
   try {
     const raw = window.sessionStorage.getItem(PENDING_KEY);
     window.sessionStorage.removeItem(PENDING_KEY);
-    return raw ? (JSON.parse(raw) as SignInRequest) : null;
+    if (!raw) return null;
+    const request = JSON.parse(raw) as Partial<SignInRequest>;
+    return request.intent === 'nav' || request.intent === 'track'
+      ? (request as SignInRequest)
+      : null;
   } catch {
     return null;
   }

@@ -13,23 +13,12 @@ with the modal reopened in an error state.
   Authoritative for the **design**; the bands and the faux pages behind the modals are mock
   scaffolding, not product UI.
 
-## Read the prompt first
-The full spec, the scenarios accounted for, the routing/return logic, and the open questions live
-in the prompt card in `Prompts.dc.html` (titled "Sign-in experience (Google SSO only)"). Two of its
-sections need a written response BEFORE building:
-1. **What should be gated (lean MVP)** — recommend the leanest gate set given existing capabilities
-   (only bill tracking, or also legislator-votes personalization?), flag anything not actually
-   account-dependent, and anything that should be gated for coherence. Don't over-build v1.
-2. **Scenario/state coverage** — confirm or extend the intents and edge states below.
-
 ## Intents (icon + headline + subcopy adapt per intent)
-- **Nav (generic)** — "Sign in to Alethical"; return to the same page (or tracked-bills list).
-- **Track a bill** — "Sign in to track this bill" (names the bill); on success, auto-complete the
+- **Nav (generic, Alethical mark)** — "Sign in to Alethical"; return to the same page (or tracked-bills list).
+- **Track a bill (bell)** — "Sign in to track this bill" (names the bill); on success, auto-complete the
   track and return to the bill — no second click.
-- **Legislator votes** — "Sign in to see how your legislators voted"; return to that roll call with
-  district applied.
-- **Account card** — same button/flow, generic intent.
-- **Future gated feature** — intent is data-driven (label + return target), so new gates reuse this.
+There is no third intent. Account cards use the generic nav intent. Vote records are not gated.
+Any future gated action must get its own specified glyph before it is added.
 
 ## States
 Idle · Connecting (BOTH surfaces: the Google button disabled with a spinner replacing the label —
@@ -39,7 +28,7 @@ kept in the reference as a NATIVE-APP-ONLY future variant, not shipped) · Error
 Google → Continue + "Use a different account"; ideally just proceed without showing the modal).
 
 ## Behavior
-- **Silent return** — no confirmation screen; resolve the pending action (track / apply district)
+- **Silent return** — no confirmation screen; resolve the pending Track action
   then navigate to the return target.
 - **One Terms of Use / Privacy Policy line** under the button — **no terminal period** ("By
   continuing you agree to our Terms of Use and Privacy Policy"): it's a one-line caption bound to
@@ -54,10 +43,8 @@ Focus trap; focus into dialog on open, restore to trigger on close; Esc closes; 
 ring `#7c5cff`; honor `prefers-reduced-motion` for the sheet slide + spinner.
 
 ## Locked decisions (agreed with Claude Code, Aug 5 2026)
-- **Gate scope v1: BILL TRACKING ONLY.** The Legislator-votes intent stays designed in the
-  reference but is NOT wired or advertised until district persistence exists server-side (today
-  district is not saved to account, device, or memory). The district-not-set landing is
-  deliberately undesigned — requested when that work is scheduled.
+- **Gate scope: BILL TRACKING ONLY.** Vote records remain public and there is no votes sign-in
+  intent. The icon tile is neutral; the generic intent uses the Alethical mark and Track uses a bell.
 - **No "Account" row in the account menus.** The built Account page is pre-redesign, fixture-wired,
   and its URL redirects home — a row would point at a broken surface. Menus are header + divider +
   Sign out only. Follow-on (when a rebuilt Account page ships): one "Account" row above Sign out in
