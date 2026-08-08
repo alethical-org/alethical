@@ -23,6 +23,10 @@ the page says **Suggested address** for 1 choice or **Suggested addresses** for 
 active addresses from Minnesota's official statewide list. City and ZIP are optional,
 but adding either can narrow or reorder the choices.
 
+On a phone, the page reserves the short message row before matching begins. This keeps
+the address field and buttons in place when **Finding matching addresses…** appears
+while the on-screen keyboard is open.
+
 Choose an address to put its full official form in the box and find its legislators in
 the same step. Or enter a full Minnesota street address and choose **Find**. Pressing
 Enter does the same thing.
