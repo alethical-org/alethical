@@ -1014,7 +1014,6 @@ export function Footer({ onPrivacy, onTerms }: { onPrivacy?: () => void; onTerms
           </View>
           <View style={[styles.footerUtility, isMobile && styles.footerUtilityMobile]}>
             <View style={styles.footerSocialRow}>
-              <Text style={styles.footerSocialLabel}>FOLLOW ALETHICAL</Text>
               <View style={styles.footerSocialLinks}>
                 {FOOTER_SOCIALS.map((social) => (
                   <FooterSocialLink key={social.platform} social={social} />
@@ -1308,13 +1307,6 @@ const styles = StyleSheet.create({
   footerUtility: { alignItems: 'flex-end', gap: 22 },
   footerUtilityMobile: { alignItems: 'flex-start', gap: 24 },
   footerSocialRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  footerSocialLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.54,
-    color: '#7c847f',
-  },
   footerSocialLinks: { flexDirection: 'row', gap: 10 },
   footerSocialLink: {
     width: 44,
