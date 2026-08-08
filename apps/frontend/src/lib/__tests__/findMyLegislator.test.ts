@@ -98,13 +98,17 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('useDebouncedSearchCommit(');
     expect(source).toContain('useAddressSuggestions(');
     expect(source).toContain("'aria-autocomplete': 'list'");
-    expect(source).toContain('Suggested Minnesota addresses');
+    expect(source).toContain('Suggested addresses');
+    expect(source).toContain('Finding matching addresses…');
+    expect(source).toContain('No matching Minnesota addresses yet. Keep typing.');
+    expect(source).not.toContain('Finding matching Minnesota addresses…');
+    expect(source).not.toContain('Keep typing or choose Find.');
     expect(source).toContain('FIND_MY_LEGISLATOR_INSTRUCTIONS');
     expect(source).toContain('if (!lookup.error && !clientError) setSuggestionsOpen(true)');
     expect(source).toContain('<Text style={styles.choiceKey}>↑</Text>');
     expect(source).toContain('<Text style={styles.choiceKey}>↓</Text>');
     expect(source).toContain('<Text style={styles.choiceKey}>Enter</Text>');
-    expect(source).toContain('<Text style={styles.choiceKey}>Esc</Text>');
+    expect(source).not.toContain('<Text style={styles.choiceKey}>Esc</Text>');
   });
 
   it('replaces only a successful typed address with the confirmed address', () => {
@@ -198,7 +202,8 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).not.toContain('https://www.leg.mn.gov/');
     expect(source).not.toContain('https://www.revisor.mn.gov/');
     expect(source).not.toContain('formatSourceDate');
-    expect(source).toContain('Looking up your districts');
+    expect(source).toContain('Looking up districts');
+    expect(source).not.toContain('Looking up your districts');
     expect(source).toContain('setShimmerEnabled(true)');
     expect(source).toContain("role: 'combobox'");
     expect(source).toContain("role: 'listbox'");

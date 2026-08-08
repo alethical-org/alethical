@@ -208,7 +208,7 @@ Measured on live, this state lasts **about 3s cold, under 0.5s warm**. Our earli
 "this may take a few seconds" were written before we knew the timing and are both wrong — nobody reads a
 list that's gone in 800ms. Cut from the reference; live should match.
 
-**Copy — one line, no subline, no list, no duration claim:** _Looking up your districts_
+**Copy — one line, no subline, no list, no duration claim:** _Looking up districts_
 (live's second line, "Matching it to Minnesota districts…", is deleted).
 
 **Visual — no card.** Spinner (18–20px, `#6f756f` arc on `#e2e5e4`, aria-hidden) + the line at 17px/700
@@ -572,7 +572,7 @@ control, not sentences. (Answer-area guidance IS a sentence and keeps its period
 Previously the keyboard hint was JetBrains Mono 11px/700 uppercase in a different grey, which made two
 pieces of neutral help in the same slot look like different classes of thing; mono uppercase is our
 eyebrow/code treatment, not a treatment for a sentence. It now reads "Use **↑** and **↓** to move,
-**Enter** to choose, **Esc** to close."
+**Enter** to choose."
 
 ## Error states carry NO action buttons
 

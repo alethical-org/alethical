@@ -18,7 +18,7 @@ Choose a suggested Minnesota address, select Use my location, or enter the full 
 and choose Find.** This same instruction appears at phone and wider screen widths.
 
 Start with a house number and at least 2 street-name characters. After a short pause,
-**Suggested Minnesota addresses** shows up to 5 active addresses from Minnesota's
+**Suggested addresses** shows up to 5 active addresses from Minnesota's
 official statewide list. A numbered street can start suggesting after its first digit.
 City and ZIP are optional, but adding either can narrow or reorder the choices.
 
@@ -36,6 +36,8 @@ Enter does the same thing.
 - A small 1-character typo in a street word of 5 or more characters can still match.
   This covers 1 added, missing, changed, or swapped character, such as `215ht` for
   `215th`.
+- Common direction order does not have to match the official record. For example,
+  `350 S 5` can suggest an address stored as `350 5th Street South`.
 - The house number must be exact. Alethical will not quietly move you to a nearby
   number or a different street.
 
@@ -138,12 +140,11 @@ number, but it does not show a member of Congress.
   answer, or a local district file could not be read. The address itself may be fine.
   Try again later.
 - **Seat vacant:** The district was found, but no current member holds that seat.
-- **No matching Minnesota addresses yet:** Keep typing, or use **Find** for the full
-  address. This message does not block either fallback.
+- **No matching Minnesota addresses yet:** Keep typing.
 - **Address suggestions are unavailable:** The official suggestion list did not answer.
   The **Find** button and **Use my location** still work.
 
-While a lookup is running, the page says **Looking up your districts** and shows 2
+While a lookup is running, the page says **Looking up districts** and shows 2
 placeholder cards. The page does not show an old address result as if it belonged to a
 new typed address.
 
