@@ -135,7 +135,3 @@ export function senateProfileUrl(value?: string | null): string | undefined {
     ? `https://www.senate.mn/members/member_bio.html?leg_id=${match[1]}`
     : value.replace(/^http:/i, 'https:');
 }
-
-export function districtMapVisible(isMobile: boolean, expanded: boolean) {
-  return !isMobile || expanded;
-}

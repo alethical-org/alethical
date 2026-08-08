@@ -356,8 +356,6 @@
               <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
               <div style="margin-top:20px;">
                 <p style="margin:0;font-size:15px;line-height:1.55;color:#6f756f;text-wrap:pretty;">Every address has one House district and one Senate district — we’ll show the legislator for each.</p>
-                <button onClick="{{ toggleMap }}" aria-expanded="{{ mapExpanded }}" aria-controls="fml-phone-map" style="margin-top:12px;width:100%;min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;color:#11150f;cursor:pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6 L9 4 L15 6 L20 4 V18 L15 20 L9 18 L4 20 Z M9 4 V18 M15 6 V20" stroke="#0f7a45" stroke-width="1.8" stroke-linejoin="round"/></svg>{{ mapToggleLabel }}</button>
-                <sc-if value="{{ mapOpen }}" hint-placeholder-val="{{ false }}">
                 <div id="fml-phone-map" style="margin-top:12px;position:relative;">
                   <div style="position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(17,21,15,0.1);background:#ece8e1;height:260px;">
                     <button aria-label="Set your location by tapping the map" style="position:absolute;inset:0;padding:0;border:none;background:transparent;"><span aria-hidden="true" style="display:block;width:100%;height:100%;">{{ mapSvg }}</span></button>
@@ -391,7 +389,6 @@
 
                   </div>
                 </div>
-                </sc-if>
               </div>
               </sc-if>
 
@@ -495,8 +492,6 @@
                   </sc-for>
                 </div>
 
-                <button onClick="{{ toggleMap }}" aria-expanded="{{ mapExpanded }}" aria-controls="fml-phone-map" style="margin-top:12px;width:100%;min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;color:#11150f;cursor:pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6 L9 4 L15 6 L20 4 V18 L15 20 L9 18 L4 20 Z M9 4 V18 M15 6 V20" stroke="#0f7a45" stroke-width="1.8" stroke-linejoin="round"/></svg>{{ mapToggleLabel }}</button>
-                <sc-if value="{{ mapOpen }}" hint-placeholder-val="{{ false }}">
                 <div id="fml-phone-map" style="margin-top:12px;position:relative;">
                   <div style="position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(17,21,15,0.1);background:#ece8e1;height:260px;">
                     <button aria-label="Set your location by tapping the map" style="position:absolute;inset:0;padding:0;border:none;background:transparent;"><span aria-hidden="true" style="display:block;width:100%;height:100%;">{{ mapSvg }}</span></button>
@@ -530,7 +525,6 @@
 
                   </div>
                 </div>
-                </sc-if>
               </div>
               </sc-if>
 
@@ -574,8 +568,6 @@
         <sc-if value="{{ p.active }}" hint-placeholder-val="{{ true }}"><button style="padding:8px 14px;background:#2ed47e;border:1px solid #2ed47e;border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:12.5px;font-weight:700;color:#06231a;cursor:pointer;white-space:nowrap;">{{ p.label }}</button></sc-if>
         <sc-if value="{{ p.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ p.select }}" style="padding:8px 14px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:12.5px;font-weight:600;color:#cfd6d2;cursor:pointer;white-space:nowrap;">{{ p.label }}</button></sc-if>
       </sc-for>
-      <sc-if value="{{ mapClosed }}" hint-placeholder-val="{{ true }}"><button onClick="{{ toggleMap }}" style="padding:8px 14px;background:transparent;border:1px solid rgba(255,255,255,0.2);border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:12.5px;font-weight:600;color:#cfd6d2;cursor:pointer;white-space:nowrap;">Phone map: collapsed</button></sc-if>
-      <sc-if value="{{ mapOpen }}" hint-placeholder-val="{{ false }}"><button onClick="{{ toggleMap }}" style="padding:8px 14px;background:#2ed47e;border:1px solid #2ed47e;border-radius:10px;font-family:'Libre Franklin',sans-serif;font-size:12.5px;font-weight:700;color:#06231a;cursor:pointer;white-space:nowrap;">Phone map: expanded</button></sc-if>
     </div>
   </div>
 
@@ -583,7 +575,7 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { view: 'found', entry: 'none', sug: 1, mapSpec: 'default', mapOpen: false };
+  state = { view: 'found', entry: 'none', sug: 1, mapSpec: 'default' };
   inputRef = React.createRef();
 
   // Preview-band state survives a reload, so a refresh after an edit lands back on the state we were
@@ -594,14 +586,14 @@ class Component extends DCLogic {
       const saved = JSON.parse(window.localStorage.getItem(this.PREVIEW_KEY) || 'null');
       if (saved && typeof saved === 'object') {
         this.setState({ view: saved.view || this.state.view, entry: saved.entry || this.state.entry,
-          mapSpec: saved.mapSpec || this.state.mapSpec, mapOpen: !!saved.mapOpen });
+          mapSpec: saved.mapSpec || this.state.mapSpec });
       }
     } catch (e) { /* storage unavailable — fall back to defaults */ }
   }
   setPreview(patch) {
     this.setState(patch, () => {
       try {
-        window.localStorage.setItem(this.PREVIEW_KEY, JSON.stringify({ view: this.state.view, entry: this.state.entry, mapSpec: this.state.mapSpec, mapOpen: this.state.mapOpen }));
+        window.localStorage.setItem(this.PREVIEW_KEY, JSON.stringify({ view: this.state.view, entry: this.state.entry, mapSpec: this.state.mapSpec }));
       } catch (e) { /* storage unavailable — state still applies for this session */ }
     });
   }
@@ -897,8 +889,8 @@ class Component extends DCLogic {
       mapZoomLabel: 'ZOOM ' + zoom,
       // Tied to hasDistricts, the same flag that renders the pin — an empty or error map can never
       // tell the reader to move a pin that is not there.
-      mapHelperDesktop: hasDistricts ? 'Drag the pin, click the map, or use the arrow keys to move it' : 'Click the map to adjust your location. Use + or − to zoom if needed',
-      mapHelperPhone: hasDistricts ? 'Drag the pin or tap the map to move it' : 'Tap the map to adjust your location. Pinch to zoom if needed',
+      mapHelperDesktop: hasDistricts ? 'Drag the pin, click the map, or use the arrow keys to move it' : 'Click the map where you live to see your House and Senate legislators. Drag to explore. Use + and − or 2 fingers on a trackpad to zoom.',
+      mapHelperPhone: hasDistricts ? 'Drag the pin or tap the map to move it' : 'Tap the map where you live to see your House and Senate legislators. Drag with 1 finger to explore. Use + and − or 2 fingers to zoom.',
       pinLeft: geo ? (geo.pin[0] / 300 * 100) + '%' : '50%',
       pinTop: geo ? (geo.pin[1] / 288 * 100) + '%' : '50%',
       otherLeft: (otherPos[0] / 300 * 100) + '%',
@@ -913,11 +905,6 @@ class Component extends DCLogic {
         { label: 'Rural (zoom 6)', k: 'rural' }, { label: 'No street tiles', k: 'notiles' },
       ].map(o => ({ label: o.label, active: spec === o.k, inactive: spec !== o.k,
         select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setPreview({ mapSpec: o.k }); } })),
-      mapOpen: this.state.mapOpen,
-      mapClosed: !this.state.mapOpen,
-      mapToggleLabel: this.state.mapOpen ? 'Hide district map' : 'Show district map',
-      mapExpanded: this.state.mapOpen ? 'true' : 'false',
-      toggleMap: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setPreview({ mapOpen: !this.state.mapOpen }); },
       isEmpty: S('empty'), isLooking: S('looking'),
       showAnswer: S('found') || S('vacant'),
       showError, showFieldError, showLocError,

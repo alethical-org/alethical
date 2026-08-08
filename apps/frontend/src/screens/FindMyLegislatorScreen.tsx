@@ -33,7 +33,6 @@ import {
   addressSuggestionResultsAreCurrent,
   addressChoiceKey,
   confirmedAddressForLookup,
-  districtMapVisible,
   legislatureLabel,
   prepareAddressLookup,
   retryWaitSeconds,
@@ -50,7 +49,6 @@ const EXAMPLE_ADDRESS = '350 S 5th St, Minneapolis, MN 55415';
 const ADDRESS_ERROR_ID = 'find-legislator-address-error';
 const LOCATION_ERROR_ID = 'find-legislator-location-error';
 const ADDRESS_CHOICES_ID = 'find-legislator-address-choices';
-const MAP_EXPANDED_KEY = 'alethical-find-legislator-map-expanded';
 const isWeb = Platform.OS === 'web';
 // Chrome otherwise anchors to the map when lookup content appears above it,
 // moving the reader down the page. Results should load without moving the page.
@@ -67,11 +65,6 @@ const alignedCardsStyle = isWeb
   : undefined;
 
 type ClientError = 'location' | 'outside-minnesota' | null;
-
-function initialMapExpanded() {
-  if (!isWeb || typeof sessionStorage === 'undefined') return false;
-  return sessionStorage.getItem(MAP_EXPANDED_KEY) === 'true';
-}
 
 function LoadingCard({ animate }: { animate: boolean }) {
   const motion = useRef(new Animated.Value(0)).current;
@@ -214,7 +207,6 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   >(requestedCoordinate);
   const [preserveMapViewport, setPreserveMapViewport] = useState(false);
   const [mapViewport, setMapViewport] = useState<MapViewport>(MINNESOTA_MAP_VIEWPORT);
-  const [mapExpanded, setMapExpanded] = useState(initialMapExpanded);
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [choiceClosed, setChoiceClosed] = useState(false);
@@ -529,15 +521,6 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const locationBusy = findingLocation || lookup.isPending;
   const lookupDisabled = lookup.isPending || rateLimitSeconds > 0;
   const locationDisabled = locationBusy || rateLimitSeconds > 0;
-  const toggleMap = () => {
-    setMapExpanded((value) => {
-      const next = !value;
-      if (isWeb && typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem(MAP_EXPANDED_KEY, String(next));
-      }
-      return next;
-    });
-  };
   const foundHeaderGradient: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#f2f9f5 0%,#ffffff 100%)' }
     : { backgroundColor: '#f2f9f5' };
@@ -601,27 +584,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       </Text>
     </Pressable>
   );
-  const renderMapSection = () =>
-    isMobile ? (
-      <View style={styles.mapSection}>
-        <Pressable
-          accessibilityRole="button"
-          aria-expanded={mapExpanded}
-          aria-controls="district-map-panel"
-          onPress={toggleMap}
-          style={styles.mapToggle}
-        >
-          <Text style={styles.mapToggleText}>
-            {mapExpanded ? 'Hide district map' : 'Show district map'}
-          </Text>
-        </Pressable>
-        {districtMapVisible(isMobile, mapExpanded) ? (
-          <View nativeID="district-map-panel">{map}</View>
-        ) : null}
-      </View>
-    ) : (
-      <View style={styles.mapSection}>{map}</View>
-    );
+  const renderMapSection = () => <View style={styles.mapSection}>{map}</View>;
 
   return (
     <PageBackground>
@@ -1248,19 +1211,4 @@ const styles = StyleSheet.create({
   cards: { flexDirection: 'row', gap: 18, alignItems: 'flex-start' },
   cardsMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 12 },
   mapSection: { marginTop: 28 },
-  mapToggle: {
-    minHeight: 44,
-    borderRadius: 11,
-    borderWidth: 1,
-    borderColor: t.colors.brand.deep,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  mapToggleText: {
-    fontFamily: t.typography.ui,
-    fontSize: 14,
-    fontWeight: '700',
-    color: t.colors.brand.deep,
-  },
 });
