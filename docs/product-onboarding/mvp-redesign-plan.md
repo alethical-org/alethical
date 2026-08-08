@@ -307,7 +307,7 @@ Frontend track (after Phase 0; parallel with backend track)
   #291 (authored-count bug), #292 (progress-sort), #293 (companion link)
 - [x] Contact Us page — 5-field form, direct-email fallback, social links, and 2-copy delivery (#1274)
 - [ ] About Us and Trust & Integrity static pages; Trust page as real brand copy
-- [x] Account menu + nav-after-sign-in — [#1006](https://github.com/alethical-org/alethical/issues/1006); Privacy/Terms in the footer still open
+- [x] Account menu + nav-after-sign-in — [#1006](https://github.com/alethical-org/alethical/issues/1006); Privacy and Terms now use the shared nav and footer
 - [x] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect — #976 and [#1006](https://github.com/alethical-org/alethical/issues/1006)
 - [x] Green token flip (web; re-skins the native iOS/Android clients for free via shared tokens) — [#136](https://github.com/alethical-org/alethical/issues/136); landed with the signed-out home ship (PR #67)
 - [ ] Upgrade Ask hero to the one-free-answer funnel when the backend un-stub is live
