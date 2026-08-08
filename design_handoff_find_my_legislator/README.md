@@ -405,7 +405,7 @@ View profile, and typing itself (the field is `readOnly`; its value is driven by
 
 ## Address requirement copy
 
-> Enter a full street address. Minnesota’s districts split cities, so a city or ZIP alone can’t tell us who represents you.
+> Enter a full street address. Cities and ZIP codes can cross district lines.
 
 Two short sentences: what to enter, and why a city or ZIP can't work. The address parts are **not**
 enumerated — the placeholder (`350 S 5th St, Minneapolis, MN 55415`) demonstrates the exact format,

@@ -14,7 +14,7 @@ export type FindLegislatorState =
   | 'service-down';
 
 export const FIND_MY_LEGISLATOR_INSTRUCTIONS =
-  'Enter a full street address. Minnesota’s districts split cities, so a city or ZIP alone can’t tell us who represents you.';
+  'Enter a full street address. Cities and ZIP codes can cross district lines.';
 
 export function prepareAddressLookup(rawAddress: string): {
   displayAddress: string;
