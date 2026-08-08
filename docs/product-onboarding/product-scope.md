@@ -40,9 +40,12 @@ The product is successful if a user can:
   "Not built yet — accounts and notifications".
 - Ask grounded questions about Minnesota legislation and get answers with citations back to official or ingested sources; persistent chat sessions (history, follow-ups) require sign-in
 
-Alethical is a reliable legislative data and analysis product. It is deliberately not a
-political accountability platform — see Permanent non-goals below, which is a statement
-of what we don't do rather than a list of things we haven't got to.
+Alethical is a reliable public-record data and analysis product centered on the Minnesota
+Legislature. It may surface official records that document campaign money, lobbying, and
+relationships around public action. It does not adjudicate people: no ratings, promise
+scores, or unsupported conclusions about motive, causation, influence, or corruption. See
+Permanent non-goals below, which is a statement of what we don't do rather than a list of
+things we haven't got to.
 
 ## Core Principles
 
@@ -170,17 +173,21 @@ The prototype standard for this workstream should be:
 
 ### Permanent non-goals — ingestion
 
-We do not ingest these, and not because of sequencing. Each one would pull the product
-toward inference about people rather than the legislative record:
+We do not ingest these, and not because of sequencing. Each one either breaks the
+Minnesota focus or relies on unreviewed sources rather than an official public record:
 
 - 50-state ingestion — Minnesota depth is the point (Core Principle 1)
 - Campaign website scraping
-- Donor or lobbying influence ingestion
 - Social media ingestion
 - Fully autonomous extraction from arbitrary web sources — every source gets a reviewed adapter
 
 ### Not built yet — ingestion
 
+- **Official campaign-finance and lobbying disclosures.** Source-backed donor, recipient,
+  expenditure, lobbying, and documented-relationship tracking is an allowed direction,
+  not a permanent non-goal ([#1269](https://github.com/alethical-org/alethical/issues/1269)).
+  It must use reviewed government filing sources, retain the source behind every record
+  and relationship, and never infer that money or access caused a public action.
 - **Federal legislative data as a first-class dataset.** Genuinely undecided rather than
   refused: the open question is whether a minimal read-only federal surface is worth it
   (see Open questions below). Nothing is built, and nothing blocks starting.
@@ -240,12 +247,23 @@ The domain model should cover these core entities:
 
 ### Permanent non-goals — domain model
 
-The model describes the legislative record. It does not model influence or character:
+The model may represent people, organizations, money, lobbying activity, and relationships
+when an official source explicitly records them. It does not store a verdict about a
+person's character or invent a relationship the source does not support:
 
-- Broad political knowledge graph of people, donors, PACs, and organizations
 - Candidate promise tracking
 - Trust or corruption scoring
-- Relationship graph exploration tools
+- Inferred relationships with no traceable source record
+
+### Not built yet — source-backed public influence records
+
+- **A source-backed relationship model.** A future model may connect candidates,
+  officeholders, campaign committees, donors, recipients, lobbyists, organizations,
+  bills, votes, and other public actions when official filings document the connection
+  ([#1269](https://github.com/alethical-org/alethical/issues/1269)). It may support
+  relationship exploration. It must preserve the filing behind each connection and may
+  not turn a connection into an unsupported claim about motive, causation, influence, or
+  corruption.
 
 ### Standing defaults — domain model
 
@@ -296,9 +314,8 @@ Read them as defaults to be argued out of with evidence, never as "not yet."
   and ingestion-run records, which is cheaper and already sufficient.
 - **Modular monolith, not microservices.** Revisit when a component's scaling or
   deploy cadence genuinely diverges from the rest.
-- **Relational, not a graph database.** Revisit if a shipped feature needs multi-hop
-  traversal that SQL expresses badly — noting that the relationship-graph features which
-  would want one are permanent non-goals.
+- **Relational, not a graph database.** Revisit if a shipped source-backed relationship
+  feature needs multi-hop traversal that SQL expresses badly.
 
 ### 4. AI and RAG Chat
 
@@ -408,7 +425,7 @@ outright (`.claude/rules/grounded-answers.md` rules 1 and 3):
 
 - Open-ended political analysis with no grounding requirement
 - Promise-vs-vote scoring
-- Corruption or influence detection
+- Unsupported corruption, motive, or causal-influence detection
 - User-facing debate mode or opinion mode
 - Agentic research across the open web
 - Multi-model adjudication or consensus engine — the answer to "is this true?" is a
@@ -569,25 +586,33 @@ bill comparison UI.
 ## Permanent non-goals — the consolidated list
 
 The single answer to "will Alethical ever do X?" Everything here is a deliberate boundary,
-not a backlog. They cluster into one idea: **Alethical reports the legislative record; it
-does not adjudicate people.**
+not a backlog. They cluster into one idea: **Alethical reports source-backed public records;
+it does not adjudicate people.**
 
 - Campaign promise tracking, and promise-vs-vote scoring
-- Corruption, fraud, or conflict-of-interest detection
+- Claims that someone is corrupt, committed fraud, or has a conflict of interest without
+  a direct official finding
 - Trust, integrity, or accountability scoring of legislators
 - Multi-model consensus or adjudication engine
 - Open-ended political analysis with no grounding requirement
 - User-facing debate or opinion mode
 - Agentic research across the open web
-- Donor, lobbying, or influence-relationship modelling
 - Public commenting, comment threads, or social sharing loops
 - 50-state ingestion
 
 **Not on this list, and deliberately so** — these are unbuilt, not refused, and each is
-covered under a "Not built yet" heading above: native mobile apps
+covered under a "Not built yet" heading above: official campaign-finance and lobbying
+records · source-backed donor, recipient, and lobbying relationships · native mobile apps
 ([#91](https://github.com/alethical-org/alethical/issues/91)) · federal data · monetization
 and billing · enterprise admin and permissions · lobbyist workflow features · a
 recommendation surface · admin tooling depth.
+
+> **Influence tracking means the record, not a verdict.** Official campaign-finance and
+> lobbying records, and the relationships they explicitly document, are a planned direction
+> ([#1269](https://github.com/alethical-org/alethical/issues/1269)). What stays permanently
+> out is an unsupported conclusion that money caused a vote, a relationship proves a hidden
+> motive, or a person is corrupt. Alethical may connect the documented facts; it may not
+> manufacture the meaning between them.
 
 > **Candidate data is not promise tracking.** Candidate *profiles, search, and tracking* are
 > a planned direction, not built yet — [#147](https://github.com/alethical-org/alethical/issues/147)

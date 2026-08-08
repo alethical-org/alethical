@@ -103,6 +103,13 @@ our own voice. We remove what conceals it. Make the government's own words legib
 plain language, and always keep the path back to the source in view. Provenance is not a
 citation footnote — it is the physical proof of this principle.
 
+**Truth unconcealed includes the public records that show money, access, and organized
+influence around government.** Official campaign-finance filings and lobbying disclosures
+are in bounds. We may show and connect what those records document: who gave, who received,
+who registered, which bill or issue a filing names, how much, and when. We do not turn
+proximity into proof. A disclosed relationship is a fact; motive, causation, and corruption
+are separate claims that require their own direct evidence.
+
 ### 3. The record is theirs, not ours
 
 Frame access as something restored, never as a favor we grant. *Your* representatives,
