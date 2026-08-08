@@ -73,6 +73,8 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(addressSuggestionInput('3040 Ex')).toBe('3040 Ex');
     expect(addressSuggestionInput('3040 E Ex')).toBe('3040 E Ex');
     expect(addressSuggestionInput('350 S 5')).toBe('350 S 5');
+    expect(addressSuggestionInput('350 Su')).toBe('350 Su');
+    expect(addressSuggestionInput('350 S')).toBeUndefined();
     expect(addressSuggestionInput('3040 E')).toBeUndefined();
     expect(addressSuggestionInput('3040 X')).toBeUndefined();
     expect(addressSuggestionInput('Excelsior')).toBeUndefined();
@@ -109,6 +111,7 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('<Text style={styles.choiceKey}>↓</Text>');
     expect(source).toContain('<Text style={styles.choiceKey}>Enter</Text>');
     expect(source).not.toContain('<Text style={styles.choiceKey}>Esc</Text>');
+    expect(source).toContain('{choices.length > 1 ? (');
   });
 
   it('replaces only a successful typed address with the confirmed address', () => {
