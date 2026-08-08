@@ -11,16 +11,16 @@ does not yet explain everything we collect or every host that can see it.
 **Why this doc exists.** Google sign-in went live on 5 August 2026. Before that, an
 account was a thing we had designed but almost nobody had. Now real people have real
 accounts with real data attached, and "we never wrote it down" stops being a small
-omission. [`docs/philosophy.md`](../philosophy.md) principle 4 (*say only what we can
-do*) applies to what we say about ourselves, not only to what we say about bills.
+omission. [`docs/philosophy.md`](../philosophy.md) principle 4 (_say only what we can
+do_) applies to what we say about ourselves, not only to what we say about bills.
 
-**What this is.** A decision record. It settles what the policy *is*, so the work it
+**What this is.** A decision record. It settles what the policy _is_, so the work it
 implies can be scoped honestly. It is not a build spec and it ships no code.
 
 **Where it sits.** In `product-onboarding/` rather than `operations/`, because
 [`docs/folder-structure.md`](../folder-structure.md) says to pick the folder by the
-question the doc answers. This answers *what does the product keep about the people who
-read it, and what do we promise them* — a product commitment, read by whoever builds
+question the doc answers. This answers _what does the product keep about the people who
+read it, and what do we promise them_ — a product commitment, read by whoever builds
 account deletion and whoever next edits the public Privacy Policy. It is not a runbook
 for operating the service.
 
@@ -50,16 +50,16 @@ lies) · [#1046](https://github.com/alethical-org/alethical/issues/1046) (logs n
 read) · [#1047](https://github.com/alethical-org/alethical/issues/1047) (backup retention
 and the leftover test account).
 
-| What it is, in plain words | Where it lives | Rows in production |
-| --- | --- | --- |
-| An account — a name, and an email address once the sign-in service has confirmed one | `user_account` | 5 |
-| The link between that account and Google | `auth_identity` | 5 (4 Google, 1 test) |
-| A saved home address | `saved_place` | **0** |
-| Bills someone chose to follow | `tracked_bill` | 4 |
-| Whether someone wants email alerts | `notification_preference` | 1 |
-| A queued "this bill moved" alert | `notification_event` | **0** |
-| A conversation about one bill | `chat_session` | 37 |
-| The messages in those conversations | `chat_message` | 82, of which **41 are questions a reader typed** |
+| What it is, in plain words                                                           | Where it lives            | Rows in production                               |
+| ------------------------------------------------------------------------------------ | ------------------------- | ------------------------------------------------ |
+| An account — a name, and an email address once the sign-in service has confirmed one | `user_account`            | 5                                                |
+| The link between that account and Google                                             | `auth_identity`           | 5 (4 Google, 1 test)                             |
+| A saved home address                                                                 | `saved_place`             | **0**                                            |
+| Bills someone chose to follow                                                        | `tracked_bill`            | 4                                                |
+| Whether someone wants email alerts                                                   | `notification_preference` | 1                                                |
+| A queued "this bill moved" alert                                                     | `notification_event`      | **0**                                            |
+| A conversation about one bill                                                        | `chat_session`            | 37                                               |
+| The messages in those conversations                                                  | `chat_message`            | 82, of which **41 are questions a reader typed** |
 
 The two zeroes matter as much as the numbers. No reader has ever saved an address,
 because nothing in the app can save one (§2.3). No alert has ever been queued, because
@@ -80,7 +80,7 @@ method uses to find and join an account another sign-in method already made, so 
 key, not a contact detail. Since [#1039](https://github.com/alethical-org/alethical/issues/1039)
 nothing writes an unconfirmed address there, in either direction: an unconfirmed sign-in
 cannot use it to reach an existing account, and cannot reserve it so that the person who
-does own the address later joins *theirs*. All 5 accounts in production today came from
+does own the address later joins _theirs_. All 5 accounts in production today came from
 Google, which always confirms, so all 5 have one. An account created from an unconfirmed
 sign-in would have none, and the address that sign-in claimed would sit on the Google-link
 row (`auth_identity.email`) instead, where it is not a key and opens nothing.
@@ -97,10 +97,10 @@ existed, defaulted to on, and no code anywhere checked it, so it looked like a s
 that disables an account and was not one. Someone would have reached for it the first
 time we had to lock somebody out and watched nothing happen.
 
-Turning it off now shuts the account out of everything that is *theirs* — their followed
+Turning it off now shuts the account out of everything that is _theirs_ — their followed
 bills, their conversations, their saved places — with a clear "this account has been
 deactivated" rather than a vague "please sign in", so nobody signs in again wondering why
-it did not work. The shut-out happens *before* anything is written, so a locked account
+it did not work. The shut-out happens _before_ anything is written, so a locked account
 cannot leave rows behind on its way out, and signing in a second way with the same email
 address cannot be used to walk back in.
 
@@ -122,14 +122,14 @@ as history rather than as today's numbers.
 
 **One timestamp does not mean what its name says.** `last_signed_in_at` reads like "the
 last time this person signed in." Since [#990](https://github.com/alethical-org/alethical/pull/990)
-merged on 5 August 2026 it is written only when an account gains a *new* sign-in method
+merged on 5 August 2026 it is written only when an account gains a _new_ sign-in method
 — not when someone signs in, and not on any request. The values sitting in production
 today were written by the older behaviour, which updated it on every single request, so
 from today onward they are frozen and misleading. Nothing reads the column, so nothing
 is currently wrong; the moment a support question makes someone read it, it will be.
 Same story for `auth_identity.last_used_at`. Tracked as [#1045](https://github.com/alethical-org/alethical/issues/1045).
 
-**Retention: as long as the account exists.** This row *is* the account — everything else
+**Retention: as long as the account exists.** This row _is_ the account — everything else
 a reader has hangs off it — so it lasts exactly as long as the account does. Note that an
 account with no email address on it can still be signed into perfectly well: a repeat
 sign-in is matched on the Google-link row, which never looks at the email.
@@ -267,17 +267,16 @@ no.
 Three kinds of reader data travel to third parties. Only one of the three is named in
 the published Privacy Policy.
 
-| Who gets it | What they get | When | Named in our Privacy Policy? |
-| --- | --- | --- | --- |
-| Google (through Supabase) | Name, email address, profile picture, a sign-in id | Every sign-in | Yes |
-| Supabase | The same, plus it hosts the whole database | Always | Yes |
-| **OpenAI** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes** |
-| **Anthropic** | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes** |
-| **US Census Bureau** | **The full street address, with surrounding spaces removed** | Every Find My Legislator address search | **Yes** |
-| **Minnesota Geospatial Information Office** | **The house number and street name, without city or ZIP** | Only after Census and its safe Minnesota-only retries find no match | **Yes** |
-| **Minnesota Legislative Coordinating Commission (`gis.lcc.mn.gov`)** | Latitude and longitude | Every successful Find My Legislator search | **Yes** |
-| Vercel | Hosts the web app, so its request logs see every page address (§7) | Every page load | No, and it should be |
-| Cloudflare | Sits in front of the API | Every API call | No, and it should be |
+| Who gets it                                 | What they get                                                           | When                                                                                                 | Named in our Privacy Policy? |
+| ------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Google (through Supabase)                   | Name, email address, profile picture, a sign-in id                      | Every sign-in                                                                                        | Yes                          |
+| Supabase                                    | The same, plus it hosts the whole database                              | Always                                                                                               | Yes                          |
+| **OpenAI**                                  | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
+| **Anthropic**                               | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
+| **US Census Bureau**                        | **The full street address, with surrounding spaces removed**            | Every Find My Legislator address search                                                              | **Yes**                      |
+| **Minnesota Geospatial Information Office** | **The house number and street name, without city or ZIP**               | Only after Census and its safe Minnesota-only retries find no match                                  | **Yes**                      |
+| Vercel                                      | Hosts the web app, so its request logs see every page address (§7)      | Every page load                                                                                      | No, and it should be         |
+| Cloudflare                                  | Sits in front of the API                                                | Every API call                                                                                       | No, and it should be         |
 
 **The good half.** No account identifier ever reaches a model. The prompt we send is
 built from the bill's identifier, the reader's question, and passages of bill text
@@ -285,6 +284,9 @@ built from the bill's identifier, the reader's question, and passages of bill te
 email address, no name, and no address in it. The address that goes to the Census
 Bureau carries no account identifier either. If Census finds nothing, the Minnesota
 address-point request carries only the house number and street name, not the city or ZIP.
+After either address source returns a point, the House, Senate, and congressional
+districts are found from official map files stored inside Alethical. The point is not
+sent to the Minnesota Legislative Coordinating Commission.
 The lookup endpoint does not require sign-in and never reads the caller's account.
 
 **The bad half.** A reader's typed question leaves our systems on every single Ask and
@@ -297,16 +299,16 @@ see requests or explain every category we collect. Closing the remaining gap is
 
 ## 5. The hard one: typed questions
 
-**The judgment call.** *Treat text a reader typed as a strictly more sensitive class
+**The judgment call.** _Treat text a reader typed as a strictly more sensitive class
 than choices a reader made, give it a life of its own that does not depend on the
-account, and never let a copy of it outlive the original.*
+account, and never let a copy of it outlive the original._
 
 **Why they are not the same thing.** A followed bill is a selection from a public list.
 Its worst-case disclosure is "this person is interested in HF 1234" — close to ordinary
 civic interest, and precisely the thing the product exists to help with. A typed
 question is unbounded free text that the reader controls completely, and people
-routinely put things in it that no list could contain. *"Does the new cannabis law
-affect my probation?"* is a sentence about the person, not about the bill. We did not
+routinely put things in it that no list could contain. _"Does the new cannabis law
+affect my probation?"_ is a sentence about the person, not about the bill. We did not
 ask for it, we cannot predict it, and the reader will not remember telling us. Averaging
 the two categories into one rule protects the harmless one and under-protects the
 dangerous one.
@@ -364,16 +366,16 @@ None of this exists yet (§7). This is the specification for when it is built.
 
 **"Delete my account" should mean:**
 
-| Category | What happens | Why |
-| --- | --- | --- |
-| The account row | Deleted | It is the thing being deleted |
-| The Google link | Deleted | Leaving it orphans the person's future sign-in |
-| Saved addresses | Deleted | No reason survives the account |
-| Followed bills | Deleted | A private choice tied to a named person |
-| Notes on bills | Deleted | Typed text (§5) |
-| Alert settings | Deleted | Meaningless without an account |
-| Sent alerts | Deleted | A delivery receipt for an address we no longer hold |
-| Conversations and every message | Deleted | Typed text (§5) — this is the one that most needs to actually happen |
+| Category                        | What happens | Why                                                                  |
+| ------------------------------- | ------------ | -------------------------------------------------------------------- |
+| The account row                 | Deleted      | It is the thing being deleted                                        |
+| The Google link                 | Deleted      | Leaving it orphans the person's future sign-in                       |
+| Saved addresses                 | Deleted      | No reason survives the account                                       |
+| Followed bills                  | Deleted      | A private choice tied to a named person                              |
+| Notes on bills                  | Deleted      | Typed text (§5)                                                      |
+| Alert settings                  | Deleted      | Meaningless without an account                                       |
+| Sent alerts                     | Deleted      | A delivery receipt for an address we no longer hold                  |
+| Conversations and every message | Deleted      | Typed text (§5) — this is the one that most needs to actually happen |
 
 **What we would keep, and it is a short list.** Counts with nobody attached: how many
 accounts exist, how many bills are followed, how many questions were asked in a month.
@@ -419,14 +421,16 @@ description.** Building it is [#1040](https://github.com/alethical-org/alethical
 
 **The published Privacy Policy is narrower than what we collect.** The live page
 (`apps/frontend/src/screens/LegalScreens.tsx`, effective 16 June 2026, updated 7 August 2026) says under
-*Information We Collect* that we collect Google profile information, authentication
+_Information We Collect_ that we collect Google profile information, authentication
 data, and usage data. It does not mention the questions people type, the bills they
-follow, their alert settings, or a saved address. Under *How We Share Information* it
+follow, their alert settings, or a saved address. Under _How We Share Information_ it
 names Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota
-Geospatial Information Office, and the Minnesota Legislative Coordinating Commission.
-It still does not name Vercel or Cloudflare (§4). Under *Data Retention* it says we keep
+Geospatial Information Office. It no longer names the Minnesota Legislative
+Coordinating Commission because the commission no longer receives a reader's location
+during a lookup; the map itself still credits the commission as its source. The page
+still does not name Vercel or Cloudflare (§4). Under _Data Retention_ it says we keep
 things "as long as your account is active," which is a real answer but not a
-per-category one. Under *Your Rights* it
+per-category one. Under _Your Rights_ it
 offers access, correction, export and deletion on request, which is a promise we
 currently have no mechanism to keep. Bringing the page in line is [#1041](https://github.com/alethical-org/alethical/issues/1041).
 
@@ -480,17 +484,17 @@ here has a real procedure to follow first — four production checks and one tra
 `NOT NULL` column breaks the running code before the migration lands. Nothing is dropped
 in the change that adds this document.
 
-| Column | Written by | Read by | Production |
-| --- | --- | --- | --- |
-| `saved_place.postal_code` | nothing | nothing | 0 rows |
-| `saved_place.latitude` | nothing | nothing | 0 rows |
-| `saved_place.longitude` | nothing | nothing | 0 rows |
-| `saved_place.house_district_id` | sample-data script only | one validation script | 0 rows |
-| `saved_place.senate_district_id` | sample-data script only | one validation script | 0 rows |
-| `chat_session.retrieval_profile` | nothing | nothing | empty on all 37 |
-| `chat_message.model_name` | nothing | nothing | unset on all 82 |
-| `chat_message.input_tokens` | nothing | nothing | unset on all 82 |
-| `chat_message.output_tokens` | nothing | nothing | unset on all 82 |
+| Column                           | Written by              | Read by               | Production      |
+| -------------------------------- | ----------------------- | --------------------- | --------------- |
+| `saved_place.postal_code`        | nothing                 | nothing               | 0 rows          |
+| `saved_place.latitude`           | nothing                 | nothing               | 0 rows          |
+| `saved_place.longitude`          | nothing                 | nothing               | 0 rows          |
+| `saved_place.house_district_id`  | sample-data script only | one validation script | 0 rows          |
+| `saved_place.senate_district_id` | sample-data script only | one validation script | 0 rows          |
+| `chat_session.retrieval_profile` | nothing                 | nothing               | empty on all 37 |
+| `chat_message.model_name`        | nothing                 | nothing               | unset on all 82 |
+| `chat_message.input_tokens`      | nothing                 | nothing               | unset on all 82 |
+| `chat_message.output_tokens`     | nothing                 | nothing               | unset on all 82 |
 
 **`user_account.is_active` was on this list and has been fixed rather than dropped**
 ([#1043](https://github.com/alethical-org/alethical/issues/1043), 6 August 2026). It is
@@ -509,18 +513,18 @@ The naming problem in §2.1 is a separate fix.
 
 ## 9. Retention, all in one place
 
-| What | How long | Why that long |
-| --- | --- | --- |
-| Account, name, and a confirmed email if there is one | Life of the account | It is the account |
-| Google link | Life of the account | Removing it orphans the person |
-| Followed bills, alert settings | Life of the account | The feature they signed in for |
-| Saved address (if ever built) | Life of the account, deletable on its own | Most sensitive thing we would hold; the reader should be able to remove it without losing everything else |
-| Notes on bills | Typed text — §5 rules apply | A free-text box is a free-text box |
-| Sent alerts | 90 days after sending | A delivery receipt nobody asks about after three months |
-| Unsent alerts | Until sent, or account deletion | They are pending work |
-| Conversations and messages | **24 months from the last message**, then deleted whether or not the account is active | Matches the two-year biennium the record is organised by |
-| Server logs | Whatever the host keeps; no reader data in them at all (§7 rule) | Redaction beats retention — the cheapest data to keep safe is data you never wrote |
-| Anonymous counts | Indefinitely | Nothing in them points at a person |
+| What                                                 | How long                                                                               | Why that long                                                                                             |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Account, name, and a confirmed email if there is one | Life of the account                                                                    | It is the account                                                                                         |
+| Google link                                          | Life of the account                                                                    | Removing it orphans the person                                                                            |
+| Followed bills, alert settings                       | Life of the account                                                                    | The feature they signed in for                                                                            |
+| Saved address (if ever built)                        | Life of the account, deletable on its own                                              | Most sensitive thing we would hold; the reader should be able to remove it without losing everything else |
+| Notes on bills                                       | Typed text — §5 rules apply                                                            | A free-text box is a free-text box                                                                        |
+| Sent alerts                                          | 90 days after sending                                                                  | A delivery receipt nobody asks about after three months                                                   |
+| Unsent alerts                                        | Until sent, or account deletion                                                        | They are pending work                                                                                     |
+| Conversations and messages                           | **24 months from the last message**, then deleted whether or not the account is active | Matches the two-year biennium the record is organised by                                                  |
+| Server logs                                          | Whatever the host keeps; no reader data in them at all (§7 rule)                       | Redaction beats retention — the cheapest data to keep safe is data you never wrote                        |
+| Anonymous counts                                     | Indefinitely                                                                           | Nothing in them points at a person                                                                        |
 
 ---
 
@@ -540,7 +544,7 @@ The naming problem in §2.1 is a separate fix.
 
 ## Related
 
-- [`docs/philosophy.md`](../philosophy.md) — principle 4, *say only what we can do*
+- [`docs/philosophy.md`](../philosophy.md) — principle 4, _say only what we can do_
 - [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) — rule 6
   (copy matches shipped capability) and rule 5 (shareable URLs), both of which this doc
   answers to

@@ -27,7 +27,12 @@ def problem_payload(
 
 
 def problem_exception(
-    status: int, title: str, detail: str, *, type_slug: str | None = None
+    status: int,
+    title: str,
+    detail: str,
+    *,
+    type_slug: str | None = None,
+    headers: dict[str, str] | None = None,
 ) -> HTTPException:
     return HTTPException(
         status_code=status,
@@ -38,6 +43,7 @@ def problem_exception(
             detail=detail,
             instance="",
         ),
+        headers=headers,
     )
 
 
@@ -61,7 +67,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             detail=str(detail),
             instance=str(request.url.path),
         )
-    return JSONResponse(status_code=exc.status_code, content=payload)
+    return JSONResponse(
+        status_code=exc.status_code, content=payload, headers=exc.headers
+    )
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

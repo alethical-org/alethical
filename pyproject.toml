@@ -16,6 +16,10 @@ dependencies = [
   # District lookup geometry must preserve holes and boundary points while it is
   # reduced for the browser. Shapely provides the topology-aware operations.
   "shapely>=2.1.2",
+  # The reviewed district-map build script converts Minnesota's official map
+  # coordinates to browser coordinates. Declare pyproj directly so rebuilding
+  # the checked-in map never depends on an unrelated package pulling it in.
+  "pyproj>=3.7.2",
   "fastapi>=0.141.1",
   # Imported directly by alethical/api/main.py for the exception handler, and
   # floored at 1.3.1 because that release fixes five advisories (#681). fastapi

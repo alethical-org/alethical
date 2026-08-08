@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import time
 from dataclasses import asdict, dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -13,6 +14,10 @@ import requests
 from shapely.geometry import Point, mapping, shape
 from shapely.geometry.base import BaseGeometry
 
+from alethical.api.services.legislative_districts import (
+    LegislativeDistrictDataError,
+    legislative_districts_for_point,
+)
 from alethical.logging import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -79,6 +84,29 @@ MINNESOTA_ADDRESS_POINTS_URL = (
     "https://enterprise.gisdata.mn.gov/aghost/rest/services/"
     "us_mn_state_mngeo/loc_addresses_open/FeatureServer/0/query"
 )
+UPSTREAM_RETRY_DELAYS_SECONDS = (0.2, 0.6)
+RETRYABLE_UPSTREAM_STATUS_CODES = {408, 425, 500, 502, 503, 504}
+
+
+def _get_json(*, url: str, params: dict, timeout: float):
+    for attempt in range(len(UPSTREAM_RETRY_DELAYS_SECONDS) + 1):
+        try:
+            response = requests.get(url, params=params, timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        except (requests.Timeout, requests.ConnectionError):
+            if attempt >= len(UPSTREAM_RETRY_DELAYS_SECONDS):
+                raise
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code not in RETRYABLE_UPSTREAM_STATUS_CODES or attempt >= len(
+                UPSTREAM_RETRY_DELAYS_SECONDS
+            ):
+                raise
+        time.sleep(UPSTREAM_RETRY_DELAYS_SECONDS[attempt])
+
+    raise AssertionError("upstream retry loop ended unexpectedly")
+
 
 _DIRECTION_ALIASES = {
     "N": "NORTH",
@@ -678,8 +706,8 @@ class CensusGeocoder:
         return minnesota_matches[:5]
 
     def _raw_matches(self, address_text: str) -> list[object]:
-        response = requests.get(
-            self.base_url,
+        payload = _get_json(
+            url=self.base_url,
             params={
                 "address": address_text,
                 "benchmark": self.benchmark,
@@ -687,8 +715,6 @@ class CensusGeocoder:
             },
             timeout=self.timeout_seconds,
         )
-        response.raise_for_status()
-        payload = response.json()
         raw_matches = payload.get("result", {}).get("addressMatches", [])
         return raw_matches if isinstance(raw_matches, list) else []
 
@@ -820,8 +846,8 @@ class MinnesotaAddressPointGeocoder:
     def _request_features(
         self, where_parts: list[str], *, result_record_count: int
     ) -> tuple[list[object], bool]:
-        response = requests.get(
-            self.base_url,
+        payload = _get_json(
+            url=self.base_url,
             params={
                 "where": " AND ".join(where_parts),
                 "outFields": ",".join(_ADDRESS_POINT_FIELDS),
@@ -831,8 +857,6 @@ class MinnesotaAddressPointGeocoder:
             },
             timeout=self.timeout_seconds,
         )
-        response.raise_for_status()
-        payload = response.json()
         if not isinstance(payload, dict) or payload.get("error"):
             raise RepresentativeLookupUpstreamError(
                 "Minnesota address service returned an error"
@@ -1133,149 +1157,39 @@ class MinnesotaAddressPointGeocoder:
 
 
 class MinnesotaGisLookupClient:
-    def __init__(
-        self,
-        *,
-        base_url: str | None = None,
-        timeout_seconds: float | None = None,
-    ) -> None:
-        self.base_url = base_url or os.environ.get(
-            "ALETHICAL_MN_GIS_LOOKUP_URL",
-            "https://gis.lcc.mn.gov/api/",
-        )
-        self.timeout_seconds = timeout_seconds or float(
-            os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10")
-        )
-
     def lookup(
         self, *, latitude: float, longitude: float
     ) -> tuple[DistrictMatch | None, DistrictMatch | None, str | None]:
-        response = requests.get(
-            self.base_url,
-            params={"lat": latitude, "lng": longitude},
-            timeout=self.timeout_seconds,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        features = payload.get("features", [])
-        if not isinstance(features, list):
-            raise RepresentativeLookupUpstreamError("GIS response missing features")
+        try:
+            house_geometry, senate_geometry = legislative_districts_for_point(
+                longitude=longitude,
+                latitude=latitude,
+            )
+        except LegislativeDistrictDataError as exc:
+            raise RepresentativeLookupUpstreamError(str(exc)) from exc
 
-        house_match: DistrictMatch | None = None
-        senate_match: DistrictMatch | None = None
-        house_source_geometry: dict | None = None
-        senate_source_geometry: dict | None = None
+        def district_match(source) -> DistrictMatch | None:
+            if source is None:
+                return None
+            return DistrictMatch(
+                chamber=source.chamber,
+                district_code=source.district_code,
+                geometry=prepare_district_geometry(
+                    source.geometry,
+                    longitude=longitude,
+                    latitude=latitude,
+                ),
+            )
+
         congressional_district = congressional_district_for_point(
             longitude=longitude,
             latitude=latitude,
         )
-        for feature in features:
-            properties = feature.get("properties") or {}
-            district_code = self._extract_district_code(properties)
-            chamber = self._infer_chamber(properties, district_code)
-            if not district_code or chamber not in {"house", "senate"}:
-                continue
-            raw_geometry = feature.get("geometry")
-            if not isinstance(raw_geometry, dict):
-                raise RepresentativeLookupUpstreamError(
-                    "GIS response missing district geometry"
-                )
-            match = DistrictMatch(
-                chamber=chamber,
-                district_code=district_code,
-                member_name=self._string_or_none(properties.get("name")),
-                party=self._string_or_none(properties.get("party")),
-                geometry=prepare_district_geometry(
-                    raw_geometry, longitude=longitude, latitude=latitude
-                ),
-            )
-            if chamber == "house" and house_match is None:
-                house_match = match
-                house_source_geometry = raw_geometry
-            if chamber == "senate" and senate_match is None:
-                senate_match = match
-                senate_source_geometry = raw_geometry
-
-        if (
-            house_match
-            and senate_match
-            and house_match.geometry
-            and senate_match.geometry
-            and house_source_geometry is not None
-            and senate_source_geometry is not None
-        ):
-            validate_district_containment(
-                house_source_geometry,
-                senate_source_geometry,
-                house_code=house_match.district_code,
-                senate_code=senate_match.district_code,
-            )
-
-        return house_match, senate_match, congressional_district
-
-    def _extract_district_code(self, properties: dict) -> str | None:
-        for key in ("district", "district_code", "districtCode", "code", "name"):
-            value = properties.get(key)
-            if not isinstance(value, str):
-                continue
-            cleaned = value.strip().upper()
-            if re.fullmatch(r"\d{1,2}[A-Z]?", cleaned):
-                return self._canonical_district_code(cleaned)
-            match = re.search(r"\b(\d{1,2}[A-Z]?)\b", cleaned)
-            if match:
-                return self._canonical_district_code(match.group(1))
-        return None
-
-    @staticmethod
-    def _canonical_district_code(value: str) -> str:
-        match = re.fullmatch(r"(\d{1,2})([A-Z]?)", value)
-        if not match:
-            return value
-        return f"{int(match.group(1))}{match.group(2)}"
-
-    def _infer_chamber(self, properties: dict, district_code: str | None) -> str | None:
-        chamber_text = " ".join(
-            str(properties.get(key, ""))
-            for key in (
-                "chamber",
-                "district_type",
-                "districtType",
-                "office",
-                "layer",
-                "source",
-            )
-        ).lower()
-        if "senate" in chamber_text:
-            return "senate"
-        if "house" in chamber_text or "state house" in chamber_text:
-            return "house"
-        memid = self._string_or_none(properties.get("memid"))
-        if (
-            district_code
-            and re.fullmatch(r"\d{1,2}", district_code)
-            and memid
-            and memid.lower() != "none"
-        ):
-            return "senate"
-        member_name = self._string_or_none(properties.get("name")) or ""
-        lowered_name = member_name.lower()
-        if district_code and re.fullmatch(r"\d{1,2}[A-Z]", district_code):
-            return "house"
-        if lowered_name.startswith("sen."):
-            return "senate"
-        if (
-            lowered_name.startswith("rep.")
-            and district_code
-            and re.fullmatch(r"\d{1,2}[A-Z]", district_code)
-        ):
-            return "house"
-        return None
-
-    def _string_or_none(self, value) -> str | None:
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
+        return (
+            district_match(house_geometry),
+            district_match(senate_geometry),
+            congressional_district,
+        )
 
 
 class RepresentativeLookupService:
@@ -1295,7 +1209,7 @@ class RepresentativeLookupService:
     def lookup(self, address_text: str) -> RepresentativeLookupResult:
         try:
             matches = self.geocoder.geocode_matches(address_text)
-        except RepresentativeLookupNotFound:
+        except (RepresentativeLookupNotFound, requests.RequestException):
             matches = self.address_point_geocoder.geocode_matches(address_text)
         except RepresentativeLookupOutsideMinnesota as outside_minnesota:
             try:

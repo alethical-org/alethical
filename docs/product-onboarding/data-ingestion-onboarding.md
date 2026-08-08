@@ -16,7 +16,7 @@ government sources** — there is no single vendor API and **no API keys are
 needed for any government source**. Bills come from the MN Revisor (XML + HTML),
 legislators from the joint Legislature roster + chamber profile pages, votes from
 chamber-specific journals/pages, and district lookup from US Census + Minnesota address
-points + MN GIS. There are **two** credentialed dependencies: **Anthropic**
+points + local copies of official MN GIS boundaries. There are **two** credentialed dependencies: **Anthropic**
 (`alethical/pipeline/anthropic_enrichment.py` — where every production bill summary
 comes from today) and **OpenAI** (the batch summary backend + RAG chat). This guide
 named only OpenAI, which pointed a new engineer at the wrong one.
@@ -66,15 +66,17 @@ flowchart LR
   subgraph RT["Query-time external calls"]
     GEO["US Census geocoder"]
     AP["MN statewide<br/>address points"]
-    GIS["MN LCC-GIS districts"]
     OAI["OpenAI Responses<br/>RAG chat synthesis"]
     OSM["OpenStreetMap tiles"]
   end
 
+  GIS["Bundled official MN<br/>district boundaries"]
+
   CL["Clients<br/>Web (iOS · Android not built yet)"] --> API
   API -->|"Find My Legislator"| GEO
-  GEO -->|"matched"| GIS
-  GEO -->|"no match"| AP --> GIS
+  GEO -->|"matched point"| GIS
+  GEO -->|"no match"| AP -->|"matched point"| GIS
+  GIS -->|"districts"| API
   API -->|"chat"| OAI
   CL -->|"map tiles"| OSM
 ```
@@ -111,19 +113,19 @@ operational guide doesn't repeat.
 Two adjacent AI uses are **not** layer 2 and are easy to conflate with it: **AI enrichment**
 (bill summaries → `ai_enrichment`, section E) is a separate derivation from canonical data,
 and **RAG chat synthesis** (section F) is query-time retrieval, not ingestion. Layer 2 is
-specifically the ingestion that *builds the retrieval corpus* those depend on.
+specifically the ingestion that _builds the retrieval corpus_ those depend on.
 
 ## The source map
 
-| # | Domain | Source | Protocol / Format | Auth | Code |
-|---|--------|--------|-------------------|------|------|
-| A | Bills, actions, sponsors, versions, text | MN Revisor | HTTP `GET`, XML + HTML | none | [minnesota.py](../../alethical/pipeline/minnesota.py) |
-| B | Legislator roster & profiles, committees | Joint directory + House/Senate member pages | HTTP `GET`, HTML (regex) | none | [minnesota.py](../../alethical/pipeline/minnesota.py), [committee_memberships.py](../../alethical/pipeline/committee_memberships.py) |
-| C | Roll-call votes | House vote pages + Senate journal API→PDF | HTTP `GET`, HTML + JSON + PDF | none | [votes.py](../../alethical/pipeline/votes.py) |
-| D | District lookup (Find My Legislator) | US Census geocoder + MN statewide address points + MN LCC-GIS | HTTP `GET`, JSON/GeoJSON | none | [representative_lookup.py](../../alethical/api/services/representative_lookup.py) |
-| E | AI bill summaries | OpenAI Batch API | HTTPS, JSON | `OPENAI_API_KEY` | [ai_enrichment.py](../../alethical/pipeline/ai_enrichment.py) |
-| F | RAG chat synthesis | OpenAI Responses API | HTTPS `POST`, JSON | `OPENAI_API_KEY` | [me.py](../../alethical/api/routers/me.py) |
-| G | Map tiles | OpenStreetMap | HTTP tiles | none | frontend `MapPinPicker.tsx` |
+| #   | Domain                                   | Source                                                                                 | Protocol / Format                          | Auth             | Code                                                                                                                                 |
+| --- | ---------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| A   | Bills, actions, sponsors, versions, text | MN Revisor                                                                             | HTTP `GET`, XML + HTML                     | none             | [minnesota.py](../../alethical/pipeline/minnesota.py)                                                                                |
+| B   | Legislator roster & profiles, committees | Joint directory + House/Senate member pages                                            | HTTP `GET`, HTML (regex)                   | none             | [minnesota.py](../../alethical/pipeline/minnesota.py), [committee_memberships.py](../../alethical/pipeline/committee_memberships.py) |
+| C   | Roll-call votes                          | House vote pages + Senate journal API→PDF                                              | HTTP `GET`, HTML + JSON + PDF              | none             | [votes.py](../../alethical/pipeline/votes.py)                                                                                        |
+| D   | District lookup (Find My Legislator)     | US Census geocoder + MN statewide address points + bundled official LCC-GIS boundaries | HTTP `GET` JSON + local compressed GeoJSON | none             | [representative_lookup.py](../../alethical/api/services/representative_lookup.py)                                                    |
+| E   | AI bill summaries                        | OpenAI Batch API                                                                       | HTTPS, JSON                                | `OPENAI_API_KEY` | [ai_enrichment.py](../../alethical/pipeline/ai_enrichment.py)                                                                        |
+| F   | RAG chat synthesis                       | OpenAI Responses API                                                                   | HTTPS `POST`, JSON                         | `OPENAI_API_KEY` | [me.py](../../alethical/api/routers/me.py)                                                                                           |
+| G   | Map tiles                                | OpenStreetMap                                                                          | HTTP tiles                                 | none             | frontend `MapPinPicker.tsx`                                                                                                          |
 
 **Every one of those `GET`s decodes through one helper, and it has to**
 ([http_text.py](../../alethical/pipeline/http_text.py)). Sources A, B and C each
@@ -132,7 +134,7 @@ have their own retrying fetch function, and each used to finish with
 `Content-Type` header, and when a `text/*` response names none it falls back to
 ISO-8859-1 (RFC 2616 §3.7.1). Three of the pages we read send exactly that while
 their bytes are UTF-8 — the Revisor's bill-status API (`text/xml`, whose XML even
-*declares* `encoding="UTF-8"` in a declaration that is thrown away once the body is
+_declares_ `encoding="UTF-8"` in a declaration that is thrown away once the body is
 a decoded string), the Senate's member pages, and the Senate's journal index. Under
 the fallback every UTF-8 byte became its own Latin-1 character, so Rep. María Isa
 Pérez-Vega's name entered the pipeline as `PÃ©rez-Vega` and reached 42 bills' author
@@ -182,7 +184,7 @@ Reference URL shapes: `https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/` �
 by `parse_bill_section`:
 
 - **`raw_text`** — the flat string, produced by stripping every tag. It loses the
-  subdivision numbers ("Subd. 2."), the marks saying which words the bill *adds*,
+  subdivision numbers ("Subd. 2."), the marks saying which words the bill _adds_,
   and the row/column shape of appropriation tables.
 - **`body_blocks`** (JSON) — the same body as an ordered list of blocks that keeps
   all three: `{"kind": "heading", "number": "Subd. 3.", "text": "Health plan."}`,
@@ -193,9 +195,9 @@ by `parse_bill_section`:
 **Never "fix" `raw_text` to carry the structure instead.** Two paid caches hash it,
 and rewriting it re-runs both corpus-wide jobs:
 
-| cache | where it hashes `raw_text` | what a rewrite costs |
-| --- | --- | --- |
-| every section's search embedding | `rag_ingest.py` — `source_hash(section.raw_text)`; a mismatch re-chunks and re-embeds | paid re-embed of the whole corpus |
+| cache                                | where it hashes `raw_text`                                                                                          | what a rewrite costs                            |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| every section's search embedding     | `rag_ingest.py` — `source_hash(section.raw_text)`; a mismatch re-chunks and re-embeds                               | paid re-embed of the whole corpus               |
 | every bill's AI summary + key points | `ai_enrichment.py` folds the same hash into `source_version_hash`; `should_enqueue` re-runs a bill whose hash moved | paid re-run of the full ~10,400-bill enrichment |
 
 Nothing hashes `body_blocks`, so filling it in is free. That is why the structure
@@ -212,7 +214,7 @@ the column itself, so only bills stored before that landed need the backfill.
 bumps `updated_at` on any update, so **every section in the corpus carries that
 date** while its `raw_text` was not touched at all. Anyone tracing who last changed
 a section's text by timestamp will be misled into thinking the whole corpus was
-rewritten that day. To date a *text* change, compare `raw_text` against its hash
+rewritten that day. To date a _text_ change, compare `raw_text` against its hash
 (`source_hash` on the row, or the search document's `source_hash`) — a row whose
 stored hash no longer matches its text has had its text rewritten, whatever the
 timestamp says. Two sections were found in exactly that state, both from the
@@ -239,7 +241,7 @@ this section exists to prevent.
 - **Committee memberships** are scraped from those same profile pages; a
   legislator with zero committees is valid (`committee_count = 0`).
 - **Membership reconciliation (canonical PDF):** the HTML scrape only ever
-  *adds/updates* members, so a member who leaves mid-biennium lingers as
+  _adds/updates_ members, so a member who leaves mid-biennium lingers as
   `is_current`. The official printable roster PDF
   (`https://www.house.mn.gov/hinfo/leginfo/memroster.pdf`, linked as the "All
   Members Roster" from both `senate.mn` and `house.mn.gov`) is the canonical
@@ -257,7 +259,7 @@ this section exists to prevent.
 
 ## C — Roll-call votes (chamber-specific)
 
-Revisor gives roll-call *totals* (e.g. `34-33`) but not individual legislators, so
+Revisor gives roll-call _totals_ (e.g. `34-33`) but not individual legislators, so
 votes need dedicated adapters (User-Agent `Alethical Vote Backfill/0.1`):
 
 - **House:** `GET https://www.house.mn.gov/votes/Details?...` (HTML) → parses
@@ -275,15 +277,17 @@ recorded roll call or the source can't be matched deterministically.
 ## D — District lookup (query-time, not batch)
 
 Powers "Find My Legislator." Called synchronously by
-`POST /api/v1/representative-lookups`. Three stages, all public, 10s timeout, all
-endpoints env-overridable. The second stage runs only when the first finds nothing:
+`POST /api/v1/representative-lookups`. Three stages use public sources. The 2 address
+sources have a 10s timeout and env-overridable URLs. A timeout, connection failure, or
+`408`/`425`/`5xx` response gets 2 short retries after 0.2s and 0.6s. The second source
+runs when Census finds nothing or stays unavailable after those retries:
 
 1. **Geocode:** `GET https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=...&benchmark=Public_AR_Current&format=json`
    → lat/lng + state (rejects non-MN). It first tries the address as typed. When an
    address explicitly says Minnesota but has no result, it ignores punctuation and extra
    spaces, separates the house and street from the city, and retries each safe reading with
    `MN`; this recovers homes whose commonly used city or ZIP differs from the postal record.
-2. **Address-point fallback:** after Census finds nothing, query Minnesota's
+2. **Address-point fallback:** after Census finds nothing or stays unavailable, query Minnesota's
    public statewide address points at
    `https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_mngeo/loc_addresses_open/FeatureServer/0/query`.
    The request carries only the parsed house number and street name, never the city or ZIP.
@@ -291,15 +295,20 @@ endpoints env-overridable. The second stage runs only when the first finds nothi
    character only in a word with at least 5 characters. Exact ZIP, close city, street
    type, and direction rank the official results; equally close results become choices.
    The fallback refuses a close match when the state says its result list was cut short.
-3. **District:** `GET https://gis.lcc.mn.gov/api/?lat=...&lng=...` → GeoJSON
-   `features` → house/senate district codes. The returned shapes must cover the selected
-   point, and the House and Senate district numbers must nest. Their full outlines are not
-   compared because the API prepares the 2 response shapes separately. Geometry is reduced
-   only for the browser map afterward.
+3. **District:** check the point against the official 2022 House, Senate, and
+   congressional boundary files stored with the backend. The local copy contains the
+   May 26, 2023 LCC corrections. It must contain all 134 House and 67 Senate district
+   codes, every geometry must be valid, and the selected shape must cover the point.
+   Geometry is reduced only for the browser map afterward. No address or coordinate is
+   sent to LCC during a lookup.
+
+The browser shares identical lookups already in progress and reuses a successful result
+for 60s. The public endpoint still allows 10 lookup requests per source address in 60s.
+When that limit is reached it returns the remaining wait in `Retry-After`, and the page
+shows the countdown before either lookup button can send another request.
 
 Overrides: `ALETHICAL_CENSUS_GEOCODER_URL`, `ALETHICAL_CENSUS_BENCHMARK`,
-`ALETHICAL_MN_ADDRESS_POINTS_URL`, `ALETHICAL_MN_GIS_LOOKUP_URL`,
-`ALETHICAL_HTTP_TIMEOUT_SECONDS`. CLI:
+`ALETHICAL_MN_ADDRESS_POINTS_URL`, `ALETHICAL_HTTP_TIMEOUT_SECONDS`. CLI:
 `python -m alethical.api.services.representative_lookup "<address>" --json`.
 
 ## E & F — the credentialed sources (Anthropic and OpenAI)
@@ -349,17 +358,17 @@ DB **targets**: `local` (Docker Compose Postgres) and `production` (Supabase).
 
 CLI: `uv run python -m alethical.pipeline.oban --target {local|production} {install|enqueue <kind>|drain <queue>}`
 
-| Worker (`enqueue` kind) | Queue (concurrency) | Role |
-|---|---|---|
-| `pipeline-run` | `source_sync` (1) | **Coordinator** — enqueues child stages |
-| `full-bill-sync` | `source_sync` (1) | Discover all session bills |
-| `bill-sync-chunk` | `bill_sync` (**8**) | Ingest a chunk of bills + build RAG |
-| `committee-backfill` | `committee_sync` (1) | Committee memberships |
-| `vote-backfill` | `vote_sync` (1) | Roll-call votes |
-| `rag-backfill` / `rag-backfill-chunk` | `rag_sync` (1) | Rebuild retrieval chunks + embeddings. Both were missing from this table. |
-| `ai-prepare` / `ai-apply` | `ai_batch` / `ai_apply` | OpenAI Batch prepare/apply |
-| `codex-ai-*` | `ai_batch` / `ai_codex` | Local Codex enrichment |
-| `smoke` | `maintenance` (1) | Health check |
+| Worker (`enqueue` kind)               | Queue (concurrency)     | Role                                                                      |
+| ------------------------------------- | ----------------------- | ------------------------------------------------------------------------- |
+| `pipeline-run`                        | `source_sync` (1)       | **Coordinator** — enqueues child stages                                   |
+| `full-bill-sync`                      | `source_sync` (1)       | Discover all session bills                                                |
+| `bill-sync-chunk`                     | `bill_sync` (**8**)     | Ingest a chunk of bills + build RAG                                       |
+| `committee-backfill`                  | `committee_sync` (1)    | Committee memberships                                                     |
+| `vote-backfill`                       | `vote_sync` (1)         | Roll-call votes                                                           |
+| `rag-backfill` / `rag-backfill-chunk` | `rag_sync` (1)          | Rebuild retrieval chunks + embeddings. Both were missing from this table. |
+| `ai-prepare` / `ai-apply`             | `ai_batch` / `ai_apply` | OpenAI Batch prepare/apply                                                |
+| `codex-ai-*`                          | `ai_batch` / `ai_codex` | Local Codex enrichment                                                    |
+| `smoke`                               | `maintenance` (1)       | Health check                                                              |
 
 **`just pipeline-work` does not drain every queue in this table.** It covers
 `source_sync`, `bill_sync`, `committee_sync`, `vote_sync` and `ai_batch`, so
@@ -379,15 +388,15 @@ just pipeline local --write --allow-writes     # commit after review
 
 ## Script & module entrypoints (manual / debugging)
 
-| Command | Purpose |
-|---|---|
-| `uv run python scripts/load_minnesota_data.py` | Live loader — roster + profiles + smoke bill set, idempotent (`--legislator-limit N`, `--bill HF2136`, `--roster-only`, `--skip-bills`, `--reconcile-roster`, `--reconcile-only [--dry-run]`, `--session-slug`) |
-| `just reconcile-roster [apply=true]` | Reconcile current membership against the official roster PDF (dry-run by default; deactivates departed members). `ALETHICAL_DATABASE_TARGET=production` to target prod |
-| `uv run python scripts/load_sample_data.py` | Deterministic fixtures for tests/offline demos (no network) |
-| `uv run python scripts/backfill_rag_bulk.py` | Threaded RAG backfill for current versions missing chunks |
-| `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans` | Committee repair/backfill |
-| `uv run python -m alethical.pipeline.votes` | Vote backfill (debug) |
-| `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end. |
+| Command                                                                                  | Purpose                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `uv run python scripts/load_minnesota_data.py`                                           | Live loader — roster + profiles + smoke bill set, idempotent (`--legislator-limit N`, `--bill HF2136`, `--roster-only`, `--skip-bills`, `--reconcile-roster`, `--reconcile-only [--dry-run]`, `--session-slug`) |
+| `just reconcile-roster [apply=true]`                                                     | Reconcile current membership against the official roster PDF (dry-run by default; deactivates departed members). `ALETHICAL_DATABASE_TARGET=production` to target prod                                          |
+| `uv run python scripts/load_sample_data.py`                                              | Deterministic fixtures for tests/offline demos (no network)                                                                                                                                                     |
+| `uv run python scripts/backfill_rag_bulk.py`                                             | Threaded RAG backfill for current versions missing chunks                                                                                                                                                       |
+| `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans`            | Committee repair/backfill                                                                                                                                                                                       |
+| `uv run python -m alethical.pipeline.votes`                                              | Vote backfill (debug)                                                                                                                                                                                           |
+| `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end.         |
 
 ## Provenance, idempotency & data layers
 
@@ -418,7 +427,7 @@ just pipeline local --write --allow-writes     # commit after review
    OpenAI**). The stored `embedding_model` column distinguishes the two, so a
    keyed backfill replaces fallback rows.
 2. **HTML parsing is regex-based, no schema validation** — an upstream template
-   change yields *silently empty* results, not a loud failure. Watch
+   change yields _silently empty_ results, not a loud failure. Watch
    `IngestionRun` counts (roster is ~134 House / 67 Senate seats, **minus any
    current vacancies** — after membership reconciliation the current-member
    directory shows filled seats only, e.g. 133/67 while HD 21A is vacant; a bill

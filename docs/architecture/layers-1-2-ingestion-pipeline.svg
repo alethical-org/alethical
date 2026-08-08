@@ -83,7 +83,7 @@
 
   <text class="th" x="470" y="404">Query-time calls</text>
   <rect class="amber" x="470" y="414" width="196" height="30" rx="6"/>
-  <text class="ts" x="480" y="433">District: US Census + LCC-GIS</text>
+  <text class="ts" x="480" y="433">District: Census + MN addresses</text>
   <rect class="amber" x="470" y="452" width="196" height="30" rx="6"/>
   <text class="ts" x="480" y="471">Chat: OpenAI Responses</text>
   <line class="arrow" x1="450" y1="438" x2="468" y2="430" marker-end="url(#ah)"/>

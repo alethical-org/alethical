@@ -32,6 +32,7 @@ import {
   districtMapVisible,
   legislatureLabel,
   prepareAddressLookup,
+  retryWaitSeconds,
   viewStateForLookup,
 } from '../lib/findMyLegislator';
 import type { IaItem, MenuKey } from '../navigation/ia';
@@ -127,11 +128,14 @@ function errorKind(error: unknown) {
   if (!(error instanceof ApiError)) return 'service-down' as const;
   if (error.problem === 'representative-lookup-outside-minnesota')
     return 'outside-minnesota' as const;
+  if (error.status === 429) return 'rate-limited' as const;
   if (error.status === 404) return 'not-found' as const;
   return 'service-down' as const;
 }
 
-function errorCopy(state: 'not-found' | 'outside-minnesota' | 'location-error' | 'service-down') {
+function errorCopy(
+  state: 'not-found' | 'outside-minnesota' | 'location-error' | 'rate-limited' | 'service-down',
+) {
   if (state === 'not-found')
     return {
       field: 'No match for that address',
@@ -147,6 +151,11 @@ function errorCopy(state: 'not-found' | 'outside-minnesota' | 'location-error' |
       field: 'We couldn’t use your location',
       answer:
         'Your browser may have blocked location access, or the location may be outside Minnesota. Enter a complete address in the state instead.',
+    };
+  if (state === 'rate-limited')
+    return {
+      field: 'Too many lookups',
+      answer: 'Try again in up to 60 seconds',
     };
   return {
     field: 'Lookup unavailable right now',
@@ -206,6 +215,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [choiceClosed, setChoiceClosed] = useState(false);
   const [findingLocation, setFindingLocation] = useState(false);
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
   const [shimmerEnabled, setShimmerEnabled] = useState(false);
   const [findHovered, setFindHovered] = useState(false);
   const [locationHovered, setLocationHovered] = useState(false);
@@ -246,6 +256,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     state === 'not-found' ||
     state === 'outside-minnesota' ||
     state === 'location-error' ||
+    state === 'rate-limited' ||
     state === 'service-down'
       ? errorCopy(state)
       : null;
@@ -253,6 +264,20 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     activeError && state !== 'location-error' && !retainedMapResult ? activeError : null;
   const locationButtonError = state === 'location-error' ? activeError : null;
   const mapUpdateLabel = lookup.isPending ? 'Updating districts' : 'Couldn’t update districts';
+
+  useEffect(() => {
+    if (!(lookup.error instanceof ApiError) || lookup.error.status !== 429) return;
+    setRateLimitSeconds(retryWaitSeconds(lookup.error.retryAfterSeconds));
+  }, [lookup.error]);
+
+  useEffect(() => {
+    if (rateLimitSeconds <= 0) return;
+    const timer = setTimeout(
+      () => setRateLimitSeconds((seconds) => Math.max(0, seconds - 1)),
+      1000,
+    );
+    return () => clearTimeout(timer);
+  }, [rateLimitSeconds]);
 
   useEffect(() => {
     if (settledResult?.status === 'found') {
@@ -297,6 +322,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   }, [address, lookup.variables, navigation, settledResult]);
 
   const runAddress = (value: string) => {
+    if (rateLimitSeconds > 0) return;
     const { serviceAddress } = prepareAddressLookup(value);
     if (!serviceAddress) return;
     setAddress(value);
@@ -318,6 +344,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     coordinate: RepresentativeLookupCoordinates,
     source: 'choice' | 'location' | 'map' = 'map',
   ) => {
+    if (rateLimitSeconds > 0) return;
     setClientError(null);
     setChoiceClosed(true);
     if (!isCoordinateInMinnesota(coordinate)) {
@@ -375,7 +402,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   }, [route.params?.locationFailure]);
 
   const useLocation = () => {
-    if (findingLocation || lookup.isPending) return;
+    if (findingLocation || lookup.isPending || rateLimitSeconds > 0) return;
     setAddress('');
     lookup.reset();
     setPreserveMapViewport(false);
@@ -402,7 +429,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     );
   };
   const findAddress = () => {
-    if (lookup.isPending) return;
+    if (lookup.isPending || rateLimitSeconds > 0) return;
     if (!address.trim()) {
       addressInputRef.current?.focus();
       return;
@@ -474,6 +501,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   );
   const locationLabel = findingLocation ? 'Finding your location…' : 'Use my location';
   const locationBusy = findingLocation || lookup.isPending;
+  const lookupDisabled = lookup.isPending || rateLimitSeconds > 0;
+  const locationDisabled = locationBusy || rateLimitSeconds > 0;
   const toggleMap = () => {
     setMapExpanded((value) => {
       const next = !value;
@@ -489,8 +518,11 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const renderFindButton = (mobile: boolean) => (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Find legislators"
-      accessibilityState={{ busy: lookup.isPending, disabled: lookup.isPending }}
+      accessibilityLabel={
+        rateLimitSeconds > 0 ? `Try again in ${rateLimitSeconds}s` : 'Find legislators'
+      }
+      accessibilityState={{ busy: lookup.isPending, disabled: lookupDisabled }}
+      disabled={lookupDisabled}
       onHoverIn={() => setFindHovered(true)}
       onHoverOut={() => setFindHovered(false)}
       onPress={findAddress}
@@ -498,12 +530,17 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
         styles.findButton,
         mobile && styles.fullWidthButton,
         findHovered && styles.findButtonHovered,
+        lookupDisabled && styles.disabledButton,
         pressed && styles.pressed,
       ]}
     >
       <Search size={17} color="#06231a" aria-hidden />
       <Text style={[styles.findButtonText, mobile && styles.findButtonTextMobile]}>
-        {mobile ? 'Find my legislator' : 'Find'}
+        {rateLimitSeconds > 0
+          ? `Try again in ${rateLimitSeconds}s`
+          : mobile
+            ? 'Find my legislator'
+            : 'Find'}
       </Text>
     </Pressable>
   );
@@ -511,7 +548,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={locationLabel}
-      accessibilityState={{ busy: locationBusy, disabled: locationBusy }}
+      accessibilityState={{ busy: locationBusy, disabled: locationDisabled }}
+      disabled={locationDisabled}
       aria-describedby={locationButtonError ? LOCATION_ERROR_ID : undefined}
       onHoverIn={() => setLocationHovered(true)}
       onHoverOut={() => setLocationHovered(false)}
@@ -520,6 +558,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
         styles.locationButton,
         mobile && styles.locationButtonMobile,
         locationHovered && styles.locationButtonHovered,
+        locationDisabled && styles.disabledButton,
         pressed && styles.pressed,
       ]}
     >
@@ -916,6 +955,7 @@ const styles = StyleSheet.create({
     paddingLeft: 23,
   },
   findButtonHovered: { backgroundColor: '#28bf71' },
+  disabledButton: { opacity: 0.55 },
   fullWidthButton: {
     width: '100%',
     minHeight: 48,

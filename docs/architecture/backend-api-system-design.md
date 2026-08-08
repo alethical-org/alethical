@@ -335,7 +335,7 @@ and pinned by `alethical/tests/test_auth_multi_user_isolation.py`,
   create one if there is none; then create the `auth_identity` and commit once.
 
 **The email lookup is deliberate.** One person who signs in with Google today and a
-second method tomorrow gets two `auth_identity` rows on the *same* `user_account`,
+second method tomorrow gets two `auth_identity` rows on the _same_ `user_account`,
 rather than silently starting over with an empty one — which is the whole reason
 `user_account` and `auth_identity` are separate tables. `user_account.primary_email`
 is `unique=True`, so at most one account can hold a given address and the lookup
@@ -343,16 +343,16 @@ cannot pick the wrong one of two.
 
 **Only a confirmed address may take part in it**
 ([#1039](https://github.com/alethical-org/alethical/issues/1039), Aug 5 2026). The
-address is the *only* thing the join trusts, so `_confirmed_email` gates both halves of
+address is the _only_ thing the join trusts, so `_confirmed_email` gates both halves of
 it, and the second half is the one easy to miss:
 
 - **Matching.** The lookup runs only when `principal.email_verified` is true. An
   identity whose address the provider never confirmed cannot present it to reach an
   existing account and its tracked bills, chat sessions and saved places.
-- **Claiming.** `primary_email` is never *written* from an unconfirmed address either
+- **Claiming.** `primary_email` is never _written_ from an unconfirmed address either
   — not at provisioning, not by `_reconcile_identity_fields`. Guarding only the match
   leaves the same hole facing backwards: an unconfirmed identity arriving first would
-  reserve the address, and the person who genuinely owns it would join *their* account
+  reserve the address, and the person who genuinely owns it would join _their_ account
   on arrival. So an account provisioned from an unconfirmed sign-in has
   `primary_email = NULL`; the claimed address is still recorded on `auth_identity.email`,
   which is not unique and grants nothing.
@@ -377,19 +377,19 @@ switch that looked like a lock and was not one. `_refuse_if_deactivated` now run
 every request that resolves a user, returning `403` with the problem type
 `account-deactivated`. Three details are load-bearing and each has its own test:
 
-- **On the resolution path it runs *before* `_reconcile_identity_fields`.** Move it after
+- **On the resolution path it runs _before_ `_reconcile_identity_fields`.** Move it after
   and a locked account still writes a row on its way to being refused — refused in the
   response, active in the database. Every other deactivation test stays green through
   that move, which is why the ordering is pinned separately.
-- **On the provisioning path it runs on the *joined* account, before the `auth_identity`
+- **On the provisioning path it runs on the _joined_ account, before the `auth_identity`
   row is written.** A locked account still owns its confirmed address, and joining on
   that address is exactly how a second sign-in method reaches an existing account, so
   without this "sign in with something else" walks straight back in.
 - **On the optional-auth endpoints it resolves to anonymous rather than erroring, and
   the difference is carried on the request instead.** Those three call sites
   (`public.py` bill list and bill detail, `ask.py`) take a token only to personalise an
-  otherwise public page. Erroring there would lock someone out of the *public
-  legislative record* because their account is locked, which is the opposite of what
+  otherwise public page. Erroring there would lock someone out of the _public
+  legislative record_ because their account is locked, which is the opposite of what
   this product is for (`docs/philosophy.md`), and "they can sign out and read it" is a
   workaround for a break we chose to create.
 
@@ -416,7 +416,7 @@ what now decides whether an identity may join an existing account. It reads
 unconfirmed account can obtain a token at all is a Supabase project setting this
 repository neither controls nor records. Two of the three possible answers make the guard
 insurance that never fires. The third defeats it: with Supabase's **Confirm email** turned
-*off*, every new sign-up is marked confirmed without anything being checked, so
+_off_, every new sign-up is marked confirmed without anything being checked, so
 `email_confirmed_at` arrives set on an address nobody proved and `email_verified` cannot
 tell the difference. **A guard on a claim is only as good as whoever issues the claim.**
 The setting has not been read — steps and how to read the result are in
@@ -508,7 +508,7 @@ Response fields (`BillListItem`, `alethical/api/schemas.py`):
   `co_author_count`, `companion`, `ai_analysis`, `actions`
 - ~~chamber~~ and ~~session~~ — **NOT RETURNED** on a list item, despite being listed here for
   months. Chamber is recoverable from the bill number's HF/SF prefix; session comes from the
-  `session` you filtered by. The bill *detail* response is the one that carries them.
+  `session` you filtered by. The bill _detail_ response is the one that carries them.
 
 #### `GET /api/v1/bills/{bill_id}`
 
@@ -697,7 +697,7 @@ Pinned location request body:
 ```json
 {
   "latitude": 44.9537,
-  "longitude": -93.0900
+  "longitude": -93.09
 }
 ```
 
@@ -714,12 +714,14 @@ Rationale:
 - POST is appropriate because the lookup payload can be structured and may exceed simple query-string ergonomics
 - map-pin lookup should bypass address geocoding and resolve districts directly from latitude and longitude
 - address lookup first asks the US Census for the address as typed; if it finds nothing, punctuation-free Minnesota input is split into house, street, city, state, and ZIP before Census retries the house and street with Minnesota
+- each address source gets 2 short retries after 0.2s and 0.6s for timeouts, connection failures, and `408`/`425`/`5xx` responses; a Census outage then uses the Minnesota address-point source instead of ending the lookup immediately
 - the parser ignores commas, periods, repeated spaces, common street abbreviations, and full street endings found in Minnesota's official address list; `St`, `Mt`, and `Ft` city forms are normalized for ranking
-- if Census finds nothing, the backend asks Minnesota's public statewide address-point list using only the exact house number and street name; it tries an exact street first, then allows 1 added, missing, changed, or swapped character only in a word with at least 5 characters
+- if Census finds nothing or stays unavailable, the backend asks Minnesota's public statewide address-point list using only the exact house number and street name; it tries an exact street first, then allows 1 added, missing, changed, or swapped character only in a word with at least 5 characters
 - exact ZIP and close city matches rank official results, while the supplied street type and direction break remaining ties; equally close addresses become choices, and an incomplete state result list is refused rather than guessed
-- House and Senate come from the Minnesota Legislative Coordinating Commission lookup service; Congress is read from the commission's official 2022 district map stored with the backend, so a person's precise point is not sent to another outside service and number-only rows are not mistaken for congressional districts
+- House, Senate, and Congress are read from the Minnesota Legislative Coordinating Commission's official 2022 boundary files stored with the backend, including the May 26, 2023 legislative corrections; a person's precise point is not sent to the commission during a lookup
 - single-digit House and Senate numbers from that map are padded before the saved district lookup (`4A`/`4` becomes `04A`/`04`), matching the official records instead of falsely reporting no address match
-- each returned House and Senate shape must cover the selected point, their district numbers must nest, and a House interior point must remain inside the Senate shape; their full outlines are not compared because the lookup service prepares those response shapes separately, and the smaller browser copy is made only after these checks
+- the bundled map is refused unless it has all 134 House and 67 Senate district codes and valid shapes; each returned shape must cover the selected point, and the smaller browser copy is made only after that check
+- the browser shares identical requests already in progress and reuses a successful result for 60s; the API still allows 10 lookup requests per public IP in 60s and returns the remaining wait in `Retry-After` when the limit is reached
 
 ### Cross-Entity Search
 
@@ -811,7 +813,10 @@ Purpose:
 Takes no body. Returns the user's **previous** visit and advances the mark to now in one call:
 
 ```json
-{ "previous_viewed_at": "2026-03-12T14:00:00+00:00", "viewed_at": "2026-08-05T17:33:31+00:00" }
+{
+  "previous_viewed_at": "2026-03-12T14:00:00+00:00",
+  "viewed_at": "2026-08-05T17:33:31+00:00"
+}
 ```
 
 `previous_viewed_at` is `null` for a user with no recorded visit — their first look, which the page states as such rather than reporting every bill as having just moved.
@@ -824,7 +829,7 @@ Backed by `user_account.tracked_bills_last_viewed_at` (alembic `0025`), a column
 
 Written down in advance because the signed-in homepage is designed to carry a "Session watch" card using the same change blocks, and because the first mistake here is invisible in review. Decided Aug 2026 between the sessions that built #1009 and the homepage design; nothing below is built yet.
 
-**Only the tracked list may advance the mark.** A surface showing a *subset* must read without advancing. The homepage card shows up to two bills; if a glance at it moved the mark for the whole set, a reader with six moved bills would see two and the other four would never be reported — information loss dressed as a feature.
+**Only the tracked list may advance the mark.** A surface showing a _subset_ must read without advancing. The homepage card shows up to two bills; if a glance at it moved the mark for the whole set, a reader with six moved bills would see two and the other four would never be reported — information loss dressed as a feature.
 
 **The trap: a missing comparison point currently reads as "first visit", which renders as "nothing moved".** `readHeldLastVisit` (`apps/frontend/src/lib/trackedBillsLastVisit.ts`) is pure and never triggers the POST, so it is safe to call — but on a cold load with nothing held it returns `null`, `lastVisitDate(null)` returns `null`, and `groupTrackedBillsByChange` reads a null comparison point as a first visit and puts **every bill in the unchanged group**. So a card doing the obvious `lastVisitDate(readHeldLastVisit(userId))` would state that nothing had moved on a session where six bills had. Every individual line of that is correct, which is why it would pass review. **A second surface needs a third condition — "we have not asked yet" — that renders neither a change nor an absence.**
 

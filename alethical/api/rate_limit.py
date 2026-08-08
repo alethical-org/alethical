@@ -1,6 +1,6 @@
 """First-line rate limiting for public endpoints that call paid/third-party
-services (Grounded Ask's OpenAI classify call, the Census/LCC-GIS representative
-lookup). See issue #98.
+services (Grounded Ask's model call and the public address sources used by
+representative lookup). See issue #98.
 
 Scope and limits: state is in-memory and per-process, so behind multiple uvicorn
 workers or Railway replicas the effective ceiling is
@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import time
 from collections import deque
+from math import ceil
 
 from fastapi import Request
 
@@ -35,6 +36,22 @@ class SlidingWindowLimiter:
         self._hits: dict[str, deque[float]] = {}
 
     def allow(self, key: str, now: float) -> bool:
+        hits = self._active_hits(key, now)
+        # A rejected request is not recorded, so a hammering client's window can
+        # still drain and recover once it backs off.
+        if len(hits) >= self.max_requests:
+            return False
+        hits.append(now)
+        return True
+
+    def retry_after_seconds(self, key: str, now: float) -> int | None:
+        """Whole seconds until this key can record another request."""
+        hits = self._active_hits(key, now)
+        if len(hits) < self.max_requests:
+            return None
+        return max(1, ceil(hits[0] + self.window_seconds - now))
+
+    def _active_hits(self, key: str, now: float) -> deque[float]:
         window_start = now - self.window_seconds
         hits = self._hits.get(key)
         if hits is None:
@@ -42,12 +59,7 @@ class SlidingWindowLimiter:
             self._hits[key] = hits
         while hits and hits[0] <= window_start:
             hits.popleft()
-        # A rejected request is not recorded, so a hammering client's window can
-        # still drain and recover once it backs off.
-        if len(hits) >= self.max_requests:
-            return False
-        hits.append(now)
-        return True
+        return hits
 
 
 def limiter_from_env(
@@ -89,12 +101,16 @@ def rate_limit(state_attr: str, scope: str):
 
     def dependency(request: Request) -> None:
         limiter: SlidingWindowLimiter = getattr(request.app.state, state_attr)
-        if not limiter.allow(f"{scope}:{client_ip(request)}", time.monotonic()):
+        key = f"{scope}:{client_ip(request)}"
+        now = time.monotonic()
+        if not limiter.allow(key, now):
+            retry_after = limiter.retry_after_seconds(key, now) or 1
             raise problem_exception(
                 429,
                 "Too Many Requests",
                 "Rate limit exceeded — please wait a moment and try again.",
                 type_slug="rate-limited",
+                headers={"Retry-After": str(retry_after)},
             )
 
     return dependency

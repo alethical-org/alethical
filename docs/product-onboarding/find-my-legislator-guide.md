@@ -34,6 +34,9 @@ find it, Alethical checks Minnesota's official statewide address list. It looks 
 exact house number and closest safe street name, then uses the ZIP, city, street ending,
 and direction to rank the official matches.
 
+A brief timeout or server error gets 2 quick retries. If Census still does not answer,
+Alethical uses Minnesota's address list instead of ending the lookup immediately.
+
 If 1 address is clearly closest, Alethical uses it. If several official addresses are
 equally close, **Choose your address** appears with up to 5 choices. Click or tap the
 right one. With a keyboard, use the up and down arrows, Enter to choose, or Escape to
@@ -114,8 +117,12 @@ number, but it does not show a member of Congress.
   legislative districts.
 - **We couldn't use your location:** The browser blocked location access, could not get
   a point, or returned a point outside Minnesota. Enter a street address instead.
-- **Lookup unavailable right now:** A public government address or district service did
-  not answer. The address itself may be fine. Try again later.
+- **Too many lookups:** The page has reached the 10-lookups-per-60-seconds safety limit
+  for the public internet address making the requests. It says **Try again in up to 60
+  seconds** and counts down on the Find button. The message has no ending period.
+- **Lookup unavailable right now:** Both public government address sources did not
+  answer, or a local district file could not be read. The address itself may be fine.
+  Try again later.
 - **Seat vacant:** The district was found, but no current member holds that seat.
 
 While a lookup is running, the page says **Looking up your districts** and shows 2
@@ -132,7 +139,7 @@ The lookup uses public records and public map services:
 - the Minnesota Geospatial Information Office supplies the backup statewide address
   list;
 - [Minnesota's Legislative Coordinating Commission](https://gis.lcc.mn.gov/) supplies
-  the state House and Senate district lines;
+  the state House and Senate district lines stored with Alethical;
 - an official 2022 congressional district map stored with Alethical supplies the U.S.
   congressional district number; and
 - [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) supply the
@@ -143,8 +150,9 @@ What happens to the location data:
 - A typed address is sent to the U.S. Census Bureau without an Alethical account ID.
 - If the Census search fails, the Minnesota backup receives only the house number and
   street name, not the city or ZIP.
-- A successful address, browser location, or map point sends its latitude and longitude
-  to Minnesota's Legislative Coordinating Commission to find the state districts.
+- A successful address, browser location, or map point is checked against official
+  district files stored with Alethical. Its latitude and longitude are not sent to the
+  Minnesota Legislative Coordinating Commission.
 - The lookup does not require sign-in and does not read your Alethical account.
 - Alethical does not offer a button that saves this address or point to your account.
 - The address in the box appears in the page's browser link so the lookup can reload.
@@ -165,6 +173,12 @@ The full record of what Alethical keeps and shares is in
   searches do not identify a district.
 - A near match is accepted only under the narrow rules above. This is not a general
   guess at what an address might mean.
-- Results depend on public government services. A temporary failure can block a lookup.
+- The browser shares identical requests already in progress and reuses a successful
+  result for 60 seconds. Failed results are not reused.
+- The public endpoint accepts 10 lookup requests from 1 public internet address in 60
+  seconds. The browser blocks both lookup buttons for the remaining wait after the
+  endpoint returns that limit.
+- Results depend on 2 public government address services. Both must remain unavailable
+  after their retries before a temporary source failure blocks an address lookup.
 - The page shows current state legislators from Alethical's official-record database.
   Contact details or committee facts may be missing when the source record is missing.

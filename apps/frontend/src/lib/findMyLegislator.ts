@@ -10,6 +10,7 @@ export type FindLegislatorState =
   | 'outside-minnesota'
   | 'location-error'
   | 'vacant'
+  | 'rate-limited'
   | 'service-down';
 
 export function prepareAddressLookup(rawAddress: string): {
@@ -43,17 +44,23 @@ export function viewStateForLookup(input: {
   found?: boolean;
   choices?: number;
   vacant?: boolean;
-  error?: 'not-found' | 'outside-minnesota' | 'location' | 'service-down';
+  error?: 'not-found' | 'outside-minnesota' | 'location' | 'rate-limited' | 'service-down';
 }): FindLegislatorState {
   if (input.pending) return 'looking';
   if (input.choices) return 'choice';
   if (input.error === 'not-found') return 'not-found';
   if (input.error === 'outside-minnesota') return 'outside-minnesota';
   if (input.error === 'location') return 'location-error';
+  if (input.error === 'rate-limited') return 'rate-limited';
   if (input.error === 'service-down') return 'service-down';
   if (input.found && input.vacant) return 'vacant';
   if (input.found) return 'found';
   return 'empty';
+}
+
+export function retryWaitSeconds(retryAfterSeconds?: number | null): number {
+  const seconds = Number.isFinite(retryAfterSeconds) ? Math.ceil(retryAfterSeconds!) : 60;
+  return Math.min(60, Math.max(1, seconds));
 }
 
 export function addressChoiceKey(

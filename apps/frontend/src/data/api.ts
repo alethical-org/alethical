@@ -546,12 +546,19 @@ export class ApiError extends Error {
    * apart because the body was only ever kept as an unparsed string.
    */
   readonly problem: string | null;
+  readonly retryAfterSeconds: number | null;
 
-  constructor(status: number, message: string, problem: string | null = null) {
+  constructor(
+    status: number,
+    message: string,
+    problem: string | null = null,
+    retryAfterSeconds: number | null = null,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.problem = problem;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -576,8 +583,18 @@ function problemSlug(body: string): string | null {
  * signed out: `isAccountDeactivatedError` only compares two fields, so a test
  * that constructs `ApiError` by hand proves nothing about the parsing (#1092).
  */
-export function apiErrorFromBody(status: number, body: string): ApiError {
-  return new ApiError(status, body || `API request failed with ${status}`, problemSlug(body));
+export function apiErrorFromBody(
+  status: number,
+  body: string,
+  retryAfterHeader: string | null = null,
+): ApiError {
+  const retryAfterSeconds = /^\d+$/.test(retryAfterHeader ?? '') ? Number(retryAfterHeader) : null;
+  return new ApiError(
+    status,
+    body || `API request failed with ${status}`,
+    problemSlug(body),
+    Number.isSafeInteger(retryAfterSeconds) ? retryAfterSeconds : null,
+  );
 }
 
 /** True when the API said the thing does not exist, so there is nothing to retry. */
@@ -644,7 +661,11 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
   });
 
   if (!response.ok) {
-    const error = apiErrorFromBody(response.status, await response.text());
+    const error = apiErrorFromBody(
+      response.status,
+      await response.text(),
+      response.headers.get('Retry-After'),
+    );
     if (isAccountDeactivatedError(error)) {
       // Every authenticated request comes through here, so whichever one the
       // reader happened to trigger is enough to notice. Without this the app
@@ -670,7 +691,11 @@ async function publicApiRequest<T>(path: string): Promise<T> {
   });
 
   if (!response.ok) {
-    throw apiErrorFromBody(response.status, await response.text());
+    throw apiErrorFromBody(
+      response.status,
+      await response.text(),
+      response.headers.get('Retry-After'),
+    );
   }
 
   return (await response.json()) as T;
@@ -687,7 +712,11 @@ async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
   });
 
   if (!response.ok) {
-    throw apiErrorFromBody(response.status, await response.text());
+    throw apiErrorFromBody(
+      response.status,
+      await response.text(),
+      response.headers.get('Retry-After'),
+    );
   }
 
   return (await response.json()) as T;
@@ -1943,6 +1972,13 @@ export async function listLegislatorsFromApi(
   return response.data.map(mapLegislator);
 }
 
+const REPRESENTATIVE_LOOKUP_REUSE_MS = 60_000;
+const representativeLookupCache = new Map<
+  string,
+  { expiresAt: number; result: RepresentativeLookupResult }
+>();
+const representativeLookupInFlight = new Map<string, Promise<RepresentativeLookupResult>>();
+
 export async function lookupRepresentativeFromApi(
   input: RepresentativeLookupInput,
 ): Promise<RepresentativeLookupResult | null> {
@@ -1955,12 +1991,40 @@ export async function lookupRepresentativeFromApi(
     return null;
   }
 
-  const response = await publicApiPost<DetailResponse<ApiRepresentativeLookupPayload>>(
+  const key = JSON.stringify(body);
+  const cached = representativeLookupCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.result;
+  }
+  if (cached) {
+    representativeLookupCache.delete(key);
+  }
+
+  const existing = representativeLookupInFlight.get(key);
+  if (existing) {
+    return existing;
+  }
+
+  const request = publicApiPost<DetailResponse<ApiRepresentativeLookupPayload>>(
     '/representative-lookups',
     body,
-  );
+  ).then((response) => {
+    const result = mapRepresentativeLookup(response.data);
+    representativeLookupCache.set(key, {
+      expiresAt: Date.now() + REPRESENTATIVE_LOOKUP_REUSE_MS,
+      result,
+    });
+    return result;
+  });
+  representativeLookupInFlight.set(key, request);
 
-  return mapRepresentativeLookup(response.data);
+  try {
+    return await request;
+  } finally {
+    if (representativeLookupInFlight.get(key) === request) {
+      representativeLookupInFlight.delete(key);
+    }
+  }
 }
 
 export async function getLegislatorFromApi(legislatorId: string): Promise<Legislator | null> {
