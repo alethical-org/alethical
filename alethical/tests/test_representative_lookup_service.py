@@ -133,19 +133,92 @@ def test_state_address_suggestions_wait_for_two_street_letters(monkeypatch):
     assert calls == []
 
 
-def test_state_address_suggestions_allow_one_digit_for_numbered_streets(monkeypatch):
+@pytest.mark.parametrize(
+    (
+        "address_text",
+        "house_number",
+        "street_name",
+        "direction",
+        "wrong_direction",
+        "city",
+        "zip_code",
+    ),
+    [
+        ("350 S 5", 350, "5th", "South", "North", "Minneapolis", "55415"),
+        ("100 NW 1", 100, "1st", "Northwest", "Southeast", "Adams", "55909"),
+    ],
+)
+def test_state_address_suggestions_match_numbered_streets_when_the_official_direction_is_trailing(
+    monkeypatch,
+    address_text,
+    house_number,
+    street_name,
+    direction,
+    wrong_direction,
+    city,
+    zip_code,
+):
     seen_params = {}
 
     def get(url, *, params, timeout):
         seen_params.update(params)
-        return FakeResponse({"features": []})
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=house_number,
+                        anumberpre=None,
+                        anumbersuf=None,
+                        st_pre_mod=None,
+                        st_pre_dir=None,
+                        st_pre_typ=None,
+                        st_pre_sep=None,
+                        st_name=street_name,
+                        st_pos_typ="Street",
+                        st_pos_dir=direction,
+                        st_pos_mod=None,
+                        postcomm=None,
+                        ctu_name=city,
+                        zip=zip_code,
+                        state_code="MN",
+                        longitude=-93.2657,
+                        latitude=44.9774,
+                        status="Active",
+                    ),
+                    address_point_feature(
+                        anumber=house_number,
+                        anumberpre=None,
+                        anumbersuf=None,
+                        st_pre_mod=None,
+                        st_pre_dir=None,
+                        st_pre_typ=None,
+                        st_pre_sep=None,
+                        st_name=street_name,
+                        st_pos_typ="Street",
+                        st_pos_dir=wrong_direction,
+                        st_pos_mod=None,
+                        postcomm=None,
+                        ctu_name="Wrong direction",
+                        zip="00000",
+                        state_code="MN",
+                        longitude=-93.2657,
+                        latitude=44.9774,
+                        status="Active",
+                    ),
+                ]
+            }
+        )
 
     monkeypatch.setattr(
         "alethical.api.services.representative_lookup.requests.get", get
     )
 
-    assert MinnesotaAddressPointGeocoder().suggest_matches("350 S 5") == []
-    assert "UPPER(st_name) LIKE '5%'" in seen_params["where"]
+    matches = MinnesotaAddressPointGeocoder().suggest_matches(address_text)
+
+    assert [match.matched_address for match in matches] == [
+        f"{house_number} {street_name} Street {direction}, {city}, MN {zip_code}"
+    ]
+    assert f"UPPER(st_name) LIKE '{street_name[0]}%'" in seen_params["where"]
 
 
 def test_state_address_suggestions_rank_a_typed_city_and_zip_locally(monkeypatch):

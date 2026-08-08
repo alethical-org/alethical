@@ -1077,7 +1077,11 @@ class MinnesotaAddressPointGeocoder:
         ):
             return None
         if street_name != query.street_names[0] and query.pre_direction:
-            if self._direction(attributes.get("st_pre_dir")) != query.pre_direction:
+            candidate_directions = {
+                self._direction(attributes.get("st_pre_dir")),
+                candidate_post_direction,
+            }
+            if query.pre_direction not in candidate_directions:
                 return None
         try:
             latitude = float(attributes["latitude"])

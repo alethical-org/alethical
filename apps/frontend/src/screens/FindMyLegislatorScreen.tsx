@@ -716,7 +716,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             ) : null}
             {suggestionsOpen && suggestionsAreCurrent && addressSuggestions.isFetching ? (
               <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
-                Finding matching Minnesota addresses…
+                Finding matching addresses…
               </Text>
             ) : null}
             {suggestionsOpen && suggestionsAreCurrent && addressSuggestions.isError ? (
@@ -729,13 +729,13 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             addressSuggestions.isSuccess &&
             !addressSuggestions.data.length ? (
               <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
-                No matching Minnesota addresses yet. Keep typing or choose Find.
+                No matching Minnesota addresses yet. Keep typing.
               </Text>
             ) : null}
             {choices.length ? (
               <View style={styles.choiceWrap}>
                 <Text style={styles.choiceTitle}>
-                  {showingSuggestions ? 'Suggested Minnesota addresses' : 'Choose your address'}
+                  {showingSuggestions ? 'Suggested addresses' : 'Choose your address'}
                 </Text>
                 <View
                   nativeID={ADDRESS_CHOICES_ID}
@@ -762,8 +762,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 <Text style={styles.choiceHelp}>
                   Use <Text style={styles.choiceKey}>↑</Text> and{' '}
                   <Text style={styles.choiceKey}>↓</Text> to move,{' '}
-                  <Text style={styles.choiceKey}>Enter</Text> to choose,{' '}
-                  <Text style={styles.choiceKey}>Esc</Text> to close
+                  <Text style={styles.choiceKey}>Enter</Text> to choose
                 </Text>
               </View>
             ) : null}
@@ -777,7 +776,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             accessibilityLiveRegion="polite"
           >
             {state === 'looking' && !retainedMapResult ? (
-              <View accessible accessibilityLabel="Looking up your districts">
+              <View accessible accessibilityLabel="Looking up districts">
                 <View style={styles.looking}>
                   {reducedMotion() ? (
                     <View style={styles.staticSpinner} />
@@ -785,7 +784,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     <ActivityIndicator color="#6f756f" />
                   )}
                   <Text style={[styles.lookingTitle, isMobile && styles.lookingTitleMobile]}>
-                    Looking up your districts
+                    Looking up districts
                   </Text>
                 </View>
                 <View style={[styles.skeletonCards, isMobile && styles.skeletonCardsMobile]}>
