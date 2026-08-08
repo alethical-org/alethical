@@ -79,4 +79,18 @@ describe('desktop bill groups continue into the matching Bill Search view', () =
     expect(mobileSource).toContain('accessibilityLabel="See more In the News bills"');
     expect(mobileSource).toContain('accessibilityLabel="See more Legislative Bill Activity"');
   });
+
+  it('uses the complete Find My Legislator description in both homepage layouts', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../screens/redesign/HomeSignedOutScreen.tsx',
+      ),
+      'utf8',
+    ).replace(/\s+/g, ' ');
+    const description =
+      'See who represents you in the Minnesota House and Senate, and learn about their work and how to contact them.';
+
+    expect(source.split(description)).toHaveLength(3);
+  });
 });
