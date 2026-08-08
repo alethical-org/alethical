@@ -239,8 +239,6 @@ export const theme = {
     body: webFont("'Libre Franklin', Helvetica, Arial, sans-serif"),
     ui: webFont("'Libre Franklin', Helvetica, Arial, sans-serif"),
     mono: webFont("'JetBrains Mono', 'Courier New', monospace"),
-    // v2 home: the "Grounded Ask" pill only
-    sora: webFont("'Sora', 'Libre Franklin', Helvetica, Arial, sans-serif"),
     // Brand wordmark (logo lockup) only
     wordmark: webFont("'Space Grotesk', 'Libre Franklin', Helvetica, Arial, sans-serif"),
   },
