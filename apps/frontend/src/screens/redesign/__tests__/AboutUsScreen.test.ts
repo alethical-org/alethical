@@ -32,6 +32,9 @@ describe('About us screen contract', () => {
     expect(SCREEN.match(/destination: '/g)).toHaveLength(4);
     expect(SCREEN).toContain('linkProps(item.href, item.onPress)');
     expect(SCREEN).not.toContain('linkProps(item.roadmap');
+    expect(SCREEN).toContain(
+      'See who represents you in the Minnesota House and Senate, and learn about their work and how to contact them.',
+    );
   });
 
   it('uses the shared page frame and the existing Contact us route', () => {
