@@ -291,7 +291,7 @@ frame with padding, letterboxing the wide desktop box rather than cropping. (Ref
 `preserveAspectRatio: meet` when empty, `slice` once a district is selected; in the build, fit the state
 bounds rather than a fixed zoom — the right zoom differs between the desktop and phone maps.)
 
-## Nothing-entered state — separate the map action from movement help (AUG 8)
+## Map instructions — separate the map action from movement help (AUG 8)
 
 A **swap, not an addition.** Live draws a bordered panel with a pin glyph reading _"Your Minnesota
 legislators will appear here."_ Remove the panel — border, glyph and copy. In its place, the plain
@@ -301,6 +301,8 @@ sentence below the map's movement help:
 
 The phone uses **Tap**. The smaller line directly below the map says **Drag the map to explore**,
 followed by the zoom help. The phone adds **with 1 finger**.
+The same 2 lines stay in place after an address, saved lookup, or map point loads. There is no
+selected-location copy variant.
 
 Libre Franklin 18px/400, `#4f5651`, left-aligned, max-width ~56ch, wraps naturally, **no container**.
 
