@@ -90,6 +90,36 @@ function ContactEmailLink() {
   );
 }
 
+function FailureEmailLink() {
+  const [active, setActive] = useState(false);
+  const mailto = 'mailto:ask@alethical.com';
+
+  if (Platform.OS === 'web') {
+    return createElement(
+      'a',
+      {
+        href: mailto,
+        onBlur: () => setActive(false),
+        onFocus: () => setActive(true),
+        onMouseEnter: () => setActive(true),
+        onMouseLeave: () => setActive(false),
+        style: StyleSheet.flatten([styles.failureLink, active && styles.failureLinkActive]) as any,
+      },
+      'ask@alethical.com',
+    );
+  }
+
+  return (
+    <Text
+      accessibilityRole="link"
+      onPress={() => void Linking.openURL(mailto)}
+      style={styles.failureLink}
+    >
+      ask@alethical.com
+    </Text>
+  );
+}
+
 function ContactFieldInput({
   field,
   value,
@@ -304,15 +334,35 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
                 <View
                   accessibilityLiveRegion="polite"
                   {...(Platform.OS === 'web' ? ({ role: 'status' } as any) : {})}
-                  style={styles.sentPanel}
+                  style={[styles.sentPanel, isMobile && styles.sentPanelMobile]}
                 >
-                  <Text style={styles.sentMark}>✓</Text>
-                  <Text style={styles.sentTitle}>Message sent</Text>
-                  <Text style={styles.sentText}>It&apos;s on its way to ask@alethical.com.</Text>
+                  <View style={[styles.sentMark, isMobile && styles.sentMarkMobile]}>
+                    <Svg
+                      width={isMobile ? 24 : 26}
+                      height={isMobile ? 24 : 26}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden
+                    >
+                      <Path
+                        d="M5 12.5 L10 17.5 L19 7"
+                        stroke="#0f7a45"
+                        strokeWidth={2.4}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                  </View>
+                  <Text style={[styles.sentTitle, isMobile && styles.sentTitleMobile]}>
+                    Message sent
+                  </Text>
+                  <Text style={[styles.sentText, isMobile && styles.sentTextMobile]}>
+                    On its way to ask@alethical.com
+                  </Text>
                   <Pressable
                     accessibilityRole="button"
                     onPress={reset}
-                    style={styles.secondaryButton}
+                    style={[styles.secondaryButton, isMobile && styles.secondaryButtonMobile]}
                   >
                     <Text style={styles.secondaryButtonText}>Send another message</Text>
                   </Pressable>
@@ -333,14 +383,6 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
                       }}
                     />
                   ))}
-                  {state.sendFailed ? (
-                    <View accessibilityRole="alert" style={styles.failureBox}>
-                      <Text style={styles.failureTitle}>We couldn&apos;t send that.</Text>
-                      <Text style={styles.failureText}>
-                        Nothing was lost. Try again, or email ask@alethical.com directly.
-                      </Text>
-                    </View>
-                  ) : null}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityState={{
@@ -363,6 +405,34 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
                       {state.status === 'sending' ? 'Sending…' : 'Send message'}
                     </Text>
                   </Pressable>
+                  {state.sendFailed ? (
+                    <View
+                      accessibilityRole="alert"
+                      style={[styles.failureRow, isMobile && styles.failureRowMobile]}
+                    >
+                      <Svg
+                        width={18}
+                        height={18}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        style={styles.failureIcon}
+                        aria-hidden
+                      >
+                        <Path
+                          d="M12 8 V13 M12 16.5 V16.6 M4 20 H20 L13.7 5 A2 2 0 0 0 10.3 5 Z"
+                          stroke="#a76a1a"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </Svg>
+                      <Text style={[styles.failureText, isMobile && styles.failureTextMobile]}>
+                        <Text style={styles.failureTitle}>Couldn&apos;t send.</Text>
+                        {' Try again, or email '}
+                        <FailureEmailLink />
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               )}
             </View>
@@ -497,28 +567,33 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 7,
   },
-  failureBox: {
-    backgroundColor: '#fff8e7',
-    borderWidth: 1,
-    borderColor: '#d4a72c',
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 18,
+  failureRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 18,
   },
+  failureRowMobile: { gap: 9, marginTop: 16 },
+  failureIcon: { flexShrink: 0, marginTop: 1 },
   failureTitle: {
-    color: t.colors.ink,
-    fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 21,
+    color: '#11150f',
     fontWeight: t.fontWeights.bold,
   },
   failureText: {
-    color: t.colors.text.secondary,
+    flex: 1,
+    color: '#4f5651',
     fontFamily: t.typography.body,
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 3,
+    fontSize: 15,
+    lineHeight: 22.5,
   },
+  failureTextMobile: { fontSize: 14.5, lineHeight: 21.75 },
+  failureLink: {
+    color: '#0f7a45',
+    fontFamily: t.typography.body,
+    fontWeight: t.fontWeights.semibold,
+    textDecorationLine: 'none',
+  },
+  failureLinkActive: { textDecorationLine: 'underline' },
   submitButton: {
     minHeight: 52,
     flexDirection: 'row',
@@ -545,49 +620,56 @@ const styles = StyleSheet.create({
     borderColor: t.colors.tint.border,
     backgroundColor: t.colors.tint.t50,
     borderRadius: 16,
-    padding: 32,
+    paddingVertical: 25,
+    paddingHorizontal: 26,
     alignItems: 'flex-start',
   },
+  sentPanelMobile: { borderRadius: 14, paddingVertical: 22, paddingHorizontal: 18 },
   sentMark: {
     width: 52,
     height: 52,
     borderRadius: 13,
     backgroundColor: t.colors.tint.t150,
-    color: t.colors.brand.deep,
-    fontFamily: t.typography.ui,
-    fontSize: 27,
-    lineHeight: 52,
-    textAlign: 'center',
-    fontWeight: t.fontWeights.bold,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  sentMarkMobile: { width: 46, height: 46, borderRadius: 12 },
   sentTitle: {
     color: t.colors.ink,
     fontFamily: t.typography.title,
-    fontSize: 30,
-    lineHeight: 38,
-    fontWeight: t.fontWeights.bold,
+    fontSize: 26,
+    lineHeight: 34,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.26,
+    marginTop: 18,
   },
+  sentTitleMobile: { fontSize: 21, lineHeight: 27, letterSpacing: -0.21, marginTop: 14 },
   sentText: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
-    fontSize: 16,
-    lineHeight: 25,
-    marginTop: 12,
+    fontSize: 17,
+    lineHeight: 26.35,
+    marginTop: 10,
     maxWidth: 500,
   },
+  sentTextMobile: { fontSize: 15, lineHeight: 23.25, marginTop: 8 },
   secondaryButton: {
     minHeight: 44,
     justifyContent: 'center',
+    backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
-    borderColor: t.colors.ink,
-    borderRadius: 8,
-    paddingHorizontal: 18,
-    marginTop: 24,
+    borderColor: t.colors.alpha.ink20,
+    borderRadius: 11,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
+    marginTop: 20,
   },
+  secondaryButtonMobile: { width: '100%', minHeight: 48, borderRadius: 12, marginTop: 16 },
   secondaryButtonText: {
+    color: t.colors.ink,
     fontFamily: t.typography.ui,
     fontSize: 15,
-    fontWeight: t.fontWeights.semibold,
+    fontWeight: t.fontWeights.bold,
   },
   sideColumn: { width: 372, maxWidth: '100%', gap: 14 },
   infoCard: {
