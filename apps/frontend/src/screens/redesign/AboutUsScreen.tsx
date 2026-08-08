@@ -377,8 +377,8 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
 
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
-  main: { maxWidth: 1248, alignSelf: 'center', paddingTop: 74, paddingBottom: 104 },
-  mainMobile: { paddingTop: 42, paddingBottom: 60, paddingHorizontal: 20 },
+  main: { maxWidth: 1248, alignSelf: 'center', paddingTop: 74, paddingBottom: 48 },
+  mainMobile: { paddingTop: 42, paddingBottom: 34, paddingHorizontal: 20 },
   hero: { maxWidth: 930, marginBottom: 52 },
   heroMobile: { marginBottom: 34 },
   heroTitle: {
@@ -520,17 +520,15 @@ const styles = StyleSheet.create({
     paddingLeft: 17,
   },
   contactSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 32,
+    alignItems: 'flex-start',
+    gap: 22,
     marginTop: 78,
     paddingTop: 42,
     borderTopWidth: 1,
     borderTopColor: t.colors.borders.base,
   },
-  contactSectionMobile: { alignItems: 'flex-start', flexDirection: 'column' },
-  contactCopy: { flex: 1 },
+  contactSectionMobile: { gap: 18 },
+  contactCopy: { width: '100%' },
   contactText: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
