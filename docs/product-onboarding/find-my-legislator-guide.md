@@ -16,10 +16,12 @@ home page, or go straight to `/find-my-legislator`.
 The page says: **Enter a full street address. Cities and ZIP codes can cross district
 lines.** This same instruction appears at phone and wider screen widths.
 
-Start with a house number and at least 2 street-name characters. After a short pause,
-**Suggested addresses** shows up to 5 active addresses from Minnesota's
-official statewide list. A numbered street can start suggesting after its first digit.
-City and ZIP are optional, but adding either can narrow or reorder the choices.
+Start with a house number and at least 2 street-name characters. `350 S` is not enough,
+because `S` could mean South or the start of a street name. `350 Su` can start a named-
+street search, and `350 S 5` can start a numbered-street search. After a short pause,
+**Suggested addresses** shows up to 5 active addresses from Minnesota's official
+statewide list. City and ZIP are optional, but adding either can narrow or reorder the
+choices.
 
 Choose an address to put its full official form in the box and find its legislators in
 the same step. Or enter a full Minnesota street address and choose **Find**. Pressing
@@ -51,7 +53,8 @@ Alethical uses Minnesota's address list instead of ending the lookup immediately
 If 1 address is clearly closest, Alethical uses it. If several official addresses are
 equally close, **Choose your address** appears with up to 5 choices. Click or tap the
 right one. With a keyboard, use the up and down arrows, Enter to choose, or Escape to
-close the list.
+close the list. The page shows the movement hint only when the list has at least 2
+choices.
 
 Both address lists use the same keyboard, mouse, and touch behavior. Moving with the
 arrow keys or hovering highlights the current choice. Alethical never chooses a

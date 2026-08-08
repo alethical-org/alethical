@@ -759,11 +759,13 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     </Pressable>
                   ))}
                 </View>
-                <Text style={styles.choiceHelp}>
-                  Use <Text style={styles.choiceKey}>↑</Text> and{' '}
-                  <Text style={styles.choiceKey}>↓</Text> to move,{' '}
-                  <Text style={styles.choiceKey}>Enter</Text> to choose
-                </Text>
+                {choices.length > 1 ? (
+                  <Text style={styles.choiceHelp}>
+                    Use <Text style={styles.choiceKey}>↑</Text> and{' '}
+                    <Text style={styles.choiceKey}>↓</Text> to move,{' '}
+                    <Text style={styles.choiceKey}>Enter</Text> to choose
+                  </Text>
+                ) : null}
               </View>
             ) : null}
             {isMobile ? renderFindButton(true) : null}

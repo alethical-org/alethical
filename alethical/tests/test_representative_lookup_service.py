@@ -134,6 +134,23 @@ def test_state_address_suggestions_wait_for_two_street_letters(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    ("address_text", "expected_street_names"),
+    [
+        ("350 S", None),
+        ("350 S 5", ("S 5", "5")),
+        ("350 Su", ("SU",)),
+    ],
+)
+def test_state_address_suggestions_start_at_the_earliest_safe_street_prefix(
+    address_text,
+    expected_street_names,
+):
+    query = MinnesotaAddressPointGeocoder._parse_suggestion_query(address_text)
+
+    assert (query.street_names if query else None) == expected_street_names
+
+
+@pytest.mark.parametrize(
     (
         "address_text",
         "house_number",

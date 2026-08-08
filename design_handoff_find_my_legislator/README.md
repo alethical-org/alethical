@@ -582,7 +582,8 @@ control, not sentences. (Answer-area guidance IS a sentence and keeps its period
 Previously the keyboard hint was JetBrains Mono 11px/700 uppercase in a different grey, which made two
 pieces of neutral help in the same slot look like different classes of thing; mono uppercase is our
 eyebrow/code treatment, not a treatment for a sentence. It now reads "Use **↑** and **↓** to move,
-**Enter** to choose."
+**Enter** to choose." Show it only when the list has at least 2 choices; 1 choice gives the reader
+nowhere to move.
 
 ## Error states carry NO action buttons
 
