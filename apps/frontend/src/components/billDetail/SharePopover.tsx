@@ -2,14 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { MobileShareSheet } from '../share/MobileShareSheet';
+import { useResponsive } from '../../hooks/useResponsive';
+import { buildShareIntents, type ShareContent } from '../../lib/share';
 import { theme as t } from '../../theme/tokens';
 import { isWeb, useHover } from './interactions';
 
 // Bill Detail's Share control, lifted out of BillHeader so the Ask answer page
 // uses the SAME button and popover rather than a lookalike (grounded-ask-spec
-// §9.5 decision 10 — "Bill Detail's exact button and popover"). Only the sheet's
-// own title varies ("Share this bill" / "Share this answer"), which is also the
-// button's and the dialog's accessible name.
+// §9.5 decision 10 — "Bill Detail's exact button and popover"). Page-specific
+// text arrives as one ShareContent value, while this component owns the layout
+// and platform buttons.
 //
 // Layering is load-bearing and is specified because it has shipped broken twice
 // (Legislator Profile session filter; Bill Search "Sorted by" menu): the wrapper
@@ -17,19 +20,11 @@ import { isWeb, useHover } from './interactions';
 // backdrop position:fixed z-index 0. Nothing painted after it in the DOM may open
 // a competing stacking context.
 
-export function SharePopover({
-  url,
-  title,
-  subject,
-}: {
-  url: string;
-  title: string;
-  /** What is being shared, for the button label and the sheet heading. */
-  subject: string;
-}) {
+export function SharePopover({ content }: { content: ShareContent }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [btnHovered, btnHover] = useHover();
+  const { isDesktop } = useResponsive();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
@@ -39,14 +34,8 @@ export function SharePopover({
     [],
   );
 
-  const enc = encodeURIComponent;
-  const intents = {
-    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}`,
-    x: `https://twitter.com/intent/tweet?text=${enc(`${title} · Alethical`)}&url=${enc(url)}`,
-    facebook: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}`,
-    instagram: 'https://www.instagram.com/',
-    email: `mailto:?subject=${enc(title)}&body=${enc(`${title}\n\n${url}\n\nvia Alethical`)}`,
-  };
+  const intents = buildShareIntents(content);
+  const { description, subject, title, url } = content;
 
   const copy = () => {
     if (isWeb && typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -92,7 +81,9 @@ export function SharePopover({
         <Text style={styles.shareBtnText}>Share</Text>
       </Pressable>
 
-      {open ? (
+      {!isDesktop ? (
+        <MobileShareSheet visible={open} onClose={() => setOpen(false)} content={content} />
+      ) : open ? (
         <>
           {/* transparent backdrop closes on outside click */}
           <Pressable
@@ -122,6 +113,15 @@ export function SharePopover({
                   />
                 </Svg>
               </Pressable>
+            </View>
+
+            <View style={styles.sharePreview}>
+              <Text numberOfLines={2} style={styles.sharePreviewTitle}>
+                {title}
+              </Text>
+              <Text numberOfLines={3} style={styles.sharePreviewDescription}>
+                {description}
+              </Text>
             </View>
 
             <View style={styles.shareUrlRow}>
@@ -172,12 +172,6 @@ export function SharePopover({
                   onPress={() => openIntent(intents.facebook)}
                 >
                   <Path d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.6H6.61v3.56h3.07V22h3.68v-9.14h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z" />
-                </SocialButton>
-                <SocialButton
-                  label="Share on Instagram"
-                  onPress={() => openIntent(intents.instagram)}
-                >
-                  <Path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.15-3.23 1.66-4.77 4.92-4.92C8.42 2.17 8.8 2.16 12 2.16zM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.2-4.35-2.62-6.78-6.98-6.98C15.67.01 15.26 0 12 0zm0 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.41-10.85a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z" />
                 </SocialButton>
                 <SocialButton
                   label="Share by email"
@@ -301,6 +295,23 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.3,
     color: t.colors.text.primary,
+  },
+  sharePreview: {
+    marginTop: 12,
+  },
+  sharePreviewTitle: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.body,
+    fontWeight: t.fontWeights.bold,
+    lineHeight: 22,
+    color: t.colors.text.primary,
+  },
+  sharePreviewDescription: {
+    marginTop: 5,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 20,
+    color: t.colors.text.muted,
   },
   shareClose: {
     width: 30,

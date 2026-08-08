@@ -17,7 +17,40 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!_expo/|favicon.ico|manifest.json|sw.js|icon-192.png|icon-512.png|.*\\..*).*)",
+      "source": "/bills/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Slackbot|Discordbot|WhatsApp|redditbot).*"
+        }
+      ],
+      "destination": "/api/social-preview?subject=bill&id=:id"
+    },
+    {
+      "source": "/legislators/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Slackbot|Discordbot|WhatsApp|redditbot).*"
+        }
+      ],
+      "destination": "/api/social-preview?subject=legislator&id=:id"
+    },
+    {
+      "source": "/ask",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Slackbot|Discordbot|WhatsApp|redditbot).*"
+        }
+      ],
+      "destination": "/api/social-preview?subject=answer"
+    },
+    {
+      "source": "/((?!api/|_expo/|favicon.ico|manifest.json|sw.js|icon-192.png|icon-512.png|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]

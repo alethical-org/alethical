@@ -178,10 +178,14 @@ the link), and the chamber/status caps line (the stage label replaces it).
   radius 12, 16px/600, three-node share glyph, padding `12px 20px 12px 17px`, hover
   border `rgba(17,21,15,0.32)` + bg `#f7f8fa`. Bottom-aligned to the header hairline,
   the same way Share sits on Bill Detail's tab rule.
-- Opens the **same anchored popover**: title "Share this answer", the canonical answer
-  URL in a mono readonly field with a green **Copy** button that becomes **Copied**, then
-  a **SHARE TO** row of 44px circular social buttons (LinkedIn · X · Facebook · Email)
-  on `#f1f1f4`. A transparent fixed backdrop and a × close it. `cardPop` 0.16s in.
+- On web it opens the **same anchored popover**: title "Share this answer", the question
+  and fixed cited-answer description, then the canonical answer URL in a mono readonly
+  field with a green **Copy** button that becomes **Copied**. The **SHARE TO** row has
+  44px circular LinkedIn, X, Facebook, and Email buttons on `#f1f1f4`. A transparent
+  fixed backdrop and a × close it. `cardPop` 0.16s in.
+- On a phone it opens the shared bottom sheet instead of the 366px anchored panel. It
+  shows the same question, description, URL, Copy link, normal phone Share menu, and 4
+  direct destinations without running off the viewport.
 - **Overlay layering (REQUIRED):** the Share wrapper is `position:relative; z-index:60`;
   the popover is `position:absolute; z-index:1` within it; the backdrop is
   `position:fixed; inset:0; z-index:0`. Sibling content below must not create a

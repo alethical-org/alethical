@@ -143,11 +143,12 @@ summarized below.
   only when absent > 0. Search narrows both party blocks while preserving grouping.
 - **Sign-in bottom sheet** (`ovFade` + `sheetUp`): ONE intent — `votes` ("see how your
   legislators voted"); "Continue with Google" returns signed-in with the district revealed.
-- **Share bottom sheet:** copy-link is primary (→ green "Link copied", auto-reverts ~1.9s) +
-  social row **LinkedIn · X · Facebook · Instagram · Email** (monochrome ink glyphs on `#f1f1f4`
-  circles, real share-intent URLs). Shares the canonical bill URL
-  `https://alethical.com/bills/{slug}` (the bill, not the current view). Instagram has no real
-  link-share intent — in production copy the link + open the IG app.
+- **Share bottom sheet:** shows the bill code, plain short title, first summary sentence,
+  and canonical `https://www.alethical.com/bills/{slug}` link. Copy-link is primary (→ green
+  "Link copied", auto-reverts ~1.9s), followed by the normal phone Share menu and direct
+  **LinkedIn · X · Facebook · Email** buttons. Instagram has no direct button because it
+  cannot accept the prepared text, dependable clickable link, and preview card; its app may
+  still appear in the phone Share menu and decide which fields it keeps.
 - **Glossary** terms: tap-to-reveal (not hover) — hover is a desktop enhancement only.
 - **Focus + press states:** every interactive element is a real `<button>`/`<a>` with the global
   `:focus-visible` ring; fields glow purple on `:focus-within`; interactive chips glow purple on

@@ -53,6 +53,14 @@ export const BRAND_ASSETS = [
     color: BRAND_GREEN,
     scale: 0.52,
   },
+  {
+    path: 'public/social-preview.png',
+    width: 1200,
+    height: 630,
+    background: BRAND_INK,
+    color: BRAND_GREEN,
+    scale: 0.62,
+  },
 ];
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -66,12 +74,12 @@ function triangleContains(px, py, [ax, ay], [bx, by], [cx, cy]) {
   return (d1 <= 0 && d2 <= 0 && d3 <= 0) || (d1 >= 0 && d2 >= 0 && d3 >= 0);
 }
 
-export function renderBrandAsset({ size, background, color, scale }) {
-  const png = new PNG({ width: size, height: size });
-  const markHeight = size * scale;
+export function renderBrandAsset({ size, width = size, height = size, background, color, scale }) {
+  const png = new PNG({ width, height });
+  const markHeight = Math.min(width, height) * scale;
   const markWidth = markHeight * (84 / 82);
-  const left = (size - markWidth) / 2;
-  const top = (size - markHeight) / 2;
+  const left = (width - markWidth) / 2;
+  const top = (height - markHeight) / 2;
   const leftTop = left + markWidth * (38 / 84);
   const rightTop = left + markWidth * (46 / 84);
   const bottom = top + markHeight;
@@ -88,8 +96,8 @@ export function renderBrandAsset({ size, background, color, scale }) {
     ],
   ];
 
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
       let covered = 0;
       for (const offsetY of sampleOffsets) {
         for (const offsetX of sampleOffsets) {
@@ -102,7 +110,7 @@ export function renderBrandAsset({ size, background, color, scale }) {
       }
 
       const coverage = covered / (sampleOffsets.length * sampleOffsets.length);
-      const index = (y * size + x) * 4;
+      const index = (y * width + x) * 4;
       if (background) {
         png.data[index] = Math.round(background[0] * (1 - coverage) + color[0] * coverage);
         png.data[index + 1] = Math.round(background[1] * (1 - coverage) + color[1] * coverage);

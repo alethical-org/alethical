@@ -5,6 +5,7 @@ import Svg, { Path } from 'react-native-svg';
 import { theme as t } from '../../theme/tokens';
 import { routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
+import type { ShareContent } from '../../lib/share';
 import { GoBackLink } from '../GoBackLink';
 import { BillTrackButton } from './BillTrackButton';
 import { SharePopover } from './SharePopover';
@@ -37,8 +38,7 @@ export function BillHeader({
   eyebrow,
   omnibus,
   hotIssue = false,
-  shareUrl,
-  shareTitle,
+  shareContent,
   billId,
   tracked,
   onTrack,
@@ -56,8 +56,7 @@ export function BillHeader({
   // Editorial "🔥 Hot issue" flag (../../lib/hotIssues). Renders a neutral pill in
   // the qualifier-tag row after the session year / OMNIBUS tag.
   hotIssue?: boolean;
-  shareUrl: string;
-  shareTitle: string;
+  shareContent: ShareContent;
   billId: string;
   // Track button (ink) sits immediately left of Share. `tracked` toggles its
   // label/icon; `onTrack` routes a signed-out user to sign-in or toggles the
@@ -117,7 +116,7 @@ export function BillHeader({
           <View style={styles.trackSlot}>
             <BillTrackButton billId={billId} tracked={tracked} onPress={onTrack} size="web" />
           </View>
-          <SharePopover url={shareUrl} title={shareTitle} subject="bill" />
+          <SharePopover content={shareContent} />
         </View>
       </View>
     </View>

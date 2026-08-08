@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Linking,
-  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -30,8 +29,10 @@ import { useBillTracking } from '../../hooks/useBillTracking';
 import { isNotFoundError } from '../../data/api';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
+import { MobileShareSheet } from '../../components/share/MobileShareSheet';
 import { Bill, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
+import { buildBillShareContent, publicPageUrl } from '../../lib/share';
 import {
   authorAddPrefix,
   authorNameOnly,
@@ -390,7 +391,6 @@ function BillDetailMobileScreen() {
   // chrome + overlays
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // scroll-spy
   const scrollRef = useRef<ScrollView>(null);
@@ -484,21 +484,21 @@ function BillDetailMobileScreen() {
   };
 
   // --- share ---
-  const shareUrl = bill ? `https://alethical.com/bills/${bill.id}` : 'https://alethical.com';
-  // Prefer the concise AI short title for the share text (the statutory title can
-  // be hundreds of chars); fall back to it when absent.
-  const shareTitle = bill
-    ? `${bill.identifier} — ${bill.aiAnalysis?.shortTitle ?? bill.title}`
-    : 'Alethical';
+  const shareContent = bill
+    ? buildBillShareContent({
+        identifier: bill.identifier,
+        title: bill.aiAnalysis?.shortTitle ?? bill.title,
+        summary: bill.aiAnalysis?.summary,
+        url: publicPageUrl(`/bills/${bill.id}`),
+      })
+    : {
+        subject: 'bill' as const,
+        title: 'Alethical',
+        description: 'Minnesota’s legislative record, in plain language.',
+        url: publicPageUrl('/'),
+      };
   const openExternal = (url: string) => {
     void Linking.openURL(url);
-  };
-  const copyLink = () => {
-    if (isWeb && typeof navigator !== 'undefined' && navigator.clipboard) {
-      void navigator.clipboard.writeText(shareUrl);
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1900);
   };
 
   // --- ask ---
@@ -1123,91 +1123,11 @@ function BillDetailMobileScreen() {
         />
       </ScrollView>
 
-      {/* SHARE SHEET */}
-      <BottomSheet visible={shareOpen} onClose={() => setShareOpen(false)} label="Share sheet">
-        <View style={styles.sheetIconPurple}>
-          <ShareIcon color={t.colors.purple.base} size={22} />
-        </View>
-        <Text accessibilityRole="header" style={styles.sheetTitle}>
-          Share this bill
-        </Text>
-        <Text style={styles.sheetSub} numberOfLines={2}>
-          {shareTitle}
-        </Text>
-        <View style={styles.shareUrlField}>
-          <Text numberOfLines={1} style={styles.shareUrlText}>
-            {shareUrl}
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Copy link"
-          onPress={copyLink}
-          style={styles.copyBtn}
-        >
-          {copied ? (
-            <>
-              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M5 12.5 L10 17.5 L19 7"
-                  stroke={t.colors.brand.darkest}
-                  strokeWidth={2.6}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
-              <Text style={styles.copyBtnText}>Link copied</Text>
-            </>
-          ) : (
-            <Text style={styles.copyBtnText}>Copy link</Text>
-          )}
-        </Pressable>
-        <View style={styles.shareToRow}>
-          <Text style={styles.shareToLabel}>SHARE TO</Text>
-          <View style={styles.socialRow}>
-            <SocialButton
-              label="Share on LinkedIn"
-              onPress={() =>
-                openExternal(
-                  `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
-                )
-              }
-              path="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"
-              filled
-            />
-            <SocialButton
-              label="Share on X"
-              onPress={() =>
-                openExternal(
-                  `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle + ' · Alethical')}&url=${encodeURIComponent(shareUrl)}`,
-                )
-              }
-              path="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-              filled
-            />
-            <SocialButton
-              label="Share on Facebook"
-              onPress={() =>
-                openExternal(
-                  `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
-                )
-              }
-              path="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.6H6.61v3.56h3.07V22h3.68v-9.14h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z"
-              filled
-            />
-            <SocialButton
-              label="Share by email"
-              onPress={() =>
-                openExternal(
-                  `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareTitle + '\n\n' + shareUrl + '\n\nvia Alethical')}`,
-                )
-              }
-              path="M4 7.5 L12 13 L20 7.5"
-              rect
-            />
-          </View>
-        </View>
-      </BottomSheet>
+      <MobileShareSheet
+        visible={shareOpen}
+        onClose={() => setShareOpen(false)}
+        content={shareContent}
+      />
 
       {/* NOTE: the Votes section has no sign-in / "see how your legislators voted"
           promotion. Per-district personalization isn't wired yet, so we don't advertise
@@ -2054,101 +1974,6 @@ function AskCard({
         </View>
       ) : null}
     </View>
-  );
-}
-
-function SocialButton({
-  label,
-  onPress,
-  path,
-  filled,
-  rect,
-}: {
-  label: string;
-  onPress: () => void;
-  path: string;
-  filled?: boolean;
-  rect?: boolean;
-}) {
-  const [hovered, hover] = useHover();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      {...hover}
-      style={[styles.social, hovered && { backgroundColor: '#e7e8ec' }]}
-    >
-      <Svg
-        width={21}
-        height={21}
-        viewBox="0 0 24 24"
-        fill={filled ? t.colors.text.primary : 'none'}
-      >
-        {rect ? (
-          <>
-            <Path
-              d="M3 5 h18 v14 h-18 Z"
-              stroke={t.colors.text.primary}
-              strokeWidth={2}
-              strokeLinejoin="round"
-            />
-            <Path
-              d={path}
-              stroke={t.colors.text.primary}
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </>
-        ) : (
-          <Path d={path} />
-        )}
-      </Svg>
-    </Pressable>
-  );
-}
-
-// A bottom sheet built on RN Modal (escapes stacking contexts, per design-build).
-function BottomSheet({
-  visible,
-  onClose,
-  label,
-  children,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityLabel="Close">
-        <Pressable
-          style={styles.sheet}
-          accessibilityViewIsModal
-          accessibilityLabel={label}
-          onPress={(e) => e.stopPropagation?.()}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            onPress={onClose}
-            style={styles.sheetClose}
-          >
-            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M6 6 L18 18 M18 6 L6 18"
-                stroke={t.colors.text.faint}
-                strokeWidth={2.2}
-                strokeLinecap="round"
-              />
-            </Svg>
-          </Pressable>
-          {children}
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
 
@@ -3154,114 +2979,5 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.deep,
-  },
-
-  // bottom sheet
-  sheetBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(10,14,12,0.55)',
-  },
-  sheet: {
-    width: '100%',
-    maxWidth: COLUMN_MAX,
-    alignSelf: 'center',
-    backgroundColor: t.colors.surfaces.base,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 26,
-    paddingBottom: 30,
-    paddingHorizontal: 22,
-  },
-  sheetClose: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 36,
-    height: 36,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetIconPurple: {
-    width: 48,
-    height: 48,
-    borderRadius: 13,
-    backgroundColor: t.colors.purple.tint,
-    borderWidth: 1,
-    borderColor: t.colors.purple.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetTitle: {
-    marginTop: 16,
-    fontFamily: t.typography.title,
-    fontSize: t.fontSizes.h3,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.22,
-    color: t.colors.text.primary,
-  },
-  sheetSub: {
-    marginTop: 8,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.lg,
-    lineHeight: 25,
-    color: t.colors.text.muted,
-  },
-  shareUrlField: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: t.colors.surfaces.s300,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink12,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  shareUrlText: {
-    flex: 1,
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.small,
-    color: t.colors.text.secondary,
-  },
-  copyBtn: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: t.colors.brand.base,
-    borderRadius: 12,
-    paddingVertical: 15,
-    minHeight: 48,
-  },
-  copyBtnText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.subhead,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.onGreen,
-  },
-  shareToRow: {
-    marginTop: 20,
-    paddingTop: 18,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink08,
-  },
-  shareToLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.6,
-    color: t.colors.text.faint,
-  },
-  socialRow: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  social: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: t.colors.surfaces.s400,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

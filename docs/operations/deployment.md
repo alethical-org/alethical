@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx -->
+<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/social-preview.ts, vercel.json -->
 
 # Deployment
 
@@ -77,7 +77,13 @@ Create the Vercel project from the repository root so the root `pnpm-lock.yaml` 
 - Install command: `pnpm install --frozen-lockfile`
 - Build command: `pnpm --dir apps/frontend run build`
 - Output directory: `apps/frontend/dist`
-- SPA rewrites to `index.html`
+- crawler-only bill, legislator, and Ask preview-card rewrites to `api/social-preview.ts`
+- the normal SPA rewrite to `index.html` for readers
+
+The preview function reads only the public bill or legislator fields needed for the card
+and returns its title, description, canonical URL, and branded 1200×630 image. Ask cards
+use the public question plus fixed cited-answer copy and do not call a model. See
+`docs/product-onboarding/sharing-guide.md` for the page and destination rules.
 
 Required Vercel environment variables:
 

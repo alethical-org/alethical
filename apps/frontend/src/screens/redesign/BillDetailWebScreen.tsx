@@ -24,6 +24,7 @@ import { isNotFoundError } from '../../data/api';
 import { Skeleton } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
 import { routePath } from '../../navigation/links';
+import { buildBillShareContent, publicPageUrl } from '../../lib/share';
 import {
   billDetailNeedsVotes,
   billDetailVotePrefetchIsUseful,
@@ -208,8 +209,12 @@ export function BillDetailWebScreen() {
   }
 
   const eyebrow = bienniumEyebrow(bill.id, bill.session ?? bill.sessionLabel);
-  const shareUrl = `https://alethical.com/bills/${bill.id}`;
-  const shareTitle = `${bill.identifier} — ${bill.title}`;
+  const shareContent = buildBillShareContent({
+    identifier: bill.identifier,
+    title: bill.aiAnalysis?.shortTitle ?? bill.title,
+    summary: bill.aiAnalysis?.summary,
+    url: publicPageUrl(`/bills/${bill.id}`),
+  });
   // ONE value for the whole page (every tab's source line shows the same stamp).
   // Empty when the bill carries no pull date — billSourceText then drops the segment
   // instead of repeating "Minnesota Legislature" back at the reader.
@@ -224,8 +229,7 @@ export function BillDetailWebScreen() {
       eyebrow={eyebrow}
       omnibus={!!bill.isOmnibus}
       hotIssue={isHotIssueBill(bill.id, bill.companion?.id)}
-      shareUrl={shareUrl}
-      shareTitle={shareTitle}
+      shareContent={shareContent}
       tracked={tracked}
       onTrack={onTrack}
       activeTab={activeTab}

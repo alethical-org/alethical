@@ -519,19 +519,17 @@ the plain-language paragraph", "mobile still on the OLD flat-chip version", and
 Sharing a specific bill is a primary action (send to friends / reps / constituents),
 so it gets a persistent, obvious home in the **bill header** (above the tabs on web;
 top bar on mobile) — NOT buried in a menu — and stays reachable from every tab/section.
-- **Copy link is the PRIMARY action** (most people just want the URL); social buttons
-  are secondary. Panel order: title → URL field → Copy → social row.
-- **Social set (order) = LinkedIn · X · Facebook · Instagram · Email** (professional/civic-appropriate;
-  all have clean monochrome brand glyphs + real share-intent URLs). Rendered as
-  **monochrome ink glyphs on `#f1f1f4` circles** (no full-color icons — brand-consistent,
-  avoids slop). LinkedIn kept for policy/professional sharing; deliberately NOT a big
-  always-visible colored icon row.
-- **Deep link shared = `https://alethical.com/bills/{slug}`** (the bill, NOT the current
-  tab — share the bill, not a view). Production: canonical bill URL.
-- **Share intents:** X `twitter.com/intent/tweet?text={code — title · Alethical}&url=`;
-  Facebook `sharer.php?u=`; LinkedIn `sharing/share-offsite/?url=`; Email `mailto:` with
-  subject = "{code} — {title}", body = title + url + "via Alethical". `target=_blank
-  rel=noopener` on the three web intents; email is `mailto`.
+- **Panel order:** bill code plus plain short title → first sentence of the generated
+  plain-language summary → URL field → Copy → phone Share menu when available → direct
+  destinations. A bill with no generated summary gets the fixed honest fallback from
+  `apps/frontend/src/lib/share.ts`, never the long statutory title as description.
+- **Direct destinations (order) = LinkedIn · X · Facebook · Email.** Render as monochrome
+  ink glyphs on `#f1f1f4` circles. LinkedIn and Facebook receive the canonical URL and
+  build their card from page preview data. X receives the title and description shortened
+  to keep the whole post within 280 characters after its 23-character shortened link.
+  Email receives the full title, description, URL, and “Shared from Alethical.”
+- **Deep link shared = `https://www.alethical.com/bills/{slug}`** (the bill, not the
+  current tab). No account, selected tab, address, or saved-list data enters the URL.
 - **Copy interaction:** click Copy → `navigator.clipboard.writeText(url)` → button swaps
   to a green "Copied"/"Link copied" confirmation with a check, auto-reverts after ~1.9s
   (`copied` state + timeout). Green fill (`#2ed47e`/`#06231a` ink) = action, dark-ink-on-green
@@ -550,12 +548,13 @@ top bar on mobile) — NOT buried in a menu — and stays reachable from every t
   subordinate to it. Follows the mobile field-stacking rule: full-width read-only URL field
   (`data-glow-field`), full-width green **Copy link** button BELOW, then the social row (52px
   targets). Tap-outside or × closes.
-- **Instagram has NO web link-share intent** — the button is present for parity but a real IG
-  "share a link" URL doesn't exist. Mock points it at `instagram.com`; PRODUCTION should copy
-  the link + open the Instagram app (or a story/DM composer), matching native IG sharing.
+- **Instagram has no direct button.** It cannot open a prepared visitor post containing the
+  intended text, a dependable clickable link, and a website preview card. On a phone its
+  installed app may still appear in the normal Share menu and decide which fields it keeps.
 - **Legislator Profile has the same Share** (web hero: a white "Share" button beside the green
-  "Ask about this legislator" CTA, anchored popover; same 5 social + copy-link). Shares
-  `https://alethical.com/legislators/{slug}`, title = "{Name} — {party}, {chamber} District {n}".
+  "Ask about this legislator" CTA, anchored popover; same 4 direct destinations + copy-link).
+  Shares `https://www.alethical.com/legislators/{slug}`, title = "{Name}: {party}, {chamber}
+  District {n}", with a fixed factual description of the record available on the page.
 - **a11y:** every control is a real `<button>`/`<a>` with an `aria-label`; social targets 44px
   (web) / 52px (mobile); inherits the global focus ring. The purple share-glyph tile in the
   mobile sheet header uses the citation-purple family (decorative, not an action color).
