@@ -25,7 +25,7 @@ describe('district map credits', () => {
 
     const map = markup.indexOf('district-map-canvas');
     const instruction = markup.indexOf(
-      'Drag the map to explore, then click to choose your location, and zoom as needed',
+      'Drag the map to explore. Pinch your trackpad or use + and − to zoom. Then click to choose your location.',
     );
     const explanation = markup.indexOf('Every address has one House district');
     const credits = markup.indexOf('district-map-credits');
@@ -100,25 +100,25 @@ describe('district map credits', () => {
     expect(screenSource).not.toContain('otherHouseDistrict={mapResult?.otherHouseDistrict}');
   });
 
-  it('keeps unresolved helper text clean and hands outside map selections to the screen', () => {
+  it('explains how to drag, zoom, and choose a location on phones and computers', () => {
     expect(source).toContain(
-      "'Drag the map to explore, then tap to choose your location, and zoom as needed'",
+      "'Drag with 1 finger to explore. Pinch with 2 fingers or use + and − to zoom. Then tap to choose your location.'",
     );
     expect(source).toContain(
-      "'Drag the map to explore, then click to choose your location, and zoom as needed'",
+      "'Drag the map to explore. Pinch your trackpad or use + and − to zoom. Then click to choose your location.'",
     );
     expect(source).toContain('onOutsideMinnesota?:');
     expect(source).toContain('onOutsideMinnesota?.(chosen)');
   });
 
-  it('describes dragging before clicking or tapping to adjust a selected location', () => {
+  it('explains how to drag, zoom, and adjust a selected location on phones and computers', () => {
     expect(source).toContain(
-      "'Drag the map to explore, then click to adjust your location, and zoom as needed'",
+      "'Drag the map to explore. Pinch your trackpad or use + and − to zoom. Then click to adjust your location.'",
     );
     expect(source).toContain(
-      "'Drag the map to explore, then tap to adjust your location, and zoom as needed'",
+      "'Drag with 1 finger to explore. Pinch with 2 fingers or use + and − to zoom. Then tap to adjust your location.'",
     );
-    expect(source).not.toContain('zoom as needed.');
+    expect(source).not.toContain('zoom as needed');
     expect(source).not.toContain("'Drag the pin, click the map");
     expect(source).not.toContain("'Drag the pin or tap the map");
   });
