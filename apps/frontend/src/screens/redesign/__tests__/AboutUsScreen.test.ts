@@ -84,11 +84,19 @@ describe('About us screen contract', () => {
     expect(SCREEN).not.toMatch(/startCardHeader:\s*\{[^}]*justifyContent/s);
   });
 
-  it('lets belief and starting cards fit their content on phones', () => {
+  it('fits belief and starting cards closely around their content on phones', () => {
     expect(SCREEN).toContain('isMobile && styles.beliefCardMobile');
     expect(SCREEN).toContain('? [styles.fullWidth, styles.startCardMobile]');
-    expect(SCREEN).toMatch(/beliefCardMobile:\s*\{[^}]*minHeight: 0[^}]*\}/s);
-    expect(SCREEN).toMatch(/startCardMobile:\s*\{[^}]*minHeight: 0[^}]*\}/s);
+    expect(SCREEN).toMatch(
+      /beliefCardMobile:\s*\{[^}]*paddingVertical: 15[^}]*paddingHorizontal: 16[^}]*minHeight: 0[^}]*\}/s,
+    );
+    expect(SCREEN).toMatch(
+      /startCardMobile:\s*\{[^}]*paddingVertical: 15[^}]*paddingHorizontal: 16[^}]*minHeight: 0[^}]*\}/s,
+    );
+    expect(SCREEN).toMatch(/cardGridMobile:\s*\{[^}]*gap: 12[^}]*\}/s);
+    expect(SCREEN).toMatch(
+      /cardBodyMobile:\s*\{[^}]*fontSize: 14\.5[^}]*lineHeight: 22\.5[^}]*marginTop: 6[^}]*\}/s,
+    );
   });
 
   it('lets body prose fill the content column and shortens the feedback label', () => {
