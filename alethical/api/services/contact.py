@@ -137,8 +137,6 @@ def log_contact_delivery_readiness() -> None:
 def _contact_text(message: ContactMessageRequest) -> str:
     return "\n".join(
         [
-            "A message arrived through the Alethical Contact us page.",
-            "",
             f"Name: {message.name or 'Not provided'}",
             f"Email: {message.email}",
             f"Phone: {message.phone or 'Not provided'}",

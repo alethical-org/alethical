@@ -73,6 +73,12 @@ def test_contact_queues_both_copies_in_one_idempotent_batch(
     ]
     assert messages[0]["reply_to"] == "ada@example.com"
     assert messages[1]["reply_to"] == "ask@alethical.com"
+    assert messages[0]["text"].splitlines()[:4] == [
+        "Name: Ada Lovelace",
+        "Email: ada@example.com",
+        "Phone: 612-555-0199",
+        "Subject: A correction",
+    ]
     assert all(
         message["from"] == "Alethical <ask@alethical.com>" for message in messages
     )
