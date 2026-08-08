@@ -638,11 +638,11 @@ export function MapPinPicker({
       <Text style={styles.helper}>
         {displayCoordinate
           ? mobile
-            ? 'Drag the map to explore, then tap to adjust your location'
-            : 'Drag the map to explore, then click to adjust your location'
+            ? 'Drag the map to explore, then tap to adjust your location, and zoom as needed'
+            : 'Drag the map to explore, then click to adjust your location, and zoom as needed'
           : mobile
-            ? 'Drag the map to explore, then tap to choose your location'
-            : 'Drag the map to explore, then click to choose your location'}
+            ? 'Drag the map to explore, then tap to choose your location, and zoom as needed'
+            : 'Drag the map to explore, then click to choose your location, and zoom as needed'}
       </Text>
 
       <Text style={styles.districtExplanation}>
