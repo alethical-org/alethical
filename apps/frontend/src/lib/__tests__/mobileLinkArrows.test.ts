@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 const SRC = join(__dirname, '..', '..');
 
 const legacyTextArrowLimits: Record<string, number> = {
-  'components/LinkArrow.tsx': 1,
   'components/ChangeBlock.tsx': 1,
   'components/billDetail/ActionsTab.tsx': 1,
   'components/billDetail/BillNotFound.tsx': 2,
@@ -37,14 +36,13 @@ function visibleTextArrowCount(source: string) {
 }
 
 describe('mobile link arrows', () => {
-  it('keeps new text arrows in the shared trailing-arrow component', () => {
+  it('blocks new text arrows so phone links use the shared, consistently drawn arrow', () => {
     for (const path of tsxFiles(SRC)) {
       const file = relative(SRC, path);
       const arrowCount = visibleTextArrowCount(readFileSync(path, 'utf8'));
-      expect(
-        arrowCount,
-        `${file} added a trailing arrow outside the shared treatment`,
-      ).toBeLessThanOrEqual(legacyTextArrowLimits[file] ?? 0);
+      expect(arrowCount, `${file} added a phone-dependent text arrow`).toBeLessThanOrEqual(
+        legacyTextArrowLimits[file] ?? 0,
+      );
     }
   });
 });
