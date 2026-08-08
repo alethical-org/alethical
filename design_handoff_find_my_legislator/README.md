@@ -297,10 +297,12 @@ A **swap, not an addition.** Live draws a bordered panel with a pin glyph readin
 legislators will appear here."_ Remove the panel — border, glyph and copy. In its place, the plain
 sentence below the map's movement help:
 
-> Click the map where you live to see your House and Senate legislators.
+> Click the map where you live to see your House and Senate legislators
 
-The phone uses **Tap**. The smaller line directly below the map says **Drag the map to explore**,
-followed by the zoom help. The phone adds **with 1 finger**.
+The phone uses **Tap**. The smaller line directly below the map says
+**Drag the map to explore, then use + and − or 2 fingers on a trackpad to zoom**. The phone says
+**Drag the map with 1 finger to explore, then use + and − or 2 fingers to zoom**.
+None of these 4 instruction lines ends with a period.
 The same 2 lines stay in place after an address, saved lookup, or map point loads. There is no
 selected-location copy variant.
 
@@ -419,7 +421,7 @@ ZIP" repeated both. The placeholder stays a real example, as §2 requires. Measu
 
 **Empty state** carries one quiet action line below the smaller movement help and no eyebrow:
 
-> Click the map where you live to see your House and Senate legislators.
+> Click the map where you live to see your House and Senate legislators
 
 The phone uses **Tap**. An earlier version opened with "Enter your street address above, or use your
 location", which repeated both the instruction sentence and the two visible buttons. The field's
@@ -683,10 +685,9 @@ House codes green, Senate codes purple.
 place names. **Production loads real OpenStreetMap tiles.** The no-tiles fallback is visibly plainer
 and drops only the OpenStreetMap credit.
 
-**Map helper text follows the same selected-point condition as the pin**, so an empty or error map can
-never mention moving a pin that does not exist: with no point, desktop reads "Drag the map to explore"
-and the phone reads "Drag the map with 1 finger to explore"; with a point, the
-settled wording returns.
+**Map helper text does not change when a point loads.** Desktop always reads
+"Drag the map to explore, then use + and − or 2 fingers on a trackpad to zoom" and the phone always
+reads "Drag the map with 1 finger to explore, then use + and − or 2 fingers to zoom".
 
 **Map interactions are visual-only in this prototype.** Map clicks, pin dragging, arrow-key movement
 and zoom are not wired — Claude Code builds them to the behaviour specified here.
@@ -756,9 +757,10 @@ at least as readable as other map labels; no 7.5px text over a busy map. Check c
 district labels, legend pills, zoom controls and credits.
 
 **Phone map.** Always visible, in the same page position as the wider-screen map. There is no show or
-hide control. In the empty state, its smaller line starts with "Drag the map with 1 finger to explore",
-then the larger line says "Tap the map where you live to see your House and Senate legislators". Found and vacancy states keep the map
-visible below the answer cards while a moved pin starts another lookup.
+hide control. Its smaller line says "Drag the map with 1 finger to explore, then use + and − or 2 fingers
+to zoom", then the larger line says "Tap the map where you live to see your House and Senate
+legislators". Found and vacancy states keep both lines and the map visible below the answer cards while
+a moved pin starts another lookup.
 
 **Use my location** (control itself unchanged): a successful location becomes the selected coordinate,
 runs the normal lookup, fits the returned Senate boundary, draws both boundaries and places the pin at

@@ -632,14 +632,14 @@ export function MapPinPicker({
 
       <Text style={styles.helper}>
         {mobile
-          ? 'Drag the map with 1 finger to explore. Use + and − or 2 fingers to zoom.'
-          : 'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom.'}
+          ? 'Drag the map with 1 finger to explore, then use + and − or 2 fingers to zoom'
+          : 'Drag the map to explore, then use + and − or 2 fingers on a trackpad to zoom'}
       </Text>
 
       <Text style={styles.districtExplanation}>
         {mobile
-          ? 'Tap the map where you live to see your House and Senate legislators.'
-          : 'Click the map where you live to see your House and Senate legislators.'}
+          ? 'Tap the map where you live to see your House and Senate legislators'
+          : 'Click the map where you live to see your House and Senate legislators'}
       </Text>
 
       <View testID="district-map-credits" style={[styles.credits, mobile && styles.creditsMobile]}>
