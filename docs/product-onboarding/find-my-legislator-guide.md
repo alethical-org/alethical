@@ -88,6 +88,7 @@ with **Drag the map to explore** and adds **with 1 finger** on a phone. The larg
 below says **Click the map where you live to see your House and Senate legislators** on
 a computer and uses **Tap** on a phone. Click or tap anywhere inside Minnesota. The
 lookup runs at once for that point, so there is no second button to press.
+These 2 lines stay the same after an address, saved lookup, or map point loads.
 
 - Use **+** and **−** or 2 fingers on a phone or trackpad to zoom.
 - Drag the map with a mouse or 1 finger to move around.

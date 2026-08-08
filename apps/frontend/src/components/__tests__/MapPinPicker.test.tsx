@@ -133,16 +133,41 @@ describe('district map credits', () => {
     expect(screenSource).toContain('<View style={styles.mapSection}>{map}</View>');
   });
 
-  it('explains how to drag, zoom, and adjust a selected location on phones and computers', () => {
-    expect(source).toContain(
-      "'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom. Then click to adjust your location.'",
+  it('removes the old selected-location instructions', () => {
+    expect(source).not.toContain('Then click to adjust your location.');
+    expect(source).not.toContain('Then tap to adjust your location.');
+    expect(source).not.toContain(
+      'Every address has one House district and one Senate district — we’ll show the legislator for each',
     );
-    expect(source).toContain(
-      "'Drag with 1 finger to explore. Use + and − or 2 fingers to zoom. Then tap to adjust your location.'",
+  });
+
+  it('keeps the approved instructions after a location is selected on phones and computers', () => {
+    const desktopMarkup = renderToStaticMarkup(
+      <MapPinPicker
+        coordinate={{ latitude: 44.9778, longitude: -93.265 }}
+        onCoordinateChange={vi.fn()}
+      />,
     );
-    expect(source).not.toContain('zoom as needed');
-    expect(source).not.toContain("'Drag the pin, click the map");
-    expect(source).not.toContain("'Drag the pin or tap the map");
+    const phoneMarkup = renderToStaticMarkup(
+      <MapPinPicker
+        coordinate={{ latitude: 44.9778, longitude: -93.265 }}
+        mobile
+        onCoordinateChange={vi.fn()}
+      />,
+    );
+
+    expect(desktopMarkup).toContain(
+      'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom.',
+    );
+    expect(desktopMarkup).toContain(
+      'Click the map where you live to see your House and Senate legislators.',
+    );
+    expect(phoneMarkup).toContain(
+      'Drag the map with 1 finger to explore. Use + and − or 2 fingers to zoom.',
+    );
+    expect(phoneMarkup).toContain(
+      'Tap the map where you live to see your House and Senate legislators.',
+    );
   });
 
   it('keeps one responder alive for the whole map drag at every zoom level', () => {
@@ -176,20 +201,6 @@ describe('district map credits', () => {
     expect(source).toContain('if (!event.ctrlKey) return');
     expect(source).toContain('event.preventDefault()');
     expect(source).toContain('zoomedMapViewport');
-  });
-
-  it('keeps the district explanation after a location is selected', () => {
-    const markup = renderToStaticMarkup(
-      <MapPinPicker
-        coordinate={{ latitude: 44.9778, longitude: -93.265 }}
-        onCoordinateChange={vi.fn()}
-      />,
-    );
-
-    expect(markup).toContain(
-      'Every address has one House district and one Senate district — we’ll show the legislator for each',
-    );
-    expect(markup).not.toContain('we’ll show the legislator for each.');
   });
 
   it('uses the configured tile source and only credits a successful tile request', () => {
