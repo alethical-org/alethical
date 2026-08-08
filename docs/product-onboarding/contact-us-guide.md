@@ -32,11 +32,12 @@ limits repeated requests from 1 address, and asks Resend to accept both emails t
 If the connection ends before Resend answers, the API tries once more with the exact same
 emails and request identity. Resend keeps that identity for 24 hours, so the retry cannot
 send a second pair. The page says the message is on its way only after Resend accepts both
-copies.
+copies. The success card says **Message sent** and **On its way to ask@alethical.com**.
 
 If live email is off, the provider refuses the request, or either copy is not accepted, the
-form remains filled and points to `ask@alethical.com` as the direct fallback. A retry uses
-the same request identity so a lost response does not create a second pair of messages.
+form remains filled. Below the send button, it says **Couldn't send. Try again, or email
+ask@alethical.com** and links the address as the direct fallback. A retry uses the same
+request identity so a lost response does not create a second pair of messages.
 
 ## Data handling
 
