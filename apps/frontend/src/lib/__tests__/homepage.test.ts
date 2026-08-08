@@ -87,6 +87,41 @@ describe('home bill groups continue into the matching Bill Search view', () => {
     expect(new Set(labels).size).toBe(2);
   });
 
+  it('adds the signed-out phone search band between the news and bill activity sections', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../screens/redesign/HomeSignedOutScreen.tsx',
+      ),
+      'utf8',
+    );
+    const [, mobileSource = ''] = source.split('// MOBILE HOME');
+    const newsIndex = mobileSource.indexOf('IN THE NEWS');
+    const bandIndex = mobileSource.indexOf('m.searchActionsBand');
+    const activityIndex = mobileSource.indexOf('LEGISLATIVE BILL ACTIVITY');
+
+    expect(newsIndex).toBeGreaterThan(-1);
+    expect(bandIndex).toBeGreaterThan(newsIndex);
+    expect(activityIndex).toBeGreaterThan(bandIndex);
+    expect(mobileSource).toMatch(
+      /\{!isSignedIn \? \(\s*<View style=\{\[m\.searchActionsBand, searchBandGradientWeb\]\}>/,
+    );
+
+    const bandSource = mobileSource.slice(bandIndex, activityIndex);
+    expect(bandSource.match(/<HeroEntryButton/g) ?? []).toHaveLength(2);
+    expect(bandSource).toContain('label="Search Bills"');
+    expect(bandSource).toContain('href={routePath.bills()}');
+    expect(bandSource).toContain('label="Search Legislators"');
+    expect(bandSource).toContain('href={routePath.legislators()}');
+    expect(mobileSource).toContain('linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)');
+    expect(mobileSource).toMatch(
+      /searchActionsBand:\s*\{[\s\S]*?marginTop: 26,[\s\S]*?paddingTop: 34,[\s\S]*?paddingRight: 20,[\s\S]*?paddingBottom: 40,[\s\S]*?paddingLeft: 20,[\s\S]*?gap: 12,[\s\S]*?\}/,
+    );
+    expect(mobileSource).toMatch(
+      /searchActionLink:\s*\{[\s\S]*?minHeight: 59,[\s\S]*?borderRadius: 14,[\s\S]*?\}/,
+    );
+  });
+
   it('uses the complete Find My Legislator description in both homepage layouts', () => {
     const source = readFileSync(
       resolve(

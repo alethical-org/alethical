@@ -26,6 +26,7 @@ import { HOT_ISSUE_BILL_KEYS } from '../../lib/hotIssues';
 import { HomeLegislatorFinder } from '../../components/home/HomeLegislatorFinder';
 import { HOME_BILL_GROUP_CONTINUATIONS } from '../../lib/homepage';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
+import { LinkArrow } from '../../components/LinkArrow';
 import type { Bill } from '../../data/types';
 
 // The v2 signed-out home — docs/mockups/home-signed-out-v2 (README = state/token/copy
@@ -259,6 +260,7 @@ function HeroEntryButton({
   href,
   onPress,
   fullWidth = false,
+  searchBand = false,
 }: {
   icon: 'search' | 'person';
   label: string;
@@ -266,9 +268,12 @@ function HeroEntryButton({
   onPress: () => void;
   /** Phones stack these full-width; every wider layout sizes them to content. */
   fullWidth?: boolean;
+  /** Signed-out phone band uses the handoff's larger, full-width treatment. */
+  searchBand?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
   const green = t.colors.brand.graphics;
+  const iconSize = searchBand ? 23 : 21;
   return (
     <Pressable
       {...linkProps(href, onPress)}
@@ -276,12 +281,20 @@ function HeroEntryButton({
       style={[
         styles.heroEntryButton,
         fullWidth && styles.heroEntryButtonFull,
+        searchBand && m.searchActionLink,
+        searchBand && searchActionRestShadow,
         transition('border-color, box-shadow'),
-        hovered && styles.heroEntryButtonHover,
-        hovered && heroEntryHoverShadow,
+        hovered && (searchBand ? m.searchActionLinkHover : styles.heroEntryButtonHover),
+        hovered && (searchBand ? searchActionHoverShadow : heroEntryHoverShadow),
       ]}
     >
-      <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
+      <Svg
+        width={iconSize}
+        height={iconSize}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden={searchBand || undefined}
+      >
         {icon === 'search' ? (
           <>
             <Circle cx={11} cy={11} r={7} stroke={green} strokeWidth={2} />
@@ -299,17 +312,25 @@ function HeroEntryButton({
           </>
         )}
       </Svg>
-      <Text style={styles.heroEntryLabel}>{label}</Text>
-      {/* Trailing arrow — a text glyph, not an SVG stub, so it optically centers on
-          the label's x-height. It reads as part of the link's name ("Search Bills →"),
-          the same trailing-arrow convention as TextLink ("Read the full law →"). On
-          this web hero Libre Franklin's missing U+2192 falls back to Helvetica and
-          renders true; the SVG-arrow swap (memory: libre-franklin-omits-right-arrow-
-          glyph) is an Android concern, and the desktop hero only renders at ≥1100px. */}
-      <Text style={styles.heroEntryArrow}>→</Text>
+      <Text style={[styles.heroEntryLabel, searchBand && m.searchActionLabel]}>{label}</Text>
+      {searchBand ? (
+        <LinkArrow color={t.colors.text.green} style={m.searchActionArrow} />
+      ) : (
+        <Text style={styles.heroEntryArrow}>→</Text>
+      )}
     </Pressable>
   );
 }
+
+const searchActionRestShadow = Platform.select({
+  web: { boxShadow: '0 6px 18px rgba(17,21,15,0.05)' },
+  default: {},
+}) as object;
+
+const searchActionHoverShadow = Platform.select({
+  web: { boxShadow: '0 14px 34px rgba(17,21,15,0.10)' },
+  default: {},
+}) as object;
 
 // --- Hero answer card (static sample answer — HF 4138) ---
 
@@ -1281,6 +1302,9 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
           'linear-gradient(180deg,#eaf6ef 0%,#eaf6ef 20%,#f2f9f5 36%,#ffffff 52%,#ffffff 100%)',
       }
     : { backgroundColor: t.colors.tint.t100 };
+  const searchBandGradientWeb: object = isWeb
+    ? { backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)' }
+    : { backgroundColor: t.colors.tint.t100 };
 
   return (
     <PageBackground>
@@ -1383,7 +1407,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
               skeletons hold until BOTH pinned-bill queries settle, then both cards
               render together — no "one card, then the second pops in" stagger. */}
           {newsLoading ? (
-            <Container style={m.section}>
+            <Container style={[m.section, !isSignedIn && m.newsSectionBeforeSearchBand]}>
               <Text style={m.eyebrow}>IN THE NEWS</Text>
               <View style={m.cardStack}>
                 <SkeletonCard lines={4} />
@@ -1391,7 +1415,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
               </View>
             </Container>
           ) : newsBills.length > 0 ? (
-            <Container style={m.section}>
+            <Container style={[m.section, !isSignedIn && m.newsSectionBeforeSearchBand]}>
               <Text style={m.eyebrow}>IN THE NEWS</Text>
               <View style={m.cardStack}>
                 {newsBills.map(({ pin, bill }) => (
@@ -1405,6 +1429,27 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                 ))}
               </View>
             </Container>
+          ) : null}
+
+          {!isSignedIn ? (
+            <View style={[m.searchActionsBand, searchBandGradientWeb]}>
+              <HeroEntryButton
+                icon="search"
+                label="Search Bills"
+                href={routePath.bills()}
+                onPress={openSearchBills}
+                fullWidth
+                searchBand
+              />
+              <HeroEntryButton
+                icon="person"
+                label="Search Legislators"
+                href={routePath.legislators()}
+                onPress={() => navigation.navigate('Legislators')}
+                fullWidth
+                searchBand
+              />
+            </View>
           ) : null}
 
           {/* LEGISLATIVE BILL ACTIVITY — live. Check loading FIRST so the skeletons
@@ -1613,6 +1658,44 @@ const m = StyleSheet.create({
   // Container mobile. The last section before the footer overrides its bottom to
   // 96 (lastSectionBottom) so its content isn't crowded against the black footer.
   section: { paddingTop: 40, paddingBottom: 40 },
+  newsSectionBeforeSearchBand: { paddingBottom: 0 },
+  searchActionsBand: {
+    position: 'relative',
+    marginTop: 26,
+    paddingTop: 34,
+    paddingRight: 20,
+    paddingBottom: 40,
+    paddingLeft: 20,
+    flexDirection: 'column',
+    gap: 12,
+  },
+  searchActionLink: {
+    alignSelf: 'stretch',
+    minHeight: 59,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 14,
+    paddingTop: 15,
+    paddingRight: 20,
+    paddingBottom: 15,
+    paddingLeft: 17,
+  },
+  searchActionLinkHover: { borderColor: 'rgba(45,212,126,0.55)' },
+  searchActionLabel: {
+    flex: 1,
+    fontFamily: t.typography.ui,
+    fontSize: 22,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  searchActionArrow: {
+    width: 22,
+    height: 22,
+  },
   lastSectionBottom: { paddingBottom: 96 },
   // Bill Activity only: +20 bottom padding over the shared section rhythm. With the
   // Ask section gone, the green Find My Legislator band sits directly under this
