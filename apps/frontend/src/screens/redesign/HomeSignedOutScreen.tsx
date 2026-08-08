@@ -1303,7 +1303,9 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
       }
     : { backgroundColor: t.colors.tint.t100 };
   const searchBandGradientWeb: object = isWeb
-    ? { backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)' }
+    ? {
+        backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#eef7f2 34%,#f6faf8 68%,#fbfcfd 100%)',
+      }
     : { backgroundColor: t.colors.tint.t100 };
 
   return (
@@ -1661,10 +1663,10 @@ const m = StyleSheet.create({
   newsSectionBeforeSearchBand: { paddingBottom: 0 },
   searchActionsBand: {
     position: 'relative',
-    marginTop: 26,
-    paddingTop: 34,
+    marginTop: 48,
+    paddingTop: 40,
     paddingRight: 20,
-    paddingBottom: 40,
+    paddingBottom: 56,
     paddingLeft: 20,
     flexDirection: 'column',
     gap: 12,

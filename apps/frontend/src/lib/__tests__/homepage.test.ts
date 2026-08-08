@@ -113,9 +113,11 @@ describe('home bill groups continue into the matching Bill Search view', () => {
     expect(bandSource).toContain('href={routePath.bills()}');
     expect(bandSource).toContain('label="Search Legislators"');
     expect(bandSource).toContain('href={routePath.legislators()}');
-    expect(mobileSource).toContain('linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)');
+    expect(mobileSource).toContain(
+      'linear-gradient(180deg,#eaf6ef 0%,#eef7f2 34%,#f6faf8 68%,#fbfcfd 100%)',
+    );
     expect(mobileSource).toMatch(
-      /searchActionsBand:\s*\{[\s\S]*?marginTop: 26,[\s\S]*?paddingTop: 34,[\s\S]*?paddingRight: 20,[\s\S]*?paddingBottom: 40,[\s\S]*?paddingLeft: 20,[\s\S]*?gap: 12,[\s\S]*?\}/,
+      /searchActionsBand:\s*\{[\s\S]*?marginTop: 48,[\s\S]*?paddingTop: 40,[\s\S]*?paddingRight: 20,[\s\S]*?paddingBottom: 56,[\s\S]*?paddingLeft: 20,[\s\S]*?gap: 12,[\s\S]*?\}/,
     );
     expect(mobileSource).toMatch(
       /searchActionLink:\s*\{[\s\S]*?minHeight: 59,[\s\S]*?borderRadius: 14,[\s\S]*?\}/,
