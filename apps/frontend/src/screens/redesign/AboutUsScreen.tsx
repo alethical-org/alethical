@@ -76,7 +76,7 @@ const START_ITEMS = [
   },
   {
     startTitle: 'Find My Legislator',
-    body: 'See who represents you in the Minnesota House and Senate.',
+    body: 'See who represents you in the Minnesota House and Senate, and learn about their work and how to contact them.',
     destination: 'findMyLegislator',
   },
   {
