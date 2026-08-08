@@ -70,7 +70,7 @@ A missing one surfaces as a failed deploy with no obvious cause.
 | `RAILWAY_TOKEN`                                     | `railway-deploy.yml`               | Deploys the API.                                                                                      |
 | `VERCEL_TOKEN`                                      | `vercel-deploy.yml`                | Deploys the web frontend.                                                                             |
 | `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`                | `vercel-deploy.yml`                | Targets the right Vercel project.                                                                     |
-| `VERCEL_GIT_AUTHOR_NAME`, `VERCEL_GIT_AUTHOR_EMAIL` | `vercel-deploy.yml`                | Rewrites the commit author so Hobby-plan deploys are attributed correctly.                            |
+| `VERCEL_GIT_AUTHOR_NAME`, `VERCEL_GIT_AUTHOR_EMAIL` | `vercel-deploy.yml`                | Rewrites the deployed commit's author. Was added for a Hobby-plan restriction; **we are on Vercel Pro**, so this is probably obsolete and is tracked for removal in [#1125](https://github.com/alethical-org/alethical/issues/1125). |
 
 ## Settings documented elsewhere
 
