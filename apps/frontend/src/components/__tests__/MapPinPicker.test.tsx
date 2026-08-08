@@ -7,8 +7,12 @@ const { renderToStaticMarkup } = require('react-dom/server') as {
 };
 
 vi.mock('react-native-svg', () => ({
-  default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,
-  Path: () => <path />,
+  default: ({ children, testID, ...props }: React.PropsWithChildren<{ testID?: string }>) => (
+    <svg data-testid={testID} {...props}>
+      {children}
+    </svg>
+  ),
+  Path: (props: React.SVGProps<SVGPathElement>) => <path {...props} />,
 }));
 
 import { MapPinPicker } from '../MapPinPicker';
@@ -41,6 +45,7 @@ describe('district map credits', () => {
     );
     expect(source).not.toMatch(/districtExplanation:\s*\{[\s\S]*maxWidth/);
     expect(source).toMatch(/credits:\s*\{[\s\S]*marginTop: 0/);
+    expect(source).toMatch(/creditsMobile:\s*\{[^}]*marginTop: 240/);
   });
 
   it('keeps all 3 source rows together and gives both links the profile-card treatment', () => {
@@ -57,7 +62,9 @@ describe('district map credits', () => {
     );
     expect(markup).not.toContain('certified by the Census Bureau.');
     expect(source).toContain("{' (opens in a new tab)'}");
-    expect(source).toContain("{' →'}");
+    expect(source).toContain("import { LinkArrow } from './LinkArrow'");
+    expect(source).not.toContain("{' →'}");
+    expect(markup).toContain('data-testid="link-arrow"');
     expect(source).toMatch(/creditLink:\s*\{[\s\S]*color: t.colors.brand.deep/);
     expect(source).toMatch(/creditLink:\s*\{[\s\S]*textDecorationLine: 'none'/);
   });

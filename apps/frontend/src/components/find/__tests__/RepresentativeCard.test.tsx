@@ -6,6 +6,15 @@ const { renderToStaticMarkup } = require('react-dom/server') as {
   renderToStaticMarkup: (node: React.ReactNode) => string;
 };
 
+vi.mock('react-native-svg', () => ({
+  default: ({ children, testID, ...props }: React.PropsWithChildren<{ testID?: string }>) => (
+    <svg data-testid={testID} {...props}>
+      {children}
+    </svg>
+  ),
+  Path: (props: React.SVGProps<SVGPathElement>) => <path {...props} />,
+}));
+
 import { RepresentativeCard, VacantSeatCard } from '../RepresentativeCard';
 import type { Legislator } from '../../../data/types';
 
@@ -158,8 +167,8 @@ describe('RepresentativeCard accepted layout', () => {
     expect(html).not.toContain('↗');
     expect(html).toContain('target="_blank"');
     expect(html).toMatch(/rel="[^"]*noopener[^"]*"/);
-    expect(html).toContain('Official Senate profile<span aria-hidden="true"');
-    expect(html).toContain('View profile <span aria-hidden="true"');
+    expect(html.match(/data-testid="link-arrow"/g)).toHaveLength(2);
+    expect(html).not.toContain('→');
 
     const phone = html.indexOf('651-555-0100');
     const separator = html.indexOf('>·<', phone);
@@ -179,6 +188,10 @@ describe('RepresentativeCard accepted layout', () => {
 
     expect(html).toContain('View profile');
     expect(html).not.toContain('View full profile');
+    expect(html).toContain('data-testid="link-arrow"');
+    expect(componentSource).toContain("import { LinkArrow } from '../LinkArrow'");
+    expect(componentSource).not.toContain("{' →'}");
+    expect(componentSource).not.toMatch(/>\s*→\s*</);
   });
 
   it('omits an unavailable public email and its separator', () => {

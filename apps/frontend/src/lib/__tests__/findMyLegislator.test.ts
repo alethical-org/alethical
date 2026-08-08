@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  FIND_MY_LEGISLATOR_INSTRUCTIONS,
   addressSuggestionInput,
   addressSuggestionResultsAreCurrent,
   addressChoiceKey,
@@ -16,6 +17,18 @@ import {
 } from '../findMyLegislator';
 
 describe('Find My Legislator state and copy helpers', () => {
+  it('uses the complete address instructions at every screen width', () => {
+    expect(FIND_MY_LEGISLATOR_INSTRUCTIONS).toBe(
+      'Start with a house number and street name. City and ZIP are optional. Choose a suggested Minnesota address, select Use my location, or enter the full address and choose Find.',
+    );
+
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('{FIND_MY_LEGISLATOR_INSTRUCTIONS}');
+  });
+
   it('keeps all 10 page states distinct', () => {
     expect([
       viewStateForLookup({}),
@@ -86,8 +99,7 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('useAddressSuggestions(');
     expect(source).toContain("'aria-autocomplete': 'list'");
     expect(source).toContain('Suggested Minnesota addresses');
-    expect(source).toContain('Start with a house number and street name');
-    expect(source).toContain('City and ZIP are optional');
+    expect(source).toContain('FIND_MY_LEGISLATOR_INSTRUCTIONS');
     expect(source).toContain('if (!lookup.error && !clientError) setSuggestionsOpen(true)');
     expect(source).toContain('<Text style={styles.choiceKey}>↑</Text>');
     expect(source).toContain('<Text style={styles.choiceKey}>↓</Text>');
