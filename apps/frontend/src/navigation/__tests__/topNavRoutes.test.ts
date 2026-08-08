@@ -7,6 +7,7 @@ describe('top navigation routes', () => {
     ['search-bills', ['Bills']],
     ['search-legislators', ['Legislators']],
     ['search-find-my-legislator', ['FindMyLegislator']],
+    ['about-contact', ['ContactUs']],
   ] as const)('sends %s through the full app route', (itemId, expectedCall) => {
     const navigate = vi.fn();
 

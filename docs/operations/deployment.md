@@ -50,7 +50,18 @@ DATABASE_URL=postgresql://...
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ALETHICAL_CORS_ORIGINS=https://your-vercel-domain.vercel.app,http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006
+ALETHICAL_EMAIL_ENABLED=true
+ALETHICAL_EMAIL_TRANSPORT=resend
+ALETHICAL_EMAIL_FROM=Alethical <ask@alethical.com>
+RESEND_API_KEY=re_...
+ALETHICAL_CONTACT_RATE_PER_MIN=5
 ```
+
+Contact us stays safely unavailable unless the live switch, `resend` transport, and
+provider key are all present. Before enabling it, verify `alethical.com` in Resend and
+add the SPF and DKIM records Resend supplies without removing the existing Google
+Workspace records. Keep `ALETHICAL_EMAIL_ALLOWLIST` unset for public launch; setting it
+restricts both `ask@alethical.com` and the writer's copy to named addresses.
 
 The build installs dependencies with:
 

@@ -22,7 +22,7 @@ type LegalDocumentContent = {
 
 const privacyContent: LegalDocumentContent = {
   title: 'Privacy Policy',
-  meta: 'Effective date: June 16, 2026 · Last updated: August 7, 2026',
+  meta: 'Effective date: June 16, 2026 · Last updated: August 8, 2026',
   sections: [
     {
       blocks: [
@@ -46,6 +46,7 @@ const privacyContent: LegalDocumentContent = {
             'Account information — your name, email address, and profile picture.',
             'Authentication data — identifiers used to create and maintain your secure session.',
             'Usage data — information about how you interact with the Service, such as features used and general device and log information.',
+            'Contact messages — the name and phone number you choose to provide, your email address, subject, and message.',
           ],
         },
         {
@@ -68,6 +69,7 @@ const privacyContent: LegalDocumentContent = {
             'Authenticate you and provide secure access to your account.',
             'Operate, maintain, and improve the Service.',
             'Communicate with you about your account, security, and updates.',
+            'Receive and reply to messages you send through Contact us, and send you a copy.',
             'Protect against fraud, abuse, and unauthorized access.',
           ],
         },
@@ -104,6 +106,7 @@ const privacyContent: LegalDocumentContent = {
             'AI providers who generate answers and summaries — Anthropic and OpenAI. When you ask a question, the question text and the bill passages it is answered from are sent to them. We do not send your name, email address, or account identifier with it.',
             'The United States Census Bureau, when you look up your legislators by address. The address you type is sent to its public geocoding service to find your district. We do not store it.',
             'The Minnesota Geospatial Information Office, while we show Minnesota address suggestions and when the Census Bureau cannot match a Minnesota address. We send only the house number and street name entered so far to its public address list, not the city or ZIP. We do not store it.',
+            'Resend, when you use Contact us. It receives the form fields to deliver 1 copy to Alethical’s Google Workspace inbox and 1 copy to you. The Alethical app does not store the form in its database.',
             'Legal authorities when required by law, regulation, or valid legal process.',
             'A successor entity in connection with a merger, acquisition, or sale of assets, subject to this Policy.',
           ],

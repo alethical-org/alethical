@@ -2,8 +2,16 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 class PageInfo(BaseModel):
@@ -26,6 +34,38 @@ class DetailResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    status: str
+
+
+class ContactMessageRequest(BaseModel):
+    """One public Contact us submission (#1274).
+
+    Limits keep a public endpoint from becoming an unbounded email relay. The
+    optional fields are accepted as empty strings so the browser can send the
+    form exactly as shown without inventing null semantics.
+    """
+
+    request_id: UUID
+    name: str = Field(default="", max_length=120)
+    email: EmailStr
+    phone: str = Field(default="", max_length=40)
+    subject: str = Field(min_length=1, max_length=200)
+    message: str = Field(min_length=1, max_length=5000)
+
+    @field_validator("name", "email", "phone", "subject", "message", mode="before")
+    @classmethod
+    def strip_contact_text(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("subject")
+    @classmethod
+    def keep_subject_on_one_line(cls, value: str) -> str:
+        if "\n" in value or "\r" in value:
+            raise ValueError("Subject must fit on one line")
+        return value
+
+
+class ContactMessageResponse(BaseModel):
     status: str
 
 

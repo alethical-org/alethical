@@ -4,6 +4,7 @@ type TopNavNavigateArgs =
   | ['Bills']
   | ['Legislators']
   | ['FindMyLegislator']
+  | ['ContactUs']
   | ['Tabs', { screen: 'Tracked' }];
 
 export type TopNavNavigation = {
@@ -41,6 +42,9 @@ export function navigateTopNavItem(
       return true;
     case 'search-find-my-legislator':
       navigation.navigate('FindMyLegislator');
+      return true;
+    case 'about-contact':
+      navigation.navigate('ContactUs');
       return true;
     case 'track-bills': {
       const root = rootNavigation(navigation);

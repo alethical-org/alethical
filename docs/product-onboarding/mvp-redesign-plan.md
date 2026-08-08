@@ -246,7 +246,7 @@ router and had diverged from the live redirect behavior).
 | Search → Bills | `/bills`, detail `/bills/:billId` | redirect `/search` → `/bills` |
 | Search → Legislators | `/legislators`, detail `/legislators/:legislatorId` | Find-My-Rep CTA; deep link `/find-my-legislator` (unchanged, avoids `:legislatorId` collision) |
 | Track → Bills | `/tracked` | live nav entry (#976); `/tracked` resolves to the Tracked page (sign-in card when signed out), no longer redirected to Home; auth-gated |
-| About | `/about`, `/about/trust`, `/about/contact` | static |
+| About | `/about`, `/about/trust`, `/about/contact` | Contact us is live; the other 2 pages remain static-page work |
 | Auth / account | none — sign-in is a dialog, not a page | #1006: `openSignIn()` opens it over whatever page you are on, so there is nothing to route to and nothing to come back from. `/account` still redirects Home |
 | Legal (footer) | `/privacy`, `/terms` | not in About menu |
 | Roadmap (hidden) | `/search/{issues,policies,laws,candidates,news}`, `/track/{issues,policies,legislators,laws,candidates}` | declared, not rendered |
@@ -303,7 +303,8 @@ Frontend track (after Phase 0; parallel with backend track)
   shipped, and the legacy combined `SearchScreen` retired (#313); driven by the 2026-07-15
   design-review decisions (Locked decisions above). Follow-ups tracked separately:
   #291 (authored-count bug), #292 (progress-sort), #293 (companion link)
-- [ ] About static pages (About Us / Trust & Integrity / Contact Us); Trust page as real brand copy
+- [x] Contact Us page — 5-field form, direct-email fallback, social links, and 2-copy delivery (#1274)
+- [ ] About Us and Trust & Integrity static pages; Trust page as real brand copy
 - [x] Account menu + nav-after-sign-in — [#1006](https://github.com/alethical-org/alethical/issues/1006); Privacy/Terms in the footer still open
 - [x] Logged-out Track shell + intent-preserving TRACK sign-in + post-auth redirect — #976 and [#1006](https://github.com/alethical-org/alethical/issues/1006)
 - [x] Green token flip (web; re-skins the native iOS/Android clients for free via shared tokens) — [#136](https://github.com/alethical-org/alethical/issues/136); landed with the signed-out home ship (PR #67)

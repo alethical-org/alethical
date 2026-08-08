@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, and the two used to be indistinguishable here: it
@@ -809,6 +809,22 @@ Contract:
 Purpose:
 
 - routing only — which intent a question resolves to, without producing an answer
+
+### Contact
+
+#### `POST /api/v1/contact`
+
+Purpose:
+
+- accept a public Contact us message, deliver it to `ask@alethical.com`, and send the writer a copy
+
+Contract:
+
+- name and phone are optional; email, subject, and message are required and checked by the server
+- 1 request identity covers both emails, so retrying a lost response does not create duplicates
+- success means the email provider accepted both messages; disabled or partial delivery returns `503`
+- requests are limited separately from Ask and address lookups
+- message text is never written to the Alethical database or logs
 
 ### Policy Areas
 

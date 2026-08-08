@@ -11,6 +11,7 @@ type WebRouteTarget =
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'privacy' }
   | { kind: 'terms' }
+  | { kind: 'contactUs' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
   | { kind: 'ask'; params: RootStackParamList['Ask'] };
 
@@ -128,6 +129,10 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'chat' || segments[0] === 'account') {
       return { kind: 'tab', screen: 'Home' };
     }
+  }
+
+  if (segments.length === 2 && segments[0] === 'about' && segments[1] === 'contact') {
+    return { kind: 'contactUs' };
   }
 
   // Bill detail and legislator detail resolve to their redesigned profile
@@ -284,6 +289,8 @@ export function pathForRoute(activeRoute: {
       return '/privacy';
     case 'Terms':
       return '/terms';
+    case 'ContactUs':
+      return '/about/contact';
     case 'VoteDetail':
       return `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}/votes/${encodeURIComponent(String(activeRoute.params?.voteEventId ?? ''))}`;
     case 'ChatSession':
@@ -398,6 +405,11 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
     case 'terms':
       return {
         routes: [homeTabs, { name: 'Terms' }],
+        index: 1,
+      };
+    case 'contactUs':
+      return {
+        routes: [homeTabs, { name: 'ContactUs' }],
         index: 1,
       };
     case 'chatSession':
