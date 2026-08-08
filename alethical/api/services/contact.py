@@ -24,6 +24,32 @@ QUOTA_WARNING_THRESHOLDS = (80, 90, 95)
 
 logger = logging.getLogger(__name__)
 
+_SAFE_PROVIDER_ERROR_NAMES = frozenset(
+    {
+        "application_error",
+        "concurrent_idempotent_requests",
+        "daily_quota_exceeded",
+        "internal_server_error",
+        "invalid_access",
+        "invalid_api_key",
+        "invalid_attachment",
+        "invalid_from_address",
+        "invalid_idempotency_key",
+        "invalid_idempotent_request",
+        "invalid_parameter",
+        "invalid_region",
+        "method_not_allowed",
+        "missing_api_key",
+        "missing_required_field",
+        "monthly_quota_exceeded",
+        "not_found",
+        "rate_limit_exceeded",
+        "restricted_api_key",
+        "security_error",
+        "validation_error",
+    }
+)
+
 
 class ContactDeliveryUnavailable(RuntimeError):
     """The form could not truthfully say both messages are on their way."""
@@ -50,15 +76,56 @@ def _delivery_readiness() -> tuple[bool, bool, bool, bool]:
     )
 
 
+def _provider_error_name(response: httpx.Response | None) -> str | None:
+    if response is None:
+        return None
+    try:
+        data = response.json()
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    name = data.get("name")
+    if not isinstance(name, str) or name not in _SAFE_PROVIDER_ERROR_NAMES:
+        return None
+    return name
+
+
+def _key_shape(raw_key: str) -> tuple[bool, bool, bool, bool, int]:
+    key = raw_key.strip()
+    wrapped_quotes = len(key) >= 2 and key[0] in {'"', "'"} and key[-1] == key[0]
+    return (
+        key.startswith("re_"),
+        wrapped_quotes,
+        any(char.isspace() for char in key),
+        key.isascii() and key.isprintable(),
+        len(key),
+    )
+
+
 def log_contact_delivery_readiness() -> None:
     enabled, transport_resend, key_present, allowlist_configured = _delivery_readiness()
+    (
+        key_starts_re,
+        key_wrapped_quotes,
+        key_contains_whitespace,
+        key_ascii_printable,
+        key_length,
+    ) = _key_shape(os.environ.get("RESEND_API_KEY", ""))
     logger.info(
         "Contact delivery readiness: enabled=%s transport_resend=%s "
-        "key_present=%s allowlist_configured=%s",
+        "key_present=%s allowlist_configured=%s key_starts_re_=%s "
+        "key_wrapped_quotes=%s key_contains_whitespace=%s "
+        "key_ascii_printable=%s key_length=%s",
         enabled,
         transport_resend,
         key_present,
         allowlist_configured,
+        key_starts_re,
+        key_wrapped_quotes,
+        key_contains_whitespace,
+        key_ascii_printable,
+        key_length,
     )
 
 
@@ -237,7 +304,8 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
     """
 
     request_id = str(message.request_id)
-    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    raw_api_key = os.environ.get("RESEND_API_KEY", "")
+    api_key = raw_api_key.strip()
     enabled, transport_resend, key_present, allowlist_configured = _delivery_readiness()
     if not enabled or not transport_resend or not key_present:
         logger.warning(
@@ -257,6 +325,7 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
         logger.warning("Contact delivery %s refused by the email allowlist", request_id)
         raise ContactDeliveryUnavailable("A contact recipient is outside the allowlist")
 
+    response: httpx.Response | None = None
     try:
         response = httpx.post(
             RESEND_BATCH_URL,
@@ -275,22 +344,46 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
             or len(data) != 2
             or not all(item.get("id") for item in data)
         ):
+            logger.warning(
+                "Contact delivery %s failed: provider_response_valid=False "
+                "provider_status=%s",
+                request_id,
+                getattr(response, "status_code", None),
+            )
             raise ContactDeliveryUnavailable(
                 "The provider did not accept both messages"
             )
     except (httpx.HTTPError, ValueError, TypeError, AttributeError) as exc:
-        provider_status = (
-            exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        provider_response = (
+            exc.response if isinstance(exc, httpx.HTTPStatusError) else response
         )
+        provider_status = getattr(provider_response, "status_code", None)
+        (
+            key_starts_re,
+            key_wrapped_quotes,
+            key_contains_whitespace,
+            key_ascii_printable,
+            key_length,
+        ) = _key_shape(raw_api_key)
         logger.warning(
-            "Contact delivery %s failed: error_type=%s provider_status=%s",
+            "Contact delivery %s failed: error_type=%s provider_status=%s "
+            "provider_error_name=%s key_starts_re_=%s key_wrapped_quotes=%s "
+            "key_contains_whitespace=%s key_ascii_printable=%s key_length=%s",
             request_id,
             type(exc).__name__,
             provider_status,
+            _provider_error_name(provider_response),
+            key_starts_re,
+            key_wrapped_quotes,
+            key_contains_whitespace,
+            key_ascii_printable,
+            key_length,
         )
         raise ContactDeliveryUnavailable(
             "The provider did not accept both messages"
         ) from exc
+
+    logger.info("Contact delivery %s accepted both messages", request_id)
 
     try:
         _warn_when_free_plan_fills(response=response, db=db, api_key=api_key)
