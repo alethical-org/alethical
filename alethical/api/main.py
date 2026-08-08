@@ -11,10 +11,12 @@ from alethical.api.problems import http_exception_handler, validation_exception_
 from alethical.api.rate_limit import (
     DEFAULT_ADDRESS_SUGGESTIONS_PER_MINUTE,
     DEFAULT_ASK_PER_MINUTE,
+    DEFAULT_CONTACT_PER_MINUTE,
     DEFAULT_LOOKUP_PER_MINUTE,
     limiter_from_env,
 )
 from alethical.api.routers.ask import router as ask_router
+from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.public import PUBLIC_CACHE_CONTROL
@@ -75,6 +77,9 @@ def create_app() -> FastAPI:
         "ALETHICAL_ADDRESS_SUGGESTION_RATE_PER_MIN",
         DEFAULT_ADDRESS_SUGGESTIONS_PER_MINUTE,
     )
+    app.state.contact_limiter = limiter_from_env(
+        "ALETHICAL_CONTACT_RATE_PER_MIN", DEFAULT_CONTACT_PER_MINUTE
+    )
 
     @app.get("/healthz")
     def healthz():
@@ -86,6 +91,7 @@ def create_app() -> FastAPI:
 
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
     app.include_router(ask_router, prefix="/api/v1", tags=["ask"])
+    app.include_router(contact_router, prefix="/api/v1", tags=["contact"])
     app.include_router(me_router, prefix="/api/v1", tags=["me"])
     app.include_router(internal_router, prefix="/internal/v1", tags=["internal"])
     return app

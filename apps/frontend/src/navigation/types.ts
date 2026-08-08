@@ -59,6 +59,7 @@ export type RootStackParamList = {
     | undefined;
   Privacy: undefined;
   Terms: undefined;
+  ContactUs: undefined;
   VoteDetail: { billId: string; voteEventId: string };
   ChatSession: {
     sessionId?: string;

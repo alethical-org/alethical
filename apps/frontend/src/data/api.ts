@@ -1683,6 +1683,28 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
   return mapAskAnswerPayload(response.data);
 }
 
+export type ContactMessageInput = {
+  requestId: string;
+  name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
+};
+
+export async function sendContactMessageFromApi(
+  input: ContactMessageInput,
+): Promise<{ status: 'accepted' }> {
+  return publicApiPost<{ status: 'accepted' }>('/contact', {
+    request_id: input.requestId,
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+    subject: input.subject,
+    message: input.message,
+  });
+}
+
 export async function getSavedSuggestedAnswerFromApi(
   billId: string,
   suggestionIndex: number,

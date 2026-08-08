@@ -43,8 +43,6 @@ function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
 }
 
-const CONTACT_MAILTO = 'mailto:ask@alethical.com';
-
 // The URL behind each interactive nav row, so the row is a real <a href> the
 // browser can open in a new tab (navigation/links.ts). Keyed to the same ids
 // every screen's onNavigate switch handles, so a row's link and its click land
@@ -63,7 +61,7 @@ const NAV_ITEM_HREFS: Record<string, string> = {
   // which prompts a signed-out visitor to sign in rather than advertising a
   // capability it can't deliver (grounded-answers rule 2).
   'track-bills': routePath.tracked(),
-  'about-contact': CONTACT_MAILTO,
+  'about-contact': routePath.contactUs(),
 };
 
 /** Link props for one nav row — a real anchor when the row has somewhere to go. */
@@ -571,16 +569,6 @@ export function TopNav({
   const navigate = (item: IaItem) => {
     setOpenMenu(null);
     setDrawerOpen(false);
-    // Contact Us opens mail composition directly rather than routing anywhere
-    // in-app — handled once here so every screen's nav gets it for free.
-    if (item.id === 'about-contact') {
-      if (isWeb && typeof window !== 'undefined') {
-        window.location.href = CONTACT_MAILTO;
-      } else {
-        void Linking.openURL(CONTACT_MAILTO);
-      }
-      return;
-    }
     // Live dropdown routes belong to the shared nav, not to each host page.
     // In particular, Tracked is nested under Tabs and cannot be reached by a
     // root-stack screen with a bare `navigate('Tracked')` call.
@@ -1000,8 +988,17 @@ function FooterSocialLink({ social }: { social: FooterSocial }) {
   );
 }
 
-export function Footer({ onPrivacy, onTerms }: { onPrivacy?: () => void; onTerms?: () => void }) {
+export function Footer({
+  onContact,
+  onPrivacy,
+  onTerms,
+}: {
+  onContact?: () => void;
+  onPrivacy?: () => void;
+  onTerms?: () => void;
+}) {
   const { isMobile } = useResponsive();
+  const navigation = useNavigation<any>();
   return (
     <View style={[styles.footer, isMobile && styles.footerMobile]}>
       <Container style={isMobile ? styles.footerContainerMobile : styles.footerContainer}>
@@ -1023,8 +1020,8 @@ export function Footer({ onPrivacy, onTerms }: { onPrivacy?: () => void; onTerms
             <View style={[styles.footerLinks, isMobile && styles.footerLinksMobile]}>
               <FooterLink
                 label="Contact us"
-                href={CONTACT_MAILTO}
-                onPress={() => void Linking.openURL(CONTACT_MAILTO)}
+                href={routePath.contactUs()}
+                onPress={onContact ?? (() => navigation.navigate('ContactUs'))}
                 mobile={isMobile}
               />
               <FooterLink

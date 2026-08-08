@@ -138,6 +138,11 @@ describe('live URLs still resolve to themselves', () => {
     expect(targetFromPathname('/privacy')).toEqual({ kind: 'privacy' });
     expect(targetFromPathname('/terms')).toEqual({ kind: 'terms' });
   });
+
+  it('round-trips the Contact us page through its public URL', () => {
+    expect(targetFromPathname('/about/contact')).toEqual({ kind: 'contactUs' });
+    expect(pathForRoute({ name: 'ContactUs' })).toBe('/about/contact');
+  });
 });
 
 describe('shared top navigation', () => {

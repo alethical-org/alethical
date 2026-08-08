@@ -1,4 +1,4 @@
-<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/services/auth.py, alethical/api/services/representative_lookup.py, alethical/logging.py, apps/frontend/src/screens/LegalScreens.tsx -->
+<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/representative_lookup.py, alethical/logging.py, apps/frontend/src/screens/LegalScreens.tsx -->
 
 # What we keep about readers, and for how long
 
@@ -232,6 +232,22 @@ are set on none of the 82 rows and read by nothing. See §8 and [#1042](https://
 **41 messages in production are text a reader typed.** This is the most sensitive thing
 we hold, and §5 is about it.
 
+### 2.8 A Contact us message
+
+**What it holds.** The name and phone number a person chooses to provide, their email
+address, subject, and full message.
+
+**Where it goes.** Resend receives the fields to deliver 1 copy to Alethical's Google
+Workspace inbox and 1 copy to the sender. The Alethical app does not write the form into
+its database or logs. Resend and Google Workspace keep their delivery and mailbox copies
+under their own service terms; deleting an Alethical account does not delete those emails.
+
+**Retention.** The Alethical inbox copy stays only as long as it is needed to answer and
+keep the support record. The sender controls their copy. Resend's
+[privacy policy](https://resend.com/legal/privacy-policy) says it keeps personal data only
+as long as needed for its service and legal duties; its current plan terms, not this code,
+control the provider copy.
+
 ---
 
 ## 3. Given, generated, or just written down
@@ -277,6 +293,8 @@ the published Privacy Policy.
 | **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**        | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
 | Vercel                                      | Hosts the web app, so its request logs see every page address (§7)      | Every page load                                                                                      | No, and it should be         |
 | Cloudflare                                  | Sits in front of the API                                                | Every API call                                                                                       | No, and it should be         |
+| Resend                                      | Contact name, email, phone, subject, and message                        | Every Contact us send                                                                                | Yes                          |
+| Google Workspace                            | Alethical's delivered copy of the same contact message                  | Every Contact us send                                                                                | Yes, through the Resend line |
 
 **The good half.** No account identifier ever reaches a model. The prompt we send is
 built from the bill's identifier, the reader's question, and passages of bill text
@@ -524,6 +542,7 @@ The naming problem in §2.1 is a separate fix.
 | Sent alerts                                          | 90 days after sending                                                                  | A delivery receipt nobody asks about after three months                                                   |
 | Unsent alerts                                        | Until sent, or account deletion                                                        | They are pending work                                                                                     |
 | Conversations and messages                           | **24 months from the last message**, then deleted whether or not the account is active | Matches the two-year biennium the record is organised by                                                  |
+| Contact us message                                   | No Alethical database copy; inbox and provider copies follow §2.8                      | The message exists only to answer the person and keep the support record                                  |
 | Server logs                                          | Whatever the host keeps; no reader data in them at all (§7 rule)                       | Redaction beats retention — the cheapest data to keep safe is data you never wrote                        |
 | Anonymous counts                                     | Indefinitely                                                                           | Nothing in them points at a person                                                                        |
 

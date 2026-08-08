@@ -31,6 +31,7 @@ import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
 import { SearchBillsScreen } from '../screens/redesign/SearchBillsScreen';
 import { SearchLegislatorsScreen } from '../screens/redesign/SearchLegislatorsScreen';
 import { TrackedBillsScreen as TrackedScreen } from '../screens/redesign/TrackedBillsScreen';
+import { ContactUsScreen } from '../screens/redesign/ContactUsScreen';
 import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
 import { linkProps, routePath } from './links';
@@ -634,6 +635,11 @@ export function RootNavigator() {
               name="Terms"
               component={TermsScreen}
               options={{ title: 'Terms of Service' }}
+            />
+            <Stack.Screen
+              name="ContactUs"
+              component={ContactUsScreen}
+              options={{ headerShown: false, title: 'Contact us' }}
             />
             <Stack.Screen
               name="VoteDetail"

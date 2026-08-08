@@ -12,4 +12,13 @@ describe('privacy copy', () => {
     expect(source).toContain('house number and street name entered so far');
     expect(source).not.toContain('We send latitude and longitude to its public district service');
   });
+
+  it('explains where Contact us messages go', () => {
+    const source = readFileSync(join(__dirname, '..', '..', 'screens', 'LegalScreens.tsx'), 'utf8');
+
+    expect(source).toContain('Contact messages');
+    expect(source).toContain('Resend, when you use Contact us');
+    expect(source).toContain('Google Workspace inbox');
+    expect(source).toContain('does not store the form in its database');
+  });
 });
