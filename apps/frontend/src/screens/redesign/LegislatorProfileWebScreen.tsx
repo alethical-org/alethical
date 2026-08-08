@@ -42,6 +42,7 @@ import {
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
+import { buildLegislatorShareContent, publicPageUrl } from '../../lib/share';
 import { Skeleton } from '../../components/Skeleton';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { formatLegislatureLabel, type SessionDisplaySource } from '../../lib/sessionLabel';
@@ -182,11 +183,12 @@ export function LegislatorProfileWebScreen() {
   // Share the readable slug URL (falls back to the UUID only for a row served
   // without a slug); the backend resolves either form.
   const shareSlug = legislator.slug ?? legislator.id;
-  const shareUrl =
-    isWeb && typeof window !== 'undefined'
-      ? `${window.location.origin}/legislators/${encodeURIComponent(shareSlug)}`
-      : `https://alethical.com/legislators/${encodeURIComponent(shareSlug)}`;
-  const shareTitle = `${displayName} — ${partyLabel}, ${districtLine}`;
+  const shareContent = buildLegislatorShareContent({
+    displayName,
+    partyLabel,
+    districtLine,
+    url: publicPageUrl(`/legislators/${encodeURIComponent(shareSlug)}`),
+  });
 
   const hero = (
     <Hero
@@ -194,8 +196,7 @@ export function LegislatorProfileWebScreen() {
       displayName={displayName}
       districtLine={districtLine}
       partyLabel={partyLabel}
-      shareUrl={shareUrl}
-      shareTitle={shareTitle}
+      shareContent={shareContent}
       onAllLegislators={goToLegislatorList}
       isDesktop={isDesktop}
     />
@@ -373,8 +374,7 @@ function Hero({
   displayName,
   districtLine,
   partyLabel,
-  shareUrl,
-  shareTitle,
+  shareContent,
   onAllLegislators,
   isDesktop,
 }: {
@@ -382,8 +382,7 @@ function Hero({
   displayName: string;
   districtLine: string;
   partyLabel: string;
-  shareUrl: string;
-  shareTitle: string;
+  shareContent: ReturnType<typeof buildLegislatorShareContent>;
   onAllLegislators: () => void;
   isDesktop: boolean;
 }) {
@@ -413,7 +412,7 @@ function Hero({
             </View>
           </View>
         </View>
-        <SharePopover url={shareUrl} title={shareTitle} subject="legislator" />
+        <SharePopover content={shareContent} />
       </View>
     </View>
   );

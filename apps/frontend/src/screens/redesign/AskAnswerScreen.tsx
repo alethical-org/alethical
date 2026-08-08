@@ -24,6 +24,7 @@ import {
 import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { SharePopover } from '../../components/billDetail/SharePopover';
+import { buildAnswerShareContent, publicPageUrl } from '../../lib/share';
 import {
   bienniumEyebrow,
   pulledLabel,
@@ -474,15 +475,17 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // Share is on the answered states only (§9.2). The deflection's CTA already
   // routes to the shareable artifact, and a refusal has nothing to share.
   const showShare = Boolean(answer?.hasAnswer) && !isVoteDeflection;
-  const shareUrl =
-    isWeb && typeof window !== 'undefined'
-      ? window.location.href
-      : `https://alethical.com${routePath.ask({
-          q: displayQuestion,
-          billId: route.params?.billId,
-          legislatorId: route.params?.legislatorId,
-          suggestionIndex: route.params?.suggestionIndex,
-        })}`;
+  const shareContent = buildAnswerShareContent({
+    question: displayQuestion,
+    url: publicPageUrl(
+      routePath.ask({
+        q: displayQuestion,
+        billId: route.params?.billId,
+        legislatorId: route.params?.legislatorId,
+        suggestionIndex: route.params?.suggestionIndex,
+      }),
+    ),
+  });
   // From the existing helper, not the served session name ("94th Legislature
   // (2025 - 2026) Regular Session") — one vocabulary on every page (§9.5
   // decision 8). No date here: the page's single date is the source line
@@ -546,7 +549,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
         </Text>
         {sessionLine ? <Text style={styles.sessionLine}>{sessionLine}</Text> : null}
       </View>
-      {showShare ? <SharePopover url={shareUrl} title={displayQuestion} subject="answer" /> : null}
+      {showShare ? <SharePopover content={shareContent} /> : null}
     </View>
   ) : null;
 

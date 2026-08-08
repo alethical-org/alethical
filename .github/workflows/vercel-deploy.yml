@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - ".github/workflows/vercel-deploy.yml"
+      - "api/**"
       - "apps/frontend/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
