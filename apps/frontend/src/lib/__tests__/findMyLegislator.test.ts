@@ -19,7 +19,7 @@ import {
 describe('Find My Legislator state and copy helpers', () => {
   it('uses the complete address instructions at every screen width', () => {
     expect(FIND_MY_LEGISLATOR_INSTRUCTIONS).toBe(
-      'Start with a house number and street name. City and ZIP are optional. Choose a suggested Minnesota address, select Use my location, or enter the full address and choose Find.',
+      'Enter a full street address. Minnesota’s districts split cities, so a city or ZIP alone can’t tell us who represents you.',
     );
 
     const source = readFileSync(
