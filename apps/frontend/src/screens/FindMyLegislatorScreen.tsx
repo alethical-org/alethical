@@ -254,6 +254,19 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       : [];
   const choices = lookupChoices.length ? lookupChoices : suggestedChoices;
   const showingSuggestions = !lookupChoices.length && suggestedChoices.length > 0;
+  const suggestionStatus =
+    suggestionsOpen && suggestionsAreCurrent
+      ? addressSuggestions.isFetching
+        ? 'Finding matching addresses…'
+        : addressSuggestions.isError
+          ? 'Address suggestions are unavailable. You can still choose Find.'
+          : addressSuggestions.isSuccess && !addressSuggestions.data.length
+            ? 'No matching Minnesota addresses yet. Keep typing.'
+            : null
+      : null;
+  // Phone browsers can move a focused field when content appears above the
+  // on-screen keyboard. Reserve this row so loading copy does not change height.
+  const keepSuggestionStatusSpace = isMobile && !choices.length;
   const found = settledResult?.status === 'found';
   const hasVacancy = Boolean(
     found && (!settledResult.houseLegislator || !settledResult.senateLegislator),
@@ -677,23 +690,14 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 </Text>
               </View>
             ) : null}
-            {suggestionsOpen && suggestionsAreCurrent && addressSuggestions.isFetching ? (
-              <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
-                Finding matching addresses…
-              </Text>
-            ) : null}
-            {suggestionsOpen && suggestionsAreCurrent && addressSuggestions.isError ? (
-              <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
-                Address suggestions are unavailable. You can still choose Find.
-              </Text>
-            ) : null}
-            {suggestionsOpen &&
-            suggestionsAreCurrent &&
-            addressSuggestions.isSuccess &&
-            !addressSuggestions.data.length ? (
-              <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
-                No matching Minnesota addresses yet. Keep typing.
-              </Text>
+            {suggestionStatus || keepSuggestionStatusSpace ? (
+              <View style={styles.suggestionStatusSlot}>
+                {suggestionStatus ? (
+                  <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
+                    {suggestionStatus}
+                  </Text>
+                ) : null}
+              </View>
             ) : null}
             {choices.length ? (
               <View style={styles.choiceWrap}>
@@ -1080,10 +1084,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: t.colors.ink,
   },
+  suggestionStatusSlot: { minHeight: 24 },
   suggestionStatus: {
-    minHeight: 24,
     fontFamily: t.typography.body,
     fontSize: 14,
+    lineHeight: 20,
     color: t.colors.text.secondary,
   },
   choiceHelp: {

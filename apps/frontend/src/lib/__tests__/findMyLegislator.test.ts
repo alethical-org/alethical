@@ -327,4 +327,16 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain("overflowAnchor: 'none'");
     expect(source).toContain('style={[styles.scroll, preserveLookupScrollStyle]}');
   });
+
+  it('reserves the mobile suggestion status row before loading starts', () => {
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('const keepSuggestionStatusSpace = isMobile && !choices.length');
+    expect(source).toContain('suggestionStatus || keepSuggestionStatusSpace');
+    expect(source).toContain('style={styles.suggestionStatusSlot}');
+    expect(source).toContain('suggestionStatusSlot: { minHeight: 24 }');
+  });
 });
