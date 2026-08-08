@@ -461,10 +461,13 @@ Railway keeps those lines is controlled by the current Railway plan and is not r
 in this repository.
 
 The formatter removes email addresses and web-address query values from every rendered
-line. Contact delivery records only a random request number, setting-presence booleans,
-an error type, and a provider status number. It never records the form fields or key.
-This closes [#1046](https://github.com/alethical-org/alethical/issues/1046) without
-changing the redaction rule:
+line. Contact delivery records only a random request number, setting-presence and
+key-shape facts, an error type, a provider status and documented error name, an incomplete
+reply's item count, and whether both copies were accepted. Key-shape facts are the key's
+length and true-or-false checks for its public prefix, quote marks, whitespace, and normal
+printable characters. It never records the form fields, provider error sentence, key, or
+any part of the key. This closes [#1046](https://github.com/alethical-org/alethical/issues/1046)
+without changing the redaction rule:
 
 > **Log redaction rule.** Server logs may record a request's method, path, status,
 > duration, and the account's internal id. They may never record an email address, a

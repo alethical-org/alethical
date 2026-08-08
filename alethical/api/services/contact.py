@@ -76,19 +76,24 @@ def _delivery_readiness() -> tuple[bool, bool, bool, bool]:
     )
 
 
-def _provider_error_name(response: httpx.Response | None) -> str | None:
+def _provider_error_name(response: httpx.Response | None) -> str:
     if response is None:
-        return None
+        return "unavailable"
     try:
         data = response.json()
     except (ValueError, TypeError):
-        return None
+        return "unreadable"
     if not isinstance(data, dict):
-        return None
+        return "unreadable"
     name = data.get("name")
-    if not isinstance(name, str) or name not in _SAFE_PROVIDER_ERROR_NAMES:
-        return None
-    return name
+    if not isinstance(name, str) and isinstance(data.get("error"), dict):
+        name = data["error"].get("name")
+    if not isinstance(name, str):
+        return "missing"
+    normalized = name.casefold()
+    if normalized not in _SAFE_PROVIDER_ERROR_NAMES:
+        return "unrecognized"
+    return normalized
 
 
 def _key_shape(raw_key: str) -> tuple[bool, bool, bool, bool, int]:
@@ -346,9 +351,10 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
         ):
             logger.warning(
                 "Contact delivery %s failed: provider_response_valid=False "
-                "provider_status=%s",
+                "provider_status=%s provider_item_count=%s",
                 request_id,
                 getattr(response, "status_code", None),
+                len(data) if isinstance(data, list) else None,
             )
             raise ContactDeliveryUnavailable(
                 "The provider did not accept both messages"
@@ -365,20 +371,36 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
             key_ascii_printable,
             key_length,
         ) = _key_shape(raw_api_key)
-        logger.warning(
-            "Contact delivery %s failed: error_type=%s provider_status=%s "
-            "provider_error_name=%s key_starts_re_=%s key_wrapped_quotes=%s "
-            "key_contains_whitespace=%s key_ascii_printable=%s key_length=%s",
-            request_id,
-            type(exc).__name__,
-            provider_status,
-            _provider_error_name(provider_response),
-            key_starts_re,
-            key_wrapped_quotes,
-            key_contains_whitespace,
-            key_ascii_printable,
-            key_length,
+        key_shape_suspicious = (
+            not key_starts_re
+            or key_wrapped_quotes
+            or key_contains_whitespace
+            or not key_ascii_printable
         )
+        if provider_status in {401, 403} or key_shape_suspicious:
+            logger.warning(
+                "Contact delivery %s failed: error_type=%s provider_status=%s "
+                "provider_error_name=%s key_starts_re_=%s key_wrapped_quotes=%s "
+                "key_contains_whitespace=%s key_ascii_printable=%s key_length=%s",
+                request_id,
+                type(exc).__name__,
+                provider_status,
+                _provider_error_name(provider_response),
+                key_starts_re,
+                key_wrapped_quotes,
+                key_contains_whitespace,
+                key_ascii_printable,
+                key_length,
+            )
+        else:
+            logger.warning(
+                "Contact delivery %s failed: error_type=%s provider_status=%s "
+                "provider_error_name=%s",
+                request_id,
+                type(exc).__name__,
+                provider_status,
+                _provider_error_name(provider_response),
+            )
         raise ContactDeliveryUnavailable(
             "The provider did not accept both messages"
         ) from exc

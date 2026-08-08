@@ -238,6 +238,7 @@ def test_contact_logs_an_incomplete_provider_reply(client, monkeypatch, caplog) 
     assert response.status_code == 503
     assert "provider_response_valid=False" in caplog.text
     assert "provider_status=200" in caplog.text
+    assert "provider_item_count=1" in caplog.text
 
 
 def test_contact_does_not_log_an_unknown_provider_error_name(
@@ -259,8 +260,55 @@ def test_contact_does_not_log_an_unknown_provider_error_name(
     response = client.post("/api/v1/contact", json=_message())
 
     assert response.status_code == 503
-    assert "provider_error_name=None" in caplog.text
+    assert "provider_error_name=unrecognized" in caplog.text
     assert "private_contact_subject" not in caplog.text
+
+
+def test_contact_matches_a_documented_provider_error_name_without_case(
+    client, monkeypatch, caplog
+) -> None:
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *_args, **_kwargs: _FakeResendResponse(
+            status_code=403,
+            body={"name": "INVALID_API_KEY"},
+        ),
+    )
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 503
+    assert "provider_error_name=invalid_api_key" in caplog.text
+
+
+def test_contact_logs_a_connection_failure_without_suggesting_a_key_problem(
+    client, monkeypatch, caplog
+) -> None:
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+
+    def fail_to_connect(*_args, **_kwargs):
+        raise httpx.ConnectError(
+            "provider is unreachable",
+            request=httpx.Request("POST", "https://api.resend.com/emails/batch"),
+        )
+
+    monkeypatch.setattr(httpx, "post", fail_to_connect)
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 503
+    assert "error_type=ConnectError" in caplog.text
+    assert "provider_status=None" in caplog.text
+    assert "provider_error_name=unavailable" in caplog.text
+    assert "key_starts_re_" not in caplog.text
 
 
 def test_contact_refuses_a_recipient_outside_the_safety_allowlist(
