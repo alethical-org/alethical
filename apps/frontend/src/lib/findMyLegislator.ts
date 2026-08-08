@@ -14,7 +14,7 @@ export type FindLegislatorState =
   | 'service-down';
 
 export const FIND_MY_LEGISLATOR_INSTRUCTIONS =
-  'Start with a house number and street name. City and ZIP are optional. Choose a suggested Minnesota address, select Use my location, or enter the full address and choose Find.';
+  'Enter a full street address. Minnesota’s districts split cities, so a city or ZIP alone can’t tell us who represents you.';
 
 export function prepareAddressLookup(rawAddress: string): {
   displayAddress: string;
