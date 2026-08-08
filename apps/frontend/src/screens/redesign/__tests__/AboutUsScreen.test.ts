@@ -65,4 +65,27 @@ describe('About us screen contract', () => {
       /roadmapPanelMobile:\s*\{[^}]*paddingHorizontal: 18[^}]*paddingVertical: 18[^}]*\}/s,
     );
   });
+
+  it('makes each starting card respond to hover and keyboard focus', () => {
+    expect(SCREEN).toContain('hovered && styles.startCardHovered');
+    expect(SCREEN).toContain('focused && styles.startCardFocused');
+    expect(SCREEN).toContain("borderColor: 'rgba(45,212,126,0.55)'");
+    expect(SCREEN).toContain("boxShadow: '0 14px 34px rgba(17,21,15,0.10)'");
+    expect(SCREEN).toContain("transitionProperty: 'border-color, box-shadow'");
+    expect(SCREEN).toContain("transitionDuration: '160ms'");
+  });
+
+  it('keeps card arrows beside their titles', () => {
+    expect(SCREEN).toContain('<LinkArrow color={t.colors.text.primary} />');
+    expect(SCREEN).not.toContain('startCardArrow');
+    expect(SCREEN).toMatch(/startCardHeader:\s*\{[^}]*alignSelf: 'flex-start'[^}]*gap: 8[^}]*\}/s);
+    expect(SCREEN).not.toMatch(/startCardHeader:\s*\{[^}]*justifyContent/s);
+  });
+
+  it('lets body prose fill the content column and shortens the feedback label', () => {
+    expect(SCREEN).toContain('proseSection: { marginTop: 56 }');
+    expect(SCREEN).not.toContain('proseSection: { marginTop: 56, maxWidth: 850 }');
+    expect(SCREEN).toContain("Feedback:{' '}");
+    expect(SCREEN).not.toContain("Questions and feedback:{' '}");
+  });
 });
