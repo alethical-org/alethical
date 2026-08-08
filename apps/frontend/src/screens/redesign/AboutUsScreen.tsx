@@ -104,7 +104,7 @@ const ROADMAP_ITEMS = [
     body: 'Legislators and candidates can claim their profiles and speak in their own words. Legislators can explain their votes, and candidates can explain their positions, clearly labeled and kept separate from the official record.',
   },
   {
-    roadmapTitle: 'A homepage built around you',
+    roadmapTitle: 'Personalization built around you',
     body: 'Keep your legislators, saved bills, and followed topics in one place. Get website and email updates when something changes or a new bill matches an issue you follow.',
   },
   {
