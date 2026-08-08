@@ -29,9 +29,11 @@ describe('district map credits', () => {
 
     const map = markup.indexOf('district-map-canvas');
     const instruction = markup.indexOf(
-      'Click the map where you live to see your House and Senate legislators. Drag to explore. Use + and − or 2 fingers on a trackpad to zoom.',
+      'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom.',
     );
-    const explanation = markup.indexOf('Every address has one House district');
+    const explanation = markup.indexOf(
+      'Click the map where you live to see your House and Senate legislators.',
+    );
     const credits = markup.indexOf('district-map-credits');
     expect(map).toBeLessThan(instruction);
     expect(instruction).toBeLessThan(explanation);
@@ -109,10 +111,16 @@ describe('district map credits', () => {
 
   it('explains how to drag, zoom, and choose a location on phones and computers', () => {
     expect(source).toContain(
-      "'Tap the map where you live to see your House and Senate legislators. Drag with 1 finger to explore. Use + and − or 2 fingers to zoom.'",
+      "'Drag the map with 1 finger to explore. Use + and − or 2 fingers to zoom.'",
     );
     expect(source).toContain(
-      "'Click the map where you live to see your House and Senate legislators. Drag to explore. Use + and − or 2 fingers on a trackpad to zoom.'",
+      "'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom.'",
+    );
+    expect(source).toContain(
+      "'Tap the map where you live to see your House and Senate legislators.'",
+    );
+    expect(source).toContain(
+      "'Click the map where you live to see your House and Senate legislators.'",
     );
     expect(source).toContain('onOutsideMinnesota?:');
     expect(source).toContain('onOutsideMinnesota?.(chosen)');
@@ -170,8 +178,13 @@ describe('district map credits', () => {
     expect(source).toContain('zoomedMapViewport');
   });
 
-  it('keeps the district explanation on the full map width without a final period', () => {
-    const markup = renderToStaticMarkup(<MapPinPicker onCoordinateChange={vi.fn()} />);
+  it('keeps the district explanation after a location is selected', () => {
+    const markup = renderToStaticMarkup(
+      <MapPinPicker
+        coordinate={{ latitude: 44.9778, longitude: -93.265 }}
+        onCoordinateChange={vi.fn()}
+      />,
+    );
 
     expect(markup).toContain(
       'Every address has one House district and one Senate district — we’ll show the legislator for each',

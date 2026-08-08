@@ -99,7 +99,6 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('useDebouncedSearchCommit(');
     expect(source).toContain('useAddressSuggestions(');
     expect(source).toContain("'aria-autocomplete': 'list'");
-    expect(source).toContain('Suggested addresses');
     expect(source).toContain('Finding matching addresses…');
     expect(source).toContain('No matching Minnesota addresses yet. Keep typing.');
     expect(source).not.toContain('Finding matching Minnesota addresses…');
@@ -111,6 +110,17 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('<Text style={styles.choiceKey}>Enter</Text>');
     expect(source).not.toContain('<Text style={styles.choiceKey}>Esc</Text>');
     expect(source).toContain('{choices.length > 1 ? (');
+  });
+
+  it('uses a singular suggestion heading only when exactly 1 suggestion is shown', () => {
+    const source = readFileSync(
+      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('choices.length === 1');
+    expect(source).toContain("? 'Suggested address'");
+    expect(source).toContain(": 'Suggested addresses'");
   });
 
   it('replaces only a successful typed address with the confirmed address', () => {

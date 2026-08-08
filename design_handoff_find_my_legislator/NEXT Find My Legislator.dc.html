@@ -118,9 +118,6 @@
         <div data-screen-label="Answer area" style="background:#ffffff;padding:10px 40px 40px;">
 
           <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:2px 0 18px;max-width:56ch;">
-            <p style="margin:0;font-size:17px;line-height:1.55;color:#6f756f;text-wrap:pretty;">Every address has one House district and one Senate district — we’ll show the legislator for each.</p>
-          </div>
           <div style="margin-top:6px;">
             <div style="position:relative;">
               <div style="position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(17,21,15,0.1);background:#ece8e1;height:300px;">
@@ -158,6 +155,7 @@
 
                 </div>
               </div>
+              <p style="margin:18px 0 0;font-size:17px;line-height:1.55;color:#6f756f;text-wrap:pretty;">Click the map where you live to see your House and Senate legislators.</p>
             </div>
           </div>
           </sc-if>
@@ -355,8 +353,7 @@
 
               <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
               <div style="margin-top:20px;">
-                <p style="margin:0;font-size:15px;line-height:1.55;color:#6f756f;text-wrap:pretty;">Every address has one House district and one Senate district — we’ll show the legislator for each.</p>
-                <div id="fml-phone-map" style="margin-top:12px;position:relative;">
+                <div id="fml-phone-map" style="position:relative;">
                   <div style="position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(17,21,15,0.1);background:#ece8e1;height:260px;">
                     <button aria-label="Set your location by tapping the map" style="position:absolute;inset:0;padding:0;border:none;background:transparent;"><span aria-hidden="true" style="display:block;width:100%;height:100%;">{{ mapSvg }}</span></button>
                     <sc-if value="{{ hasDistricts }}" hint-placeholder-val="{{ true }}">
@@ -382,6 +379,7 @@
                     </sc-if>
                   </div>
                   <div style="margin-top:8px;font-size:13px;line-height:1.45;color:#6f756f;">{{ mapHelperPhone }}</div>
+                  <p style="margin:18px 0 0;font-size:15px;line-height:1.55;color:#6f756f;text-wrap:pretty;">Tap the map where you live to see your House and Senate legislators.</p>
                   <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
                     <sc-if value="{{ tilesVisible }}" hint-placeholder-val="{{ true }}">
                     <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="display:flex;align-items:center;min-height:44px;font-size:11.5px;font-weight:600;color:#6f756f;text-decoration:underline;">© OpenStreetMap contributors<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;">(opens in a new tab)</span></a>
@@ -889,8 +887,8 @@ class Component extends DCLogic {
       mapZoomLabel: 'ZOOM ' + zoom,
       // Tied to hasDistricts, the same flag that renders the pin — an empty or error map can never
       // tell the reader to move a pin that is not there.
-      mapHelperDesktop: hasDistricts ? 'Drag the pin, click the map, or use the arrow keys to move it' : 'Click the map where you live to see your House and Senate legislators. Drag to explore. Use + and − or 2 fingers on a trackpad to zoom.',
-      mapHelperPhone: hasDistricts ? 'Drag the pin or tap the map to move it' : 'Tap the map where you live to see your House and Senate legislators. Drag with 1 finger to explore. Use + and − or 2 fingers to zoom.',
+      mapHelperDesktop: hasDistricts ? 'Drag the pin, click the map, or use the arrow keys to move it' : 'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom.',
+      mapHelperPhone: hasDistricts ? 'Drag the pin or tap the map to move it' : 'Drag the map with 1 finger to explore. Use + and − or 2 fingers to zoom.',
       pinLeft: geo ? (geo.pin[0] / 300 * 100) + '%' : '50%',
       pinTop: geo ? (geo.pin[1] / 288 * 100) + '%' : '50%',
       otherLeft: (otherPos[0] / 300 * 100) + '%',

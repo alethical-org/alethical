@@ -636,13 +636,16 @@ export function MapPinPicker({
             ? 'Drag with 1 finger to explore. Use + and − or 2 fingers to zoom. Then tap to adjust your location.'
             : 'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom. Then click to adjust your location.'
           : mobile
-            ? 'Tap the map where you live to see your House and Senate legislators. Drag with 1 finger to explore. Use + and − or 2 fingers to zoom.'
-            : 'Click the map where you live to see your House and Senate legislators. Drag to explore. Use + and − or 2 fingers on a trackpad to zoom.'}
+            ? 'Drag the map with 1 finger to explore. Use + and − or 2 fingers to zoom.'
+            : 'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom.'}
       </Text>
 
       <Text style={styles.districtExplanation}>
-        Every address has one House district and one Senate district — we’ll show the legislator for
-        each
+        {displayCoordinate
+          ? 'Every address has one House district and one Senate district — we’ll show the legislator for each'
+          : mobile
+            ? 'Tap the map where you live to see your House and Senate legislators.'
+            : 'Click the map where you live to see your House and Senate legislators.'}
       </Text>
 
       <View testID="district-map-credits" style={[styles.credits, mobile && styles.creditsMobile]}>
