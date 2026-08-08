@@ -17,7 +17,7 @@ import { linkProps, routePath } from '../../navigation/links';
 import { navigateTopNavItem } from '../../navigation/topNavRoutes';
 import { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
-import { theme as t } from '../../theme/tokens';
+import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 
 const ABOUT_COLORS = {
   cyanSurface: '#f4fafc',
@@ -136,7 +136,8 @@ function StartCard({ item, widthStyle }: { item: StartCardItem; widthStyle: View
       style={({ pressed }) => [
         styles.startCard,
         widthStyle,
-        (hovered || focused) && styles.startCardActive,
+        hovered && styles.startCardHovered,
+        focused && styles.startCardFocused,
         pressed && styles.startCardPressed,
       ]}
     >
@@ -348,7 +349,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             <View style={styles.contactCopy}>
               <SectionTitle>Contact</SectionTitle>
               <Text style={styles.contactText}>
-                Questions and feedback:{' '}
+                Feedback:{' '}
                 <Text
                   accessibilityRole="link"
                   {...(Platform.OS === 'web' ? ({ href: 'mailto:ask@alethical.com' } as any) : {})}
@@ -446,7 +447,7 @@ const styles = StyleSheet.create({
   },
   firstSection: { marginTop: 44 },
   section: { marginTop: 56 },
-  proseSection: { marginTop: 56, maxWidth: 850 },
+  proseSection: { marginTop: 56 },
   mobileSection: {
     marginTop: 34,
     paddingTop: 26,
@@ -511,22 +512,37 @@ const styles = StyleSheet.create({
   startCard: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
-    borderColor: t.colors.borders.base,
+    borderColor: ABOUT_COLORS.sectionRule,
     borderRadius: 14,
     padding: 22,
     minHeight: 172,
-    ...(t.shadows.card as ViewStyle),
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0 6px 18px rgba(17,21,15,0.05)' } as object)
+      : (t.shadows.card as object)),
+    ...(Platform.OS === 'web' && !prefersReducedMotion()
+      ? ({
+          transitionProperty: 'border-color, box-shadow',
+          transitionDuration: '160ms',
+          transitionTimingFunction: 'ease',
+        } as object)
+      : null),
   },
-  startCardActive: {
-    borderColor: t.colors.brand.graphics,
+  startCardHovered: {
+    borderColor: 'rgba(45,212,126,0.55)',
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0 14px 34px rgba(17,21,15,0.10)' } as object)
+      : (t.shadows.lg as object)),
+  },
+  startCardFocused: {
+    borderColor: 'rgba(45,212,126,0.55)',
     ...startCardFocus,
   },
   startCardPressed: { opacity: 0.76 },
   startCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    alignSelf: 'flex-start',
+    gap: 8,
   },
   roadmapPanel: {
     backgroundColor: ABOUT_COLORS.roadmapSurface,
