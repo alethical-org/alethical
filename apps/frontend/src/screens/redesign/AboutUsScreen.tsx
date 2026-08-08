@@ -10,7 +10,7 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { ChevronRight } from '../../components/icons';
+import { LinkArrow } from '../../components/LinkArrow';
 import { useResponsive } from '../../hooks/useResponsive';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { linkProps, routePath } from '../../navigation/links';
@@ -141,7 +141,7 @@ function StartCard({ item, widthStyle }: { item: StartCardItem; widthStyle: View
         <Text accessibilityRole="header" aria-level={3} style={styles.cardTitle}>
           {item.startTitle}
         </Text>
-        <ChevronRight color={t.colors.text.primary} size={20} strokeWidth={2.4} />
+        <LinkArrow color={t.colors.text.primary} />
       </View>
       <Text style={styles.cardBody}>{item.body}</Text>
     </Pressable>
@@ -307,7 +307,14 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             <View style={[styles.roadmapPanel, isMobile && styles.roadmapPanelMobile]}>
               <View style={styles.cardGrid}>
                 {ROADMAP_ITEMS.map((item) => (
-                  <View key={item.roadmapTitle} style={[styles.roadmapItem, cardWidthStyle]}>
+                  <View
+                    key={item.roadmapTitle}
+                    style={[
+                      styles.roadmapItem,
+                      cardWidthStyle,
+                      isMobile && styles.roadmapItemMobile,
+                    ]}
+                  >
                     <Text accessibilityRole="header" aria-level={3} style={styles.cardTitle}>
                       {item.roadmapTitle}
                     </Text>
@@ -353,7 +360,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               ]}
             >
               <Text style={styles.contactButtonText}>Contact us</Text>
-              <ChevronRight color={t.colors.brand.darkest} size={18} strokeWidth={2.2} />
+              <LinkArrow color={t.colors.brand.darkest} />
             </Pressable>
           </View>
         </Container>
@@ -503,6 +510,7 @@ const styles = StyleSheet.create({
   },
   roadmapPanelMobile: { borderRadius: 14, padding: 20 },
   roadmapItem: { minHeight: 186, paddingRight: 12, paddingBottom: 8 },
+  roadmapItemMobile: { minHeight: 0, paddingRight: 0, paddingBottom: 0 },
   roadmapQuestion: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
