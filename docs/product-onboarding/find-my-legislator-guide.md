@@ -68,8 +68,8 @@ Minnesota, enter a street address instead.
 Click or tap anywhere inside Minnesota on the district map. The lookup runs at once for
 that point, so there is no second button to press.
 
-- Use **+** and **−** to zoom.
-- Drag the map to move around.
+- Use **+** and **−** to zoom, pinch on a phone, or pinch a Mac trackpad.
+- Drag the map with a mouse or 1 finger to move around.
 - Drag the selected pin, or use its arrow keys, to adjust the location.
 - On a phone, choose **Show district map** first. The page remembers whether you left
   the phone map open for the rest of that browser tab.

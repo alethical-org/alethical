@@ -38,6 +38,56 @@ function coordinateAtWorldPoint(point: { x: number; y: number }, zoom: number) {
   return { latitude: (180 / Math.PI) * Math.atan(Math.sinh(n)), longitude };
 }
 
+function worldPoint(coordinate: RepresentativeLookupCoordinates, zoom: number) {
+  return {
+    x: TILE_SIZE * longitudeToTileX(coordinate.longitude, zoom),
+    y: TILE_SIZE * latitudeToTileY(coordinate.latitude, zoom),
+  };
+}
+
+export function pinchZoomLevel(
+  startZoom: number,
+  startDistance: number,
+  currentDistance: number,
+  minZoom: number,
+  maxZoom: number,
+) {
+  if (startDistance <= 0 || currentDistance <= 0) return startZoom;
+  return Math.min(
+    maxZoom,
+    Math.max(minZoom, Math.round(startZoom + Math.log2(currentDistance / startDistance))),
+  );
+}
+
+export function zoomedMapViewport(
+  center: RepresentativeLookupCoordinates,
+  zoom: number,
+  nextZoom: number,
+  viewport: { width: number; height: number },
+  anchor: { x: number; y: number },
+  nextAnchor = anchor,
+) {
+  const origin = worldPoint(center, zoom);
+  const anchorCoordinate = coordinateAtWorldPoint(
+    {
+      x: origin.x + anchor.x - viewport.width / 2,
+      y: origin.y + anchor.y - viewport.height / 2,
+    },
+    zoom,
+  );
+  const nextAnchorPoint = worldPoint(anchorCoordinate, nextZoom);
+  return {
+    center: coordinateAtWorldPoint(
+      {
+        x: nextAnchorPoint.x - nextAnchor.x + viewport.width / 2,
+        y: nextAnchorPoint.y - nextAnchor.y + viewport.height / 2,
+      },
+      nextZoom,
+    ),
+    zoom: nextZoom,
+  };
+}
+
 export function visibleTileKeys(
   center: RepresentativeLookupCoordinates,
   viewport: { width: number; height: number },
