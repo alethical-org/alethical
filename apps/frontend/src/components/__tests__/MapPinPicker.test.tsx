@@ -29,7 +29,7 @@ describe('district map credits', () => {
 
     const map = markup.indexOf('district-map-canvas');
     const instruction = markup.indexOf(
-      'Drag the map to explore. Pinch your trackpad or use + and − to zoom. Then click to choose your location.',
+      'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom. Then click to choose your location.',
     );
     const explanation = markup.indexOf('Every address has one House district');
     const credits = markup.indexOf('district-map-credits');
@@ -109,10 +109,10 @@ describe('district map credits', () => {
 
   it('explains how to drag, zoom, and choose a location on phones and computers', () => {
     expect(source).toContain(
-      "'Drag with 1 finger to explore. Pinch with 2 fingers or use + and − to zoom. Then tap to choose your location.'",
+      "'Drag with 1 finger to explore. Use + and − or 2 fingers to zoom. Then tap to choose your location.'",
     );
     expect(source).toContain(
-      "'Drag the map to explore. Pinch your trackpad or use + and − to zoom. Then click to choose your location.'",
+      "'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom. Then click to choose your location.'",
     );
     expect(source).toContain('onOutsideMinnesota?:');
     expect(source).toContain('onOutsideMinnesota?.(chosen)');
@@ -120,10 +120,10 @@ describe('district map credits', () => {
 
   it('explains how to drag, zoom, and adjust a selected location on phones and computers', () => {
     expect(source).toContain(
-      "'Drag the map to explore. Pinch your trackpad or use + and − to zoom. Then click to adjust your location.'",
+      "'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom. Then click to adjust your location.'",
     );
     expect(source).toContain(
-      "'Drag with 1 finger to explore. Pinch with 2 fingers or use + and − to zoom. Then tap to adjust your location.'",
+      "'Drag with 1 finger to explore. Use + and − or 2 fingers to zoom. Then tap to adjust your location.'",
     );
     expect(source).not.toContain('zoom as needed');
     expect(source).not.toContain("'Drag the pin, click the map");
