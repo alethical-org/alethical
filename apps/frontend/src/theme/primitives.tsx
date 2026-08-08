@@ -21,7 +21,7 @@ import { theme } from './tokens';
 import { getPageBackgroundStyle } from './pageBackground';
 import { useUnavailableControl } from '../components/billDetail/interactions';
 import { IaItem, MenuKey, MENUS, navDropdownItems } from '../navigation/ia';
-import { linkProps, routePath } from '../navigation/links';
+import { externalLinkProps, linkProps, routePath } from '../navigation/links';
 import { navigateTopNavItem } from '../navigation/topNavRoutes';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAuth } from '../providers/AuthProvider';
@@ -890,20 +890,112 @@ export function MNMap({ size = 330 }: { size?: number }) {
   );
 }
 
-// --- Footer (dark, v2): sovereignty tagline left, legal links right ---
+// --- Footer (dark, v2): sovereignty tagline left, utility stack right ---
 function FooterLink({
   label,
   href,
   onPress,
+  mobile,
 }: {
   label: string;
   href: string;
   onPress?: () => void;
+  mobile?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
+  const [focused, setFocused] = useState(false);
   return (
-    <Pressable {...linkProps(href, onPress)} {...hoverProps}>
-      <Text style={[styles.footerLink, hovered && { color: t.colors.white }]}>{label}</Text>
+    <Pressable
+      {...linkProps(href, onPress)}
+      {...hoverProps}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={mobile ? styles.footerLinkTargetMobile : undefined}
+    >
+      {({ pressed }) => (
+        <Text
+          style={[styles.footerLink, (hovered || focused || pressed) && { color: t.colors.white }]}
+        >
+          {label}
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
+type FooterSocial = {
+  label: string;
+  platform: 'facebook' | 'linkedin' | 'x';
+  url: string;
+};
+
+const FOOTER_SOCIALS: FooterSocial[] = [
+  {
+    label: 'Alethical on Facebook (opens in a new tab)',
+    platform: 'facebook',
+    url: 'https://www.facebook.com/people/Alethical/61588261592240/',
+  },
+  {
+    label: 'Alethical on LinkedIn (opens in a new tab)',
+    platform: 'linkedin',
+    url: 'https://www.linkedin.com/company/alethical',
+  },
+  {
+    label: 'Alethical on X (opens in a new tab)',
+    platform: 'x',
+    url: 'https://x.com/alethical',
+  },
+];
+
+function FooterSocialGlyph({
+  platform,
+  color,
+}: {
+  platform: FooterSocial['platform'];
+  color: string;
+}) {
+  if (platform === 'facebook') {
+    return (
+      <Svg width={20} height={20} viewBox="0 0 24 24" fill={color} aria-hidden>
+        <Path d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.6H6.61v3.56h3.07V22h3.68v-9.14h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z" />
+      </Svg>
+    );
+  }
+  if (platform === 'linkedin') {
+    return (
+      <Svg width={19} height={19} viewBox="0 0 24 24" fill={color} aria-hidden>
+        <Path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z" />
+      </Svg>
+    );
+  }
+  return (
+    <Svg width={17} height={17} viewBox="0 0 24 24" fill={color} aria-hidden>
+      <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </Svg>
+  );
+}
+
+function FooterSocialLink({ social }: { social: FooterSocial }) {
+  const [hovered, hoverProps] = useHover();
+  const [focused, setFocused] = useState(false);
+  return (
+    <Pressable
+      accessibilityLabel={social.label}
+      {...externalLinkProps(social.url, () => void Linking.openURL(social.url))}
+      {...hoverProps}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={({ pressed }) => [
+        styles.footerSocialLink,
+        (hovered || focused || pressed) && styles.footerSocialLinkActive,
+      ]}
+    >
+      {({ pressed }) => (
+        <FooterSocialGlyph
+          platform={social.platform}
+          color={hovered || focused || pressed ? '#ffffff' : '#eef1ef'}
+        />
+      )}
     </Pressable>
   );
 }
@@ -911,24 +1003,50 @@ function FooterLink({
 export function Footer({ onPrivacy, onTerms }: { onPrivacy?: () => void; onTerms?: () => void }) {
   const { isMobile } = useResponsive();
   return (
-    <View style={styles.footer}>
-      <Container>
-        <View style={styles.footerTop}>
+    <View style={[styles.footer, isMobile && styles.footerMobile]}>
+      <Container style={isMobile ? styles.footerContainerMobile : styles.footerContainer}>
+        <View style={[styles.footerTop, isMobile && styles.footerTopMobile]}>
           <View style={styles.footerBrand}>
             <Text style={[styles.footerTagline, isMobile && styles.footerTaglineMobile]}>
               We hold these truths to be self-evident.{'\n'}
               <Text style={styles.footerTaglineAccent}>Alethical makes them accessible.</Text>
             </Text>
           </View>
-          <View style={styles.footerLinks}>
-            <FooterLink label="Privacy Policy" href={routePath.privacy()} onPress={onPrivacy} />
-            <FooterLink label="Terms of Use" href={routePath.terms()} onPress={onTerms} />
+          <View style={[styles.footerUtility, isMobile && styles.footerUtilityMobile]}>
+            <View style={styles.footerSocialRow}>
+              <Text style={styles.footerSocialLabel}>FOLLOW ALETHICAL</Text>
+              <View style={styles.footerSocialLinks}>
+                {FOOTER_SOCIALS.map((social) => (
+                  <FooterSocialLink key={social.platform} social={social} />
+                ))}
+              </View>
+            </View>
+            <View style={[styles.footerLinks, isMobile && styles.footerLinksMobile]}>
+              <FooterLink
+                label="Contact us"
+                href={CONTACT_MAILTO}
+                onPress={() => void Linking.openURL(CONTACT_MAILTO)}
+                mobile={isMobile}
+              />
+              <FooterLink
+                label="Privacy Policy"
+                href={routePath.privacy()}
+                onPress={onPrivacy}
+                mobile={isMobile}
+              />
+              <FooterLink
+                label="Terms of Use"
+                href={routePath.terms()}
+                onPress={onTerms}
+                mobile={isMobile}
+              />
+            </View>
           </View>
         </View>
-        <View style={styles.footerDivider} />
-        <View style={styles.footerBottom}>
+        <View style={[styles.footerDivider, isMobile && styles.footerDividerMobile]} />
+        <View style={[styles.footerBottom, isMobile && styles.footerBottomMobile]}>
           <Text style={[styles.footerMeta, isMobile && styles.footerMetaMobile]}>
-            {isMobile ? '© 2026 ALETHICAL' : '© 2026 ALETHICAL · BUILT IN MINNESOTA'}
+            © ALETHICAL · BUILT IN MINNESOTA
           </Text>
           <Text style={[styles.footerMetaGreen, isMobile && styles.footerMetaMobile]}>
             TRUTH, UNCONCEALED
@@ -1164,6 +1282,9 @@ const styles = StyleSheet.create({
     paddingBottom: 44,
     marginTop: 'auto',
   },
+  footerMobile: { paddingTop: 34, paddingBottom: 40 },
+  footerContainer: { paddingHorizontal: 44 },
+  footerContainerMobile: { paddingHorizontal: 22 },
   footerTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1171,6 +1292,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 48,
   },
+  footerTopMobile: { flexDirection: 'column', gap: 26 },
   footerBrand: { maxWidth: 480 },
   footerTagline: {
     fontFamily: t.typography.body,
@@ -1180,11 +1302,32 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     color: '#eef1ef',
   },
-  footerTaglineMobile: { fontSize: 19, lineHeight: 28 },
-  // Mobile home scales footer meta lines up for legibility (2nd-pass delta #6).
-  footerMetaMobile: { fontSize: 15 },
+  footerTaglineMobile: { fontSize: 18, lineHeight: 25 },
+  footerMetaMobile: { fontSize: 12 },
   footerTaglineAccent: { color: t.colors.brand.bright },
+  footerUtility: { alignItems: 'flex-end', gap: 22 },
+  footerUtilityMobile: { alignItems: 'flex-start', gap: 24 },
+  footerSocialRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  footerSocialLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.54,
+    color: '#7c847f',
+  },
+  footerSocialLinks: { flexDirection: 'row', gap: 10 },
+  footerSocialLink: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  footerSocialLinkActive: { backgroundColor: 'rgba(255,255,255,0.16)' },
   footerLinks: { flexDirection: 'row', alignItems: 'center', gap: 34 },
+  footerLinksMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 2 },
+  footerLinkTargetMobile: { minHeight: 44, justifyContent: 'center' },
   footerLink: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.bodyLg,
@@ -1197,17 +1340,19 @@ const styles = StyleSheet.create({
     marginTop: 40,
     marginBottom: 24,
   },
+  footerDividerMobile: { marginTop: 22, marginBottom: 20 },
   footerBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: 24,
   },
+  footerBottomMobile: { flexDirection: 'column', gap: 8 },
   footerMeta: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.meta,
     letterSpacing: 1.3,
-    color: t.colors.text.muted,
+    color: '#7c847f',
   },
   footerMetaGreen: {
     fontFamily: t.typography.ui,
