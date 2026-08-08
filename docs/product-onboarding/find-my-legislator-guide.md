@@ -163,8 +163,8 @@ The lookup uses public records and public map services:
 - [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) supply the
   background map.
 
-On phones, the 3 map credit lines begin below the first map view. They remain available
-by scrolling farther down the page.
+On phones and computers, the 3 map credit lines begin below the first map view. They
+remain available by scrolling farther down the page.
 
 What happens to the location data:
 

@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'column',
     gap: 6,
-    marginTop: 0,
+    marginTop: 160,
   },
   creditsMobile: { marginTop: 240 },
   creditRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },

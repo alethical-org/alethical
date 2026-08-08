@@ -44,7 +44,7 @@ describe('district map credits', () => {
       /districtExplanation:\s*\{[\s\S]*alignSelf: 'stretch'[\s\S]*marginTop: 18[\s\S]*marginBottom: 30[\s\S]*fontSize: 18/,
     );
     expect(source).not.toMatch(/districtExplanation:\s*\{[\s\S]*maxWidth/);
-    expect(source).toMatch(/credits:\s*\{[\s\S]*marginTop: 0/);
+    expect(source).toMatch(/credits:\s*\{[\s\S]*marginTop: 160/);
     expect(source).toMatch(/creditsMobile:\s*\{[^}]*marginTop: 240/);
   });
 
