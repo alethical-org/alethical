@@ -246,8 +246,12 @@ Target query plan:
 - `notification_preference`
 - `notification_endpoint`
 - `notification_event`
+- `email_quota_warning_state`
 - `chat_session`
 - `chat_message`
+
+`email_quota_warning_state` remembers whether each free email-plan warning point is
+currently crossed. It stores usage counts only, never a contact message or reader detail.
 
 ### 7. AI and Retrieval Tables
 

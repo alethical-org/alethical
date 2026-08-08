@@ -8,6 +8,8 @@ import httpx
 @dataclass
 class _FakeResendResponse:
     status_code: int = 200
+    headers: dict[str, str] | None = None
+    body: dict | None = None
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
@@ -18,7 +20,7 @@ class _FakeResendResponse:
             )
 
     def json(self) -> dict:
-        return {"data": [{"id": "to-alethical"}, {"id": "to-sender"}]}
+        return self.body or {"data": [{"id": "to-alethical"}, {"id": "to-sender"}]}
 
 
 def _message() -> dict[str, str]:
@@ -116,3 +118,127 @@ def test_contact_refuses_a_recipient_outside_the_safety_allowlist(
 
     assert response.status_code == 503
     assert response.json()["type"].endswith("contact-delivery-unavailable")
+
+
+def test_contact_warns_once_at_each_free_plan_daily_threshold(
+    client, monkeypatch
+) -> None:
+    used_values = iter([80, 81, 90, 95, 96])
+    warning_calls: list[dict] = []
+
+    def fake_post(url, **kwargs):
+        if url.endswith("/emails/batch"):
+            used = next(used_values)
+            return _FakeResendResponse(
+                headers={
+                    "x-resend-daily-quota": str(used),
+                    "x-resend-monthly-quota": "100",
+                }
+            )
+        warning_calls.append({"url": url, **kwargs})
+        return _FakeResendResponse(body={"id": "quota-warning"})
+
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.setenv("ALETHICAL_EMAIL_ALLOWLIST", "ask@alethical.com,ada@example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    for _ in range(5):
+        response = client.post("/api/v1/contact", json=_message())
+        assert response.status_code == 202
+
+    assert [call["json"]["subject"] for call in warning_calls] == [
+        "Resend free plan is 80% full for today",
+        "Resend free plan is 90% full for today",
+        "Resend free plan is 95% full for today",
+    ]
+    assert [call["headers"]["Idempotency-Key"] for call in warning_calls] == [
+        "quota-warning-daily-80-80",
+        "quota-warning-daily-90-90",
+        "quota-warning-daily-95-95",
+    ]
+    assert all(call["url"] == "https://api.resend.com/emails" for call in warning_calls)
+    assert all(
+        not any(value in str(call["json"]) for value in _message().values())
+        for call in warning_calls
+    )
+
+
+def test_contact_warns_for_monthly_capacity_and_resets_after_usage_drops(
+    client, monkeypatch
+) -> None:
+    used_values = iter([2400, 2700, 2850, 10, 2400])
+    warning_subjects: list[str] = []
+
+    def fake_post(url, **kwargs):
+        if url.endswith("/emails/batch"):
+            used = next(used_values)
+            return _FakeResendResponse(
+                headers={
+                    "x-resend-daily-quota": "10",
+                    "x-resend-monthly-quota": str(used),
+                }
+            )
+        warning_subjects.append(kwargs["json"]["subject"])
+        return _FakeResendResponse(body={"id": "quota-warning"})
+
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.setenv("ALETHICAL_EMAIL_ALLOWLIST", "ask@alethical.com,ada@example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    for _ in range(5):
+        response = client.post("/api/v1/contact", json=_message())
+        assert response.status_code == 202
+
+    assert warning_subjects == [
+        "Resend free plan is 80% full for this month",
+        "Resend free plan is 90% full for this month",
+        "Resend free plan is 95% full for this month",
+        "Resend free plan is 80% full for this month",
+    ]
+
+
+def test_paid_plan_headers_stop_free_plan_warnings(client, monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_post(url, **_kwargs):
+        calls.append(url)
+        return _FakeResendResponse(headers={"x-resend-monthly-quota": "45000"})
+
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.setenv("ALETHICAL_EMAIL_ALLOWLIST", "ask@alethical.com,ada@example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 202
+    assert calls == ["https://api.resend.com/emails/batch"]
+
+
+def test_warning_failure_never_hides_an_accepted_contact_message(
+    client, monkeypatch
+) -> None:
+    def fake_post(url, **_kwargs):
+        if url.endswith("/emails/batch"):
+            return _FakeResendResponse(
+                headers={
+                    "x-resend-daily-quota": "80",
+                    "x-resend-monthly-quota": "100",
+                }
+            )
+        return _FakeResendResponse(status_code=500)
+
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.setenv("ALETHICAL_EMAIL_ALLOWLIST", "ask@alethical.com,ada@example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 202

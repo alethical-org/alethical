@@ -1037,6 +1037,25 @@ class NotificationEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (Index("ix_notification_event_user_unsent", "user_id", "sent_at"),)
 
 
+class EmailQuotaWarningState(TimestampMixin, Base):
+    """Whether a free-plan usage threshold is currently crossed.
+
+    This stores operational counts only. It never stores an email address,
+    subject, or message body.
+    """
+
+    __tablename__ = "email_quota_warning_state"
+
+    scope: Mapped[str] = mapped_column(String(10), primary_key=True)
+    threshold: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    is_above: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    last_used: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+
+
 class ChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "chat_session"
 

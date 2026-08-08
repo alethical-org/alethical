@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
 
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit
@@ -9,6 +10,7 @@ from alethical.api.services.contact import (
     ContactDeliveryUnavailable,
     send_contact_message,
 )
+from alethical.db.session import get_db
 
 router = APIRouter()
 
@@ -19,9 +21,11 @@ router = APIRouter()
     status_code=status.HTTP_202_ACCEPTED,
     dependencies=[Depends(rate_limit("contact_limiter", "contact"))],
 )
-def contact(message: ContactMessageRequest) -> ContactMessageResponse:
+def contact(
+    message: ContactMessageRequest, db: Session = Depends(get_db)
+) -> ContactMessageResponse:
     try:
-        send_contact_message(message)
+        send_contact_message(message, db)
     except ContactDeliveryUnavailable as exc:
         raise problem_exception(
             503,
