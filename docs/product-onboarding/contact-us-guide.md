@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/ContactUsScreen.tsx, apps/frontend/src/lib/contactUs.ts, apps/frontend/src/data/api.ts, apps/frontend/src/navigation/webRoutes.ts, alethical/api/routers/contact.py, alethical/api/services/contact.py -->
+<!-- describes: apps/frontend/src/screens/redesign/ContactUsScreen.tsx, apps/frontend/src/lib/contactUs.ts, apps/frontend/src/data/api.ts, apps/frontend/src/navigation/webRoutes.ts, alethical/api/routers/contact.py, alethical/api/services/contact.py, alethical/db/models.py, alethical/alembic/versions/0027_email_quota_warning_state.py -->
 
 # How Contact us works
 
@@ -43,3 +43,14 @@ app does not write a contact submission into its database or logs.
 
 The sender address, live-delivery switch, provider key, optional recipient allowlist, and
 request limit are server-only settings. Safe local settings send no email.
+
+## Free-plan capacity warnings
+
+After Resend accepts a contact message, the API reads the free plan's daily and monthly
+usage totals. It emails `ask@alethical.com` once when either total reaches 80%, 90%, and
+95%. Each warning re-arms after the usage falls below that point, including at the next
+daily or monthly reset.
+
+The warning record stores only the time period, warning point, and email count. It never
+stores contact names, addresses, subjects, or message text. Resend omits the free daily
+total on a paid plan, so these free-plan warnings stop automatically after an upgrade.

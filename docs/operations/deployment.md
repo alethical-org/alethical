@@ -63,6 +63,10 @@ add the SPF and DKIM records Resend supplies without removing the existing Googl
 Workspace records. Keep `ALETHICAL_EMAIL_ALLOWLIST` unset for public launch; setting it
 restricts both `ask@alethical.com` and the writer's copy to named addresses.
 
+On Resend's free plan, each accepted contact message checks the daily and monthly totals.
+Alethical emails `ask@alethical.com` once at 80%, 90%, and 95% of either limit. The warning
+points reset when usage resets and stop automatically after the plan is upgraded.
+
 The build installs dependencies with:
 
 ```bash

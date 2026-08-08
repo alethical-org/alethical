@@ -825,6 +825,8 @@ Contract:
 - success means the email provider accepted both messages; disabled or partial delivery returns `503`
 - requests are limited separately from Ask and address lookups
 - message text is never written to the Alethical database or logs
+- on the free plan, accepted messages trigger 1 warning to `ask@alethical.com` at 80%, 90%, and 95% of daily or monthly capacity
+- warning failures never turn an already accepted contact message into a failed form submission
 
 ### Policy Areas
 
