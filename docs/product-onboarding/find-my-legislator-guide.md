@@ -83,14 +83,14 @@ Minnesota, enter a street address instead.
 
 ## 3. Choose a point on the map
 
-Click or tap anywhere inside Minnesota on the district map. The lookup runs at once for
-that point, so there is no second button to press.
+The map stays visible on phones and computers. It says **Click the map where you live
+to see your House and Senate legislators** on a computer and uses **Tap** on a phone.
+Click or tap anywhere inside Minnesota. The lookup runs at once for that point, so
+there is no second button to press.
 
 - Use **+** and **−** or 2 fingers on a phone or trackpad to zoom.
 - Drag the map with a mouse or 1 finger to move around.
 - Drag the selected pin, or use its arrow keys, to adjust the location.
-- On a phone, choose **Show district map** first. The page remembers whether you left
-  the phone map open for the rest of that browser tab.
 
 After a match, the map draws the House and Senate district lines around the selected
 point. The district cards stay visible while a moved pin is being checked. If the new

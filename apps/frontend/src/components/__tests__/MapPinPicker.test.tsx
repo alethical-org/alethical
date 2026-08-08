@@ -29,7 +29,7 @@ describe('district map credits', () => {
 
     const map = markup.indexOf('district-map-canvas');
     const instruction = markup.indexOf(
-      'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom. Then click to choose your location.',
+      'Click the map where you live to see your House and Senate legislators. Drag to explore. Use + and − or 2 fingers on a trackpad to zoom.',
     );
     const explanation = markup.indexOf('Every address has one House district');
     const credits = markup.indexOf('district-map-credits');
@@ -109,13 +109,20 @@ describe('district map credits', () => {
 
   it('explains how to drag, zoom, and choose a location on phones and computers', () => {
     expect(source).toContain(
-      "'Drag with 1 finger to explore. Use + and − or 2 fingers to zoom. Then tap to choose your location.'",
+      "'Tap the map where you live to see your House and Senate legislators. Drag with 1 finger to explore. Use + and − or 2 fingers to zoom.'",
     );
     expect(source).toContain(
-      "'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom. Then click to choose your location.'",
+      "'Click the map where you live to see your House and Senate legislators. Drag to explore. Use + and − or 2 fingers on a trackpad to zoom.'",
     );
     expect(source).toContain('onOutsideMinnesota?:');
     expect(source).toContain('onOutsideMinnesota?.(chosen)');
+  });
+
+  it('keeps the district map visible on phones without a show or hide control', () => {
+    expect(screenSource).not.toContain('Show district map');
+    expect(screenSource).not.toContain('Hide district map');
+    expect(screenSource).not.toContain('districtMapVisible');
+    expect(screenSource).toContain('<View style={styles.mapSection}>{map}</View>');
   });
 
   it('explains how to drag, zoom, and adjust a selected location on phones and computers', () => {

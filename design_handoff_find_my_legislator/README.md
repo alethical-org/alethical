@@ -752,12 +752,10 @@ district", which is ambiguous while the reader is still inside that Senate distr
 at least as readable as other map labels; no 7.5px text over a busy map. Check collisions among pin,
 district labels, legend pills, zoom controls and credits.
 
-**Phone map.** Available but **collapsed by default**. Found and vacancy: "Show district map" sits
-below the two answer cards; expanded label becomes "Hide district map"; the map stays open when moving
-the pin starts another lookup. Empty state: the control sits below the address actions. The control is
-≥44px, reports expanded state (`aria-expanded`), and removes the collapsed map and its controls from
-keyboard and screen-reader order. Trimmed geometry may arrive with the normal lookup response, but
-**no street tiles download while collapsed**. The map is never removed from phones.
+**Phone map.** Always visible, in the same page position as the wider-screen map. There is no show or
+hide control. In the empty state, its first instruction says "Tap the map where you live to see your
+House and Senate legislators" before the drag and zoom help. Found and vacancy states keep the map
+visible below the answer cards while a moved pin starts another lookup.
 
 **Use my location** (control itself unchanged): a successful location becomes the selected coordinate,
 runs the normal lookup, fits the returned Senate boundary, draws both boundaries and places the pin at

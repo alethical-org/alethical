@@ -636,8 +636,8 @@ export function MapPinPicker({
             ? 'Drag with 1 finger to explore. Use + and − or 2 fingers to zoom. Then tap to adjust your location.'
             : 'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom. Then click to adjust your location.'
           : mobile
-            ? 'Drag with 1 finger to explore. Use + and − or 2 fingers to zoom. Then tap to choose your location.'
-            : 'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom. Then click to choose your location.'}
+            ? 'Tap the map where you live to see your House and Senate legislators. Drag with 1 finger to explore. Use + and − or 2 fingers to zoom.'
+            : 'Click the map where you live to see your House and Senate legislators. Drag to explore. Use + and − or 2 fingers on a trackpad to zoom.'}
       </Text>
 
       <Text style={styles.districtExplanation}>
