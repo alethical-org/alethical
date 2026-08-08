@@ -87,11 +87,12 @@ Minnesota, enter a street address instead.
 
 ## 3. Choose a point on the map
 
-The map stays visible on phones and computers. Directly below it, movement help starts
-with **Drag the map to explore** and adds **with 1 finger** on a phone. The larger line
+The map stays visible on phones and computers. Directly below it, a computer says
+**Drag the map to explore, then use + and − or 2 fingers on a trackpad to zoom**. A phone says
+**Drag the map with 1 finger to explore, then use + and − or 2 fingers to zoom**. The larger line
 below says **Click the map where you live to see your House and Senate legislators** on
-a computer and uses **Tap** on a phone. Click or tap anywhere inside Minnesota. The
-lookup runs at once for that point, so there is no second button to press.
+a computer and uses **Tap** on a phone. None of these 4 lines ends with a period. Click or tap
+anywhere inside Minnesota. The lookup runs at once for that point, so there is no second button.
 These 2 lines stay the same after an address, saved lookup, or map point loads.
 
 - Use **+** and **−** or 2 fingers on a phone or trackpad to zoom.

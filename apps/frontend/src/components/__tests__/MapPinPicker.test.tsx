@@ -29,10 +29,10 @@ describe('district map credits', () => {
 
     const map = markup.indexOf('district-map-canvas');
     const instruction = markup.indexOf(
-      'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom.',
+      'Drag the map to explore, then use + and − or 2 fingers on a trackpad to zoom',
     );
     const explanation = markup.indexOf(
-      'Click the map where you live to see your House and Senate legislators.',
+      'Click the map where you live to see your House and Senate legislators',
     );
     const credits = markup.indexOf('district-map-credits');
     expect(map).toBeLessThan(instruction);
@@ -111,16 +111,16 @@ describe('district map credits', () => {
 
   it('explains how to drag, zoom, and choose a location on phones and computers', () => {
     expect(source).toContain(
-      "'Drag the map with 1 finger to explore. Use + and − or 2 fingers to zoom.'",
+      "'Drag the map with 1 finger to explore, then use + and − or 2 fingers to zoom'",
     );
     expect(source).toContain(
-      "'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom.'",
+      "'Drag the map to explore, then use + and − or 2 fingers on a trackpad to zoom'",
     );
     expect(source).toContain(
-      "'Tap the map where you live to see your House and Senate legislators.'",
+      "'Tap the map where you live to see your House and Senate legislators'",
     );
     expect(source).toContain(
-      "'Click the map where you live to see your House and Senate legislators.'",
+      "'Click the map where you live to see your House and Senate legislators'",
     );
     expect(source).toContain('onOutsideMinnesota?:');
     expect(source).toContain('onOutsideMinnesota?.(chosen)');
@@ -157,15 +157,27 @@ describe('district map credits', () => {
     );
 
     expect(desktopMarkup).toContain(
-      'Drag the map to explore. Use + and − or 2 fingers on a trackpad to zoom.',
+      'Drag the map to explore, then use + and − or 2 fingers on a trackpad to zoom',
     );
     expect(desktopMarkup).toContain(
+      'Click the map where you live to see your House and Senate legislators',
+    );
+    expect(phoneMarkup).toContain(
+      'Drag the map with 1 finger to explore, then use + and − or 2 fingers to zoom',
+    );
+    expect(phoneMarkup).toContain(
+      'Tap the map where you live to see your House and Senate legislators',
+    );
+    expect(desktopMarkup).not.toContain(
+      'Drag the map to explore, then use + and − or 2 fingers on a trackpad to zoom.',
+    );
+    expect(desktopMarkup).not.toContain(
       'Click the map where you live to see your House and Senate legislators.',
     );
-    expect(phoneMarkup).toContain(
-      'Drag the map with 1 finger to explore. Use + and − or 2 fingers to zoom.',
+    expect(phoneMarkup).not.toContain(
+      'Drag the map with 1 finger to explore, then use + and − or 2 fingers to zoom.',
     );
-    expect(phoneMarkup).toContain(
+    expect(phoneMarkup).not.toContain(
       'Tap the map where you live to see your House and Senate legislators.',
     );
   });
