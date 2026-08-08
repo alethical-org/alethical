@@ -206,7 +206,7 @@
                     <span aria-hidden="true" style="position:relative;width:64px;height:74px;flex:none;border-radius:12px;overflow:hidden;background:#e4f8ee;border:1px solid #bfeacf;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800;color:#0f7a45;">{{ r.initials }}<span style="position:absolute;inset:0;background-image:{{ r.portraitBg }};background-size:cover;background-position:center top;"></span></span>
                     <div style="flex:1;min-width:0;">
                       <h3 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-0.01em;color:#11150f;line-height:1.15;">{{ r.name }}</h3>
-                      <div style="margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:0.12em;color:#0f7a45;">{{ r.titleUpper }} · {{ r.districtUpper }}</div>
+                      <div style="margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;letter-spacing:0.12em;color:#0f7a45;white-space:nowrap;"><span style="white-space:nowrap;">{{ r.titleUpper }}</span> · <span style="white-space:nowrap;">{{ r.districtUpper }}</span></div>
                     </div>
                   </div>
 
@@ -241,8 +241,8 @@
                   </div>
 
                   <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(17,21,15,0.08);">
-                    <div style="font-size:16px;line-height:1.4;color:#11150f;"><span style="font-weight:800;">{{ r.authored }}</span> bills authored · <span style="font-weight:800;">{{ r.chief }}</span> as chief author</div>
-                    <div style="margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#6f756f;">94TH LEGISLATURE (2025–26)</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#6f756f;">94TH LEGISLATURE (2025–26)</div>
+                    <div style="margin-top:6px;font-size:16px;line-height:1.4;color:#11150f;"><span style="font-weight:800;">{{ r.authored }}</span> bills authored · <span style="font-weight:800;">{{ r.chief }}</span> as chief author</div>
                   </div>
 
                   <sc-if value="{{ r.hasIssues }}" hint-placeholder-val="{{ true }}">
@@ -431,7 +431,7 @@
                         <span aria-hidden="true" style="position:relative;width:64px;height:74px;flex:none;border-radius:12px;overflow:hidden;background:#e4f8ee;border:1px solid #bfeacf;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#0f7a45;">{{ r.initials }}<span style="position:absolute;inset:0;background-image:{{ r.portraitBg }};background-size:cover;background-position:center top;"></span></span>
                         <div style="flex:1;min-width:0;">
                           <div style="font-size:19px;font-weight:800;letter-spacing:-0.01em;line-height:1.15;">{{ r.name }}</div>
-                          <div style="margin-top:5px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;color:#0f7a45;">{{ r.titleUpper }} · {{ r.districtUpper }}</div>
+                          <div style="margin-top:5px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;line-height:1.5;color:#0f7a45;"><span style="display:block;white-space:nowrap;">{{ r.titleUpper }}</span><span style="display:block;white-space:nowrap;">{{ r.districtUpper }}</span></div>
                         </div>
                       </div>
 
@@ -463,8 +463,8 @@
                       </div>
 
                       <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(17,21,15,0.08);">
-                        <div style="font-size:15px;line-height:1.4;color:#11150f;"><span style="font-weight:800;">{{ r.authored }}</span> bills authored · <span style="font-weight:800;">{{ r.chief }}</span> as chief author</div>
-                        <div style="margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#6f756f;">94TH LEGISLATURE (2025–26)</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#6f756f;">94TH LEGISLATURE (2025–26)</div>
+                        <div style="margin-top:6px;font-size:15px;line-height:1.4;color:#11150f;"><span style="font-weight:800;">{{ r.authored }}</span> bills authored · <span style="font-weight:800;">{{ r.chief }}</span> as chief author</div>
                       </div>
 
                       <sc-if value="{{ r.hasIssues }}" hint-placeholder-val="{{ true }}">

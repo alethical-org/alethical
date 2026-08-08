@@ -133,7 +133,9 @@ describe('RepresentativeCard accepted layout', () => {
       legislatureLabel: '94TH LEGISLATURE (2025–26)',
     });
 
-    expect(html).toContain('STATE SENATOR · SENATE DISTRICT 27');
+    expect(html).toContain('STATE SENATOR');
+    expect(html).toContain('SENATE DISTRICT 27');
+    expect(html).toContain('> · </div>');
     expect(html).toContain('PARTY');
     expect(html).toContain('Democratic-Farmer-Labor');
     expect(html).toContain('RESIDENCE');
@@ -145,6 +147,9 @@ describe('RepresentativeCard accepted layout', () => {
     expect(html).toContain('70</span> as chief author');
     expect(html).not.toContain('Including');
     expect(html).toContain('94TH LEGISLATURE (2025–26)');
+    expect(html.indexOf('94TH LEGISLATURE (2025–26)')).toBeLessThan(
+      html.indexOf('156</span> bills authored'),
+    );
     expect(html).toContain('Elected to the Senate: 2020, re-elected 2024.');
     expect(html).toContain('Current chamber term: 2nd.');
     expect(html).not.toContain('ELECTION &amp; TERM');
@@ -194,6 +199,17 @@ describe('RepresentativeCard accepted layout', () => {
     expect(componentSource).not.toMatch(/>\s*→\s*</);
   });
 
+  it('stacks the phone identity without leaving a separator on either line', () => {
+    const html = renderCard({ legislator: detailedLegislator, mobile: true });
+
+    expect(html).toContain('STATE SENATOR');
+    expect(html).toContain('SENATE DISTRICT 27');
+    expect(html).not.toContain('> · </div>');
+    expect(componentSource).toMatch(
+      /districtEyebrowMobile:\s*\{[^}]*flexDirection: 'column'[^}]*alignItems: 'flex-start'/,
+    );
+  });
+
   it('omits an unavailable public email and its separator', () => {
     const html = renderCard({
       legislator: { ...detailedLegislator, email: undefined },
@@ -224,13 +240,17 @@ describe('RepresentativeCard accepted layout', () => {
 
   it('carries the accepted desktop and phone type and action styles', () => {
     expect(componentSource).toMatch(
-      /districtEyebrow:\s*\{[\s\S]*fontSize: 11\.5[\s\S]*color: t\.colors\.brand\.deep/,
+      /districtEyebrowText:\s*\{[\s\S]*fontSize: 12\.5[\s\S]*letterSpacing: 1\.5[\s\S]*color: t\.colors\.brand\.deep/,
     );
     expect(componentSource).toMatch(
-      /districtEyebrowMobile:\s*\{[^}]*fontSize: 11[^}]*letterSpacing: 1\.32/,
+      /districtEyebrowTextMobile:\s*\{[^}]*fontSize: 11[^}]*letterSpacing: 1\.32/,
     );
+    expect(componentSource).toMatch(/districtEyebrowPart:\s*\{[^}]*whiteSpace: 'nowrap'/);
     expect(componentSource).toMatch(/authoredMobile:\s*\{[^}]*fontSize: 15/);
     expect(componentSource).toMatch(/authoredNumber:\s*\{[^}]*fontWeight: '800'/);
+    expect(componentSource).toMatch(
+      /legislatureMobile:\s*\{[^}]*fontSize: 10[^}]*letterSpacing: 0\.8/,
+    );
     expect(componentSource).toMatch(/contactLinkMobile:\s*\{[^}]*fontSize: 13\.5/);
     expect(componentSource).toMatch(
       /profileButton:\s*\{[\s\S]*alignSelf: 'flex-start'[\s\S]*paddingHorizontal: 22[\s\S]*paddingVertical: 13/,
