@@ -94,13 +94,10 @@ function MapCredit({ href, label }: { href: string; label: string }) {
       onHoverOut={() => setHovered(false)}
       style={styles.creditTarget}
     >
-      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>
-        {label} <LinkArrow />
-        <Text
-          style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}
-        >
-          {' (opens in a new tab)'}
-        </Text>
+      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>{label}</Text>
+      <LinkArrow color={t.colors.brand.deep} />
+      <Text style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}>
+        {' (opens in a new tab)'}
       </Text>
     </Pressable>
   );
