@@ -25,7 +25,7 @@ describe('district map credits', () => {
 
     const map = markup.indexOf('district-map-canvas');
     const instruction = markup.indexOf(
-      'Drag the map to explore, then click to choose your location',
+      'Drag the map to explore, then click to choose your location, and zoom as needed',
     );
     const explanation = markup.indexOf('Every address has one House district');
     const credits = markup.indexOf('district-map-credits');
@@ -101,16 +101,24 @@ describe('district map credits', () => {
   });
 
   it('keeps unresolved helper text clean and hands outside map selections to the screen', () => {
-    expect(source).toContain("'Drag the map to explore, then tap to choose your location'");
-    expect(source).toContain("'Drag the map to explore, then click to choose your location'");
+    expect(source).toContain(
+      "'Drag the map to explore, then tap to choose your location, and zoom as needed'",
+    );
+    expect(source).toContain(
+      "'Drag the map to explore, then click to choose your location, and zoom as needed'",
+    );
     expect(source).toContain('onOutsideMinnesota?:');
     expect(source).toContain('onOutsideMinnesota?.(chosen)');
   });
 
   it('describes dragging before clicking or tapping to adjust a selected location', () => {
-    expect(source).toContain("'Drag the map to explore, then click to adjust your location'");
-    expect(source).toContain("'Drag the map to explore, then tap to adjust your location'");
-    expect(source).not.toContain('Use + or − to zoom if needed');
+    expect(source).toContain(
+      "'Drag the map to explore, then click to adjust your location, and zoom as needed'",
+    );
+    expect(source).toContain(
+      "'Drag the map to explore, then tap to adjust your location, and zoom as needed'",
+    );
+    expect(source).not.toContain('zoom as needed.');
     expect(source).not.toContain("'Drag the pin, click the map");
     expect(source).not.toContain("'Drag the pin or tap the map");
   });
