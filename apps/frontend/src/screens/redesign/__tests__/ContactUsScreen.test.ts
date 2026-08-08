@@ -22,6 +22,24 @@ describe('Contact us screen contract', () => {
     expect(SCREEN).not.toContain('autoFocus');
   });
 
+  it('puts the light border, purple focus glow, and amber error on the field wrapper', () => {
+    const inputStyle = SCREEN.match(/input: \{[\s\S]*?\n  \},/)?.[0] ?? '';
+    const inputShellStyle = SCREEN.match(/inputShell: \{[\s\S]*?\n  \},/)?.[0] ?? '';
+    const inputErrorStyle = SCREEN.match(/inputError: \{[^}]*\}/)?.[0] ?? '';
+
+    expect(SCREEN).toContain('const inputShellStyle = [');
+    expect(SCREEN).toContain('<View style={inputShellStyle}>{input}</View>');
+    expect(SCREEN).toContain('...fieldFocusRing(focused)');
+    expect(inputShellStyle).toContain("borderColor: 'rgba(17,21,15,0.18)'");
+    expect(inputShellStyle).toContain('borderRadius: 12');
+    expect(inputShellStyle).toContain('backgroundColor: t.colors.surfaces.base');
+    expect(inputErrorStyle).toContain("borderColor: '#a76a1a'");
+    expect(inputStyle).toContain('borderWidth: 0');
+    expect(inputStyle).toContain("backgroundColor: 'transparent'");
+    expect(SCREEN).toContain('fieldOutlineReset');
+    expect(SCREEN).not.toContain("inputError: { borderColor: '#9a6a00' }");
+  });
+
   it('keeps accessible error, sending, sent, and failure announcements', () => {
     expect(SCREEN).toContain('aria-describedby');
     expect(SCREEN).toContain('accessibilityRole="alert"');
