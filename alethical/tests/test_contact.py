@@ -311,6 +311,84 @@ def test_contact_logs_a_connection_failure_without_suggesting_a_key_problem(
     assert "key_starts_re_" not in caplog.text
 
 
+def test_contact_retries_one_transport_failure_with_the_same_request(
+    client, monkeypatch, caplog
+) -> None:
+    calls: list[dict] = []
+
+    def timeout_then_succeed(url, **kwargs):
+        calls.append({"url": url, **kwargs})
+        if len(calls) == 1:
+            raise httpx.ReadTimeout(
+                "provider reply timed out",
+                request=httpx.Request("POST", url),
+            )
+        return _FakeResendResponse()
+
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(httpx, "post", timeout_then_succeed)
+
+    with caplog.at_level(logging.INFO, logger="alethical.api.services.contact"):
+        response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 202
+    assert len(calls) == 2
+    assert calls[0]["json"] == calls[1]["json"]
+    assert (
+        calls[0]["headers"]["Idempotency-Key"]
+        == (calls[1]["headers"]["Idempotency-Key"])
+    )
+    assert "attempt=1" in caplog.text
+    assert "retrying=True" in caplog.text
+    assert "accepted both messages: attempt=2" in caplog.text
+
+
+def test_contact_stops_after_two_transport_failures(client, monkeypatch) -> None:
+    calls = 0
+
+    def always_timeout(url, **_kwargs):
+        nonlocal calls
+        calls += 1
+        raise httpx.ReadTimeout(
+            "provider reply timed out",
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(httpx, "post", always_timeout)
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 503
+    assert calls == 2
+
+
+def test_contact_does_not_retry_a_provider_response(client, monkeypatch) -> None:
+    calls = 0
+
+    def reject_request(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        return _FakeResendResponse(status_code=400, body={"name": "validation_error"})
+
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(httpx, "post", reject_request)
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 503
+    assert calls == 1
+
+
 def test_contact_refuses_a_recipient_outside_the_safety_allowlist(
     client, monkeypatch
 ) -> None:
