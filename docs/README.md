@@ -55,6 +55,7 @@ things work in practice and are the place to start if you're new.
 - [Deployment](operations/deployment.md) — the six GitHub Actions workflows, Railway (backend), Vercel (frontend), Supabase auth URLs
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
+- [Page-load performance decisions](operations/page-load-performance-decisions.md): measured safe speed work, remaining tradeoffs, and the proof required before release
 - [iOS release workflow](operations/ios-release.md) — simulator QA, TestFlight, and ad hoc builds
 - [Android prototype handoff](operations/android-prototype-handoff.md) — the Expo/RN Android build path
 - [Windows local development notes](operations/local-dev-windows.md)

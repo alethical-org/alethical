@@ -111,7 +111,9 @@ def test_code_no_doc_describes_is_ignored(monkeypatch):
     # data-ingestion-onboarding.md, which broke this test on main: a docs-only PR
     # skips the backend job, so nothing caught it. The premise assertion below is
     # what turns that into a readable failure instead of a mystery exit code.
-    undescribed = ["apps/frontend/src/navigation/RootNavigator.tsx", "justfile"]
+    # #1233 declared RootNavigator.tsx, so use a different frontend helper that
+    # no documentation currently owns.
+    undescribed = ["apps/frontend/src/lib/motionNormalize.ts", "justfile"]
     couplings = check_doc_sync.declared_couplings()
     for path in undescribed:
         owners = [
