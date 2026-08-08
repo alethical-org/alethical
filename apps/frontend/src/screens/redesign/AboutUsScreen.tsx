@@ -4,6 +4,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   View,
@@ -123,7 +124,13 @@ type StartCardItem = {
   onPress: () => void;
 };
 
-function StartCard({ item, widthStyle }: { item: StartCardItem; widthStyle: ViewStyle }) {
+function StartCard({
+  item,
+  widthStyle,
+}: {
+  item: StartCardItem;
+  widthStyle: StyleProp<ViewStyle>;
+}) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   return (
@@ -168,8 +175,8 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
     : isTablet
       ? styles.twoColumn
       : styles.threeColumn;
-  const startWidthStyle: ViewStyle = isMobile
-    ? styles.fullWidth
+  const startWidthStyle: StyleProp<ViewStyle> = isMobile
+    ? [styles.fullWidth, styles.startCardMobile]
     : isTablet
       ? styles.twoColumn
       : styles.fourColumn;
@@ -493,7 +500,7 @@ const styles = StyleSheet.create({
     padding: 24,
     minHeight: 176,
   },
-  beliefCardMobile: { borderRadius: 14 },
+  beliefCardMobile: { borderRadius: 14, minHeight: 0 },
   cardTitle: {
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
@@ -528,6 +535,7 @@ const styles = StyleSheet.create({
         } as object)
       : null),
   },
+  startCardMobile: { minHeight: 0 },
   startCardHovered: {
     borderColor: 'rgba(45,212,126,0.55)',
     ...(Platform.OS === 'web'

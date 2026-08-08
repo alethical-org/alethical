@@ -84,6 +84,13 @@ describe('About us screen contract', () => {
     expect(SCREEN).not.toMatch(/startCardHeader:\s*\{[^}]*justifyContent/s);
   });
 
+  it('lets belief and starting cards fit their content on phones', () => {
+    expect(SCREEN).toContain('isMobile && styles.beliefCardMobile');
+    expect(SCREEN).toContain('? [styles.fullWidth, styles.startCardMobile]');
+    expect(SCREEN).toMatch(/beliefCardMobile:\s*\{[^}]*minHeight: 0[^}]*\}/s);
+    expect(SCREEN).toMatch(/startCardMobile:\s*\{[^}]*minHeight: 0[^}]*\}/s);
+  });
+
   it('lets body prose fill the content column and shortens the feedback label', () => {
     expect(SCREEN).toContain('proseSection: { marginTop: 56 }');
     expect(SCREEN).not.toContain('proseSection: { marginTop: 56, maxWidth: 850 }');
