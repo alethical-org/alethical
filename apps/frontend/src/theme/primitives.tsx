@@ -46,9 +46,7 @@ function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }
 // The URL behind each interactive nav row, so the row is a real <a href> the
 // browser can open in a new tab (navigation/links.ts). Keyed to the same ids
 // every screen's onNavigate switch handles, so a row's link and its click land
-// in the same place. "About Us" is deliberately absent because a URL that
-// resolves somewhere else is worse than no URL (grounded-answers rule 2, never
-// advertise what you can't answer) — it has no page yet.
+// in the same place.
 const NAV_ITEM_HREFS: Record<string, string> = {
   ask: routePath.ask(),
   'search-bills': routePath.bills(),
@@ -61,6 +59,7 @@ const NAV_ITEM_HREFS: Record<string, string> = {
   // which prompts a signed-out visitor to sign in rather than advertising a
   // capability it can't deliver (grounded-answers rule 2).
   'track-bills': routePath.tracked(),
+  'about-us': routePath.aboutUs(),
   'about-contact': routePath.contactUs(),
 };
 

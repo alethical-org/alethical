@@ -5,14 +5,14 @@ code and configuration.
 
 **How to read these.** Specs describe the system we intend and the decisions behind
 it; **GitHub issues and the Roadmap board carry sequencing.** So a doc may tell you
-something is *shipped*, *not built yet and waiting on X*, or *a permanent non-goal* —
+something is _shipped_, _not built yet and waiting on X_, or _a permanent non-goal_ —
 but never that work is off-limits because of which milestone it sits in. If you find
 a doc gating work by version, that is a bug in the doc (`.claude/rules/workflow.md`
 rule 13). Milestone claims in particular go stale: check the tracker, not the prose.
 
 ## Start Here
 
-- [Philosophy](philosophy.md) — the *why* beneath Alethical: what the product is, the problem it solves (legibility, not secrecy), who we assume is reading, and the principles the product, design, and copy all answer to. Read this before the specs.
+- [Philosophy](philosophy.md) — the _why_ beneath Alethical: what the product is, the problem it solves (legibility, not secrecy), who we assume is reading, and the principles the product, design, and copy all answer to. Read this before the specs.
 
 ## Product & Onboarding
 
@@ -35,6 +35,7 @@ things work in practice and are the place to start if you're new.
 - [How Find My Legislator works (plain English)](product-onboarding/find-my-legislator-guide.md) — how to search by address, browser location, or map; what a match shows; and what location data leaves Alethical
 - [How sharing works](product-onboarding/sharing-guide.md) — what each page and destination receives, why Instagram has no direct button, and how link previews are built
 - [How Contact us works](product-onboarding/contact-us-guide.md) — the page, its 5 states, message delivery, and what reader data leaves Alethical
+- [About Us page](product-onboarding/about-us-page-spec.md) — the public statement of Alethical’s name, beliefs, current features, roadmap, and correction policy
 
 ## Design
 

@@ -26,6 +26,7 @@ import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
 import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
 import { VoteDetailScreen } from '../screens/VoteDetailScreen';
 import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
+import { AboutUsScreen } from '../screens/redesign/AboutUsScreen';
 import { BillDetailScreen } from '../screens/redesign/BillDetailScreen';
 import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
 import { SearchBillsScreen } from '../screens/redesign/SearchBillsScreen';
@@ -635,6 +636,11 @@ export function RootNavigator() {
               name="Terms"
               component={TermsScreen}
               options={{ title: 'Terms of Service' }}
+            />
+            <Stack.Screen
+              name="AboutUs"
+              component={AboutUsScreen}
+              options={{ headerShown: false, title: 'About us' }}
             />
             <Stack.Screen
               name="ContactUs"

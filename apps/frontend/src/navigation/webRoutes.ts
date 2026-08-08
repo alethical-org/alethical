@@ -11,6 +11,7 @@ type WebRouteTarget =
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'privacy' }
   | { kind: 'terms' }
+  | { kind: 'aboutUs' }
   | { kind: 'contactUs' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
   | { kind: 'ask'; params: RootStackParamList['Ask'] };
@@ -104,6 +105,9 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     }
     if (segments[0] === 'terms') {
       return { kind: 'terms' };
+    }
+    if (segments[0] === 'about') {
+      return { kind: 'aboutUs' };
     }
     // Find My Legislator resolves to its own screen: the home page's Find field
     // and the Search menu both send visitors there, so the address bar has to
@@ -289,6 +293,8 @@ export function pathForRoute(activeRoute: {
       return '/privacy';
     case 'Terms':
       return '/terms';
+    case 'AboutUs':
+      return '/about';
     case 'ContactUs':
       return '/about/contact';
     case 'VoteDetail':
@@ -405,6 +411,11 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
     case 'terms':
       return {
         routes: [homeTabs, { name: 'Terms' }],
+        index: 1,
+      };
+    case 'aboutUs':
+      return {
+        routes: [homeTabs, { name: 'AboutUs' }],
         index: 1,
       };
     case 'contactUs':
