@@ -35,6 +35,7 @@ import {
   plainKeyPoints,
   POINTER_CAPTION,
   readDocumentLink,
+  suggestedQuestionIndex,
   titleSegments,
 } from '../billDetail';
 import { BillAction, BillSponsor, BillVersion, Citation } from '../../data/types';
@@ -1093,6 +1094,19 @@ describe('scopedChipQuery keeps a chip on its own bill', () => {
         '94th Legislature (2025) First Special Session',
       ),
     ).toBe('HF 5 in the first special session: What does it change?');
+  });
+});
+
+describe('suggestedQuestionIndex identifies only stored public questions', () => {
+  const prompts = ['First question?', '  Second question?  '];
+
+  it('returns the stored position after trimming display whitespace', () => {
+    expect(suggestedQuestionIndex(prompts, 'Second question?')).toBe(1);
+  });
+
+  it('does not assign public identity to fallback or reader-written text', () => {
+    expect(suggestedQuestionIndex(prompts, 'A generic fallback?')).toBeUndefined();
+    expect(suggestedQuestionIndex(undefined, 'First question?')).toBeUndefined();
   });
 });
 

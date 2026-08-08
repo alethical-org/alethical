@@ -181,6 +181,7 @@ interface ApiAskCitationPayload {
   section_id?: string | null;
   section_order?: number | null;
   section_topic?: string | null;
+  section_available?: boolean | null;
 }
 
 interface ApiAskBillTextAnswerPayload {
@@ -189,6 +190,8 @@ interface ApiAskBillTextAnswerPayload {
   bill: ApiBillListItemPayload;
   session: ApiSessionPayload;
   data_as_of?: string | null;
+  question?: string | null;
+  bill_last_pulled_at?: string | null;
   coverage?: { used: number; total: number; enumerating?: boolean } | null;
 }
 
@@ -1677,7 +1680,27 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
   const response = await publicApiPost<DetailResponse<ApiAskAnswerPayload>>('/ask', {
     content: question,
   });
-  const payload = response.data;
+  return mapAskAnswerPayload(response.data);
+}
+
+export async function getSavedSuggestedAnswerFromApi(
+  billId: string,
+  suggestionIndex: number,
+): Promise<AskAnswer | null> {
+  try {
+    const response = await publicApiRequest<DetailResponse<ApiAskAnswerPayload>>(
+      `/ask/suggestions/${encodeURIComponent(billId)}/${suggestionIndex}`,
+    );
+    return mapAskAnswerPayload(response.data);
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function mapAskAnswerPayload(payload: ApiAskAnswerPayload): AskAnswer {
   const answer = payload.answer;
 
   const mapBill = (bill: ApiBillListItemPayload): AskAnswerBill => ({
@@ -1734,8 +1757,17 @@ export async function askFromApi(question: string): Promise<AskAnswer> {
       sectionId: typeof citation.section_id === 'string' ? citation.section_id.trim() : '',
       sectionOrder: typeof citation.section_order === 'number' ? citation.section_order : null,
       sectionTopic: typeof citation.section_topic === 'string' ? citation.section_topic.trim() : '',
+      sectionAvailable:
+        typeof citation.section_available === 'boolean' ? citation.section_available : undefined,
     })),
     answeringBill: billTextAnswer ? mapBill(billTextAnswer.bill) : undefined,
+    answeringBillCard: billTextAnswer
+      ? {
+          ...mapCardBill(billTextAnswer.bill),
+          lastPulledAt: billTextAnswer.bill_last_pulled_at ?? undefined,
+        }
+      : undefined,
+    question: billTextAnswer?.question ?? undefined,
     // The served shape settled on used/total plus `enumerating` (#868): the answer
     // path serves a FACT and this side words the sentence, so the copy stays
     // layout-owned (§9.5 decision 11). An earlier draft also carried a server-composed

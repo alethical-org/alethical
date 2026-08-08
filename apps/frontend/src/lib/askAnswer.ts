@@ -118,6 +118,8 @@ export interface CitedSection {
   excerpts: string[];
   /** Official source URL, the fallback target when the section anchor won't resolve. */
   url: string;
+  /** Saved-answer proof that this exact section still exists in the current text. */
+  sectionAvailable?: boolean;
 }
 
 /**
@@ -166,6 +168,7 @@ export function citedSections(citations: AskCitation[]): CitedSection[] {
       chipLabel,
       excerpts: [citation.excerpt],
       url: citation.url,
+      sectionAvailable: citation.sectionAvailable,
     });
   }
   return order.map((key) => byKey.get(key)!);

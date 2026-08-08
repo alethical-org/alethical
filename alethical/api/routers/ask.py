@@ -5,8 +5,8 @@ import hashlib
 import os
 import re
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import and_, func, or_, select, text
+from fastapi import APIRouter, Depends, Request, Response
+from sqlalchemy import and_, func, or_, select, text, tuple_
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_optional_current_user
@@ -513,6 +513,84 @@ class _SuggestedQuestionMatch:
     suggestion_index: int
     suggestion_fingerprint: str
     bill_text_fingerprint: str
+    question: str
+
+
+def _suggested_question_prefix(scope: LegislatureScope, bill) -> str | None:
+    prefix = f"{bill.file_type} {bill.file_number}"
+    bill_session = scope.by_id(bill.session_id)
+    if bill_session is not None and bill_session.id != scope.primary.id:
+        special = re.search(r"\b(\w+)\s+special session\b", bill_session.name, re.I)
+        if special is None:
+            return None
+        prefix += f" in the {special.group(1).lower()} special session"
+    return prefix
+
+
+def _suggested_question_from_bill(
+    db: Session,
+    scope: LegislatureScope,
+    bill,
+    suggestion_index: int,
+) -> _SuggestedQuestionMatch | None:
+    """Resolve one current public prompt from structural, non-reader input."""
+    if suggestion_index < 0:
+        return None
+    prefix = _suggested_question_prefix(scope, bill)
+    if prefix is None:
+        return None
+    enrichment = current_bill_summary_enrichment(bill.enrichments)
+    if enrichment is None:
+        return None
+    prompts = (enrichment.content_json or {}).get("question_prompts")
+    if not isinstance(prompts, list) or suggestion_index >= len(prompts):
+        return None
+    prompt = prompts[suggestion_index]
+    if not isinstance(prompt, str) or not prompt.strip():
+        return None
+
+    bill_version = db.scalar(
+        select(BillVersion).where(
+            BillVersion.bill_id == bill.id,
+            BillVersion.is_current.is_(True),
+        )
+    )
+    if bill_version is None:
+        return None
+    bill_text_fingerprint = db.scalar(
+        select(SourceArtifact.content_hash).where(
+            SourceArtifact.id == bill_version.source_artifact_id
+        )
+    )
+    if not bill_text_fingerprint:
+        return None
+    suggestion = prompt.strip()
+    return _SuggestedQuestionMatch(
+        bill=bill,
+        bill_version=bill_version,
+        enrichment=enrichment,
+        suggestion_index=suggestion_index,
+        suggestion_fingerprint=hashlib.sha256(suggestion.encode("utf-8")).hexdigest(),
+        bill_text_fingerprint=bill_text_fingerprint,
+        question=f"{prefix}: {suggestion}",
+    )
+
+
+def _suggested_question_by_identity(
+    db: Session, bill_id: str, suggestion_index: int
+) -> _SuggestedQuestionMatch | None:
+    """Resolve a public prompt by bill key + position, with no question text."""
+    scope = current_legislature_scope(db)
+    bill = db.scalar(
+        select(Bill).where(
+            Bill.bill_key == bill_id,
+            Bill.session_id.in_(scope.ids),
+            Bill.official_url.isnot(None),
+        )
+    )
+    if bill is None:
+        return None
+    return _suggested_question_from_bill(db, scope, bill, suggestion_index)
 
 
 def _suggested_question_match(
@@ -540,14 +618,8 @@ def _suggested_question_match(
     if match.bill is None or match.collisions:
         return None
 
-    expected_prefix = f"{match.bill.file_type} {match.bill.file_number}"
-    bill_session = scope.by_id(match.bill.session_id)
-    if bill_session is not None and bill_session.id != scope.primary.id:
-        special = re.search(r"\b(\w+)\s+special session\b", bill_session.name, re.I)
-        if special is None:
-            return None
-        expected_prefix += f" in the {special.group(1).lower()} special session"
-    if prefix.strip() != expected_prefix:
+    expected_prefix = _suggested_question_prefix(scope, match.bill)
+    if expected_prefix is None or prefix.strip() != expected_prefix:
         return None
 
     enrichment = current_bill_summary_enrichment(match.bill.enrichments)
@@ -568,30 +640,10 @@ def _suggested_question_match(
     if suggestion_index is None:
         return None
 
-    bill_version = db.scalar(
-        select(BillVersion).where(
-            BillVersion.bill_id == match.bill.id,
-            BillVersion.is_current.is_(True),
-        )
-    )
-    if bill_version is None:
+    structural = _suggested_question_from_bill(db, scope, match.bill, suggestion_index)
+    if structural is None or structural.question != content:
         return None
-    bill_text_fingerprint = db.scalar(
-        select(SourceArtifact.content_hash).where(
-            SourceArtifact.id == bill_version.source_artifact_id
-        )
-    )
-    if not bill_text_fingerprint:
-        return None
-    suggestion = prompts[suggestion_index].strip()
-    return _SuggestedQuestionMatch(
-        bill=match.bill,
-        bill_version=bill_version,
-        enrichment=enrichment,
-        suggestion_index=suggestion_index,
-        suggestion_fingerprint=hashlib.sha256(suggestion.encode("utf-8")).hexdigest(),
-        bill_text_fingerprint=bill_text_fingerprint,
-    )
+    return structural
 
 
 # Question scaffolding stripped to isolate the bill's title phrase for a fuzzy
@@ -1155,20 +1207,65 @@ def _suggested_cache_lock_key(identity: dict) -> int:
 
 
 def _hydrate_suggested_answer(
-    db: Session, scope: LegislatureScope, bill, payload: dict
+    db: Session, scope: LegislatureScope, match: _SuggestedQuestionMatch, payload: dict
 ) -> AskBillTextAnswer:
-    """Combine saved prose/evidence with the bill's live status and date."""
+    """Combine saved prose/evidence with current bill and citation facts."""
+    bill = match.bill
     data_as_of = db.scalar(
         select(func.max(IngestionRun.finished_at)).where(
             IngestionRun.status == IngestionStatus.succeeded
         )
     )
+    bill_last_pulled_at = (
+        db.scalar(
+            select(
+                func.coalesce(IngestionRun.finished_at, IngestionRun.created_at)
+            ).where(IngestionRun.id == bill.ingestion_run_id)
+        )
+        if bill.ingestion_run_id
+        else None
+    )
+    citation_pairs = {
+        (citation.get("section_id") or "", citation.get("section_order"))
+        for citation in payload.get("citations", [])
+        if citation.get("section_id") and citation.get("section_order") is not None
+    }
+    available_pairs = set()
+    if citation_pairs:
+        available_pairs = set(
+            db.execute(
+                select(
+                    BillVersionSection.section_id_text,
+                    BillVersionSection.source_order,
+                ).where(
+                    BillVersionSection.bill_version_id == match.bill_version.id,
+                    tuple_(
+                        BillVersionSection.section_id_text,
+                        BillVersionSection.source_order,
+                    ).in_(citation_pairs),
+                )
+            ).all()
+        )
+    citations = [
+        {
+            **citation,
+            "section_available": (
+                citation.get("section_id") or "",
+                citation.get("section_order"),
+            )
+            in available_pairs,
+        }
+        for citation in payload.get("citations", [])
+    ]
     return AskBillTextAnswer.model_validate(
         {
             **payload,
+            "citations": citations,
             "bill": bill_list_item(bill, session=_bill_session_ref(scope, bill)),
             "session": _scope_session_ref(scope),
             "data_as_of": data_as_of,
+            "question": match.question,
+            "bill_last_pulled_at": bill_last_pulled_at,
         }
     )
 
@@ -1187,7 +1284,7 @@ def _suggested_bill_text_answer(
     scope = current_legislature_scope(db)
     cached = _suggested_cache_row(db, identity)
     if cached is not None:
-        return _hydrate_suggested_answer(db, scope, match.bill, cached.answer_payload)
+        return _hydrate_suggested_answer(db, scope, match, cached.answer_payload)
 
     db.execute(
         text("SELECT pg_advisory_xact_lock(:lock_key)"),
@@ -1195,7 +1292,7 @@ def _suggested_bill_text_answer(
     )
     cached = _suggested_cache_row(db, identity)
     if cached is not None:
-        return _hydrate_suggested_answer(db, scope, match.bill, cached.answer_payload)
+        return _hydrate_suggested_answer(db, scope, match, cached.answer_payload)
 
     answer = _bill_text_answer(db, content)
     if not isinstance(answer, AskBillTextAnswer):
@@ -1205,7 +1302,7 @@ def _suggested_bill_text_answer(
     )
     db.add(AskSuggestedAnswerCache(**identity, answer_payload=answer_payload))
     db.commit()
-    return answer
+    return _hydrate_suggested_answer(db, scope, match, answer_payload)
 
 
 def _vote_deflection_answer(
@@ -1282,6 +1379,57 @@ def classify_ask_query(
             topic=result.topic,
         ),
         links={"self": "/api/v1/ask/classify"},
+    )
+
+
+@router.get(
+    "/ask/suggestions/{bill_id}/{suggestion_index}",
+    response_model=DetailResponse,
+    status_code=200,
+)
+def saved_suggested_answer(
+    bill_id: str,
+    suggestion_index: int,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Read one existing public suggestion answer without creating anything."""
+    no_store = {"Cache-Control": "no-store"}
+    if request.query_params:
+        raise problem_exception(
+            400,
+            "Bad Request",
+            "saved suggestion reads do not accept query parameters",
+            headers=no_store,
+        )
+    match = _suggested_question_by_identity(db, bill_id, suggestion_index)
+    if match is None:
+        raise problem_exception(
+            404,
+            "Not Found",
+            "No current public suggestion matches that identity",
+            headers=no_store,
+        )
+    cached = _suggested_cache_row(db, _suggested_cache_identity(match))
+    if cached is None:
+        raise problem_exception(
+            404,
+            "Not Found",
+            "That public suggestion does not have a saved answer yet",
+            headers=no_store,
+        )
+    scope = current_legislature_scope(db)
+    answer = _hydrate_suggested_answer(db, scope, match, cached.answer_payload)
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
+    return DetailResponse(
+        data=AskAnswerPayload(
+            intent=AskIntent.BILL_TEXT.value,
+            source="predefined",
+            confidence=1.0,
+            answer=answer,
+        ),
+        links={"self": f"/api/v1/ask/suggestions/{bill_id}/{suggestion_index}"},
     )
 
 

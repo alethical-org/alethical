@@ -64,6 +64,92 @@ def test_predefined_bill_question_generates_once(client, monkeypatch):
         assert question not in json.dumps(row.answer_payload)
 
 
+def test_saved_suggestion_get_is_self_contained_and_publicly_cacheable(
+    client, monkeypatch
+):
+    question = "SF 2483: How is student financial aid changing?"
+    monkeypatch.setattr(
+        "alethical.api.routers.ask.synthesize_grounded_answer",
+        lambda *args, **kwargs: "One saved answer.",
+    )
+    generated = client.post("/api/v1/ask", json={"content": question})
+    assert generated.status_code == 200
+
+    monkeypatch.setattr(
+        "alethical.api.routers.ask.synthesize_grounded_answer",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("a saved-answer GET must never generate")
+        ),
+    )
+    monkeypatch.setattr(
+        "alethical.api.routers.ask.classify_query",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("a saved-answer GET must never classify")
+        ),
+    )
+
+    response = client.get("/api/v1/ask/suggestions/94-2025-SF2483/0")
+
+    assert response.status_code == 200
+    assert "public" in response.headers["cache-control"]
+    payload = response.json()["data"]
+    answer = payload["answer"]
+    assert payload["intent"] == "bill_text"
+    assert payload["source"] == "predefined"
+    assert answer["question"] == question
+    assert answer["bill"]["id"] == "94-2025-SF2483"
+    assert answer["bill"]["ai_analysis"]["question_prompts"]
+    assert isinstance(answer["bill"]["stats"]["vote_event_count"], int)
+    assert answer["bill_last_pulled_at"] is not None
+    assert answer["citations"]
+    assert all(
+        isinstance(citation["section_available"], bool)
+        for citation in answer["citations"]
+    )
+
+
+def test_saved_suggestion_get_miss_never_generates_or_saves(client, monkeypatch):
+    monkeypatch.setattr(
+        "alethical.api.routers.ask.synthesize_grounded_answer",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("a saved-answer miss must never generate")
+        ),
+    )
+    monkeypatch.setattr(
+        "alethical.api.routers.ask.classify_query",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("a saved-answer miss must never classify")
+        ),
+    )
+
+    response = client.get("/api/v1/ask/suggestions/94-2025-SF2483/0")
+
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+    with get_session_factory()() as db:
+        assert db.scalar(select(func.count()).select_from(AskSuggestedAnswerCache)) == 0
+
+
+def test_saved_suggestion_get_rejects_reader_text(client, monkeypatch):
+    monkeypatch.setattr(
+        "alethical.api.routers.ask.synthesize_grounded_answer",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("reader text must not enter the saved-answer GET")
+        ),
+    )
+
+    response = client.get(
+        "/api/v1/ask/suggestions/94-2025-SF2483/0",
+        params={"q": "private reader question"},
+    )
+
+    assert response.status_code == 400
+    assert response.headers["cache-control"] == "no-store"
+    assert "private reader question" not in response.text
+    with get_session_factory()() as db:
+        assert db.scalar(select(func.count()).select_from(AskSuggestedAnswerCache)) == 0
+
+
 def test_reader_written_question_is_never_saved(client, monkeypatch):
     questions = (
         "SF 2483: What would this change for a student?",

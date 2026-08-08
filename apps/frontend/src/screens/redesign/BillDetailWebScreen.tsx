@@ -115,8 +115,8 @@ export function BillDetailWebScreen() {
   const openBill = (nextBillId: string) => {
     navigation.push('BillDetail', { billId: nextBillId });
   };
-  const askAboutBill = (question: string) => {
-    navigation.navigate('Ask', { q: question || undefined, billId });
+  const askAboutBill = (question: string, suggestionIndex?: number) => {
+    navigation.navigate('Ask', { q: question || undefined, billId, suggestionIndex });
   };
 
   const handleNavigate = (item: IaItem) => {

@@ -517,6 +517,10 @@ export interface AskAnswer {
   billText?: string;
   citations?: AskCitation[];
   answeringBill?: AskAnswerBill;
+  /** Full current bill-card facts served with a public saved answer. */
+  answeringBillCard?: Bill;
+  /** Canonical public question rebuilt from the bill's current saved prompt. */
+  question?: string;
   /** How much of the bill the answer was written from: the passages retrieval used,
    *  how many the bill's current version has, and whether the reader asked for EVERY
    *  instance of something (grounded-ask-spec §9.5 decision 11). Absent when the total
@@ -548,4 +552,6 @@ export interface AskCitation {
   /** Short topic from that section's own heading ("Public facilities authority").
    *  citationChipLabel appends it only when normalizing `label` leaves no topic. */
   sectionTopic: string;
+  /** Whether this exact section still exists in the bill's current version. */
+  sectionAvailable?: boolean;
 }

@@ -25,7 +25,7 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import { useAuth } from '../../providers/AuthProvider';
 import { ReturnToast } from '../../components/search/ReturnToast';
 import { shouldAnnounceTrack, trackReturnAction } from '../../lib/trackReturn';
-import { useBill } from '../../hooks/useAppQueries';
+import { useBill, usePrefetchSuggestedAnswer } from '../../hooks/useAppQueries';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { isNotFoundError } from '../../data/api';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
@@ -65,6 +65,7 @@ import {
   pulledLabel,
   readDocumentLink,
   scopedChipQuery,
+  suggestedQuestionIndex,
   TimelineAuthor,
   TimelineRow,
   titleSegments,
@@ -501,8 +502,8 @@ function BillDetailMobileScreen() {
   };
 
   // --- ask ---
-  const goAsk = (q?: string) => {
-    navigation.navigate('Ask', q ? { q, billId } : { billId });
+  const goAsk = (q?: string, suggestionIndex?: number) => {
+    navigation.navigate('Ask', q ? { q, billId, suggestionIndex } : { billId });
   };
 
   // Roll-call member chips link to the member's profile (grounded-answers rule 5 —
@@ -2014,11 +2015,12 @@ function AskCard({
   identifier: string;
   sessionLabel?: string;
   questionPrompts: string[] | undefined;
-  onAsk: (q?: string) => void;
+  onAsk: (q?: string, suggestionIndex?: number) => void;
 }) {
   // Bill-specific chips from the served question_prompts, shared with the web
   // SummaryTab so the chip set is identical on both surfaces (#627).
   const { chips } = askCardPrompts(questionPrompts);
+  const prefetchSuggestedAnswer = usePrefetchSuggestedAnswer();
   return (
     <View style={styles.askCard}>
       <Text accessibilityRole="header" style={styles.askTitle}>
@@ -2033,11 +2035,19 @@ function AskCard({
         <View style={styles.askChips}>
           {chips.map((chip) => {
             const scoped = scopedChipQuery(identifier, chip, sessionLabel);
+            const suggestionIndex = suggestedQuestionIndex(questionPrompts, chip);
             return (
               <SuggestedQuestionChip
                 key={chip}
                 label={chip}
-                linkProps={linkProps(routePath.ask({ q: scoped, billId }), () => onAsk(scoped))}
+                onIntent={
+                  suggestionIndex === undefined
+                    ? undefined
+                    : () => prefetchSuggestedAnswer(billId, suggestionIndex)
+                }
+                linkProps={linkProps(routePath.ask({ q: scoped, billId, suggestionIndex }), () =>
+                  onAsk(scoped, suggestionIndex),
+                )}
               />
             );
           })}

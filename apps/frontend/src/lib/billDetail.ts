@@ -2171,6 +2171,18 @@ export function scopedChipQuery(identifier: string, chip: string, sessionLabel?:
   return `${identifier}${scope}: ${chip}`;
 }
 
+/** Position of a chip in the bill's stored public suggestions, if it is one. */
+export function suggestedQuestionIndex(
+  questionPrompts: string[] | undefined,
+  chip: string,
+): number | undefined {
+  const wanted = chip.trim();
+  const index = (questionPrompts ?? []).findIndex(
+    (prompt) => typeof prompt === 'string' && prompt.trim() === wanted,
+  );
+  return index >= 0 ? index : undefined;
+}
+
 // The chief author for THIS file's own chamber. A companion-paired bill carries
 // BOTH chambers' authors as its own sponsorship rows (ingest writes the House
 // companion's authors onto the Senate file and vice-versa), so a bill can have two

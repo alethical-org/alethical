@@ -123,10 +123,13 @@ export function CitationCard({
 export function SuggestedQuestionChip({
   label,
   onPress,
+  onIntent,
   linkProps,
 }: {
   label: string;
   onPress?: () => void;
+  /** Read-only warmup on pointer, keyboard, or touch intent. */
+  onIntent?: () => void;
   linkProps?: object;
 }) {
   const { isMobile } = useResponsive();
@@ -135,6 +138,12 @@ export function SuggestedQuestionChip({
     <Pressable
       {...hover}
       {...(linkProps ?? { accessibilityRole: 'button' as const, onPress })}
+      onHoverIn={() => {
+        hover.onHoverIn();
+        onIntent?.();
+      }}
+      onFocus={onIntent}
+      onPressIn={onIntent}
       style={[styles.askChip, isMobile && styles.askChipMobile, hovered && styles.askChipHover]}
     >
       <Text style={[styles.askChipText, hovered && styles.askChipTextHover]}>{label}</Text>
