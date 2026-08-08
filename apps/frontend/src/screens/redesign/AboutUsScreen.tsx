@@ -352,7 +352,8 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
                 pressed && styles.contactButtonPressed,
               ]}
             >
-              <Text style={styles.contactButtonText}>Contact us →</Text>
+              <Text style={styles.contactButtonText}>Contact us</Text>
+              <ChevronRight color={t.colors.brand.darkest} size={18} strokeWidth={2.2} />
             </Pressable>
           </View>
         </Container>
@@ -530,6 +531,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   contactButton: {
+    flexDirection: 'row',
+    gap: 9,
     minHeight: 48,
     minWidth: 138,
     alignItems: 'center',
