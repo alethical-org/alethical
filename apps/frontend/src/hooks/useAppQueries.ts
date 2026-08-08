@@ -23,6 +23,7 @@ import {
   listSessionsFromApi,
   listTrackedBillsFromApi,
   lookupRepresentativeFromApi,
+  suggestRepresentativeAddressesFromApi,
   sendChatMessageToApi,
   setTrackedBillFromApi,
 } from '../data/api';
@@ -321,6 +322,16 @@ export function useSetTrackedBill(userId?: string) {
 export function useRepresentativeLookup() {
   return useMutation({
     mutationFn: (input: RepresentativeLookupInput) => lookupRepresentativeFromApi(input),
+  });
+}
+
+export function useAddressSuggestions(address?: string, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ['address-suggestions', address ?? ''],
+    queryFn: () => suggestRepresentativeAddressesFromApi(address ?? ''),
+    enabled: Boolean(address) && (options.enabled ?? true),
+    staleTime: 60_000,
+    retry: false,
   });
 }
 

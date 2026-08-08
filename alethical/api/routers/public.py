@@ -16,6 +16,7 @@ from alethical.api.issue_taxonomy import canonical_for
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit
 from alethical.api.schemas import (
+    AddressSuggestionRequest,
     CollectionResponse,
     DetailResponse,
     MetaPayload,
@@ -2546,6 +2547,41 @@ def district_legislators(
     ]
     return CollectionResponse(
         data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
+
+
+@router.post("/address-suggestions", response_model=DetailResponse)
+def address_suggestions(
+    request: AddressSuggestionRequest,
+    lookup_service: RepresentativeLookupService = Depends(
+        get_representative_lookup_service
+    ),
+    _rate_limited: None = Depends(
+        rate_limit("address_suggestion_limiter", "address-suggestion")
+    ),
+):
+    try:
+        suggestions = lookup_service.suggest_addresses(request.address_text)
+    except (RepresentativeLookupUpstreamError, requests.RequestException) as exc:
+        raise problem_exception(
+            502,
+            "Bad Gateway",
+            f"Address suggestions upstream failed: {exc}",
+            type_slug="address-suggestions-upstream-error",
+        ) from None
+
+    return DetailResponse(
+        data={
+            "suggestions": [
+                {
+                    "matched_address": suggestion.matched_address,
+                    "latitude": suggestion.latitude,
+                    "longitude": suggestion.longitude,
+                    "state_code": suggestion.state_code,
+                }
+                for suggestion in suggestions
+            ]
+        }
     )
 
 

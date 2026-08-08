@@ -24,6 +24,46 @@ export function prepareAddressLookup(rawAddress: string): {
   };
 }
 
+const STREET_DIRECTIONS = new Set([
+  'N',
+  'S',
+  'E',
+  'W',
+  'NE',
+  'NW',
+  'SE',
+  'SW',
+  'NORTH',
+  'SOUTH',
+  'EAST',
+  'WEST',
+  'NORTHEAST',
+  'NORTHWEST',
+  'SOUTHEAST',
+  'SOUTHWEST',
+]);
+
+export function addressSuggestionInput(rawAddress: string): string | undefined {
+  const address = rawAddress.trim();
+  const streetLine = address.split(/[,;]/, 1)[0];
+  const match = streetLine.match(/^\d+[A-Z]?\s+(.+)$/i);
+  if (!match) return undefined;
+
+  const streetTokens = match[1].match(/[A-Z0-9]+/gi) ?? [];
+  while (streetTokens.length && STREET_DIRECTIONS.has((streetTokens[0] ?? '').toUpperCase())) {
+    streetTokens.shift();
+  }
+  const streetPrefix = streetTokens.join('');
+  return streetPrefix.length >= 2 || /^\d+$/.test(streetPrefix) ? address : undefined;
+}
+
+export function addressSuggestionResultsAreCurrent(
+  currentInput: string,
+  requestedInput: string,
+): boolean {
+  return Boolean(currentInput) && currentInput === requestedInput;
+}
+
 export function confirmedAddressForLookup(
   input: RepresentativeLookupInput | undefined,
   result: Pick<RepresentativeLookupResult, 'status' | 'address'> | null | undefined,

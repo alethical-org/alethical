@@ -23,6 +23,7 @@ from alethical.api.problems import problem_exception
 
 DEFAULT_ASK_PER_MINUTE = 20
 DEFAULT_LOOKUP_PER_MINUTE = 10
+DEFAULT_ADDRESS_SUGGESTIONS_PER_MINUTE = 60
 _WINDOW_SECONDS = 60.0
 
 

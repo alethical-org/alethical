@@ -25,8 +25,11 @@ import type {
 } from '../data/types';
 import { useResponsive } from '../hooks/useResponsive';
 import { useHistoryScrollRestoration } from '../hooks/useHistoryScrollRestoration';
-import { useRepresentativeLookup } from '../hooks/useAppQueries';
+import { useAddressSuggestions, useRepresentativeLookup } from '../hooks/useAppQueries';
+import { useDebouncedSearchCommit } from '../hooks/useDebouncedSearchCommit';
 import {
+  addressSuggestionInput,
+  addressSuggestionResultsAreCurrent,
   addressChoiceKey,
   confirmedAddressForLookup,
   districtMapVisible,
@@ -214,6 +217,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [choiceClosed, setChoiceClosed] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [suggestionInput, setSuggestionInput] = useState('');
   const [findingLocation, setFindingLocation] = useState(false);
   const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
   const [shimmerEnabled, setShimmerEnabled] = useState(false);
@@ -221,6 +226,15 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const [locationHovered, setLocationHovered] = useState(false);
   const { focused: addressFocused, focusProps: addressFocusProps } = useFieldFocus();
   const lookup = useRepresentativeLookup();
+  const currentSuggestionInput = addressSuggestionInput(address) ?? '';
+  useDebouncedSearchCommit(currentSuggestionInput, suggestionInput, setSuggestionInput, 300);
+  const suggestionsAreCurrent = addressSuggestionResultsAreCurrent(
+    currentSuggestionInput,
+    suggestionInput,
+  );
+  const addressSuggestions = useAddressSuggestions(suggestionInput, {
+    enabled: suggestionsOpen && suggestionsAreCurrent && !lookup.isPending,
+  });
   const autoRanFor = useRef<string | null>(null);
   const addressInputRef = useRef<TextInput | null>(null);
   const lastFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
@@ -237,10 +251,16 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       displayedResult.senateLegislator &&
       displayedResult.houseLegislator,
   );
-  const choices =
+  const lookupChoices =
     settledResult?.status === 'address-choice' && !choiceClosed
       ? (settledResult.choices ?? []).slice(0, 5)
       : [];
+  const suggestedChoices =
+    suggestionsOpen && suggestionsAreCurrent && !lookupChoices.length
+      ? (addressSuggestions.data ?? []).slice(0, 5)
+      : [];
+  const choices = lookupChoices.length ? lookupChoices : suggestedChoices;
+  const showingSuggestions = !lookupChoices.length && suggestedChoices.length > 0;
   const found = settledResult?.status === 'found';
   const hasVacancy = Boolean(
     found && (!settledResult.houseLegislator || !settledResult.senateLegislator),
@@ -248,7 +268,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const state = viewStateForLookup({
     pending: lookup.isPending,
     found,
-    choices: choices.length,
+    choices: lookupChoices.length,
     vacant: hasVacancy,
     error: clientError ?? (lookup.error ? errorKind(lookup.error) : undefined),
   });
@@ -330,6 +350,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     setPreserveMapViewport(false);
     setSelectedCoordinate(undefined);
     setChoiceClosed(false);
+    setSuggestionsOpen(false);
     setChoiceIndex(0);
     autoRanFor.current = serviceAddress;
     navigation.setParams({
@@ -347,6 +368,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (rateLimitSeconds > 0) return;
     setClientError(null);
     setChoiceClosed(true);
+    setSuggestionsOpen(false);
     if (!isCoordinateInMinnesota(coordinate)) {
       lookup.reset();
       setSelectedCoordinate(undefined);
@@ -404,6 +426,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const useLocation = () => {
     if (findingLocation || lookup.isPending || rateLimitSeconds > 0) return;
     setAddress('');
+    setSuggestionsOpen(false);
     lookup.reset();
     setPreserveMapViewport(false);
     setSelectedCoordinate(undefined);
@@ -440,6 +463,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     const { serviceAddress } = prepareAddressLookup(choice.matchedAddress);
     setAddress(choice.matchedAddress);
     setChoiceClosed(true);
+    setSuggestionsOpen(false);
     setPreserveMapViewport(false);
     autoRanFor.current = serviceAddress || null;
     navigation.setParams({
@@ -458,6 +482,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (action.action === 'choose') chooseAddress(choices[action.index]);
     if (action.action === 'close') {
       setChoiceClosed(true);
+      setSuggestionsOpen(false);
       addressInputRef.current?.focus();
     }
   };
@@ -616,8 +641,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
               Find my legislator
             </Text>
             <Text style={styles.explainer}>
-              Enter a full street address. Minnesota’s districts split cities, so a city or ZIP
-              alone can’t tell us who represents you.
+              Start with a house number and street name. City and ZIP are optional. Choose a
+              suggested Minnesota address, select Use my location, or enter the full address and
+              choose Find.
             </Text>
           </View>
           <View style={styles.addressArea}>
@@ -639,6 +665,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   {...(!isWeb ? ({ onKeyPress: onChoiceKey } as object) : null)}
                   {...({
                     role: 'combobox',
+                    'aria-autocomplete': 'list',
                     'aria-expanded': choices.length > 0,
                     'aria-controls': choices.length > 0 ? ADDRESS_CHOICES_ID : undefined,
                     'aria-activedescendant':
@@ -654,10 +681,20 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     setClientError(null);
                     setSelectedCoordinate(undefined);
                     setChoiceClosed(false);
+                    setSuggestionsOpen(true);
+                    setChoiceIndex(0);
                   }}
                   onSubmitEditing={findAddress}
                   style={[styles.input, isMobile && styles.inputMobile, fieldOutlineReset]}
-                  {...addressFocusProps}
+                  onFocus={() => {
+                    addressFocusProps.onFocus();
+                    setChoiceClosed(false);
+                    if (!lookup.error && !clientError) setSuggestionsOpen(true);
+                  }}
+                  onBlur={() => {
+                    addressFocusProps.onBlur();
+                    if (!isWeb) setSuggestionsOpen(false);
+                  }}
                   {...({ name: 'street-address' } as object)}
                 />
                 {!isMobile ? renderFindButton(false) : null}
@@ -680,9 +717,29 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 </Text>
               </View>
             ) : null}
+            {suggestionsOpen && suggestionsAreCurrent && addressSuggestions.isFetching ? (
+              <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
+                Finding matching Minnesota addresses…
+              </Text>
+            ) : null}
+            {suggestionsOpen && suggestionsAreCurrent && addressSuggestions.isError ? (
+              <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
+                Address suggestions are unavailable. You can still choose Find.
+              </Text>
+            ) : null}
+            {suggestionsOpen &&
+            suggestionsAreCurrent &&
+            addressSuggestions.isSuccess &&
+            !addressSuggestions.data.length ? (
+              <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
+                No matching Minnesota addresses yet. Keep typing or choose Find.
+              </Text>
+            ) : null}
             {choices.length ? (
               <View style={styles.choiceWrap}>
-                <Text style={styles.choiceTitle}>Choose your address</Text>
+                <Text style={styles.choiceTitle}>
+                  {showingSuggestions ? 'Suggested Minnesota addresses' : 'Choose your address'}
+                </Text>
                 <View
                   nativeID={ADDRESS_CHOICES_ID}
                   {...({ role: 'listbox' } as object)}
@@ -1057,6 +1114,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: t.colors.ink,
+  },
+  suggestionStatus: {
+    minHeight: 24,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    color: t.colors.text.secondary,
   },
   choiceHelp: {
     paddingHorizontal: 14,

@@ -8,6 +8,8 @@ describe('privacy copy', () => {
 
     expect(source).toContain('The United States Census Bureau');
     expect(source).toContain('The Minnesota Geospatial Information Office');
+    expect(source).toContain('while we show Minnesota address suggestions');
+    expect(source).toContain('house number and street name entered so far');
     expect(source).not.toContain('We send latitude and longitude to its public district service');
   });
 });

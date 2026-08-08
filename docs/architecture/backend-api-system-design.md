@@ -723,6 +723,36 @@ Rationale:
 - the bundled map is refused unless it has all 134 House and 67 Senate district codes and valid shapes; each returned shape must cover the selected point, and the smaller browser copy is made only after that check
 - the browser shares identical requests already in progress and reuses a successful result for 60s; the API still allows 10 lookup requests per public IP in 60s and returns the remaining wait in `Retry-After` when the limit is reached
 
+#### `POST /api/v1/address-suggestions`
+
+Purpose:
+
+- complete a partial Minnesota street address before a legislator lookup
+
+Request body:
+
+```json
+{
+  "address_text": "3040 Ex"
+}
+```
+
+Response:
+
+- up to 5 unique active addresses from Minnesota's official statewide address points
+- the full official address and its latitude and longitude for each choice
+
+Rationale:
+
+- suggestions start only after an exact house number plus 2 street-name characters, or
+  1 digit for a numbered street
+- the state request contains the house number and street-name prefix, not the city or ZIP;
+  supplied city and ZIP text rank the returned choices inside Alethical
+- choosing a suggestion gives the existing representative lookup its official point, so
+  the reader does not need a second click or another geocoding request
+- the endpoint has its own 60-requests-per-public-IP-per-60-seconds limit, separate from
+  the 10 full representative lookups
+
 ### Cross-Entity Search
 
 #### `GET /api/v1/search`
@@ -1068,12 +1098,14 @@ Status: pass
 
 Frontend access path:
 
+- `POST /api/v1/address-suggestions` while a reader types a partial address
 - `POST /api/v1/representative-lookups`
 - request may include `address_text` or `latitude` plus `longitude`
 
 Economic access:
 
-- one request
+- one debounced suggestion request after a typing pause, cached for 60s per partial address
+- one representative lookup after the reader chooses a suggestion or submits a full address
 
 ### 5. Cross-Entity Search
 

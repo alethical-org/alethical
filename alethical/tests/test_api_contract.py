@@ -2175,6 +2175,39 @@ def test_representative_lookup_returns_address_choices_without_district_lookup(c
     assert "house_legislator" not in payload
 
 
+def test_address_suggestions_return_choices_without_a_district_lookup(client):
+    class SuggestionService:
+        def suggest_addresses(self, address_text: str):
+            assert address_text == "3040 Ex"
+            return [
+                GeocodedAddress(
+                    address_text,
+                    "3040 Excelsior Boulevard, Minneapolis, MN 55416",
+                    44.9475,
+                    -93.3212,
+                    "MN",
+                )
+            ]
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        SuggestionService()
+    )
+
+    response = client.post(
+        "/api/v1/address-suggestions", json={"address_text": "3040 Ex"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["suggestions"] == [
+        {
+            "matched_address": "3040 Excelsior Boulevard, Minneapolis, MN 55416",
+            "latitude": 44.9475,
+            "longitude": -93.3212,
+            "state_code": "MN",
+        }
+    ]
+
+
 def test_representative_lookup_distinguishes_outside_minnesota(client):
     class OutsideLookupService:
         def lookup(self, _address_text: str):
@@ -4368,6 +4401,28 @@ def test_representative_lookup_enforces_rate_limit(client):
         )
 
     blocked = client.post("/api/v1/representative-lookups", json=payload)
+    assert blocked.status_code == 429
+    assert blocked.json()["title"] == "Too Many Requests"
+    assert 1 <= int(blocked.headers["Retry-After"]) <= 60
+
+
+def test_address_suggestions_have_a_separate_typeahead_rate_limit(client):
+    class SuggestionService:
+        def suggest_addresses(self, _address_text: str):
+            return []
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        SuggestionService()
+    )
+    limit = client.app.state.address_suggestion_limiter.max_requests
+    payload = {"address_text": "3040 Ex"}
+
+    for _ in range(limit):
+        assert (
+            client.post("/api/v1/address-suggestions", json=payload).status_code == 200
+        )
+
+    blocked = client.post("/api/v1/address-suggestions", json=payload)
     assert blocked.status_code == 429
     assert blocked.json()["title"] == "Too Many Requests"
     assert 1 <= int(blocked.headers["Retry-After"]) <= 60

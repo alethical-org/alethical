@@ -274,7 +274,7 @@ the published Privacy Policy.
 | **OpenAI**                                  | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
 | **Anthropic**                               | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
 | **US Census Bureau**                        | **The full street address, with surrounding spaces removed**            | Every Find My Legislator address search                                                              | **Yes**                      |
-| **Minnesota Geospatial Information Office** | **The house number and street name, without city or ZIP**               | Only after Census and its safe Minnesota-only retries find no match                                  | **Yes**                      |
+| **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**        | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
 | Vercel                                      | Hosts the web app, so its request logs see every page address (§7)      | Every page load                                                                                      | No, and it should be         |
 | Cloudflare                                  | Sits in front of the API                                                | Every API call                                                                                       | No, and it should be         |
 
@@ -283,7 +283,8 @@ built from the bill's identifier, the reader's question, and passages of bill te
 (`synthesize_grounded_answer`, `alethical/api/routers/me.py`). There is no user id, no
 email address, no name, and no address in it. The address that goes to the Census
 Bureau carries no account identifier either. If Census finds nothing, the Minnesota
-address-point request carries only the house number and street name, not the city or ZIP.
+address-point request carries only the house number and street-name prefix, not the city
+or ZIP. That request can begin after 2 street-name characters while suggestions are open.
 After either address source returns a point, the House, Senate, and congressional
 districts are found from official map files stored inside Alethical. The point is not
 sent to the Minnesota Legislative Coordinating Commission.
