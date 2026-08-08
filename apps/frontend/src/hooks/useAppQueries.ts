@@ -5,6 +5,7 @@ import {
   createChatSessionFromApi,
   BillListFilters,
   fetchBillVersionText,
+  getSavedSuggestedAnswerFromApi,
   getFeaturedBillsFromApi,
   getBillFromApi,
   getBillVotesFromApi,
@@ -47,13 +48,57 @@ export function useCurrentUser() {
   });
 }
 
-export function useAskAnswer(question?: string) {
+export interface SuggestedAnswerIdentity {
+  billId: string;
+  suggestionIndex: number;
+}
+
+const suggestedAnswerQueryKey = (identity: SuggestedAnswerIdentity) => [
+  'saved-ask-suggestion',
+  identity.billId,
+  identity.suggestionIndex,
+];
+
+export function useAskAnswer(question?: string, identity?: SuggestedAnswerIdentity) {
   const trimmed = question?.trim();
-  return useQuery({
+  const validIdentity = Boolean(
+    identity?.billId &&
+      Number.isSafeInteger(identity.suggestionIndex) &&
+      identity.suggestionIndex >= 0,
+  );
+  const savedQuery = useQuery({
+    queryKey: validIdentity ? suggestedAnswerQueryKey(identity!) : ['saved-ask-suggestion', 'none'],
+    queryFn: () => getSavedSuggestedAnswerFromApi(identity!.billId, identity!.suggestionIndex),
+    enabled: validIdentity,
+    retry: false,
+  });
+  const postQuery = useQuery({
     queryKey: ['ask', trimmed ?? ''],
     queryFn: () => askFromApi(trimmed!),
-    enabled: Boolean(trimmed),
+    enabled:
+      Boolean(trimmed) && (!validIdentity || (savedQuery.isSuccess && savedQuery.data === null)),
   });
+
+  if (validIdentity && savedQuery.data) {
+    return { ...savedQuery, data: savedQuery.data };
+  }
+  if (validIdentity && !savedQuery.isSuccess) {
+    return { ...savedQuery, data: undefined };
+  }
+  return postQuery;
+}
+
+/** Warm only the read-only saved-answer route. A miss never starts generation. */
+export function usePrefetchSuggestedAnswer() {
+  const queryClient = useQueryClient();
+  return (billId: string, suggestionIndex: number) => {
+    const identity = { billId, suggestionIndex };
+    return void queryClient.prefetchQuery({
+      queryKey: suggestedAnswerQueryKey(identity),
+      queryFn: () => getSavedSuggestedAnswerFromApi(billId, suggestionIndex),
+      retry: false,
+    });
+  };
 }
 
 export function useBills(
@@ -144,12 +189,16 @@ export function useFeaturedBills(billIds: readonly string[], options: { enabled?
   });
 }
 
-export function useBillVersionText(billId?: string, versionCode?: string) {
+export function useBillVersionText(
+  billId?: string,
+  versionCode?: string,
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: ['bill-version-text', billId, versionCode],
     queryFn: () => fetchBillVersionText(billId!, versionCode!),
     retry: false,
-    enabled: !!billId && !!versionCode,
+    enabled: (options.enabled ?? true) && !!billId && !!versionCode,
   });
 }
 
@@ -157,11 +206,13 @@ export function useLegislators(
   query?: string,
   session?: string,
   filters: LegislatorListFilters = {},
+  options: { enabled?: boolean } = {},
 ) {
   return useQuery({
     queryKey: ['legislators', session ?? 'current', query ?? '', filters],
     queryFn: () => listLegislatorsFromApi(query, session, filters),
     retry: false,
+    enabled: options.enabled ?? true,
   });
 }
 

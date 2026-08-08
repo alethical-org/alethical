@@ -69,9 +69,18 @@ describe('live URLs still resolve to themselves', () => {
     expect(
       pathForRoute({
         name: 'Ask',
-        params: { q: 'What changed?', billId: '94-2025-HF719' },
+        params: { q: 'What changed?', billId: '94-2025-HF719', suggestionIndex: 1 },
       }),
-    ).toBe('/ask?q=What+changed%3F&bill=94-2025-HF719');
+    ).toBe('/ask?q=What+changed%3F&bill=94-2025-HF719&suggestion=1');
+    expect(targetFromPathname('/ask?q=What+changed%3F&bill=94-2025-HF719&suggestion=1')).toEqual({
+      kind: 'ask',
+      params: {
+        q: 'What changed?',
+        billId: '94-2025-HF719',
+        legislatorId: undefined,
+        suggestionIndex: 1,
+      },
+    });
   });
 
   it('leaves a plain bill link alone', () => {

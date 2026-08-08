@@ -83,6 +83,10 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       return { kind: 'legislators', params: legislatorsFilterParams(searchParams) };
     }
     if (segments[0] === 'ask') {
+      const rawSuggestion = searchParams.get('suggestion');
+      const parsedSuggestion =
+        rawSuggestion && /^\d+$/.test(rawSuggestion) ? Number(rawSuggestion) : undefined;
+      const suggestionIndex = Number.isSafeInteger(parsedSuggestion) ? parsedSuggestion : undefined;
       return {
         kind: 'ask',
         params: {
@@ -90,6 +94,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
           sort: searchParams.get('sort') ?? undefined,
           billId: searchParams.get('bill') ?? undefined,
           legislatorId: searchParams.get('legislator') ?? undefined,
+          ...(suggestionIndex === undefined ? {} : { suggestionIndex }),
         },
       };
     }
@@ -245,6 +250,12 @@ export function pathForRoute(activeRoute: {
       }
       if (activeRoute.params?.legislatorId) {
         params.set('legislator', String(activeRoute.params.legislatorId));
+      }
+      if (
+        Number.isSafeInteger(activeRoute.params?.suggestionIndex) &&
+        Number(activeRoute.params?.suggestionIndex) >= 0
+      ) {
+        params.set('suggestion', String(activeRoute.params?.suggestionIndex));
       }
       const query = params.toString();
       return query ? `/ask?${query}` : '/ask';

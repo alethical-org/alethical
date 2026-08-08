@@ -19,11 +19,17 @@ import {
   useBill,
   useBillVersionText,
   useLegislators,
+  usePrefetchSuggestedAnswer,
 } from '../../hooks/useAppQueries';
 import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { SharePopover } from '../../components/billDetail/SharePopover';
-import { bienniumEyebrow, pulledLabel, scopedChipQuery } from '../../lib/billDetail';
+import {
+  bienniumEyebrow,
+  pulledLabel,
+  scopedChipQuery,
+  suggestedQuestionIndex,
+} from '../../lib/billDetail';
 import { titleCaseIssue } from '../../lib/issues';
 import {
   alphabeticalIndex,
@@ -272,15 +278,25 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [issueSortOpen, setIssueSortOpen] = useState(false);
   const { isDesktop, isMobile } = useResponsive();
+  const suggestionIdentity =
+    route.params?.billId &&
+    Number.isSafeInteger(route.params?.suggestionIndex) &&
+    Number(route.params?.suggestionIndex) >= 0
+      ? {
+          billId: route.params.billId,
+          suggestionIndex: Number(route.params.suggestionIndex),
+        }
+      : undefined;
 
-  const askQuery = useAskAnswer(question);
+  const askQuery = useAskAnswer(question, suggestionIdentity);
+  const prefetchSuggestedAnswer = usePrefetchSuggestedAnswer();
 
   // §4.6 — the placeholder's "name" entry point. A query that resolves to a
   // single legislator name is records navigation, so redirect to that profile
   // instead of running it through the cite-or-refuse answer path. Reuses the
   // existing directory search (GET /legislators?q=); multiple or zero matches
   // fall through to the normal answer below.
-  const nameQuery = useLegislators(question);
+  const nameQuery = useLegislators(question, undefined, {}, { enabled: !suggestionIdentity });
   const nameMatch = nameQuery.data && nameQuery.data.length === 1 ? nameQuery.data[0] : undefined;
   const resolvingName = Boolean(question) && (nameQuery.isLoading || Boolean(nameMatch));
 
@@ -294,6 +310,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   }, [nameMatch, navigation]);
 
   const answer = askQuery.data;
+  const displayQuestion = answer?.question ?? question;
   const isLegislators = answer?.intent === 'topic_legislators';
   const compactBills = answer?.bills ?? [];
   const shownLegislators = answer?.legislators ?? [];
@@ -323,24 +340,28 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // its remaining suggested questions, and the cited-section rail.
   const isBillText = answer?.intent === 'bill_text';
   const answeringBill = answer?.answeringBill;
+  const answeringBillCard = answer?.answeringBillCard;
   const citations = answer?.citations ?? [];
 
-  // The answering bill is fetched in full rather than reshaped out of the Ask
-  // payload, because four things on this page come from the bill record and not
-  // from the answer: BillResultCard needs a whole `Bill`, "Ask another question"
-  // needs the bill's stored question_prompts, the card's Effective line needs the
-  // verified statutory date, and the source line needs the bill's OWN record date
-  // (§9.5 decision 8a — never the Ask payload's corpus-wide `data_as_of`).
+  // A saved public suggestion carries the complete current bill card and this
+  // bill's own source date, so it needs no detail or vote request. Older/free-form
+  // responses still fetch detail for the source date, without fetching votes.
   const answeringBillId = answeringBill?.id ?? '';
-  const billQuery = useBill(answeringBillId, { enabled: Boolean(answeringBillId) });
-  const bill = billQuery.data;
+  const billQuery = useBill(answeringBillId, {
+    enabled: Boolean(answeringBillId) && !answeringBillCard?.lastPulledAt,
+    includeVotes: false,
+  });
+  const bill = billQuery.data ?? answeringBillCard;
 
-  // The sections the Bill Text tab actually renders, so a cited section is only
-  // linked to when its anchor really resolves there (see `passageTarget`).
+  // Saved public suggestions carry the current anchor check. Older/free-form
+  // responses keep the structured-text read that validates each cited section.
   const currentVersion = bill?.versions.find((v) => v.isCurrent) ?? bill?.versions[0];
-  const textQuery = useBillVersionText(bill?.id, currentVersion?.versionCode);
+  const needsSectionValidation = citations.some((citation) => citation.sectionAvailable == null);
+  const textQuery = useBillVersionText(bill?.id, currentVersion?.versionCode, {
+    enabled: needsSectionValidation,
+  });
   const renderedSections = textQuery.data ?? [];
-  const sectionsLoaded = textQuery.isSuccess;
+  const sectionsLoaded = !needsSectionValidation || textQuery.isSuccess;
 
   const sections = useMemo(() => citedSections(citations), [citations]);
   const answerBlocks = useMemo(() => parseAnswerBlocks(answer?.billText ?? ''), [answer?.billText]);
@@ -350,8 +371,8 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // and then swapped all three for the bill's own — a visible flicker on the one
   // control the reader is being invited to use.
   const chips = useMemo(
-    () => (billQuery.isPending ? [] : followUpPrompts(bill?.questionPrompts, question)),
-    [billQuery.isPending, bill?.questionPrompts, question],
+    () => (bill ? followUpPrompts(bill.questionPrompts, displayQuestion) : []),
+    [bill, displayQuestion],
   );
 
   // House first, then Senate — drop empty chambers (spec §9.4).
@@ -393,8 +414,8 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
   // §4.7 rule 4: follow-up chips fire their fully-qualified submit directly
   // (not populate — that is hero-only). Re-runs the Ask in place, updating ?q=.
-  const askFollowUp = (submit: string) => {
-    navigation.setParams({ q: submit, sort: undefined });
+  const askFollowUp = (submit: string, suggestionIndex?: number) => {
+    navigation.setParams({ q: submit, sort: undefined, suggestionIndex });
   };
 
   const selectIssueSort = (key: string) => {
@@ -457,9 +478,10 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     isWeb && typeof window !== 'undefined'
       ? window.location.href
       : `https://alethical.com${routePath.ask({
-          q: question,
+          q: displayQuestion,
           billId: route.params?.billId,
           legislatorId: route.params?.legislatorId,
+          suggestionIndex: route.params?.suggestionIndex,
         })}`;
   // From the existing helper, not the served session name ("94th Legislature
   // (2025 - 2026) Regular Session") — one vocabulary on every page (§9.5
@@ -503,7 +525,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             ? { text: 'NO MATCHES', muted: true, comingSoon: false }
             : null;
 
-  const hero = question ? (
+  const hero = displayQuestion ? (
     <View style={[styles.header, isIssueAnswer && styles.headerIssueAnswer]}>
       <View style={styles.headerMain}>
         <GoBackLink href={fallbackHref} onPress={goBackOrFallback} mobile={!isDesktop} />
@@ -520,11 +542,11 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           </View>
         ) : null}
         <Text accessibilityRole="header" style={styles.h1}>
-          {question}
+          {displayQuestion}
         </Text>
         {sessionLine ? <Text style={styles.sessionLine}>{sessionLine}</Text> : null}
       </View>
-      {showShare ? <SharePopover url={shareUrl} title={question} subject="answer" /> : null}
+      {showShare ? <SharePopover url={shareUrl} title={displayQuestion} subject="answer" /> : null}
     </View>
   ) : null;
 
@@ -570,7 +592,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
   // No ?q= at all. There is no field on this page to fill in, so the honest exit
   // is Search rather than an instruction to type something (§9.5 Scope).
-  if (!question) {
+  if (!displayQuestion) {
     return shell(
       <View style={styles.stateBox}>
         <Text style={styles.stateText}>
@@ -702,17 +724,24 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                     const submit = answeringBill
                       ? scopedChipQuery(answeringBill.identifier, chip)
                       : chip;
+                    const suggestionIndex = suggestedQuestionIndex(bill?.questionPrompts, chip);
                     return (
                       <SuggestedQuestionChip
                         key={chip}
                         label={chip}
+                        onIntent={
+                          suggestionIndex === undefined || !fallbackBillId
+                            ? undefined
+                            : () => prefetchSuggestedAnswer(fallbackBillId, suggestionIndex)
+                        }
                         linkProps={linkProps(
                           routePath.ask({
                             q: submit,
                             billId: fallbackBillId,
                             legislatorId: fallbackLegislatorId,
+                            suggestionIndex,
                           }),
-                          () => askFollowUp(submit),
+                          () => askFollowUp(submit, suggestionIndex),
                         )}
                       />
                     );
@@ -762,11 +791,18 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
                   // incoming fragment, so a link cannot claim a landing spot the tab
                   // would not honour.
                   const anchor = citationSectionAnchor(section);
-                  const target = passageTarget(
-                    section.sectionId,
-                    Boolean(resolveSectionAnchor(renderedSections, parseSectionAnchor(anchor))),
-                    sectionsLoaded,
-                  );
+                  const target =
+                    section.sectionAvailable == null
+                      ? passageTarget(
+                          section.sectionId,
+                          Boolean(
+                            resolveSectionAnchor(renderedSections, parseSectionAnchor(anchor)),
+                          ),
+                          sectionsLoaded,
+                        )
+                      : section.sectionAvailable && section.sectionId
+                        ? 'passage'
+                        : 'official';
                   const billTextPath = bill ? routePath.bill(bill.id, { tab: 'text' }) : null;
                   return (
                     <CitationCard

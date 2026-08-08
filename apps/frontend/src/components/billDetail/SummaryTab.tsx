@@ -8,8 +8,10 @@ import {
   plainBillSummary,
   plainKeyPoints,
   scopedChipQuery,
+  suggestedQuestionIndex,
 } from '../../lib/billDetail';
 import { citationSectionAnchor } from '../../lib/billText';
+import { usePrefetchSuggestedAnswer } from '../../hooks/useAppQueries';
 import { linkProps, routePath } from '../../navigation/links';
 import { CitationCard, SuggestedQuestionChip } from './CitationCard';
 import { FactsRail } from './FactsRail';
@@ -33,7 +35,7 @@ export function SummaryTab({
 }: {
   bill: Bill;
   showAsk: boolean;
-  onAsk: (question: string) => void;
+  onAsk: (question: string, suggestionIndex?: number) => void;
   onOpenUrl: (url: string) => void;
   onOpenLegislator: (legislatorId: string) => void;
   onOpenBill: (billId: string) => void;
@@ -132,6 +134,7 @@ export function SummaryTab({
               billId={bill.id}
               identifier={bill.identifier}
               sessionLabel={bill.sessionLabel}
+              questionPrompts={bill.questionPrompts}
               chips={askChipList}
               onAsk={onAsk}
             />
@@ -168,15 +171,18 @@ function AskModule({
   billId,
   identifier,
   sessionLabel,
+  questionPrompts,
   chips,
   onAsk,
 }: {
   billId: string;
   identifier: string;
   sessionLabel?: string;
+  questionPrompts: string[] | undefined;
   chips: string[];
-  onAsk: (question: string) => void;
+  onAsk: (question: string, suggestionIndex?: number) => void;
 }) {
+  const prefetchSuggestedAnswer = usePrefetchSuggestedAnswer();
   return (
     <View style={styles.askCard}>
       <Text accessibilityRole="header" style={styles.askTitle}>
@@ -191,11 +197,19 @@ function AskModule({
         <View style={styles.askChips}>
           {chips.map((chip) => {
             const scoped = scopedChipQuery(identifier, chip, sessionLabel);
+            const suggestionIndex = suggestedQuestionIndex(questionPrompts, chip);
             return (
               <SuggestedQuestionChip
                 key={chip}
                 label={chip}
-                linkProps={linkProps(routePath.ask({ q: scoped, billId }), () => onAsk(scoped))}
+                onIntent={
+                  suggestionIndex === undefined
+                    ? undefined
+                    : () => prefetchSuggestedAnswer(billId, suggestionIndex)
+                }
+                linkProps={linkProps(routePath.ask({ q: scoped, billId, suggestionIndex }), () =>
+                  onAsk(scoped, suggestionIndex),
+                )}
               />
             );
           })}

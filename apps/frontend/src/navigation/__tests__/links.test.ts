@@ -58,6 +58,13 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.ask({ q: 'housing bills', sort: 'action' })).toBe(
       '/ask?q=housing+bills&sort=action',
     );
+    expect(
+      routePath.ask({
+        q: 'SF 334: What does this bill change?',
+        billId: '94-2025-SF334',
+        suggestionIndex: 2,
+      }),
+    ).toBe('/ask?q=SF+334%3A+What+does+this+bill+change%3F&bill=94-2025-SF334&suggestion=2');
     expect(routePath.ask()).toBe('/ask');
   });
 

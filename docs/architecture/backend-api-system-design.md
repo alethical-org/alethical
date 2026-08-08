@@ -789,6 +789,21 @@ Contract, invariants, and answer-page states live in
 `docs/product-onboarding/grounded-ask-spec.md`; the cite-or-refuse rule it must satisfy is
 `.claude/rules/grounded-answers.md` rule 1.
 
+#### `GET /api/v1/ask/suggestions/{bill_id}/{suggestion_index}`
+
+Purpose:
+
+- return an existing saved answer for one of a bill's public suggested questions without
+  classifying, generating, or saving anything on a miss
+
+Contract:
+
+- the path carries only the public bill key and suggestion position; question text is rejected
+- a hit rebuilds the current question, bill card, vote count, source date, session, and cited-section
+  availability around the saved prose, citations, and coverage in one self-contained response
+- a hit is publicly cacheable for 60 seconds; a miss returns `404` with `Cache-Control: no-store`
+- a reader-written question never enters this GET path
+
 #### `POST /api/v1/ask/classify`
 
 Purpose:

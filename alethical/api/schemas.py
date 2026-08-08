@@ -556,6 +556,11 @@ class AskCitation(BaseModel):
     # stored label's shape varies, so the client normalizes the label and appends
     # this only when the result carries no topic of its own.
     section_topic: str = ""
+    # Saved public suggestions can be served without fetching the whole bill text.
+    # This says whether the exact section id + position still exists in the bill's
+    # current version. None on ordinary reader-written answers, whose page keeps the
+    # older live validation read; true/false on the structural saved-answer GET.
+    section_available: bool | None = None
 
 
 class AskPassageCoverage(BaseModel):
@@ -596,6 +601,13 @@ class AskBillTextAnswer(BaseModel):
     bill: BillListItem
     session: AskSessionRef
     data_as_of: datetime | None
+    # Present for a structurally identified public suggestion. The server rebuilds
+    # it from the current saved prompt, never from reader-written request text.
+    question: str | None = None
+    # The answering bill's own source date, distinct from the corpus-wide date
+    # above. It lets a saved answer use the standard source line without a second
+    # bill-detail read.
+    bill_last_pulled_at: datetime | None = None
     # None only when the total cannot be established; the client then renders no
     # coverage note rather than guessing at one.
     coverage: AskPassageCoverage | None = None
