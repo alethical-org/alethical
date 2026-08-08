@@ -154,16 +154,6 @@ export const IA: IaItem[] = [
     authGated: false,
     inNavDropdown: true,
   },
-  {
-    id: 'search-news',
-    label: 'News & media',
-    path: '/search/news',
-    menu: 'search',
-    availability: 'roadmap',
-    authGated: false,
-    note: 'Roadmap: "In the news", YouTube legislative sessions. Beyond current product-scope boundary.',
-  },
-
   // Track — personalized, signed-in ("your space"). Auth-gated.
   {
     id: 'track-bills',
@@ -225,6 +215,16 @@ export const IA: IaItem[] = [
     authGated: true,
     description: 'Follow the filings — who gave, who received, how much, and when',
     inNavDropdown: true,
+  },
+  {
+    id: 'track-news',
+    label: 'News',
+    path: '/track/news',
+    menu: 'track',
+    availability: 'roadmap',
+    authGated: true,
+    inNavDropdown: true,
+    note: 'Roadmap: "In the news", YouTube legislative sessions. Beyond current product-scope boundary.',
   },
 
   // About — static content.
@@ -295,6 +295,27 @@ export const navDropdownItems = (menu: MenuKey): { live: IaItem[]; roadmap: IaIt
     (item) => item.availability === 'roadmap' && item.inNavDropdown === true,
   ),
 });
+
+/** The phone drawer combines both menus into one compact roadmap row. */
+export function mobileNavRoadmapLabels(): string[] {
+  const searchRoadmap = navDropdownItems('search').roadmap;
+  const trackRoadmap = navDropdownItems('track').roadmap;
+  const askAi = searchRoadmap.find((item) => item.id === 'search-ask-ai');
+  const namedSearchRoadmap = searchRoadmap.filter((item) => item.id !== 'search-ask-ai');
+  const namedRoadmapLabels = new Set(namedSearchRoadmap.map((item) => item.label));
+  const namedTrackRoadmap = trackRoadmap.filter((item) =>
+    ['track-campaign-finance', 'track-news'].includes(item.id),
+  );
+  for (const item of namedTrackRoadmap) namedRoadmapLabels.add(item.label);
+  const hasMoreTracking = trackRoadmap.some((item) => !namedRoadmapLabels.has(item.label));
+
+  return [
+    ...namedSearchRoadmap.map((item) => item.label),
+    ...namedTrackRoadmap.map((item) => item.label),
+    ...(hasMoreTracking ? ['More Tracking'] : []),
+    ...(askAi ? [askAi.label] : []),
+  ];
+}
 
 /** Whether an item is reachable for the given auth state. */
 export const isReachable = (item: IaItem, isSignedIn: boolean): boolean =>

@@ -38,8 +38,10 @@ roadmap noted for direction.
 - **Roadmap items in menus = curated, greyed "ON THE ROADMAP" group (resolves O5):**
   the v2 home design shows the Search and Track dropdowns with a greyed, non-navigable
   **ON THE ROADMAP** group beneath the live entries, rather than hiding all roadmap
-  items. The curated sets differ per menu: **Search → Issues · Candidates**; **Track →
-  Legislators · Issues · Candidates · Campaign Finance**. Other roadmap registry entries stay hidden. Live
+  items. The curated sets differ per menu: **Search → Candidates · Claimed Profiles · Ask AI**;
+  **Track → Legislators · Candidates · Campaign Finance · News**. The mobile menu combines
+  them as **Candidates · Claimed Profiles · Campaign Finance · News · More Tracking · Ask AI**.
+  Other roadmap registry entries stay hidden. Live
   entries keep icon + one-line description — **Search:** Bills (with a **"Grounded Ask"**
   badge) · Search Legislators · Find My Legislator; **Track:** Bills.
 - **Mockups → frontend handoff (no HTML conversion step):** when the Claude-design
@@ -324,12 +326,12 @@ Frontend track (after Phase 0; parallel with backend track)
 ## Roadmap (remembered for later)
 
 - **Menu taxonomy expansion** — Search adds: Issues, Policies, Laws, Candidates,
-  News & Media ("In the news", YouTube legislative sessions). Track adds: Issues,
-  Policies, Legislators, Laws, Candidates.
+  Claimed Profiles, Ask AI. Track adds: Issues, Policies, Legislators, Laws, Candidates,
+  Campaign Finance, News ("In the news", YouTube legislative sessions).
 - **Track → Legislators** = "follow a legislator" (activity notifications).
 - **Optimistic local tracking pre-auth** — track before sign-in, persist on auth;
   higher conversion, more work.
-- **Note:** Candidates + News & Media go beyond product-scope's stated boundaries (campaign +
+- **Note:** Candidates + News go beyond product-scope's stated boundaries (campaign +
   social are explicitly out of scope there) — a conscious future mission expansion;
   keep out of the MVP data model so it doesn't leak scope.
 

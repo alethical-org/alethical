@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { IA, MENUS, navDropdownItems } from '../ia';
+import { IA, MENUS, mobileNavRoadmapLabels, navDropdownItems } from '../ia';
 import { pathForRoute, targetFromPathname } from '../webRoutes';
 
 describe('old-design URLs land on a shipped page', () => {
@@ -243,12 +243,26 @@ describe('Track dropdown offers Bills as a live row', () => {
     expect(roadmap.map((item) => item.id)).not.toContain('track-bills');
   });
 
-  it('leaves only Legislators, Candidates and Campaign Finance on the roadmap row', () => {
+  it('adds News after Campaign Finance on the roadmap row', () => {
     const { roadmap } = navDropdownItems('track');
     expect(roadmap.map((item) => item.label)).toEqual([
       'Legislators',
       'Candidates',
       'Campaign Finance',
+      'News',
+    ]);
+  });
+});
+
+describe('Mobile menu roadmap row', () => {
+  it('shows News by name and keeps Ask AI last', () => {
+    expect(mobileNavRoadmapLabels()).toEqual([
+      'Candidates',
+      'Claimed Profiles',
+      'Campaign Finance',
+      'News',
+      'More Tracking',
+      'Ask AI',
     ]);
   });
 });

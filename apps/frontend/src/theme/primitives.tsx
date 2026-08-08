@@ -20,7 +20,7 @@ import { ChevronDown, ChevronUp, Menu, X } from '../components/icons';
 import { theme } from './tokens';
 import { getPageBackgroundStyle } from './pageBackground';
 import { useUnavailableControl } from '../components/billDetail/interactions';
-import { IaItem, MenuKey, MENUS, navDropdownItems } from '../navigation/ia';
+import { IaItem, MenuKey, MENUS, mobileNavRoadmapLabels, navDropdownItems } from '../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../navigation/links';
 import { navigateTopNavItem } from '../navigation/topNavRoutes';
 import { useResponsive } from '../hooks/useResponsive';
@@ -545,26 +545,10 @@ export function TopNav({
     setOpenMenu(null);
   };
   const dropdownMenus = MENUS;
-  // Mobile flattens the roadmap into one pill row: the named Search/Track chips
-  // first, then "More Tracking" — one compact, non-committal catch-all for the
-  // rest of tracking's expansion (legislators, candidates …) rather than
-  // enumerating each. "Ask AI" reads last (it's a Search roadmap chip on web, but
-  // on this single flattened row it trails the tracking chips, not sits second).
-  // → Candidates · Claimed Profiles · Campaign Finance · More Tracking · Ask AI.
-  const searchRoadmap = navDropdownItems('search').roadmap;
-  const trackRoadmap = navDropdownItems('track').roadmap;
-  const askAi = searchRoadmap.find((item) => item.id === 'search-ask-ai');
-  const namedSearchRoadmap = searchRoadmap.filter((item) => item.id !== 'search-ask-ai');
-  const namedRoadmapLabels = new Set(namedSearchRoadmap.map((item) => item.label));
-  const campaignFinance = trackRoadmap.find((item) => item.id === 'track-campaign-finance');
-  if (campaignFinance) namedRoadmapLabels.add(campaignFinance.label);
-  const hasMoreTracking = trackRoadmap.some((item) => !namedRoadmapLabels.has(item.label));
-  const mobileRoadmapPills = [
-    ...namedSearchRoadmap.map((item) => item.label),
-    ...(campaignFinance ? [campaignFinance.label] : []),
-    ...(hasMoreTracking ? ['More Tracking'] : []),
-    ...(askAi ? [askAi.label] : []),
-  ];
+  // Mobile flattens the Search and Track roadmaps into one compact pill row.
+  // Named items come first, "More Tracking" covers the remaining Track expansion,
+  // and Ask AI stays last.
+  const mobileRoadmapPills = mobileNavRoadmapLabels();
   const navigate = (item: IaItem) => {
     setOpenMenu(null);
     setDrawerOpen(false);
