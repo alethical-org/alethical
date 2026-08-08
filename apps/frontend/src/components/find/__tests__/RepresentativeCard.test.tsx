@@ -173,7 +173,7 @@ describe('RepresentativeCard accepted layout', () => {
     expect(html).toContain('target="_blank"');
     expect(html).toMatch(/rel="[^"]*noopener[^"]*"/);
     expect(html.match(/data-testid="link-arrow"/g)).toHaveLength(2);
-    expect(html).not.toContain('→');
+    expect(html.match(/aria-hidden="true"[^>]*>→<\/span>/g)).toHaveLength(2);
 
     const phone = html.indexOf('651-555-0100');
     const separator = html.indexOf('>·<', phone);
@@ -194,9 +194,8 @@ describe('RepresentativeCard accepted layout', () => {
     expect(html).toContain('View profile');
     expect(html).not.toContain('View full profile');
     expect(html).toContain('data-testid="link-arrow"');
+    expect(html).toMatch(/View profile <span[^>]*data-testid="link-arrow"/);
     expect(componentSource).toContain("import { LinkArrow } from '../LinkArrow'");
-    expect(componentSource).not.toContain("{' →'}");
-    expect(componentSource).not.toMatch(/>\s*→\s*</);
   });
 
   it('stacks the phone identity without leaving a separator on either line', () => {

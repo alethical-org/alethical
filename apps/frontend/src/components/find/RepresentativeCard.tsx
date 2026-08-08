@@ -67,17 +67,14 @@ function ContactLink({
       style={[styles.linkTarget, wrap && styles.wrappingLinkTarget]}
     >
       {trailingArrow ? (
-        <View style={styles.arrowLinkContent}>
-          <Text
-            style={[
-              styles.contactLink,
-              mobile && styles.contactLinkMobile,
-              hovered && styles.contactLinkHovered,
-            ]}
-          >
-            {label}
-          </Text>
-          <LinkArrow color={t.colors.brand.deep} />
+        <Text
+          style={[
+            styles.contactLink,
+            mobile && styles.contactLinkMobile,
+            hovered && styles.contactLinkHovered,
+          ]}
+        >
+          {label} <LinkArrow />
           {newTab ? (
             <Text
               style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}
@@ -85,7 +82,7 @@ function ContactLink({
               {' (opens in a new tab)'}
             </Text>
           ) : null}
-        </View>
+        </Text>
       ) : (
         <Text
           style={[
@@ -355,8 +352,9 @@ export function RepresentativeCard({
           (profileHovered || pressed) && styles.profileButtonHovered,
         ]}
       >
-        <Text style={styles.profileLink}>View profile</Text>
-        <LinkArrow color={t.colors.white} />
+        <Text style={styles.profileLink}>
+          View profile <LinkArrow />
+        </Text>
       </Pressable>
     </View>
   );
@@ -603,7 +601,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     ...(isWeb ? ({ overflowWrap: 'anywhere' } as object) : null),
   },
-  arrowLinkContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   visuallyHidden: {
     position: 'absolute',
     width: 1,
