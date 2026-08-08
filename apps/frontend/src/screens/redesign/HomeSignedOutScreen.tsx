@@ -1304,7 +1304,9 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
     : { backgroundColor: t.colors.tint.t100 };
   const searchBandGradientWeb: object = isWeb
     ? {
-        backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#eef7f2 34%,#f6faf8 68%,#fbfcfd 100%)',
+        // End on the same token PageBackground uses on phones. Keeping the
+        // terminal color linked to the page prevents a seam if that base changes.
+        backgroundImage: `linear-gradient(180deg,#eaf6ef 0%,#edf6f1 30%,#f2f7f5 62%,#f6f8f8 84%,${t.colors.surfaces.s200} 100%)`,
       }
     : { backgroundColor: t.colors.tint.t100 };
 
@@ -1663,10 +1665,10 @@ const m = StyleSheet.create({
   newsSectionBeforeSearchBand: { paddingBottom: 0 },
   searchActionsBand: {
     position: 'relative',
-    marginTop: 48,
+    marginTop: 64,
     paddingTop: 40,
     paddingRight: 20,
-    paddingBottom: 56,
+    paddingBottom: 64,
     paddingLeft: 20,
     flexDirection: 'column',
     gap: 12,
