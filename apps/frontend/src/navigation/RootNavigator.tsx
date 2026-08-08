@@ -630,12 +630,12 @@ export function RootNavigator() {
             <Stack.Screen
               name="Privacy"
               component={PrivacyScreen}
-              options={{ title: 'Privacy Policy' }}
+              options={{ headerShown: false, title: 'Privacy Policy' }}
             />
             <Stack.Screen
               name="Terms"
               component={TermsScreen}
-              options={{ title: 'Terms of Service' }}
+              options={{ headerShown: false, title: 'Terms of Service' }}
             />
             <Stack.Screen
               name="AboutUs"

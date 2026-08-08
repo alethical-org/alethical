@@ -1,6 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ScreenView } from '../components/ScreenView';
+import { useResponsive } from '../hooks/useResponsive';
+import { RootStackParamList } from '../navigation/types';
+import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme } from '../theme/tokens';
 
 type LegalBlock =
@@ -335,30 +338,52 @@ const termsContent: LegalDocumentContent = {
 };
 
 function LegalDocument({ content }: { content: LegalDocumentContent }) {
-  return (
-    <ScreenView hideHeader>
-      <View style={styles.document}>
-        <Text style={styles.eyebrow}>Legal</Text>
-        <Text style={styles.title}>{content.title}</Text>
-        <Text style={styles.meta}>{content.meta}</Text>
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { isMobile } = useResponsive();
 
-        {content.sections.map((section, sectionIndex) => (
-          <View key={`${section.title ?? 'intro'}-${sectionIndex}`} style={styles.section}>
-            {section.title ? (
-              <View style={styles.sectionHeading}>
-                {section.number ? <Text style={styles.sectionNumber}>{section.number}</Text> : null}
-                <Text style={styles.sectionTitle}>{section.title}</Text>
+  return (
+    <PageBackground>
+      <ScrollView contentContainerStyle={styles.page}>
+        <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+
+        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+          <View style={styles.document}>
+            <Text style={styles.eyebrow}>Legal</Text>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.title, isMobile && styles.titleMobile]}
+            >
+              {content.title}
+            </Text>
+            <Text style={styles.meta}>{content.meta}</Text>
+
+            {content.sections.map((section, sectionIndex) => (
+              <View key={`${section.title ?? 'intro'}-${sectionIndex}`} style={styles.section}>
+                {section.title ? (
+                  <View style={styles.sectionHeading}>
+                    {section.number ? (
+                      <Text style={styles.sectionNumber}>{section.number}</Text>
+                    ) : null}
+                    <Text accessibilityRole="header" aria-level={2} style={styles.sectionTitle}>
+                      {section.title}
+                    </Text>
+                  </View>
+                ) : null}
+                {section.blocks.map((block, blockIndex) => (
+                  <LegalBlockView key={`${block.kind}-${blockIndex}`} block={block} />
+                ))}
               </View>
-            ) : null}
-            {section.blocks.map((block, blockIndex) => (
-              <LegalBlockView key={`${block.kind}-${blockIndex}`} block={block} />
             ))}
           </View>
-        ))}
+        </Container>
 
-        <Text style={styles.footer}>© Alethical. All rights reserved.</Text>
-      </View>
-    </ScreenView>
+        <Footer
+          onPrivacy={() => navigation.navigate('Privacy')}
+          onTerms={() => navigation.navigate('Terms')}
+        />
+      </ScrollView>
+    </PageBackground>
   );
 }
 
@@ -398,8 +423,24 @@ export function TermsScreen() {
 }
 
 const styles = StyleSheet.create({
+  page: {
+    flexGrow: 1,
+    backgroundColor: theme.colors.surface,
+  },
+  main: {
+    alignSelf: 'center',
+    paddingTop: 64,
+    paddingBottom: 72,
+  },
+  mainMobile: {
+    paddingTop: 40,
+    paddingBottom: 48,
+    paddingHorizontal: 20,
+  },
   document: {
+    width: '100%',
     maxWidth: 860,
+    alignSelf: 'center',
     gap: theme.spacing.md,
   },
   eyebrow: {
@@ -415,6 +456,10 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.title,
     fontSize: 52,
     lineHeight: 58,
+  },
+  titleMobile: {
+    fontSize: 40,
+    lineHeight: 46,
   },
   meta: {
     color: theme.colors.mutedInk,
@@ -479,14 +524,5 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.body,
     fontSize: 16,
     lineHeight: 26,
-  },
-  footer: {
-    color: theme.colors.mutedInk,
-    fontFamily: theme.typography.body,
-    fontSize: 14,
-    lineHeight: 22,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    paddingTop: theme.spacing.lg,
   },
 });
