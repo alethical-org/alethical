@@ -73,7 +73,8 @@ flowchart LR
   GIS["Bundled official MN<br/>district boundaries"]
 
   CL["Clients<br/>Web (iOS · Android not built yet)"] --> API
-  API -->|"Find My Legislator"| GEO
+  API -->|"full address"| GEO
+  API -->|"type-ahead"| AP
   GEO -->|"matched point"| GIS
   GEO -->|"no match"| AP -->|"matched point"| GIS
   GIS -->|"districts"| API
@@ -277,7 +278,8 @@ recorded roll call or the source can't be matched deterministically.
 ## D — District lookup (query-time, not batch)
 
 Powers "Find My Legislator." Called synchronously by
-`POST /api/v1/representative-lookups`. Three stages use public sources. The 2 address
+`POST /api/v1/address-suggestions` while a reader types and by
+`POST /api/v1/representative-lookups` for the final lookup. Three stages use public sources. The 2 address
 sources have a 10s timeout and env-overridable URLs. A timeout, connection failure, or
 `408`/`425`/`5xx` response gets 2 short retries after 0.2s and 0.6s. The second source
 runs when Census finds nothing or stays unavailable after those retries:
@@ -287,8 +289,11 @@ runs when Census finds nothing or stays unavailable after those retries:
    address explicitly says Minnesota but has no result, it ignores punctuation and extra
    spaces, separates the house and street from the city, and retries each safe reading with
    `MN`; this recovers homes whose commonly used city or ZIP differs from the postal record.
-2. **Address-point fallback:** after Census finds nothing or stays unavailable, query Minnesota's
-   public statewide address points at
+2. **Address suggestions and fallback:** once a partial address has an exact house number
+   and 2 street-name characters, query Minnesota's official list by that house number and
+   street prefix. A numbered street can start after 1 digit. Return up to 5 unique active
+   addresses. The same source is the fallback after Census finds nothing or stays unavailable:
+   query Minnesota's public statewide address points at
    `https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_mngeo/loc_addresses_open/FeatureServer/0/query`.
    The request carries only the parsed house number and street name, never the city or ZIP.
    The house number stays exact. The street first matches exactly, then may differ by 1
@@ -302,13 +307,16 @@ runs when Census finds nothing or stays unavailable after those retries:
    Geometry is reduced only for the browser map afterward. No address or coordinate is
    sent to LCC during a lookup.
 
-The browser shares identical lookups already in progress and reuses a successful result
-for 60s. The public endpoint still allows 10 lookup requests per source address in 60s.
+The browser waits 300ms after typing stops and reuses each suggestion result for 60s.
+Suggestions have their own 60-request-per-source-address limit, separate from the full
+lookup. The browser also shares identical lookups already in progress and reuses a
+successful result for 60s. The full-lookup endpoint still allows 10 requests per source address in 60s.
 When that limit is reached it returns the remaining wait in `Retry-After`, and the page
 shows the countdown before either lookup button can send another request.
 
 Overrides: `ALETHICAL_CENSUS_GEOCODER_URL`, `ALETHICAL_CENSUS_BENCHMARK`,
-`ALETHICAL_MN_ADDRESS_POINTS_URL`, `ALETHICAL_HTTP_TIMEOUT_SECONDS`. CLI:
+`ALETHICAL_MN_ADDRESS_POINTS_URL`, `ALETHICAL_HTTP_TIMEOUT_SECONDS`,
+`ALETHICAL_ADDRESS_SUGGESTION_RATE_PER_MIN`. CLI:
 `python -m alethical.api.services.representative_lookup "<address>" --json`.
 
 ## E & F — the credentialed sources (Anthropic and OpenAI)

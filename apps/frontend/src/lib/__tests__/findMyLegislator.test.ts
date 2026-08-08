@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  addressSuggestionInput,
+  addressSuggestionResultsAreCurrent,
   addressChoiceKey,
   confirmedAddressForLookup,
   contactEmail,
@@ -54,6 +56,21 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(addressChoiceKey('Escape', 2, 4)).toEqual({ index: 2, action: 'close' });
   });
 
+  it('starts suggestions only after a house number and two street letters', () => {
+    expect(addressSuggestionInput('3040 Ex')).toBe('3040 Ex');
+    expect(addressSuggestionInput('3040 E Ex')).toBe('3040 E Ex');
+    expect(addressSuggestionInput('350 S 5')).toBe('350 S 5');
+    expect(addressSuggestionInput('3040 E')).toBeUndefined();
+    expect(addressSuggestionInput('3040 X')).toBeUndefined();
+    expect(addressSuggestionInput('Excelsior')).toBeUndefined();
+  });
+
+  it('never shows an older suggestion reply after the address changes', () => {
+    expect(addressSuggestionResultsAreCurrent('3040 Ex', '3040 Ex')).toBe(true);
+    expect(addressSuggestionResultsAreCurrent('3040 Exc', '3040 Ex')).toBe(false);
+    expect(addressSuggestionResultsAreCurrent('', '3040 Ex')).toBe(false);
+  });
+
   it('wires the address choices to real web keyboard, hover, and selected-value behavior', () => {
     const source = readFileSync(
       join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
@@ -65,6 +82,13 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).not.toContain('onKeyPress={onChoiceKey}');
     expect(source).toContain('setAddress(choice.matchedAddress)');
     expect(source).toContain('onHoverIn={() => setChoiceIndex(index)}');
+    expect(source).toContain('useDebouncedSearchCommit(');
+    expect(source).toContain('useAddressSuggestions(');
+    expect(source).toContain("'aria-autocomplete': 'list'");
+    expect(source).toContain('Suggested Minnesota addresses');
+    expect(source).toContain('Start with a house number and street name');
+    expect(source).toContain('City and ZIP are optional');
+    expect(source).toContain('if (!lookup.error && !clientError) setSuggestionsOpen(true)');
     expect(source).toContain('<Text style={styles.choiceKey}>↑</Text>');
     expect(source).toContain('<Text style={styles.choiceKey}>↓</Text>');
     expect(source).toContain('<Text style={styles.choiceKey}>Enter</Text>');

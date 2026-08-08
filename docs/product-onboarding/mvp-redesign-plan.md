@@ -150,7 +150,9 @@ roadmap noted for direction.
   match, then falls back to Minnesota's public statewide address points
   (`alethical/api/services/representative_lookup.py`). A city name or a bare ZIP still
   has no house and street to locate, so neither the field's placeholder nor any suggestion
-  chip may offer one (`.claude/rules/grounded-answers.md` rule 2). The band's original
+  chip may offer one (`.claude/rules/grounded-answers.md` rule 2). On the full finder page,
+  an exact house number plus a partial street name now opens up to 5 active official
+  Minnesota address choices; selecting one runs the lookup immediately. The band's original
   city-name chips were removed for exactly this reason.
 - **Search Bills / Search Legislators — design-review decisions (2026-07-15):** the split
   (`SearchScreen` → `BillsScreen` + `LegislatorsScreen`, per the build-sequence + route
@@ -292,8 +294,9 @@ Frontend track (after Phase 0; parallel with backend track)
 - [x] **Find My Legislator screen redesign:** the full page now carries the accepted desktop
       and phone layouts, address choices, browser location, real district boundaries,
       representative details, all lookup failures, and a shareable address-only URL. The
-      homepage band is an entry point only and uses the same full-address and temporary
-      location handoff. Coordinates and location failures are never stored in the URL.
+      homepage band is an entry point only. The full page adds partial-address suggestions;
+      both paths use temporary location handoff. Coordinates and location failures are never
+      stored in the URL.
       Saving an address stays out (`docs/product-onboarding/user-data-retention-policy.md`
       §2.3).
 - [x] Search split → `SearchBillsScreen` + `SearchLegislatorsScreen` + shared filter hook —

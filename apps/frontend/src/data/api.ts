@@ -22,6 +22,7 @@ import {
   LegislativeSession,
   Legislator,
   LegislatorVote,
+  RepresentativeAddressChoice,
   RepresentativeLookupInput,
   RepresentativeLookupResult,
   VoteEvent,
@@ -365,6 +366,15 @@ interface ApiRepresentativeLookupPayload {
   }> | null;
   house_legislator?: ApiLegislatorListItemPayload | null;
   senate_legislator?: ApiLegislatorListItemPayload | null;
+}
+
+interface ApiAddressSuggestionsPayload {
+  suggestions: Array<{
+    matched_address: string;
+    latitude: number;
+    longitude: number;
+    state_code?: string | null;
+  }>;
 }
 
 interface ApiBillVersionPayload {
@@ -2025,6 +2035,23 @@ export async function lookupRepresentativeFromApi(
       representativeLookupInFlight.delete(key);
     }
   }
+}
+
+export async function suggestRepresentativeAddressesFromApi(
+  input: string,
+): Promise<RepresentativeAddressChoice[]> {
+  const addressText = input.trim();
+  if (!addressText) return [];
+
+  const response = await publicApiPost<DetailResponse<ApiAddressSuggestionsPayload>>(
+    '/address-suggestions',
+    { address_text: addressText },
+  );
+  return response.data.suggestions.map((suggestion) => ({
+    matchedAddress: suggestion.matched_address,
+    latitude: suggestion.latitude,
+    longitude: suggestion.longitude,
+  }));
 }
 
 export async function getLegislatorFromApi(legislatorId: string): Promise<Legislator | null> {

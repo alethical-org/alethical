@@ -52,6 +52,154 @@ def address_point_feature(**attributes):
     return {"attributes": attributes}
 
 
+def test_state_address_suggestions_complete_a_partial_active_address(monkeypatch):
+    seen_params = {}
+
+    def get(url, *, params, timeout):
+        seen_params.update(params)
+        return FakeResponse(
+            {
+                "features": [
+                    address_point_feature(
+                        anumber=3040,
+                        anumberpre=None,
+                        anumbersuf=None,
+                        st_pre_mod=None,
+                        st_pre_dir=None,
+                        st_pre_typ=None,
+                        st_pre_sep=None,
+                        st_name="Excelsior",
+                        st_pos_typ="Boulevard",
+                        st_pos_dir=None,
+                        st_pos_mod=None,
+                        postcomm=None,
+                        ctu_name="Minneapolis",
+                        zip="55416",
+                        state_code="MN",
+                        longitude=-93.3212,
+                        latitude=44.9475,
+                        status="Active",
+                    ),
+                    address_point_feature(
+                        anumber=3040,
+                        anumberpre=None,
+                        anumbersuf=None,
+                        st_pre_mod=None,
+                        st_pre_dir=None,
+                        st_pre_typ=None,
+                        st_pre_sep=None,
+                        st_name="Exchange",
+                        st_pos_typ="Street",
+                        st_pos_dir=None,
+                        st_pos_mod=None,
+                        postcomm="Saint Paul",
+                        ctu_name="Saint Paul",
+                        zip="55101",
+                        state_code="MN",
+                        longitude=-93.09,
+                        latitude=44.95,
+                        status="Retired",
+                    ),
+                ]
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    matches = MinnesotaAddressPointGeocoder().suggest_matches("3040 Ex")
+
+    assert seen_params["where"] == (
+        "anumber = 3040 AND (UPPER(st_name) LIKE 'EX%') AND "
+        "(state_code IS NULL OR UPPER(state_code) = 'MN') AND "
+        "UPPER(status) = 'ACTIVE'"
+    )
+    assert seen_params["resultRecordCount"] == "200"
+    assert [match.matched_address for match in matches] == [
+        "3040 Excelsior Boulevard, Minneapolis, MN 55416"
+    ]
+
+
+def test_state_address_suggestions_wait_for_two_street_letters(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    assert MinnesotaAddressPointGeocoder().suggest_matches("3040 E") == []
+    assert MinnesotaAddressPointGeocoder().suggest_matches("Excelsior") == []
+    assert calls == []
+
+
+def test_state_address_suggestions_allow_one_digit_for_numbered_streets(monkeypatch):
+    seen_params = {}
+
+    def get(url, *, params, timeout):
+        seen_params.update(params)
+        return FakeResponse({"features": []})
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    assert MinnesotaAddressPointGeocoder().suggest_matches("350 S 5") == []
+    assert "UPPER(st_name) LIKE '5%'" in seen_params["where"]
+
+
+def test_state_address_suggestions_rank_a_typed_city_and_zip_locally(monkeypatch):
+    seen_params = {}
+
+    def feature(city, zip_code, latitude, longitude):
+        return address_point_feature(
+            anumber=100,
+            anumberpre=None,
+            anumbersuf=None,
+            st_pre_mod=None,
+            st_pre_dir=None,
+            st_pre_typ=None,
+            st_pre_sep=None,
+            st_name="Main",
+            st_pos_typ="Street",
+            st_pos_dir=None,
+            st_pos_mod=None,
+            postcomm=city,
+            ctu_name=city,
+            zip=zip_code,
+            state_code="MN",
+            longitude=longitude,
+            latitude=latitude,
+            status="Active",
+        )
+
+    def get(url, *, params, timeout):
+        seen_params.update(params)
+        return FakeResponse(
+            {
+                "features": [
+                    feature("Marshall", "56258", 44.45, -95.79),
+                    feature("Minneapolis", "55413", 44.99, -93.25),
+                ]
+            }
+        )
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+
+    matches = MinnesotaAddressPointGeocoder().suggest_matches(
+        "100 Ma, Minneapolis, MN 55413"
+    )
+
+    assert "MINNEAPOLIS" not in seen_params["where"]
+    assert "55413" not in seen_params["where"]
+    assert [match.matched_address for match in matches] == [
+        "100 Main Street, Minneapolis, MN 55413",
+        "100 Main Street, Marshall, MN 56258",
+    ]
+
+
 def test_census_returns_no_match_without_silently_choosing(monkeypatch):
     monkeypatch.setattr(
         "alethical.api.services.representative_lookup.requests.get",

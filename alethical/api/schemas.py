@@ -352,6 +352,17 @@ class RepresentativeLookupRequest(BaseModel):
         return self
 
 
+class AddressSuggestionRequest(BaseModel):
+    address_text: str = Field(min_length=1, max_length=160)
+
+    @model_validator(mode="after")
+    def normalize_address(self):
+        self.address_text = self.address_text.strip()
+        if not self.address_text:
+            raise ValueError("address_text is required")
+        return self
+
+
 class RepresentativeLookupPayload(BaseModel):
     resolved_place: dict[str, Any]
     house_legislator: LegislatorListItem | None = None

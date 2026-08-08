@@ -759,6 +759,43 @@ class MinnesotaAddressPointGeocoder:
             os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10")
         )
 
+    def suggest_matches(self, address_text: str) -> list[GeocodedAddress]:
+        query = self._parse_suggestion_query(address_text)
+        if query is None:
+            return []
+
+        street_clauses = []
+        for street_name in query.street_names:
+            escaped = street_name.replace("'", "''")
+            street_clauses.append(f"UPPER(st_name) LIKE '{escaped}%'")
+        where_parts = [
+            f"anumber = {query.house_number}",
+            f"({' OR '.join(street_clauses)})",
+            "(state_code IS NULL OR UPPER(state_code) = 'MN')",
+            "UPPER(status) = 'ACTIVE'",
+        ]
+        if query.house_suffix:
+            suffix = query.house_suffix.replace("'", "''")
+            where_parts.append(f"UPPER(anumbersuf) = '{suffix}'")
+
+        features, _ = self._request_features(where_parts, result_record_count=200)
+        active_features = [
+            feature
+            for feature in features
+            if isinstance(feature, dict)
+            and isinstance(feature.get("attributes"), dict)
+            and self._normalize(feature["attributes"].get("status")) == "ACTIVE"
+        ]
+        candidates = self._candidates(
+            address_text,
+            (query,),
+            active_features,
+            allow_fuzzy_street=False,
+            allow_street_prefix=True,
+        )
+        candidates.sort(key=self._suggestion_candidate_rank)
+        return [match for match, _, _, _, _ in candidates[:5]]
+
     def geocode_matches(self, address_text: str) -> list[GeocodedAddress]:
         queries = self._parse_queries(address_text)
         if not queries:
@@ -876,6 +913,7 @@ class MinnesotaAddressPointGeocoder:
         features: list[object],
         *,
         allow_fuzzy_street: bool,
+        allow_street_prefix: bool = False,
     ) -> list[tuple[GeocodedAddress, str, str, int, _AddressPointQuery]]:
         candidates: list[tuple[GeocodedAddress, str, str, int, _AddressPointQuery]] = []
         seen_addresses: dict[str, int] = {}
@@ -893,6 +931,7 @@ class MinnesotaAddressPointGeocoder:
                         item,
                         attributes,
                         allow_fuzzy_street=allow_fuzzy_street,
+                        allow_street_prefix=allow_street_prefix,
                     )
                     for item in queries
                 )
@@ -962,6 +1001,35 @@ class MinnesotaAddressPointGeocoder:
             -cls._query_specificity(query),
         )
 
+    @classmethod
+    def _suggestion_candidate_rank(
+        cls,
+        candidate: tuple[GeocodedAddress, str, str, int, _AddressPointQuery],
+    ) -> tuple[int, int, int, int, str]:
+        match, locality, zip_code, street_distance, query = candidate
+        zip_rank = 0
+        if query.zip_code:
+            zip_rank = 0 if zip_code.startswith(query.zip_code) else 1
+
+        locality_rank = 0
+        if query.locality:
+            requested = _normalized_locality_text(query.locality)
+            candidate_locality = _normalized_locality_text(locality)
+            if candidate_locality.startswith(requested):
+                locality_rank = 0
+            elif _close_locality_distance(requested, candidate_locality) is not None:
+                locality_rank = 1
+            else:
+                locality_rank = 2
+
+        return (
+            zip_rank,
+            locality_rank,
+            street_distance,
+            -cls._query_specificity(query),
+            match.matched_address.casefold(),
+        )
+
     def _candidate(
         self,
         requested_address: str,
@@ -969,6 +1037,7 @@ class MinnesotaAddressPointGeocoder:
         attributes: dict,
         *,
         allow_fuzzy_street: bool,
+        allow_street_prefix: bool = False,
     ) -> tuple[GeocodedAddress, str, str, int, _AddressPointQuery] | None:
         state = self._normalize(attributes.get("state_code"))
         if state and state != "MN":
@@ -982,11 +1051,16 @@ class MinnesotaAddressPointGeocoder:
         street_name = self._normalize(attributes.get("st_name"))
         street_distances = []
         for query_name in query.street_names:
-            distance = (
-                _close_text_distance(query_name, street_name)
-                if allow_fuzzy_street
-                else (0 if query_name == street_name else None)
-            )
+            if allow_street_prefix:
+                distance = (
+                    len(street_name) - len(query_name)
+                    if street_name.startswith(query_name)
+                    else None
+                )
+            elif allow_fuzzy_street:
+                distance = _close_text_distance(query_name, street_name)
+            else:
+                distance = 0 if query_name == street_name else None
             if distance is not None:
                 street_distances.append(distance)
         if not street_distances:
@@ -1055,6 +1129,52 @@ class MinnesotaAddressPointGeocoder:
     def _parse_query(cls, address_text: str) -> _AddressPointQuery | None:
         queries = cls._parse_queries(address_text)
         return queries[0] if queries else None
+
+    @classmethod
+    def _parse_suggestion_query(cls, address_text: str) -> _AddressPointQuery | None:
+        compact = re.sub(r"\s+", " ", address_text.strip())
+        parts = [part.strip() for part in re.split(r"[,;]+", compact)]
+        street = " ".join(_address_words(parts[0] if parts else ""))
+        if re.match(r"^\d+[A-Z]?\s+\S", street, re.IGNORECASE) is None:
+            return None
+
+        tail = " ".join(parts[1:])
+        zip_match = re.search(r"\b(\d{1,5})\b", tail)
+        zip_code = zip_match.group(1) if zip_match else None
+        locality_words = [
+            word
+            for word in _address_words(tail)
+            if word.upper() not in {"MN", "MINNESOTA"}
+            and not re.fullmatch(r"\d{1,5}", word)
+        ]
+        query = cls._query_from_parsed_address(
+            _ParsedMinnesotaAddress(
+                street=street,
+                locality=" ".join(locality_words) or None,
+                zip_code=zip_code,
+            )
+        )
+        if query is None:
+            return None
+
+        street_names = tuple(
+            street_name
+            for street_name in query.street_names
+            if len(re.sub(r"[^A-Z0-9]", "", street_name)) >= 2
+            or re.fullmatch(r"\d+", street_name)
+        )
+        if not street_names:
+            return None
+        return _AddressPointQuery(
+            house_number=query.house_number,
+            house_suffix=query.house_suffix,
+            street_names=street_names,
+            street_type=query.street_type,
+            pre_direction=query.pre_direction,
+            post_direction=query.post_direction,
+            locality=query.locality,
+            zip_code=query.zip_code,
+        )
 
     @classmethod
     def _parse_queries(cls, address_text: str) -> tuple[_AddressPointQuery, ...]:
@@ -1205,6 +1325,9 @@ class RepresentativeLookupService:
             address_point_geocoder or MinnesotaAddressPointGeocoder()
         )
         self.gis_client = gis_client or MinnesotaGisLookupClient()
+
+    def suggest_addresses(self, address_text: str) -> list[GeocodedAddress]:
+        return self.address_point_geocoder.suggest_matches(address_text)
 
     def lookup(self, address_text: str) -> RepresentativeLookupResult:
         try:

@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from alethical.api.problems import http_exception_handler, validation_exception_handler
 from alethical.api.rate_limit import (
+    DEFAULT_ADDRESS_SUGGESTIONS_PER_MINUTE,
     DEFAULT_ASK_PER_MINUTE,
     DEFAULT_LOOKUP_PER_MINUTE,
     limiter_from_env,
@@ -69,6 +70,10 @@ def create_app() -> FastAPI:
     )
     app.state.lookup_limiter = limiter_from_env(
         "ALETHICAL_LOOKUP_RATE_PER_MIN", DEFAULT_LOOKUP_PER_MINUTE
+    )
+    app.state.address_suggestion_limiter = limiter_from_env(
+        "ALETHICAL_ADDRESS_SUGGESTION_RATE_PER_MIN",
+        DEFAULT_ADDRESS_SUGGESTIONS_PER_MINUTE,
     )
 
     @app.get("/healthz")
