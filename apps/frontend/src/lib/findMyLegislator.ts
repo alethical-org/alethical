@@ -14,7 +14,7 @@ export type FindLegislatorState =
   | 'service-down';
 
 export const FIND_MY_LEGISLATOR_INSTRUCTIONS =
-  'Enter a full street address. Cities and ZIP codes can cross district lines.';
+  "Enter a full street address — a city or ZIP code alone can't identify your legislators";
 
 export function prepareAddressLookup(rawAddress: string): {
   displayAddress: string;
