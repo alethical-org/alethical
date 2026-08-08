@@ -179,8 +179,11 @@ export function RepresentativeCard({
               {roleLabel}
             </Text>
             {mobile ? null : (
-              <Text numberOfLines={1} style={styles.districtEyebrowText}>
-                {' · '}
+              <Text
+                numberOfLines={1}
+                style={[styles.districtEyebrowText, styles.districtEyebrowSeparator]}
+              >
+                ·
               </Text>
             )}
             <Text
@@ -484,6 +487,7 @@ const styles = StyleSheet.create({
     color: t.colors.brand.deep,
   },
   districtEyebrowTextMobile: { fontSize: 11, lineHeight: 16.5, letterSpacing: 1.32 },
+  districtEyebrowSeparator: { marginHorizontal: 10 },
   districtEyebrowPart: {
     ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
   },

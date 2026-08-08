@@ -135,7 +135,7 @@ describe('RepresentativeCard accepted layout', () => {
 
     expect(html).toContain('STATE SENATOR');
     expect(html).toContain('SENATE DISTRICT 27');
-    expect(html).toContain('> · </div>');
+    expect(html).toContain('>·</div>');
     expect(html).toContain('PARTY');
     expect(html).toContain('Democratic-Farmer-Labor');
     expect(html).toContain('RESIDENCE');
@@ -200,10 +200,11 @@ describe('RepresentativeCard accepted layout', () => {
 
   it('stacks the phone identity without leaving a separator on either line', () => {
     const html = renderCard({ legislator: detailedLegislator, mobile: true });
+    const identity = html.slice(html.indexOf('aria-label="STATE SENATOR'), html.indexOf('PARTY'));
 
     expect(html).toContain('STATE SENATOR');
     expect(html).toContain('SENATE DISTRICT 27');
-    expect(html).not.toContain('> · </div>');
+    expect(identity).not.toContain('>·</div>');
     expect(componentSource).toMatch(
       /districtEyebrowMobile:\s*\{[^}]*flexDirection: 'column'[^}]*alignItems: 'flex-start'/,
     );
@@ -213,10 +214,11 @@ describe('RepresentativeCard accepted layout', () => {
     const html = renderCard({
       legislator: { ...detailedLegislator, email: undefined },
     });
+    const contacts = html.slice(html.indexOf('href="tel:'), html.indexOf('100 Example Building'));
 
     expect(html).toContain('href="tel:+16515550100"');
     expect(html).not.toContain('mailto:');
-    expect(html).not.toContain('>·<');
+    expect(contacts).not.toContain('>·<');
   });
 
   it('caps committee assignments at 3', () => {
@@ -245,6 +247,7 @@ describe('RepresentativeCard accepted layout', () => {
       /districtEyebrowTextMobile:\s*\{[^}]*fontSize: 11[^}]*letterSpacing: 1\.32/,
     );
     expect(componentSource).toMatch(/districtEyebrowPart:\s*\{[^}]*whiteSpace: 'nowrap'/);
+    expect(componentSource).toMatch(/districtEyebrowSeparator:\s*\{[^}]*marginHorizontal: 10/);
     expect(componentSource).toMatch(/authoredMobile:\s*\{[^}]*fontSize: 15/);
     expect(componentSource).toMatch(/authoredNumber:\s*\{[^}]*fontWeight: '800'/);
     expect(componentSource).toMatch(
