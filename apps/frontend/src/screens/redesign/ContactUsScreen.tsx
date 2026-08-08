@@ -140,14 +140,13 @@ function ContactFieldInput({
   const { focused, focusProps } = useFieldFocus();
   const descriptionId = error ? `${field}-error` : undefined;
   const multiline = field === 'message';
-  const inputStyle = [
-    styles.input,
-    multiline && styles.messageInput,
+  const inputShellStyle = [
+    styles.inputShell,
     error && styles.inputError,
     disabled && styles.inputDisabled,
     ...fieldFocusRing(focused),
-    fieldOutlineReset,
   ];
+  const inputStyle = [styles.input, multiline && styles.messageInput, fieldOutlineReset];
 
   const input =
     Platform.OS === 'web' ? (
@@ -243,7 +242,7 @@ function ContactFieldInput({
   return (
     <View style={styles.fieldGroup}>
       {label}
-      {input}
+      <View style={inputShellStyle}>{input}</View>
       {error ? (
         <Text nativeID={descriptionId} accessibilityRole="alert" style={styles.fieldError}>
           ⚠ {error}
@@ -539,13 +538,20 @@ const styles = StyleSheet.create({
   },
   webFieldLabel: { lineHeight: '17px' } as any,
   optional: { color: t.colors.text.muted, fontWeight: t.fontWeights.regular },
-  input: {
+  inputShell: {
     width: '100%',
     minHeight: 52,
     borderWidth: 1,
-    borderColor: t.colors.borders.strong,
+    borderColor: 'rgba(17,21,15,0.18)',
     borderRadius: 12,
     backgroundColor: t.colors.surfaces.base,
+  },
+  input: {
+    width: '100%',
+    minHeight: 50,
+    borderWidth: 0,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
     color: t.colors.text.primary,
     fontFamily: t.typography.body,
     fontSize: 17,
@@ -558,7 +564,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     ...(Platform.OS === 'web' ? ({ resize: 'vertical' } as object) : null),
   },
-  inputError: { borderColor: '#9a6a00' },
+  inputError: { borderColor: '#a76a1a' },
   inputDisabled: { opacity: 0.7 },
   fieldError: {
     color: '#765000',

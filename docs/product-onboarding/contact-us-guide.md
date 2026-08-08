@@ -24,6 +24,9 @@ The fields stay in this order:
 
 The page does not guess or prefill any field. Missing required fields are explained beside
 the field after a send attempt. What the person typed stays in place if delivery fails.
+Each field has a light border on a white box. The whole box gets a purple glow only while
+the person is typing in it. A field with an error gets an amber border; the other fields
+stay unchanged.
 
 ## What happens after Send message
 
