@@ -30,11 +30,20 @@ describe('Contact us screen contract', () => {
     expect(SCREEN).toContain('Send another message');
   });
 
-  it('ships the supplied LinkedIn image and the approved social destinations', () => {
-    expect(SCREEN).toContain("require('../../../assets/linkedin-round.png')");
+  it('uses the accepted dark social marks and approved destinations', () => {
+    expect(SCREEN).not.toContain('linkedin-round.png');
     expect(SCREEN).toContain('https://www.facebook.com/people/Alethical/61588261592240/');
     expect(SCREEN).toContain('https://www.linkedin.com/company/alethical');
     expect(SCREEN).toContain('https://x.com/alethical');
+    expect(SCREEN).toMatch(
+      /<Svg\s+width=\{24\}\s+height=\{24\}\s+viewBox="0 0 24 24"\s+fill=\{t\.colors\.ink\}\s+aria-hidden/,
+    );
+    expect(SCREEN).toMatch(
+      /<Svg\s+width=\{22\}\s+height=\{22\}\s+viewBox="0\.87 2\.87 22 22"\s+fill=\{t\.colors\.ink\}\s+aria-hidden/,
+    );
+    expect(SCREEN).toMatch(
+      /<Svg\s+width=\{21\}\s+height=\{21\}\s+viewBox="0 0 24 24"\s+fill=\{t\.colors\.ink\}\s+aria-hidden/,
+    );
   });
 
   it('keeps the accepted Contact us spacing, phone action, and link treatments', () => {
@@ -46,9 +55,6 @@ describe('Contact us screen contract', () => {
     expect(SCREEN).toContain('marginBottom: 8');
     expect(SCREEN).toContain('isMobile && styles.submitButtonMobile');
     expect(SCREEN).toContain("submitButtonMobile: { width: '100%', minHeight: 48 }");
-    expect(SCREEN).toContain('width={34}');
-    expect(SCREEN).toContain('width={24}');
-    expect(SCREEN).toContain('socialImage: { width: 38, height: 38');
     expect(cardEyebrowStyle).toContain('color: t.colors.text.secondary');
     expect(cardEyebrowStyle).toContain('fontSize: 10.5');
     expect(cardEyebrowStyle).toContain('letterSpacing: 1.26');
