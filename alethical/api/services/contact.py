@@ -40,6 +40,28 @@ def _allowlist() -> set[str] | None:
     return {address.strip().lower() for address in raw.split(",") if address.strip()}
 
 
+def _delivery_readiness() -> tuple[bool, bool, bool, bool]:
+    return (
+        _enabled(os.environ.get("ALETHICAL_EMAIL_ENABLED")),
+        os.environ.get("ALETHICAL_EMAIL_TRANSPORT", "console").strip().lower()
+        == "resend",
+        bool(os.environ.get("RESEND_API_KEY", "").strip()),
+        bool(os.environ.get("ALETHICAL_EMAIL_ALLOWLIST", "").strip()),
+    )
+
+
+def log_contact_delivery_readiness() -> None:
+    enabled, transport_resend, key_present, allowlist_configured = _delivery_readiness()
+    logger.info(
+        "Contact delivery readiness: enabled=%s transport_resend=%s "
+        "key_present=%s allowlist_configured=%s",
+        enabled,
+        transport_resend,
+        key_present,
+        allowlist_configured,
+    )
+
+
 def _contact_text(message: ContactMessageRequest) -> str:
     return "\n".join(
         [
@@ -215,13 +237,18 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
     """
 
     request_id = str(message.request_id)
-    transport = os.environ.get("ALETHICAL_EMAIL_TRANSPORT", "console").strip().lower()
     api_key = os.environ.get("RESEND_API_KEY", "").strip()
-    if (
-        not _enabled(os.environ.get("ALETHICAL_EMAIL_ENABLED"))
-        or transport != "resend"
-        or not api_key
-    ):
+    enabled, transport_resend, key_present, allowlist_configured = _delivery_readiness()
+    if not enabled or not transport_resend or not key_present:
+        logger.warning(
+            "Contact delivery %s not configured: enabled=%s transport_resend=%s "
+            "key_present=%s allowlist_configured=%s",
+            request_id,
+            enabled,
+            transport_resend,
+            key_present,
+            allowlist_configured,
+        )
         raise ContactDeliveryUnavailable("Live contact delivery is not configured")
 
     recipients = {CONTACT_ADDRESS, str(message.email).lower()}
@@ -252,7 +279,15 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
                 "The provider did not accept both messages"
             )
     except (httpx.HTTPError, ValueError, TypeError, AttributeError) as exc:
-        logger.warning("Contact delivery %s failed: %s", request_id, type(exc).__name__)
+        provider_status = (
+            exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        )
+        logger.warning(
+            "Contact delivery %s failed: error_type=%s provider_status=%s",
+            request_id,
+            type(exc).__name__,
+            provider_status,
+        )
         raise ContactDeliveryUnavailable(
             "The provider did not accept both messages"
         ) from exc

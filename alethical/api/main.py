@@ -21,11 +21,13 @@ from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.public import PUBLIC_CACHE_CONTROL
 from alethical.api.routers.public import router as public_router
+from alethical.api.services.contact import log_contact_delivery_readiness
 from alethical.logging import configure_logging
 
 
 def create_app() -> FastAPI:
     configure_logging()
+    log_contact_delivery_readiness()
     app = FastAPI(title="Alethical API", version="1.0.0")
     cors_origins = os.environ.get(
         "ALETHICAL_CORS_ORIGINS",

@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/social-preview.ts, vercel.json -->
+<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/social-preview.ts, alethical/logging.py, railway.json, vercel.json -->
 
 # Deployment
 
@@ -67,17 +67,27 @@ On Resend's free plan, each accepted contact message checks the daily and monthl
 Alethical emails `ask@alethical.com` once at 80%, 90%, and 95% of either limit. The warning
 points reset when usage resets and stop automatically after the plan is upgraded.
 
+Railway supplies `RAILWAY_ENVIRONMENT_NAME` to every running service. When that value is
+present, Alethical keeps its local rotating file and also sends privacy-safe logs to
+Railway's log screen. The startup line reports only whether each email setting is ready.
+It never prints the key or a setting value. Email addresses and web-address query values
+are removed from every rendered log line.
+
 The build installs dependencies with:
 
 ```bash
 uv sync --frozen
 ```
 
-The start command applies Alembic migrations and then starts Uvicorn:
+The service start command starts Uvicorn:
 
 ```bash
-uv run python -m alembic -c alembic.ini upgrade head && uv run uvicorn alethical.api.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+uv run uvicorn alethical.api.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
 ```
+
+Database changes are applied by the separate `Migrate database` GitHub job, not by the
+Railway start command. The database and service release jobs run separately, so code that
+uses a new table must remain safe while those jobs finish.
 
 After deployment, verify:
 

@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/ContactUsScreen.tsx, apps/frontend/src/lib/contactUs.ts, apps/frontend/src/data/api.ts, apps/frontend/src/navigation/webRoutes.ts, alethical/api/routers/contact.py, alethical/api/services/contact.py, alethical/db/models.py, alethical/alembic/versions/0027_email_quota_warning_state.py -->
+<!-- describes: apps/frontend/src/screens/redesign/ContactUsScreen.tsx, apps/frontend/src/lib/contactUs.ts, apps/frontend/src/data/api.ts, apps/frontend/src/navigation/webRoutes.ts, alethical/api/main.py, alethical/api/routers/contact.py, alethical/api/services/contact.py, alethical/db/models.py, alethical/logging.py, alethical/alembic/versions/0027_email_quota_warning_state.py -->
 
 # How Contact us works
 
@@ -54,3 +54,10 @@ daily or monthly reset.
 The warning record stores only the time period, warning point, and email count. It never
 stores contact names, addresses, subjects, or message text. Resend omits the free daily
 total on a paid plan, so these free-plan warnings stop automatically after an upgrade.
+
+## Delivery checks
+
+When the server starts, Railway's private log screen says only whether live delivery is
+on, the Resend transport is selected, the key is present, and a recipient list is set. A
+failed send adds the provider's status number when one exists. These lines use the form's
+random request number and never include its name, email, phone, subject, message, or key.

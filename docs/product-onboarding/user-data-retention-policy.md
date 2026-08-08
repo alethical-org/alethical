@@ -46,8 +46,8 @@ Policy) · [#1042](https://github.com/alethical-org/alethical/issues/1042) (drop
 dead columns) · [#1043](https://github.com/alethical-org/alethical/issues/1043) (the
 unwired "active" switch) ·
 [#1045](https://github.com/alethical-org/alethical/issues/1045) (the timestamp whose name
-lies) · [#1046](https://github.com/alethical-org/alethical/issues/1046) (logs nobody can
-read) · [#1047](https://github.com/alethical-org/alethical/issues/1047) (backup retention
+lies) · [#1046](https://github.com/alethical-org/alethical/issues/1046) (make production
+logs readable, now built) · [#1047](https://github.com/alethical-org/alethical/issues/1047) (backup retention
 and the leftover test account).
 
 | What it is, in plain words                                                           | Where it lives            | Rows in production                               |
@@ -453,16 +453,18 @@ per-category one. Under _Your Rights_ it
 offers access, correction, export and deletion on request, which is a promise we
 currently have no mechanism to keep. Bringing the page in line is [#1041](https://github.com/alethical-org/alethical/issues/1041).
 
-**There are no meaningful server-side logs, which is luck rather than design.** The API
-routes its logs to a rotating file inside its own container (`alethical/logging.py`),
-and it clears every other handler while doing so. On Railway that container's filesystem
-is wiped on each redeploy, so those logs are gone within days and nobody reads them. The
-practical result is that almost nothing gets logged anywhere durable, so there is
-currently very little to redact. **That is an accident of configuration, not a
-protection.** One line adding a console handler, or one Sentry integration, and every
-error report starts carrying whatever was in the request. Making the logs readable, without making them a leak, is
-[#1046](https://github.com/alethical-org/alethical/issues/1046). So the redaction rule is
-worth writing now, while it costs nothing:
+**Server-side logs are readable in Railway.** The API keeps its rotating local file and,
+when Railway's own environment marker is present, also writes to the log stream Railway
+captures (`alethical/logging.py`). It records request paths and operational failures so a
+production problem can be diagnosed before the container is replaced. The exact time
+Railway keeps those lines is controlled by the current Railway plan and is not recorded
+in this repository.
+
+The formatter removes email addresses and web-address query values from every rendered
+line. Contact delivery records only a random request number, setting-presence booleans,
+an error type, and a provider status number. It never records the form fields or key.
+This closes [#1046](https://github.com/alethical-org/alethical/issues/1046) without
+changing the redaction rule:
 
 > **Log redaction rule.** Server logs may record a request's method, path, status,
 > duration, and the account's internal id. They may never record an email address, a
@@ -472,7 +474,8 @@ worth writing now, while it costs nothing:
 
 The account's internal id is deliberately allowed: it is a random identifier that means
 nothing outside our own database, it is what makes a bug report actionable, and it
-disappears when the account is deleted.
+disappears when the account is deleted. The formatter is a final safety net, not
+permission for new code to log a request body, address, location, or question.
 
 **Reader questions travel in the page address, by design.** `/ask?q=<the question>` and
 `/chat/new?prompt=<the question>` both put typed text into the URL
