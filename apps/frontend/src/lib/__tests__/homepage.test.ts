@@ -68,7 +68,7 @@ describe('home bill groups continue into the matching Bill Search view', () => {
     );
   });
 
-  it('gives every visible See more link a distinct spoken name', () => {
+  it('keeps the 2 bill-group links distinct and removes the In the News continuation', () => {
     const source = readFileSync(
       resolve(
         dirname(fileURLToPath(import.meta.url)),
@@ -78,13 +78,13 @@ describe('home bill groups continue into the matching Bill Search view', () => {
     );
     const [, mobileSource = ''] = source.split('// MOBILE HOME');
 
-    expect(mobileSource).toContain('accessibilityLabel="See more In the News bills"');
+    expect(mobileSource).not.toContain('accessibilityLabel="See more In the News bills"');
+    expect(mobileSource).not.toContain('<SeeMore');
     const labels = [
-      'See more In the News bills',
       HOME_BILL_GROUP_CONTINUATIONS.passed.label,
       HOME_BILL_GROUP_CONTINUATIONS.introduced.label,
     ];
-    expect(new Set(labels).size).toBe(3);
+    expect(new Set(labels).size).toBe(2);
   });
 
   it('uses the complete Find My Legislator description in both homepage layouts', () => {

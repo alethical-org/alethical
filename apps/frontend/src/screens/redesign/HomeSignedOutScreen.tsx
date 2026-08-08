@@ -970,42 +970,6 @@ function BillBadge({ label }: { label: string }) {
   );
 }
 
-/** "See more" — full-width outline button → default Search Bills. */
-function SeeMore({
-  href,
-  onPress,
-  accessibilityLabel,
-}: {
-  href: string;
-  onPress: () => void;
-  accessibilityLabel: string;
-}) {
-  const [hovered, hoverProps] = useHover();
-  return (
-    <Pressable
-      {...linkProps(href, onPress)}
-      accessibilityLabel={accessibilityLabel}
-      {...hoverProps}
-      style={[
-        m.seeMore,
-        transition('border-color'),
-        hovered && { borderColor: t.colors.brand.base },
-      ]}
-    >
-      <Text style={[m.seeMoreText, hovered && { color: t.colors.text.green }]}>See more</Text>
-      <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" style={m.seeMoreArrow}>
-        <Path
-          d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
-          stroke={hovered ? t.colors.brand.graphics : t.colors.text.primary}
-          strokeWidth={1.8}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-    </Pressable>
-  );
-}
-
 /** In-the-News card — editorial pin, real bill data. Whole card → bill detail. */
 function NewsCardMobile({
   bill,
@@ -1425,11 +1389,6 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                 <SkeletonCard lines={4} />
                 <SkeletonCard lines={4} />
               </View>
-              <SeeMore
-                href={routePath.bills()}
-                onPress={openSearchBills}
-                accessibilityLabel="See more In the News bills"
-              />
             </Container>
           ) : newsBills.length > 0 ? (
             <Container style={m.section}>
@@ -1445,11 +1404,6 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                   />
                 ))}
               </View>
-              <SeeMore
-                href={routePath.bills()}
-                onPress={openSearchBills}
-                accessibilityLabel="See more In the News bills"
-              />
             </Container>
           ) : null}
 
@@ -1866,33 +1820,6 @@ const m = StyleSheet.create({
   },
   billGroupContinuationTextHover: { color: t.colors.text.green },
   billGroupContinuationArrow: { fontWeight: t.fontWeights.regular },
-  seeMore: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink20,
-    borderRadius: 13,
-    paddingVertical: 14,
-  },
-  seeMoreText: {
-    fontFamily: t.typography.ui,
-    fontSize: 17,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-  },
-  // Arrow drawn as an SVG, not the "→" glyph. Libre Franklin's Google-Fonts
-  // latin subset omits U+2192, so a glyph arrow always falls back to a different
-  // font per OS (Helvetica on desktop → long; Roboto on Android → short and
-  // vertically offset), which read inconsistently. An SVG renders identically
-  // everywhere. Nudged down ~1px so it optically centers on the label's x-height.
-  seeMoreArrow: {
-    position: 'relative',
-    top: 1,
-  },
   // Continuous green→white band spanning Find My Legislator + Be in the Know
   // (see greenBandGradientWeb). No hard break; section rhythm comes from the inner
   // Containers. finderInner is overflow:hidden to contain the masked green dots.
