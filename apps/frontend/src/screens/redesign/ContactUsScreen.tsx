@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { GoBackLink } from '../../components/GoBackLink';
 import { sendContactMessageFromApi } from '../../data/api';
@@ -33,8 +34,6 @@ import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 const SOCIALS = [
   {
     label: 'Facebook',
-    shortLabel: 'f',
-    color: '#1877f2',
     url: 'https://www.facebook.com/people/Alethical/61588261592240/',
   },
   {
@@ -42,7 +41,7 @@ const SOCIALS = [
     image: require('../../../assets/linkedin-round.png'),
     url: 'https://www.linkedin.com/company/alethical',
   },
-  { label: 'X', shortLabel: 'X', color: '#000000', url: 'https://x.com/alethical' },
+  { label: 'X', url: 'https://x.com/alethical' },
 ] as const;
 
 const FIELD_LABELS: Record<ContactField, { label: string; optional?: boolean }> = {
@@ -60,6 +59,37 @@ function requestId() {
     const value = character === 'x' ? random : (random & 0x3) | 0x8;
     return value.toString(16);
   });
+}
+
+function ContactEmailLink() {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      {...(Platform.OS === 'web' ? ({ href: 'mailto:ask@alethical.com' } as any) : {})}
+      onPress={
+        Platform.OS === 'web' ? undefined : () => void Linking.openURL('mailto:ask@alethical.com')
+      }
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={styles.emailLink}
+    >
+      {({ pressed }) => (
+        <Text
+          style={[
+            styles.emailLinkText,
+            (hovered || focused || pressed) && styles.emailLinkTextActive,
+          ]}
+        >
+          ask@alethical.com
+        </Text>
+      )}
+    </Pressable>
+  );
 }
 
 function ContactFieldInput({
@@ -161,7 +191,10 @@ function ContactFieldInput({
         {
           htmlFor: `contact-${field}`,
           id: `${field}-label`,
-          style: StyleSheet.flatten(styles.fieldLabel) as any,
+          style: {
+            ...StyleSheet.flatten(styles.fieldLabel),
+            ...StyleSheet.flatten(styles.webFieldLabel),
+          } as any,
         },
         FIELD_LABELS[field].label,
         FIELD_LABELS[field].optional
@@ -320,6 +353,7 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
                     onPress={() => void submit()}
                     style={({ pressed }) => [
                       styles.submitButton,
+                      isMobile && styles.submitButtonMobile,
                       pressed && styles.submitButtonPressed,
                       state.status === 'sending' && styles.submitButtonDisabled,
                     ]}
@@ -338,18 +372,7 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
             <View style={styles.sideColumn}>
               <View style={[styles.infoCard, isMobile && styles.infoCardMobile]}>
                 <Text style={styles.cardEyebrow}>EMAIL US</Text>
-                <Pressable
-                  accessibilityRole="link"
-                  {...(Platform.OS === 'web' ? ({ href: 'mailto:ask@alethical.com' } as any) : {})}
-                  onPress={
-                    Platform.OS === 'web'
-                      ? undefined
-                      : () => void Linking.openURL('mailto:ask@alethical.com')
-                  }
-                  style={styles.emailLink}
-                >
-                  <Text style={styles.emailLinkText}>ask@alethical.com</Text>
-                </Pressable>
+                <ContactEmailLink />
               </View>
               <View style={[styles.infoCard, isMobile && styles.infoCardMobile]}>
                 <Text style={styles.cardEyebrow}>FOLLOW ALETHICAL</Text>
@@ -363,10 +386,14 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
                     >
                       {'image' in social ? (
                         <Image source={social.image} style={styles.socialImage} />
+                      ) : social.label === 'Facebook' ? (
+                        <Svg width={34} height={34} viewBox="0 0 24 24" fill="#1877f2" aria-hidden>
+                          <Path d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.6H6.61v3.56h3.07V22h3.68v-9.14h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z" />
+                        </Svg>
                       ) : (
-                        <Text style={[styles.socialLetter, { color: social.color }]}>
-                          {social.shortLabel}
-                        </Text>
+                        <Svg width={24} height={24} viewBox="0 0 24 24" fill="#000000" aria-hidden>
+                          <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                        </Svg>
                       )}
                     </Pressable>
                   ))}
@@ -412,7 +439,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
-  fieldGroup: { marginBottom: 20 },
+  fieldGroup: { marginBottom: 18 },
   fieldLabel: {
     color: t.colors.text.primary,
     fontFamily: t.typography.mono,
@@ -420,8 +447,9 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.32,
-    marginBottom: 9,
+    marginBottom: 8,
   },
+  webFieldLabel: { lineHeight: '17px' } as any,
   optional: { color: t.colors.text.muted, fontWeight: t.fontWeights.regular },
   input: {
     width: '100%',
@@ -484,6 +512,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     alignSelf: 'flex-start',
   },
+  submitButtonMobile: { width: '100%', minHeight: 48 },
   submitButtonPressed: { backgroundColor: t.colors.brand.hover },
   submitButtonDisabled: { opacity: 0.65 },
   submitButtonText: {
@@ -563,12 +592,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   cardEyebrow: {
-    color: t.colors.brand.deep,
+    color: t.colors.text.secondary,
     fontFamily: t.typography.mono,
-    fontSize: 11,
+    fontSize: 10.5,
     lineHeight: 17,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.1,
+    letterSpacing: 1.26,
   },
   emailLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   emailLinkText: {
@@ -576,8 +605,8 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: 16,
     fontWeight: t.fontWeights.semibold,
-    textDecorationLine: 'underline',
   },
+  emailLinkTextActive: { textDecorationLine: 'underline' },
   socialRow: { flexDirection: 'row', gap: 12, marginTop: 18 },
   socialLink: {
     width: 46,
@@ -589,10 +618,4 @@ const styles = StyleSheet.create({
   },
   socialPressed: { opacity: 0.72 },
   socialImage: { width: 38, height: 38, borderRadius: 19 },
-  socialLetter: {
-    color: t.colors.ink,
-    fontFamily: t.typography.ui,
-    fontSize: 20,
-    fontWeight: t.fontWeights.bold,
-  },
 });

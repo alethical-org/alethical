@@ -36,4 +36,23 @@ describe('Contact us screen contract', () => {
     expect(SCREEN).toContain('https://www.linkedin.com/company/alethical');
     expect(SCREEN).toContain('https://x.com/alethical');
   });
+
+  it('keeps the accepted Contact us spacing, phone action, and link treatments', () => {
+    const cardEyebrowStyle = SCREEN.match(/cardEyebrow: \{[\s\S]*?\n  \},/)?.[0] ?? '';
+    const emailLinkTextStyle = SCREEN.match(/emailLinkText: \{[\s\S]*?\n  \},/)?.[0] ?? '';
+
+    expect(SCREEN).toContain("webFieldLabel: { lineHeight: '17px' } as any");
+    expect(SCREEN).toContain('fieldGroup: { marginBottom: 18 }');
+    expect(SCREEN).toContain('marginBottom: 8');
+    expect(SCREEN).toContain('isMobile && styles.submitButtonMobile');
+    expect(SCREEN).toContain("submitButtonMobile: { width: '100%', minHeight: 48 }");
+    expect(SCREEN).toContain('width={34}');
+    expect(SCREEN).toContain('width={24}');
+    expect(SCREEN).toContain('socialImage: { width: 38, height: 38');
+    expect(cardEyebrowStyle).toContain('color: t.colors.text.secondary');
+    expect(cardEyebrowStyle).toContain('fontSize: 10.5');
+    expect(cardEyebrowStyle).toContain('letterSpacing: 1.26');
+    expect(emailLinkTextStyle).not.toContain('textDecorationLine');
+    expect(SCREEN).toContain("emailLinkTextActive: { textDecorationLine: 'underline' }");
+  });
 });
