@@ -47,6 +47,7 @@ export const routePath = {
   findMyLegislator: () => pathForRoute({ name: 'FindMyLegislator' }),
   privacy: () => pathForRoute({ name: 'Privacy' }),
   terms: () => pathForRoute({ name: 'Terms' }),
+  aboutUs: () => pathForRoute({ name: 'AboutUs' }),
   contactUs: () => pathForRoute({ name: 'ContactUs' }),
 };
 

@@ -7,6 +7,7 @@ describe('top navigation routes', () => {
     ['search-bills', ['Bills']],
     ['search-legislators', ['Legislators']],
     ['search-find-my-legislator', ['FindMyLegislator']],
+    ['about-us', ['AboutUs']],
     ['about-contact', ['ContactUs']],
   ] as const)('sends %s through the full app route', (itemId, expectedCall) => {
     const navigate = vi.fn();
@@ -27,10 +28,10 @@ describe('top navigation routes', () => {
     expect(rootNavigate).toHaveBeenCalledWith('Tabs', { screen: 'Tracked' });
   });
 
-  it('leaves a row with no page for its caller to handle', () => {
+  it('leaves a roadmap row with no page for its caller to handle', () => {
     const navigate = vi.fn();
 
-    expect(navigateTopNavItem({ navigate }, { id: 'about-us' })).toBe(false);
+    expect(navigateTopNavItem({ navigate }, { id: 'search-candidates' })).toBe(false);
     expect(navigate).not.toHaveBeenCalled();
   });
 });
