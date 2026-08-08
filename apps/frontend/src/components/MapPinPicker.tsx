@@ -13,7 +13,12 @@ import Svg, { Path } from 'react-native-svg';
 
 import { MINNESOTA_BOUNDARY, isCoordinateInMinnesota } from '../data/minnesotaBoundary';
 import type { GeoJsonGeometry, RepresentativeLookupCoordinates } from '../data/types';
-import { arrowMovedCoordinate, visibleTileKeys } from '../lib/districtMap';
+import {
+  arrowMovedCoordinate,
+  pinchZoomLevel,
+  visibleTileKeys,
+  zoomedMapViewport,
+} from '../lib/districtMap';
 import { externalLinkProps } from '../navigation/links';
 import { theme as t } from '../theme/tokens';
 
@@ -30,6 +35,19 @@ const MINNESOTA_GEOMETRY: GeoJsonGeometry = {
 };
 
 type Size = { width: number; height: number };
+type MapTouch = { locationX: number; locationY: number };
+
+function pinchForTouches(touches: readonly MapTouch[]) {
+  if (touches.length < 2) return null;
+  const [first, second] = touches;
+  return {
+    distance: Math.hypot(second.locationX - first.locationX, second.locationY - first.locationY),
+    point: {
+      x: (first.locationX + second.locationX) / 2,
+      y: (first.locationY + second.locationY) / 2,
+    },
+  };
+}
 
 export interface MapViewport {
   center: RepresentativeLookupCoordinates;
@@ -226,8 +244,18 @@ export function MapPinPicker({
   const [pinFocused, setPinFocused] = useState(false);
   const fittedFor = useRef<GeoJsonGeometry | undefined>(undefined);
   const keyboardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mapTargetRef = useRef<View | null>(null);
   const pinTargetRef = useRef<View | null>(null);
   const panStart = useRef(center);
+  const panOffset = useRef({ dx: 0, dy: 0 });
+  const pinchStart = useRef<{
+    center: RepresentativeLookupCoordinates;
+    distance: number;
+    point: { x: number; y: number };
+    size: Size;
+    zoom: number;
+  } | null>(null);
+  const pinched = useRef(false);
   const mapState = useRef({
     center,
     zoom,
@@ -295,38 +323,94 @@ export function MapPinPicker({
     );
   };
 
-  const mapPan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          Math.abs(gesture.dx) + Math.abs(gesture.dy) > 4,
-        onPanResponderGrant: () => {
-          panStart.current = mapState.current.center;
-        },
-        onPanResponderMove: (_, gesture) => {
-          const { zoom } = mapState.current;
-          const origin = worldPoint(panStart.current, zoom);
-          setCenter(coordinateAt({ x: origin.x - gesture.dx, y: origin.y - gesture.dy }, zoom));
-        },
-        onPanResponderRelease: (event, gesture) => {
-          if (Math.abs(gesture.dx) + Math.abs(gesture.dy) <= 4) {
-            const { center, size, zoom, onCoordinateChange, onOutsideMinnesota } = mapState.current;
-            const chosen = coordinateForScreen(
-              event.nativeEvent.locationX,
-              event.nativeEvent.locationY,
-              center,
-              size,
-              zoom,
-            );
-            if (!isCoordinateInMinnesota(chosen)) return onOutsideMinnesota?.(chosen);
-            setDisplayCoordinate(chosen);
-            onCoordinateChange(chosen);
-          }
-        },
-      }),
-    [],
-  );
+  const mapPan = useMemo(() => {
+    const beginPinch = (event: { nativeEvent: { touches: readonly MapTouch[] } }) => {
+      const pinch = pinchForTouches(event.nativeEvent.touches);
+      if (!pinch) return;
+      const { center, size, zoom } = mapState.current;
+      pinchStart.current = { center, distance: pinch.distance, point: pinch.point, size, zoom };
+      pinched.current = true;
+    };
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: (_, gesture) => gesture.numberActiveTouches > 1,
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) + Math.abs(gesture.dy) > 4,
+      onMoveShouldSetPanResponderCapture: (_, gesture) => gesture.numberActiveTouches > 1,
+      onPanResponderGrant: (event, gesture) => {
+        panStart.current = mapState.current.center;
+        panOffset.current = { dx: gesture.dx, dy: gesture.dy };
+        pinched.current = false;
+        beginPinch(event);
+      },
+      onPanResponderStart: (event) => beginPinch(event),
+      onPanResponderMove: (event, gesture) => {
+        const pinch = pinchForTouches(event.nativeEvent.touches);
+        if (pinch) {
+          if (!pinchStart.current) beginPinch(event);
+          const start = pinchStart.current;
+          if (!start) return;
+          const nextZoom = pinchZoomLevel(
+            start.zoom,
+            start.distance,
+            pinch.distance,
+            MIN_ZOOM,
+            MAX_ZOOM,
+          );
+          const next = zoomedMapViewport(
+            start.center,
+            start.zoom,
+            nextZoom,
+            start.size,
+            start.point,
+            pinch.point,
+          );
+          mapState.current = { ...mapState.current, center: next.center, zoom: next.zoom };
+          setCenter(next.center);
+          setZoom(next.zoom);
+          return;
+        }
+        const { zoom } = mapState.current;
+        const origin = worldPoint(panStart.current, zoom);
+        setCenter(
+          coordinateAt(
+            {
+              x: origin.x - gesture.dx + panOffset.current.dx,
+              y: origin.y - gesture.dy + panOffset.current.dy,
+            },
+            zoom,
+          ),
+        );
+      },
+      onPanResponderEnd: (_, gesture) => {
+        if (!pinchStart.current) return;
+        pinchStart.current = null;
+        panStart.current = mapState.current.center;
+        panOffset.current = { dx: gesture.dx, dy: gesture.dy };
+      },
+      onPanResponderRelease: (event, gesture) => {
+        if (!pinched.current && Math.abs(gesture.dx) + Math.abs(gesture.dy) <= 4) {
+          const { center, size, zoom, onCoordinateChange, onOutsideMinnesota } = mapState.current;
+          const chosen = coordinateForScreen(
+            event.nativeEvent.locationX,
+            event.nativeEvent.locationY,
+            center,
+            size,
+            zoom,
+          );
+          if (!isCoordinateInMinnesota(chosen)) return onOutsideMinnesota?.(chosen);
+          setDisplayCoordinate(chosen);
+          onCoordinateChange(chosen);
+        }
+        pinchStart.current = null;
+        pinched.current = false;
+      },
+      onPanResponderTerminate: () => {
+        pinchStart.current = null;
+        pinched.current = false;
+      },
+      onPanResponderTerminationRequest: () => false,
+    });
+  }, []);
 
   const pinPan = useMemo(
     () =>
@@ -379,6 +463,31 @@ export function MapPinPicker({
   };
 
   useEffect(() => {
+    const target = mapTargetRef.current as unknown as HTMLElement | null;
+    if (!isWeb || !target) return;
+    let lastZoomAt = Number.NEGATIVE_INFINITY;
+    const handleWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      if (!event.deltaY || event.timeStamp - lastZoomAt < 120) return;
+      const { center, size, zoom } = mapState.current;
+      const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom + (event.deltaY < 0 ? 1 : -1)));
+      if (nextZoom === zoom) return;
+      const bounds = target.getBoundingClientRect();
+      const next = zoomedMapViewport(center, zoom, nextZoom, size, {
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      });
+      lastZoomAt = event.timeStamp;
+      mapState.current = { ...mapState.current, center: next.center, zoom: next.zoom };
+      setCenter(next.center);
+      setZoom(next.zoom);
+    };
+    target.addEventListener('wheel', handleWheel, { passive: false });
+    return () => target.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  useEffect(() => {
     const target = pinTargetRef.current as unknown as HTMLElement | null;
     if (!isWeb || !target) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -391,6 +500,7 @@ export function MapPinPicker({
   return (
     <View style={styles.wrap}>
       <View
+        ref={mapTargetRef}
         {...mapPan.panHandlers}
         onLayout={(event) => setSize(event.nativeEvent.layout)}
         style={[
@@ -405,7 +515,10 @@ export function MapPinPicker({
           <Image
             key={key}
             source={{ uri: tileUrlForKey(key) }}
-            style={tileStyle(key, center, size, zoom)}
+            style={[
+              tileStyle(key, center, size, zoom),
+              isWeb ? ({ pointerEvents: 'none' } as object) : null,
+            ]}
             onLoad={markTileLoaded}
             onError={markTileFailed}
           />

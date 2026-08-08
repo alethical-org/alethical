@@ -122,8 +122,30 @@ describe('district map credits', () => {
     );
 
     expect(mapPanSource).toContain('mapState.current');
-    expect(mapPanSource).toMatch(/\n\s*\[\],\n\s*\);/);
+    expect(mapPanSource).toContain('}, []);');
     expect(source).toMatch(/touchAction: 'none'[\s\S]*cursor: 'grab'/);
+  });
+
+  it('claims phone map touches and turns 2-finger movement into pinch zoom', () => {
+    const mapPanSource = source.slice(
+      source.indexOf('const mapPan'),
+      source.indexOf('const pinPan'),
+    );
+
+    expect(mapPanSource).toContain('onStartShouldSetPanResponderCapture');
+    expect(mapPanSource).toContain('gesture.numberActiveTouches > 1');
+    expect(mapPanSource).toContain('event.nativeEvent.touches');
+    expect(mapPanSource).toContain('pinchZoomLevel');
+    expect(mapPanSource).toContain('zoomedMapViewport');
+    expect(mapPanSource).toContain('onPanResponderTerminationRequest: () => false');
+    expect(source).toMatch(/<Image[\s\S]*pointerEvents: 'none'/);
+  });
+
+  it('uses a Mac trackpad pinch to zoom without moving the page', () => {
+    expect(source).toContain("target.addEventListener('wheel', handleWheel, { passive: false })");
+    expect(source).toContain('if (!event.ctrlKey) return');
+    expect(source).toContain('event.preventDefault()');
+    expect(source).toContain('zoomedMapViewport');
   });
 
   it('keeps the district explanation on the full map width without a final period', () => {
