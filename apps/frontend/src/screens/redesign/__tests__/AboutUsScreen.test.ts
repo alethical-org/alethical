@@ -43,4 +43,26 @@ describe('About us screen contract', () => {
     expect(SCREEN).toContain("navigation.navigate('ContactUs')");
     expect(SCREEN).toContain('routePath.contactUs()');
   });
+
+  it('keeps the page white and separates sections with the reference rhythm', () => {
+    expect(SCREEN).toMatch(/page:\s*\{[^}]*backgroundColor: t\.colors\.surfaces\.base[^}]*\}/s);
+    expect(SCREEN).toContain('<View style={styles.originDivider} />');
+    expect(SCREEN).toContain('firstSection: { marginTop: 44 }');
+    expect(SCREEN).toContain('section: { marginTop: 56 }');
+    expect(SCREEN.match(/isMobile && styles\.mobileSection/g)).toHaveLength(6);
+    expect(SCREEN).toMatch(
+      /mobileSection:\s*\{[^}]*marginTop: 34[^}]*paddingTop: 26[^}]*borderTopWidth: 1/s,
+    );
+  });
+
+  it('keeps tinted surfaces bounded to the intended panels', () => {
+    expect(SCREEN).toContain("roadmapSurface: '#f7f8fa'");
+    expect(SCREEN).toContain("subtleBorder: 'rgba(17,21,15,0.09)'");
+    expect(SCREEN).toContain('borderRadius: 16');
+    expect(SCREEN).toContain('paddingHorizontal: 32');
+    expect(SCREEN).toContain('paddingVertical: 30');
+    expect(SCREEN).toMatch(
+      /roadmapPanelMobile:\s*\{[^}]*paddingHorizontal: 18[^}]*paddingVertical: 18[^}]*\}/s,
+    );
+  });
 });
