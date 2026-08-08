@@ -862,8 +862,8 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                     Find My Legislator
                   </Text>
                   <Text style={styles.finderSub}>
-                    Find who represents you — their profile, committees, and the bills they’ve
-                    authored.
+                    See who represents you in the Minnesota House and Senate, and learn about their
+                    work and how to contact them.
                   </Text>
                   <HomeLegislatorFinder
                     layout="desktop"
@@ -1537,8 +1537,8 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                   Find My Legislator
                 </Text>
                 <Text style={m.finderSub}>
-                  Find who represents you — their profile, committees, and the bills they’ve
-                  authored.
+                  See who represents you in the Minnesota House and Senate, and learn about their
+                  work and how to contact them.
                 </Text>
                 <HomeLegislatorFinder
                   layout={isTablet ? 'tablet' : 'phone'}
