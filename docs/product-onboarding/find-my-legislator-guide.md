@@ -13,8 +13,9 @@ home page, or go straight to `/find-my-legislator`.
 
 ## 1. Search with a street address
 
-The page says: **Enter a full street address. Cities and ZIP codes can cross district
-lines.** This same instruction appears at phone and wider screen widths.
+The page and home-page finder say: **Enter a full street address — a city or ZIP code
+alone can't identify your legislators**. This same instruction appears at phone and
+wider screen widths.
 
 Start with a house number and at least 2 street-name characters. `350 S` is not enough,
 because `S` could mean South or the start of a street name. `350 Su` can start a named-
