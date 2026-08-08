@@ -223,7 +223,7 @@ export const IA: IaItem[] = [
     menu: 'track',
     availability: 'roadmap',
     authGated: true,
-    description: 'Follow the money — who funds a campaign, and where it goes',
+    description: 'Follow the filings — who gave, who received, how much, and when',
     inNavDropdown: true,
   },
 

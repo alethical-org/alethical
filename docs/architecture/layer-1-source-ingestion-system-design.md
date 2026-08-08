@@ -483,10 +483,15 @@ Observed results from the generated report:
 
 - federal ingestion
 - campaign website scraping
-- donor and lobbying data
 - social media data
-- corruption or influence graphs
+- unsupported corruption, motive, or causal-influence findings
 - non-official web crawling
+
+Official campaign-finance filings and lobbying disclosures are allowed by
+`docs/product-onboarding/product-scope.md` § "Not built yet — ingestion." They do not
+belong in this bill-and-legislator loader, so they should enter through a separate set of
+reviewed public-record source adapters that preserve the filing behind every record and
+relationship ([#1269](https://github.com/alethical-org/alethical/issues/1269)).
 
 ## Open Questions
 
