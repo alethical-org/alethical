@@ -20,6 +20,21 @@ describe('home bill groups continue into the matching Bill Search view', () => {
     });
   });
 
+  it('keeps the phone continuation buttons quieter than the primary search buttons', () => {
+    const source = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../screens/redesign/HomeSignedOutScreen.tsx',
+      ),
+      'utf8',
+    );
+    const [, mobileStyles = ''] = source.split('const m = StyleSheet.create({');
+
+    expect(mobileStyles).toMatch(
+      /billGroupContinuation:\s*{[\s\S]*?paddingVertical:\s*15,[\s\S]*?billGroupContinuationText:\s*{[\s\S]*?fontSize:\s*16,/,
+    );
+  });
+
   it('adds the 2 named group links to both desktop and mobile', () => {
     const source = readFileSync(
       resolve(
