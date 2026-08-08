@@ -331,17 +331,35 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
         raise ContactDeliveryUnavailable("A contact recipient is outside the allowlist")
 
     response: httpx.Response | None = None
+    batch = _batch(message)
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "Idempotency-Key": f"contact-{request_id}",
+    }
+    timeout = float(os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10"))
+    attempt = 1
     try:
-        response = httpx.post(
-            RESEND_BATCH_URL,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "Idempotency-Key": f"contact-{request_id}",
-            },
-            json=_batch(message),
-            timeout=float(os.environ.get("ALETHICAL_HTTP_TIMEOUT_SECONDS", "10")),
-        )
+        for attempt in (1, 2):
+            try:
+                response = httpx.post(
+                    RESEND_BATCH_URL,
+                    headers=headers,
+                    json=batch,
+                    timeout=timeout,
+                )
+                break
+            except httpx.TransportError as exc:
+                if attempt == 2:
+                    raise
+                logger.warning(
+                    "Contact delivery %s transport failed: attempt=%s "
+                    "error_type=%s provider_status=None "
+                    "provider_error_name=unavailable retrying=True",
+                    request_id,
+                    attempt,
+                    type(exc).__name__,
+                )
         response.raise_for_status()
         data = response.json().get("data", [])
         if (
@@ -379,10 +397,12 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
         )
         if provider_status in {401, 403} or key_shape_suspicious:
             logger.warning(
-                "Contact delivery %s failed: error_type=%s provider_status=%s "
-                "provider_error_name=%s key_starts_re_=%s key_wrapped_quotes=%s "
+                "Contact delivery %s failed: attempt=%s error_type=%s "
+                "provider_status=%s provider_error_name=%s "
+                "key_starts_re_=%s key_wrapped_quotes=%s "
                 "key_contains_whitespace=%s key_ascii_printable=%s key_length=%s",
                 request_id,
+                attempt,
                 type(exc).__name__,
                 provider_status,
                 _provider_error_name(provider_response),
@@ -394,9 +414,10 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
             )
         else:
             logger.warning(
-                "Contact delivery %s failed: error_type=%s provider_status=%s "
-                "provider_error_name=%s",
+                "Contact delivery %s failed: attempt=%s error_type=%s "
+                "provider_status=%s provider_error_name=%s",
                 request_id,
+                attempt,
                 type(exc).__name__,
                 provider_status,
                 _provider_error_name(provider_response),
@@ -405,7 +426,14 @@ def send_contact_message(message: ContactMessageRequest, db: Session) -> None:
             "The provider did not accept both messages"
         ) from exc
 
-    logger.info("Contact delivery %s accepted both messages", request_id)
+    logger.info(
+        "Contact delivery %s accepted both messages: attempt=%s "
+        "provider_status=%s provider_item_count=%s",
+        request_id,
+        attempt,
+        response.status_code,
+        len(data),
+    )
 
     try:
         _warn_when_free_plan_fills(response=response, db=db, api_key=api_key)

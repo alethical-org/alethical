@@ -29,7 +29,10 @@ the field after a send attempt. What the person typed stays in place if delivery
 
 The browser sends the 5 fields to the Alethical API. The API checks the fields again,
 limits repeated requests from 1 address, and asks Resend to accept both emails together.
-The page says the message is on its way only after Resend accepts both copies.
+If the connection ends before Resend answers, the API tries once more with the exact same
+emails and request identity. Resend keeps that identity for 24 hours, so the retry cannot
+send a second pair. The page says the message is on its way only after Resend accepts both
+copies.
 
 If live email is off, the provider refuses the request, or either copy is not accepted, the
 form remains filled and points to `ask@alethical.com` as the direct fallback. A retry uses
@@ -59,8 +62,8 @@ total on a paid plan, so these free-plan warnings stop automatically after an up
 
 When the server starts, Railway's private log screen says only whether live delivery is
 on, the Resend transport is selected, the key is present, and a recipient list is set. A
-failed send adds the provider's status number, its short error name, the key's length, and
-true-or-false checks for common key-copy mistakes when those clues exist. An accepted pair
-and an incomplete provider reply are recorded too. These lines use the form's random
-request number and never include its name, email, phone, subject, message, full provider
-reply, or key.
+failed send adds the attempt number, provider's status number, its short error name, the
+key's length, and true-or-false checks for common key-copy mistakes when those clues exist.
+An accepted pair and an incomplete provider reply are recorded too. These lines use the
+form's random request number and never include its name, email, phone, subject, message,
+full provider reply, or key.
