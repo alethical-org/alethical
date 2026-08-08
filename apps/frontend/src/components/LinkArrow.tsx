@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 /**
@@ -9,14 +9,14 @@ import Svg, { Path } from 'react-native-svg';
  * shorter and lower than the desktop arrow. Drawing it keeps the shape and alignment
  * identical everywhere.
  */
-export function LinkArrow({ color }: { color: string }) {
+export function LinkArrow({ color, style }: { color: string; style?: StyleProp<ViewStyle> }) {
   return (
     <Svg
       width={19}
       height={19}
       viewBox="0 0 24 24"
       fill="none"
-      style={styles.arrow}
+      style={[styles.arrow, style]}
       aria-hidden
       testID="link-arrow"
     >

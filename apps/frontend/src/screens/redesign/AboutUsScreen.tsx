@@ -145,7 +145,7 @@ function StartCard({ item, widthStyle }: { item: StartCardItem; widthStyle: View
         <Text accessibilityRole="header" aria-level={3} style={styles.cardTitle}>
           {item.startTitle}
         </Text>
-        <LinkArrow color={t.colors.text.primary} />
+        <LinkArrow color={t.colors.text.primary} style={styles.cardTitleArrow} />
       </View>
       <Text style={styles.cardBody}>{item.body}</Text>
     </Pressable>
@@ -501,6 +501,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: t.fontWeights.bold,
   },
+  cardTitleArrow: { top: 0 },
   beliefTitle: { color: ABOUT_COLORS.cyanInk },
   cardBody: {
     color: t.colors.text.secondary,

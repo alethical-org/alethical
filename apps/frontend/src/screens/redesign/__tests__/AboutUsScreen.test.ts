@@ -76,8 +76,10 @@ describe('About us screen contract', () => {
   });
 
   it('keeps card arrows beside their titles', () => {
-    expect(SCREEN).toContain('<LinkArrow color={t.colors.text.primary} />');
-    expect(SCREEN).not.toContain('startCardArrow');
+    expect(SCREEN).toContain(
+      '<LinkArrow color={t.colors.text.primary} style={styles.cardTitleArrow} />',
+    );
+    expect(SCREEN).toContain('cardTitleArrow: { top: 0 }');
     expect(SCREEN).toMatch(/startCardHeader:\s*\{[^}]*alignSelf: 'flex-start'[^}]*gap: 8[^}]*\}/s);
     expect(SCREEN).not.toMatch(/startCardHeader:\s*\{[^}]*justifyContent/s);
   });
