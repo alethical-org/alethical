@@ -13,9 +13,8 @@ home page, or go straight to `/find-my-legislator`.
 
 ## 1. Search with a street address
 
-The page says: **Enter a full street address. Minnesota’s districts split cities, so a
-city or ZIP alone can’t tell us who represents you.** This same instruction appears at
-phone and wider screen widths.
+The page says: **Enter a full street address. Cities and ZIP codes can cross district
+lines.** This same instruction appears at phone and wider screen widths.
 
 Start with a house number and at least 2 street-name characters. After a short pause,
 **Suggested addresses** shows up to 5 active addresses from Minnesota's

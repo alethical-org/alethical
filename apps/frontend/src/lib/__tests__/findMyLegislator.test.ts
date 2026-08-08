@@ -19,7 +19,7 @@ import {
 describe('Find My Legislator state and copy helpers', () => {
   it('uses the complete address instructions at every screen width', () => {
     expect(FIND_MY_LEGISLATOR_INSTRUCTIONS).toBe(
-      'Enter a full street address. Minnesota’s districts split cities, so a city or ZIP alone can’t tell us who represents you.',
+      'Enter a full street address. Cities and ZIP codes can cross district lines.',
     );
 
     const source = readFileSync(
