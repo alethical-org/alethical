@@ -927,26 +927,26 @@ function FooterSocialGlyph({
 }) {
   if (platform === 'facebook') {
     return (
-      <Svg width={20} height={20} viewBox="0 0 24 24" fill={color} aria-hidden>
+      <Svg width={23} height={23} viewBox="0 0 24 24" fill={color} aria-hidden>
         <Path d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.6H6.61v3.56h3.07V22h3.68v-9.14h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z" />
       </Svg>
     );
   }
   if (platform === 'linkedin') {
     return (
-      <Svg width={19} height={19} viewBox="3 2.8 18 18" fill={color} aria-hidden>
+      <Svg width={21} height={21} viewBox="0.87 2.87 22 22" fill={color} aria-hidden>
         <Path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45z" />
       </Svg>
     );
   }
   return (
-    <Svg width={17} height={17} viewBox="0 0 24 24" fill={color} aria-hidden>
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill={color} aria-hidden>
       <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </Svg>
   );
 }
 
-function FooterSocialLink({ social }: { social: FooterSocial }) {
+function FooterSocialLink({ social, mobile }: { social: FooterSocial; mobile: boolean }) {
   const [hovered, hoverProps] = useHover();
   const [focused, setFocused] = useState(false);
   return (
@@ -958,6 +958,7 @@ function FooterSocialLink({ social }: { social: FooterSocial }) {
       onBlur={() => setFocused(false)}
       style={({ pressed }) => [
         styles.footerSocialLink,
+        mobile && styles.footerSocialLinkMobile,
         (hovered || focused || pressed) && styles.footerSocialLinkActive,
       ]}
     >
@@ -996,7 +997,7 @@ export function Footer({
             <View style={styles.footerSocialRow}>
               <View style={styles.footerSocialLinks}>
                 {FOOTER_SOCIALS.map((social) => (
-                  <FooterSocialLink key={social.platform} social={social} />
+                  <FooterSocialLink key={social.platform} social={social} mobile={isMobile} />
                 ))}
               </View>
             </View>
@@ -1289,13 +1290,14 @@ const styles = StyleSheet.create({
   footerSocialRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   footerSocialLinks: { flexDirection: 'row', gap: 10 },
   footerSocialLink: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
+  footerSocialLinkMobile: { width: 44, height: 44, borderRadius: 22 },
   footerSocialLinkActive: { backgroundColor: 'rgba(255,255,255,0.16)' },
   footerLinks: { flexDirection: 'row', alignItems: 'center', gap: 34 },
   footerLinksMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 2 },
