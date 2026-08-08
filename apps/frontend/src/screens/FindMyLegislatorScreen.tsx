@@ -28,6 +28,7 @@ import { useHistoryScrollRestoration } from '../hooks/useHistoryScrollRestoratio
 import { useAddressSuggestions, useRepresentativeLookup } from '../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../hooks/useDebouncedSearchCommit';
 import {
+  FIND_MY_LEGISLATOR_INSTRUCTIONS,
   addressSuggestionInput,
   addressSuggestionResultsAreCurrent,
   addressChoiceKey,
@@ -640,11 +641,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             <Text accessibilityRole="header" style={[styles.title, isMobile && styles.titleMobile]}>
               Find my legislator
             </Text>
-            <Text style={styles.explainer}>
-              Start with a house number and street name. City and ZIP are optional. Choose a
-              suggested Minnesota address, select Use my location, or enter the full address and
-              choose Find.
-            </Text>
+            <Text style={styles.explainer}>{FIND_MY_LEGISLATOR_INSTRUCTIONS}</Text>
           </View>
           <View style={styles.addressArea}>
             <View style={[styles.controlRow, isMobile && styles.controlRowMobile]}>

@@ -1,6 +1,6 @@
 # Alethical design principles — the green system
 
-<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
+<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
 
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
@@ -92,6 +92,13 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   issue label without relying on color alone. On phones, its 44px target comes from a minimum height,
   not inflated vertical padding. The shared implementation is `VoteCountLinkChip`; the action
   timeline's per-action "View votes →" text link is a different element and stays unchanged.
+- **Trailing arrows on links.** Use the shared `LinkArrow` drawing beside the label on every new
+  arrow-bearing link or button that can appear at a phone width. Never type the `→` character into
+  new interactive UI. Libre Franklin does not contain that character, so desktop and Android
+  browsers choose different fallback fonts: desktop gets a long, centered arrow while Android gets
+  a short, low one. `LinkArrow` fixes the length and alignment in one place. The
+  `mobileLinkArrows.test.ts` check rejects new text arrows and caps the older exceptions until each
+  is replaced.
 - **Optical centering for icon + label buttons.** Our icons are drawn on a 24-unit viewBox with the
   marks inset to roughly the middle 50% (the ✕ runs 6,6 → 18,18; chevrons 6 → 18; the plus 5 → 19), so
   at our 13–17px sizes an icon carries ~3px of empty box on its outer side. Symmetric padding then

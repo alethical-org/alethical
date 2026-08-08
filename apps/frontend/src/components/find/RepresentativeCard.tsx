@@ -4,6 +4,7 @@ import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'rea
 import type { Legislator } from '../../data/types';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
+import { LinkArrow } from '../LinkArrow';
 
 const isWeb = Platform.OS === 'web';
 
@@ -65,28 +66,45 @@ function ContactLink({
       onHoverOut={() => setHovered(false)}
       style={[styles.linkTarget, wrap && styles.wrappingLinkTarget]}
     >
-      <Text
-        style={[
-          styles.contactLink,
-          mobile && styles.contactLinkMobile,
-          wrap && styles.wrappingLink,
-          hovered && styles.contactLinkHovered,
-        ]}
-      >
-        {label}
-        {trailingArrow ? (
-          <Text aria-hidden style={styles.contactArrow}>
-            {' →'}
-          </Text>
-        ) : null}
-        {newTab ? (
+      {trailingArrow ? (
+        <View style={styles.arrowLinkContent}>
           <Text
-            style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}
+            style={[
+              styles.contactLink,
+              mobile && styles.contactLinkMobile,
+              hovered && styles.contactLinkHovered,
+            ]}
           >
-            {' (opens in a new tab)'}
+            {label}
           </Text>
-        ) : null}
-      </Text>
+          <LinkArrow color={t.colors.brand.deep} />
+          {newTab ? (
+            <Text
+              style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}
+            >
+              {' (opens in a new tab)'}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <Text
+          style={[
+            styles.contactLink,
+            mobile && styles.contactLinkMobile,
+            wrap && styles.wrappingLink,
+            hovered && styles.contactLinkHovered,
+          ]}
+        >
+          {label}
+          {newTab ? (
+            <Text
+              style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}
+            >
+              {' (opens in a new tab)'}
+            </Text>
+          ) : null}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -304,12 +322,8 @@ export function RepresentativeCard({
           (profileHovered || pressed) && styles.profileButtonHovered,
         ]}
       >
-        <Text style={styles.profileLink}>
-          View profile{' '}
-          <Text aria-hidden style={styles.profileArrow}>
-            →
-          </Text>
-        </Text>
+        <Text style={styles.profileLink}>View profile</Text>
+        <LinkArrow color={t.colors.white} />
       </Pressable>
     </View>
   );
@@ -545,7 +559,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     ...(isWeb ? ({ overflowWrap: 'anywhere' } as object) : null),
   },
-  contactArrow: { fontWeight: '400' },
+  arrowLinkContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   visuallyHidden: {
     position: 'absolute',
     width: 1,
@@ -580,5 +594,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: t.colors.white,
   },
-  profileArrow: { fontWeight: '400' },
 });

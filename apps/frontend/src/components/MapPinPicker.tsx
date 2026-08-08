@@ -21,6 +21,7 @@ import {
 } from '../lib/districtMap';
 import { externalLinkProps } from '../navigation/links';
 import { theme as t } from '../theme/tokens';
+import { LinkArrow } from './LinkArrow';
 
 const TILE_SIZE = 256;
 const MIN_ZOOM = 5;
@@ -93,16 +94,10 @@ function MapCredit({ href, label }: { href: string; label: string }) {
       onHoverOut={() => setHovered(false)}
       style={styles.creditTarget}
     >
-      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>
-        {label}
-        <Text aria-hidden style={styles.creditArrow}>
-          {' →'}
-        </Text>
-        <Text
-          style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}
-        >
-          {' (opens in a new tab)'}
-        </Text>
+      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>{label}</Text>
+      <LinkArrow color={t.colors.brand.deep} />
+      <Text style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}>
+        {' (opens in a new tab)'}
       </Text>
     </Pressable>
   );
@@ -650,7 +645,7 @@ export function MapPinPicker({
         each
       </Text>
 
-      <View testID="district-map-credits" style={styles.credits}>
+      <View testID="district-map-credits" style={[styles.credits, mobile && styles.creditsMobile]}>
         {tilesLoaded ? (
           <MapCredit href={OSM_COPYRIGHT} label="© OpenStreetMap contributors" />
         ) : null}
@@ -723,8 +718,9 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 0,
   },
+  creditsMobile: { marginTop: 240 },
   creditRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  creditTarget: { flexDirection: 'row', alignItems: 'center' },
+  creditTarget: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   creditText: {
     fontFamily: t.typography.body,
     fontSize: 12,
@@ -740,7 +736,6 @@ const styles = StyleSheet.create({
     textDecorationLine: 'none',
   },
   creditLinkHovered: { textDecorationLine: 'underline' },
-  creditArrow: { fontWeight: '400' },
   visuallyHidden: {
     position: 'absolute',
     width: 1,
