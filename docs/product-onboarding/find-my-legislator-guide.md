@@ -19,9 +19,9 @@ lines.** This same instruction appears at phone and wider screen widths.
 Start with a house number and at least 2 street-name characters. `350 S` is not enough,
 because `S` could mean South or the start of a street name. `350 Su` can start a named-
 street search, and `350 S 5` can start a numbered-street search. After a short pause,
-**Suggested addresses** shows up to 5 active addresses from Minnesota's official
-statewide list. City and ZIP are optional, but adding either can narrow or reorder the
-choices.
+the page says **Suggested address** for 1 choice or **Suggested addresses** for 2 to 5
+active addresses from Minnesota's official statewide list. City and ZIP are optional,
+but adding either can narrow or reorder the choices.
 
 Choose an address to put its full official form in the box and find its legislators in
 the same step. Or enter a full Minnesota street address and choose **Find**. Pressing
@@ -83,10 +83,11 @@ Minnesota, enter a street address instead.
 
 ## 3. Choose a point on the map
 
-The map stays visible on phones and computers. It says **Click the map where you live
-to see your House and Senate legislators** on a computer and uses **Tap** on a phone.
-Click or tap anywhere inside Minnesota. The lookup runs at once for that point, so
-there is no second button to press.
+The map stays visible on phones and computers. Directly below it, movement help starts
+with **Drag the map to explore** and adds **with 1 finger** on a phone. The larger line
+below says **Click the map where you live to see your House and Senate legislators** on
+a computer and uses **Tap** on a phone. Click or tap anywhere inside Minnesota. The
+lookup runs at once for that point, so there is no second button to press.
 
 - Use **+** and **−** or 2 fingers on a phone or trackpad to zoom.
 - Drag the map with a mouse or 1 finger to move around.

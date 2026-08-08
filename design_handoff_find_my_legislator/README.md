@@ -291,13 +291,16 @@ frame with padding, letterboxing the wide desktop box rather than cropping. (Ref
 `preserveAspectRatio: meet` when empty, `slice` once a district is selected; in the build, fit the state
 bounds rather than a fixed zoom — the right zoom differs between the desktop and phone maps.)
 
-## Nothing-entered state — replace the boxed placeholder with the explainer sentence (AUG 7)
+## Nothing-entered state — separate the map action from movement help (AUG 8)
 
 A **swap, not an addition.** Live draws a bordered panel with a pin glyph reading _"Your Minnesota
 legislators will appear here."_ Remove the panel — border, glyph and copy. In its place, the plain
-sentence on the page background:
+sentence below the map's movement help:
 
-> Every address has one House district and one Senate district — we'll show the legislator for each.
+> Click the map where you live to see your House and Senate legislators.
+
+The phone uses **Tap**. The smaller line directly below the map says **Drag the map to explore**,
+followed by the zoom help. The phone adds **with 1 finger**.
 
 Libre Franklin 18px/400, `#4f5651`, left-aligned, max-width ~56ch, wraps naturally, **no container**.
 
@@ -305,9 +308,8 @@ Libre Franklin 18px/400, `#4f5651`, left-aligned, max-width ~56ch, wraps natural
   ruled out for this state ("no result-shaped placeholder, no large empty gap waiting for results"). It
   also costs ~110px between the field and the map, pushing the map out of view in the one state where the
   map is the whole point. Every other state puts answer-area content on plain background, no container.
-- **Why the sentence wins:** it makes the same promise _and_ adds what the reader doesn't have — two
-  seats, one per chamber — which is why the two result cards make sense later. Live's version says only
-  "here," and needs a drawn box to say it.
+- **Why the sentence wins:** it says what clicking or tapping the map will do. The movement line stays
+  focused on dragging and zooming, so the same action is not explained twice.
 - **Word order:** "House … Senate" in prose is ordinary English collocation. Don't "correct" it to
   Senate-first to match the chips, cards and map — those are ordered by containment; prose isn't.
 
@@ -413,13 +415,12 @@ and the second sentence already names the failure mode, so listing "house number
 ZIP" repeated both. The placeholder stays a real example, as §2 requires. Measure capped at
 `56ch` with `text-wrap:pretty`.
 
-**Empty state** carries one quiet line and no eyebrow:
+**Empty state** carries one quiet action line below the smaller movement help and no eyebrow:
 
-> Every address has one House district and one Senate district — we’ll show the legislator for each.
+> Click the map where you live to see your House and Senate legislators.
 
-It teaches the one-of-each pairing (the thing readers most often don't know) and nothing else. An
-earlier version opened with "Enter your street address above, or use your location", which repeated
-both the instruction sentence and the two visible buttons. The field's
+The phone uses **Tap**. An earlier version opened with "Enter your street address above, or use your
+location", which repeated both the instruction sentence and the two visible buttons. The field's
 "STREET ADDRESS" label is **visually hidden, not removed** — the sentence above already says to enter
 a street address, so showing it again was redundant, but the `<label for>` stays in the markup so the
 field keeps its programmatic name for screen readers.
@@ -681,8 +682,8 @@ place names. **Production loads real OpenStreetMap tiles.** The no-tiles fallbac
 and drops only the OpenStreetMap credit.
 
 **Map helper text follows the same selected-point condition as the pin**, so an empty or error map can
-never mention moving a pin that does not exist: with no point, desktop reads "Click the map to choose a
-location" and the expanded phone map reads "Tap the map to choose a location"; with a point, the
+never mention moving a pin that does not exist: with no point, desktop reads "Drag the map to explore"
+and the phone reads "Drag the map with 1 finger to explore"; with a point, the
 settled wording returns.
 
 **Map interactions are visual-only in this prototype.** Map clicks, pin dragging, arrow-key movement
@@ -753,8 +754,8 @@ at least as readable as other map labels; no 7.5px text over a busy map. Check c
 district labels, legend pills, zoom controls and credits.
 
 **Phone map.** Always visible, in the same page position as the wider-screen map. There is no show or
-hide control. In the empty state, its first instruction says "Tap the map where you live to see your
-House and Senate legislators" before the drag and zoom help. Found and vacancy states keep the map
+hide control. In the empty state, its smaller line starts with "Drag the map with 1 finger to explore",
+then the larger line says "Tap the map where you live to see your House and Senate legislators". Found and vacancy states keep the map
 visible below the answer cards while a moved pin starts another lookup.
 
 **Use my location** (control itself unchanged): a successful location becomes the selected coordinate,

@@ -698,7 +698,11 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             {choices.length ? (
               <View style={styles.choiceWrap}>
                 <Text style={styles.choiceTitle}>
-                  {showingSuggestions ? 'Suggested addresses' : 'Choose your address'}
+                  {showingSuggestions
+                    ? choices.length === 1
+                      ? 'Suggested address'
+                      : 'Suggested addresses'
+                    : 'Choose your address'}
                 </Text>
                 <View
                   nativeID={ADDRESS_CHOICES_ID}
