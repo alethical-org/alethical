@@ -71,7 +71,10 @@ Railway supplies `RAILWAY_ENVIRONMENT_NAME` to every running service. When that 
 present, Alethical keeps its local rotating file and also sends privacy-safe logs to
 Railway's log screen. The startup line reports only whether each email setting is ready.
 It never prints the key or a setting value. Email addresses and web-address query values
-are removed from every rendered log line.
+are removed from every rendered log line. A failed Resend request records its status,
+short error name, key length, and true-or-false checks for a wrong prefix, copied quote
+marks, whitespace, or non-standard characters. It never records the provider's full reply
+or any part of the key.
 
 The build installs dependencies with:
 

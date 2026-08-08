@@ -827,6 +827,7 @@ Contract:
 - message text is never written to the Alethical database or logs
 - on the free plan, accepted messages trigger 1 warning to `ask@alethical.com` at 80%, 90%, and 95% of daily or monthly capacity
 - warning failures never turn an already accepted contact message into a failed form submission
+- delivery logs keep only the request id, status, short provider error name, safe key-shape checks, and acceptance result
 
 ### Policy Areas
 

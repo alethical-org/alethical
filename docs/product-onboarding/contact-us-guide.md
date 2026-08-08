@@ -59,5 +59,8 @@ total on a paid plan, so these free-plan warnings stop automatically after an up
 
 When the server starts, Railway's private log screen says only whether live delivery is
 on, the Resend transport is selected, the key is present, and a recipient list is set. A
-failed send adds the provider's status number when one exists. These lines use the form's
-random request number and never include its name, email, phone, subject, message, or key.
+failed send adds the provider's status number, its short error name, the key's length, and
+true-or-false checks for common key-copy mistakes when those clues exist. An accepted pair
+and an incomplete provider reply are recorded too. These lines use the form's random
+request number and never include its name, email, phone, subject, message, full provider
+reply, or key.

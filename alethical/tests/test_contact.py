@@ -16,10 +16,15 @@ class _FakeResendResponse:
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
+            request = httpx.Request("POST", "https://api.resend.com/emails/batch")
             raise httpx.HTTPStatusError(
                 "provider rejected the message",
-                request=httpx.Request("POST", "https://api.resend.com/emails/batch"),
-                response=httpx.Response(self.status_code),
+                request=request,
+                response=httpx.Response(
+                    self.status_code,
+                    request=request,
+                    json=self.body or {},
+                ),
             )
 
     def json(self) -> dict:
@@ -131,6 +136,11 @@ def test_contact_readiness_log_reports_presence_without_secret_values(
     assert "transport_resend=True" in caplog.text
     assert "key_present=True" in caplog.text
     assert "allowlist_configured=True" in caplog.text
+    assert "key_starts_re_=True" in caplog.text
+    assert "key_wrapped_quotes=False" in caplog.text
+    assert "key_contains_whitespace=False" in caplog.text
+    assert "key_ascii_printable=True" in caplog.text
+    assert "key_length=20" in caplog.text
     assert "re_private_key_value" not in caplog.text
     assert "ask@alethical.com" not in caplog.text
 
@@ -157,6 +167,148 @@ def test_contact_logs_provider_status_without_private_data(
         _message()[field] in caplog.text
         for field in ("name", "email", "phone", "subject", "message")
     )
+
+
+def test_contact_logs_safe_provider_error_name_and_key_shape(
+    client, monkeypatch, caplog
+) -> None:
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", '"re_private_key_value"')
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *_args, **_kwargs: _FakeResendResponse(
+            status_code=401,
+            body={
+                "name": "missing_api_key",
+                "message": "Do not log re_private_key_value or ada@example.com",
+            },
+        ),
+    )
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 503
+    assert "provider_error_name=missing_api_key" in caplog.text
+    assert "key_starts_re_=False" in caplog.text
+    assert "key_wrapped_quotes=True" in caplog.text
+    assert "key_contains_whitespace=False" in caplog.text
+    assert "key_ascii_printable=True" in caplog.text
+    assert "key_length=22" in caplog.text
+    assert "re_private_key_value" not in caplog.text
+    assert "ada@example.com" not in caplog.text
+    assert "Do not log" not in caplog.text
+
+
+def test_contact_logs_success_without_private_data(client, monkeypatch, caplog) -> None:
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(httpx, "post", lambda *_args, **_kwargs: _FakeResendResponse())
+
+    with caplog.at_level(logging.INFO, logger="alethical.api.services.contact"):
+        response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 202
+    assert "accepted both messages" in caplog.text
+    assert not any(
+        _message()[field] in caplog.text
+        for field in ("name", "email", "phone", "subject", "message")
+    )
+
+
+def test_contact_logs_an_incomplete_provider_reply(client, monkeypatch, caplog) -> None:
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *_args, **_kwargs: _FakeResendResponse(
+            body={"data": [{"id": "only-one-copy"}]}
+        ),
+    )
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 503
+    assert "provider_response_valid=False" in caplog.text
+    assert "provider_status=200" in caplog.text
+    assert "provider_item_count=1" in caplog.text
+
+
+def test_contact_does_not_log_an_unknown_provider_error_name(
+    client, monkeypatch, caplog
+) -> None:
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *_args, **_kwargs: _FakeResendResponse(
+            status_code=400,
+            body={"name": "private_contact_subject"},
+        ),
+    )
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 503
+    assert "provider_error_name=unrecognized" in caplog.text
+    assert "private_contact_subject" not in caplog.text
+
+
+def test_contact_matches_a_documented_provider_error_name_without_case(
+    client, monkeypatch, caplog
+) -> None:
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *_args, **_kwargs: _FakeResendResponse(
+            status_code=403,
+            body={"name": "INVALID_API_KEY"},
+        ),
+    )
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 503
+    assert "provider_error_name=invalid_api_key" in caplog.text
+
+
+def test_contact_logs_a_connection_failure_without_suggesting_a_key_problem(
+    client, monkeypatch, caplog
+) -> None:
+    monkeypatch.setenv("ALETHICAL_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("ALETHICAL_EMAIL_TRANSPORT", "resend")
+    monkeypatch.delenv("ALETHICAL_EMAIL_ALLOWLIST", raising=False)
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_not_real")
+
+    def fail_to_connect(*_args, **_kwargs):
+        raise httpx.ConnectError(
+            "provider is unreachable",
+            request=httpx.Request("POST", "https://api.resend.com/emails/batch"),
+        )
+
+    monkeypatch.setattr(httpx, "post", fail_to_connect)
+
+    response = client.post("/api/v1/contact", json=_message())
+
+    assert response.status_code == 503
+    assert "error_type=ConnectError" in caplog.text
+    assert "provider_status=None" in caplog.text
+    assert "provider_error_name=unavailable" in caplog.text
+    assert "key_starts_re_" not in caplog.text
 
 
 def test_contact_refuses_a_recipient_outside_the_safety_allowlist(
