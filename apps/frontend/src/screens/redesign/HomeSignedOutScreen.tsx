@@ -195,23 +195,43 @@ function BillGroupContinuationLink({
   label,
   params,
   onPress,
+  fullWidth = false,
 }: {
   label: string;
   params: { status?: string; sort: string };
   onPress: () => void;
+  fullWidth?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
   return (
-    <View style={styles.billGroupContinuationRow}>
-      <Pressable {...linkProps(routePath.bills(params), onPress)} {...hoverProps}>
+    <View style={fullWidth ? undefined : styles.billGroupContinuationRow}>
+      <Pressable
+        {...linkProps(routePath.bills(params), onPress)}
+        {...hoverProps}
+        style={
+          fullWidth
+            ? [
+                m.billGroupContinuation,
+                transition('border-color'),
+                hovered && m.billGroupContinuationHover,
+              ]
+            : undefined
+        }
+      >
         <Text
           style={[
-            styles.billGroupContinuationText,
-            hovered && styles.billGroupContinuationTextHover,
+            fullWidth ? m.billGroupContinuationText : styles.billGroupContinuationText,
+            hovered &&
+              (fullWidth
+                ? m.billGroupContinuationTextHover
+                : styles.billGroupContinuationTextHover),
           ]}
         >
           {label}{' '}
-          <Text style={styles.billGroupContinuationArrow} aria-hidden>
+          <Text
+            style={fullWidth ? m.billGroupContinuationArrow : styles.billGroupContinuationArrow}
+            aria-hidden
+          >
             →
           </Text>
         </Text>
@@ -1225,13 +1245,14 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   //     ordered by latest-action date desc — the signing/enactment milestone).
   //     "Passed both chambers, not yet signed" is ~0 genuine bills in the corpus
   //     (#305), so enacted is the honest population for the "Recently Passed" card.
-  // Counts match the web home (NEXT-home-spec §"Bill Activity"): 2 passed, 3
-  // introduced. The specific bills are illustrative; selection is date-driven.
+  // Phone shows 2 cards in each group; each group's named continuation opens the
+  // same ordering in Bill Search. The specific bills are illustrative; selection
+  // is date-driven.
   const introduced = useBills(
     undefined,
     undefined,
     { sort: 'introduced' },
-    { limit: 3 },
+    { limit: 2 },
     { enabled: isFocused },
   );
   const signed = useBills(
@@ -1458,11 +1479,6 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                   <SkeletonCard lines={3} />
                 </View>
               </View>
-              <SeeMore
-                href={routePath.bills()}
-                onPress={openSearchBills}
-                accessibilityLabel="See more Legislative Bill Activity"
-              />
             </Container>
           ) : introducedBills.length > 0 || signedBills.length > 0 ? (
             <Container style={[m.section, m.activitySectionBottom]}>
@@ -1485,6 +1501,14 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                       />
                     ))}
                   </View>
+                  <BillGroupContinuationLink
+                    label={HOME_BILL_GROUP_CONTINUATIONS.passed.label}
+                    params={HOME_BILL_GROUP_CONTINUATIONS.passed.params}
+                    fullWidth
+                    onPress={() =>
+                      navigation.navigate('Bills', HOME_BILL_GROUP_CONTINUATIONS.passed.params)
+                    }
+                  />
                 </View>
               ) : null}
               {introducedBills.length > 0 ? (
@@ -1506,13 +1530,16 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                       />
                     ))}
                   </View>
+                  <BillGroupContinuationLink
+                    label={HOME_BILL_GROUP_CONTINUATIONS.introduced.label}
+                    params={HOME_BILL_GROUP_CONTINUATIONS.introduced.params}
+                    fullWidth
+                    onPress={() =>
+                      navigation.navigate('Bills', HOME_BILL_GROUP_CONTINUATIONS.introduced.params)
+                    }
+                  />
                 </View>
               ) : null}
-              <SeeMore
-                href={routePath.bills()}
-                onPress={openSearchBills}
-                accessibilityLabel="See more Legislative Bill Activity"
-              />
             </Container>
           ) : null}
 
@@ -1662,9 +1689,16 @@ const m = StyleSheet.create({
     borderColor: t.colors.alpha.ink10,
     borderRadius: 16,
     padding: 18,
-    ...(t.shadows.card as object),
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0 6px 18px rgba(17,21,15,0.05)' } as object)
+      : (t.shadows.card as object)),
   },
-  cardHover: { borderColor: t.colors.brand.base },
+  cardHover: {
+    borderColor: 'rgba(45,212,126,0.55)',
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0 14px 34px rgba(17,21,15,0.10)' } as object)
+      : null),
+  },
   // Skeleton placeholders (see SkeletonCard) — static grey bars sized to roughly
   // match a real card so the loading state reserves the section's final height.
   skelBadge: { width: 68, height: 22, borderRadius: 6, backgroundColor: t.colors.alpha.ink10 },
@@ -1811,6 +1845,27 @@ const m = StyleSheet.create({
     letterSpacing: -0.2,
     color: t.colors.text.primary,
   },
+  billGroupContinuation: {
+    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink20,
+    borderRadius: 13,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
+  billGroupContinuationHover: { borderColor: t.colors.brand.base },
+  billGroupContinuationText: {
+    fontFamily: t.typography.ui,
+    fontSize: 21,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: -0.4,
+    color: t.colors.text.primary,
+  },
+  billGroupContinuationTextHover: { color: t.colors.text.green },
+  billGroupContinuationArrow: { fontWeight: t.fontWeights.regular },
   seeMore: {
     marginTop: 16,
     flexDirection: 'row',

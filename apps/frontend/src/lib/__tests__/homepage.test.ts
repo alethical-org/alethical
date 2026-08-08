@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { HOME_BILL_GROUP_CONTINUATIONS } from '../homepage';
 
-describe('desktop bill groups continue into the matching Bill Search view', () => {
+describe('home bill groups continue into the matching Bill Search view', () => {
   it('uses unique names and preserves each group’s filter and order', () => {
     expect(HOME_BILL_GROUP_CONTINUATIONS).toEqual({
       passed: {
@@ -20,7 +20,7 @@ describe('desktop bill groups continue into the matching Bill Search view', () =
     });
   });
 
-  it('adds the 2 group links only to desktop and keeps mobile’s section-level action', () => {
+  it('adds the 2 named group links to both desktop and mobile', () => {
     const source = readFileSync(
       resolve(
         dirname(fileURLToPath(import.meta.url)),
@@ -30,8 +30,10 @@ describe('desktop bill groups continue into the matching Bill Search view', () =
     );
     const [desktopSource, mobileSource = ''] = source.split('// MOBILE HOME');
     expect(desktopSource.match(/<BillGroupContinuationLink/g) ?? []).toHaveLength(2);
-    expect(mobileSource).not.toContain('<BillGroupContinuationLink');
-    expect(mobileSource).toContain('<SeeMore');
+    expect(mobileSource.match(/<BillGroupContinuationLink/g) ?? []).toHaveLength(2);
+    expect(mobileSource).toContain('HOME_BILL_GROUP_CONTINUATIONS.passed');
+    expect(mobileSource).toContain('HOME_BILL_GROUP_CONTINUATIONS.introduced');
+    expect(mobileSource).not.toContain('accessibilityLabel="See more Legislative Bill Activity"');
   });
 
   it('attaches the mobile in-page jump to the top of bill activity while it loads and after it loads', () => {
@@ -66,7 +68,7 @@ describe('desktop bill groups continue into the matching Bill Search view', () =
     );
   });
 
-  it('gives the 2 visible See more links distinct spoken names', () => {
+  it('gives every visible See more link a distinct spoken name', () => {
     const source = readFileSync(
       resolve(
         dirname(fileURLToPath(import.meta.url)),
@@ -77,7 +79,12 @@ describe('desktop bill groups continue into the matching Bill Search view', () =
     const [, mobileSource = ''] = source.split('// MOBILE HOME');
 
     expect(mobileSource).toContain('accessibilityLabel="See more In the News bills"');
-    expect(mobileSource).toContain('accessibilityLabel="See more Legislative Bill Activity"');
+    const labels = [
+      'See more In the News bills',
+      HOME_BILL_GROUP_CONTINUATIONS.passed.label,
+      HOME_BILL_GROUP_CONTINUATIONS.introduced.label,
+    ];
+    expect(new Set(labels).size).toBe(3);
   });
 
   it('uses the complete Find My Legislator description in both homepage layouts', () => {
