@@ -131,6 +131,8 @@ export function RepresentativeCard({
   const officialUrl = legislator.profileUrl;
   const service = serviceSummary(legislator.legislativeService);
   const chamberLabel = legislator.chamber.toUpperCase();
+  const roleLabel = roleTitle(legislator.chamber).toUpperCase();
+  const districtLabel = `${chamberLabel} DISTRICT ${legislator.district}`;
   return (
     <View style={[styles.card, alignSections && styles.alignedCard, mobile && styles.cardMobile]}>
       <View
@@ -164,10 +166,37 @@ export function RepresentativeCard({
         </View>
         <View style={styles.heading}>
           <Text style={styles.name}>{legislator.shortName}</Text>
-          <Text style={[styles.districtEyebrow, mobile && styles.districtEyebrowMobile]}>
-            {roleTitle(legislator.chamber).toUpperCase()} · {chamberLabel} DISTRICT{' '}
-            {legislator.district}
-          </Text>
+          <View
+            accessible
+            accessibilityLabel={`${roleLabel}, ${districtLabel}`}
+            style={[styles.districtEyebrow, mobile && styles.districtEyebrowMobile]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.districtEyebrowText,
+                styles.districtEyebrowPart,
+                mobile && styles.districtEyebrowTextMobile,
+              ]}
+            >
+              {roleLabel}
+            </Text>
+            {mobile ? null : (
+              <Text numberOfLines={1} style={styles.districtEyebrowText}>
+                {' · '}
+              </Text>
+            )}
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.districtEyebrowText,
+                styles.districtEyebrowPart,
+                mobile && styles.districtEyebrowTextMobile,
+              ]}
+            >
+              {districtLabel}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -225,6 +254,11 @@ export function RepresentativeCard({
             alignSections && alignedRowStyle(4),
           ]}
         >
+          {legislatureLabel ? (
+            <Text style={[styles.legislature, mobile && styles.legislatureMobile]}>
+              {legislatureLabel}
+            </Text>
+          ) : null}
           <Text style={[styles.authored, mobile && styles.authoredMobile]}>
             <Text style={styles.authoredNumber}>{legislator.totalAuthoredBills}</Text>
             {' bills authored'}
@@ -236,7 +270,6 @@ export function RepresentativeCard({
               </>
             ) : null}
           </Text>
-          {legislatureLabel ? <Text style={styles.legislature}>{legislatureLabel}</Text> : null}
         </View>
       ) : null}
 
@@ -439,13 +472,23 @@ const styles = StyleSheet.create({
   name: { fontFamily: t.typography.title, fontSize: 22, fontWeight: '800', color: t.colors.ink },
   districtEyebrow: {
     marginTop: 6,
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'baseline',
+  },
+  districtEyebrowMobile: { flexDirection: 'column', alignItems: 'flex-start' },
+  districtEyebrowText: {
     fontFamily: t.typography.mono,
-    fontSize: 11.5,
+    fontSize: 12.5,
+    lineHeight: 18.75,
     fontWeight: '700',
-    letterSpacing: 1.38,
+    letterSpacing: 1.5,
     color: t.colors.brand.deep,
   },
-  districtEyebrowMobile: { fontSize: 11, letterSpacing: 1.32 },
+  districtEyebrowTextMobile: { fontSize: 11, lineHeight: 16.5, letterSpacing: 1.32 },
+  districtEyebrowPart: {
+    ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
+  },
   biography: { gap: 16 },
   biographyMobile: { gap: 0 },
   factsRow: {
@@ -492,13 +535,14 @@ const styles = StyleSheet.create({
   authoredMobile: { fontSize: 15, lineHeight: 21 },
   authoredNumber: { fontWeight: '800' },
   legislature: {
-    marginTop: 4,
+    marginBottom: 6,
     fontFamily: t.typography.mono,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.88,
     color: '#6f756f',
   },
+  legislatureMobile: { fontSize: 10, letterSpacing: 0.8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   issueChip: {
     maxWidth: '100%',

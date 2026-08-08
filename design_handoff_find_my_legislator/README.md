@@ -32,6 +32,16 @@ elsewhere is stale.
 reproduce. (Earlier "verified facts" wording referred to the sourcing of the examples, not to their being
 production values.)
 
+## Member-card reading order — AUG 8
+
+1. **Title + district stay 1 identity unit.** Desktop uses JetBrains Mono 12.5px/700, 0.12em,
+   `#0f7a45`, on 1 line. Each half is `white-space: nowrap`, so a district code never breaks away from
+   "HOUSE DISTRICT". Phone uses the same unit at 11px on 2 deliberate lines, with no middot between them.
+   Do not shrink the phone type or enlarge the district half on its own.
+2. **The legislature label comes before the bill count.** `94TH LEGISLATURE (2025–26)` is JetBrains Mono
+   11px/700 on desktop and 10px/700 on phone, 0.08em, `#6f756f`. The 16px desktop / 15px phone authored
+   count follows 6px below, with both numbers at weight 800.
+
 ## Location-refused state — three live differences (AUG 7)
 
 Copy is correct and stays.
@@ -192,12 +202,12 @@ shapes. It's a lookup outcome, not a result.
    `RESIDENCE` in one flex row. **Spelled out**: "Republican", "Democratic-Farmer-Labor". A bare badge
    never tells the reader the value _is_ a party; the label does, matching Bill Detail.
 3. **Title + district are one mono eyebrow** — `STATE SENATOR · SENATE DISTRICT 27` (JetBrains Mono
-   11.5px/700, 0.12em, `#0f7a45`), not green Libre Franklin plus a grey second line.
+   12.5px/700 desktop, 11px/700 phone, 0.12em, `#0f7a45`), not green Libre Franklin plus a grey second
+   line. Desktop stays on 1 line; phone uses 2 deliberate lines and drops the middot.
 4. **Heading is "COMMITTEES"**, not "COMMITTEES & LEADERSHIP" (a role appears on ~1 membership in 4).
    Role separator is a **comma**, not a middot; role in `#4f5651`.
-5. **Bills authored is three lines** — `156 bills authored` / `Including 70 as chief author` /
-   `94TH LEGISLATURE (2025–26)`. Drop "total": without the session line a reader assumes a career total,
-   and "Including" says chief author is a subset where "·" doesn't.
+5. **Bills authored is label then value** — `94TH LEGISLATURE (2025–26)` / `156 bills authored · 70 as
+   chief author`. The time period comes first so the count has its scope before it is read.
 6. **Election and term is one unlabelled sentence** — free text from the record, wildly variable; a
    labelled two-field block implies a structure the data doesn't have.
 7. **Residence pairs with party**, and the whole labelled unit disappears when the city is absent.
@@ -373,9 +383,9 @@ View profile, and typing itself (the field is `readOnly`; its value is driven by
   "Drop the congressional feature" in the map notes means drop its **geometry**, not this number.
 - **Found heading:** "Your Minnesota legislators". Sentence-case page title "Find my legislator". No
   eyebrow, no breadcrumb, no "2 results", no result-shaped empty space before a lookup.
-- **Bill totals** as three lines — "198 bills authored" / "Including 63 as chief author" /
-  "94th Legislature (2025–26)" — SHORT year form, see the deviation below. Chief author is a subset,
-  not an additional pile.
+- **Bill totals** as label then value — "94TH LEGISLATURE (2025–26)" / "198 bills authored · 63 as
+  chief author" — SHORT year form, see the deviation below. Chief author is a subset, not an additional
+  pile.
 - **Two error layers, doing different work:** the **inline message names the problem** at the control
   that failed (tied via `aria-describedby`). The **answer area never restates it** — it leads straight with the
   **recovery guidance** inside `role="alert"`, followed by any action. There is **no heading and no
