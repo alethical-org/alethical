@@ -1,6 +1,6 @@
 """First-line rate limiting for public endpoints that call paid/third-party
-services (Grounded Ask's OpenAI classify call, the Census/LCC-GIS representative
-lookup). See issue #98.
+services (Grounded Ask's model call and the public address sources used by
+representative lookup). See issue #98.
 
 Scope and limits: state is in-memory and per-process, so behind multiple uvicorn
 workers or Railway replicas the effective ceiling is

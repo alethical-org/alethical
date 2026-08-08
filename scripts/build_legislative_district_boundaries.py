@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 import re
 import zipfile
@@ -20,6 +21,10 @@ from pyproj import Transformer
 SOURCE_FILES = {
     "house": "hse2023.json",
     "senate": "sen2023.json",
+}
+SOURCE_SHA256 = {
+    "house": "bdd58e070e39282cee12f54579d3d6fe3e3f48ac7a0373b8f280403b87f60c25",
+    "senate": "2e888ad3afa8eee91cc4c6257ffe68895ffa98d99b20219dc8b79b454c09a546",
 }
 
 
@@ -77,7 +82,18 @@ def _features(source_zip: Path, chamber: str, transformer: Transformer) -> list[
     return features
 
 
+def _verify_source(source_zip: Path, chamber: str) -> None:
+    with source_zip.open("rb") as source:
+        digest = hashlib.file_digest(source, "sha256").hexdigest()
+    if digest != SOURCE_SHA256[chamber]:
+        raise ValueError(
+            f"{source_zip} does not match the reviewed official {chamber} download"
+        )
+
+
 def build(*, house_zip: Path, senate_zip: Path, output: Path) -> None:
+    _verify_source(house_zip, "house")
+    _verify_source(senate_zip, "senate")
     transformer = Transformer.from_crs("EPSG:26915", "EPSG:4326", always_xy=True)
     payload = {
         "type": "FeatureCollection",
@@ -93,7 +109,9 @@ def build(*, house_zip: Path, senate_zip: Path, output: Path) -> None:
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("wb") as raw_output:
-        with gzip.GzipFile(fileobj=raw_output, mode="wb", mtime=0) as compressed:
+        with gzip.GzipFile(
+            filename="", fileobj=raw_output, mode="wb", mtime=0
+        ) as compressed:
             compressed.write(serialized)
 
 
