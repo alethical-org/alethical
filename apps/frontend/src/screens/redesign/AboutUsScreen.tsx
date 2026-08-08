@@ -4,6 +4,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   View,
@@ -123,7 +124,15 @@ type StartCardItem = {
   onPress: () => void;
 };
 
-function StartCard({ item, widthStyle }: { item: StartCardItem; widthStyle: ViewStyle }) {
+function StartCard({
+  item,
+  widthStyle,
+  isMobile,
+}: {
+  item: StartCardItem;
+  widthStyle: StyleProp<ViewStyle>;
+  isMobile: boolean;
+}) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   return (
@@ -142,12 +151,16 @@ function StartCard({ item, widthStyle }: { item: StartCardItem; widthStyle: View
       ]}
     >
       <View style={styles.startCardHeader}>
-        <Text accessibilityRole="header" aria-level={3} style={styles.cardTitle}>
+        <Text
+          accessibilityRole="header"
+          aria-level={3}
+          style={[styles.cardTitle, isMobile && styles.startCardTitleMobile]}
+        >
           {item.startTitle}
         </Text>
         <LinkArrow color={t.colors.text.primary} style={styles.cardTitleArrow} />
       </View>
-      <Text style={styles.cardBody}>{item.body}</Text>
+      <Text style={[styles.cardBody, isMobile && styles.cardBodyMobile]}>{item.body}</Text>
     </Pressable>
   );
 }
@@ -168,8 +181,8 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
     : isTablet
       ? styles.twoColumn
       : styles.threeColumn;
-  const startWidthStyle: ViewStyle = isMobile
-    ? styles.fullWidth
+  const startWidthStyle: StyleProp<ViewStyle> = isMobile
+    ? [styles.fullWidth, styles.startCardMobile]
     : isTablet
       ? styles.twoColumn
       : styles.fourColumn;
@@ -269,7 +282,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
 
           <View style={[styles.section, isMobile && styles.mobileSection]}>
             <SectionTitle>What we believe</SectionTitle>
-            <View style={styles.cardGrid}>
+            <View style={[styles.cardGrid, isMobile && styles.cardGridMobile]}>
               {BELIEFS.map((belief) => (
                 <View
                   key={belief.beliefTitle}
@@ -278,11 +291,17 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
                   <Text
                     accessibilityRole="header"
                     aria-level={3}
-                    style={[styles.cardTitle, styles.beliefTitle]}
+                    style={[
+                      styles.cardTitle,
+                      styles.beliefTitle,
+                      isMobile && styles.beliefTitleMobile,
+                    ]}
                   >
                     {belief.beliefTitle}
                   </Text>
-                  <Text style={styles.cardBody}>{belief.body}</Text>
+                  <Text style={[styles.cardBody, isMobile && styles.cardBodyMobile]}>
+                    {belief.body}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -305,9 +324,16 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
 
           <View style={[styles.section, isMobile && styles.mobileSection]}>
             <SectionTitle>Where to start</SectionTitle>
-            <View style={[styles.cardGrid, styles.startCardGrid]}>
+            <View
+              style={[styles.cardGrid, styles.startCardGrid, isMobile && styles.cardGridMobile]}
+            >
               {startItems.map((item) => (
-                <StartCard key={item.startTitle} item={item} widthStyle={startWidthStyle} />
+                <StartCard
+                  key={item.startTitle}
+                  item={item}
+                  widthStyle={startWidthStyle}
+                  isMobile={isMobile}
+                />
               ))}
             </View>
           </View>
@@ -481,6 +507,7 @@ const styles = StyleSheet.create({
   },
   cardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
   startCardGrid: { gap: 16 },
+  cardGridMobile: { gap: 12 },
   fullWidth: { width: '100%' },
   twoColumn: { width: '48%' },
   threeColumn: { width: '31.5%' },
@@ -493,7 +520,12 @@ const styles = StyleSheet.create({
     padding: 24,
     minHeight: 176,
   },
-  beliefCardMobile: { borderRadius: 14 },
+  beliefCardMobile: {
+    borderRadius: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    minHeight: 0,
+  },
   cardTitle: {
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
@@ -503,6 +535,16 @@ const styles = StyleSheet.create({
   },
   cardTitleArrow: { top: 0 },
   beliefTitle: { color: ABOUT_COLORS.cyanInk },
+  beliefTitleMobile: {
+    fontSize: 15.5,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.08,
+  },
+  startCardTitleMobile: {
+    fontSize: 16,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.16,
+  },
   cardBody: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
@@ -510,6 +552,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginTop: 10,
   },
+  cardBodyMobile: { fontSize: 14.5, lineHeight: 22.5, marginTop: 6 },
   startCard: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -527,6 +570,11 @@ const styles = StyleSheet.create({
           transitionTimingFunction: 'ease',
         } as object)
       : null),
+  },
+  startCardMobile: {
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    minHeight: 0,
   },
   startCardHovered: {
     borderColor: 'rgba(45,212,126,0.55)',
