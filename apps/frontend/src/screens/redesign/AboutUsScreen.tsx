@@ -23,6 +23,9 @@ const ABOUT_COLORS = {
   cyanSurface: '#f4fafc',
   cyanBorder: '#dbeef4',
   cyanInk: '#2b6377',
+  roadmapSurface: '#f7f8fa',
+  subtleBorder: 'rgba(17,21,15,0.09)',
+  sectionRule: 'rgba(17,21,15,0.1)',
 } as const;
 
 const startCardFocus = Platform.select({
@@ -237,8 +240,11 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               care.
             </Text>
           </View>
+          {isMobile ? null : <View style={styles.originDivider} />}
 
-          <View style={styles.proseSection}>
+          <View
+            style={[styles.proseSection, styles.firstSection, isMobile && styles.mobileSection]}
+          >
             <SectionTitle>Why we’re doing this</SectionTitle>
             <Text style={styles.prose}>
               Government records belong to everyone. Understanding them should not require knowing
@@ -260,11 +266,14 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             </Text>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, isMobile && styles.mobileSection]}>
             <SectionTitle>What we believe</SectionTitle>
             <View style={styles.cardGrid}>
               {BELIEFS.map((belief) => (
-                <View key={belief.beliefTitle} style={[styles.beliefCard, cardWidthStyle]}>
+                <View
+                  key={belief.beliefTitle}
+                  style={[styles.beliefCard, cardWidthStyle, isMobile && styles.beliefCardMobile]}
+                >
                   <Text
                     accessibilityRole="header"
                     aria-level={3}
@@ -278,7 +287,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             </View>
           </View>
 
-          <View style={styles.proseSection}>
+          <View style={[styles.proseSection, isMobile && styles.mobileSection]}>
             <SectionTitle>What we’re working toward</SectionTitle>
             <Text style={styles.proseLead}>
               A Minnesota where anyone can check the public record for themselves.
@@ -293,16 +302,16 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             </Text>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, isMobile && styles.mobileSection]}>
             <SectionTitle>Where to start</SectionTitle>
-            <View style={styles.cardGrid}>
+            <View style={[styles.cardGrid, styles.startCardGrid]}>
               {startItems.map((item) => (
                 <StartCard key={item.startTitle} item={item} widthStyle={startWidthStyle} />
               ))}
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, isMobile && styles.mobileSection]}>
             <SectionTitle>On the roadmap</SectionTitle>
             <View style={[styles.roadmapPanel, isMobile && styles.roadmapPanelMobile]}>
               <View style={styles.cardGrid}>
@@ -329,7 +338,13 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             </Text>
           </View>
 
-          <View style={[styles.contactSection, isMobile && styles.contactSectionMobile]}>
+          <View
+            style={[
+              styles.contactSection,
+              isMobile && styles.mobileSection,
+              isMobile && styles.contactSectionMobile,
+            ]}
+          >
             <View style={styles.contactCopy}>
               <SectionTitle>Contact</SectionTitle>
               <Text style={styles.contactText}>
@@ -376,7 +391,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
 }
 
 const styles = StyleSheet.create({
-  page: { flexGrow: 1 },
+  page: { flexGrow: 1, backgroundColor: t.colors.surfaces.base },
   main: { maxWidth: 1248, alignSelf: 'center', paddingTop: 74, paddingBottom: 48 },
   mainMobile: { paddingTop: 42, paddingBottom: 34, paddingHorizontal: 20 },
   hero: { maxWidth: 930, marginBottom: 52 },
@@ -405,16 +420,14 @@ const styles = StyleSheet.create({
     backgroundColor: ABOUT_COLORS.cyanSurface,
     borderWidth: 1,
     borderColor: ABOUT_COLORS.cyanBorder,
-    borderRadius: 18,
+    borderRadius: 16,
     paddingHorizontal: 34,
     paddingVertical: 30,
-    marginBottom: 78,
   },
   originPanelMobile: {
     borderRadius: 14,
     paddingHorizontal: 20,
     paddingVertical: 22,
-    marginBottom: 52,
   },
   originText: {
     color: t.colors.text.primary,
@@ -426,8 +439,20 @@ const styles = StyleSheet.create({
   },
   originTextMobile: { fontSize: 16, lineHeight: 25 },
   originTerm: { color: ABOUT_COLORS.cyanInk, fontWeight: t.fontWeights.bold },
-  section: { marginTop: 76 },
-  proseSection: { marginTop: 72, maxWidth: 850 },
+  originDivider: {
+    marginTop: 40,
+    height: 1,
+    backgroundColor: ABOUT_COLORS.sectionRule,
+  },
+  firstSection: { marginTop: 44 },
+  section: { marginTop: 56 },
+  proseSection: { marginTop: 56, maxWidth: 850 },
+  mobileSection: {
+    marginTop: 34,
+    paddingTop: 26,
+    borderTopWidth: 1,
+    borderTopColor: ABOUT_COLORS.sectionRule,
+  },
   sectionTitle: {
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
@@ -454,6 +479,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
+  startCardGrid: { gap: 16 },
   fullWidth: { width: '100%' },
   twoColumn: { width: '48%' },
   threeColumn: { width: '31.5%' },
@@ -462,10 +488,11 @@ const styles = StyleSheet.create({
     backgroundColor: ABOUT_COLORS.cyanSurface,
     borderWidth: 1,
     borderColor: ABOUT_COLORS.cyanBorder,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 24,
     minHeight: 176,
   },
+  beliefCardMobile: { borderRadius: 14 },
   cardTitle: {
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
@@ -502,13 +529,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   roadmapPanel: {
-    backgroundColor: t.colors.surfaces.s300,
+    backgroundColor: ABOUT_COLORS.roadmapSurface,
     borderWidth: 1,
-    borderColor: t.colors.borders.base,
-    borderRadius: 18,
-    padding: 30,
+    borderColor: ABOUT_COLORS.subtleBorder,
+    borderRadius: 16,
+    paddingHorizontal: 32,
+    paddingVertical: 30,
   },
-  roadmapPanelMobile: { borderRadius: 14, padding: 20 },
+  roadmapPanelMobile: {
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
   roadmapItem: { minHeight: 186, paddingRight: 12, paddingBottom: 8 },
   roadmapItemMobile: { minHeight: 0, paddingRight: 0, paddingBottom: 0 },
   roadmapQuestion: {
@@ -522,10 +554,10 @@ const styles = StyleSheet.create({
   contactSection: {
     alignItems: 'flex-start',
     gap: 22,
-    marginTop: 78,
-    paddingTop: 42,
+    marginTop: 56,
+    paddingTop: 34,
     borderTopWidth: 1,
-    borderTopColor: t.colors.borders.base,
+    borderTopColor: ABOUT_COLORS.sectionRule,
   },
   contactSectionMobile: { gap: 18 },
   contactCopy: { width: '100%' },
