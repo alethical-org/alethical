@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from types import SimpleNamespace
@@ -1086,7 +1087,14 @@ def test_summary_schema_lists_every_property_as_required() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _enrichment(bill_id, version_id, *, content: dict, is_current: bool = False):
+def _enrichment(
+    bill_id,
+    version_id,
+    *,
+    content: dict,
+    is_current: bool = False,
+    source_version_hash: str = "a" * 64,
+):
     """One `ai_enrichment` row on the five columns the write path treats as
     identifying. Never current by default: production's 2,219 duplicate groups
     contain no current row, so this is the shape being reproduced."""
@@ -1095,7 +1103,7 @@ def _enrichment(bill_id, version_id, *, content: dict, is_current: bool = False)
         bill_version_id=version_id,
         enrichment_type=schema.EnrichmentType.bill_summary,
         model_name="claude:claude-sonnet-5",
-        source_version_hash="a" * 64,
+        source_version_hash=source_version_hash,
         content_json=content,
         is_current=is_current,
     )
@@ -1179,8 +1187,17 @@ def test_apply_output_updates_the_matching_row_instead_of_inserting_a_second(
         )
     try:
         with _session() as db:
+            bill = db.get(schema.Bill, bill_id)
+            version = db.get(schema.BillVersion, version_id)
+            assert bill is not None and version is not None
+            _prompt, prepared_hash, _truncated = ai_enrichment.bill_prompt(
+                db, bill, version, max_input_chars=60_000
+            )
             superseded = _enrichment(
-                bill_id, version_id, content={"summary": "Superseded.", "_meta": {}}
+                bill_id,
+                version_id,
+                content={"summary": "Superseded.", "_meta": {}},
+                source_version_hash=prepared_hash,
             )
             db.add(superseded)
             db.commit()
@@ -1202,7 +1219,7 @@ def test_apply_output_updates_the_matching_row_instead_of_inserting_a_second(
                             "bill_key": "test-2025-HF999021",
                             "bill_version_id": str(version_id),
                             "model": "claude:claude-sonnet-5",
-                            "source_version_hash": "a" * 64,
+                            "source_version_hash": prepared_hash,
                         }
                     ],
                 }
@@ -1264,4 +1281,142 @@ def test_apply_output_updates_the_matching_row_instead_of_inserting_a_second(
             assert sum(1 for r in rows if r.is_current) == 1
     finally:
         with _session() as db:
+            _cleanup(db, bill_id)
+
+
+def test_apply_output_refuses_a_summary_for_text_that_is_no_longer_current(
+    tmp_path, capsys
+) -> None:
+    """A completed batch cannot make an old summary current again after refresh."""
+    with _session() as db:
+        bill_id, version_id = _make_bill_with_summary(
+            db,
+            bill_key="test-2025-HF999022",
+            file_number=999022,
+            content={"summary": "The old summary.", "key_points": []},
+        )
+        bill = db.get(schema.Bill, bill_id)
+        version = db.get(schema.BillVersion, version_id)
+        assert bill is not None and version is not None
+        original_text = "Official text before the refresh."
+        section = schema.BillVersionSection(
+            bill_version_id=version_id,
+            section_id_text="laws.0.1.0",
+            source_order=0,
+            raw_text=original_text,
+        )
+        db.add(section)
+        db.flush()
+        db.add(
+            schema.RagSectionDocument(
+                bill_id=bill_id,
+                bill_version_id=version_id,
+                bill_version_section_id=section.id,
+                citation_label="HF 999022, Section 1",
+                clean_text=original_text,
+                cleaning_version="test-v1",
+                source_hash=hashlib.sha256(original_text.encode()).hexdigest()[:16],
+                word_count=5,
+            )
+        )
+        db.flush()
+        _prompt, prepared_hash, _truncated = ai_enrichment.bill_prompt(
+            db, bill, version, max_input_chars=60_000
+        )
+        assert (
+            ai_enrichment.current_source_version_hash(db, bill, version)
+            == prepared_hash
+        )
+
+        # The paid work was prepared above. Before it finishes, the same official
+        # version changes and the refresh retires the old summary. Search still
+        # carries its old copy for the brief gap before the next indexing job.
+        db.execute(
+            schema.AIEnrichment.__table__.update()
+            .where(schema.AIEnrichment.bill_id == bill_id)
+            .values(is_current=False)
+        )
+        section.raw_text = "New official text that the prepared summary never saw."
+        db.commit()
+
+    try:
+        custom_id = "bill_summary:test-2025-HF999022:fedcba9876543210"
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "created_at": "20260811T000000Z",
+                    "endpoint": "/v1/responses",
+                    "mode": "summaries",
+                    "model": "claude:claude-sonnet-5",
+                    "items": [
+                        {
+                            "custom_id": custom_id,
+                            "bill_id": str(bill_id),
+                            "bill_key": "test-2025-HF999022",
+                            "bill_version_id": str(version_id),
+                            "model": "claude:claude-sonnet-5",
+                            "source_version_hash": prepared_hash,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        output_path = tmp_path / "output.jsonl"
+        output_path.write_text(
+            json.dumps(
+                {
+                    "custom_id": custom_id,
+                    "response": {
+                        "status_code": 200,
+                        "body": {
+                            "output_text": json.dumps(
+                                {
+                                    "summary": "A summary of the old text.",
+                                    "key_points": [],
+                                    "policy_areas": ["Education"],
+                                }
+                            )
+                        },
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        ai_enrichment.apply_output(
+            SimpleNamespace(
+                api_key=None,
+                output_path=str(output_path),
+                output_dir=str(tmp_path),
+                batch_id=None,
+                manifest_path=str(manifest_path),
+                database_url=get_database_url(),
+                dry_run=False,
+            )
+        )
+
+        result = json.loads(capsys.readouterr().out)
+        assert result["applied"] == 0
+        assert result["outdated"] == 1
+        with _session() as db:
+            current = db.scalar(
+                select(schema.AIEnrichment).where(
+                    schema.AIEnrichment.bill_id == bill_id,
+                    schema.AIEnrichment.enrichment_type
+                    == schema.EnrichmentType.bill_summary,
+                    schema.AIEnrichment.is_current.is_(True),
+                )
+            )
+            assert current is None
+    finally:
+        with _session() as db:
+            db.execute(
+                delete(schema.RagSectionDocument).where(
+                    schema.RagSectionDocument.bill_id == bill_id
+                )
+            )
+            db.commit()
             _cleanup(db, bill_id)

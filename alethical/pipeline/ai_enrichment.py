@@ -319,6 +319,45 @@ def section_anchors(db: Session, version: Any) -> list[SectionAnchor]:
     ]
 
 
+def current_source_version_hash(db: Session, bill: Any, version: Any) -> str | None:
+    """Return the prompt hash only when it still represents current official text."""
+    if not version.is_current or version.bill_id != bill.id:
+        return None
+
+    official_sections = list(
+        db.scalars(
+            select(BillVersionSection)
+            .where(BillVersionSection.bill_version_id == version.id)
+            .order_by(BillVersionSection.source_order.asc())
+        )
+    )
+    rag_sections = list(
+        db.scalars(
+            select(RagSectionDocument).where(
+                RagSectionDocument.bill_version_id == version.id
+            )
+        )
+    )
+    if rag_sections:
+        official_by_id = {section.id: section for section in official_sections}
+        if len(rag_sections) != len(official_by_id):
+            return None
+        for rag_section in rag_sections:
+            official = official_by_id.get(rag_section.bill_version_section_id)
+            if official is None:
+                return None
+            expected_hash = hashlib.sha256(
+                (official.raw_text or "").encode("utf-8")
+            ).hexdigest()[:16]
+            if rag_section.source_hash != expected_hash:
+                return None
+
+    anchors = section_anchors(db, version)
+    return source_hash(
+        [bill.bill_key, str(version.id), *[item.source_hash for item in anchors]]
+    )
+
+
 def chief_sponsor_names(bill: Any) -> list[str]:
     names: list[str] = []
     for sponsorship in sorted(bill.sponsorships, key=lambda item: item.source_order):
@@ -1039,6 +1078,7 @@ def apply_output(args: argparse.Namespace) -> None:
     )
     applied = 0
     failed = 0
+    outdated = 0
     citation_points = 0
     citation_anchored = 0
     with Session(engine) as db:
@@ -1097,6 +1137,18 @@ def apply_output(args: argparse.Namespace) -> None:
                 continue
 
             bill_version_id = uuid.UUID(item.bill_version_id)
+            bill = db.get(Bill, bill_id)
+            version = current_bill_version(db, bill_id)
+            if (
+                bill is None
+                or version is None
+                or version.id != bill_version_id
+                or item.bill_key != bill.bill_key
+                or current_source_version_hash(db, bill, version)
+                != item.source_version_hash
+            ):
+                outdated += 1
+                continue
             # Ground per-key-point citations against the bill's sections before
             # persisting (#377): unanchorable points are dropped, never invented.
             stats = resolve_key_point_citations(db, bill_version_id, content)
@@ -1166,6 +1218,7 @@ def apply_output(args: argparse.Namespace) -> None:
         "dry_run": args.dry_run,
     }
     if not merge:
+        summary["outdated"] = outdated
         summary["key_points"] = citation_points
         summary["key_points_anchored"] = citation_anchored
     print(json.dumps(summary, indent=2))
