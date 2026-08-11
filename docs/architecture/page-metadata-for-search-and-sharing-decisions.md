@@ -443,9 +443,9 @@ Approved by Eugene 11 Aug 2026 and built the same day. This section is the recor
 
 ### The serving path
 
-`api/page.ts` fetches the built `index.html` from the deployment it is running inside, replaces the
-block between `<!--alethical:page-head-->` and `<!--/alethical:page-head-->` with that address's own
-tags, and returns the page with the app body untouched. `vercel.json` sends every public path to it
+`api/page.ts` reads the built `index.html` bundled inside its function, replaces the block between
+`<!--alethical:page-head-->` and `<!--/alethical:page-head-->` with that address's own tags, and
+returns the page with the app body untouched. `vercel.json` sends every public path to it
 **that matches one of its rewrites** — a path that misses them all falls through to the catch-all and
 gets the home page instead, which is §15's subject. The user-agent-matched rewrites and
 `api/social-preview.ts` are deleted; one path serves everyone.
@@ -582,10 +582,11 @@ imports them from there.
 
 ### One risk this created, and how it is held down
 
-`api/page.ts` returns 503 when the shell it fetches has lost its head markers, because a nameless page
-is worse than a brief outage. The body text does **not** get that treatment: it improves a page that
-already works, so if its slot in the shell ever goes missing the page is served exactly as release 1
-served it — correct tags, empty body — rather than failing every bill and legislator address at once.
+`api/page.ts` returns 503 when the bundled shell it reads has lost its head markers, because a nameless
+page is worse than a brief outage. The body text does **not** get that treatment: it improves a page
+that already works, so if its slot in the shell ever goes missing the page is served exactly as
+release 1 served it — correct tags, empty body — rather than failing every bill and legislator
+address at once.
 The alarm for that case is a test on the shipped `apps/frontend/public/index.html`, which runs on
 every pull request.
 
@@ -894,3 +895,45 @@ made a typo look like a successful page even though the server already knew how 
 `pageEndpoint.test.ts` sends those public addresses through the same entry the host calls and checks
 their status, tags, body, and data-service failure behavior. `trailingSlashRedirect.test.ts` pins the
 single final page rewrite and proves no route can fall through to `index.html` as Home.
+
+---
+
+## 17. Protected previews read the page shell locally
+
+Built 11 Aug 2026 for [#1359](https://github.com/alethical-org/alethical/issues/1359).
+
+### The failure
+
+The page function used to fetch `index.html` from its own public preview address. Vercel protects
+preview addresses with its login gate, and the second request did not carry the reader's login. The
+function therefore returned its 503 outage message for every bill, legislator, list, and unknown
+address on a preview even though production worked.
+
+### The fix
+
+The root `vercel.json` now includes `apps/frontend/dist/index.html` in the `api/page.ts` function.
+The function reads that deployed, read-only file once per warm instance. Vercel's build output maps
+the generated file to the same path inside the function, so it contains the final program filename
+and other changes made by the web build.
+
+This removes the request through Vercel's login gate and removes a network request from every cold
+function instance. Preview protection remains on. The existing automation-bypass secret remains
+available for outside test tools, but page serving does not depend on it.
+
+### Alternatives rejected
+
+- **Send the automation-bypass secret on the self-request.** It is smaller code, but it keeps the
+  self-request, adds a secret to the serving path, and lets a missing project setting make every
+  preview page look down.
+- **Forward the reader's preview login cookie.** It still keeps the self-request and works only for
+  readers whose first request used that cookie. It does not make the function independent of the
+  login gate.
+- **Turn preview protection off.** It would make unfinished releases public to fix an internal
+  request the site no longer needs.
+
+### Proof
+
+`pageEndpoint.test.ts` supplies the bundled file separately from data-service requests, proves the
+function never asks its own deployment for `index.html`, and keeps the real data-outage 503 checks.
+`releaseCaching.test.ts` pins the build-file inclusion in the root `vercel.json`. A protected Vercel
+preview must serve a real bill title and snapshot before this change merges.

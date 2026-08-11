@@ -1,4 +1,10 @@
-import { legislatorDisplayName, legislatorDistrictLine } from "../apps/frontend/src/lib/legislatorProfile";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+import {
+  legislatorDisplayName,
+  legislatorDistrictLine,
+} from "../apps/frontend/src/lib/legislatorProfile";
 import {
   billPageSnapshot,
   injectPageSnapshot,
@@ -47,7 +53,6 @@ import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
 type QueryValue = string | string[] | undefined;
 type RequestLike = {
   query?: Record<string, QueryValue>;
-  headers?: Record<string, string | string[] | undefined>;
 };
 type ResponseLike = {
   status: (code: number) => ResponseLike;
@@ -63,7 +68,8 @@ const API_ORIGIN = (
 // function open to its own timeout. A slow read becomes a 503, not a stall.
 const API_TIMEOUT_MS = 5000;
 
-const OK_CACHE = "public, max-age=0, s-maxage=600, stale-while-revalidate=86400";
+const OK_CACHE =
+  "public, max-age=0, s-maxage=600, stale-while-revalidate=86400";
 // A record that does not exist today may exist after the next ingestion run, so a
 // 404 is cached briefly rather than for the whole day.
 const NOT_FOUND_CACHE = "public, max-age=0, s-maxage=300";
@@ -97,7 +103,8 @@ async function getApiData<T>(path: string): Promise<T> {
     throw new DataUnavailable(`could not reach ${path}`);
   }
   if (response.status === 404) throw new RecordNotFound(path);
-  if (!response.ok) throw new DataUnavailable(`API returned ${response.status}`);
+  if (!response.ok)
+    throw new DataUnavailable(`API returned ${response.status}`);
   try {
     const payload = (await response.json()) as { data: T };
     return payload.data;
@@ -204,25 +211,22 @@ async function contentFor(
 }
 
 /**
- * The built `index.html`, fetched from this same deployment over its public
- * address. The static output is not on the function's filesystem, and the shell
- * changes only at deploy time, so it is fetched once per warm instance and held.
+ * The built `index.html`, bundled into this function by the root `vercel.json`.
+ * Reading the deployed file avoids a request through the preview login gate. The
+ * shell changes only at deploy time, so it is read once per warm instance and held.
  */
 let cachedShell: string | null = null;
+const PAGE_SHELL_PATH = resolve(process.cwd(), "apps/frontend/dist/index.html");
 
-async function pageShell(host: string): Promise<string> {
+async function pageShell(): Promise<string> {
   if (cachedShell) return cachedShell;
-  let response: Response;
+  let html: string;
   try {
-    response = await fetch(`https://${host}/index.html`, {
-      signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    });
+    html = await readFile(PAGE_SHELL_PATH, "utf8");
   } catch {
     throw new DataUnavailable("could not read the page shell");
   }
-  if (!response.ok) throw new DataUnavailable("could not read the page shell");
-  const html = await response.text();
-  // Proves we fetched the real shell and not a rewritten copy of ourselves.
+  // Proves the bundled file is the real shell rather than an unrelated build file.
   if (!html.includes("alethical:page-head")) {
     throw new DataUnavailable("page shell is missing its head markers");
   }
@@ -249,8 +253,6 @@ export default async function handler(
   response: ResponseLike,
 ) {
   const query = request.query ?? {};
-  const hostHeader = request.headers?.host;
-  const host = (Array.isArray(hostHeader) ? hostHeader[0] : hostHeader) || "";
 
   let content: PageContent;
   let status = 200;
@@ -275,7 +277,7 @@ export default async function handler(
 
   let html: string;
   try {
-    html = injectPageHead(await pageShell(host), content.metadata);
+    html = injectPageHead(await pageShell(), content.metadata);
   } catch {
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
