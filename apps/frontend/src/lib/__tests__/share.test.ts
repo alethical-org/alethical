@@ -52,7 +52,7 @@ describe('shared page text', () => {
     ).toMatchObject({
       title: 'Rep. Patti Anderson: Republican, House District 33A',
       description:
-        'See Rep. Patti Anderson’s committee assignments, chief-authored bills, and recent votes in the Minnesota Legislature.',
+        'See Rep. Patti Anderson’s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.',
     });
 
     expect(
