@@ -258,8 +258,7 @@ function MainTabs() {
           ? () => null
           : (props) => {
               const activeTab = props.state.routes[props.state.index]?.name as
-                | keyof MainTabParamList
-                | undefined;
+                keyof MainTabParamList | undefined;
               if ((isLoading || !isSignedIn) && activeTab === 'Home') {
                 return null;
               }

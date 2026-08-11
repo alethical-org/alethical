@@ -224,6 +224,12 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: pnpm install --frozen-lockfile
 
+      # Expo and React Native packages have to move as one tested set. A normal
+      # package update can otherwise mix SDK releases and still install cleanly,
+      # then fail only at type-check or build time (#1394).
+      - name: Check Expo package compatibility
+        run: pnpm exec expo install --check
+
       - name: Type check frontend
         run: pnpm exec tsc --noEmit
 
