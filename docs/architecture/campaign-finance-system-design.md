@@ -154,6 +154,16 @@ So a wrong or stale link fails silently, and two content checks are what catch i
 line must equal the expected column header exactly, and the `Content-Disposition` filename
 names the file (`All - Itemized Contributions Received Of Over $200 - Campaign Finance.csv`).
 
+**The export is byte-unstable: the same data arrives in a different row order every time.** 3
+downloads of the independent-expenditures file seconds apart on 11 Aug 2026 returned 3 different
+sha256 hashes at an identical byte size (9,080,784) holding an identical duplicate-preserving
+multiset of 41,130 records, with 35,905 of the 41,130 positions holding a different record; the
+contributions file behaved the same way, 583,152 records with 511,066 positions differing. So a hash
+of the response bytes identifies *the bytes we received* and can never answer *did the data change*.
+Sameness is decided on an order-independent hash of the records — the per-record digests, sorted —
+and §4.1's "an identical hash to the previous snapshot means nothing changed" refers to that hash,
+never to the bytes.
+
 **A server error is a retry, not a stale link.** The contributions download returned HTTP 500 on
 one attempt on 11 Aug 2026 and succeeded on the next two from the same unchanged link. Re-resolve
 and retry before concluding a link has moved; the content checks above are what distinguish a
@@ -268,8 +278,12 @@ whole files and replaces whole sets.
 ### 4.1 The cycle
 
 1. **Fetch** the current link for each file from the landing page, then download it.
-2. **Store the file whole** as a dated snapshot with a content hash. An identical hash to the
-   previous snapshot means nothing changed; stop.
+2. **Store the file whole** as a dated snapshot with a content hash. An identical **record-set**
+   hash to the previous snapshot means nothing changed; stop. Not the byte hash, which differs on
+   every download because the export shuffles its rows (§2.1). One body is kept per distinct record
+   set rather than per download, and every download is still recorded in `cf_fetch_observation` with
+   its own byte hash, so 7 to 10 GB a year of reshuffled duplicates is not stored to preserve
+   information that is already held.
 
    **This step has no facility to use yet, which an earlier version of this document got
    wrong.** It said "through the existing `SourceArtifact` retention path", and
@@ -408,6 +422,14 @@ rebuilt is what the Board published on a past date.
 in §4.3 compare against recorded measurements, not against old rows, so nothing needs the rows
 of a superseded set. Pruning successful bodies to save space would give up exactly the record
 this section exists to hold.
+
+"Every body" means one per distinct set of records, not one per download. Because the export
+shuffles (§2.1), keeping every download would store the same data repeatedly in a different order;
+`cf_fetch_observation` keeps each download's own byte hash and size, so what Minnesota served on a
+given date is still on the record. And a set whose rows were pruned is rebuilt **from the retained
+body**, never from a fresh download: today's file holds the same records in a different order, so
+renumbering from it would leave every `(snapshot_id, row_number)` citation pointing at a different
+line of the file a reader is shown.
 
 The general facility is [#1346](https://github.com/alethical-org/alethical/issues/1346): no
 source in this repo retains bodies today, though `layer-1-source-ingestion-system-design.md`
