@@ -84,7 +84,11 @@ export function buildLegislatorShareContent({
   return {
     subject: 'legislator',
     title: `${name}: ${clean(partyLabel)}, ${clean(districtLine)}`,
-    description: `See ${name}’s committee assignments, chief-authored bills, and recent votes in the Minnesota Legislature.`,
+    // Lists only sections the profile actually renders. It said "recent votes"
+    // until #1325 measured the page: votes appear solely inside the unfinished
+    // "On the roadmap" area, so the sentence promised a section that is not
+    // there (grounded-answers.md rule 6 — copy claims match shipped capability).
+    description: `See ${name}’s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.`,
     url,
   };
 }

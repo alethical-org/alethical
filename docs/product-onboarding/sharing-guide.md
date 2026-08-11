@@ -9,21 +9,21 @@ Share sends the page a reader chose, with enough plain-language context for anot
 | Page       | Title                                         | Description                                                                                             | Link                                                                                                                  |
 | ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Bill       | Bill code plus the short plain-language title | The first sentence of the plain-language summary                                                        | The bill profile, without a selected tab                                                                              |
-| Legislator | Name, party, chamber, and district            | A fixed sentence naming committees, chief-authored bills, and recent votes — **the votes part is wrong, see below** | The readable legislator profile address                                                                               |
+| Legislator | Name, party, chamber, and district            | A fixed sentence naming the committees, chief-authored bills, and contact details available on the profile | The readable legislator profile address                                                                               |
 | Ask answer | The reader's question                         | A fixed sentence saying the answer is cited and links to the official record                            | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it |
 
 A bill without a generated summary uses an honest fixed description instead of the long statutory title. The title, description, and link shown in the Share panel are the same source values used for every destination.
 
-**Known defect: the legislator sentence promises something the profile does not have.** It says
-"committee assignments, chief-authored bills, and recent votes." The profile shows Biography,
-Committees, Chief-Authored Bills, Contact, Legislative Service, and Leadership. Votes appear only
-inside the deliberately-unfinished "On the roadmap" area, so a reader who follows a shared link
-looking for votes will not find them. That breaks `.claude/rules/grounded-answers.md` rule 6 (copy
-claims match shipped capability). The fix is to swap "recent votes" for "contact information" in
-`buildLegislatorShareContent` (`apps/frontend/src/lib/share.ts`) and update the row above in the
-same change. Tracked in
-[#1325](https://github.com/alethical-org/alethical/issues/1325), which found it; see
-`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §3.
+**The legislator sentence lists only sections the profile actually renders**, and this is checked
+rather than assumed. The profile shows Biography, Committees, Chief-Authored Bills, Contact,
+Legislative Service, and Leadership. Until
+[#1325](https://github.com/alethical-org/alethical/issues/1325) measured it, the sentence promised
+"recent votes" instead of contact details; votes appear solely inside the deliberately-unfinished
+"On the roadmap" area, so a reader following a shared link looking for votes found none. **When a
+section is added to or removed from the profile, this sentence changes with it**
+(`buildLegislatorShareContent` in `apps/frontend/src/lib/share.ts`, pinned by `share.test.ts`) —
+otherwise we advertise a capability we do not ship
+(`.claude/rules/grounded-answers.md` rule 6).
 
 ## What each destination receives
 
