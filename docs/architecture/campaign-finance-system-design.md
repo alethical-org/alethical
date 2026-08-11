@@ -428,6 +428,21 @@ figures and both appear. The difference between them is usually legitimate small
 not an error and not missing data. A page must say what the difference is rather than leaving
 a reader to assume one number is wrong.
 
+Measured across sitting legislators' committees, the unnamed share is 36.5% of the 2024 total
+and 41.3% of 2025, with the median committee at 40.3% and 36.1% (§9.5). **Roughly 4 dollars in
+10 have no name attached on a typical profile**, so a treatment tuned for a thin remainder is
+wrong for almost every member. The extreme is also real: Senator John Marty's committee reported
+$13,900.48 for 2025 against a single named payment of $1,000.
+
+**Take both ends of a period from the filing.** Almost every report runs from 1 January (§9.6),
+but a special-election filer's regular series begins where the special series stopped, and the
+pair itself does not always start the year: filer 19223 reports from 11 July 2025, which is 5
+days before it registered, while a filer that registered in March still reports from 1 January
+(§9.5). **No surface may hardcode 1 January as the period start**, or label a figure "2025" when
+it means 11 July to 31 December. This is the rule a design is most likely to get wrong from
+reading §7 alone, because §9.6's 1 January statute is stated plainly and its exception is one
+clause inside a paragraph about something else.
+
 **The total is reported; the split into itemized and not-itemized is computed. Decided this
 way deliberately.** §9 establishes that the route returns the filing's own total, so the large
 number on a card can never disagree with the filing, because it *is* the filing's number. The
@@ -465,6 +480,13 @@ failed reconciliation rather than a number to clamp. For those filer-years, and 
 route does not cover, print the named payments alone, labelled as named payments, with no
 composition bar, because there is no whole to divide. Never print a partial figure under a
 caveat: a caveat under a large number loses to the large number, and the reader keeps the figure.
+
+**That last gap is closing, so do not design around it as permanent.** §9.5 now records both of a
+special-election filer's report series as fetchable, with their periods adjacent in all 5 filers
+measured, so once the assembly of the two is built those 10 committee-years show a real total like
+everyone else. Until it is built they read "Not reported"; what they must never do is show the
+regular series alone as though it were the year, which for filer 18453 would have printed $317.20
+against a true $283,287.13.
 
 **A missing surface makes a claim too, so the tab always renders.** A legislator's campaign
 money is a tab on the profile they already have, and it appears for every member whether or
@@ -726,21 +748,31 @@ publication; that applies here. Do not print the derived figure for those filer-
 runs in a special election files a whole second report series, flagged
 `SpecialElectionindicator = 1`, and **this route reports only the regular series.**
 
-Ann Johnson Stewart's committee (18453), 2024, reconciled in full:
+**Both reports are fetchable, and together they are the year — but only from the special series'
+own start.** Measured across 5 special-election filers (18453 in 2024; 19193, 19205, 19223,
+19229 in 2025), each series serves a PDF at its highest amendment index, and **the regular
+year-end begins the day after the special series ends in all 5**. Filer 18453, 2024: the special
+series covers 1 January to 25 November and states $171,992.26 itemized and $110,977.67
+non-itemized; the regular year-end covers 26 November to 31 December and states $250.00 and
+$67.20; the route returns $317.20, which is exactly the regular pair, and our bulk rows sum to
+$172,242.26, which is exactly $171,992.26 + $250.00. **The bulk file covers both series; the
+route does not.**
 
-- The special-election final report covers **1 January to 25 November 2024** and its
-  contribution schedules state $171,992.26 itemized and $110,977.67 non-itemized.
-- The regular year-end report covers **26 November to 31 December 2024** and states $250.00
-  itemized and $67.20 non-itemized.
-- The route returns $317.20 for the calendar year — exactly $250.00 + $67.20, so it is right
-  about the regular series and silent about the other $282,969.93.
-- Our bulk itemized rows for 2024 sum to $172,242.26, which is $171,992.26 + $250.00 exactly.
-  **The bulk file covers both series; the route does not.**
+**The pair does not always start on 1 January, and the start cannot be derived.** 3 of the 5
+begin on 1 January; 19229 begins on its registration date and 19223 begins on 11 July, **5 days
+before it registered**, while 19205 registered on 20 March and still reports from 1 January. So
+a surface prints the period read off the report and never says "2025" where it means "11 July to
+31 December 2025".
 
-So for a special-election filer the year's official total must be assembled from both series'
-reports (§9.4), or the year reads "Not reported". It may never be printed from this route alone.
-Note also that the regular year-end report here does **not** begin on 1 January, which is the
-exception to §9.6.
+**Read the figures by schedule code, never by position.** Each contributor-type line equals its
+`Schedule A1 - <code>` block's itemized plus non-itemized total, confirmed line by line against
+the route for filer 19223. A filer with no lobbyist money has no `A1 - LOB` block, so the blocks
+sit at no fixed offset; reading by position returned $20,754.27 for a filer whose reported figure
+is $6,002.62.
+
+So for a special-election filer the year's official total is assembled from both series' reports
+(§9.4). It may never be printed from this route alone, and until that assembly is built the year
+reads "Not reported" rather than showing the regular series as if it were the whole year.
 
 **11 of 418 requested committee-years returned no financial block at all.** That is consistent
 with a committee that filed nothing, but the response alone cannot tell that apart from a bad
@@ -855,6 +887,12 @@ Recorded as not run, never as passed:
 - **Whether the route resolves amendments correctly in general** rests on two checked filings
   plus the standing test cases §9.3 requires. It is not established across the 367
   multi-version reports.
+- **The adjacency of the two report series** (§9.5) was measured on 5 filers, not on all 10
+  negative committee-years, and on no year before 2024.
+- **The computed itemized split against the filing's own stated split** (§7) reconciled on 2
+  filer-years at full precision. The per-release sample check §7 requires is what establishes
+  it beyond those two; until that check runs, a positive-but-wrong split would publish silently,
+  since only a negative subtraction announces itself.
 
 Codex reviewed this section adversarially before it was committed and could not reach
 cfb.mn.gov from its own environment, so its objections about rate limits, blocking and current
