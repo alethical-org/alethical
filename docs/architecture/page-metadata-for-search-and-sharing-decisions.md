@@ -162,12 +162,33 @@ If per-page cards are ever built, build them **without portraits** — name, cha
 an "as of" date as text — and never with party colours, which a search result or feed would read as
 the product taking a side.
 
-**An open question this surfaced, outside the scope of this issue.** The portraits we display today
-come from the Legislative Reference Library (`lrl.mn.gov/legdb/MemberPhotos/…`), a joint legislative
-department, not from House Public Information Services. Whether the House policy above governs
-those specific files is unresolved. Displaying an unaltered photo with credit is a much weaker claim
-than compositing one, so this is not urgent, but it should be answered rather than assumed. Filed
-separately rather than settled here.
+### The same policy already touches what we ship today, which makes this worth asking about now
+
+An earlier draft of this section called the display case "a much weaker claim than compositing one,
+so this is not urgent." **That was wrong, and the correction matters more than the share-card
+question it was a footnote to.**
+
+We do not display these portraits unaltered. `LegislatorResultCard.tsx` renders them with
+`objectFit: 'cover'` and a rounded corner radius, which scales each photo to fill a fixed box and
+cuts off whatever does not fit. That is cropping, and cropping is the one alteration the House
+policy names in as many words.
+
+Two things are established and one is not:
+
+- **Established:** the House policy requires advance permission, requires a credit line we do not
+  currently show, and forbids alteration "in any way, including cropping."
+- **Established:** the Legislative Reference Library states its photos come from the Minnesota
+  Legislative Manuals and from legislative staff photographers, which is who that policy governs.
+- **Not established:** whether the Library republishes them under its own, possibly more permissive,
+  terms. It publishes no photo-use policy that could be found, so there is nothing permissive to
+  rely on, only an absence.
+
+**This is answered by asking, not by reasoning further.** One written request to House Public
+Information Services (`651-296-1341`), Senate Media Services, and the Library, covering both uses at
+once — displaying portraits cropped to fit a layout, and later composing them into share cards —
+settles it permanently and costs one email. Until it comes back, the share-card recommendation above
+stands unchanged, and the display question is Eugene's to weigh: the exposure is small and the use
+is the one these photos exist for, but it is real and it is live.
 
 ---
 
@@ -194,10 +215,28 @@ exists and genuinely fits, but Google does not list it as supported, so it buys 
 ## 7. robots.txt and sitemap.xml
 
 **`robots.txt`** should exist to point at the sitemap and to make a deliberate choice about AI
-crawlers. The review's recommendation, which this doc adopts: **allow the search crawlers**
-(`OAI-SearchBot`, `Claude-SearchBot`, `PerplexityBot`) because they are how people increasingly find
-answers, and treat the training crawlers (`GPTBot`, `ClaudeBot`) as a separate data-policy decision
-for Eugene rather than an SEO one.
+crawlers.
+
+**These are two different kinds of robot, and only one of them affects whether we get found.**
+Confirmed from each vendor's own documentation:
+
+| Robot | What it does | Does allowing it help us appear in AI answers? |
+| --- | --- | --- |
+| `OAI-SearchBot` | Surfaces sites in ChatGPT's search | **Yes.** OpenAI states that blocking it stops the site appearing in ChatGPT search answers. |
+| `Claude-SearchBot` | Improves Claude's search results | **Yes.** |
+| `PerplexityBot` | Powers Perplexity's answers | **Yes.** |
+| `ChatGPT-User`, `Claude-User` | Fetches a page when a person asks a question about it | **Yes**, for that live lookup. |
+| `GPTBot` | Collects text to train future OpenAI models | **No.** OpenAI states it has "no direct impact on search appearance." |
+| `ClaudeBot` | Collects text to train future Anthropic models | **No.** Anthropic describes it as the training crawler only. |
+
+**So allow the search and user-question robots.** That is the decision that affects being found, and
+it should be made regardless of anything else here.
+
+**The training robots (`GPTBot`, `ClaudeBot`) are a separate question with no search benefit
+either way.** Allowing them does not help us rank or get cited today. The argument for allowing them
+is different and non-technical: our content is the public legislative record rewritten in plain
+language, and a future model that has read it is a future model that answers Minnesotans better.
+The argument against is that it is our writing, given away, with no link back. Eugene's call.
 
 **A correction to the first draft, and to [#823](https://github.com/alethical-org/alethical/issues/823).**
 Do **not** block the answer pages in `robots.txt`. A crawler that is blocked from fetching a page
@@ -336,6 +375,10 @@ which breaks the freshness requirement in `.claude/rules/grounded-answers.md` ru
 ## 11. What Eugene needs to decide
 
 1. **Approve the two-release shape** (correct tags now, real text next), or approve release 1 only.
-2. **AI training crawlers** — `GPTBot` and `ClaudeBot` allowed or blocked in `robots.txt`. This is a
-   data-policy call, not an SEO one. The search crawlers should be allowed either way.
-3. Whether the portrait-rights question in §5 gets its own issue now or waits for campaign finance.
+   Release 1 alone is a real improvement but leaves search engines writing our result text from a
+   blank page.
+2. **AI training crawlers** — `GPTBot` and `ClaudeBot` allowed or blocked. Confirmed above to have
+   no effect on being found either way, so this is a giving-away-our-writing question, not an SEO
+   one. The search crawlers get allowed regardless.
+3. **The portrait permission request in §5.** Recommended: send it now rather than at campaign
+   finance, because the cropping it covers is already live on every legislator card today.
