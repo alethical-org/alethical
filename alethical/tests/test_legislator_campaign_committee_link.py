@@ -143,6 +143,9 @@ def test_a_confirmed_link_records_the_office_and_period_it_was_reviewed_under(db
         )
     ).one()
     assert stored.office_as_reviewed == "House"
-    assert (stored.first_year_as_reviewed, stored.last_year_as_reviewed) == ("2022", "2026")
+    assert (stored.first_year_as_reviewed, stored.last_year_as_reviewed) == (
+        "2022",
+        "2026",
+    )
     assert stored.committee_name_as_reviewed == "Testcase, Sample House Committee"
     assert stored.reviewed_at is not None

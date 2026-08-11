@@ -69,11 +69,17 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
+        # No ON DELETE rule, which matches every other legislator_id foreign key in this
+        # schema and is the safer failure here. `cleanup_orphan_legislators`
+        # (alethical/pipeline/committee_memberships.py) deletes a legislator who has no
+        # sponsorships, votes or committee memberships, and it clears the child tables it
+        # knows about by hand. A cascade would let that pass silently destroy a decision a
+        # person made; with no rule, the delete raises instead, which is what we want to
+        # happen if a machine cleanup is ever about to throw away checked human work.
         sa.ForeignKeyConstraint(
             ["legislator_id"],
             ["legislator.id"],
             name="fk_legislator_campaign_committee_legislator_id_legislator",
-            ondelete="CASCADE",
         ),
         # Named explicitly rather than left to the metadata convention, which would
         # generate a 66-character identifier and fail: Postgres truncates at 63.

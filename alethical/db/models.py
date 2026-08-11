@@ -1392,6 +1392,10 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "legislator_campaign_committee"
 
+    # No ON DELETE rule, matching every other legislator_id foreign key here. A cascade
+    # would let `cleanup_orphan_legislators` silently destroy a decision a person made;
+    # with no rule the delete raises instead, which is the outcome we want if a machine
+    # cleanup is ever about to throw away checked human work.
     legislator_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("legislator.id"), nullable=False
     )

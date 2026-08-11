@@ -432,6 +432,40 @@ the chamber the member sits in, contributions inside the current session's years
 generational suffix present on one side only, exactly one candidate for that legislator, and
 no other sitting member with a source-stated claim on the same committee.
 
+**Matching names means matching words, not first letters.** An earlier version compared only
+the first word of each given name, which made "Dibble, D Scott Senate Committee" and a
+hypothetical "Dibble, D Steven" equally confident for **Senator D. Scott Dibble**, because
+both first words are "d". A single letter separates nobody, so at least one word of more
+than one letter has to be present on both sides; initials are then compared where they count
+as the weak evidence they are.
+
+**A word in our own record that the committee name never confirms holds a proposal back.**
+`surname_keys` deliberately offers every trailing run of a legislator's name, which is what
+finds "Van Binsbergen, Scott House Committee" for a member production stored as first "Scott
+Van" and last "Binsbergen". The cost is that a *shorter* key can find a different person:
+**Senator Erin K. Maye Quade** generates the key "quade", so an unrelated "Quade, Erin"
+would match her on an exact given name, and the leftover "maye" in our record is the only
+thing that gives it away. So a leftover word of more than one letter is a reason. A middle
+*initial* the Board omits is not — "Senator Mark T. Johnson" against "Johnson, Mark Timothy"
+identifies one man, and demoting on a dropped initial would cost half the Senate for nothing.
+This is why **María Isa Pérez-Vega** goes to a person: the Board files "Perez-Vega, Maria"
+and drops the "Isa".
+
+**Another committee sharing the surname is a reason even when it was too stale to show.** A
+surname pool too large to read is capped to its recent members, and that cap runs before the
+more-than-one-candidate check — so it could hide the alternatives from a proposal that then
+looks certain. The case that bites: a legislator's own committee goes quiet while a
+namesake's stays active, leaving the namesake standing alone. The existence of another person
+with the surname is therefore itself a reason, and the count is always printed.
+
+**What no rule can reach, stated plainly.** The contest check above can only see *sitting*
+legislators, and a committee row carries no district. So a former or unsuccessful candidate
+with the same name, same chamber and current activity is indistinguishable from the sitting
+member on the evidence available, and if the member's own committee is absent, the stranger's
+will look like a strong proposal. Nothing in these files fixes that, which is the reason the
+answer is a person's and not a rule's. The Board's registered-filer directory would help and
+is an open route ([#1337](https://github.com/alethical-org/alethical/issues/1337)).
+
 **Office and given name are evidence, never filters.** Discarding on either loses real
 money. Liz Reyer sits in the House and holds two committees: "Reyer, Lizabeth House
 Committee" (382 contribution rows) and "Reyer, Liz Senate Committee" (45). Filtering to her
@@ -452,8 +486,8 @@ different column of the same row. Party units that state their own party in thei
 name ("Cass County RPM", "44th Senate District DFL") are counted; a filer whose name states
 no party is not classified, because asserting one would be a claim the source never makes
 (`.claude/rules/grounded-answers.md` rule 3). Measured on the 11 Aug 2026 download across
-the 122 committees these rules propose confidently, 112 carry such money and its party
-agreed with our own record on **all 112**, with 0 disagreements — and every disagreement
+the 108 committees these rules propose confidently, 100 carry such money and its party
+agreed with our own record on **all 100**, with 0 disagreements — and all 19 disagreements
 anywhere in the run fell on a namesake rather than on a name that actually matched. So a
 disagreement holds a proposal down to review; agreement is recorded as support and promotes
 nothing. This is identity evidence only. That a county party paid a committee helps say
@@ -462,7 +496,7 @@ nothing. This is identity evidence only. That a county party paid a committee he
 **Coverage is reported as two different numbers, and confusing them is the failure to
 avoid.** How much the proposer narrowed down (matched / ambiguous / unmatched) is not how
 much a person has checked (confirmed links). Measured on the 11 Aug 2026 download against
-production's 200 sitting members: **122 matched, 78 ambiguous, 0 unmatched** — every sitting
+production's 200 sitting members: **108 matched, 92 ambiguous, 0 unmatched** — every sitting
 member has at least one proposal, and none is linked until someone answers. A surname pool
 too large to show is capped and the number hidden is printed, because silently cutting the
 31 committees named Johnson would read as having considered them all.

@@ -46,7 +46,7 @@ import csv
 import enum
 import re
 import unicodedata
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
 CANDIDATE_COMMITTEE_TYPE = "PCC"
@@ -347,18 +347,25 @@ def surname_keys(member: RosterMember) -> set[str]:
     return {key for key in keys if key}
 
 
-def given_name_words(member: RosterMember) -> list[str]:
-    """The legislator's given words, in the order a person would say them.
+def member_name_words(member: RosterMember) -> list[str]:
+    """Every word of the legislator's name, title stripped, in the order a person says it."""
+    return normalize_name_part(_strip_title(member.full_name)).split()
 
-    Read off the full name rather than the stored first name, and with the surname words
-    removed, so a bad stored split cannot drop a word. "Erin K. Maye Quade" yields
-    ``["erin", "k", "maye"]`` against the surname "quade", and ``["erin", "k"]`` against
-    the surname "maye quade" — which is why the caller compares against the whole list.
+
+def given_name_words(member: RosterMember, surname_key: str | None = None) -> list[str]:
+    """The legislator's given words, with the surname taken off.
+
+    Which words count as the surname depends on **which key matched**, not on how
+    production split the name. "Erin K. Maye Quade" yields ``["erin", "k", "maye"]``
+    against the key "quade" and ``["erin", "k"]`` against the key "maye quade" — and that
+    difference is the whole point, because the leftover "maye" in the first case is what
+    tells us the key cut through a compound surname. With no key given, the stored last
+    name is used, which is what the roster-wide contest check wants.
     """
-    words = normalize_name_part(_strip_title(member.full_name)).split()
-    stored_surname = normalize_name_part(member.last_name).split()
-    if stored_surname and words[-len(stored_surname) :] == stored_surname:
-        words = words[: -len(stored_surname)]
+    words = member_name_words(member)
+    surname = normalize_name_part(surname_key or member.last_name).split()
+    if surname and len(surname) < len(words) and words[-len(surname) :] == surname:
+        return words[: -len(surname)]
     return words
 
 
@@ -391,7 +398,19 @@ def classify_given_name(
     member_first = member_given_words[0]
     nickname = normalize_name_part(parsed.published_nickname)
 
-    if committee_first and committee_first == member_first:
+    # Exact means the *words* agree, not that the first letters do. Comparing only the
+    # first word made "Dibble, D Scott" and a hypothetical "Dibble, D Steven" equally exact
+    # for Senator D. Scott Dibble, because both first words are "d" -- and a single letter
+    # separates nobody. So a real name has to match a real name: at least one word of more
+    # than one letter, present on both sides. Initials are then compared below, where they
+    # count as the weak evidence they are. (Found by a Codex review, on this actual sitting
+    # member; the match happens to be right today and the rule that produced it was not.)
+    committee_real_words = {word for word in committee_words if len(word) > 1}
+    member_real_words = {word for word in member_given_words if len(word) > 1}
+    if committee_real_words & member_real_words and (
+        committee_first == member_first
+        or (len(committee_first) == 1 and len(member_first) == 1)
+    ):
         return GivenNameEvidence.exact
     if nickname and nickname == member_first:
         return GivenNameEvidence.published_nickname
@@ -401,8 +420,11 @@ def classify_given_name(
     ):
         return GivenNameEvidence.shortened
     # The legislator goes by a middle name the Board files second: production's
-    # "Bjorn Olson" is the Board's "Olson, Christian Bjorn", and "Liz Lee" is
-    # "Lee, Kaozouapa Elizabeth".
+    # "Bjorn Olson" is the Board's "Olson, Christian Bjorn". Note this reaches fewer cases
+    # than it looks like it should -- "Liz Lee" is the Board's "Lee, Kaozouapa Elizabeth",
+    # and "Elizabeth" does not begin with "Liz", so she lands in ``surname_only`` and a
+    # person reads her three same-surname committees. That is the right outcome; the point
+    # here is that the rule is narrower than the example suggests.
     for word in committee_words[1:]:
         if word == member_first or _is_shortened(member_first, word):
             return GivenNameEvidence.middle_name
@@ -424,9 +446,42 @@ def classify_party_unit_name(contributor: str) -> str | None:
     `.claude/rules/grounded-answers.md` rule 3 forbids asserting.
     """
     hits = {
-        party for party, pattern in PARTY_UNIT_NAME_PATTERNS if pattern.search(contributor)
+        party
+        for party, pattern in PARTY_UNIT_NAME_PATTERNS
+        if pattern.search(contributor)
     }
     return hits.pop() if len(hits) == 1 else None
+
+
+def unexplained_member_words(
+    parsed: ParsedCommitteeName, member_given_words: Sequence[str]
+) -> list[str]:
+    """Words in *our* record of the person that the committee name does not account for.
+
+    This is the guard against a surname key that is a shortened ending of the real one.
+    ``surname_keys`` deliberately offers every trailing run of a legislator's name, which
+    is what finds "Van Binsbergen, Scott" for a member production stored as first "Scott
+    Van" / last "Binsbergen". The cost is that a *shorter* key can find a different person:
+    Senator Erin K. Maye Quade generates the key "quade", so a committee filed by an
+    unrelated "Quade, Erin" would match her on an exact given name. (Found by a Codex
+    review; the earlier code comment claimed over-generating keys was safe because a wrong
+    key finds no committee, which is false when the wrong key finds a namesake.)
+
+    Only the member's side is checked, and only words longer than one letter. A middle
+    initial the Board omits ("Senator Mark T. Johnson" against "Johnson, Mark Timothy")
+    identifies nobody, so demoting on it would cost half the Senate for no gain. A whole
+    unexplained word is different: it is either part of a compound surname the key cut
+    through, or a second given name the committee never confirms.
+    """
+    committee_words = set(normalize_name_part(parsed.given).split())
+    nickname = normalize_name_part(parsed.published_nickname)
+    if nickname:
+        committee_words.add(nickname)
+    return [
+        word
+        for word in member_given_words
+        if len(word) > 1 and word not in committee_words
+    ]
 
 
 def _years_overlap(committee: CommitteeRecord, current_years: Sequence[str]) -> bool:
@@ -471,28 +526,30 @@ def propose_for_member(
     numbers, and "Wiener, Michael" exists as both a House and a Senate committee.
 
     One further check comes from a different column of the same file, so it is independent
-    of every name rule above: which party's units gave the committee money. Across the 125
-    committees these rules proposed on the 11 Aug 2026 download, 115 carry party-unit money
-    and its party agreed with our own record on **all 115**, with 0 disagreements. So a
+    of every name rule above: which party's units gave the committee money. Across the 108
+    committees these rules propose confidently on the 11 Aug 2026 download, 100 carry
+    party-unit money and its party agreed with our own record on **all 100**, with 0
+    disagreements, while all 19 disagreements anywhere in the run fell on a namesake. So a
     disagreement is a real signal that the name matched a stranger, and it holds the
     proposal down to ``review``. Agreement is recorded as support and changes no tier,
     because a right answer for a wrong reason is still a wrong reason.
     """
     result = LegislatorProposals(member=member)
     seen: set[str] = set()
-    pairs: list[tuple[CommitteeRecord, ParsedCommitteeName]] = []
-    for key in surname_keys(member):
+    pairs: list[tuple[CommitteeRecord, ParsedCommitteeName, str]] = []
+    # Longest key first, so a committee reachable under both "maye quade" and "quade" is
+    # kept under the longer one -- the reading that explains more of the person's name.
+    for key in sorted(surname_keys(member), key=len, reverse=True):
         for committee, parsed in committees_by_surname.get(key, ()):
             if committee.registration_number in seen:
                 continue
             seen.add(committee.registration_number)
-            pairs.append((committee, parsed))
+            pairs.append((committee, parsed, key))
 
     if not pairs:
         result.no_surname_match = True
         return result
 
-    member_given = given_name_words(member)
     expected_office = next(
         (
             office
@@ -504,7 +561,8 @@ def propose_for_member(
 
     scored: list[Proposal] = []
     surname_only: list[Proposal] = []
-    for committee, parsed in pairs:
+    for committee, parsed, matched_key in pairs:
+        member_given = given_name_words(member, matched_key)
         evidence = classify_given_name(parsed, member_given)
         office_matches = parsed.office is not None and parsed.office == expected_office
         active = _years_overlap(committee, current_years)
@@ -512,6 +570,10 @@ def propose_for_member(
         reasons: list[str] = []
         if evidence not in SOURCE_STATED_GIVEN_NAME_EVIDENCE:
             reasons.append(f"given name is inferred ({evidence.value})")
+        for word in unexplained_member_words(parsed, member_given):
+            reasons.append(
+                f"our record of this person says {word!r} and the committee name does not"
+            )
         if parsed.office is None:
             reasons.append("the committee name states no office")
         elif not office_matches:
@@ -575,10 +637,30 @@ def propose_for_member(
 
     result.proposals = sorted(scored + kept_surname_only, key=rank)
 
-    # One strong proposal beside anything else is not strong. Two committees can carry the
-    # same name in the same office ("Gottfried, David House Committee", twice), so the
-    # existence of a second candidate is itself a reason for a person to look.
+    # Two things stop a proposal being strong, and both are about the *company it keeps*
+    # rather than about the proposal itself.
+    #
+    # One strong proposal beside any other candidate is not strong: two committees can
+    # carry the same name in the same office ("Gottfried, David House Committee", twice).
+    #
+    # And a suppressed same-surname committee counts too, which is less obvious. The filter
+    # above drops stale namesakes so a pool the size of Johnson's 31 stays readable, but
+    # that filter runs *before* this check, so it could hide the alternatives from a strong
+    # match. The case that bites: a legislator whose own committee has gone quiet while a
+    # namesake's is active — the real one is filtered out and the namesake stands alone
+    # looking certain. So the mere existence of another person with this surname sends it to
+    # a person. Costs 13 extra reads of 200; found by a Codex review.
+    extra_reasons: tuple[str, ...] = ()
     if len(result.proposals) > 1:
+        extra_reasons += (
+            f"{len(result.proposals)} committees are plausible for this legislator",
+        )
+    if result.suppressed_surname_only:
+        extra_reasons += (
+            f"{result.suppressed_surname_only} other committees share this surname, "
+            "so another person of this name exists",
+        )
+    if extra_reasons:
         result.proposals = [
             proposal
             if proposal.tier is not ProposalTier.strong
@@ -586,11 +668,7 @@ def propose_for_member(
                 **{
                     **proposal.__dict__,
                     "tier": ProposalTier.review,
-                    "reasons": proposal.reasons
-                    + (
-                        f"{len(result.proposals)} committees are plausible "
-                        "for this legislator",
-                    ),
+                    "reasons": proposal.reasons + extra_reasons,
                 }
             )
             for proposal in result.proposals
@@ -631,14 +709,14 @@ def find_contested_registrations(
     """
     claims: dict[str, set[str]] = {}
     for member in members:
-        member_given = given_name_words(member)
         for key in surname_keys(member):
+            member_given = given_name_words(member, key)
             for committee, parsed in committees_by_surname.get(key, ()):
                 evidence = classify_given_name(parsed, member_given)
                 if evidence in SOURCE_STATED_GIVEN_NAME_EVIDENCE:
-                    claims.setdefault(
-                        committee.registration_number, set()
-                    ).add(member.legislator_id)
+                    claims.setdefault(committee.registration_number, set()).add(
+                        member.legislator_id
+                    )
     return frozenset(
         registration for registration, owners in claims.items() if len(owners) > 1
     )
@@ -707,7 +785,9 @@ def read_contributions_csv(
             name = (row.get("Recipient") or "").strip()
             if not registration or not name:
                 continue
-            year = (row.get("Receipt date") or "")[:4] or (row.get("Year") or "").strip()
+            year = (row.get("Receipt date") or "")[:4] or (
+                row.get("Year") or ""
+            ).strip()
             entry = seen.setdefault(
                 registration,
                 {
@@ -745,7 +825,7 @@ def read_contributions_csv(
         )
         for registration, entry in seen.items()
     ]
-    # The larger side wins rather than requiring unanimity: 2 of the 125 proposed
+    # The larger side wins rather than requiring unanimity: 2 of the confidently proposed
     # committees hold money from both parties' units, and in both the smaller side is a
     # single donation against a much larger own-party total.
     party_by_registration = {

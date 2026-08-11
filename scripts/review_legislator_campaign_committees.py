@@ -28,11 +28,15 @@ hardcoded, per `campaign-finance-system-design.md` §2.1 (Campaign finance) — 
 numbers are **signed and negative**, and a stale number returns HTTP 200 with a 39 KB HTML
 error page, so the header line is checked before the file is used.
 
-Which roster to read: ``--roster-target`` picks the database the *legislators* come from
-and defaults to ``production``, because production is where the real 200 sitting members
-are. The database *written* is always ``--database-url`` / ``ALETHICAL_DATABASE_TARGET``,
-so reviewing against the real roster while writing locally is the default, not a special
-case.
+Which database: one, for both halves. A link is a legislator's id plus a registration
+number, and an id only means anything in the database that holds that legislator — so
+reading production's roster while writing locally produces rows that point at nobody, and
+the foreign key rejects them one at a time. ``--target`` therefore picks both, and
+``coverage`` and ``propose`` are safe against ``production`` because neither writes.
+
+``review`` against ``production`` writes there, one row per keystroke. That is the
+intended path: production holds the real 200 sitting members, so it is where a real
+confirmed link belongs.
 """
 
 from __future__ import annotations
@@ -46,7 +50,7 @@ import sys
 from dataclasses import dataclass
 
 import requests
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, inspect, select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
@@ -56,7 +60,6 @@ from alethical.db.session import (
     normalize_database_url,
 )
 from alethical.pipeline.legislator_committee_match import (
-    CommitteeRecord,
     LegislatorProposals,
     Proposal,
     ProposalTier,
@@ -91,9 +94,10 @@ def resolve_contributions_download_url(session: requests.Session) -> str:
     response.raise_for_status()
     for section in re.split(r"<h1[^>]*>", response.text)[1:]:
         heading, _, body = section.partition("</h1>")
-        if CONTRIBUTIONS_DATASET_HEADING not in html.unescape(
-            re.sub(r"<[^>]+>", "", heading)
-        ).strip().lower():
+        if (
+            CONTRIBUTIONS_DATASET_HEADING
+            not in html.unescape(re.sub(r"<[^>]+>", "", heading)).strip().lower()
+        ):
             continue
         for row in re.findall(r"<tr[^>]*>(.*?)</tr>", body, re.S):
             cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, re.S)
@@ -204,6 +208,10 @@ def read_roster(database_url: str) -> Roster:
             .order_by(schema.Chamber.slug, schema.Legislator.sort_name)
         ).all()
 
+    # Only the bounds, because ``_years_overlap`` compares against the earliest and latest
+    # and nothing reads the years between. Keeping it to two values also means a session
+    # record with an implausible end year (the local sample data carries year_end 2904)
+    # produces two strings rather than nine hundred.
     years: set[str] = set()
     members = []
     for row in rows:
@@ -219,7 +227,7 @@ def read_roster(database_url: str) -> Roster:
             )
         )
         if row.year_start and row.year_end:
-            years.update(str(year) for year in range(row.year_start, row.year_end + 1))
+            years.update({str(row.year_start), str(row.year_end)})
     return Roster(members=members, current_years=tuple(sorted(years)))
 
 
@@ -231,11 +239,14 @@ def describe(proposal: Proposal) -> str:
         f"   name evidence: {proposal.given_name_evidence.value}",
     ]
     if proposal.party_of_party_unit_money:
-        agreement = (
-            "agrees with our record"
-            if proposal.party_agrees
-            else "DISAGREES with our record"
-        )
+        # Three states, not two. ``party_agrees`` is None when we hold no party for this
+        # legislator, and printing that as a disagreement would tell the reviewer something
+        # false at the exact moment they are deciding -- the failure this whole review flow
+        # exists to prevent.
+        agreement = {
+            True: "agrees with our record",
+            False: "DISAGREES with our record",
+        }.get(proposal.party_agrees, "we hold no party for this legislator to compare")
         parts.append(
             f"      party units giving to it are "
             f"{proposal.party_of_party_unit_money} ({agreement})"
@@ -246,6 +257,22 @@ def describe(proposal: Proposal) -> str:
 
 
 def load_existing_decisions(session: Session) -> dict[tuple[str, str], str]:
+    """What a person has already answered, or nothing if the table is not there yet.
+
+    `coverage` and `propose` are the two commands worth running against production before
+    this table's migration has been deployed there, and both only read. Treating a missing
+    table as "no decisions yet" is true, so they answer instead of crashing. `review` writes,
+    so it is left to fail loudly rather than silently reviewing into nowhere.
+    """
+    if not inspect(session.get_bind()).has_table(
+        schema.LegislatorCampaignCommittee.__tablename__
+    ):
+        print(
+            "note: this database has no legislator_campaign_committee table yet, so no "
+            "link has been confirmed anywhere in it.",
+            file=sys.stderr,
+        )
+        return {}
     return {
         (str(row.legislator_id), row.registration_number): row.decision.value
         for row in session.scalars(select(schema.LegislatorCampaignCommittee)).all()
@@ -265,16 +292,28 @@ def print_coverage(
     rejected_links = sum(1 for value in decisions.values() if value == "rejected")
 
     print("What a person has actually checked")
-    print(f"  legislators with at least one confirmed committee: {len(confirmed_legislators)}")
+    print(
+        f"  legislators with at least one confirmed committee: {len(confirmed_legislators)}"
+    )
     print(f"  confirmed links: {confirmed_links}")
     print(f"  rejected proposals recorded: {rejected_links}")
     print()
-    print(f"What the proposer narrowed down, across {counts['total']} sitting legislators")
-    print(f"  matched    (one committee proposed, nothing competing): {counts['matched']}")
-    print(f"  ambiguous  (more than one plausible, or a soft signal): {counts['ambiguous']}")
-    print(f"  unmatched  (no committee proposed at all):              {counts['unmatched']}")
+    print(
+        f"What the proposer narrowed down, across {counts['total']} sitting legislators"
+    )
+    print(
+        f"  matched    (one committee proposed, nothing competing): {counts['matched']}"
+    )
+    print(
+        f"  ambiguous  (more than one plausible, or a soft signal): {counts['ambiguous']}"
+    )
+    print(
+        f"  unmatched  (no committee proposed at all):              {counts['unmatched']}"
+    )
     print()
-    print("A 'matched' count is not a link count. Nothing above the first block is linked.")
+    print(
+        "A 'matched' count is not a link count. Nothing above the first block is linked."
+    )
 
     unresolved = [
         result
@@ -361,9 +400,13 @@ def run_review(
             )
         for proposal in pending:
             print(f"\n  [{proposal.tier.value}] {describe(proposal)}")
-            answer = input(
-                "  Is this committee this legislator's? [y]es / [n]o / [s]kip / [q]uit: "
-            ).strip().lower()
+            answer = (
+                input(
+                    "  Is this committee this legislator's? [y]es / [n]o / [s]kip / [q]uit: "
+                )
+                .strip()
+                .lower()
+            )
             if answer.startswith("q"):
                 print(f"\nstopped. {written} decisions written.")
                 return written
@@ -390,7 +433,7 @@ def run_review(
             session.commit()
             decisions[
                 (result.member.legislator_id, proposal.committee.registration_number)
-            ] = ("confirmed" if answer.startswith("y") else "rejected")
+            ] = "confirmed" if answer.startswith("y") else "rejected"
             written += 1
     print(f"\ndone. {written} decisions written.")
     return written
@@ -412,12 +455,18 @@ def main() -> None:
         metavar="PATH",
         help="Download the contributions 'All' file to PATH and use it.",
     )
-    parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
     parser.add_argument(
-        "--roster-target",
-        default="production",
+        "--target",
+        default=os.environ.get("ALETHICAL_DATABASE_TARGET") or "production",
         choices=("production", "local"),
-        help="Which database the sitting legislators are read from (default production).",
+        help="Which database the roster is read from AND links are written to. One "
+        "setting for both: a legislator id only means anything in the database holding "
+        "that legislator. Default production, where the real sitting members are.",
+    )
+    parser.add_argument(
+        "--database-url",
+        default=None,
+        help="Override the connection outright, for both the roster and the links.",
     )
     parser.add_argument(
         "--reviewer",
@@ -434,7 +483,9 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "review" and not args.reviewer:
-        parser.error("--reviewer is required for 'review': a link records who checked it.")
+        parser.error(
+            "--reviewer is required for 'review': a link records who checked it."
+        )
     if not args.contributions and not args.download:
         parser.error("pass --contributions PATH or --download PATH.")
 
@@ -449,7 +500,17 @@ def main() -> None:
         file=sys.stderr,
     )
 
-    roster = read_roster(database_url_for_target(args.roster_target))
+    # One connection for both halves, so a confirmed link can only ever name a legislator
+    # that database actually holds.
+    database_url = normalize_database_url(
+        args.database_url or database_url_for_target(args.target)
+    )
+    roster = read_roster(database_url)
+    if not roster.members:
+        raise SystemExit(
+            "That database holds no current legislators, so there is nothing to review. "
+            "Pass --target production, or load sample data locally."
+        )
     print(
         f"read {len(roster.members)} sitting legislators; current session years "
         f"{roster.current_years[0]}-{roster.current_years[-1]}",
@@ -462,11 +523,9 @@ def main() -> None:
         party_by_registration=party_by_registration,
     )
 
-    write_url = normalize_database_url(
-        args.database_url
-        or database_url_for_target(os.environ.get("ALETHICAL_DATABASE_TARGET"))
+    engine = create_engine(
+        database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
     )
-    engine = create_engine(write_url, echo=False, connect_args=NO_PREPARED_STATEMENTS)
     with Session(engine) as session:
         if args.command == "coverage":
             print_coverage(results, load_existing_decisions(session))
