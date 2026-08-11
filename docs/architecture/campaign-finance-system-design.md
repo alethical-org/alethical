@@ -190,8 +190,9 @@ whole files and replaces whole sets.
    `docs/architecture/layer-1-source-ingestion-system-design.md` Stage 2 already requires an
    "immutable object storage path" for raw artifacts, and
    `docs/product-onboarding/product-scope.md` lists object storage for raw artifacts, so this
-   is an unbuilt requirement rather than a new one. Which home it gets is tracked on
-   [#1328](https://github.com/alethical-org/alethical/issues/1328).
+   is an unbuilt requirement rather than a new one. **§4.5 settles where these files live**;
+   the general facility for every other source is
+   [#1346](https://github.com/alethical-org/alethical/issues/1346).
 3. **Validate** (§4.3). A snapshot that fails is kept for diagnosis and never published.
 4. **Publish** by replacing the previous published set entirely.
 
@@ -252,6 +253,67 @@ decisions into three kinds and never mix them:
   stays there. It must never silently reattach to a similar-looking row in the next download.
 - **A correction meant to apply every time** becomes a written, tested rule in the importer,
   never a hidden edit to an official row.
+
+### 4.5 Where the downloaded files live, and for how long
+
+**The Board publishes no archive, so our copy is the only record of what Minnesota published
+on a given date.** The 23 download links never change; the file behind each one is replaced as
+it grows. There is no dated URL, no "as of" parameter, and no way to ask for last week's
+version. The contributions file held 583,120 rows on 10 August 2026 and 583,152 on 11 August.
+So a file we fail to keep is not re-fetchable — asking again returns a different file.
+
+That is what makes retention a correctness requirement rather than housekeeping: §4.2 traces a
+displayed figure to `(snapshot_id, row_number)`, which resolves to a line in a specific
+download, and it resolves to nothing if that download is gone.
+
+**Primary store: a private Supabase Storage bucket** (`raw-source-files`), reached over the S3
+protocol. Each body is written once under a content address (`campaign-finance/<dataset>/
+<sha256>.csv.gz`), so nothing is ever overwritten and no version history is needed.
+
+- Reached with **Storage-scoped S3 credentials**, not a service-role key. Those bypass row
+  security *within* Storage but cannot touch the database, so a leak cannot reach any data.
+  Env: `SUPABASE_STORAGE_S3_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`.
+- **Gzipped with `mtime=0`**, so compressing the same input twice produces identical bytes and
+  an unchanged file can never look like a new one. 159 MB of CSV becomes 28 MB.
+- Bodies exceed Supabase's 6 MB basic-upload recommendation (18.3 MB and 8.8 MB), so uploads go
+  through the S3 multipart path. Measured 11 Aug 2026: 18.3 MB in 9 seconds, read back
+  byte-identical, and the decompressed bytes hashed equal to the original file.
+- **Upload and verify the object before writing the database row.** An orphaned object is
+  recoverable; a row pointing at a missing object destroys the evidence it claims to have.
+- Store both hashes (raw and compressed), both sizes, the compression method and the object key
+  in Postgres. Hash the **response bytes**, never decoded text — the existing `content_hash`
+  helper takes a string and must not be reused for file identity.
+
+**Why not the database.** Our Supabase Pro plan includes 100 GB of file storage against 8 GB of
+database disk, and production already uses about 3 GB of that 8. Keeping every dated file is
+roughly 7 to 10 GB a year, which exceeds the database allowance within months while sitting
+inside the file allowance for over a decade. Beyond the included amounts, files cost $0.0213
+per GB against $0.125 for database disk. Large bodies in Postgres also ride along in every
+backup and restore.
+
+**Second copy: Cloudflare R2.** Supabase's own documentation is explicit that "database backups
+do not include objects you store via the Storage API", so the bucket is not covered by anything
+that protects the database. A free scheduled job mirrors each new object to R2 after it lands.
+Cloudflare is already ours (`alethical.com`'s DNS, with a scoped token in the gitignored
+`.env`), R2 includes 10 GB free then $0.015 per GB, and egress is free so a restore costs
+nothing. Both stores speak S3, so the mirror is one copy step rather than a second integration.
+
+**What is lost if both copies are lost, stated plainly.** Every parsed row and every file hash
+live in Postgres and are covered by database backups, so no displayed figure disappears. What
+disappears is the ability to show the source bytes behind a figure and to diagnose a
+quarantined download. Today's files remain downloadable from the Board; what could never be
+rebuilt is what the Board published on a past date.
+
+**Retention: keep every successful body and every quarantined one, indefinitely.** Only
+*parsed rows* are pruned, and only for snapshots no published release references — the checks
+in §4.3 compare against recorded measurements, not against old rows, so nothing needs the rows
+of a superseded set. Pruning successful bodies to save space would give up exactly the record
+this section exists to hold.
+
+The general facility is [#1346](https://github.com/alethical-org/alethical/issues/1346): no
+source in this repo retains bodies today, though `layer-1-source-ingestion-system-design.md`
+Stage 2 and `product-scope.md` both require it. Campaign finance is the first source to do it,
+and does it this way.
 
 ---
 
