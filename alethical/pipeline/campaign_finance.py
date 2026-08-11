@@ -1215,10 +1215,26 @@ def _record_observation(
 
 
 def live_release(db: Session) -> Optional[Any]:
-    pointer = db.get(schema.CampaignFinanceCurrentRelease, True)
+    """Which release is live, read from the database rather than from memory.
+
+    ``populate_existing=True`` is load-bearing, not tidiness. ``publish()`` moves the
+    pointer with a statement rather than through the object, and this repo's session
+    factory sets ``expire_on_commit=False``, so a caller that still holds the pointer
+    object gets the value it had *before* the publish. That is not cosmetic: with a
+    stale pointer, ``prune()`` computes an empty keep-set and **deletes the rows of
+    the release that was just published** — proved in
+    ``test_prune_reads_the_pointer_from_the_database_not_from_memory``, which reported
+    3 snapshots and every row pruned moments after they were published. It normally
+    hides because the identity map holds objects weakly, so an unreferenced pointer is
+    collected and the next read goes to the database anyway; a defect that depends on
+    garbage-collection timing is worse than one that always fires, not better.
+    """
+    pointer = db.get(schema.CampaignFinanceCurrentRelease, True, populate_existing=True)
     if pointer is None or pointer.release_id is None:
         return None
-    return db.get(schema.CampaignFinanceRelease, pointer.release_id)
+    return db.get(
+        schema.CampaignFinanceRelease, pointer.release_id, populate_existing=True
+    )
 
 
 def baseline_snapshots(db: Session) -> dict[Dataset, Any]:
@@ -1344,8 +1360,13 @@ def publish(
         text("SELECT release_id FROM cf_current_release WHERE id = true FOR UPDATE")
     ).one_or_none()
     current_release_id = pointer[0] if pointer is not None else None
+    # populate_existing, for the same reason as in live_release(): the fetch window
+    # this comparison turns on has to come from the database inside the lock, never
+    # from a copy this session read before the lock existed.
     current = (
-        db.get(schema.CampaignFinanceRelease, current_release_id)
+        db.get(
+            schema.CampaignFinanceRelease, current_release_id, populate_existing=True
+        )
         if current_release_id
         else None
     )

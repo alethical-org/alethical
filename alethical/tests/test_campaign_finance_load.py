@@ -957,6 +957,44 @@ def test_one_file_changing_while_two_do_not_publishes_a_set_from_this_run(
         )
 
 
+def test_prune_reads_the_pointer_from_the_database_not_from_memory(
+    db, board, store
+) -> None:
+    """Otherwise pruning deletes the rows of the release it just published.
+
+    ``publish()`` moves the live pointer with a statement rather than through the
+    object, and this repo's session factory sets ``expire_on_commit=False``. So a
+    caller still holding the pointer object sees the value it had before the publish,
+    ``live_release()`` answers "nothing is live", and pruning concludes that every
+    loaded snapshot is unreferenced. Measured while writing this: 3 snapshots and
+    every row pruned, moments after being published.
+
+    This test holds that reference on purpose. Without it the defect hides, because
+    the identity map holds objects weakly — an unreferenced pointer is collected and
+    the next read goes to the database anyway. A bug that depends on
+    garbage-collection timing is worse than one that always fires.
+    """
+    cf.ensure_pointer_row(db)
+    pointer = db.get(models.CampaignFinanceCurrentRelease, True)
+    assert pointer.release_id is None
+
+    published = publish_first(db, board, store)
+
+    assert published.pruned_rows == 0, "the set just published must not be pruned"
+    # Read through the same still-referenced object the loader used.
+    assert cf.live_release(db).id == published.release_id
+    release = db.get(models.CampaignFinanceRelease, published.release_id)
+    for spec in cf.DATASETS:
+        snapshot = snapshot_of(db, release, spec.dataset)
+        assert snapshot.status == SnapshotStatus.loaded
+        assert (
+            db.scalars(
+                select(spec.table).where(spec.table.snapshot_id == snapshot.id)
+            ).first()
+            is not None
+        ), f"{spec.key}: the live release lost its rows"
+
+
 def test_the_replaced_set_keeps_its_rows_for_one_generation_then_loses_them(
     db, board, store
 ) -> None:
