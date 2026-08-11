@@ -115,6 +115,13 @@ filtering brings that to 3. Senator Lindsey Port's committee (18466) is the plai
 row typed `Miscellaneous` with contributor type `Self` is a loan from the candidate to her own
 committee, carried on the filing as `Schedule A2 - LP`.
 
+**That 1.2% is not evenly spread, and it is heaviest exactly where it matters most.** Share of
+2025 rows that are not `Contribution`: candidate committees **0.36%**, committees and funds
+**0.79%**, party units **6.57%**. So the filter is roughly 18 times more load-bearing for party
+units and caucuses than for candidates — the filers whose money reaches candidates, and whose
+figures the roadmap calls the story. Anyone reading "1.2% of rows" and assuming it is spread
+evenly will under-weight this rule for the filers it protects most.
+
 **Nothing in the download tells you it arrived complete.** There is no `Content-Length`; the
 response is `Transfer-Encoding: chunked`, and a `Range` request is ignored (HTTP 200, not
 206), so a download cannot be resumed either. Worse, a download number that no longer
@@ -949,6 +956,22 @@ costs nothing extra, because each contributor-type line the route returns equals
 route's disagree, the parser is wrong and the check reports itself broken rather than failing the
 release.
 
+**The self-test is sharper for candidates than for party units, and the parser trap is the reverse.**
+A candidate committee's route response carries up to 5 contributor-type lines, each of which must
+match its own named schedule, so a parser error is caught per schedule. A party unit returns one
+combined "contributions received" line against its single `Schedule A1 - CR`, so there is one number
+to agree on: the test still catches a broken parser but can no longer say which schedule broke.
+Against that, **a party-unit document is where a heading-relative parser fails silently.** In the
+Republican Party of Minnesota's 2025 report the schedule heading sits at line 104 and its totals at
+line 1,924, because every itemized donor sits between them. Reading totals from near a heading works
+on small candidate reports and finds nothing on a large party unit.
+
+**Scaling it to every filer is the same job, three times over.** Most filers have no activity in a
+given year: 200 party units and 283 committees and funds have 2025 rows, against 299 and 526
+registered, so with the legislators a full 2025 pass is about **692 filers**. Document availability
+is *better* on that side, not worse — 56 of 56 sampled year-end reports served, against the
+wholesale pre-election failures §9.4 records for candidates.
+
 **The amendment marker cannot be backfilled before 2023.** Superseded report documents are served
 for 2023 onward only, so an older figure carries no "previously reported as" marker. Its absence in
 an older year means the document is unavailable, never that the report was never amended.
@@ -1134,10 +1157,17 @@ Recorded as not run, never as passed:
 - **The adjacency of the two report series** (§9.5) was measured on 5 filers, not on all 10
   negative committee-years, and on no year before 2024.
 - ~~**The computed itemized split against the filing's own stated split** (§7) reconciled on 2
-  filer-years at full precision.~~ **Run since, across the full 2025 population** (§9.4): 199 of
-  202 ordinary legislator-years reconcile, and the 3 that do not are all short in our rows. What
-  is still not run is the same check for any year other than 2025, and for party units, committees
-  and funds rather than legislators.
+  filer-years at full precision.~~ **Run since** (§9.4): for the 2025 sitting-legislator population
+  in full — 208 of 209, one having no 2025 year-end report, of which 199 of 202 ordinary
+  legislator-years reconcile and the 3 that do not are all short in our rows — and for a **28-filer
+  sample** of party units and of committees and funds, reconciling 27 of 28 and 28 of 28, with all
+  56 report documents served. The single party-unit failure is **HRCC (20010), the House Republican
+  Campaign Committee**: its filing itemizes $1,493,418.08 against our $1,488,168.08, short by
+  exactly $5,250.00, the same silent direction as the 3 legislator cases. Those two samples
+  establish that the comparison works and the documents are there; they do **not** establish a
+  failure rate for either kind, and HRCC is one hit rather than a measured rate. The check has not
+  run for any year before 2025, for any filer outside those samples, or for the expenditure side
+  at all.
 
 Codex reviewed this section adversarially before it was committed and could not reach
 cfb.mn.gov from its own environment, so its objections about rate limits, blocking and current
