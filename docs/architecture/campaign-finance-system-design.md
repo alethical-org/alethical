@@ -16,6 +16,28 @@ never assert that one payment caused another action.
 
 ---
 
+## Who edits this document
+
+**One session owns it. Every other session sends findings instead of editing.** Eugene's
+decision, 11 Aug 2026. Three sessions wrote this file inside three hours; nothing collided,
+because each edited a different section, and that is exactly why it went unnoticed that two
+decisions were taken against text which had already been replaced. One session recommended
+keeping downloaded files in the database an hour after its own merged work had settled on
+Supabase Storage; another merged a display rule that a third had already measured to be wrong.
+
+- **The owner today** is the session titled `Campaign Watch information architecture review`.
+  It changes only when Eugene says so.
+- **If you are another session:** post your measurement or recommendation as a comment on the
+  issue you are working, then message the owner. Do not open a pull request against this file.
+- **Send the wording you would have written**, not just the finding. The owner lands it and
+  attributes the measurement to your issue, so nothing waits on a rewrite and the document
+  keeps one voice.
+- **This is about the document, not about your work.** Nobody needs permission to measure
+  something, change code, or decide inside their own issue. What routes through one editor is
+  the text here, because this file is what later sessions treat as settled.
+
+---
+
 ## 1. Why this design, in one paragraph
 
 A working implementation of this product already exists, built on Base44 at
@@ -403,13 +425,17 @@ figures and both appear. The difference between them is usually legitimate small
 not an error and not missing data. A page must say what the difference is rather than leaving
 a reader to assume one number is wrong.
 
-**And when the reported total cannot be obtained, show no total.** §9 records that the bulk
-route to filed reports is not yet established, so at first release the only figure we hold is
-the sum of the payments we can name. Print that sum, labelled as named payments, with no
-composition bar, because there is no whole to divide. Do not print a partial figure under a
-caveat: a caveat under a large number loses to the large number, and the reader remembers the
-figure. This is the state that ships until [#1337](https://github.com/alethical-org/alethical/issues/1337)
-closes, so it is the primary case a design draws, not an edge one.
+**And where the official total is not available, show no total at all.** This paragraph said the
+opposite until [#1337](https://github.com/alethical-org/alethical/issues/1337) closed a few hours
+after it was written: the route in §9 does supply the official total for the regular report
+series, so **the two-number card is the ordinary case a design draws, not a later upgrade.**
+What remains is a real gap, and it is per filer-year rather than product-wide. Special-election
+candidates file a second report series that the route does not return, so the subtraction goes
+negative on 10 of 407 measured committee-years, and §9.5 is explicit that a negative result is a
+failed reconciliation rather than a number to clamp. For those filer-years, and for any the
+route does not cover, print the named payments alone, labelled as named payments, with no
+composition bar, because there is no whole to divide. Never print a partial figure under a
+caveat: a caveat under a large number loses to the large number, and the reader keeps the figure.
 
 **A missing surface makes a claim too, so the tab always renders.** A legislator's campaign
 money is a tab on the profile they already have, and it appears for every member whether or
