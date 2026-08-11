@@ -4,6 +4,7 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --dir apps/frontend run build",
   "outputDirectory": "apps/frontend/dist",
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/_expo/static/(.*)",
