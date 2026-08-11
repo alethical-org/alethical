@@ -1,6 +1,6 @@
 # How sharing works
 
-<!-- describes: apps/frontend/src/lib/share.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
+<!-- describes: apps/frontend/src/lib/share.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
 
 Share sends the page a reader chose, with enough plain-language context for another person to know why the link matters. Copy link remains the dependable choice when another app cannot accept prepared text.
 
@@ -68,7 +68,7 @@ Preview services keep their own caches, so a card already posted elsewhere may t
 
 ## What search engines get
 
-Search engines used to receive the same nameless page for every address, which made ~10,700 pages look like one page repeated. Each address now names itself in the very first response, before any of the app's own code runs.
+Search engines used to receive the same nameless page for every address, which made ~10,700 pages look like one page repeated. Each address now names itself in the very first response, before any of the app's own code runs, and a bill or legislator page also carries a short factual summary in that same response.
 
 - **The browser tab and the preview say the same thing.** A bill page opens with the bill's number and year straight away, and gains its short title the moment the bill loads.
 - **An address with no record behind it says so.** A bill or legislator that does not exist answers "not found" rather than a blank page that looks successful.
@@ -76,5 +76,31 @@ Search engines used to receive the same nameless page for every address, which m
 - **`robots.txt`** (`https://www.alethical.com/robots.txt`) blocks nothing from being read. It points at the sitemap, and turns away only the two crawlers that exist to collect writing for training future AI models. Every search crawler and every "someone asked a question about this page" crawler is welcome.
 - **`sitemap.xml`** (`https://www.alethical.com/sitemap.xml`) lists every bill and every legislator, not a popular subset, each with the date its record really last changed. It is built when asked for and then cached, so a newly ingested bill appears without waiting for a release.
 - **Answer pages are readable but unlisted.** An `/ask` page asks not to appear in results, in its own response. It is deliberately not blocked in `robots.txt`, because a crawler that is blocked from fetching a page can never read the instruction inside it.
+
+## The text that arrives before the page finishes loading
+
+A bill page and a legislator page arrive with real words already in them, rather than an empty page
+the app fills in a second later. Correct titles alone were not enough: Google often ignores the
+description a page supplies and writes the result text from what it can actually see on the page.
+
+A **bill** arrives with its plain-language title, its bill code and session, its key points (or its
+summary, when a bill has no key points), where it stands, its chief author, and links to the bill on
+revisor.mn.gov, to that author's profile, and to the bill list. A **legislator** arrives with their
+name, chamber and district, party, committee assignments, capitol office and phone, and links to
+their official chamber profile and to the member list. Lists, answer pages, and the legal pages carry
+no such summary, because a list is a list of other records rather than a record of its own.
+
+**Every word of it is a word the page itself then shows.** There is no separate version written for
+robots. The served text is built from the very same functions the screens use, and a test renders the
+real bill header and summary tab from a real bill and fails if any served line is missing from what
+they draw (`apps/frontend/src/lib/__tests__/pageSnapshot.test.tsx`). One thing is deliberately left
+out rather than added: a bill with no plain-language title is headed by its number alone, never by
+its official statutory title, which is a paragraph of legal cross-references
+(`.claude/rules/grounded-answers.md` rule 10).
+
+The summary sits inside the app's own mount point, which the app empties the instant it draws its
+first screen, so the two are never on screen together. Measured on a real browser against the live
+program: one change to that element, at 60 milliseconds, and no moment showing both. If the program
+fails to load at all, the summary simply stays, which is the other reason for putting it there.
 
 The reasoning behind each of those choices, and the options that lost, are in `docs/architecture/page-metadata-for-search-and-sharing-decisions.md`.
