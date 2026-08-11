@@ -57,8 +57,10 @@ every row, and prune the set it had just replaced.
 Two things a reader of this data must know. A request must **resolve one release id
 and use it for all 3 datasets**: each statement sees the newest committed state, so
 re-resolving "the live release" per query can hand back a mixed set. And the rows
-of a superseded release are pruned, so a stale release id resolves to no rows
-rather than to old ones — re-resolve rather than caching an id across requests.
+of a superseded release survive one further publish and are then pruned, which is
+enough for a request that resolved that release moments before a publish; an id
+cached for longer than that resolves to no rows, so re-resolve rather than keeping
+one.
 """
 
 from __future__ import annotations
@@ -80,6 +82,7 @@ from typing import Any, Iterable, Optional
 
 import requests
 from sqlalchemy import delete, func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
@@ -110,6 +113,12 @@ COPY_CHUNK_BYTES = 1 << 20
 # transaction pooler, where a session-level lock can outlive the client that took
 # it and is never safe.
 PUBLISH_LOCK_KEY = 610312263010
+
+# How many superseded releases keep their rows after being replaced. One, so a
+# request that resolved the previous release a moment before a publish still finds
+# its rows instead of an empty page (see prune()). Measured cost: 51 MB per
+# generation against 8 GB of database disk.
+KEEP_SUPERSEDED_GENERATIONS = 1
 
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 FOUR_DIGIT_YEAR = re.compile(r"^\d{4}$")
@@ -1102,55 +1111,93 @@ def record_fetch(
 
     Returns the snapshot id and whether the records were already on file.
     """
+    existing = find_snapshot(db, outcome)
+    if existing is None:
+        # Two runs can reach here with the same new records and both find nothing.
+        # The unique index on (dataset, record_set_hash) is what actually decides, so
+        # the loser re-reads rather than dying: without this, a second concurrent
+        # import ends in an IntegrityError traceback instead of correctly finding that
+        # these records are already on file.
+        try:
+            return _create_snapshot_and_record(
+                db, outcome, store, directory, ingestion_run_id
+            )
+        except IntegrityError:
+            db.rollback()
+            existing = find_snapshot(db, outcome)
+            if existing is None:  # pragma: no cover - the index is what conflicted
+                raise
+    return _record_observation(db, outcome, existing, ingestion_run_id, reused=True)
+
+
+def _create_snapshot_and_record(
+    db: Session,
+    outcome: DatasetOutcome,
+    store: Any,
+    directory: str,
+    ingestion_run_id: Optional[uuid.UUID],
+) -> tuple[uuid.UUID, bool]:
+    """Create the snapshot for records not on file, store its bytes, record the fetch."""
     spec = outcome.spec
     fetched = outcome.fetched
     measured = outcome.measurements
-    existing = find_snapshot(db, outcome)
-
-    if existing is None:
-        snapshot = schema.CampaignFinanceSnapshot(
-            # Generated before the parse, so the COPY file this run already wrote
-            # carries the right id.
-            id=outcome.candidate_snapshot_id,
-            dataset=spec.dataset,
-            download_id=fetched.download_id,
-            source_url=fetched.requested_url,
-            content_disposition_filename=fetched.disposition_filename,
-            content_hash=fetched.content_hash,
-            record_set_hash=(measured.record_set_hash or None) if measured else None,
-            byte_size=fetched.byte_size,
-            status=SnapshotStatus.quarantined
-            if fetched.content_error or (measured and measured.errors)
-            else SnapshotStatus.fetched,
-            error_text=fetched.content_error,
-            validation_json={},
+    snapshot = schema.CampaignFinanceSnapshot(
+        # Minted before the parse, so the COPY file this run already wrote carries
+        # the right id.
+        id=outcome.candidate_snapshot_id,
+        dataset=spec.dataset,
+        download_id=fetched.download_id,
+        source_url=fetched.requested_url,
+        content_disposition_filename=fetched.disposition_filename,
+        content_hash=fetched.content_hash,
+        record_set_hash=(measured.record_set_hash or None) if measured else None,
+        byte_size=fetched.byte_size,
+        status=SnapshotStatus.quarantined
+        if fetched.content_error or (measured and measured.errors)
+        else SnapshotStatus.fetched,
+        error_text=fetched.content_error,
+        validation_json={},
+    )
+    db.add(snapshot)
+    db.flush()
+    key = object_key(spec, fetched.content_hash)
+    compressed_path = os.path.join(directory, f"{spec.key}.csv.gz")
+    compressed_hash, compressed_size = gzip_to(fetched.path, compressed_path)
+    # Read back and verify before the row exists. An orphaned object is recoverable;
+    # a row pointing at a missing body destroys the evidence it claims to have.
+    store.put_and_verify(key, compressed_path, compressed_hash)
+    os.remove(compressed_path)
+    db.add(
+        schema.CampaignFinanceSnapshotBody(
+            snapshot_id=snapshot.id,
+            object_key=key,
+            compressed_hash=compressed_hash,
+            compressed_byte_size=compressed_size,
+            compression="gzip",
         )
-        db.add(snapshot)
-        db.flush()
-        key = object_key(spec, fetched.content_hash)
-        compressed_path = os.path.join(directory, f"{spec.key}.csv.gz")
-        compressed_hash, compressed_size = gzip_to(fetched.path, compressed_path)
-        # Read back and verify before the row exists. An orphaned object is
-        # recoverable; a row pointing at a missing body destroys the evidence it
-        # claims to have.
-        store.put_and_verify(key, compressed_path, compressed_hash)
-        os.remove(compressed_path)
-        db.add(
-            schema.CampaignFinanceSnapshotBody(
-                snapshot_id=snapshot.id,
-                object_key=key,
-                compressed_hash=compressed_hash,
-                compressed_byte_size=compressed_size,
-                compression="gzip",
-            )
-        )
-    else:
-        snapshot = existing
+    )
+    return _record_observation(db, outcome, snapshot, ingestion_run_id, reused=False)
 
+
+def _record_observation(
+    db: Session,
+    outcome: DatasetOutcome,
+    snapshot: Any,
+    ingestion_run_id: Optional[uuid.UUID],
+    *,
+    reused: bool,
+) -> tuple[uuid.UUID, bool]:
+    """Append this download to the record, with its own byte hash and size.
+
+    Every download gets one of these whether or not anything changed, which is what
+    makes "all 3 files were confirmed current in the same run" a recorded fact. It is
+    also where a reshuffled download's byte hash is kept when its bytes were not.
+    """
+    fetched = outcome.fetched
     db.add(
         schema.CampaignFinanceFetchObservation(
             snapshot_id=snapshot.id,
-            dataset=spec.dataset,
+            dataset=outcome.spec.dataset,
             ingestion_run_id=ingestion_run_id,
             download_id=fetched.download_id,
             requested_url=fetched.requested_url,
@@ -1160,11 +1207,11 @@ def record_fetch(
             byte_size=fetched.byte_size,
             content_hash=fetched.content_hash,
             response_headers=fetched.response_headers,
-            reused_existing_snapshot=existing is not None,
+            reused_existing_snapshot=reused,
         )
     )
     db.commit()
-    return snapshot.id, existing is not None
+    return snapshot.id, reused
 
 
 def live_release(db: Session) -> Optional[Any]:
@@ -1400,16 +1447,32 @@ def prune(db: Session) -> tuple[int, int]:
     rows would be reused as "unchanged" the next time the Board republishes those
     exact bytes, and would publish a dataset with nothing in it.
 
+    **The release this one just superseded keeps its rows, for one generation.** A
+    reader resolves the live release in one statement and queries rows in the next,
+    and each statement sees the newest committed state, so deleting the previous set
+    the instant a new one lands hands a request that started moments earlier **zero
+    rows** — which a page renders as "this committee has no payments", the exact
+    missing-versus-zero failure `.claude/rules/grounded-answers.md` rule 12 forbids.
+    One spare generation is 51 MB measured, against 8 GB of database disk, and the
+    *next* publish removes it, so nothing accumulates.
+
     Only rows are pruned. Every body is kept indefinitely, including every
     quarantined one, because the checks compare recorded measurements rather than
     old rows and the Board keeps no archive of its own.
     """
     release = live_release(db)
-    keep = (
-        {getattr(release, column) for column in RELEASE_SNAPSHOT_COLUMN.values()}
-        if release is not None
-        else set()
-    )
+    keep: set[uuid.UUID] = set()
+    if release is not None:
+        keep |= {
+            getattr(release, column) for column in RELEASE_SNAPSHOT_COLUMN.values()
+        }
+    for older in db.scalars(
+        select(schema.CampaignFinanceRelease)
+        .where(schema.CampaignFinanceRelease.status == ReleaseStatus.superseded)
+        .order_by(schema.CampaignFinanceRelease.superseded_at.desc())
+        .limit(KEEP_SUPERSEDED_GENERATIONS)
+    ).all():
+        keep |= {getattr(older, column) for column in RELEASE_SNAPSHOT_COLUMN.values()}
     snapshots = 0
     rows = 0
     for spec in DATASETS:

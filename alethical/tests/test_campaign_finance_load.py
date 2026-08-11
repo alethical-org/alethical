@@ -648,12 +648,13 @@ def test_reloading_a_pruned_set_uses_the_kept_file_so_record_numbers_still_point
         for row in contribution_rows(db, original_snapshot.id)
     ]
 
-    # A genuinely different set, which supersedes and prunes the first.
-    board.set_rows(
-        Dataset.contributions,
-        [row.replace("Retired", "Nurse") for row in CONTRIBUTION_ROWS],
-    )
-    run(db, board, store)
+    # Two genuinely different sets, so the first is 2 generations back and pruned.
+    for replacement in ("Nurse", "Baker"):
+        board.set_rows(
+            Dataset.contributions,
+            [row.replace("Retired", replacement) for row in CONTRIBUTION_ROWS],
+        )
+        run(db, board, store)
     db.expire_all()
     assert original_snapshot.status == SnapshotStatus.pruned
 
@@ -687,11 +688,12 @@ def test_a_kept_body_that_no_longer_reproduces_its_records_stops_the_run(
     snapshot = snapshot_of(db, release, Dataset.contributions)
     body = db.get(models.CampaignFinanceSnapshotBody, snapshot.id)
 
-    board.set_rows(
-        Dataset.contributions,
-        [row.replace("Retired", "Nurse") for row in CONTRIBUTION_ROWS],
-    )
-    run(db, board, store)
+    for replacement in ("Nurse", "Baker"):
+        board.set_rows(
+            Dataset.contributions,
+            [row.replace("Retired", replacement) for row in CONTRIBUTION_ROWS],
+        )
+        run(db, board, store)
 
     import gzip as gziplib
 
@@ -935,19 +937,12 @@ def test_one_file_changing_while_two_do_not_publishes_a_set_from_this_run(
     old = db.get(models.CampaignFinanceRelease, first.release_id)
     assert old.status == ReleaseStatus.superseded
     assert live(db).id == second.release_id
-    # The superseded contributions snapshot keeps its body and its measurements and
-    # loses only its parsed rows.
+    # The set it replaced keeps its rows for one generation, so a request that
+    # resolved it a moment ago still finds them. See the grace-window test below.
     superseded = snapshot_of(db, old, Dataset.contributions)
-    assert superseded.status == SnapshotStatus.pruned
+    assert superseded.status == SnapshotStatus.loaded
     assert db.get(models.CampaignFinanceSnapshotBody, superseded.id) is not None
-    assert (
-        db.scalars(
-            select(models.CampaignFinanceContributionRow).where(
-                models.CampaignFinanceContributionRow.snapshot_id == superseded.id
-            )
-        ).first()
-        is None
-    )
+    assert len(contribution_rows(db, superseded.id)) == len(CONTRIBUTION_ROWS)
     # The 2 unchanged files keep their rows, because the new release still names them.
     for dataset in (Dataset.expenditures, Dataset.independent_expenditures):
         kept = snapshot_of(db, release, dataset)
@@ -962,6 +957,50 @@ def test_one_file_changing_while_two_do_not_publishes_a_set_from_this_run(
         )
 
 
+def test_the_replaced_set_keeps_its_rows_for_one_generation_then_loses_them(
+    db, board, store
+) -> None:
+    """Deleting the old rows the instant a new set lands would empty a live page.
+
+    A reader resolves the live release in one statement and asks for rows in the
+    next, and each statement sees the newest committed state. So a request that
+    started moments before a publish would find **zero rows** for a release that was
+    live when it started, and a page renders that as "this committee has no
+    payments" — the missing-versus-zero failure `.claude/rules/grounded-answers.md`
+    rule 12 forbids. One spare generation is 51 MB measured; the next publish removes
+    it, so nothing accumulates.
+    """
+    first = publish_first(db, board, store)
+    generation_1 = snapshot_of(
+        db,
+        db.get(models.CampaignFinanceRelease, first.release_id),
+        Dataset.contributions,
+    )
+
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("Retired", "Nurse") for row in CONTRIBUTION_ROWS],
+    )
+    run(db, board, store)
+    db.expire_all()
+    assert generation_1.status == SnapshotStatus.loaded
+    assert len(contribution_rows(db, generation_1.id)) == len(CONTRIBUTION_ROWS)
+
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("Retired", "Baker") for row in CONTRIBUTION_ROWS],
+    )
+    third = run(db, board, store)
+    assert third.published
+    db.expire_all()
+    # Now 2 generations back, so its rows go and its body and measurements stay.
+    assert generation_1.status == SnapshotStatus.pruned
+    assert contribution_rows(db, generation_1.id) == []
+    assert db.get(models.CampaignFinanceSnapshotBody, generation_1.id) is not None
+    assert generation_1.row_count == len(CONTRIBUTION_ROWS)
+    assert third.pruned_snapshots == 1
+
+
 def test_a_republished_set_whose_rows_were_pruned_is_reloaded_not_reused(
     db, board, store
 ) -> None:
@@ -972,12 +1011,13 @@ def test_a_republished_set_whose_rows_were_pruned_is_reloaded_not_reused(
     """
     original_rows = list(CONTRIBUTION_ROWS)
     publish_first(db, board, store)
-    changed = list(original_rows)
-    changed[0] = changed[0].replace("Retired", "Teacher")
-    board.set_rows(Dataset.contributions, changed)
-    run(db, board, store)
+    for replacement in ("Teacher", "Baker"):
+        changed = list(original_rows)
+        changed[0] = changed[0].replace("Retired", replacement)
+        board.set_rows(Dataset.contributions, changed)
+        run(db, board, store)
 
-    # Back to the exact original bytes, whose snapshot is now pruned.
+    # Back to the exact original records, whose snapshot is now pruned.
     board.set_rows(Dataset.contributions, original_rows)
     third = run(db, board, store)
     assert third.published
