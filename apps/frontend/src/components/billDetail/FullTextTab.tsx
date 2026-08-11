@@ -177,10 +177,9 @@ export function FullTextTab({
   sectionHeadingLevel = 2,
 }: {
   bill: Bill;
-  /** Anchor value a citation chip asked us to jump to — `laws.0.1.0-4`, the same
-   *  string a shared `#ft-` fragment carries. A chip whose section could not be
-   *  pinned to one position passes the bare id and lands on the first section
-   *  carrying it. */
+  /** Anchor value a citation link asked us to jump to — `laws.0.1.0-4`, the same
+   *  string a shared `#ft-` fragment carries. Old id-only links still land on the
+   *  first matching section, but new citation links require an exact position. */
   targetSectionAnchor?: string | null;
   onAnchorConsumed?: () => void;
   updatedLabel: string;

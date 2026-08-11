@@ -742,10 +742,9 @@ export function resolveSectionAnchor<T extends SectionAnchor>(
   return sections.find((s) => s.sectionId === target.sectionId) ?? null;
 }
 
-/** The anchor value a citation chip jumps to. `sectionOrder` is present whenever
- *  the API could pin the citation to one section; without it the chip falls back
- *  to the bare id and lands on the first section carrying it, which is the best
- *  available guess and is what the tab has always done. */
+/** The anchor value for a citation's stored section identity. Exact public links
+ *  use `citationSectionHref` instead, which refuses an id-only guess. This helper
+ *  keeps the old bare-id shape readable for grouping and already-shared links. */
 export function citationSectionAnchor(citation: {
   sectionId: string;
   sectionOrder?: number | null;
@@ -754,4 +753,30 @@ export function citationSectionAnchor(citation: {
     sectionId: citation.sectionId,
     sourceOrder: typeof citation.sectionOrder === 'number' ? citation.sectionOrder : null,
   });
+}
+
+/**
+ * The public address of one exactly identified cited section. A section id alone
+ * is not enough: some bills repeat the same id, so linking without the 1-based
+ * section position can send a reader to the wrong passage (#854, #1405).
+ */
+export function citationSectionHref(
+  billId: string,
+  citation: { sectionId: string; sectionOrder?: number | null },
+): string | null {
+  const sectionId = citation.sectionId.trim();
+  const sectionOrder = citation.sectionOrder;
+  if (
+    !billId.trim() ||
+    !sectionId ||
+    typeof sectionOrder !== 'number' ||
+    !Number.isInteger(sectionOrder) ||
+    sectionOrder < 1
+  ) {
+    return null;
+  }
+  return `/bills/${encodeURIComponent(billId)}?tab=text#${sectionAnchorId({
+    sectionId,
+    sourceOrder: sectionOrder,
+  })}`;
 }

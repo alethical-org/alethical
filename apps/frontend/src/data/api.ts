@@ -12,6 +12,7 @@ import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
 import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
 import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
+import { legislativeServiceFromHistory } from '../lib/legislatorProfile';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -21,7 +22,6 @@ import {
   Chamber,
   ChatSession,
   Citation,
-  LegislativeService,
   LegislativeSession,
   Legislator,
   LegislatorVote,
@@ -1167,27 +1167,6 @@ function cleanOfficeAddress(value?: string | null) {
   return unique.join('\n') || undefined;
 }
 
-// Shape the API's ordered election history into the design's per-chamber lines
-// ("Elected to the House: 2012, re-elected 2014…") + current-chamber term
-// ("1st"). Returns null when the bio carried no history (issue #486).
-function mapServiceHistory(payload?: ApiServiceHistoryPayload | null): LegislativeService | null {
-  if (!payload || payload.periods.length === 0) {
-    return null;
-  }
-  const lines = payload.periods.map((period) => {
-    const chamber = toLegislatorChamber(period.chamber);
-    const elected =
-      period.reelection_years.length > 0
-        ? `${period.initial_year}, re-elected ${period.reelection_years.join(', ')}`
-        : `${period.initial_year}`;
-    return { chamber, label: `Elected to the ${chamber}`, elected };
-  });
-  return {
-    lines,
-    term: payload.term != null ? ordinal(payload.term) : null,
-  };
-}
-
 export function mapLegislator(
   payload: ApiLegislatorListItemPayload | ApiLegislatorDetailPayload,
 ): Legislator {
@@ -1246,7 +1225,7 @@ export function mapLegislator(
     // the old fabricated single "2025–present" entry is gone.
     serviceHistory: [],
     legislativeService:
-      'service_history' in payload ? mapServiceHistory(payload.service_history) : null,
+      'service_history' in payload ? legislativeServiceFromHistory(payload.service_history) : null,
     questionPrompts: [
       `Summarize ${displayName}'s authored bills this session.`,
       `What committees or policy areas are connected to ${displayName}?`,

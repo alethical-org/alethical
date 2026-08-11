@@ -74,7 +74,7 @@ import {
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
-import { citationSectionAnchor } from '../../lib/billText';
+import { citationSectionAnchor, citationSectionHref } from '../../lib/billText';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
@@ -834,26 +834,33 @@ function BillDetailMobileScreen() {
                     <CircleCheck />
                   </View>
                   <View style={styles.citedChips}>
-                    {vm.citations.map((c, i) => (
-                      <Pressable
-                        key={`${c.id}-${i}`}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Jump to ${citationChipLabel(c.label, c.sectionTopic)} in Bill Text`}
-                        disabled={!c.sectionId}
-                        onPress={() => {
-                          setFtAnchor(citationSectionAnchor(c));
-                          jumpTo('fulltext');
-                        }}
-                        style={({ pressed }) => [
-                          styles.citedChip,
-                          pressed && styles.citedChipPressed,
-                        ]}
-                      >
-                        <Text style={styles.citedChipText}>
-                          {citationChipLabel(c.label, c.sectionTopic)}
-                        </Text>
-                      </Pressable>
-                    ))}
+                    {vm.citations.map((c, i) => {
+                      const href = citationSectionHref(bill.id, c);
+                      const label = citationChipLabel(c.label, c.sectionTopic);
+                      if (!href) {
+                        return (
+                          <View key={`${c.id}-${i}`} style={styles.citedChip}>
+                            <Text style={styles.citedChipText}>{label}</Text>
+                          </View>
+                        );
+                      }
+                      return (
+                        <Pressable
+                          key={`${c.id}-${i}`}
+                          {...linkProps(href, () => {
+                            setFtAnchor(citationSectionAnchor(c));
+                            jumpTo('fulltext');
+                          })}
+                          accessibilityLabel={`Jump to ${label} in Bill Text`}
+                          style={({ pressed }) => [
+                            styles.citedChip,
+                            pressed && styles.citedChipPressed,
+                          ]}
+                        >
+                          <Text style={styles.citedChipText}>{label}</Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 </View>
               ) : null}

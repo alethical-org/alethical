@@ -10,7 +10,7 @@ import {
   scopedChipQuery,
   suggestedQuestionIndex,
 } from '../../lib/billDetail';
-import { citationSectionAnchor } from '../../lib/billText';
+import { citationSectionAnchor, citationSectionHref } from '../../lib/billText';
 import { usePrefetchSuggestedAnswer } from '../../hooks/useAppQueries';
 import { linkProps, routePath } from '../../navigation/links';
 import { CitationCard, SuggestedQuestionChip } from './CitationCard';
@@ -43,8 +43,7 @@ export function SummaryTab({
   updatedLabel: string;
   // Jump to a cited statute section in the Bill Text tab, by anchor value
   // (`laws.0.1.0-4`) — the section id alone does not identify a section (#854).
-  // No-op if absent.
-  onCitationPress?: (sectionAnchor: string) => void;
+  onCitationPress: (sectionAnchor: string) => void;
   // Open the Actions tab — the rail's "See dates" target for a phased law (#715).
   onJumpToActions: () => void;
 }) {
@@ -112,19 +111,22 @@ export function SummaryTab({
                 </View>
               </View>
               <View style={styles.excerpts}>
-                {citations.map((c) => (
-                  <CitationCard
-                    key={c.id}
-                    label={c.label}
-                    sectionTopic={c.sectionTopic}
-                    excerpts={[c.excerpt]}
-                    onPress={
-                      onCitationPress && c.sectionId
-                        ? () => onCitationPress(citationSectionAnchor(c))
-                        : undefined
-                    }
-                  />
-                ))}
+                {citations.map((c) => {
+                  const href = citationSectionHref(bill.id, c);
+                  return (
+                    <CitationCard
+                      key={c.id}
+                      label={c.label}
+                      sectionTopic={c.sectionTopic}
+                      excerpts={[c.excerpt]}
+                      linkProps={
+                        href
+                          ? linkProps(href, () => onCitationPress(citationSectionAnchor(c)))
+                          : undefined
+                      }
+                    />
+                  );
+                })}
               </View>
             </>
           ) : null}

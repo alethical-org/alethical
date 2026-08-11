@@ -91,19 +91,22 @@ the app fills in a second later. Correct titles alone were not enough: Google of
 description a page supplies and writes the result text from what it can actually see on the page.
 
 A **bill** arrives with its plain-language title, its bill code and session, its key points (or its
-summary, when a bill has no key points), where it stands, its chief author, and links to the bill on
-revisor.mn.gov, to that author's profile, and to the bill list. A **legislator** arrives with their
-name, chamber and district, party, committee assignments, capitol office and phone, and links to
-their official chamber profile and to the member list. Home, Find My Legislator, and the plain Bills
-and Legislators directories arrive with their own readable text and links. Filtered lists, answer
-pages, and legal pages carry no first-response snapshot.
+summary, when a bill has no key points), where it stands, its chief author, the cited-section labels
+the Summary tab shows, and links to the exact current-version passages when their positions are
+known. It also links to the bill on revisor.mn.gov, to that author's profile, and to the bill list. A
+**legislator** arrives with their name, chamber and district, party, committee assignments, stored
+biography and legislative service when present, capitol office and phone, and links to their official
+chamber profile and to the member list. Home, Find My Legislator, and the plain Bills and Legislators
+directories arrive with their own readable text and links. Filtered lists, answer pages, and legal
+pages carry no first-response snapshot.
 
 **Every word of it is a word the page itself then shows.** There is no separate version written for
-robots. The served text is built from the very same functions the screens use, and a test renders the
-real bill header and summary tab from a real bill and fails if any served line is missing from what
-they draw (`apps/frontend/src/lib/__tests__/pageSnapshot.test.tsx`). One thing is deliberately left
-out rather than added: a bill with no plain-language title is headed by its number alone, never by
-its official statutory title, which is a paragraph of legal cross-references
+robots. The served text is built from the very same functions the screens use, including the shared
+legislative-service formatter, and a test renders the real bill header and summary tab from a real
+bill and fails if any served line or exact evidence link is missing from what they draw
+(`apps/frontend/src/lib/__tests__/pageSnapshot.test.tsx`). One thing is deliberately left out rather
+than added: a bill with no plain-language title is headed by its number alone, never by its official
+statutory title, which is a paragraph of legal cross-references
 (`.claude/rules/grounded-answers.md` rule 10).
 
 The summary sits inside the app's own mount point, which the app empties the instant it draws its

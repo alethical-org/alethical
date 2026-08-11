@@ -3,17 +3,22 @@ import {
   bienniumEyebrow,
   billOverviewUrl,
   chiefAuthor,
+  citationChipLabel,
+  citationsBySection,
   partyFull,
   plainBillSummary,
   plainKeyPoints,
   stageLabel,
   statusLabel,
 } from './billDetail';
+import { citationSectionHref } from './billText';
 import {
+  legislativeServiceFromHistory,
   legislatorDisplayName,
   legislatorDistrictLine,
   splitOfficeAddress,
 } from './legislatorProfile';
+import type { Citation } from '../data/types';
 import { billNumberFromId, escapeHtml } from './share';
 import {
   BILL_DIRECTORY_HEADING,
@@ -80,7 +85,22 @@ export interface PageSnapshot {
   bodyIsList: boolean;
   /** The records shown on this directory page, each as a normal crawlable link. */
   records?: SnapshotRecordLink[];
+  /** Extra factual blocks that the loaded page also draws. */
+  sections?: SnapshotSection[];
   links: SnapshotLink[];
+}
+
+export interface SnapshotSectionItem {
+  label: string;
+  /** Absent when the record cannot identify one safe destination. */
+  href?: string;
+}
+
+export interface SnapshotSection {
+  heading: string;
+  body?: string[];
+  bodyIsList?: boolean;
+  items?: SnapshotSectionItem[];
 }
 
 function clean(value: string | null | undefined): string {
@@ -265,6 +285,15 @@ export interface BillSnapshotSource {
     short_title?: string | null;
     summary?: string | null;
     key_points?: string[] | null;
+    citations?: Array<{
+      id?: string | null;
+      label?: string | null;
+      excerpt?: string | null;
+      url?: string | null;
+      section_id?: string | null;
+      section_order?: number | null;
+      section_topic?: string | null;
+    }> | null;
   } | null;
 }
 
@@ -300,6 +329,22 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
   const authorName = author ? authorNameOnly(author.name) : '';
 
   const overview = billOverviewUrl(bill.official_url ?? undefined);
+  const citations: Citation[] = (bill.ai_analysis?.citations ?? [])
+    .filter((citation) => clean(citation.label).length > 0)
+    .map((citation, index) => ({
+      id: clean(citation.id) || `citation-${index}`,
+      label: clean(citation.label),
+      excerpt: clean(citation.excerpt),
+      url: clean(citation.url),
+      sectionId: clean(citation.section_id),
+      sectionOrder: typeof citation.section_order === 'number' ? citation.section_order : null,
+      sectionTopic: clean(citation.section_topic),
+    }));
+  const citedSections = citationsBySection(citations).map((citation) => {
+    const label = citationChipLabel(citation.label, citation.sectionTopic);
+    const href = citationSectionHref(bill.id, citation);
+    return href ? { label, href } : { label };
+  });
 
   return {
     heading: shortTitle || identifier,
@@ -307,6 +352,9 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
     bodyHeading: keyPoints.length ? 'Key points' : 'Summary',
     body: keyPoints.length ? keyPoints : summary ? [summary] : [],
     bodyIsList: keyPoints.length > 0,
+    sections: citedSections.length
+      ? [{ heading: 'Cited sections', items: citedSections }]
+      : undefined,
     facts: [
       ...fact('Where it stands', stageLabel(statusLabel(bill.status_key, bill.current_status))),
       ...fact('Chief author', authorName),
@@ -325,6 +373,7 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
 
 export interface LegislatorSnapshotSource {
   full_name?: string | null;
+  biography?: string | null;
   current_service?: {
     chamber?: string | null;
     party?: string | null;
@@ -334,6 +383,14 @@ export interface LegislatorSnapshotSource {
     profile_url?: string | null;
   } | null;
   committees?: { name?: string | null; role?: string | null }[] | null;
+  service_history?: {
+    term?: number | null;
+    periods: Array<{
+      chamber: string;
+      initial_year: number;
+      reelection_years: number[];
+    }>;
+  } | null;
 }
 
 export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): PageSnapshot {
@@ -349,6 +406,20 @@ export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): Pa
     })
     .filter(Boolean);
   const office = splitOfficeAddress(service.office_address ?? '');
+  const biography = clean(legislator.biography);
+  const serviceHistory = legislativeServiceFromHistory(legislator.service_history);
+  const serviceLines = serviceHistory
+    ? [
+        ...serviceHistory.lines.map((line) => `${line.label}: ${line.elected}`),
+        ...(serviceHistory.term ? [`Term: ${serviceHistory.term}`] : []),
+      ]
+    : [];
+  const sections: SnapshotSection[] = [
+    ...(biography ? [{ heading: 'Biography', body: [biography], bodyIsList: false }] : []),
+    ...(serviceLines.length
+      ? [{ heading: 'Legislative Service', body: serviceLines, bodyIsList: false }]
+      : []),
+  ];
 
   return {
     heading: displayName,
@@ -356,6 +427,7 @@ export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): Pa
     bodyHeading: 'Committees',
     body: committees.length ? committees : ['No current committee assignments on record.'],
     bodyIsList: committees.length > 0,
+    sections: sections.length ? sections : undefined,
     facts: [
       ...fact('Leadership', office.leadership),
       ...fact('Capitol office', office.address),
@@ -395,6 +467,30 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
         .join('')}</dl>`
     : '';
 
+  const sections = (snapshot.sections ?? [])
+    .map((section) => {
+      const sectionBody = section.body?.length
+        ? section.bodyIsList
+          ? `<ul class="ps-list">${section.body
+              .map((item) => `<li>${escapeHtml(item)}</li>`)
+              .join('')}</ul>`
+          : section.body.map((item) => `<p class="ps-prose">${escapeHtml(item)}</p>`).join('')
+        : '';
+      const items = section.items?.length
+        ? `<ul class="ps-list">${section.items
+            .map((item) =>
+              item.href
+                ? `<li><a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a></li>`
+                : `<li>${escapeHtml(item.label)}</li>`,
+            )
+            .join('')}</ul>`
+        : '';
+      return sectionBody || items
+        ? `<h2>${escapeHtml(section.heading)}</h2>${sectionBody}${items}`
+        : '';
+    })
+    .join('');
+
   const records = snapshot.records?.length
     ? `<ol class="ps-records">${snapshot.records
         .map(
@@ -418,6 +514,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
     body
       ? `${snapshot.bodyHeading ? `<h2>${escapeHtml(snapshot.bodyHeading)}</h2>` : ''}${body}`
       : '',
+    sections,
     facts,
     records,
     links,

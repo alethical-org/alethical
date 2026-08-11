@@ -536,10 +536,12 @@ Built 11 Aug 2026 against §8C. §1–§11 stay as written, as the record of why
 ### What arrives
 
 `apps/frontend/src/lib/pageSnapshot.ts` builds a short factual snapshot for a **bill** (plain-language
-title, bill code and session, key points or summary, where it stands, chief author, and links to the
-bill on revisor.mn.gov, to that author's profile, and to the bill list) and for a **legislator** (name,
-chamber and district, party, committees, capitol office and phone, and links to their official chamber
-profile and to the member list). `api/page.ts` drops it between the markers inside `<div id="root">`.
+title, bill code and session, key points or summary, where it stands, chief author, cited-section
+labels with exact current-version links when the passage is known, and links to the bill on
+revisor.mn.gov, to that author's profile, and to the bill list) and for a **legislator** (name, chamber
+and district, party, committees, stored biography and legislative service when present, capitol
+office and phone, and links to their official chamber profile and to the member list). `api/page.ts`
+drops it between the markers inside `<div id="root">`.
 
 At release 2, lists, `/ask` and static pages got no snapshot. A list is a list of *other* records, so
 that release did not invent a summary of a result set that changes per reader. §18 later replaces the
@@ -572,10 +574,13 @@ it; every one failed the test, including three that a containment check had let 
 summary, a trimmed bullet, and a count of the layout's own).
 
 The legislator profile screen cannot be rendered that way (it needs navigation, auth and query
-providers), so its guarantee is structural: the name and district come from shared helpers
-(`legislatorDisplayName`, `legislatorDistrictLine` in `apps/frontend/src/lib/legislatorProfile.ts`),
-both profile screens now call them, and a test fails if either grows its own copy again. Before this,
-that formatting existed **three** times — in each screen and again in `api/page.ts`.
+providers), so its guarantee is structural: the name, district, and legislative-service wording come
+from shared helpers (`legislatorDisplayName`, `legislatorDistrictLine`, and
+`legislativeServiceFromHistory` in `apps/frontend/src/lib/legislatorProfile.ts`), both profile screens
+and the snapshot use those helpers, and tests fail if either screen grows its own name formatter
+again. The stored biography passes through unchanged. Before this, name and district formatting
+existed **three** times — in each screen and again in `api/page.ts` — and legislative-service wording
+existed separately in the API mapper.
 
 ### One thing the build found
 
@@ -1012,3 +1017,33 @@ record.
   enough original context to be useful, not a page for every filter value.
 - It does not add special AI files or AI-only wording. The same text and links go to people and every
   crawler, and React replaces that text when the full app starts.
+
+---
+
+## 19. Exact bill evidence and fuller legislator facts in the first response
+
+Decided 11 Aug 2026 for [#1405](https://github.com/alethical-org/alethical/issues/1405).
+
+### Decision
+
+- A bill snapshot names the cited sections that its loaded Summary tab shows. When a citation has
+  both a section id and a positive whole-number position, the label is a normal link to that exact
+  passage in the current bill version (`?tab=text#ft-<section-id>-<position>`). A label with no exact
+  position remains plain text, because an id alone can name several sections.
+- The same exact link is present on the loaded desktop and phone-width citation control. It can be
+  copied, opened in a new tab, and followed without depending on an in-app click handler.
+- A legislator snapshot includes the stored biography and the same election-history and term wording
+  the loaded profile shows. Missing biography or service data produces no empty heading and no
+  substitute prose.
+- The bill request already included citation data, and the legislator detail response already
+  included biography. The only added field request is the existing legislator service-history
+  include. No database, migration, ingestion, or new public endpoint is needed.
+
+### Boundaries
+
+- The fragment identifies evidence inside the current bill page. It is not a new indexable page, and
+  it is not promised as a permanent pinpoint after the Legislature publishes a changed bill version.
+- Citation excerpts stay out of the first response. The phone-width page shows citation labels, not
+  excerpts, and the served text must not claim richer visible content than the loaded page.
+- No bill count, contact fact, generated biography, new structured data, canonical-address change,
+  or ranking promise is added.

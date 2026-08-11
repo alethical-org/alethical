@@ -164,6 +164,7 @@ function appHtml(payload: unknown = billFixture): string {
         onOpenBill={() => {}}
         isDesktop
         updatedLabel="Updated"
+        onCitationPress={() => {}}
         onJumpToActions={() => {}}
       />,
     )
@@ -225,7 +226,60 @@ describe('the bill snapshot says only what the app then draws', () => {
     expect(author?.href).toBe('/legislators/mary-franson');
     expect(drawnHtml).toContain('/legislators/mary-franson');
 
+    const citedSections = snapshot.sections?.find(
+      (section) => section.heading === 'Cited sections',
+    );
+    expect(citedSections?.items?.[0]).toEqual({
+      label: 'Art. 1, Sec. 1 · Capital improvement appropriations',
+      href: '/bills/94-2025-HF719?tab=text#ft-laws.1.1.0-1',
+    });
+    expect(drawnHtml).toContain(citedSections!.items![0].href!);
+
     expect(rendered).toContain('href="/bills"');
+  });
+
+  it('names an unresolved cited section without linking to a guess', () => {
+    const unresolvedPayload = {
+      ...billFixture,
+      ai_analysis: {
+        ...billFixture.ai_analysis,
+        citations: [
+          {
+            ...billFixture.ai_analysis.citations[0],
+            section_order: null,
+          },
+        ],
+      },
+    };
+    const unresolved = billPageSnapshot(unresolvedPayload as never);
+    const item = unresolved.sections?.find((section) => section.heading === 'Cited sections')
+      ?.items?.[0];
+    expect(item).toEqual({
+      label: 'Art. 1, Sec. 1 · Capital improvement appropriations',
+    });
+    const html = renderPageSnapshot(unresolved);
+    expect(html).toContain(item!.label);
+    expect(html).not.toContain('?tab=text#ft-laws.1.1.0');
+    expect(appHtml(unresolvedPayload)).not.toContain('?tab=text#ft-laws.1.1.0');
+  });
+
+  it('keeps every exact source on an unusually citation-heavy bill without a large response', () => {
+    const citations = Array.from({ length: 59 }, (_, index) => ({
+      ...billFixture.ai_analysis.citations[0],
+      id: `citation-${index + 1}`,
+      label: `Sec. ${index + 1}`,
+      section_id: 'laws.0.1.0',
+      section_order: index + 1,
+    }));
+    const heavy = billPageSnapshot({
+      ...billFixture,
+      ai_analysis: { ...billFixture.ai_analysis, citations },
+    } as never);
+    const html = renderPageSnapshot(heavy);
+
+    expect(heavy.sections?.[0].items).toHaveLength(59);
+    expect(html.match(/\?tab=text#ft-/g)).toHaveLength(59);
+    expect(Buffer.byteLength(html, 'utf8')).toBeLessThan(32_000);
   });
 
   it('never prints the bill‘s statutory title, and names an un-summarised bill by its number', () => {
@@ -276,6 +330,24 @@ describe('the legislator snapshot says only what the profile draws', () => {
     });
     expect(none.body).toEqual(['No current committee assignments on record.']);
     expect(none.heading).toBe('Sen. Pat Doe');
+  });
+
+  it('carries the stored biography and the same formatted service history as the profile', () => {
+    const biography = snapshot.sections?.find((section) => section.heading === 'Biography');
+    expect(biography?.body).toEqual([legislatorFixture.biography]);
+
+    const service = snapshot.sections?.find((section) => section.heading === 'Legislative Service');
+    expect(service?.body).toEqual(['Elected to the House: 2018', 'Term: 4th']);
+  });
+
+  it('adds no empty biography or service section when the record has neither', () => {
+    const sparse = legislatorPageSnapshot({
+      full_name: 'Pat Doe',
+      current_service: { chamber: 'senate' },
+    });
+    expect(sparse.sections).toBeUndefined();
+    expect(renderPageSnapshot(sparse)).not.toContain('Biography');
+    expect(renderPageSnapshot(sparse)).not.toContain('Legislative Service');
   });
 
   it('carries the contact rows and the official profile link', () => {
