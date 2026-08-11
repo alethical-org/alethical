@@ -115,6 +115,14 @@ filtering brings that to 3. Senator Lindsey Port's committee (18466) is the plai
 row typed `Miscellaneous` with contributor type `Self` is a loan from the candidate to her own
 committee, carried on the filing as `Schedule A2 - LP`.
 
+**The download does not reliably carry amendments.** Where an amendment changed a filing's
+contribution rows, the bulk file still holds the set from before it. Measured on 3 filers on 11 Aug
+2026, against amendments received between 27 March and 25 July 2026: our rows match the **original**
+filing exactly for HRCC (20010; 743 rows, $1,488,168.08) and for filer 19043 (35 rows, $14,250.00),
+and match it but for one extra row for filer 17709. It surfaces rarely because most amendments leave
+contributions alone: 85 of 202 sitting-legislator 2025 year-ends are amended and 82 still reconcile
+against the latest version. Whether the export ever incorporates an amendment is not established.
+
 **That 1.2% is not evenly spread, and it is heaviest exactly where it matters most.** Share of
 2025 rows that are not `Contribution`: candidate committees **0.36%**, committees and funds
 **0.79%**, party units **6.57%**. So the filter is roughly 18 times more load-bearing for party
@@ -958,6 +966,14 @@ the 3 that do not are all short in our rows, the direction nothing announces. Sp
 filers are excluded from this comparison and handled by §9.5, since their regular report covers
 only part of the year.
 
+**A filer-year whose rows match a superseded version is a failure, not a pass.** §9.1's route
+returns the effective version's totals while the bulk file may hold the superseded version's rows
+(§2.1), so subtracting one from the other produces a figure belonging to no filing. This is §6's
+rule reaching the display through the data rather than through a query, and it is the main thing the
+split check catches in practice. The instinct to relax the check here is the wrong one: "our rows
+match the original exactly" sounds like a reconciliation that passed and is the clearest evidence
+that it did not.
+
 **The checker validates itself before it may block anything.** Read the figures by schedule code,
 never by position: a filer with no lobbyist money has no `A1 - LOB` block, and a position-based
 read returned $20,754.27 for a filer whose reported figure is $6,002.62. The self-test is exact and
@@ -1173,7 +1189,10 @@ Recorded as not run, never as passed:
   sample** of party units and of committees and funds, reconciling 27 of 28 and 28 of 28, with all
   56 report documents served. The single party-unit failure is **HRCC (20010), the House Republican
   Campaign Committee**: its filing itemizes $1,493,418.08 against our $1,488,168.08, short by
-  exactly $5,250.00, the same silent direction as the 3 legislator cases. Those two samples
+  exactly $5,250.00, the same silent direction as the 3 legislator cases — and **diagnosed since**
+  ([#1386](https://github.com/alethical-org/alethical/issues/1386)): 3 of those 4 are the
+  pre-amendment export of §2.1, and the fourth is a coverage gap particular to one committee. Those
+  two samples
   establish that the comparison works and the documents are there; they do **not** establish a
   failure rate for either kind, and HRCC is one hit rather than a measured rate. The check has not
   run for any year before 2025, for any filer outside those samples, or for the expenditure side
