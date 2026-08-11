@@ -189,7 +189,7 @@ async function billContent(id: string): Promise<PageContent> {
 
 async function legislatorContent(id: string): Promise<PageContent> {
   const legislator = await getApiData<LegislatorPayload>(
-    `/legislators/${encodeURIComponent(id)}?include=current_service,committees`,
+    `/legislators/${encodeURIComponent(id)}?include=current_service,committees,service_history`,
   );
   const chamber = titleCase(legislator.current_service?.chamber || "");
   // A UUID address canonicalises to the readable slug the profile links use.

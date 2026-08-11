@@ -88,6 +88,16 @@ describe('first-response page tags', () => {
           ai_analysis: {
             short_title: 'Statewide Capital Projects and Bonding Bill',
             summary: 'Authorizes borrowing for public buildings. More detail follows.',
+            citations: [
+              {
+                id: 'laws.1.1.0-0',
+                label: 'Art. 1, Sec. 1 · Capital improvement appropriations',
+                url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
+                excerpt: 'Money is appropriated for public purposes.',
+                section_id: 'laws.1.1.0',
+                section_order: 1,
+              },
+            ],
           },
         },
       },
@@ -107,6 +117,8 @@ describe('first-response page tags', () => {
     );
     expect(body).toContain('<h1>Statewide Capital Projects and Bonding Bill</h1>');
     expect(body).toContain('Authorizes borrowing for public buildings.');
+    expect(body).toContain('<h2>Cited sections</h2>');
+    expect(body).toContain('href="/bills/94-2025-HF719?tab=text#ft-laws.1.1.0-1"');
     expect(body).toContain('/_expo/static/js/web/index-abc.js');
     expect(body).toContain('<link rel="stylesheet" href="/fonts.css" />');
     expect(headers.get('Cache-Control')).toContain('s-maxage=600');
@@ -119,16 +131,25 @@ describe('first-response page tags', () => {
   });
 
   it('names a legislator, and canonicalises a UUID address to their readable one', async () => {
-    stubNetwork(() => ({
-      status: 200,
-      payload: {
-        data: {
-          slug: 'aisha-gomez',
-          full_name: 'Aisha Gomez',
-          current_service: { chamber: 'house', district: { code: '62A' } },
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return {
+        status: 200,
+        payload: {
+          data: {
+            slug: 'aisha-gomez',
+            full_name: 'Aisha Gomez',
+            biography: 'Community organizer and small business owner.',
+            current_service: { chamber: 'house', district: { code: '62A' } },
+            service_history: {
+              term: 4,
+              periods: [{ chamber: 'house', initial_year: 2018, reelection_years: [] }],
+            },
+          },
         },
-      },
-    }));
+      };
+    });
 
     const { body } = await serve({ path: '/legislators/8c31565f-e674-462d-b71f-a1d1ebcc' });
 
@@ -140,6 +161,11 @@ describe('first-response page tags', () => {
     );
     expect(body).toContain('<h1>Rep. Aisha Gomez</h1>');
     expect(body).toContain('House District 62A');
+    expect(body).toContain('<h2>Biography</h2>');
+    expect(body).toContain('Community organizer and small business owner.');
+    expect(body).toContain('Elected to the House: 2018');
+    expect(body).toContain('Term: 4th');
+    expect(calls[0]).toContain('include=current_service,committees,service_history');
   });
 
   it('serves a static page without asking the data service anything', async () => {

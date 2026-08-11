@@ -151,6 +151,11 @@ EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
+Set `EXPO_PUBLIC_API_URL` for both Production and Preview. Without the Preview value, the server's
+first-response text still works but the loaded preview app cannot read any record and replaces that
+text with an error. The Supabase values are required in Production; add them to Preview only when a
+preview needs sign-in or account testing.
+
 After Vercel assigns the production domain, update Railway's `ALETHICAL_CORS_ORIGINS` with that exact Vercel origin and redeploy the backend.
 
 ### Frontend first-load recovery
