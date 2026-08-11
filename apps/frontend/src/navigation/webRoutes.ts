@@ -1,6 +1,13 @@
-import type { NavigationState, PartialState } from '@react-navigation/native';
-
 import type { MainTabParamList, RootStackParamList } from './types';
+
+type WebNavigationState = {
+  readonly index?: number;
+  readonly routes: Array<{
+    readonly name: string;
+    readonly params?: object;
+    readonly state?: WebNavigationState;
+  }>;
+};
 
 type WebRouteTarget =
   | { kind: 'tab'; screen: keyof MainTabParamList }
@@ -180,7 +187,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   return { kind: 'notFound', path: pathname };
 }
 
-type AnyNavState = NavigationState | PartialState<NavigationState> | undefined;
+type AnyNavState = WebNavigationState | undefined;
 
 function activeRouteFromState(state: AnyNavState):
   | {
@@ -332,9 +339,7 @@ export function pathForRoute(activeRoute: {
   }
 }
 
-export function pathnameFromNavigationState(
-  state: NavigationState | PartialState<NavigationState>,
-) {
+export function pathnameFromNavigationState(state: WebNavigationState) {
   const activeRoute = activeRouteFromState(state);
 
   if (!activeRoute) {
@@ -346,14 +351,14 @@ export function pathnameFromNavigationState(
 
 const tabOrder: (keyof MainTabParamList)[] = ['Home', 'Tracked', 'Chat', 'Account'];
 
-function tabState(screen: keyof MainTabParamList): PartialState<NavigationState> {
+function tabState(screen: keyof MainTabParamList): WebNavigationState {
   return {
     routes: tabOrder.map((name) => ({ name })),
     index: tabOrder.indexOf(screen),
   };
 }
 
-export function stateFromPathname(pathname: string): PartialState<NavigationState> {
+export function stateFromPathname(pathname: string): WebNavigationState {
   const target = targetFromPathname(pathname);
   const homeTabs = {
     name: 'Tabs',
