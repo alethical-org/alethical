@@ -25,8 +25,11 @@ decisions were taken against text which had already been replaced. One session r
 keeping downloaded files in the database an hour after its own merged work had settled on
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
-- **The owner today** is the session titled `Campaign Watch information architecture review`.
-  It changes only when Eugene says so.
+- **The owner today** is the session titled **`design IA`**
+  (`local_b9788aeb-73d3-4093-9a6e-0d35ec006f20`). It changes only when Eugene says so. If that
+  session is not in your live list, ask Eugene who holds the pen rather than editing this file:
+  the first version of this line named a title that did not exist, because the owner wrote a
+  description of its own role instead of reading its title, and two sessions could not find it.
 - **If you are another session:** post your measurement or recommendation as a comment on the
   issue you are working, then message the owner. Do not open a pull request against this file.
 - **Send the wording you would have written**, not just the finding. The owner lands it and
@@ -424,6 +427,32 @@ finance display); this section covers what must be *shown*.
 figures and both appear. The difference between them is usually legitimate small-donor money,
 not an error and not missing data. A page must say what the difference is rather than leaving
 a reader to assume one number is wrong.
+
+**The total is reported; the split into itemized and not-itemized is computed. Decided this
+way deliberately.** §9 establishes that the route returns the filing's own total, so the large
+number on a card can never disagree with the filing, because it *is* the filing's number. The
+filing also states its own itemized and non-itemized subtotals, but only on the report document,
+one request per filing and only for 2023 onward (§9.4). So the split is derived — reported total
+minus the rows we hold — and that derivation reproduced the filing's stated split to the penny
+everywhere it was checked at full precision (§9.5). **The reason this is safe is a check, not the
+two matching samples**: a shortfall in our rows lands silently in the "not itemized" figure, and
+the only failure that announces itself is the gross one, where the subtraction goes negative
+(10 of 407 committee-years, all special-election candidates, §9.5). So each release validates
+the computed split against the filing's own stated split for a sample of filer-years where the
+report document is reachable, and a mismatch blocks publication under §4.3 exactly as a negative
+result does. Reading the reported split for *every* filing stays available if that check ever
+fails often enough to be worth the requests.
+
+**Every figure carries its own "reported through" date, and that is what makes the no-ranking
+rule below enforceable.** The route returns each committee's most-recent-report-through date, so
+the date beside a total is a per-figure fact rather than a page-level one — which is the
+difference between a page that cannot be compared across members and a page that shows why.
+
+**When the totals route fails, keep the last accepted figures and their existing date.** §9.3
+makes an undocumented route's failures stop a release rather than degrade it, and answers several
+kinds of failure with a success status. So a card needs no "temporarily unavailable" state for
+this: it shows the figures we last accepted, dated honestly as of when they were accepted. Older
+and labelled beats blank, and both beat a number we cannot stand behind.
 
 **And where the official total is not available, show no total at all.** This paragraph said the
 opposite until [#1337](https://github.com/alethical-org/alethical/issues/1337) closed a few hours
