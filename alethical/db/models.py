@@ -5,17 +5,21 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from collections.abc import Sequence
 from typing import Optional
 
 from sqlalchemy import (
     and_,
+    BigInteger,
     Boolean,
     CheckConstraint,
+    Computed,
     Date,
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     MetaData,
@@ -1452,6 +1456,278 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             postgresql_where=text("decision = 'confirmed'"),
         ),
     )
+
+
+# --- Campaign finance -------------------------------------------------------
+#
+# The one place ingestion departs from every other source here: bills,
+# legislators and votes are fetched per record and upserted, while campaign
+# finance downloads whole files and replaces whole sets. Minnesota publishes no
+# per-transaction identifier and two payments can be legitimately identical, so
+# no key built from a row's contents can separate a genuine repeat payment from a
+# re-import. Full reasoning:
+# docs/architecture/campaign-finance-system-design.md §4 (Ingestion: snapshot and
+# replace). File retention and its stores: §4.5.
+
+
+class CampaignFinanceDataset(enum.Enum):
+    contributions = "contributions"
+    expenditures = "expenditures"
+    independent_expenditures = "independent_expenditures"
+
+
+class CampaignFinanceSnapshotStatus(enum.Enum):
+    # Bytes fetched and stored; not yet checked.
+    fetched = "fetched"
+    # Failed §4.3's checks. Body kept for diagnosis, never published, rows never
+    # written. Also the state a first import lands in until an operator names the
+    # exact hashes they reviewed.
+    quarantined = "quarantined"
+    # Passed, rows written.
+    loaded = "loaded"
+    # Rows deleted because no published release referenced them. MUST NOT be
+    # reused as an "unchanged" snapshot: the Board can republish identical bytes,
+    # and reusing this would publish a dataset with no rows. Reload from the
+    # retained body instead.
+    pruned = "pruned"
+
+
+class CampaignFinanceReleaseStatus(enum.Enum):
+    building = "building"
+    published = "published"
+    superseded = "superseded"
+
+
+class CampaignFinanceSnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One downloaded file, identified by its content.
+
+    Keyed on the hash of the *response bytes*, not of decoded text — the
+    ``content_hash`` helper in alethical/pipeline/minnesota.py takes a ``str`` and
+    must never be reused for file identity.
+    """
+
+    __tablename__ = "cf_snapshot"
+
+    dataset: Mapped[CampaignFinanceDataset] = mapped_column(
+        SQLEnum(CampaignFinanceDataset, name="cf_dataset"), nullable=False
+    )
+    # Signed integer, as text. All 3 "All" files are NEGATIVE, so a `\d+` pattern
+    # silently resolves a different address (§2.1).
+    download_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    # The Board names the file in Content-Disposition ("All - Itemized
+    # Contributions Received Of Over $200 - Campaign Finance.csv"). Checked on
+    # fetch, because a stale download number returns HTTP 200 with an HTML error
+    # page rather than failing.
+    content_disposition_filename: Mapped[Optional[str]] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    row_count: Mapped[Optional[int]] = mapped_column(Integer)
+    column_names: Mapped[Optional[list]] = mapped_column(JSONB)
+    status: Mapped[CampaignFinanceSnapshotStatus] = mapped_column(
+        SQLEnum(CampaignFinanceSnapshotStatus, name="cf_snapshot_status"),
+        nullable=False,
+    )
+
+    # The measurements §4.3's checks compare a candidate against. Kept on the
+    # snapshot rather than recomputed from rows, so a superseded set's rows can be
+    # pruned without losing the ability to validate the next download.
+    amount_sum: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 4))
+    negative_amount_sum: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 4))
+    blank_date_count: Mapped[Optional[int]] = mapped_column(Integer)
+    distinct_row_count: Mapped[Optional[int]] = mapped_column(Integer)
+    distinct_filer_count: Mapped[Optional[int]] = mapped_column(Integer)
+    rows_by_year: Mapped[Optional[dict]] = mapped_column(JSONB)
+    blank_counts_by_column: Mapped[Optional[dict]] = mapped_column(JSONB)
+    # Records carrying the source's non-RFC-4180 backslash-escaped quote
+    # (`"Amazon.com, 1.5\" Micro Rod"`). Tracked as a number so a change in the
+    # Board's export surfaces instead of becoming silent corruption. Never
+    # repaired at ingestion: no mechanical rule fixes these without damaging
+    # other rows (§2.1).
+    malformed_quote_record_count: Mapped[Optional[int]] = mapped_column(Integer)
+
+    validation_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    error_text: Mapped[Optional[str]] = mapped_column(Text)
+
+    __table_args__ = (
+        UniqueConstraint("dataset", "content_hash"),
+        # Lets cf_release's per-dataset columns carry a composite foreign key, so
+        # the contributions slot physically cannot hold an expenditures snapshot.
+        UniqueConstraint("id", "dataset", name="uq_cf_snapshot_id_dataset"),
+        Index("ix_cf_snapshot_dataset_status", "dataset", "status"),
+    )
+
+
+class CampaignFinanceSnapshotBody(TimestampMixin, Base):
+    """Where a snapshot's bytes live, and proof they arrived intact.
+
+    A separate table from ``cf_snapshot`` so an 18 MB object reference never rides
+    along on a metadata query, and because the bytes themselves are not in
+    Postgres at all: they sit in a private Supabase Storage bucket, mirrored to
+    Cloudflare R2 (§4.5). Written only after the upload is read back and verified,
+    because a row pointing at a missing object destroys the evidence it claims.
+    """
+
+    __tablename__ = "cf_snapshot_body"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    object_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    # Hash of the compressed object as stored, so the store can be audited
+    # without decompressing. The raw hash is cf_snapshot.content_hash.
+    compressed_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    compressed_byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # gzip is written with mtime=0 so identical input always yields identical
+    # bytes; without that the same file compresses differently each day and an
+    # unchanged download looks new.
+    compression: Mapped[str] = mapped_column(String(20), nullable=False, default="gzip")
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class CampaignFinanceFetchObservation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One row per dataset per run, append-only, whether or not anything changed.
+
+    This is what makes "all 3 files were confirmed current in the same run" a
+    recorded fact rather than an assumption, and it is why re-running the import
+    on unchanged files changes no *published* data while still leaving a trace. A
+    mutable "last seen" column could only ever say the latest sighting, never
+    every sighting.
+    """
+
+    __tablename__ = "cf_fetch_observation"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id"), nullable=False
+    )
+    dataset: Mapped[CampaignFinanceDataset] = mapped_column(
+        SQLEnum(CampaignFinanceDataset, name="cf_dataset"), nullable=False
+    )
+    ingestion_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("ingestion_run.id")
+    )
+    download_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    requested_url: Mapped[str] = mapped_column(Text, nullable=False)
+    final_url: Mapped[Optional[str]] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_headers: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # True when this run found the bytes unchanged and reused the loaded rows.
+    reused_existing_snapshot: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+
+    __table_args__ = (
+        Index("ix_cf_fetch_observation_dataset_started", "dataset", "started_at"),
+    )
+
+
+class CampaignFinanceRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """The set of 3 files published together.
+
+    Three named non-null columns rather than a membership table, because
+    ``UNIQUE (release_id, dataset)`` on a membership table happily permits a
+    release with 2 members: an importer bug that skipped independent expenditures
+    could replace a complete set with an incomplete one. Three columns make that
+    unstorable, and each carries a composite foreign key so a slot cannot hold
+    another dataset's snapshot.
+    """
+
+    __tablename__ = "cf_release"
+
+    contributions_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    expenditures_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    independent_expenditures_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    status: Mapped[CampaignFinanceReleaseStatus] = mapped_column(
+        SQLEnum(CampaignFinanceReleaseStatus, name="cf_release_status"), nullable=False
+    )
+    # The run's fetch window. `fetch_completed_at` is the page's freshness date
+    # (#861), NOT a snapshot's first fetch: an unchanged file re-confirmed today
+    # is current data, and the 3 downloads take ~93 seconds so the window is
+    # recorded rather than collapsed to an instant.
+    fetch_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    fetch_completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    superseded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ingestion_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("ingestion_run.id")
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+
+    __table_args__ = (
+        # Composite keys: the snapshot in each slot must be of that dataset.
+        ForeignKeyConstraint(
+            ["contributions_snapshot_id", "contributions_dataset"],
+            ["cf_snapshot.id", "cf_snapshot.dataset"],
+            name="fk_cf_release_contributions_snapshot",
+        ),
+        ForeignKeyConstraint(
+            ["expenditures_snapshot_id", "expenditures_dataset"],
+            ["cf_snapshot.id", "cf_snapshot.dataset"],
+            name="fk_cf_release_expenditures_snapshot",
+        ),
+        ForeignKeyConstraint(
+            ["independent_expenditures_snapshot_id", "independent_dataset"],
+            ["cf_snapshot.id", "cf_snapshot.dataset"],
+            name="fk_cf_release_independent_snapshot",
+        ),
+        Index("ix_cf_release_status", "status"),
+    )
+
+    # Generated columns exist only to give the composite foreign keys above their
+    # second column. Never read them; read `dataset` on the snapshot.
+    contributions_dataset: Mapped[str] = mapped_column(
+        SQLEnum(CampaignFinanceDataset, name="cf_dataset"),
+        Computed("'contributions'", persisted=True),
+        nullable=False,
+    )
+    expenditures_dataset: Mapped[str] = mapped_column(
+        SQLEnum(CampaignFinanceDataset, name="cf_dataset"),
+        Computed("'expenditures'", persisted=True),
+        nullable=False,
+    )
+    independent_dataset: Mapped[str] = mapped_column(
+        SQLEnum(CampaignFinanceDataset, name="cf_dataset"),
+        Computed("'independent_expenditures'", persisted=True),
+        nullable=False,
+    )
+
+
+class CampaignFinanceCurrentRelease(TimestampMixin, Base):
+    """A single row naming the live release. One row, forever.
+
+    A pointer row rather than a status string, so publishing can take
+    ``SELECT ... FOR UPDATE`` on it, re-read the candidate's hashes and fetch
+    window, and refuse a candidate older than what is already published. Without
+    that, two overlapping imports let the one that *started* first finish last
+    and replace newer data with older data — a "one published release" rule
+    limits quantity, not age.
+    """
+
+    __tablename__ = "cf_current_release"
+
+    id: Mapped[bool] = mapped_column(
+        Boolean, primary_key=True, default=True, server_default=text("true")
+    )
+    release_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("cf_release.id"))
+
+    __table_args__ = (CheckConstraint("id", name="single_row"),)
 
 
 def bill_detail_stmt(
