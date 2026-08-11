@@ -492,6 +492,22 @@ show, not a failure to identify them. The answer is still a person's; the readin
 A `--no-filer-directory` switch on the review script reproduces the without-directory column on
 demand, so the attribution is checkable rather than asserted.
 
+**A district is a strong key for a sitting member and a weak one for a predecessor.** Someone who
+held this seat before, for this party, carries the same office, district and party as its current
+holder, so seat agreement separates a stranger in another district but not a predecessor in the
+same one — and a same-surname predecessor is the father-and-son confusion this section exists to
+prevent. The directory's own `Incumbent` flag closes it: it marks the current holder of the seat a
+row *seeks*, so a predecessor's row is not flagged for the seat their successor now holds. Seat
+agreement therefore counts as settled only when the Board also says this candidate holds the seat.
+Measured 11 Aug 2026, 15 of the 144 confident proposals were exposed to this — the ones confident
+*only* because the directory named the seat — and all 15 sit on a row flagged as the current
+holder, so the guard costs nothing and the counts are unchanged.
+
+A committee whose registration is closed, or which the Board does not flag as the seat's current
+holder, is **not ruled out** — it is only not treated as settled. Paul Novotny's House 30B row is
+flagged incumbent *and* terminated and is genuinely his. Ruling those out would discard members'
+own earlier committees.
+
 **A directory row answers one question only: whose committee this is.** It clears an inferred
 given name, an unexplained word in our record, and a generational suffix on one side only, because
 those are all that same question in different clothes. It clears nothing else — a committee for a
@@ -500,6 +516,13 @@ and two surviving committees stay a choice only a person may make. A mutation te
 nothing in 60 existing tests stopped the directory from clearing the *different-office* reason,
 which it must never do, because the directory's office field and the committee name's own office
 suffix are separate and can disagree; there is a test for it now.
+
+**The `Incumbent` flag is used in one direction and forbidden in the other, and the two are easy
+to mistake for a contradiction.** As corroboration that a row *already matching a member's seat*
+belongs to that seat's current holder, it holds: a false positive would mean the Board flagging
+someone as incumbent of a seat they do not hold. As a test for whether a member has any committee
+at all, it fails, because it misses 5 sitting members. Different question, different failure mode,
+and the paragraph above depends on the first while the paragraph below rules out the second.
 
 **Presence in that directory is the test for whether a committee exists at all, and the
 `Incumbent` flag is not.** All 200 sitting members appear in it, so **"no committee is registered
