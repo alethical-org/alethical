@@ -61,7 +61,9 @@ describe('issue answer page structure', () => {
 
   it('uses the standard follow-up heading and removes the repeated lead sentence', () => {
     expect(answer).toContain('Ask another question');
-    expect(answer.match(/accessibilityRole="header"\s+aria-level=\{2\}/g)).toHaveLength(2);
+    // Three now: the follow-up heading, "Ask another question", and the cited-sections
+    // rail head, which stopped rendering as a rival <h1> in #1355.
+    expect(answer.match(/accessibilityRole="header"\s+aria-level=\{2\}/g)).toHaveLength(3);
     expect(answer).not.toContain('Bills matching');
   });
 });

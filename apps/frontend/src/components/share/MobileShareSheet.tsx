@@ -104,7 +104,7 @@ export function MobileShareSheet({
             <View style={styles.iconTile}>
               <ShareIcon />
             </View>
-            <Text accessibilityRole="header" style={styles.title}>
+            <Text accessibilityRole="header" aria-level={2} style={styles.title}>
               {`Share this ${content.subject}`}
             </Text>
             <Text style={styles.contentTitle}>{content.title}</Text>

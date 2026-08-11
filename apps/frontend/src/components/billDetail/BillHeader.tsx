@@ -89,6 +89,7 @@ export function BillHeader({
       <Text
         ref={headingRef}
         accessibilityRole="header"
+        aria-level={1}
         accessibilityLabel={fullTitle}
         style={[styles.h1, isMobile && styles.h1Mobile]}
       >

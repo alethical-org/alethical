@@ -320,7 +320,11 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
             onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
             mobile={isMobile}
           />
-          <Text accessibilityRole="header" style={[styles.title, isMobile && styles.titleMobile]}>
+          <Text
+            accessibilityRole="header"
+            aria-level={1}
+            style={[styles.title, isMobile && styles.titleMobile]}
+          >
             Contact us
           </Text>
           <Text style={[styles.subtitle, isMobile && styles.subtitleMobile]}>

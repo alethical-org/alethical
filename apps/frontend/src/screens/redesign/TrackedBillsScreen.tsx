@@ -88,7 +88,11 @@ export function TrackedBillsScreen() {
 
   const hero = (
     <View>
-      <Text accessibilityRole="header" style={[styles.h1, isMobile && styles.h1Mobile]}>
+      <Text
+        accessibilityRole="header"
+        aria-level={1}
+        style={[styles.h1, isMobile && styles.h1Mobile]}
+      >
         Tracked bills
       </Text>
       {/* No "tap Track to add or remove" instruction any more: the ✓ Tracked button
@@ -279,7 +283,7 @@ function EmptyCard({
   const [hovered, hover] = useHover();
   return (
     <View style={styles.card}>
-      <Text accessibilityRole="header" style={styles.cardHeading}>
+      <Text accessibilityRole="header" aria-level={2} style={styles.cardHeading}>
         {heading}
       </Text>
       <Text style={styles.cardBody}>{body}</Text>

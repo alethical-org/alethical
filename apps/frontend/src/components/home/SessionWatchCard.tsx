@@ -50,7 +50,7 @@ export function SessionWatchCard({
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text accessibilityRole="header" style={styles.title}>
+        <Text accessibilityRole="header" aria-level={2} style={styles.title}>
           Session watch
         </Text>
         {watch.state !== 'tracking-nothing' ? (
@@ -188,7 +188,7 @@ function TrackFirstBillFrame({
           />
         </Svg>
       </View>
-      <Text accessibilityRole="header" style={styles.emptyHeading}>
+      <Text accessibilityRole="header" aria-level={3} style={styles.emptyHeading}>
         Track your first bill
       </Text>
       <Text style={styles.emptyBody}>

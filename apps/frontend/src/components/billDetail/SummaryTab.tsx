@@ -64,7 +64,7 @@ export function SummaryTab({
         <View style={[styles.contentCol, isDesktop && styles.contentColDesktop]}>
           {keyPoints.length ? (
             <>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Key points
               </Text>
               <View style={styles.points}>
@@ -78,7 +78,7 @@ export function SummaryTab({
             </>
           ) : summary ? (
             <>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Summary
               </Text>
               <Text style={styles.summaryText}>{summary}</Text>
@@ -88,7 +88,7 @@ export function SummaryTab({
           {citations.length ? (
             <>
               <View style={styles.fromBillHead}>
-                <Text accessibilityRole="header" style={styles.h3}>
+                <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
                   From the bill
                 </Text>
                 <View style={styles.citedLabel}>
@@ -185,7 +185,7 @@ function AskModule({
   const prefetchSuggestedAnswer = usePrefetchSuggestedAnswer();
   return (
     <View style={styles.askCard}>
-      <Text accessibilityRole="header" style={styles.askTitle}>
+      <Text accessibilityRole="header" aria-level={2} style={styles.askTitle}>
         Ask about this bill
       </Text>
       <Text style={styles.askSub}>Answers cite the bill text</Text>
