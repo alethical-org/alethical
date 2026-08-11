@@ -165,13 +165,17 @@ someone else's money under a real politician's name. So this is 200 decisions a 
 signs, and it is now the last thing standing between everything else being ready and a page with
 money on it.
 
-It is not a research task. The proposing work is built and measured (11 Aug 2026): of the 200
-sitting members, **108 have one obvious candidate and 92 do not**, and the 92 are ordinary
-name problems rather than mysteries. A legislator known by a nickname the state does not print
-("Liish Kozlowski" is filed as "Kozlowski, Alicia"). One known by a middle name ("Bjorn Olson" is
-"Olson, Christian Bjorn"). Two sitting members sharing a surname in the same chamber, with a
-former senator of the same name in the pool as well. A committee named for a different office the
-member once sought. Someone reads each one and answers.
+It is not a research task, and it got smaller today. The proposing work is built and measured
+(11 Aug 2026): of the 200 sitting members, **144 have one obvious answer and 56 do not**. It was
+108 and 92 this morning, before the state's own list of registered committees was added, which
+carries each candidate's district and settles most of the name confusions on its own.
+
+The 56 that remain are not mysteries. Every one is a member with two or more committees of their
+own, so the question is which to show rather than who they are: a legislator known by a nickname
+the state does not print ("Liish Kozlowski" is filed as "Kozlowski, Alicia"), one known by a middle
+name ("Bjorn Olson" is "Olson, Christian Bjorn"), a committee named for a different office the
+member once sought, or two committees of the same name filed under different numbers. Someone
+reads each one and answers.
 
 Until those answers exist, **every legislator profile shows the same unconfirmed state**, because
 0 are confirmed today. The count is not a percentage of a finished thing; it starts at 0 of 200
