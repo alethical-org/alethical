@@ -589,6 +589,13 @@ The implementation lives in `alethical/pipeline/minnesota.py`; `scripts/load_sam
 
 The full-session bill discovery path is exposed through Oban as `full-bill-sync`. By default it discovers all Revisor House/Senate bills for the session and enqueues no downstream work directly; it ingests only missing bills unless `--refresh-existing` is passed.
 
+Each accepted chunk reports `bill_keys` for every canonical write and
+`text_changed_bill_keys` for the subset whose current version ID or ordered section-text hashes
+changed. A rejected thin refresh appears in neither list. When inline RAG is enabled, the worker
+flushes the accepted canonical rows, rebuilds only `text_changed_bill_keys` through the same
+database session, and commits both layers once. The worker refuses a separate RAG database because
+2 connections cannot make that publication atomic ([#1320](https://github.com/alethical-org/alethical/issues/1320)).
+
 ```bash
 # Single read-only pipeline entry point.
 just pipeline local --dry-run

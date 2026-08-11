@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from oban import Record, worker
+from sqlalchemy.engine import make_url
 
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
@@ -64,6 +65,16 @@ def _resolve_rag_write_url(args: dict[str, Any]) -> str:
     if rag_target != "production":
         raise ValueError("RAG writes require rag_target=production")
     return _database_url({"database_target": rag_target})
+
+
+def _database_identity(url: str) -> tuple[str, int | None, str, str]:
+    parsed = make_url(url)
+    return (
+        (parsed.host or "").lower(),
+        parsed.port,
+        parsed.database or "",
+        parsed.username or "",
+    )
 
 
 @worker(queue="maintenance", max_attempts=1, tags=["smoke"])
@@ -297,6 +308,7 @@ class BillSyncChunkWorker:
                     "dry_run": _bool_arg(job.args, "dry_run", True),
                     "bills_ingested": 0,
                     "bill_keys": [],
+                    "text_changed_bill_keys": [],
                 }
             if _bool_arg(job.args, "dry_run", True):
                 return {
@@ -312,38 +324,42 @@ class BillSyncChunkWorker:
                     "Bill sync chunk requires allow_writes=true when dry_run=false"
                 )
 
+            database_url = _database_url(job.args)
+            include_rag = _bool_arg(job.args, "include_rag", True)
+            if include_rag:
+                rag_url = _resolve_rag_write_url(job.args)
+                if _database_identity(database_url) != _database_identity(rag_url):
+                    raise ValueError(
+                        "Inline RAG requires bill text and search rows to use the "
+                        "same database"
+                    )
+
             engine = create_engine(
-                _database_url(job.args),
+                database_url,
                 pool_pre_ping=True,
                 connect_args=NO_PREPARED_STATEMENTS,
             )
             with Session(engine) as db:
                 pipeline = MinnesotaIngestionPipeline(db)
                 stats = pipeline.ingest_bills(targets)
-                if _bool_arg(job.args, "include_rag", True):
+                if include_rag:
                     from alethical.pipeline.rag_ingest import (
                         DEFAULT_RAG_MODEL,
                         build_rag_rows_for_bill_keys,
                     )
 
-                    rag_db = _resolve_rag_write_url(job.args)
-                    rag_engine = create_engine(
-                        rag_db, pool_pre_ping=True, connect_args=NO_PREPARED_STATEMENTS
+                    db.flush()
+                    rag_stats = build_rag_rows_for_bill_keys(
+                        db,
+                        bill_keys=stats.get("text_changed_bill_keys", []),
+                        dry_run=False,
+                        rag_model=str(job.args.get("rag_model") or DEFAULT_RAG_MODEL),
+                        rag_embedding_batch_size=int(
+                            job.args.get("rag_embedding_batch_size") or 32
+                        ),
                     )
-                    with Session(rag_engine) as rag_db_session:
-                        rag_stats = build_rag_rows_for_bill_keys(
-                            rag_db_session,
-                            bill_keys=stats.get("bill_keys", []),
-                            dry_run=False,
-                            rag_model=str(
-                                job.args.get("rag_model") or DEFAULT_RAG_MODEL
-                            ),
-                            rag_embedding_batch_size=int(
-                                job.args.get("rag_embedding_batch_size") or 32
-                            ),
-                        )
-                        rag_db_session.commit()
-                        stats.update(rag_stats)
+                    rag_stats.pop("bill_keys", None)
+                    stats.update(rag_stats)
                 db.commit()
                 return {"dry_run": False, **stats}
 

@@ -198,6 +198,21 @@ The future scheduled refresh
 post-retry signal into a GitHub issue. A blank description is non-destructive: it
 keeps the stored description, just as a blank parsed title keeps the stored title.
 
+### Changed bill text and search rows publish together
+
+An accepted batch reports every canonical write in `bill_keys` and only new or changed
+public text in `text_changed_bill_keys`
+([#1320](https://github.com/alethical-org/alethical/issues/1320)). The change signal is the
+current `bill_version.id` plus the ordered SHA-256 hashes of each stored
+`bill_version_section.raw_text`. A metadata-only refresh therefore does not pay to rebuild search,
+while a new version or changed section wording does.
+
+`bill-sync-chunk` flushes the accepted bill rows, builds retrieval rows only for that changed
+subset through the same database session, then commits once. A chunking or embedding failure rolls
+back the bill refresh too, so the retry cannot mistake unindexed new text for an unchanged bill.
+The worker refuses inline writes to a different RAG database because that second connection could
+publish only half of the refresh.
+
 ### A section's body is stored twice, and that is deliberate
 
 `bill_version_section` holds each section's body in two columns, written together
