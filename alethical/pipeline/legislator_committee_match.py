@@ -44,8 +44,15 @@ members. Facts the rules depend on, each checked rather than assumed:
 none of which the payment files carry. That turns the hardest cases from a judgement about
 spelling into a fact about a seat: a committee registered for House 12A is not the committee
 of a member who sits in House 33A, and the Board is the one saying so. Measured 11 Aug 2026,
-it takes the cases needing a person to read alternatives from 92 down to 4, and the 4 left
-are members who currently hold one seat while registered to seek another.
+it takes the cases needing a person to read alternatives from **92 down to 56**, and every
+one of the 56 that remain has two or more surviving committees — a choice about which of a
+member's own committees to show, not a failure to identify them.
+
+Its boundary, because it is narrower than it first looks: **a district separates a stranger
+from another district, not a predecessor in the same one.** A member who held this seat
+before, for this party, carries the same office, district and party as its current holder.
+The directory's own ``Incumbent`` flag is what closes that, so seat agreement counts as
+settled only when the Board also says this candidate holds the seat.
 
 Read once and passed in, so this module stays free of network calls and every rule in it
 remains testable from plain values.
@@ -148,9 +155,15 @@ class FilerVerdict(enum.Enum):
 
     Three outcomes, and the distance between the middle two is the whole point:
 
-    * ``same_seat`` — registered for this member's own office **and** district **and** party.
-      The Board corroborating a name match on the field that actually identifies a
-      legislator, which is stronger evidence than any spelling of a name.
+    * ``same_seat`` — registered for this member's own office **and** district **and**
+      party, **and** flagged as the seat's current holder. The Board corroborating a name
+      match on the field that actually identifies a legislator, which is stronger evidence
+      than any spelling of a name.
+    * ``same_seat_not_current`` — the seat and party agree but the Board does not say this
+      candidate holds it, or the registration is closed. A predecessor in the same seat for
+      the same party carries the same district as its current holder, so this is the one
+      case where seat agreement is not identity. Not ruled out, because a member's own
+      closed committee looks exactly like this, but never treated as settled either.
     * ``different_person`` — registered for a **different district in the same office**, or a
       different party in the same seat. Two people, stated by the source. Safe to rule out.
     * ``different_race`` — registered for a **different office**. Possibly the same person
@@ -160,6 +173,7 @@ class FilerVerdict(enum.Enum):
     """
 
     same_seat = "same_seat"
+    same_seat_not_current = "same_seat_not_current"
     different_person = "different_person"
     different_race = "different_race"
     unknown = "unknown"
@@ -540,6 +554,20 @@ def compare_to_filer_directory(
     expected_party = ROSTER_PARTY_TO_FILER_PARTY.get(member.party or "")
     if expected_party and filer.party and filer.party != expected_party:
         return FilerVerdict.different_person
+    # The seat matching is not yet enough, and this is the boundary the design review named:
+    # **a district separates a stranger from another district, but not a predecessor in the
+    # same one.** A member who previously held this seat for this party carries the same
+    # office, district and party as its current holder, so seat agreement alone cannot tell
+    # them apart, and a same-surname predecessor is exactly the father-and-son case this
+    # design exists to prevent.
+    #
+    # What closes it is the directory's own flag. Measured 11 Aug 2026, ``Incumbent`` marks
+    # the current holder of the seat the row seeks — Liz Reyer's Senate registration reads 0
+    # while she sits in the House — so a predecessor's row is not flagged for the seat its
+    # successor now holds, and a closed committee carries a ``TerminationDate``. So the seat
+    # only counts as settled when the Board is also saying this candidate holds it.
+    if not filer.is_incumbent or filer.is_terminated:
+        return FilerVerdict.same_seat_not_current
     return FilerVerdict.same_seat
 
 

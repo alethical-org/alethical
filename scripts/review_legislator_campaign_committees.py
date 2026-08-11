@@ -318,7 +318,10 @@ def describe(proposal: Proposal) -> str:
     parts.append(
         "      Board's filer directory: "
         + {
-            FilerVerdict.same_seat.value: "registered for this member's own seat and party",
+            FilerVerdict.same_seat.value: "registered for this member's own seat and party, "
+            "and flagged as its current holder",
+            FilerVerdict.same_seat_not_current.value: "registered for this member's seat and "
+            "party, but not flagged as its current holder -- could be a predecessor",
             FilerVerdict.different_race.value: "registered for a different office",
             FilerVerdict.different_person.value: "registered to a different seat or party",
             FilerVerdict.unknown.value: "not listed, which says nothing either way",
