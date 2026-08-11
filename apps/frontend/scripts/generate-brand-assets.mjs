@@ -3,6 +3,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PNG } from 'pngjs';
+import { Resvg } from '@resvg/resvg-js';
+
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const BRAND_GREEN = [46, 212, 126];
 export const BRAND_INK = [17, 21, 15];
@@ -68,16 +71,61 @@ export const BRAND_ASSETS = [
   },
   {
     path: 'public/social-preview.png',
+    kind: 'social-card',
     width: 1200,
     height: 630,
-    background: BRAND_INK,
-    color: BRAND_GREEN,
-    scale: 0.62,
   },
 ];
 
-const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sampleOffsets = [0.125, 0.375, 0.625, 0.875];
+
+function renderSocialPreviewAsset() {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+      <rect width="1200" height="630" fill="#11150f" />
+
+      <g transform="translate(84 72) scale(0.48)" fill="#2ed47e">
+        <path d="${MARK_PATH}" />
+      </g>
+      <text
+        x="142"
+        y="105"
+        fill="#f8fbf9"
+        font-family="Space Grotesk"
+        font-size="28"
+        font-weight="500"
+        letter-spacing="4.48"
+      >ALETHICAL</text>
+
+      <g fill="#ffffff" font-family="Libre Franklin" font-size="64" font-weight="700">
+        <text x="84" y="252">Minnesota’s legislative</text>
+        <text x="84" y="328">record in plain language.</text>
+      </g>
+      <text
+        x="84"
+        y="416"
+        fill="#eaf6ef"
+        font-family="Libre Franklin"
+        font-size="30"
+        font-weight="400"
+      >With links to official sources.</text>
+
+      <g transform="translate(910 194) scale(2.92)" fill="#2ed47e">
+        <path d="${MARK_PATH}" />
+      </g>
+    </svg>
+  `;
+  const fontFiles = [
+    resolve(projectRoot, 'assets/fonts/libre-franklin/LibreFranklin-Regular.ttf'),
+    resolve(projectRoot, 'assets/fonts/libre-franklin/LibreFranklin-Bold.ttf'),
+    resolve(projectRoot, 'assets/fonts/space-grotesk/SpaceGrotesk-Medium.ttf'),
+  ];
+  return new Resvg(svg, {
+    font: { fontFiles, loadSystemFonts: false },
+  })
+    .render()
+    .asPng();
+}
 
 function triangleContains(px, py, [ax, ay], [bx, by], [cx, cy]) {
   const edge = (x1, y1, x2, y2, x, y) => (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1);
@@ -87,7 +135,12 @@ function triangleContains(px, py, [ax, ay], [bx, by], [cx, cy]) {
   return (d1 <= 0 && d2 <= 0 && d3 <= 0) || (d1 >= 0 && d2 >= 0 && d3 >= 0);
 }
 
-export function renderBrandAsset({ size, width = size, height = size, background, color, scale }) {
+export function renderBrandAsset(asset) {
+  if (asset.kind === 'social-card') {
+    return renderSocialPreviewAsset();
+  }
+
+  const { size, width = size, height = size, background, color, scale } = asset;
   const png = new PNG({ width, height });
   const markHeight = Math.min(width, height) * scale;
   const markWidth = markHeight * (84 / 82);

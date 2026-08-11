@@ -62,6 +62,11 @@ Instagram has no direct button. It cannot open a prepared visitor post containin
 
 Facebook, LinkedIn, X, messaging apps, and work-chat apps usually read preview data from the shared page rather than from the Share button. Every visitor to one of our real pages — a person, a messaging app, or a search engine — receives the same page, carrying that page's own title, description, real address, and the 1200×630 Alethical image. There is no separate version for robots. An address that is not one of our pages, or that has the capital letters wrong, receives the missing-page preview and a 404 answer.
 
+The one image uses Alethical’s ink background, green mark, and the words “Minnesota’s legislative
+record in plain language” and “With links to official sources.” It has no legislator photo, party
+colour, or per-page version. Its open-licensed fonts and drawing recipe are committed beside the
+image, and the release check rebuilds and compares it pixel for pixel.
+
 Bill and legislator preview text comes from the same public API data the page uses. Ask preview text uses the public question and the fixed cited-answer description.
 
 Preview services keep their own caches, so a card already posted elsewhere may take time to refresh after a bill summary changes.
