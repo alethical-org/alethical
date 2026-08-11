@@ -103,30 +103,31 @@ describe('rendered head', () => {
     expect(head).toContain('&amp; tags');
     expect(head).not.toContain('<script>');
     expect(head).not.toContain('</script> loophole');
-    // Inside the machine-readable block a raw `<` could close the element early,
-    // so every one of them is escaped there too.
-    const jsonLd = head.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
-    expect(jsonLd).toBeDefined();
-    expect(jsonLd).not.toContain('<');
-    expect(jsonLd).toContain('\\u003cscript');
-    expect(JSON.parse(jsonLd as string)).toMatchObject({ '@type': 'BreadcrumbList' });
+    // A detail page carries no machine-readable block at all now that
+    // `BreadcrumbList` is gone, so there is nowhere for a stored string to reach
+    // one. The serialiser still escapes `<` for whatever a future block holds.
+    expect(head).not.toContain('application/ld+json');
   });
 
-  it('describes home as a site and a publisher, and a detail page by its path', () => {
+  it('describes home as a site and a publisher, and describes a detail page not at all', () => {
     const home = splitHead(renderPageHead(homePageMetadata())).blocks as {
       '@type': string;
     }[];
     expect(home.map((block) => block['@type'])).toEqual(['WebSite', 'Organization']);
 
-    const bill = splitHead(
-      renderPageHead(billPageMetadata({ billId: '94-2025-HF719', shortTitle: 'Bonding' })),
-    ).blocks as { '@type': string; itemListElement: { item: string }[] }[];
-    expect(bill).toHaveLength(1);
-    expect(bill[0]['@type']).toBe('BreadcrumbList');
-    expect(bill[0].itemListElement.map((step) => step.item)).toEqual([
-      'https://www.alethical.com/bills',
-      'https://www.alethical.com/bills/94-2025-HF719',
-    ]);
+    // `BreadcrumbList` came back out: Google asks for it where a page shows a
+    // breadcrumb trail, and what a detail page shows is one "Go back" control
+    // whose destination depends on how the reader arrived (decisions doc §6).
+    for (const meta of [
+      billPageMetadata({ billId: '94-2025-HF719', shortTitle: 'Bonding' }),
+      legislatorPageMetadata({
+        slug: 'aisha-gomez',
+        displayName: 'Rep. Aisha Gomez',
+        districtLine: 'House District 62A',
+      }),
+    ]) {
+      expect(splitHead(renderPageHead(meta)).blocks).toEqual([]);
+    }
   });
 
   // A missing page is not a copy of a real one, so it points a search engine at
@@ -138,7 +139,6 @@ describe('rendered head', () => {
       description: 'No such record.',
       canonicalPath: '',
       noindex: true,
-      breadcrumb: [],
     });
 
     expect(head).not.toContain('rel="canonical"');

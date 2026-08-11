@@ -482,6 +482,19 @@ label wrong in the common case where the button genuinely goes back. Letting a s
 nicety drive visible copy is the same trade §10 already rejects. If a real breadcrumb trail is ever
 designed, the markup comes back with it.
 
+**Removed in code on 11 Aug 2026**, from `pageJsonLd` and the `PageMetadata.breadcrumb` field it
+read (`apps/frontend/src/lib/share.ts`). `WebSite` and `Organization` stay on the home page, and a
+bill or legislator page now carries no machine-readable block at all.
+
+**The web behaviour makes the ruling stronger than the native one it was argued from.** The
+paragraph above cites `navigation.goBack()`, which is the *native* path. On the web — the only
+target that ships, and the only one a search engine sees — the control is a real anchor whose
+address is the list, and it intercepts the click only when this tab already has an in-app history
+entry (`backLinkProps` and `hasInAppBackEntry`, `apps/frontend/src/navigation/links.ts`). So a
+reader arriving from a search result, who is exactly the reader a breadcrumb feature would be shown
+to, follows it to the list; a reader who came from the list goes back where they were. One control,
+labelled "Go back", with two destinations decided by history. There is no fixed hierarchy to assert.
+
 ### Two defects the build found and fixed on the way
 
 - **A bill with no plain-language short title was titled by its statutory title.** Every caller
