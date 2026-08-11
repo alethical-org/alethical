@@ -156,17 +156,26 @@ different set of rules, and a large amount of work for a Minnesota-first product
 
 ---
 
-## Still unanswered
+## Answered, and no longer blocking
 
-**Someone is on these 2, and the first-priority work needs them**
-([#1337](https://github.com/alethical-org/alethical/issues/1337)):
+The 2 questions that were holding up the first priority
+([#1337](https://github.com/alethical-org/alethical/issues/1337)) are settled. Full detail,
+with the measurements behind it, is in
+[campaign-finance-system-design.md §9 (filed reports and official totals)](https://github.com/alethical-org/alethical/blob/main/docs/architecture/campaign-finance-system-design.md).
 
-- Where to get filed reports in bulk, rather than one PDF at a time. We need them for the
-  official totals, which include the small-donor money that has no names attached. Without a
-  route to them, a legislator's page can show the donors we can name but not the true total.
-- How to tell which corrected version of a filing replaces which. A filing can be amended
-  several times, each version restating the same money, so counting them all would report the
-  money several times over.
+- **Where the official totals come from.** The Board runs a service that returns a filer's
+  yearly totals, and reading it for every sitting legislator takes about 2 minutes. Those
+  totals are how much bigger the real number is: across sitting legislators' committees, the
+  donors we can name accounted for 63.5% of the money in 2024 and 58.7% in 2025. The rest is
+  small-donor money that has no names attached anywhere.
+- **Which corrected version counts.** That same service has already picked the latest version
+  for us, so most of the time we never decide. Where we do have to pick a document, the rule is
+  the highest amendment number on it.
+
+Two things the answer does not cover, both written up in the design: candidates who ran in a
+special election file a second set of reports the service leaves out, and the Board publishes
+no promise that this service will keep working, so a release stops rather than guesses when its
+checks fail.
 
 **Nobody is on these, and nothing is waiting on them:**
 

@@ -151,12 +151,19 @@ sit at $500. This is written down because the wrong version was drafted for a re
 (Aug 2026) by someone reading the paragraph above, which stated the aggregate rule correctly
 but never gave the period or the wording to use.
 
-So a candidate's true total is: the itemized payments, **plus** a non-itemized figure that
-exists only in the report. A page showing only the sum of visible rows understates the truth.
+**The unnamed money is a single line on the filing, and the Board says so in its own words.**
+Its candidate handbook: "Contributions from donors who have given $200 or less, in total,
+should be added together and listed as a lump sum on the committee report to the Board." That
+lump sum is the figure §9.5 recovers.
 
-Filed reports live on the Board's report viewer and as PDFs. They are also the only source for
-amendment ordering. **Never rebuild payment rows out of a PDF for any period the bulk files
-already cover** — that is what the retired system did, and it is where its errors came from.
+So a candidate's true total is: the itemized payments, **plus** a non-itemized figure that
+exists only in the report. A page showing only the sum of visible rows understates the truth —
+by 36.5% of what sitting legislators raised in 2024 and 41.3% in 2025, measured in §9.5.
+
+**§9 establishes where those official totals come from and how to fetch them.** Filed reports
+also live on the Board's report viewer and as PDFs, though most PDFs older than 2023 are not
+served (§9.4). **Never rebuild payment rows out of a PDF for any period the bulk files already
+cover** — that is what the retired system did, and it is where its errors came from.
 
 ### 2.4 Federal
 
@@ -254,8 +261,12 @@ A snapshot must pass all of these:
   truncated download, which is the failure most likely to look like real data.
 - No blank dates in a dataset that had none before.
 - Reported totals reconcile: for a sample of committees, itemized payments plus the
-  non-itemized figure equals the total on the filing.
+  non-itemized figure equals the total on the filing. **A reconciliation that comes out
+  negative is a failure, not a figure to clamp** — §9.5 measures how often that happens and why.
 - Every registration number resolves to a known filer, or is reported as new.
+- The totals service passes its own checks, which are stricter than these because it answers
+  HTTP 200 to several kinds of failure. §9.3 lists them, and they stop a release rather than
+  degrading it.
 
 ### 4.4 What survives replacement
 
@@ -346,8 +357,8 @@ number's band**: 2,873 say `PTU` with a number of 30000 or above, and 1,799 say 
 number in 20000–29999. The Libertarian Party of Minnesota is registration **40858** with type
 `PTU`. So the file's type column is what to believe for that row, and the bands are a rough
 hint at best. What a filer's settled classification is cannot be answered from the payment
-files at all; that needs the Board's registered-filer directory, which is an open route
-([#1337](https://github.com/alethical-org/alethical/issues/1337)).
+files at all; that needs the Board's registered-filer directory, and §9.7 establishes the route
+to it.
 
 **People, employers and vendors have no identifier, and are never joined or split
 automatically.** The retired system compared donor names exactly, so "Messinger, Alida" and
@@ -368,12 +379,15 @@ original plus three amendments, each restating the same money.
 - Exactly one version per filer per period is the effective one. **A database index cannot
   enforce this on its own**: a partial unique index gives "at most one effective version", and
   nothing stops every version being marked ineffective, so the "exactly one" half has to be a
-  check the importer runs and a test asserts. Deciding *which* version is effective is still an
-  open route ([#1337](https://github.com/alethical-org/alethical/issues/1337)), so today this
-  is a rule with nothing to apply it to.
+  check the importer runs and a test asserts.
+- **The effective version is the highest amendment index for the key (filer, filing year,
+  report type, special-election flag)**, deduplicating the index list first. §9.6 carries the
+  evidence, the one malformed index list found, and the reason the "Amendment" checkbox printed
+  on the document must not be used instead.
 - **Totals read only the effective version.** A query that filters by year alone will count a
   preliminary filing and its final replacement together, which is the specific mistake to
-  design against.
+  design against. §9.6 names a second, larger double-count underneath it: a year's reports all
+  restate everything since 1 January, so they overlap even before amendments are considered.
 - Superseded versions stay visible and readable. They are part of the record.
 
 ---
@@ -475,20 +489,318 @@ snapshot model exists precisely because these numbers move.
 
 ---
 
-## 9. Open questions
+## 9. Filed reports: where the official totals come from
 
-**Owned, and blocking** ([#1337](https://github.com/alethical-org/alethical/issues/1337)).
-Both are answered by one investigation, and §7's "two numbers" rule cannot be satisfied until
-they are:
+The two questions this section used to leave open ([#1337](https://github.com/alethical-org/alethical/issues/1337))
+are answered. §7's "two numbers" rule can be satisfied.
 
-- Where filed reports and their non-itemized figures are fetched from, in bulk. The report
-  viewer and PDFs are known; a machine-readable path is not. Without it a page can show the
-  payments it can name but not the official total they sit inside.
-- How to determine which amendment supersedes which, beyond reading the filing. Without it
-  §6's "exactly one effective version" is a rule with no way to apply it.
+**The Board runs a per-filer totals service, and it has already resolved the amendment.** So
+the official total is fetchable, and for the reports it covers nothing on our side decides
+which version supersedes which. It does not cover everything (§9.5), and it is undocumented
+(§9.3), so both of those are constraints on the design rather than footnotes.
 
-**Unowned, and not blocking the first release:**
+Every measurement below was taken against the Board's own service on 11 August 2026. Where a
+figure comes from a sample rather than a population, the sample is named.
 
-- Pre-2015 coverage, which the bulk downloads do not reach. The first release is 2015 onward,
-  so this waits until a separate source is proven.
-- Whether unions file anywhere reachable. They are not with the Board.
+### 9.1 The route
+
+`POST https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/<viewer>/api`
+
+| filer kind | `<viewer>` |
+|---|---|
+| candidate committee | `candidates` |
+| party unit | `party-unit` |
+| political committee or fund | `political-committee-fund` |
+
+Form-encoded body — one filer, one two-year window per call:
+
+```
+id=11880
+year=2025
+year_data[ElectionSegmentStartDate]=2024
+year_data[ElectionSegmentEndDate]=2025
+tabname=financial
+```
+
+**A `Cookie` header naming `PHPSESSID` is required, and it is not a session.** Omit it and the
+server answers **403** with an Apache HTML error page. In the requests tested, `PHPSESSID=`
+with an empty value answered 200, and so did `PHPSESSID=zz`, while `Cookie: x=y` still answered
+403. No login, token, `Referer`, `User-Agent` or `X-Requested-With` changed any outcome. That
+is an observed effect, not a published contract: the Board could start checking the value at
+any time, and every request would then 403 (§9.3).
+
+**Sending the same parameters as a GET query string returns HTTP 200 and `[]`.** Omitting both
+`year_data` values returns HTTP 200 and `{"tabcontent":"<p>No information found for
+Financial</p>"}`. Whether each `year_data` value is independently required was not tested.
+Both are silent false passes of the kind §2.1 already documents for the bulk downloads, and
+they are why §9.3's content checks are not optional.
+
+The response is `{"tabcontent": "<table>…</table>"}` — **money inside an HTML table inside
+JSON.** This investigation found no structured counterpart. Other tabs on the same endpoint do
+return structured data alongside their HTML (`tabname=reports_data` returns the report
+catalogue §9.6 relies on), and the separate list service in §9.7 returns pure JSON, so the
+absence here is specific to the financial tab rather than to the Board's site. Every row is
+`<th>label</th><td>$amount</td>`.
+
+All 407 measured sitting-legislator committee-years carried the same 17 lines: beginning cash
+balance, most recent report through, individuals / lobbyist / committee-fund / party-unit /
+other contributions, public subsidy payments, loans payable income, miscellaneous income, total
+receipts, campaign expenditures, noncampaign disbursements, other expenditures, total
+expenditures, ending cash balance, unpaid bills and loans. **Three of those labels embed a
+date** ("Ending cash balance as of 12/31/2025"), and the date is not always 31 December — one
+committee-year read 11/16/2025 — so match on the label's stem, never on the whole string. The
+12 sampled party units and 12 sampled committees or funds carried a single "Contributions
+received" line in place of the five contributor-type lines, plus their own disbursement
+categories; rarer labels were not ruled out.
+
+**Each contributor-type line is that schedule's itemized plus non-itemized total, from the
+effective version.** Checked line by line against the documents for two filers. Senator Scott
+Dibble's committee (15667), 2024: the route's individuals $4,869.59 equals the report's
+$2,600.00 itemized plus $2,269.59 non-itemized; lobbyist $200.00 equals $0.00 plus $200.00;
+committee/fund $750.00 equals $250.00 plus $500.00. Its campaign expenditures and noncampaign
+disbursements match their schedules the same way.
+
+**"Most recent report through" is the figure's coverage end, and it is load-bearing.** §7
+forbids ranking or totalling members by amount for the current year, because members sit on two
+different filing calendars and a comparison would put one member's part-year total beside
+another's blank. This field is what makes that enforceable per figure rather than per page: it
+states the date each committee's own numbers actually run to, and it is the date to print
+beside them.
+
+### 9.2 What it costs, and how far back it reaches
+
+Median response 0.36 seconds over 20 timed calls. At the 0.25-second spacing used throughout
+this investigation, **209 sitting legislators take about 2 minutes and roughly 1,600 filers
+across all three kinds take about 16 minutes.** It is still 1,602 separate requests.
+
+Roughly 1,200 requests were made to the Board across about two hours on 11 August 2026 with no
+refusal, no throttling and no block observed. That is evidence about that day's behaviour, not
+a rate limit we have been told.
+
+It reaches back further than anything else we have. For filer 12604, totals were returned for
+every two-year window tested from 2026 down to **2009** — against bulk downloads that start in
+2015 and report PDFs that start in 2023 (§9.4). Only that one filer was walked back that far.
+
+### 9.3 It is undocumented, so the checks are the design
+
+The Board publishes no promise that this route exists, keeps its address, keeps its request
+fields, keeps the cookie behaviour, or keeps the table's shape. **HTTP 200 therefore cannot
+count as success.** A release that reads these totals must stop entirely — not degrade — when
+any of the following fails:
+
+- The response parses as JSON and carries `tabcontent`.
+- The requested calendar year appears as a block heading.
+- Every label is one this design knows, no label is missing, and no label repeats.
+- Every value parses as money.
+- A fixed set of test filer-years still returns the figures recorded here, including the two
+  amendment cases in §9.6, which is what detects a silently changed resolution rule.
+- Totals have not moved more than a sane band from the last accepted release, per §4.3.
+
+**Keep the raw response bytes for every accepted release**, in the store §4.5 defines. If the
+Board's HTML changes later, a published figure cannot otherwise be traced to the response that
+produced it.
+
+**When the checks fail, keep publishing the last accepted totals with their existing freshness
+date and withhold the new ones.** There is no second bulk source to fall back to: the report
+PDFs cannot serve the population (§9.4), and no other route carries these figures.
+
+**A refresh takes minutes, and an amendment can land inside that window.** A filer read at the
+start and a filer read at the end may sit on either side of a new filing. This is the same
+hazard §4.1 already rules on for the bulk files, and the same answer applies: the totals fetch
+is part of one dated release, and figures from different fetches are never shown together.
+
+### 9.4 Report PDFs are a fallback, not a route
+
+The Board's pages link a PDF for every report back to 2009. Many of those links do not work,
+and they fail in the way §2.1 warns about: **HTTP 200 with a 30,424-byte HTML page** and no
+error status. Reproduced from the Board's own page in a browser with its own session, so this
+is the source's gap and not our misuse of it.
+
+Of a random 110-report sample drawn from a 1,005-report catalogue, **27 returned a PDF and 83
+returned HTML.** By kind: pre-general 0 of 30, pre-primary 7 of 25 (only the current cycle's),
+year-end 20 of 55. By filing year, everything sampled from 2026, 2025 and 2023 was served;
+2024 gave 5 of 19; **2022 and earlier gave 0 of 69.** Walking year-end reports back one year at
+a time on two filers, retrying each, puts the boundary at 2023: 2023 through 2025 served, 2022
+and earlier not. That boundary was established for year-end reports on those two filers only.
+
+The request, when it works:
+
+```
+POST https://cfb.mn.gov/rptViewer/Main.php?do=viewPDF
+searchType=Candidate&downloadpdf=true&year=25&type=pcc&period=YE
+  &se=0&regnum=20008&amend=2&disc=&date=&show=0
+```
+
+`type` is `pcc`, `ptu` or `pcf`; `period` is `C` (pre-primary), `E` (pre-general) or `YE`
+(year-end); `se` is the special-election flag. **Check that the body starts with `%PDF`** —
+nothing else in the response distinguishes a document from the error page.
+
+### 9.5 The non-itemized figure, and where the route is not enough
+
+Rule 12 of `.claude/rules/grounded-answers.md` needs both numbers on the page. The route gives
+the official total; the non-itemized figure is that total minus the itemized rows we hold.
+
+**The subtraction reconciles exactly where it was checked at full precision.** Republican Party
+of Minnesota (registration 20008), 2025: our itemized rows sum to $170,053.52 cash and
+$5,751.39 in-kind, and the report states exactly those two figures as its itemized totals. The
+report states $578,590.42 non-itemized, and $170,053.52 + $578,590.42 = $748,643.94, which is
+what the route reports as contributions received. That is one committee-year at full precision;
+the formula was not validated for every filer-year.
+
+**How much money it recovers, across sitting legislators' committees:**
+
+| | our itemized rows | official total | difference | share of official |
+|---|---|---|---|---|
+| 2024, 200 committee-years | $4,112,295.10 | $6,474,414.12 | $2,362,119.02 | 36.5% |
+| 2025, 207 committee-years | $6,320,211.90 | $10,764,744.54 | $4,444,532.64 | 41.3% |
+
+The **median** committee's own share was 40.3% in 2024 and 36.1% in 2025, so this is not a few
+large committees pulling an aggregate. Senator John Marty's committee (11880) is a plain case:
+one $1,000 itemized row for 2025 against an official $13,900.48.
+
+Those differences are the plain population totals. Summing only the committees where the
+official total exceeds our rows gives $2,535,932.08 and $4,636,791.82; the gap between the two
+ways of counting is the negative cases below, and both figures are recorded here so a later
+recount can tell which was meant.
+
+**The subtraction goes negative on 10 of 407 committee-years, and a negative result is a failed
+reconciliation, not a number to clamp.** §4.3 already says a failed reconciliation blocks
+publication; that applies here. Do not print the derived figure for those filer-years.
+
+**Every one of the 10 is a special-election candidate, and that is the cause.** A candidate who
+runs in a special election files a whole second report series, flagged
+`SpecialElectionindicator = 1`, and **this route reports only the regular series.**
+
+Ann Johnson Stewart's committee (18453), 2024, reconciled in full:
+
+- The special-election final report covers **1 January to 25 November 2024** and its
+  contribution schedules state $171,992.26 itemized and $110,977.67 non-itemized.
+- The regular year-end report covers **26 November to 31 December 2024** and states $250.00
+  itemized and $67.20 non-itemized.
+- The route returns $317.20 for the calendar year — exactly $250.00 + $67.20, so it is right
+  about the regular series and silent about the other $282,969.93.
+- Our bulk itemized rows for 2024 sum to $172,242.26, which is $171,992.26 + $250.00 exactly.
+  **The bulk file covers both series; the route does not.**
+
+So for a special-election filer the year's official total must be assembled from both series'
+reports (§9.4), or the year reads "Not reported". It may never be printed from this route alone.
+Note also that the regular year-end report here does **not** begin on 1 January, which is the
+exception to §9.6.
+
+**11 of 418 requested committee-years returned no financial block at all.** That is consistent
+with a committee that filed nothing, but the response alone cannot tell that apart from a bad
+request or a changed route, because both also answer 200 with no block. Corroborate against the
+filer's report list (§9.6) before showing "Not reported".
+
+### 9.6 Which version is effective, and the bigger trap underneath it
+
+**A year's reports nest.** Before amendments matter at all: every report in a calendar year
+restates everything since 1 January, so a year's reports are overlapping snapshots, not
+consecutive periods.
+
+Minnesota Statutes 10A.20 subd. 4 (Period of report): "A report must cover the period from
+January 1 of the reporting year to seven days before the filing date, except that the report
+due on January 31 must cover the period from January 1 to December 31 of the reporting year."
+The Board says it again in plain words in its candidate handbook: "Each reporting period
+includes all contributions received during the year, not just the contributions received since
+the last report," and "The report must include all transactions from January 1 through the
+cutoff date of the reporting period." Confirmed in the data: Representative Greg Davids'
+committee (12604) filed three reports for 2024, cut off on 22 July, 21 October and 31 December,
+all three beginning 1 January.
+
+So within a completed regular series the year-end report is the final snapshot and the
+pre-election reports are earlier partial ones. Adding a year's reports together counts most of
+the money three times. Special-election series (§9.5), years still in progress, and years with
+no year-end report each need handling of their own.
+
+**Which amended version is effective.** For the filers and years the route covers, it has
+already decided, and that is the answer we use. Two cases where the versions disagree, each
+checked against the documents:
+
+- Republican Party of Minnesota, 2025: the route reports general expenditures of $647,671.22.
+  Amendment #2 states $647,671.22; the original and Amendment #1 state $646,371.22.
+- Dibble's committee (15667), 2024: the route reports $4,869.59 of individual contributions.
+  Amendments #1 to #3 state $2,600.00 itemized plus $2,269.59 non-itemized; the original states
+  $2,194.59 non-itemized. The route matches the amendments.
+
+In both, the route matches the highest-numbered version. Two checked filings are not proof of
+its behaviour across all 367 multi-version reports, which is why §9.3 makes both of these
+standing test cases.
+
+**We still need the rule ourselves**, for three things the route cannot do: assembling a
+special-election year (§9.5), citing the document a figure came from, and satisfying §6's
+requirement to record the effective version and keep superseded ones readable. **The rule is
+the highest amendment index for the key (filer, filing year, report type, special-election
+flag).** The evidence:
+
+- `tabname=reports_data` on the same endpoint returns, per report, an `amendments` array. It is
+  highest-first in **366 of 367** multi-version reports in the 1,005-report catalogue.
+- The exception is filer 17868's 2015 pre-special-election report, whose array is
+  `['1','0','1','0']` — **duplicated entries**. Deduplicate before taking the maximum, and do
+  not treat this catalogue as a clean version ledger.
+- "Received by the Board" rises with the index in **21 of 21** version sets that could be
+  tested. Five more could not be, and nothing before 2023 could be tested at all, because those
+  documents are not served (§9.4). No contrary case was found; that is not the same as none
+  existing.
+
+**Do not use the "Amendment" checkbox printed on the document.** Davids' 2024 year-end has it
+ticked on index 0 and clear on index 1; one of the 21 sets tested (filer 18760's 2024 year-end)
+has it clear on all five versions.
+
+**Versions are alternatives and never add up.** All three of the Republican Party's 2025
+versions state the same 1 January balance of $2,130.77 and the same $748,643.94 of
+contributions; only an expenditure line differs. Checked on those three versions only.
+
+**367 of 1,005 catalogued reports (36.5%) carry at least one amendment**, and one report has
+seven versions. This is ordinary, not an edge case.
+
+### 9.7 The filer directory, which also settles §5
+
+The same service publishes the registered-filer lists in bulk. The Board's own page states
+"List data is updated nightly"; that schedule was not independently measured.
+
+`POST https://cfb.mn.gov/reports/api/`, same `PHPSESSID` requirement, form-encoded:
+
+```
+action=grid_data
+data[action]=all-registered-candidates
+data[type]=current-lists
+data[params][0]=all
+```
+
+`data[action]` is one of `all-registered-candidates` (777 rows on 11 Aug 2026),
+`all-registered-ptus` (299), `all-registered-pcfs` (526), or the three current-report lists
+`candidate-reports`, `ptu-reports` and `pcf-reports`. `action=grid_info` returns the column
+names and the viewer URL templates. **Omitting `data[params][0]=all` returns `false`, not an
+error** — another silent failure to check for.
+
+The candidate directory carries an `Incumbent` flag, 209 rows on 11 August 2026, which is how
+the sitting legislators measured above were selected. §5 says a filer's settled classification
+"needs the Board's registered-filer directory, which is an open route" — this is that route.
+
+### 9.8 Still open, and not blocking the first release
+
+- Pre-2015 itemized payments, which the bulk downloads do not reach. Note that §9.1's totals do
+  reach back to 2009, so a page can state what a committee raised in 2012 without being able to
+  name a single donor for that year.
+- Whether unions file anywhere reachable. This investigation found no Board route for them.
+
+### 9.9 Checks this design asks for that were not run
+
+Recorded as not run, never as passed:
+
+- **§4.3's reconciliation across a sample of committees** was run for contributions only. The
+  expenditure side was never reconciled against the bulk expenditures file.
+- **Party-unit and committee/fund label sets** come from 12 filers of each kind, not from the
+  populations of 299 and 526.
+- **Amendment ordering before 2023** could not be tested, because the documents that would
+  prove it are not served.
+- **Rate limits, blocking and error behaviour under load** were not tested deliberately; the
+  ~1,200 requests in §9.2 are an observation, not a probe.
+- **Whether the route resolves amendments correctly in general** rests on two checked filings
+  plus the standing test cases §9.3 requires. It is not established across the 367
+  multi-version reports.
+
+Codex reviewed this section adversarially before it was committed and could not reach
+cfb.mn.gov from its own environment, so its objections about rate limits, blocking and current
+response contents are unverified by it as well as by us.
