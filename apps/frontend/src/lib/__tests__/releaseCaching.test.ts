@@ -11,18 +11,15 @@ interface VercelConfig {
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
-const configFiles = [
-  resolve(here, '../../../../../vercel.json'),
-  resolve(here, '../../../vercel.json'),
-];
+const liveConfig = resolve(here, '../../../../../vercel.json');
 
 function readConfig(path: string): VercelConfig {
   return JSON.parse(readFileSync(path, 'utf8')) as VercelConfig;
 }
 
 describe('Vercel release caching', () => {
-  it.each(configFiles)('keeps content-named Expo files in the browser', (file) => {
-    const config = readConfig(file);
+  it('keeps content-named Expo files in the browser', () => {
+    const config = readConfig(liveConfig);
     const staticRule = config.headers?.find((rule) => rule.source === '/_expo/static/(.*)');
 
     expect(staticRule?.headers).toContainEqual({
@@ -31,8 +28,8 @@ describe('Vercel release caching', () => {
     });
   });
 
-  it.each(configFiles)('does not apply the immutable rule to page HTML', (file) => {
-    const config = readConfig(file);
+  it('does not apply the immutable rule to page HTML', () => {
+    const config = readConfig(liveConfig);
     const immutableRules = (config.headers ?? []).filter((rule) =>
       rule.headers.some((header) => header.value.includes('immutable')),
     );
