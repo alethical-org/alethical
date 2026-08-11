@@ -75,8 +75,11 @@ const { bienniumEyebrow } = await import('../billDetail');
 const { buildBillShareContent } = await import('../share');
 const { mapBillDetail } = await import('../../data/api');
 const {
+  billDirectoryPageSnapshot,
   billPageSnapshot,
+  homePageSnapshot,
   injectPageSnapshot,
+  legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
   renderPageSnapshot,
   SNAPSHOT_MARKER_END,
@@ -288,6 +291,37 @@ describe('the legislator snapshot says only what the profile draws', () => {
   });
 });
 
+describe('directory rows never guess missing facts', () => {
+  it('uses a bill status when no plain title is ready', () => {
+    const snapshot = billDirectoryPageSnapshot(
+      [{ id: '94-2025-HF5', status_key: 'in_committee' }],
+      1,
+      1,
+      10,
+    );
+
+    expect(snapshot.records?.[0]).toMatchObject({ label: 'HF 5', detail: 'In Committee' });
+  });
+
+  it('shows a district but never guesses Senate when chamber data is missing', () => {
+    const snapshot = legislatorDirectoryPageSnapshot(
+      [
+        {
+          id: 'member-1',
+          full_name: 'Pat Doe',
+          current_service: { district: { code: '12A' } },
+        },
+      ],
+      1,
+      1,
+      12,
+    );
+
+    expect(snapshot.records?.[0]).toMatchObject({ label: 'Pat Doe', detail: 'District 12A' });
+    expect(snapshot.records?.[0].detail).not.toContain('Senate');
+  });
+});
+
 describe('both profile screens keep reading the shared name helper', () => {
   // The screens cannot be rendered here, so this is the drift alarm in their place:
   // if either grows its own copy of the name or district format again, the served
@@ -330,7 +364,9 @@ describe('rendering', () => {
 
   it('is inside the app’s mount point in the shipped shell, so React clears it on render', () => {
     const shell = readFileSync(join(HERE, '../../../public/index.html'), 'utf8');
-    expect(shell).toContain(`<div id="root">${SNAPSHOT_MARKER_START}${SNAPSHOT_MARKER_END}</div>`);
+    expect(shell).toContain(
+      `<div id="root">${SNAPSHOT_MARKER_START}${renderPageSnapshot(homePageSnapshot())}${SNAPSHOT_MARKER_END}</div>`,
+    );
     // The look ships with the shell, so no address pays for CSS of its own.
     expect(shell).toContain('id="alethical-page-snapshot"');
     expect(shell).toContain('.page-snapshot');

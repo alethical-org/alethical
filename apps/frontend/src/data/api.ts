@@ -9,6 +9,7 @@ import {
 } from '../lib/billDetail';
 import type { SourceBlock } from '../lib/billText';
 import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
+import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
 import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
 import {
@@ -1992,7 +1993,6 @@ export async function fetchBillVersionText(
 // page in the browser. Minnesota's 201 seats fit in this one public response;
 // reject a partial response rather than silently dropping a person if that
 // ceiling ever becomes too small.
-const LEGISLATOR_ROSTER_LIMIT = 250;
 
 export async function listLegislatorsFromApi(
   query?: string,

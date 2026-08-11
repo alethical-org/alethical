@@ -24,6 +24,7 @@ import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLab
 import { sessionFilterForApi } from '../../lib/sessionFilterForApi';
 import {
   LEGISLATOR_SEARCH_LABEL,
+  LEGISLATOR_PAGE_SIZE,
   clearAllLegislatorSearchParams,
   clearLegislatorFilterParams,
   clearLegislatorSearchParams,
@@ -38,6 +39,14 @@ import {
 } from '../../lib/legislatorRosterHeader';
 import { Skeleton } from '../../components/Skeleton';
 import { linkProps, routePath } from '../../navigation/links';
+import {
+  compareLegislatorNames,
+  directoryJumpPages,
+  directoryPageNumber,
+  directoryPagePath,
+  LEGISLATOR_DIRECTORY_HEADING,
+  loadedDirectoryPageIsOutOfRange,
+} from '../../lib/directoryPagination';
 
 // Placeholder cards shown while the first page of legislators loads.
 const SKELETON_CARDS = [0, 1, 2, 3, 4, 5];
@@ -84,7 +93,9 @@ export function SearchLegislatorsScreen() {
   const party: LegislatorPartyFilter =
     params.party === 'DFL' || params.party === 'R' || params.party === 'I' ? params.party : 'All';
   const session = typeof params.session === 'string' ? params.session : '';
-  const page = Math.max(1, Number.parseInt(String(params.page ?? ''), 10) || 1);
+  const page = directoryPageNumber(params.page == null ? undefined : String(params.page));
+  const defaultDirectory =
+    query.trim().length === 0 && chamber === 'All' && party === 'All' && session.length === 0;
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [openFilter, setOpenFilter] = useState<'party' | 'session' | null>(null);
@@ -137,11 +148,25 @@ export function SearchLegislatorsScreen() {
     currentSessionSlug: currentSession?.slug,
     rosterLoaded: rosterQuery.isSuccess,
   });
-  const filtered = rosterHeader.displayedOfficeholders
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const filtered = rosterHeader.displayedOfficeholders.slice().sort(compareLegislatorNames);
 
   const pagination = paginateLegislatorResults(filtered, page);
+
+  // Match the real 404 in the first response. The old client-side clamp quietly
+  // changed a missing page into the last roster page after the app loaded.
+  useEffect(() => {
+    if (
+      loadedDirectoryPageIsOutOfRange({
+        isSuccess: rosterQuery.isSuccess,
+        isDefaultDirectory: defaultDirectory,
+        page,
+        total: filtered.length,
+        pageSize: LEGISLATOR_PAGE_SIZE,
+      })
+    ) {
+      navigation.replace('NotFound', { path: directoryPagePath('/legislators', page) });
+    }
+  }, [defaultDirectory, filtered.length, navigation, page, rosterQuery.isSuccess]);
 
   const submitSearch = () => {
     updateFilters({ q: queryInput.trim() || undefined });
@@ -247,7 +272,7 @@ export function SearchLegislatorsScreen() {
       onTerms={() => navigation.navigate('Terms')}
       hero={
         <SearchHero
-          title="Search legislators"
+          title={LEGISLATOR_DIRECTORY_HEADING}
           placeholder={LEGISLATOR_SEARCH_LABEL}
           query={queryInput}
           onQueryChange={setQueryInput}
@@ -323,6 +348,25 @@ export function SearchLegislatorsScreen() {
             }
             onNext={() => navigation.setParams({ page: String(pagination.page + 1) })}
             onPageChange={onPageChange}
+            prevHref={
+              defaultDirectory && pagination.page > 1
+                ? directoryPagePath('/legislators', pagination.page - 1)
+                : undefined
+            }
+            nextHref={
+              defaultDirectory && pagination.page < pagination.totalPages
+                ? directoryPagePath('/legislators', pagination.page + 1)
+                : undefined
+            }
+            jumpPages={
+              defaultDirectory
+                ? directoryJumpPages(pagination.page, pagination.totalPages)
+                : undefined
+            }
+            pageHref={(target) => directoryPagePath('/legislators', target)}
+            onPageSelect={(target) =>
+              navigation.setParams({ page: target > 1 ? String(target) : undefined })
+            }
           />
         </>
       )}

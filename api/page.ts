@@ -6,13 +6,27 @@ import {
   legislatorDistrictLine,
 } from "../apps/frontend/src/lib/legislatorProfile";
 import {
+  billDirectoryPageSnapshot,
   billPageSnapshot,
+  findMyLegislatorPageSnapshot,
   injectPageSnapshot,
+  legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
   renderPageSnapshot,
+  type BillDirectorySnapshotSource,
   type BillSnapshotSource,
+  type LegislatorDirectorySnapshotSource,
   type LegislatorSnapshotSource,
 } from "../apps/frontend/src/lib/pageSnapshot";
+import {
+  BILL_DIRECTORY_PAGE_SIZE,
+  compareLegislatorNames,
+  directoryPageNumber,
+  directoryTotalPages,
+  isDefaultBillDirectoryParams,
+  LEGISLATOR_DIRECTORY_PAGE_SIZE,
+  LEGISLATOR_ROSTER_LIMIT,
+} from "../apps/frontend/src/lib/directoryPagination";
 import {
   askPageMetadata,
   billListPageMetadata,
@@ -31,8 +45,9 @@ import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
 
 /**
  * Puts each address's own title, description, canonical URL, preview tags and
- * machine-readable block into the FIRST server response — and, for a bill or a
- * legislator, a short factual snapshot in its body too (issue #1325).
+ * machine-readable block into the FIRST server response. Bill and legislator
+ * records carry a factual snapshot (#1325); Home and the unfiltered public
+ * directories carry a crawlable path through those records (#1396).
  *
  * Before this, every one of ~10,700 addresses returned the same nameless page,
  * so search engines saw one page repeated and folded them together. The fix is
@@ -92,7 +107,7 @@ function titleCase(value: string): string {
     : "";
 }
 
-async function getApiData<T>(path: string): Promise<T> {
+async function getApiResponse<T>(path: string): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_ORIGIN}/api/v1${path}`, {
@@ -106,10 +121,25 @@ async function getApiData<T>(path: string): Promise<T> {
   if (!response.ok)
     throw new DataUnavailable(`API returned ${response.status}`);
   try {
-    const payload = (await response.json()) as { data: T };
-    return payload.data;
+    return (await response.json()) as T;
   } catch {
     throw new DataUnavailable(`unreadable response for ${path}`);
+  }
+}
+
+async function getApiData<T>(path: string): Promise<T> {
+  return (await getApiResponse<{ data: T }>(path)).data;
+}
+
+/** A list endpoint's 404 means its current-data selection failed, not that the public page is gone. */
+async function getDirectoryApiResponse<T>(path: string): Promise<T> {
+  try {
+    return await getApiResponse<T>(path);
+  } catch (error) {
+    if (error instanceof RecordNotFound) {
+      throw new DataUnavailable(`directory data not found for ${path}`);
+    }
+    throw error;
   }
 }
 
@@ -117,11 +147,21 @@ type BillPayload = BillSnapshotSource & { id?: string };
 
 type LegislatorPayload = LegislatorSnapshotSource & { slug?: string };
 
+type CollectionPayload<T> = {
+  data: T[];
+  page?: {
+    limit?: number | null;
+    offset?: number | null;
+    has_more?: boolean | null;
+    total?: number | null;
+  } | null;
+};
+
 /**
- * What one address contributes to the response: its head tags, and — for a bill
- * or a legislator — the factual snapshot that goes in the body (issue #1325
- * release 2). List, answer and static pages send no snapshot: they are lists of
- * records the app fetches, not a record of their own.
+ * What one address contributes to the response: its head tags and the factual
+ * snapshot that goes in the body. Detail records use the release-2 snapshot;
+ * Home and unfiltered public directories use the crawlable paths in issue #1396.
+ * Filtered, answer, and static pages send no snapshot.
  */
 type PageContent = { metadata: PageMetadata; snapshot: string };
 
@@ -170,13 +210,103 @@ async function legislatorContent(id: string): Promise<PageContent> {
   };
 }
 
+async function billListContent(page: number): Promise<PageContent> {
+  const offset = (page - 1) * BILL_DIRECTORY_PAGE_SIZE;
+  const params = new URLSearchParams({
+    scope: "legislature",
+    sort: "progress",
+    view: "directory",
+    limit: String(BILL_DIRECTORY_PAGE_SIZE),
+    offset: String(offset),
+  });
+  const collection = await getDirectoryApiResponse<
+    CollectionPayload<BillDirectorySnapshotSource>
+  >(`/bills?${params.toString()}`);
+  const total = collection.page?.total;
+  if (typeof total !== "number") {
+    throw new DataUnavailable("bill directory response has no total");
+  }
+  if (page > directoryTotalPages(total, BILL_DIRECTORY_PAGE_SIZE)) {
+    throw new UnknownAddress(`bill directory page ${page} does not exist`);
+  }
+  const expectedRecords = Math.min(
+    BILL_DIRECTORY_PAGE_SIZE,
+    Math.max(0, total - offset),
+  );
+  if (collection.data.length !== expectedRecords) {
+    throw new DataUnavailable("bill directory response is incomplete");
+  }
+  return {
+    metadata: billListPageMetadata(page),
+    snapshot: renderPageSnapshot(
+      billDirectoryPageSnapshot(
+        collection.data,
+        total,
+        page,
+        BILL_DIRECTORY_PAGE_SIZE,
+      ),
+    ),
+  };
+}
+
+async function legislatorListContent(page: number): Promise<PageContent> {
+  const collection = await getDirectoryApiResponse<
+    CollectionPayload<LegislatorDirectorySnapshotSource>
+  >(`/legislators?limit=${LEGISLATOR_ROSTER_LIMIT}&offset=0`);
+  const total = collection.page?.total;
+  if (
+    typeof total !== "number" ||
+    collection.page?.has_more ||
+    total !== collection.data.length
+  ) {
+    throw new DataUnavailable("legislator directory response is incomplete");
+  }
+  const totalPages = directoryTotalPages(total, LEGISLATOR_DIRECTORY_PAGE_SIZE);
+  if (page > totalPages) {
+    throw new UnknownAddress(
+      `legislator directory page ${page} does not exist`,
+    );
+  }
+  const start = (page - 1) * LEGISLATOR_DIRECTORY_PAGE_SIZE;
+  const legislators = collection.data
+    .slice()
+    .sort(compareLegislatorNames)
+    .slice(start, start + LEGISLATOR_DIRECTORY_PAGE_SIZE);
+  return {
+    metadata: legislatorListPageMetadata(page),
+    snapshot: renderPageSnapshot(
+      legislatorDirectoryPageSnapshot(
+        legislators,
+        total,
+        page,
+        LEGISLATOR_DIRECTORY_PAGE_SIZE,
+      ),
+    ),
+  };
+}
+
+function pathWithQuery(query: Record<string, QueryValue>): string {
+  const path = one(query.path) || "/";
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (key === "path" || value === undefined) continue;
+    for (const item of Array.isArray(value) ? value : [value]) {
+      params.append(key, item);
+    }
+  }
+  const suffix = params.toString();
+  return suffix ? `${path}?${suffix}` : path;
+}
+
+function isUnfilteredDirectory(params: Record<string, string>): boolean {
+  return Object.keys(params).every((key) => key === "page");
+}
+
 async function contentFor(
   query: Record<string, QueryValue>,
 ): Promise<PageContent> {
   const path = one(query.path) || "/";
-  const target = targetFromPathname(
-    one(query.q) ? `${path}?q=${encodeURIComponent(one(query.q))}` : path,
-  );
+  const target = targetFromPathname(pathWithQuery(query));
 
   switch (target.kind) {
     case "bill":
@@ -184,9 +314,15 @@ async function contentFor(
     case "legislator":
       return legislatorContent(target.legislatorId);
     case "bills":
-      return headOnly(billListPageMetadata());
+      if (path === "/search")
+        return headOnly(billListPageMetadata(1, { noindex: true }));
+      return isDefaultBillDirectoryParams(target.params)
+        ? billListContent(directoryPageNumber(target.params.page))
+        : headOnly(billListPageMetadata(1, { noindex: true }));
     case "legislators":
-      return headOnly(legislatorListPageMetadata());
+      return isUnfilteredDirectory(target.params)
+        ? legislatorListContent(directoryPageNumber(target.params.page))
+        : headOnly(legislatorListPageMetadata(1, { noindex: true }));
     case "ask":
       return headOnly(askPageMetadata(target.params.q));
     case "tab":
@@ -194,7 +330,10 @@ async function contentFor(
         ? headOnly(STATIC_PAGE_METADATA["/tracked"])
         : headOnly(homePageMetadata());
     case "findMyLegislator":
-      return headOnly(STATIC_PAGE_METADATA["/find-my-legislator"]);
+      return {
+        metadata: STATIC_PAGE_METADATA["/find-my-legislator"],
+        snapshot: renderPageSnapshot(findMyLegislatorPageSnapshot()),
+      };
     case "privacy":
       return headOnly(STATIC_PAGE_METADATA["/privacy"]);
     case "terms":
@@ -291,12 +430,13 @@ export default async function handler(
   // is the opposite — the page would be nameless — and is still a 503 above. If
   // the slot ever does go missing, `pageSnapshot.test.tsx` fails on the shipped
   // `public/index.html` before a release reaches anyone.
-  if (content.snapshot) {
-    try {
-      html = injectPageSnapshot(html, content.snapshot);
-    } catch {
-      // Serve the page as release 1 did: correct tags, empty body.
-    }
+  try {
+    // The shipped shell carries Home's snapshot because `/` is served directly
+    // from the filesystem. Replacing the slot even with an empty string keeps
+    // that Home text off static and filtered pages reached through this handler.
+    html = injectPageSnapshot(html, content.snapshot);
+  } catch {
+    // Serve the page as release 1 did: correct tags, whatever body the shell has.
   }
 
   response.setHeader("Content-Type", "text/html; charset=utf-8");

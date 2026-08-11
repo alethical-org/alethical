@@ -19,7 +19,7 @@ const SHELL = [
   '<title>Alethical</title>',
   '<!--/alethical:page-head-->',
   '<link rel="stylesheet" href="/fonts.css" />',
-  '</head><body><div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
+  '</head><body><div id="root"><!--alethical:page-snapshot--><p>Home snapshot from shell</p><!--/alethical:page-snapshot--></div>',
   '<script src="/_expo/static/js/web/index-abc.js"></script></body></html>',
 ].join('\n');
 
@@ -142,26 +142,271 @@ describe('first-response page tags', () => {
     expect(body).toContain('House District 62A');
   });
 
-  it('serves list and static pages without asking the data service anything', async () => {
+  it('serves a static page without asking the data service anything', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
       return { status: 500 };
     });
 
-    expect((await serve({ path: '/bills' })).body).toContain(
-      '<title>Search Minnesota bills | Alethical</title>',
-    );
     expect((await serve({ path: '/privacy' })).body).toContain(
       '<title>Privacy Policy | Alethical</title>',
     );
-    // A list is a list of other records, so it has no snapshot of its own: the
-    // mount point ships empty and the app fills it, exactly as before.
-    expect((await serve({ path: '/bills' })).body).toContain(
+    expect((await serve({ path: '/privacy' })).body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
     );
     expect(calls).toHaveLength(0);
     expect(readPageShell).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves the same fixed Find My Legislator introduction before the app loads', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return { status: 500 };
+    });
+
+    const { body, status } = await serve({ path: '/find-my-legislator' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<h1>Find my legislator</h1>');
+    expect(body).toContain(
+      'Enter a full street address — a city or ZIP code alone can&#39;t identify your legislators',
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it('serves one crawlable Bills page with the same 10-record page size as the app', async () => {
+    const calls: string[] = [];
+    const bills = Array.from({ length: 10 }, (_, index) => {
+      const fileNumber = index + 11;
+      return {
+        id: `94-2025-HF${fileNumber}`,
+        file_type: 'HF',
+        file_number: fileNumber,
+        title: `Statutory title ${fileNumber}`,
+        ai_analysis: { short_title: `Plain title ${fileNumber}` },
+      };
+    });
+    stubNetwork((url) => {
+      calls.push(url);
+      return {
+        status: 200,
+        payload: {
+          data: bills,
+          page: { limit: 10, offset: 10, has_more: true, total: 25 },
+        },
+      };
+    });
+
+    const { body, status } = await serve({ path: '/bills', page: '2' });
+
+    expect(status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain('/bills?');
+    expect(calls[0]).toContain('scope=legislature');
+    expect(calls[0]).toContain('sort=progress');
+    expect(calls[0]).toContain('view=directory');
+    expect(calls[0]).toContain('limit=10');
+    expect(calls[0]).toContain('offset=10');
+    expect(body).toContain('<h1>Search bills</h1>');
+    expect(body).toContain('rel="canonical" href="https://www.alethical.com/bills?page=2"');
+    expect(body.match(/href="\/bills\/94-2025-HF\d+"/g)).toHaveLength(10);
+    expect(body).toContain('HF 11');
+    expect(body).toContain('Plain title 11');
+    expect(body).toContain('<a href="/bills">Previous</a>');
+    expect(body).toContain('<a href="/bills?page=3">Next</a>');
+    expect(body).not.toContain('Statutory title 11');
+  });
+
+  it('links deep Bills pages in jumps instead of a 1,000-page chain', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: Array.from({ length: 10 }, (_, index) => ({
+          id: `94-2025-HF${index + 1}`,
+          ai_analysis: { short_title: `Plain title ${index + 1}` },
+        })),
+        page: { limit: 10, offset: 0, has_more: true, total: 10_520 },
+      },
+    }));
+
+    const { body } = await serve({ path: '/bills' });
+
+    expect(body).toContain('<a href="/bills?page=11">Page 11</a>');
+    expect(body).toContain('<a href="/bills?page=101">Page 101</a>');
+    expect(body).toContain('<a href="/bills?page=1001">Page 1001</a>');
+    expect(body).toContain('<a href="/bills?page=1052">Page 1052</a>');
+  });
+
+  it('normalises explicit resting Bills settings before deciding the page is filtered', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: [
+          {
+            id: '94-2025-HF5',
+            ai_analysis: { short_title: 'A plain title' },
+            session: {
+              name: '94th Legislature 2025 First Special Session',
+              year_start: 2025,
+              year_end: 2025,
+            },
+          },
+        ],
+        page: { limit: 10, offset: 10, has_more: false, total: 11 },
+      },
+    }));
+
+    const { body, status } = await serve({
+      path: '/bills',
+      page: '2',
+      scope: 'legislature',
+      sort: 'progress',
+    });
+
+    expect(status).toBe(200);
+    expect(body).toContain('rel="canonical" href="https://www.alethical.com/bills?page=2"');
+    expect(body).toContain('HF 5');
+    expect(body).toContain('2025 First Special Session');
+  });
+
+  it('keeps regular and special-session bills with the same number distinct', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: [
+          {
+            id: '94-2025-HF5',
+            ai_analysis: { short_title: 'Regular-session title' },
+          },
+          {
+            id: '94-2025s1-HF5',
+            ai_analysis: { short_title: 'Special-session title' },
+            session: {
+              name: '94th Legislature 2025 First Special Session',
+              year_start: 2025,
+              year_end: 2025,
+            },
+          },
+        ],
+        page: { limit: 10, offset: 0, has_more: false, total: 2 },
+      },
+    }));
+
+    const { body, status } = await serve({ path: '/bills' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('href="/bills/94-2025-HF5"');
+    expect(body).toContain('href="/bills/94-2025s1-HF5"');
+    expect(body).toContain('2025 First Special Session');
+  });
+
+  it('serves one crawlable Legislators page after applying the app name sort and 12-record page size', async () => {
+    const legislators = Array.from({ length: 13 }, (_, index) => {
+      const number = String(index + 1).padStart(2, '0');
+      return {
+        id: `member-${number}`,
+        slug: `member-${number}`,
+        full_name: `Member ${number}`,
+        current_service: {
+          chamber: index % 2 === 0 ? 'house' : 'senate',
+          district: { code: number },
+        },
+      };
+    });
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: legislators.reverse(),
+        page: { limit: 250, offset: 0, has_more: false, total: 13 },
+      },
+    }));
+
+    const { body, status } = await serve({ path: '/legislators', page: '2' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<h1>Search legislators</h1>');
+    expect(body).toContain('rel="canonical" href="https://www.alethical.com/legislators?page=2"');
+    expect(body.match(/href="\/legislators\/member-\d+"/g)).toHaveLength(1);
+    expect(body).toContain('Member 13');
+    expect(body).toContain('House · District 13');
+    expect(body).toContain('<a href="/legislators">Previous</a>');
+    expect(body).not.toContain('>Next</a>');
+  });
+
+  it('keeps filtered directory combinations collapsed into the plain list', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return { status: 500 };
+    });
+
+    const { body, headers, status } = await serve({ path: '/bills', q: 'water', page: '2' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('rel="canonical" href="https://www.alethical.com/bills"');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(body).toContain(
+      '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it('returns 404 for a directory page beyond the real last page', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: [],
+        page: { limit: 10, offset: 10, has_more: false, total: 10 },
+      },
+    }));
+
+    const { body, headers, status } = await serve({ path: '/bills', page: '2' });
+
+    expect(status).toBe(404);
+    expect(body).toContain('<title>Page not found | Alethical</title>');
+    expect(body).not.toContain('rel="canonical"');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+  });
+
+  it('returns 404 for a Legislators page beyond the real last page', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: Array.from({ length: 12 }, (_, index) => ({
+          id: `member-${index + 1}`,
+          full_name: `Member ${index + 1}`,
+        })),
+        page: { limit: 250, offset: 0, has_more: false, total: 12 },
+      },
+    }));
+
+    const { body, headers, status } = await serve({ path: '/legislators', page: '2' });
+
+    expect(status).toBe(404);
+    expect(body).toContain('<title>Page not found | Alethical</title>');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+  });
+
+  it('keeps a filtered Legislators address collapsed into the plain directory', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return { status: 500 };
+    });
+
+    const { body, headers, status } = await serve({
+      path: '/legislators',
+      party: 'DFL',
+      page: '2',
+    });
+
+    expect(status).toBe(200);
+    expect(body).toContain('rel="canonical" href="https://www.alethical.com/legislators"');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(body).not.toContain('class="ps-records"');
+    expect(calls).toHaveLength(0);
   });
 
   it('tells robots not to list an answer page, in a header and in the page', async () => {
@@ -200,7 +445,12 @@ describe('addresses that are not real pages', () => {
   it('still serves a page when the shell has lost its snapshot slot', async () => {
     // The body text improves a page that already works, so its slot going missing
     // must not take the page down. A missing head marker still returns 503.
-    readPageShell.mockResolvedValue(SHELL.replace(/<!--\/?alethical:page-snapshot-->/g, ''));
+    readPageShell.mockResolvedValue(
+      SHELL.replace(
+        '<!--alethical:page-snapshot--><p>Home snapshot from shell</p><!--/alethical:page-snapshot-->',
+        '',
+      ),
+    );
     stubNetwork(() => ({ status: 200, payload: { data: { id: '94-2025-HF719' } } }));
 
     const { status, body } = await serve({ path: '/bills/94-2025-HF719' });
@@ -233,7 +483,6 @@ describe('addresses that are not real pages', () => {
   );
 
   it.each([
-    ['/search', '<title>Search Minnesota bills | Alethical</title>'],
     ['/chat', '<title>Alethical: Minnesota’s legislative record in plain language</title>'],
     ['/chat/new', '<title>Alethical: Minnesota’s legislative record in plain language</title>'],
     [
@@ -247,6 +496,23 @@ describe('addresses that are not real pages', () => {
 
     expect(status).toBe(200);
     expect(body).toContain(title);
+    expect(body).not.toContain('<h1>Grounded answers on Minnesota law</h1>');
+  });
+
+  it('keeps the retired /search address on the crawlable Bills directory', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: [],
+        page: { limit: 10, offset: 0, has_more: false, total: 0 },
+      },
+    }));
+
+    const { status, body } = await serve({ path: '/search' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<title>Search Minnesota bills | Alethical</title>');
+    expect(body).not.toContain('<h1>Search bills</h1>');
   });
 
   it('keeps a retired vote address on its bill page', async () => {
@@ -274,6 +540,28 @@ describe('when the data service is unwell', () => {
     expect(headers.get('Cache-Control')).toBe('no-store');
   });
 
+  it('returns 503 rather than an empty directory when its records cannot be read', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { status, headers } = await serve({ path: '/bills' });
+
+    expect(status).toBe(503);
+    expect(headers.get('Retry-After')).toBe('120');
+  });
+
+  it.each(['/bills', '/legislators'])(
+    'returns 503 rather than saying the directory itself is gone when %s data answers 404',
+    async (path) => {
+      stubNetwork(() => ({ status: 404 }));
+
+      const { status, headers } = await serve({ path });
+
+      expect(status).toBe(503);
+      expect(headers.get('Retry-After')).toBe('120');
+      expect(headers.get('X-Robots-Tag')).toBeUndefined();
+    },
+  );
+
   it('returns 503 when the data service cannot be reached at all', async () => {
     vi.stubGlobal(
       'fetch',
@@ -287,7 +575,10 @@ describe('when the data service is unwell', () => {
 
   it('returns 503 rather than a page with the wrong tags when the shell is unreadable', async () => {
     readPageShell.mockResolvedValue('<html><head></head></html>');
-    stubNetwork(() => ({ status: 200, payload: { data: {} } }));
+    stubNetwork(() => ({
+      status: 200,
+      payload: { data: [], page: { limit: 10, offset: 0, has_more: false, total: 0 } },
+    }));
 
     expect((await serve({ path: '/bills' })).status).toBe(503);
   });

@@ -1932,6 +1932,7 @@ def bill_list_stmt(
     user_id: Optional[uuid.UUID] = None,
     sort: str = "latest_action",
     text_query: Optional[str] = None,
+    directory: bool = False,
 ):
     """Load a bill list page with stats, chief-sponsor preview, and optional tracked state.
 
@@ -1954,15 +1955,19 @@ def bill_list_stmt(
     (``/bills``); a caller with one fixed ranking may pass it freely
     (``/search`` typeahead, always closest-match-first).
     """
-    options = [
-        selectinload(Bill.stats),
-        selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
-        selectinload(Bill.enrichments),
-        # Action feed for the result card's curated latest-action line (one extra
-        # round trip; ~2.9 actions/bill average, so a small payload).
-        selectinload(Bill.actions),
-    ]
-    if user_id is not None:
+    options = (
+        []
+        if directory
+        else [
+            selectinload(Bill.stats),
+            selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
+            selectinload(Bill.enrichments),
+            # Action feed for the result card's curated latest-action line (one extra
+            # round trip; ~2.9 actions/bill average, so a small payload).
+            selectinload(Bill.actions),
+        ]
+    )
+    if user_id is not None and not directory:
         options.append(
             selectinload(Bill.tracked_by.and_(TrackedBill.user_id == user_id))
         )

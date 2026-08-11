@@ -540,8 +540,10 @@ bill on revisor.mn.gov, to that author's profile, and to the bill list) and for 
 chamber and district, party, committees, capitol office and phone, and links to their official chamber
 profile and to the member list). `api/page.ts` drops it between the markers inside `<div id="root">`.
 
-Lists, `/ask` and the static pages get no snapshot. A list is a list of *other* records, so a snapshot
-of it would either restate the page title or invent a summary of a result set that changes per reader.
+At release 2, lists, `/ask` and static pages got no snapshot. A list is a list of *other* records, so
+that release did not invent a summary of a result set that changes per reader. §18 later replaces the
+list boundary for unfiltered public directory pages only: it serves the exact records and page links,
+not a generated summary. Filtered lists, `/ask`, and static pages other than Home still get none.
 
 ### Two things §8C did not settle, and how the build settled them
 
@@ -592,7 +594,8 @@ every pull request.
 
 ### What release 2 deliberately does not do
 
-- **No snapshot on a list page**, per above.
+- **No snapshot on a list page in release 2.** §18 later replaces this boundary for unfiltered public
+  directories after the internal-link measurement showed that the sitemap was their only useful path.
 - **No second look at the styling.** The snapshot uses the site's font and a plain column; it is on
   screen for well under a second for anyone whose program loads.
 - **Not [#502](https://github.com/alethical-org/alethical/issues/502).** Navigation is untouched and
@@ -937,3 +940,71 @@ available for outside test tools, but page serving does not depend on it.
 function never asks its own deployment for `index.html`, and keeps the real data-outage 503 checks.
 `releaseCaching.test.ts` pins the build-file inclusion in the root `vercel.json`. A protected Vercel
 preview must serve a real bill title and snapshot before this change merges.
+
+---
+
+## 18. Crawlable public directories
+
+Decided 11 Aug 2026 for [#1396](https://github.com/alethical-org/alethical/issues/1396).
+
+### What the next measurement found
+
+The sitemap was accepted with 10,725 addresses, but Google Search Console's Links report counted only
+769 internal links: 474 to Home, 289 to Terms, 2 to Privacy, and 1 each to four record pages. The
+first response for `/bills` and `/legislators` had the right title but an empty body, so the sitemap
+was doing almost all of the discovery work for the record corpus. A sitemap is a discovery hint; it
+does not replace the ordinary links Google asks every important page to have.
+
+The answer is not the full navigation rebuild in
+[#502](https://github.com/alethical-org/alethical/issues/502). Detail pages already serve useful
+text. The smaller missing piece is a walkable path from Home through both directories to every
+record.
+
+### Decision
+
+- The static Home shell carries the exact signed-out heading, introduction, and links to Bills,
+  Legislators, and Find My Legislator. `/` never reaches the page function, so Home's body has to live
+  in `apps/frontend/public/index.html`; a test compares it byte-for-byte with the shared builder.
+- Find My Legislator serves its fixed heading and instructions before the app loads, so the 3rd Home
+  link does not lead a non-program reader back to an empty body.
+- An unfiltered Bills page serves the same 10-record slice the app requests: whole-legislature scope,
+  progress order, and normal links to each bill. An unfiltered Legislators page reads the complete
+  current roster, applies the app's name order, and serves the same 12-record slice.
+- The page function asks the Bills endpoint for its small directory view: bill id, plain short title,
+  status, and special-session identity. It does not fetch card actions, sponsors, statistics, or
+  effective dates merely to print 10 links on a first response.
+- Page 1 keeps `/bills` or `/legislators` as its canonical address. Page 2 and later use their own
+  `?page=N` canonical address and add `Page N` to their titles and descriptions. Previous/Next plus
+  jumps of 10, 100, and 1,000 pages keep every bill within a few dozen normal links instead of a
+  chain about 1,000 pages long. A requested page beyond the real last page answers 404 with
+  `noindex`; after the app starts it stays on the same useful missing-page screen instead of being
+  clamped to a real last page or changed into an ordinary empty list.
+- Typed searches and filter combinations keep the plain directory as their canonical address and
+  receive no record snapshot plus a `noindex` instruction. They remain useful to a person after the
+  app runs without becoming thousands of near-copy search pages; the explicit instruction avoids
+  asking a search engine to infer that from a canonical hint alone.
+- The app and the serving function import the same 10- and 12-record page-size constants. Bill link
+  text uses the bill code, its plain short title when one exists, and its session so repeated bill
+  codes from special sessions stay distinct; it never puts the statutory cross-reference title into
+  the first response. Legislator links use the same name, chamber, and district the cards show.
+- Explicit resting Bills settings (`scope=legislature`, `sort=progress`) are normalized before the
+  filtered-page decision. They receive the same requested directory page and canonical address as
+  the plain URL instead of a blank first response that disagrees with the loaded app.
+- The pages sitemap lists every real numbered directory address from totals produced by the same
+  bill and legislator list rules. The record sitemap still lists every detail page directly, which is
+  the completeness guarantee when progress ordering moves a bill between directory pages mid-crawl.
+- A directory data failure answers 503 with `Retry-After`, as detail failures already do. It never
+  turns a temporary outage into an empty successful page or a false 404. That includes a 404 from a
+  list endpoint, which means its current-session data selection failed, not that Bills or Legislators
+  ceased to be public pages.
+- Retired `/search` addresses permanently redirect to Bills. Retired Chat and Account addresses
+  permanently redirect Home. They still lead somewhere useful without serving full duplicate copies
+  of the destination pages at unlimited old addresses.
+
+### What this deliberately does not do
+
+- It does not make filtered result combinations indexable.
+- It does not add issue landing pages. Those need a small set chosen from real search demand and
+  enough original context to be useful, not a page for every filter value.
+- It does not add special AI files or AI-only wording. The same text and links go to people and every
+  crawler, and React replaces that text when the full app starts.

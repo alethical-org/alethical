@@ -97,11 +97,11 @@
       }
     </style>
     <!--
-      The look of the factual snapshot api/page.ts puts inside #root for a bill or
-      a legislator (issue #1325). It is static and ships with the shell, so no
-      address carries CSS of its own. The colours mirror apps/frontend/src/theme/
-      tokens.ts, so what arrives first does not flash a different palette than the
-      app that replaces it.
+      The look of the factual snapshot api/page.ts puts inside #root for a record
+      or public directory (issues #1325 and #1396). It is static and ships with
+      the shell, so no address carries CSS of its own. The colours mirror
+      apps/frontend/src/theme/tokens.ts, so what arrives first does not flash a
+      different palette than the app that replaces it.
     -->
     <style id="alethical-page-snapshot">
       .page-snapshot {
@@ -161,6 +161,30 @@
       }
       .page-snapshot .ps-facts dd {
         margin: 2px 0 0;
+      }
+      .page-snapshot .ps-records {
+        list-style: none;
+        margin: 28px 0 0;
+        padding: 0;
+        border-top: 1px solid #cfd6d2;
+      }
+      .page-snapshot .ps-records li {
+        border-bottom: 1px solid #cfd6d2;
+      }
+      .page-snapshot .ps-records a {
+        display: block;
+        padding: 16px 0;
+        color: #11150f;
+        text-decoration: none;
+      }
+      .page-snapshot .ps-record-label {
+        display: block;
+        color: #0f7a45;
+        font-weight: 700;
+      }
+      .page-snapshot .ps-record-detail {
+        display: block;
+        margin-top: 3px;
       }
       .page-snapshot .ps-links {
         margin-top: 28px;
@@ -224,9 +248,9 @@
       The snapshot goes inside the app's own mount point on purpose (issue #1325):
       React clears this element's children on its first render, so the app
       replacing the snapshot is one paint, with no moment where both are on screen
-      and no extra script to run. `/` ships it empty because the home page is
-      served straight off the filesystem and never reaches api/page.ts.
+      and no extra script to run. `/` carries Home's text here because the home
+      page is served straight off the filesystem and never reaches api/page.ts.
     -->
-    <div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>
+    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot"><div class="ps-inner"><h1>Grounded answers on Minnesota law</h1><p class="ps-sub">TRUTH, UNCONCEALED</p><p class="ps-prose">We read every bill so you don’t have to — what it says, where it stands, and how legislators voted. Plain language, with every claim linked to the official record.</p><nav class="ps-links"><a href="/bills">Search Bills</a><a href="/legislators">Search Legislators</a><a href="/find-my-legislator">Find My Legislator</a></nav></div></div><!--/alethical:page-snapshot--></div>
   </body>
 </html>

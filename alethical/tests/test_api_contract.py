@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from alethical.api.serializers import current_bill_summary_enrichment
@@ -162,6 +162,34 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
         "passed_senate",
         "signed_into_law",
     ]
+
+
+def test_bill_directory_view_returns_only_first_response_fields(client):
+    response = client.get(
+        "/api/v1/bills",
+        params={
+            "scope": "legislature",
+            "sort": "progress",
+            "view": "directory",
+            "limit": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    rows = response.json()["data"]
+    assert len(rows) == 2
+    for row in rows:
+        assert set(row) == {
+            "id",
+            "current_status",
+            "status_key",
+            "session",
+            "ai_analysis",
+        }
+        assert set(row["ai_analysis"]) == {"short_title"}
+        assert "actions" not in row
+        assert "chief_sponsors" not in row
+        assert "stats" not in row
 
 
 def test_featured_bills_returns_requested_summaries_in_order_and_skips_missing(client):
@@ -413,6 +441,10 @@ def test_legislator_list_supports_offset_pagination_and_total(client):
         params={"session": "94-2025-regular", "limit": 1, "offset": 0},
     )
     assert first_response.status_code == 200
+    assert (
+        first_response.headers["cache-control"]
+        == "public, max-age=60, stale-while-revalidate=300"
+    )
     first_payload = first_response.json()
     assert len(first_payload["data"]) == 1
     assert first_payload["page"]["offset"] == 0
@@ -6004,13 +6036,44 @@ def test_sitemap_lists_every_bill_and_legislator(client):
     response = client.get("/api/v1/sitemap")
     assert response.status_code == 200
     payload = response.json()["data"]
-    assert set(payload.keys()) == {"bills", "legislators"}
+    assert set(payload.keys()) == {
+        "bill_directory_total",
+        "legislator_directory_total",
+        "bills",
+        "legislators",
+    }
 
     bill_ids = [bill["id"] for bill in payload["bills"]]
     assert set(bill_ids) == expected_bill_ids
 
     legislator_slugs = [legislator["slug"] for legislator in payload["legislators"]]
     assert set(legislator_slugs) == expected_slugs
+    with Session(get_engine()) as db:
+        current_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.is_current.is_(True)
+            )
+        )
+        legislature_ids = tuple(
+            db.scalars(
+                select(schema.LegislativeSession.id).where(
+                    schema.LegislativeSession.jurisdiction_id
+                    == current_session.jurisdiction_id,
+                    schema.LegislativeSession.session_number
+                    == current_session.session_number,
+                )
+            ).all()
+        )
+        expected_directory_bills = db.scalar(
+            select(func.count())
+            .select_from(schema.Bill)
+            .where(
+                schema.Bill.session_id.in_(legislature_ids),
+                schema.Bill.has_current_summary.is_(True),
+            )
+        )
+    assert payload["bill_directory_total"] == expected_directory_bills
+    assert payload["legislator_directory_total"] == len(expected_slugs)
 
     # The property that matters is a STABLE order, so a cached sitemap does not
     # churn between rebuilds -- not one specific order. This deliberately does not

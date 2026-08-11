@@ -1,4 +1,10 @@
 import { publicPageUrl } from "../apps/frontend/src/lib/share";
+import {
+  BILL_DIRECTORY_PAGE_SIZE,
+  directoryPagePath,
+  directoryTotalPages,
+  LEGISLATOR_DIRECTORY_PAGE_SIZE,
+} from "../apps/frontend/src/lib/directoryPagination";
 
 type QueryValue = string | string[] | undefined;
 type RequestLike = { query?: Record<string, QueryValue> };
@@ -9,6 +15,8 @@ type ResponseLike = {
 };
 
 type SitemapPayload = {
+  bill_directory_total: number;
+  legislator_directory_total: number;
   bills: Array<{ id: string; lastmod?: string }>;
   legislators: Array<{ slug: string; lastmod?: string }>;
 };
@@ -59,8 +67,30 @@ function sitemapIndex(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${children.join("\n")}\n</sitemapindex>`;
 }
 
-function pagesUrlset(): string {
-  return urlset(FIXED_PAGES.map((path) => urlEntry(publicPageUrl(path))));
+function pagesUrlset(data?: SitemapPayload): string {
+  const paths = [...FIXED_PAGES];
+  if (data) {
+    for (
+      let page = 2;
+      page <=
+      directoryTotalPages(data.bill_directory_total, BILL_DIRECTORY_PAGE_SIZE);
+      page += 1
+    ) {
+      paths.push(directoryPagePath("/bills", page));
+    }
+    for (
+      let page = 2;
+      page <=
+      directoryTotalPages(
+        data.legislator_directory_total,
+        LEGISLATOR_DIRECTORY_PAGE_SIZE,
+      );
+      page += 1
+    ) {
+      paths.push(directoryPagePath("/legislators", page));
+    }
+  }
+  return urlset(paths.map((path) => urlEntry(publicPageUrl(path))));
 }
 
 function billsUrlset(bills: SitemapPayload["bills"]): string {
@@ -132,7 +162,14 @@ export default async function handler(
   }
 
   if (section === "pages") {
-    sendXml(response, pagesUrlset());
+    let data: SitemapPayload | undefined;
+    try {
+      data = await fetchSitemapData();
+    } catch {
+      // Fixed pages still help during a data outage. Numbered directory pages
+      // return on the next hourly refresh once current counts are readable.
+    }
+    sendXml(response, pagesUrlset(data));
     return;
   }
 

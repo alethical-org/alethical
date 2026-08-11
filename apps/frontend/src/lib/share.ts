@@ -1,4 +1,5 @@
 import { plainBillSummary } from './billDetail';
+import { directoryPagePath } from './directoryPagination';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
@@ -238,24 +239,31 @@ export function notFoundPageMetadata(): PageMetadata {
   });
 }
 
-export function billListPageMetadata(): PageMetadata {
+export function billListPageMetadata(page = 1, options: { noindex?: boolean } = {}): PageMetadata {
+  const subject = page > 1 ? `${BILL_LIST_SUBJECT}, page ${page}` : BILL_LIST_SUBJECT;
   return pageMetadata({
-    title: titleFor(BILL_LIST_SUBJECT),
-    socialTitle: BILL_LIST_SUBJECT,
-    description: 'Search bills in the Minnesota Legislature by topic, chamber, and status.',
+    title: titleFor(subject),
+    socialTitle: subject,
+    description: `Search bills in the Minnesota Legislature by topic, chamber, and status.${page > 1 ? ` Page ${page}.` : ''}`,
     // Ten filter values combine into effectively unlimited near-identical
     // addresses (#135's URL-addressable filters). They all declare the plain
     // list as their real address, which collapses them into one.
-    canonicalPath: '/bills',
+    canonicalPath: directoryPagePath('/bills', page),
+    noindex: options.noindex,
   });
 }
 
-export function legislatorListPageMetadata(): PageMetadata {
+export function legislatorListPageMetadata(
+  page = 1,
+  options: { noindex?: boolean } = {},
+): PageMetadata {
+  const subject = page > 1 ? `${LEGISLATOR_LIST_SUBJECT}, page ${page}` : LEGISLATOR_LIST_SUBJECT;
   return pageMetadata({
-    title: titleFor(LEGISLATOR_LIST_SUBJECT),
-    socialTitle: LEGISLATOR_LIST_SUBJECT,
-    description: 'Find a Minnesota legislator by name, chamber, or party.',
-    canonicalPath: '/legislators',
+    title: titleFor(subject),
+    socialTitle: subject,
+    description: `Find a Minnesota legislator by name, chamber, or party.${page > 1 ? ` Page ${page}.` : ''}`,
+    canonicalPath: directoryPagePath('/legislators', page),
+    noindex: options.noindex,
   });
 }
 

@@ -659,8 +659,19 @@ def sitemap(db: Session = Depends(get_db), response: Response = None):  # type: 
         .order_by(None)
         .order_by(Legislator.slug.asc())
     ).all()
+    legislature_session_ids = current_legislature_scope(db).ids
+    bill_directory_total = db.scalar(
+        select(func.count()).select_from(
+            bill_list_stmt(legislature_session_ids).order_by(None).subquery()
+        )
+    )
     return DetailResponse(
         data={
+            # Directory totals deliberately differ from the full URL arrays:
+            # all real detail pages belong in the sitemap, while /bills lists
+            # only bills with a current plain-language summary.
+            "bill_directory_total": bill_directory_total,
+            "legislator_directory_total": len(legislator_rows),
             "bills": [
                 {"id": bill_key, **_lastmod(latest_action_at, updated_at)}
                 for bill_key, latest_action_at, updated_at in bill_rows
@@ -769,6 +780,7 @@ def bills(
     policy_area: list[str] | None = Query(default=None),
     omnibus: bool | None = None,
     include: str | None = None,
+    view: Literal["cards", "directory"] = "cards",
     sort: Literal["relevance", "latest_action", "progress", "introduced"] | None = None,
     limit: int = Query(default=20, ge=0, le=100),
     offset: int = Query(default=0, ge=0),
@@ -808,6 +820,7 @@ def bills(
         user_id=tracking_user_id(include_set, current_user),
         sort=effective_sort,
         text_query=text_query,
+        directory=view == "directory",
     )
     if q:
         if number_clause is not None:
@@ -841,8 +854,6 @@ def bills(
     rows, has_more, total = paginated_scalars_with_total(
         db, stmt, limit=limit, offset=offset
     )
-    co_author_counts = bill_co_author_counts(db, [row.id for row in rows])
-    effective_dates = bill_effective_dates(db, rows)
 
     def special_session_ref(row):
         if legislature_scope is None or row.session_id == legislature_scope.primary.id:
@@ -859,18 +870,38 @@ def bills(
             "year_end": session_row.year_end,
         }
 
-    data = [
-        bill_list_item(
-            row,
-            include_tracking="tracking" in include_set and current_user is not None,
-            co_author_count=co_author_counts.get(str(row.id), 0),
-            effective_date=effective_dates.get(str(row.id)),
-            session=special_session_ref(row),
-        )
-        for row in rows
-    ]
+    data: list[Any]
+    if view == "directory":
+        short_titles = _target_short_titles(db, {row.id for row in rows})
+        data = []
+        for row in rows:
+            data.append(
+                {
+                    "id": row.bill_key,
+                    "current_status": row.current_status,
+                    "status_key": row.status_key,
+                    "session": special_session_ref(row),
+                    "ai_analysis": {"short_title": short_titles.get(row.id)},
+                }
+            )
+    else:
+        co_author_counts = bill_co_author_counts(db, [row.id for row in rows])
+        effective_dates = bill_effective_dates(db, rows)
+        data = [
+            bill_list_item(
+                row,
+                include_tracking="tracking" in include_set and current_user is not None,
+                co_author_count=co_author_counts.get(str(row.id), 0),
+                effective_date=effective_dates.get(str(row.id)),
+                session=special_session_ref(row),
+            )
+            for row in rows
+        ]
     return CollectionResponse(
-        data=[item.model_dump(exclude_none=True) for item in data],
+        data=[
+            item.model_dump(exclude_none=True) if hasattr(item, "model_dump") else item
+            for item in data
+        ],
         page={
             "limit": limit,
             "offset": offset,
@@ -2394,7 +2425,9 @@ def legislators(
     limit: int = Query(default=20, ge=0, le=250),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    response: Response = None,  # type: ignore[assignment]
 ):
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
     session_row = get_session_by_slug(db, session)
     stmt = legislator_directory_stmt(session_row.id)
     if q:

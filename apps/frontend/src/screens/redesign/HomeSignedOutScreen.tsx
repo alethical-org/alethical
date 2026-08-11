@@ -24,7 +24,7 @@ import { BillResultCard } from '../../components/search/BillResultCard';
 import { formatNiceDate, plainBillSummary } from '../../lib/billDetail';
 import { HOT_ISSUE_BILL_KEYS } from '../../lib/hotIssues';
 import { HomeLegislatorFinder } from '../../components/home/HomeLegislatorFinder';
-import { HOME_BILL_GROUP_CONTINUATIONS } from '../../lib/homepage';
+import { HOME_BILL_GROUP_CONTINUATIONS, HOME_PUBLIC_INTRO } from '../../lib/homepage';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import { LinkArrow } from '../../components/LinkArrow';
 import type { Bill } from '../../data/types';
@@ -776,11 +776,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                         Grounded answers{'\n'}
                         <Text style={styles.heroH1Green}>on Minnesota law</Text>
                       </Text>
-                      <Text style={styles.heroSubhead}>
-                        We read every bill so you don’t have to — what it says, where it stands, and
-                        how legislators voted. Plain language, with every claim linked to the
-                        official record.
-                      </Text>
+                      <Text style={styles.heroSubhead}>{HOME_PUBLIC_INTRO}</Text>
                     </>
                   )}
 
@@ -1413,10 +1409,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                     Grounded answers{'\n'}
                     <Text style={m.heroH1Green}>on Minnesota law</Text>
                   </Text>
-                  <Text style={m.heroSubhead}>
-                    We read every bill so you don’t have to — what it says, where it stands, and how
-                    legislators voted. Plain language, every answer linked to official sources.
-                  </Text>
+                  <Text style={m.heroSubhead}>{HOME_PUBLIC_INTRO}</Text>
                 </>
               )}
             </Container>

@@ -65,6 +65,21 @@ describe('page metadata', () => {
   it('points every filtered list address back at the plain list', () => {
     expect(billListPageMetadata().canonicalPath).toBe('/bills');
     expect(legislatorListPageMetadata().canonicalPath).toBe('/legislators');
+    expect(billListPageMetadata(1, { noindex: true }).noindex).toBe(true);
+    expect(legislatorListPageMetadata(1, { noindex: true }).noindex).toBe(true);
+  });
+
+  it('gives later unfiltered directory pages their own canonical address', () => {
+    expect(billListPageMetadata(1).canonicalPath).toBe('/bills');
+    expect(billListPageMetadata(2).canonicalPath).toBe('/bills?page=2');
+    expect(legislatorListPageMetadata(1).canonicalPath).toBe('/legislators');
+    expect(legislatorListPageMetadata(17).canonicalPath).toBe('/legislators?page=17');
+    expect(billListPageMetadata(2).title).toBe('Search Minnesota bills, page 2 | Alethical');
+    expect(legislatorListPageMetadata(17).title).toBe(
+      'Minnesota House and Senate members, page 17 | Alethical',
+    );
+    expect(billListPageMetadata(2).description).toContain('Page 2');
+    expect(legislatorListPageMetadata(17).description).toContain('Page 17');
   });
 
   // Blocking answer pages in robots.txt would stop a crawler reading the very
