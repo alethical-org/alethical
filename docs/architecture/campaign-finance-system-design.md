@@ -115,8 +115,24 @@ filtering brings that to 3. Senator Lindsey Port's committee (18466) is the plai
 row typed `Miscellaneous` with contributor type `Self` is a loan from the candidate to her own
 committee, carried on the filing as `Schedule A2 - LP`.
 
-**The download does not reliably carry amendments.** Where an amendment changed a filing's
-contribution rows, the bulk file still holds the set from before it. Measured on 3 filers on 11 Aug
+**Two things about the expenditures file, both of which change what a comparison means.** First,
+**the `Amount` column is the filing's *total*, not its *paid* column.** A filing prints paid, unpaid,
+in-kind and total for every row. Measured on filer 17709, where they differ: the filing's paid column
+sums to $10,062.18 and its total column to $9,956.91, and only the total matches our 108 rows
+exactly. Comparing against the paid column produces false mismatches in both directions, 28 of each
+on that filer alone. Second, **`Type` has 6 values and a candidate and a party unit use different
+ones for the same thing.** Across all years: `General Expenditure` 148,735, `Campaign Expenditure`
+129,237, `Contribution` 61,840, `Non-Campaign Disbursement` 35,844, `Ballot Question Expenditure`
+1,274, `Other Disbursement` 930. In 2025 candidate committees filed 6,781 rows typed
+`Campaign Expenditure` and **none** typed `General Expenditure`; party units filed 7,524 the other
+way round. **So filtering on either label alone silently drops a whole filer kind** — the same shape
+of trap as the `Receipt type` rule below.
+
+**The download does not reliably carry amendments, on both sides of the ledger.** Where an amendment
+changed a filing's rows, the bulk file still holds the set from before it. Confirmed on money out as
+well as money in: filer 17709's outgoing rows match amendment 0 exactly at 108 rows and $9,956.91,
+and fall 14 rows short of amendments 1 and 2, which is the same behaviour its incoming rows showed.
+For contributions specifically: Measured on 3 filers on 11 Aug
 2026, against amendments received between 27 March and 25 July 2026: our rows match the **original**
 filing exactly for HRCC (20010; 743 rows, $1,488,168.08) and for filer 19043 (35 rows, $14,250.00),
 and match it but for one extra row for filer 17709. It surfaces rarely because most amendments leave
@@ -982,6 +998,13 @@ costs nothing extra, because each contributor-type line the route returns equals
 route's disagree, the parser is wrong and the check reports itself broken rather than failing the
 release.
 
+Three parser bugs have been caught this way, and the third is the one that argues hardest for the
+rule: an expenditure parser returned **zero rows for all 4 filers**, which looks exactly like the
+data being absent rather than like a bug, and the cause was a pattern that assumed contribution
+row shape (expenditure rows put the purpose text between the date and the amount). A wrong number
+invites suspicion; "no data at all" invites a conclusion about the source. None of the three was
+found by reading the code.
+
 **The self-test is sharper for candidates than for party units, and the parser trap is the reverse.**
 A candidate committee's route response carries up to 5 contributor-type lines, each of which must
 match its own named schedule, so a parser error is caught per schedule. A party unit returns one
@@ -1170,7 +1193,8 @@ legislator" — §5.1 measures both ways it fails**: only 198 of the 209 are leg
 Recorded as not run, never as passed:
 
 - **§4.3's reconciliation across a sample of committees** was run for contributions only. The
-  expenditure side was never reconciled against the bulk expenditures file.
+  expenditure side has been reconciled for the 4 filers of
+  [#1386](https://github.com/alethical-org/alethical/issues/1386) and for no others.
 - **Party-unit and committee/fund label sets** come from 12 filers of each kind, not from the
   populations of 299 and 526.
 - **Amendment ordering before 2023** could not be tested, because the documents that would
@@ -1191,8 +1215,11 @@ Recorded as not run, never as passed:
   Campaign Committee**: its filing itemizes $1,493,418.08 against our $1,488,168.08, short by
   exactly $5,250.00, the same silent direction as the 3 legislator cases — and **diagnosed since**
   ([#1386](https://github.com/alethical-org/alethical/issues/1386)): 3 of those 4 are the
-  pre-amendment export of §2.1, and the fourth is a coverage gap particular to one committee. Those
-  two samples
+  pre-amendment export of §2.1, and the fourth is a coverage gap particular to one committee. The
+  expenditure side has since been checked for those same 4 filers, which confirmed the pre-amendment
+  cause on money out as well and found a second unexplained gap: HRCC is missing 3 outgoing payments
+  worth **$21,940.32**, present in no version of its filing. Both unexplained gaps need the Board
+  itself and sit with Eugene. Those two samples
   establish that the comparison works and the documents are there; they do **not** establish a
   failure rate for either kind, and HRCC is one hit rather than a measured rate. The check has not
   run for any year before 2025, for any filer outside those samples, or for the expenditure side
