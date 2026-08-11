@@ -761,6 +761,20 @@ looked yet**, **checked, and none of their candidate committees is theirs**, and
 which §5.1's table already distinguishes without a fourth value, because a rejection is stored
 rather than discarded.
 
+**And rejecting every proposal for a sitting member is not "no committee is registered" — it is an
+unexplained contradiction, and no reader-facing card may state it as a fact.** The two claims are
+about different things: rejections are about the committees we found and proposed, while "none is
+registered" is a claim about the Board's records, which for all 200 sitting members is false (§5.1).
+So a member with every proposal rejected means their committee exists and we did not surface it,
+which wants a person's attention rather than a card. The "none registered" card is honest only on a
+standalone money page for someone we hold no legislator record for.
+
+**What shipped for the period stamp is richer than the rule above, and the rule is the floor.** The
+built panel binds four facts that move with the record — the period, which report it comes from, the
+day we checked, and the next date something is due — and deliberately shows **no date range at all**
+in the two variants where no period is covered, rather than falling back to a year label. Anyone
+rewriting this paragraph should read what shipped first.
+
 **One legislator, several committees.** Minnesota registers a committee per office, so a person
 accumulates them: 17 sitting members tie to more than one, and 8 have 2 or more active in
 2025 or 2026 at once (measured 11 Aug 2026). So a confirmed link is one-to-many and carries
