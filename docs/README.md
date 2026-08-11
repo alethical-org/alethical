@@ -60,8 +60,9 @@ things work in practice and are the place to start if you're new.
 
 ## Operations
 
-- [Deployment](operations/deployment.md) — the six GitHub Actions workflows, Railway (backend), Vercel (frontend), Supabase auth URLs
+- [Deployment](operations/deployment.md) — the 8 GitHub Actions workflows, Railway (backend), Vercel (frontend), Supabase auth URLs
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
+- [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [Page-load performance decisions](operations/page-load-performance-decisions.md): measured safe speed work, remaining tradeoffs, and the proof required before release
 - [iOS release workflow](operations/ios-release.md) — simulator QA, TestFlight, and ad hoc builds

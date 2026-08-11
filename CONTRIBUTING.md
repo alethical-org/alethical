@@ -263,12 +263,14 @@ Pushes to `main` auto-deploy: the backend (Railway) and web frontend (Vercel),
 and database migrations can run against production. Treat `main` as production
 and land everything through reviewed PRs.
 
-Since 2026-07-28 this is enforced, not just a convention: `main` requires a PR
-and the four `ci.yml` checks, and rejects force pushes and deletion. Approvals
-are set to **zero**, so you can still merge your own work — the rule blocks
-pushing straight to `main`, not shipping. Details and the reason behind each
-value: `docs/operations/repo-and-service-settings.md` § "Branch protection on
-`main`".
+Since 2026-07-28 this is enforced, not just a convention: `main` requires a PR,
+the 3 `ci.yml` checks, and a branch tested with the current `main`; it also
+rejects unresolved review comments, force pushes, deletion, and owner bypasses.
+Approvals are set to **zero**, so you can still merge your own work. Changes to
+sensitive files ask both owners for review through `.github/CODEOWNERS`, but that
+review is not a hard gate until a second owner is ready to review releases.
+Details and the reason behind each value:
+`docs/operations/repo-and-service-settings.md` § "Branch protection on `main`".
 
 ## Issue tracker hygiene
 

@@ -9,8 +9,8 @@ Alethical deploys as two services:
 
 ## Workflows at a glance
 
-Six GitHub Actions workflows in `.github/workflows/`. Which ones a PR can prove
-matters: four of them never run on a PR, so a change to them is only verified
+Eight GitHub Actions workflows live in `.github/workflows/`. Which ones a PR can
+prove matters: 7 of them never run on a PR, so a change to them is only verified
 after merge.
 
 | Workflow                | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
@@ -18,9 +18,11 @@ after merge.
 | `ci.yml`                | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                       | Yes                              |
 | `migrate.yml`           | push to `main` touching migrations, models, `alembic.ini`, deps, or itself | Applies Alembic migrations to the production database; opens an alert issue on failure | No                               |
 | `railway-deploy.yml`    | push to `main` touching backend paths or itself                            | Deploys the API to Railway production                                                  | No                               |
-| `vercel-deploy.yml`     | push to `main` touching frontend paths or itself                           | Deploys the web frontend to Vercel production                                          | No                               |
+| `vercel-deploy.yml`     | by hand from the current `main` commit                                     | Emergency fallback that deploys the web frontend to Vercel production                  | No                               |
 | `vote-backfill.yml`     | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
 | `bill-section-gaps.yml` | daily at 11:00 UTC, or by hand                                             | Read-only check that no bill is missing sections its page published; opens an alert issue | No — dispatch it by hand to test |
+| `rag-coverage-gaps.yml` | daily at 12:00 UTC, or by hand                                             | Read-only check that every stored bill can be found by Grounded Ask; opens an alert issue | No — dispatch it by hand to test |
+| `legislator-city-backfill.yml` | by hand                                                            | Previews or fills missing legislator residence cities from official sources              | No — preview 1 person by hand    |
 
 `bill-section-gaps.yml` is a schedule rather than a PR check for a structural
 reason: the damage it looks for is created by an **ingest**, and ingests are
@@ -31,11 +33,11 @@ ingested hours before [#763](https://github.com/alethical-org/alethical/issues/7
 fix landed. It costs one query, and it files an issue only when a gap exists,
 commenting on the open one rather than filing a second.
 
-Each of the three deploy/migrate workflows lists its own file in its `push`
-paths, so changing one of them triggers it on merge. That is the intended
-post-merge verification. For why the borrowed steps inside them need periodic
-bumping, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md) § "Keeping the workflow
-actions current".
+The database and Railway workflows list their own files in their `push` paths,
+so changing either one triggers it on merge. Vercel instead watches `main`
+through its Git connection. For why the borrowed steps inside the GitHub jobs
+need periodic bumping, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md) § "Keeping
+the workflow actions current".
 
 ## Backend on Railway
 
@@ -103,6 +105,8 @@ curl https://alethical-api-production.up.railway.app/healthz
 
 Create the Vercel project from the repository root so the root `pnpm-lock.yaml` is available. The repo-root `vercel.json` configures:
 
+- Ignored build command: stop documentation-only and backend-only builds; build
+  when `api/`, `apps/frontend/`, the root package files, or `vercel.json` changes
 - Install command: `pnpm install --frozen-lockfile`
 - Build command: `pnpm --dir apps/frontend run build`
 - Output directory: `apps/frontend/dist`
@@ -113,6 +117,12 @@ Create the Vercel project from the repository root so the root `pnpm-lock.yaml` 
   Home temporarily so those planned features can later return
 - `trailingSlash: false`, which redirects slash-terminated forms to the 1 address used for the record
 - rewrites sending `/sitemap.xml` and `/sitemaps/*.xml` to `api/sitemap.ts`
+
+The Vercel Git connection automatically releases relevant commits on `main`.
+`.github/workflows/vercel-deploy.yml` is a hand-run fallback when GitHub Actions is
+available. It refuses any branch or commit that is not the current `main`, and it
+keeps the commit's real author. Do not run the fallback while another merge is
+moving `main`.
 
 `api/page.ts` reads the built `index.html` bundled with the function, replaces the marked block in
 its head with that address's own title, description, canonical URL, preview tags and
