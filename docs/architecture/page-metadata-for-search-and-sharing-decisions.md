@@ -168,27 +168,36 @@ An earlier draft of this section called the display case "a much weaker claim th
 so this is not urgent." **That was wrong, and the correction matters more than the share-card
 question it was a footnote to.**
 
-We do not display these portraits unaltered. `LegislatorResultCard.tsx` renders them with
-`objectFit: 'cover'` and a rounded corner radius, which scales each photo to fill a fixed box and
-cuts off whatever does not fit. That is cropping, and cropping is the one alteration the House
-policy names in as many words.
+We do not display these portraits unaltered, and this was measured rather than assumed. Source
+portraits are **160 × 206**. Our boxes are a different shape, and `cover` fills the box and clips
+the overflow:
 
-Two things are established and one is not:
+| Surface | Box | Cut off the bottom |
+| --- | --- | --- |
+| Search result card (`LegislatorResultCard.tsx`) | 64 × 74 | ~10% |
+| Legislator profile (`LegislatorProfileWebScreen.tsx`) | 128 × 146 | ~11% |
 
-- **Established:** the House policy requires advance permission, requires a credit line we do not
-  currently show, and forbids alteration "in any way, including cropping."
-- **Established:** the Legislative Reference Library states its photos come from the Minnesota
-  Legislative Manuals and from legislative staff photographers, which is who that policy governs.
-- **Not established:** whether the Library republishes them under its own, possibly more permissive,
-  terms. It publishes no photo-use policy that could be found, so there is nothing permissive to
-  rely on, only an absence.
+The same treatment is on `LegislatorProfileMobileScreen.tsx` and `RepresentativeCard.tsx`, so all
+four portrait surfaces clip. Rounded corners mask the corners on top of that.
 
-**This is answered by asking, not by reasoning further.** One written request to House Public
-Information Services (`651-296-1341`), Senate Media Services, and the Library, covering both uses at
-once — displaying portraits cropped to fit a layout, and later composing them into share cards —
-settles it permanently and costs one email. Until it comes back, the share-card recommendation above
-stands unchanged, and the display question is Eugene's to weigh: the exposure is small and the use
-is the one these photos exist for, but it is real and it is live.
+**Both chambers forbid exactly this, in the same words.** The Senate policy
+(`assets.senate.mn/info/Senate Photo Use Policy.pdf`) matches the House's: copyright retained in
+perpetuity, a required credit line we do not show, and an image "may not be digitally altered in any
+way, including cropping." The Senate omits the House's advance-permission sentence.
+
+**The limit on that, which matters.** The Library states its photos come from the Legislative
+Manuals *and* from legislative staff photographers, so a given file may not be one either chamber
+controls. Since both chambers say the same thing about cropping, the practical answer is unchanged;
+ownership still decides the credit wording and whether permission is needed.
+
+**The fix is smaller than "stop showing portraits."** Match each box to the source's 160:206 shape
+(64 × 82 and 128 × 165), and `cover` clips nothing because there is no overflow. Switching to
+`contain` instead would letterbox every portrait and look worse for no additional compliance. Add
+the credit line both chambers require. Neither change waits on an answer from anyone.
+
+Then send **three separate requests on the same day** — Library, House, Senate — rather than one
+combined email that invites a partial answer. Tracked in
+[#1334](https://github.com/alethical-org/alethical/issues/1334), which carries the full arithmetic.
 
 ---
 
@@ -225,18 +234,32 @@ Confirmed from each vendor's own documentation:
 | `OAI-SearchBot` | Surfaces sites in ChatGPT's search | **Yes.** OpenAI states that blocking it stops the site appearing in ChatGPT search answers. |
 | `Claude-SearchBot` | Improves Claude's search results | **Yes.** |
 | `PerplexityBot` | Powers Perplexity's answers | **Yes.** |
-| `ChatGPT-User`, `Claude-User` | Fetches a page when a person asks a question about it | **Yes**, for that live lookup. |
+| `ChatGPT-User`, `Claude-User`, `Perplexity-User` | Fetches a page when a person asks a question about it | **Yes**, for that live lookup. |
+| `Google-Extended` | Two things at once: training future Gemini models **and** grounding live Gemini answers | **Yes, for the grounding half.** Google states it has no effect on ordinary Google Search either way. |
 | `GPTBot` | Collects text to train future OpenAI models | **No.** OpenAI states it has "no direct impact on search appearance." |
 | `ClaudeBot` | Collects text to train future Anthropic models | **No.** Anthropic describes it as the training crawler only. |
 
-**So allow the search and user-question robots.** That is the decision that affects being found, and
-it should be made regardless of anything else here.
+**Allow the search and user-question robots, and allow `Google-Extended`.** The first group is the
+decision that affects being found. `Google-Extended` joins them because Google bundles training and
+live grounding under one switch, so blocking it to avoid training would also stop our pages
+supporting live Gemini answers, which is a real loss of reach for no gain.
 
-**The training robots (`GPTBot`, `ClaudeBot`) are a separate question with no search benefit
-either way.** Allowing them does not help us rank or get cited today. The argument for allowing them
-is different and non-technical: our content is the public legislative record rewritten in plain
-language, and a future model that has read it is a future model that answers Minnesotans better.
-The argument against is that it is our writing, given away, with no link back. Eugene's call.
+**Recommendation on the training-only robots (`GPTBot`, `ClaudeBot`): block them for now.** This
+reverses an earlier lean in this doc, which argued that allowing them fits a legibility mission.
+The reversal rests on three things:
+
+- **There is no search benefit to trade away.** Confirmed above. The only upside is that a future
+  model might remember our wording without looking us up — weak, delayed, unmeasurable, and carrying
+  no promise of a citation or a link back.
+- **What they take is our writing, not the public record.** The underlying facts are public and free
+  for anyone to use. Our plain-language summaries are original expression, and that is the part a
+  training crawler collects.
+- **Blocking is the reversible direction.** Allowing later costs nothing; text already absorbed into
+  a trained model cannot be recalled.
+
+The honest counter, stated plainly: allowing would fit the mission of making this record legible
+wherever people ask, and a model that has read us may serve Minnesotans better. No provider promises
+that outcome, which is why it loses to the reversibility argument rather than to the principle.
 
 **A correction to the first draft, and to [#823](https://github.com/alethical-org/alethical/issues/823).**
 Do **not** block the answer pages in `robots.txt`. A crawler that is blocked from fetching a page
@@ -377,8 +400,10 @@ which breaks the freshness requirement in `.claude/rules/grounded-answers.md` ru
 1. **Approve the two-release shape** (correct tags now, real text next), or approve release 1 only.
    Release 1 alone is a real improvement but leaves search engines writing our result text from a
    blank page.
-2. **AI training crawlers** — `GPTBot` and `ClaudeBot` allowed or blocked. Confirmed above to have
-   no effect on being found either way, so this is a giving-away-our-writing question, not an SEO
-   one. The search crawlers get allowed regardless.
-3. **The portrait permission request in §5.** Recommended: send it now rather than at campaign
-   finance, because the cropping it covers is already live on every legislator card today.
+2. **AI training crawlers** — `GPTBot` and `ClaudeBot`. Recommended: **block for now**, because
+   there is no search benefit to give up and blocking is the reversible direction. Search robots,
+   user-question robots, and `Google-Extended` get allowed regardless.
+3. **The portrait work in §5**, now split in two. The box-shape fix and the credit line are cheap,
+   depend on nobody, and should just be done. The three permission requests need Eugene to send
+   them or say who does. Both tracked in
+   [#1334](https://github.com/alethical-org/alethical/issues/1334).
