@@ -204,6 +204,13 @@ function BillGroupContinuationLink({
   fullWidth?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
+  // Rest/hover color is shared by the label and the drawn arrow, so the mark never
+  // diverges from the text it trails (LinkArrow takes a color, not `currentColor`).
+  const color = fullWidth
+    ? hovered
+      ? t.colors.text.green
+      : t.colors.text.primary
+    : t.colors.text.green;
   return (
     <View style={fullWidth ? undefined : styles.billGroupContinuationRow}>
       <Pressable
@@ -219,23 +226,20 @@ function BillGroupContinuationLink({
             : undefined
         }
       >
-        <Text
-          style={[
-            fullWidth ? m.billGroupContinuationText : styles.billGroupContinuationText,
-            hovered &&
-              (fullWidth
-                ? m.billGroupContinuationTextHover
-                : styles.billGroupContinuationTextHover),
-          ]}
-        >
-          {label}{' '}
+        {/* Row, not an inline glyph: the arrow is drawn (LinkArrow), and `alignItems:
+            center` is what puts it on the label's midline at every font size. */}
+        <View style={styles.billGroupContinuationContent}>
           <Text
-            style={fullWidth ? m.billGroupContinuationArrow : styles.billGroupContinuationArrow}
-            aria-hidden
+            style={[
+              fullWidth ? m.billGroupContinuationText : styles.billGroupContinuationText,
+              hovered && !fullWidth && styles.billGroupContinuationTextHover,
+              { color },
+            ]}
           >
-            →
+            {label}
           </Text>
-        </Text>
+          <LinkArrow color={color} style={styles.billGroupContinuationArrow} />
+        </View>
       </Pressable>
     </View>
   );
@@ -1905,8 +1909,6 @@ const m = StyleSheet.create({
     letterSpacing: -0.4,
     color: t.colors.text.primary,
   },
-  billGroupContinuationTextHover: { color: t.colors.text.green },
-  billGroupContinuationArrow: { fontWeight: t.fontWeights.regular },
   // Continuous green→white band spanning Find My Legislator + Be in the Know
   // (see greenBandGradientWeb). No hard break; section rhythm comes from the inner
   // Containers. finderInner is overflow:hidden to contain the masked green dots.
@@ -2264,7 +2266,13 @@ const styles = StyleSheet.create({
     color: t.colors.text.green,
   },
   billGroupContinuationTextHover: { textDecorationLine: 'underline' },
-  billGroupContinuationArrow: { fontWeight: t.fontWeights.regular },
+  billGroupContinuationContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // 17px against the 15–16px label: the drawn arrow's ink is inset in its box, so a
+  // box matched to the font size renders visibly shorter than the neighbouring caps.
+  // `top: 0` cancels LinkArrow's default 1px drop, which is tuned for x-height
+  // alignment; here the label is bold sentence case, so the arrow rides the cap band
+  // (measured: cap-band centre 405.23px, arrow centre 405.75px — half a pixel).
+  billGroupContinuationArrow: { width: 17, height: 17, top: 0 },
   billCard: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,

@@ -16,7 +16,7 @@ const legacyTextArrowLimits: Record<string, number> = {
   'components/search/BillResultCard.tsx': 1,
   'screens/redesign/AskAnswerScreen.tsx': 11,
   'screens/redesign/BillDetailScreen.tsx': 6,
-  'screens/redesign/HomeSignedOutScreen.tsx': 5,
+  'screens/redesign/HomeSignedOutScreen.tsx': 4,
   'screens/redesign/LegislatorProfileMobileScreen.tsx': 2,
   'screens/redesign/LegislatorProfileWebScreen.tsx': 1,
   'screens/redesign/SearchLegislatorsScreen.tsx': 1,
