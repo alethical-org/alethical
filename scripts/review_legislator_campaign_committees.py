@@ -8,19 +8,26 @@ through a link a person has checked.** Attaching the wrong committee publishes s
 else's money under a legislator's name, which is the worst error this product can make, so
 this script proposes and a person decides. Nothing here writes a link without a keystroke.
 
-Three commands:
+Four commands, of which one writes:
 
     # what the proposer found, and how much of the roster it narrowed down. Writes nothing.
-    PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py coverage \
-        --contributions /path/to/contributions.csv
+    ... coverage --contributions /path/to/contributions.csv
 
     # the full proposal list with the evidence behind each one. Writes nothing.
-    PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py propose \
-        --contributions /path/to/contributions.csv
+    ... propose --contributions /path/to/contributions.csv
 
-    # confirm or reject them one at a time. The only command that writes.
-    PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py review \
-        --contributions /path/to/contributions.csv --reviewer "Eugene Lopin"
+    # confirm or reject. The only command that writes.
+    ... review --contributions ... --reviewer "Eugene Lopin"          # one at a time
+    ... review --batch --contributions ... --reviewer "Eugene Lopin"  # uncontested as one list
+
+    # re-check every confirmed link against both sources. Writes nothing; exits non-zero
+    # if any link now contradicts them. Run after each campaign-finance load.
+    ... verify --contributions /path/to/contributions.csv
+
+``--batch`` is for a single sitting: it prints every uncontested proposal with its evidence,
+takes the numbers of any to hold back, and writes the rest only after the reviewer types the
+word ``confirm``. Contested ones stay one at a time, because that is where reading the
+alternatives is the point.
 
 Getting the file: ``--download`` resolves the contributions "All" link from the Board's
 landing page and fetches it. The link is resolved from the page every time rather than
@@ -60,6 +67,8 @@ from alethical.db.session import (
     normalize_database_url,
 )
 from alethical.pipeline.legislator_committee_match import (
+    CommitteeRecord,
+    ConfirmedLink,
     FilerRecord,
     FilerVerdict,
     LegislatorProposals,
@@ -69,6 +78,7 @@ from alethical.pipeline.legislator_committee_match import (
     coverage_counts,
     propose_all,
     read_contributions_csv,
+    recheck_confirmed_links,
 )
 
 CONTRIBUTIONS_LANDING_PAGE = (
@@ -439,6 +449,192 @@ def print_proposals(
             )
 
 
+def link_row(
+    member: RosterMember,
+    proposal: Proposal,
+    reviewer: str,
+    *,
+    confirmed: bool,
+    note: str | None,
+) -> schema.LegislatorCampaignCommittee:
+    """Build one decision row. The single place a link is constructed, in either flow."""
+    return schema.LegislatorCampaignCommittee(
+        legislator_id=member.legislator_id,
+        registration_number=proposal.committee.registration_number,
+        decision=(
+            schema.CommitteeLinkReviewDecision.confirmed
+            if confirmed
+            else schema.CommitteeLinkReviewDecision.rejected
+        ),
+        committee_name_as_reviewed=proposal.committee.name,
+        office_as_reviewed=proposal.parsed.office,
+        first_year_as_reviewed=proposal.committee.first_year,
+        last_year_as_reviewed=proposal.committee.last_year,
+        reviewed_by=reviewer,
+        evidence=note,
+    )
+
+
+def run_batch_review(
+    results: list[LegislatorProposals], session: Session, reviewer: str
+) -> int:
+    """Confirm the uncontested proposals as one reviewed list, in a single sitting.
+
+    Only proposals where nothing competes and every signal is source-stated are eligible, so
+    a reader of this list is checking names against seats rather than weighing alternatives.
+    Everything else stays one question at a time, because that is where the alternatives are
+    the point.
+
+    This is still a person confirming, not a bulk write. The whole list is printed with its
+    evidence, the reviewer has to type the word ``confirm`` rather than press a key, and any
+    row they name is dropped from the batch and left for the one-at-a-time pass. Nothing is
+    written until then.
+    """
+    decisions = load_existing_decisions(session)
+    eligible = [
+        (result, result.proposals[0])
+        for result in results
+        if result.outcome == "matched"
+        and (
+            result.member.legislator_id,
+            result.proposals[0].committee.registration_number,
+        )
+        not in decisions
+    ]
+    if not eligible:
+        print("nothing uncontested is left to confirm.")
+        return 0
+
+    print(
+        f"{len(eligible)} legislators have one committee proposed with nothing competing.\n"
+        "Each line is the legislator, then the committee, then what the evidence rests on.\n"
+    )
+    for index, (result, proposal) in enumerate(eligible, start=1):
+        seat = f"{result.member.chamber_slug} {result.member.district}"
+        directory = (
+            "Board confirms seat"
+            if proposal.filer_verdict == FilerVerdict.same_seat.value
+            else "not in Board directory"
+        )
+        party = (
+            f", party money {proposal.party_of_party_unit_money} agrees"
+            if proposal.party_agrees
+            else ""
+        )
+        print(
+            f"{index:4}. {result.member.full_name} ({seat} {result.member.party})\n"
+            f"       {proposal.committee.registration_number}  {proposal.committee.name}\n"
+            f"       {proposal.given_name_evidence.value} name, {directory}{party}"
+        )
+
+    print(
+        f"\nType 'confirm' to record all {len(eligible)} as checked by {reviewer}.\n"
+        "To hold some back, list their numbers first (e.g. '7 12 40'), then confirm the rest."
+    )
+    held: set[int] = set()
+    while True:
+        answer = (
+            input("  numbers to hold back, or 'confirm', or 'quit': ").strip().lower()
+        )
+        if answer.startswith("q"):
+            print("\nstopped. 0 decisions written.")
+            return 0
+        if answer == "confirm":
+            break
+        numbers = {int(part) for part in answer.split() if part.isdigit()}
+        unknown = {n for n in numbers if not 1 <= n <= len(eligible)}
+        if unknown or not numbers:
+            print(f"  did not understand that. Expected numbers 1 to {len(eligible)}.")
+            continue
+        held |= numbers
+        print(
+            f"  holding back {len(held)}: {sorted(held)}. {len(eligible) - len(held)} left."
+        )
+
+    note = input("  What did you check, for the record? (optional): ").strip() or None
+    written = 0
+    for index, (result, proposal) in enumerate(eligible, start=1):
+        if index in held:
+            continue
+        session.add(
+            link_row(result.member, proposal, reviewer, confirmed=True, note=note)
+        )
+        written += 1
+    session.commit()
+    print(
+        f"\nconfirmed {written} links. {len(held)} held back for the one-at-a-time pass."
+    )
+    return written
+
+
+def run_verify(
+    session: Session,
+    members: list[RosterMember],
+    committees: list[CommitteeRecord],
+    *,
+    party_by_registration: dict[str, str],
+    filers_by_registration: dict[str, FilerRecord],
+) -> int:
+    """Re-check every confirmed link against both sources. Writes nothing; exits non-zero.
+
+    The answer to "should a second person confirm the ambiguous ones". Two people reading
+    one committee name share the whole of their evidence and so share its mistakes. What is
+    independent of the reviewer is the Board's registered-filer directory and which party's
+    units pay the committee, and this compares every confirmed link against both, plus
+    against the committee's own published name, which can change between downloads.
+
+    Run it after each campaign-finance load, since the data is already in hand there. It
+    reports rather than repairs: a contradiction wants a person's eyes, and deleting a link
+    somebody made would be the same overreach in the other direction.
+    """
+    if not inspect(session.get_bind()).has_table(
+        schema.LegislatorCampaignCommittee.__tablename__
+    ):
+        print("no legislator_campaign_committee table here, so no link to re-check.")
+        return 0
+    rows = session.scalars(
+        select(schema.LegislatorCampaignCommittee).where(
+            schema.LegislatorCampaignCommittee.decision
+            == schema.CommitteeLinkReviewDecision.confirmed
+        )
+    ).all()
+    if not rows:
+        print("no confirmed links yet, so there is nothing to re-check.")
+        return 0
+
+    problems = recheck_confirmed_links(
+        [
+            ConfirmedLink(
+                legislator_id=str(row.legislator_id),
+                registration_number=row.registration_number,
+                committee_name_as_reviewed=row.committee_name_as_reviewed,
+                reviewed_by=row.reviewed_by,
+            )
+            for row in rows
+        ],
+        {member.legislator_id: member for member in members},
+        {committee.registration_number: committee for committee in committees},
+        party_by_registration=party_by_registration,
+        filers_by_registration=filers_by_registration,
+    )
+    print(f"re-checked {len(rows)} confirmed links against both sources.")
+    if not problems:
+        print(
+            "every one still agrees with the Board's directory and its own donations."
+        )
+        return 0
+    print(f"\n{len(problems)} need a person to look again:\n")
+    names = {member.legislator_id: member.full_name for member in members}
+    for link, problem in problems:
+        who = names.get(link.legislator_id, link.legislator_id)
+        print(
+            f"  {who} -- {link.registration_number} {link.committee_name_as_reviewed!r}"
+        )
+        print(f"      {problem}")
+        print(f"      confirmed by {link.reviewed_by}")
+    return 1
+
+
 def run_review(
     results: list[LegislatorProposals],
     session: Session,
@@ -498,20 +694,12 @@ def run_review(
                 continue
             note = input("  What did you check? (optional): ").strip() or None
             session.add(
-                schema.LegislatorCampaignCommittee(
-                    legislator_id=result.member.legislator_id,
-                    registration_number=proposal.committee.registration_number,
-                    decision=(
-                        schema.CommitteeLinkReviewDecision.confirmed
-                        if answer.startswith("y")
-                        else schema.CommitteeLinkReviewDecision.rejected
-                    ),
-                    committee_name_as_reviewed=proposal.committee.name,
-                    office_as_reviewed=proposal.parsed.office,
-                    first_year_as_reviewed=proposal.committee.first_year,
-                    last_year_as_reviewed=proposal.committee.last_year,
-                    reviewed_by=reviewer,
-                    evidence=note,
+                link_row(
+                    result.member,
+                    proposal,
+                    reviewer,
+                    confirmed=answer.startswith("y"),
+                    note=note,
                 )
             )
             session.commit()
@@ -526,7 +714,9 @@ def run_review(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "command", choices=("coverage", "propose", "review"), help="What to do."
+        "command",
+        choices=("coverage", "propose", "review", "verify"),
+        help="What to do.",
     )
     parser.add_argument(
         "--contributions",
@@ -563,6 +753,12 @@ def main() -> None:
         action="store_true",
         help="Skip the Board's registered-filer directory. Only for reproducing what the "
         "payment files alone can say; it puts 88 more legislators in front of you.",
+    )
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="For 'review': show every uncontested proposal as one list and confirm them "
+        "together after the reviewer types 'confirm'. The rest stay one at a time.",
     )
     parser.add_argument(
         "--tier",
@@ -623,6 +819,18 @@ def main() -> None:
             print_coverage(results, load_existing_decisions(session))
         elif args.command == "propose":
             print_proposals(results, load_existing_decisions(session))
+        elif args.command == "verify":
+            raise SystemExit(
+                run_verify(
+                    session,
+                    roster.members,
+                    committees,
+                    party_by_registration=party_by_registration,
+                    filers_by_registration=filers,
+                )
+            )
+        elif args.batch:
+            run_batch_review(results, session, args.reviewer)
         else:
             run_review(
                 results,

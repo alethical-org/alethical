@@ -36,6 +36,7 @@ import pytest
 from scripts.review_legislator_campaign_committees import describe
 from alethical.pipeline.legislator_committee_match import (
     CommitteeRecord,
+    ConfirmedLink,
     FilerRecord,
     FilerVerdict,
     GivenNameEvidence,
@@ -50,6 +51,7 @@ from alethical.pipeline.legislator_committee_match import (
     normalize_district,
     parse_committee_name,
     propose_all,
+    recheck_confirmed_links,
     surname_keys,
 )
 
@@ -1159,6 +1161,165 @@ def test_party_money_disagreeing_sends_an_otherwise_perfect_match_to_a_person():
     assert result.proposals[0].party_agrees is False
     assert result.proposals[0].tier is ProposalTier.review
     assert result.outcome == "ambiguous"
+
+
+# --------------------------------------------------------------------------------------
+# Re-checking a link somebody already confirmed
+#
+# This is the answer to "should a second person confirm the ambiguous ones". Two people
+# reading one committee name share the whole of their evidence and so share its mistakes.
+# What is independent of the reviewer is the Board's directory and which party's units pay
+# the committee, so those are what re-check a confirmed link.
+
+
+def confirmed(
+    legislator_id: str, registration: str, name: str, reviewer: str = "Eugene Lopin"
+) -> ConfirmedLink:
+    return ConfirmedLink(
+        legislator_id=legislator_id,
+        registration_number=registration,
+        committee_name_as_reviewed=name,
+        reviewed_by=reviewer,
+    )
+
+
+def recheck(link, member_, committees, **kwargs):
+    return recheck_confirmed_links(
+        [link],
+        {member_.legislator_id: member_},
+        {c.registration_number: c for c in committees},
+        **kwargs,
+    )
+
+
+def test_a_link_that_still_agrees_with_both_sources_reports_nothing():
+    patty = member(
+        "Patty Acomb",
+        "house",
+        first="Patty",
+        last="Acomb",
+        party="DFL",
+        legislator_id="patty",
+        district="45B",
+    )
+    assert (
+        recheck(
+            confirmed("patty", "18272", "Acomb, Patty House Committee"),
+            patty,
+            [committee("18272", "Acomb, Patty House Committee")],
+            party_by_registration={"18272": "DFL"},
+            filers_by_registration={
+                "18272": filer(
+                    "18272", district="45B", party="DFL", candidate="Acomb, Patty"
+                )
+            },
+        )
+        == []
+    )
+
+
+def test_a_committee_the_board_has_moved_to_another_seat_is_reported():
+    # The failure a second reviewer could not have caught, because it happens *after* the
+    # confirmation: the Board's directory now registers the committee somewhere else.
+    patty = member(
+        "Patty Acomb",
+        "house",
+        first="Patty",
+        last="Acomb",
+        party="DFL",
+        legislator_id="patty",
+        district="45B",
+    )
+    problems = recheck(
+        confirmed("patty", "18272", "Acomb, Patty House Committee"),
+        patty,
+        [committee("18272", "Acomb, Patty House Committee")],
+        filers_by_registration={
+            "18272": filer(
+                "18272", district="12A", party="DFL", candidate="Acomb, Patty"
+            )
+        },
+    )
+    assert len(problems) == 1
+    assert "not this member's seat" in problems[0][1]
+
+
+def test_party_money_that_has_flipped_since_confirmation_is_reported():
+    patty = member(
+        "Patty Acomb",
+        "house",
+        first="Patty",
+        last="Acomb",
+        party="DFL",
+        legislator_id="patty",
+        district="45B",
+    )
+    problems = recheck(
+        confirmed("patty", "18272", "Acomb, Patty House Committee"),
+        patty,
+        [committee("18272", "Acomb, Patty House Committee")],
+        party_by_registration={"18272": "R"},
+    )
+    assert len(problems) == 1
+    assert "are R and we record this member as DFL" in problems[0][1]
+
+
+def test_a_committee_renamed_since_confirmation_is_reported_without_being_called_wrong():
+    # A rename is legitimate: the Board publishes a committee's current name against all of
+    # its history. It still wants a person's eyes, because the reviewer agreed to a different
+    # string, so the wording says what changed rather than asserting a mistake.
+    liz = member(
+        "Liz Reyer",
+        "house",
+        first="Liz",
+        last="Reyer",
+        legislator_id="liz",
+        district="52A",
+    )
+    problems = recheck(
+        confirmed("liz", "18596", "Reyer, Lizabeth House Committee"),
+        liz,
+        [committee("18596", "Reyer, Liz House Committee")],
+    )
+    assert len(problems) == 1
+    assert "now published as 'Reyer, Liz House Committee'" in problems[0][1]
+    assert "was confirmed as 'Reyer, Lizabeth House Committee'" in problems[0][1]
+
+
+def test_a_link_whose_committee_left_the_file_or_changed_kind_is_reported():
+    liz = member(
+        "Liz Reyer",
+        "house",
+        first="Liz",
+        last="Reyer",
+        legislator_id="liz",
+        district="52A",
+    )
+    gone = recheck(
+        confirmed("liz", "18596", "Reyer, Lizabeth House Committee"), liz, []
+    )
+    assert len(gone) == 1
+    assert "no longer appears in the contributions file" in gone[0][1]
+
+    changed_kind = recheck(
+        confirmed("liz", "18596", "Reyer, Lizabeth House Committee"),
+        liz,
+        [committee("18596", "Reyer, Lizabeth House Committee", kind="PCF")],
+    )
+    assert len(changed_kind) == 1
+    assert "rather than a candidate committee" in changed_kind[0][1]
+
+
+def test_a_link_to_someone_no_longer_sitting_is_reported():
+    # A member who leaves office does not make their link wrong, but it does mean nothing in
+    # the current roster explains it, so a person should decide what happens to it.
+    problems = recheck_confirmed_links(
+        [confirmed("departed", "18596", "Reyer, Lizabeth House Committee")],
+        {},
+        {},
+    )
+    assert len(problems) == 1
+    assert "no longer a sitting member" in problems[0][1]
 
 
 # --------------------------------------------------------------------------------------
