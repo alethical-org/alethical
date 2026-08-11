@@ -619,6 +619,60 @@ def meta(db: Session = Depends(get_db)):
     return DetailResponse(data=payload, links={"self": "/api/v1/meta"})
 
 
+def _lastmod(*candidates: datetime | None) -> dict[str, str]:
+    """The first non-null candidate as a plain "YYYY-MM-DD" string in UTC, or {} if
+    every candidate is null -- never a null lastmod (see sitemap() below).
+
+    The driver may return a timestamptz in a non-UTC session timezone (same trap
+    as the session date-range check in test_api_contract.py), so the instant is
+    normalized to UTC before its calendar date is read -- otherwise a date near
+    midnight UTC could report the wrong day.
+    """
+    for candidate in candidates:
+        if candidate is not None:
+            return {"lastmod": candidate.astimezone(UTC).date().isoformat()}
+    return {}
+
+
+@router.get("/sitemap", response_model=DetailResponse)
+def sitemap(db: Session = Depends(get_db), response: Response = None):  # type: ignore[assignment]
+    """Every bill and legislator URL the sitemap needs, in one request (#1325).
+
+    A Vercel function turns this into sitemap.xml; without it, building that file
+    would mean paging /bills 100 rows at a time -- ~105 round trips for the
+    ~10,517 bills alone. Two column-only selects, never the full ORM row or the
+    normal bill serializer, keep this cheap at that size.
+    """
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+    bill_rows = db.execute(
+        select(Bill.bill_key, Bill.latest_action_at, Bill.updated_at).order_by(
+            Bill.bill_key.asc()
+        )
+    ).all()
+    # Same roster the /legislators list serves (legislator_directory_stmt +
+    # get_session_by_slug(db, None) for the current session), so the count
+    # matches -- just the 2 columns a sitemap entry needs instead of the full row.
+    session_row = get_session_by_slug(db, None)
+    legislator_rows = db.execute(
+        legislator_directory_stmt(session_row.id)
+        .with_only_columns(Legislator.slug, Legislator.updated_at)
+        .order_by(None)
+        .order_by(Legislator.slug.asc())
+    ).all()
+    return DetailResponse(
+        data={
+            "bills": [
+                {"id": bill_key, **_lastmod(latest_action_at, updated_at)}
+                for bill_key, latest_action_at, updated_at in bill_rows
+            ],
+            "legislators": [
+                {"slug": slug, **_lastmod(updated_at)}
+                for slug, updated_at in legislator_rows
+            ],
+        }
+    )
+
+
 @router.get("/sessions", response_model=CollectionResponse)
 def sessions(db: Session = Depends(get_db)):
     rows = db.scalars(

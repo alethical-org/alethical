@@ -43,7 +43,12 @@ import {
   CARD_CONTROL_LAYER,
   CARD_LINK_LAYER,
 } from '../../lib/billCardControlLayers';
-import { buildLegislatorShareContent, publicPageUrl } from '../../lib/share';
+import {
+  buildLegislatorShareContent,
+  legislatorPageMetadata,
+  publicPageUrl,
+} from '../../lib/share';
+import { useDocumentTitle } from '../../navigation/documentTitle';
 
 const isWeb = Platform.OS === 'web';
 const COLUMN_MAX = 640;
@@ -374,6 +379,17 @@ export function LegislatorProfileMobileScreen() {
   const [showAllBills, setShowAllBills] = useState(false);
 
   const leg = legQuery.data;
+  // Same shared builder api/page.ts used for the first response (#1325).
+  useDocumentTitle(
+    legislatorId ? `/legislators/${legislatorId}` : null,
+    leg
+      ? legislatorPageMetadata({
+          slug: leg.slug ?? leg.id,
+          displayName: honorificName(leg.name, leg.chamber),
+          districtLine: `${leg.chamber} District ${leg.district}`,
+        }).title
+      : null,
+  );
   const currentSession = useMemo(
     () => sessionsQuery.data?.find((s) => s.isCurrent) ?? sessionsQuery.data?.[0],
     [sessionsQuery.data],
@@ -422,7 +438,6 @@ export function LegislatorProfileMobileScreen() {
   const shareContent = leg
     ? buildLegislatorShareContent({
         displayName: honorificName(leg.name, leg.chamber),
-        partyLabel: partyFull(leg.party),
         districtLine: `${leg.chamber} District ${leg.district}`,
         url: publicPageUrl(`/legislators/${encodeURIComponent(leg.slug ?? leg.id)}`),
       })

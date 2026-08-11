@@ -35,6 +35,7 @@ import { TrackedBillsScreen as TrackedScreen } from '../screens/redesign/Tracked
 import { ContactUsScreen } from '../screens/redesign/ContactUsScreen';
 import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
+import { documentTitleForRoute } from './documentTitle';
 import { linkProps, routePath } from './links';
 import { initializeWebHistory, pushWebHistory } from './webHistory';
 import { MainTabParamList, MainTabScreenProps, RootStackParamList } from './types';
@@ -522,10 +523,12 @@ export function RootNavigator() {
       theme={navigationTheme}
       initialState={initialState}
       documentTitle={{
-        formatter: (options, route) => {
-          const pageTitle = options?.title ?? route?.name ?? 'Alethical';
-          return `${pageTitle} | Alethical`;
-        },
+        // Titles come from the shared page-wording builders, not from the screen's
+        // navigation name — see navigation/documentTitle.ts for why.
+        formatter: (_options, route) =>
+          documentTitleForRoute(
+            (route ?? { name: 'Home' }) as Parameters<typeof documentTitleForRoute>[0],
+          ),
       }}
       onReady={() => {
         if (navigationRef.isReady()) {

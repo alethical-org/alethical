@@ -4,14 +4,28 @@
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>%WEB_TITLE%</title>
+    <!--
+      Everything between the two markers below is this page's own head, and
+      api/page.ts replaces it per address before the response is sent, so a search
+      engine and a person receive identical HTML (issue #1325). The wording is
+      generated from apps/frontend/src/lib/share.ts — never hand-edit these tags;
+      edit the builders there. What sits here is the home page's version, which
+      ships as written because Vercel serves `/` straight off the filesystem and
+      never reaches a rewrite. A test pins the two together so they cannot drift.
+    -->
+    <!--alethical:page-head-->
+    <title>Alethical: Minnesota’s legislative record in plain language</title>
     <meta
       name="description"
       content="Minnesota’s legislative record, in plain language, with links to official sources."
     />
+    <link rel="canonical" href="https://www.alethical.com/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Alethical" />
-    <meta property="og:title" content="Alethical" />
+    <meta
+      property="og:title"
+      content="Alethical: Minnesota’s legislative record in plain language"
+    />
     <meta
       property="og:description"
       content="Minnesota’s legislative record, in plain language, with links to official sources."
@@ -22,12 +36,33 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Alethical" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Alethical" />
+    <meta
+      name="twitter:title"
+      content="Alethical: Minnesota’s legislative record in plain language"
+    />
     <meta
       name="twitter:description"
       content="Minnesota’s legislative record, in plain language, with links to official sources."
     />
     <meta name="twitter:image" content="https://www.alethical.com/social-preview.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Alethical",
+        "url": "https://www.alethical.com/"
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Alethical",
+        "url": "https://www.alethical.com/",
+        "logo": "https://www.alethical.com/icon-512.png"
+      }
+    </script>
+    <!--/alethical:page-head-->
     <link rel="preconnect" href="https://api.alethical.com" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

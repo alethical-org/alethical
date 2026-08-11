@@ -5978,3 +5978,121 @@ def test_sponsor_party_falls_back_within_the_same_legislature(client):
         "a period from a different Legislature must not be used"
     )
     assert other_member["district"] is None
+
+
+def test_sitemap_lists_every_bill_and_legislator(client):
+    """The sitemap endpoint (#1325) replaces ~105 paged /bills round trips with
+    one request, so it must actually carry every row -- not a page of them."""
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        expected_bill_ids = set(db.scalars(select(schema.Bill.bill_key)).all())
+        current_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.is_current.is_(True)
+            )
+        )
+        expected_slugs = set(
+            db.execute(
+                schema.legislator_directory_stmt(current_session.id).with_only_columns(
+                    schema.Legislator.slug
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+    response = client.get("/api/v1/sitemap")
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert set(payload.keys()) == {"bills", "legislators"}
+
+    bill_ids = [bill["id"] for bill in payload["bills"]]
+    assert set(bill_ids) == expected_bill_ids
+
+    legislator_slugs = [legislator["slug"] for legislator in payload["legislators"]]
+    assert set(legislator_slugs) == expected_slugs
+
+    # The property that matters is a STABLE order, so a cached sitemap does not
+    # churn between rebuilds -- not one specific order. This deliberately does not
+    # compare against Python's sorted(): Postgres orders text by the database's
+    # collation, which is not codepoint order, and the two disagree on ids with
+    # punctuation in them. '94-2025s1-HF5' vs '94-2025-SF2483' sorts one way under
+    # en_US.UTF-8 and the other under C, so a sorted() assertion passes on one
+    # machine and fails on another -- which is exactly what it did (green locally,
+    # red in CI) before this was changed.
+    again = client.get("/api/v1/sitemap").json()["data"]
+    assert [bill["id"] for bill in again["bills"]] == bill_ids
+    assert [row["slug"] for row in again["legislators"]] == legislator_slugs
+
+    # Every entry that carries a lastmod reports a plain YYYY-MM-DD date.
+    for entry in payload["bills"] + payload["legislators"]:
+        if "lastmod" in entry:
+            datetime.strptime(entry["lastmod"], "%Y-%m-%d")
+
+    assert (
+        response.headers["Cache-Control"]
+        == "public, max-age=60, stale-while-revalidate=300"
+    )
+
+
+def test_sitemap_bill_lastmod_prefers_latest_action_over_updated_at(client):
+    """lastmod reads Bill.latest_action_at when set, and falls back to
+    Bill.updated_at only when it is null (#1325) -- never a null lastmod."""
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        seed = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+        )
+        session_id, chamber_id = seed.session_id, seed.chamber_id
+
+    with_action_key = "94-2025-SF919191"
+    fallback_key = "94-2025-HF919292"
+    try:
+        with Session(get_engine()) as db:
+            db.add_all(
+                [
+                    schema.Bill(
+                        session_id=session_id,
+                        chamber_id=chamber_id,
+                        bill_key=with_action_key,
+                        file_type="SF",
+                        file_number=919191,
+                        title="Sitemap lastmod fixture with a latest action",
+                        current_status="Introduced",
+                        latest_action_at=datetime(2024, 3, 15, tzinfo=timezone.utc),
+                    ),
+                    schema.Bill(
+                        session_id=session_id,
+                        chamber_id=chamber_id,
+                        bill_key=fallback_key,
+                        file_type="HF",
+                        file_number=919292,
+                        title="Sitemap lastmod fixture with no latest action",
+                        current_status="Introduced",
+                        latest_action_at=None,
+                    ),
+                ]
+            )
+            db.commit()
+            fallback_updated_at = db.scalar(
+                select(schema.Bill.updated_at).where(
+                    schema.Bill.bill_key == fallback_key
+                )
+            )
+
+        response = client.get("/api/v1/sitemap")
+        assert response.status_code == 200
+        bills_by_id = {bill["id"]: bill for bill in response.json()["data"]["bills"]}
+
+        assert bills_by_id[with_action_key]["lastmod"] == "2024-03-15"
+        assert bills_by_id[fallback_key]["lastmod"] == (
+            fallback_updated_at.astimezone(timezone.utc).date().isoformat()
+        )
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(
+                delete(schema.Bill).where(
+                    schema.Bill.bill_key.in_([with_action_key, fallback_key])
+                )
+            )
+            db.commit()

@@ -42,7 +42,12 @@ import {
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
-import { buildLegislatorShareContent, publicPageUrl } from '../../lib/share';
+import {
+  buildLegislatorShareContent,
+  legislatorPageMetadata,
+  publicPageUrl,
+} from '../../lib/share';
+import { useDocumentTitle } from '../../navigation/documentTitle';
 import { Skeleton } from '../../components/Skeleton';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { formatLegislatureLabel, type SessionDisplaySource } from '../../lib/sessionLabel';
@@ -89,6 +94,18 @@ export function LegislatorProfileWebScreen() {
 
   const legislatorQuery = useLegislator(legislatorId);
   const legislator = legislatorQuery.data;
+  // A person's name cannot be guessed from the address, so the tab keeps what
+  // the server sent until the profile loads (#1325).
+  useDocumentTitle(
+    legislatorId ? `/legislators/${legislatorId}` : null,
+    legislator
+      ? legislatorPageMetadata({
+          slug: legislator.slug ?? legislator.id,
+          displayName: officialName(legislator.name, legislator.chamber),
+          districtLine: `${legislator.chamber} District ${legislator.district}`,
+        }).title
+      : null,
+  );
   // Show the first two chief-authored bills; "See more" hands off to the member's
   // full chief-author list on the Revisor (the official source).
   const billsQuery = useLegislatorBills(legislatorId, { role: 'chief_author', limit: 2 });
@@ -185,7 +202,6 @@ export function LegislatorProfileWebScreen() {
   const shareSlug = legislator.slug ?? legislator.id;
   const shareContent = buildLegislatorShareContent({
     displayName,
-    partyLabel,
     districtLine,
     url: publicPageUrl(`/legislators/${encodeURIComponent(shareSlug)}`),
   });

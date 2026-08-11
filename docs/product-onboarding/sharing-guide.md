@@ -1,18 +1,27 @@
 # How sharing works
 
-<!-- describes: apps/frontend/src/lib/share.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/public/index.html, apps/frontend/scripts/generate-brand-assets.mjs, api/social-preview.ts, vercel.json -->
+<!-- describes: apps/frontend/src/lib/share.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
 
 Share sends the page a reader chose, with enough plain-language context for another person to know why the link matters. Copy link remains the dependable choice when another app cannot accept prepared text.
 
 ## What each page shares
 
-| Page       | Title                                         | Description                                                                                             | Link                                                                                                                  |
-| ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Bill       | Bill code plus the short plain-language title | The first sentence of the plain-language summary                                                        | The bill profile, without a selected tab                                                                              |
-| Legislator | Name, party, chamber, and district            | A fixed sentence naming the committees, chief-authored bills, and contact details available on the profile | The readable legislator profile address                                                                               |
-| Ask answer | The reader's question                         | A fixed sentence saying the answer is cited and links to the official record                            | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it |
+| Page       | Title                                                       | Description                                                                                | Link                                                                                                                 |
+| ---------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Bill       | Bill code, session year, and the short plain-language title | The first sentence of the plain-language summary                                           | The bill profile, without a selected tab                                                                             |
+| Legislator | Name, chamber, and district                                 | A fixed sentence naming committees, chief-authored bills, and contact information          | The readable legislator profile address                                                                              |
+| Ask answer | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record               | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it |
 
-A bill without a generated summary uses an honest fixed description instead of the long statutory title. The title, description, and link shown in the Share panel are the same source values used for every destination.
+A bill's title reads `HF 719 (2025): Statewide Capital Projects and Bonding Bill`. The year is there
+because bill numbers repeat every two years, so the number alone never identifies one bill for good.
+A bill with no plain-language short title yet is named by its number and year alone — never by its
+official statutory title, which is a paragraph of legal cross-references
+(`.claude/rules/grounded-answers.md` rule 10). A bill without a generated summary uses an honest
+fixed description instead.
+
+A legislator's title carries no party label. District and chamber identify a person just as well,
+never go stale mid-term, and keep a partisan word out of a link preview or a search result read on
+its own.
 
 **The legislator sentence lists only sections the profile actually renders**, and this is checked
 rather than assumed. The profile shows Biography, Committees, Chief-Authored Bills, Contact,
@@ -24,6 +33,10 @@ section is added to or removed from the profile, this sentence changes with it**
 (`buildLegislatorShareContent` in `apps/frontend/src/lib/share.ts`, pinned by `share.test.ts`) —
 otherwise we advertise a capability we do not ship
 (`.claude/rules/grounded-answers.md` rule 6).
+
+The title, description, and link shown in the Share panel are the same source values used for every
+destination, for the browser tab, and for what a search engine reads. One file
+(`apps/frontend/src/lib/share.ts`) generates all of them, so the three cannot say different things.
 
 ## What each destination receives
 
@@ -47,8 +60,21 @@ Instagram has no direct button. It cannot open a prepared visitor post containin
 
 ## Link preview cards
 
-Facebook, LinkedIn, X, messaging apps, and work-chat apps usually read preview data from the shared page rather than from the Share button. Recognized preview readers receive page-specific title, description, canonical link, and the 1200×630 Alethical image. Everyone else receives the normal app.
+Facebook, LinkedIn, X, messaging apps, and work-chat apps usually read preview data from the shared page rather than from the Share button. Every visitor to a public page — a person, a messaging app, or a search engine — now receives the same page, carrying that page's own title, description, real address, and the 1200×630 Alethical image. There is no separate version for robots.
 
-Bill and legislator preview text comes from the same public API data the page uses. Ask preview text uses the public question and the fixed cited-answer description. If that public data is temporarily unavailable, the preview falls back to a narrow factual label rather than inventing page details.
+Bill and legislator preview text comes from the same public API data the page uses. Ask preview text uses the public question and the fixed cited-answer description.
 
 Preview services keep their own caches, so a card already posted elsewhere may take time to refresh after a bill summary changes.
+
+## What search engines get
+
+Search engines used to receive the same nameless page for every address, which made ~10,700 pages look like one page repeated. Each address now names itself in the very first response, before any of the app's own code runs.
+
+- **The browser tab and the preview say the same thing.** A bill page opens with the bill's number and year straight away, and gains its short title the moment the bill loads.
+- **An address with no record behind it says so.** A bill or legislator that does not exist answers "not found" rather than a blank page that looks successful.
+- **A brief outage does not unlist real pages.** If the data service cannot be reached, the page says "temporarily unavailable" instead of "gone".
+- **`robots.txt`** (`https://www.alethical.com/robots.txt`) blocks nothing from being read. It points at the sitemap, and turns away only the two crawlers that exist to collect writing for training future AI models. Every search crawler and every "someone asked a question about this page" crawler is welcome.
+- **`sitemap.xml`** (`https://www.alethical.com/sitemap.xml`) lists every bill and every legislator, not a popular subset, each with the date its record really last changed. It is built when asked for and then cached, so a newly ingested bill appears without waiting for a release.
+- **Answer pages are readable but unlisted.** An `/ask` page asks not to appear in results, in its own response. It is deliberately not blocked in `robots.txt`, because a crawler that is blocked from fetching a page can never read the instruction inside it.
+
+The reasoning behind each of those choices, and the options that lost, are in `docs/architecture/page-metadata-for-search-and-sharing-decisions.md`.

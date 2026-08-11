@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/social-preview.ts, alethical/logging.py, railway.json, vercel.json -->
+<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/public/robots.txt, api/page.ts, api/sitemap.ts, alethical/logging.py, railway.json, vercel.json -->
 
 # Deployment
 
@@ -106,13 +106,27 @@ Create the Vercel project from the repository root so the root `pnpm-lock.yaml` 
 - Install command: `pnpm install --frozen-lockfile`
 - Build command: `pnpm --dir apps/frontend run build`
 - Output directory: `apps/frontend/dist`
-- crawler-only bill, legislator, and Ask preview-card rewrites to `api/social-preview.ts`
-- the normal SPA rewrite to `index.html` for readers
+- rewrites sending every public page path to `api/page.ts`
+- rewrites sending `/sitemap.xml` and `/sitemaps/*.xml` to `api/sitemap.ts`
+- the normal SPA rewrite to `index.html` for everything else
 
-The preview function reads only the public bill or legislator fields needed for the card
-and returns its title, description, canonical URL, and branded 1200×630 image. Ask cards
-use the public question plus fixed cited-answer copy and do not call a model. See
-`docs/product-onboarding/sharing-guide.md` for the page and destination rules.
+`api/page.ts` fetches the built `index.html` from the deployment it is running in, replaces
+the marked block in its head with that address's own title, description, canonical URL,
+preview tags and machine-readable block, and returns the page with the app body untouched —
+so a crawler and a reader receive identical HTML (#1325). It reads only the public bill or
+legislator fields the tags need. A missing record answers 404; a data-service failure answers
+503 with `Retry-After`, never 404. Responses are cached at the edge
+(`s-maxage=600, stale-while-revalidate=86400`), so the function runs on a cache miss rather
+than on every visit.
+
+`/` is deliberately NOT rewritten: Vercel serves it straight off the filesystem from the built
+`index.html`, and never reaches a rewrite, so the home page's tags ship inside the template.
+A frontend test pins those tags to the same builders `api/page.ts` uses so the two cannot drift.
+
+`robots.txt` is a static file in `apps/frontend/public/`. See
+`docs/product-onboarding/sharing-guide.md` for the page and destination rules, and
+`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` for why each choice was
+made.
 
 Required Vercel environment variables:
 
