@@ -468,8 +468,12 @@ Storage-scoped credentials that cannot touch the database
 
 **Reading this data.** Resolve `cf_current_release` once and use that release id for
 all 3 datasets in a request: each statement sees the newest committed state, so
-re-resolving per query can hand back a mixed set. The rows of a superseded release
-are pruned, so a stale release id resolves to no rows rather than to old ones.
+re-resolving per query can hand back a mixed set. **A replaced set keeps its rows
+until the publish after next**, so a request that resolved a release moments before
+a publish still finds its rows rather than an empty page — which is why the loader
+keeps one spare generation (51 MB measured) instead of deleting the old rows the
+instant new ones land. An id cached for longer than that resolves to no rows, so
+re-resolve rather than keeping one.
 
 ## E & F — the credentialed sources (Anthropic and OpenAI)
 
