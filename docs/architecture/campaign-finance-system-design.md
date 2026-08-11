@@ -923,6 +923,19 @@ committee-year read 11/16/2025 — so match on the label's stem, never on the wh
 received" line in place of the five contributor-type lines, plus their own disbursement
 categories; rarer labels were not ruled out.
 
+**That stem rule is for the cash-balance figures, not for a period end. The period end is a
+served field.** The report catalogue (`tabname=reports_data`, §9.6) returns **`CutOffDate`** per
+report as a clean value — `2026-07-20 00:00:00` — so nothing needs a date parsed out of a label to
+know when a period ended. Read as an instruction to implementers, the paragraph above looked like
+the only route to one, and it is not.
+
+**The catalogue's full field list, so what it does not carry is settled rather than unchecked.**
+Per report: `RegisteredEntityID`, `RegisteredEntityType`, `ReportType`, `FilingYear`,
+`as_2DigitYear`, `ReportName`, `PrePrimaryReport`, `PreGeneralReport`, `YearEndReport`,
+`SpecialElectionindicator`, `SpecialElectionDistrict`, `TerminationDate`, `TerminationYear`,
+`District`, `NoticePeriod`, `CutOffDate`, `amendments`. **No period start is served anywhere**, and
+`NoticePeriod` is a flag reading `1` rather than a date.
+
 **Each contributor-type line is that schedule's itemized plus non-itemized total, from the
 effective version.** Checked line by line against the documents for two filers. Senator Scott
 Dibble's committee (15667), 2024: the route's individuals $4,869.59 equals the report's
@@ -1107,11 +1120,21 @@ $67.20; the route returns $317.20, which is exactly the regular pair, and our bu
 $172,242.26, which is exactly $171,992.26 + $250.00. **The bulk file covers both series; the
 route does not.**
 
-**The pair does not always start on 1 January, and the start cannot be derived.** 3 of the 5
+**The pair does not always start on 1 January, and the start is served nowhere.** 3 of the 5
 begin on 1 January; 19229 begins on its registration date and 19223 begins on 11 July, **5 days
 before it registered**, while 19205 registered on 20 March and still reports from 1 January. So
 a surface prints the period read off the report and never says "2025" where it means "11 July to
-31 December 2025".
+31 December 2025". §9.1 records the catalogue's full field list: there is no start date in it.
+
+**But it appears to be derivable, on one confirmed case.** The regular series looks to begin the
+day after the latest special-election cutoff. Ann Johnson Stewart's 2024 catalogue entries carry
+`CutOffDate` 2024-07-30, 2024-10-22 and 2024-11-25 with `SpecialElectionindicator = 1`, and
+2024-12-31 with the flag clear; 25 Nov + 1 day is 26 Nov, which is exactly the start this section
+documents for her regular year-end. The flag separates the two populations at read time, so no
+stored marker is needed to know which rule applies, and for every other filer the start is 1 January
+by statute (§9.6) rather than by assumption. **Confirmed on one filer-year only** (§9.9), so treat it
+as an observation to verify across the population before a build depends on it — and note it is the
+sort of rule that would fail silently, since a wrong start still renders as a plausible date range.
 
 **Read the figures by schedule code, never by position.** Each contributor-type line equals its
 `Schedule A1 - <code>` block's itemized plus non-itemized total, confirmed line by line against
@@ -1242,6 +1265,10 @@ Recorded as not run, never as passed:
   multi-version reports.
 - **The adjacency of the two report series** (§9.5) was measured on 5 filers, not on all 10
   negative committee-years, and on no year before 2024.
+- **Deriving a special-election filer's period start** from the day after the latest
+  special-election `CutOffDate` (§9.5) is confirmed on **one** filer-year, 18453 in 2024. A wrong
+  start renders as a plausible date range rather than as an error, so this needs confirming across
+  the population before a build relies on it.
 - ~~**The computed itemized split against the filing's own stated split** (§7) reconciled on 2
   filer-years at full precision.~~ **Run since** (§9.4): for the 2025 sitting-legislator population
   in full — 208 of 209, one having no 2025 year-end report, of which 199 of 202 ordinary
