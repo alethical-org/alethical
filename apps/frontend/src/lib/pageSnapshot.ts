@@ -15,10 +15,21 @@ import {
   splitOfficeAddress,
 } from './legislatorProfile';
 import { billNumberFromId, escapeHtml } from './share';
+import {
+  BILL_DIRECTORY_HEADING,
+  directoryJumpPages,
+  directoryPagePath,
+  directoryTotalPages,
+  LEGISLATOR_DIRECTORY_HEADING,
+} from './directoryPagination';
+import { formatSessionLabel } from './sessionLabel';
+import { FIND_MY_LEGISLATOR_INSTRUCTIONS } from './findMyLegislator';
+import { HOME_PUBLIC_INTRO } from './homepage';
 
 /**
- * The short factual snapshot that ships INSIDE the first server response for a
- * bill or a legislator (issue #1325, release 2 — decisions doc §8C).
+ * The short factual snapshot that ships INSIDE the first server response. Bill
+ * and legislator records use the release-2 form from issue #1325. Home and the
+ * unfiltered public directories use the crawlable path added in issue #1396.
  *
  * Release 1 gave every address its own title and description. This gives it
  * something to read. A search engine frequently ignores a supplied description
@@ -51,6 +62,11 @@ export interface SnapshotLink {
   href: string;
 }
 
+export interface SnapshotRecordLink extends SnapshotLink {
+  /** A second text run the app also draws, such as a bill title or district. */
+  detail?: string;
+}
+
 export interface PageSnapshot {
   /** The page's `<h1>`. */
   heading: string;
@@ -62,6 +78,8 @@ export interface PageSnapshot {
   body: string[];
   facts: SnapshotFact[];
   bodyIsList: boolean;
+  /** The records shown on this directory page, each as a normal crawlable link. */
+  records?: SnapshotRecordLink[];
   links: SnapshotLink[];
 }
 
@@ -75,6 +93,155 @@ function fact(label: string, value: string | null | undefined): SnapshotFact[] {
     .map((line) => clean(line))
     .filter(Boolean);
   return lines.length ? [{ label, lines }] : [];
+}
+
+function resultCount(total: number, noun: string): string {
+  return `${total.toLocaleString('en-US')} ${total === 1 ? noun : `${noun}s`}`;
+}
+
+function directoryNavigation(
+  basePath: '/bills' | '/legislators',
+  page: number,
+  totalPages: number,
+  other: SnapshotLink,
+): SnapshotLink[] {
+  const jumps = directoryJumpPages(page, totalPages).map((target) => ({
+    label: `Page ${target}`,
+    href: directoryPagePath(basePath, target),
+  }));
+  return [
+    ...(page > 1 ? [{ label: 'Previous', href: directoryPagePath(basePath, page - 1) }] : []),
+    ...(page < totalPages ? [{ label: 'Next', href: directoryPagePath(basePath, page + 1) }] : []),
+    ...jumps,
+    other,
+  ];
+}
+
+// --- Home and public directories ---
+
+export function homePageSnapshot(): PageSnapshot {
+  return {
+    heading: 'Grounded answers on Minnesota law',
+    subheading: 'TRUTH, UNCONCEALED',
+    bodyHeading: '',
+    body: [HOME_PUBLIC_INTRO],
+    facts: [],
+    bodyIsList: false,
+    links: [
+      { label: 'Search Bills', href: '/bills' },
+      { label: 'Search Legislators', href: '/legislators' },
+      { label: 'Find My Legislator', href: '/find-my-legislator' },
+    ],
+  };
+}
+
+export function findMyLegislatorPageSnapshot(): PageSnapshot {
+  return {
+    heading: 'Find my legislator',
+    subheading: '',
+    bodyHeading: '',
+    body: [FIND_MY_LEGISLATOR_INSTRUCTIONS],
+    facts: [],
+    bodyIsList: false,
+    links: [],
+  };
+}
+
+export interface BillDirectorySnapshotSource {
+  id: string;
+  ai_analysis?: { short_title?: string | null } | null;
+  current_status?: string | null;
+  status_key?: string | null;
+  session?: {
+    name?: string | null;
+    session_number?: number | null;
+    year_start?: number | null;
+    year_end?: number | null;
+  } | null;
+}
+
+export function billDirectoryPageSnapshot(
+  bills: readonly BillDirectorySnapshotSource[],
+  total: number,
+  page: number,
+  pageSize: number,
+): PageSnapshot {
+  return {
+    heading: BILL_DIRECTORY_HEADING,
+    subheading: resultCount(total, 'bill'),
+    bodyHeading: '',
+    body: [],
+    facts: [],
+    bodyIsList: false,
+    records: bills.map((bill) => {
+      const session = bill.session;
+      const sessionLabel = session
+        ? formatSessionLabel({
+            name: session.name ?? undefined,
+            sessionNumber: session.session_number ?? undefined,
+            yearStart: session.year_start ?? undefined,
+            yearEnd: session.year_end ?? undefined,
+          })
+        : '';
+      return {
+        label: billNumberFromId(bill.id),
+        detail: [
+          clean(bill.ai_analysis?.short_title) ||
+            stageLabel(statusLabel(bill.status_key, bill.current_status)),
+          sessionLabel,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        href: `/bills/${encodeURIComponent(bill.id)}`,
+      };
+    }),
+    links: directoryNavigation('/bills', page, directoryTotalPages(total, pageSize), {
+      label: 'Legislators',
+      href: '/legislators',
+    }),
+  };
+}
+
+export interface LegislatorDirectorySnapshotSource {
+  id: string;
+  slug?: string | null;
+  full_name?: string | null;
+  current_service?: {
+    chamber?: string | null;
+    district?: { code?: string | null } | null;
+  } | null;
+}
+
+export function legislatorDirectoryPageSnapshot(
+  legislators: readonly LegislatorDirectorySnapshotSource[],
+  total: number,
+  page: number,
+  pageSize: number,
+): PageSnapshot {
+  return {
+    heading: LEGISLATOR_DIRECTORY_HEADING,
+    subheading: resultCount(total, 'legislator'),
+    bodyHeading: '',
+    body: [],
+    facts: [],
+    bodyIsList: false,
+    records: legislators.map((legislator) => {
+      const service = legislator.current_service ?? {};
+      const chamberValue = (service.chamber ?? '').toLowerCase();
+      const chamber =
+        chamberValue === 'house' ? 'House' : chamberValue === 'senate' ? 'Senate' : '';
+      const district = clean(service.district?.code);
+      return {
+        label: clean(legislator.full_name) || 'Minnesota legislator',
+        detail: [chamber, district ? `District ${district}` : ''].filter(Boolean).join(' · '),
+        href: `/legislators/${encodeURIComponent(legislator.slug || legislator.id)}`,
+      };
+    }),
+    links: directoryNavigation('/legislators', page, directoryTotalPages(total, pageSize), {
+      label: 'Bills',
+      href: '/bills',
+    }),
+  };
 }
 
 // --- Bill ---
@@ -228,6 +395,15 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
         .join('')}</dl>`
     : '';
 
+  const records = snapshot.records?.length
+    ? `<ol class="ps-records">${snapshot.records
+        .map(
+          (record) =>
+            `<li><a href="${escapeHtml(record.href)}"><span class="ps-record-label">${escapeHtml(record.label)}</span>${record.detail ? `<span class="ps-record-detail">${escapeHtml(record.detail)}</span>` : ''}</a></li>`,
+        )
+        .join('')}</ol>`
+    : '';
+
   const links = snapshot.links.length
     ? `<nav class="ps-links">${snapshot.links
         .map((link) => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`)
@@ -239,8 +415,11 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
     '<div class="ps-inner">',
     `<h1>${escapeHtml(snapshot.heading)}</h1>`,
     snapshot.subheading ? `<p class="ps-sub">${escapeHtml(snapshot.subheading)}</p>` : '',
-    body ? `<h2>${escapeHtml(snapshot.bodyHeading)}</h2>${body}` : '',
+    body
+      ? `${snapshot.bodyHeading ? `<h2>${escapeHtml(snapshot.bodyHeading)}</h2>` : ''}${body}`
+      : '',
     facts,
+    records,
     links,
     '</div>',
     '</div>',

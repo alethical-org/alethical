@@ -465,7 +465,8 @@ use one site-wide range format without rewriting the stored record.
 Purpose:
 
 - return every bill id and legislator slug that has a public page, each with the date its
-  record really last changed, in a single response
+  record really last changed, plus the exact Bills and Legislators directory totals, in a single
+  response
 
 This exists for `api/sitemap.ts`, the Vercel function that builds `sitemap.xml`
 ([#1325](https://github.com/alethical-org/alethical/issues/1325)). Without it that function
@@ -477,7 +478,8 @@ Deliberately unlike every other collection endpoint here:
 - **Not paginated.** A sitemap that lists a page of bills is not a sitemap. The response is
   the whole corpus, about 1 MB before compression, well inside the sitemap format's 50,000-URL
   and 50 MB limits.
-- **Not serialized through the bill serializer.** Two column-only selects
+- **Not serialized through the bill serializer.** Two column-only address selects plus one bill
+  directory count
   (`select(Bill.bill_key, Bill.latest_action_at, Bill.updated_at)` and the legislator
   directory statement narrowed to `slug` + `updated_at`), never whole ORM rows, which is what
   keeps it cheap at that size.
@@ -502,7 +504,10 @@ Purpose:
 Filters (the handler's real signature; `bills()` in `alethical/api/routers/public.py`):
 
 - `session`
+- `scope` — `session` or the whole current Legislature
 - `q`
+- `topic` — older shared links keep working; it uses the same hidden Issue-label filter as
+  `policy_area`
 - `chamber`
 - `status`
 - `policy_area` — repeatable, several are OR'd. This section long called it `topic`, which the
@@ -510,6 +515,7 @@ Filters (the handler's real signature; `bills()` in `alethical/api/routers/publi
   and no error.
 - `omnibus` — likewise not `is_omnibus`, which is silently ignored.
 - `sort`
+- `view` — `cards` for the full app cards, or `directory` for the small first-response link list
 - `limit`
 - `offset`
 - `updated_after` — **NOT BUILT**
@@ -524,7 +530,7 @@ Optional includes:
   (`alethical/api/serializers.py`) always populates `chief_sponsors`, and the route never checks
   the include set for it. Every list response carries it whether you ask or not.
 
-Response fields (`BillListItem`, `alethical/api/schemas.py`):
+Response fields for `view=cards` (`BillListItem`, `alethical/api/schemas.py`):
 
 - bill id
 - bill number
@@ -537,9 +543,16 @@ Response fields (`BillListItem`, `alethical/api/schemas.py`):
 - stats
 - also present and previously undocumented here: `status_key`, `official_url`, `is_omnibus`,
   `co_author_count`, `companion`, `ai_analysis`, `actions`
-- ~~chamber~~ and ~~session~~ — **NOT RETURNED** on a list item, despite being listed here for
-  months. Chamber is recoverable from the bill number's HF/SF prefix; session comes from the
-  `session` you filtered by. The bill _detail_ response is the one that carries them.
+- ~~chamber~~ — **NOT RETURNED** on a list item, despite being listed here for months. Chamber is
+  recoverable from the bill number's HF/SF prefix. A whole-Legislature response includes `session`
+  only for a special-session bill, so a repeated bill number stays distinguishable.
+
+Response fields for `view=directory`:
+
+- bill id
+- current status and status key
+- special-session identity when applicable
+- plain-language short title
 
 #### `GET /api/v1/bills/{bill_id}`
 

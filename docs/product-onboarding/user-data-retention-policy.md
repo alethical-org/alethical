@@ -480,14 +480,12 @@ nothing outside our own database, it is what makes a bug report actionable, and 
 disappears when the account is deleted. The formatter is a final safety net, not
 permission for new code to log a request body, address, location, or question.
 
-**Reader questions travel in the page address, by design.** `/ask?q=<the question>` and
-`/chat/new?prompt=<the question>` both put typed text into the URL
-(`apps/frontend/src/navigation/webRoutes.ts`). This is deliberate and correct —
-[`grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 5 requires every
-answer to be reachable by a link someone can share. The cost is that the question lands
-in browser history, in the referrer sent to any link the reader clicks next, and in the
-web host's request logs. The API itself is clean: every path that carries a question is
-a POST with the text in the body, so nothing in front of the API ever sees it in a URL.
+**Reader questions travel in the page address, by design.** `/ask?q=<the question>` puts typed text
+into a shareable URL. An old `/chat/new?prompt=<the question>` address now redirects Home, but its
+question can remain in browser history and in the host's redirect request log. The cost is that a
+question in either address can reach browser history, the referrer sent to a later link, and the web
+host's request logs. The API itself is clean: every API path that carries a question is a POST with
+the text in the body, so nothing in front of the API ever sees it in an API URL.
 **The tension is real and the shareable link wins**, but the consequence should be named
 in the Privacy Policy rather than discovered.
 

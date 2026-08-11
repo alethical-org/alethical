@@ -21,6 +21,12 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/search", "destination": "/bills", "permanent": true },
+    { "source": "/chat", "destination": "/", "permanent": false },
+    { "source": "/chat/:path*", "destination": "/", "permanent": false },
+    { "source": "/account", "destination": "/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     {

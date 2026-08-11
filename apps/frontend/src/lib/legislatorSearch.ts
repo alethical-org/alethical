@@ -1,6 +1,8 @@
+import { LEGISLATOR_DIRECTORY_PAGE_SIZE } from './directoryPagination';
+
 export const LEGISLATOR_SEARCH_LABEL = 'Search by name';
 export const CLEAR_SEARCH_TARGET_SIZE = 44;
-export const LEGISLATOR_PAGE_SIZE = 12;
+export const LEGISLATOR_PAGE_SIZE = LEGISLATOR_DIRECTORY_PAGE_SIZE;
 // Portrait boxes use the 160:207 shape of the tallest source photo, and every
 // surface scales the whole photo to fit inside rather than filling the box
 // (#1334). Both the Minnesota House and Senate photo policies say their images

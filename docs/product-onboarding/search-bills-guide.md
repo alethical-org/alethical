@@ -125,7 +125,8 @@ Above the list you always see:
   Once saved, it turns mint and reads "Tracked", so saved bills stand out without
   reading every button. Press it again to remove the bill.
 
-Tap a card to open the full bill; results are split into pages with Previous / Next.
+Tap a card to open the full bill; results are split into pages with Previous / Next and numbered page
+jumps on the plain Bills list.
 
 Cards behave like ordinary web links, so you can right-click one and pick "Open link in
 new tab" (or hold ⌘ / Ctrl and click, or middle-click) to line several bills up in tabs

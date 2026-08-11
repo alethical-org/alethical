@@ -14,6 +14,7 @@ import {
 
 import { MainTabParamList, RootStackParamList } from './types';
 import { pathForRoute } from './webRoutes';
+import { directoryPageNumber } from '../lib/directoryPagination';
 
 /**
  * Who owns the browser tab title, and why it is not React Navigation's default.
@@ -49,9 +50,13 @@ function titleWithoutRecord(route: TitledRoute): string | null {
     case 'Home':
       return homePageMetadata().title;
     case 'Bills':
-      return billListPageMetadata().title;
+      return billListPageMetadata(
+        directoryPageNumber(route.params?.page ? String(route.params.page) : undefined),
+      ).title;
     case 'Legislators':
-      return legislatorListPageMetadata().title;
+      return legislatorListPageMetadata(
+        directoryPageNumber(route.params?.page ? String(route.params.page) : undefined),
+      ).title;
     case 'Ask':
       return askPageMetadata(route.params?.q ? String(route.params.q) : null).title;
     case 'BillDetail': {

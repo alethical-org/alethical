@@ -31,7 +31,7 @@ Each release issue records a fresh before-and-after measurement because the shar
 
 | Option | Benefit | Tradeoff or proof gap | Decision |
 |---|---|---|---|
-| Send useful page content in the first HTML response | Removes the empty-page wait on cold primary pages and deep links | The current navigation cannot do this directly; the supported options require a navigation rebuild or a separate public rendering path | Run the measured prototype in [#502](https://github.com/alethical-org/alethical/issues/502) before choosing an architecture |
+| Send useful page content in the first HTML response | Removes the empty-page wait on cold primary pages and deep links | The separate public serving path now covers records, Home, Find My Legislator, Bills, and Legislators; the full navigation rebuild remains larger | Shipped narrowly through [#1396](https://github.com/alethical-org/alethical/issues/1396); keep [#502](https://github.com/alethical-org/alethical/issues/502) for the broader rebuild |
 | Load 2 chief-authored bills first on phone profiles | Avoids the measured 47 KB, 1.56-second cold request | “Show all” would start a later request and make that click wait | Do not ship as no-tradeoff work |
 | Keep public data in nearby caches longer | More cold reads move from 500 to 1,600 ms toward 60 to 90 ms | Current bill, vote, and roster changes appear later | Keep the current freshness policy until the product chooses a longer delay |
 | Replace Space Grotesk or JetBrains Mono | Could remove about 13 to 44 KB of font downloads on pages using them | Changes the logo or code-like visual style | Do not treat as performance-only work |

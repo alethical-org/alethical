@@ -43,8 +43,18 @@ describe('sitemap endpoint', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('lists the eight fixed public pages and makes no network call', async () => {
-    const fetchSpy = vi.fn();
+  it('lists fixed pages plus every numbered directory page from current record counts', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          bill_directory_total: 21,
+          legislator_directory_total: 13,
+          bills: Array.from({ length: 21 }, (_, index) => ({ id: `bill-${index + 1}` })),
+          legislators: Array.from({ length: 13 }, (_, index) => ({ slug: `member-${index + 1}` })),
+        },
+      }),
+    });
     vi.stubGlobal('fetch', fetchSpy);
     const recorder = responseRecorder();
 
@@ -63,9 +73,24 @@ describe('sitemap endpoint', () => {
     ]) {
       expect(body).toContain(`<loc>https://www.alethical.com${path}</loc>`);
     }
-    expect(body.match(/<url>/g)).toHaveLength(8);
+    expect(body).toContain('<loc>https://www.alethical.com/bills?page=2</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/bills?page=3</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/legislators?page=2</loc>');
+    expect(body.match(/<url>/g)).toHaveLength(11);
     expect(body).not.toContain('<lastmod>');
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the fixed public pages available when directory counts cannot be read', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    const recorder = responseRecorder();
+
+    await handler({ query: { section: 'pages' } }, recorder.response);
+
+    const { body, status } = recorder.read();
+    expect(status).toBe(200);
+    expect(body.match(/<url>/g)).toHaveLength(8);
+    expect(body).not.toContain('?page=');
   });
 
   it('renders a loc and lastmod per bill, omitting lastmod when absent', async () => {

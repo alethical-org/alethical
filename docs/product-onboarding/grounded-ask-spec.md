@@ -6,14 +6,12 @@ Status: draft for engineering review
 Owner: Eugene
 Related surfaces: signed-out home (hero), chat
 
-The signed-out hero ships three sample question chips that map 1:1 to the shipped answer paths (bill text · topic → bills · topic → legislators), with the Ask box showing the current placeholder copy (§2). There is no vote chip — the vote path is not built yet (see §2, Build order).
-
 ## 1. Goal and the promise this build protects
 
 The signed-out home page hero ships this copy:
 
 > **Grounded answers on Minnesota law**
-> We read every bill so you don't have to — what it says, where it stands, and how legislators voted. Plain language, every answer linked to its official source.
+> We read every bill so you don't have to — what it says, where it stands, and how legislators voted. Plain language, with every claim linked to the official record.
 
 The subhead is a contract, not marketing: **no answer ships without a resolvable citation to its official source.** Everything in this spec exists to keep that sentence true when the hero's Ask box goes from bill-scoped chat to a general question box.
 
@@ -21,11 +19,11 @@ The subhead is a contract, not marketing: **no answer ships without a resolvable
 
 ## 2. User-facing behavior
 
-A signed-out visitor types a natural-language question into the hero Ask box. The system classifies the question, answers from ingested Minnesota data with citations, or honestly declines.
+A future signed-out Ask entry will let a visitor type a natural-language question. The system will classify the question, answer from ingested Minnesota data with citations, or honestly decline.
 
 The hero placeholder reads **"Ask about bills or legislators by issue or name"** — no trailing ellipsis, which this line and the checklist below both added. (This copy will land when the Ask hero ships; the interim signed-out-home Ask entry field that prototyped it as `ASK_PLACEHOLDER` in `HomeSignedOutScreen.tsx` was removed, because free-form Ask is roadmap, not built — the home now routes to Search Bills and Find My Legislator instead.) The grammar is deliberate: bills and legislators are the only *destinations* the sentence promises; "by issue or name" are *entry points* (issue → the two topic paths; name → a legislator's profile via directory match — §4.6, records navigation, not a generated answer), never a third entity type — there are no issue-level answers (no issue pages, no cross-corpus issue summaries). Entry points are ordered by what a layperson actually arrives with: most think in issues or keywords, some know a legislator's name, almost none know a bill's name or number — so bill names are deliberately *not* advertised as an entry point (and "issue" doubles as the keyword case). Deliberately no "votes" — the vote path is not built yet (see Build order below). The placeholder must never advertise an intent the router can't answer. Because this copy actively steers users toward arbitrary topics, the retrieval-relevance threshold and NO MATCHES state (§4.5) must ship before it does.
 
-### Acceptance scenarios (the hero's sample chips — these are the tests)
+### Acceptance scenarios (the planned hero sample chips — these are the tests)
 
 | # | Question | Expected behavior |
 |---|----------|-------------------|

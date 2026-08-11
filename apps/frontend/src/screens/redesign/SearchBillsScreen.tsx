@@ -51,6 +51,15 @@ import {
   BILL_SEARCH_SORT_TO_API,
   resolveBillSearchSort,
 } from '../../lib/billSearchSort';
+import {
+  BILL_DIRECTORY_HEADING,
+  BILL_DIRECTORY_PAGE_SIZE,
+  directoryJumpPages,
+  directoryPageNumber,
+  directoryPagePath,
+  isDefaultBillDirectoryParams,
+  loadedDirectoryPageIsOutOfRange,
+} from '../../lib/directoryPagination';
 
 // Placeholder card rows shown while the first page of bills loads.
 const SKELETON_ROWS = [0, 1, 2, 3, 4];
@@ -59,8 +68,6 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
 // the current Legislature with chamber / status / session / omnibus filters + Issue
 // pills, ordered by legislative progress (sort=progress, #292), with auth-gated
 // per-bill tracking.
-
-const PAGE_SIZE = 10;
 
 // Issue chips: the AI vocabulary has a long tail (thousands of rare labels), so
 // show the most common inline and reveal the rest of the head via a "More"
@@ -131,7 +138,8 @@ export function SearchBillsScreen() {
         .filter(Boolean)
     : [];
   const omnibusOnly = params.omnibus === '1';
-  const page = Math.max(1, Number.parseInt(String(params.page ?? ''), 10) || 1);
+  const page = directoryPageNumber(params.page == null ? undefined : String(params.page));
+  const defaultDirectory = isDefaultBillDirectoryParams(params);
   // Sort: an explicit choice rides the URL; absent one, default to best-match
   // when searching (relevance leads) and legislative progress otherwise. A stale
   // 'best' with no query falls back to progress.
@@ -213,8 +221,8 @@ export function SearchBillsScreen() {
   };
 
   const billsQuery = useBills(query || undefined, apiSession, filters, {
-    limit: PAGE_SIZE,
-    offset: (page - 1) * PAGE_SIZE,
+    limit: BILL_DIRECTORY_PAGE_SIZE,
+    offset: (page - 1) * BILL_DIRECTORY_PAGE_SIZE,
   });
   // Warm the cache for a filter the user is hovering over (web) or touching
   // down on (mobile, via the chips' onPressIn — #517). Tapping a chip keeps the
@@ -230,7 +238,7 @@ export function SearchBillsScreen() {
       query || undefined,
       apiSession,
       { ...filters, ...override },
-      { limit: PAGE_SIZE, offset: 0 },
+      { limit: BILL_DIRECTORY_PAGE_SIZE, offset: 0 },
     );
   const metaQuery = useMeta();
   const policyAreasQuery = usePolicyAreas(apiSession, legislatureScope ? 'legislature' : undefined);
@@ -238,8 +246,26 @@ export function SearchBillsScreen() {
   const bills = billsQuery.data?.data ?? [];
   const total = billsQuery.data?.page.total ?? null;
   const hasMore = billsQuery.data?.page.hasMore ?? false;
-  const totalPages = total != null ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : undefined;
+  const totalPages =
+    total != null ? Math.max(1, Math.ceil(total / BILL_DIRECTORY_PAGE_SIZE)) : undefined;
   const resultCount = total ?? bills.length;
+
+  // The first response is already a real 404 for an unfiltered page beyond the
+  // last result. Keep that same useful missing-page screen after React starts;
+  // otherwise hydration would turn a 404 into an ordinary empty list.
+  useEffect(() => {
+    if (
+      loadedDirectoryPageIsOutOfRange({
+        isSuccess: billsQuery.isSuccess,
+        isDefaultDirectory: defaultDirectory,
+        page,
+        total,
+        pageSize: BILL_DIRECTORY_PAGE_SIZE,
+      })
+    ) {
+      navigation.replace('NotFound', { path: directoryPagePath('/bills', page) });
+    }
+  }, [billsQuery.isSuccess, defaultDirectory, navigation, page, total]);
 
   const policyOptions: Array<{ value: string; label: string; count?: number }> = (
     policyAreasQuery.data ?? []
@@ -476,7 +502,7 @@ export function SearchBillsScreen() {
       onTerms={() => navigation.navigate('Terms')}
       hero={
         <SearchHero
-          title="Search bills"
+          title={BILL_DIRECTORY_HEADING}
           placeholder="Search by keyword or bill number"
           query={queryInput}
           onQueryChange={setQueryInput}
@@ -561,6 +587,23 @@ export function SearchBillsScreen() {
             onPrev={() => navigation.setParams({ page: page > 2 ? String(page - 1) : undefined })}
             onNext={() => navigation.setParams({ page: String(page + 1) })}
             onPageChange={onPageChange}
+            prevHref={
+              defaultDirectory && page > 1 ? directoryPagePath('/bills', page - 1) : undefined
+            }
+            nextHref={
+              defaultDirectory && totalPages != null && page < totalPages
+                ? directoryPagePath('/bills', page + 1)
+                : undefined
+            }
+            jumpPages={
+              defaultDirectory && totalPages != null
+                ? directoryJumpPages(page, totalPages)
+                : undefined
+            }
+            pageHref={(target) => directoryPagePath('/bills', target)}
+            onPageSelect={(target) =>
+              navigation.setParams({ page: target > 1 ? String(target) : undefined })
+            }
           />
         </>
       )}
