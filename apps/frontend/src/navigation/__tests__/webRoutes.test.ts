@@ -7,10 +7,21 @@
 // made, so the redirects below are pinned here rather than left to whoever next
 // edits the routing switch.
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { IA, MENUS, mobileNavRoadmapLabels, navDropdownItems } from '../ia';
 import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoutes';
+
+const routeSource = readFileSync(join(__dirname, '..', 'webRoutes.ts'), 'utf8');
+
+describe('the shared address reader stays safe for the server build', () => {
+  it('does not import the browser navigation package', () => {
+    expect(routeSource).not.toMatch(/from ['"]@react-navigation\//);
+  });
+});
 
 describe('old-design URLs land on a shipped page', () => {
   it('sends a standalone vote link to that bill’s Votes tab', () => {
