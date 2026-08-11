@@ -30,6 +30,7 @@ from alethical.db.session import get_engine
 from alethical.pipeline.minnesota import (
     LEGISLATOR_LOCK_KEY,
     REFERENCE_DATA_LOCK_KEY,
+    BillIngestionResult,
     BillRefreshRejected,
     BillTarget,
     MinnesotaIngestionPipeline,
@@ -1435,6 +1436,73 @@ def test_complete_refresh_updates_description_and_authors(seed_database: None) -
         session.rollback()
 
 
+def test_ingest_bills_reports_only_public_text_changes(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1320: metadata-only refreshes must not pay to rebuild unchanged search rows."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The introduced description.",
+            authors=[("500213", "Author, First"), ("500214", "Author, Second")],
+        )
+        _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="text-signal-original"
+        )
+        session.flush()
+
+        changed_canonical, changed_text = _refresh_payload(
+            description="The amended description.",
+            authors=[("500213", "Author, First"), ("500214", "Author, Second")],
+            section_texts=("New first section.", "New second section."),
+        )
+        _mock_bill_fetches(monkeypatch, [(changed_canonical, changed_text)])
+        changed = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+
+        unchanged_canonical, unchanged_text = _refresh_payload(
+            description="Metadata changed again.",
+            authors=[("500213", "Author, First"), ("500214", "Author, Second")],
+            section_texts=("New first section.", "New second section."),
+        )
+        _mock_bill_fetches(monkeypatch, [(unchanged_canonical, unchanged_text)])
+        unchanged = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+
+        assert changed["bill_keys"] == ["94-2025-HF5002"]
+        assert changed["text_changed_bill_keys"] == ["94-2025-HF5002"]
+        assert unchanged["bill_keys"] == ["94-2025-HF5002"]
+        assert unchanged["text_changed_bill_keys"] == []
+
+        session.rollback()
+
+
+def test_ingest_bills_reports_a_new_bill_as_public_text_changed(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        canonical, bill_text = _refresh_payload(
+            description="A newly found bill.",
+            authors=[("500215", "Author, New")],
+        )
+        _mock_bill_fetches(monkeypatch, [(canonical, bill_text)])
+
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+
+        assert result["bill_keys"] == ["94-2025-HF5002"]
+        assert result["text_changed_bill_keys"] == ["94-2025-HF5002"]
+
+        session.rollback()
+
+
 def _mock_bill_fetches(
     monkeypatch: pytest.MonkeyPatch,
     payloads: list[tuple[dict, dict]],
@@ -1583,6 +1651,8 @@ def test_2_different_thin_fetches_preserve_facts_and_request_an_issue(
 
         assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
         assert result["bills_ingested"] == 0
+        assert result["bill_keys"] == []
+        assert result["text_changed_bill_keys"] == []
         assert result["bill_refresh_rejections"] == [
             {
                 "bill_key": "94-2025-HF5002",
@@ -1613,7 +1683,7 @@ def test_rejected_bill_does_not_discard_the_other_24(
     with Session(get_engine()) as session:
         pipeline = MinnesotaIngestionPipeline(session)
 
-        def fake_ingest(_refs: dict, target: BillTarget) -> Bill:
+        def fake_ingest(_refs: dict, target: BillTarget) -> BillIngestionResult:
             if target.bill_number == "7001":
                 raise BillRefreshRejected(
                     "94-2025-HF7001",
@@ -1634,9 +1704,9 @@ def test_rejected_bill_does_not_discard_the_other_24(
             )
             session.add(bill)
             session.flush()
-            return bill
+            return BillIngestionResult(bill=bill, public_text_changed=True)
 
-        monkeypatch.setattr(pipeline, "ingest_bill_target", fake_ingest)
+        monkeypatch.setattr(pipeline, "_ingest_bill_target_result", fake_ingest)
         result = pipeline.ingest_bills(
             [
                 BillTarget(chamber="House", bill_number=str(number))

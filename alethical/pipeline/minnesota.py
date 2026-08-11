@@ -119,6 +119,12 @@ class BillSourcePayload:
     html_artifact: Any
 
 
+@dataclass(frozen=True)
+class BillIngestionResult:
+    bill: Any
+    public_text_changed: bool
+
+
 @dataclass
 class MergeReport:
     """Outcome of merging duplicate bill-author rows into their roster row.
@@ -1860,11 +1866,48 @@ class MinnesotaIngestionPipeline:
         )
         return rejection
 
+    def _public_text_signature(
+        self, bill: Any | None
+    ) -> tuple[Any, tuple[str, ...]] | None:
+        """Identify the exact current text that search and summaries describe."""
+        if bill is None:
+            return None
+        version = self.db.scalar(
+            select(BillVersion)
+            .where(BillVersion.bill_id == bill.id)
+            .order_by(
+                BillVersion.is_current.desc(),
+                BillVersion.sequence_number.desc(),
+            )
+            .limit(1)
+        )
+        if version is None:
+            return None
+        section_hashes = tuple(
+            content_hash(str(section.raw_text or ""))
+            for section in self.db.scalars(
+                select(BillVersionSection)
+                .where(BillVersionSection.bill_version_id == version.id)
+                .order_by(BillVersionSection.source_order.asc())
+            ).all()
+        )
+        return version.id, section_hashes
+
     def ingest_bill_target(self, refs: dict[str, Any], target: BillTarget) -> Any:
+        """Keep the established single-bill return while tracking batch changes."""
+        return self._ingest_bill_target_result(refs, target).bill
+
+    def _ingest_bill_target_result(
+        self, refs: dict[str, Any], target: BillTarget
+    ) -> BillIngestionResult:
         run = self.start_run(
             "bill", f"{target.session_code}:{target.chamber}:{target.bill_number}"
         )
         payload = self._fetch_bill_source(target, run)
+        existing_bill = self.db.scalar(
+            select(Bill).where(Bill.bill_key == payload.canonical["bill_key"])
+        )
+        previous_text = self._public_text_signature(existing_bill)
         drops = self.bill_refresh_drops(payload.canonical, payload.bill_text)
         retried = bool(drops)
         corroborated_drop = False
@@ -1930,6 +1973,8 @@ class MinnesotaIngestionPipeline:
             payload.html_artifact,
             corroborated_drop=corroborated_drop,
         )
+        self.db.flush()
+        current_text = self._public_text_signature(bill)
         self.finish_run(
             run,
             self._run_stats(
@@ -1939,7 +1984,10 @@ class MinnesotaIngestionPipeline:
                 corroborated_drop=corroborated_drop,
             ),
         )
-        return bill
+        return BillIngestionResult(
+            bill=bill,
+            public_text_changed=previous_text != current_text,
+        )
 
     def upsert_bill(
         self,
@@ -2349,7 +2397,7 @@ class MinnesotaIngestionPipeline:
         # session's bills belong to their own session row (#746). Cached so a batch
         # sharing one code still costs one lookup, as it always did.
         refs_by_code: dict[str, dict[str, Any]] = {}
-        bills = []
+        results: list[BillIngestionResult] = []
         refresh_rejections: list[dict[str, Any]] = []
         for target in targets:
             refs = refs_by_code.get(target.session_code)
@@ -2358,12 +2406,13 @@ class MinnesotaIngestionPipeline:
                     target.session_code
                 )
             try:
-                bills.append(self.ingest_bill_target(refs, target))
+                results.append(self._ingest_bill_target_result(refs, target))
             except BillRefreshRejected as exc:
                 # The guard runs before any canonical bill row changes. Keep its
                 # failed run and source artifacts as evidence, then move on so 1
                 # thin response cannot roll back the other 24 bills in a chunk.
                 refresh_rejections.append(exc.report())
+        bills = [result.bill for result in results]
         # Refresh stats only for the legislators this batch actually touched (the
         # sponsors of its bills), not the whole jurisdiction — otherwise concurrent
         # chunk workers all contend on the same ~400 legislator_stats rows and hit
@@ -2386,6 +2435,9 @@ class MinnesotaIngestionPipeline:
         return {
             "bills_ingested": len(bills),
             "bill_keys": [bill.bill_key for bill in bills],
+            "text_changed_bill_keys": [
+                result.bill.bill_key for result in results if result.public_text_changed
+            ],
             "bill_refresh_rejections": refresh_rejections,
         }
 

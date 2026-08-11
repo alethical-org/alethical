@@ -5,10 +5,10 @@ during a special session, every 4 hours for the 14 days after a session ends, an
 the interim. That is not one cadence keyed to a clock, it is a cadence keyed to the legislative
 calendar, because the measured activity data shows 102 active days in an 18-month span and 7
 consecutive months with none. **None of it can be switched on yet:** the thin-response guard
-shipped in [#1319](https://github.com/alethical-org/alethical/issues/1319), but three safety fixes
-still come first
-([#1320](https://github.com/alethical-org/alethical/issues/1320),
-[#1321](https://github.com/alethical-org/alethical/issues/1321),
+shipped in [#1319](https://github.com/alethical-org/alethical/issues/1319) and current text now
+reaches search atomically ([#1320](https://github.com/alethical-org/alethical/issues/1320)), but
+two safety fixes still come first
+([#1321](https://github.com/alethical-org/alethical/issues/1321),
 [#1322](https://github.com/alethical-org/alethical/issues/1322)), then the schedule
 ([#1323](https://github.com/alethical-org/alethical/issues/1323)).
 
@@ -125,15 +125,17 @@ too fast for July.
 
 ## 4. Why none of it can be scheduled yet
 
-A refresh still cannot run unattended. The first of 4 verified defects is fixed; the other 3
+A refresh still cannot run unattended. The first 2 of 4 verified defects are fixed; the other 2
 remain:
 
 - **Fixed: 1 thin response no longer deletes good facts.** A lower action, author, version or
   section count triggers a second full fetch before any bill fact changes. Two differing thin
   responses reject only that bill and ask the future scheduled pass to open an issue; a blank
   description keeps the stored value. ([#1319](https://github.com/alethical-org/alethical/issues/1319))
-- **Search text is indexed before the bill text is saved.** The chunks are built and committed on
-  a separate connection, so they describe the previous text.
+- **Fixed: saved search text now describes the accepted bill text.** An accepted refresh records
+  whether the current version or its ordered section text changed. Only those bill keys are
+  rebuilt, after the canonical rows are flushed, on the same database connection and in the same
+  transaction. A failed rebuild rolls back both writes instead of publishing half a refresh.
   ([#1320](https://github.com/alethical-org/alethical/issues/1320))
 - **A changed bill keeps its old summary.** Nothing ties a summary to the text version it was
   written from. ([#1321](https://github.com/alethical-org/alethical/issues/1321))
