@@ -809,6 +809,48 @@ heading is Google's only one. Verified they do not contradict the served title: 
 `Search Minnesota bills` and heads `Search bills`; `/legislators` declares `Minnesota House and
 Senate members` and heads `Search legislators`.
 
+### The two pages whose heading disagrees with their title — ruled
+
+[#1363](https://github.com/alethical-org/alethical/pull/1363) checked all six pages that serve no
+heading of their own, since on those the app's heading is Google's only one. Four agree with the
+served title (`/bills`, `/legislators`, `/find-my-legislator`, `/tracked`). Two do not, and both were
+referred here because changing either means changing **visible copy**, not markup.
+
+**`/about` — left as it is, deliberately.** Its only top-level heading is the slogan
+`TRUTH, UNCONCEALED`, while it serves `<title>About us | Alethical</title>`. It was put to this
+section as the boilerplate-repeated-across-the-site case that Google's title-link guidance describes.
+**Measured, it is not that case:**
+
+- The slogan sits in **2 to 4 places in every page's markup** (the footer, the home eyebrow) but is a
+  **heading on exactly one page — `/about`.** Not a heading on Home, `/bills` or a legislator profile,
+  and never in any served HTML. Repeated *text* is not a repeated *heading*, and Google's fallback
+  keys off the latter.
+- `/about` serves a specific, unique, accurate `<title>` plus a real description, so the fallback has
+  no reason to fire at all.
+
+So the search argument does not carry, and the remaining argument is a weaker one: the page's heading
+does not name the page, which every other page now does, and a reader navigating by headings hears a
+slogan where they expect a location. That is real but minor — a screen reader announces the page
+title on load, so the reader is not lost — and the fix needs a headline that does not exist on the
+page today, which is designed copy and a product call rather than a correction. **Not worth spending
+new visible copy on. Left alone as a decision, not an oversight.**
+
+**`/ask` — not a search matter at all, and the referral misread it.** It was flagged as having no
+heading and as a thin page worth attention. The second half does not hold: **`/ask` serves
+`X-Robots-Tag: noindex` and appears 0 times across all three sitemap files** (§7, and verified again
+here). A page we ask Google not to index cannot lose a title to a heading, and cannot be judged as
+thin content. There is nothing here for search to win or lose.
+
+What is left is a genuine accessibility gap — zero headings on a real page — which belongs to
+[#1355](https://github.com/alethical-org/alethical/issues/1355)'s one-heading-per-page convention
+rather than to this section. **The conservative fix is to head it with the words it already serves as
+its title, `Ask about Minnesota legislation`**: it invents no copy, claims no capability the title
+does not already claim, and cannot contradict the served title. Worth naming the tension rather than
+hiding it: `.claude/rules/grounded-answers.md` rule 2 says a surface may only name intents the router
+can answer, and this page cannot take a question — its body says to pick a bill and ask from there.
+The heading is acceptable because the **title already says exactly this** and the body corrects it
+immediately; a heading that invited a question here would not be.
+
 ### Reconsider only if
 
 Google reports trailing-slash addresses as duplicates *after* the redirect ships, which would mean
