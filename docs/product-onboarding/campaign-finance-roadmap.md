@@ -155,7 +155,17 @@ different set of rules, and a large amount of work for a Minnesota-first product
 
 ## Still unanswered
 
-- Where to get filed reports in bulk, rather than one PDF at a time.
-- How to tell which corrected version of a filing replaces which.
+**Someone is on these 2, and the first-priority work needs them**
+([#1337](https://github.com/alethical-org/alethical/issues/1337)):
+
+- Where to get filed reports in bulk, rather than one PDF at a time. We need them for the
+  official totals, which include the small-donor money that has no names attached. Without a
+  route to them, a legislator's page can show the donors we can name but not the true total.
+- How to tell which corrected version of a filing replaces which. A filing can be amended
+  several times, each version restating the same money, so counting them all would report the
+  money several times over.
+
+**Nobody is on these, and nothing is waiting on them:**
+
 - Whether unions report anywhere we can reach. They are not with the Campaign Finance Board.
 - Minnesota before 2015, which the free downloads do not reach.
