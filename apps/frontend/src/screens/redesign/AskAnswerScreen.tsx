@@ -183,17 +183,15 @@ function AnswerBillCard({
             a link wrapper, so no press-swallowing is needed here. */}
         <BillTrackButton billId={bill.id} size="card" tracked={tracked} onPress={onToggleTrack} />
       </View>
-      {/* The PLAIN title, with the statutory one kept as a hover tooltip and the
-          screen-reader name — the treatment BillHeader and the search card already
-          use (.claude/rules/grounded-answers.md rule 10). HF 719's official title
-          is eleven lines of statute citations, and this card was printing all of
-          them on the vote deflection. */}
-      <Text
-        ref={titleRef}
-        style={styles.billTitle}
-        accessibilityLabel={bill.title}
-        numberOfLines={bill.shortTitle ? undefined : 2}
-      >
+      {/* The PLAIN title, with the statutory one kept as a hover tooltip and
+          nothing else — the treatment BillHeader and the search card also use
+          (.claude/rules/grounded-answers.md rule 10). HF 719's official title is
+          eleven lines of statute citations, and this card was printing all of them
+          on the vote deflection. It was also the screen-reader name until #1362:
+          an accessibilityLabel replaces the visible text rather than adding to it,
+          so the one group who cannot see the plain title was the only group
+          getting the statute. */}
+      <Text ref={titleRef} style={styles.billTitle} numberOfLines={bill.shortTitle ? undefined : 2}>
         {bill.shortTitle ?? bill.title}
       </Text>
       {bill.summary ? <Text style={styles.billSummary}>{bill.summary}</Text> : null}

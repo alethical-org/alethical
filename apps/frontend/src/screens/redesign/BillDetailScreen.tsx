@@ -735,7 +735,11 @@ function BillDetailMobileScreen() {
                 <Text
                   accessibilityRole="header"
                   aria-level={1}
-                  accessibilityLabel={bill.title}
+                  // No accessibilityLabel here: a label replaces the visible text
+                  // for a screen reader, so the statutory title announced 900
+                  // characters of statute where everyone else read the plain
+                  // headline (#1362). There is no hover on a phone, so the
+                  // statutory wording lives in the Bill Text section.
                   // The design hero is a punchy AI short title. When a bill has
                   // none, fall back to the canonical statutory title but shrink +
                   // clamp it so a 40-word title doesn't consume the whole screen.
