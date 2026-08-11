@@ -244,8 +244,18 @@ snapshot model exists precisely because these numbers move.
 
 ## 9. Open questions
 
+**Owned, and blocking** ([#1337](https://github.com/alethical-org/alethical/issues/1337)).
+Both are answered by one investigation, and §7's "two numbers" rule cannot be satisfied until
+they are:
+
 - Where filed reports and their non-itemized figures are fetched from, in bulk. The report
-  viewer and PDFs are known; a machine-readable path is not.
-- How to determine which amendment supersedes which, beyond reading the filing.
-- Pre-2015 coverage, which the bulk downloads do not reach.
-- Whether unions file anywhere reachable. They are not on the Board.
+  viewer and PDFs are known; a machine-readable path is not. Without it a page can show the
+  payments it can name but not the official total they sit inside.
+- How to determine which amendment supersedes which, beyond reading the filing. Without it
+  §6's "exactly one effective version" is a rule with no way to apply it.
+
+**Unowned, and not blocking the first release:**
+
+- Pre-2015 coverage, which the bulk downloads do not reach. The first release is 2015 onward,
+  so this waits until a separate source is proven.
+- Whether unions file anywhere reachable. They are not with the Board.
