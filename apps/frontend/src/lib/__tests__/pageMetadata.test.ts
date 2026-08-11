@@ -87,6 +87,15 @@ describe('page metadata', () => {
 });
 
 describe('rendered head', () => {
+  it('describes what the shared-link picture says', () => {
+    const head = renderPageHead(homePageMetadata());
+    const alt =
+      'Alethical: Minnesota’s legislative record in plain language, with links to official sources.';
+
+    expect(head).toContain(`<meta property="og:image:alt" content="${alt}" />`);
+    expect(head).toContain(`<meta name="twitter:image:alt" content="${alt}" />`);
+  });
+
   // 10,471 AI-written titles and summaries are 10,471 chances for one stray
   // character to break the markup or close the script element early.
   it('escapes every stored string before it reaches a tag', () => {

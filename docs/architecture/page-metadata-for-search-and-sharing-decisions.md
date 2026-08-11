@@ -158,6 +158,16 @@ forbid all three.
 **Recommendation: replace the current logo with one purpose-made 1200×630 card, and do not generate
 per-page images.** About half a day of work.
 
+**Shipped 11 Aug 2026.** The one card uses the ink background and green twin-peak mark, then says
+“Minnesota’s legislative record in plain language” and “With links to official sources.” It carries
+no portrait, party colour, call to action, gradient, or attention-seeking decoration. The same
+wording is now the image’s Open Graph and X alternative text.
+
+The recipe lives in `apps/frontend/scripts/generate-brand-assets.mjs`. It uses a pinned SVG-to-PNG
+renderer plus committed Libre Franklin and Space Grotesk font files whose open-font licences sit
+beside them. `apps/frontend/scripts/check-brand-assets.mjs` rebuilds the picture and compares every
+pixel, then also checks that the useful light text is present. A hand-edited image cannot drift in.
+
 Per-page cards are not blocked by cost. Rendering all 10,671 once, cached, would cost well under $1
 in server time. They are blocked by rights, and this is verified from the primary source rather
 than assumed. The Minnesota House's photo policy (`house.mn.gov/hinfo/photo_use.htm`, updated
@@ -507,13 +517,13 @@ labelled "Go back", with two destinations decided by history. There is no fixed 
 - **Postgres returned the sitemap's dates in the session timezone, not UTC.** Reading `.date()` off a
   midnight-UTC timestamp reported the previous day. Normalised before the date is read.
 
-### What is deliberately still open
+### What shipped after release 1
 
 - **Unknown-address 404s shipped in release 3.** `/foo`, `/BILLS/…`, and `/Home` now answer 404
   with a useful missing-page screen. The route table also keeps the retired addresses working. §16
   records the choice and proof ([#1341](https://github.com/alethical-org/alethical/issues/1341)).
-- **The preview picture is still the bare logo.** §5's neutral card is its own piece of work:
-  [#1340](https://github.com/alethical-org/alethical/issues/1340).
+- **The preview picture became the one neutral card in §5.** It carries text and brand only, with
+  no portrait or party colour ([#1340](https://github.com/alethical-org/alethical/issues/1340)).
 - **Release 2 — real text in the first response** — shipped; see §13.
 
 ---
@@ -633,10 +643,10 @@ corners — leaving it looking low and off-center.
 - **Opaque, because nothing else survives the pipeline.** There is no transparent framing that works:
   any padding is removed, so the mark always ends up edge-to-edge and always meets the circle.
 - **Brand ink, because every other icon we ship already uses it.** `assets/icon.png`,
-  `public/icon-192.png`, `public/icon-512.png`, `public/apple-touch-icon.png` and
-  `public/social-preview.png` are all a `#11150f` square carrying the green mark. The favicon was the
-  only transparent one. Green on ink is also far more legible than green on white, and a light-mode
-  result went nearly invisible with a transparent icon.
+  `public/icon-192.png`, `public/icon-512.png`, and `public/apple-touch-icon.png` are all a `#11150f`
+  square carrying the green mark. The shared-link card keeps that same ground and mark while adding
+  its factual wording. The favicon was the only transparent one. Green on ink is also far more
+  legible than green on white, and a light-mode result went nearly invisible with a transparent icon.
 - **0.65, because that is the largest mark whose corners clear the circle.** The mark's widest points
   are its bottom corners, at `sqrt(1 + (84/82)²) / 2 = 0.716` of the mark's height from center, so a
   circular crop starts cutting them once the mark passes 0.699 of the canvas. 0.65 keeps a ~6.8%

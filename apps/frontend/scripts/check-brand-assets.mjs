@@ -26,6 +26,25 @@ for (const asset of BRAND_ASSETS) {
 }
 
 try {
+  const preview = PNG.sync.read(await readFile(resolve(projectRoot, 'public/social-preview.png')));
+  let lightTextPixels = 0;
+  for (let index = 0; index < preview.data.length; index += 4) {
+    if (
+      preview.data[index] > 180 &&
+      preview.data[index + 1] > 180 &&
+      preview.data[index + 2] > 180
+    ) {
+      lightTextPixels += 1;
+    }
+  }
+  if (lightTextPixels < 5_000) {
+    errors.push('public/social-preview.png is still a bare-logo picture without useful words');
+  }
+} catch {
+  errors.push('public/social-preview.png cannot be checked for its purpose-made words');
+}
+
+try {
   await access(resolve(projectRoot, 'assets/android-icon-background.png'));
   errors.push('assets/android-icon-background.png still contains the retired starter artwork');
 } catch {
@@ -89,4 +108,4 @@ if (errors.length > 0) {
   throw new Error(`Brand asset check failed:\n- ${errors.join('\n- ')}`);
 }
 
-console.log(`Brand asset check passed: ${BRAND_ASSETS.length} current logo files`);
+console.log(`Brand asset check passed: ${BRAND_ASSETS.length} generated brand files`);

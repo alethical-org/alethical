@@ -2,6 +2,8 @@ import { plainBillSummary } from './billDetail';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
+export const SOCIAL_PREVIEW_IMAGE_ALT =
+  'Alethical: Minnesota’s legislative record in plain language, with links to official sources.';
 export const SITE_NAME = 'Alethical';
 
 // Every page's own wording lives in this file — issue #1325. Three surfaces read
@@ -417,6 +419,7 @@ export function renderPageHead(meta: PageMetadata): string {
   // declares none rather than pointing a search engine at an unrelated page.
   const url = meta.canonicalPath ? escapeHtml(publicPageUrl(meta.canonicalPath)) : '';
   const image = escapeHtml(SOCIAL_PREVIEW_IMAGE_URL);
+  const imageAlt = escapeHtml(SOCIAL_PREVIEW_IMAGE_ALT);
   const jsonLd = pageJsonLd(meta)
     // `<` is escaped so a stored string can never close the script element early.
     .map(
@@ -438,11 +441,12 @@ export function renderPageHead(meta: PageMetadata): string {
     `    <meta property="og:image" content="${image}" />`,
     `    <meta property="og:image:width" content="1200" />`,
     `    <meta property="og:image:height" content="630" />`,
-    `    <meta property="og:image:alt" content="${SITE_NAME}" />`,
+    `    <meta property="og:image:alt" content="${imageAlt}" />`,
     `    <meta name="twitter:card" content="summary_large_image" />`,
     `    <meta name="twitter:title" content="${socialTitle}" />`,
     `    <meta name="twitter:description" content="${description}" />`,
     `    <meta name="twitter:image" content="${image}" />`,
+    `    <meta name="twitter:image:alt" content="${imageAlt}" />`,
     ...(jsonLd ? [jsonLd] : []),
   ].join('\n');
 }
