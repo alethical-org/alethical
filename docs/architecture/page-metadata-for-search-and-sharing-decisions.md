@@ -509,13 +509,9 @@ labelled "Go back", with two destinations decided by history. There is no fixed 
 
 ### What is deliberately still open
 
-- **Unknown addresses still answer 200 with the home page's tags.** The 404 work covers a bill or
-  legislator that does not exist, which is the unbounded case (10,517 bills' worth of plausible
-  addresses). An arbitrary path like `/foo` still falls through the catch-all to the app, which
-  renders Home — so its tags and its content agree, but the status code is wrong.
-  [#1341](https://github.com/alethical-org/alethical/issues/1341). **A wrong-case path (`/BILLS/…`,
-  `/Home`) lands in this same bucket and is worse, because it names a real record and strands the
-  reader on Home.** A trailing slash used to as well; §15 fixed that one and measured the rest.
+- **Unknown-address 404s shipped in release 3.** `/foo`, `/BILLS/…`, and `/Home` now answer 404
+  with a useful missing-page screen. The route table also keeps the retired addresses working. §16
+  records the choice and proof ([#1341](https://github.com/alethical-org/alethical/issues/1341)).
 - **The preview picture is still the bare logo.** §5's neutral card is its own piece of work:
   [#1340](https://github.com/alethical-org/alethical/issues/1340).
 - **Release 2 — real text in the first response** — shipped; see §13.
@@ -756,15 +752,11 @@ dropped silently.
 Chosen over adding a second rewrite for each slash-terminated form, because a redirect leaves **one**
 address per record rather than two that both work.
 
-### What this deliberately does not fix
+### What release 3 later fixed
 
-- **Wrong-case addresses still serve the home page.** `/BILLS/94-2025-HF719` and `/Home` are the
-  cases that actually strand a reader, and `/Home` is in Google's index as proof they get crawled.
-  They are not a trailing-slash problem and a case-insensitive redirect is not obviously right —
-  paths are case-sensitive by the web's own rules, so an honest 404 may be the better answer. This
-  belongs with [#1341](https://github.com/alethical-org/alethical/issues/1341), which already owns
-  giving unknown addresses a real 404, and which was filed before these two shapes were measured.
-- **`/foo` still answers 200 with the home page.** Same issue, [#1341](https://github.com/alethical-org/alethical/issues/1341).
+- **Wrong-case and unknown addresses now answer 404.** `/BILLS/94-2025-HF719`, `/Home`, and `/foo`
+  use the useful missing-page response described in §16. They do not redirect because changing the
+  letters could silently guess at a page the reader did not ask for.
 - **Detail pages carry no structured data.** `BreadcrumbList` was deliberately removed in
   [#1357](https://github.com/alethical-org/alethical/pull/1357); §6 already explains why `Person` and
   `Legislation` were dropped. Nothing here changes that.
@@ -856,3 +848,39 @@ immediately; a heading that invited a question here would not be.
 Google reports trailing-slash addresses as duplicates *after* the redirect ships, which would mean
 the redirect is not being followed. Observable in the Page indexing report under "Page with
 redirect".
+
+---
+
+## 16. Release 3: one route reader decides whether an address exists
+
+Built 11 Aug 2026 for [#1341](https://github.com/alethical-org/alethical/issues/1341).
+
+### Decision
+
+`apps/frontend/src/navigation/webRoutes.ts` is the only list that decides whether an app address is
+real, retired but supported, or unknown. The browser uses that result to choose a screen, and
+`api/page.ts` uses the same result to choose an HTTP response. The final rewrite in the root
+`vercel.json` sends every non-file app address through that page function.
+
+This replaces the earlier split in which `vercel.json` knew only current public pages,
+`webRoutes.ts` knew retired forwards, and the final catch-all sent everything else to Home. The split
+made a typo look like a successful page even though the server already knew how to return 404.
+
+### Result
+
+- `/foo`, `/Home`, and wrong-case record shapes answer **404**, carry `noindex`, have no canonical
+  address, and show the normal site frame with links to Home, Bills, and Legislators.
+- A missing bill or legislator keeps its record-specific missing state and the same 404 status.
+- `/search` still opens Bills with its filters. Old vote addresses still open that bill's Votes tab.
+  `/chat`, `/chat/new`, `/chat/sessions/{id}`, and `/account` still open Home.
+- Real files, the site root, the sitemap functions, and the app's own program files are checked before
+  the final app-address rewrite and keep their existing responses.
+- Paths are case-sensitive. A wrong-case address is not corrected because guessing at capital letters
+  could turn an honest typo into a different page later.
+
+### Proof held in the repository
+
+`webRoutes.test.ts` pins unknown, wrong-case, real, and retired route results.
+`pageEndpoint.test.ts` sends those public addresses through the same entry the host calls and checks
+their status, tags, body, and data-service failure behavior. `trailingSlashRedirect.test.ts` pins the
+single final page rewrite and proves no route can fall through to `index.html` as Home.

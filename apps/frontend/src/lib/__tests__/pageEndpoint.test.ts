@@ -90,7 +90,7 @@ describe('first-response page tags', () => {
       },
     }));
 
-    const { body, headers, status } = await serve({ route: 'bill', id: '94-2025-HF719' });
+    const { body, headers, status } = await serve({ path: '/bills/94-2025-HF719' });
 
     expect(status).toBe(200);
     expect(body).toContain(
@@ -122,7 +122,7 @@ describe('first-response page tags', () => {
       },
     }));
 
-    const { body } = await serve({ route: 'legislator', id: '8c31565f-e674-462d-b71f-a1d1ebcc' });
+    const { body } = await serve({ path: '/legislators/8c31565f-e674-462d-b71f-a1d1ebcc' });
 
     expect(body).toContain(
       '<title>Rep. Aisha Gomez, Minnesota House District 62A | Alethical</title>',
@@ -141,7 +141,7 @@ describe('first-response page tags', () => {
       return { status: 500 };
     });
 
-    expect((await serve({ route: 'bills' })).body).toContain(
+    expect((await serve({ path: '/bills' })).body).toContain(
       '<title>Search Minnesota bills | Alethical</title>',
     );
     expect((await serve({ path: '/privacy' })).body).toContain(
@@ -149,7 +149,7 @@ describe('first-response page tags', () => {
     );
     // A list is a list of other records, so it has no snapshot of its own: the
     // mount point ships empty and the app fills it, exactly as before.
-    expect((await serve({ route: 'bills' })).body).toContain(
+    expect((await serve({ path: '/bills' })).body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
     );
     expect(calls).toHaveLength(0);
@@ -158,7 +158,10 @@ describe('first-response page tags', () => {
   it('tells robots not to list an answer page, in a header and in the page', async () => {
     stubNetwork(() => ({ status: 500 }));
 
-    const { headers, body } = await serve({ route: 'ask', q: 'What would HF 719 fund?' });
+    const { headers, body } = await serve({
+      path: '/ask',
+      q: 'What would HF 719 fund?',
+    });
 
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
     expect(body).toContain('name="robots" content="noindex"');
@@ -172,12 +175,13 @@ describe('addresses that are not real pages', () => {
   it('returns 404 for a bill that does not exist', async () => {
     stubNetwork(() => ({ status: 404 }));
 
-    const { status, body, headers } = await serve({ route: 'bill', id: '94-2025-HF999999' });
+    const { status, body, headers } = await serve({ path: '/bills/94-2025-HF999999' });
 
     expect(status).toBe(404);
     expect(body).toContain('<title>Page not found | Alethical</title>');
     expect(body).not.toContain('rel="canonical"');
-    // Nothing to snapshot: the record is genuinely absent.
+    // The app replaces this with its bill-specific missing state. The generic
+    // snapshot is only for an address that is not a page shape at all.
     expect(body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
     );
@@ -205,7 +209,7 @@ describe('addresses that are not real pages', () => {
       }),
     );
 
-    const { status, body } = await serve({ route: 'bill', id: '94-2025-HF719' });
+    const { status, body } = await serve({ path: '/bills/94-2025-HF719' });
 
     expect(status).toBe(200);
     expect(body).toContain('<title>HF 719 (2025) | Alethical</title>');
@@ -215,7 +219,52 @@ describe('addresses that are not real pages', () => {
 
   it('returns 404 for an address with no page behind it', async () => {
     stubNetwork(() => ({ status: 500 }));
-    expect((await serve({ path: '/not-a-page' })).status).toBe(404);
+    const { status, body, headers } = await serve({ path: '/not-a-page' });
+
+    expect(status).toBe(404);
+    expect(body).toContain('<h1>We couldn’t find that page</h1>');
+    expect(body).toContain('The address may be mistyped, or the page may have moved.');
+    expect(body).toContain('<a href="/">Home</a>');
+    expect(body).toContain('<a href="/bills">Browse bills</a>');
+    expect(body).toContain('<a href="/legislators">Find legislators</a>');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+  });
+
+  it.each(['/Home', '/BILLS/94-2025-HF719'])(
+    'returns 404 for wrong-case address %s',
+    async (path) => {
+      stubNetwork(() => ({ status: 500 }));
+      expect((await serve({ path })).status).toBe(404);
+    },
+  );
+
+  it.each([
+    ['/search', '<title>Search Minnesota bills | Alethical</title>'],
+    ['/chat', '<title>Alethical: Minnesota’s legislative record in plain language</title>'],
+    ['/chat/new', '<title>Alethical: Minnesota’s legislative record in plain language</title>'],
+    [
+      '/chat/sessions/abc-123',
+      '<title>Alethical: Minnesota’s legislative record in plain language</title>',
+    ],
+    ['/account', '<title>Alethical: Minnesota’s legislative record in plain language</title>'],
+  ])('keeps the retired address %s working', async (path, title) => {
+    stubNetwork(() => ({ status: 500 }));
+    const { status, body } = await serve({ path });
+
+    expect(status).toBe(200);
+    expect(body).toContain(title);
+  });
+
+  it('keeps a retired vote address on its bill page', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: { data: { id: '94-2025-HF719' } },
+    }));
+
+    const result = await serve({ path: '/bills/94-2025-HF719/votes/abc-123' });
+
+    expect(result.status).toBe(200);
+    expect(result.body).toContain('<title>HF 719 (2025) | Alethical</title>');
   });
 });
 
@@ -224,7 +273,7 @@ describe('when the data service is unwell', () => {
   it('returns 503, never 404, when the data service errors', async () => {
     stubNetwork(() => ({ status: 500 }));
 
-    const { status, headers } = await serve({ route: 'bill', id: '94-2025-HF719' });
+    const { status, headers } = await serve({ path: '/bills/94-2025-HF719' });
 
     expect(status).toBe(503);
     expect(headers.get('Retry-After')).toBe('120');
@@ -242,7 +291,7 @@ describe('when the data service is unwell', () => {
       }),
     );
 
-    expect((await serve({ route: 'legislator', id: 'aisha-gomez' })).status).toBe(503);
+    expect((await serve({ path: '/legislators/aisha-gomez' })).status).toBe(503);
   });
 
   it('returns 503 rather than a page with the wrong tags when the shell is unreadable', async () => {
@@ -260,6 +309,6 @@ describe('when the data service is unwell', () => {
       }),
     );
 
-    expect((await serve({ route: 'bills' })).status).toBe(503);
+    expect((await serve({ path: '/bills' })).status).toBe(503);
   });
 });

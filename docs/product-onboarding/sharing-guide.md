@@ -60,7 +60,7 @@ Instagram has no direct button. It cannot open a prepared visitor post containin
 
 ## Link preview cards
 
-Facebook, LinkedIn, X, messaging apps, and work-chat apps usually read preview data from the shared page rather than from the Share button. Every visitor to one of our real pages — a person, a messaging app, or a search engine — receives the same page, carrying that page's own title, description, real address, and the 1200×630 Alethical image. There is no separate version for robots. An address that is not one of our pages, or that has the capital letters wrong, shows the home page and previews as the home page; see the last two points under "What search engines get".
+Facebook, LinkedIn, X, messaging apps, and work-chat apps usually read preview data from the shared page rather than from the Share button. Every visitor to one of our real pages — a person, a messaging app, or a search engine — receives the same page, carrying that page's own title, description, real address, and the 1200×630 Alethical image. There is no separate version for robots. An address that is not one of our pages, or that has the capital letters wrong, receives the missing-page preview and a 404 answer.
 
 Bill and legislator preview text comes from the same public API data the page uses. Ask preview text uses the public question and the fixed cited-answer description.
 
@@ -72,7 +72,7 @@ Search engines used to receive the same nameless page for every address, which m
 
 - **The browser tab and the preview say the same thing.** A bill page opens with the bill's number and year straight away, and gains its short title the moment the bill loads.
 - **A bill or legislator that does not exist says so.** An address like `/bills/94-2025-HF999999` answers "not found" rather than a blank page that looks successful.
-- **An address that is not a page at all still shows the home page.** Type something we have no page for, such as `/foo`, and you get the home page with a "success" answer rather than a "not found" one. Getting the capital letters wrong does the same: `/BILLS/94-2025-HF719` shows the home page instead of that bill. Both are known gaps, tracked as [#1341](https://github.com/alethical-org/alethical/issues/1341). Putting a slash on the end used to do this too, and no longer does: `/bills/94-2025-HF719/` now sends you straight to the bill.
+- **An address that is not a page answers 404.** `/foo` and wrong-case shapes such as `/BILLS/94-2025-HF719` show a useful missing-page screen with links to Home, Bills, and Legislators. Retired addresses such as `/search`, old vote links, `/chat`, and `/account` still land on their intended live page. Putting a slash on the end sends the reader to the same address without the slash.
 - **A brief outage does not unlist real pages.** If the data service cannot be reached, the page says "temporarily unavailable" instead of "gone".
 - **`robots.txt`** (`https://www.alethical.com/robots.txt`) blocks nothing from being read. It points at the sitemap, and turns away only the two crawlers that exist to collect writing for training future AI models. Every search crawler and every "someone asked a question about this page" crawler is welcome.
 - **`sitemap.xml`** (`https://www.alethical.com/sitemap.xml`) lists every bill and every legislator, not a popular subset, each with the date its record really last changed. It is built when asked for and then cached, so a newly ingested bill appears without waiting for a release.

@@ -1,6 +1,6 @@
-import { NavigationState, PartialState } from '@react-navigation/native';
+import type { NavigationState, PartialState } from '@react-navigation/native';
 
-import { MainTabParamList, RootStackParamList } from './types';
+import type { MainTabParamList, RootStackParamList } from './types';
 
 type WebRouteTarget =
   | { kind: 'tab'; screen: keyof MainTabParamList }
@@ -14,7 +14,8 @@ type WebRouteTarget =
   | { kind: 'aboutUs' }
   | { kind: 'contactUs' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
-  | { kind: 'ask'; params: RootStackParamList['Ask'] };
+  | { kind: 'ask'; params: RootStackParamList['Ask'] }
+  | { kind: 'notFound'; path: string };
 
 function normalizePathname(pathname: string) {
   const trimmed = pathname.split('?')[0].replace(/\/+$/, '');
@@ -176,7 +177,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return { kind: 'bill', billId: decodeURIComponent(segments[1]), tab: 'votes' };
   }
 
-  return { kind: 'tab', screen: 'Home' };
+  return { kind: 'notFound', path: pathname };
 }
 
 type AnyNavState = NavigationState | PartialState<NavigationState> | undefined;
@@ -297,6 +298,10 @@ export function pathForRoute(activeRoute: {
       return '/about';
     case 'ContactUs':
       return '/about/contact';
+    case 'NotFound': {
+      const path = String(activeRoute.params?.path ?? '');
+      return path.startsWith('/') ? path : '/';
+    }
     case 'VoteDetail':
       return `/bills/${encodeURIComponent(String(activeRoute.params?.billId ?? ''))}/votes/${encodeURIComponent(String(activeRoute.params?.voteEventId ?? ''))}`;
     case 'ChatSession':
@@ -440,6 +445,11 @@ export function stateFromPathname(pathname: string): PartialState<NavigationStat
     case 'ask':
       return {
         routes: [homeTabs, { name: 'Ask', params: target.params }],
+        index: 1,
+      };
+    case 'notFound':
+      return {
+        routes: [homeTabs, { name: 'NotFound', params: { path: target.path } }],
         index: 1,
       };
   }

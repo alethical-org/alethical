@@ -7,6 +7,7 @@ import {
   billPageMetadata,
   homePageMetadata,
   legislatorListPageMetadata,
+  notFoundPageMetadata,
   SITE_NAME,
   STATIC_PAGE_METADATA,
 } from '../lib/share';
@@ -59,6 +60,8 @@ function titleWithoutRecord(route: TitledRoute): string | null {
       const billId = route.params?.billId ? String(route.params.billId) : '';
       return billId ? billPageMetadata({ billId }).title : null;
     }
+    case 'NotFound':
+      return notFoundPageMetadata().title;
     default:
       return STATIC_PAGE_METADATA[pathnameOf(route)]?.title ?? null;
   }
