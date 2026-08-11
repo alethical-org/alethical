@@ -1771,6 +1771,13 @@ class CampaignFinanceCurrentRelease(TimestampMixin, Base):
 #   9,007 zips are shorter than 5 characters, so a numeric zip loses a leading
 #   zero. ``in_kind`` reads "Yes"/"No" and stays those words rather than becoming
 #   a boolean, because a boolean invents a mapping the file does not state.
+# * The date column is ``transaction_date`` on the 2 files whose header calls it
+#   plainly "Date", and ``receipt_date`` on the contributions file, whose header
+#   says "Receipt date". Not ``date``: a column of that name shadows the ``date``
+#   type inside its own annotation, which SQLAlchemy resolves at runtime and a
+#   static type checker does not. Not ``payment_date`` either — the expenditures
+#   file's ``Amount`` is the filing's *total* column and a row may be unpaid, so
+#   calling it a payment date would assert something the file does not.
 # * ``year`` is the file's own ``Year`` column, which is a separate claim from the
 #   row's date and disagrees with it on 702 rows across the 3 files. Both are
 #   stored and neither is derived from the other.
@@ -1852,7 +1859,7 @@ class CampaignFinanceExpenditureRow(Base):
     unpaid_amount: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(18, 4)
     )  # Unpaid amount
-    date: Mapped[Optional[date]] = mapped_column(Date)  # Date
+    transaction_date: Mapped[Optional[date]] = mapped_column(Date)  # Date
     purpose: Mapped[Optional[str]] = mapped_column(Text)  # Purpose
     year: Mapped[Optional[int]] = mapped_column(Integer)  # Year
     type: Mapped[Optional[str]] = mapped_column(Text)  # Type
@@ -1901,7 +1908,7 @@ class CampaignFinanceIndependentExpenditureRow(Base):
     )  # Affected Cmte Reg Num
     for_against: Mapped[Optional[str]] = mapped_column(Text)  # For /Against
     year: Mapped[Optional[int]] = mapped_column(Integer)  # Year
-    date: Mapped[Optional[date]] = mapped_column(Date)  # Date
+    transaction_date: Mapped[Optional[date]] = mapped_column(Date)  # Date
     type: Mapped[Optional[str]] = mapped_column(Text)  # Type
     amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))  # Amount
     unpaid_amount: Mapped[Optional[Decimal]] = mapped_column(

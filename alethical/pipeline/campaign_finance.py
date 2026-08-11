@@ -177,7 +177,7 @@ EXPENDITURE_COLUMNS: tuple[Column, ...] = (
     ),
     Column("Amount", "amount", "money"),
     Column("Unpaid amount", "unpaid_amount", "money"),
-    Column("Date", "date", "date"),
+    Column("Date", "transaction_date", "date"),
     Column("Purpose", "purpose"),
     Column("Year", "year", "year"),
     *_text(
@@ -202,7 +202,7 @@ INDEPENDENT_COLUMNS: tuple[Column, ...] = (
         ("For /Against", "for_against"),
     ),
     Column("Year", "year", "year"),
-    Column("Date", "date", "date"),
+    Column("Date", "transaction_date", "date"),
     Column("Type", "type"),
     Column("Amount", "amount", "money"),
     Column("Unpaid amount", "unpaid_amount", "money"),
