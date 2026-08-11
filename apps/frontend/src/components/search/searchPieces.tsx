@@ -179,7 +179,7 @@ export function SearchHero({
   return (
     <View>
       <View style={styles.heroTitleRow}>
-        <Text accessibilityRole="header" style={[styles.heroH1, isMobile && styles.heroH1Mobile]}>
+        <Text accessibilityRole="header" aria-level={1} style={[styles.heroH1, isMobile && styles.heroH1Mobile]}>
           {title}
         </Text>
       </View>
@@ -1120,6 +1120,7 @@ export function NoResults({
       </View>
       <Text
         accessibilityRole="header"
+        aria-level={2}
         style={[
           styles.noResultsHeading,
           variant === 'bills' && WRAP_ANYWHERE,

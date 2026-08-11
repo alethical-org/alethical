@@ -234,13 +234,17 @@ export function LegislatorProfileWebScreen() {
       <View style={styles.leftColumn}>
         {bioText ? (
           <View style={styles.card}>
-            <Text style={styles.h2}>Biography</Text>
+            <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+              Biography
+            </Text>
             <Text style={styles.bio}>{bioText}</Text>
           </View>
         ) : null}
 
         <View style={styles.card}>
-          <Text style={[styles.h2, styles.h2Spaced]}>Committees</Text>
+          <Text accessibilityRole="header" aria-level={2} style={[styles.h2, styles.h2Spaced]}>
+            Committees
+          </Text>
           {committees.length > 0 ? (
             <View style={styles.committeeList}>
               {committees.map((committee) => (
@@ -254,7 +258,9 @@ export function LegislatorProfileWebScreen() {
 
         <View>
           <View style={styles.authoredHead}>
-            <Text style={styles.h2}>Chief-Authored Bills</Text>
+            <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+              Chief-Authored Bills
+            </Text>
             <SessionFilter currentSessionLabel={currentSessionLabel} />
           </View>
           <View style={styles.billStack}>
@@ -295,7 +301,9 @@ export function LegislatorProfileWebScreen() {
       {/* RIGHT COLUMN — contact / source of record */}
       <View style={styles.rightColumn}>
         <View style={styles.card}>
-          <Text style={[styles.h3, styles.h3Spaced]}>Contact</Text>
+          <Text accessibilityRole="header" aria-level={2} style={[styles.h3, styles.h3Spaced]}>
+            Contact
+          </Text>
           <View style={styles.contactStack}>
             {office?.leadership ? (
               <View>
@@ -330,7 +338,9 @@ export function LegislatorProfileWebScreen() {
 
         {service && service.lines.length > 0 ? (
           <View style={styles.card}>
-            <Text style={[styles.h3, styles.h3Spaced]}>Legislative Service</Text>
+            <Text accessibilityRole="header" aria-level={2} style={[styles.h3, styles.h3Spaced]}>
+              Legislative Service
+            </Text>
             <View style={styles.serviceStack}>
               {service.lines.map((line, index) => (
                 <Text key={`${line.label}-${index}`} style={styles.serviceRow}>
@@ -406,7 +416,11 @@ function Hero({
         <View style={styles.identityRow}>
           <Portrait uri={legislator.photoUrl} name={displayName} />
           <View style={styles.identityText}>
-            <Text style={[styles.h1, !isDesktop && styles.h1Mobile]} accessibilityRole="header">
+            <Text
+              style={[styles.h1, !isDesktop && styles.h1Mobile]}
+              accessibilityRole="header"
+              aria-level={1}
+            >
               {displayName}
             </Text>
             <View style={styles.metaRow}>
@@ -648,7 +662,9 @@ function LinkChip({ label, href, onPress }: { label: string; href: string; onPre
 function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void }) {
   return (
     <View style={styles.card}>
-      <Text style={styles.h3}>Ask about these issues</Text>
+      <Text accessibilityRole="header" aria-level={2} style={styles.h3}>
+        Ask about these issues
+      </Text>
       <Text style={styles.askSubtext}>
         Topics from this legislator’s bills. Answers cite the public record.
       </Text>
@@ -803,11 +819,15 @@ function RoadmapZone({ legislatorName, vote }: { legislatorName: string; vote?: 
   const { isDesktop } = useResponsive();
   return (
     <View style={styles.roadmap}>
-      <Text style={styles.roadmapEyebrow}>ON THE ROADMAP</Text>
+      <Text accessibilityRole="header" aria-level={2} style={styles.roadmapEyebrow}>
+        ON THE ROADMAP
+      </Text>
       <Text style={styles.roadmapSubtitle}>Features we plan to build.</Text>
       <View style={[styles.roadmapGrid, isDesktop && styles.roadmapGridDesktop]}>
         <View style={styles.dashedCard}>
-          <Text style={styles.roadmapH3}>Claim this profile</Text>
+          <Text accessibilityRole="header" aria-level={3} style={styles.roadmapH3}>
+            Claim this profile
+          </Text>
           <Text style={styles.roadmapBody}>
             Are you {legislatorName}? Claiming links you to this existing record, so you can manage
             your biography, write up the bills you’ve worked on, and add your own context. Verified
@@ -816,7 +836,9 @@ function RoadmapZone({ legislatorName, vote }: { legislatorName: string; vote?: 
           <ClaimPreview />
         </View>
         <View style={styles.dashedCard}>
-          <Text style={styles.roadmapH3}>Why the votes?</Text>
+          <Text accessibilityRole="header" aria-level={3} style={styles.roadmapH3}>
+            Why the votes?
+          </Text>
           <Text style={styles.roadmapBody}>
             Wonder why {legislatorName} voted that way? Once claimed, a legislator will have the
             option to explain any vote they cast — right here, in their own words, alongside the

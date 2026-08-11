@@ -329,6 +329,7 @@ function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void
     <View style={styles.askCard}>
       <Text
         accessibilityRole="header"
+        aria-level={2}
         accessibilityLabel="Ask about these issues"
         style={styles.askTitle}
       >
@@ -504,7 +505,7 @@ export function LegislatorProfileMobileScreen() {
                       <Text style={styles.portraitInitials}>{initialsOf(leg.name)}</Text>
                     )}
                   </View>
-                  <Text style={styles.heroName}>
+                  <Text accessibilityRole="header" aria-level={1} style={styles.heroName}>
                     {legislatorDisplayName(leg.name, leg.chamber)}
                   </Text>
                 </View>
@@ -535,7 +536,7 @@ export function LegislatorProfileMobileScreen() {
               <View style={styles.section}>
                 <View style={styles.column}>
                   <View style={styles.card}>
-                    <Text accessibilityRole="header" style={styles.cardTitle}>
+                    <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
                       Biography
                     </Text>
                     <Text style={styles.bodyText}>{hasRealBio}</Text>
@@ -549,7 +550,7 @@ export function LegislatorProfileMobileScreen() {
               <View style={styles.section}>
                 <View style={styles.column}>
                   <View style={styles.card}>
-                    <Text accessibilityRole="header" style={styles.cardTitle}>
+                    <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
                       Committees
                     </Text>
                     <View style={styles.committeeList}>
@@ -567,7 +568,7 @@ export function LegislatorProfileMobileScreen() {
               <View style={styles.section}>
                 <View style={styles.column}>
                   <View style={styles.card}>
-                    <Text accessibilityRole="header" style={styles.cardTitle}>
+                    <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
                       Legislative Service
                     </Text>
                     <View style={styles.serviceList}>
@@ -594,7 +595,7 @@ export function LegislatorProfileMobileScreen() {
               <View style={styles.section}>
                 <View style={styles.column}>
                   <View style={styles.card}>
-                    <Text accessibilityRole="header" style={styles.cardTitle}>
+                    <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
                       Contact
                     </Text>
                     <View style={styles.contactList}>
@@ -633,7 +634,7 @@ export function LegislatorProfileMobileScreen() {
             {/* CHIEF-AUTHORED BILLS */}
             <View style={styles.section}>
               <View style={styles.column}>
-                <Text accessibilityRole="header" style={styles.sectionHeading}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.sectionHeading}>
                   Chief-Authored Bills
                 </Text>
                 <View style={styles.sessionFilterWrap}>
@@ -762,11 +763,13 @@ export function LegislatorProfileMobileScreen() {
             <View style={styles.section}>
               <View style={styles.column}>
                 <View style={styles.roadmapZone}>
-                  <Text style={styles.roadmapEyebrow}>ON THE ROADMAP</Text>
+                  <Text accessibilityRole="header" aria-level={2} style={styles.roadmapEyebrow}>
+                    ON THE ROADMAP
+                  </Text>
                   <Text style={styles.roadmapSub}>Features we plan to build.</Text>
 
                   <View style={styles.roadmapCard}>
-                    <Text accessibilityRole="header" style={styles.roadmapCardTitle}>
+                    <Text accessibilityRole="header" aria-level={3} style={styles.roadmapCardTitle}>
                       Claim this profile
                     </Text>
                     <Text style={styles.roadmapCardBody}>
@@ -782,7 +785,7 @@ export function LegislatorProfileMobileScreen() {
                   </View>
 
                   <View style={styles.roadmapCard}>
-                    <Text accessibilityRole="header" style={styles.roadmapCardTitle}>
+                    <Text accessibilityRole="header" aria-level={3} style={styles.roadmapCardTitle}>
                       Why the votes?
                     </Text>
                     <Text style={styles.roadmapCardBody}>

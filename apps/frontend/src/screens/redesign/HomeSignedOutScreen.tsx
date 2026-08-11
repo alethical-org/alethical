@@ -753,7 +753,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                       </Text>
                       <View style={styles.heroStateRow}>
                         <HeroStateGlyph glyph={watch.glyph} />
-                        <Text accessibilityRole="header" style={styles.heroStateLine}>
+                        <Text accessibilityRole="header" aria-level={1} style={styles.heroStateLine}>
                           {watch.heroLine}
                         </Text>
                       </View>
@@ -761,7 +761,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                   ) : (
                     <>
                       <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                      <Text accessibilityRole="header" style={styles.heroH1}>
+                      <Text accessibilityRole="header" aria-level={1} style={styles.heroH1}>
                         Grounded answers{'\n'}
                         <Text style={styles.heroH1Green}>on Minnesota law</Text>
                       </Text>
@@ -820,7 +820,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
             <Container>
               <Text style={styles.sectionEyebrow}>{sessionLabel}</Text>
               <View style={styles.billsHeadRow}>
-                <Text accessibilityRole="header" style={styles.billsH2}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.billsH2}>
                   Bills Moving Through the Legislature
                 </Text>
               </View>
@@ -903,7 +903,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
             <Container>
               <View style={[styles.finderGrid, styles.finderGridDesktop]}>
                 <View style={styles.finderLeft}>
-                  <Text accessibilityRole="header" style={styles.finderH2}>
+                  <Text accessibilityRole="header" aria-level={2} style={styles.finderH2}>
                     Find My Legislator
                   </Text>
                   <Text style={styles.finderSub}>
@@ -1362,6 +1362,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                     <HeroStateGlyph glyph={watch.glyph} />
                     <Text
                       accessibilityRole="header"
+                      aria-level={1}
                       style={[m.heroStateLine, isTablet && m.heroStateLineTablet]}
                       numberOfLines={isTablet ? 4 : 6}
                     >
@@ -1398,7 +1399,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
               ) : (
                 <>
                   <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                  <Text accessibilityRole="header" style={m.heroH1}>
+                  <Text accessibilityRole="header" aria-level={1} style={m.heroH1}>
                     Grounded answers{'\n'}
                     <Text style={m.heroH1Green}>on Minnesota law</Text>
                   </Text>

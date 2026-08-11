@@ -28,7 +28,7 @@ export function BillNotFound({
 }) {
   return (
     <View style={styles.box}>
-      <Text accessibilityRole="header" style={styles.heading}>
+      <Text accessibilityRole="header" aria-level={1} style={styles.heading}>
         We couldn’t find that bill
       </Text>
       <Text style={styles.body}>

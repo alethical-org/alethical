@@ -218,6 +218,7 @@ export function SignInDialog({
       <Text
         ref={headingRef}
         accessibilityRole="header"
+        aria-level={2}
         style={[styles.headline, asSheet && styles.headlineSheet]}
       >
         {headline}

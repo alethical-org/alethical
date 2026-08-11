@@ -544,7 +544,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             ) : null}
           </View>
         ) : null}
-        <Text accessibilityRole="header" style={styles.h1}>
+        <Text accessibilityRole="header" aria-level={1} style={styles.h1}>
           {displayQuestion}
         </Text>
         {sessionLine ? <Text style={styles.sessionLine}>{sessionLine}</Text> : null}
@@ -763,7 +763,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               ]}
             >
               <View style={styles.railHead}>
-                <Text accessibilityRole="header" style={styles.h2}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                   From the bill
                 </Text>
                 <View style={styles.citedLabel}>

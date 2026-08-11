@@ -734,6 +734,7 @@ function BillDetailMobileScreen() {
                 <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
                 <Text
                   accessibilityRole="header"
+                  aria-level={1}
                   accessibilityLabel={bill.title}
                   // The design hero is a punchy AI short title. When a bill has
                   // none, fall back to the canonical statutory title but shrink +
@@ -802,7 +803,7 @@ function BillDetailMobileScreen() {
                 starts clean on the white surface. The grey gaps stay between the
                 content sections below. */}
             <Section id="summary" onLayout={onSectionLayout} style={styles.firstSection}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Key points
               </Text>
               {/* The cited bullets ARE the plain-language summary; fall back to the
@@ -1011,7 +1012,7 @@ function BillDetailMobileScreen() {
 
             {/* 4 — Actions */}
             <Section id="actions" onLayout={onSectionLayout}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Actions
               </Text>
               <Text style={styles.intro}>Every official step this bill has taken.</Text>
@@ -1031,7 +1032,7 @@ function BillDetailMobileScreen() {
 
             {/* 5 — Votes */}
             <Section id="votes" onLayout={onSectionLayout}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Votes
               </Text>
               {vm.hasVotes ? (
@@ -1054,7 +1055,7 @@ function BillDetailMobileScreen() {
                       />
                     </Svg>
                   </View>
-                  <Text accessibilityRole="header" style={styles.noVotesHeading}>
+                  <Text accessibilityRole="header" aria-level={3} style={styles.noVotesHeading}>
                     No recorded roll-call votes
                   </Text>
                   <Text style={styles.noVotesBody}>
@@ -1083,7 +1084,7 @@ function BillDetailMobileScreen() {
 
             {/* 6 — Versions */}
             <Section id="versions" onLayout={onSectionLayout}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Versions
               </Text>
               <Text style={styles.intro}>
@@ -1110,7 +1111,7 @@ function BillDetailMobileScreen() {
 
             {/* 7 — Bill Text */}
             <Section id="fulltext" onLayout={onSectionLayout} style={styles.lastSection}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Bill Text
               </Text>
               <FullTextTab
@@ -1118,6 +1119,9 @@ function BillDetailMobileScreen() {
                 targetSectionAnchor={ftAnchor}
                 onAnchorConsumed={() => setFtAnchor(null)}
                 updatedLabel={vm.updatedLabel}
+                // Nested under this screen's visible "Bill Text" h2, so each
+                // statutory caption sits a level below it.
+                sectionHeadingLevel={3}
               />
             </Section>
           </>
@@ -1953,7 +1957,7 @@ function AskCard({
   const prefetchSuggestedAnswer = usePrefetchSuggestedAnswer();
   return (
     <View style={styles.askCard}>
-      <Text accessibilityRole="header" style={styles.askTitle}>
+      <Text accessibilityRole="header" aria-level={2} style={styles.askTitle}>
         Ask about this bill
       </Text>
       <Text style={styles.askSub}>Answers cite the bill text</Text>
