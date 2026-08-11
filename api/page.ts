@@ -1,3 +1,12 @@
+import { legislatorDisplayName, legislatorDistrictLine } from "../apps/frontend/src/lib/legislatorProfile";
+import {
+  billPageSnapshot,
+  injectPageSnapshot,
+  legislatorPageSnapshot,
+  renderPageSnapshot,
+  type BillSnapshotSource,
+  type LegislatorSnapshotSource,
+} from "../apps/frontend/src/lib/pageSnapshot";
 import {
   askPageMetadata,
   billListPageMetadata,
@@ -11,7 +20,8 @@ import {
 
 /**
  * Puts each address's own title, description, canonical URL, preview tags and
- * machine-readable block into the FIRST server response (issue #1325).
+ * machine-readable block into the FIRST server response — and, for a bill or a
+ * legislator, a short factual snapshot in its body too (issue #1325).
  *
  * Before this, every one of ~10,700 addresses returned the same nameless page,
  * so search engines saw one page repeated and folded them together. The fix is
@@ -19,6 +29,11 @@ import {
  * site already serves, rewrites the marked block in its head, and returns it with
  * the app body untouched — so a crawler and a person receive identical HTML and
  * the app still loads and behaves exactly as it did.
+ *
+ * Release 2 adds the body text, because correct tags alone are not the win: a
+ * search engine often ignores a supplied description and writes its result text
+ * from what is visible on the page. Every word of that snapshot is a word the app
+ * itself then draws — see apps/frontend/src/lib/pageSnapshot.ts.
  *
  * Decisions, with the alternatives that lost:
  * docs/architecture/page-metadata-for-search-and-sharing-decisions.md §8.
@@ -64,15 +79,6 @@ function titleCase(value: string): string {
     : "";
 }
 
-function officialName(name: string, chamber: string): string {
-  const bare = name
-    .replace(/^(sen\.|senator|rep\.|representative)\s+/i, "")
-    .trim();
-  if (chamber === "Senate") return `Sen. ${bare}`;
-  if (chamber === "House") return `Rep. ${bare}`;
-  return bare;
-}
-
 async function getApiData<T>(path: string): Promise<T> {
   let response: Response;
   try {
@@ -93,74 +99,82 @@ async function getApiData<T>(path: string): Promise<T> {
   }
 }
 
-type BillPayload = {
-  id?: string;
-  ai_analysis?: { short_title?: string | null; summary?: string | null } | null;
-};
+type BillPayload = BillSnapshotSource & { id?: string };
 
-type LegislatorPayload = {
-  slug?: string;
-  full_name?: string;
-  current_service?: {
-    chamber?: string;
-    district?: { code?: string } | null;
-  } | null;
-};
+type LegislatorPayload = LegislatorSnapshotSource & { slug?: string };
 
-async function billMetadata(id: string): Promise<PageMetadata> {
+/**
+ * What one address contributes to the response: its head tags, and — for a bill
+ * or a legislator — the factual snapshot that goes in the body (issue #1325
+ * release 2). List, answer and static pages send no snapshot: they are lists of
+ * records the app fetches, not a record of their own.
+ */
+type PageContent = { metadata: PageMetadata; snapshot: string };
+
+function headOnly(metadata: PageMetadata): PageContent {
+  return { metadata, snapshot: "" };
+}
+
+async function billContent(id: string): Promise<PageContent> {
   const bill = await getApiData<BillPayload>(
     `/bills/${encodeURIComponent(id)}?include=ai_analysis`,
   );
   const billId = bill.id || id;
-  return billPageMetadata({
-    billId,
-    // Only the plain-language short title. A bill with none is titled by its
-    // number and year — never by its statutory title, which is a paragraph of
-    // legal cross-references (.claude/rules/grounded-answers.md rule 10).
-    shortTitle: bill.ai_analysis?.short_title,
-    summary: bill.ai_analysis?.summary,
-  });
+  return {
+    metadata: billPageMetadata({
+      billId,
+      // Only the plain-language short title. A bill with none is titled by its
+      // number and year — never by its statutory title, which is a paragraph of
+      // legal cross-references (.claude/rules/grounded-answers.md rule 10).
+      shortTitle: bill.ai_analysis?.short_title,
+      summary: bill.ai_analysis?.summary,
+    }),
+    snapshot: renderPageSnapshot(billPageSnapshot({ ...bill, id: billId })),
+  };
 }
 
-async function legislatorMetadata(id: string): Promise<PageMetadata> {
+async function legislatorContent(id: string): Promise<PageContent> {
   const legislator = await getApiData<LegislatorPayload>(
-    `/legislators/${encodeURIComponent(id)}?include=current_service`,
+    `/legislators/${encodeURIComponent(id)}?include=current_service,committees`,
   );
   const chamber = titleCase(legislator.current_service?.chamber || "");
-  const district = legislator.current_service?.district?.code;
   // A UUID address canonicalises to the readable slug the profile links use.
   const slug = legislator.slug || id;
-  return legislatorPageMetadata({
-    slug,
-    displayName: officialName(
-      legislator.full_name || "Minnesota legislator",
-      chamber,
-    ),
-    districtLine: district
-      ? `${chamber} District ${district}`.trim()
-      : chamber || "",
-  });
+  return {
+    metadata: legislatorPageMetadata({
+      slug,
+      displayName: legislatorDisplayName(
+        legislator.full_name || "Minnesota legislator",
+        chamber,
+      ),
+      districtLine: legislatorDistrictLine(
+        chamber,
+        legislator.current_service?.district?.code,
+      ),
+    }),
+    snapshot: renderPageSnapshot(legislatorPageSnapshot(legislator)),
+  };
 }
 
-async function metadataFor(
+async function contentFor(
   query: Record<string, QueryValue>,
-): Promise<PageMetadata> {
+): Promise<PageContent> {
   const route = one(query.route);
   switch (route) {
     case "bill":
-      return billMetadata(one(query.id));
+      return billContent(one(query.id));
     case "legislator":
-      return legislatorMetadata(one(query.id));
+      return legislatorContent(one(query.id));
     case "bills":
-      return billListPageMetadata();
+      return headOnly(billListPageMetadata());
     case "legislators":
-      return legislatorListPageMetadata();
+      return headOnly(legislatorListPageMetadata());
     case "ask":
-      return askPageMetadata(one(query.q));
+      return headOnly(askPageMetadata(one(query.q)));
     default: {
       const staticPage = STATIC_PAGE_METADATA[one(query.path)];
       if (!staticPage) throw new RecordNotFound(`unknown route ${route}`);
-      return staticPage;
+      return headOnly(staticPage);
     }
   }
 }
@@ -184,9 +198,14 @@ async function pageShell(host: string): Promise<string> {
   }
   if (!response.ok) throw new DataUnavailable("could not read the page shell");
   const html = await response.text();
-  // Proves we fetched the real shell and not a rewritten copy of ourselves.
-  if (!html.includes("alethical:page-head")) {
-    throw new DataUnavailable("page shell is missing its head markers");
+  // Proves we fetched the real shell and not a rewritten copy of ourselves. Both
+  // markers are checked: a shell without the snapshot pair would still serve a
+  // correct head, so the missing body text would go unnoticed.
+  if (
+    !html.includes("alethical:page-head") ||
+    !html.includes("alethical:page-snapshot")
+  ) {
+    throw new DataUnavailable("page shell is missing its markers");
   }
   cachedShell = html;
   return html;
@@ -214,13 +233,13 @@ export default async function handler(
   const hostHeader = request.headers?.host;
   const host = (Array.isArray(hostHeader) ? hostHeader[0] : hostHeader) || "";
 
-  let metadata: PageMetadata;
+  let content: PageContent;
   let status = 200;
   try {
-    metadata = await metadataFor(query);
+    content = await contentFor(query);
   } catch (error) {
     if (error instanceof RecordNotFound) {
-      metadata = notFoundMetadata(one(query.route));
+      content = headOnly(notFoundMetadata(one(query.route)));
       status = 404;
     } else {
       // A brief outage must never tell a search engine our pages are gone.
@@ -234,7 +253,8 @@ export default async function handler(
 
   let html: string;
   try {
-    html = injectPageHead(await pageShell(host), metadata);
+    html = injectPageHead(await pageShell(host), content.metadata);
+    if (content.snapshot) html = injectPageSnapshot(html, content.snapshot);
   } catch {
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
@@ -248,6 +268,6 @@ export default async function handler(
     "Cache-Control",
     status === 404 ? NOT_FOUND_CACHE : OK_CACHE,
   );
-  if (metadata.noindex) response.setHeader("X-Robots-Tag", "noindex");
+  if (content.metadata.noindex) response.setHeader("X-Robots-Tag", "noindex");
   response.status(status).send(html);
 }

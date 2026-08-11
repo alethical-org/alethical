@@ -2,6 +2,8 @@ import { Platform } from 'react-native';
 import {
   completeDanglingTitle,
   completeStatusText,
+  STATUS_LABELS,
+  statusLabel,
   TRAILING_REFERRAL,
   TRAILING_RETURN,
 } from '../lib/billDetail';
@@ -785,22 +787,6 @@ function defaultProgress(): Bill['progress'] {
   ];
 }
 
-// status_key → the product's display label. One map, so a bill's own status pill
-// and a "See also" row naming that bill as a target read identically (#757).
-const STATUS_LABELS: Record<string, string> = {
-  proposed: 'Introduced',
-  in_committee: 'In Committee',
-  passed_house: 'Passed House',
-  passed_senate: 'Passed Senate',
-  passed_both_chambers: 'Passed Both Chambers',
-  signed_into_law: 'Signed into Law',
-  vetoed: 'Vetoed',
-};
-
-function statusLabel(statusKey?: string | null, fallback?: string | null) {
-  return (statusKey && STATUS_LABELS[statusKey]) || fallback || 'Status unavailable';
-}
-
 function formatBillIdentifier(fileType: string, fileNumber: number) {
   return `${fileType.toUpperCase()} ${fileNumber}`;
 }
@@ -1376,7 +1362,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
   };
 }
 
-function mapBillDetail(
+export function mapBillDetail(
   payload: ApiBillDetailPayload,
   votes: ApiBillVotePayload[],
 ): Bill & { sponsorNames: string[] } {
