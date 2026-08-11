@@ -29,6 +29,7 @@ import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
 import { AboutUsScreen } from '../screens/redesign/AboutUsScreen';
 import { BillDetailScreen } from '../screens/redesign/BillDetailScreen';
 import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
+import { NotFoundScreen } from '../screens/redesign/NotFoundScreen';
 import { SearchBillsScreen } from '../screens/redesign/SearchBillsScreen';
 import { SearchLegislatorsScreen } from '../screens/redesign/SearchLegislatorsScreen';
 import { TrackedBillsScreen as TrackedScreen } from '../screens/redesign/TrackedBillsScreen';
@@ -46,7 +47,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 type NavIcon = Icon;
-type RailRouteName = keyof MainTabParamList | 'FindMyLegislator';
+type RailRouteName = keyof MainTabParamList | 'FindMyLegislator' | 'NotFound';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
@@ -290,6 +291,9 @@ function activeRailRouteFromRootState(state: any): RailRouteName | undefined {
   if (rootRoute?.name === 'FindMyLegislator') {
     return 'FindMyLegislator';
   }
+  if (rootRoute?.name === 'NotFound') {
+    return 'NotFound';
+  }
   if (rootRoute?.name === 'Tabs') {
     const tabState = rootRoute.state;
     const tabRoute = tabState?.routes?.[tabState.index ?? 0];
@@ -480,9 +484,12 @@ export function RootNavigator() {
   const { isDesktop } = useResponsive();
   const lastPathRef = useRef('/');
   const [activeRailRoute, setActiveRailRoute] = useState<RailRouteName | undefined>('Home');
-  const isHome = useIsHome(activeRailRoute === 'FindMyLegislator' ? undefined : activeRailRoute);
+  const isHome = useIsHome(activeRailRoute === 'Home' ? 'Home' : undefined);
   const usesOwnPageChrome =
-    isHome || activeRailRoute === 'Tracked' || activeRailRoute === 'FindMyLegislator';
+    isHome ||
+    activeRailRoute === 'Tracked' ||
+    activeRailRoute === 'FindMyLegislator' ||
+    activeRailRoute === 'NotFound';
 
   useEffect(() => {
     if (!isWeb) {
@@ -649,6 +656,11 @@ export function RootNavigator() {
               name="ContactUs"
               component={ContactUsScreen}
               options={{ headerShown: false, title: 'Contact us' }}
+            />
+            <Stack.Screen
+              name="NotFound"
+              component={NotFoundScreen}
+              options={{ headerShown: false, title: 'Page not found' }}
             />
             <Stack.Screen
               name="VoteDetail"

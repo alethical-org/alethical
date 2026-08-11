@@ -19,19 +19,21 @@ function readConfig(): VercelConfig {
 }
 
 describe('Trailing-slash addresses', () => {
-  // Without this, /bills/94-2025-HF719/ misses the /bills/:id rewrite, falls
-  // through to the catch-all, and serves the home page's title and canonical
-  // for a real bill. Measured on production 11 Aug 2026, before this shipped.
+  // Without this, /bills/94-2025-HF719/ would become a second address for the
+  // same record. Measured on production 11 Aug 2026, before this shipped.
   it('redirect to the address without the slash', () => {
     expect(readConfig().trailingSlash).toBe(false);
   });
 
-  // The rewrites match one path segment each, so a trailing slash cannot be
-  // absorbed by them. The redirect above is what keeps them reachable.
-  it('are not covered by a rewrite that tolerates the slash', () => {
-    const sources = (readConfig().rewrites ?? []).map((rule) => rule.source);
+  // One final rule sends every non-file app address through the page builder.
+  // Vercel applies the slash redirect before that rule, so the page builder and
+  // the browser both see the same address without its ending slash.
+  it('reach the same page builder as every other app address', () => {
+    const rewrites = readConfig().rewrites ?? [];
+    const catchAll = rewrites.at(-1);
 
-    expect(sources).toContain('/bills/:id');
-    expect(sources).not.toContain('/bills/:id/');
+    expect(catchAll?.source).toBe('/((?!api/|_expo/).*)');
+    expect(catchAll?.destination).toBe('/api/page?path=/$1');
+    expect(rewrites).not.toContainEqual(expect.objectContaining({ destination: '/index.html' }));
   });
 });

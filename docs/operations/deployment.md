@@ -106,20 +106,18 @@ Create the Vercel project from the repository root so the root `pnpm-lock.yaml` 
 - Install command: `pnpm install --frozen-lockfile`
 - Build command: `pnpm --dir apps/frontend run build`
 - Output directory: `apps/frontend/dist`
-- rewrites sending every public page path to `api/page.ts` — one path segment each, so a path that
-  matches none of them (a wrong-case `/BILLS/...`, an unknown `/foo`) reaches the SPA rewrite below
-  and is served the home page instead; `trailingSlash: false` redirects the slash-terminated forms
-  back onto these rewrites rather than letting them fall through
-  ([#1325](https://github.com/alethical-org/alethical/issues/1325))
+- 1 final rewrite sending every non-file app address to `api/page.ts`; that function reads the same
+  route table as the browser, so real pages and retired links still work while an unknown or
+  wrong-case address answers 404 ([#1341](https://github.com/alethical-org/alethical/issues/1341))
+- `trailingSlash: false`, which redirects slash-terminated forms to the 1 address used for the record
 - rewrites sending `/sitemap.xml` and `/sitemaps/*.xml` to `api/sitemap.ts`
-- the normal SPA rewrite to `index.html` for everything else
 
 `api/page.ts` fetches the built `index.html` from the deployment it is running in, replaces
 the marked block in its head with that address's own title, description, canonical URL,
 preview tags and machine-readable block, and returns the page with the app body untouched —
 so a crawler and a reader receive identical HTML (#1325). It reads only the public bill or
-legislator fields the tags need. A missing record answers 404; a data-service failure answers
-503 with `Retry-After`, never 404. Responses are cached at the edge
+legislator fields the tags need. An unknown address and a missing record answer 404 with a useful
+page and onward links; a data-service failure answers 503 with `Retry-After`, never 404. Responses are cached at the edge
 (`s-maxage=600, stale-while-revalidate=86400`), so the function runs on a cache miss rather
 than on every visit.
 

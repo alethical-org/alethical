@@ -222,6 +222,20 @@ export function homePageMetadata(): PageMetadata {
   });
 }
 
+export const NOT_FOUND_HEADING = 'We couldn’t find that page';
+export const NOT_FOUND_DESCRIPTION = 'The address may be mistyped, or the page may have moved.';
+
+export function notFoundPageMetadata(): PageMetadata {
+  return pageMetadata({
+    title: titleFor('Page not found'),
+    socialTitle: 'Page not found',
+    description: NOT_FOUND_DESCRIPTION,
+    // A missing page is not a copy of a real page.
+    canonicalPath: '',
+    noindex: true,
+  });
+}
+
 export function billListPageMetadata(): PageMetadata {
   return pageMetadata({
     title: titleFor(BILL_LIST_SUBJECT),

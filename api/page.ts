@@ -11,12 +11,17 @@ import {
   askPageMetadata,
   billListPageMetadata,
   billPageMetadata,
+  homePageMetadata,
   injectPageHead,
   legislatorListPageMetadata,
   legislatorPageMetadata,
+  NOT_FOUND_DESCRIPTION,
+  NOT_FOUND_HEADING,
+  notFoundPageMetadata,
   STATIC_PAGE_METADATA,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
+import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
 
 /**
  * Puts each address's own title, description, canonical URL, preview tags and
@@ -65,6 +70,8 @@ const NOT_FOUND_CACHE = "public, max-age=0, s-maxage=300";
 
 /** The record is genuinely absent — safe to tell a search engine the page is gone. */
 class RecordNotFound extends Error {}
+/** The address itself has no page, so the generic useful screen is the right body. */
+class UnknownAddress extends RecordNotFound {}
 /** We could not tell. Never a 404: a hiccup must not unlist a real page. */
 class DataUnavailable extends Error {}
 
@@ -159,23 +166,40 @@ async function legislatorContent(id: string): Promise<PageContent> {
 async function contentFor(
   query: Record<string, QueryValue>,
 ): Promise<PageContent> {
-  const route = one(query.route);
-  switch (route) {
+  const path = one(query.path) || "/";
+  const target = targetFromPathname(
+    one(query.q) ? `${path}?q=${encodeURIComponent(one(query.q))}` : path,
+  );
+
+  switch (target.kind) {
     case "bill":
-      return billContent(one(query.id));
+      return billContent(target.billId);
     case "legislator":
-      return legislatorContent(one(query.id));
+      return legislatorContent(target.legislatorId);
     case "bills":
       return headOnly(billListPageMetadata());
     case "legislators":
       return headOnly(legislatorListPageMetadata());
     case "ask":
-      return headOnly(askPageMetadata(one(query.q)));
-    default: {
-      const staticPage = STATIC_PAGE_METADATA[one(query.path)];
-      if (!staticPage) throw new RecordNotFound(`unknown route ${route}`);
-      return headOnly(staticPage);
-    }
+      return headOnly(askPageMetadata(target.params.q));
+    case "tab":
+      return target.screen === "Tracked"
+        ? headOnly(STATIC_PAGE_METADATA["/tracked"])
+        : headOnly(homePageMetadata());
+    case "findMyLegislator":
+      return headOnly(STATIC_PAGE_METADATA["/find-my-legislator"]);
+    case "privacy":
+      return headOnly(STATIC_PAGE_METADATA["/privacy"]);
+    case "terms":
+      return headOnly(STATIC_PAGE_METADATA["/terms"]);
+    case "aboutUs":
+      return headOnly(STATIC_PAGE_METADATA["/about"]);
+    case "contactUs":
+      return headOnly(STATIC_PAGE_METADATA["/about/contact"]);
+    case "chatSession":
+      return headOnly(homePageMetadata());
+    case "notFound":
+      throw new UnknownAddress(`unknown address ${path}`);
   }
 }
 
@@ -206,18 +230,19 @@ async function pageShell(host: string): Promise<string> {
   return html;
 }
 
-function notFoundMetadata(route: string): PageMetadata {
-  const subject = route === "legislator" ? "Legislator" : "Page";
-  return {
-    title: `${subject} not found | Alethical`,
-    socialTitle: `${subject} not found`,
-    description:
-      "This address does not match a record in the Minnesota Legislature.",
-    // No canonical: a missing page is not a copy of a real one.
-    canonicalPath: "",
-    noindex: true,
-  };
-}
+const NOT_FOUND_SNAPSHOT = renderPageSnapshot({
+  heading: NOT_FOUND_HEADING,
+  subheading: "",
+  bodyHeading: "What happened",
+  body: [NOT_FOUND_DESCRIPTION],
+  facts: [],
+  bodyIsList: false,
+  links: [
+    { label: "Home", href: "/" },
+    { label: "Browse bills", href: "/bills" },
+    { label: "Find legislators", href: "/legislators" },
+  ],
+});
 
 export default async function handler(
   request: RequestLike,
@@ -233,7 +258,10 @@ export default async function handler(
     content = await contentFor(query);
   } catch (error) {
     if (error instanceof RecordNotFound) {
-      content = headOnly(notFoundMetadata(one(query.route)));
+      content = {
+        metadata: notFoundPageMetadata(),
+        snapshot: error instanceof UnknownAddress ? NOT_FOUND_SNAPSHOT : "",
+      };
       status = 404;
     } else {
       // A brief outage must never tell a search engine our pages are gone.

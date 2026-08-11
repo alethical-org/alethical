@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { IA, MENUS, mobileNavRoadmapLabels, navDropdownItems } from '../ia';
-import { pathForRoute, targetFromPathname } from '../webRoutes';
+import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoutes';
 
 describe('old-design URLs land on a shipped page', () => {
   it('sends a standalone vote link to that bill’s Votes tab', () => {
@@ -53,6 +53,31 @@ describe('old-design URLs land on a shipped page', () => {
   // signed-out visitor still lands there and is prompted to sign in.
   it('resolves the tracked page instead of redirecting to Home', () => {
     expect(targetFromPathname('/tracked')).toEqual({ kind: 'tab', screen: 'Tracked' });
+  });
+});
+
+describe('addresses with no page behind them', () => {
+  it.each(['/foo', '/Home', '/BILLS/94-2025-HF719'])('keeps %s out of the home page', (path) => {
+    expect(targetFromPathname(path)).toEqual({ kind: 'notFound', path });
+  });
+
+  it('keeps the mistyped address on the useful missing-page screen', () => {
+    expect(stateFromPathname('/made-up/path')).toEqual({
+      routes: [
+        {
+          name: 'Tabs',
+          state: {
+            routes: [{ name: 'Home' }, { name: 'Tracked' }, { name: 'Chat' }, { name: 'Account' }],
+            index: 0,
+          },
+        },
+        { name: 'NotFound', params: { path: '/made-up/path' } },
+      ],
+      index: 1,
+    });
+    expect(pathForRoute({ name: 'NotFound', params: { path: '/made-up/path' } })).toBe(
+      '/made-up/path',
+    );
   });
 });
 
