@@ -843,6 +843,18 @@ implies currency has to survive that gap (`.claude/rules/grounded-answers.md` ru
 **Missing versus zero.** A missing value reads "Not reported". A verified zero reads "0". A
 candidate who genuinely raised nothing is not the same as one whose filing we do not have.
 
+**A closed committee is a fifth state, and it is the one a reader is most likely to read as
+concealment.** A sitting member's committee can be terminated mid-year, and then the year is empty
+for a reason none of the other states describes: not a reported zero, not a report still to come,
+not a report due next February, and nothing to do with our own confirming. Paul Novotny sits in
+House 30B and his committee terminated **28 July 2026** with zero 2026 contributions, its last
+payment dated 17 Nov 2025. So the page says the committee closed, and says when. **The year control
+makes it sharper**: his 2025 holds money and his 2026 holds none, so a reader switching years watches
+money disappear, and the explanation has to be on the screen they land on rather than inferable from
+the one they left. Population unsized — termination is not in the bulk downloads and costs one
+catalogue request per filer ([#1415](https://github.com/alethical-org/alethical/issues/1415)) — but
+one confirmed case in an election year is enough to require the wording.
+
 **Separate transfers, never a chain.** Money is fungible. That a party gave a caucus $100,000
 and the caucus later gave a candidate $5,000 are two documented facts. That the same dollars
 travelled is not a fact and no filing establishes it. Show each transfer with its own amount,
@@ -935,6 +947,14 @@ Per report: `RegisteredEntityID`, `RegisteredEntityType`, `ReportType`, `FilingY
 `SpecialElectionindicator`, `SpecialElectionDistrict`, `TerminationDate`, `TerminationYear`,
 `District`, `NoticePeriod`, `CutOffDate`, `amendments`. **No period start is served anywhere**, and
 `NoticePeriod` is a flag reading `1` rather than a date.
+
+**`TerminationDate` and `TerminationYear` belong to the registration, not to the report they arrive
+on, so they are the same field §5.1 uses and not a second source for it.** One value is repeated onto
+every report row: 28 of 28 rows null for filer 11880, 13 of 13 null for 18453, and all 16 rows for
+18472 carrying `2026-07-28`. **That repetition is a trap.** Filer 18472 has reports back to 2019 and
+every one of them carries the 2026 termination date, so read as "this report terminated the
+committee" it is wrong on 15 of 16 rows. It means "this registration is terminated, as of this date",
+and says nothing about the report it is attached to. §7 turns the same fact into a display state.
 
 **Each contributor-type line is that schedule's itemized plus non-itemized total, from the
 effective version.** Checked line by line against the documents for two filers. Senator Scott
