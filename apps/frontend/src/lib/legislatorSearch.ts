@@ -1,8 +1,15 @@
 export const LEGISLATOR_SEARCH_LABEL = 'Search by name';
 export const CLEAR_SEARCH_TARGET_SIZE = 44;
 export const LEGISLATOR_PAGE_SIZE = 12;
+// Portrait boxes use the 160:207 shape of the tallest source photo, and every
+// surface scales the whole photo to fit inside rather than filling the box
+// (#1334). Both the Minnesota House and Senate photo policies say their images
+// "may not be digitally altered in any way, including cropping", and filling a
+// box that is a different shape crops whatever overflows. Measured across 50
+// portraits from both chambers, sources are always 160 wide but 197-207 tall,
+// so no single box shape fits all of them and only fit-inside never crops.
 export const LEGISLATOR_PORTRAIT_WIDTH = 64;
-export const LEGISLATOR_PORTRAIT_HEIGHT = 74;
+export const LEGISLATOR_PORTRAIT_HEIGHT = 83;
 export const LEGISLATOR_PORTRAIT_LOOKAHEAD = 320;
 
 type ChamberFilter = 'All' | 'House' | 'Senate';

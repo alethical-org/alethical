@@ -434,7 +434,9 @@ function Portrait({ uri, name }: { uri?: string; name: string }) {
         <Image
           source={{ uri }}
           accessibilityLabel={name}
-          resizeMode="cover"
+          // Fit-inside, never fill — see LEGISLATOR_PORTRAIT_HEIGHT in
+          // lib/legislatorSearch.ts for why cropping is off the table (#1334).
+          resizeMode="contain"
           onError={() => setFailed(true)}
           style={styles.portraitImage}
         />
@@ -955,7 +957,7 @@ const styles = StyleSheet.create({
   identityText: { flexShrink: 1 },
   portrait: {
     width: 128,
-    height: 146,
+    height: 166,
     borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
