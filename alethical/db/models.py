@@ -1359,6 +1359,84 @@ class LegislatorStats(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("legislator_id", "session_id"),)
 
 
+class CommitteeLinkReviewDecision(enum.Enum):
+    """What a reviewer decided about one proposed committee.
+
+    ``rejected`` is stored rather than discarded so the proposer stops re-suggesting a
+    committee a person has already ruled out, and so "we looked and it is not theirs" is
+    distinguishable from "nobody has looked yet".
+    """
+
+    confirmed = "confirmed"
+    rejected = "rejected"
+
+
+class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A person-checked link from an Alethical legislator to a Minnesota committee (#1354).
+
+    **Why this table exists at all, and why it is here rather than on an imported row.**
+    Minnesota gives every registered filer a registration number but never links it to a
+    person, and `docs/architecture/campaign-finance-system-design.md` §5 (Identity) is
+    explicit that a candidate joins a legislator only through a link a person has checked.
+    §4.4 (What survives replacement) then decides *where* that link may live: the imported
+    payment set is thrown away and rebuilt on every load, so a link stored against an
+    imported row would be destroyed silently on the next download. Both sides of this
+    table are durable identifiers that outlive any snapshot — our own legislator id, and
+    the state's registration number — which is exactly the first of the three kinds §4.4
+    sorts human decisions into.
+
+    Nothing writes here without a person confirming. There is no upsert-from-proposal path
+    and deliberately no default for ``reviewed_by``: a row with no reviewer is a row that
+    cannot be written.
+    """
+
+    __tablename__ = "legislator_campaign_committee"
+
+    legislator_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legislator.id"), nullable=False
+    )
+    # Text, not an integer. Every number in the 11 Aug 2026 download is 5 digits with no
+    # leading zero, so an integer would work today -- but this is an external identifier
+    # nothing ever does arithmetic on, and storing it as text means a future 6-digit or
+    # zero-padded number cannot silently change value.
+    registration_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    decision: Mapped[CommitteeLinkReviewDecision] = mapped_column(
+        SQLEnum(CommitteeLinkReviewDecision, name="committee_link_review_decision"),
+        nullable=False,
+    )
+    # What the reviewer actually read, kept as a note about this decision rather than as
+    # data about the committee. The Board publishes a committee's *current* name against
+    # all of its history, so the name here can legitimately differ from the name the next
+    # download shows for the same number, and that difference is a thing to notice rather
+    # than a contradiction to resolve.
+    committee_name_as_reviewed: Mapped[str] = mapped_column(Text, nullable=False)
+    office_as_reviewed: Mapped[Optional[str]] = mapped_column(String(40))
+    reviewed_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    # What the reviewer checked, in their own words. Free text on purpose: the cases that
+    # need a person are the ones no field anticipated.
+    evidence: Mapped[Optional[str]] = mapped_column(Text)
+
+    legislator: Mapped["Legislator"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("legislator_id", "registration_number"),
+        # One committee belongs to one candidate, so a confirmed number may appear once
+        # across the whole table. This is the index that makes publishing one person's
+        # money under two legislators' names impossible rather than merely unlikely.
+        # Partial, because the same number may be *rejected* for several legislators --
+        # that is what ruling out a shared surname looks like.
+        Index(
+            "uq_legislator_campaign_committee_confirmed_registration",
+            "registration_number",
+            unique=True,
+            postgresql_where=text("decision = 'confirmed'"),
+        ),
+    )
+
+
 def bill_detail_stmt(
     bill_id: uuid.UUID,
     user_id: Optional[uuid.UUID] = None,
