@@ -1,4 +1,4 @@
-<!-- describes: api/page.ts, api/sitemap.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, vercel.json -->
+<!-- describes: api/page.ts, api/sitemap.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, vercel.json -->
 
 # What each page tells search engines and link previews — decisions
 
@@ -573,3 +573,75 @@ every pull request.
   screen for well under a second for anyone whose program loads.
 - **Not [#502](https://github.com/alethical-org/alethical/issues/502).** Navigation is untouched and
   the public site is not split out. #502 is neither started nor blocked by this.
+
+---
+
+## 14. The search-result icon — settled
+
+**Net:** The small logo beside an Alethical search result was being redrawn by Google in a way that
+sliced the corners off our mark. The favicon now ships an opaque brand-ink background with the mark
+inset, which is the only framing Google preserves. This reverses the transparent background chosen in
+[#371](https://github.com/alethical-org/alethical/pull/371); that PR's reasoning was sound for browser
+tabs and had not been measured against search results.
+
+### What Google actually does to a favicon, measured
+
+Google's own guidance
+([Favicon in Search](https://developers.google.com/search/docs/appearance/favicon-in-search)) states
+only that the icon must be square and at least 8×8, and recommends larger than 48×48. It says nothing
+about resizing, cropping, transparency, or the shape the icon is displayed in. Those were measured
+directly on Aug 11 2026 by comparing what a site serves against what Google stores for it
+(`https://t1.gstatic.com/faviconV2?...&url=<site>&size=<n>`, the endpoint the results page reads):
+
+- **Google trims the transparent margin away and rescales the artwork to fill the square, preserving
+  aspect ratio.** Our own icon was the proof. We served a mark occupying 78% of its canvas, with ~10%
+  transparent padding on every side; Google stored it at 48×48 with the mark filling the full height.
+  `docker.com` confirms the rule rather than contradicting it: its source is a wide mark with zero
+  horizontal padding and ~9%/11% top/bottom padding, and Google's copy reproduces that padding almost
+  exactly — because an aspect-preserving fit of a wide mark *recreates* vertical padding. `nodejs.org`
+  looks untouched for the same reason: its artwork already fills the full height.
+  **So padding inside a transparent favicon cannot be relied on. It is discarded.**
+- **An opaque favicon's framing is preserved exactly.** The trim operates on the transparent bounding
+  box, which for an opaque image is the entire canvas, so there is nothing to remove. Measured on
+  three sites that inset their mark inside an opaque square and get that inset back unchanged:
+  `openai.com` (15.6% per side), `anthropic.com` (16%), `mozilla.org` (17%).
+- **The results page then draws the icon inside a circle.** With a transparent icon the container's
+  own fill shows through, which is the white disc visible in a dark-mode result.
+
+Put together, those three explain the reported bug: our padding was discarded, the mark was scaled to
+the full square, and the circular crop then cut through the mark's two widest points — its bottom
+corners — leaving it looking low and off-center.
+
+### The decision
+
+`apps/frontend/scripts/generate-brand-assets.mjs` now generates `assets/favicon.png` with
+`background: BRAND_INK` and `scale: 0.65`, replacing `background: null` and `scale: 0.78`.
+
+- **Opaque, because nothing else survives the pipeline.** There is no transparent framing that works:
+  any padding is removed, so the mark always ends up edge-to-edge and always meets the circle.
+- **Brand ink, because every other icon we ship already uses it.** `assets/icon.png`,
+  `public/icon-192.png`, `public/icon-512.png`, `public/apple-touch-icon.png` and
+  `public/social-preview.png` are all a `#11150f` square carrying the green mark. The favicon was the
+  only transparent one. Green on ink is also far more legible than green on white, and a light-mode
+  result went nearly invisible with a transparent icon.
+- **0.65, because that is the largest mark whose corners clear the circle.** The mark's widest points
+  are its bottom corners, at `sqrt(1 + (84/82)²) / 2 = 0.716` of the mark's height from center, so a
+  circular crop starts cutting them once the mark passes 0.699 of the canvas. 0.65 keeps a ~6.8%
+  margin and lands at a 16.6% inset per side — the same band as the three opaque sites above.
+- **What #371 gave up.** A transparent icon blends into a light or dark browser tab strip; an opaque
+  one is always an ink tile there. That was #371's stated reason and it is a real cost. It loses to a
+  broken search result, and it is the majority choice among comparable sites: of six measured,
+  `openai.com`, `anthropic.com`, `mozilla.org`, `github.com` and `figma.com` all ship opaque favicons.
+
+### Reconsider only if
+
+Google stops trimming transparent margins, or stops drawing the icon in a circle. Both are observable
+with the `faviconV2` endpoint above; neither is documented, so neither should be assumed stable.
+The mark's own geometry (`MARK_PATH` in `generate-brand-assets.mjs`) is unchanged by this.
+
+### Not changed, deliberately
+
+Our `favicon.ico` tops out at a 48×48 layer, and Google recommends larger. It is not a defect here:
+Google stores 48×48 and the results page displays ~18px, so 48 is already more than a 2× display
+needs. Raising it would mean a second declared icon file competing with the one Expo injects, for no
+visible gain.

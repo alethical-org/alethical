@@ -9,7 +9,20 @@ export const BRAND_INK = [17, 21, 15];
 export const MARK_PATH = 'M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z';
 
 export const BRAND_ASSETS = [
-  { path: 'assets/favicon.png', size: 512, background: null, color: BRAND_GREEN, scale: 0.78 },
+  // The browser tab / search-result icon. Both values below are load-bearing,
+  // driven by how Google Search redraws a favicon. Measured against live Google
+  // data Aug 2026; full evidence and the rejected alternative are in
+  // docs/architecture/page-metadata-for-search-and-sharing-decisions.md §13.
+  //  - `background` must stay opaque. Google trims a favicon's transparent margin
+  //    away and rescales the artwork to fill the square, so padding inside a
+  //    transparent icon is discarded: the mark ends up edge to edge, and the
+  //    results page's circular crop then cuts its two bottom corners. An opaque
+  //    square has no transparent margin to trim, so this framing survives.
+  //  - `scale` must stay at or below 0.65. The mark's widest points are its bottom
+  //    corners, sqrt(1 + (84/82)^2) / 2 = 0.716 of the mark's height from center,
+  //    so a circular crop starts clipping them once the mark passes 0.699 of the
+  //    canvas. 0.65 keeps a ~7% margin inside that circle.
+  { path: 'assets/favicon.png', size: 512, background: BRAND_INK, color: BRAND_GREEN, scale: 0.65 },
   { path: 'assets/icon.png', size: 1024, background: BRAND_INK, color: BRAND_GREEN, scale: 0.52 },
   {
     path: 'assets/android-icon-foreground.png',
