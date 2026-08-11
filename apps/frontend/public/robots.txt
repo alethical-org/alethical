@@ -1,0 +1,59 @@
+# Alethical makes the Minnesota Legislature's public record legible. We want
+# every search engine and AI answer tool to be able to reach and read every
+# page, so no page on this site is blocked from being fetched. The handful we
+# would rather were not listed in results (answer pages, signed-in pages) say so
+# in their own response headers instead — a crawler blocked here could never
+# read that instruction.
+#
+# The two blocks below are not about hiding anything. They stop two crawlers
+# that only collect writing to train future AI models, with no effect on
+# whether this site shows up in search results or AI answers. See
+# docs/architecture/page-metadata-for-search-and-sharing-decisions.md §7
+# (robots.txt and sitemap.xml) for the reasoning and the source for each
+# crawler's purpose.
+
+# Collects text to train future OpenAI models. Confirmed by OpenAI to have no
+# effect on search visibility, so there is nothing to gain by allowing it and
+# blocking is the reversible choice (text a model has already learned from
+# cannot be un-learned).
+User-agent: GPTBot
+Disallow: /
+
+# Collects text to train future Anthropic models. Same reasoning as above.
+User-agent: ClaudeBot
+Disallow: /
+
+# Surfaces this site in ChatGPT's search results.
+User-agent: OAI-SearchBot
+Allow: /
+
+# Improves Claude's search results.
+User-agent: Claude-SearchBot
+Allow: /
+
+# Powers Perplexity's answers.
+User-agent: PerplexityBot
+Allow: /
+
+# Fetches a page when a person asks ChatGPT a question about it.
+User-agent: ChatGPT-User
+Allow: /
+
+# Fetches a page when a person asks Claude a question about it.
+User-agent: Claude-User
+Allow: /
+
+# Fetches a page when a person asks Perplexity a question about it.
+User-agent: Perplexity-User
+Allow: /
+
+# Grounds live Gemini answers (and also feeds Google's model training, which
+# is bundled into this same switch). Blocking it would also block the live
+# grounding, so it stays allowed.
+User-agent: Google-Extended
+Allow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: https://www.alethical.com/sitemap.xml

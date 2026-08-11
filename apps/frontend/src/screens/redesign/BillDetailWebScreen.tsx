@@ -24,7 +24,8 @@ import { isNotFoundError } from '../../data/api';
 import { Skeleton } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
 import { routePath } from '../../navigation/links';
-import { buildBillShareContent, publicPageUrl } from '../../lib/share';
+import { billPageMetadata, buildBillShareContent, publicPageUrl } from '../../lib/share';
+import { useDocumentTitle } from '../../navigation/documentTitle';
 import {
   billDetailNeedsVotes,
   billDetailVotePrefetchIsUseful,
@@ -61,6 +62,15 @@ export function BillDetailWebScreen() {
     includeVotes: billDetailNeedsVotes(true, activeTab),
   });
   const bill = billQuery.data;
+  // The server already put this bill's number and year in the tab (api/page.ts).
+  // Hand over the fuller title once the short title arrives, from the same
+  // builder the server used so the two cannot disagree (#1325).
+  useDocumentTitle(
+    billId ? `/bills/${billId}` : null,
+    bill
+      ? billPageMetadata({ billId: bill.id, shortTitle: bill.aiAnalysis?.shortTitle }).title
+      : null,
+  );
   const prefetchBillVotes = usePrefetchBillVotes();
 
   const { trackedIds, isTracked, toggleTrack, trackedLoading } = useBillTracking();
@@ -211,7 +221,8 @@ export function BillDetailWebScreen() {
   const eyebrow = bienniumEyebrow(bill.id, bill.session ?? bill.sessionLabel);
   const shareContent = buildBillShareContent({
     identifier: bill.identifier,
-    title: bill.aiAnalysis?.shortTitle ?? bill.title,
+    billId: bill.id,
+    shortTitle: bill.aiAnalysis?.shortTitle,
     summary: bill.aiAnalysis?.summary,
     url: publicPageUrl(`/bills/${bill.id}`),
   });

@@ -8,7 +8,10 @@ const htmlTemplate = readFileSync(resolve(__dirname, '../../public/index.html'),
 describe('exported HTML connection hints', () => {
   it('starts API connections and the font stylesheet before the website program', () => {
     const headEnd = htmlTemplate.indexOf('</head>');
-    const firstScript = htmlTemplate.indexOf('<script');
+    // Executable scripts only. The head also carries `application/ld+json` blocks
+    // describing the page to search engines (#1325); a browser never fetches or
+    // runs those, so they cannot delay a connection the way a program does.
+    const firstScript = htmlTemplate.search(/<script(?![^>]*application\/ld\+json)/);
     const apiHint = '<link rel="preconnect" href="https://api.alethical.com" crossorigin />';
     const cssFontHint = '<link rel="preconnect" href="https://fonts.googleapis.com" />';
     const fileFontHint = '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />';

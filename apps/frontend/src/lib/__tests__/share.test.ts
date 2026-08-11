@@ -6,15 +6,15 @@ import {
   buildLegislatorShareContent,
   buildShareIntents,
   publicPageUrl,
-  renderSocialPreviewHtml,
   X_SHORT_LINK_LENGTH,
 } from '../share';
 
 describe('shared page text', () => {
-  it('shares a bill with its plain title and first summary sentence', () => {
+  it('shares a bill with its number, session year, plain title and first summary sentence', () => {
     const content = buildBillShareContent({
       identifier: 'HF 719',
-      title: 'Funds local infrastructure projects across Minnesota',
+      billId: '94-2025-HF719',
+      shortTitle: 'Funds local infrastructure projects across Minnesota',
       summary:
         'Funds roads, bridges, water systems, and public buildings across Minnesota. It also sets reporting rules.',
       url: publicPageUrl('/bills/94-2025-HF719'),
@@ -22,7 +22,7 @@ describe('shared page text', () => {
 
     expect(content).toEqual({
       subject: 'bill',
-      title: 'HF 719: Funds local infrastructure projects across Minnesota',
+      title: 'HF 719 (2025): Funds local infrastructure projects across Minnesota',
       description: 'Funds roads, bridges, water systems, and public buildings across Minnesota.',
       url: 'https://www.alethical.com/bills/94-2025-HF719',
     });
@@ -31,7 +31,8 @@ describe('shared page text', () => {
   it('uses an honest fallback when a bill has no generated summary', () => {
     const content = buildBillShareContent({
       identifier: 'SF 1',
-      title: 'Education funding',
+      billId: '94-2025-SF1',
+      shortTitle: 'Education funding',
       summary: null,
       url: publicPageUrl('/bills/94-2025-SF1'),
     });
@@ -41,16 +42,30 @@ describe('shared page text', () => {
     );
   });
 
+  // A bill with no plain-language short title is named by its number and year and
+  // nothing else. The statutory title it used to fall back to is a paragraph of
+  // legal cross-references — exactly what grounded-answers rule 10 keeps off the page.
+  it('never falls back to a bill’s statutory title', () => {
+    const content = buildBillShareContent({
+      identifier: 'HF 2904',
+      billId: '94-2025-HF2904',
+      shortTitle: null,
+      summary: null,
+      url: publicPageUrl('/bills/94-2025-HF2904'),
+    });
+
+    expect(content.title).toBe('HF 2904 (2025)');
+  });
+
   it('uses fixed factual context for legislator and Ask pages', () => {
     expect(
       buildLegislatorShareContent({
         displayName: 'Rep. Patti Anderson',
-        partyLabel: 'Republican',
         districtLine: 'House District 33A',
         url: publicPageUrl('/legislators/patti-anderson'),
       }),
     ).toMatchObject({
-      title: 'Rep. Patti Anderson: Republican, House District 33A',
+      title: 'Rep. Patti Anderson, Minnesota House District 33A',
       description:
         'See Rep. Patti Anderson’s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.',
     });
@@ -66,12 +81,26 @@ describe('shared page text', () => {
         'Read Alethical’s cited answer, with links to the Minnesota Legislature’s official record.',
     });
   });
+
+  // The profile shows Biography, Committees, Chief-Authored Bills, Contact,
+  // Legislative Service and Leadership. Votes appear only inside the unfinished
+  // "On the roadmap" area, so promising them broke grounded-answers rule 6.
+  it('does not promise recent votes on a legislator profile', () => {
+    const content = buildLegislatorShareContent({
+      displayName: 'Rep. Patti Anderson',
+      districtLine: 'House District 33A',
+      url: publicPageUrl('/legislators/patti-anderson'),
+    });
+
+    expect(content.description).not.toContain('votes');
+  });
 });
 
 describe('platform links', () => {
   const content = buildBillShareContent({
     identifier: 'HF 719',
-    title: 'A very long plain-language bill title that still needs room for a useful summary',
+    billId: '94-2025-HF719',
+    shortTitle: 'A very long plain-language bill title that still needs room for a useful summary',
     summary:
       'This intentionally long summary explains many parts of the bill so the X version must shorten the words before adding the link while email can keep the complete description for the reader.',
     url: publicPageUrl('/bills/94-2025-HF719'),
@@ -104,25 +133,5 @@ describe('platform links', () => {
 
   it('has no direct Instagram destination', () => {
     expect(intents).not.toHaveProperty('instagram');
-  });
-});
-
-describe('social preview HTML', () => {
-  it('publishes escaped page data for link preview crawlers', () => {
-    const html = renderSocialPreviewHtml({
-      subject: 'answer',
-      title: 'What does <HF 1> do?',
-      description: 'Read the cited answer & official sources.',
-      url: 'https://www.alethical.com/ask?q=HF%201',
-    });
-
-    expect(html).toContain('property="og:title" content="What does &lt;HF 1&gt; do?"');
-    expect(html).toContain(
-      'property="og:description" content="Read the cited answer &amp; official sources."',
-    );
-    expect(html).toContain('property="og:url" content="https://www.alethical.com/ask?q=HF%201"');
-    expect(html).toContain('property="og:image"');
-    expect(html).toContain('name="twitter:card" content="summary_large_image"');
-    expect(html).not.toContain('<HF 1>');
   });
 });

@@ -32,7 +32,8 @@ import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
 import { MobileShareSheet } from '../../components/share/MobileShareSheet';
 import { Bill, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
-import { buildBillShareContent, publicPageUrl } from '../../lib/share';
+import { billPageMetadata, buildBillShareContent, publicPageUrl } from '../../lib/share';
+import { useDocumentTitle } from '../../navigation/documentTitle';
 import {
   authorAddPrefix,
   authorNameOnly,
@@ -344,6 +345,14 @@ function BillDetailMobileScreen() {
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
+  // Same shared builder api/page.ts used for the first response, so the tab
+  // title never disagrees with the one the server sent (#1325).
+  useDocumentTitle(
+    billId ? `/bills/${billId}` : null,
+    bill
+      ? billPageMetadata({ billId: bill.id, shortTitle: bill.aiAnalysis?.shortTitle }).title
+      : null,
+  );
 
   const { trackedIds, isTracked, toggleTrack, trackedLoading } = useBillTracking();
   const tracked = bill ? isTracked(bill.id) : false;
@@ -487,7 +496,8 @@ function BillDetailMobileScreen() {
   const shareContent = bill
     ? buildBillShareContent({
         identifier: bill.identifier,
-        title: bill.aiAnalysis?.shortTitle ?? bill.title,
+        billId: bill.id,
+        shortTitle: bill.aiAnalysis?.shortTitle,
         summary: bill.aiAnalysis?.summary,
         url: publicPageUrl(`/bills/${bill.id}`),
       })

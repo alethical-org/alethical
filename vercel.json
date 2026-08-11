@@ -16,39 +16,19 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/bills/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Slackbot|Discordbot|WhatsApp|redditbot).*"
-        }
-      ],
-      "destination": "/api/social-preview?subject=bill&id=:id"
-    },
-    {
-      "source": "/legislators/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Slackbot|Discordbot|WhatsApp|redditbot).*"
-        }
-      ],
-      "destination": "/api/social-preview?subject=legislator&id=:id"
-    },
-    {
-      "source": "/ask",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Slackbot|Discordbot|WhatsApp|redditbot).*"
-        }
-      ],
-      "destination": "/api/social-preview?subject=answer"
-    },
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/sitemaps/:section.xml", "destination": "/api/sitemap?section=:section" },
+    { "source": "/bills", "destination": "/api/page?route=bills" },
+    { "source": "/bills/:id", "destination": "/api/page?route=bill&id=:id" },
+    { "source": "/legislators", "destination": "/api/page?route=legislators" },
+    { "source": "/legislators/:id", "destination": "/api/page?route=legislator&id=:id" },
+    { "source": "/ask", "destination": "/api/page?route=ask" },
+    { "source": "/find-my-legislator", "destination": "/api/page?path=/find-my-legislator" },
+    { "source": "/about", "destination": "/api/page?path=/about" },
+    { "source": "/about/contact", "destination": "/api/page?path=/about/contact" },
+    { "source": "/privacy", "destination": "/api/page?path=/privacy" },
+    { "source": "/terms", "destination": "/api/page?path=/terms" },
+    { "source": "/tracked", "destination": "/api/page?path=/tracked" },
     {
       "source": "/((?!api/|_expo/|favicon.ico|manifest.json|sw.js|icon-192.png|icon-512.png|.*\\..*).*)",
       "destination": "/index.html"
