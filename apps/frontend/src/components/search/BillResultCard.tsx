@@ -404,7 +404,9 @@ export function BillResultCard({
           // AI-generated short title is already short and shouldn't get an
           // ellipsis just because it wraps to 3 lines on a narrow viewport.
           numberOfLines={bill.aiAnalysis?.shortTitle ? undefined : 2}
-          accessibilityLabel={bill.title}
+          // The statutory title is the hover tooltip above and nothing else. As an
+          // accessibilityLabel it would replace this card's visible plain-language
+          // title for a screen reader rather than add to it (#1362).
         >
           {bill.aiAnalysis?.shortTitle ?? bill.title}
         </Text>
