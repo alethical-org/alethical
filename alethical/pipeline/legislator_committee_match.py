@@ -965,6 +965,117 @@ def coverage_counts(results: Sequence[LegislatorProposals]) -> dict[str, int]:
     return counts
 
 
+@dataclass(frozen=True)
+class ConfirmedLink:
+    """A link a person confirmed, as the table stores it.
+
+    Carries what the reviewer read at the time, not just the identifiers, which is what
+    makes the re-check below possible: a committee's published name can change between
+    downloads while keeping its number, and knowing what was on screen when somebody said
+    yes is the difference between noticing that and not.
+    """
+
+    legislator_id: str
+    registration_number: str
+    committee_name_as_reviewed: str
+    reviewed_by: str
+
+
+def recheck_confirmed_links(
+    links: Sequence[ConfirmedLink],
+    members_by_id: dict[str, RosterMember],
+    committees_by_registration: dict[str, CommitteeRecord],
+    *,
+    party_by_registration: dict[str, str] | None = None,
+    filers_by_registration: dict[str, FilerRecord] | None = None,
+) -> list[tuple[ConfirmedLink, str]]:
+    """Re-examine every confirmed link against both sources, and report contradictions.
+
+    **Why this exists rather than a second reviewer.** A wrong confirmation publishes another
+    person's money under a real politician's name, and until this ran, nothing looked at a
+    link again after somebody said yes. The obvious guard is a second person, and it is the
+    weaker one: two people reading the same committee name make the *same* mistake, because
+    the name is the whole of the evidence they share. "Kozlowski, Alicia" does not become
+    more obviously Liish Kozlowski's for being read twice.
+
+    What is genuinely independent is the sources. This compares a confirmed link against the
+    Board's registered-filer directory and against which party's units pay the committee —
+    neither of which a reviewer weighed by hand — and against the committee's own published
+    name, which can change. So it catches a wrong link the day the evidence shifts, instead
+    of relying on somebody re-reading 200 rows.
+
+    Returns a list of `(link, what is wrong)`. An empty list means every confirmed link still
+    agrees with both sources. Reports rather than repairs: a contradiction wants a person's
+    eyes, and silently deleting a link a person made would be the same overreach in the other
+    direction.
+    """
+    problems: list[tuple[ConfirmedLink, str]] = []
+    for link in links:
+        member = members_by_id.get(link.legislator_id)
+        if member is None:
+            problems.append(
+                (link, "the legislator this link names is no longer a sitting member")
+            )
+            continue
+
+        committee = committees_by_registration.get(link.registration_number)
+        if committee is None:
+            problems.append(
+                (
+                    link,
+                    "this registration number no longer appears in the contributions file, "
+                    "so nothing can be shown for it",
+                )
+            )
+        elif not committee.is_candidate_committee:
+            problems.append(
+                (
+                    link,
+                    f"this registration number is now a {committee.recipient_type} rather "
+                    "than a candidate committee",
+                )
+            )
+        elif committee.name != link.committee_name_as_reviewed:
+            # Not necessarily wrong: the Board publishes a committee's current name against
+            # all of its history, so a rename is a real and legitimate event. It still wants
+            # a person's eyes, because the reviewer agreed to a different string.
+            problems.append(
+                (
+                    link,
+                    f"the committee is now published as {committee.name!r} but was "
+                    f"confirmed as {link.committee_name_as_reviewed!r}",
+                )
+            )
+
+        filer = (filers_by_registration or {}).get(link.registration_number)
+        verdict = compare_to_filer_directory(member, filer)
+        if verdict is FilerVerdict.different_person:
+            problems.append(
+                (
+                    link,
+                    f"the Board now registers this committee to "
+                    f"{filer.office} {filer.district or '(no district)'} {filer.party}, "
+                    f"which is not this member's seat"
+                    if filer
+                    else "the Board registers this committee to a different seat",
+                )
+            )
+
+        # ``party_by_registration`` and ``RosterMember.party`` share a vocabulary already
+        # ("DFL" / "R"), because ``classify_party_unit_name`` returns the roster's spelling
+        # rather than the Board's, so this is a direct comparison.
+        money_party = (party_by_registration or {}).get(link.registration_number)
+        if money_party and member.party and money_party != member.party:
+            problems.append(
+                (
+                    link,
+                    f"party units paying this committee are {money_party} and we record "
+                    f"this member as {member.party}",
+                )
+            )
+    return problems
+
+
 def read_contributions_csv(
     path: str,
 ) -> tuple[list[CommitteeRecord], dict[str, str]]:
