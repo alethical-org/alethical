@@ -82,6 +82,9 @@ Extracted fields:
 
 ## Legislators
 
+Reconciling the roster into current-member state has its own design:
+`docs/architecture/legislator-roster-canonical-membership-spec.md`.
+
 Primary:
 
 - Joint Legislature current member directory
@@ -106,6 +109,41 @@ Extracted fields:
 - contact information
 - committee assignments
 - authored bill report links
+
+## Campaign Finance and Lobbying
+
+Full design: `docs/architecture/campaign-finance-system-design.md`. Plain-language plan:
+`docs/product-onboarding/campaign-finance-roadmap.md`. This section states only what a reader
+of *this* document needs to know, which is where these sources behave differently from every
+other source above.
+
+Primary:
+
+- `https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/`
+- `https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/`
+
+Both are free CSV downloads covering 2015 to present, needing no credentials. Resolve the
+download link from the landing page on every run rather than storing it.
+
+**The departure: these sources replace whole sets, they do not update rows.** Every other
+source in this document is fetched per record and normalized into an upsert. Campaign finance
+downloads a complete file, stores it as a dated snapshot, validates it, and publishes it by
+replacing the previous set entirely. Related files release together as one set.
+
+The reason is a property of the source, not a preference: **Minnesota publishes no
+per-transaction identifier**, and two payments can be legitimately identical (same donor,
+same date, same amount). No key derived from a row's contents can separate a genuine repeat
+payment from a re-imported one, so a row-level merge cannot be made correct. The design doc
+carries the measured evidence of what happens when one is attempted.
+
+Consequences for this pipeline:
+
+- Stage 2 (Raw Acquisition) stores the whole file, not a per-record artifact.
+- Stage 4 (Canonical Normalization) has no upsert path for these sources.
+- Stage 5 (Validation and Reconciliation) gates publication: a snapshot that fails is retained
+  for diagnosis and never published.
+- Nothing human may be stored on an imported row, since the set is rebuilt. Durable links
+  (registration number, legislator id) live outside the imported set.
 
 ## District Lookup
 
@@ -489,9 +527,11 @@ Observed results from the generated report:
 
 Official campaign-finance filings and lobbying disclosures are allowed by
 `docs/product-onboarding/product-scope.md` § "Not built yet — ingestion." They do not
-belong in this bill-and-legislator loader, so they should enter through a separate set of
+belong in this bill-and-legislator loader, so they enter through a separate set of
 reviewed public-record source adapters that preserve the filing behind every record and
-relationship ([#1269](https://github.com/alethical-org/alethical/issues/1269)).
+relationship ([#1269](https://github.com/alethical-org/alethical/issues/1269)). Those
+adapters are designed in `docs/architecture/campaign-finance-system-design.md`; the section
+below states the one way they depart from the pipeline described here.
 
 ## Open Questions
 
