@@ -46,14 +46,24 @@ Landing page: `https://cfb.mn.gov/reports-and-data/self-help/data-downloads/camp
 of the Board's hostnames, but a saved number that silently starts pointing at a different
 file is a worse failure than one that breaks loudly, and the page costs one request to read.
 
-The page offers 23 files: 3 datasets across 8 filer categories. **The 3 "All" files contain
-every row of the other 20**, verified by matching every row, so fetch 3 files, not 23.
+**The number is signed, and all 3 of the numbers we want are negative** — the contributions
+"All" file is `?download=-2113865252`. A `download=(\d+)` pattern drops the minus sign and
+resolves a different address, so match `-?\d+`. Every link on the page is an
+`<a class="csvFile">` inside a table whose first cell is the filer category and whose
+`<h1>` names the dataset, so resolve on those two labels rather than on position.
 
-| dataset | rows on 11 Aug 2026 | covers |
-|---|---|---|
-| Itemized contributions received over $200 | 583,152 | 2015 to present |
-| Itemized general expenditures and contributions made over $200 | (fetch to measure) | 2015 to present |
-| Itemized independent expenditures over $200 | (fetch to measure) | 2015 to present |
+The page offers 23 files: 3 datasets across 8 filer categories (7 for independent
+expenditures, which has no candidates file). **The 3 "All" files contain every row of the
+other 20**, so fetch 3 files, not 23. Re-verified 11 Aug 2026 by downloading all 23 and
+comparing parsed rows as duplicate-preserving multisets, in both directions: every row of
+every category file appears in its "All" file at the same multiplicity, every header matches,
+and no "All" row is absent from the union of its categories.
+
+| dataset | rows on 11 Aug 2026 | columns | bytes | covers |
+|---|---|---|---|---|
+| Itemized contributions received over $200 | 583,152 | 15 | 82.6 MB | 2015 to present |
+| Itemized general expenditures and contributions made over $200 | 377,860 | 18 | 67.1 MB | 2015 to present |
+| Itemized independent expenditures over $200 | 41,130 | 19 | 9.1 MB | 2015 to present |
 
 Columns on the contributions file: recipient registration number, recipient, recipient type,
 recipient subtype, amount, receipt date, year, contributor, contributor registration number,
@@ -64,8 +74,50 @@ Three things that file **does not** have, each of which changes the design:
 
 - **No record identifier.** The state publishes no per-transaction id, which is why §4 keys
   on the snapshot rather than on the row.
-- **No city or state**, only a zip, and 9,007 zips have lost a leading zero.
+- **No city or state**, only a zip, and 9,007 zips are shorter than five characters. Store
+  zips as text. (Most of those have lost a leading zero; that a given short value did is an
+  inference, not something the file states.)
 - **No small-donor detail.** See §2.3.
+
+**Nothing in the download tells you it arrived complete.** There is no `Content-Length`; the
+response is `Transfer-Encoding: chunked`, and a `Range` request is ignored (HTTP 200, not
+206), so a download cannot be resumed either. Worse, a download number that no longer
+resolves returns **HTTP 200 with a 39 KB HTML error page** typed `application/octet-stream`.
+So a wrong or stale link fails silently, and two content checks are what catch it: the first
+line must equal the expected column header exactly, and the `Content-Disposition` filename
+names the file (`All - Itemized Contributions Received Of Over $200 - Campaign Finance.csv`).
+
+**The files are not valid CSV, and the choice of parser changes the data.** The Board escapes
+a double quote inside a quoted field with a **backslash**, which RFC 4180 does not allow:
+`"Amazon.com, 1.5\" Micro Rod"`, `"\"The Light We Carry\" by Michelle Obama"`. In the
+expenditures file the same two characters also appear where the backslash is literal trailing
+data and the quote genuinely closes the field (`…Design services for mailers \",2024,…`), so
+no mechanical rule can read both correctly. Measured on the 11 Aug 2026 files:
+
+| parser setting | contributions | expenditures | independent |
+|---|---|---|---|
+| Python `csv` default | 583,152 rows, none ragged | 377,860 rows, none ragged | 41,130 rows |
+| `strict=True` | **18 records rejected** | **17 records rejected** | no errors |
+| `escapechar="\\"` | **200 rows damaged** | **392 damaged**, 38 still error | 16 damaged |
+| substitute `\"` → `""` | 18 rows correctly recovered | **42 records destroyed** | no change |
+
+`escapechar` eats backslashes that are real data: `Self Employed\tMedical Practice` becomes
+`Self EmployedtMedical Practice`. So **parse with the default reader and change nothing**: it
+is the only setting that keeps every row in every file with every field in its correct column.
+The cost is a stray backslash or trailing quote inside one free-text field (in-kind
+description, purpose) on 36 contribution and 74 expenditure records; it never reaches a name,
+amount, date, registration number or zip. Two consequences: a parse error can never be the
+truncation guard (§4.3's count and size bands are all there is), and the count of affected
+records is recorded per snapshot so a change in the Board's export shows up as a number rather
+than as silent corruption.
+
+**Amounts carry four decimal places** (`250.0000`), and four expenditure rows are finer than a
+cent, so a two-decimal column would round real money. The independent-expenditures file prints
+two decimals and sometimes omits the integer part (`.51`).
+
+**`Year` is a separate claim from the date, not a copy of it.** It disagrees with its row's own
+date year on 234 contribution and 468 expenditure rows, so both are stored. What the field
+means beyond that is not established here.
 
 ### 2.2 Lobbying
 
@@ -121,9 +173,25 @@ whole files and replaces whole sets.
 ### 4.1 The cycle
 
 1. **Fetch** the current link for each file from the landing page, then download it.
-2. **Store the file whole** as a dated snapshot with a content hash, through the existing
-   `SourceArtifact` retention path. An identical hash to the previous snapshot means nothing
-   changed; stop.
+2. **Store the file whole** as a dated snapshot with a content hash. An identical hash to the
+   previous snapshot means nothing changed; stop.
+
+   **This step has no facility to use yet, which an earlier version of this document got
+   wrong.** It said "through the existing `SourceArtifact` retention path", and
+   `SourceArtifact` does not retain bodies: `storage_path` is a synthetic string
+   (`minnesota-live/{digest}`, `alethical/pipeline/minnesota.py`), nothing ever writes bytes
+   there, and the repo has no object storage of any kind. The repo says so itself —
+   `scripts/repair_companion_links.py` explains that a companion link could not be repaired
+   because "`source_artifact` keeps a path and a hash, not the XML body". So §4.3's promise to
+   retain a failed download for diagnosis needs a real store, and building one is part of this
+   work rather than a thing to reuse. Note also that the existing `content_hash` helper hashes
+   *decoded text*; raw-file identity must hash the response bytes.
+
+   `docs/architecture/layer-1-source-ingestion-system-design.md` Stage 2 already requires an
+   "immutable object storage path" for raw artifacts, and
+   `docs/product-onboarding/product-scope.md` lists object storage for raw artifacts, so this
+   is an unbuilt requirement rather than a new one. Which home it gets is tracked on
+   [#1328](https://github.com/alethical-org/alethical/issues/1328).
 3. **Validate** (§4.3). A snapshot that fails is kept for diagnosis and never published.
 4. **Publish** by replacing the previous published set entirely.
 
@@ -135,10 +203,22 @@ different day than its income.
 ### 4.2 Why replace rather than merge
 
 The state publishes no transaction identifier, and two payments can legitimately be identical
-— same donor, same day, same amount. The Republican Party of Minnesota's 2025 filing contains
-exactly that, twice. So no key built from a row's contents can tell a genuine repeat payment
-apart from a re-import of the same row. Merging therefore cannot be made correct; it can only
-be made careful, which is what failed before.
+— same donor, same day, same amount. So no key built from a row's contents can tell a genuine
+repeat payment apart from a re-import of the same row. Merging therefore cannot be made
+correct; it can only be made careful, which is what failed before.
+
+**How common this is, measured on the 11 Aug 2026 downloads.** Counting rows whose every
+parsed field matches another row's, a single official download contains **20,524 repeated
+copies**: 9,322 across 6,464 groups in contributions, 10,041 across 6,975 in expenditures,
+1,161 across 884 in independent expenditures. The largest group is the **same row 119 times**
+— Republican Party of Minn, "Zachary, Wivoda", $30.00, 2019‑08‑31. Any key derived from row
+contents would delete 20,524 rows the Board published.
+
+Note what that does and does not establish. It proves the official file publishes repeated
+rows; it does not prove each copy is a separate real-world payment, and nothing available to us
+could tell the difference. That is the point: there is no trustworthy identity here, so the
+rows are reproduced as published and a citation points at the row, rather than us deciding
+which copies are real.
 
 Replacement dissolves the problem. Re-running an unchanged file is a no-op because the hash
 matches. A changed file produces a new snapshot that supersedes the old one whole. There is no
@@ -178,8 +258,18 @@ decisions into three kinds and never mix them:
 ## 5. Identity
 
 **Registered filers join by registration number, never by name.** Candidates, committees,
-funds and party units all carry one. Minnesota routes them by numeric range: 10000–19999 is a
-candidate committee, 20000–29999 a party unit, 30000 and above a political committee or fund.
+funds and party units all carry one.
+
+**Do not read the filer's kind off the number.** An earlier version of this document said
+Minnesota routes them by numeric range — 10000–19999 a candidate committee, 20000–29999 a
+party unit, 30000 and above a political committee or fund. The source contradicts that. In the
+11 Aug 2026 contributions download **4,672 rows carry a type that disagrees with their own
+number's band**: 2,873 say `PTU` with a number of 30000 or above, and 1,799 say `PCF` with a
+number in 20000–29999. The Libertarian Party of Minnesota is registration **40858** with type
+`PTU`. So the file's type column is what to believe for that row, and the bands are a rough
+hint at best. What a filer's settled classification is cannot be answered from the payment
+files at all; that needs the Board's registered-filer directory, which is an open route
+([#1337](https://github.com/alethical-org/alethical/issues/1337)).
 
 **People, employers and vendors have no identifier, and are never joined or split
 automatically.** The retired system compared donor names exactly, so "Messinger, Alida" and
@@ -197,7 +287,12 @@ A filing can be superseded. The Republican Party of Minnesota's 2025 report exis
 original plus three amendments, each restating the same money.
 
 - Every report row records its period and its version.
-- Exactly one version per filer per period is the effective one.
+- Exactly one version per filer per period is the effective one. **A database index cannot
+  enforce this on its own**: a partial unique index gives "at most one effective version", and
+  nothing stops every version being marked ineffective, so the "exactly one" half has to be a
+  check the importer runs and a test asserts. Deciding *which* version is effective is still an
+  open route ([#1337](https://github.com/alethical-org/alethical/issues/1337)), so today this
+  is a rule with nothing to apply it to.
 - **Totals read only the effective version.** A query that filters by year alone will count a
   preliminary filing and its final replacement together, which is the specific mistake to
   design against.
