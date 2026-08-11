@@ -782,6 +782,114 @@ def test_the_directory_verdict_separates_a_different_person_from_a_different_rac
     )
 
 
+def test_the_same_seat_does_not_settle_identity_for_a_predecessor():
+    # The boundary a design review named, and the one case where seat agreement is not
+    # identity: a member who held this seat before, for this party, carries the same office,
+    # district and party as its current holder. A same-surname predecessor is the
+    # father-and-son confusion this whole design exists to prevent, so the seat only counts
+    # as settled when the Board also flags this candidate as the seat's current holder.
+    keith = member(
+        "Keith Allen", "house", first="Keith", last="Allen", party="R", district="19A"
+    )
+    current = filer("19023", district="19A", party="RPM", candidate="Allen, Keith")
+    assert compare_to_filer_directory(keith, current) is FilerVerdict.same_seat
+
+    predecessor = filer(
+        "18000",
+        district="19A",
+        party="RPM",
+        candidate="Allen, Kenneth",
+        incumbent=False,
+    )
+    assert (
+        compare_to_filer_directory(keith, predecessor)
+        is FilerVerdict.same_seat_not_current
+    )
+
+    closed = filer(
+        "18001", district="19A", party="RPM", candidate="Allen, Keith", terminated=True
+    )
+    assert (
+        compare_to_filer_directory(keith, closed) is FilerVerdict.same_seat_not_current
+    )
+
+
+def test_a_seat_the_board_does_not_say_this_person_holds_cannot_settle_an_inferred_name():
+    # The 15 proposals that are strong *only* because the directory named the seat are the
+    # ones exposed to the case above, so this is where the flag has to bite. Same committee,
+    # same seat, same party, unmappable name -- settled when the Board says she holds the
+    # seat, and a question for a person when it does not.
+    liish = member(
+        "Liish Kozlowski",
+        "house",
+        first="Liish",
+        last="Kozlowski",
+        party="DFL",
+        district="08B",
+    )
+    committees = [committee("18886", "Kozlowski, Alicia House Committee", rows=203)]
+    settled = only(
+        [liish],
+        committees,
+        filers_by_registration={
+            "18886": filer(
+                "18886", district="08B", party="DFL", candidate="Kozlowski, Alicia"
+            )
+        },
+    )
+    assert settled.proposals[0].tier is ProposalTier.strong
+
+    unsettled = only(
+        [liish],
+        committees,
+        filers_by_registration={
+            "18886": filer(
+                "18886",
+                district="08B",
+                party="DFL",
+                candidate="Kozlowski, Alicia",
+                incumbent=False,
+            )
+        },
+    )
+    assert (
+        unsettled.proposals[0].filer_verdict == FilerVerdict.same_seat_not_current.value
+    )
+    assert unsettled.proposals[0].tier is ProposalTier.review
+
+
+def test_a_members_own_closed_committee_is_never_ruled_out():
+    # A closed registration is how a member's *own* earlier committee looks, so it must stay
+    # a candidate. Paul Novotny's House 30B row is flagged incumbent and terminated, and it is
+    # genuinely his; he stays strong because his name matches exactly and needs no help from
+    # the seat.
+    result = only(
+        [
+            member(
+                "Paul Novotny",
+                "house",
+                first="Paul",
+                last="Novotny",
+                party="R",
+                district="30B",
+            )
+        ],
+        [committee("18472", "Novotny, Paul House Committee", first="2019", rows=120)],
+        filers_by_registration={
+            "18472": filer(
+                "18472",
+                district="30B",
+                party="RPM",
+                candidate="Novotny, Paul",
+                terminated=True,
+            )
+        },
+    )
+    assert result.ruled_out_by_directory == ()
+    assert result.proposals[0].given_name_evidence is GivenNameEvidence.exact
+    assert result.proposals[0].tier is ProposalTier.strong
+
+
 def test_absence_from_the_directory_says_nothing_either_way():
     # 1,057 of the 1,732 candidate committees are not listed, because the directory holds
     # current registrations and an older committee falls off it. Reading absence as evidence
