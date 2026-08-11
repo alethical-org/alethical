@@ -26,6 +26,7 @@ first and follow the link for the part you need.
 | Talking to the database | SQLAlchemy | `alethical/db/models.py`, `alethical/db/session.py` |
 | Changing database structure safely | Alembic | `alethical/alembic/versions/` |
 | Storing data | Postgres 17 with the `pgvector` add-on | `docker-compose.yml` (local), Supabase (production) |
+| Keeping the exact files we downloaded | Supabase Storage, reached over the S3 protocol (`boto3`) | `alethical/pipeline/raw_file_store.py` |
 | Sign-in | Supabase Auth | `alethical/api/auth.py`, `alethical/api/services/auth.py` |
 | Background jobs | `oban`, a queue that lives in Postgres | `oban.toml`, `alethical/pipeline/oban.py` |
 | Writing bill summaries | Anthropic (Claude) | `alethical/pipeline/anthropic_enrichment.py` |

@@ -46,7 +46,14 @@ dependencies = [
   # the missing declaration surfaced.
   "numpy>=2.5.1",
   "oban>=0.6.5",
+  # The campaign-finance loader keeps each downloaded file's exact bytes in a
+  # private Supabase Storage bucket, reached over the S3 protocol with
+  # Storage-scoped credentials rather than a service-role key, so a leaked
+  # credential cannot touch the database (#1328). botocore is declared alongside
+  # it because `raw_file_store.py` imports it directly for its error types, and
+  # it reaches us today only because boto3 happens to require it (#701).
   "boto3>=1.43.69",
+  "botocore>=1.43.69",
 ]
 
 [tool.uv]

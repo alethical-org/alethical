@@ -19,7 +19,11 @@ chamber-specific journals/pages, and district lookup from US Census + Minnesota 
 points + local copies of official MN GIS boundaries. There are **two** credentialed dependencies: **Anthropic**
 (`alethical/pipeline/anthropic_enrichment.py` — where every production bill summary
 comes from today) and **OpenAI** (the batch summary backend + RAG chat). This guide
-named only OpenAI, which pointed a new engineer at the wrong one.
+named only OpenAI, which pointed a new engineer at the wrong one. Since #1328 a third
+credential exists, and it is a different kind: campaign finance needs **no key to
+fetch** and Storage credentials to **keep** what it fetched, because the Board keeps
+no archive and our copy is the only record of what it published on a given date
+(section **H**).
 Everything is orchestrated through an **Oban (Postgres-backed) job queue driven
 from a CLI** — there is **no scheduler/cron**; a human runs the pipeline. All
 batch ingestion is **dry-run by default** and **idempotent**.
@@ -127,6 +131,7 @@ specifically the ingestion that _builds the retrieval corpus_ those depend on.
 | E   | AI bill summaries                        | OpenAI Batch API                                                                       | HTTPS, JSON                                | `OPENAI_API_KEY` | [ai_enrichment.py](../../alethical/pipeline/ai_enrichment.py)                                                                        |
 | F   | RAG chat synthesis                       | OpenAI Responses API                                                                   | HTTPS `POST`, JSON                         | `OPENAI_API_KEY` | [me.py](../../alethical/api/routers/me.py)                                                                                           |
 | G   | Map tiles                                | OpenStreetMap                                                                          | HTTP tiles                                 | none             | frontend `MapPinPicker.tsx`                                                                                                          |
+| H   | Campaign finance (money in and out)      | MN Campaign Finance Board data downloads                                               | HTTP `GET`, 3 whole CSV files              | none to fetch; storage credentials to keep the files | [campaign_finance.py](../../alethical/pipeline/campaign_finance.py), [raw_file_store.py](../../alethical/pipeline/raw_file_store.py) |
 
 **Every one of those `GET`s decodes through one helper, and it has to**
 ([http_text.py](../../alethical/pipeline/http_text.py)). Sources A, B and C each
@@ -384,6 +389,88 @@ Overrides: `ALETHICAL_CENSUS_GEOCODER_URL`, `ALETHICAL_CENSUS_BENCHMARK`,
 `ALETHICAL_ADDRESS_SUGGESTION_RATE_PER_MIN`. CLI:
 `python -m alethical.api.services.representative_lookup "<address>" --json`.
 
+## H — Campaign finance (MN Campaign Finance Board)
+
+_Verified against the code and the live source on 2026-08-11
+([#1328](https://github.com/alethical-org/alethical/issues/1328)). This source sits
+outside the layer 1 / layer 2 diagram above, because it is the one place ingestion
+replaces whole sets instead of updating records._
+
+Every other source here fetches one record at a time and updates it in place. This
+one downloads 3 entire files and **replaces the previous set entirely**, and the
+reason is that Minnesota publishes no per-transaction identifier while two payments
+can be legitimately identical: same donor, same day, same amount. One official
+download holds 20,524 rows identical to another row, one of them repeated 119 times.
+Any key built from a row's contents would delete real money, which is what happened
+in the system this replaces (241,258 of its 954,188 money rows repeat another row's
+fingerprint). Full reasoning:
+[`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
+§4 (Ingestion: snapshot and replace).
+
+**What to run.** `just load-campaign-finance` is a dry run: it fetches, parses,
+checks and reports, writing nothing and needing no credentials. `just
+load-campaign-finance local false` publishes locally and `just
+load-campaign-finance production false` publishes to production.
+
+**A first import is quarantined on purpose, and so is any set that fails a check.**
+There is no first-load exception: a first import has nothing to compare against, so
+it stops like any other, prints its measurements, and an operator publishes it by
+naming the 3 record hashes they reviewed
+(`--publish-hashes A B C`). Naming hashes waives only the comparison
+checks; a header that does not match, a record with the wrong field count, a date
+that is not a date and an amount that would have to be rounded stop the run whatever
+you pass.
+
+**Five things about this source that shape the code**, all measured on 2026-08-11:
+
+1. **The download numbers are negative.** Each file sits behind `?download=<number>`
+   and all 3 we want are signed negative, so a `\d+` pattern drops the minus sign and
+   silently resolves a different file. The links are resolved from the landing page's
+   own labels on every run.
+2. **Nothing in the response says the file arrived whole**, and a stale download
+   number answers **HTTP 200 with a 39 KB HTML error page** typed
+   `application/octet-stream`. Two content checks catch it: the
+   `Content-Disposition` filename and an exact match on the header line.
+3. **The export shuffles.** 3 downloads of the same file seconds apart returned 3
+   different sha256 hashes at an identical byte size, holding an identical set of
+   records in a different order (41,130 records with 35,905 positions differing;
+   583,152 records with 511,066 differing). So "did the data change" is decided on an
+   order-independent hash of the records, never on the bytes, and one file body is
+   kept per distinct record set rather than per download.
+4. **The files are not valid CSV.** The Board escapes an inner double quote with a
+   backslash. `strict=True` rejects 35 records of real money across the 3 files,
+   `escapechar` damages 608 rows to fix 35, and substituting the escape destroys 42
+   expenditure records. So they are parsed with Python's default reader and nothing
+   else, and the affected records are counted rather than repaired. A parse error can
+   therefore never be the truncation guard: the row-count and byte-size bands are all
+   there is.
+5. **720 newlines sit inside quoted fields**, so a line count is not a row count, and
+   a row's number is its CSV *record* number.
+
+**Two checks the design asks for that this loader cannot run**, recorded against
+every snapshot as "not run" with the reason and never as passed: reconciling itemized
+payments against a filing's official total, and resolving a registration number
+against the Board's registered-filer directory. Both routes are established
+(`campaign-finance-system-design.md` §9.1 and §9.7) and nothing in this repo fetches
+or stores those figures yet.
+
+**Where the bytes go, and why it is a correctness requirement rather than
+housekeeping.** The Board publishes no archive: the download links never change and
+the file behind each one is replaced as it grows, so a file we fail to keep is not
+re-fetchable — asking again returns a different file. A displayed figure resolves to
+`(snapshot_id, row_number)`, which resolves to a line in a specific download, and to
+nothing if that download is gone. Bodies live in a private Supabase Storage bucket
+(`raw-source-files`), gzipped with `mtime=0`, reached over the S3 protocol with
+Storage-scoped credentials that cannot touch the database
+(`SUPABASE_STORAGE_S3_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID`,
+`_SECRET_ACCESS_KEY`). Details and the reason it is not the database:
+`campaign-finance-system-design.md` §4.5.
+
+**Reading this data.** Resolve `cf_current_release` once and use that release id for
+all 3 datasets in a request: each statement sees the newest committed state, so
+re-resolving per query can hand back a mixed set. The rows of a superseded release
+are pruned, so a stale release id resolves to no rows rather than to old ones.
+
 ## E & F — the credentialed sources (Anthropic and OpenAI)
 
 **E. AI bill summaries — Batch API** (base `https://api.openai.com/v1`):
@@ -473,23 +560,38 @@ just pipeline local --write --allow-writes     # commit after review
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `uv run python scripts/load_minnesota_data.py`                                           | Live loader — roster + profiles + smoke bill set, idempotent (`--legislator-limit N`, `--bill HF2136`, `--roster-only`, `--skip-bills`, `--reconcile-roster`, `--reconcile-only [--dry-run]`, `--session-slug`) |
 | `just reconcile-roster [apply=true]`                                                     | Reconcile current membership against the official roster PDF (dry-run by default; deactivates departed members). `ALETHICAL_DATABASE_TARGET=production` to target prod                                          |
+| `just load-campaign-finance [target] [dry]`                                               | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set replacing the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design — section **H** |
 | `uv run python scripts/load_sample_data.py`                                              | Deterministic fixtures for tests/offline demos (no network)                                                                                                                                                     |
 | `uv run python scripts/backfill_rag_bulk.py`                                             | Threaded RAG backfill for current versions missing chunks                                                                                                                                                       |
 | `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans`            | Committee repair/backfill                                                                                                                                                                                       |
 | `uv run python -m alethical.pipeline.votes`                                              | Vote backfill (debug)                                                                                                                                                                                           |
+| `just load-campaign-finance [target=local] [dry=true]`                                   | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set that replaces the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design — see section **H**                    |
 | `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end.         |
 
 ## Provenance, idempotency & data layers
 
 - **Raw:** every fetch recorded in `source_artifact` (content-hash, source URL,
-  `fetched_at`, run id); `IngestionRun` tracks per-run stats.
+  `fetched_at`, run id); `IngestionRun` tracks per-run stats. Campaign finance is the
+  exception: it records each download in `cf_fetch_observation` (append-only, one row
+  per file per run whether anything changed or not) and keeps the file's actual bytes,
+  which `source_artifact` never has — its `storage_path` is a synthetic string and
+  nothing writes bytes there.
 - **Idempotency:** content-hash dedupe throughout; RAG sections rebuild only when
   the section hash changes; loaders upsert. Postgres advisory locks guard
-  reference/district/legislator writes.
+  reference/district/legislator writes. **Content-hash dedupe does not work for
+  campaign finance**, and reading "throughout" as covering it would break the one
+  guarantee that source exists to give: its export returns the same records in a
+  different order every time, so the bytes hash differently on every download.
+  Sameness there is decided on an order-independent hash of the records
+  (`cf_snapshot.record_set_hash`, section **H**).
 - **Layers:** Raw (`source_artifact`) → Canonical (`bill`, `bill_version`,
   `bill_action`, `sponsorship`, `vote_event`, `vote_record`, `legislator`,
   `district`, `committee`, `committee_membership`, `legislative_session`) →
   Derived (`rag_section_document` + chunks/embeddings, `ai_enrichment`, stats).
+  Campaign finance sits beside all 3 rather than inside them: `cf_snapshot` and
+  `cf_snapshot_body` are raw, the `cf_*_row` tables are canonical but are rebuilt and
+  pruned as whole sets rather than updated, and `cf_release` plus `cf_current_release`
+  say which set a reader may see.
 - **A fourth layer, for decisions a person made:** `legislator_campaign_committee`
   holds the checked link from one of our legislators to a Minnesota campaign
   committee's registration number ([#1354](https://github.com/alethical-org/alethical/issues/1354)).
@@ -503,8 +605,11 @@ just pipeline local --write --allow-writes     # commit after review
 
 ## Environment & system prerequisites
 
-- **Secrets/env:** `OPENAI_API_KEY` is the only external credential (AI/chat only;
-  all gov scraping works without it). DB via `DATABASE_URL` or Supabase vars. See
+- **Secrets/env:** `OPENAI_API_KEY` is the credential for AI and chat, and all gov
+  scraping still works without it. It is no longer the only one: a real (non-dry)
+  campaign-finance load also needs the 4 `SUPABASE_STORAGE_S3_*` values, which keep
+  each downloaded file's bytes (section **H**). Those are Storage-scoped on purpose
+  and cannot reach the database. DB via `DATABASE_URL` or Supabase vars. See
   [`.env.example`](../../.env.example) for every variable, grouped by source, and
   [`CONTRIBUTING.md`](../../CONTRIBUTING.md) for setup.
 - **System deps:** `uv`, Postgres **with pgvector**, and **`pdftotext`
@@ -530,3 +635,9 @@ just pipeline local --write --allow-writes     # commit after review
 5. **`local` vs `production` targets** — `--target production` writes to Supabase.
    Always dry-run first.
 6. **Session is hardcoded to 94th/2025** in multiple places.
+7. **Do not add a content-hash "nothing changed" shortcut to campaign finance.** The
+   Board's export shuffles its rows, so the same data hashes differently on every
+   download; a byte-hash shortcut would republish the whole set every run, renumber
+   every row so every citation moved, prune the set it had just replaced, and store
+   another 28 MB of the same data. Compare `cf_snapshot.record_set_hash`
+   (section **H**).
