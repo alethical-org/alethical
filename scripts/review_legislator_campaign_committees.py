@@ -60,6 +60,8 @@ from alethical.db.session import (
     normalize_database_url,
 )
 from alethical.pipeline.legislator_committee_match import (
+    FilerRecord,
+    FilerVerdict,
     LegislatorProposals,
     Proposal,
     ProposalTier,
@@ -80,6 +82,65 @@ CONTRIBUTIONS_HEADER_LINE = (
 )
 TIMEOUT_SECONDS = 300
 USER_AGENT = "Alethical Campaign Committee Review/0.1 (+https://alethical.com)"
+
+FILER_DIRECTORY_URL = "https://cfb.mn.gov/reports/api/"
+FILER_DIRECTORY_FORM = {
+    "action": "grid_data",
+    "data[action]": "all-registered-candidates",
+    "data[type]": "current-lists",
+    # Omitting this returns the JSON literal `false` rather than an error, so it is not
+    # optional and its absence is a silent failure (§9.7).
+    "data[params][0]": "all",
+}
+
+
+def fetch_filer_directory() -> dict[str, FilerRecord]:
+    """Fetch the Board's registered-filer directory, keyed by registration number (§9.7).
+
+    Three ways this call fails quietly, all measured and all guarded here rather than
+    trusted:
+
+    * **A ``PHPSESSID`` cookie is required and its value is never checked.** Without one the
+      server answers 403 with an Apache error page. An empty value works.
+    * **Omitting ``data[params][0]=all`` returns the JSON literal ``false``**, not an error,
+      and a GET with the same parameters returns HTTP 200 and ``[]``. So the response's
+      shape is checked, not its status code.
+    * The payload is a dict of ``cols`` plus ``data`` keyed by registration number, with each
+      value a *list* of rows, not a flat array.
+    """
+    response = requests.post(
+        FILER_DIRECTORY_URL,
+        data=FILER_DIRECTORY_FORM,
+        headers={"User-Agent": USER_AGENT, "Cookie": "PHPSESSID="},
+        timeout=60,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict) or "cols" not in payload or "data" not in payload:
+        raise RuntimeError(
+            "The filer directory did not return its usual shape, so it cannot be trusted. "
+            f"Got {type(payload).__name__}: {str(payload)[:120]!r}"
+        )
+    columns = payload["cols"]
+    directory: dict[str, FilerRecord] = {}
+    for group in payload["data"].values():
+        for raw in group:
+            row = dict(zip(columns, raw))
+            registration = (row.get("RegisteredEntityID") or "").strip()
+            if not registration:
+                continue
+            directory[registration] = FilerRecord(
+                registration_number=registration,
+                committee_name=row.get("RegisteredEntityFullName") or "",
+                candidate_name=row.get("CandidateFullName") or "",
+                office=row.get("OfficeSoughtFullName") or None,
+                district=row.get("District") or None,
+                party=row.get("Party") or None,
+                is_incumbent=row.get("Incumbent") == "1",
+                is_terminated=bool(row.get("TerminationDate")),
+            )
+    print(f"read {len(directory):,} registered filers from the Board", file=sys.stderr)
+    return directory
 
 
 def resolve_contributions_download_url(session: requests.Session) -> str:
@@ -251,6 +312,18 @@ def describe(proposal: Proposal) -> str:
             f"      party units giving to it are "
             f"{proposal.party_of_party_unit_money} ({agreement})"
         )
+    # What the Board's own directory says about this committee's seat. Worth its own line
+    # because it is the strongest evidence on the screen when it is present, and the reviewer
+    # should be able to see that it was absent rather than assume it agreed.
+    parts.append(
+        "      Board's filer directory: "
+        + {
+            FilerVerdict.same_seat.value: "registered for this member's own seat and party",
+            FilerVerdict.different_race.value: "registered for a different office",
+            FilerVerdict.different_person.value: "registered to a different seat or party",
+            FilerVerdict.unknown.value: "not listed, which says nothing either way",
+        }[proposal.filer_verdict]
+    )
     for reason in proposal.reasons:
         parts.append(f"      needs a look: {reason}")
     return "\n".join(parts)
@@ -398,6 +471,14 @@ def run_review(
                 f"    note: {result.suppressed_surname_only} further committees share this "
                 "surname but have no contributions in the current session's years"
             )
+        # Say what was discarded and on whose authority, so a reviewer can catch the rule
+        # being wrong rather than only ever seeing what survived it.
+        for committee, filer in result.ruled_out_by_directory:
+            print(
+                f"    ruled out: {committee.name!r} -- the Board registers it for "
+                f"{filer.office} {filer.district or '(no district)'} {filer.party}, "
+                f"candidate {filer.candidate_name!r}"
+            )
         for proposal in pending:
             print(f"\n  [{proposal.tier.value}] {describe(proposal)}")
             answer = (
@@ -475,6 +556,12 @@ def main() -> None:
         "checked link.",
     )
     parser.add_argument(
+        "--no-filer-directory",
+        action="store_true",
+        help="Skip the Board's registered-filer directory. Only for reproducing what the "
+        "payment files alone can say; it puts 88 more legislators in front of you.",
+    )
+    parser.add_argument(
         "--tier",
         default=None,
         choices=("strong", "review"),
@@ -516,11 +603,13 @@ def main() -> None:
         f"{roster.current_years[0]}-{roster.current_years[-1]}",
         file=sys.stderr,
     )
+    filers = {} if args.no_filer_directory else fetch_filer_directory()
     results = propose_all(
         roster.members,
         committees,
         current_years=roster.current_years,
         party_by_registration=party_by_registration,
+        filers_by_registration=filers,
     )
 
     engine = create_engine(
