@@ -393,6 +393,92 @@ confirmed link is stored against the durable identifiers, not against a snapshot
 
 A candidate joins an Alethical legislator only through a link a person has checked.
 
+### 5.1 What counts as a confirmed match
+
+Built in [#1354](https://github.com/alethical-org/alethical/issues/1354):
+`alethical/pipeline/legislator_committee_match.py` proposes,
+`scripts/review_legislator_campaign_committees.py` asks, and
+`legislator_campaign_committee` holds what a person answered.
+
+**A confirmed match is a row a named person wrote, and nothing else is one.** No score, no
+threshold and no agreement between rules ever produces a link. The proposer's output is a
+question; the table holds the answer, with who answered, when, and the committee name they
+read. Two things the database enforces rather than trusting code to: `reviewed_by` is
+`NOT NULL` with no default, so a link nobody signed cannot exist; and a partial unique
+index makes a *confirmed* registration number appear once in the whole table, so one
+person's money cannot be published under two legislators' names. The same number may be
+**rejected** for several legislators, which is what ruling out a shared surname looks like,
+and rejections are kept so the proposer stops re-suggesting them and so "checked, not
+theirs" never reads as "nobody has looked".
+
+**One legislator holds several committees, so the link is one-to-many** (§7, Display rules,
+has the counts). A legislator whose second committee were refused would show one year of
+money and silently drop the rest.
+
+**The registration number is the identity; the name is only evidence.** Within one download
+each number carries exactly one name, and the Board publishes a committee's *current* name
+against all of its history — so a committee that renames between years is invisible in a
+snapshot, and the name stored on a link is a note about what the reviewer read rather than
+a fact about the committee. A later download showing a different name for the same number is
+a thing to notice, not a contradiction.
+
+**A proposal may only be called strong when the source states every part of it.** The two
+name facts Minnesota publishes are the given name itself and a nickname it prints in
+parentheses or quotes ("Baker, David (Dave)", 92 committees; 'Gordon, James "Jimmy"', 5).
+Anything else — a shortening we inferred, a legislator known by a middle name, a bare
+initial — is our guess about how names work, and a guess is the thing a person is being
+asked to check. On top of that, a strong proposal needs the committee's office suffix to be
+the chamber the member sits in, contributions inside the current session's years, no
+generational suffix present on one side only, exactly one candidate for that legislator, and
+no other sitting member with a source-stated claim on the same committee.
+
+**Office and given name are evidence, never filters.** Discarding on either loses real
+money. Liz Reyer sits in the House and holds two committees: "Reyer, Lizabeth House
+Committee" (382 contribution rows) and "Reyer, Liz Senate Committee" (45). Filtering to her
+own chamber drops the Senate one; filtering to her spelled first name drops the House one,
+which is the larger. So every plausible committee is shown with its office and period, and a
+person decides.
+
+**A generational suffix on one side only always goes to a person.** A Jr and a Sr of one
+name is precisely the confusion this section exists to prevent. Minnesota puts the suffix on
+either side of the comma — the surname in "Holmstrom Jr, Michael Senate Committee", the
+given name in "Backer, Jeff W Jr House Committee" — so both are read. **"V" is not treated
+as a suffix**: every "V" in the 11 Aug 2026 file is a middle initial ("Nelson, Michael V"),
+never "the fifth".
+
+**One check comes from outside the names, and it can only ever make us more cautious.**
+Which party's units paid a committee is independent of every name rule, because it is a
+different column of the same row. Party units that state their own party in their registered
+name ("Cass County RPM", "44th Senate District DFL") are counted; a filer whose name states
+no party is not classified, because asserting one would be a claim the source never makes
+(`.claude/rules/grounded-answers.md` rule 3). Measured on the 11 Aug 2026 download across
+the 122 committees these rules propose confidently, 112 carry such money and its party
+agreed with our own record on **all 112**, with 0 disagreements — and every disagreement
+anywhere in the run fell on a namesake rather than on a name that actually matched. So a
+disagreement holds a proposal down to review; agreement is recorded as support and promotes
+nothing. This is identity evidence only. That a county party paid a committee helps say
+*whose* committee it is, and says nothing about what the money bought.
+
+**Coverage is reported as two different numbers, and confusing them is the failure to
+avoid.** How much the proposer narrowed down (matched / ambiguous / unmatched) is not how
+much a person has checked (confirmed links). Measured on the 11 Aug 2026 download against
+production's 200 sitting members: **122 matched, 78 ambiguous, 0 unmatched** — every sitting
+member has at least one proposal, and none is linked until someone answers. A surname pool
+too large to show is capped and the number hidden is printed, because silently cutting the
+31 committees named Johnson would read as having considered them all.
+
+**The hard cases are enumerated rather than discovered late**, all of them real on 11 Aug
+2026: a nickname no rule reaches (production's "Liish Kozlowski" is the Board's "Kozlowski,
+Alicia"); a legislator known by a middle name ("Bjorn Olson" is "Olson, Christian Bjorn");
+two sitting members sharing a surname in the same chamber (Patti and Paul Anderson, whose
+pool also holds a former senator's two "Anderson, Paul Senate Committee" rows); a committee
+named for another office the member sought (Lisa Demuth's "Demuth, Lisa Gov Committee", 936
+rows); two committees with the same name in the same office under different numbers
+("Gottfried, David House Committee", twice); and a surname our own record splits wrongly
+(production stores "Scott Van Binsbergen" as first "Scott Van", last "Binsbergen", while the
+Board files "Van Binsbergen, Scott"), which is why a legislator's name is keyed under every
+split of it rather than under the stored one.
+
 ---
 
 ## 6. Amendments

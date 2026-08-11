@@ -1410,7 +1410,14 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # download shows for the same number, and that difference is a thing to notice rather
     # than a contradiction to resolve.
     committee_name_as_reviewed: Mapped[str] = mapped_column(Text, nullable=False)
+    # The office and period §7 (Display rules) requires each link to carry: "a confirmed
+    # link is one-to-many and carries each committee's office and period, a figure says
+    # which committee it belongs to rather than only which year". The office is what lets a
+    # surface keep a race for a different office off a legislator's profile, and the years
+    # are what let a figure name its committee's period instead of a bare year.
     office_as_reviewed: Mapped[Optional[str]] = mapped_column(String(40))
+    first_year_as_reviewed: Mapped[Optional[str]] = mapped_column(String(4))
+    last_year_as_reviewed: Mapped[Optional[str]] = mapped_column(String(4))
     reviewed_by: Mapped[str] = mapped_column(String(120), nullable=False)
     reviewed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -1422,7 +1429,13 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     legislator: Mapped["Legislator"] = relationship()
 
     __table_args__ = (
-        UniqueConstraint("legislator_id", "registration_number"),
+        # Named explicitly: the metadata convention would generate a 66-character
+        # identifier, and Postgres truncates at 63.
+        UniqueConstraint(
+            "legislator_id",
+            "registration_number",
+            name="uq_legislator_campaign_committee_legislator_registration",
+        ),
         # One committee belongs to one candidate, so a confirmed number may appear once
         # across the whole table. This is the index that makes publishing one person's
         # money under two legislators' names impossible rather than merely unlikely.

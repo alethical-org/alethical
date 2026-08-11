@@ -381,6 +381,8 @@ def run_review(
                     ),
                     committee_name_as_reviewed=proposal.committee.name,
                     office_as_reviewed=proposal.parsed.office,
+                    first_year_as_reviewed=proposal.committee.first_year,
+                    last_year_as_reviewed=proposal.committee.last_year,
                     reviewed_by=reviewer,
                     evidence=note,
                 )

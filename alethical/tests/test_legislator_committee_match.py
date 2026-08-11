@@ -473,3 +473,17 @@ def test_coverage_counts_name_the_three_outcomes():
     }
     assert results[2].no_surname_match is True
     assert results[2].unresolved_reason == "no committee shares this surname"
+
+
+def test_a_strong_proposal_still_reports_why_it_is_unconfirmed():
+    # A matched legislator is not a linked legislator, so the unresolved list has to say
+    # something about them. Reporting no reason would read as though the proposer had
+    # nothing to say about a case it had in fact taken as far as it can.
+    result = only(
+        [member("Patty Acomb", "house", first="Patty", last="Acomb")],
+        [committee("17674", "Acomb, Patty House Committee")],
+    )
+    assert result.outcome == "matched"
+    assert result.unresolved_reason == (
+        "one committee proposed and nothing competing; awaiting confirmation"
+    )

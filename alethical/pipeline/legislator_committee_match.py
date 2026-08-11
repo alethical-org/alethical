@@ -235,16 +235,22 @@ class LegislatorProposals:
         return "ambiguous"
 
     @property
-    def unresolved_reason(self) -> str | None:
+    def unresolved_reason(self) -> str:
+        """Why this legislator has no confirmed link yet, in words a reviewer can act on.
+
+        Always a sentence, including for a ``matched`` legislator: a strong proposal is
+        still unconfirmed, and reporting it with no reason at all would read as though the
+        proposer had nothing to say about a case it had in fact resolved as far as it can.
+        """
         if self.no_surname_match:
             return "no committee shares this surname"
         if not self.proposals:
             return "committees share the surname but no given name is close enough"
-        if self.outcome == "ambiguous":
-            if len(self.proposals) > 1:
-                return f"{len(self.proposals)} committees are plausible"
-            return "the one plausible committee rests on an inferred name or a different office"
-        return None
+        if self.outcome == "matched":
+            return "one committee proposed and nothing competing; awaiting confirmation"
+        if len(self.proposals) > 1:
+            return f"{len(self.proposals)} committees are plausible"
+        return "the one plausible committee rests on an inferred name or a different office"
 
 
 def strip_accents(value: str) -> str:
