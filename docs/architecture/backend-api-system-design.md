@@ -460,6 +460,37 @@ Session summaries include `session_number`, `year_start`, and `year_end` alongsi
 stored session name. Clients build display labels from those fields so regular bienniums
 use one site-wide range format without rewriting the stored record.
 
+#### `GET /api/v1/sitemap`
+
+Purpose:
+
+- return every bill id and legislator slug that has a public page, each with the date its
+  record really last changed, in a single response
+
+This exists for `api/sitemap.ts`, the Vercel function that builds `sitemap.xml`
+([#1325](https://github.com/alethical-org/alethical/issues/1325)). Without it that function
+would page `/bills` 100 rows at a time — about 105 round trips for the ~10,517 bills alone,
+every time the sitemap cache expires.
+
+Deliberately unlike every other collection endpoint here:
+
+- **Not paginated.** A sitemap that lists a page of bills is not a sitemap. The response is
+  the whole corpus, about 1 MB before compression, well inside the sitemap format's 50,000-URL
+  and 50 MB limits.
+- **Not serialized through the bill serializer.** Two column-only selects
+  (`select(Bill.bill_key, Bill.latest_action_at, Bill.updated_at)` and the legislator
+  directory statement narrowed to `slug` + `updated_at`), never whole ORM rows, which is what
+  keeps it cheap at that size.
+
+`lastmod` is a plain `YYYY-MM-DD` calendar date in UTC. For a bill it is `latest_action_at`
+when set, otherwise `updated_at`; for a legislator, `updated_at`. It is omitted rather than
+sent as null. The driver can return a `timestamptz` in the session's own timezone, so the
+instant is normalized to UTC before its date is read — taking `.date()` directly off a
+midnight-UTC timestamp reported the previous day.
+
+The legislator list comes from the same `legislator_directory_stmt` the `/legislators` list
+endpoint uses, so the two counts always agree.
+
 ### Bills
 
 #### `GET /api/v1/bills`
