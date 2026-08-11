@@ -104,6 +104,17 @@ Three things that file **does not** have, each of which changes the design:
   inference, not something the file states.)
 - **No small-donor detail.** See §2.3.
 
+**And one thing it has that the name does not suggest: rows that are not contributions.** The
+`Receipt type` column carries 4 values, and 6,809 of the 583,152 rows on 11 Aug 2026 (1.2%) are
+`Miscellaneous`, `Miscellaneous Income` or `Loan Payable` rather than `Contribution`. The filing
+reports those on separate schedules and §9.1's route reports them as separate lines, outside the
+contribution totals. **Filter to `Receipt type = 'Contribution'` before comparing anything against
+a reported contribution figure.** Measured across every sitting legislator's 2025 year-end report:
+including them makes our itemized sum disagree with the filing on 19 of 202 legislator-years, and
+filtering brings that to 3. Senator Lindsey Port's committee (18466) is the plain case: a $5,000
+row typed `Miscellaneous` with contributor type `Self` is a loan from the candidate to her own
+committee, carried on the filing as `Schedule A2 - LP`.
+
 **Nothing in the download tells you it arrived complete.** There is no `Content-Length`; the
 response is `Transfer-Encoding: chunked`, and a `Range` request is ignored (HTTP 200, not
 206), so a download cannot be resumed either. Worse, a download number that no longer
@@ -111,6 +122,11 @@ resolves returns **HTTP 200 with a 39 KB HTML error page** typed `application/oc
 So a wrong or stale link fails silently, and two content checks are what catch it: the first
 line must equal the expected column header exactly, and the `Content-Disposition` filename
 names the file (`All - Itemized Contributions Received Of Over $200 - Campaign Finance.csv`).
+
+**A server error is a retry, not a stale link.** The contributions download returned HTTP 500 on
+one attempt on 11 Aug 2026 and succeeded on the next two from the same unchanged link. Re-resolve
+and retry before concluding a link has moved; the content checks above are what distinguish a
+genuinely wrong file from a bad minute.
 
 **The files are not valid CSV, and the choice of parser changes the data.** The Board escapes
 a double quote inside a quoted field with a **backslash**, which RFC 4180 does not allow:
@@ -597,14 +613,22 @@ number on a card can never disagree with the filing, because it *is* the filing'
 filing also states its own itemized and non-itemized subtotals, but only on the report document,
 one request per filing and only for 2023 onward (§9.4). So the split is derived — reported total
 minus the rows we hold — and that derivation reproduced the filing's stated split to the penny
-everywhere it was checked at full precision (§9.5). **The reason this is safe is a check, not the
-two matching samples**: a shortfall in our rows lands silently in the "not itemized" figure, and
-the only failure that announces itself is the gross one, where the subtraction goes negative
-(10 of 407 committee-years, all special-election candidates, §9.5). So each release validates
-the computed split against the filing's own stated split for a sample of filer-years where the
-report document is reachable, and a mismatch blocks publication under §4.3 exactly as a negative
-result does. Reading the reported split for *every* filing stays available if that check ever
-fails often enough to be worth the requests.
+everywhere it was checked at full precision (§9.5). **The reason this is safe is a check, and the
+check has already earned itself**: a shortfall in our rows lands silently in the "not itemized"
+figure, and the only failure that announces itself is the gross one, where the subtraction goes
+negative (10 of 407 committee-years, all special-election candidates, §9.5). So each release
+compares the derived split against the filing's own stated split for **every** filer-year on
+screen, not a sample, and a mismatch blocks publication under §4.3 exactly as a negative result
+does (mechanics and why not a sample: §9.4).
+
+Run for the first time across the full 2025 population, that check found the derivation wrong for
+19 of 202 legislator-years, from a column nobody had read: 1.2% of the rows in the file called
+"itemized contributions" are not contributions at all (§2.1). Filtering them out leaves **3**, and
+those 3 are precisely the silent case — the filing itemizes more than our rows hold. Omar Fateh's
+committee is the sharpest: the filing itemizes $2,300.00 for 2025 and we hold no rows at all, so a
+card would have shown every dollar of it as unnamed small-donor money. **So until a filer-year
+passes this check, its split is not published**, and "we hold no itemized rows" is never rendered
+as "this money had no names".
 
 **Every figure carries its own "reported through" date, and that is what makes the no-ranking
 rule below enforceable.** The route returns each committee's most-recent-report-through date, so
@@ -881,6 +905,31 @@ searchType=Candidate&downloadpdf=true&year=25&type=pcc&period=YE
 (year-end); `se` is the special-election flag. **Check that the body starts with `%PDF`** —
 nothing else in the response distinguishes a document from the error page.
 
+**The per-filing route is a validation path, not a display path.** §9.5 derives the non-itemized
+figure by subtraction, and a subtraction that comes out *positive but short* publishes silently: a
+gap in our rows lands in the "not itemized" bucket and looks ordinary. So each release compares the
+derived split against the filing's own stated split, and §4.3 blocks publication on a mismatch.
+**Check every filer-year on screen, not a sample.** The population is one report per sitting
+legislator per year, about 209 documents and roughly 420 requests for a single year, which runs in
+one pass; a sample sized for a random failure rate is the wrong instrument here, because the failure
+this guards against is narrow rather than systemic and only checking a filer catches that filer.
+Measured on the full 2025 population, 199 of 202 ordinary legislator-years reconcile exactly and
+the 3 that do not are all short in our rows, the direction nothing announces. Special-election
+filers are excluded from this comparison and handled by §9.5, since their regular report covers
+only part of the year.
+
+**The checker validates itself before it may block anything.** Read the figures by schedule code,
+never by position: a filer with no lobbyist money has no `A1 - LOB` block, and a position-based
+read returned $20,754.27 for a filer whose reported figure is $6,002.62. The self-test is exact and
+costs nothing extra, because each contributor-type line the route returns equals its
+`Schedule A1 - <code>` block's itemized plus non-itemized total. When the parser's figures and the
+route's disagree, the parser is wrong and the check reports itself broken rather than failing the
+release.
+
+**The amendment marker cannot be backfilled before 2023.** Superseded report documents are served
+for 2023 onward only, so an older figure carries no "previously reported as" marker. Its absence in
+an older year means the document is unavailable, never that the report was never amended.
+
 ### 9.5 The non-itemized figure, and where the route is not enough
 
 Rule 12 of `.claude/rules/grounded-answers.md` needs both numbers on the page. The route gives
@@ -1061,10 +1110,11 @@ Recorded as not run, never as passed:
   multi-version reports.
 - **The adjacency of the two report series** (§9.5) was measured on 5 filers, not on all 10
   negative committee-years, and on no year before 2024.
-- **The computed itemized split against the filing's own stated split** (§7) reconciled on 2
-  filer-years at full precision. The per-release sample check §7 requires is what establishes
-  it beyond those two; until that check runs, a positive-but-wrong split would publish silently,
-  since only a negative subtraction announces itself.
+- ~~**The computed itemized split against the filing's own stated split** (§7) reconciled on 2
+  filer-years at full precision.~~ **Run since, across the full 2025 population** (§9.4): 199 of
+  202 ordinary legislator-years reconcile, and the 3 that do not are all short in our rows. What
+  is still not run is the same check for any year other than 2025, and for party units, committees
+  and funds rather than legislators.
 
 Codex reviewed this section adversarially before it was committed and could not reach
 cfb.mn.gov from its own environment, so its objections about rate limits, blocking and current
