@@ -72,6 +72,17 @@ A missing one surfaces as a failed deploy with no obvious cause.
 | `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`                | `vercel-deploy.yml`                | Targets the right Vercel project.                                                                     |
 | `VERCEL_GIT_AUTHOR_NAME`, `VERCEL_GIT_AUTHOR_EMAIL` | `vercel-deploy.yml`                | Rewrites the commit author so Hobby-plan deploys are attributed correctly.                            |
 
+## Vercel project
+
+Set under **Settings** for the `alethical-web` project. Verified 2026-08-11.
+
+<!-- prettier-ignore -->
+| Setting | Intended | Why |
+| --- | --- | --- |
+| Root Directory | `.` | The build, both server functions, and the live `vercel.json` start at the repository root. |
+| Deployment Protection | Vercel Authentication on every deployment except custom production domains (`all_except_custom_domains`) | Preview addresses stay private while `www.alethical.com` stays public. |
+| Protection Bypass for Automation | **On**, exposed to deployments as `VERCEL_AUTOMATION_BYPASS_SECRET` | Signed-in automated checks can reach protected previews. The site does not use this secret to serve pages: `api/page.ts` reads its bundled `index.html`, so a missing bypass cannot turn every preview page into an outage response. |
+
 ## Settings documented elsewhere
 
 Linked rather than duplicated:

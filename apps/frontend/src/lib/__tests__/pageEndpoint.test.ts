@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { readPageShell } = vi.hoisted(() => ({ readPageShell: vi.fn() }));
+
+vi.mock('node:fs/promises', () => ({ readFile: readPageShell }));
+
 type Handler = (
-  request: { query?: Record<string, string>; headers?: Record<string, string> },
+  request: { query?: Record<string, string> },
   response: {
     status: (code: number) => unknown;
     setHeader: (name: string, value: string) => void;
@@ -38,14 +42,11 @@ function responseRecorder() {
   return { response, read: () => ({ body, headers, status }) };
 }
 
-/** Answers the shell request from memory and the API request from `api`. */
+/** Answers data-service requests from `api`; the page shell comes from the bundled file mock. */
 function stubNetwork(api: (path: string) => { status: number; payload?: unknown }) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
-      if (url.endsWith('/index.html')) {
-        return { ok: true, status: 200, text: async () => SHELL } as unknown as Response;
-      }
       const result = api(url);
       return {
         ok: result.status >= 200 && result.status < 300,
@@ -59,9 +60,11 @@ function stubNetwork(api: (path: string) => { status: number; payload?: unknown 
 let handler: Handler;
 
 beforeEach(async () => {
-  // The handler holds the fetched shell for the life of a warm instance, so each
+  // The handler holds the bundled shell for the life of a warm instance, so each
   // test gets a fresh module rather than the previous test's cached copy.
   vi.resetModules();
+  readPageShell.mockReset();
+  readPageShell.mockResolvedValue(SHELL);
   handler = (await import('../../../../../api/page')).default as Handler;
 });
 
@@ -71,7 +74,7 @@ afterEach(() => {
 
 async function serve(query: Record<string, string>) {
   const recorder = responseRecorder();
-  await handler({ query, headers: { host: 'www.alethical.com' } }, recorder.response);
+  await handler({ query }, recorder.response);
   return recorder.read();
 }
 
@@ -108,6 +111,11 @@ describe('first-response page tags', () => {
     expect(body).toContain('<link rel="stylesheet" href="/fonts.css" />');
     expect(headers.get('Cache-Control')).toContain('s-maxage=600');
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
+    expect(readPageShell).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalledWith(
+      expect.stringContaining('/index.html'),
+      expect.anything(),
+    );
   });
 
   it('names a legislator, and canonicalises a UUID address to their readable one', async () => {
@@ -191,23 +199,8 @@ describe('addresses that are not real pages', () => {
   it('still serves a page when the shell has lost its snapshot slot', async () => {
     // The body text improves a page that already works, so its slot going missing
     // must not take the page down. A missing head marker still returns 503.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string) => {
-        if (url.endsWith('/index.html')) {
-          return {
-            ok: true,
-            status: 200,
-            text: async () => SHELL.replace(/<!--\/?alethical:page-snapshot-->/g, ''),
-          } as unknown as Response;
-        }
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ data: { id: '94-2025-HF719' } }),
-        } as unknown as Response;
-      }),
-    );
+    readPageShell.mockResolvedValue(SHELL.replace(/<!--\/?alethical:page-snapshot-->/g, ''));
+    stubNetwork(() => ({ status: 200, payload: { data: { id: '94-2025-HF719' } } }));
 
     const { status, body } = await serve({ path: '/bills/94-2025-HF719' });
 
@@ -283,10 +276,7 @@ describe('when the data service is unwell', () => {
   it('returns 503 when the data service cannot be reached at all', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string) => {
-        if (url.endsWith('/index.html')) {
-          return { ok: true, status: 200, text: async () => SHELL } as unknown as Response;
-        }
+      vi.fn(async () => {
         throw new Error('connection refused');
       }),
     );
@@ -295,19 +285,8 @@ describe('when the data service is unwell', () => {
   });
 
   it('returns 503 rather than a page with the wrong tags when the shell is unreadable', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string) => {
-        if (url.endsWith('/index.html')) {
-          return {
-            ok: true,
-            status: 200,
-            text: async () => '<html><head></head></html>',
-          } as unknown as Response;
-        }
-        return { ok: true, status: 200, json: async () => ({ data: {} }) } as unknown as Response;
-      }),
-    );
+    readPageShell.mockResolvedValue('<html><head></head></html>');
+    stubNetwork(() => ({ status: 200, payload: { data: {} } }));
 
     expect((await serve({ path: '/bills' })).status).toBe(503);
   });
