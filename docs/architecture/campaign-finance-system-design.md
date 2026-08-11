@@ -461,15 +461,29 @@ legislators, and a committee row carries no district. So a former or unsuccessfu
 the same name, same chamber and current activity is indistinguishable from the sitting member on
 the evidence in these files, and if the member's own committee is absent, the stranger's will look
 like a strong proposal. Nothing in the payment files fixes that, which is the reason the answer is
-a person's and not a rule's. That paragraph is about the *payment* files, and it is where the
-proposer's evidence stops, not where the evidence stops.
+a person's and not a rule's. **The directory closes it**: Patti Anderson sits in House 33A, and
+"Anderson, Paul H House Committee" is registered to House 12A, so the Board itself separates them.
+What survives is narrower — a committee absent from the directory gets no corroboration either
+way, and 1,057 of the 1,732 candidate committees are absent, because it lists current
+registrations and older ones fall off.
 
-**The directory carries district and party, so the limit above is narrower than it reads.** §9.7's
+**The directory carries district and party, and it is now wired into the proposer.** §9.7's
 `all-registered-candidates` holds `District` on 728 of its 777 rows and `Party` on all 777
-(measured 11 Aug 2026). A sitting member's own district is a far stronger key than any name rule,
-so a former or unsuccessful candidate of the same name and chamber usually *can* be told apart
-after all. What that does to the 92 ambiguous is being measured ([#1354](https://github.com/alethical-org/alethical/issues/1354));
-until it is, the proposer still asks, and the answer is still a person's.
+(measured 11 Aug 2026). Measured against the shipped code rather than projected: it takes the
+cases needing a person to read alternatives from 92 to **56**, and every one of the 56 that remain
+has two or more surviving committees — a real choice about which of a member's own committees to
+show, not a failure to identify them. The answer is still a person's; the reading is just shorter.
+A `--no-filer-directory` switch on the review script reproduces the without-directory column on
+demand, so the attribution is checkable rather than asserted.
+
+**A directory row answers one question only: whose committee this is.** It clears an inferred
+given name, an unexplained word in our record, and a generational suffix on one side only, because
+those are all that same question in different clothes. It clears nothing else — a committee for a
+different office stays a different race whoever it belongs to (§7), a quiet committee stays quiet,
+and two surviving committees stay a choice only a person may make. A mutation test found that
+nothing in 60 existing tests stopped the directory from clearing the *different-office* reason,
+which it must never do, because the directory's office field and the committee name's own office
+suffix are separate and can disagree; there is a test for it now.
 
 **Presence in that directory is the test for whether a committee exists at all, and the
 `Incumbent` flag is not.** All 200 sitting members appear in it, so **"no committee is registered
@@ -499,8 +513,9 @@ party's units paid a committee is independent of every name rule, because it is 
 of the same row. Party units that state their own party in their registered name ("Cass County
 RPM", "44th Senate District DFL") are counted; a filer whose name states no party is not
 classified, because asserting one would be a claim the source never makes
-(`.claude/rules/grounded-answers.md` rule 3). Across the 108 committees these rules propose
-confidently, 100 carry such money and its party agreed with our own record on **all 100**, with 0
+(`.claude/rules/grounded-answers.md` rule 3). Across the 108 committees these rules proposed
+confidently *before the filer directory was wired in*, 100 carry such money and its party agreed
+with our own record on **all 100**, with 0
 disagreements — and all 19 disagreements anywhere in the run fell on a namesake rather than on a
 name that actually matched. So a disagreement holds a proposal down to review; agreement is
 recorded as support and promotes nothing. This is identity evidence only. That a county party paid
@@ -508,8 +523,10 @@ a committee helps say *whose* committee it is, and says nothing about what the m
 
 **Coverage is two different numbers, and confusing them is the failure to avoid.** How much the
 proposer narrowed down is not how much a person has checked. Measured against production's 200
-sitting members: **108 matched, 92 ambiguous, 0 unmatched** — every sitting member has at least
-one proposal — and **0 confirmed**, because nothing is linked until someone answers. A surname
+sitting members, with §9.7's directory wired in: **144 matched, 56 ambiguous, 0 unmatched** —
+every sitting member has at least one proposal — and **0 confirmed**, because nothing is linked
+until someone answers. Without the directory the same code reads 108 and 92, reproducible with
+`--no-filer-directory`. A surname
 pool too large to show is capped and the number hidden is printed, because silently cutting the 31
 committees named Johnson would read as having considered them all.
 
@@ -629,17 +646,18 @@ unfinished clerical task of ours. That is `.claude/rules/grounded-answers.md` ru
 missing-versus-zero failure moved out of a number and into the navigation, where no per-profile
 wording can reach it. The count is also temporary and shrinking, so gating would build a
 permanent mechanism to hide a problem that goes away: the shipped proposer narrows 200 sitting
-members to **108 matched and 92 ambiguous, with 0 unmatched**, and the ambiguous ones are mostly
-nickname, middle-name and shared-surname cases a person resolves (§5.1). **The number a page may
-print is the confirmed count, and today that is 0**, because a proposal is a question and only an
-answer is a link. An earlier independent estimate put the automatic tie at 111
-([#1329](https://github.com/alethical-org/alethical/issues/1329)); 108 is the measurement from the
-code that actually runs, and neither number is a link count.
+members to **144 matched and 56 ambiguous, with 0 unmatched**, and each of the 56 is a choice
+between two or more of that member's own committees rather than a failure to identify them (§5.1).
+**The number a page may print is the confirmed count, and today that is 0**, because a proposal is
+a question and only an answer is a link. Two earlier figures are superseded and recorded so nobody
+reads a drop as a regression: an independent estimate of 111
+([#1329](https://github.com/alethical-org/alethical/issues/1329)), and 108 from the same code
+before §9.7's filer directory was wired in.
 
 So on the day this ships the unconfirmed state is not an edge case, it is the tab: **all 200
-profiles show it**, and they drain one at a time as answers land. The 108 and 92 describe how hard
+profiles show it**, and they drain one at a time as answers land. The 144 and 56 describe how hard
 each review is, never what a reader sees. Read those two numbers in the wrong order and a design
-budgets its care for 92 exceptions against 108 populated pages, when the truth on launch day is
+budgets its care for 56 exceptions against 144 populated pages, when the truth on launch day is
 200 unconfirmed pages and none populated.
 What the unconfirmed state must do instead is explain itself, and never render "no committee is
 registered for this person" the same as "we have not confirmed which of their committees is
