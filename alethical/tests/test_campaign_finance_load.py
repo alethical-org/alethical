@@ -333,7 +333,11 @@ def publish_first(db, board: FakeBoard, store: MemoryStore) -> cf.LoadReport:
     """
     first = run(db, board, store)
     assert first.refusal is not None
-    hashes = [outcome.fetched.content_hash for outcome in first.outcomes]
+    hashes = [
+        outcome.measurements.record_set_hash
+        for outcome in first.outcomes
+        if outcome.measurements
+    ]
     published = run(db, board, store, publish_hashes=hashes)
     assert published.published, published.summary()
     return published
@@ -585,6 +589,124 @@ def test_running_the_same_import_twice_changes_nothing(db, board, store) -> None
     ]
 
 
+def test_the_same_records_in_a_different_order_are_not_a_new_release(
+    db, board, store
+) -> None:
+    """The Board's export shuffles, and this is the test that stops it costing us.
+
+    Measured 11 Aug 2026: 3 downloads of the independent-expenditures file seconds
+    apart returned 3 different sha256 hashes at an identical byte size, holding an
+    identical multiset of 41,130 records with 35,905 of the 41,130 positions
+    differing; the contributions file behaved the same way with 511,066 of 583,152
+    positions differing. Keyed on the bytes, every run would publish a new release,
+    renumber every row, and prune the set it had just replaced.
+    """
+    first = publish_first(db, board, store)
+    before = _published_state(db)
+    stored_objects = dict(store.objects)
+
+    board.set_rows(Dataset.contributions, list(reversed(CONTRIBUTION_ROWS)))
+    shuffled = run(db, board, store)
+
+    assert shuffled.no_change
+    assert not shuffled.published
+    assert live(db).id == first.release_id
+    assert _published_state(db) == before
+    # One snapshot per dataset still, and no second copy of the same records in the
+    # store: what is kept is one body per distinct record set, not per download.
+    assert len(db.scalars(select(models.CampaignFinanceSnapshot)).all()) == 3
+    assert store.objects == stored_objects
+    # The reshuffled download's own byte hash is on the record even though its bytes
+    # were not kept, so the shuffling stays measurable.
+    observed = {
+        observation.content_hash
+        for observation in db.scalars(
+            select(models.CampaignFinanceFetchObservation).where(
+                models.CampaignFinanceFetchObservation.dataset == Dataset.contributions
+            )
+        )
+    }
+    assert shuffled.outcomes[0].fetched.content_hash in observed
+    assert len(observed) >= 2
+
+
+def test_reloading_a_pruned_set_uses_the_kept_file_so_record_numbers_still_point_right(
+    db, board, store
+) -> None:
+    """A citation names a record number in one specific dated download.
+
+    So when a set's rows have been pruned and it is published again, the rows are
+    rebuilt from the bytes we kept, never from today's download — today's download
+    holds the same records in a different order, and numbering from it would leave
+    every citation pointing at the wrong line of the file a reader is shown.
+    """
+    published = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, published.release_id)
+    original_snapshot = snapshot_of(db, release, Dataset.contributions)
+    original_order = [
+        (row.row_number, row.contributor)
+        for row in contribution_rows(db, original_snapshot.id)
+    ]
+
+    # A genuinely different set, which supersedes and prunes the first.
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("Retired", "Nurse") for row in CONTRIBUTION_ROWS],
+    )
+    run(db, board, store)
+    db.expire_all()
+    assert original_snapshot.status == SnapshotStatus.pruned
+
+    # Now the first set's records come back, shuffled, as this source does.
+    board.set_rows(Dataset.contributions, list(reversed(CONTRIBUTION_ROWS)))
+    again = run(db, board, store)
+    assert again.published
+
+    restored = snapshot_of(
+        db,
+        db.get(models.CampaignFinanceRelease, again.release_id),
+        Dataset.contributions,
+    )
+    assert restored.id == original_snapshot.id
+    rebuilt = [
+        (row.row_number, row.contributor) for row in contribution_rows(db, restored.id)
+    ]
+    assert rebuilt == original_order
+
+
+def test_a_kept_body_that_no_longer_reproduces_its_records_stops_the_run(
+    db, board, store
+) -> None:
+    """Rebuilding from the store is also a full integrity check of the object.
+
+    If the retained bytes have been altered or truncated, this is where it stops,
+    rather than publishing rows whose numbers point at something else.
+    """
+    published = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, published.release_id)
+    snapshot = snapshot_of(db, release, Dataset.contributions)
+    body = db.get(models.CampaignFinanceSnapshotBody, snapshot.id)
+
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("Retired", "Nurse") for row in CONTRIBUTION_ROWS],
+    )
+    run(db, board, store)
+
+    import gzip as gziplib
+
+    store.objects[body.object_key] = gziplib.compress(
+        csv_bytes(
+            cf.SPEC_BY_DATASET[Dataset.contributions], list(CONTRIBUTION_ROWS[:3])
+        ),
+        mtime=0,
+    )
+    board.set_rows(Dataset.contributions, list(reversed(CONTRIBUTION_ROWS)))
+    with pytest.raises(cf.CampaignFinanceRefusal) as refusal:
+        run(db, board, store)
+    assert "no longer reproduces the records" in str(refusal.value)
+
+
 def _published_state(db) -> dict:
     """Everything a reader could see, as comparable values."""
     db.expire_all()
@@ -642,8 +764,8 @@ def test_a_truncated_download_is_kept_quarantined_and_the_previous_set_stays_liv
 
     truncated = db.scalars(
         select(models.CampaignFinanceSnapshot).where(
-            models.CampaignFinanceSnapshot.content_hash
-            == report.outcomes[0].fetched.content_hash
+            models.CampaignFinanceSnapshot.record_set_hash
+            == report.outcomes[0].measurements.record_set_hash
         )
     ).one()
     assert truncated.status == SnapshotStatus.quarantined
@@ -764,7 +886,10 @@ def test_naming_the_hashes_never_waives_a_structural_check(db, board, store) -> 
     rows[0] = rows[0].replace("2025-07-10", "44196")
     board.set_rows(Dataset.contributions, rows)
     first = run(db, board, store)
-    hashes = [outcome.fetched.content_hash for outcome in first.outcomes]
+    hashes = [
+        outcome.measurements.record_set_hash if outcome.measurements else ""
+        for outcome in first.outcomes
+    ]
     second = run(db, board, store, publish_hashes=hashes)
     assert not second.published
     assert "parses_completely" in {
@@ -863,6 +988,42 @@ def test_a_republished_set_whose_rows_were_pruned_is_reloaded_not_reused(
     assert len(contribution_rows(db, snapshot.id)) == len(original_rows)
 
 
+def test_a_snapshot_saying_loaded_with_no_rows_is_reloaded_rather_than_reused(
+    db, board, store
+) -> None:
+    """ "Already loaded" has to mean the rows are really there.
+
+    Pruning is written so this state cannot arise from pruning — the delete and the
+    status change share one transaction, which
+    ``test_one_file_changing_while_two_do_not_publishes_a_set_from_this_run``
+    pins. This covers every other way it could arise: a hand-run delete, a restore
+    from a partial dump, a future migration. The rows are counted rather than
+    trusted, because publishing a dataset with nothing in it would read as "this
+    committee raised no money".
+    """
+    published = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, published.release_id)
+    snapshot = snapshot_of(db, release, Dataset.contributions)
+    assert snapshot.status == SnapshotStatus.loaded
+
+    db.execute(
+        text("DELETE FROM cf_contribution_row WHERE snapshot_id = :id"),
+        {"id": snapshot.id},
+    )
+    db.commit()
+
+    again = run(db, board, store)
+    assert not again.no_change, "the unchanged shortcut must not reuse rowless rows"
+    assert again.published
+    restored = snapshot_of(
+        db,
+        db.get(models.CampaignFinanceRelease, again.release_id),
+        Dataset.contributions,
+    )
+    assert restored.content_hash == snapshot.content_hash
+    assert len(contribution_rows(db, restored.id)) == len(CONTRIBUTION_ROWS)
+
+
 def test_publishing_refuses_a_candidate_older_than_the_live_release(
     db, board, store
 ) -> None:
@@ -933,7 +1094,7 @@ def test_a_published_snapshot_records_the_checks_it_passed(db, board, store) -> 
     assert names["parses_completely"] == "passed"
     assert names["previous_release_to_compare_against"] == "overridden"
     assert names["reported_totals_reconcile"] == "not_run"
-    assert release.notes is not None and snapshot.content_hash in release.notes
+    assert release.notes is not None and snapshot.record_set_hash in release.notes
 
 
 def test_a_dry_run_writes_nothing(db, board, store) -> None:

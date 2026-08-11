@@ -1499,11 +1499,26 @@ class CampaignFinanceReleaseStatus(enum.Enum):
 
 
 class CampaignFinanceSnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """One downloaded file, identified by its content.
+    """One distinct set of records for one dataset, and the bytes it came in.
 
-    Keyed on the hash of the *response bytes*, not of decoded text — the
-    ``content_hash`` helper in alethical/pipeline/minnesota.py takes a ``str`` and
-    must never be reused for file identity.
+    Two hashes, because they answer different questions and only one of them can
+    answer "did the data change":
+
+    * ``content_hash`` is the sha256 of the **response bytes** we kept, never of
+      decoded text — the ``content_hash`` helper in
+      alethical/pipeline/minnesota.py takes a ``str`` and must never be reused for
+      file identity. It identifies the retained object.
+    * ``record_set_hash`` is a hash over the file's records, sorted, so row order
+      cannot change it. **This is the change detector**, because the Board's export
+      is byte-unstable: 3 downloads of the independent-expenditures file seconds
+      apart on 11 Aug 2026 returned 3 different byte hashes at an identical size,
+      with an identical multiset of 41,130 records and 35,905 of the 41,130
+      positions differing. Keyed on the bytes alone, every single run would look
+      like a new file, publish a new release, renumber every row, and prune the set
+      it just replaced.
+
+    Null ``record_set_hash`` means the download could not be parsed. Those are
+    retained too, so the column is nullable and its unique index is partial.
     """
 
     __tablename__ = "cf_snapshot"
@@ -1521,6 +1536,7 @@ class CampaignFinanceSnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # page rather than failing.
     content_disposition_filename: Mapped[Optional[str]] = mapped_column(Text)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    record_set_hash: Mapped[Optional[str]] = mapped_column(String(64))
     byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     row_count: Mapped[Optional[int]] = mapped_column(Integer)
     column_names: Mapped[Optional[list]] = mapped_column(JSONB)
@@ -1551,6 +1567,15 @@ class CampaignFinanceSnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("dataset", "content_hash"),
+        # The real identity of a dataset's data. Partial, because an unparseable
+        # download has no record set and more than one of those can be retained.
+        Index(
+            "uq_cf_snapshot_dataset_record_set_hash",
+            "dataset",
+            "record_set_hash",
+            unique=True,
+            postgresql_where=text("record_set_hash IS NOT NULL"),
+        ),
         # Lets cf_release's per-dataset columns carry a composite foreign key, so
         # the contributions slot physically cannot hold an expenditures snapshot.
         UniqueConstraint("id", "dataset", name="uq_cf_snapshot_id_dataset"),

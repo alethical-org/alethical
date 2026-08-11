@@ -26,14 +26,15 @@ The cycle, and the reason each step sits where it does:
    number answers **HTTP 200 with a 39 KB HTML error page** typed
    ``application/octet-stream``, so 2 content checks are what catch a wrong file —
    the ``Content-Disposition`` filename and an exact match on the header line.
-3. **Store the bytes and record the fetch, and commit that, before validating
+3. **Parse, type and measure in one streaming pass**, writing no database rows yet.
+   This pass also produces the record-set hash the next step needs.
+4. **Store the bytes and record the fetch, and commit that, before validating
    anything.** A failure record written inside the transaction that later fails
    rolls back with it, which quietly turns "the bad download is retained" into
    "the bad download is gone".
-4. **Compare hashes.** All 3 unchanged means nothing to publish. The run still
+5. **Compare record sets.** All 3 unchanged means nothing to publish. The run still
    records a fetch observation per dataset, because the record of *what we checked
    and when* grows even when the published data does not.
-5. **Parse, type and measure in one streaming pass**, writing no database rows yet.
 6. **Validate** against the measurements of the live release's snapshots. A
    snapshot that fails is left ``quarantined`` with its reason and its bytes, and
    nothing is published.
@@ -41,6 +42,17 @@ The cycle, and the reason each step sits where it does:
    release, take the pointer row with ``FOR UPDATE``, re-check, and move it.
 8. **Prune in a separate transaction** afterwards. A crash there leaves extra
    rows, which is harmless and self-correcting.
+
+**"Did the data change" is decided on the records, not on the bytes, because this
+source shuffles.** Fetching the same file 3 times seconds apart returns 3 different
+sha256 hashes at an identical byte size, holding an identical set of records in a
+different order: measured 11 Aug 2026 on the independent-expenditures file (41,130
+records, 35,905 of the 41,130 positions differing) and on the contributions file
+(583,152 records, 511,066 positions differing). So each snapshot carries an
+order-independent hash of its records alongside the hash of the bytes we kept, and
+one body is stored per distinct record set rather than per download. Keyed on the
+bytes alone, every run would look like a new file, publish a new release, renumber
+every row, and prune the set it had just replaced.
 
 Two things a reader of this data must know. A request must **resolve one release id
 and use it for all 3 datasets**: each statement sees the newest committed state, so
@@ -107,7 +119,6 @@ DOWNLOAD_LINK = re.compile(r'href="([^"]*\?download=(-?\d+))"')
 TAG = re.compile(r"<[^>]+>")
 
 MAX_REPORTED_ROW_ERRORS = 5
-DRY_RUN_SNAPSHOT_ID = uuid.UUID(int=0)
 
 
 # --- What each file looks like ----------------------------------------------
@@ -338,6 +349,10 @@ class Check:
 @dataclass
 class Measurements:
     row_count: int = 0
+    # A hash over this file's records, sorted, so row order cannot change it. This
+    # is what "did the data change" is decided on, because the Board's export is
+    # byte-unstable (see the module docstring). Empty until the file parses.
+    record_set_hash: str = ""
     column_names: list[str] = field(default_factory=list)
     amount_sum: Decimal = Decimal("0")
     negative_amount_sum: Decimal = Decimal("0")
@@ -376,6 +391,9 @@ class FetchedFile:
 class DatasetOutcome:
     spec: DatasetSpec
     fetched: FetchedFile
+    # Minted before the parse so the COPY file can carry it. Becomes the snapshot's
+    # real id when these records are new, and is discarded when they are not.
+    candidate_snapshot_id: uuid.UUID = field(default_factory=uuid.uuid4)
     snapshot_id: Optional[uuid.UUID] = None
     measurements: Optional[Measurements] = None
     checks: list[Check] = field(default_factory=list)
@@ -386,6 +404,17 @@ class DatasetOutcome:
     @property
     def blocked(self) -> list[Check]:
         return [check for check in self.checks if check.blocks_publication]
+
+    @property
+    def copy_file_matches_snapshot(self) -> bool:
+        """Whether this run's COPY file can be loaded as it stands.
+
+        It can only when the snapshot is the one this run created. If the records
+        matched a snapshot from an earlier run, the row numbers in this file belong
+        to a different shuffle of the same records than the bytes we retained, so
+        loading them would make a citation point at the wrong line of the kept file.
+        """
+        return self.snapshot_id == self.candidate_snapshot_id
 
 
 @dataclass
@@ -415,9 +444,17 @@ class LoadReport:
             )
             lines.append(
                 f"  {outcome.spec.key}: {state}, {rows}, "
-                f"{outcome.fetched.byte_size:,} bytes, "
-                f"hash {outcome.fetched.content_hash[:12]}"
+                f"{outcome.fetched.byte_size:,} bytes"
             )
+            # The record-set hash in full, because it is what an operator passes to
+            # --publish-hashes and a truncated one would silently not match. The byte
+            # hash sits beside it as the identity of the download itself.
+            lines.append(
+                f"      records {measured.record_set_hash or '(unparsed)'}"
+                if measured
+                else "      records (unparsed)"
+            )
+            lines.append(f"      bytes   {outcome.fetched.content_hash}")
             for check in outcome.checks:
                 if check.status in ("failed", "not_run", "overridden"):
                     lines.append(f"      {check.status}: {check.name} — {check.detail}")
@@ -651,7 +688,7 @@ def parse_and_measure(
     and size bands are all there is.
     """
     measured = Measurements(column_names=[column.source for column in spec.columns])
-    seen_rows: set[bytes] = set()
+    fingerprints: list[bytes] = []
     filers: set[str] = set()
     expected = len(spec.columns)
     blanks = {column.source: 0 for column in spec.columns}
@@ -734,10 +771,11 @@ def parse_and_measure(
             filer = raw[filer_at].strip()
             if filer:
                 filers.add(filer)
-            # A 16-byte digest rather than the row itself: a set of 583,152 tuples
-            # of 15 strings costs hundreds of megabytes, and a collision here could
-            # only ever move a recorded measurement by 1.
-            seen_rows.add(
+            # A 16-byte digest per record rather than the record itself: a list of
+            # 583,152 tuples of 15 strings costs hundreds of megabytes. Kept with
+            # duplicates, because 20,524 records in one real download repeat another
+            # record and a set would throw that multiplicity away.
+            fingerprints.append(
                 hashlib.blake2b(
                     "\x1f".join(raw).encode("utf-8", "surrogatepass"), digest_size=16
                 ).digest()
@@ -749,11 +787,21 @@ def parse_and_measure(
             if any("\\" in cell and cell.endswith('"') for cell in raw):
                 measured.malformed_quote_record_count += 1
 
-    measured.distinct_row_count = len(seen_rows)
+    measured.distinct_row_count = len(set(fingerprints))
     measured.distinct_filer_count = len(filers)
     measured.rows_by_year = dict(sorted(years.items()))
     measured.blank_counts_by_column = blanks
     measured.blank_date_count = sum(blanks[source] for source in date_sources)
+    if not measured.errors:
+        # Sorted, so the same records in a different order hash the same. Sorting
+        # rather than combining with XOR or addition on purpose: XOR cancels a
+        # repeated record against its own copy, and this source publishes 20,524 of
+        # those.
+        fingerprints.sort()
+        digest = hashlib.sha256()
+        for fingerprint in fingerprints:
+            digest.update(fingerprint)
+        measured.record_set_hash = digest.hexdigest()
     return measured
 
 
@@ -1007,51 +1055,79 @@ def object_key(spec: DatasetSpec, content_hash: str) -> str:
     return f"campaign-finance/{spec.key}/{content_hash}.csv.gz"
 
 
+def find_snapshot(db: Session, outcome: DatasetOutcome) -> Optional[Any]:
+    """The snapshot already holding this download's records, if there is one.
+
+    Matched on the record-set hash, not on the bytes: the Board's export shuffles
+    its rows, so the same data arrives with a different byte hash every time. An
+    unparseable download has no record set, so those fall back to the bytes.
+    """
+    measured = outcome.measurements
+    if measured is not None and measured.record_set_hash:
+        return db.scalars(
+            select(schema.CampaignFinanceSnapshot).where(
+                schema.CampaignFinanceSnapshot.dataset == outcome.spec.dataset,
+                schema.CampaignFinanceSnapshot.record_set_hash
+                == measured.record_set_hash,
+            )
+        ).one_or_none()
+    return db.scalars(
+        select(schema.CampaignFinanceSnapshot).where(
+            schema.CampaignFinanceSnapshot.dataset == outcome.spec.dataset,
+            schema.CampaignFinanceSnapshot.content_hash == outcome.fetched.content_hash,
+        )
+    ).one_or_none()
+
+
 def record_fetch(
     db: Session,
-    fetched: FetchedFile,
+    outcome: DatasetOutcome,
     store: Any,
     directory: str,
     ingestion_run_id: Optional[uuid.UUID],
 ) -> tuple[uuid.UUID, bool]:
     """Store the bytes and record the fetch, then commit — before any validation.
 
-    Its own transaction on purpose. A failure record written inside the
-    transaction that later fails rolls back with it, which is how "the bad
-    download is retained" becomes "the bad download is gone".
+    Its own transaction on purpose. A failure record written inside the transaction
+    that later fails rolls back with it, which is how "the bad download is retained"
+    becomes "the bad download is gone". A download that could not be parsed is
+    stored and recorded here too, for the same reason.
 
-    Returns the snapshot id and whether this run found bytes already on file.
+    **A body is stored only for records we have not seen before.** Because the
+    export shuffles, keeping every download's bytes would mean 7 to 10 GB a year of
+    reshuffled copies of identical data. What is kept instead is one body per
+    distinct record set, plus a fetch observation per download carrying that
+    download's own byte hash and size — so the shuffling stays on the record and
+    measurable without paying for it.
+
+    Returns the snapshot id and whether the records were already on file.
     """
-    spec = fetched.spec
-    existing = db.scalars(
-        select(schema.CampaignFinanceSnapshot).where(
-            schema.CampaignFinanceSnapshot.dataset == spec.dataset,
-            schema.CampaignFinanceSnapshot.content_hash == fetched.content_hash,
-        )
-    ).one_or_none()
+    spec = outcome.spec
+    fetched = outcome.fetched
+    measured = outcome.measurements
+    existing = find_snapshot(db, outcome)
 
     if existing is None:
         snapshot = schema.CampaignFinanceSnapshot(
+            # Generated before the parse, so the COPY file this run already wrote
+            # carries the right id.
+            id=outcome.candidate_snapshot_id,
             dataset=spec.dataset,
             download_id=fetched.download_id,
             source_url=fetched.requested_url,
             content_disposition_filename=fetched.disposition_filename,
             content_hash=fetched.content_hash,
+            record_set_hash=(measured.record_set_hash or None) if measured else None,
             byte_size=fetched.byte_size,
             status=SnapshotStatus.quarantined
-            if fetched.content_error
+            if fetched.content_error or (measured and measured.errors)
             else SnapshotStatus.fetched,
             error_text=fetched.content_error,
             validation_json={},
         )
         db.add(snapshot)
         db.flush()
-    else:
-        snapshot = existing
-
-    key = object_key(spec, fetched.content_hash)
-    body = db.get(schema.CampaignFinanceSnapshotBody, snapshot.id)
-    if body is None:
+        key = object_key(spec, fetched.content_hash)
         compressed_path = os.path.join(directory, f"{spec.key}.csv.gz")
         compressed_hash, compressed_size = gzip_to(fetched.path, compressed_path)
         # Read back and verify before the row exists. An orphaned object is
@@ -1068,6 +1144,8 @@ def record_fetch(
                 compression="gzip",
             )
         )
+    else:
+        snapshot = existing
 
     db.add(
         schema.CampaignFinanceFetchObservation(
@@ -1154,6 +1232,47 @@ def copy_rows(db: Session, spec: DatasetSpec, copy_path: str) -> None:
                 copy.write(chunk)
 
 
+def rows_from_retained_body(
+    db: Session,
+    outcome: DatasetOutcome,
+    snapshot: Any,
+    store: Any,
+    directory: str,
+) -> str:
+    """Rebuild a snapshot's COPY file from the bytes we kept, and prove they are them.
+
+    Needed whenever rows must be (re)loaded for a snapshot this run did not create —
+    a set whose rows were pruned and is being published again. This run's own
+    download holds the same records in a different order, so numbering from it would
+    point every citation at the wrong line of the retained file.
+
+    The rebuilt record-set hash is checked against the one recorded on the snapshot,
+    which is a full integrity check of the stored object rather than a formality: if
+    the body has been altered or truncated in the store, this is where it stops.
+    """
+    spec = outcome.spec
+    body = db.get(schema.CampaignFinanceSnapshotBody, snapshot.id)
+    if body is None:
+        raise CampaignFinanceRefusal(
+            f"{spec.key} snapshot {snapshot.id} has no retained body, so its rows "
+            "cannot be rebuilt with the record numbers its citations use."
+        )
+    compressed_path = os.path.join(directory, f"{spec.key}.retained.csv.gz")
+    source_path = os.path.join(directory, f"{spec.key}.retained.csv")
+    store.get(body.object_key, compressed_path)
+    with gzip.open(compressed_path, "rb") as compressed, open(source_path, "wb") as raw:
+        shutil.copyfileobj(compressed, raw, COPY_CHUNK_BYTES)
+    copy_path = os.path.join(directory, f"{spec.key}.retained.copy.csv")
+    rebuilt = parse_and_measure(spec, source_path, snapshot.id, copy_path)
+    if rebuilt.errors or rebuilt.record_set_hash != snapshot.record_set_hash:
+        raise CampaignFinanceRefusal(
+            f"{spec.key} retained body {body.object_key} no longer reproduces the "
+            f"records recorded against snapshot {snapshot.id}. Refusing to publish "
+            f"rows we cannot trace: {'; '.join(rebuilt.errors) or 'hash mismatch'}"
+        )
+    return copy_path
+
+
 def publish(
     db: Session,
     outcomes: list[DatasetOutcome],
@@ -1162,6 +1281,8 @@ def publish(
     fetch_completed_at: datetime,
     ingestion_run_id: Optional[uuid.UUID],
     notes: Optional[str],
+    store: Any = None,
+    directory: Optional[str] = None,
 ) -> uuid.UUID:
     """Load the rows and move the live pointer, in one transaction.
 
@@ -1195,15 +1316,19 @@ def publish(
         snapshot = db.get(schema.CampaignFinanceSnapshot, outcome.snapshot_id)
         if snapshot is None:  # pragma: no cover - written moments ago
             raise CampaignFinanceRefusal(f"{spec.key} snapshot vanished before publish")
-        if snapshot.content_hash != outcome.fetched.content_hash:  # pragma: no cover
-            raise CampaignFinanceRefusal(
-                f"{spec.key} snapshot {snapshot.id} no longer holds the hash this "
-                "run validated"
-            )
         measured = outcome.measurements
         if measured is None or outcome.copy_path is None:  # pragma: no cover
             raise CampaignFinanceRefusal(
                 f"{spec.key} reached publication without being parsed"
+            )
+        # Re-read inside the lock: the snapshot must still hold the records this run
+        # validated. Compared on the record-set hash, because the byte hash on the
+        # snapshot belongs to whichever download's bytes were kept, which is not
+        # this run's when the records were already on file.
+        if snapshot.record_set_hash != measured.record_set_hash:  # pragma: no cover
+            raise CampaignFinanceRefusal(
+                f"{spec.key} snapshot {snapshot.id} no longer holds the records this "
+                "run validated"
             )
         # "Already loaded" has to mean the rows are really there. A snapshot left
         # saying loaded with no rows is exactly what pruning could produce, and
@@ -1214,11 +1339,15 @@ def publish(
         if loaded:
             outcome.reused_rows = True
         else:
-            # A pruned snapshot's rows are gone and a re-published set needs them
-            # back, so they are reloaded from this run's own download rather than
-            # assumed — the Board can republish byte-identical files.
+            source = (
+                outcome.copy_path
+                if outcome.copy_file_matches_snapshot
+                else rows_from_retained_body(
+                    db, outcome, snapshot, store, directory or ""
+                )
+            )
             db.execute(delete(spec.table).where(spec.table.snapshot_id == snapshot.id))
-            copy_rows(db, spec, outcome.copy_path)
+            copy_rows(db, spec, source)
         snapshot.status = SnapshotStatus.loaded
         snapshot.row_count = measured.row_count
         snapshot.column_names = measured.column_names
@@ -1346,9 +1475,17 @@ def load_campaign_finance(
 
     ``publish_hashes`` is how an operator publishes a set the comparison checks
     quarantined, including the very first import, which has nothing to compare
-    against. All 3 hashes must be named, so a set cannot be waved through by
-    accident, and the hashes are recorded on the release. Structural checks are
-    never waived by it.
+    against. All 3 record-set hashes must be named, so a set cannot be waved through
+    by accident, and they are recorded on the release. Structural checks are never
+    waived by it. Record-set hashes rather than byte hashes because the export
+    shuffles: a byte hash an operator read off one run may not exist by the next one,
+    while the record-set hash survives as long as the data does.
+
+    One consequence of parsing before storing: a crash *during* the parse loses that
+    download's bytes. A parse *failure* does not — the file is stored and recorded as
+    quarantined, which is what §4.3 asks for. The trade buys not keeping 7 to 10 GB a
+    year of reshuffled copies of identical data, and the irreplaceable case, a
+    published set, is always stored before it is published.
     """
     http = http or _http_session()
     approved = {value.strip().lower() for value in (publish_hashes or []) if value}
@@ -1383,23 +1520,46 @@ def load_campaign_finance(
             report.outcomes.append(DatasetOutcome(spec=spec, fetched=fetched))
         fetch_completed_at = datetime.now(UTC)
 
+        for outcome in report.outcomes:
+            spec = outcome.spec
+            if outcome.fetched.content_error is not None:
+                continue
+            outcome.copy_path = os.path.join(directory, f"{spec.key}.copy.csv")
+            outcome.measurements = parse_and_measure(
+                spec,
+                outcome.fetched.path,
+                outcome.candidate_snapshot_id,
+                outcome.copy_path,
+            )
+            measured = outcome.measurements
+            log(
+                f"{spec.key}: {measured.row_count:,} records, "
+                f"total {measured.amount_sum}, "
+                f"{measured.distinct_row_count:,} distinct, "
+                f"{measured.malformed_quote_record_count} with the source's quote "
+                f"escape, records {measured.record_set_hash[:12] or 'unparsed'}"
+            )
+
         if not dry_run:
             for outcome in report.outcomes:
-                outcome.snapshot_id, _ = record_fetch(
-                    db, outcome.fetched, store, directory, ingestion_run_id
+                outcome.snapshot_id, reused = record_fetch(
+                    db, outcome, store, directory, ingestion_run_id
                 )
+                if reused:
+                    log(f"{outcome.spec.key}: these records were already on file")
 
         # Read even on a dry run: a dry run's whole point is to show what the real
         # checks would say, and every one of them compares against the live
         # release's recorded measurements.
         baselines = baseline_snapshots(db)
-        published_hashes = {
-            dataset: snapshot.content_hash for dataset, snapshot in baselines.items()
-        }
         for outcome in report.outcomes:
-            outcome.unchanged = (
-                published_hashes.get(outcome.spec.dataset)
-                == outcome.fetched.content_hash
+            baseline = baselines.get(outcome.spec.dataset)
+            measured = outcome.measurements
+            outcome.unchanged = bool(
+                baseline is not None
+                and measured is not None
+                and measured.record_set_hash
+                and baseline.record_set_hash == measured.record_set_hash
             )
 
         if not dry_run and all(outcome.unchanged for outcome in report.outcomes):
@@ -1412,39 +1572,19 @@ def load_campaign_finance(
             if usable:
                 report.no_change = True
                 _finish_run(db, ingestion_run_id, report)
-                log("all 3 files are byte-identical to the published set")
+                log("all 3 files hold the records already published")
                 return report
 
         for outcome in report.outcomes:
-            spec = outcome.spec
-            if outcome.fetched.content_error is None:
-                outcome.copy_path = os.path.join(directory, f"{spec.key}.copy.csv")
-                outcome.measurements = parse_and_measure(
-                    spec,
-                    outcome.fetched.path,
-                    # A dry run has no snapshot, and its COPY file is discarded
-                    # with the temporary directory rather than loaded.
-                    outcome.snapshot_id or DRY_RUN_SNAPSHOT_ID,
-                    outcome.copy_path,
-                )
-            outcome.checks = validate(
-                spec,
-                outcome.fetched,
-                outcome.measurements,
-                baselines.get(spec.dataset),
-                operator_approved=outcome.fetched.content_hash in approved,
-            )
             measured = outcome.measurements
-            log(
-                f"{spec.key}: "
-                + (
-                    f"{measured.row_count:,} records, total {measured.amount_sum}, "
-                    f"{measured.distinct_row_count:,} distinct, "
-                    f"{measured.malformed_quote_record_count} with the source's "
-                    "quote escape"
-                    if measured
-                    else "not parsed"
-                )
+            outcome.checks = validate(
+                outcome.spec,
+                outcome.fetched,
+                measured,
+                baselines.get(outcome.spec.dataset),
+                operator_approved=bool(
+                    measured is not None and measured.record_set_hash in approved
+                ),
             )
 
         blocked = [outcome for outcome in report.outcomes if outcome.blocked]
@@ -1481,6 +1621,8 @@ def load_campaign_finance(
             fetch_completed_at=fetch_completed_at,
             ingestion_run_id=ingestion_run_id,
             notes=notes,
+            store=store,
+            directory=directory,
         )
         report.published = True
         report.pruned_snapshots, report.pruned_rows = prune(db)
