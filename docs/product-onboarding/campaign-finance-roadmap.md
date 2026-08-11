@@ -183,6 +183,24 @@ and drains as answers land. The tool that asks the questions is
 `scripts/review_legislator_campaign_committees.py`, and the standard it holds people to is in
 [`campaign-finance-system-design.md` §5.1 (what counts as a confirmed match)](../architecture/campaign-finance-system-design.md).
 
+**How the sitting works: one list, one word, then 56 questions.** `review --batch` prints all 144
+uncontested legislators as one numbered list, each line naming the legislator, the committee, and
+what the evidence rests on ("exact name, Board confirms seat, party money DFL agrees"). Type the
+numbers of any to hold back, then the word `confirm`. Nothing is written until that word, and
+anything held back joins the 56 in the one-at-a-time pass. So it is one screen to read and one word
+to type, followed by 56 individual answers.
+
+**One person signs, and no second reviewer is asked for.** Two people reading the same committee
+name share the same evidence, so they share its mistakes; a name that is genuinely ambiguous does
+not become clearer for being read twice. What is independent of the reader is the sources, so a
+`verify` command re-checks every confirmed link against the state's own records: the registered
+committee list, which party's units pay the committee, and the committee's published name, which
+can change. A wrong answer therefore surfaces the day the evidence shifts rather than waiting for
+somebody to re-read 200 rows. It reports and never repairs, because a contradiction wants a
+person's eyes. It is not scheduled and nothing runs it on a clock; it belongs in the data load
+([#1328](https://github.com/alethical-org/alethical/issues/1328)), where the records are already
+in hand.
+
 ---
 
 ## Answered, and no longer blocking

@@ -434,6 +434,16 @@ under two legislators' names. The same number may be **rejected** for several le
 is what ruling out a shared surname looks like, and rejections are kept so the proposer stops
 re-suggesting them and so "checked, not theirs" never reads as "nobody has looked".
 
+**One named person stays the rule, and a second reviewer was considered and rejected.** Two people
+reading one committee name share the whole of their evidence and so share its mistakes: the
+ambiguous cases are ambiguous because a name genuinely is, not because a reader might be careless.
+What is independent of the reviewer is the sources, so `verify` re-checks every confirmed link
+against the registered-filer directory (§9.7), against which party's units pay the committee, and
+against the committee's own published name, which can change between downloads. A wrong link
+therefore surfaces when the evidence shifts rather than waiting for somebody to re-read the roster.
+It reports and never repairs: a contradiction wants a person's eyes, and a rename is reported as
+what changed rather than as a mistake.
+
 **One legislator holds several committees, so the link is one-to-many** (§7, Display rules, has
 the counts). A legislator whose second committee were refused would show one year of money and
 silently drop the rest.
