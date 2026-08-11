@@ -183,11 +183,28 @@ Minnesota focus or relies on unreviewed sources rather than an official public r
 
 ### Not built yet — ingestion
 
-- **Official campaign-finance and lobbying disclosures.** Source-backed donor, recipient,
-  expenditure, lobbying, and documented-relationship tracking is an allowed direction,
-  not a permanent non-goal ([#1269](https://github.com/alethical-org/alethical/issues/1269)).
+- **Official campaign-finance and lobbying disclosures.** *Committed and designed; build not
+  started.* Source-backed donor, recipient, expenditure, lobbying, and documented-relationship
+  tracking moved from allowed direction to committed work
+  ([#1269](https://github.com/alethical-org/alethical/issues/1269) set the policy; the
+  `campaign finance` milestone holds the schedule, which is deliberately not repeated here).
   It must use reviewed government filing sources, retain the source behind every record
   and relationship, and never infer that money or access caused a public action.
+
+  Four boundaries are settled, and each closes a way of being wrong while every number on
+  screen is individually correct. Design: `docs/architecture/campaign-finance-system-design.md`.
+  Plain-language plan: `docs/product-onboarding/campaign-finance-roadmap.md`.
+
+  - **Minnesota first, federal deferred.** Federal filings are a separate system with separate
+    rules; they wait.
+  - **Whole-set replacement, not row merging.** Minnesota publishes no per-transaction
+    identifier and two payments can be legitimately identical, so no key built from a row's
+    contents can separate a genuine repeat payment from a re-import.
+  - **Registered filers join by registration number; people and vendors are never joined or
+    split automatically.** A likely name match is surfaced for a person to confirm.
+  - **Displayed figures follow `.claude/rules/grounded-answers.md` rule 12**: the reported
+    total and the listed payments both appear, missing reads "Not reported" while a verified
+    zero reads "0", and transfers are shown separately rather than as a chain.
 - **Federal legislative data as a first-class dataset.** Genuinely undecided rather than
   refused: the open question is whether a minimal read-only federal surface is worth it
   (see Open questions below). Nothing is built, and nothing blocks starting.
