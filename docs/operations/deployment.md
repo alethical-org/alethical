@@ -106,7 +106,11 @@ Create the Vercel project from the repository root so the root `pnpm-lock.yaml` 
 - Install command: `pnpm install --frozen-lockfile`
 - Build command: `pnpm --dir apps/frontend run build`
 - Output directory: `apps/frontend/dist`
-- rewrites sending every public page path to `api/page.ts`
+- rewrites sending every public page path to `api/page.ts` — one path segment each, so a path that
+  matches none of them (a wrong-case `/BILLS/...`, an unknown `/foo`) reaches the SPA rewrite below
+  and is served the home page instead; `trailingSlash: false` redirects the slash-terminated forms
+  back onto these rewrites rather than letting them fall through
+  ([#1325](https://github.com/alethical-org/alethical/issues/1325))
 - rewrites sending `/sitemap.xml` and `/sitemaps/*.xml` to `api/sitemap.ts`
 - the normal SPA rewrite to `index.html` for everything else
 
