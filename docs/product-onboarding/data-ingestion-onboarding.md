@@ -417,6 +417,16 @@ just pipeline local --write --allow-writes     # commit after review
   `bill_action`, `sponsorship`, `vote_event`, `vote_record`, `legislator`,
   `district`, `committee`, `committee_membership`, `legislative_session`) →
   Derived (`rag_section_document` + chunks/embeddings, `ai_enrichment`, stats).
+- **A fourth layer, for decisions a person made:** `legislator_campaign_committee`
+  holds the checked link from one of our legislators to a Minnesota campaign
+  committee's registration number ([#1354](https://github.com/alethical-org/alethical/issues/1354)).
+  It is neither canonical nor derived: no source states it, and nothing computes
+  it. `alethical/pipeline/legislator_committee_match.py` only *proposes* candidates
+  and `scripts/review_legislator_campaign_committees.py` asks a person, so the only
+  writer is someone answering a question. It is a separate layer because
+  `docs/architecture/campaign-finance-system-design.md` §4.4 (What survives
+  replacement) rebuilds the imported campaign-finance set on every load, and a human
+  decision stored on an imported row would be destroyed silently.
 
 ## Environment & system prerequisites
 
