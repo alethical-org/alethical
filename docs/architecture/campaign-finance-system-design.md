@@ -851,9 +851,17 @@ House 30B and his committee terminated **28 July 2026** with zero 2026 contribut
 payment dated 17 Nov 2025. So the page says the committee closed, and says when. **The year control
 makes it sharper**: his 2025 holds money and his 2026 holds none, so a reader switching years watches
 money disappear, and the explanation has to be on the screen they land on rather than inferable from
-the one they left. Population unsized — termination is not in the bulk downloads and costs one
-catalogue request per filer ([#1415](https://github.com/alethical-org/alethical/issues/1415)) — but
-one confirmed case in an election year is enough to require the wording.
+the one they left.
+
+**Sized, and it is rare rather than theoretical: 1.** §9.7's directory carries `TerminationDate` for
+every filer in a single request, so this needed one call rather than one per member. Novotny is the
+only sitting member with a closed committee among the 162 of 200 that could be resolved by district
+and surname; the other 38 are that match failing, not members shown to have no committee. And
+**closed-one-then-opened-another is 0 today** — he holds exactly one committee, registered 2019-12-03
+and terminated 2026-07-28, with no replacement — so this state is what it appears to be and not a
+money-moved case wearing its clothes. Keep the two apart in the design anyway: zero is not
+structurally impossible, 17 members hold more than one committee, and without a rule the two would
+render identically ([#1415](https://github.com/alethical-org/alethical/issues/1415)).
 
 **Separate transfers, never a chain.** Money is fungible. That a party gave a caucus $100,000
 and the caucus later gave a candidate $5,000 are two documented facts. That the same dollars
@@ -1253,6 +1261,19 @@ data[params][0]=all
 names and the viewer URL templates. **Omitting `data[params][0]=all` returns `false`, not an
 error** — another silent failure to check for.
 
+**A row's columns**, which this section previously did not list:
+`RegisteredEntityFullName`, `RegisteredEntityID`, `Party`, `OfficeSoughtFullName`, `District`,
+`RegistrationDate`, `TerminationDate`, `Incumbent`, `CandidateFullName`, `DistrictKey`,
+`OfficeKey`. **`RegistrationDate` and `TerminationDate` are here for every filer, in one request**,
+which is why [#1415](https://github.com/alethical-org/alethical/issues/1415) turned out to be a
+single call rather than one per member. That is the same shape as §9.1's `CutOffDate`: a section
+complete about what it set out to describe and silent on a field that closes something else, so the
+column list is written down rather than left to be re-derived.
+
+**So termination is one fact in three places, not three sources for it.** Registration-level here,
+repeated onto every report row in the catalogue (§9.1), and cited in §5.1. Comparing them
+corroborates nothing.
+
 The candidate directory carries an `Incumbent` flag, 209 rows on 11 August 2026, which is how
 the sitting legislators measured above were selected. **Do not read that flag as "sitting
 legislator" — §5.1 measures both ways it fails**: only 198 of the 209 are legislative seats, and
@@ -1289,6 +1310,14 @@ Recorded as not run, never as passed:
   special-election `CutOffDate` (§9.5) is confirmed on **one** filer-year, 18453 in 2024. A wrong
   start renders as a plausible date range rather than as an error, so this needs confirming across
   the population before a build relies on it.
+- **A committee that both opened and closed between two of our reads is invisible in the directory**,
+  because §9.7's list is a nightly snapshot we do not retain and it carries only current
+  registrations. Any itemized payments such a committee made would still be in the retained
+  downloads (§4.5), so the unobservable case is narrow: a registration that came and went without
+  itemizing anything. Not a launch concern; it is where a retention question about the directory
+  would sit if one is ever needed.
+- **38 of the 200 sitting members** could not be resolved to a directory row by district and surname
+  in the §7 termination count. That is the match failing, not evidence about those members.
 - ~~**The computed itemized split against the filing's own stated split** (§7) reconciled on 2
   filer-years at full precision.~~ **Run since** (§9.4): for the 2025 sitting-legislator population
   in full — 208 of 209, one having no 2025 year-end report, of which 199 of 202 ordinary
