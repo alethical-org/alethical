@@ -461,10 +461,26 @@ legislators, and a committee row carries no district. So a former or unsuccessfu
 the same name, same chamber and current activity is indistinguishable from the sitting member on
 the evidence in these files, and if the member's own committee is absent, the stranger's will look
 like a strong proposal. Nothing in the payment files fixes that, which is the reason the answer is
-a person's and not a rule's. **The Board's registered-filer directory is what would narrow it, and
-it is no longer an open route: §9.7 establishes it** (`data[action]=all-registered-candidates`, 777
-rows on 11 Aug 2026, carrying an `Incumbent` flag). Whether its columns separate a former
-candidate from a sitting one for these cases is unchecked, and is the next thing to try here.
+a person's and not a rule's. That paragraph is about the *payment* files, and it is where the
+proposer's evidence stops, not where the evidence stops.
+
+**The directory carries district and party, so the limit above is narrower than it reads.** §9.7's
+`all-registered-candidates` holds `District` on 728 of its 777 rows and `Party` on all 777
+(measured 11 Aug 2026). A sitting member's own district is a far stronger key than any name rule,
+so a former or unsuccessful candidate of the same name and chamber usually *can* be told apart
+after all. What that does to the 92 ambiguous is being measured ([#1354](https://github.com/alethical-org/alethical/issues/1354));
+until it is, the proposer still asks, and the answer is still a person's.
+
+**Presence in that directory is the test for whether a committee exists at all, and the
+`Incumbent` flag is not.** All 200 sitting members appear in it, so **"no committee is registered
+for this person" is a state a sitting member's profile never reaches** (§7 relies on this). The
+flag does not survive contact: it marks 209 distinct people holding one committee each, of whom
+only 198 are legislative — the rest are 4 district court, 4 supreme court, and one each for
+attorney general, secretary of state and governor. And it does not reliably follow a seat: 5 of
+our 200 have no incumbent-flagged live filer in their own seat (Dippel, Novotny, Perryman, Reyer,
+Wolgamott), Reyer's live `Reyer, Liz Senate Committee` (19263) carries `Incumbent = 0` while she
+sits in House 52A, and Novotny's flagged row is the file's single terminated incumbent. Never use
+the flag to establish that somebody has no committee.
 
 **Office and given name are evidence, never filters.** Discarding on either loses real money. Liz
 Reyer sits in the House and holds two committees: "Reyer, Lizabeth House Committee" (382
@@ -628,6 +644,16 @@ budgets its care for 92 exceptions against 108 populated pages, when the truth o
 What the unconfirmed state must do instead is explain itself, and never render "no committee is
 registered for this person" the same as "we have not confirmed which of their committees is
 theirs to show".
+
+**On a sitting member's profile, only the second of those two ever happens.** All 200 sitting
+members appear in the Board's registered-filer directory (§5.1), so a member with no registered
+committee is not a case the profile tab reaches, and its unconfirmed state can say the true and
+narrower thing: their committees are on file and we have not yet confirmed which is theirs. The
+"none registered" state still belongs to a standalone money page for someone we hold no
+legislator record for. The three states a surface must keep apart are therefore **nobody has
+looked yet**, **checked, and none of their candidate committees is theirs**, and **linked** —
+which §5.1's table already distinguishes without a fourth value, because a rejection is stored
+rather than discarded.
 
 **One legislator, several committees.** Minnesota registers a committee per office, so a person
 accumulates them: 17 sitting members tie to more than one, and 8 have 2 or more active in
@@ -987,7 +1013,10 @@ names and the viewer URL templates. **Omitting `data[params][0]=all` returns `fa
 error** — another silent failure to check for.
 
 The candidate directory carries an `Incumbent` flag, 209 rows on 11 August 2026, which is how
-the sitting legislators measured above were selected. §5 says a filer's settled classification
+the sitting legislators measured above were selected. **Do not read that flag as "sitting
+legislator" — §5.1 measures both ways it fails**: only 198 of the 209 are legislative seats, and
+5 of our 200 sitting members have no flagged live filer in their own seat at all. It also carries
+`District` on 728 of 777 rows and `Party` on all 777, which are the fields §5.1 now uses. §5 says a filer's settled classification
 "needs the Board's registered-filer directory, which is an open route" — this is that route.
 
 ### 9.8 Still open, and not blocking the first release
