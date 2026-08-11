@@ -61,8 +61,12 @@ them to FastAPI. One Uvicorn process runs per container.
 - Five route files, split by who the caller is: open data (`public.py`), question answering
   (`ask.py`), signed-in features (`me.py`), the contact form (`contact.py`), and our own
   operations checks (`internal.py`).
-- Which websites may call the API is set by an environment variable
-  (`ALETHICAL_CORS_ORIGINS`), not hard-coded, so a new frontend address is a setting change.
+- Which websites may call the API is set by an exact-address list
+  (`ALETHICAL_CORS_ORIGINS`) plus an optional anchored address pattern
+  (`ALETHICAL_CORS_ORIGIN_REGEX`). Production uses the pattern only for Alethical's
+  generated Vercel commit previews, so each changing preview address works without allowing
+  every `vercel.app` site
+  ([#1413](https://github.com/alethical-org/alethical/issues/1413)).
 - Errors come back in one consistent shape (`alethical/api/problems.py`) rather than
   whatever each route happened to raise.
 - Requests are capped per minute on the routes that cost money or hit outside services:

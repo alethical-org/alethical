@@ -107,8 +107,9 @@ then released the same commit successfully without the old fake author. The 2
 
 Linked rather than duplicated:
 
-- **Railway** environment variables (backend) and **Vercel** environment variables
-  (frontend), plus **Supabase** auth redirect URLs — [`deployment.md`](deployment.md).
+- **Railway** environment variables (backend), including the exact Vercel preview-origin
+  pattern and its rollback, and **Vercel** environment variables (frontend), plus **Supabase**
+  auth redirect URLs — [`deployment.md`](deployment.md).
 - **Cloudflare** zone configuration in front of the API, and the email
   authentication records — [`api-cdn-setup.md`](api-cdn-setup.md).
 
