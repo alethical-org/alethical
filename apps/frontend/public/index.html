@@ -89,6 +89,83 @@
         flex: 1;
       }
     </style>
+    <!--
+      The look of the factual snapshot api/page.ts puts inside #root for a bill or
+      a legislator (issue #1325). It is static and ships with the shell, so no
+      address carries CSS of its own. The colours mirror apps/frontend/src/theme/
+      tokens.ts, so what arrives first does not flash a different palette than the
+      app that replaces it.
+    -->
+    <style id="alethical-page-snapshot">
+      .page-snapshot {
+        flex: 1;
+        overflow-y: auto;
+        background: #ffffff;
+        color: #11150f;
+        font-family: 'Libre Franklin', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        line-height: 1.55;
+      }
+      .page-snapshot .ps-inner {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 48px 24px 64px;
+      }
+      .page-snapshot h1 {
+        font-size: 32px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0 0 8px;
+      }
+      .page-snapshot h2 {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #4f5651;
+        margin: 32px 0 12px;
+      }
+      .page-snapshot .ps-sub {
+        margin: 0;
+        color: #4f5651;
+        font-size: 14px;
+      }
+      .page-snapshot .ps-list {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .page-snapshot .ps-list li {
+        margin-bottom: 8px;
+      }
+      .page-snapshot .ps-prose {
+        margin: 0 0 12px;
+      }
+      .page-snapshot .ps-facts {
+        margin: 24px 0 0;
+        border-top: 1px solid #cfd6d2;
+        padding-top: 16px;
+      }
+      .page-snapshot .ps-facts dt {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #4f5651;
+        margin-top: 12px;
+      }
+      .page-snapshot .ps-facts dd {
+        margin: 2px 0 0;
+      }
+      .page-snapshot .ps-links {
+        margin-top: 28px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      .page-snapshot .ps-links a {
+        color: #0f7a45;
+        font-weight: 600;
+      }
+    </style>
   </head>
 
   <body>
@@ -136,6 +213,13 @@
     <noscript>
       You need to enable JavaScript to run this app.
     </noscript>
-    <div id="root"></div>
+    <!--
+      The snapshot goes inside the app's own mount point on purpose (issue #1325):
+      React clears this element's children on its first render, so the app
+      replacing the snapshot is one paint, with no moment where both are on screen
+      and no extra script to run. `/` ships it empty because the home page is
+      served straight off the filesystem and never reaches api/page.ts.
+    -->
+    <div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>
   </body>
 </html>

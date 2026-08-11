@@ -53,6 +53,24 @@ export function chamberBillLabel(identifier: string): string {
 
 // Human status label shown first in WHERE IT STANDS. Keeps the product's plain
 // vocabulary ("In Committee", "Signed into Law", "Vetoed").
+// status_key → the product's display label. One map, so a bill's own status pill
+// and a "See also" row naming that bill as a target read identically (#757). Lives
+// here rather than in `data/api.ts` so the first server response can print the same
+// label without loading the whole data layer (#1325).
+export const STATUS_LABELS: Record<string, string> = {
+  proposed: 'Introduced',
+  in_committee: 'In Committee',
+  passed_house: 'Passed House',
+  passed_senate: 'Passed Senate',
+  passed_both_chambers: 'Passed Both Chambers',
+  signed_into_law: 'Signed into Law',
+  vetoed: 'Vetoed',
+};
+
+export function statusLabel(statusKey?: string | null, fallback?: string | null): string {
+  return (statusKey && STATUS_LABELS[statusKey]) || fallback || 'Status unavailable';
+}
+
 export function stageLabel(status: string): string {
   const s = (status || '').toLowerCase();
   if (s.includes('veto')) return 'Vetoed';

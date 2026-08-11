@@ -4,6 +4,25 @@ import { Bill, LegislatorVote } from '../data/types';
 // + redesign/LegislatorProfileMobileScreen), so the web and mobile layouts stay in
 // sync. Pure functions, unit-testable.
 
+// Official title form: "Sen. Omar Fateh" / "Rep. Patty Acomb". The served name is
+// inconsistent ("Senator Omar Fateh", "Patty Acomb"), so strip any title it already
+// carries before prefixing the chamber's abbreviation. Shared because four surfaces
+// print this exact name — both profile screens, the tags in the first server
+// response, and the snapshot inside it — and they must not drift (#1325).
+export function legislatorDisplayName(name: string, chamber: string | undefined): string {
+  const bare = (name || '').replace(/^(sen\.|senator|rep\.|representative)\s+/i, '').trim();
+  const title = chamber === 'Senate' ? 'Sen.' : chamber === 'House' ? 'Rep.' : '';
+  return title ? `${title} ${bare}` : bare;
+}
+
+/** Chamber and district as the profile prints it, e.g. `House District 62A`. */
+export function legislatorDistrictLine(
+  chamber: string | undefined,
+  district: string | null | undefined,
+): string {
+  return district ? `${chamber ?? ''} District ${district}`.trim() : (chamber ?? '');
+}
+
 // The House member-page office blob (already de-cruffed in the API mapper) can lead
 // with a leadership title — "Assistant Republican Leader", "DFL Deputy Floor Leader",
 // "Speaker of the House" — instead of an address line. Peel a leading title off so it

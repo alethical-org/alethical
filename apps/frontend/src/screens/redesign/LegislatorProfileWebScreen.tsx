@@ -36,6 +36,8 @@ import {
 } from '../../lib/billDetail';
 import {
   buildAskChips,
+  legislatorDisplayName,
+  legislatorDistrictLine,
   legislatorVoteLabel,
   splitOfficeAddress,
 } from '../../lib/legislatorProfile';
@@ -101,7 +103,7 @@ export function LegislatorProfileWebScreen() {
     legislator
       ? legislatorPageMetadata({
           slug: legislator.slug ?? legislator.id,
-          displayName: officialName(legislator.name, legislator.chamber),
+          displayName: legislatorDisplayName(legislator.name, legislator.chamber),
           districtLine: `${legislator.chamber} District ${legislator.district}`,
         }).title
       : null,
@@ -194,9 +196,9 @@ export function LegislatorProfileWebScreen() {
   }
 
   const chamberWord = legislator.chamber; // "House" | "Senate"
-  const displayName = officialName(legislator.name, chamberWord);
+  const displayName = legislatorDisplayName(legislator.name, chamberWord);
   const partyLabel = partyFull(legislator.party);
-  const districtLine = `${chamberWord} District ${legislator.district}`;
+  const districtLine = legislatorDistrictLine(chamberWord, legislator.district);
   // Share the readable slug URL (falls back to the UUID only for a row served
   // without a slug); the backend resolves either form.
   const shareSlug = legislator.slug ?? legislator.id;
@@ -372,16 +374,6 @@ function chiefAuthorListUrl(legislator: Legislator): string {
     'https://www.revisor.mn.gov/revisor/pages/search_status/status_result.php' +
     `?body=${body}&session=${REVISOR_SESSION_CODE}&legid1=${legid}`
   );
-}
-
-// Normalize a member's name to the official title form the design uses
-// ("Sen. Omar Fateh" / "Rep. Patty Acomb"): strip any existing title prefix
-// (the source is inconsistent — "Senator Omar Fateh", "Patty Acomb") and prefix
-// the chamber-appropriate abbreviation.
-function officialName(name: string, chamber: string): string {
-  const bare = name.replace(/^(sen\.|senator|rep\.|representative)\s+/i, '').trim();
-  const title = chamber === 'Senate' ? 'Sen.' : chamber === 'House' ? 'Rep.' : '';
-  return title ? `${title} ${bare}` : bare;
 }
 
 // --- Hero: breadcrumb + eyebrow + portrait + identity + Share ---

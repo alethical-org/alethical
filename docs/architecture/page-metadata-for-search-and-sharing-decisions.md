@@ -501,4 +501,75 @@ designed, the markup comes back with it.
   [#1341](https://github.com/alethical-org/alethical/issues/1341).
 - **The preview picture is still the bare logo.** §5's neutral card is its own piece of work:
   [#1340](https://github.com/alethical-org/alethical/issues/1340).
-- **Release 2 — real text in the first response** — is §8C, not yet built.
+- **Release 2 — real text in the first response** — shipped; see §13.
+
+---
+
+## 13. What release 2 actually shipped, and what it had to decide
+
+Built 11 Aug 2026 against §8C. §1–§11 stay as written, as the record of why.
+
+### What arrives
+
+`apps/frontend/src/lib/pageSnapshot.ts` builds a short factual snapshot for a **bill** (plain-language
+title, bill code and session, key points or summary, where it stands, chief author, and links to the
+bill on revisor.mn.gov, to that author's profile, and to the bill list) and for a **legislator** (name,
+chamber and district, party, committees, capitol office and phone, and links to their official chamber
+profile and to the member list). `api/page.ts` drops it between the markers inside `<div id="root">`.
+
+Lists, `/ask` and the static pages get no snapshot. A list is a list of *other* records, so a snapshot
+of it would either restate the page title or invent a summary of a result set that changes per reader.
+
+### Two things §8C did not settle, and how the build settled them
+
+**1. Where the snapshot goes, and how the app takes over.** It goes **inside** `<div id="root">`, the
+app's own mount point. React empties that element on its first render, so the snapshot leaving and the
+app appearing are the same commit — no second script, no timer, no class to toggle, and no window
+where a reader could see both. Measured in a real browser against the live program bundle, with a
+`MutationObserver` on `#root`: **one** change, at 60 ms, from the snapshot to the app's single root
+view, and no recorded state holding both. The alternative considered was a sibling element hidden by a
+script once the app renders; it needs code to run at exactly the right moment, and it fails open — if
+that code does not run, the page shows the snapshot *and* the app.
+
+Putting it inside the mount point has a second consequence worth stating plainly: **if the program
+fails to load, the snapshot stays**. That is the §8C requirement that a JavaScript failure stop being
+indistinguishable from a blank page.
+
+**2. How "the served text matches what the app draws" is proved.** By rendering the app. The Summary
+tab and the bill header are ordinary components that render without a browser, so
+`apps/frontend/src/lib/__tests__/pageSnapshot.test.tsx` feeds one real production payload through the
+app's own mapper into `<BillHeader>` and `<SummaryTab>`, feeds the same payload through the snapshot
+builder, and asserts every served line is a **whole text the components drew** — equality, not
+containment, so a shortened or re-punctuated line fails. Seven deliberate mutations were run against
+it; every one failed the test, including three that a containment check had let through (a truncated
+summary, a trimmed bullet, and a count of the layout's own).
+
+The legislator profile screen cannot be rendered that way (it needs navigation, auth and query
+providers), so its guarantee is structural: the name and district come from shared helpers
+(`legislatorDisplayName`, `legislatorDistrictLine` in `apps/frontend/src/lib/legislatorProfile.ts`),
+both profile screens now call them, and a test fails if either grows its own copy again. Before this,
+that formatting existed **three** times — in each screen and again in `api/page.ts`.
+
+### One thing the build found
+
+`statusLabel` and its `status_key` → label map lived in `apps/frontend/src/data/api.ts`, which the
+serving function cannot load. Rather than copy the map (the drift this whole release is written
+against), both moved to `apps/frontend/src/lib/billDetail.ts` beside `stageLabel`, and `data/api.ts`
+imports them from there.
+
+### One risk this created, and how it is held down
+
+`api/page.ts` returns 503 when the shell it fetches has lost its head markers, because a nameless page
+is worse than a brief outage. The body text does **not** get that treatment: it improves a page that
+already works, so if its slot in the shell ever goes missing the page is served exactly as release 1
+served it — correct tags, empty body — rather than failing every bill and legislator address at once.
+The alarm for that case is a test on the shipped `apps/frontend/public/index.html`, which runs on
+every pull request.
+
+### What release 2 deliberately does not do
+
+- **No snapshot on a list page**, per above.
+- **No second look at the styling.** The snapshot uses the site's font and a plain column; it is on
+  screen for well under a second for anyone whose program loads.
+- **Not [#502](https://github.com/alethical-org/alethical/issues/502).** Navigation is untouched and
+  the public site is not split out. #502 is neither started nor blocked by this.

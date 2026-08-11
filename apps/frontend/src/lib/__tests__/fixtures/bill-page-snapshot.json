@@ -1,0 +1,806 @@
+{
+  "id": "94-2025-HF719",
+  "title": "A bill for an act relating to state government; authorizing spending to acquire and better public land and buildings and for other improvements of a capital nature with certain conditions; establishing new programs and modifying existing programs; authorizing the conveyance of state bond-financed property; modifying and canceling prior appropriations; authorizing the sale and issuance of state bonds; appropriating money; providing for a temporary registration tax reduction; amending Minnesota Statutes 2024, sections 16A.86, subdivision 3a; 446A.077, subdivisions 3, 4; 446A.086, subdivision 11; 457A.03, subdivision 3; Minnesota Statutes 2025 Supplement, sections 134.45, subdivision 4; 446A.082; Laws 2020, Fifth Special Session chapter 3, article 1, sections 16, subdivision 39; 17, subdivision 13, as amended; Laws 2023, chapter 72, article 1, sections 16, subdivision 19; 21, subdivision 9.",
+  "session": {
+    "slug": "94-2025-regular",
+    "name": "94th Legislature (2025 - 2026) Regular Session",
+    "is_current": true,
+    "session_number": 94,
+    "year_start": 2025,
+    "year_end": 2026
+  },
+  "description": "Safe routes to school grant program funding provided, bonds issued, and money appropriated.",
+  "current_status": "Chapter number",
+  "status_key": "signed_into_law",
+  "latest_action_at": "2026-05-17T00:00:00Z",
+  "last_pulled_at": "2026-07-14T19:38:30.399280Z",
+  "effective_schedule": {
+    "kind": "phased",
+    "value": "May 28, 2026",
+    "rows": [
+      {
+        "date": "January 1, 2027",
+        "sections": 1,
+        "from_enactment": false
+      },
+      {
+        "date": "May 28, 2026",
+        "sections": 5,
+        "from_enactment": true
+      }
+    ],
+    "total_sections": 48,
+    "undated_sections": 41,
+    "default_candidates": ["July 1, 2026", "August 1, 2026"]
+  },
+  "official_url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+  "is_omnibus": true,
+  "companion": {
+    "id": "94-2025-SF390",
+    "code": "SF 390",
+    "status": "Authors added",
+    "status_key": "proposed"
+  },
+  "chief_sponsors": [
+    {
+      "name": "Mary Franson",
+      "role": "chief_author",
+      "legislator_id": "922ad27a-e589-4f45-a58b-095424094545",
+      "slug": "mary-franson",
+      "source_order": 1,
+      "source_chamber": "house",
+      "chamber": "house",
+      "party": "R",
+      "district": "District 12B",
+      "represented_city": "Alexandria"
+    },
+    {
+      "name": "Senator Sandra L. Pappas",
+      "role": "chief_author",
+      "legislator_id": "4b46814a-058c-4716-983b-633f824fe2ed",
+      "slug": "sandra-l-pappas",
+      "source_order": 1,
+      "source_chamber": "senate",
+      "chamber": "senate",
+      "party": "DFL",
+      "district": "District 65",
+      "represented_city": "Saint Paul"
+    }
+  ],
+  "ai_analysis": {
+    "short_title": "Statewide Capital Projects and Bonding Bill",
+    "summary": "Authorizes billions in state bond financing for construction and renovation projects spread across nearly every part of state government, plus grants to specific cities, counties, and other local entities for roads, water systems, public safety buildings, parks, and community facilities. It also adjusts some earlier funding commitments and, according to the bill's title, includes a temporary reduction in vehicle registration taxes, though the supplied text does not include the details of that provision.",
+    "key_points": [
+      "Authorizes the state to sell and issue bonds to finance the capital projects funded throughout the bill.",
+      "Funds building preservation and specific construction projects at the University of Minnesota and Minnesota State Colleges and Universities, including a new campus center on the St. Paul campus and renovations at Alexandria Technical and Community College, totaling about $145 million.",
+      "Directs about $79 million to the Department of Natural Resources for asset preservation, flood hazard mitigation, state trails, dam safety, and reforestation projects statewide.",
+      "Provides about $176 million to the Department of Transportation for local road and bridge programs, rail-crossing safety upgrades, Safe Routes to School grants, and dozens of named city and county road projects.",
+      "Provides about $409 million to the Public Facilities Authority for state matching funds and grants that help cities finance drinking water, wastewater, and lead service line replacement projects.",
+      "Provides about $135 million to the Department of Employment and Economic Development for grants to cities and counties for community centers, public infrastructure, and other local development projects.",
+      "Provides about $58 million to the Metropolitan Council for regional parks, trails, community tree planting, and specific park projects in the Twin Cities metro area.",
+      "Funds asset preservation and renovation at state-operated facilities, including veterans homes, correctional facilities, Direct Care and Treatment facilities, military readiness centers, and other state buildings.",
+      "Provides grants for public safety facilities in several cities and funding to the Pollution Control Agency and Board of Water and Soil Resources for drinking water contamination, solid waste, and wetland programs.",
+      "Provides grants for human services and early childhood facilities, including emergency shelter facilities and early childhood learning centers.",
+      "Also modifies or cancels some earlier capital appropriations, allows conveyance of certain bond-financed property, and temporarily reduces vehicle registration taxes."
+    ],
+    "policy_areas": [
+      "Capital Investment And Bonding",
+      "Transportation",
+      "Infrastructure",
+      "Education",
+      "Public Safety And Corrections",
+      "Natural Resources And Environment",
+      "Economic Development",
+      "Human Services",
+      "Veterans & Military"
+    ],
+    "citations": [
+      {
+        "id": "laws.1.1.0-0",
+        "label": "Art. 1, Sec. 1 · Capital improvement appropriations",
+        "url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+        "excerpt": "are appropriated from the bond proceeds fund, or another named fund, to the state agencies or officials indicated, to be spent for public purposes.",
+        "section_id": "laws.1.1.0",
+        "section_order": 1,
+        "section_topic": "Capital improvement appropriations"
+      },
+      {
+        "id": "laws.1.2.0-1",
+        "label": "Art. 1, Sec. 2 · University of minnesota",
+        "url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+        "excerpt": "To predesign, design, renovate, construct, furnish, and equip Phase 1 of a new campus center on the St. Paul campus.",
+        "section_id": "laws.1.2.0",
+        "section_order": 2,
+        "section_topic": "University of minnesota"
+      },
+      {
+        "id": "laws.1.7.0-2",
+        "label": "Art. 1, Sec. 7 · Natural resources",
+        "url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+        "excerpt": "For the state share of flood hazard mitigation grants for publicly owned capital improvements to prevent or alleviate flood damage under Minnesota Statutes, section 103F.161.",
+        "section_id": "laws.1.7.0",
+        "section_order": 7,
+        "section_topic": "Natural resources"
+      },
+      {
+        "id": "laws.1.16.0-3",
+        "label": "Art. 1, Sec. 16 · Transportation",
+        "url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+        "excerpt": "For grants under Minnesota Statutes, section 174.40.",
+        "section_id": "laws.1.16.0",
+        "section_order": 16,
+        "section_topic": "Transportation"
+      },
+      {
+        "id": "laws.1.24.0-4",
+        "label": "Art. 1, Sec. 24 · Public facilities authority",
+        "url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+        "excerpt": "For grants to eligible municipalities under the water infrastructure funding program under Minnesota Statutes, section 446A.072.",
+        "section_id": "laws.1.24.0",
+        "section_order": 24,
+        "section_topic": "Public facilities authority"
+      },
+      {
+        "id": "laws.1.22.0-5",
+        "label": "Art. 1, Sec. 22 · Corrections",
+        "url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+        "excerpt": "For asset preservation improvement and betterments of a capital nature at the Minnesota correctional facilities statewide to be spent in accordance with Minnesota Statutes, section 16B.307.",
+        "section_id": "laws.1.22.0",
+        "section_order": 22,
+        "section_topic": "Corrections"
+      },
+      {
+        "id": "laws.1.8.0-6",
+        "label": "Art. 1, Sec. 8 · Pollution control agency",
+        "url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+        "excerpt": "For projects or grants under Minnesota Statutes, section 115B.245.",
+        "section_id": "laws.1.8.0",
+        "section_order": 8,
+        "section_topic": "Pollution control agency"
+      },
+      {
+        "id": "laws.1.18.0-7",
+        "label": "Art. 1, Sec. 18 · Human services",
+        "url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+        "excerpt": "For emergency shelter facility grants under article 2.",
+        "section_id": "laws.1.18.0",
+        "section_order": 18,
+        "section_topic": "Human services"
+      }
+    ],
+    "question_prompts": [
+      "Which state agencies receive the largest funding amounts in this bill?",
+      "Which cities and counties get named infrastructure grants?",
+      "What happens to unspent money after a funded project is completed?",
+      "What does the bill say about water infrastructure and drinking water grants?"
+    ]
+  },
+  "ai_summary": {
+    "why": "The appropriations are intended to fund capital and infrastructure needs identified by state agencies, higher education institutions, and local governments, including facility repairs, new construction, and community infrastructure projects.",
+    "what": "Authorizes the state to sell bonds and appropriates money for capital construction, renovation, and infrastructure projects across dozens of state agencies, university systems, and local governments, covering higher education buildings, roads and bridges, water and wastewater systems, public safety and correctional facilities, parks, and other public buildings.",
+    "_meta": {
+      "model": "claude:claude-sonnet-5",
+      "openai_batch_id": null,
+      "source_version_hash": "3c28157e2a20087364b2c08e9a85249ee4368982722aa9d8e5c6190325b58353"
+    },
+    "summary": "Authorizes the state to sell general obligation bonds and appropriates the resulting money to a wide range of state agencies and local governments for building construction, renovation, and infrastructure work. Funding covers university and college facilities, natural resources and park projects, transportation and local road grants, water and wastewater infrastructure, public safety and correctional facilities, veterans homes, and dozens of named grants to individual cities and counties for community centers, public works buildings, and other local capital projects.",
+    "confidence": "medium",
+    "key_points": [
+      "Authorizes the state to sell and issue bonds to finance the capital projects funded throughout the bill.",
+      "Funds building preservation and specific construction projects at the University of Minnesota and Minnesota State Colleges and Universities, including a new campus center on the St. Paul campus and renovations at Alexandria Technical and Community College, totaling about $145 million.",
+      "Directs about $79 million to the Department of Natural Resources for asset preservation, flood hazard mitigation, state trails, dam safety, and reforestation projects statewide.",
+      "Provides about $176 million to the Department of Transportation for local road and bridge programs, rail-crossing safety upgrades, Safe Routes to School grants, and dozens of named city and county road projects.",
+      "Provides about $409 million to the Public Facilities Authority for state matching funds and grants that help cities finance drinking water, wastewater, and lead service line replacement projects.",
+      "Provides about $135 million to the Department of Employment and Economic Development for grants to cities and counties for community centers, public infrastructure, and other local development projects.",
+      "Provides about $58 million to the Metropolitan Council for regional parks, trails, community tree planting, and specific park projects in the Twin Cities metro area.",
+      "Funds asset preservation and renovation at state-operated facilities, including veterans homes, correctional facilities, Direct Care and Treatment facilities, military readiness centers, and other state buildings.",
+      "Provides grants for public safety facilities in several cities and funding to the Pollution Control Agency and Board of Water and Soil Resources for drinking water contamination, solid waste, and wetland programs.",
+      "Provides grants for human services and early childhood facilities, including emergency shelter facilities and early childhood learning centers.",
+      "Also modifies or cancels some earlier capital appropriations, allows conveyance of certain bond-financed property, and temporarily reduces vehicle registration taxes."
+    ],
+    "key_changes": [
+      "Authorizes bond sales to fund capital projects statewide.",
+      "Funds asset preservation and construction at university, K-12, and state agency facilities.",
+      "Directs large sums to transportation, water infrastructure, and economic development grants.",
+      "Provides dozens of individual grants to named cities, counties, and local authorities.",
+      "Modifies and cancels some prior capital appropriations and allows conveyance of certain bond-financed property.",
+      "References a temporary vehicle registration tax reduction not detailed in the supplied excerpts."
+    ],
+    "short_title": "Statewide Capital Projects and Bonding Bill",
+    "policy_areas": [
+      "Capital Investment and Bonding",
+      "Transportation",
+      "Water Infrastructure",
+      "Higher Education",
+      "Public Safety and Corrections",
+      "Natural Resources and Environment",
+      "Economic Development",
+      "Human Services",
+      "Veterans Affairs"
+    ],
+    "source_notes": [
+      "Only 24 of the bill's 48 total sections were supplied for this analysis; provisions in the remaining sections, including statutory amendments and the referenced registration tax reduction, are not reflected in detail here.",
+      "Dollar figures cited are drawn from the specific appropriation lines included in the supplied excerpts and may not represent the bill's full fiscal scope."
+    ],
+    "who_affected": [
+      "State agencies including Natural Resources, Transportation, Corrections, Veterans Affairs, and Human Services",
+      "University of Minnesota and Minnesota State Colleges and Universities systems",
+      "Cities, counties, and joint powers authorities receiving named grants",
+      "Residents near funded roads, water systems, parks, and public facilities",
+      "State taxpayers, through bond-financed debt obligations"
+    ],
+    "quick_summary": "Authorizes bond sales and appropriates money for a large number of capital construction and renovation projects across state agencies and local governments, including roads, water systems, university buildings, public safety facilities, and parks.",
+    "bias_detection": {
+      "detected_biases": [
+        "As an appropriations bill, project selection may reflect legislative priorities, but the supplied text does not indicate any partisan or advocacy framing."
+      ],
+      "objectivity_score": 88
+    },
+    "recommendations": [
+      "Readers interested in the vehicle registration tax reduction or statutory amendments to loan programs should consult the full bill text, since those provisions are referenced in the title but not detailed in the supplied excerpts.",
+      "Local officials and residents may want to review the specific project list for their city or county, since funding varies widely by recipient."
+    ],
+    "question_prompts": [
+      "Which state agencies receive the largest funding amounts in this bill?",
+      "Which cities and counties get named infrastructure grants?",
+      "What happens to unspent money after a funded project is completed?",
+      "What does the bill say about water infrastructure and drinking water grants?"
+    ],
+    "truncated_source": true,
+    "concerns_may_raise": [
+      "Combining many unrelated local projects into one large bill could make it harder to evaluate individual items on their merits.",
+      "Bond-financed spending creates future debt service obligations that are not detailed in the supplied text.",
+      "The supplied excerpts cover only 24 of 48 sections, so some provisions, including the registration tax reduction and certain statutory amendments, cannot be fully assessed."
+    ],
+    "key_talking_points": [
+      "This is a large capital investment (bonding) bill funding hundreds of projects across state and local government.",
+      "Money is drawn primarily from bond proceeds and is directed to both state agencies and named local grant recipients.",
+      "The bill includes both broad agency-wide programs, such as asset preservation accounts, and highly specific single-project grants."
+    ],
+    "potential_benefits": [
+      "Could fund repair and replacement of aging state buildings, roads, bridges, and water systems.",
+      "Could support local infrastructure and community facility projects identified by individual cities and counties.",
+      "Could address water quality and contamination issues through drinking water and wastewater grants."
+    ],
+    "potential_concerns": [
+      "Bond-financed appropriations create debt obligations whose long-term cost is not detailed in the supplied text.",
+      "The bill bundles many unrelated local and state projects together, which may limit separate scrutiny of individual items.",
+      "Because only half of the bill's sections were supplied, some provisions, including statutory amendments and the registration tax reduction, cannot be fully evaluated from this text alone."
+    ],
+    "sentiment_analysis": {
+      "overall_tone": "Neutral and technical, consistent with formal appropriations and bonding legislation.",
+      "emotional_appeal": "Low; the bill text is administrative and financial rather than emotionally framed.",
+      "language_assessment": "The text is composed largely of itemized appropriations language describing amounts, recipients, and permitted uses, without persuasive or advocacy framing."
+    },
+    "supporters_may_say": [
+      "Funding could address deferred maintenance and aging infrastructure at state facilities and universities.",
+      "Grants to local governments could help complete road, water, and public safety projects that communities have identified as priorities.",
+      "Investment in water infrastructure could help address contamination and aging pipe issues in various municipalities."
+    ],
+    "key_point_citations": [
+      {
+        "label": "Art. 1, Sec. 1 · Capital improvement appropriations",
+        "point": "Authorizes the state to sell and issue bonds to finance the capital projects funded throughout the bill.",
+        "quote": "are appropriated from the bond proceeds fund, or another named fund, to the state agencies or officials indicated, to be spent for public purposes.",
+        "section_id": "laws.1.1.0"
+      },
+      {
+        "label": "Art. 1, Sec. 2 · University of minnesota",
+        "point": "Funds building preservation and specific construction projects at the University of Minnesota and Minnesota State Colleges and Universities, including a new campus center on the St. Paul campus and renovations at Alexandria Technical and Community College, totaling about $145 million.",
+        "quote": "To predesign, design, renovate, construct, furnish, and equip Phase 1 of a new campus center on the St. Paul campus.",
+        "section_id": "laws.1.2.0"
+      },
+      {
+        "label": "Art. 1, Sec. 7 · Natural resources",
+        "point": "Directs about $79 million to the Department of Natural Resources for asset preservation, flood hazard mitigation, state trails, dam safety, and reforestation projects statewide.",
+        "quote": "For the state share of flood hazard mitigation grants for publicly owned capital improvements to prevent or alleviate flood damage under Minnesota Statutes, section 103F.161.",
+        "section_id": "laws.1.7.0"
+      },
+      {
+        "label": "Art. 1, Sec. 16 · Transportation",
+        "point": "Provides about $176 million to the Department of Transportation for local road and bridge programs, rail-crossing safety upgrades, Safe Routes to School grants, and dozens of named city and county road projects.",
+        "quote": "For grants under Minnesota Statutes, section 174.40.",
+        "section_id": "laws.1.16.0"
+      },
+      {
+        "label": "Art. 1, Sec. 24 · Public facilities authority",
+        "point": "Provides about $409 million to the Public Facilities Authority for state matching funds and grants that help cities finance drinking water, wastewater, and lead service line replacement projects.",
+        "quote": "For grants to eligible municipalities under the water infrastructure funding program under Minnesota Statutes, section 446A.072.",
+        "section_id": "laws.1.24.0"
+      },
+      {
+        "label": "Art. 1, Sec. 22 · Corrections",
+        "point": "Funds asset preservation and renovation at state-operated facilities, including veterans homes, correctional facilities, Direct Care and Treatment facilities, military readiness centers, and other state buildings.",
+        "quote": "For asset preservation improvement and betterments of a capital nature at the Minnesota correctional facilities statewide to be spent in accordance with Minnesota Statutes, section 16B.307.",
+        "section_id": "laws.1.22.0"
+      },
+      {
+        "label": "Art. 1, Sec. 8 · Pollution control agency",
+        "point": "Provides grants for public safety facilities in several cities and funding to the Pollution Control Agency and Board of Water and Soil Resources for drinking water contamination, solid waste, and wetland programs.",
+        "quote": "For projects or grants under Minnesota Statutes, section 115B.245.",
+        "section_id": "laws.1.8.0"
+      },
+      {
+        "label": "Art. 1, Sec. 18 · Human services",
+        "point": "Provides grants for human services and early childhood facilities, including emergency shelter facilities and early childhood learning centers.",
+        "quote": "For emergency shelter facility grants under article 2.",
+        "section_id": "laws.1.18.0"
+      }
+    ],
+    "plain_language_summary": "Authorizes billions in state bond financing for construction and renovation projects spread across nearly every part of state government, plus grants to specific cities, counties, and other local entities for roads, water systems, public safety buildings, parks, and community facilities. It also adjusts some earlier funding commitments and, according to the bill's title, includes a temporary reduction in vehicle registration taxes, though the supplied text does not include the details of that provision.",
+    "detailed_impact_analysis": {
+      "social": [
+        "Funding for veterans homes, correctional facilities, emergency shelters, and early childhood centers could affect service delivery for these populations.",
+        "Local grants for public safety, community centers, and recreational facilities could affect residents in the specific cities and counties named in the bill."
+      ],
+      "economic": [
+        "Large-scale bond-financed construction spending could support construction activity and local economic development tied to funded projects.",
+        "Bond issuance creates state debt that will require future repayment, though repayment terms are not specified in the supplied excerpts."
+      ],
+      "environmental": [
+        "Appropriations for wetland replacement, reforestation, and flood hazard mitigation could affect natural resource management and flood resilience.",
+        "Water infrastructure grants address drinking water contamination and wastewater treatment, which could affect local water quality outcomes."
+      ]
+    },
+    "alternative_policy_approaches": [
+      {
+        "title": "Separate, smaller bonding bills by subject area",
+        "description": "Instead of one large omnibus bonding bill covering many unrelated agencies and localities, capital funding could be divided into separate bills by policy area, such as transportation, higher education, or water infrastructure.",
+        "key_differences": [
+          "Would allow separate legislative consideration and votes on distinct categories of spending.",
+          "Could make it easier for the public to track funding for a specific sector without reviewing an omnibus bill."
+        ]
+      }
+    ]
+  },
+  "all_sponsors": [
+    {
+      "name": "Kari Rehrauer",
+      "role": "co_author",
+      "legislator_id": "00207a58-faa5-4950-b15d-3d1257c24493",
+      "slug": "kari-rehrauer",
+      "source_order": 3,
+      "source_chamber": "house",
+      "chamber": "house",
+      "party": "DFL",
+      "district": "District 35B",
+      "represented_city": "Coon Rapids"
+    },
+    {
+      "name": "Leon Lillie",
+      "role": "co_author",
+      "legislator_id": "0056b18c-51b4-4c1e-a32f-f407dced0ae6",
+      "slug": "leon-lillie",
+      "source_order": 4,
+      "source_chamber": "house",
+      "chamber": "house",
+      "party": "DFL",
+      "district": "District 44B",
+      "represented_city": "North Saint Paul"
+    },
+    {
+      "name": "Senator Sandra L. Pappas",
+      "role": "chief_author",
+      "legislator_id": "4b46814a-058c-4716-983b-633f824fe2ed",
+      "slug": "sandra-l-pappas",
+      "source_order": 1,
+      "source_chamber": "senate",
+      "chamber": "senate",
+      "party": "DFL",
+      "district": "District 65",
+      "represented_city": "Saint Paul"
+    },
+    {
+      "name": "Fue Lee",
+      "role": "co_author",
+      "legislator_id": "91772805-0736-4527-a7b7-5db992131554",
+      "slug": "fue-lee",
+      "source_order": 2,
+      "source_chamber": "house",
+      "chamber": "house",
+      "party": "DFL",
+      "district": "District 59A",
+      "represented_city": "Minneapolis"
+    },
+    {
+      "name": "Mary Franson",
+      "role": "chief_author",
+      "legislator_id": "922ad27a-e589-4f45-a58b-095424094545",
+      "slug": "mary-franson",
+      "source_order": 1,
+      "source_chamber": "house",
+      "chamber": "house",
+      "party": "R",
+      "district": "District 12B",
+      "represented_city": "Alexandria"
+    }
+  ],
+  "progress": [
+    {
+      "key": "proposed",
+      "label": "Introduced",
+      "reached": true,
+      "current": false
+    },
+    {
+      "key": "in_committee",
+      "label": "In Committee",
+      "reached": true,
+      "current": false
+    },
+    {
+      "key": "passed_house",
+      "label": "Passed House",
+      "reached": true,
+      "current": false
+    },
+    {
+      "key": "passed_senate",
+      "label": "Passed Senate",
+      "reached": true,
+      "current": false
+    },
+    {
+      "key": "signed_into_law",
+      "label": "Signed Into Law",
+      "reached": true,
+      "current": true
+    }
+  ],
+  "actions": [
+    {
+      "action_number": 1,
+      "action_text": "Received from House",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "11749",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 2,
+      "action_text": "Introduction and first reading",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "11749",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 3,
+      "action_text": "Urgency declared rules suspended",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "11750",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 4,
+      "action_text": "Second reading",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "11750",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 5,
+      "action_text": "Third reading Passed",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "11750",
+      "roll_call_text": "60-7"
+    },
+    {
+      "action_number": 6,
+      "action_text": "Presentment date",
+      "action_group": "Action",
+      "action_description": "05/20/26",
+      "committee_name": null,
+      "action_at": null,
+      "journal_page": null,
+      "roll_call_text": null
+    },
+    {
+      "action_number": 7,
+      "action_text": "Governor's action Approval",
+      "action_group": "Action",
+      "action_description": "05/27/26",
+      "committee_name": null,
+      "action_at": null,
+      "journal_page": null,
+      "roll_call_text": null
+    },
+    {
+      "action_number": 8,
+      "action_text": "Secretary of State",
+      "action_group": "Action",
+      "action_description": "Chapter 130 05/27/26",
+      "committee_name": null,
+      "action_at": null,
+      "journal_page": null,
+      "roll_call_text": null
+    },
+    {
+      "action_number": 9,
+      "action_text": "Effective date",
+      "action_group": "Action",
+      "action_description": "various dates",
+      "committee_name": null,
+      "action_at": null,
+      "journal_page": null,
+      "roll_call_text": null
+    },
+    {
+      "action_number": 1,
+      "action_text": "Introduction and first reading, referred to",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": "Capital Investment",
+      "action_at": "2025-02-13T00:00:00Z",
+      "journal_page": "184",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 2,
+      "action_text": "Author added",
+      "action_group": "Action",
+      "action_description": "Rehrauer, Lillie",
+      "committee_name": null,
+      "action_at": "2025-02-19T00:00:00Z",
+      "journal_page": "308",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 3,
+      "action_text": "Author changed",
+      "action_group": "Action",
+      "action_description": "Franson made chief author",
+      "committee_name": null,
+      "action_at": "2025-03-24T00:00:00Z",
+      "journal_page": "960",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 4,
+      "action_text": "Committee report, to adopt and re-refer to",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": "Ways and Means",
+      "action_at": "2025-05-07T00:00:00Z",
+      "journal_page": "3034",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 5,
+      "action_text": "Committee report, to adopt as amended",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-16T00:00:00Z",
+      "journal_page": "7386a",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 6,
+      "action_text": "Second reading",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-16T00:00:00Z",
+      "journal_page": "7446",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 7,
+      "action_text": "House rule 1.21, placed on Calendar for the Day",
+      "action_group": "Action",
+      "action_description": "Sunday, May 17, 2026",
+      "committee_name": null,
+      "action_at": "2026-05-16T00:00:00Z",
+      "journal_page": "7563",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 8,
+      "action_text": "Amended",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "7781a",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 9,
+      "action_text": "Third reading as amended",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "7829",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 10,
+      "action_text": "Motion to lay on the table",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "7829",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 11,
+      "action_text": "Motion prevailed",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "7829",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 12,
+      "action_text": "Motion to take from table",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "8430",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 13,
+      "action_text": "Motion prevailed",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "8430",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 14,
+      "action_text": "Motion for reconsideration",
+      "action_group": "Action",
+      "action_description": "Third reading reconsidered",
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "8431",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 15,
+      "action_text": "Motion prevailed",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "8431",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 16,
+      "action_text": "Amended",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "8431a",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 17,
+      "action_text": "Third reading as amended",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "8431",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 18,
+      "action_text": "Bill was passed as amended",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": "2026-05-17T00:00:00Z",
+      "journal_page": "8431",
+      "roll_call_text": "122-11"
+    },
+    {
+      "action_number": 19,
+      "action_text": "Returned from Senate",
+      "action_group": "Action",
+      "action_description": null,
+      "committee_name": null,
+      "action_at": null,
+      "journal_page": "8441",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 20,
+      "action_text": "Presented to Governor",
+      "action_group": "Action",
+      "action_description": "05/20/2026",
+      "committee_name": null,
+      "action_at": null,
+      "journal_page": null,
+      "roll_call_text": null
+    },
+    {
+      "action_number": 21,
+      "action_text": "Governor approval",
+      "action_group": "Action",
+      "action_description": "05/27/2026",
+      "committee_name": null,
+      "action_at": null,
+      "journal_page": "8449",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 22,
+      "action_text": "Secretary of State, Filed",
+      "action_group": "Action",
+      "action_description": "05/27/2026",
+      "committee_name": null,
+      "action_at": null,
+      "journal_page": "8449",
+      "roll_call_text": null
+    },
+    {
+      "action_number": 23,
+      "action_text": "Chapter number",
+      "action_group": "Action",
+      "action_description": "130",
+      "committee_name": null,
+      "action_at": null,
+      "journal_page": null,
+      "roll_call_text": null
+    }
+  ],
+  "versions": [
+    {
+      "version_code": "0",
+      "version_name": "2025.0-HF0719-0",
+      "document_date": "2025-02-12T14:31:42Z",
+      "html_url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/0/",
+      "pdf_url": null,
+      "is_current": false
+    },
+    {
+      "version_code": "1",
+      "version_name": "2025.0-HF0719-1",
+      "document_date": "2026-05-16T12:21:52Z",
+      "html_url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/1/",
+      "pdf_url": null,
+      "is_current": false
+    },
+    {
+      "version_code": "2",
+      "version_name": "2025.0-HF0719-2",
+      "document_date": "2026-05-18T17:02:36Z",
+      "html_url": "https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/",
+      "pdf_url": null,
+      "is_current": true
+    },
+    {
+      "version_code": "session-law",
+      "version_name": "Session Law — Chapter 130",
+      "document_date": "2026-05-27T00:00:00Z",
+      "html_url": "https://www.revisor.mn.gov/laws/2026/0/Session+Law/Chapter/130/",
+      "pdf_url": null,
+      "is_current": false
+    }
+  ]
+}

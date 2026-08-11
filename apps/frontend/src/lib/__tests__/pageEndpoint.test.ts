@@ -15,7 +15,8 @@ const SHELL = [
   '<title>Alethical</title>',
   '<!--/alethical:page-head-->',
   '<link rel="stylesheet" href="/fonts.css" />',
-  '</head><body><div id="root"></div><script src="/_expo/static/js/web/index-abc.js"></script></body></html>',
+  '</head><body><div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
+  '<script src="/_expo/static/js/web/index-abc.js"></script></body></html>',
 ].join('\n');
 
 function responseRecorder() {
@@ -96,8 +97,13 @@ describe('first-response page tags', () => {
       '<title>HF 719 (2025): Statewide Capital Projects and Bonding Bill | Alethical</title>',
     );
     expect(body).toContain('rel="canonical" href="https://www.alethical.com/bills/94-2025-HF719"');
-    // Robots and people get the same page: the app still loads from this HTML.
-    expect(body).toContain('<div id="root"></div>');
+    // Robots and people get the same page: the app still loads from this HTML,
+    // and the snapshot sits inside its mount point, which React clears on render.
+    expect(body).toContain(
+      '<div id="root"><!--alethical:page-snapshot--><div class="page-snapshot">',
+    );
+    expect(body).toContain('<h1>Statewide Capital Projects and Bonding Bill</h1>');
+    expect(body).toContain('Authorizes borrowing for public buildings.');
     expect(body).toContain('/_expo/static/js/web/index-abc.js');
     expect(body).toContain('<link rel="stylesheet" href="/fonts.css" />');
     expect(headers.get('Cache-Control')).toContain('s-maxage=600');
@@ -124,6 +130,8 @@ describe('first-response page tags', () => {
     expect(body).toContain(
       'rel="canonical" href="https://www.alethical.com/legislators/aisha-gomez"',
     );
+    expect(body).toContain('<h1>Rep. Aisha Gomez</h1>');
+    expect(body).toContain('House District 62A');
   });
 
   it('serves list and static pages without asking the data service anything', async () => {
@@ -138,6 +146,11 @@ describe('first-response page tags', () => {
     );
     expect((await serve({ path: '/privacy' })).body).toContain(
       '<title>Privacy Policy | Alethical</title>',
+    );
+    // A list is a list of other records, so it has no snapshot of its own: the
+    // mount point ships empty and the app fills it, exactly as before.
+    expect((await serve({ route: 'bills' })).body).toContain(
+      '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
     );
     expect(calls).toHaveLength(0);
   });
@@ -164,7 +177,40 @@ describe('addresses that are not real pages', () => {
     expect(status).toBe(404);
     expect(body).toContain('<title>Page not found | Alethical</title>');
     expect(body).not.toContain('rel="canonical"');
+    // Nothing to snapshot: the record is genuinely absent.
+    expect(body).toContain(
+      '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
+    );
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
+  });
+
+  it('still serves a page when the shell has lost its snapshot slot', async () => {
+    // The body text improves a page that already works, so its slot going missing
+    // must not take the page down. A missing head marker still returns 503.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.endsWith('/index.html')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () => SHELL.replace(/<!--\/?alethical:page-snapshot-->/g, ''),
+          } as unknown as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: { id: '94-2025-HF719' } }),
+        } as unknown as Response;
+      }),
+    );
+
+    const { status, body } = await serve({ route: 'bill', id: '94-2025-HF719' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<title>HF 719 (2025) | Alethical</title>');
+    expect(body).toContain('<div id="root"></div>');
+    expect(body).not.toContain('page-snapshot');
   });
 
   it('returns 404 for an address with no page behind it', async () => {

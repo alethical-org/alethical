@@ -22,6 +22,7 @@ import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
 import {
   buildAskChips,
+  legislatorDisplayName,
   legislatorVoteLabel,
   splitOfficeAddress,
 } from '../../lib/legislatorProfile';
@@ -79,13 +80,6 @@ const claimPreviewStyle: CSSProperties = {
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
   const [hovered, setHovered] = useState(false);
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
-}
-
-// Official title form: "Sen. …" / "Rep. …", stripping any existing chamber prefix
-// on the stored name so we don't double it up.
-function honorificName(name: string, chamber: Legislator['chamber']) {
-  const stripped = name.replace(/^(Senator|Representative|Sen\.|Rep\.)\s+/i, '').trim();
-  return `${chamber === 'House' ? 'Rep.' : 'Sen.'} ${stripped}`;
 }
 
 function initialsOf(name: string) {
@@ -385,7 +379,7 @@ export function LegislatorProfileMobileScreen() {
     leg
       ? legislatorPageMetadata({
           slug: leg.slug ?? leg.id,
-          displayName: honorificName(leg.name, leg.chamber),
+          displayName: legislatorDisplayName(leg.name, leg.chamber),
           districtLine: `${leg.chamber} District ${leg.district}`,
         }).title
       : null,
@@ -437,7 +431,7 @@ export function LegislatorProfileMobileScreen() {
 
   const shareContent = leg
     ? buildLegislatorShareContent({
-        displayName: honorificName(leg.name, leg.chamber),
+        displayName: legislatorDisplayName(leg.name, leg.chamber),
         districtLine: `${leg.chamber} District ${leg.district}`,
         url: publicPageUrl(`/legislators/${encodeURIComponent(leg.slug ?? leg.id)}`),
       })
@@ -510,7 +504,9 @@ export function LegislatorProfileMobileScreen() {
                       <Text style={styles.portraitInitials}>{initialsOf(leg.name)}</Text>
                     )}
                   </View>
-                  <Text style={styles.heroName}>{honorificName(leg.name, leg.chamber)}</Text>
+                  <Text style={styles.heroName}>
+                    {legislatorDisplayName(leg.name, leg.chamber)}
+                  </Text>
                 </View>
                 <View style={styles.metaRow}>
                   <View style={styles.metaLeft}>
@@ -774,10 +770,10 @@ export function LegislatorProfileMobileScreen() {
                       Claim this profile
                     </Text>
                     <Text style={styles.roadmapCardBody}>
-                      Are you {honorificName(leg.name, leg.chamber)}? Claiming links you to this
-                      existing record, so you can manage your biography, write up the bills you’ve
-                      worked on, and add your own context. Verified against official legislative
-                      records.
+                      Are you {legislatorDisplayName(leg.name, leg.chamber)}? Claiming links you to
+                      this existing record, so you can manage your biography, write up the bills
+                      you’ve worked on, and add your own context. Verified against official
+                      legislative records.
                     </Text>
                     <span aria-disabled={true} style={claimPreviewStyle}>
                       <ShieldCheck color={t.colors.brand.deep} />
