@@ -77,8 +77,10 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
    filter stack (chip row, chamber/status/session, issue pills) stays scrolled off
    — that is what the reader already set. The new "Page N of M" is announced via
    `aria-live`. This is the shared `usePaginatedListScroll` hook wired through the
-   `Pagination` control, so it fires on Previous/Next only — never on a filter,
-   sort, or search keystroke. Any new paged list inherits it the same way.
+   `Pagination` control, so it fires on Previous, Next, and a numbered page jump
+   only — never on a filter, sort, or search keystroke. Unfiltered directory
+   controls are ordinary web links, including deep jumps; filtered search stays
+   app-only. Any new paged list inherits it the same way.
 
 ## Copy punctuation on this screen
 

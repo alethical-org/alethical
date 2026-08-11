@@ -10,15 +10,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 const liveConfig = resolve(here, '../../../../../vercel.json');
 
 describe('retired public addresses', () => {
-  it('permanently sends old Search addresses to Bills and old Chat or Account addresses home', () => {
+  it('keeps Search retired while leaving restorable Chat and Account routes reversible', () => {
     const config = JSON.parse(readFileSync(liveConfig, 'utf8')) as { redirects?: Redirect[] };
 
     expect(config.redirects).toEqual(
       expect.arrayContaining([
         { source: '/search', destination: '/bills', permanent: true },
-        { source: '/chat', destination: '/', permanent: true },
-        { source: '/chat/:path*', destination: '/', permanent: true },
-        { source: '/account', destination: '/', permanent: true },
+        { source: '/chat', destination: '/', permanent: false },
+        { source: '/chat/:path*', destination: '/', permanent: false },
+        { source: '/account', destination: '/', permanent: false },
       ]),
     );
   });

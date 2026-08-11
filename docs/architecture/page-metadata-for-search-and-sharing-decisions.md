@@ -302,10 +302,11 @@ Split into one file per page type under an index, each entry carrying the **reco
 date** — not the time the sitemap was generated, which tells a search engine nothing. Leave out
 `priority` and `changefreq`; they are ignored.
 
-**Filtered list addresses must point back at the plain list.** The bill list accepts ten filter
-values (`q`, `topic`, `scope`, `chamber`, `status`, `session`, `issue`, `omnibus`, `sort`, `page`),
-which combine into effectively unlimited near-identical addresses. Declaring the unfiltered list as
-their real address collapses them.
+**At release 1, filtered list addresses pointed back at the plain list.** The bill list accepts ten
+filter values (`q`, `topic`, `scope`, `chamber`, `status`, `session`, `issue`, `omnibus`, `sort`,
+`page`), which combine into effectively unlimited near-identical addresses. §18 replaces that rule:
+filtered pages now carry `noindex` and no canonical address, so they do not send two competing
+indexing signals.
 
 ---
 
@@ -543,7 +544,8 @@ profile and to the member list). `api/page.ts` drops it between the markers insi
 At release 2, lists, `/ask` and static pages got no snapshot. A list is a list of *other* records, so
 that release did not invent a summary of a result set that changes per reader. §18 later replaces the
 list boundary for unfiltered public directory pages only: it serves the exact records and page links,
-not a generated summary. Filtered lists, `/ask`, and static pages other than Home still get none.
+not a generated summary. Find My Legislator also receives its fixed instructions. Filtered lists,
+`/ask`, and static pages other than Home and Find My Legislator still get none.
 
 ### Two things §8C did not settle, and how the build settled them
 
@@ -871,10 +873,11 @@ Built 11 Aug 2026 for [#1341](https://github.com/alethical-org/alethical/issues/
 
 ### Decision
 
-`apps/frontend/src/navigation/webRoutes.ts` is the only list that decides whether an app address is
-real, retired but supported, or unknown. The browser uses that result to choose a screen, and
-`api/page.ts` uses the same result to choose an HTTP response. The final rewrite in the root
-`vercel.json` sends every non-file app address through that page function.
+At release 3, `apps/frontend/src/navigation/webRoutes.ts` was the only list that decided whether an
+app address was real, retired but supported, or unknown. The browser used that result to choose a
+screen, and `api/page.ts` used the same result to choose an HTTP response. The final rewrite in the
+root `vercel.json` sent every non-file app address through that page function. §18 later moved
+retired Search, Chat, and Account addresses into host redirects that run before the page function.
 
 This replaces the earlier split in which `vercel.json` knew only current public pages,
 `webRoutes.ts` knew retired forwards, and the final catch-all sent everything else to Home. The split
@@ -979,10 +982,11 @@ record.
   chain about 1,000 pages long. A requested page beyond the real last page answers 404 with
   `noindex`; after the app starts it stays on the same useful missing-page screen instead of being
   clamped to a real last page or changed into an ordinary empty list.
-- Typed searches and filter combinations keep the plain directory as their canonical address and
-  receive no record snapshot plus a `noindex` instruction. They remain useful to a person after the
-  app runs without becoming thousands of near-copy search pages; the explicit instruction avoids
-  asking a search engine to infer that from a canonical hint alone.
+- Typed searches and filter combinations receive no canonical address, no record snapshot, and a
+  `noindex` instruction. They remain useful to a person after the app runs without becoming
+  thousands of near-copy search pages. [Google's current pagination guidance](https://developers.google.com/search/docs/specialty/ecommerce/pagination-and-incremental-page-loading)
+  recommends `noindex` for unwanted filtered or sorted results. Omitting the canonical tag also
+  avoids calling a filtered result set a duplicate of the different plain directory.
 - The app and the serving function import the same 10- and 12-record page-size constants. Bill link
   text uses the bill code, its plain short title when one exists, and its session so repeated bill
   codes from special sessions stay distinct; it never puts the statutory cross-reference title into
@@ -997,9 +1001,9 @@ record.
   turns a temporary outage into an empty successful page or a false 404. That includes a 404 from a
   list endpoint, which means its current-session data selection failed, not that Bills or Legislators
   ceased to be public pages.
-- Retired `/search` addresses permanently redirect to Bills. Retired Chat and Account addresses
-  permanently redirect Home. They still lead somewhere useful without serving full duplicate copies
-  of the destination pages at unlimited old addresses.
+- Retired `/search` addresses permanently redirect to Bills. Chat and Account addresses temporarily
+  redirect Home because those features may return. They still lead somewhere useful without making
+  a browser remember a permanent move that later blocks the restored feature.
 
 ### What this deliberately does not do
 

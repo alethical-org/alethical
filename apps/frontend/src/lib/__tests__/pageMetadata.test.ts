@@ -60,11 +60,11 @@ describe('page metadata', () => {
     expect(meta.canonicalPath).toBe('/legislators/aisha-gomez');
   });
 
-  // Ten filter values combine into effectively unlimited near-identical addresses.
-  // They all declare the plain list as their real one, which collapses them.
-  it('points every filtered list address back at the plain list', () => {
+  it('keeps canonicals only on indexable directory pages', () => {
     expect(billListPageMetadata().canonicalPath).toBe('/bills');
     expect(legislatorListPageMetadata().canonicalPath).toBe('/legislators');
+    expect(billListPageMetadata(1, { noindex: true }).canonicalPath).toBe('');
+    expect(legislatorListPageMetadata(1, { noindex: true }).canonicalPath).toBe('');
     expect(billListPageMetadata(1, { noindex: true }).noindex).toBe(true);
     expect(legislatorListPageMetadata(1, { noindex: true }).noindex).toBe(true);
   });

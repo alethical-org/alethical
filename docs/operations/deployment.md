@@ -109,15 +109,18 @@ Create the Vercel project from the repository root so the root `pnpm-lock.yaml` 
 - 1 final rewrite sending every non-file app address to `api/page.ts`; that function reads the same
   route table as the browser, so real pages and retired links still work while an unknown or
   wrong-case address answers 404 ([#1341](https://github.com/alethical-org/alethical/issues/1341))
+- redirects sending retired Search addresses to Bills permanently, and Chat or Account addresses
+  Home temporarily so those planned features can later return
 - `trailingSlash: false`, which redirects slash-terminated forms to the 1 address used for the record
 - rewrites sending `/sitemap.xml` and `/sitemaps/*.xml` to `api/sitemap.ts`
 
-`api/page.ts` fetches the built `index.html` from the deployment it is running in, replaces
-the marked block in its head with that address's own title, description, canonical URL,
-preview tags and machine-readable block, and returns the page with the app body untouched —
-so a crawler and a reader receive identical HTML (#1325). It reads only the public bill or
-legislator fields the tags need. An unknown address and a missing record answer 404 with a useful
-page and onward links; a data-service failure answers 503 with `Retry-After`, never 404. Responses are cached at the edge
+`api/page.ts` reads the built `index.html` bundled with the function, replaces the marked block in
+its head with that address's own title, description, canonical URL, preview tags and
+machine-readable block, and replaces the marked app-body slot with the page's factual first-response
+text and links. The app then replaces that same slot when it starts, so a crawler and a reader
+receive the same HTML (#1325). It reads only the public fields the first response needs. An unknown
+address and a missing record answer 404 with a useful page and onward links; a data-service failure
+answers 503 with `Retry-After`, never 404. Responses are cached at the edge
 (`s-maxage=600, stale-while-revalidate=86400`), so the function runs on a cache miss rather
 than on every visit.
 

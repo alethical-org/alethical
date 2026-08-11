@@ -192,6 +192,27 @@ def test_bill_directory_view_returns_only_first_response_fields(client):
         assert "stats" not in row
 
 
+def test_huge_empty_offset_counts_before_attempting_the_page_query():
+    from alethical.api.routers.public import paginated_scalars_with_total
+
+    schema = load_schema()
+
+    class CountOnlyDb:
+        def scalar(self, _stmt):
+            return 25
+
+        def execute(self, _stmt):
+            raise AssertionError("a huge empty offset must not reach the page query")
+
+    rows, has_more, total = paginated_scalars_with_total(
+        CountOnlyDb(), select(schema.Bill), limit=10, offset=1_000_000
+    )
+
+    assert rows == []
+    assert has_more is False
+    assert total == 25
+
+
 def test_featured_bills_returns_requested_summaries_in_order_and_skips_missing(client):
     """The phone home page fetches its 2 editorial cards in 1 cacheable read.
 

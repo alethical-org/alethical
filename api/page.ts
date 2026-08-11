@@ -314,8 +314,6 @@ async function contentFor(
     case "legislator":
       return legislatorContent(target.legislatorId);
     case "bills":
-      if (path === "/search")
-        return headOnly(billListPageMetadata(1, { noindex: true }));
       return isDefaultBillDirectoryParams(target.params)
         ? billListContent(directoryPageNumber(target.params.page))
         : headOnly(billListPageMetadata(1, { noindex: true }));

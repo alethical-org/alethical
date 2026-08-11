@@ -96,6 +96,7 @@ router = APIRouter()
 # network). Responses that vary by user (tracking state) are never cached.
 PUBLIC_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300"
 PRIVATE_CACHE_CONTROL = "private, no-store"
+LARGE_OFFSET_COUNT_FIRST = 100_000
 
 
 def paginated_scalars(db: Session, stmt, *, limit: int, offset: int):
@@ -115,6 +116,10 @@ def paginated_scalars_with_total(db: Session, stmt, *, limit: int, offset: int):
     where every filter-chip tap fires a fresh request, dropping that second
     round trip measurably cuts the per-tap latency (#492).
 
+    An unusually large offset is counted first. When it is beyond the real end,
+    this avoids making the database sort and skip millions of rows merely to
+    prove the page is empty.
+
     Returns ``(rows, has_more, total)``. The entity stays the first result
     column, so ``selectinload`` eager-loads still fire exactly as before.
     """
@@ -123,6 +128,12 @@ def paginated_scalars_with_total(db: Session, stmt, *, limit: int, offset: int):
             select(func.count()).select_from(stmt.order_by(None).subquery())
         )
         return [], False, total
+    if offset >= LARGE_OFFSET_COUNT_FIRST:
+        total = db.scalar(
+            select(func.count()).select_from(stmt.order_by(None).subquery())
+        )
+        if offset >= total:
+            return [], False, total
     windowed = stmt.add_columns(func.count().over()).offset(offset).limit(limit + 1)
     result = db.execute(windowed).all()
     if not result:

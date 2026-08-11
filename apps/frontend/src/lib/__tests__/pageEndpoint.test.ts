@@ -335,7 +335,7 @@ describe('first-response page tags', () => {
     expect(body).not.toContain('>Next</a>');
   });
 
-  it('keeps filtered directory combinations collapsed into the plain list', async () => {
+  it('keeps filtered directory combinations out of the index without a canonical conflict', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
@@ -345,7 +345,7 @@ describe('first-response page tags', () => {
     const { body, headers, status } = await serve({ path: '/bills', q: 'water', page: '2' });
 
     expect(status).toBe(200);
-    expect(body).toContain('rel="canonical" href="https://www.alethical.com/bills"');
+    expect(body).not.toContain('rel="canonical"');
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
     expect(body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
@@ -389,7 +389,7 @@ describe('first-response page tags', () => {
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
   });
 
-  it('keeps a filtered Legislators address collapsed into the plain directory', async () => {
+  it('keeps a filtered Legislators address out of the index without a canonical conflict', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
@@ -403,7 +403,7 @@ describe('first-response page tags', () => {
     });
 
     expect(status).toBe(200);
-    expect(body).toContain('rel="canonical" href="https://www.alethical.com/legislators"');
+    expect(body).not.toContain('rel="canonical"');
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
     expect(body).not.toContain('class="ps-records"');
     expect(calls).toHaveLength(0);
@@ -497,22 +497,6 @@ describe('addresses that are not real pages', () => {
     expect(status).toBe(200);
     expect(body).toContain(title);
     expect(body).not.toContain('<h1>Grounded answers on Minnesota law</h1>');
-  });
-
-  it('keeps the retired /search address on the crawlable Bills directory', async () => {
-    stubNetwork(() => ({
-      status: 200,
-      payload: {
-        data: [],
-        page: { limit: 10, offset: 0, has_more: false, total: 0 },
-      },
-    }));
-
-    const { status, body } = await serve({ path: '/search' });
-
-    expect(status).toBe(200);
-    expect(body).toContain('<title>Search Minnesota bills | Alethical</title>');
-    expect(body).not.toContain('<h1>Search bills</h1>');
   });
 
   it('keeps a retired vote address on its bill page', async () => {

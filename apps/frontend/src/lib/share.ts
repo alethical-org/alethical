@@ -245,10 +245,9 @@ export function billListPageMetadata(page = 1, options: { noindex?: boolean } = 
     title: titleFor(subject),
     socialTitle: subject,
     description: `Search bills in the Minnesota Legislature by topic, chamber, and status.${page > 1 ? ` Page ${page}.` : ''}`,
-    // Ten filter values combine into effectively unlimited near-identical
-    // addresses (#135's URL-addressable filters). They all declare the plain
-    // list as their real address, which collapses them into one.
-    canonicalPath: directoryPagePath('/bills', page),
+    // Filtered addresses carry no canonical while they are noindex. Combining
+    // both signals can make the intended indexable directory ambiguous.
+    canonicalPath: options.noindex ? '' : directoryPagePath('/bills', page),
     noindex: options.noindex,
   });
 }
@@ -262,7 +261,7 @@ export function legislatorListPageMetadata(
     title: titleFor(subject),
     socialTitle: subject,
     description: `Find a Minnesota legislator by name, chamber, or party.${page > 1 ? ` Page ${page}.` : ''}`,
-    canonicalPath: directoryPagePath('/legislators', page),
+    canonicalPath: options.noindex ? '' : directoryPagePath('/legislators', page),
     noindex: options.noindex,
   });
 }
