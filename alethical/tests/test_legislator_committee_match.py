@@ -36,14 +36,18 @@ import pytest
 from scripts.review_legislator_campaign_committees import describe
 from alethical.pipeline.legislator_committee_match import (
     CommitteeRecord,
+    FilerRecord,
+    FilerVerdict,
     GivenNameEvidence,
     ProposalTier,
     RosterMember,
     classify_party_unit_name,
+    compare_to_filer_directory,
     coverage_counts,
     find_contested_registrations,
     given_name_words,
     index_committees_by_surname,
+    normalize_district,
     parse_committee_name,
     propose_all,
     surname_keys,
@@ -79,6 +83,7 @@ def member(
     last: str | None = None,
     party: str | None = "DFL",
     legislator_id: str | None = None,
+    district: str = "01A",
 ) -> RosterMember:
     return RosterMember(
         legislator_id=legislator_id or full_name.lower().replace(" ", "-"),
@@ -87,7 +92,7 @@ def member(
         first_name=first,
         last_name=last,
         party=party,
-        district="01A",
+        district=district,
     )
 
 
@@ -705,6 +710,286 @@ def test_a_published_nickname_survives_a_differing_legal_first_name():
         result.proposals[0].given_name_evidence is GivenNameEvidence.published_nickname
     )
     assert result.proposals[0].tier is ProposalTier.strong
+
+
+# --------------------------------------------------------------------------------------
+# The Board's registered-filer directory, which states each committee's own seat
+
+
+def filer(
+    registration: str,
+    *,
+    office: str | None = "House",
+    district: str | None = "01A",
+    party: str | None = "DFL",
+    candidate: str = "Testcase, Sample",
+    incumbent: bool = True,
+    terminated: bool = False,
+) -> FilerRecord:
+    return FilerRecord(
+        registration_number=registration,
+        committee_name=f"{candidate} {office} Committee",
+        candidate_name=candidate,
+        office=office,
+        district=district,
+        party=party,
+        is_incumbent=incumbent,
+        is_terminated=terminated,
+    )
+
+
+def test_a_district_is_compared_with_its_leading_zero_removed():
+    # Production zero-pads House districts ("05B") and the Board does not ("5B"). Comparing
+    # them raw matches nothing for the 9 single-digit House districts or either single-digit
+    # Senate one, silently.
+    assert normalize_district("05B") == normalize_district("5B")
+    assert normalize_district("01") == normalize_district("1")
+    assert normalize_district("45B") == "45B"
+    assert normalize_district(None) == ""
+
+
+@pytest.mark.parametrize(
+    "office, district, party, expected",
+    [
+        # This member's own seat and party, which is the Board naming whose committee it is.
+        ("House", "33A", "RPM", FilerVerdict.same_seat),
+        # A different district in the same office is a different person, stated by the source.
+        ("House", "12A", "RPM", FilerVerdict.different_person),
+        # A different party in the same seat, likewise.
+        ("House", "33A", "DFL", FilerVerdict.different_person),
+        # A different office may well be this member seeking something else, so never ruled out.
+        ("Senate", "33", "RPM", FilerVerdict.different_race),
+        ("Governor", None, "RPM", FilerVerdict.different_race),
+    ],
+)
+def test_the_directory_verdict_separates_a_different_person_from_a_different_race(
+    office, district, party, expected
+):
+    patti = member(
+        "Patti Anderson",
+        "house",
+        first="Patti",
+        last="Anderson",
+        party="R",
+        legislator_id="patti",
+        district="33A",
+    )
+    assert (
+        compare_to_filer_directory(
+            patti, filer("x", office=office, district=district, party=party)
+        )
+        is expected
+    )
+
+
+def test_absence_from_the_directory_says_nothing_either_way():
+    # 1,057 of the 1,732 candidate committees are not listed, because the directory holds
+    # current registrations and an older committee falls off it. Reading absence as evidence
+    # would rule out most of the corpus.
+    assert (
+        compare_to_filer_directory(member("Anyone Here", "house"), None)
+        is FilerVerdict.unknown
+    )
+
+
+def test_a_committee_the_board_registers_to_another_seat_is_ruled_out():
+    # The case §5.1 recorded as unreachable from the payment files. Patti Anderson sits in
+    # House 33A; "Anderson, Paul H House Committee" is registered to House 12A, so it is
+    # another person's, and the Board is the one saying so.
+    patti = member(
+        "Patti Anderson",
+        "house",
+        first="Patti",
+        last="Anderson",
+        party="R",
+        legislator_id="patti",
+        district="33A",
+    )
+    result = only(
+        [patti],
+        [
+            committee(
+                "18229", "Anderson, Patricia House Committee", first="2018", rows=279
+            ),
+            committee(
+                "16807", "Anderson, Paul H House Committee", first="2015", rows=201
+            ),
+        ],
+        filers_by_registration={
+            "18229": filer(
+                "18229", district="33A", party="RPM", candidate="Anderson, Patricia"
+            ),
+            "16807": filer(
+                "16807", district="12A", party="RPM", candidate="Anderson, Paul H"
+            ),
+        },
+    )
+    assert [p.committee.registration_number for p in result.proposals] == ["18229"]
+    assert [c.registration_number for c, _ in result.ruled_out_by_directory] == [
+        "16807"
+    ]
+    assert result.outcome == "matched"
+
+
+def test_the_board_naming_the_seat_settles_a_name_no_rule_could_derive():
+    # "Liish Kozlowski" and "Kozlowski, Alicia" have no derivable relationship, so on names
+    # alone this can only ever go to a person. The Board registering that committee to House
+    # 08B, DFL — her seat and her party — answers the question the name could not.
+    liish = member(
+        "Liish Kozlowski",
+        "house",
+        first="Liish",
+        last="Kozlowski",
+        party="DFL",
+        district="08B",
+    )
+    on_names_alone = only(
+        [liish], [committee("18886", "Kozlowski, Alicia House Committee", rows=203)]
+    )
+    assert on_names_alone.proposals[0].tier is ProposalTier.review
+
+    with_directory = only(
+        [liish],
+        [committee("18886", "Kozlowski, Alicia House Committee", rows=203)],
+        filers_by_registration={
+            "18886": filer(
+                "18886", district="08B", party="DFL", candidate="Kozlowski, Alicia"
+            )
+        },
+    )
+    assert with_directory.proposals[0].filer_verdict == FilerVerdict.same_seat.value
+    assert with_directory.proposals[0].tier is ProposalTier.strong
+    assert with_directory.outcome == "matched"
+
+
+def test_a_different_office_is_never_cleared_by_the_directory():
+    # Liz Reyer sits in House 52A and is registered for Senate 52. The Board agreeing it is
+    # hers does not make it her House money: §7 (Display rules) forbids a race for another
+    # office appearing under her profile, so a person still decides which to link.
+    result = only(
+        [member("Liz Reyer", "house", first="Liz", last="Reyer", district="52A")],
+        [
+            committee(
+                "18596",
+                "Reyer, Lizabeth House Committee",
+                first="2020",
+                last="2025",
+                rows=382,
+            ),
+            committee("19263", "Reyer, Liz Senate Committee", first="2025", rows=45),
+        ],
+        filers_by_registration={
+            "19263": filer(
+                "19263",
+                office="Senate",
+                district="52",
+                party="DFL",
+                candidate="Reyer, Liz",
+            )
+        },
+    )
+    assert result.outcome == "ambiguous"
+    senate = next(
+        p for p in result.proposals if p.committee.registration_number == "19263"
+    )
+    assert senate.filer_verdict == FilerVerdict.different_race.value
+    assert any("Senate, not House" in reason for reason in senate.reasons)
+
+
+def test_two_surviving_committees_still_need_a_person_even_with_the_board_agreeing():
+    # The directory answers *whose* a committee is. It cannot answer which of a member's own
+    # committees their profile should show, which is a product decision §7 reserves.
+    result = only(
+        [
+            member(
+                "Ben Bakeberg",
+                "house",
+                first="Ben",
+                last="Bakeberg",
+                party="R",
+                district="54B",
+            )
+        ],
+        [
+            committee(
+                "18905",
+                "Bakeberg, Ben House Committee",
+                first="2022",
+                last="2025",
+                rows=169,
+            ),
+            committee(
+                "19239", "Bakeberg, Ben Senate Committee", first="2025", rows=114
+            ),
+        ],
+        filers_by_registration={
+            "18905": filer(
+                "18905", district="54B", party="RPM", candidate="Bakeberg, Ben"
+            ),
+            "19239": filer(
+                "19239",
+                office="Senate",
+                district="54",
+                party="RPM",
+                candidate="Bakeberg, Ben",
+            ),
+        },
+    )
+    assert result.outcome == "ambiguous"
+    assert len(result.proposals) == 2
+
+
+def test_the_directory_agreeing_never_clears_the_committee_name_s_own_office():
+    # The directory's office and the committee *name's* office suffix are two different
+    # fields and can disagree. When they do, the name still holds the proposal back: §7
+    # (Display rules) forbids money from a race for another office appearing under a
+    # legislator's profile, and the name is what a reviewer reads on the screen.
+    #
+    # This case exists because a mutation test caught the gap: letting a ``same_seat``
+    # verdict clear the different-office reason passed every other test in this file.
+    result = only(
+        [
+            member(
+                "Peggy Bennett",
+                "house",
+                first="Peggy",
+                last="Bennett",
+                party="R",
+                district="23A",
+            )
+        ],
+        [committee("19340", "Bennett, Peggy Gov Committee", first="2026", rows=48)],
+        filers_by_registration={
+            "19340": filer(
+                "19340", district="23A", party="RPM", candidate="Bennett, Peggy"
+            )
+        },
+    )
+    proposal = result.proposals[0]
+    assert proposal.filer_verdict == FilerVerdict.same_seat.value
+    assert proposal.tier is ProposalTier.review
+    assert any("Gov, not House" in reason for reason in proposal.reasons)
+
+
+def test_a_quiet_committee_is_not_promoted_by_the_directory_either():
+    result = only(
+        [member("Someone Quiet", "house", first="Someone", last="Quiet")],
+        [
+            committee(
+                "18000", "Quiet, Someone House Committee", first="2016", last="2020"
+            )
+        ],
+        filers_by_registration={
+            "18000": filer(
+                "18000", district="01A", party="DFL", candidate="Quiet, Someone"
+            )
+        },
+    )
+    assert result.proposals[0].filer_verdict == FilerVerdict.same_seat.value
+    assert result.proposals[0].tier is ProposalTier.review
+    assert result.proposals[0].reasons == (
+        "no contributions in the current session's years",
+    )
 
 
 # --------------------------------------------------------------------------------------

@@ -38,6 +38,17 @@ members. Facts the rules depend on, each checked rather than assumed:
   ("Baker, David (Dave)") and in quotes on 5 ("Gordon, James \\"Jimmy\\""). A nickname the
   source publishes is evidence; a nickname this module guessed would not be, which is why
   there is no nickname table here.
+
+**A second source does the work names cannot.** The Board's registered-filer directory
+(§9.7 of the design document) states each committee's own **office, district and party** —
+none of which the payment files carry. That turns the hardest cases from a judgement about
+spelling into a fact about a seat: a committee registered for House 12A is not the committee
+of a member who sits in House 33A, and the Board is the one saying so. Measured 11 Aug 2026,
+it takes the cases needing a person to read alternatives from 92 down to 4, and the 4 left
+are members who currently hold one seat while registered to seek another.
+
+Read once and passed in, so this module stays free of network calls and every rule in it
+remains testable from plain values.
 """
 
 from __future__ import annotations
@@ -132,6 +143,28 @@ SOURCE_STATED_GIVEN_NAME_EVIDENCE = frozenset(
 )
 
 
+class FilerVerdict(enum.Enum):
+    """What the Board's directory says about a committee, relative to one legislator.
+
+    Three outcomes, and the distance between the middle two is the whole point:
+
+    * ``same_seat`` — registered for this member's own office **and** district **and** party.
+      The Board corroborating a name match on the field that actually identifies a
+      legislator, which is stronger evidence than any spelling of a name.
+    * ``different_person`` — registered for a **different district in the same office**, or a
+      different party in the same seat. Two people, stated by the source. Safe to rule out.
+    * ``different_race`` — registered for a **different office**. Possibly the same person
+      seeking something else, which is common and real, so never ruled out.
+    * ``unknown`` — not in the directory. 1,057 of 1,732 candidate committees are not, so
+      this is the ordinary case and carries no information at all.
+    """
+
+    same_seat = "same_seat"
+    different_person = "different_person"
+    different_race = "different_race"
+    unknown = "unknown"
+
+
 class ProposalTier(enum.Enum):
     """How much reading a proposal needs before a person can answer it.
 
@@ -165,6 +198,41 @@ class CommitteeRecord:
     @property
     def is_candidate_committee(self) -> bool:
         return self.recipient_type == CANDIDATE_COMMITTEE_TYPE
+
+
+@dataclass(frozen=True)
+class FilerRecord:
+    """One committee as the Board's registered-filer directory describes it (§9.7).
+
+    This is the source that answers what no name rule can: the directory states each
+    committee's **own office, district and party**, none of which the payment files carry.
+    A committee registered for House 12A is not the committee of a member who sits in House
+    33A, and that is the Board saying so rather than us inferring it.
+
+    ``district`` is absent on 49 of 777 rows (statewide races have no district), and
+    ``party`` is present on all 777. Only 675 of the 1,732 candidate committees in the
+    contributions file appear here at all, because the directory lists current registrations
+    and an older committee falls off it — so **absence proves nothing** and is never read as
+    evidence either way.
+    """
+
+    registration_number: str
+    committee_name: str
+    candidate_name: str
+    office: str | None
+    district: str | None
+    party: str | None
+    is_incumbent: bool
+    is_terminated: bool
+
+
+# The directory's office wording, mapped to the chamber slugs production stores. Its labels
+# are spelled out where the committee names abbreviate them ("Senate" both ways, but
+# "District Court" against the name suffix "Dist Court").
+FILER_OFFICE_TO_CHAMBER: dict[str, str] = {"House": "house", "Senate": "senate"}
+
+# How production spells a party against how the Board's directory spells it.
+ROSTER_PARTY_TO_FILER_PARTY: dict[str, str] = {"DFL": "DFL", "R": "RPM", "RPM": "RPM"}
 
 
 @dataclass(frozen=True)
@@ -210,6 +278,7 @@ class Proposal:
     reasons: tuple[str, ...]
     party_of_party_unit_money: str | None = None
     party_agrees: bool | None = None
+    filer_verdict: str = FilerVerdict.unknown.value
 
 
 @dataclass
@@ -220,6 +289,9 @@ class LegislatorProposals:
     proposals: list[Proposal] = field(default_factory=list)
     suppressed_surname_only: int = 0
     no_surname_match: bool = False
+    # Committees the Board's own directory registers to a different person, kept so the
+    # review screen can show what was discarded and on whose authority.
+    ruled_out_by_directory: tuple[tuple[CommitteeRecord, FilerRecord], ...] = ()
 
     @property
     def outcome(self) -> str:
@@ -437,6 +509,40 @@ def classify_given_name(
     return GivenNameEvidence.surname_only
 
 
+def normalize_district(district: str | None) -> str:
+    """Fold a district label so "05B" and "5B" compare equal.
+
+    Production stores House districts zero-padded ("05B", "45B") and the Board's directory
+    does not ("5B", "45B"). Comparing them raw silently matches nothing for the 9 single-digit
+    House districts and both single-digit Senate ones.
+    """
+    return (district or "").strip().upper().lstrip("0")
+
+
+def compare_to_filer_directory(
+    member: RosterMember, filer: FilerRecord | None
+) -> FilerVerdict:
+    """Read what the directory says about this committee, for this legislator.
+
+    The one judgement here that could lose real money if taken further: a committee for a
+    **different office** is left alone. Liz Reyer sits in House 52A and her live registration
+    is a Senate committee for district 52; ruling that out because the office differs would
+    discard her own committee. Only a different *district within the same office*, or a
+    different party in her own seat, is another person.
+    """
+    if filer is None:
+        return FilerVerdict.unknown
+    expected_chamber = FILER_OFFICE_TO_CHAMBER.get(filer.office or "")
+    if expected_chamber is None or expected_chamber != member.chamber_slug:
+        return FilerVerdict.different_race
+    if normalize_district(filer.district) != normalize_district(member.district):
+        return FilerVerdict.different_person
+    expected_party = ROSTER_PARTY_TO_FILER_PARTY.get(member.party or "")
+    if expected_party and filer.party and filer.party != expected_party:
+        return FilerVerdict.different_person
+    return FilerVerdict.same_seat
+
+
 def classify_party_unit_name(contributor: str) -> str | None:
     """Which party a contributing party unit says it belongs to, or None.
 
@@ -467,11 +573,24 @@ def unexplained_member_words(
     review; the earlier code comment claimed over-generating keys was safe because a wrong
     key finds no committee, which is false when the wrong key finds a namesake.)
 
-    Only the member's side is checked, and only words longer than one letter. A middle
-    initial the Board omits ("Senator Mark T. Johnson" against "Johnson, Mark Timothy")
-    identifies nobody, so demoting on it would cost half the Senate for no gain. A whole
-    unexplained word is different: it is either part of a compound surname the key cut
-    through, or a second given name the committee never confirms.
+    Three exclusions, each of which would otherwise make this rule fire on something another
+    rule already describes:
+
+    * **The first given word never counts.** How it relates to the committee's is exactly
+      what ``GivenNameEvidence`` reports, so flagging it here counts one fact twice. It also
+      made the rule fire on every ordinary shortening — "Pam" against "Altendorf, Pamela"
+      read as an unexplained word — which is a nickname, not a surname key cutting through a
+      compound name, and this rule is about the latter.
+    * **Single letters never count.** A middle initial the Board omits ("Senator Mark T.
+      Johnson" against "Johnson, Mark Timothy") identifies nobody.
+    * **Only our side is checked.** A fuller legal name in the committee name is the Board
+      being more precise than us, not a discrepancy.
+
+    What is left is the case this exists for: a whole word stranded between the given name
+    and the surname the key matched, which means either the key cut through a compound
+    surname (Senator Erin K. Maye Quade matched on the key "quade", leaving "maye") or the
+    person carries a second given name the committee never confirms (María Isa Pérez-Vega
+    against "Perez-Vega, Maria", leaving "isa").
     """
     committee_words = set(normalize_name_part(parsed.given).split())
     nickname = normalize_name_part(parsed.published_nickname)
@@ -479,7 +598,7 @@ def unexplained_member_words(
         committee_words.add(nickname)
     return [
         word
-        for word in member_given_words
+        for word in member_given_words[1:]
         if len(word) > 1 and word not in committee_words
     ]
 
@@ -499,6 +618,7 @@ def propose_for_member(
     current_years: Sequence[str],
     contested_registrations: frozenset[str] = frozenset(),
     party_by_registration: dict[str, str] | None = None,
+    filers_by_registration: dict[str, FilerRecord] | None = None,
     max_surname_only: int = 6,
 ) -> LegislatorProposals:
     """Suggest the committees that could belong to one legislator.
@@ -559,6 +679,28 @@ def propose_for_member(
         None,
     )
 
+    # Rule out the committees the Board itself says belong to somebody else, before any
+    # name rule runs. This is the only step here that discards a candidate, and it is safe
+    # to because it rests on the source stating a different district in the same office, or
+    # a different party in the same seat, rather than on anything inferred. It is what
+    # separates Patti Anderson (House 33A) from "Anderson, Paul H House Committee", which the
+    # directory registers to House 12A -- the case §5.1 previously recorded as unreachable.
+    ruled_out: list[tuple[CommitteeRecord, FilerRecord]] = []
+    if filers_by_registration:
+        surviving = []
+        for committee, parsed, matched_key in pairs:
+            filer = filers_by_registration.get(committee.registration_number)
+            if (
+                compare_to_filer_directory(member, filer)
+                is FilerVerdict.different_person
+            ):
+                assert filer is not None  # only reachable with a directory row
+                ruled_out.append((committee, filer))
+            else:
+                surviving.append((committee, parsed, matched_key))
+        result.ruled_out_by_directory = tuple(ruled_out)
+        pairs = surviving
+
     scored: list[Proposal] = []
     surname_only: list[Proposal] = []
     for committee, parsed, matched_key in pairs:
@@ -566,23 +708,42 @@ def propose_for_member(
         evidence = classify_given_name(parsed, member_given)
         office_matches = parsed.office is not None and parsed.office == expected_office
         active = _years_overlap(committee, current_years)
+        filer = (filers_by_registration or {}).get(committee.registration_number)
+        verdict = compare_to_filer_directory(member, filer)
 
-        reasons: list[str] = []
+        # Three of the reasons below are all the same worry in different clothes: **we
+        # cannot tell which of several same-named people this committee belongs to.** The
+        # name is inferred, or a word of our record is unexplained, or a generational suffix
+        # sits on one side only. A directory row naming this member's own office, district
+        # and party answers that worry outright, because it is the Board stating whose
+        # committee this is on the field that actually identifies a legislator. So those
+        # three are grouped and cleared together, rather than two of them being cleared and
+        # the third left to hold a proposal back for a question already answered.
+        #
+        # Nothing else is cleared. A committee for a different office stays a different race
+        # whoever it belongs to, because §7 (Display rules) forbids that money appearing
+        # under a legislator's profile; a quiet committee stays quiet; a party-money
+        # disagreement stays a conflict worth reading; and two surviving committees stay a
+        # choice only a person may make.
+        whose_committee_answered = verdict is FilerVerdict.same_seat
+        identity_doubts: list[str] = []
         if evidence not in SOURCE_STATED_GIVEN_NAME_EVIDENCE:
-            reasons.append(f"given name is inferred ({evidence.value})")
+            identity_doubts.append(f"given name is inferred ({evidence.value})")
         for word in unexplained_member_words(parsed, member_given):
-            reasons.append(
+            identity_doubts.append(
                 f"our record of this person says {word!r} and the committee name does not"
             )
+        if parsed.generational_suffix:
+            identity_doubts.append(
+                f"the committee name carries {parsed.generational_suffix} "
+                "and our record does not"
+            )
+
+        reasons: list[str] = [] if whose_committee_answered else list(identity_doubts)
         if parsed.office is None:
             reasons.append("the committee name states no office")
         elif not office_matches:
             reasons.append(f"committee is for {parsed.office}, not {expected_office}")
-        if parsed.generational_suffix:
-            reasons.append(
-                f"the committee name carries {parsed.generational_suffix} "
-                "and our record does not"
-            )
         if not active:
             reasons.append("no contributions in the current session's years")
         if committee.registration_number in contested_registrations:
@@ -609,6 +770,7 @@ def propose_for_member(
             reasons=tuple(reasons),
             party_of_party_unit_money=money_party,
             party_agrees=party_agrees,
+            filer_verdict=verdict.value,
         )
         if evidence is GivenNameEvidence.surname_only:
             surname_only.append(proposal)
@@ -650,12 +812,25 @@ def propose_for_member(
     # namesake's is active — the real one is filtered out and the namesake stands alone
     # looking certain. So the mere existence of another person with this surname sends it to
     # a person. Costs 13 extra reads of 200; found by a Codex review.
+    #
+    # **Unless the Board's directory says whose committee it is.** That worry is entirely
+    # about not knowing which of several same-named people a committee belongs to, and a
+    # directory row naming this member's own office, district and party answers exactly
+    # that. A stale namesake elsewhere in the state is then beside the point. This does not
+    # extend to the more-than-one-candidate reason: two committees that both survive are a
+    # choice about which of a member's own committees to link, which §7 (Display rules)
+    # requires a person to make, since money from a race for another office may not appear
+    # under their profile.
+    shared_surname_answered = any(
+        proposal.filer_verdict == FilerVerdict.same_seat.value
+        for proposal in result.proposals
+    )
     extra_reasons: tuple[str, ...] = ()
     if len(result.proposals) > 1:
         extra_reasons += (
             f"{len(result.proposals)} committees are plausible for this legislator",
         )
-    if result.suppressed_surname_only:
+    if result.suppressed_surname_only and not shared_surname_answered:
         extra_reasons += (
             f"{result.suppressed_surname_only} other committees share this surname, "
             "so another person of this name exists",
@@ -728,6 +903,7 @@ def propose_all(
     *,
     current_years: Sequence[str],
     party_by_registration: dict[str, str] | None = None,
+    filers_by_registration: dict[str, FilerRecord] | None = None,
     max_surname_only: int = 6,
 ) -> list[LegislatorProposals]:
     """Proposals for every legislator. Writes nothing and decides nothing."""
@@ -740,6 +916,7 @@ def propose_all(
             current_years=current_years,
             contested_registrations=contested,
             party_by_registration=party_by_registration,
+            filers_by_registration=filers_by_registration,
             max_surname_only=max_surname_only,
         )
         for member in members
