@@ -1725,13 +1725,9 @@ class CampaignFinanceCurrentRelease(TimestampMixin, Base):
     id: Mapped[bool] = mapped_column(
         Boolean, primary_key=True, default=True, server_default=text("true")
     )
-    release_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("cf_release.id")
-    )
+    release_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("cf_release.id"))
 
-    __table_args__ = (
-        CheckConstraint("id", name="single_row"),
-    )
+    __table_args__ = (CheckConstraint("id", name="single_row"),)
 
 
 def bill_detail_stmt(
