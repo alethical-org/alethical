@@ -216,7 +216,6 @@ function notFoundMetadata(route: string): PageMetadata {
     // No canonical: a missing page is not a copy of a real one.
     canonicalPath: "",
     noindex: true,
-    breadcrumb: [],
   };
 }
 

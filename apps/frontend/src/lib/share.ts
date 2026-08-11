@@ -188,11 +188,6 @@ export function escapeHtml(value: string): string {
 
 // --- What every page tells a browser tab, a search engine and a share preview ---
 
-export interface BreadcrumbStep {
-  name: string;
-  path: string;
-}
-
 export interface PageMetadata {
   /** The whole `<title>`, and the whole browser tab title. */
   title: string;
@@ -203,11 +198,6 @@ export interface PageMetadata {
   canonicalPath: string;
   /** True when a search engine must not list the page. */
   noindex: boolean;
-  /**
-   * The path back to a parent, only where the page really shows one. A detail
-   * page links to its list; nothing else here has a visible parent.
-   */
-  breadcrumb: BreadcrumbStep[];
 }
 
 function pageMetadata(input: Partial<PageMetadata> & { title: string; description: string }) {
@@ -215,7 +205,6 @@ function pageMetadata(input: Partial<PageMetadata> & { title: string; descriptio
     socialTitle: input.title,
     canonicalPath: '/',
     noindex: false,
-    breadcrumb: [],
     ...input,
   } satisfies PageMetadata;
 }
@@ -272,10 +261,6 @@ export function billPageMetadata(input: {
     socialTitle: content.title,
     description: content.description,
     canonicalPath,
-    breadcrumb: [
-      { name: BILL_LIST_SUBJECT, path: '/bills' },
-      { name: content.title, path: canonicalPath },
-    ],
   });
 }
 
@@ -295,10 +280,6 @@ export function legislatorPageMetadata(input: {
     socialTitle: content.title,
     description: content.description,
     canonicalPath,
-    breadcrumb: [
-      { name: LEGISLATOR_LIST_SUBJECT, path: '/legislators' },
-      { name: content.title, path: canonicalPath },
-    ],
   });
 }
 
@@ -370,6 +351,20 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
  * a search engine demonstrably does something with (decisions doc §6). No
  * `Person`, no `ProfilePage`, no `Legislation` — all three are tidy labelling
  * that no shipped search feature consumes.
+ *
+ * No `BreadcrumbList` either, and that one shipped before it was removed. Google
+ * asks for it where the page *shows* a breadcrumb trail. What a bill or a
+ * legislator page shows is one control labelled "Go back" — and on the web it is
+ * an anchor that goes back through browser history when this tab has an in-app
+ * entry, and follows its own address to the list otherwise (`backLinkProps` in
+ * `apps/frontend/src/navigation/links.ts`). So where it leads depends on how the
+ * reader arrived, often the search results they came from. A `BreadcrumbList`
+ * asserts a fixed position in a hierarchy; a control with no fixed destination
+ * does not have one. Relabelling the link "Bills" to justify the markup would
+ * change visible copy on every detail page to serve a minor search feature, and
+ * would read as wrong whenever the button genuinely goes back — the trade
+ * `docs/philosophy.md` principle 10 rejects. If a real breadcrumb trail is ever
+ * designed, the markup comes back with it (decisions doc §6 and §12).
  */
 export function pageJsonLd(meta: PageMetadata): object[] {
   if (meta.canonicalPath === '/') {
@@ -389,19 +384,7 @@ export function pageJsonLd(meta: PageMetadata): object[] {
       },
     ];
   }
-  if (meta.breadcrumb.length === 0) return [];
-  return [
-    {
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      itemListElement: meta.breadcrumb.map((step, index) => ({
-        '@type': 'ListItem',
-        position: index + 1,
-        name: step.name,
-        item: publicPageUrl(step.path),
-      })),
-    },
-  ];
+  return [];
 }
 
 /**
