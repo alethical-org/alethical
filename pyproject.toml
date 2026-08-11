@@ -50,6 +50,14 @@ dependencies = [
 
 [tool.uv]
 package = false
+constraint-dependencies = [
+  # Alembic and Uvicorn use Click. Keep its editor helper off the shell so a
+  # crafted editor value cannot become a command.
+  "click>=8.3.3",
+  # Supabase requests HTTP/2 support through httpx. Reject duplicate Host
+  # headers before an HTTP/2 request can be downgraded to HTTP/1.1.
+  "h2>=4.4.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["alethical/tests"]

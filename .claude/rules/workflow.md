@@ -87,11 +87,11 @@ Machine-facing counterparts of the human conventions in `CONTRIBUTING.md`. Follo
 
       ```bash
       until [ "$(gh api repos/alethical-org/alethical/commits/$(git rev-parse HEAD)/check-runs \
-        --jq '(.total_count >= 4) and ([.check_runs[]|select(.status!="completed")]|length == 0)')" = "true" ]
+        --jq '(.total_count >= 3) and ([.check_runs[]|select(.status!="completed")]|length == 0)')" = "true" ]
       do sleep 10; done
       ```
 
-      Four is the floor because `ci.yml` defines `changes`, `doc-references`, `backend` and `frontend`; Vercel adds more, and a `skipped` run still counts as present. Then read each `conclusion` — `skipped` is not `success`, and neither is missing. `main` moved 4 times during that one PR, so on a busy night this is the difference between a real green and a remembered one. The general rule: **the convenient view is the stale one.** `gh pr view`'s mergeable flag, `gh pr checks`' summary, and a session-start "N commits behind" snapshot are all caches; git refs and the commit's own check-runs are the facts.
+      Three is the floor because `ci.yml` defines `changes`, `backend` and `frontend`; Vercel adds more, and a `skipped` run still counts as present. Then read each `conclusion` — `skipped` is not `success`, and neither is missing. `main` moved 4 times during that one PR, so on a busy night this is the difference between a real green and a remembered one. The general rule: **the convenient view is the stale one.** `gh pr view`'s mergeable flag, `gh pr checks`' summary, and a session-start "N commits behind" snapshot are all caches; git refs and the commit's own check-runs are the facts.
     - **An additive, reversible, verified migration is auto-merge** — `CREATE TABLE`, a nullable column, an index, a new enum value — proven by an upgrade→downgrade→upgrade round-trip against real Postgres plus CI green. `migrate.yml` auto-applying it to production on merge **is** the deploy path, not a gate. A dry-run-proven, idempotent backfill is likewise auto-merge.
     - **Paid production runs are authorized** once you have established that no zero-cost path suffices. **Cost alone never gates** — wherever any clause here lists money or spend as a reason to pause, this supersedes it.
     - **Applying `workflow-overhead-audit` verdicts is in this lane**, including meaning-preserving rewrites of a rule or skill file.

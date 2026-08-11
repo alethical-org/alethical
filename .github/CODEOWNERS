@@ -1,0 +1,33 @@
+# Sensitive changes should ask both owners for review. The branch setting keeps
+# this advisory until a second owner is ready to review releases consistently.
+
+/.github/CODEOWNERS @euglopi @jfleish
+/.github/dependabot.yml @euglopi @jfleish
+/.github/workflows/ @euglopi @jfleish
+
+/alembic.ini @euglopi @jfleish
+/alethical/alembic/ @euglopi @jfleish
+/alethical/db/models.py @euglopi @jfleish
+/alethical/db/schema.py @euglopi @jfleish
+/alethical/db/session.py @euglopi @jfleish
+
+/alethical/api/auth.py @euglopi @jfleish
+/alethical/api/main.py @euglopi @jfleish
+/alethical/api/rate_limit.py @euglopi @jfleish
+/alethical/api/routers/contact.py @euglopi @jfleish
+/alethical/api/routers/internal.py @euglopi @jfleish
+/alethical/api/routers/me.py @euglopi @jfleish
+/alethical/api/services/auth.py @euglopi @jfleish
+/apps/frontend/src/components/AuthRequiredCard.tsx @euglopi @jfleish
+/apps/frontend/src/components/auth/ @euglopi @jfleish
+/apps/frontend/src/lib/authRestore.ts @euglopi @jfleish
+/apps/frontend/src/lib/supabase.ts @euglopi @jfleish
+/apps/frontend/src/lib/supabase.web.ts @euglopi @jfleish
+/apps/frontend/src/providers/AuthProvider.tsx @euglopi @jfleish
+/apps/frontend/src/providers/AuthProvider.web.tsx @euglopi @jfleish
+/apps/frontend/src/screens/AccountScreen.tsx @euglopi @jfleish
+
+/Dockerfile.backend @euglopi @jfleish
+/docker-compose.yml @euglopi @jfleish
+/railway.json @euglopi @jfleish
+/vercel.json @euglopi @jfleish

@@ -1,12 +1,13 @@
 name: CI
 
-# Do NOT add a `paths:` filter to `pull_request` below. The `changes`,
-# `doc-references`, `backend`, and `frontend` jobs are required status checks on
-# `main`. Filtering at the workflow level would stop this workflow from running at
-# all on unrelated PRs, so those checks would never report and every such PR would
-# block forever. Filter per job instead — as `backend` and `frontend` already do
-# via `dorny/paths-filter` — because a job skipped by `if:` reports `skipped`,
-# which GitHub counts as a passing required check.
+# Do NOT add a `paths:` filter to `pull_request` below. The `changes`, `backend`,
+# and `frontend` jobs are required status checks on `main`. Filtering at the
+# workflow level would stop this workflow from running at all on unrelated PRs,
+# so those checks would never report and every such PR would block forever. Filter
+# per job instead — as `backend` and `frontend` already do via
+# `dorny/paths-filter` — because a job skipped by `if:` reports `skipped`, which
+# GitHub counts as a passing required check. `changes` also runs the always-needed
+# documentation checks, so they share its one rounded runner minute.
 on:
   pull_request:
   push:
@@ -18,6 +19,12 @@ permissions:
   contents: read
   pull-requests: read
 
+# A newer PR commit makes the older test result irrelevant. Do not cancel main
+# builds: those are release evidence, not superseded review work.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -27,6 +34,15 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          # check_doc_sync.py needs a real merge base with the PR's base branch.
+          # A shallow clone has none, and the guard would silently pass.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
 
       - name: Filter changed paths
         id: filter
@@ -54,9 +70,42 @@ jobs:
               - "pnpm-lock.yaml"
               - "pnpm-workspace.yaml"
 
+      # Free backstop for private-repo secret scanning. It checks only the new
+      # commits in this push or PR and fails for a confirmed live credential or
+      # a credential whose live check could not complete. Pin both the action
+      # code and scanner image so a future upstream release cannot change CI.
+      - name: Check new commits for live secrets
+        uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # v3.96.0
+        with:
+          version: "3.96.0"
+          extra_args: --results=verified,unknown --fail-on-scan-errors
+
+      # Runs on every event: a broken document reference is usually introduced
+      # by a docs-only or rules-only change, which the backend and frontend jobs
+      # skip. Pure stdlib, so the Python setup above is the only dependency.
+      - name: Check doc references resolve
+        run: python scripts/check_doc_references.py
+
+      # A NUL byte makes git and grep treat a file as binary, hiding its code
+      # from searches and diffs. This guard is cheap enough to always run.
+      - name: Check no file carries a NUL byte
+        run: python scripts/check_no_nul_bytes.py
+
+      # Only meaningful on a PR: it compares against the merge base and reads
+      # the PR body. On a push to main there is no body to read, so skip it.
+      - name: Check docs describing changed code were looked at
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          DOC_SYNC_BASE_REF: origin/${{ github.base_ref }}
+          DOC_SYNC_PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          git fetch --quiet origin "$BASE_REF"
+          python scripts/check_doc_sync.py
+
   backend:
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true') }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -150,7 +199,7 @@ jobs:
 
   frontend:
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true') }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -190,44 +239,3 @@ jobs:
 
       - name: Build frontend
         run: pnpm run build
-
-  # Runs on every PR with no path filter — a broken doc reference is usually
-  # introduced by a docs-only or rules-only change, which the backend and
-  # frontend jobs above skip. That gap let a rename (#652) merge a dead index
-  # link. Pure stdlib, so no dependency install is needed.
-  doc-references:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          # Full history: check_doc_sync.py needs a real merge base with the PR's
-          # base branch. A shallow clone has none, and the guard would then find
-          # no changed files and pass every PR silently.
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - name: Check doc references resolve
-        run: python scripts/check_doc_references.py
-
-      # Cheap and unconditional: a NUL byte anywhere makes git and grep treat that
-      # whole file as binary, so its code stops being searchable and its diffs stop
-      # being reviewable. One shipped in #866 and every other gate passed it.
-      - name: Check no file carries a NUL byte
-        run: python scripts/check_no_nul_bytes.py
-
-      # Only meaningful on a PR: it compares against the merge base and reads the
-      # PR body. On a push to main there is no body to read, so it is skipped
-      # rather than failing every direct push.
-      - name: Check docs describing changed code were looked at
-        if: github.event_name == 'pull_request'
-        env:
-          DOC_SYNC_BASE_REF: origin/${{ github.base_ref }}
-          DOC_SYNC_PR_BODY: ${{ github.event.pull_request.body }}
-        run: |
-          git fetch --quiet origin "${{ github.base_ref }}"
-          python scripts/check_doc_sync.py
