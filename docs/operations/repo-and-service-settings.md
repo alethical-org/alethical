@@ -94,6 +94,15 @@ Set under **Settings** for the `alethical-web` project. Verified 2026-08-11.
 | Deployment Protection | Vercel Authentication on every deployment except custom production domains (`all_except_custom_domains`) | Preview addresses stay private while `www.alethical.com` stays public. |
 | Protection Bypass for Automation | **On**, exposed to deployments as `VERCEL_AUTOMATION_BYPASS_SECRET` | Signed-in automated checks can reach protected previews. The site does not use this secret to serve pages: `api/page.ts` reads its bundled `index.html`, so a missing bypass cannot turn every preview page into an outage response. |
 
+Verified 2026-08-11 on merge
+[`abba347`](https://github.com/alethical-org/alethical/commit/abba3473bb551d439b0f83895437516f91332e19):
+Vercel made exactly 1 automatic production release through its Git connection,
+with Eugene's real verified author, and GitHub started 0 automatic Vercel jobs.
+Hand-run fallback
+[#473](https://github.com/alethical-org/alethical/actions/runs/31540230081)
+then released the same commit successfully without the old fake author. The 2
+`VERCEL_GIT_AUTHOR_*` secrets were deleted after that proof.
+
 ## Settings documented elsewhere
 
 Linked rather than duplicated:
