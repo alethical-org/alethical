@@ -619,6 +619,12 @@ print is the confirmed count, and today that is 0**, because a proposal is a que
 answer is a link. An earlier independent estimate put the automatic tie at 111
 ([#1329](https://github.com/alethical-org/alethical/issues/1329)); 108 is the measurement from the
 code that actually runs, and neither number is a link count.
+
+So on the day this ships the unconfirmed state is not an edge case, it is the tab: **all 200
+profiles show it**, and they drain one at a time as answers land. The 108 and 92 describe how hard
+each review is, never what a reader sees. Read those two numbers in the wrong order and a design
+budgets its care for 92 exceptions against 108 populated pages, when the truth on launch day is
+200 unconfirmed pages and none populated.
 What the unconfirmed state must do instead is explain itself, and never render "no committee is
 registered for this person" the same as "we have not confirmed which of their committees is
 theirs to show".

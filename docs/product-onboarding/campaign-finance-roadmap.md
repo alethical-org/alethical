@@ -156,6 +156,31 @@ different set of rules, and a large amount of work for a Minnesota-first product
 
 ---
 
+## The one thing left that a person has to do
+
+**Nothing can show a legislator's money until someone confirms which campaign committee is
+theirs, one legislator at a time.** Minnesota gives every committee a number and never says which
+person it belongs to, and we refuse to guess, because attaching the wrong committee publishes
+someone else's money under a real politician's name. So this is 200 decisions a person makes and
+signs, and it is now the last thing standing between everything else being ready and a page with
+money on it.
+
+It is not a research task. The proposing work is built and measured (11 Aug 2026): of the 200
+sitting members, **108 have one obvious candidate and 92 do not**, and the 92 are ordinary
+name problems rather than mysteries. A legislator known by a nickname the state does not print
+("Liish Kozlowski" is filed as "Kozlowski, Alicia"). One known by a middle name ("Bjorn Olson" is
+"Olson, Christian Bjorn"). Two sitting members sharing a surname in the same chamber, with a
+former senator of the same name in the pool as well. A committee named for a different office the
+member once sought. Someone reads each one and answers.
+
+Until those answers exist, **every legislator profile shows the same unconfirmed state**, because
+0 are confirmed today. The count is not a percentage of a finished thing; it starts at 0 of 200
+and drains as answers land. The tool that asks the questions is
+`scripts/review_legislator_campaign_committees.py`, and the standard it holds people to is in
+[`campaign-finance-system-design.md` §5.1 (what counts as a confirmed match)](../architecture/campaign-finance-system-design.md).
+
+---
+
 ## Answered, and no longer blocking
 
 The 2 questions that were holding up the first priority
