@@ -769,6 +769,36 @@ address per record rather than two that both work.
   [#1357](https://github.com/alethical-org/alethical/pull/1357); §6 already explains why `Person` and
   `Legislation` were dropped. Nothing here changes that.
 
+### A latent title risk that #1355 removed the same day, measured before and after
+
+Worth recording because it was invisible to everything above: the **first response** has always
+carried exactly one `<h1>` and one `<h2>` on a record page, correctly. The page **after the app
+loads** did not, and that is also what Google sees, because it runs our JavaScript.
+
+Measured on `https://www.alethical.com/bills/94-2025-HF719`, before and after
+[#1363](https://github.com/alethical-org/alethical/pull/1363):
+
+| | Before | After |
+| --- | --- | --- |
+| `<h1>` count | **52** | **1** — the bill's own title |
+| First `<h1>` in document order | `Grounded answers on Minnesota law`, **hidden**, the home page's hero | the bill's own title, visible |
+| `<h2>` / `<h3>` | 1 / 0 | 7 / 44 |
+
+**Why it was a search risk and not only an accessibility one.** Google's title-link guidance treats
+a heading that is boilerplate and repeated across a site as a reason to *replace* what a page
+declares about itself. That heading was identical on every page and sat first. The practical risk
+was low — Google discounts hidden text, and since release 1 every page declares a strong unique
+`<title>` — but it pointed one way only.
+
+**Resolved rather than reduced:** the hero text is still in every page's markup, but it is no longer
+a heading at all off the home page (a plain container), so the heading fallback cannot reach it. On
+the home page it is the `<h1>`, which is correct.
+
+**The list pages were the case to watch**, because they serve no heading at all, so the app's
+heading is Google's only one. Verified they do not contradict the served title: `/bills` declares
+`Search Minnesota bills` and heads `Search bills`; `/legislators` declares `Minnesota House and
+Senate members` and heads `Search legislators`.
+
 ### Reconsider only if
 
 Google reports trailing-slash addresses as duplicates *after* the redirect ships, which would mean
