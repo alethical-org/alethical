@@ -300,7 +300,10 @@ describe('RepresentativeCard accepted layout', () => {
   // failed load is caught. Dropping the handler now would show an empty frame.
   it('lets the photo size its frame, with initials as the caught fallback', () => {
     expect(componentSource).toContain('showingPortrait');
-    expect(componentSource).toContain('setPhotoFailed(true)');
+    // Both branches, counted rather than merely present: the web image and the
+    // phone image each need catching, and asserting "contains" lets one be
+    // deleted while the other keeps the test green.
+    expect(componentSource.match(/setPhotoFailed\(true\)/g)).toHaveLength(2);
     expect(componentSource).toMatch(/portraitWithPhoto:\s*\{[^}]*height: 'auto'/);
     expect(componentSource).toMatch(/portraitWithPhoto:\s*\{[^}]*backgroundColor: 'transparent'/);
     // No fitting rule is needed on the web image: its own proportions set the
