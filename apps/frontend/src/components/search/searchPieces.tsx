@@ -179,7 +179,11 @@ export function SearchHero({
   return (
     <View>
       <View style={styles.heroTitleRow}>
-        <Text accessibilityRole="header" aria-level={1} style={[styles.heroH1, isMobile && styles.heroH1Mobile]}>
+        <Text
+          accessibilityRole="header"
+          aria-level={1}
+          style={[styles.heroH1, isMobile && styles.heroH1Mobile]}
+        >
           {title}
         </Text>
       </View>

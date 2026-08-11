@@ -224,6 +224,23 @@ one: see the box below before writing one.**
 > the `menuitem` finding started life as the opposite claim. Open the page and read the rendered
 > attributes.
 
+- **A heading without a level is an `<h1>`, so always write the level.** Measured in
+  react-native-web 0.21 (`AccessibilityUtil/propsToAccessibilityComponent.js`): role `heading` with
+  no `aria-level` returns `'h1'`. Nothing warns, so `accessibilityRole="header"` on a section label
+  silently claims to be the most important heading on the page. Every heading therefore carries
+  `aria-level={n}` — **the page's subject is the only 1, section labels are 2, anything nested under
+  one is 3** — and the level follows the page's *structure*, never the type size, so a small-type
+  section label in a sidebar is still a 2. Measured on production 11 Aug 2026 before the fix
+  ([#1355](https://github.com/alethical-org/alethical/issues/1355)): a bill page carried **52**
+  `<h1>` at phone width and a legislator profile **9**, with the person's own name not a heading at
+  all — so heading navigation, which is how a screen-reader user skims, never reached the subject of
+  the page. The guard is `apps/frontend/src/lib/__tests__/headingLevels.test.ts`.
+  - **A screen kept in the back stack still ships its markup, so its `<h1>` lands in every other
+    page.** React Navigation keeps Home mounted beneath a deep-linked bill or profile with
+    `display: none`, which hides it from the accessibility tree (verified: it is absent from
+    `Accessibility.getFullAXTree`) but not from a crawler that renders the page. So Home's hero
+    headline takes its header role from `useIsFocused()` and is a heading only while Home is the
+    visible screen.
 - **Everything actionable is reachable and labeled.** Every control is keyboard-reachable in a
   sensible order; icon-only controls carry an accessibility label.
 - **Focus is always visible.** A clear focus ring appears on every interactive element. Every

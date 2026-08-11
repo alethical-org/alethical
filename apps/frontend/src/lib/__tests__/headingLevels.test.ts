@@ -40,15 +40,29 @@ describe('heading levels', () => {
     for (const file of files) {
       const lines = readFileSync(file, 'utf8').split('\n');
       lines.forEach((line, index) => {
-        if (!line.includes('accessibilityRole="header"')) return;
+        // Both the JSX prop and the object-literal form a spread prop uses.
+        const isJsx = line.includes('accessibilityRole="header"');
+        const isObject = /accessibilityRole:\s*'header'/.test(line);
+        if (!isJsx && !isObject) return;
         // The level may sit on a following prop line of the same JSX element.
         const element = lines.slice(index, index + 4).join(' ');
-        if (!/aria-level=\{/.test(element)) {
+        if (!/(aria-level=\{|'aria-level':)/.test(element)) {
           offenders.push(`${file.slice(SRC.length + 1)}:${index + 1}`);
         }
       });
     }
     expect(offenders).toEqual([]);
+  });
+
+  it('lets the home hero claim the h1 only while Home is the visible screen', () => {
+    // Home stays mounted beneath a deep-linked bill or profile, so an
+    // unconditional header role here puts a second, competing <h1> in every
+    // page's markup.
+    const home = readFileSync(join(SRC, 'screens/redesign/HomeSignedOutScreen.tsx'), 'utf8');
+    expect(home).toMatch(/const heroHeadingProps = \(isFocused: boolean\)/);
+    expect(home.match(/\{\.\.\.heroHeadingProps\(isFocused\)\}/g) ?? []).toHaveLength(4);
+    // No hero headline may go back to an unconditional level-1 heading.
+    expect(home).not.toMatch(/accessibilityRole="header" aria-level=\{1\}/);
   });
 
   it('keeps the page subject as the only level-1 heading on a bill and a profile', () => {

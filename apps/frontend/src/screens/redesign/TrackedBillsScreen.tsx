@@ -88,7 +88,11 @@ export function TrackedBillsScreen() {
 
   const hero = (
     <View>
-      <Text accessibilityRole="header" aria-level={1} style={[styles.h1, isMobile && styles.h1Mobile]}>
+      <Text
+        accessibilityRole="header"
+        aria-level={1}
+        style={[styles.h1, isMobile && styles.h1Mobile]}
+      >
         Tracked bills
       </Text>
       {/* No "tap Track to add or remove" instruction any more: the ✓ Tracked button

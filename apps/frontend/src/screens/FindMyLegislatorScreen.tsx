@@ -614,7 +614,11 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
         />
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <View style={styles.intro}>
-            <Text accessibilityRole="header" aria-level={1} style={[styles.title, isMobile && styles.titleMobile]}>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.title, isMobile && styles.titleMobile]}
+            >
               Find my legislator
             </Text>
             <Text style={styles.explainer}>{FIND_MY_LEGISLATOR_INSTRUCTIONS}</Text>

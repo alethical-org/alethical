@@ -582,6 +582,17 @@ function ProgressSteps({ filled, vetoed }: { filled: number; vetoed?: boolean })
 // not a reflow of the desktop layout, so it renders as its own component. Switching
 // on a whole component (rather than an early return inside one) keeps each layout's
 // hook order stable across a resize that crosses the breakpoint.
+/**
+ * The hero headline is the page's `<h1>` — but only while Home is the screen you
+ * are looking at. Home stays mounted beneath a deep-linked stack screen (see the
+ * `isFocused` query gating below), so an unconditional header role ships this
+ * headline into the markup of every bill and legislator page as a second,
+ * competing `<h1>` ([#1355]). It is `display: none` there, so no screen reader
+ * reads it, but a crawler that renders the page still finds it.
+ */
+const heroHeadingProps = (isFocused: boolean) =>
+  isFocused ? ({ accessibilityRole: 'header', 'aria-level': 1 } as const) : {};
+
 export function HomeSignedOutScreen() {
   const { isDesktop } = useResponsive();
   const isFocused = useIsFocused();
@@ -753,7 +764,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                       </Text>
                       <View style={styles.heroStateRow}>
                         <HeroStateGlyph glyph={watch.glyph} />
-                        <Text accessibilityRole="header" aria-level={1} style={styles.heroStateLine}>
+                        <Text {...heroHeadingProps(isFocused)} style={styles.heroStateLine}>
                           {watch.heroLine}
                         </Text>
                       </View>
@@ -761,7 +772,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                   ) : (
                     <>
                       <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                      <Text accessibilityRole="header" aria-level={1} style={styles.heroH1}>
+                      <Text {...heroHeadingProps(isFocused)} style={styles.heroH1}>
                         Grounded answers{'\n'}
                         <Text style={styles.heroH1Green}>on Minnesota law</Text>
                       </Text>
@@ -1361,8 +1372,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                   <View style={m.heroStateRow}>
                     <HeroStateGlyph glyph={watch.glyph} />
                     <Text
-                      accessibilityRole="header"
-                      aria-level={1}
+                      {...heroHeadingProps(isFocused)}
                       style={[m.heroStateLine, isTablet && m.heroStateLineTablet]}
                       numberOfLines={isTablet ? 4 : 6}
                     >
@@ -1399,7 +1409,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
               ) : (
                 <>
                   <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                  <Text accessibilityRole="header" aria-level={1} style={m.heroH1}>
+                  <Text {...heroHeadingProps(isFocused)} style={m.heroH1}>
                     Grounded answers{'\n'}
                     <Text style={m.heroH1Green}>on Minnesota law</Text>
                   </Text>
