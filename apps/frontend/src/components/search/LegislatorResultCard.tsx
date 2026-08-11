@@ -94,7 +94,10 @@ function WebPortrait({
       display: 'block',
       width: '100%',
       height: '100%',
-      objectFit: 'cover',
+      // Fit-inside, never fill: the source photos vary in height, so filling
+      // would crop the overflow, which both chambers' photo policies forbid
+      // (#1334). Anchored top so heads stay aligned across a list.
+      objectFit: 'contain',
       objectPosition: 'center top',
     },
   });
@@ -172,7 +175,8 @@ export function LegislatorResultCard({
               <Image
                 accessibilityElementsHidden
                 source={{ uri: portraitUrl }}
-                resizeMode="cover"
+                // Matches the web branch above: fit inside, never crop (#1334).
+                resizeMode="contain"
                 onError={() => setPhotoFailed(true)}
                 style={styles.avatarPhoto}
               />

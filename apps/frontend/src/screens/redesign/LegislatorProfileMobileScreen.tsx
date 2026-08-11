@@ -502,7 +502,9 @@ export function LegislatorProfileMobileScreen() {
                         source={{ uri: leg.photoUrl }}
                         accessibilityLabel={leg.name}
                         style={styles.portraitImg}
-                        resizeMode="cover"
+                        // Fit-inside, never fill — see LEGISLATOR_PORTRAIT_HEIGHT
+                        // in lib/legislatorSearch.ts for why (#1334).
+                        resizeMode="contain"
                       />
                     ) : (
                       <Text style={styles.portraitInitials}>{initialsOf(leg.name)}</Text>
@@ -879,7 +881,7 @@ const styles = StyleSheet.create({
   heroIdentity: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 16 },
   portrait: {
     width: 88,
-    height: 104,
+    height: 114,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,

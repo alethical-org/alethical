@@ -151,7 +151,10 @@ export function RepresentativeCard({
                   inset: 0,
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover',
+                  // Fit-inside, never fill — see LEGISLATOR_PORTRAIT_HEIGHT in
+                  // lib/legislatorSearch.ts for why cropping is off the
+                  // table (#1334).
+                  objectFit: 'contain',
                   objectPosition: 'top',
                 },
               })
@@ -160,6 +163,9 @@ export function RepresentativeCard({
                 accessibilityElementsHidden
                 source={{ uri: legislator.photoUrl }}
                 style={[styles.portraitImage, StyleSheet.absoluteFill]}
+                // Native Image defaults to "cover", which crops. Same reason as
+                // the web branch above (#1334).
+                resizeMode="contain"
               />
             )
           ) : null}
@@ -460,7 +466,7 @@ const styles = StyleSheet.create({
   headerMobile: { gap: 13 },
   portrait: {
     width: 64,
-    height: 74,
+    height: 83,
     overflow: 'hidden',
     borderRadius: 12,
     borderWidth: 1,
