@@ -129,11 +129,23 @@ almost entirely missing (it held 63 relationships for 1,709 lobbyists).
 
 ### 2.3 Filed reports, and the $200 rule
 
-**The threshold is on a donor's cumulative giving, not on each payment.** 327,759 of the
+**The threshold is on a donor's cumulative giving within the calendar year, not on each
+payment.** The statute is Minnesota Statutes [10A.20 subd. 3(c)](https://www.revisor.mn.gov/statutes/cite/10A.20),
+which itemizes each contributor whose gifts "in aggregate within the year exceed $200 for
+legislative or statewide candidates or more than $500 for ballot questions". 327,759 of the
 583,152 contribution rows are individually under $200, the smallest being one cent: those are
 later payments from donors who had already crossed the threshold. What the bulk files
 genuinely cannot contain is money from donors who **never** crossed it. That appears only as
 a single summary line on the filed report.
+
+**So no surface may say that gifts of $200 or less are never named.** More than half the
+itemized rows are gifts of $200 or less, and saying otherwise tells a reader that a named
+$50 payment cannot exist when 327,759 of them do. The claim a page may make is about the
+donor's yearly total: "donors who gave $200 or less in total for the year are never named."
+A caption covering the whole record says *candidates*, because ballot-question committees
+sit at $500. This is written down because the wrong version was drafted for a real screen
+(Aug 2026) by someone reading the paragraph above, which stated the aggregate rule correctly
+but never gave the period or the wording to use.
 
 So a candidate's true total is: the itemized payments, **plus** a non-itemized figure that
 exists only in the report. A page showing only the sum of visible rows understates the truth.
@@ -372,6 +384,26 @@ finance display); this section covers what must be *shown*.
 figures and both appear. The difference between them is usually legitimate small-donor money,
 not an error and not missing data. A page must say what the difference is rather than leaving
 a reader to assume one number is wrong.
+
+**And when the reported total cannot be obtained, show no total.** §9 records that the bulk
+route to filed reports is not yet established, so at first release the only figure we hold is
+the sum of the payments we can name. Print that sum, labelled as named payments, with no
+composition bar, because there is no whole to divide. Do not print a partial figure under a
+caveat: a caveat under a large number loses to the large number, and the reader remembers the
+figure. This is the state that ships until [#1337](https://github.com/alethical-org/alethical/issues/1337)
+closes, so it is the primary case a design draws, not an edge one.
+
+**A missing surface makes a claim too, so gate the entry point and publish the coverage.** A
+legislator's campaign money is a tab on the profile they already have, and it renders only
+once a person has confirmed that legislator's committee link ([#1354](https://github.com/alethical-org/alethical/issues/1354));
+with no confirmed link there is no tab, and nothing on the profile implies one is coming.
+That satisfies `.claude/rules/grounded-answers.md` rule 2, but on its own it moves rule 12's
+missing-versus-zero failure from a number into the navigation: an absent tab reads as "this
+legislator raised nothing". So the matched count is published where a reader can find it, and
+"no committee is registered for this person" and "we have not confirmed which committee is
+theirs" are never rendered as the same thing. The unmatched state is still built, because a
+shared or bookmarked money link for an unmatched member has to explain itself rather than
+return a missing page.
 
 **Dates, three separate rules:**
 
