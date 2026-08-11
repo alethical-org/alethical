@@ -790,9 +790,19 @@ declares about itself. That heading was identical on every page and sat first. T
 was low — Google discounts hidden text, and since release 1 every page declares a strong unique
 `<title>` — but it pointed one way only.
 
-**Resolved rather than reduced:** the hero text is still in every page's markup, but it is no longer
-a heading at all off the home page (a plain container), so the heading fallback cannot reach it. On
-the home page it is the `<h1>`, which is correct.
+**Resolved rather than reduced:** the hero text is still in every page's markup, but it is a heading
+only while Home is the **focused screen** (`useIsFocused()`), not merely while the address is `/` —
+these are tabs in one app, so focus is the honest condition. Everywhere else it is a plain
+container, which the heading fallback cannot reach. On Home it is the `<h1>`, which is correct.
+
+**A CI test now guards this, but read what it actually guards.**
+`apps/frontend/src/lib/__tests__/headingLevels.test.ts` matches **patterns in the source** — every
+`header` role carries an explicit level across 20+ files, a bill screen and a profile screen each
+declare exactly one `aria-level={1}`, and the hero's level is gated on focus. That catches the
+regression that caused this, which was a missing level rather than a wrong one. It does **not** read
+a rendered page, so it cannot count the 52 `<h1>`s that made this visible: **a rendered-DOM check in
+a real browser is still the only way to see what Google sees**, and the numbers above came from one.
+Do that, rather than trusting the suite, before claiming a heading count to anyone outside the repo.
 
 **The list pages were the case to watch**, because they serve no heading at all, so the app's
 heading is Google's only one. Verified they do not contradict the served title: `/bills` declares
