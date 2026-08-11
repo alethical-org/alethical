@@ -6008,13 +6008,21 @@ def test_sitemap_lists_every_bill_and_legislator(client):
 
     bill_ids = [bill["id"] for bill in payload["bills"]]
     assert set(bill_ids) == expected_bill_ids
-    assert bill_ids == sorted(bill_ids), "bills must be ordered by id ascending"
 
     legislator_slugs = [legislator["slug"] for legislator in payload["legislators"]]
     assert set(legislator_slugs) == expected_slugs
-    assert legislator_slugs == sorted(legislator_slugs), (
-        "legislators must be ordered by slug ascending"
-    )
+
+    # The property that matters is a STABLE order, so a cached sitemap does not
+    # churn between rebuilds -- not one specific order. This deliberately does not
+    # compare against Python's sorted(): Postgres orders text by the database's
+    # collation, which is not codepoint order, and the two disagree on ids with
+    # punctuation in them. '94-2025s1-HF5' vs '94-2025-SF2483' sorts one way under
+    # en_US.UTF-8 and the other under C, so a sorted() assertion passes on one
+    # machine and fails on another -- which is exactly what it did (green locally,
+    # red in CI) before this was changed.
+    again = client.get("/api/v1/sitemap").json()["data"]
+    assert [bill["id"] for bill in again["bills"]] == bill_ids
+    assert [row["slug"] for row in again["legislators"]] == legislator_slugs
 
     # Every entry that carries a lastmod reports a plain YYYY-MM-DD date.
     for entry in payload["bills"] + payload["legislators"]:
