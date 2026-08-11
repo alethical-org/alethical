@@ -161,6 +161,7 @@ describe('first-response page tags', () => {
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
     );
     expect(calls).toHaveLength(0);
+    expect(readPageShell).toHaveBeenCalledTimes(1);
   });
 
   it('tells robots not to list an answer page, in a header and in the page', async () => {
