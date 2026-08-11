@@ -4,10 +4,10 @@
 during a special session, every 4 hours for the 14 days after a session ends, and weekly through
 the interim. That is not one cadence keyed to a clock, it is a cadence keyed to the legislative
 calendar, because the measured activity data shows 102 active days in an 18-month span and 7
-consecutive months with none. **None of it can be switched on yet:** an unsupervised refresh can
-currently delete facts we had right, so four safety fixes come first
-([#1319](https://github.com/alethical-org/alethical/issues/1319),
-[#1320](https://github.com/alethical-org/alethical/issues/1320),
+consecutive months with none. **None of it can be switched on yet:** the thin-response guard
+shipped in [#1319](https://github.com/alethical-org/alethical/issues/1319), but three safety fixes
+still come first
+([#1320](https://github.com/alethical-org/alethical/issues/1320),
 [#1321](https://github.com/alethical-org/alethical/issues/1321),
 [#1322](https://github.com/alethical-org/alethical/issues/1322)), then the schedule
 ([#1323](https://github.com/alethical-org/alethical/issues/1323)).
@@ -125,13 +125,13 @@ too fast for July.
 
 ## 4. Why none of it can be scheduled yet
 
-A refresh today can make the corpus worse. Four defects, all verified in the code on Aug 10 2026:
+A refresh still cannot run unattended. The first of 4 verified defects is fixed; the other 3
+remain:
 
-- **A thin response deletes good facts.** The author list is deleted and rewritten on every
-  refresh, and the description is overwritten with nothing when a response does not carry one.
-  The title has a guard against exactly this, added by
-  [#708](https://github.com/alethical-org/alethical/issues/708); nothing else does.
-  ([#1319](https://github.com/alethical-org/alethical/issues/1319))
+- **Fixed: 1 thin response no longer deletes good facts.** A lower action, author, version or
+  section count triggers a second full fetch before any bill fact changes. Two differing thin
+  responses reject only that bill and ask the future scheduled pass to open an issue; a blank
+  description keeps the stored value. ([#1319](https://github.com/alethical-org/alethical/issues/1319))
 - **Search text is indexed before the bill text is saved.** The chunks are built and committed on
   a separate connection, so they describe the previous text.
   ([#1320](https://github.com/alethical-org/alethical/issues/1320))

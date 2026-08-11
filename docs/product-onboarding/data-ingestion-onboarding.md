@@ -179,6 +179,25 @@ retries with linear backoff on `429/500/502/503/504`).
 Reference URL shapes: `https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/` ·
 `https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/`
 
+### Re-fetches refuse 1 thin source response
+
+Before an existing bill is changed, the importer compares the fetched counts of
+actions, authors, text versions and sections with the last accepted response
+([#1319](https://github.com/alethical-org/alethical/issues/1319)). A lower count
+does not change any bill fact. It immediately fetches all 3 official responses again:
+
+- a complete second fetch replaces the first one;
+- the same lower facts twice corroborate a real source removal and may be saved;
+- a failed or differently thin second fetch marks that bill's run failed and adds
+  `bill_refresh_rejections[].needs_issue=true` to the chunk result;
+- the chunk continues with its other bills, so 1 rejected bill does not undo up
+  to 24 successful ones.
+
+The future scheduled refresh
+([#1323](https://github.com/alethical-org/alethical/issues/1323)) owns turning that
+post-retry signal into a GitHub issue. A blank description is non-destructive: it
+keeps the stored description, just as a blank parsed title keeps the stored title.
+
 ### A section's body is stored twice, and that is deliberate
 
 `bill_version_section` holds each section's body in two columns, written together

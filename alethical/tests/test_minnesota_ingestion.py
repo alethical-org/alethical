@@ -16,6 +16,8 @@ from alethical.db.models import (
     BillVersionSection,
     Committee,
     CommitteeMembership,
+    IngestionRun,
+    IngestionStatus,
     LegislativeSession,
     Legislator,
     LegislatorServicePeriod,
@@ -28,6 +30,8 @@ from alethical.db.session import get_engine
 from alethical.pipeline.minnesota import (
     LEGISLATOR_LOCK_KEY,
     REFERENCE_DATA_LOCK_KEY,
+    BillRefreshRejected,
+    BillTarget,
     MinnesotaIngestionPipeline,
     parse_bill_section,
     parse_bill_text_html,
@@ -1134,6 +1138,523 @@ def test_upsert_bill_refreshes_title_on_reingest(seed_database: None) -> None:
         # instead of falling back to the bill key or the short description.
         bill = _ingest("")
         assert bill.title == enacted
+
+        session.rollback()
+
+
+def _refresh_payload(
+    *,
+    description: str,
+    authors: list[tuple[str, str]],
+    action_numbers: tuple[str, ...] = ("1", "2"),
+    version_codes: tuple[str, ...] = ("0", "1"),
+    section_texts: tuple[str, ...] = ("First section.", "Second section."),
+) -> tuple[dict, dict]:
+    canonical = {
+        "bill_key": "94-2025-HF5002",
+        "file_type": "HF",
+        "file_number": "5002",
+        "revisor_number": "25-5002",
+        "description": description,
+        "session_number": "94",
+        "session_year": "2025",
+        "special_session": 0,
+        "authors": {
+            "house": [
+                {"legislator_key": key, "member_name": name} for key, name in authors
+            ]
+        }
+        if authors
+        else {},
+        "actions": {
+            "house": [
+                {
+                    "action_number": number,
+                    "action_text": (
+                        "Introduction and first reading"
+                        if number == "1"
+                        else f"Action {number}"
+                    ),
+                    "action_date": "2025-01-10 00:00:00",
+                }
+                for number in action_numbers
+            ]
+        }
+        if action_numbers
+        else {},
+        "text_versions": [
+            {
+                "document_type": "official",
+                "document_engrossment": code,
+                "document_name": f"Version {code}",
+            }
+            for code in version_codes
+        ],
+    }
+    bill_text = {
+        "bill_title_text": "A bill for an act relating to safe refreshes.",
+        "sections": [
+            {
+                "section_id": f"section-{index}",
+                "text": text,
+            }
+            for index, text in enumerate(section_texts, start=1)
+        ],
+        "articles": [],
+        "source_url": "https://example.test/hf5002.html",
+    }
+    return canonical, bill_text
+
+
+def _store_refresh_payload(
+    pipeline: MinnesotaIngestionPipeline,
+    refs: dict,
+    canonical: dict,
+    bill_text: dict,
+    *,
+    artifact_suffix: str,
+) -> Bill:
+    run = pipeline.start_run("bill", "94-2025-HF5002")
+    xml_artifact = pipeline.record_artifact(
+        run,
+        ArtifactType.xml,
+        "https://example.test/hf5002.xml",
+        f"<bill>{artifact_suffix}</bill>",
+    )
+    html_artifact = pipeline.record_artifact(
+        run,
+        ArtifactType.html,
+        "https://example.test/hf5002.html",
+        f"<html>{artifact_suffix}</html>",
+    )
+    bill = pipeline.upsert_bill(
+        refs,
+        canonical,
+        bill_text,
+        run,
+        xml_artifact,
+        html_artifact,
+    )
+    pipeline.finish_run(
+        run,
+        {
+            "bill_key": bill.bill_key,
+            "action_count": sum(
+                len(items) for items in canonical.get("actions", {}).values()
+            ),
+            "sponsor_count": sum(
+                len(items) for items in canonical.get("authors", {}).values()
+            ),
+            "version_count": max(1, len(canonical.get("text_versions", []))),
+            "section_count": len(bill_text.get("sections", [])),
+        },
+    )
+    return bill
+
+
+def _bill_author_names(session: Session, bill: Bill) -> list[str]:
+    return list(
+        session.scalars(
+            select(Legislator.full_name)
+            .join(Sponsorship, Sponsorship.legislator_id == Legislator.id)
+            .where(Sponsorship.bill_id == bill.id)
+            .order_by(Sponsorship.source_order)
+        ).all()
+    )
+
+
+def _bill_refresh_counts(session: Session, bill: Bill) -> dict[str, int]:
+    current_version = session.scalar(
+        select(BillVersion).where(
+            BillVersion.bill_id == bill.id,
+            BillVersion.is_current.is_(True),
+        )
+    )
+    return {
+        "actions": len(
+            session.scalars(
+                select(BillAction).where(BillAction.bill_id == bill.id)
+            ).all()
+        ),
+        "authors": len(
+            session.scalars(
+                select(Sponsorship).where(Sponsorship.bill_id == bill.id)
+            ).all()
+        ),
+        "versions": len(
+            session.scalars(
+                select(BillVersion).where(BillVersion.bill_id == bill.id)
+            ).all()
+        ),
+        "sections": len(
+            session.scalars(
+                select(BillVersionSection).where(
+                    BillVersionSection.bill_version_id == current_version.id
+                )
+            ).all()
+        )
+        if current_version is not None
+        else 0,
+    }
+
+
+def test_blank_refresh_description_keeps_the_stored_description(
+    seed_database: None,
+) -> None:
+    """#1319: an empty description follows the existing title safeguard."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="A complete description already stored.",
+            authors=[("500201", "Author, First"), ("500202", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="complete"
+        )
+        session.flush()
+
+        blank_canonical, blank_text = _refresh_payload(
+            description="",
+            authors=[("500201", "Author, First"), ("500202", "Author, Second")],
+        )
+        _store_refresh_payload(
+            pipeline, refs, blank_canonical, blank_text, artifact_suffix="blank"
+        )
+        session.flush()
+        session.refresh(bill)
+
+        assert bill.description == "A complete description already stored."
+
+        session.rollback()
+
+
+@pytest.mark.parametrize(
+    "dropped_field", ["actions", "authors", "versions", "sections"]
+)
+def test_refresh_refuses_each_uncorroborated_fact_drop(
+    seed_database: None,
+    dropped_field: str,
+) -> None:
+    """#1319: 1 thin response cannot shrink any destructive source-owned set."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="A complete description already stored.",
+            authors=[("500221", "Author, First"), ("500222", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="complete-guard"
+        )
+        session.flush()
+
+        thin_canonical, thin_text = _refresh_payload(
+            description="",
+            authors=[("500221", "Author, First"), ("500222", "Author, Second")],
+        )
+        if dropped_field == "actions":
+            thin_canonical["actions"]["house"] = thin_canonical["actions"]["house"][:1]
+        elif dropped_field == "authors":
+            thin_canonical["authors"]["house"] = thin_canonical["authors"]["house"][:1]
+        elif dropped_field == "versions":
+            thin_canonical["text_versions"] = thin_canonical["text_versions"][:1]
+        else:
+            thin_text["sections"] = thin_text["sections"][:1]
+
+        with pytest.raises(BillRefreshRejected, match=dropped_field) as rejected:
+            _store_refresh_payload(
+                pipeline,
+                refs,
+                thin_canonical,
+                thin_text,
+                artifact_suffix=f"thin-{dropped_field}",
+            )
+        session.flush()
+        session.refresh(bill)
+
+        assert rejected.value.needs_issue is False
+        assert bill.description == "A complete description already stored."
+        assert _bill_refresh_counts(session, bill) == {
+            "actions": 2,
+            "authors": 2,
+            "versions": 2,
+            "sections": 2,
+        }
+
+        session.rollback()
+
+
+def test_complete_refresh_updates_description_and_authors(seed_database: None) -> None:
+    """#1319: the safety guard must not freeze a real authoritative change."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The introduced description.",
+            authors=[("500211", "Author, Old"), ("500212", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="introduced"
+        )
+        session.flush()
+
+        updated_canonical, updated_text = _refresh_payload(
+            description="The complete amended description.",
+            authors=[("500213", "Author, New"), ("500214", "Author, Replacement")],
+            section_texts=("Updated first section.", "Updated second section."),
+        )
+        updated = _store_refresh_payload(
+            pipeline,
+            refs,
+            updated_canonical,
+            updated_text,
+            artifact_suffix="amended",
+        )
+        session.flush()
+
+        assert updated.id == bill.id
+        assert updated.description == "The complete amended description."
+        assert _bill_author_names(session, updated) == [
+            "Author, New",
+            "Author, Replacement",
+        ]
+        assert [
+            section.raw_text
+            for section in session.scalars(
+                select(BillVersionSection)
+                .join(BillVersion)
+                .where(
+                    BillVersion.bill_id == bill.id,
+                    BillVersion.is_current.is_(True),
+                )
+                .order_by(BillVersionSection.source_order)
+            ).all()
+        ] == ["Updated first section.", "Updated second section."]
+
+        session.rollback()
+
+
+def _mock_bill_fetches(
+    monkeypatch: pytest.MonkeyPatch,
+    payloads: list[tuple[dict, dict]],
+) -> list[str]:
+    fetched: list[str] = []
+    xml_payloads = {
+        f"xml-{index}": payload[0] for index, payload in enumerate(payloads)
+    }
+    html_payloads = {
+        f"html-{index}": payload[1] for index, payload in enumerate(payloads)
+    }
+    bodies = iter(
+        body
+        for index in range(len(payloads))
+        for body in (f"xml-{index}", f"html-{index}")
+    )
+
+    def fake_fetch_text(_http, _url: str) -> str:
+        body = next(bodies)
+        fetched.append(body)
+        return body
+
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.discover_bill",
+        lambda _http, _target: {
+            "status_xml_uri": "https://example.test/status.xml",
+            "latest_text_html_uri": "https://example.test/text.html",
+        },
+    )
+    monkeypatch.setattr("alethical.pipeline.minnesota.fetch_text", fake_fetch_text)
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.parse_bill_xml", lambda body: xml_payloads[body]
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.parse_bill_text_html",
+        lambda body, _url: html_payloads[body],
+    )
+    return fetched
+
+
+def test_thin_refresh_retries_and_uses_the_complete_second_fetch(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1319: a one-off thin response heals itself before any facts are changed."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        original = _refresh_payload(
+            description="Stored description.",
+            authors=[("500231", "Author, First"), ("500232", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *original, artifact_suffix="retry-original"
+        )
+        session.flush()
+
+        thin = _refresh_payload(description="", authors=[])
+        complete = _refresh_payload(
+            description="New complete description.",
+            authors=[("500233", "Author, New"), ("500234", "Author, Complete")],
+        )
+        fetched = _mock_bill_fetches(monkeypatch, [thin, complete])
+
+        refreshed = pipeline.ingest_bill_target(
+            refs, BillTarget(chamber="House", bill_number="5002")
+        )
+        session.flush()
+
+        assert refreshed.id == bill.id
+        assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
+        assert refreshed.description == "New complete description."
+        assert _bill_author_names(session, refreshed) == [
+            "Author, New",
+            "Author, Complete",
+        ]
+
+        session.rollback()
+
+
+def test_matching_second_fetch_corroborates_a_real_author_removal(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1319: 2 matching responses may make a real destructive source change."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        original = _refresh_payload(
+            description="Stored description.",
+            authors=[("500241", "Author, First"), ("500242", "Author, Removed")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *original, artifact_suffix="confirmed-original"
+        )
+        session.flush()
+
+        confirmed = _refresh_payload(
+            description="",
+            authors=[("500241", "Author, First")],
+        )
+        fetched = _mock_bill_fetches(monkeypatch, [confirmed, confirmed])
+
+        refreshed = pipeline.ingest_bill_target(
+            refs, BillTarget(chamber="House", bill_number="5002")
+        )
+        session.flush()
+
+        assert refreshed.id == bill.id
+        assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
+        assert refreshed.description == "Stored description."
+        assert _bill_author_names(session, refreshed) == ["Author, First"]
+
+        session.rollback()
+
+
+def test_2_different_thin_fetches_preserve_facts_and_request_an_issue(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1319: only a second failed completeness check asks for human attention."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        original = _refresh_payload(
+            description="Stored description.",
+            authors=[("500251", "Author, First"), ("500252", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *original, artifact_suffix="rejected-original"
+        )
+        session.flush()
+
+        empty = _refresh_payload(description="", authors=[])
+        partial = _refresh_payload(
+            description="",
+            authors=[("500251", "Author, First")],
+        )
+        fetched = _mock_bill_fetches(monkeypatch, [empty, partial])
+
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        session.refresh(bill)
+
+        assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
+        assert result["bills_ingested"] == 0
+        assert result["bill_refresh_rejections"] == [
+            {
+                "bill_key": "94-2025-HF5002",
+                "drops": {"authors": {"stored": 2, "fetched": 1}},
+                "needs_issue": True,
+                "reason": "the second fetch was still thinner and did not match the first",
+            }
+        ]
+        assert bill.description == "Stored description."
+        assert _bill_author_names(session, bill) == ["Author, First", "Author, Second"]
+        failed_run = session.scalar(
+            select(IngestionRun)
+            .where(IngestionRun.target_key == "0942025:House:5002")
+            .order_by(IngestionRun.started_at.desc())
+        )
+        assert failed_run is not None
+        assert failed_run.status == IngestionStatus.failed
+        assert failed_run.finished_at is not None
+
+        session.rollback()
+
+
+def test_rejected_bill_does_not_discard_the_other_24(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1319: 1 rejected bill does not undo the other 24 bills in its chunk."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+
+        def fake_ingest(_refs: dict, target: BillTarget) -> Bill:
+            if target.bill_number == "7001":
+                raise BillRefreshRejected(
+                    "94-2025-HF7001",
+                    {"authors": {"stored": 2, "fetched": 0}},
+                    needs_issue=True,
+                    reason=(
+                        "the second fetch was still thinner and did not match the first"
+                    ),
+                )
+            refs = pipeline.seed_reference_data(target.session_code)
+            bill = Bill(
+                session_id=refs["session"].id,
+                chamber_id=refs["chambers"]["house"].id,
+                bill_key=f"94-2025-HF{target.bill_number}",
+                file_type="HF",
+                file_number=int(target.bill_number),
+                title=f"Bill {target.bill_number}",
+            )
+            session.add(bill)
+            session.flush()
+            return bill
+
+        monkeypatch.setattr(pipeline, "ingest_bill_target", fake_ingest)
+        result = pipeline.ingest_bills(
+            [
+                BillTarget(chamber="House", bill_number=str(number))
+                for number in range(7001, 7026)
+            ]
+        )
+        session.flush()
+
+        stored_keys = set(
+            session.scalars(
+                select(Bill.bill_key).where(Bill.bill_key.like("94-2025-HF70%"))
+            ).all()
+        )
+        assert result["bills_ingested"] == 24
+        assert len(result["bill_refresh_rejections"]) == 1
+        assert result["bill_refresh_rejections"][0]["needs_issue"] is True
+        assert len(stored_keys) == 24
+        assert "94-2025-HF7001" not in stored_keys
 
         session.rollback()
 

@@ -69,11 +69,54 @@ class MinnesotaIngestionError(RuntimeError):
     pass
 
 
+class BillRefreshRejected(MinnesotaIngestionError):
+    """A source response that would shrink already-stored bill facts.
+
+    ``needs_issue`` stays false for the first thin response because callers may
+    retry it. It turns true only when that second fetch also fails the guard.
+    The scheduled refresh in #1323 can therefore open one issue from the batch
+    result without reporting a one-off source glitch.
+    """
+
+    def __init__(
+        self,
+        bill_key: str,
+        drops: dict[str, dict[str, int]],
+        *,
+        needs_issue: bool = False,
+        reason: str = "one fetch was thinner than the stored bill",
+    ) -> None:
+        self.bill_key = bill_key
+        self.drops = drops
+        self.needs_issue = needs_issue
+        self.reason = reason
+        fields = ", ".join(sorted(drops))
+        super().__init__(
+            f"Refused refresh for {bill_key}: fetched fewer {fields}; {self.reason}"
+        )
+
+    def report(self) -> dict[str, Any]:
+        return {
+            "bill_key": self.bill_key,
+            "drops": self.drops,
+            "needs_issue": self.needs_issue,
+            "reason": self.reason,
+        }
+
+
 @dataclass(frozen=True)
 class BillTarget:
     chamber: str
     bill_number: str
     session_code: str = DEFAULT_SESSION_CODE
+
+
+@dataclass(frozen=True)
+class BillSourcePayload:
+    canonical: dict[str, Any]
+    bill_text: dict[str, Any]
+    xml_artifact: Any
+    html_artifact: Any
 
 
 @dataclass
@@ -1082,6 +1125,14 @@ class MinnesotaIngestionPipeline:
         run.finished_at = datetime.now(UTC)
         run.stats = stats
 
+    def fail_run(
+        self, run: Any, error: Exception, stats: dict[str, Any] | None = None
+    ) -> None:
+        run.status = IngestionStatus.failed
+        run.finished_at = datetime.now(UTC)
+        run.stats = stats or {}
+        run.error_text = str(error)
+
     def record_artifact(
         self,
         run: Any,
@@ -1631,48 +1682,262 @@ class MinnesotaIngestionPipeline:
             dry_run=dry_run,
         )
 
+    def _fetch_bill_source(self, target: BillTarget, run: Any) -> BillSourcePayload:
+        """Fetch and parse all 3 official responses for one bill."""
+        try:
+            discovery = discover_bill(self.http, target)
+            xml_text = fetch_text(self.http, discovery["status_xml_uri"])
+            xml_artifact = self.record_artifact(
+                run, ArtifactType.xml, discovery["status_xml_uri"], xml_text
+            )
+            canonical = parse_bill_xml(xml_text)
+
+            text_versions = list(canonical.get("text_versions", []))
+            latest_version_payload = text_versions[-1] if text_versions else {}
+            latest_html_url = str(
+                latest_version_payload.get("html_uri")
+                or discovery["latest_text_html_uri"]
+            )
+            latest_html_text = fetch_text(self.http, latest_html_url)
+            html_artifact = self.record_artifact(
+                run,
+                ArtifactType.html,
+                latest_html_url,
+                latest_html_text,
+                source_key=str(canonical["bill_key"]),
+            )
+            bill_text = parse_bill_text_html(latest_html_text, latest_html_url)
+        except (ET.ParseError, ValueError) as exc:
+            raise MinnesotaIngestionError(
+                f"Failed to parse {target.chamber} {target.bill_number}: {exc}"
+            ) from exc
+        return BillSourcePayload(canonical, bill_text, xml_artifact, html_artifact)
+
+    @staticmethod
+    def _fetched_bill_counts(
+        canonical: dict[str, Any], bill_text: dict[str, Any]
+    ) -> dict[str, int]:
+        return {
+            "actions": sum(
+                len(items) for items in canonical.get("actions", {}).values()
+            ),
+            "authors": sum(
+                len(items) for items in canonical.get("authors", {}).values()
+            ),
+            "versions": max(1, len(canonical.get("text_versions", []))),
+            "sections": len(bill_text.get("sections", [])),
+        }
+
+    def _stored_bill_counts(self, bill: Any) -> dict[str, int]:
+        """Counts from the last accepted response, with old-row fallbacks.
+
+        Actions and versions are retained as history even if a later official
+        response removes them. The last successful run therefore owns the
+        comparison once it has all 4 counts; older rows fall back to canonical
+        tables and ``bill_stats``.
+        """
+        count_keys = {
+            "actions": "action_count",
+            "authors": "sponsor_count",
+            "versions": "version_count",
+            "sections": "section_count",
+        }
+        counts: dict[str, int] = {}
+        if bill.ingestion_run_id is not None:
+            previous_run = self.db.get(IngestionRun, bill.ingestion_run_id)
+            if (
+                previous_run is not None
+                and previous_run.status == IngestionStatus.succeeded
+            ):
+                for field, key in count_keys.items():
+                    value = previous_run.stats.get(key)
+                    if isinstance(value, int) and value >= 0:
+                        counts[field] = value
+
+        stats = bill.stats
+        counts.setdefault(
+            "actions", stats.action_count if stats is not None else len(bill.actions)
+        )
+        counts.setdefault(
+            "authors",
+            stats.sponsor_count if stats is not None else len(bill.sponsorships),
+        )
+        counts.setdefault(
+            "versions", stats.version_count if stats is not None else len(bill.versions)
+        )
+        counts.setdefault(
+            "sections",
+            int(
+                self.db.scalar(
+                    select(func.count())
+                    .select_from(BillVersionSection)
+                    .join(
+                        BillVersion,
+                        BillVersion.id == BillVersionSection.bill_version_id,
+                    )
+                    .where(
+                        BillVersion.bill_id == bill.id,
+                        BillVersion.is_current.is_(True),
+                    )
+                )
+                or 0
+            ),
+        )
+        return counts
+
+    def bill_refresh_drops(
+        self,
+        canonical: dict[str, Any],
+        bill_text: dict[str, Any],
+        *,
+        bill: Any | None = None,
+    ) -> dict[str, dict[str, int]]:
+        bill = bill or self.db.scalar(
+            select(Bill).where(Bill.bill_key == canonical["bill_key"])
+        )
+        if bill is None:
+            return {}
+        stored = self._stored_bill_counts(bill)
+        fetched = self._fetched_bill_counts(canonical, bill_text)
+        return {
+            field: {"stored": stored[field], "fetched": fetched[field]}
+            for field in ("actions", "authors", "versions", "sections")
+            if fetched[field] < stored[field]
+        }
+
+    @staticmethod
+    def _drop_facts(
+        canonical: dict[str, Any],
+        bill_text: dict[str, Any],
+        fields: set[str],
+    ) -> dict[str, Any]:
+        source_fields: dict[str, Any] = {
+            "actions": canonical.get("actions", {}),
+            "authors": canonical.get("authors", {}),
+            "versions": canonical.get("text_versions", []),
+            "sections": bill_text.get("sections", []),
+        }
+        return {field: source_fields[field] for field in fields}
+
+    @staticmethod
+    def _run_stats(
+        canonical: dict[str, Any],
+        bill_text: dict[str, Any],
+        *,
+        retried: bool,
+        corroborated_drop: bool,
+    ) -> dict[str, Any]:
+        counts = MinnesotaIngestionPipeline._fetched_bill_counts(canonical, bill_text)
+        return {
+            "bill_key": str(canonical["bill_key"]),
+            "action_count": counts["actions"],
+            "sponsor_count": counts["authors"],
+            "version_count": counts["versions"],
+            "section_count": counts["sections"],
+            "completeness_retry_count": int(retried),
+            "corroborated_source_contraction": corroborated_drop,
+        }
+
+    def _reject_bill_refresh(
+        self,
+        run: Any,
+        bill_key: str,
+        drops: dict[str, dict[str, int]],
+        reason: str,
+    ) -> BillRefreshRejected:
+        rejection = BillRefreshRejected(
+            bill_key, drops, needs_issue=True, reason=reason
+        )
+        self.fail_run(
+            run,
+            rejection,
+            {
+                "bill_key": bill_key,
+                "refresh_rejected": True,
+                "drops": drops,
+                "needs_issue": True,
+            },
+        )
+        return rejection
+
     def ingest_bill_target(self, refs: dict[str, Any], target: BillTarget) -> Any:
         run = self.start_run(
             "bill", f"{target.session_code}:{target.chamber}:{target.bill_number}"
         )
-        discovery = discover_bill(self.http, target)
-        xml_text = fetch_text(self.http, discovery["status_xml_uri"])
-        xml_artifact = self.record_artifact(
-            run, ArtifactType.xml, discovery["status_xml_uri"], xml_text
-        )
-        canonical = parse_bill_xml(xml_text)
+        payload = self._fetch_bill_source(target, run)
+        drops = self.bill_refresh_drops(payload.canonical, payload.bill_text)
+        retried = bool(drops)
+        corroborated_drop = False
+        if drops:
+            drop_fields = set(drops)
+            first_drop_facts = self._drop_facts(
+                payload.canonical, payload.bill_text, drop_fields
+            )
+            try:
+                retry_payload = self._fetch_bill_source(target, run)
+            except MinnesotaIngestionError as exc:
+                rejection = self._reject_bill_refresh(
+                    run,
+                    str(payload.canonical["bill_key"]),
+                    drops,
+                    f"the second fetch failed: {exc}",
+                )
+                raise rejection from exc
 
-        text_versions = list(canonical.get("text_versions", []))
-        latest_version_payload = text_versions[-1] if text_versions else {}
-        latest_html_url = str(
-            latest_version_payload.get("html_uri") or discovery["latest_text_html_uri"]
-        )
-        latest_html_text = fetch_text(self.http, latest_html_url)
-        html_artifact = self.record_artifact(
-            run,
-            ArtifactType.html,
-            latest_html_url,
-            latest_html_text,
-            source_key=str(canonical["bill_key"]),
-        )
-        bill_text = parse_bill_text_html(latest_html_text, latest_html_url)
+            first_bill_key = str(payload.canonical["bill_key"])
+            retry_bill_key = str(retry_payload.canonical["bill_key"])
+            if retry_bill_key != first_bill_key:
+                rejection = self._reject_bill_refresh(
+                    run,
+                    first_bill_key,
+                    drops,
+                    f"the second fetch returned a different bill ({retry_bill_key})",
+                )
+                raise rejection
+
+            retry_drops = self.bill_refresh_drops(
+                retry_payload.canonical, retry_payload.bill_text
+            )
+            if not retry_drops:
+                payload = retry_payload
+            else:
+                second_drop_facts = self._drop_facts(
+                    retry_payload.canonical,
+                    retry_payload.bill_text,
+                    set(retry_drops),
+                )
+                if (
+                    set(retry_drops) == drop_fields
+                    and second_drop_facts == first_drop_facts
+                ):
+                    payload = retry_payload
+                    corroborated_drop = True
+                else:
+                    rejection = self._reject_bill_refresh(
+                        run,
+                        str(retry_payload.canonical["bill_key"]),
+                        retry_drops,
+                        "the second fetch was still thinner and did not match the first",
+                    )
+                    raise rejection
 
         bill = self.upsert_bill(
-            refs, canonical, bill_text, run, xml_artifact, html_artifact
+            refs,
+            payload.canonical,
+            payload.bill_text,
+            run,
+            payload.xml_artifact,
+            payload.html_artifact,
+            corroborated_drop=corroborated_drop,
         )
         self.finish_run(
             run,
-            {
-                "bill_key": bill.bill_key,
-                "action_count": sum(
-                    len(items) for items in canonical.get("actions", {}).values()
-                ),
-                "sponsor_count": sum(
-                    len(items) for items in canonical.get("authors", {}).values()
-                ),
-                "version_count": max(1, len(text_versions)),
-                "section_count": len(bill_text.get("sections", [])),
-            },
+            self._run_stats(
+                payload.canonical,
+                payload.bill_text,
+                retried=retried,
+                corroborated_drop=corroborated_drop,
+            ),
         )
         return bill
 
@@ -1684,6 +1949,8 @@ class MinnesotaIngestionPipeline:
         run: Any,
         xml_artifact: Any,
         html_artifact: Any,
+        *,
+        corroborated_drop: bool = False,
     ) -> Any:
         file_type = str(canonical["file_type"])
         chamber = refs["chambers"]["house" if file_type.upper() == "HF" else "senate"]
@@ -1731,6 +1998,13 @@ class MinnesotaIngestionPipeline:
         bill = self.db.scalar(
             select(Bill).where(Bill.bill_key == canonical["bill_key"])
         )
+        if bill is not None and not corroborated_drop:
+            drops = self.bill_refresh_drops(canonical, bill_text, bill=bill)
+            if drops:
+                raise BillRefreshRejected(
+                    str(canonical["bill_key"]),
+                    drops,
+                )
         if bill is None:
             bill = Bill(
                 session_id=refs["session"].id,
@@ -1757,7 +2031,8 @@ class MinnesotaIngestionPipeline:
         bill.session_id = refs["session"].id
         bill.chamber_id = chamber.id
         bill.revisor_number = str(canonical.get("revisor_number") or "") or None
-        bill.description = str(canonical.get("description") or "") or None
+        description = str(canonical.get("description") or "").strip()
+        bill.description = description or bill.description
         bill.current_status = (
             latest_action.get("action_text") if latest_action else None
         )
@@ -2075,13 +2350,20 @@ class MinnesotaIngestionPipeline:
         # sharing one code still costs one lookup, as it always did.
         refs_by_code: dict[str, dict[str, Any]] = {}
         bills = []
+        refresh_rejections: list[dict[str, Any]] = []
         for target in targets:
             refs = refs_by_code.get(target.session_code)
             if refs is None:
                 refs = refs_by_code[target.session_code] = self.seed_reference_data(
                     target.session_code
                 )
-            bills.append(self.ingest_bill_target(refs, target))
+            try:
+                bills.append(self.ingest_bill_target(refs, target))
+            except BillRefreshRejected as exc:
+                # The guard runs before any canonical bill row changes. Keep its
+                # failed run and source artifacts as evidence, then move on so 1
+                # thin response cannot roll back the other 24 bills in a chunk.
+                refresh_rejections.append(exc.report())
         # Refresh stats only for the legislators this batch actually touched (the
         # sponsors of its bills), not the whole jurisdiction — otherwise concurrent
         # chunk workers all contend on the same ~400 legislator_stats rows and hit
@@ -2104,6 +2386,7 @@ class MinnesotaIngestionPipeline:
         return {
             "bills_ingested": len(bills),
             "bill_keys": [bill.bill_key for bill in bills],
+            "bill_refresh_rejections": refresh_rejections,
         }
 
     def discover_bill_targets(

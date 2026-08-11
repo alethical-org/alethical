@@ -294,7 +294,8 @@ Validation examples:
 - legislator chamber and district must match known district formats
 - bill authors in member pages should reconcile with legislator records
 - bill companion numbers should match expected file type patterns
-- bill text version count should be monotonic
+- 1 response may not lower a stored bill's action, author, text-version or section count;
+  the same lower source facts must arrive twice before they are accepted
 - actions should be ordered by action number and date
 
 Reconciliation examples:
@@ -309,6 +310,9 @@ Failure handling:
 - hard-fail malformed source payloads
 - soft-fail missing optional fields
 - route ambiguous records to review tables
+- keep a stored bill description when a later response leaves it blank
+- reject only the affected bill after 2 differing thin responses, while the rest of its
+  chunk continues; expose that post-retry rejection for the scheduled refresh to report
 
 Recommended review signals:
 
