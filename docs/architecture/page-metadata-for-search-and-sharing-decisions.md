@@ -114,9 +114,14 @@ Two changes from what ships today, both from the outside review:
 
 - **The year moves into the bill title.** Bill numbers repeat across sessions, so `HF 719` alone is
   ambiguous forever. The year is already in the record ID (`94-2025-HF719`).
-- **Party moves out of the legislator title and into the description.** District and chamber
-  identify a person just as well, never go stale mid-term, and keep the title free of a partisan
-  label that a search result shows out of context.
+- **Party comes out of the legislator title, and does not go into the description either.**
+  District and chamber identify a person just as well, never go stale mid-term, and keep the title
+  free of a partisan label that a search result shows out of context. **An earlier version of this
+  bullet said party "moves into the description", which contradicted the table directly above it,
+  where no description carries a party.** The table is the normative artifact and it is right: a
+  description says what a reader will *find on the page*, and party is an attribute of the person,
+  not a section of the profile. Mixing the two makes the sentence longer and less true to its job.
+  Party stays plainly visible on the page itself.
 
 ### One live wording bug this found
 
@@ -217,8 +222,9 @@ are the subjects of our reporting, not our authors.
 
 - `WebSite` and `Organization` on the home page. These influence the site name and logo shown in
   results.
-- `BreadcrumbList` on detail pages, but only where the page really shows that path. It is eligible
-  for a visible feature in results.
+- `BreadcrumbList` on detail pages, but **only where the page really shows that path**. It is
+  eligible for a visible feature in results. **Measured against the shipped page, ours does not
+  qualify, so this comes back out — see the ruling in §12.**
 
 **Skip for now:** `Person`, `ProfilePage`, and `Legislation` for bills. The `Legislation` type
 exists and genuinely fits, but Google does not list it as supported, so it buys nothing today.
@@ -265,13 +271,19 @@ The honest counter, stated plainly: allowing would fit the mission of making thi
 wherever people ask, and a model that has read us may serve Minnesotans better. No provider promises
 that outcome, which is why it loses to the reversibility argument rather than to the principle.
 
-**A correction to the first draft, and to [#823](https://github.com/alethical-org/alethical/issues/823).**
-Do **not** block the answer pages in `robots.txt`. A crawler that is blocked from fetching a page
-cannot read the "do not index" instruction inside it, so blocking actively prevents the exclusion
-from working. Answer pages should instead be left crawlable and served `X-Robots-Tag: noindex` in
-the first response, and simply left out of the sitemap. #823's acceptance criteria should be
-amended accordingly, and its write-up also names the wrong config file — the live one is the
-**root** `vercel.json`, not `apps/frontend/vercel.json`.
+**A correction to the first draft of this doc.** Do **not** block the answer pages in `robots.txt`.
+A crawler that is blocked from fetching a page cannot read the "do not index" instruction inside
+it, so blocking actively prevents the exclusion from working. Answer pages are instead left
+crawlable, served `X-Robots-Tag: noindex` in the first response, and simply left out of the sitemap.
+
+**This doc then got [#823](https://github.com/alethical-org/alethical/issues/823) wrong, and the
+correction runs the other way.** Earlier versions said #823's acceptance criteria ask to block
+answer pages in `robots.txt` and should be amended. They do not. They ask for the answer route to
+be "excluded from sitemaps and internal crawl discovery where practical", which is exactly right
+and is what shipped. Nothing in #823 needed amending on that point. Its real error is a file path:
+it names `apps/frontend/vercel.json`, which Vercel never reads. The live config is the **root**
+`vercel.json`; removing the dead duplicate is
+[#1343](https://github.com/alethical-org/alethical/issues/1343).
 
 **`sitemap.xml`** should list every bill, every legislator, the home page, and the list pages. Not a
 popular subset: an obscure bill is exactly the kind of question this product exists to answer.
@@ -446,12 +458,29 @@ description is already ~140 characters before adding a party name, and party is 
 the profile itself. So the shipped description is the table's sentence verbatim and carries no party.
 If the bullet was meant literally, it is a one-line change to `buildLegislatorShareContent`.
 
+**Ruled: the build was right, no change.** The table is normative and the bullet was sloppy; §3's
+bullet is now corrected to match. A description says what a reader will find *on the page*, and
+party is an attribute of the person rather than a section of it.
+
 **3. The breadcrumb is two levels, and the visible path it claims is a link, not a labelled trail.**
 §6 says `BreadcrumbList` belongs on detail pages "only where the page really shows that path". What a
 detail page shows is a link back to its list, labelled "Go back" rather than "Bills". The shipped
 markup claims two levels — the list, then this page — which is the path the link really goes down,
 but a reader does not see the parent *named*. If that ever reads as a stretch, the honest fix is to
 label the link with its destination, not to delete the markup.
+
+**Ruled: remove the markup, and do not relabel the link to justify keeping it.** The build was right
+to flag this, and a detail it surfaced settles it. `GoBackLink` is not a parent link at all: on the
+legislator profile it calls `navigation.goBack()` when there is history and only falls through to
+the list otherwise. So where it leads depends on how the reader arrived — often the search results
+they came from, not the list. A `BreadcrumbList` asserts a *fixed* place in a hierarchy, and this
+control does not have one.
+
+Relabelling it to "Bills" was the other option and it loses twice over: it would change shipped
+copy on every bill and legislator page to justify a minor search feature, and it would make the
+label wrong in the common case where the button genuinely goes back. Letting a small ranking
+nicety drive visible copy is the same trade §10 already rejects. If a real breadcrumb trail is ever
+designed, the markup comes back with it.
 
 ### Two defects the build found and fixed on the way
 
