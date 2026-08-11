@@ -198,14 +198,9 @@ async function pageShell(host: string): Promise<string> {
   }
   if (!response.ok) throw new DataUnavailable("could not read the page shell");
   const html = await response.text();
-  // Proves we fetched the real shell and not a rewritten copy of ourselves. Both
-  // markers are checked: a shell without the snapshot pair would still serve a
-  // correct head, so the missing body text would go unnoticed.
-  if (
-    !html.includes("alethical:page-head") ||
-    !html.includes("alethical:page-snapshot")
-  ) {
-    throw new DataUnavailable("page shell is missing its markers");
+  // Proves we fetched the real shell and not a rewritten copy of ourselves.
+  if (!html.includes("alethical:page-head")) {
+    throw new DataUnavailable("page shell is missing its head markers");
   }
   cachedShell = html;
   return html;
@@ -254,13 +249,25 @@ export default async function handler(
   let html: string;
   try {
     html = injectPageHead(await pageShell(host), content.metadata);
-    if (content.snapshot) html = injectPageSnapshot(html, content.snapshot);
   } catch {
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("Retry-After", "120");
     response.status(503).send("This page is temporarily unavailable.");
     return;
+  }
+
+  // The body text is an improvement to a page that already works, so losing its
+  // slot in the shell must not take the page down with it. A missing head marker
+  // is the opposite — the page would be nameless — and is still a 503 above. If
+  // the slot ever does go missing, `pageSnapshot.test.tsx` fails on the shipped
+  // `public/index.html` before a release reaches anyone.
+  if (content.snapshot) {
+    try {
+      html = injectPageSnapshot(html, content.snapshot);
+    } catch {
+      // Serve the page as release 1 did: correct tags, empty body.
+    }
   }
 
   response.setHeader("Content-Type", "text/html; charset=utf-8");

@@ -184,6 +184,35 @@ describe('addresses that are not real pages', () => {
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
   });
 
+  it('still serves a page when the shell has lost its snapshot slot', async () => {
+    // The body text improves a page that already works, so its slot going missing
+    // must not take the page down. A missing head marker still returns 503.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.endsWith('/index.html')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () => SHELL.replace(/<!--\/?alethical:page-snapshot-->/g, ''),
+          } as unknown as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: { id: '94-2025-HF719' } }),
+        } as unknown as Response;
+      }),
+    );
+
+    const { status, body } = await serve({ route: 'bill', id: '94-2025-HF719' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<title>HF 719 (2025) | Alethical</title>');
+    expect(body).toContain('<div id="root"></div>');
+    expect(body).not.toContain('page-snapshot');
+  });
+
   it('returns 404 for an address with no page behind it', async () => {
     stubNetwork(() => ({ status: 500 }));
     expect((await serve({ path: '/not-a-page' })).status).toBe(404);

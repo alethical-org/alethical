@@ -557,6 +557,15 @@ serving function cannot load. Rather than copy the map (the drift this whole rel
 against), both moved to `apps/frontend/src/lib/billDetail.ts` beside `stageLabel`, and `data/api.ts`
 imports them from there.
 
+### One risk this created, and how it is held down
+
+`api/page.ts` returns 503 when the shell it fetches has lost its head markers, because a nameless page
+is worse than a brief outage. The body text does **not** get that treatment: it improves a page that
+already works, so if its slot in the shell ever goes missing the page is served exactly as release 1
+served it — correct tags, empty body — rather than failing every bill and legislator address at once.
+The alarm for that case is a test on the shipped `apps/frontend/public/index.html`, which runs on
+every pull request.
+
 ### What release 2 deliberately does not do
 
 - **No snapshot on a list page**, per above.
