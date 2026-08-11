@@ -393,17 +393,29 @@ caveat: a caveat under a large number loses to the large number, and the reader 
 figure. This is the state that ships until [#1337](https://github.com/alethical-org/alethical/issues/1337)
 closes, so it is the primary case a design draws, not an edge one.
 
-**A missing surface makes a claim too, so gate the entry point and publish the coverage.** A
-legislator's campaign money is a tab on the profile they already have, and it renders only
-once a person has confirmed that legislator's committee link ([#1354](https://github.com/alethical-org/alethical/issues/1354));
-with no confirmed link there is no tab, and nothing on the profile implies one is coming.
-That satisfies `.claude/rules/grounded-answers.md` rule 2, but on its own it moves rule 12's
-missing-versus-zero failure from a number into the navigation: an absent tab reads as "this
-legislator raised nothing". So the matched count is published where a reader can find it, and
-"no committee is registered for this person" and "we have not confirmed which committee is
-theirs" are never rendered as the same thing. The unmatched state is still built, because a
-shared or bookmarked money link for an unmatched member has to explain itself rather than
-return a missing page.
+**A missing surface makes a claim too, so the tab always renders.** A legislator's campaign
+money is a tab on the profile they already have, and it appears for every member whether or
+not their committee link is confirmed yet ([#1354](https://github.com/alethical-org/alethical/issues/1354)).
+Hiding it until the link is checked was proposed and **rejected**, and the reason is recorded
+here so it is not reintroduced: two profiles side by side, one with a money tab and one
+without, tell a reader the second member has no campaign money, when the truth is an
+unfinished clerical task of ours. That is `.claude/rules/grounded-answers.md` rule 12's
+missing-versus-zero failure moved out of a number and into the navigation, where no per-profile
+wording can reach it. The count is also temporary and shrinking, so gating would build a
+permanent mechanism to hide a problem that goes away: measured on 11 Aug 2026, a conservative
+automatic match ties 111 of 200 sitting members, and most of the rest are nickname and
+married-name cases a person resolves ([#1329](https://github.com/alethical-org/alethical/issues/1329)).
+What the unconfirmed state must do instead is explain itself, and never render "no committee is
+registered for this person" the same as "we have not confirmed which of their committees is
+theirs to show".
+
+**One legislator, several committees.** Minnesota registers a committee per office, so a person
+accumulates them: 17 sitting members tie to more than one, and 8 have 2 or more active in
+2025 or 2026 at once (measured 11 Aug 2026). So a confirmed link is one-to-many and carries
+each committee's office and period, a figure says which committee it belongs to rather than
+only which year, and **money from a race for another office never appears under a legislator's
+profile** — outside spending on a city campaign is a real record, but placing it under a state
+senator's name asserts something about their legislative work that no filing supports.
 
 **Dates, three separate rules:**
 
