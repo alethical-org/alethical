@@ -289,10 +289,23 @@ describe('RepresentativeCard accepted layout', () => {
     expect(componentSource.match(/alignedRowStyle\([1-7]\)/g)).toHaveLength(7);
   });
 
-  it('keeps initials beneath a decorative image layer without an error handler', () => {
-    expect(componentSource).toContain("position: 'absolute'");
-    expect(componentSource).not.toContain('onError=');
-    expect(componentSource).not.toContain('onError:');
+  // Replaces an earlier assertion that the initials sat *beneath* a decorative
+  // image layer with no error handler, which came from building the reference
+  // design faithfully (#1189). That structure stacked the photo on top of the
+  // initials, so the frame needed a fixed height and a photo shorter than it
+  // left a strip of frame tint showing underneath. Both chambers forbid
+  // cropping the photo to close that strip (#1334), so the photo now sits in
+  // the layout and sets the frame's height itself. That makes the initials its
+  // alternative rather than its backdrop, and an alternative only appears if a
+  // failed load is caught. Dropping the handler now would show an empty frame.
+  it('lets the photo size its frame, with initials as the caught fallback', () => {
+    expect(componentSource).toContain('showingPortrait');
+    expect(componentSource).toContain('setPhotoFailed(true)');
+    expect(componentSource).toMatch(/portraitWithPhoto:\s*\{[^}]*height: 'auto'/);
+    expect(componentSource).toMatch(/portraitWithPhoto:\s*\{[^}]*backgroundColor: 'transparent'/);
+    // No fitting rule is needed on the web image: its own proportions set the
+    // height, so there is nothing to crop and nothing left over.
+    expect(componentSource).not.toContain("objectFit: 'cover'");
   });
 
   it('gives a vacancy its district and deliberate empty-card treatment', () => {

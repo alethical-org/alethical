@@ -124,6 +124,11 @@ export function RepresentativeCard({
   legislatureLabel?: string;
 }) {
   const [profileHovered, setProfileHovered] = useState(false);
+  // The initials used to sit behind the photo, so a file that failed to load
+  // revealed them on its own. Now the photo sizes the frame and the initials
+  // are its alternative, so a failure has to be caught to fall back (#1334).
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const showingPortrait = Boolean(legislator.photoUrl) && !photoFailed;
   const assignments = (legislator.committeeAssignments ?? []).slice(0, 3);
   const issues = (legislator.issueAreas ?? []).slice(0, 26);
   const shownIssues = issues.slice(0, 6);
@@ -138,37 +143,47 @@ export function RepresentativeCard({
       <View
         style={[styles.header, alignSections && alignedRowStyle(1), mobile && styles.headerMobile]}
       >
-        <View accessible={false} {...({ 'aria-hidden': true } as object)} style={styles.portrait}>
-          <Text style={styles.initials}>{initials(legislator.shortName)}</Text>
-          {legislator.photoUrl ? (
+        <View
+          accessible={false}
+          {...({ 'aria-hidden': true } as object)}
+          // A photo sets its own height so the frame ends exactly where the
+          // picture does, leaving no strip of tint showing under it (#1334).
+          // The initials fallback still needs the fixed box below.
+          style={[styles.portrait, showingPortrait && styles.portraitWithPhoto]}
+        >
+          {showingPortrait ? (
             isWeb ? (
               createElement('img', {
                 alt: '',
                 'aria-hidden': true,
                 src: legislator.photoUrl,
+                width: 64,
+                height: 83,
+                onError: () => setPhotoFailed(true),
                 style: {
-                  position: 'absolute',
-                  inset: 0,
+                  display: 'block',
                   width: '100%',
-                  height: '100%',
-                  // Fit-inside, never fill — see LEGISLATOR_PORTRAIT_HEIGHT in
-                  // lib/legislatorSearch.ts for why cropping is off the
-                  // table (#1334).
-                  objectFit: 'contain',
-                  objectPosition: 'top',
+                  // Height follows the photo's own proportions: nothing to
+                  // crop, nothing left over. See LEGISLATOR_PORTRAIT_HEIGHT in
+                  // lib/legislatorSearch.ts (#1334).
+                  height: 'auto',
                 },
               })
             ) : (
               <Image
                 accessibilityElementsHidden
                 source={{ uri: legislator.photoUrl }}
-                style={[styles.portraitImage, StyleSheet.absoluteFill]}
-                // Native Image defaults to "cover", which crops. Same reason as
-                // the web branch above (#1334).
+                style={styles.portraitImage}
+                onError={() => setPhotoFailed(true)}
+                // Phone builds cannot read the file's proportions before it
+                // arrives, so they assume the common source shape and still
+                // fit inside, which never crops (#1334).
                 resizeMode="contain"
               />
             )
-          ) : null}
+          ) : (
+            <Text style={styles.initials}>{initials(legislator.shortName)}</Text>
+          )}
         </View>
         <View style={styles.heading}>
           <Text style={styles.name}>{legislator.shortName}</Text>
@@ -475,7 +490,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  portraitImage: { width: '100%', height: '100%' },
+  portraitWithPhoto: { height: 'auto', backgroundColor: 'transparent' },
+  portraitImage: { width: '100%', aspectRatio: 160 / 206 },
   initials: { fontFamily: t.typography.title, fontSize: 22, color: t.colors.brand.deep },
   heading: { flex: 1, minWidth: 0 },
   name: { fontFamily: t.typography.title, fontSize: 22, fontWeight: '800', color: t.colors.ink },
