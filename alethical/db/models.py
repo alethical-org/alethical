@@ -1730,6 +1730,176 @@ class CampaignFinanceCurrentRelease(TimestampMixin, Base):
     __table_args__ = (CheckConstraint("id", name="single_row"),)
 
 
+# The 3 row tables below mirror their download's columns one for one, and carry
+# nothing else. Rules that apply to all 3, each for a measured reason:
+#
+# * ``(snapshot_id, row_number)`` is the primary key. ``row_number`` is the
+#   1-based CSV *record* number, not a physical line: 720 newlines sit inside
+#   quoted fields, so a line count is not a row count. The pair traces a
+#   displayed figure back to a line in one specific dated download and is
+#   explicitly NOT an identity across downloads (§4.2). Making it the primary key
+#   also means a second loader copying the same snapshot's rows fails loudly on a
+#   duplicate key rather than doubling every figure.
+# * Money is ``numeric(18,4)``. Amounts print 4 decimal places and 4 expenditure
+#   rows are finer than a cent, so 2 decimals would round real money.
+# * Zips, registration numbers, codes and flags are text exactly as printed.
+#   9,007 zips are shorter than 5 characters, so a numeric zip loses a leading
+#   zero. ``in_kind`` reads "Yes"/"No" and stays those words rather than becoming
+#   a boolean, because a boolean invents a mapping the file does not state.
+# * ``year`` is the file's own ``Year`` column, which is a separate claim from the
+#   row's date and disagrees with it on 702 rows across the 3 files. Both are
+#   stored and neither is derived from the other.
+# * Blank becomes NULL, never an invented value.
+# * No timestamps. The snapshot owns the time, and a per-row timestamp invites
+#   someone to read it as data. Nothing human may live here either: the published
+#   set is rebuilt on every load, so anything stored here is silently destroyed
+#   (§4.4). ``test_campaign_finance_load.py`` asserts these tables carry only the
+#   source's columns plus those two.
+
+
+class CampaignFinanceContributionRow(Base):
+    """One record of the "Itemized contributions received of over $200" download.
+
+    15 source columns. ``receipt_type`` carries 4 values and only
+    ``Contribution`` belongs in a contribution total — 1.2% of rows are
+    ``Miscellaneous``, ``Miscellaneous Income`` or ``Loan Payable``, which the
+    filing reports on separate schedules (§2.1). Filter on it before comparing
+    anything against a reported contribution figure.
+    """
+
+    __tablename__ = "cf_contribution_row"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    row_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    recipient_reg_num: Mapped[Optional[str]] = mapped_column(Text)  # Recipient reg num
+    recipient: Mapped[Optional[str]] = mapped_column(Text)  # Recipient
+    recipient_type: Mapped[Optional[str]] = mapped_column(Text)  # Recipient type
+    recipient_subtype: Mapped[Optional[str]] = mapped_column(Text)  # Recipient subtype
+    amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))  # Amount
+    receipt_date: Mapped[Optional[date]] = mapped_column(Date)  # Receipt date
+    year: Mapped[Optional[int]] = mapped_column(Integer)  # Year
+    contributor: Mapped[Optional[str]] = mapped_column(Text)  # Contributor
+    contrib_reg_num: Mapped[Optional[str]] = mapped_column(Text)  # Contrib Reg Num
+    contrib_type: Mapped[Optional[str]] = mapped_column(Text)  # Contrib type
+    receipt_type: Mapped[Optional[str]] = mapped_column(Text)  # Receipt type
+    in_kind: Mapped[Optional[str]] = mapped_column(Text)  # In kind?
+    in_kind_descr: Mapped[Optional[str]] = mapped_column(Text)  # In-kind descr
+    contrib_zip: Mapped[Optional[str]] = mapped_column(Text)  # Contrib zip
+    contrib_employer_name: Mapped[Optional[str]] = mapped_column(
+        Text
+    )  # Contrib Employer name
+
+    __table_args__ = (
+        Index("ix_cf_contribution_row_recipient", "recipient_reg_num", "year"),
+    )
+
+
+class CampaignFinanceExpenditureRow(Base):
+    """One record of the "Itemized general expenditures and contributions made of
+    over $200" download.
+
+    18 source columns. Two things about this file change what a comparison means
+    (§2.1): ``amount`` is the filing's *total* column, not its paid column, and
+    ``type`` has 6 values where a candidate committee and a party unit use
+    different labels for the same thing — so filtering on one label alone
+    silently drops a whole kind of filer.
+    """
+
+    __tablename__ = "cf_expenditure_row"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    row_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    committee_reg_num: Mapped[Optional[str]] = mapped_column(Text)  # Committee reg num
+    committee_name: Mapped[Optional[str]] = mapped_column(Text)  # Committee name
+    entity_type: Mapped[Optional[str]] = mapped_column(Text)  # Entity type
+    entity_sub_type: Mapped[Optional[str]] = mapped_column(Text)  # Entity sub-type
+    vendor_name: Mapped[Optional[str]] = mapped_column(Text)  # Vendor name
+    vendor_city: Mapped[Optional[str]] = mapped_column(Text)  # Vendor city
+    vendor_state: Mapped[Optional[str]] = mapped_column(Text)  # Vendor state
+    vendor_zip: Mapped[Optional[str]] = mapped_column(Text)  # Vendor zip
+    amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))  # Amount
+    unpaid_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(18, 4)
+    )  # Unpaid amount
+    date: Mapped[Optional[date]] = mapped_column(Date)  # Date
+    purpose: Mapped[Optional[str]] = mapped_column(Text)  # Purpose
+    year: Mapped[Optional[int]] = mapped_column(Integer)  # Year
+    type: Mapped[Optional[str]] = mapped_column(Text)  # Type
+    in_kind_descr: Mapped[Optional[str]] = mapped_column(Text)  # In-kind descr
+    in_kind: Mapped[Optional[str]] = mapped_column(Text)  # In-kind?
+    affected_committee_name: Mapped[Optional[str]] = mapped_column(
+        Text
+    )  # Affected committee name
+    affected_committee_reg_num: Mapped[Optional[str]] = mapped_column(
+        Text
+    )  # Affected committee reg num
+
+    __table_args__ = (
+        Index("ix_cf_expenditure_row_committee", "committee_reg_num", "year"),
+    )
+
+
+class CampaignFinanceIndependentExpenditureRow(Base):
+    """One record of the "Itemized independent expenditures of over $200" download.
+
+    19 source columns. Every row names an affected *committee* and none names a
+    person, so no surface may promise "money spent about this legislator" before
+    that committee's link to a legislator is confirmed (§7). Two column names are
+    spelled out here where the file abbreviates them ("Affected Comte Name",
+    "Affected Cmte Reg Num"), so the same fact reads the same way as on the
+    expenditures table; the exact source header each one maps from is pinned in
+    ``alethical/pipeline/campaign_finance.py``.
+    """
+
+    __tablename__ = "cf_independent_expenditure_row"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    row_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    spender: Mapped[Optional[str]] = mapped_column(Text)  # Spender
+    spender_reg_num: Mapped[Optional[str]] = mapped_column(Text)  # Spender Reg Num
+    spender_type: Mapped[Optional[str]] = mapped_column(Text)  # Spender type
+    spender_sub_type: Mapped[Optional[str]] = mapped_column(Text)  # Spender sub-type
+    affected_committee_name: Mapped[Optional[str]] = mapped_column(
+        Text
+    )  # Affected Comte Name
+    affected_committee_reg_num: Mapped[Optional[str]] = mapped_column(
+        Text
+    )  # Affected Cmte Reg Num
+    for_against: Mapped[Optional[str]] = mapped_column(Text)  # For /Against
+    year: Mapped[Optional[int]] = mapped_column(Integer)  # Year
+    date: Mapped[Optional[date]] = mapped_column(Date)  # Date
+    type: Mapped[Optional[str]] = mapped_column(Text)  # Type
+    amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))  # Amount
+    unpaid_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(18, 4)
+    )  # Unpaid amount
+    in_kind: Mapped[Optional[str]] = mapped_column(Text)  # In kind?
+    in_kind_descr: Mapped[Optional[str]] = mapped_column(Text)  # In kind descr
+    purpose: Mapped[Optional[str]] = mapped_column(Text)  # Purpose
+    vendor_name: Mapped[Optional[str]] = mapped_column(Text)  # Vendor name
+    vendor_city: Mapped[Optional[str]] = mapped_column(Text)  # Vendor city
+    vendor_state: Mapped[Optional[str]] = mapped_column(Text)  # Vendor State
+    vendor_zip: Mapped[Optional[str]] = mapped_column(Text)  # Vendor zip
+
+    __table_args__ = (
+        Index("ix_cf_independent_expenditure_row_spender", "spender_reg_num", "year"),
+        Index(
+            "ix_cf_independent_expenditure_row_affected",
+            "affected_committee_reg_num",
+            "year",
+        ),
+    )
+
+
 def bill_detail_stmt(
     bill_id: uuid.UUID,
     user_id: Optional[uuid.UUID] = None,

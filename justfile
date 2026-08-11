@@ -125,6 +125,21 @@ pipeline-work target:
   uv run python -m alethical.pipeline.oban --target {{target}} drain vote_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain ai_batch
 
+# Load Minnesota's 3 campaign-finance downloads as one dated set that replaces the
+# previous one (#1328). Dry-run by default: it fetches, checks and reports without
+# writing to the database or the file store, and needs no credentials.
+# A real run needs the 4 SUPABASE_STORAGE_S3_* values from .env, because the exact
+# downloaded bytes are kept -- the Board publishes no archive, so a file we do not
+# keep cannot be fetched again.
+#   just load-campaign-finance                       # dry run against local
+#   just load-campaign-finance local false           # publish locally
+#   just load-campaign-finance production false      # publish to production
+# A first import has nothing to compare against, so it quarantines by design. Read
+# the printed measurements, then publish it by naming its 3 hashes:
+#   uv run python scripts/load_campaign_finance.py --target local --publish-hashes A B C
+load-campaign-finance target="local" dry="true":
+  uv run python scripts/load_campaign_finance.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
+
 # Reconcile current legislator membership against the official roster PDF.
 # Dry-run by default (no writes); pass apply=true to deactivate departed members.
 # Set ALETHICAL_DATABASE_TARGET=production to run against prod.
