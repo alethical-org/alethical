@@ -142,6 +142,10 @@ a single summary line on the filed report.
 itemized rows are gifts of $200 or less, and saying otherwise tells a reader that a named
 $50 payment cannot exist when 327,759 of them do. The claim a page may make is about the
 donor's yearly total: "donors who gave $200 or less in total for the year are never named."
+**Mind the boundary in shorter labels too.** The statute says *exceed*, so a donor whose yearly
+total is exactly $200.00 is never named and belongs in the unnamed bucket. A row label reads
+"donors who gave $200 or less for the year", never "donors under $200" — that phrasing shipped
+into a design prompt from this session on 11 Aug 2026 and had to be corrected on the screen.
 A caption covering the whole record says *candidates*, because ballot-question committees
 sit at $500. This is written down because the wrong version was drafted for a real screen
 (Aug 2026) by someone reading the paragraph above, which stated the aggregate rule correctly
@@ -415,7 +419,35 @@ accumulates them: 17 sitting members tie to more than one, and 8 have 2 or more 
 each committee's office and period, a figure says which committee it belongs to rather than
 only which year, and **money from a race for another office never appears under a legislator's
 profile** — outside spending on a city campaign is a real record, but placing it under a state
-senator's name asserts something about their legislative work that no filing supports.
+senator's name asserts something about their legislative work that no filing supports. A search
+result therefore resolves a name to a *committee*, not to a person: the same file holds
+`Fateh, Omar Senate Committee` and `Fatehi, Leili House Committee`, one character apart and two
+different people, which is the concrete case behind §5.
+
+**Never rank, total or sort members by amount for the current year.** Sitting members are on two
+different filing calendars, so on any day in 2026 a side-by-side list compares one member's
+part-year total against another member's blank. Verified by reading the Board's own calendars
+on 11 Aug 2026: a member on the 2026 ballot filed a pre-primary report on 27 Jul covering 1 Jan
+to 20 Jul and files a pre-general on 26 Oct (`cfb.mn.gov/pdf/calendars/2026_senate_house_district_court.pdf`),
+while a member **not** running files nothing covering 2026 money until the year-end report due
+**1 Feb 2027** (`cfb.mn.gov/pdf/calendars/2026_candidates_not_running.pdf`, whose only 2026
+entry is the *2025* year-end report due 2 Feb). A ranking built from that is a comparison of
+filing schedules wearing the costume of a comparison of money, and it reads as authoritative.
+Show each member's figures with their own period instead.
+
+**Independent spending needs the same confirmed link a member's own money does.** Measured
+across all 2,674 independent-expenditure rows for 2025 and 2026 ([#1329](https://github.com/alethical-org/alethical/issues/1329)):
+every row names an affected *committee*, 2,670 carry that committee's registration number, and
+**none names a person**. So no surface may promise "money spent about this legislator" before
+their committee link is confirmed, and a state without the link is genuinely empty rather than
+partly filled.
+
+**One freshness date is not a coverage period, and in 2026 they are far apart.** A page may
+carry the release's freshness date; it may never present that date as the period the money
+covers, because the period is per member and always earlier. This matters most at launch:
+nothing new publishes between **21 Jul and 26 Oct 2026**, so a September launch shows figures
+that stop in July, on the far side of an 11 Aug primary that none of them reflect. Copy that
+implies currency has to survive that gap (`.claude/rules/grounded-answers.md` rules 6 and 7).
 
 **Dates, three separate rules:**
 
