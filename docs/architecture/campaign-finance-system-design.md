@@ -226,6 +226,16 @@ a reader to assume one number is wrong.
 **Missing versus zero.** A missing value reads "Not reported". A verified zero reads "0". A
 candidate who genuinely raised nothing is not the same as one whose filing we do not have.
 
+**Any share card for a finance page is text-only.** Name, chamber, district, and an "as of"
+date. No legislator portrait, and no party colours. The portrait constraint is a rights
+question, not a cost one: the Minnesota House photo policy (`house.mn.gov/hinfo/photo_use.htm`,
+updated 23 Oct 2024) requires advance permission and forbids altering an image "in any way,
+including cropping," and compositing a portrait into a generated card is exactly that. Whose
+terms actually govern the portraits we display is itself unsettled and tracked in
+[#1334](https://github.com/alethical-org/alethical/issues/1334). Wording rules for these pages
+are already written in `docs/architecture/page-metadata-for-search-and-sharing-decisions.md`,
+so finance pages inherit them rather than inventing their own.
+
 **Separate transfers, never a chain.** Money is fungible. That a party gave a caucus $100,000
 and the caucus later gave a candidate $5,000 are two documented facts. That the same dollars
 travelled is not a fact and no filing establishes it. Show each transfer with its own amount,
