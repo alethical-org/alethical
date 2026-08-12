@@ -12,9 +12,18 @@ it finds bills by keyword or bill number. If you have a real *question*
 ## Searching
 
 - **Results update as you type** — no need to hit a button or press Enter.
-- **Every word has to appear.** If you type `school funding`, you'll only see bills
-  that mention *both* "school" *and* "funding" — in any order. Adding words narrows
-  things down; it never broadens them.
+- **It searches the words you can see, and the legal wording behind them.** Each
+  result's plain-language headline is searchable, so typing a card's headline back
+  finds that card. So is the bill's official legal title and its one-line official
+  description, which is how a search for `repealing the political contribution
+  refund program` also lands on the same bill.
+- **Every meaningful word has to appear.** If you type `school funding`, you'll only
+  see bills that mention *both* "school" *and* "funding" — in any order. Adding
+  meaningful words narrows things down; it never broadens them.
+- **Little joining words are ignored.** Words like "of", "the", "and" and "for" are
+  skipped, so `repeal of the refund program` searches for "repeal", "refund" and
+  "program". They add little search signal, and requiring them used to throw away
+  the whole search when a bill happened not to use one of them.
 - **Near-misses still count.** Common word variations match too, so `tax` also finds
   "taxes" and "taxing". Typos are forgiven in longer words (5 letters or more), so
   `establishng` still finds "establishing" — but a typo in a short word like `tax`
@@ -65,7 +74,7 @@ one session yourself.
 
 | What you do | Tag shown | What it checks | Starting scope |
 |---|---|---|---|
-| Type `taxation` | **Search: “taxation”** | Every typed word in the official title or description | Regular + special sessions |
+| Type `taxation` | **Search: “taxation”** | Every meaningful typed word, in the plain-language headline, the official title, or the official description | Regular + special sessions |
 | Click **Taxation** | **Issue: Taxation** | Hidden tax-related issue labels | Regular + special sessions |
 | Ask about taxation, then open Search | **Issue: Taxation** | The exact same Issue filter as clicking **Taxation** | Regular + special sessions |
 

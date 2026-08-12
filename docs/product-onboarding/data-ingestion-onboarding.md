@@ -245,9 +245,11 @@ The worker refuses inline writes to a different RAG database because that second
 publish only half of the refresh.
 
 For every bill in `text_changed_bill_keys`, the same transaction marks its displayed
-`bill_summary` non-current and the database clears `Bill.has_current_summary`
-([#1321](https://github.com/alethical-org/alethical/issues/1321)). The product therefore shows the
-new official record without a summary rather than pairing it with an older draft's explanation.
+`bill_summary` non-current, and the database clears both `Bill.has_current_summary`
+([#1321](https://github.com/alethical-org/alethical/issues/1321)) and `Bill.short_title`, the copy
+of that summary's plain-language headline that keyword search matches (alembic 0033). The product
+therefore shows the new official record without a summary rather than pairing it with an older
+draft's explanation, and search stops matching a headline the bill no longer displays.
 Metadata-only updates and rejected thin responses keep the summary that still matches. This step
 does not call a model or spend money; a later missing-current batch may choose the bill for a new
 summary. Refresh and summary apply take the same bill-row lock, so a result prepared from old text
