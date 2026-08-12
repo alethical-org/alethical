@@ -116,6 +116,13 @@ still sees the old signature and cannot skip the required rebuild. A separate RA
 refused on this path because it cannot share that transaction. The explicit RAG backfill remains
 the repair path for missing rows that do not follow a new source-text change.
 
+The same transaction handles a twice-confirmed section removal
+([#1423](https://github.com/alethical-org/alethical/issues/1423)). The foreign keys from a search
+document to its canonical section, from chunks to that document, and from embeddings to chunks do
+not cascade. Ingestion therefore removes the absent current section's embeddings, chunks and
+search document in that order before removing the canonical row. A failed rebuild rolls all four
+levels back together, and no historical version is in the delete scope.
+
 ## Recommended Data Flow
 
 1. `raw_source_artifact`

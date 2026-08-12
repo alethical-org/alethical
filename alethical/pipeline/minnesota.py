@@ -61,6 +61,9 @@ LegislativeSession = schema.LegislativeSession
 Legislator = schema.Legislator
 LegislatorServicePeriod = schema.LegislatorServicePeriod
 LegislatorStats = schema.LegislatorStats
+RagChunk = schema.RagChunk
+RagChunkEmbedding = schema.RagChunkEmbedding
+RagSectionDocument = schema.RagSectionDocument
 SessionType = schema.SessionType
 SourceArtifact = schema.SourceArtifact
 Sponsorship = schema.Sponsorship
@@ -2178,7 +2181,13 @@ class MinnesotaIngestionPipeline:
         bill.ingestion_run_id = run.id
         self.link_companion(bill, canonical)
 
-        self.upsert_versions_and_sections(bill, canonical, bill_text, html_artifact)
+        self.upsert_versions_and_sections(
+            bill,
+            canonical,
+            bill_text,
+            html_artifact,
+            corroborated_drop=corroborated_drop,
+        )
         self.replace_actions(refs, bill, canonical, xml_artifact)
         self.replace_sponsorships(refs, bill, canonical)
         self.upsert_bill_stats(bill, canonical)
@@ -2226,6 +2235,8 @@ class MinnesotaIngestionPipeline:
         canonical: dict[str, Any],
         bill_text: dict[str, Any],
         html_artifact: Any,
+        *,
+        corroborated_drop: bool = False,
     ) -> None:
         text_versions = list(canonical.get("text_versions", [])) or [
             {"document_name": "Current", "document_type": "current"}
@@ -2346,6 +2357,58 @@ class MinnesotaIngestionPipeline:
             )
         if latest_version is None:
             return
+
+        # A shorter section list is allowed only after the completeness guard has
+        # fetched the same official response twice. Reconcile only the accepted
+        # current version, and delete search dependents child-first because these
+        # foreign keys deliberately do not cascade (#1423).
+        if corroborated_drop:
+            fetched_section_count = len(bill_text.get("sections", []))
+            stale_section_ids = list(
+                self.db.scalars(
+                    select(BillVersionSection.id).where(
+                        BillVersionSection.bill_version_id == latest_version.id,
+                        BillVersionSection.source_order > fetched_section_count,
+                    )
+                ).all()
+            )
+            if stale_section_ids:
+                rag_section_ids = list(
+                    self.db.scalars(
+                        select(RagSectionDocument.id).where(
+                            RagSectionDocument.bill_version_section_id.in_(
+                                stale_section_ids
+                            )
+                        )
+                    ).all()
+                )
+                if rag_section_ids:
+                    rag_chunk_ids = list(
+                        self.db.scalars(
+                            select(RagChunk.id).where(
+                                RagChunk.rag_section_document_id.in_(rag_section_ids)
+                            )
+                        ).all()
+                    )
+                    if rag_chunk_ids:
+                        self.db.execute(
+                            delete(RagChunkEmbedding).where(
+                                RagChunkEmbedding.rag_chunk_id.in_(rag_chunk_ids)
+                            )
+                        )
+                        self.db.execute(
+                            delete(RagChunk).where(RagChunk.id.in_(rag_chunk_ids))
+                        )
+                    self.db.execute(
+                        delete(RagSectionDocument).where(
+                            RagSectionDocument.id.in_(rag_section_ids)
+                        )
+                    )
+                self.db.execute(
+                    delete(BillVersionSection).where(
+                        BillVersionSection.id.in_(stale_section_ids)
+                    )
+                )
 
         article_lookup = {}
         for article in bill_text.get("articles", []):

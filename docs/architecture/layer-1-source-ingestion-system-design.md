@@ -296,6 +296,9 @@ Validation examples:
 - bill companion numbers should match expected file type patterns
 - 1 response may not lower a stored bill's action, author, text-version or section count;
   the same lower source facts must arrive twice before they are accepted
+- an accepted lower section list reconciles only the current version; absent positions and their
+  derived search rows are removed in the same transaction, while historical versions remain
+  unchanged
 - an action number orders actions only inside its own chamber because House and Senate counters
   each restart at 1
 - each chamber tail carries its preceding real date when that tail has no date; this value is used
@@ -600,6 +603,12 @@ changed. A rejected thin refresh appears in neither list. When inline RAG is ena
 flushes the accepted canonical rows, rebuilds only `text_changed_bill_keys` through the same
 database session, and commits both layers once. The worker refuses a separate RAG database because
 2 connections cannot make that publication atomic ([#1320](https://github.com/alethical-org/alethical/issues/1320)).
+
+A twice-confirmed lower section list removes only the missing positions from the accepted current
+version ([#1423](https://github.com/alethical-org/alethical/issues/1423)). Its derived rows have no
+database cascade, so ingestion deletes embeddings, chunks and section documents before the
+canonical section rows. Historical versions are outside the delete predicate, and a rejected or
+uncertain lower response never reaches this reconciliation.
 
 That same accepted text-change subset retires any current `bill_summary` before the transaction
 commits. The database then clears `Bill.has_current_summary`, so product reads show the current
