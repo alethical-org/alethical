@@ -50,6 +50,35 @@ DIRECTORY_ROWS: dict[FilerKind, list[dict[str, Any]]] = {
             "DistrictKey": "40",
             "OfficeKey": "Senate",
         },
+        # The 2 pinned canary filers whose figures are not the fixture default. They
+        # have to be in the directory: a run that asks about everything and cannot find
+        # a pinned filer has lost the canary that detects a changed amendment rule.
+        {
+            "RegisteredEntityFullName": "Dibble, Scott Senate Committee",
+            "RegisteredEntityID": "15667",
+            "Party": "DFL",
+            "OfficeSoughtFullName": "Senate",
+            "District": "61",
+            "RegistrationDate": "2002-01-01 00:00:00.000",
+            "TerminationDate": None,
+            "Incumbent": "1",
+            "CandidateFullName": "Dibble, Scott",
+            "DistrictKey": "61",
+            "OfficeKey": "Senate",
+        },
+        {
+            "RegisteredEntityFullName": "Johnson Stewart, Ann Senate Committee",
+            "RegisteredEntityID": "18453",
+            "Party": "DFL",
+            "OfficeSoughtFullName": "Senate",
+            "District": "44",
+            "RegistrationDate": "2020-01-01 00:00:00.000",
+            "TerminationDate": None,
+            "Incumbent": "1",
+            "CandidateFullName": "Johnson Stewart, Ann",
+            "DistrictKey": "44",
+            "OfficeKey": "Senate",
+        },
         {
             "RegisteredEntityFullName": "Novotny, Paul House Committee",
             "RegisteredEntityID": "18999",
@@ -155,6 +184,15 @@ class FakeBoard:
     special_election_filers: set[str] = field(default_factory=set)
     reported_through: dict[tuple[str, int], str] = field(default_factory=dict)
     requests_seen: list[tuple[str, dict[str, str]]] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        # Serve the pinned canary figures the shipped code checks for, so the default
+        # fixture is a Board a full run can legitimately publish from.
+        for filer_year, amounts in {
+            ("15667", 2024): {"Individuals contributions": "$4,869.59"},
+            ("18453", 2024): {"Total receipts": "$317.20"},
+        }.items():
+            self.amount_overrides.setdefault(filer_year, {}).update(amounts)
 
     @property
     def base_url(self) -> str:
@@ -873,16 +911,26 @@ def test_an_archive_that_no_longer_reproduces_its_figures_stops_the_run(
     # Truncate the kept archive, which is what a damaged or partial object looks like.
     store.objects[key] = store.objects[key][: len(store.objects[key]) // 2]
     with pytest.raises(
-        filings.CampaignFinanceFilingsRefusal, match="could not be read back"
+        filings.CampaignFinanceFilingsRefusal, match="not the ones we vouched for"
     ) as raised:
         run(db, board, store, publish_hash=first.record_set_hash)
     # Named, so an operator knows which object to look at rather than reading a stack
-    # trace out of gzip.
+    # trace out of gzip. Caught by the object's own fingerprint, which fires before
+    # anything tries to decompress it.
     assert key in str(raised.value)
 
 
-def test_an_archive_whose_figures_have_changed_stops_the_run(db, board, store) -> None:
-    """Readable, and no longer the figures the snapshot claims. A different failure."""
+def test_an_archived_response_that_does_not_match_its_own_fingerprint_stops_the_run(
+    db, board, store
+) -> None:
+    """An intact object whose contents are not the evidence they claim to be.
+
+    The object's own fingerprint catches anything that changes its bytes, so this
+    doctors the archive **and** re-records its fingerprint, which is what a
+    mis-written archive looks like rather than a damaged one. What has to catch it then
+    is the per-response fingerprint on each line: a line is the evidence for every
+    figure read from it, and evidence that does not match its own hash is not evidence.
+    """
     first = run(db, board, store)
     assert first.blocked
     key = next(iter(store.objects))
@@ -891,21 +939,35 @@ def test_an_archive_whose_figures_have_changed_stops_the_run(db, board, store) -
 
     lines = gziplib.decompress(store.objects[key]).decode("utf-8").splitlines()
     rewritten = []
+    doctored = 0
     for line in lines:
         record = json.loads(line)
-        if record["what"] == "figures":
+        if (
+            doctored == 0
+            and record["what"] == "figures"
+            and b"13,900.48" in base64.b64decode(record["body_base64"])
+        ):
             body = base64.b64decode(record["body_base64"]).replace(
                 b"13,900.48", b"99,900.48"
             )
+            # The line's own recorded sha256 is deliberately left alone, which is the
+            # discrepancy this test exists to catch.
             record["body_base64"] = base64.b64encode(body).decode("ascii")
+            doctored += 1
         rewritten.append(json.dumps(record, sort_keys=True))
+    assert doctored == 1
     store.objects[key] = gziplib.compress(
         ("\n".join(rewritten) + "\n").encode("utf-8"), mtime=0
     )
+    snapshot = db.get(models.CampaignFinanceFilingSnapshot, first.snapshot_id)
+    snapshot.compressed_hash = hashlib.sha256(store.objects[key]).hexdigest()
+    db.commit()
+
     with pytest.raises(
         filings.CampaignFinanceFilingsRefusal, match="no longer reproduces"
-    ):
+    ) as raised:
         run(db, board, store, publish_hash=first.record_set_hash)
+    assert "does not hash to the fingerprint recorded on it" in str(raised.value)
 
 
 def test_the_archive_compresses_identically_whatever_the_file_is_called(
@@ -1070,7 +1132,10 @@ def test_a_whole_filer_kind_coming_back_empty_stops_even_with_a_named_hash(
     nowhere near uniform, so a run-wide ceiling could hide one kind going dark behind
     two healthy ones.
     """
-    board.empty_filers.update({"11880", "18999"})
+    board.empty_filers.update(
+        row["RegisteredEntityID"]
+        for row in DIRECTORY_ROWS[FilerKind.candidate_committee]
+    )
     result = run(db, board, store)
     check = checks_of(result)["no_filer_kind_came_back_mostly_empty"]
     assert check.status == "failed"
@@ -1087,7 +1152,7 @@ def test_one_filer_of_a_kind_coming_back_empty_is_ordinary(db, board, store) -> 
     result = run(db, board, store)
     check = checks_of(result)["no_filer_kind_came_back_mostly_empty"]
     assert check.status == "passed", check.detail
-    assert "candidate_committee 50.0% empty" in check.detail
+    assert "candidate_committee 25.0% empty" in check.detail
 
 
 def test_naming_a_hash_never_waives_a_structural_check(db, board, store) -> None:
@@ -1133,8 +1198,115 @@ def test_a_narrowed_run_does_not_claim_to_have_checked_the_pinned_figures_it_ski
 ) -> None:
     result = run(db, board, store, dry_run=True, only_filers=["11880"])
     check = checks_of(result)["standing_test_filer_years_still_match"]
-    assert check.status == "passed"
-    assert "not asked about by this run" in check.detail
+    # not_run, never passed: with only some canaries applicable the check compared less
+    # than it claims to, and summary() prints only what did not pass, so "passed" would
+    # have hidden the line saying so.
+    assert check.status == "not_run"
+    assert "did not fire" in check.detail
+    # And the missing-from-the-directory check does not fire on a narrowed run, because
+    # not asking about a filer is not the same as the Board having dropped it.
+    assert "every_pinned_filer_is_still_in_the_directory" not in checks_of(result)
+
+
+# --- What Codex found at max reasoning effort --------------------------------
+#
+# 6 defects, every one a way a figure that misstates a named committee's money reached
+# publication with every check reporting success. Each has a test here because each was
+# invisible to the 57 tests that already passed.
+
+
+def test_a_block_whose_coverage_date_is_not_in_its_own_year_stops_the_read(
+    board,
+) -> None:
+    """The one that poisons everything downstream.
+
+    A block labelled 2025 reporting through 31 December 2024 parses perfectly. The
+    reconciliation then bounds our 2025 rows at a 2024 date, finds none inside it, and
+    skips that committee — while reporting that it passed. Measured across all 3,630
+    filer-years the Board served, every coverage date falls inside its own block's year,
+    so this is a contract the source keeps.
+    """
+    board.reported_through[("11880", 2025)] = "12/31/2024"
+    tab = filings.parse_financial_tab(
+        board.financial_payload("11880", (2024, 2025)),
+        FilerKind.candidate_committee,
+        [2024, 2025],
+    )
+    assert any("which is not in 2025" in error for error in tab.errors)
+
+
+def test_a_narrowed_run_cannot_publish_at_all(db, board, store) -> None:
+    """The worst of the 6.
+
+    Publishing replaces the whole live set, so a 2-filer run would make those 2 filers
+    every committee we hold a reported total for — and the per-kind empty-answer guard
+    cannot see it, because a kind nobody asked about contributes nothing to its own
+    share. Refused before any request is spent rather than at the end.
+    """
+    with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="only-filers"):
+        run(db, board, store, only_filers=["11880"])
+    assert db.scalars(select(models.CampaignFinanceFilingSnapshot)).all() == []
+    assert store.objects == {}
+    # And a named hash cannot buy its way past it either.
+    with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="only-filers"):
+        run(db, board, store, only_filers=["11880"], publish_hash="anything")
+    # A narrowed dry run is exactly what the flag is for, and still works.
+    checked = run(db, board, store, dry_run=True, only_filers=["11880"])
+    assert {filing.registration_number for filing in checked.filings} == {"11880"}
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "years",
+        "reported_through",
+        "termination_date",
+        "served_label",
+        "empty_filer",
+        "catalogue_cutoff",
+    ],
+)
+def test_two_runs_differing_in_any_stored_fact_do_not_share_one_identity(
+    db, board, store, change
+) -> None:
+    """An equal record hash is what makes a run reuse an earlier snapshot's archive.
+
+    So anything the hash leaves out is a fact that can differ between the two while the
+    reuse still happens, and then the older archive's rows are written under the newer
+    run's scope. The amount-only version hashed all 6 of these identically.
+    """
+    first = run(db, board, store, dry_run=True)
+    if change == "years":
+        second = run(db, board, store, dry_run=True, years=[2025])
+    elif change == "reported_through":
+        board.reported_through[("11880", 2025)] = "6/30/2025"
+        second = run(db, board, store, dry_run=True)
+    elif change == "termination_date":
+        monkeyed = [dict(row) for row in DIRECTORY_ROWS[FilerKind.candidate_committee]]
+        monkeyed[0]["TerminationDate"] = "2026-07-01 00:00:00.000"
+        DIRECTORY_ROWS[FilerKind.candidate_committee] = monkeyed
+        try:
+            second = run(db, board, store, dry_run=True)
+        finally:
+            DIRECTORY_ROWS[FilerKind.candidate_committee] = [
+                {
+                    **row,
+                    "TerminationDate": None if index == 0 else row["TerminationDate"],
+                }
+                for index, row in enumerate(monkeyed)
+            ]
+    elif change == "served_label":
+        board.reported_through[("20008", 2024)] = "11/16/2024"
+        second = run(db, board, store, dry_run=True)
+    elif change == "empty_filer":
+        board.empty_filers.add("18999")
+        second = run(db, board, store, dry_run=True)
+    else:
+        board.null_amendments = True
+        second = run(db, board, store, dry_run=True)
+    assert first.record_set_hash
+    assert second.record_set_hash
+    assert first.record_set_hash != second.record_set_hash, change
 
 
 # --- What the download loader reads ------------------------------------------

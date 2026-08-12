@@ -426,6 +426,20 @@ def _parse_year_block(
                 )
     if year is None:
         return YearFigures(0, heading), "a table carries no year heading"
+    # The block says which year it is and the report-through date says what the figures
+    # actually cover, and nothing in the response makes them agree. A block labelled
+    # 2025 whose figures run through 31 December 2024 parses perfectly and then poisons
+    # everything downstream: the reconciliation bounds our 2025 rows at a 2024 date,
+    # finds none inside it, and skips that committee while reporting that it passed.
+    # Measured across all 3,630 filer-years the Board served on 12 Aug 2026, every
+    # report-through date falls inside its own block's year and none is absent, so this
+    # is a contract the source keeps rather than a tolerance we are imposing.
+    if reported_through is not None and reported_through.year != year:
+        return YearFigures(year, heading), (
+            f"the {heading} block reports through {reported_through.isoformat()}, "
+            f"which is not in {year}. The figures and the year they are labelled with "
+            "disagree, so neither can be trusted"
+        )
     missing = [line.stem for line in expected.values() if line.key not in seen]
     if missing:
         return YearFigures(year, heading), (
@@ -985,6 +999,10 @@ class FilingsRun:
     without_figures: list[tuple[str, int]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     requested_filers: int = 0
+    # Whether --only-filers narrowed this run. Such a run may never publish, and it also
+    # cannot check the pinned canary figures for filers it did not ask about, so the two
+    # facts have to be told apart from a full run that lost a filer.
+    narrowed: bool = False
     record_set_hash: str = ""
     checks: list[Check] = field(default_factory=list)
     snapshot_id: Optional[uuid.UUID] = None
@@ -1058,13 +1076,87 @@ class FilingsRun:
         if self.errors:
             self.record_set_hash = ""
             return ""
-        lines = sorted(
-            f"{filing.registration_number}|{filing.filing_year}|{key}|{amount}"
-            for filing in self.filings
-            for key, amount in filing.amounts.items()
-        )
+        # **Every stored fact, plus the scope that was asked for**, not just the money.
+        # Codex found the amount-only version at maximum reasoning effort: an equal hash
+        # is what makes a run reuse an earlier snapshot and rebuild its rows from that
+        # snapshot's archive, so anything left out of the hash is a fact that can differ
+        # between the two while the reuse still happens. Two runs covering different
+        # years, or reporting through different dates, or disagreeing about which
+        # committee has closed, hashed identically — and then the older archive's rows
+        # were written under the newer run's scope.
+        lines: list[str] = [
+            f"years|{','.join(str(year) for year in sorted(self.years))}"
+        ]
+        lines += [f"segment|{start}|{end}" for start, end in sorted(self.segments)]
+        for filer in self.filers:
+            lines.append(
+                "filer|"
+                + "|".join(
+                    (
+                        filer.registration_number,
+                        filer.kind.value,
+                        filer.name,
+                        filer.candidate_name or "",
+                        filer.party or "",
+                        filer.office or "",
+                        filer.district or "",
+                        filer.registration_date.isoformat()
+                        if filer.registration_date
+                        else "",
+                        filer.termination_date.isoformat()
+                        if filer.termination_date
+                        else "",
+                        "incumbent" if filer.is_incumbent else "",
+                    )
+                )
+            )
+        for report in self.reports:
+            lines.append(
+                "report|"
+                + "|".join(
+                    (
+                        report.registration_number,
+                        str(report.filing_year),
+                        report.report_type,
+                        report.report_name,
+                        report.cut_off_date.isoformat() if report.cut_off_date else "",
+                        "special" if report.special_election else "",
+                        str(report.effective_amendment_index)
+                        if report.effective_amendment_index is not None
+                        else "",
+                        str(report.amendment_count)
+                        if report.amendment_count is not None
+                        else "",
+                    )
+                )
+            )
+        for filing in self.filings:
+            lines.append(
+                "filing|"
+                + "|".join(
+                    (
+                        filing.registration_number,
+                        str(filing.filing_year),
+                        filing.kind.value,
+                        f"{filing.segment[0]}-{filing.segment[1]}",
+                        filing.block_heading,
+                        filing.reported_through.isoformat()
+                        if filing.reported_through
+                        else "",
+                    )
+                )
+            )
+            for key, amount in sorted(filing.amounts.items()):
+                lines.append(
+                    f"figure|{filing.registration_number}|{filing.filing_year}"
+                    f"|{key}|{amount}|{filing.served_labels.get(key, '')}"
+                )
+        # The empty answers too: "this filer-year reported nothing" is a fact a page
+        # renders, and 2 runs disagreeing about it are not the same set.
+        for registration, year in self.without_figures:
+            lines.append(f"empty|{registration}|{year}")
         digest = hashlib.sha256()
-        for line in lines:
+        for line in sorted(lines):
             digest.update(line.encode("utf-8"))
             digest.update(b"\n")
         self.record_set_hash = digest.hexdigest()
@@ -1291,25 +1383,60 @@ def validate_filings(
         if found != expected
     ]
     skipped = len(STANDING_TEST_FIGURES) - len(applicable)
-    add(
-        "standing_test_filer_years_still_match",
-        not mismatched,
-        "; ".join(mismatched[:MAX_REPORTED_ERRORS])
-        + (
-            ". Either a filer amended a closed year, which is ordinary and wants the "
+    if mismatched:
+        add(
+            "standing_test_filer_years_still_match",
+            False,
+            "; ".join(mismatched[:MAX_REPORTED_ERRORS])
+            + ". Either a filer amended a closed year, which is ordinary and wants the "
             "figure updated in STANDING_TEST_FIGURES, or the route stopped resolving "
             "amendments the way it did, which is not. Read the Board's own documents "
-            "before waiving this"
-            if mismatched
-            else f"{len(applicable)} pinned figures unchanged"
-            + (
-                f", {skipped} not asked about by this run"
-                if skipped
-                else ", including both amendment-resolution cases"
+            "before waiving this",
+            comparison=True,
+        )
+    elif skipped:
+        # **Not "passed".** Codex found this: with nothing applicable, there were no
+        # mismatches, so the check reported success having compared nothing — and
+        # `summary()` prints only checks that did not pass, so the line saying "0 pinned
+        # figures" was invisible. A canary that cannot fire has not confirmed anything.
+        checks.append(
+            Check(
+                "standing_test_filer_years_still_match",
+                "not_run",
+                f"{len(applicable)} of {len(STANDING_TEST_FIGURES)} pinned figures "
+                f"could be checked; {skipped} belong to filers or years this run did "
+                "not ask about, so the amendment-resolution canary did not fire",
             )
-        ),
-        comparison=True,
-    )
+        )
+    else:
+        add(
+            "standing_test_filer_years_still_match",
+            True,
+            f"all {len(applicable)} pinned figures unchanged, including both "
+            "amendment-resolution cases",
+            comparison=True,
+        )
+    # A pinned filer missing from the directory of a run that asked about everything is
+    # not a skip, it is the directory having lost a filer we depend on. Structural,
+    # because no hash may wave it through.
+    if not run.narrowed:
+        vanished = sorted(
+            {
+                registration
+                for _, registration, _, _, _ in STANDING_TEST_FIGURES
+                if registration not in asked
+            }
+        )
+        add(
+            "every_pinned_filer_is_still_in_the_directory",
+            not vanished,
+            f"{', '.join(vanished)} no longer appear in the Board's registered-filer "
+            "lists, so the pinned figures that detect a changed amendment rule cannot "
+            "be checked at all"
+            if vanished
+            else f"all {len({pinned[1] for pinned in STANDING_TEST_FIGURES})} pinned "
+            "filers are still listed",
+        )
 
     add(
         "previous_snapshot_to_compare_against",
@@ -1638,9 +1765,19 @@ def rebuild_run_from_retained_archive(
     back empty this time and not last time, numbers them differently, and then every
     published figure cites the wrong response.
 
-    The rebuilt figures are hashed and checked against the hash recorded on the
-    snapshot, which makes this a full integrity check of the stored object rather than a
-    formality: if the archive has been altered or truncated, this is where it stops.
+    Three separate integrity checks, and the first version of this function claimed the
+    third alone was "a full integrity check of the stored object". It was not, which
+    Codex found at maximum reasoning effort: the record hash covered amounts only, so a
+    retained response whose coverage date had been altered still matched, and the
+    altered date was written beside a response hash that no longer described its own
+    bytes. So all three are done here:
+
+    1. **The compressed object hashes to what the snapshot recorded.** ``store.get``
+       only writes bytes to disk; nothing in it verifies them.
+    2. **Every archived response body hashes to the hash stored on its own line**, so a
+       line cannot claim to be evidence for bytes it does not hold.
+    3. **The rebuilt records hash to the snapshot's record hash**, which now covers every
+       stored fact rather than the money alone.
     """
     if not snapshot.object_key:
         raise CampaignFinanceFilingsRefusal(
@@ -1657,8 +1794,19 @@ def rebuild_run_from_retained_archive(
     # an operator a stack trace instead of the name of the object that is broken.
     try:
         store.get(snapshot.object_key, compressed_path)
+        stored_hash = sha256_of_file(compressed_path)
+        if snapshot.compressed_hash and stored_hash != snapshot.compressed_hash:
+            raise CampaignFinanceFilingsRefusal(
+                f"the kept archive {snapshot.object_key} hashes to {stored_hash} and "
+                f"filings snapshot {snapshot.id} recorded {snapshot.compressed_hash}. "
+                "The stored bytes are not the ones we vouched for, so nothing in them "
+                "may be republished. Investigate the store; this archive is the only "
+                "record of what the Board served on that date"
+            )
         with gzip.open(compressed_path, "rt", encoding="utf-8") as handle:
             records = [json.loads(line) for line in handle if line.strip()]
+    except CampaignFinanceFilingsRefusal:
+        raise
     except Exception as error:
         raise CampaignFinanceFilingsRefusal(
             f"the kept archive {snapshot.object_key} for filings snapshot "
@@ -1667,6 +1815,18 @@ def rebuild_run_from_retained_archive(
             "record of what the Board served on that date, so investigate the store "
             "rather than re-running over it"
         ) from error
+
+    # Line by line, the bytes must hash to the hash that line carries. Checked once
+    # here rather than per use, so a line that is not evidence for its own bytes is
+    # named as that rather than reappearing later as "this response is not an object".
+    for record in records:
+        body = _bytes_of(record)
+        if body is None:
+            errors.append(
+                f"line {record.get('line')} of the kept archive does not hash to the "
+                f"fingerprint recorded on it ({record.get('sha256')}), so it is not "
+                "evidence for anything read from it"
+            )
 
     for record in records:
         what = record.get("what") or ""
@@ -1741,11 +1901,31 @@ def rebuild_run_from_retained_archive(
         )
 
 
+def _bytes_of(record: dict) -> Optional[bytes]:
+    """One archived response's exact bytes, or None if they do not match their hash.
+
+    A line is the evidence for every figure read from it, and evidence that does not
+    match its own fingerprint is not evidence. Separate from ``_payload_of`` so the
+    caller can say *which* of the two went wrong: bytes that fail their hash and bytes
+    that are not JSON are different problems with different causes.
+    """
+    try:
+        body = base64.b64decode(record["body_base64"])
+    except (KeyError, ValueError):
+        return None
+    if hashlib.sha256(body).hexdigest() != record.get("sha256"):
+        return None
+    return body
+
+
 def _payload_of(record: dict) -> Any:
     """One archived response's body, back as the object it was."""
+    body = _bytes_of(record)
+    if body is None:
+        return None
     try:
-        return json.loads(base64.b64decode(record["body_base64"]).decode("utf-8"))
-    except (KeyError, ValueError, UnicodeDecodeError):
+        return json.loads(body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
         return None
 
 
@@ -2068,6 +2248,26 @@ def load_campaign_finance_filings(
             store = store or _store_from_env()
 
         wanted = {str(number).strip() for number in (only_filers or ())}
+        # A narrowed run may never publish, and refusing here rather than at the end is
+        # deliberate: the run would otherwise spend its requests before finding out.
+        #
+        # Codex found this at maximum reasoning effort and it is the worst defect it
+        # found. A published snapshot **replaces** the previous one, so publishing a
+        # 2-filer run makes those 2 filers the entire live set: every other committee's
+        # reported total disappears, and the download loader's next run then compares
+        # its 583,000 payment rows against a directory of 2. Worse, the per-kind
+        # empty-answer guard cannot see it, because a kind nobody asked about
+        # contributes no filer-years to its own share — so the exact check meant to
+        # catch a whole kind going dark is silent when a kind is simply absent.
+        # ``--only-filers`` exists to make a scoped live check cheap, and a scoped
+        # check is the one thing that must never become a release.
+        if wanted and not dry_run:
+            raise CampaignFinanceFilingsRefusal(
+                f"Refusing to run: --only-filers narrows this run to "
+                f"{len(wanted)} filer(s), and publishing replaces the whole live set, "
+                "so it would delete every other committee's reported total. Add "
+                "--dry-run to check these filers, or drop --only-filers to publish."
+            )
         for kind in FilerKind:
             response, filers, errors = fetch_directory(http, kind, base_url)
             archive.write(f"directory:{kind.value}", response)
@@ -2095,6 +2295,7 @@ def load_campaign_finance_filings(
             if not wanted or filer.registration_number in wanted
         ]
         run.requested_filers = len(targets)
+        run.narrowed = bool(wanted)
         missing_names = wanted - {filer.registration_number for filer in targets}
         if missing_names:
             run.errors.append(

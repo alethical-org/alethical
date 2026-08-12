@@ -1740,6 +1740,16 @@ class CampaignFinanceRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("ingestion_run.id")
     )
     notes: Mapped[Optional[str]] = mapped_column(Text)
+    # Which set of Minnesota's own reported figures these rows were reconciled against
+    # (#1408). Recorded so the pair is auditable rather than only guarded: the 2
+    # pipelines take different locks by design, so "these rows were checked against
+    # those figures" is a fact about a moment, and a page showing a total beside its
+    # itemized payments is showing that pair. Nullable, because every release published
+    # before the figures existed has no answer, and inventing one would be worse than
+    # saying so.
+    filing_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id")
+    )
 
     __table_args__ = (
         # Composite keys: the snapshot in each slot must be of that dataset.

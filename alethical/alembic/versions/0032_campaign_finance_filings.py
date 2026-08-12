@@ -13,8 +13,9 @@ total. Those are the only checks that watch one committee's money rather than th
 whole file's shape, which is what a file with 2 committees' amounts swapped between
 them slipped past.
 
-Additive only: 6 new tables and 1 new enum. Nothing existing is altered and no
-existing row changes, so the downgrade is a clean drop. Round-tripped
+Additive only: 6 new tables, 1 new enum, and 1 nullable column on `cf_release` naming
+the figures a published download set was reconciled against. No existing row changes
+and nothing existing is rewritten, so the downgrade is a clean drop. Round-tripped
 upgrade -> downgrade -> upgrade against real Postgres.
 
 Design: docs/architecture/campaign-finance-system-design.md §9 (Filed reports: where
@@ -198,6 +199,21 @@ def upgrade() -> None:
         ),
     )
 
+    # Which set of reported figures a published download release was reconciled
+    # against. Nullable, so every existing row keeps its meaning: a release published
+    # before the figures existed genuinely has no answer.
+    op.add_column(
+        "cf_release",
+        sa.Column("filing_snapshot_id", postgresql.UUID(as_uuid=True), nullable=True),
+    )
+    op.create_foreign_key(
+        "fk_cf_release_filing_snapshot_id_cf_filing_snapshot",
+        "cf_release",
+        "cf_filing_snapshot",
+        ["filing_snapshot_id"],
+        ["id"],
+    )
+
     op.create_table(
         "cf_filing_figure",
         sa.Column("filing_id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -210,6 +226,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_constraint(
+        "fk_cf_release_filing_snapshot_id_cf_filing_snapshot", "cf_release", type_="foreignkey"
+    )
+    op.drop_column("cf_release", "filing_snapshot_id")
     op.drop_table("cf_filing_figure")
     op.drop_table("cf_filing")
     op.drop_index("ix_cf_filing_report_filer_year", table_name="cf_filing_report")

@@ -45,6 +45,7 @@ from sqlalchemy import select, text
 from alethical.db import models
 from alethical.db.session import get_session_factory
 from alethical.pipeline import campaign_finance as cf
+from alethical.pipeline import campaign_finance_filings as filings_pipeline
 
 Dataset = models.CampaignFinanceDataset
 SnapshotStatus = models.CampaignFinanceSnapshotStatus
@@ -1300,7 +1301,7 @@ def test_itemized_rows_that_fit_inside_the_reported_total_pass(
     report = run(db, board, store, dry_run=True)
     check = contributions_checks(report)["reported_totals_reconcile"]
     assert check.status == "passed", check.detail
-    assert "1 filer-years compared" in check.detail
+    assert "1 of 1 comparable filer-years compared" in check.detail
 
 
 def test_itemized_rows_that_exceed_the_reported_total_stop_the_run(
@@ -1382,7 +1383,7 @@ def test_a_special_election_filer_year_is_excluded_while_the_others_are_compared
     report = run(db, board, store, dry_run=True)
     check = contributions_checks(report)["reported_totals_reconcile"]
     assert check.status == "passed", check.detail
-    assert "1 filer-years compared" in check.detail
+    assert "1 of 1 comparable filer-years compared" in check.detail
     assert "1 special-election filer-years excluded" in check.detail
 
 
@@ -1465,6 +1466,87 @@ def test_the_split_against_each_filings_own_stated_subtotal_is_still_not_run(
     check = contributions_checks(report)["reported_itemized_split_matches_ours"]
     assert check.status == "not_run"
     assert "#1433" in check.detail
+
+
+def test_a_filer_year_the_check_could_not_compare_is_counted_not_hidden(
+    db, board, store
+) -> None:
+    """Codex found the version that silently skipped these.
+
+    A filer-year with a reported total and rows in the file, but no row inside the
+    period that total covers, vanished from the comparison while the check reported
+    "passed, 1 filer-year compared" — and the committee whose rows exceeded its total
+    was the one that vanished. So every filer-year the check could not compare is
+    counted and told apart by reason.
+    """
+    seed_filings_snapshot(
+        db,
+        reported={("19200", 2025): "2000.00", ("19004", 2025): "500.00"},
+        # 19004 has expenditure rows in the fixture and no contribution rows at all,
+        # which is the shape #1433 exists for: the filing may itemize money we lack.
+        reported_through={("19200", 2025): date(2025, 12, 31)},
+    )
+    report = run(db, board, store, dry_run=True)
+    check = contributions_checks(report)["reported_totals_reconcile"]
+    assert check.status == "passed", check.detail
+    assert "1 of 2 comparable filer-years compared" in check.detail
+    assert "1 hold no itemized row of ours at all" in check.detail
+    assert "#1433" in check.detail
+
+
+def test_a_run_refuses_when_the_reported_figures_moved_while_it_downloaded(
+    db, board, store
+) -> None:
+    """The hazard the release lock cannot see, and Codex's fourth finding.
+
+    The 2 pipelines take different locks on purpose, so a filings run can publish new
+    figures during the ~90 seconds a download run spends fetching. The comparison then
+    still holds against the figures that were live when it ran, while the pair a reader
+    is shown is these rows beside figures nothing has compared them to.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    stale_context = filings_pipeline.filings_context(db)
+    assert stale_context is not None
+    first = run(db, board, store)
+    hashes = [
+        outcome.measurements.record_set_hash
+        for outcome in first.outcomes
+        if outcome.measurements
+    ]
+
+    # A filings run publishes a newer set of figures in the gap between this run reading
+    # the figures and this run publishing its rows.
+    seed_filings_snapshot(db, reported={("19200", 2025): "2500.00"})
+
+    # And this run is still holding the figures it read before that happened, which is
+    # exactly what a real run holds: the context is read once, before the downloads.
+    def stale(_db):
+        return stale_context
+
+    original = cf.filings_context
+    cf.filings_context = stale
+    try:
+        with pytest.raises(cf.CampaignFinanceRefusal, match="no longer the live one"):
+            cf.load_campaign_finance(
+                db,
+                store=store,
+                landing_page=board.landing_page,
+                log=lambda message: None,
+                publish_hashes=hashes,
+            )
+    finally:
+        cf.filings_context = original
+    assert db.scalars(select(models.CampaignFinanceRelease)).all() == []
+
+
+def test_a_published_release_records_which_figures_it_was_checked_against(
+    db, board, store
+) -> None:
+    """So the pair is auditable rather than only guarded."""
+    snapshot = seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    report = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, report.release_id)
+    assert release.filing_snapshot_id == snapshot.id
 
 
 def test_a_published_set_says_what_it_has_not_been_compared_with(

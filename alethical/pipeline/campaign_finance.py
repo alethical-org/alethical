@@ -1321,9 +1321,26 @@ def _reported_totals_reconcile(
         )
     compared = 0
     exceeded: list[str] = []
+    # **Every filer-year this check could not compare is counted and named**, split by
+    # why. Codex found the version that simply skipped them: a filer-year with a
+    # reported total and rows in the file, but no row inside the period that total
+    # covers, vanished from the comparison while the check reported "passed, 1
+    # filer-year compared". The committee whose rows exceeded its total was the one that
+    # vanished. A check that says how many it compared and not how many it could not is
+    # reporting its own coverage as its result.
+    no_rows_at_all: list[tuple[str, int]] = []
+    rows_only_outside_the_period: list[tuple[str, int]] = []
     for filer_year, official in sorted(comparable.items()):
         ours = measured.contribution_cash_through_cutoff.get(filer_year)
         if ours is None:
+            # Told apart deliberately. "We hold nothing for this committee" is the case
+            # #1433 exists for — the filing may itemize money we are missing entirely.
+            # "We hold rows, all of them after the period" is ordinary: the figure
+            # covers a part of the year our rows start after.
+            if filer_year in measured.contribution_cash_by_filer_year:
+                rows_only_outside_the_period.append(filer_year)
+            else:
+                no_rows_at_all.append(filer_year)
             continue
         compared += 1
         if ours - official > RECONCILE_TOLERANCE:
@@ -1333,8 +1350,11 @@ def _reported_totals_reconcile(
                 f"{official}, over by {ours - official}"
             )
     detail = (
-        f"{compared:,} filer-years compared against the Board's own figures, "
-        f"{skipped_special:,} special-election filer-years excluded"
+        f"{compared:,} of {len(comparable):,} comparable filer-years compared against "
+        f"the Board's own figures; {len(no_rows_at_all):,} hold no itemized row of ours "
+        f"at all (#1433 is what would catch a filing that itemizes money we lack), "
+        f"{len(rows_only_outside_the_period):,} hold rows only outside the period their "
+        f"figure covers; {skipped_special:,} special-election filer-years excluded"
     )
     if exceeded:
         return Check(
@@ -1793,6 +1813,30 @@ def publish(
             "is the one thing the pointer row exists to prevent. Re-run to fetch "
             "the current files."
         )
+    # **And refuse if the reported totals moved while this run was downloading.**
+    # Codex found this at maximum reasoning effort, and it is the one hazard the release
+    # lock cannot see: the 2 pipelines take different locks on purpose, so a filings run
+    # can publish new figures in the ~90 seconds this one spends downloading. The
+    # comparison then holds — it was true against the figures that were live when it
+    # ran — while the pair a reader is shown is this run's rows beside figures nobody
+    # checked them against. Its reproduction: $90 of rows passed against a $100 figure
+    # covering through March, then a new figures snapshot extended the period through
+    # April and reported $105 against $110 of rows now inside it, wrong by $5 with every
+    # check green. Re-validating here cannot fix it, because the cutoff dates were
+    # applied during the parse and a moved cutoff needs the file read again. So the run
+    # stops and says so, which costs one re-run and cannot publish a mismatched pair.
+    live_filings_snapshot_id = db.scalar(
+        text("SELECT snapshot_id FROM cf_filing_current WHERE id = true")
+    )
+    checked_against = getattr(filings, "snapshot_id", None)
+    if live_filings_snapshot_id != checked_against:
+        raise CampaignFinanceRefusal(
+            "Refusing to publish: the reported-totals snapshot these rows were checked "
+            f"against ({checked_against}) is no longer the live one "
+            f"({live_filings_snapshot_id}), so a filings run published while this one "
+            "was downloading. The rows and the figures beside them would be a pair "
+            "nothing has compared. Re-run to check against what is actually published."
+        )
 
     inside_lock: dict[Dataset, Any] = {}
     if current is not None:
@@ -1894,6 +1938,7 @@ def publish(
         published_at=datetime.now(UTC),
         ingestion_run_id=ingestion_run_id,
         notes=notes,
+        filing_snapshot_id=checked_against,
     )
     db.add(release)
     db.flush()
