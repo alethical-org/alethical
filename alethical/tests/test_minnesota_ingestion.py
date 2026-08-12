@@ -25,6 +25,9 @@ from alethical.db.models import (
     Legislator,
     LegislatorServicePeriod,
     LegislatorStats,
+    RagChunk,
+    RagChunkEmbedding,
+    RagSectionDocument,
     SessionType,
     Sponsorship,
     SponsorshipRole,
@@ -43,6 +46,10 @@ from alethical.pipeline.minnesota import (
     parse_datetime,
     parse_section_blocks,
     select_current_bill_action,
+)
+from alethical.pipeline.rag_ingest import (
+    DEFAULT_RAG_MODEL,
+    build_rag_rows_for_bill_keys,
 )
 
 
@@ -1913,6 +1920,242 @@ def test_matching_second_fetch_corroborates_a_real_author_removal(
         assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
         assert refreshed.description == "Stored description."
         assert _bill_author_names(session, refreshed) == ["Author, First"]
+
+        session.rollback()
+
+
+def test_matching_section_drop_removes_current_canonical_and_search_rows(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1423: 2 matching lower section lists remove only current text and search."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        authors = [("500245", "Author, First")]
+
+        historical = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            version_codes=("0",),
+            section_texts=("Historical first.", "Historical second."),
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *historical, artifact_suffix="confirmed-section-history"
+        )
+        current = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            version_codes=("0", "1"),
+            section_texts=("Section kept.", "Section removed by the source."),
+        )
+        _store_refresh_payload(
+            pipeline, refs, *current, artifact_suffix="confirmed-section-current"
+        )
+        session.flush()
+
+        historical_version = session.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.version_code == "0",
+            )
+        )
+        current_version = session.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.version_code == "1",
+            )
+        )
+        assert historical_version is not None
+        assert current_version is not None
+        current_sections = session.scalars(
+            select(BillVersionSection)
+            .where(BillVersionSection.bill_version_id == current_version.id)
+            .order_by(BillVersionSection.source_order)
+        ).all()
+        removed_section = current_sections[1]
+
+        build_rag_rows_for_bill_keys(
+            session,
+            [bill.bill_key],
+            rag_model=DEFAULT_RAG_MODEL,
+            rag_embedding_batch_size=8,
+        )
+        session.flush()
+        removed_document = session.scalar(
+            select(RagSectionDocument).where(
+                RagSectionDocument.bill_version_section_id == removed_section.id
+            )
+        )
+        assert removed_document is not None
+        removed_chunk_ids = session.scalars(
+            select(RagChunk.id).where(
+                RagChunk.rag_section_document_id == removed_document.id
+            )
+        ).all()
+        removed_embedding_ids = session.scalars(
+            select(RagChunkEmbedding.id).where(
+                RagChunkEmbedding.rag_chunk_id.in_(removed_chunk_ids)
+            )
+        ).all()
+        assert removed_chunk_ids
+        assert removed_embedding_ids
+
+        accepted_refresh = session.begin_nested()
+        confirmed = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            version_codes=("0", "1"),
+            section_texts=("Section kept.",),
+        )
+        fetched = _mock_bill_fetches(monkeypatch, [confirmed, confirmed])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        build_rag_rows_for_bill_keys(
+            session,
+            result["text_changed_bill_keys"],
+            rag_model=DEFAULT_RAG_MODEL,
+            rag_embedding_batch_size=8,
+        )
+        session.flush()
+
+        assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
+        assert result["text_changed_bill_keys"] == [bill.bill_key]
+        assert [
+            section.raw_text
+            for section in session.scalars(
+                select(BillVersionSection)
+                .where(BillVersionSection.bill_version_id == current_version.id)
+                .order_by(BillVersionSection.source_order)
+            ).all()
+        ] == ["Section kept."]
+        assert [
+            section.raw_text
+            for section in session.scalars(
+                select(BillVersionSection)
+                .where(BillVersionSection.bill_version_id == historical_version.id)
+                .order_by(BillVersionSection.source_order)
+            ).all()
+        ] == ["Historical first.", "Historical second."]
+        assert session.get(BillVersionSection, removed_section.id) is None
+        assert session.get(RagSectionDocument, removed_document.id) is None
+        assert not session.scalars(
+            select(RagChunk).where(RagChunk.id.in_(removed_chunk_ids))
+        ).all()
+        assert not session.scalars(
+            select(RagChunkEmbedding).where(
+                RagChunkEmbedding.id.in_(removed_embedding_ids)
+            )
+        ).all()
+        stored_chunks = session.scalars(
+            select(RagChunk.chunk_text)
+            .join(
+                RagSectionDocument,
+                RagSectionDocument.id == RagChunk.rag_section_document_id,
+            )
+            .where(RagSectionDocument.bill_version_id == current_version.id)
+        ).all()
+        assert stored_chunks
+        assert "Section kept." in "\n".join(stored_chunks)
+        assert "Section removed by the source." not in "\n".join(stored_chunks)
+
+        accepted_refresh.rollback()
+        session.expire_all()
+        assert session.get(BillVersionSection, removed_section.id) is not None
+        assert session.get(RagSectionDocument, removed_document.id) is not None
+        assert len(
+            session.scalars(
+                select(RagChunk).where(RagChunk.id.in_(removed_chunk_ids))
+            ).all()
+        ) == len(removed_chunk_ids)
+        assert len(
+            session.scalars(
+                select(RagChunkEmbedding).where(
+                    RagChunkEmbedding.id.in_(removed_embedding_ids)
+                )
+            ).all()
+        ) == len(removed_embedding_ids)
+
+        session.rollback()
+
+
+def test_different_thin_section_fetches_preserve_canonical_and_search_rows(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1423: an uncertain section contraction cannot remove stored words."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        authors = [("500246", "Author, First")]
+        original = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            section_texts=("Section kept.", "Section that must survive uncertainty."),
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *original, artifact_suffix="uncertain-section-original"
+        )
+        session.flush()
+        build_rag_rows_for_bill_keys(
+            session,
+            [bill.bill_key],
+            rag_model=DEFAULT_RAG_MODEL,
+            rag_embedding_batch_size=8,
+        )
+        session.flush()
+
+        first_thin = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            section_texts=("Section kept.",),
+        )
+        different_thin = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            section_texts=("A different one-section response.",),
+        )
+        _mock_bill_fetches(monkeypatch, [first_thin, different_thin])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+
+        current_version = session.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.is_current.is_(True),
+            )
+        )
+        assert current_version is not None
+        stored_sections = session.scalars(
+            select(BillVersionSection.raw_text)
+            .where(BillVersionSection.bill_version_id == current_version.id)
+            .order_by(BillVersionSection.source_order)
+        ).all()
+        stored_chunks = session.scalars(
+            select(RagChunk.chunk_text)
+            .join(
+                RagSectionDocument,
+                RagSectionDocument.id == RagChunk.rag_section_document_id,
+            )
+            .where(RagSectionDocument.bill_version_id == current_version.id)
+        ).all()
+
+        assert result["bills_ingested"] == 0
+        assert result["bill_keys"] == []
+        assert result["text_changed_bill_keys"] == []
+        assert stored_sections == [
+            "Section kept.",
+            "Section that must survive uncertainty.",
+        ]
+        assert "Section that must survive uncertainty." in "\n".join(stored_chunks)
 
         session.rollback()
 

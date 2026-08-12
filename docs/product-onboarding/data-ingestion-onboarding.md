@@ -212,10 +212,13 @@ The future scheduled refresh
 post-retry signal into a GitHub issue. A blank description is non-destructive: it
 keeps the stored description, just as a blank parsed title keeps the stored title.
 
-One accepted-removal path is still unsafe: a twice-confirmed lower section list does not yet delete
-the absent stored section or its search rows
-([#1423](https://github.com/alethical-org/alethical/issues/1423)). The automatic schedule remains
-off until that separate fix ships.
+A twice-confirmed lower section list reconciles only the accepted current version
+([#1423](https://github.com/alethical-org/alethical/issues/1423)). Positions absent from that
+version are removed while every historical version remains unchanged. Because the database links
+do not delete dependents automatically, the importer explicitly removes each absent section's
+embedding, chunk and search-document rows before its canonical row. All of those writes share the
+bill refresh transaction, so a later search-build failure restores the old canonical and search
+rows together.
 
 ### Changed bill text and search rows publish together
 
