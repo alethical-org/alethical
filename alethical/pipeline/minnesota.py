@@ -288,7 +288,7 @@ class _CurrentStatusCandidate:
 
 
 def _action_datetime(action: dict[str, Any]) -> datetime | None:
-    value = action.get("action_at", action.get("action_date"))
+    value = action.get("action_at") or action.get("action_date")
     if isinstance(value, datetime):
         return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
     return parse_datetime(str(value)) if value else None
