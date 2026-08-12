@@ -1817,13 +1817,24 @@ _PASSAGE_PATTERNS = ("%bill was passed%", "%third reading passed%", "%repassed%"
 # Enacted-into-law signals, cumulative once they appear in the action history
 # (``current_status`` text alone is unreliable — a signed bill can carry a stale
 # or truncated status string, so the milestone is read from the actions).
-_ENACTED_PATTERNS = (
-    "%governor approval%",
-    "%governor's action approval%",
-    "%chapter number%",
-    "%secretary of state%",
-    "%effective date%",
+ENACTED_ACTION_TEXT_FRAGMENTS = (
+    "governor approval",
+    "governor's action approval",
+    "chapter number",
+    "secretary of state",
+    "effective date",
 )
+_ENACTED_PATTERNS = tuple(f"%{fragment}%" for fragment in ENACTED_ACTION_TEXT_FRAGMENTS)
+
+
+def bill_action_terminal_priority(action_text: str | None) -> int:
+    """Return the final milestone class shared by ingestion and status badges."""
+    normalized = (action_text or "").lower()
+    if "veto" in normalized:
+        return 2
+    if any(fragment in normalized for fragment in ENACTED_ACTION_TEXT_FRAGMENTS):
+        return 1
+    return 0
 
 
 def _bill_action_text_exists(patterns):

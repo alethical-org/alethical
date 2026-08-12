@@ -42,6 +42,7 @@ from alethical.pipeline.minnesota import (
     parse_bill_xml,
     parse_datetime,
     parse_section_blocks,
+    select_current_bill_action,
 )
 
 
@@ -822,6 +823,122 @@ def test_parse_datetime_handles_source_datetime_format() -> None:
     assert parse_datetime("not a date") is None
 
 
+def test_current_status_carries_an_undated_tail_inside_its_chamber() -> None:
+    selected = select_current_bill_action(
+        {
+            "house": [
+                {
+                    "action_number": "25",
+                    "action_text": "Author added",
+                    "action_date": "2026-05-12 00:00:00",
+                },
+                {
+                    "action_number": "26",
+                    "action_text": "Laid on table",
+                    "action_date": "",
+                },
+            ],
+            "senate": [
+                {
+                    "action_number": "7",
+                    "action_text": "Referred to",
+                    "action_date": "2026-05-11 00:00:00",
+                }
+            ],
+        }
+    )
+
+    assert selected is not None
+    assert selected["action_text"] == "Laid on table"
+
+
+def test_current_status_keeps_a_terminal_milestone() -> None:
+    selected = select_current_bill_action(
+        {
+            "house": [
+                {
+                    "action_number": "33",
+                    "action_text": "Governor approval",
+                    "action_date": "2026-05-16 00:00:00",
+                },
+                {
+                    "action_number": "34",
+                    "action_text": "Chapter number",
+                    "action_date": "",
+                },
+            ],
+            "senate": [
+                {
+                    "action_number": "12",
+                    "action_text": "Returned to the House",
+                    "action_date": "2026-05-17 00:00:00",
+                }
+            ],
+        }
+    )
+
+    assert selected is not None
+    assert selected["action_text"] == "Chapter number"
+
+
+def test_current_status_uses_source_block_order_for_same_day_ties() -> None:
+    selected = select_current_bill_action(
+        {
+            "house": [
+                {
+                    "action_number": "13",
+                    "action_text": "Author added",
+                    "action_date": "2025-04-02 00:00:00",
+                }
+            ],
+            "senate": [
+                {
+                    "action_number": "5",
+                    "action_text": "Second reading",
+                    "action_date": "2025-04-02 00:00:00",
+                },
+                {
+                    "action_number": "6",
+                    "action_text": "Rule 47, returned to",
+                    "action_date": "",
+                },
+            ],
+        }
+    )
+
+    assert selected is not None
+    assert selected["action_text"] == "Rule 47, returned to"
+
+
+def test_current_status_never_moves_backward_inside_a_chamber() -> None:
+    selected = select_current_bill_action(
+        {
+            "house": [
+                {
+                    "action_number": "13",
+                    "action_text": "Earlier source action",
+                    "action_date": "2026-02-27 00:00:00",
+                },
+                {
+                    "action_number": "14",
+                    "action_text": "Motion for reconsideration",
+                    "action_date": "2025-02-27 00:00:00",
+                },
+            ],
+            "senate": [
+                {
+                    "action_number": "8",
+                    "action_text": "Senate action",
+                    "action_date": "2025-12-01 00:00:00",
+                }
+            ],
+        }
+    )
+
+    assert selected is not None
+    assert selected["action_text"] == "Motion for reconsideration"
+
+
 # A bill whose actions use the real source datetime format, including a
 # higher-numbered *undated* trailing action ("Laid on table") — the production
 # shape that left latest_action_at null even where dated actions existed (#328).
@@ -868,6 +985,78 @@ DATED_BILL_XML = """<?xml version="1.0"?>
   </TEXT_VERSION_LIST>
 </BILL>
 """
+
+
+# A faithful slice of HF 4138's source history. House and Senate each start
+# ACTION_NUMBER at 1, so House #25 is not later than Senate #7. Their dates are
+# what establish that the Senate action happened last (#1322).
+CROSS_CHAMBER_STATUS_XML = """<?xml version="1.0"?>
+<BILL>
+  <SESSION_NUMBER>94</SESSION_NUMBER>
+  <SESSION_YEAR>2026</SESSION_YEAR>
+  <FILE_TYPE>HF</FILE_TYPE>
+  <FILE_NUMBER>7778</FILE_NUMBER>
+  <REVISOR_NUMBER>26-7778</REVISOR_NUMBER>
+  <DESCRIPTION>Test cross-chamber status bill</DESCRIPTION>
+  <ACTIONS>
+    <house>
+      <ACTION>
+        <ACTION_NUMBER>25</ACTION_NUMBER>
+        <ACTION_TEXT>Author added</ACTION_TEXT>
+        <ACTION_DATE>2026-05-12 00:00:00</ACTION_DATE>
+      </ACTION>
+    </house>
+    <senate>
+      <ACTION>
+        <ACTION_NUMBER>7</ACTION_NUMBER>
+        <ACTION_TEXT>Third reading Passed as amended</ACTION_TEXT>
+        <ACTION_DATE>2026-05-15 00:00:00</ACTION_DATE>
+      </ACTION>
+    </senate>
+  </ACTIONS>
+  <TEXT_VERSION_LIST></TEXT_VERSION_LIST>
+</BILL>
+"""
+
+
+def test_upsert_bill_orders_actions_inside_each_chamber(seed_database: None) -> None:
+    """#1322: a larger House counter must not outrank a later Senate action."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical = parse_bill_xml(CROSS_CHAMBER_STATUS_XML)
+        run = pipeline.start_run("bill", canonical["bill_key"])
+        xml_artifact = pipeline.record_artifact(
+            run,
+            ArtifactType.xml,
+            "https://example.test/hf7778.xml",
+            CROSS_CHAMBER_STATUS_XML,
+        )
+        html_artifact = pipeline.record_artifact(
+            run,
+            ArtifactType.html,
+            "https://example.test/hf7778.html",
+            "<html></html>",
+        )
+
+        bill = pipeline.upsert_bill(
+            refs,
+            canonical,
+            {
+                "sections": [],
+                "articles": [],
+                "source_url": "https://example.test/hf7778.html",
+            },
+            run,
+            xml_artifact,
+            html_artifact,
+        )
+        session.flush()
+
+        assert bill.current_status == "Third reading Passed as amended"
+        assert bill.latest_action_at == datetime(2026, 5, 15, tzinfo=UTC)
+
+        session.rollback()
 
 
 def test_upsert_bill_populates_action_dates(seed_database: None) -> None:

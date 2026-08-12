@@ -18,6 +18,7 @@ if str(ROOT) not in sys.path:
 
 from alethical.db import models as schema  # noqa: E402
 from alethical.db.session import normalize_database_url  # noqa: E402
+from alethical.pipeline.minnesota import select_current_bill_action  # noqa: E402
 from alethical.pipeline.rag_ingest import FALLBACK_EMBEDDING_MODEL  # noqa: E402
 from alethical.pipeline.sessions import (  # noqa: E402
     CURRENT_SESSION_END_DATE,
@@ -384,16 +385,7 @@ def ingest_bill_payload(
     canonical = bill_payload["canonical_bill"]
     bill_text = bill_payload["bill_text"]
     chamber = refs["chambers"]["house" if canonical["file_type"] == "HF" else "senate"]
-    all_actions = [
-        action
-        for actions in canonical.get("actions", {}).values()
-        for action in actions
-    ]
-    latest_action = max(
-        all_actions,
-        key=lambda action: int(action.get("action_number") or 0),
-        default=None,
-    )
+    latest_action = select_current_bill_action(canonical.get("actions", {}))
 
     run = IngestionRun(
         adapter="prototype_bill_ingest",

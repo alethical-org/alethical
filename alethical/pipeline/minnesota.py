@@ -279,6 +279,90 @@ def parse_datetime(value: str | None) -> datetime | None:
     return None
 
 
+@dataclass(frozen=True)
+class _CurrentStatusCandidate:
+    action: dict[str, Any]
+    reached_at: datetime | None
+    chamber_index: int
+    terminal_priority: int
+
+
+def _action_datetime(action: dict[str, Any]) -> datetime | None:
+    value = action.get("action_at") or action.get("action_date")
+    if isinstance(value, datetime):
+        return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+    return parse_datetime(str(value)) if value else None
+
+
+def _candidate_order(candidate: _CurrentStatusCandidate) -> tuple[datetime, int]:
+    return (
+        candidate.reached_at or datetime.min.replace(tzinfo=UTC),
+        candidate.chamber_index,
+    )
+
+
+def select_current_bill_action(
+    actions_by_chamber: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any] | None:
+    """Select the bill's latest display action without mixing chamber counters.
+
+    Minnesota numbers House and Senate actions independently. Within a chamber,
+    that number is the source order. Across chambers, the newest date reached by
+    each chamber is the only shared clock. An undated tail therefore carries the
+    newest real date that precedes it in its own chamber, while the stored action
+    date remains empty. Same-day ties use the XML chamber-block order, never the
+    unrelated local action numbers.
+
+    Veto and enactment actions are cumulative final milestones. Once one exists,
+    a routine action cannot replace it as the display status. Veto keeps the same
+    priority over enactment used by the bill status badge.
+    """
+    chamber_tails: list[_CurrentStatusCandidate] = []
+    terminal_by_chamber: dict[tuple[int, int], _CurrentStatusCandidate] = {}
+
+    for chamber_index, actions in enumerate(actions_by_chamber.values()):
+        reached_at: datetime | None = None
+        tail: _CurrentStatusCandidate | None = None
+        ordered_actions = sorted(
+            enumerate(actions),
+            key=lambda item: (int(item[1].get("action_number") or 0), item[0]),
+        )
+        for _, action in ordered_actions:
+            action_at = _action_datetime(action)
+            if action_at is not None and (reached_at is None or action_at > reached_at):
+                reached_at = action_at
+            terminal_priority = schema.bill_action_terminal_priority(
+                str(action.get("action_text") or "")
+            )
+            candidate = _CurrentStatusCandidate(
+                action=action,
+                reached_at=reached_at,
+                chamber_index=chamber_index,
+                terminal_priority=terminal_priority,
+            )
+            tail = candidate
+            if terminal_priority:
+                terminal_by_chamber[(chamber_index, terminal_priority)] = candidate
+
+        if tail is not None:
+            chamber_tails.append(tail)
+
+    if terminal_by_chamber:
+        highest_priority = max(
+            candidate.terminal_priority for candidate in terminal_by_chamber.values()
+        )
+        candidates = [
+            candidate
+            for candidate in terminal_by_chamber.values()
+            if candidate.terminal_priority == highest_priority
+        ]
+    else:
+        candidates = chamber_tails
+
+    selected = max(candidates, key=_candidate_order, default=None)
+    return selected.action if selected is not None else None
+
+
 def extract_balanced_div(html_text: str, start_index: int) -> str:
     first_tag = DIV_TAG_RE.match(html_text, start_index)
     if first_tag is None or first_tag.group(0).startswith("</"):
@@ -2014,15 +2098,11 @@ class MinnesotaIngestionPipeline:
             for actions in canonical.get("actions", {}).values()
             for action in actions
         ]
-        latest_action = max(
-            all_actions,
-            key=lambda action: int(action.get("action_number") or 0),
-            default=None,
-        )
-        # latest_action_at is the newest *dated* action. The procedurally-last
-        # action (max action_number) is often undated (e.g. "Laid on table"), so
-        # keying off action_number would leave the timestamp null; take the max
-        # over the actions that actually carry a parseable date (#328).
+        latest_action = select_current_bill_action(canonical.get("actions", {}))
+        # latest_action_at is the newest *dated* action. The selected display
+        # action is often undated (e.g. "Laid on table"), so using its date would
+        # leave the timestamp null; take the max over actions that actually carry
+        # a parseable date (#328).
         action_dates = [
             parsed
             for action in all_actions
