@@ -815,6 +815,12 @@ calendars. Measured on 6 filers, one report type and one day, so **build the sta
 may not get**: a member whose release date we cannot obtain shows no date rather than a guessed one,
 which is the rule that already applied when the calendar was the source.
 
+**And there are two dateless cases, not one.** A report **not yet due** yields a date. A report
+**overdue** yields none — measured, and it never yields a stale one (§9.4) — and that filer is the one
+a reader is most likely to misread, because a blank where a date belongs reads as concealment. The
+honest line there is that the report is late, which §9.6's null `amendments` array lets a page know
+without a document request and without guessing. Wording for that case belongs to the money tab.
+
 **One legislator, several committees.** Minnesota registers a committee per office, so a person
 accumulates them: 17 sitting members tie to more than one, and 8 have 2 or more active in
 2025 or 2026 at once (measured 11 Aug 2026). So a confirmed link is one-to-many and carries
@@ -1070,20 +1076,26 @@ reports, `G` on filer 19259's, at 17,170, 17,644 and 19,750 bytes. So those 63 r
 and an earlier version of this paragraph called them a third cause of a missing prior figure. They are
 not. Pass through whatever type the catalogue names.
 
-**There are at least three soft-failure shapes, and two of them are not HTML.** The 30,424-byte HTML
-page above is one. These two are plain text at HTTP 200, 68 and 172 bytes:
+**There are five soft-failure shapes, all HTTP 200, and only one of them is HTML.** The 30,424-byte
+HTML page above is one. The rest:
 
-- `File requested has not been released.  Try back on 02/02/2027 at 8am` — the report exists and is
-  scheduled. Returned for a 2026 year-end on 5 of 6 filers tested.
+- `File requested has not been released.  Try back on 02/02/2027 at 8am` — plain text, 68 bytes. The
+  report exists and is scheduled. Returned for a 2026 year-end on 5 of 6 filers tested.
 - `The file requested has not been released.  Files are available at 8am following the due date.  If
-  you believe that this report should be available please contact the board.` — returned for
-  `period=C` on a filer whose 2026 pre-primary is type `G`, so **this is also what a wrong `period`
-  code looks like**: not an error, a polite plain-text no.
+  you believe that this report should be available please contact the board.` — plain text, 172 bytes,
+  returned for `period=C` on a filer whose 2026 pre-primary is type `G`, so **this is also what a
+  wrong `period` code looks like**: not an error, a polite plain-text no.
+- `Requested file not found.` — plain text. What an **overdue** report returns. Measured across every
+  2026 pre-primary report in a 1,707-report catalogue, cutoff 20 Jul and due 27 Jul, read 16 days
+  after the deadline: 97 served a real PDF, 2 gave this line (filers 18530 and 18767, unchanged when
+  retried at `amend=0`), and **0 returned a stale "try back on" a date already past**. That last count
+  is the one that matters, because a stale future-tense date would be worse than no date at all.
+- An **empty body**, 0 bytes, on one 2014 year-end.
 
-**That last one is the genuine third cause of a missing prior figure**, and it is worse than the one
-it replaced, because a check testing "is the body HTML" passes both of these as success. §9.4's
-`%PDF` rule catches all three, and it earned itself twice in one afternoon — the second time against a
-shape nobody had imagined.
+**The third of those is the genuine third cause of a missing prior figure**, and it is worse than the
+one it replaced, because **a check testing "is the body HTML" passes four of the five as success**, and
+one testing "did I get bytes back" passes four as well. §9.4's `%PDF` rule catches all five. It has now
+earned itself three times in two days, each time against a shape nobody had imagined.
 
 **And the same failure hands us a served release date, per filer, per report.** "Try back on
 02/02/2027" against a calendar due date of 1 Feb 2027, with the second variant stating the rule
@@ -1274,6 +1286,14 @@ flag).** The evidence:
 - **One call returns a filer's whole history, not the year you asked for.** A 2025-scoped request
   for filer 11880 comes back with 28 reports spanning 2009 to 2026, so 130 calls covered 1,707
   reports. Scope the year on the way out, never in the request.
+- **A null `amendments` array marks a report as never filed, and that is the cheap way to know a
+  report is late.** Every filed report carries at least `['0']`. 3 rows of 1,707 carry null instead:
+  the 2 filers whose 2026 pre-primary was 16 days overdue when it was measured, and one 2014
+  year-end. So "this report is late" is answerable from the same call that supplies `CutOffDate` and
+  `ReportType`, with no document request and none of §9.4's five soft failures to interpret. **2 for 2
+  on the current period and untested historically**: the 2014 row returns an empty body, and since
+  §9.4 establishes that documents are not served before 2023, that case cannot separate "never filed"
+  from "too old to serve". One known-late 2023 or 2024 report would settle it.
 - **Its report keys collide across filers, and the collision is silent.** Keying a collection on a
   report's own hash alone collapsed 130 filers to 29 and 1,707 reports to 57, with no error and no
   duplicate warning — a small number that reads as a small population. Key on `(filer, hash)`. This
@@ -1371,6 +1391,9 @@ Recorded as not run, never as passed:
   and all three serve real PDFs** (§9.4), so `period` passes the catalogue's `ReportType` through
   rather than choosing among three. What is still untested is whether the served release date behaves
   as "due date plus one" beyond the 6 filers, 1 report type and 1 day it was measured on.
+- **Whether a null `amendments` array means "never filed" outside the current period** (§9.6) is
+  untested. It is 2 for 2 on reports overdue today, and the one historical case cannot be separated
+  from §9.4's pre-2023 document boundary. One known-late 2023 or 2024 report settles it.
 - ~~**The computed itemized split against the filing's own stated split** (§7) reconciled on 2
   filer-years at full precision.~~ **Run since** (§9.4): for the 2025 sitting-legislator population
   in full — 208 of 209, one having no 2025 year-end report, of which 199 of 202 ordinary
